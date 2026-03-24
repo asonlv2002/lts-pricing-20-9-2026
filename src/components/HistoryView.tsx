@@ -36,6 +36,7 @@ export default function HistoryView() {
                 <th>Cấu trúc</th>
                 <th className="num">Số lượng</th>
                 <th className="num">Giá đề xuất</th>
+                <th className="num">Giá chốt</th>
                 <th>Thao tác</th>
               </tr>
             </thead>
@@ -48,6 +49,7 @@ export default function HistoryView() {
                   <td>{h.structure}</td>
                   <td className="num">{fmt(h.quantity)}</td>
                   <td className="num">{fmt(h.finalPrice)} đ</td>
+                  <td className="num">{h.chotGia ? `${fmt(h.chotGia)} đ` : '—'}</td>
                   <td>
                     <button className="btn btn-sm btn-outline" onClick={() => loadHistoryItem(h.id)}>Tải</button>
                     {' '}

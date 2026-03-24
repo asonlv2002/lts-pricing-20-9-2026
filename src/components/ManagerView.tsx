@@ -16,12 +16,8 @@ function fmtPercent(n: number) {
 function fmtM2(n: number) { return fmt(n, 4) + ' m²'; }
 
 export default function ManagerView() {
-  const { result, activeView, input, materials, constants, profitTable, setChotGiaForLatest } = useCalculatorStore();
-  const [chotGia, setChotGia] = React.useState('');
+  const { result, activeView, input, materials, constants, profitTable, setChotGiaForLatest, currentChotGia, setCurrentChotGia } = useCalculatorStore();
   const [selectedRollMat, setSelectedRollMat] = React.useState('');
-  React.useEffect(() => {
-    setChotGia('');
-  }, [result?.input.customer, result?.input.productName, result?.input.quantity]);
 
   if (activeView !== 'manager') return null;
 
@@ -79,11 +75,14 @@ export default function ManagerView() {
 
   const totalCommission = r.commissionPerUnit * rInput.quantity;
   const commissionPct = r.costPerUnit > 0 ? (r.commissionPerUnit / r.costPerUnit) : 0;
-  const chotGiaNum = Number(chotGia.replace(/[^\d.]/g, '')) || 0;
+  const chotGiaNum = currentChotGia || 0;
   const hasChotGia = chotGiaNum > 0;
   const shownPrice = hasChotGia ? chotGiaNum : r.finalPrice;
   const diff = hasChotGia ? chotGiaNum - r.finalPrice : 0;
-  const newCommissionPerUnit = Math.max(0, r.commissionPerUnit + diff);
+  const rawNewCommission = r.commissionPerUnit + diff;
+  const profitDropFromChot = rawNewCommission < 0 ? Math.abs(rawNewCommission) * rInput.quantity : 0;
+  const profitDropPct = rawNewCommission < 0 && r.profitAmount > 0 ? (profitDropFromChot / r.profitAmount) : 0;
+  const newCommissionPerUnit = Math.max(0, rawNewCommission);
   const doanhThuChot = shownPrice * rInput.quantity;
   const tongHoaHongChot = newCommissionPerUnit * rInput.quantity;
   const tongChiPhi = r.totalProductionCost + r.zipperTotal + r.tapeTotal + r.handleTotal + r.boxTotal + r.shippingTotal + (r.interestPerUnit * rInput.quantity);
@@ -269,8 +268,8 @@ export default function ManagerView() {
                   className="form-input"
                   placeholder="Nhập giá chốt..."
                   style={{borderColor: 'var(--green)'}}
-                  value={chotGia}
-                  onChange={(e) => setChotGia(e.target.value)}
+                  value={currentChotGia > 0 ? String(Math.round(currentChotGia)) : ''}
+                  onChange={(e) => setCurrentChotGia(Number(e.target.value.replace(/[^\d.]/g, '')) || 0)}
                 />
               </div>
               <button
@@ -286,9 +285,23 @@ export default function ManagerView() {
             </div>
             <div id="chotAnalysis">
               {hasChotGia ? (
-                <div className="info-box">
-                  <span className="icon">ℹ️</span>
-                  Giá chốt làm thay đổi lợi nhuận công ty còn {fmt(loiNhuanCongTyChot, 0)} đ ({fmtPercent(pctLoiNhuanCongTyChot)}) và hoa hồng {fmt(newCommissionPerUnit, 1)} đ/túi ({fmtPercent(commissionPctShown)}).
+                <div className={`chot-analysis ${diff >= 0 ? 'positive' : 'negative'}`}>
+                  <div className="chot-row">
+                    <span className="chot-label">{diff >= 0 ? '✅' : '⚠️'} Chênh lệch / túi</span>
+                    <span className="chot-value">{diff >= 0 ? '+' : ''}{fmt(diff, 1)} đ/túi</span>
+                  </div>
+                  <div className="chot-row" style={{fontWeight:700}}>
+                    <span className="chot-label">Doanh thu tổng</span>
+                    <span className="chot-value">{fmt(shownPrice)} đ/túi × {fmt(rInput.quantity)} túi = {fmt(doanhThuChot)} đ</span>
+                  </div>
+                  <div className="chot-row">
+                    <span className="chot-label">LN công ty ({fmtPercent(pctLoiNhuanCongTyChot)})</span>
+                    <span className="chot-value">{fmt(loiNhuanCongTyChot)} đ</span>
+                  </div>
+                  <div className="chot-row">
+                    <span className="chot-label">% Hoa hồng ({fmtPercent(commissionPctShown)})</span>
+                    <span className="chot-value">{fmt(tongHoaHongChot)} đ</span>
+                  </div>
                 </div>
               ) : null}
             </div>
@@ -301,6 +314,9 @@ export default function ManagerView() {
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
                   {fmt(hasChotGia ? loiNhuanCongTyChot : r.profitAmount)}đ <span style={{fontSize: '0.85rem'}}>({fmtPercent(hasChotGia ? pctLoiNhuanCongTyChot : r.profitRate)})</span>
                 </div>
+                {profitDropFromChot > 0 && (
+                  <div style={{color:'#d9534f', fontSize:'0.85rem', fontWeight:700, marginTop:'8px'}}>⚠️ Giảm {fmt(profitDropFromChot)} đ ({fmtPercent(profitDropPct)}) LN so với đề xuất</div>
+                )}
               </div>
               <div className="stat-card cyan">
                 <div className="stat-label">Doanh thu túi</div>
@@ -439,15 +455,6 @@ export default function ManagerView() {
             </div>
             <div className="table-responsive">
               <table className="moq-table" id="moq-roll-table">
-                <thead>
-                  <tr>
-                    <th>Cuộn (mật độ)</th>
-                    <th>Số lượng</th>
-                    <th>LN %</th>
-                    <th>Giá đề xuất</th>
-                    <th>Tổng DT</th>
-                  </tr>
-                </thead>
                 <tbody>
                   {!selectedCol || !selectedData || !selectedMat ? (
                     <tr>

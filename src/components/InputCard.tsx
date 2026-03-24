@@ -248,12 +248,14 @@ export default function InputCard() {
       alert('Chưa có kết quả để copy.');
       return;
     }
+    const fmtPct = (n: number) => parseFloat((n * 100).toFixed(2)) + '%';
     const text = [
       `${result.input.customer || 'N/A'} — ${result.input.productName || 'N/A'}`,
       `Cấu trúc: ${result.structureText} | Độ dày: ${result.totalThickness}mic`,
-      `SL: ${result.input.quantity.toLocaleString('vi-VN')} túi | KT: ${+(result.input.spreadWidth * 1000).toFixed(0)}×${+(result.input.cutStep * 1000).toFixed(0)} mm`,
+      `SL: ${result.input.quantity.toLocaleString('vi-VN')} túi | KT: ${+(result.input.spreadWidth * 1000).toFixed(0)}×${+(result.input.cutStep * 1000).toFixed(0)} mm²`,
       `GIÁ ĐỀ XUẤT: ${Math.round(result.finalPrice).toLocaleString('vi-VN')} đ/túi (chưa VAT)`,
-      `Giá vốn: ${result.costPerUnit.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} | LN: ${(result.profitRate * 100).toFixed(2)}%`,
+      `Giá vốn: ${result.costPerUnit.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} | LN: ${fmtPct(result.profitRate)} | DT: ${(result.revenue / 1000000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}tr`,
+      `Trục in: ${(result.cylinderCost / 1000000).toLocaleString('vi-VN', { maximumFractionDigits: 1 })}tr (riêng)`,
     ].join('\n');
     await navigator.clipboard.writeText(text);
   };
@@ -488,6 +490,18 @@ export default function InputCard() {
           className="btn btn-primary"
           id="btnCalculate"
           onClick={() => {
+            const isValid =
+              !!input.productType &&
+              (input.productType !== 'tui' || !!input.bagType) &&
+              (input.productType !== 'mang' || !!input.filmType) &&
+              (input.quantity || 0) > 0 &&
+              (input.spreadWidth || 0) > 0 &&
+              (input.cutStep || 0) > 0 &&
+              input.numColors !== null;
+            if (!isValid) {
+              alert('Vui lòng nhập đầy đủ thông tin đơn hàng.');
+              return;
+            }
             if (!result) {
               alert('Vui lòng nhập đầy đủ thông tin đơn hàng.');
               return;

@@ -16,6 +16,7 @@ export interface CalculatorState {
   density: 'compact' | 'comfortable' | 'spacious';
   theme: 'light' | 'dark';
   advancedOpen: boolean;
+  currentChotGia: number;
   history: Array<{
     id: string;
     date: string;
@@ -40,6 +41,7 @@ export interface CalculatorState {
   removeHistoryItem: (id: string) => void;
   loadHistoryItem: (id: string) => void;
   setChotGiaForLatest: (value: number) => void;
+  setCurrentChotGia: (value: number) => void;
   setMaterialParam: (id: string, partial: Partial<Material>) => void;
   setConstantParam: (key: keyof AppConstants, val: any) => void;
   recalculate: () => void;
@@ -99,6 +101,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => ({
   density: 'comfortable',
   theme: 'light',
   advancedOpen: false,
+  currentChotGia: 0,
   history: [],
 
   setActiveView: (v) => set({ activeView: v }),
@@ -146,6 +149,11 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => ({
       newInput.metallicSurcharge = ((newInput as any).hasNhu ? state.constants.nhuPrice : 0) 
         + ((newInput as any).hasMo ? state.constants.moPrice : 0);
 
+      // Auto-assign accessory weights from constants when checkbox is toggled
+      newInput.handleWeight = newInput.hasHandle ? state.constants.handleWeight : 0;
+      newInput.zipperWeight = newInput.hasZipper ? state.constants.zipperWeight : 0;
+      newInput.tapeWeight = newInput.hasTape ? state.constants.tapeWeight : 0;
+
       return { input: newInput, result: calculate(newInput, state.materials, state.constants, state.profitTable) };
     });
   },
@@ -153,6 +161,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => ({
     set((state) => ({
       input: { ...defaultInput },
       result: calculate(defaultInput, state.materials, state.constants, state.profitTable),
+      currentChotGia: 0,
     }));
   },
   addCurrentToHistory: () => {
@@ -167,9 +176,10 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => ({
         structure: state.result.structureText,
         quantity: state.input.quantity,
         finalPrice: state.result.finalPrice,
+        chotGia: state.currentChotGia || undefined,
         input: { ...state.input },
       };
-      const history = [item, ...state.history].slice(0, 200);
+      const history = [item, ...state.history].slice(0, 50);
       if (typeof window !== 'undefined') {
         window.localStorage.setItem('lts_history', JSON.stringify(history));
       }
@@ -192,6 +202,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => ({
       return {
         input: { ...item.input },
         result: calculate(item.input, state.materials, state.constants, state.profitTable),
+        currentChotGia: item.chotGia || 0,
         activeView: 'manager',
       };
     });
@@ -207,6 +218,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => ({
       return { history };
     });
   },
+  setCurrentChotGia: (value) => set({ currentChotGia: value }),
 
   setMaterialParam: (id, partial) => {
     set((state) => {
