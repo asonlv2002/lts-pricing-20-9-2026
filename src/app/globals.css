@@ -1563,7 +1563,7 @@ body {
 /* Override the old .header height-based px off-screen: 
    Now that header is fixed at 60px, update scrollable height calc */
 @media (min-width: 801px) {
-  html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page) .lts-shell-content {
+  html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page):not(.in-crm-page) .lts-shell-content {
     overflow: hidden;
   }
   html:not([data-layout="stacked"]):not([data-layout="bento"]) .lts-shell-content .main-grid > #inputCard,
@@ -2329,4 +2329,132 @@ body {
   padding: 14px 22px;
   border-top: 1px solid var(--border);
   background: var(--surface2);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SELLER MODULE
+═══════════════════════════════════════════════════════════ */
+
+.slr-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.slr-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.slr-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+
+.slr-card-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  min-width: 0;
+}
+
+.slr-info { flex: 1; min-width: 0; }
+
+.slr-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 4px;
+}
+
+.slr-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.slr-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.slr-join {
+  font-size: 0.72rem;
+  color: var(--dim);
+  margin-top: 4px;
+}
+
+.slr-card-stats {
+  display: flex;
+  gap: 20px;
+  flex-shrink: 0;
+  padding: 0 20px;
+  border-left: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+}
+
+.slr-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 70px;
+}
+
+.slr-stat-num {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.slr-stat-label {
+  font-size: 0.65rem;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-top: 3px;
+}
+
+.slr-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.slr-confirm-delete {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(220,38,38,0.06);
+  border: 1px solid rgba(220,38,38,0.2);
+  border-radius: 10px;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  color: var(--red);
+  font-weight: 600;
+}
+
+/* ── Fix: CRM modules cần overflow-y: auto không phải hidden ── */
+@media (min-width: 801px) {
+  html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page).in-crm-page .lts-shell-content {
+    overflow-y: auto !important;
+  }
+}
+
+/* Alternative: luôn cho phép scroll trong shell-content khi không phải calculator */
+.lts-shell-content:has(.crm-root) {
+  overflow-y: auto !important;
 }

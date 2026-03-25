@@ -2,15 +2,16 @@
 import React, { useState, useEffect } from 'react';
 import { useCalculatorStore } from '../../store/calculatorStore';
 import CustomerModule from '../CustomerModule';
+import SellerModule from '../SellerModule';
 import ConfigPage from '../ConfigPage';
 import {
-  Calculator, FileText, Users, Settings, Menu, Factory, Database, Printer
+  Calculator, FileText, Users, Settings, Menu, Factory, Database, Printer, Briefcase
 } from 'lucide-react';
 
 // ============================================================
 // MODULE DEFINITION
 // ============================================================
-type ModuleId = 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'settings';
+type ModuleId = 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings';
 
 interface MenuItem {
   id: ModuleId;
@@ -20,12 +21,13 @@ interface MenuItem {
 }
 
 const MENU_ITEMS: MenuItem[] = [
-  { id: 'calculator',   label: 'Tính giá Sản phẩm',  icon: <Calculator  size={20} />, roles: ['admin', 'sale', 'tech'] },
-  { id: 'quotations',   label: 'Danh sách Báo giá',   icon: <FileText    size={20} />, roles: ['admin', 'sale']         },
-  { id: 'history_db',   label: 'Lịch sử tính giá',    icon: <Database    size={20} />, roles: ['admin', 'sale']         },
-  { id: 'master_data',  label: 'Bảng định mức',        icon: <Factory     size={20} />, roles: ['admin', 'tech']         },
-  { id: 'customers',    label: 'Khách hàng',            icon: <Users       size={20} />, roles: ['admin', 'sale']         },
-  { id: 'settings',     label: 'Cài đặt hệ thống',     icon: <Settings    size={20} />, roles: ['admin']                 },
+  { id: 'calculator',  label: 'Tính giá Sản phẩm',  icon: <Calculator size={20} />, roles: ['admin', 'sale', 'tech'] },
+  { id: 'quotations',  label: 'Danh sách Báo giá',   icon: <FileText   size={20} />, roles: ['admin', 'sale']         },
+  { id: 'history_db',  label: 'Lịch sử tính giá',    icon: <Database   size={20} />, roles: ['admin', 'sale']         },
+  { id: 'master_data', label: 'Bảng định mức',        icon: <Factory    size={20} />, roles: ['admin', 'tech']         },
+  { id: 'customers',   label: 'Khách hàng (CRM)',     icon: <Users      size={20} />, roles: ['admin', 'sale']         },
+  { id: 'sellers',     label: 'Quản lý Seller',       icon: <Briefcase  size={20} />, roles: ['admin']                 },
+  { id: 'settings',    label: 'Cài đặt hệ thống',     icon: <Settings   size={20} />, roles: ['admin']                 },
 ];
 
 // ============================================================
@@ -112,7 +114,8 @@ const MODULE_TITLES: Record<ModuleId, string> = {
   quotations:  'Danh sách Báo giá',
   history_db:  'Lịch sử tính giá',
   master_data: 'Bảng định mức vật liệu',
-  customers:   'Quản lý Khách hàng',
+  customers:   'Quản lý Khách hàng (CRM)',
+  sellers:     'Quản lý Seller',
   settings:    'Cài đặt hệ thống',
 };
 
@@ -183,12 +186,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const { result } = useCalculatorStore();
 
-  // Sync class trên <html> để CSS overflow hoạt động đúng
+  // Sync class trên <html> để CSS overflow hoạt động đúng cho từng module
   useEffect(() => {
+    const html = document.documentElement;
+
+    // master_data cần scroll dọc (ConfigPage rất dài)
     if (activeModule === 'master_data') {
-      document.documentElement.classList.add('in-config-page');
+      html.classList.add('in-config-page');
     } else {
-      document.documentElement.classList.remove('in-config-page');
+      html.classList.remove('in-config-page');
+    }
+
+    // customers / sellers cần scroll dọc (danh sách dài)
+    if (activeModule === 'customers' || activeModule === 'sellers') {
+      html.classList.add('in-crm-page');
+    } else {
+      html.classList.remove('in-crm-page');
     }
   }, [activeModule]);
 
@@ -253,16 +266,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {/* ─── Calculator ─── */}
           {activeModule === 'calculator' && children}
 
-          {/* ─── Customers ─── */}
+          {/* ─── Customers (CRM) ─── */}
           {activeModule === 'customers' && (
             <CustomerModule role={role} currentSellerId="S1" />
           )}
 
+          {/* ─── Sellers management ─── */}
+          {activeModule === 'sellers' && <SellerModule />}
+
           {/* ─── Master data / Bảng định mức ─── */}
           {activeModule === 'master_data' && <ConfigPage />}
 
-          {/* ─── Other modules: placeholder until implemented ─── */}
-          {activeModule !== 'calculator' && activeModule !== 'customers' && activeModule !== 'master_data' && (
+          {/* ─── Other modules: placeholder ─── */}
+          {activeModule !== 'calculator' &&
+           activeModule !== 'customers' &&
+           activeModule !== 'sellers' &&
+           activeModule !== 'master_data' && (
             <ModulePlaceholder moduleId={activeModule} />
           )}
         </div>
