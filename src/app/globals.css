@@ -161,7 +161,7 @@ body {
 .tab.active { background: var(--accent); color: white; box-shadow: 0 2px 8px rgba(79,70,229,0.3); }
 
 /* ═══════════ LAYOUT ═══════════ */
-.container { max-width: 1500px; margin: 0 auto; padding: 20px; position: relative; z-index: 1; }
+.container { width: 100%; padding: 20px; position: relative; z-index: 1; }
 
 /* Layout: side-by-side (default) */
 .main-grid { display: grid; grid-template-columns: 370px 1fr; gap: 20px; align-items: start; }
@@ -2029,6 +2029,7 @@ body {
   border-radius: 14px;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
 }
 
 .crm-seller-card--unassigned {
@@ -2456,9 +2457,187 @@ body {
 
 /* Luôn cho phép scroll trong shell-content khi không phải calculator */
 .lts-shell-content:has(.crm-root),
+.lts-shell-content:has(.quote-root),
 .lts-shell-content--scroll {
   overflow-y: auto !important;
   overflow-x: hidden !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   QUOTATION MODULE
+═══════════════════════════════════════════════════════════ */
+
+.quote-root {
+  background: var(--bg);
+  min-height: 100%;
+}
+
+.quote-stats-overview {
+  display: flex;
+  gap: 16px;
+  padding: 16px 20px 0;
+  flex-wrap: wrap;
+}
+
+.quote-stat-card {
+  flex: 1;
+  min-width: 150px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.quote-stat-card--total {
+  background: linear-gradient(135deg, rgba(79,70,229,0.05) 0%, rgba(79,70,229,0.15) 100%);
+  border-color: rgba(79,70,229,0.3);
+}
+
+.quote-stat-val {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.quote-stat-lbl {
+  font-size: 0.75rem;
+  color: var(--dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.quote-list-container {
+  padding-top: 20px;
+}
+
+.quote-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.quote-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s, box-shadow 0.2s;
+  overflow: visible; /* Cho phép dropdown bung ra */
+  z-index: 1;
+}
+
+.quote-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  z-index: 2;
+}
+
+.quote-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.quote-id-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--dim);
+}
+
+.quote-id {
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.quote-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.quote-body {
+  padding: 18px;
+  flex: 1;
+}
+
+.quote-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+
+.quote-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.quote-meta-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.quote-price-box {
+  background: var(--bg);
+  border-radius: 10px;
+  padding: 12px;
+  text-align: right;
+  border: 1px solid var(--border);
+}
+
+.quote-price-label {
+  font-size: 0.7rem;
+  color: var(--dim);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.quote-price-value {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.quote-currency {
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.quote-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-top: 1px dashed var(--border);
 }
 
 /* ═══════════════════════════════════════════════════════════

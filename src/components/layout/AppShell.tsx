@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useCalculatorStore } from '../../store/calculatorStore';
 import CustomerModule from '../CustomerModule';
 import SellerModule from '../SellerModule';
+import QuotationModule from '../QuotationModule';
 import ConfigPage from '../ConfigPage';
 import {
   Calculator, FileText, Users, Settings, Menu, Factory,
@@ -75,13 +76,15 @@ function Sidebar({ activeModule, setActiveModule, role, setRole, isOpen, setIsOp
       >
         {/* Logo area */}
         <div className="lts-sidebar-logo">
-          <span className="lts-sidebar-brand">
-            LTS<span className="lts-brand-accent">PRICING</span>
-          </span>
+          {(isOpen || isMobile) ? (
+            <span className="lts-sidebar-brand">
+              LTS<span className="lts-brand-accent">PRICING</span>
+            </span>
+          ) : <span className="lts-sidebar-brand-mini">LTS</span>}
           <button
             className="lts-sidebar-toggle"
             onClick={() => setIsOpen(!isOpen)}
-            title="Đóng menu"
+            title={isOpen ? "Thu gọn menu" : "Mở menu"}
           >
             {isMobile ? <X size={20} /> : <Menu size={20} />}
           </button>
@@ -235,7 +238,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     } else {
       html.classList.remove('in-config-page');
     }
-    if (activeModule === 'customers' || activeModule === 'sellers') {
+    if (activeModule === 'customers' || activeModule === 'sellers' || activeModule === 'quotations') {
       html.classList.add('in-crm-page');
     } else {
       html.classList.remove('in-crm-page');
@@ -313,10 +316,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className={`lts-shell-content ${isScrollModule ? 'lts-shell-content--scroll' : ''}`}>
           {activeModule === 'calculator' && children}
+          {activeModule === 'quotations' && <QuotationModule role={role} currentSellerId="S1" />}
           {activeModule === 'customers' && <CustomerModule role={role} currentSellerId="S1" />}
           {activeModule === 'sellers'   && <SellerModule />}
           {activeModule === 'master_data' && <ConfigPage />}
+          
           {activeModule !== 'calculator' &&
+           activeModule !== 'quotations' &&
            activeModule !== 'customers' &&
            activeModule !== 'sellers' &&
            activeModule !== 'master_data' && (
