@@ -1,7 +1,6 @@
 "use client";
 import React, { useEffect } from 'react';
 import { useCalculatorStore } from '../store/calculatorStore';
-import Header from '../components/Header';
 import InputCard from '../components/InputCard';
 import ManagerView from '../components/ManagerView';
 import TechView from '../components/TechView';
@@ -156,8 +155,6 @@ export default function App() {
   return (
     <>
       <div className="toast-container" id="toastContainer"></div>
-      
-      <Header />
 
       {activeView !== 'config' ? (
         <div className="container">

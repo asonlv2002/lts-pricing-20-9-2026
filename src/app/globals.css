@@ -1350,3 +1350,268 @@ body {
   .card-body-collapsible { max-height: none !important; opacity: 1 !important; }
   .card-collapse-arrow { display: none !important; }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   APP SHELL — Sidebar + Topbar Layout
+═══════════════════════════════════════════════════════════ */
+.lts-shell {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ─── SIDEBAR ─── */
+.lts-sidebar {
+  background: #0f172a;
+  color: #94a3b8;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+  z-index: 200;
+  border-right: 1px solid rgba(255,255,255,0.04);
+}
+
+[data-theme="dark"] .lts-sidebar {
+  background: #080e1a;
+}
+
+.lts-sidebar-logo {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
+.lts-sidebar-brand {
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: #ffffff;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.lts-brand-accent {
+  color: #818cf8;
+}
+
+.lts-sidebar-toggle {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, color 0.2s;
+  flex-shrink: 0;
+}
+
+.lts-sidebar-toggle:hover {
+  background: rgba(255,255,255,0.07);
+  color: #ffffff;
+}
+
+/* Nav */
+.lts-sidebar-nav {
+  flex: 1;
+  padding: 12px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.lts-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 500;
+  text-align: left;
+  width: 100%;
+  transition: all 0.2s;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.lts-nav-item:hover {
+  background: rgba(255,255,255,0.06);
+  color: #e2e8f0;
+}
+
+.lts-nav-item.active {
+  background: #4f46e5;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(79,70,229,0.4);
+  font-weight: 600;
+}
+
+.lts-nav-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.lts-nav-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Footer role selector */
+.lts-sidebar-footer {
+  padding: 12px 8px 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  flex-shrink: 0;
+}
+
+.lts-role-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #475569;
+  margin-bottom: 6px;
+  padding-left: 4px;
+  white-space: nowrap;
+}
+
+.lts-role-select {
+  width: 100%;
+  background: #1e293b;
+  color: #e2e8f0;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: inherit;
+  font-size: 0.82rem;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.lts-role-select:focus {
+  border-color: #4f46e5;
+}
+
+.lts-role-select option {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+/* ─── MAIN AREA ─── */
+.lts-shell-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+
+/* ─── TOPBAR ─── */
+.lts-topbar {
+  height: 60px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
+  z-index: 100;
+}
+
+.lts-topbar-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lts-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ─── CONTENT AREA ─── */
+.lts-shell-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Override the old .header height-based px off-screen: 
+   Now that header is fixed at 60px, update scrollable height calc */
+@media (min-width: 801px) {
+  html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page) .lts-shell-content {
+    overflow: hidden;
+  }
+  html:not([data-layout="stacked"]):not([data-layout="bento"]) .lts-shell-content .main-grid > #inputCard,
+  html:not([data-layout="stacked"]):not([data-layout="bento"]) .lts-shell-content .main-grid > #resultArea {
+    height: calc(100vh - 60px - 40px); /* topbar(60) + container padding(20*2) */
+  }
+}
+
+/* ─── PLACEHOLDER for unimplemented modules ─── */
+.lts-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 400px;
+  color: var(--dim);
+  text-align: center;
+  gap: 12px;
+}
+
+.lts-placeholder-icon {
+  width: 52px;
+  height: 52px;
+  opacity: 0.25;
+}
+
+.lts-placeholder-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.lts-placeholder-desc {
+  font-size: 0.85rem;
+  color: var(--dim);
+}
+
+/* ─── Ensure old .header is hidden (now replaced by lts-topbar) ─── */
+.lts-shell .header {
+  display: none !important;
+}
+
+/* ─── Print: hide sidebar and topbar ─── */
+@media print {
+  .lts-sidebar,
+  .lts-topbar { display: none !important; }
+  .lts-shell { display: block; }
+  .lts-shell-main { display: block; }
+  .lts-shell-content { overflow: visible; }
+}
