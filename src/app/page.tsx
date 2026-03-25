@@ -9,7 +9,7 @@ import HistoryView from '../components/HistoryView';
 import ConfigPage from '../components/ConfigPage';
 
 export default function App() {
-  const { activeView, layoutType, density, theme, advancedOpen, materials, constants, profitTable } = useCalculatorStore();
+  const { activeView, layoutType, density, theme, advancedOpen, materials, constants, profitTable, result, setActiveView } = useCalculatorStore();
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -21,6 +21,13 @@ export default function App() {
       document.documentElement.classList.remove('in-config-page');
     }
   }, [theme, layoutType, density, activeView]);
+
+  // Khi kết quả tính toán tự động có giá trị hợp lệ, tự chuyển về tab manager
+  useEffect(() => {
+    if (result && activeView !== 'manager' && activeView !== 'config') {
+      setActiveView('manager');
+    }
+  }, [result]);
 
   useEffect(() => {
     try {

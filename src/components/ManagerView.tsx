@@ -25,8 +25,8 @@ export default function ManagerView() {
     return (
       <div className="empty-state" id="emptyState">
         <div className="icon">📦</div>
-        <p>Nhập thông tin đơn hàng và nhấn <strong>Tính Giá</strong> để xem kết quả</p>
-        <p style={{marginTop: '8px', fontSize: '0.78rem', color: 'var(--dim)'}}>Hoặc thay đổi bất kỳ thông số — kết quả sẽ tự động cập nhật</p>
+        <p>Nhập đầy đủ thông tin đơn hàng để xem kết quả tính giá</p>
+        <p style={{marginTop: '8px', fontSize: '0.78rem', color: 'var(--dim)'}}>Kết quả sẽ <strong>tự động cập nhật</strong> ngay khi bạn thay đổi bất kỳ thông số nào</p>
       </div>
     );
   }
