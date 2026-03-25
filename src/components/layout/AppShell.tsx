@@ -5,7 +5,8 @@ import CustomerModule from '../CustomerModule';
 import SellerModule from '../SellerModule';
 import ConfigPage from '../ConfigPage';
 import {
-  Calculator, FileText, Users, Settings, Menu, Factory, Database, Printer, Briefcase
+  Calculator, FileText, Users, Settings, Menu, Factory,
+  Database, Printer, Briefcase, X, ChevronRight
 } from 'lucide-react';
 
 // ============================================================
@@ -30,6 +31,16 @@ const MENU_ITEMS: MenuItem[] = [
   { id: 'settings',    label: 'Cài đặt hệ thống',     icon: <Settings   size={20} />, roles: ['admin']                 },
 ];
 
+const MODULE_TITLES: Record<ModuleId, string> = {
+  calculator:  'Tính giá Bao bì',
+  quotations:  'Danh sách Báo giá',
+  history_db:  'Lịch sử tính giá',
+  master_data: 'Bảng định mức vật liệu',
+  customers:   'Quản lý Khách hàng',
+  sellers:     'Quản lý Seller',
+  settings:    'Cài đặt hệ thống',
+};
+
 // ============================================================
 // SIDEBAR
 // ============================================================
@@ -38,97 +49,109 @@ interface SidebarProps {
   setActiveModule: (id: ModuleId) => void;
   role: string;
   setRole: (r: string) => void;
-  isOpen: boolean;
+  isOpen: boolean;        // desktop: collapsed/expanded | mobile: hidden/visible
   setIsOpen: (v: boolean) => void;
+  isMobile: boolean;
 }
 
-function Sidebar({ activeModule, setActiveModule, role, setRole, isOpen, setIsOpen }: SidebarProps) {
+function Sidebar({ activeModule, setActiveModule, role, setRole, isOpen, setIsOpen, isMobile }: SidebarProps) {
   const visibleMenu = MENU_ITEMS.filter(item => item.roles.includes(role));
 
+  const handleNav = (id: ModuleId) => {
+    setActiveModule(id);
+    if (isMobile) setIsOpen(false); // close drawer on mobile after nav
+  };
+
   return (
-    <aside
-      className="lts-sidebar"
-      style={{ width: isOpen ? '240px' : '72px' }}
-    >
-      {/* Logo area */}
-      <div className="lts-sidebar-logo">
-        {isOpen && (
+    <>
+      {/* Mobile overlay backdrop */}
+      {isMobile && isOpen && (
+        <div className="lts-sidebar-backdrop" onClick={() => setIsOpen(false)} />
+      )}
+
+      <aside
+        className={`lts-sidebar ${isMobile ? 'lts-sidebar--mobile' : ''} ${isMobile && !isOpen ? 'lts-sidebar--hidden' : ''}`}
+        style={!isMobile ? { width: isOpen ? '240px' : '72px' } : undefined}
+      >
+        {/* Logo area */}
+        <div className="lts-sidebar-logo">
           <span className="lts-sidebar-brand">
             LTS<span className="lts-brand-accent">PRICING</span>
           </span>
-        )}
-        <button
-          className="lts-sidebar-toggle"
-          onClick={() => setIsOpen(!isOpen)}
-          title={isOpen ? 'Thu gọn menu' : 'Mở rộng menu'}
-        >
-          <Menu size={20} />
-        </button>
-      </div>
-
-      {/* Navigation */}
-      <nav className="lts-sidebar-nav">
-        {visibleMenu.map((item) => (
           <button
-            key={item.id}
-            onClick={() => setActiveModule(item.id)}
-            className={`lts-nav-item ${activeModule === item.id ? 'active' : ''}`}
-            title={!isOpen ? item.label : undefined}
+            className="lts-sidebar-toggle"
+            onClick={() => setIsOpen(!isOpen)}
+            title="Đóng menu"
           >
-            <span className="lts-nav-icon">{item.icon}</span>
-            {isOpen && <span className="lts-nav-label">{item.label}</span>}
+            {isMobile ? <X size={20} /> : <Menu size={20} />}
           </button>
-        ))}
-      </nav>
+        </div>
 
-      {/* Role switcher */}
-      <div className="lts-sidebar-footer">
-        {isOpen && (
-          <div className="lts-role-label">Góc nhìn / Phân quyền</div>
-        )}
-        <select
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className="lts-role-select"
-          title="Chọn vai trò"
-        >
-          <option value="admin">👑 Quản trị (Admin)</option>
-          <option value="sale">💼 Kinh doanh (Sale)</option>
-          <option value="tech">⚙️ Kỹ thuật (Sản xuất)</option>
-        </select>
-      </div>
-    </aside>
+        {/* Navigation */}
+        <nav className="lts-sidebar-nav">
+          {visibleMenu.map((item) => (
+            <button
+              key={item.id}
+              onClick={() => handleNav(item.id)}
+              className={`lts-nav-item ${activeModule === item.id ? 'active' : ''}`}
+              title={!isOpen && !isMobile ? item.label : undefined}
+            >
+              <span className="lts-nav-icon">{item.icon}</span>
+              {(isOpen || isMobile) && <span className="lts-nav-label">{item.label}</span>}
+              {(isOpen || isMobile) && <ChevronRight size={14} className="lts-nav-chevron" />}
+            </button>
+          ))}
+        </nav>
+
+        {/* Role switcher */}
+        <div className="lts-sidebar-footer">
+          {(isOpen || isMobile) && (
+            <div className="lts-role-label">Góc nhìn / Phân quyền</div>
+          )}
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="lts-role-select"
+            title="Chọn vai trò"
+          >
+            <option value="admin">👑 Quản trị (Admin)</option>
+            <option value="sale">💼 Kinh doanh (Sale)</option>
+            <option value="tech">⚙️ Kỹ thuật (Sản xuất)</option>
+          </select>
+        </div>
+      </aside>
+    </>
   );
 }
 
 // ============================================================
-// TOP HEADER (per module)
+// TOP HEADER
 // ============================================================
 interface TopHeaderProps {
   activeModule: ModuleId;
   onExport: () => void;
+  onMenuToggle: () => void;
+  isMobile: boolean;
 }
 
-const MODULE_TITLES: Record<ModuleId, string> = {
-  calculator:  'Hệ thống Tính giá Bao bì Phức hợp',
-  quotations:  'Danh sách Báo giá',
-  history_db:  'Lịch sử tính giá',
-  master_data: 'Bảng định mức vật liệu',
-  customers:   'Quản lý Khách hàng (CRM)',
-  sellers:     'Quản lý Seller',
-  settings:    'Cài đặt hệ thống',
-};
-
-function TopHeader({ activeModule, onExport }: TopHeaderProps) {
+function TopHeader({ activeModule, onExport, onMenuToggle, isMobile }: TopHeaderProps) {
   const { theme, setTheme, layoutType, setLayoutType, density, setDensity, result } = useCalculatorStore();
 
   return (
     <header className="lts-topbar">
-      <h1 className="lts-topbar-title">{MODULE_TITLES[activeModule]}</h1>
+      {/* Mobile: hamburger | Desktop: title only */}
+      <div className="lts-topbar-left">
+        {isMobile && (
+          <button className="lts-topbar-menu-btn" onClick={onMenuToggle} aria-label="Menu">
+            <Menu size={22} />
+          </button>
+        )}
+        <h1 className="lts-topbar-title">{MODULE_TITLES[activeModule]}</h1>
+      </div>
 
       <div className="lts-topbar-actions">
-        {/* Layout toolbar – only for calculator */}
-        {activeModule === 'calculator' && (
+        {/* Layout/Density toolbar — desktop only, calculator only */}
+        {!isMobile && activeModule === 'calculator' && (
           <>
             <div className="toolbar-group" title="Bố cục">
               <button className={`toolbar-btn ${layoutType === 'default' ? 'active' : ''}`} onClick={() => setLayoutType('default')}>☰</button>
@@ -149,11 +172,15 @@ function TopHeader({ activeModule, onExport }: TopHeaderProps) {
           title="Chuyển đổi Sáng/Tối"
           onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         />
-        <button className="btn btn-sm btn-outline" onClick={() => window.print()}>
-          <Printer size={14} style={{ display: 'inline', marginRight: '4px' }} />
-          In
-        </button>
-        {result && (
+
+        {!isMobile && (
+          <button className="btn btn-sm btn-outline" onClick={() => window.print()}>
+            <Printer size={14} style={{ display: 'inline', marginRight: '4px' }} />
+            In
+          </button>
+        )}
+
+        {result && !isMobile && (
           <button className="btn btn-sm btn-outline" onClick={onExport}>
             📥 Xuất
           </button>
@@ -164,7 +191,7 @@ function TopHeader({ activeModule, onExport }: TopHeaderProps) {
 }
 
 // ============================================================
-// PLACEHOLDER for non-calculator modules
+// PLACEHOLDER
 // ============================================================
 function ModulePlaceholder({ moduleId }: { moduleId: ModuleId }) {
   return (
@@ -183,29 +210,43 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [activeModule, setActiveModule] = useState<ModuleId>('calculator');
   const [role, setRole] = useState('admin');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
 
   const { result } = useCalculatorStore();
 
-  // Sync class trên <html> để CSS overflow hoạt động đúng cho từng module
+  // Detect mobile on mount and resize
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      // On first load on mobile, close sidebar by default
+      if (mobile) setIsSidebarOpen(false);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  // Sync html classes for overflow control
   useEffect(() => {
     const html = document.documentElement;
-
-    // master_data cần scroll dọc (ConfigPage rất dài)
     if (activeModule === 'master_data') {
       html.classList.add('in-config-page');
     } else {
       html.classList.remove('in-config-page');
     }
-
-    // customers / sellers cần scroll dọc (danh sách dài)
     if (activeModule === 'customers' || activeModule === 'sellers') {
       html.classList.add('in-crm-page');
     } else {
       html.classList.remove('in-crm-page');
     }
-  }, [activeModule]);
+    // Mobile always needs scroll
+    if (isMobile) {
+      html.classList.add('in-crm-page');
+    }
+  }, [activeModule, isMobile]);
 
-  // Reuse the same export logic from the old Header
+  // Export handler
   const handleExport = () => {
     if (!result) return;
     const r = result;
@@ -248,8 +289,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     URL.revokeObjectURL(url);
   };
 
+  const isScrollModule = activeModule !== 'calculator' || isMobile;
+
   return (
-    <div className="lts-shell">
+    <div className={`lts-shell ${isMobile ? 'lts-shell--mobile' : ''}`}>
       <Sidebar
         activeModule={activeModule}
         setActiveModule={setActiveModule}
@@ -257,27 +300,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         setRole={setRole}
         isOpen={isSidebarOpen}
         setIsOpen={setIsSidebarOpen}
+        isMobile={isMobile}
       />
 
       <div className="lts-shell-main">
-        <TopHeader activeModule={activeModule} onExport={handleExport} />
+        <TopHeader
+          activeModule={activeModule}
+          onExport={handleExport}
+          onMenuToggle={() => setIsSidebarOpen(v => !v)}
+          isMobile={isMobile}
+        />
 
-        <div className="lts-shell-content">
-          {/* ─── Calculator ─── */}
+        <div className={`lts-shell-content ${isScrollModule ? 'lts-shell-content--scroll' : ''}`}>
           {activeModule === 'calculator' && children}
-
-          {/* ─── Customers (CRM) ─── */}
-          {activeModule === 'customers' && (
-            <CustomerModule role={role} currentSellerId="S1" />
-          )}
-
-          {/* ─── Sellers management ─── */}
-          {activeModule === 'sellers' && <SellerModule />}
-
-          {/* ─── Master data / Bảng định mức ─── */}
+          {activeModule === 'customers' && <CustomerModule role={role} currentSellerId="S1" />}
+          {activeModule === 'sellers'   && <SellerModule />}
           {activeModule === 'master_data' && <ConfigPage />}
-
-          {/* ─── Other modules: placeholder ─── */}
           {activeModule !== 'calculator' &&
            activeModule !== 'customers' &&
            activeModule !== 'sellers' &&

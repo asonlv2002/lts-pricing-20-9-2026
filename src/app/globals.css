@@ -2454,7 +2454,293 @@ body {
   }
 }
 
-/* Alternative: luôn cho phép scroll trong shell-content khi không phải calculator */
-.lts-shell-content:has(.crm-root) {
+/* Luôn cho phép scroll trong shell-content khi không phải calculator */
+.lts-shell-content:has(.crm-root),
+.lts-shell-content--scroll {
   overflow-y: auto !important;
+  overflow-x: hidden !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   MOBILE RESPONSIVE — AppShell
+═══════════════════════════════════════════════════════════ */
+
+/* ── Mobile Sidebar: drawer overlay ── */
+.lts-sidebar--mobile {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  height: 100dvh;
+  width: 280px !important;
+  z-index: 500;
+  transform: translateX(0);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 4px 0 24px rgba(0,0,0,0.4);
+}
+
+.lts-sidebar--hidden {
+  transform: translateX(-100%) !important;
+}
+
+/* Backdrop */
+.lts-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(2px);
+  z-index: 499;
+  animation: backdrop-in 0.2s ease;
+}
+
+@keyframes backdrop-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Mobile Sidebar: always show labels ── */
+.lts-sidebar--mobile .lts-nav-item {
+  justify-content: flex-start;
+}
+
+/* ── Topbar mobile ── */
+.lts-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.lts-topbar-menu-btn {
+  background: none;
+  border: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+.lts-topbar-menu-btn:hover { background: var(--surface2); }
+
+/* Chevron in nav items */
+.lts-nav-chevron {
+  margin-left: auto;
+  opacity: 0.35;
+  flex-shrink: 0;
+}
+.lts-nav-item.active .lts-nav-chevron { opacity: 0.7; }
+
+/* ── Mobile Shell ── */
+.lts-shell--mobile {
+  overflow: hidden;
+}
+
+.lts-shell--mobile .lts-shell-main {
+  width: 100%;
+}
+
+.lts-shell--mobile .lts-shell-content {
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Mobile: calculator stacks vertically ── */
+@media (max-width: 767px) {
+  /* Container */
+  .container {
+    padding: 10px !important;
+  }
+
+  /* Main grid: single column */
+  .main-grid {
+    grid-template-columns: 1fr !important;
+    grid-template-rows: auto auto !important;
+    height: auto !important;
+    gap: 12px;
+  }
+
+  /* Input card and result area: auto height on mobile */
+  #inputCard,
+  #resultArea {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  /* Cards don't need fixed height on mobile */
+  .card {
+    height: auto !important;
+  }
+
+  /* Topbar: tighter padding */
+  .lts-topbar {
+    padding: 0 12px;
+    height: 52px;
+  }
+
+  .lts-topbar-title {
+    font-size: 0.85rem;
+  }
+
+  /* CRM toolbar: stack on very small screens */
+  .crm-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .crm-toolbar-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .crm-search-box {
+    max-width: 100%;
+  }
+
+  /* CRM stats bar: hide label on very small */
+  .crm-stats-bar {
+    padding: 4px 10px;
+  }
+
+  .crm-stat-num { font-size: 1rem; }
+  .crm-stat-label { display: none; }
+  .crm-stat-divider { height: 20px; }
+
+  /* Admin tabs: make scrollable horizontally */
+  .crm-admin-tabs {
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 8px 12px 0;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .crm-admin-tab {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+
+  /* Customer list: horizontal scroll for table-like layout */
+  .crm-customer-list {
+    overflow-x: auto;
+  }
+
+  .crm-list-header,
+  .crm-customer-row {
+    min-width: 640px;
+  }
+
+  .crm-list {
+    padding: 10px 12px 20px;
+  }
+
+  /* Seller cards: vertical layout */
+  .slr-card {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+  }
+
+  .slr-card-left { width: 100%; }
+
+  .slr-card-stats {
+    border: none;
+    padding: 0;
+    border-top: 1px solid var(--border);
+    padding-top: 12px;
+    width: 100%;
+    justify-content: space-around;
+  }
+
+  .slr-card-actions {
+    width: 100%;
+    justify-content: flex-end;
+    border-top: 1px solid var(--border);
+    padding-top: 10px;
+  }
+
+  /* Config page: hide fixed TOC on mobile */
+  .config-page .manager-toc {
+    display: none !important;
+  }
+
+  .config-content {
+    padding-right: 0 !important;
+  }
+
+  .config-page-inner {
+    padding: 12px !important;
+  }
+
+  /* Tables: horizontal scroll */
+  .config-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Bottom navigation for mobile (future use) */
+  .lts-mobile-nav {
+    display: flex;
+  }
+}
+
+/* ── Mobile bottom navigation bar (alternative to drawer, opt-in later) ── */
+.lts-mobile-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 300;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+}
+
+/* Touch-friendly tap targets (mobile) */
+@media (max-width: 767px) {
+  .crm-btn-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .crm-btn {
+    padding: 10px 16px;
+  }
+
+  .lts-role-select {
+    font-size: 0.875rem;
+    padding: 10px;
+  }
+
+  /* Modal full-screen on mobile */
+  .crm-modal-overlay {
+    align-items: flex-end;
+  }
+
+  .crm-modal {
+    width: 100%;
+    max-width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: 90dvh;
+    overflow-y: auto;
+    animation: crm-modal-slide-up 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  @keyframes crm-modal-slide-up {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+
+  .crm-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* Toolbar groups: hide on mobile */
+  .toolbar-group { display: none; }
 }
