@@ -5,7 +5,6 @@ import InputCard from '../components/InputCard';
 import ManagerView from '../components/ManagerView';
 import TechView from '../components/TechView';
 import HistoryView from '../components/HistoryView';
-import ConfigPage from '../components/ConfigPage';
 
 export default function App() {
   const { activeView, layoutType, density, theme, advancedOpen, materials, constants, profitTable, result, setActiveView } = useCalculatorStore();
@@ -156,25 +155,19 @@ export default function App() {
     <>
       <div className="toast-container" id="toastContainer"></div>
 
-      {activeView !== 'config' ? (
-        <div className="container">
-          <div className="main-grid">
-            
-            {/* LEFT: INPUT FORM */}
-            <InputCard />
+      <div className="container">
+        <div className="main-grid">
+          {/* LEFT: INPUT FORM */}
+          <InputCard />
 
-            {/* RIGHT: RESULT PANELS */}
-            <div id="resultArea">
-              <ManagerView />
-              <TechView />
-              <HistoryView />
-            </div>
-
+          {/* RIGHT: RESULT PANELS */}
+          <div id="resultArea">
+            <ManagerView />
+            <TechView />
+            <HistoryView />
           </div>
         </div>
-      ) : (
-        <ConfigPage />
-      )}
+      </div>
     </>
   );
 }

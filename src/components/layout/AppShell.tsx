@@ -1,8 +1,10 @@
 "use client";
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCalculatorStore } from '../../store/calculatorStore';
+import CustomerModule from '../CustomerModule';
+import ConfigPage from '../ConfigPage';
 import {
-  Calculator, FileText, Users, Settings, Menu, Factory, Database, Printer, ChevronDown
+  Calculator, FileText, Users, Settings, Menu, Factory, Database, Printer
 } from 'lucide-react';
 
 // ============================================================
@@ -181,6 +183,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const { result } = useCalculatorStore();
 
+  // Sync class trên <html> để CSS overflow hoạt động đúng
+  useEffect(() => {
+    if (activeModule === 'master_data') {
+      document.documentElement.classList.add('in-config-page');
+    } else {
+      document.documentElement.classList.remove('in-config-page');
+    }
+  }, [activeModule]);
+
   // Reuse the same export logic from the old Header
   const handleExport = () => {
     if (!result) return;
@@ -239,11 +250,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <TopHeader activeModule={activeModule} onExport={handleExport} />
 
         <div className="lts-shell-content">
-          {/* ─── Calculator module: render the existing page children ─── */}
+          {/* ─── Calculator ─── */}
           {activeModule === 'calculator' && children}
 
+          {/* ─── Customers ─── */}
+          {activeModule === 'customers' && (
+            <CustomerModule role={role} currentSellerId="S1" />
+          )}
+
+          {/* ─── Master data / Bảng định mức ─── */}
+          {activeModule === 'master_data' && <ConfigPage />}
+
           {/* ─── Other modules: placeholder until implemented ─── */}
-          {activeModule !== 'calculator' && (
+          {activeModule !== 'calculator' && activeModule !== 'customers' && activeModule !== 'master_data' && (
             <ModulePlaceholder moduleId={activeModule} />
           )}
         </div>

@@ -4,10 +4,8 @@ import { useCalculatorStore } from '../store/calculatorStore';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE } from '../lib/data';
 
 export default function ConfigPage() {
-  const { activeView, materials, constants, profitTable, setMaterialParam, setConstantParam } = useCalculatorStore();
+  const { materials, constants, profitTable, setMaterialParam, setConstantParam } = useCalculatorStore();
   const [customerGroup, setCustomerGroup] = React.useState('other');
-
-  if (activeView !== 'config') return null;
 
   const offset = customerGroup === 'svlg' ? -0.03 : 0;
 
