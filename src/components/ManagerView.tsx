@@ -373,15 +373,16 @@ export default function ManagerView() {
                     let inputVL = row.meters + row.waste;
                     return (
                       <tr key={idx}>
-                        <td>{row.stage}</td><td>{row.mat}</td>
-                        <td className="num">{fmt(dWidth, 3)}</td>
-                        <td className="num">{fmt(dMeters, 0)}</td>
-                        <td className="num">{fmt(row.waste, 0)}</td>
-                        <td className="num highlight">{fmt(inputVL, 0)}</td>
-                        <td className="num">{fmt(row.cpsx, 0)}</td>
-                        <td className="num">{fmt(row.costCPSX, 0)}</td>
-                        <td className="num">{row.matPrice != null ? fmt(row.matPrice, 1) : '—'}</td>
-                        <td className="num">{row.costMat != null ? fmt(row.costMat, 0) : '—'}</td>
+                        <td data-label="Công đoạn">{row.stage}</td>
+                        <td data-label="Vật liệu">{row.mat}</td>
+                        <td className="num" data-label="Khổ (m)">{fmt(dWidth, 3)}</td>
+                        <td className="num" data-label="Thành phẩm (m)">{fmt(dMeters, 0)}</td>
+                        <td className="num" data-label="Phi hao">{fmt(row.waste, 0)}</td>
+                        <td className="num highlight" data-label="Đầu vào VL">{fmt(inputVL, 0)}</td>
+                        <td className="num" data-label="CPSX (đ/m²)">{fmt(row.cpsx, 0)}</td>
+                        <td className="num" data-label="Thành tiền CPSX">{fmt(row.costCPSX, 0)}</td>
+                        <td className="num" data-label="CP vật liệu (đ/m²)">{row.matPrice != null ? fmt(row.matPrice, 1) : '—'}</td>
+                        <td className="num" data-label="Thành tiền CPVL">{row.costMat != null ? fmt(row.costMat, 0) : '—'}</td>
                       </tr>
                     );
                   })}
@@ -421,17 +422,17 @@ export default function ManagerView() {
                     if (!res) return null;
                     return (
                       <tr key={qty} className={isCurrent ? 'moq-highlight' : ''}>
-                        <td style={{fontWeight: isCurrent ? 700 : 400}}>{fmt(qty)}</td>
-                        <td>{fmtPercent(res.profitRate)}</td>
-                        <td>{fmt(res.costPerUnit, 1)}</td>
-                        <td style={{fontWeight:700, color: isCurrent ? 'var(--accent)' : 'inherit'}}>{fmt(res.finalPrice, 0)}</td>
-                        <td>{fmt(res.finalPrice * qty / 1000000, 2)}tr</td>
+                        <td data-label="Số lượng" style={{fontWeight: isCurrent ? 700 : 400}}>{fmt(qty)}</td>
+                        <td data-label="LN %">{fmtPercent(res.profitRate)}</td>
+                        <td data-label="Giá vốn+LN/túi">{fmt(res.costPerUnit, 1)}</td>
+                        <td data-label="Giá đề xuất" style={{fontWeight:700, color: isCurrent ? 'var(--accent)' : 'inherit'}}>{fmt(res.finalPrice, 0)}</td>
+                        <td data-label="Tổng DT">{fmt(res.finalPrice * qty / 1000000, 2)}tr</td>
                         {matCols.map((col, ci) => {
                           const layerData = getLayerData(res, col);
                           const layerMeters = layerData ? layerData.meters + layerData.waste : 0;
                           const kg = calcKg(layerData?.material, layerMeters, layerData?.width || 0);
                           return (
-                            <td key={ci}>
+                            <td key={ci} data-label={col.name}>
                               {fmt(layerMeters, 0)} m<br/>
                               <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({fmt(kg, 1)} kg)</span>
                             </td>
@@ -487,7 +488,7 @@ export default function ManagerView() {
                       </tr>
                       {rollRows.map((row: any, idx: number) => (
                         <tr key={idx} className={row.isCurrent ? 'moq-highlight' : ''}>
-                          <td>
+                          <td data-label={isKgBase ? 'Khối lượng (kg)' : 'Chỉ số Cuộn'}>
                             {isKgBase ? (
                               <>
                                 <span style={{fontWeight:700}}>{fmt(row.levelVal)} kg</span><br />
@@ -500,20 +501,20 @@ export default function ManagerView() {
                               </>
                             )}
                           </td>
-                          <td style={{fontWeight: row.isCurrent ? 700 : 400}}>{fmt(row.estQty)}</td>
+                          <td data-label="SL túi" style={{fontWeight: row.isCurrent ? 700 : 400}}>{fmt(row.estQty)}</td>
                           {otherLayers.map((col: any, i: number) => {
                             const layerData = getLayerData(row.res, col);
                             const layerMeters = layerData ? layerData.meters + layerData.waste : 0;
                             const kg = calcKg(layerData?.material, layerMeters, layerData?.width || 0);
                             return (
-                              <td key={i}>
+                              <td data-label={col.name} key={i}>
                                 {fmt(layerMeters, 0)} m<br />
                                 <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({fmt(kg, 1)} kg)</span>
                               </td>
                             );
                           })}
-                          <td style={{fontWeight:700, color: row.isCurrent ? 'var(--accent)' : 'inherit'}}>{fmt(row.res.finalPrice, 0)}</td>
-                          <td>{fmt(row.res.finalPrice * row.estQty / 1000000, 2)}tr</td>
+                          <td data-label="Giá đề xuất" style={{fontWeight:700, color: row.isCurrent ? 'var(--accent)' : 'inherit'}}>{fmt(row.res.finalPrice, 0)}</td>
+                          <td data-label="Tổng DT">{fmt(row.res.finalPrice * row.estQty / 1000000, 2)}tr</td>
                         </tr>
                       ))}
                     </>
