@@ -33,12 +33,12 @@ const MENU_ITEMS: MenuItem[] = [
 ];
 
 const MODULE_TITLES: Record<ModuleId, string> = {
-  calculator:  'Tính giá Bao bì',
+  calculator:  'Tính giá Sản phẩm',
   quotations:  'Danh sách Báo giá',
   history_db:  'Lịch sử tính giá',
-  master_data: 'Bảng định mức vật liệu',
+  master_data: 'Bảng định mức chung',
   customers:   'Quản lý Khách hàng',
-  sellers:     'Quản lý Seller',
+  sellers:     'Báo cáo Nhân sự',
   settings:    'Cài đặt hệ thống',
 };
 
@@ -128,6 +128,64 @@ function Sidebar({ activeModule, setActiveModule, role, setRole, isOpen, setIsOp
 }
 
 // ============================================================
+// MOBILE FLOATING MENU
+// ============================================================
+function MobileFloatingMenu({ activeModule, setActiveModule, role, setRole }: any) {
+  const [isOpen, setIsOpen] = useState(false);
+  const activeItem = MENU_ITEMS.find(i => i.id === activeModule) || MENU_ITEMS[0];
+
+  return (
+    <>
+      {isOpen && <div className="lts-fab-backdrop" onClick={() => setIsOpen(false)} />}
+      
+      <div className={`lts-fab-container ${isOpen ? 'open' : ''}`}>
+        {isOpen && (
+          <div className="lts-fab-popup">
+            <div className="lts-fab-header">
+              <span>Chuyển tiếp phân hệ</span>
+              <button onClick={() => setIsOpen(false)}><X size={18} /></button>
+            </div>
+            
+            <div className="lts-fab-list">
+              {MENU_ITEMS.map(item => {
+                const isActive = item.id === activeModule;
+                // Only admin can see master_data and sellers
+                if (role !== 'admin' && (item.id === 'master_data' || item.id === 'sellers')) return null;
+                
+                return (
+                  <button 
+                    key={item.id}
+                    className={`lts-fab-item ${isActive ? 'active' : ''}`}
+                    onClick={() => { setActiveModule(item.id); setIsOpen(false); }}
+                  >
+                    <span className="lts-fab-icon-wrap">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="lts-fab-role">
+              <div className="lts-role-label">Chọn quyền xem:</div>
+              <select value={role} onChange={e => { setRole(e.target.value); setIsOpen(false); }} className="lts-role-select">
+                <option value="admin">👑 Quản trị (Admin)</option>
+                <option value="sale">💼 Kinh doanh (Sale)</option>
+                <option value="tech">⚙️ Kỹ thuật</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        <button className="lts-fab-trigger" onClick={() => setIsOpen(!isOpen)}>
+          <span className="lts-fab-icon-wrap">{activeItem.icon}</span>
+          <span className="lts-fab-label-below">{activeItem.label}</span>
+        </button>
+      </div>
+    </>
+  );
+}
+
+// ============================================================
 // TOP HEADER
 // ============================================================
 interface TopHeaderProps {
@@ -142,13 +200,8 @@ function TopHeader({ activeModule, onExport, onMenuToggle, isMobile }: TopHeader
 
   return (
     <header className="lts-topbar">
-      {/* Mobile: hamburger | Desktop: title only */}
+      {/* Mobile: title only | Desktop: title only */}
       <div className="lts-topbar-left">
-        {isMobile && (
-          <button className="lts-topbar-menu-btn" onClick={onMenuToggle} aria-label="Menu">
-            <Menu size={22} />
-          </button>
-        )}
         <h1 className="lts-topbar-title">{MODULE_TITLES[activeModule]}</h1>
       </div>
 
@@ -296,15 +349,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`lts-shell ${isMobile ? 'lts-shell--mobile' : ''}`}>
-      <Sidebar
-        activeModule={activeModule}
-        setActiveModule={setActiveModule}
-        role={role}
-        setRole={setRole}
-        isOpen={isSidebarOpen}
-        setIsOpen={setIsSidebarOpen}
-        isMobile={isMobile}
-      />
+      {!isMobile ? (
+        <Sidebar
+          activeModule={activeModule}
+          setActiveModule={setActiveModule}
+          role={role}
+          setRole={setRole}
+          isOpen={isSidebarOpen}
+          setIsOpen={setIsSidebarOpen}
+          isMobile={false}
+        />
+      ) : (
+        <MobileFloatingMenu
+          activeModule={activeModule}
+          setActiveModule={setActiveModule}
+          role={role}
+          setRole={setRole}
+        />
+      )}
 
       <div className="lts-shell-main">
         <TopHeader

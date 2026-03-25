@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useCalculatorStore } from '../store/calculatorStore';
 import InputCard from '../components/InputCard';
 import ManagerView from '../components/ManagerView';
@@ -8,6 +8,7 @@ import HistoryView from '../components/HistoryView';
 
 export default function App() {
   const { activeView, layoutType, density, theme, advancedOpen, materials, constants, profitTable, result, setActiveView } = useCalculatorStore();
+  const [mobileTab, setMobileTab] = useState<'input' | 'result'>('input');
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -155,17 +156,36 @@ export default function App() {
     <>
       <div className="toast-container" id="toastContainer"></div>
 
-      <div className="container">
+      <div className="container mobile-calc-container">
         <div className="main-grid">
           {/* LEFT: INPUT FORM */}
-          <InputCard />
+          <div className={`grid-col-input ${mobileTab === 'input' ? 'active' : ''}`}>
+            <InputCard />
+          </div>
 
           {/* RIGHT: RESULT PANELS */}
-          <div id="resultArea">
+          <div id="resultArea" className={`grid-col-result ${mobileTab === 'result' ? 'active' : ''}`}>
             <ManagerView />
             <TechView />
             <HistoryView />
           </div>
+        </div>
+
+        {/* MOBILE BOTTOM NAVIGATION */}
+        <div className="mobile-calc-nav">
+          <button 
+            className={`m-tab ${mobileTab === 'input' ? 'active' : ''}`} 
+            onClick={() => setMobileTab('input')}
+          >
+            📋 Nhập liệu
+          </button>
+          <button 
+            className={`m-tab ${mobileTab === 'result' ? 'active' : ''}`} 
+            onClick={() => setMobileTab('result')}
+          >
+            💰 Xem Kết quả
+            {result && <div className="m-tab-badge" />}
+          </button>
         </div>
       </div>
     </>
