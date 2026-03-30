@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CalculateInput, HistoryItem, Material, AppConstants, ProfitRow, CalculateResult } from '../lib/types';
+import { CalculateInput, HistoryItem, Material, AppConstants, ProfitRow, CalculateResult, QuoteStatus } from '../lib/types';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE } from '../lib/data';
 import { calculate } from '../lib/engine';
 
@@ -18,6 +18,9 @@ export interface CalculatorState {
   theme: 'light' | 'dark';
   advancedOpen: boolean;
   currentChotGia: number;
+  currentSellerId: string;    // id của user đang đăng nhập (tạm thời)
+  currentSellerName: string;  // tên hiển thị
+  isDirty: boolean;           // true khi form đã thay đổi nhưng chưa lưu vào history
   history: HistoryItem[];
 
   // Trạng thái đồng bộ server
@@ -29,6 +32,7 @@ export interface CalculatorState {
   setDensity: (v: 'compact' | 'comfortable' | 'spacious') => void;
   setTheme: (v: 'light' | 'dark') => void;
   setAdvancedOpen: (v: boolean) => void;
+  setCurrentSeller: (id: string, name: string) => void;
 
   setInput: (partial: Partial<CalculateInput>) => void;
   resetInput: () => void;
@@ -37,6 +41,7 @@ export interface CalculatorState {
   loadHistoryItem: (id: string) => void;
   setChotGiaForLatest: (value: number) => void;
   setCurrentChotGia: (value: number) => void;
+  updateQuoteStatus: (id: string, status: QuoteStatus) => void;
   setMaterialParam: (id: string, partial: Partial<Material>) => void;
   setConstantParam: (key: keyof AppConstants, val: any) => void;
   recalculate: () => void;
@@ -124,6 +129,9 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
     theme: 'light',
     advancedOpen: false,
     currentChotGia: 0,
+    currentSellerId: 'S1',
+    currentSellerName: 'Sale 1',
+    isDirty: false,
     // Khởi đầu rỗng — hydrate từ server hoặc localStorage khi page mount
     history: [],
     serverSyncStatus: 'idle',
@@ -134,6 +142,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
     setDensity: (v) => set({ density: v }),
     setTheme: (v) => set({ theme: v }),
     setAdvancedOpen: (v) => set({ advancedOpen: v }),
+    setCurrentSeller: (id, name) => set({ currentSellerId: id, currentSellerName: name }),
 
     setInput: (partial) => {
       set((state) => {
@@ -179,7 +188,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
         newInput.zipperWeight = newInput.hasZipper ? state.constants.zipperWeight : 0;
         newInput.tapeWeight = newInput.hasTape ? state.constants.tapeWeight : 0;
 
-        return { input: newInput, result: calculate(newInput, state.materials, state.constants, state.profitTable) };
+        return { input: newInput, result: calculate(newInput, state.materials, state.constants, state.profitTable), isDirty: true };
       });
     },
 
@@ -188,6 +197,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
         input: { ...defaultInput },
         result: calculate(defaultInput, state.materials, state.constants, state.profitTable),
         currentChotGia: 0,
+        isDirty: false,
       }));
     },
 
@@ -206,6 +216,8 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
           quantity: state.input.quantity,
           finalPrice: state.result.finalPrice,
           chotGia: state.currentChotGia || undefined,
+          sellerId: state.currentSellerId,
+          sellerName: state.currentSellerName,
           input: { ...state.input },
         };
         const history = [item, ...state.history].slice(0, 200);
@@ -222,7 +234,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
           body: JSON.stringify(item),
         }).catch(err => console.warn('[history] Server persist failed:', err));
 
-        return { history };
+        return { history, isDirty: false };
       });
     },
 
@@ -250,6 +262,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
           result: calculate(item.input, state.materials, state.constants, state.profitTable),
           currentChotGia: item.chotGia || 0,
           activeView: 'manager',
+          isDirty: false,
         };
       });
     },
@@ -276,6 +289,24 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
     },
 
     setCurrentChotGia: (value) => set({ currentChotGia: value }),
+
+    updateQuoteStatus: (id, status) => {
+      set((state) => {
+        const history = state.history.map(h =>
+          h.id === id ? { ...h, quoteStatus: status } : h
+        );
+        if (typeof window !== 'undefined') {
+          try { window.localStorage.setItem('lts_history', JSON.stringify(history)); } catch { /* quota */ }
+        }
+        // Fire-and-forget PATCH lên server khi có backend
+        fetch(`/api/history/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quoteStatus: status }),
+        }).catch(() => { /* offline ok */ });
+        return { history };
+      });
+    },
 
     // ── Config mutations (với debounced server persist) ────────────────────────
 

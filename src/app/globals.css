@@ -1555,6 +1555,114 @@ body {
   text-overflow: ellipsis;
 }
 
+/* ── Topbar left: title + nút Mới ── */
+.lts-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* Nút + Mới */
+.lts-new-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1.5px solid var(--accent);
+  background: rgba(79,70,229,0.07);
+  color: var(--accent);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  position: relative;
+  transition: background 0.15s, transform 0.1s;
+}
+.lts-new-btn:hover {
+  background: rgba(79,70,229,0.15);
+  transform: scale(1.03);
+}
+
+/* Chấm đỏ báo "chưa lưu" */
+.lts-dirty-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ef4444;
+  flex-shrink: 0;
+  animation: dirtypulse 1.8s ease-in-out infinite;
+}
+@keyframes dirtypulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+/* ── Confirm dialog ── */
+.lts-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.lts-confirm-dialog {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 32px 28px 24px;
+  max-width: 380px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  animation: slideUp 0.18s ease;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.lts-confirm-icon {
+  font-size: 2.2rem;
+  margin-bottom: 12px;
+}
+.lts-confirm-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+.lts-confirm-desc {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 22px;
+}
+.lts-confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.btn-danger {
+  background: #ef4444;
+  color: #fff;
+  border-color: #ef4444;
+}
+.btn-danger:hover {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
 .lts-topbar-actions {
   display: flex;
   align-items: center;
@@ -2653,6 +2761,202 @@ body {
   gap: 8px;
   padding: 12px 18px;
   border-top: 1px dashed var(--border);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   CARD STATUS DROPDOWN
+═══════════════════════════════════════════════════════════ */
+.qcard-status-dropdown-wrap {
+  position: relative;
+}
+
+/* chấm màu nhỏ kế bên label trong trigger */
+.qcard-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.qcard-status-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 12px;
+  border: 1.5px solid;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.qcard-status-trigger:hover {
+  opacity: 0.82;
+  transform: scale(1.03);
+}
+.qcard-status-trigger-icon {
+  display: flex;
+  align-items: center;
+}
+.qcard-status-trigger-caret {
+  font-size: 0.6rem;
+  opacity: 0.65;
+}
+
+.qcard-dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 99;
+}
+
+.qcard-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 100;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  min-width: 220px;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: dropdownIn 0.12s ease;
+}
+
+@keyframes dropdownIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.qcard-dropdown-item {
+  display: grid;
+  grid-template-columns: 8px 16px 1fr auto;
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 6px 8px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+  width: 100%;
+}
+.qcard-dropdown-item:hover {
+  background: var(--surface2);
+}
+.qcard-dropdown-item.active {
+  background: var(--surface2);
+}
+
+.qcard-dropdown-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  grid-row: 1;
+}
+.qcard-dropdown-icon {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  grid-row: 1;
+}
+.qcard-dropdown-label {
+  font-size: 0.79rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  grid-row: 1;
+}
+.qcard-dropdown-desc {
+  font-size: 0.69rem;
+  color: var(--dim);
+  grid-column: 2 / 5;
+  grid-row: 2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.qcard-dropdown-check {
+  color: var(--green);
+  font-weight: 900;
+  font-size: 0.82rem;
+  grid-column: 4;
+  grid-row: 1;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ADMIN SELLER GROUP
+═══════════════════════════════════════════════════════════ */
+.qgroup {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.qgroup-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 18px;
+  background: var(--surface2);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+  flex-wrap: wrap;
+}
+.qgroup-header:hover {
+  background: var(--surface);
+}
+
+.qgroup-icon {
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.qgroup-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+}
+.qgroup-count {
+  font-size: 0.76rem;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2px 10px;
+  font-weight: 600;
+}
+.qgroup-revenue {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--green);
+  background: rgba(5,150,105,0.08);
+  border-radius: 10px;
+  padding: 2px 10px;
+}
+.qgroup-chevron {
+  display: flex;
+  align-items: center;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+.qgroup .quote-grid {
+  padding: 0 16px 16px;
 }
 
 /* ═══════════════════════════════════════════════════════════
