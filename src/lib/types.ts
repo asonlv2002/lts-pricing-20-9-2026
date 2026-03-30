@@ -90,6 +90,40 @@ export interface CalculateInput {
   micOverrides?: Record<string, number>;
 }
 
+// ── Quote Status (luồng báo giá 5 bước) ──────────────────────────────────────
+export type QuoteStatus = 'drafted' | 'sent' | 'pending_approval' | 'approved' | 'completed';
+
+export const QUOTE_STATUS_CONFIG: Record<QuoteStatus, {
+  label: string;
+  shortLabel: string;
+  color: string;
+  bg: string;
+  step: number;
+  description: string;
+}> = {
+  drafted:          { label: 'Đã lập',      shortLabel: 'Đã lập',    color: '#6b7280', bg: 'rgba(107,114,128,0.1)', step: 1, description: 'Báo giá đã được lập' },
+  sent:             { label: 'Đã gửi',      shortLabel: 'Đã gửi',    color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  step: 2, description: 'Đã gửi cho khách hàng' },
+  pending_approval: { label: 'Chờ duyệt',   shortLabel: 'Chờ duyệt', color: '#d97706', bg: 'rgba(217,119,6,0.1)',   step: 3, description: 'Đang chờ phê duyệt nội bộ' },
+  approved:         { label: 'Đã duyệt',    shortLabel: 'Đã duyệt',  color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)',  step: 4, description: 'Admin đã duyệt báo giá' },
+  completed:        { label: 'Hoàn thành',  shortLabel: 'Xong',      color: '#059669', bg: 'rgba(5,150,105,0.1)',   step: 5, description: 'Khách hàng đã chốt' },
+};
+
+// ── History ───────────────────────────────────────────────────────────────────
+export interface HistoryItem {
+  id: string;
+  date: string;
+  customer: string;
+  productName: string;
+  structure: string;
+  quantity: number;
+  finalPrice: number;
+  chotGia?: number;
+  quoteStatus?: QuoteStatus;
+  sellerId?: string;       // id của sale đã tạo báo giá này
+  sellerName?: string;     // tên hiển thị (lưu cùng để không cần join)
+  input: CalculateInput;
+}
+
 export interface CalculateResult {
   input: CalculateInput;
   structureText: string;

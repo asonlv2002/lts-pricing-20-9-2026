@@ -4,10 +4,13 @@ import { useCalculatorStore } from '../store/calculatorStore';
 import InputCard from '../components/InputCard';
 import ManagerView from '../components/ManagerView';
 import TechView from '../components/TechView';
-import HistoryView from '../components/HistoryView';
 
 export default function App() {
-  const { activeView, layoutType, density, theme, advancedOpen, materials, constants, profitTable, result, setActiveView } = useCalculatorStore();
+  const {
+    activeView, layoutType, density, theme, advancedOpen,
+    materials, constants, profitTable, result,
+    setActiveView, loadHistoryFromServer, loadConfigFromServer,
+  } = useCalculatorStore();
   const [mobileTab, setMobileTab] = useState<'input' | 'result'>('input');
 
   useEffect(() => {
@@ -29,7 +32,9 @@ export default function App() {
   }, [result]);
 
   useEffect(() => {
+    // ── BƯỚC 1: Load localStorage ngay lập tức (fallback offline, sync) ───────
     try {
+      // UI prefs — chỉ lưu local, không cần server
       const uiRaw = window.localStorage.getItem('lts_ui_prefs');
       if (uiRaw) {
         const ui = JSON.parse(uiRaw) as {
@@ -46,13 +51,17 @@ export default function App() {
           advancedOpen: typeof ui.advancedOpen === 'boolean' ? ui.advancedOpen : s.advancedOpen,
         }));
       }
+
+      // History: load nhanh từ localStorage, server sẽ override sau
       const raw = window.localStorage.getItem('lts_history');
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           useCalculatorStore.setState({ history: parsed });
         }
       }
+
+      // Config cache: load tạm thời, server sẽ override với dữ liệu mới nhất
       const cfgRaw = window.localStorage.getItem('lts_material_config');
       if (cfgRaw) {
         const cfg = JSON.parse(cfgRaw) as {
@@ -102,10 +111,71 @@ export default function App() {
         useCalculatorStore.getState().recalculate();
       }
     } catch {
-      // ignore corrupt history
+      // Bỏ qua nếu localStorage bị hỏng
     }
-  }, []);
 
+    // ── BƯỚC 2: One-time migration — đẩy localStorage data lên server ─────────
+    // Chỉ chạy một lần, được đánh dấu bằng lts_migration_v1
+    const migrationDone = window.localStorage.getItem('lts_migration_v1');
+    if (!migrationDone) {
+      const lsHistory = (() => {
+        try {
+          const r = window.localStorage.getItem('lts_history');
+          return r ? JSON.parse(r) : null;
+        } catch { return null; }
+      })();
+      const lsConfig = (() => {
+        try {
+          const r = window.localStorage.getItem('lts_material_config');
+          return r ? JSON.parse(r) : null;
+        } catch { return null; }
+      })();
+
+      if (lsHistory || lsConfig) {
+        const payload: Record<string, unknown> = {};
+        if (Array.isArray(lsHistory) && lsHistory.length > 0) payload.history = lsHistory;
+        if (lsConfig?.materials?.length) payload.materials = lsConfig.materials;
+        if (lsConfig?.cpsx) {
+          payload.constants = {
+            ...lsConfig.cpsx,
+            ...(lsConfig.printWaste ? {
+              colorSetup: lsConfig.printWaste.colorSetup,
+              printWasteA: lsConfig.printWaste.A,
+              printWasteB: lsConfig.printWaste.B,
+              printWasteC: lsConfig.printWaste.C,
+              printWasteD: lsConfig.printWaste.D,
+            } : {}),
+          };
+        }
+        if (lsConfig?.profitTable?.length) payload.profitTable = lsConfig.profitTable;
+
+        fetch('/api/migrate', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-migrate-key': process.env.NEXT_PUBLIC_MIGRATE_SECRET ?? '',
+          },
+          body: JSON.stringify(payload),
+        })
+          .then(r => r.json())
+          .then((result) => {
+            if (result.success) {
+              window.localStorage.setItem('lts_migration_v1', 'done');
+              console.log('[migration] localStorage → server:', result.results);
+            }
+          })
+          .catch(err => console.warn('[migration] Failed:', err));
+      } else {
+        window.localStorage.setItem('lts_migration_v1', 'done');
+      }
+    }
+
+    // ── BƯỚC 3: Load dữ liệu authoritative từ server (async, override local) ──
+    loadHistoryFromServer();
+    loadConfigFromServer();
+  }, []); // chỉ chạy một lần khi mount
+
+  // ── Lưu UI prefs vào localStorage (không cần server) ──────────────────────
   useEffect(() => {
     window.localStorage.setItem(
       'lts_ui_prefs',
@@ -113,6 +183,7 @@ export default function App() {
     );
   }, [layoutType, density, theme, advancedOpen]);
 
+  // ── Lưu config cache vào localStorage (server đã xử lý, đây là offline cache) ──
   useEffect(() => {
     const data = {
       materials: materials.map((m) => ({
@@ -167,20 +238,19 @@ export default function App() {
           <div id="resultArea" className={`grid-col-result ${mobileTab === 'result' ? 'active' : ''}`}>
             <ManagerView />
             <TechView />
-            <HistoryView />
           </div>
         </div>
 
         {/* MOBILE BOTTOM NAVIGATION */}
         <div className="mobile-calc-nav">
-          <button 
-            className={`m-tab ${mobileTab === 'input' ? 'active' : ''}`} 
+          <button
+            className={`m-tab ${mobileTab === 'input' ? 'active' : ''}`}
             onClick={() => setMobileTab('input')}
           >
             📋 Nhập liệu
           </button>
-          <button 
-            className={`m-tab ${mobileTab === 'result' ? 'active' : ''}`} 
+          <button
+            className={`m-tab ${mobileTab === 'result' ? 'active' : ''}`}
             onClick={() => setMobileTab('result')}
           >
             💰 Xem Kết quả

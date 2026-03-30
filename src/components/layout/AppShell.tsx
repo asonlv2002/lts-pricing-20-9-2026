@@ -4,11 +4,19 @@ import { useCalculatorStore } from '../../store/calculatorStore';
 import CustomerModule from '../CustomerModule';
 import SellerModule from '../SellerModule';
 import QuotationModule from '../QuotationModule';
+import HistoryModule from '../HistoryModule';
 import ConfigPage from '../ConfigPage';
 import {
   Calculator, FileText, Users, Settings, Menu, Factory,
-  Database, Printer, Briefcase, X, ChevronRight
+  Database, Printer, Briefcase, X, ChevronRight, Plus
 } from 'lucide-react';
+
+// Map role → sellerId/sellerName tạm thời (sau này thay bằng auth thực)
+const ROLE_SELLER_MAP: Record<string, { id: string; name: string }> = {
+  admin: { id: 'admin', name: 'Quản trị viên' },
+  sale:  { id: 'S1',    name: 'Sale 1' },
+  tech:  { id: 'tech',  name: 'Kỹ thuật' },
+};
 
 // ============================================================
 // MODULE DEFINITION
@@ -196,14 +204,62 @@ interface TopHeaderProps {
 }
 
 function TopHeader({ activeModule, onExport, onMenuToggle, isMobile }: TopHeaderProps) {
-  const { theme, setTheme, layoutType, setLayoutType, density, setDensity, result } = useCalculatorStore();
+  const { theme, setTheme, layoutType, setLayoutType, density, setDensity, result, isDirty, resetInput } = useCalculatorStore();
+  const [showNewConfirm, setShowNewConfirm] = useState(false);
+
+  const handleNew = () => {
+    if (isDirty) {
+      setShowNewConfirm(true);
+    } else {
+      resetInput();
+    }
+  };
+
+  const confirmNew = () => {
+    resetInput();
+    setShowNewConfirm(false);
+  };
 
   return (
-    <header className="lts-topbar">
-      {/* Mobile: title only | Desktop: title only */}
-      <div className="lts-topbar-left">
-        <h1 className="lts-topbar-title">{MODULE_TITLES[activeModule]}</h1>
-      </div>
+    <>
+      {/* Confirm dialog — chưa lưu */}
+      {showNewConfirm && (
+        <div className="lts-confirm-backdrop" onClick={() => setShowNewConfirm(false)}>
+          <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
+            <div className="lts-confirm-icon">⚠️</div>
+            <h3 className="lts-confirm-title">Chưa lưu báo giá</h3>
+            <p className="lts-confirm-desc">
+              Bảng tính hiện tại có thay đổi chưa được lưu vào lịch sử.<br />
+              Tạo mới sẽ xóa toàn bộ dữ liệu đang nhập.
+            </p>
+            <div className="lts-confirm-actions">
+              <button className="btn btn-outline" onClick={() => setShowNewConfirm(false)}>
+                Quay lại
+              </button>
+              <button className="btn btn-danger" onClick={confirmNew}>
+                Tạo mới (không lưu)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <header className="lts-topbar">
+        <div className="lts-topbar-left">
+          <h1 className="lts-topbar-title">{MODULE_TITLES[activeModule]}</h1>
+          {/* Nút + Mới — chỉ hiện ở trang calculator */}
+          {activeModule === 'calculator' && (
+            <button
+              className="lts-new-btn"
+              onClick={handleNew}
+              title="Tạo bảng tính giá mới"
+            >
+              <Plus size={15} />
+              <span>Mới</span>
+              {isDirty && <span className="lts-dirty-dot" title="Có thay đổi chưa lưu" />}
+            </button>
+          )}
+        </div>
 
       <div className="lts-topbar-actions">
         {/* Layout/Density toolbar — desktop only, calculator only */}
@@ -243,6 +299,7 @@ function TopHeader({ activeModule, onExport, onMenuToggle, isMobile }: TopHeader
         )}
       </div>
     </header>
+    </>
   );
 }
 
@@ -263,12 +320,18 @@ function ModulePlaceholder({ moduleId }: { moduleId: ModuleId }) {
 // APP SHELL
 // ============================================================
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const [activeModule, setActiveModule] = useState<ModuleId>('calculator');
   const [role, setRole] = useState('admin');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
-  const { result } = useCalculatorStore();
+  const { result, activeModule, setActiveModule, setCurrentSeller } = useCalculatorStore();
+
+  // Sync role → sellerId/sellerName vào store mỗi khi đổi role
+  const handleSetRole = (r: string) => {
+    setRole(r);
+    const seller = ROLE_SELLER_MAP[r] ?? { id: r, name: r };
+    setCurrentSeller(seller.id, seller.name);
+  };
 
   // Detect mobile on mount and resize
   useEffect(() => {
@@ -345,7 +408,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     URL.revokeObjectURL(url);
   };
 
-  const isScrollModule = activeModule !== 'calculator' || isMobile;
+  const isScrollModule = true;
 
   return (
     <div className={`lts-shell ${isMobile ? 'lts-shell--mobile' : ''}`}>
@@ -354,7 +417,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           activeModule={activeModule}
           setActiveModule={setActiveModule}
           role={role}
-          setRole={setRole}
+          setRole={handleSetRole}
           isOpen={isSidebarOpen}
           setIsOpen={setIsSidebarOpen}
           isMobile={false}
@@ -364,7 +427,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           activeModule={activeModule}
           setActiveModule={setActiveModule}
           role={role}
-          setRole={setRole}
+          setRole={handleSetRole}
         />
       )}
 
@@ -378,13 +441,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className={`lts-shell-content ${isScrollModule ? 'lts-shell-content--scroll' : ''}`}>
           {activeModule === 'calculator' && children}
-          {activeModule === 'quotations' && <QuotationModule role={role} currentSellerId="S1" />}
-          {activeModule === 'customers' && <CustomerModule role={role} currentSellerId="S1" />}
-          {activeModule === 'sellers'   && <SellerModule />}
+          {activeModule === 'quotations'  && <QuotationModule role={role} />}
+          {activeModule === 'history_db'  && <HistoryModule onNavigate={setActiveModule} />}
+          {activeModule === 'customers'   && <CustomerModule role={role} currentSellerId="S1" />}
+          {activeModule === 'sellers'     && <SellerModule />}
           {activeModule === 'master_data' && <ConfigPage />}
-          
+
           {activeModule !== 'calculator' &&
            activeModule !== 'quotations' &&
+           activeModule !== 'history_db' &&
            activeModule !== 'customers' &&
            activeModule !== 'sellers' &&
            activeModule !== 'master_data' && (
