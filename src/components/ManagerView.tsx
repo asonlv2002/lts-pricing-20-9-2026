@@ -2,6 +2,7 @@
 import React from 'react';
 import { useCalculatorStore } from '../store/calculatorStore';
 import { calculate } from '../lib/engine';
+import type { OverrideRowKey, OverrideFields, OverrideTable } from '../lib/types';
 
 // Format helpers mirroring the original engine.js
 function fmt(n: number | null | undefined, decimals = 0): string {
@@ -15,8 +16,199 @@ function fmtPercent(n: number) {
 }
 function fmtM2(n: number) { return fmt(n, 4) + ' m²'; }
 
+// ── Overridable Cell (click-to-edit inline) ──────────────────────────────────
+function OverridableCell({ rowKey, field, sourceVal, overrideVal, canEdit, onSet, decimals = 0 }: {
+  rowKey: OverrideRowKey;
+  field: keyof OverrideFields;
+  sourceVal: number;
+  overrideVal: number | undefined;
+  canEdit: boolean;
+  onSet: (rk: OverrideRowKey, f: keyof OverrideFields, v: number | undefined) => void;
+  decimals?: number;
+}) {
+  const displayVal = overrideVal ?? sourceVal;
+  const isChanged = overrideVal !== undefined && Math.abs(overrideVal - sourceVal) > 0.001;
+  const [editing, setEditing] = React.useState(false);
+  const [tempVal, setTempVal] = React.useState('');
+
+  const commit = () => {
+    setEditing(false);
+    const parsed = parseFloat(tempVal);
+    if (isNaN(parsed) || Math.abs(parsed - sourceVal) < 0.001) {
+      onSet(rowKey, field, undefined); // revert
+    } else {
+      onSet(rowKey, field, parsed);
+    }
+  };
+
+  if (!canEdit) {
+    return (
+      <td className={`num ${isChanged ? 'override-changed' : ''}`}
+          title={isChanged ? `Gốc: ${fmt(sourceVal, decimals)}` : undefined}
+          data-label={field}>
+        {fmt(displayVal, decimals)}
+      </td>
+    );
+  }
+
+  return (
+    <td className={`num override-cell ${isChanged ? 'override-changed' : ''}`}
+        title={isChanged ? `Gốc: ${fmt(sourceVal, decimals)}` : undefined}
+        data-label={field}>
+      {editing ? (
+        <input className="override-input" type="number" step="any"
+          value={tempVal}
+          onChange={e => setTempVal(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+          autoFocus />
+      ) : (
+        <span className="override-display"
+          onClick={() => { setTempVal(String(Math.round(displayVal * 10000) / 10000)); setEditing(true); }}>
+          {fmt(displayVal, decimals)}
+          {canEdit && <span className="override-indicator"> ✎</span>}
+        </span>
+      )}
+    </td>
+  );
+}
+
+// ── Override Table Section ────────────────────────────────────────────────────
+interface UniRow {
+  rowKey: OverrideRowKey;
+  stage: string;
+  mat: string;
+  width: number;
+  meters: number;
+  waste: number;
+  cpsx: number;
+  costCPSX: number;
+  matPrice: number | null;
+  costMat: number | null;
+}
+
+function OverrideTableSection({ title, colorClass, uniRows, sourceOverrides, currentOverrides, canEdit, onSet, onSave, loadedHistoryId }: {
+  title: string;
+  colorClass: 'sale' | 'admin';
+  uniRows: UniRow[];
+  sourceOverrides: OverrideTable; // engine-resolved (sale) hoặc sale-resolved (admin)
+  currentOverrides: OverrideTable;
+  canEdit: boolean;
+  onSet: (rk: OverrideRowKey, f: keyof OverrideFields, v: number | undefined) => void;
+  onSave: (id: string) => void;
+  loadedHistoryId: string | null;
+}) {
+  // For each row, resolve value: currentOverride → sourceOverride → engine
+  const resolvedRows = uniRows.map(row => {
+    const rk = row.rowKey;
+    const src = sourceOverrides[rk] ?? {};
+    const cur = currentOverrides[rk] ?? {};
+
+    const width = cur.width ?? src.width ?? row.width;
+    const meters = cur.meters ?? src.meters ?? row.meters;
+    const waste = cur.waste ?? src.waste ?? row.waste;
+    const inputVL = cur.inputVL ?? src.inputVL ?? (row.meters + row.waste);
+    const matPrice = cur.matPrice ?? src.matPrice ?? row.matPrice;
+
+    // Source values for this table (what we compare against)
+    const srcWidth = src.width ?? row.width;
+    const srcMeters = src.meters ?? row.meters;
+    const srcWaste = src.waste ?? row.waste;
+    const srcInputVL = src.inputVL ?? (row.meters + row.waste);
+    const srcMatPrice = src.matPrice ?? row.matPrice;
+
+    // Recalculate derived columns
+    const costCPSX = row.cpsx * inputVL * width;
+    const costMat = matPrice != null ? matPrice * inputVL * width : null;
+
+    return {
+      ...row, width, meters, waste, inputVL, matPrice,
+      costCPSX, costMat,
+      srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice,
+    };
+  });
+
+  let totalCPSX = 0, totalCPVL = 0;
+  resolvedRows.forEach(r => {
+    totalCPSX += r.costCPSX;
+    if (r.costMat != null) totalCPVL += r.costMat;
+  });
+
+  return (
+    <div className={`override-section override-section--${colorClass}`}>
+      <div className="override-section-header">
+        <div className="override-section-title">
+          {colorClass === 'sale' ? '💼' : '👑'} {title}
+        </div>
+        {!canEdit && <span className="override-readonly-badge">Chỉ xem</span>}
+      </div>
+      <div className="table-responsive">
+        <table className="data-table">
+          <thead>
+            <tr>
+              <th>Công đoạn</th><th>Vật liệu</th>
+              <th className="num">Khổ (m)</th><th className="num">Thành phẩm (m)</th>
+              <th className="num">Phi hao</th><th className="num">Đầu vào VL</th>
+              <th className="num">CPSX (đ/m²)</th><th className="num">Thành tiền CPSX</th>
+              <th className="num">CP vật liệu (đ/m²)</th><th className="num">Thành tiền CPVL</th>
+            </tr>
+          </thead>
+          <tbody>
+            {resolvedRows.map((row) => (
+              <tr key={row.rowKey}>
+                <td data-label="Công đoạn">{row.stage}</td>
+                <td data-label="Vật liệu">{row.mat}</td>
+                <OverridableCell rowKey={row.rowKey} field="width" sourceVal={row.srcWidth}
+                  overrideVal={currentOverrides[row.rowKey]?.width} canEdit={canEdit} onSet={onSet} decimals={3} />
+                <OverridableCell rowKey={row.rowKey} field="meters" sourceVal={row.srcMeters}
+                  overrideVal={currentOverrides[row.rowKey]?.meters} canEdit={canEdit} onSet={onSet} decimals={0} />
+                <OverridableCell rowKey={row.rowKey} field="waste" sourceVal={row.srcWaste}
+                  overrideVal={currentOverrides[row.rowKey]?.waste} canEdit={canEdit} onSet={onSet} decimals={0} />
+                <OverridableCell rowKey={row.rowKey} field="inputVL" sourceVal={row.srcInputVL}
+                  overrideVal={currentOverrides[row.rowKey]?.inputVL} canEdit={canEdit} onSet={onSet} decimals={0} />
+                <td className="num" data-label="CPSX (đ/m²)">{fmt(row.cpsx, 0)}</td>
+                <td className="num" data-label="Thành tiền CPSX">{fmt(row.costCPSX, 0)}</td>
+                {row.matPrice != null ? (
+                  <OverridableCell rowKey={row.rowKey} field="matPrice" sourceVal={row.srcMatPrice ?? 0}
+                    overrideVal={currentOverrides[row.rowKey]?.matPrice} canEdit={canEdit && row.matPrice != null} onSet={onSet} decimals={1} />
+                ) : (
+                  <td className="num" data-label="CP vật liệu">—</td>
+                )}
+                <td className="num" data-label="Thành tiền CPVL">{row.costMat != null ? fmt(row.costMat, 0) : '—'}</td>
+              </tr>
+            ))}
+            <tr className="total-row">
+              <td colSpan={7}>TỔNG</td>
+              <td className="num">{fmt(totalCPSX, 0)}</td>
+              <td className="num"></td>
+              <td className="num">{fmt(totalCPVL, 0)}</td>
+            </tr>
+            <tr className="total-row" style={{ fontSize: '1.05em' }}>
+              <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
+              <td colSpan={3} className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>
+                {fmt(totalCPSX + totalCPVL, 0)} đ
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {canEdit && loadedHistoryId && (
+        <div className="override-save-row">
+          <button className="btn btn-sm btn-green" onClick={() => onSave(loadedHistoryId)}>
+            💾 Lưu thay đổi
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ManagerView() {
-  const { result, activeView, input, materials, constants, profitTable, setChotGiaForLatest, currentChotGia, setCurrentChotGia, addCurrentToHistory, setActiveModule } = useCalculatorStore();
+  const { result, activeView, input, materials, constants, profitTable, setChotGiaForLatest, currentChotGia, setCurrentChotGia, addCurrentToHistory, setActiveModule,
+    role, loadedHistoryId, history,
+    saleOverrides, adminOverrides, showSaleOverrides, showAdminOverrides,
+    setSaleOverride, setAdminOverride, setShowSaleOverrides, setShowAdminOverrides, persistOverrides,
+  } = useCalculatorStore();
   const [selectedRollMat, setSelectedRollMat] = React.useState('');
 
   if (activeView !== 'manager') return null;
@@ -91,13 +283,14 @@ export default function ManagerView() {
   const commissionPctShown = r.costPerUnit > 0 ? (newCommissionPerUnit / r.costPerUnit) : 0;
 
   // ── Unified production table rows ──
-  const uniRows: any[] = [];
+  const uniRows: UniRow[] = [];
   let totalCPSX = 0, totalCPVL = 0;
 
   const printInput = r.printMeters + r.printWaste;
   totalCPSX += r.printCostCPSX;
   totalCPVL += r.printCostMaterial;
   uniRows.push({
+    rowKey: 'print',
     stage: 'CPSX IN', mat: r.layers.print.material.name,
     width: r.printNLWidth, meters: r.printMeters, waste: r.printWaste,
     cpsx: r.printCPSX, costCPSX: r.printCostCPSX,
@@ -109,6 +302,7 @@ export default function ManagerView() {
       totalCPSX += lam.costCPSX;
       totalCPVL += lam.costMat;
       uniRows.push({
+        rowKey: `lam-${lam.layerNum}` as OverrideRowKey,
         stage: `GHÉP (Lớp ${lam.layerNum})`, mat: lam.material.name,
         width: lam.width, meters: lam.meters, waste: lam.waste,
         cpsx: constants.ghepCPSX, costCPSX: lam.costCPSX,
@@ -119,6 +313,7 @@ export default function ManagerView() {
 
   totalCPSX += r.cutCostCPSX;
   uniRows.push({
+    rowKey: 'cut',
     stage: 'CẮT', mat: '—',
     width: r.cutWidth, meters: r.cutMeters, waste: r.cutWaste,
     cpsx: r.cutCPSX, costCPSX: r.cutCostCPSX,
@@ -433,6 +628,63 @@ export default function ManagerView() {
               </table>
             </div>
           </div>
+
+          {/* ═══ SECTION: Override Toggle + Tables ═══ */}
+          {(() => {
+            const loadedItem = loadedHistoryId ? history.find(h => h.id === loadedHistoryId) : null;
+            const quoteStatus = loadedItem?.quoteStatus ?? 'drafted';
+            const canSaleEdit = role === 'sale' && quoteStatus === 'drafted';
+            const canAdminEdit = role === 'admin';
+            // Source for bảng Admin = sale-resolved values (engine overridden by sale)
+            const emptyOv: OverrideTable = {};
+
+            return (
+              <>
+                <div className="override-toggle-row">
+                  <button
+                    className={`override-toggle-btn sale ${showSaleOverrides ? 'active' : ''}`}
+                    onClick={() => setShowSaleOverrides(!showSaleOverrides)}
+                  >
+                    {showSaleOverrides ? '− Ẩn' : '＋'} Thay đổi từ Sale
+                  </button>
+                  <button
+                    className={`override-toggle-btn admin ${showAdminOverrides ? 'active' : ''}`}
+                    onClick={() => setShowAdminOverrides(!showAdminOverrides)}
+                  >
+                    {showAdminOverrides ? '− Ẩn' : '＋'} Thay đổi từ Admin
+                  </button>
+                </div>
+
+                {showSaleOverrides && (
+                  <OverrideTableSection
+                    title="Bảng thay đổi từ Sale"
+                    colorClass="sale"
+                    uniRows={uniRows}
+                    sourceOverrides={emptyOv}
+                    currentOverrides={saleOverrides}
+                    canEdit={canSaleEdit}
+                    onSet={setSaleOverride}
+                    onSave={persistOverrides}
+                    loadedHistoryId={loadedHistoryId}
+                  />
+                )}
+
+                {showAdminOverrides && (
+                  <OverrideTableSection
+                    title="Bảng thay đổi từ Admin"
+                    colorClass="admin"
+                    uniRows={uniRows}
+                    sourceOverrides={saleOverrides}
+                    currentOverrides={adminOverrides}
+                    canEdit={canAdminEdit}
+                    onSet={setAdminOverride}
+                    onSave={persistOverrides}
+                    loadedHistoryId={loadedHistoryId}
+                  />
+                )}
+              </>
+            );
+          })()}
 
           {/* ═══ SECTION: Bảng giá theo số lượng (MOQ) ═══ */}
           <div id="sect-moq" className="manager-section-anchor"></div>

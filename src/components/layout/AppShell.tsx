@@ -324,19 +324,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
-  const { result, activeModule, setActiveModule, setCurrentSeller } = useCalculatorStore();
+  const { result, activeModule, setActiveModule, setCurrentSeller, setRole: setStoreRole } = useCalculatorStore();
 
-  // Sync role → sellerId/sellerName vào store mỗi khi đổi role
+  // Sync role → sellerId/sellerName + store.role mỗi khi đổi role
   const handleSetRole = (r: string) => {
     setRole(r);
     const seller = ROLE_SELLER_MAP[r] ?? { id: r, name: r };
     setCurrentSeller(seller.id, seller.name);
+    setStoreRole(r);
   };
 
   // Sync initial role on mount (default role = 'admin' cần set vào store)
   useEffect(() => {
     const seller = ROLE_SELLER_MAP[role] ?? { id: role, name: role };
     setCurrentSeller(seller.id, seller.name);
+    setStoreRole(role);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Detect mobile on mount and resize

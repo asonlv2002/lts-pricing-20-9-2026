@@ -5,7 +5,7 @@ import {
   Send, ShieldCheck, PackageCheck, Eye, Users, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { useCalculatorStore } from '../store/calculatorStore';
-import type { HistoryItem, QuoteStatus } from '../lib/types';
+import type { HistoryItem, QuoteStatus, OverrideTable } from '../lib/types';
 import { QUOTE_STATUS_CONFIG } from '../lib/types';
 
 // ════════════════════════════════════════════════════════════
@@ -36,6 +36,41 @@ function isSentToAdmin(item: HistoryItem): boolean {
 }
 
 function fmt(n: number) { return n.toLocaleString('vi-VN'); }
+
+// ── Override diff helpers ────────────────────────────────────────────────────
+const ROW_KEY_LABELS: Record<string, string> = {
+  print: 'In', 'lam-2': 'Ghép L2', 'lam-3': 'Ghép L3',
+  'lam-4': 'Ghép L4', 'lam-5': 'Ghép L5', cut: 'Cắt',
+};
+const FIELD_LABELS: Record<string, string> = {
+  width: 'Khổ', meters: 'Thành phẩm', waste: 'Phi hao',
+  inputVL: 'Đầu vào VL', matPrice: 'CP vật liệu',
+};
+
+function countOverrides(ov?: OverrideTable): number {
+  if (!ov) return 0;
+  return Object.values(ov).reduce((s, r) => s + (r ? Object.keys(r).length : 0), 0);
+}
+
+function renderOverrideDiffs(ov: OverrideTable | undefined, groupClass: string, groupLabel: string) {
+  if (!ov) return null;
+  const entries = Object.entries(ov) as [string, Record<string, number>][];
+  if (entries.length === 0) return null;
+  return (
+    <>
+      <div className={`override-diff-group-title ${groupClass}`}>{groupLabel}</div>
+      {entries.map(([rk, fields]) =>
+        Object.entries(fields).map(([field, val]) => (
+          <div key={`${rk}-${field}`} className="override-diff-item">
+            <span className="diff-label">{ROW_KEY_LABELS[rk] || rk} · {FIELD_LABELS[field] || field}</span>
+            <span className="diff-arrow">→</span>
+            <span className="diff-new">{typeof val === 'number' ? val.toLocaleString('vi-VN') : val}</span>
+          </div>
+        ))
+      )}
+    </>
+  );
+}
 
 // ════════════════════════════════════════════════════════════
 // ADMIN STATUS DROPDOWN — chỉ cho phép chọn trong ADMIN_STEPS
@@ -164,6 +199,7 @@ function QuotationCard({ item, onClick, statusControl }: {
   onClick: () => void;
   statusControl: React.ReactNode;
 }) {
+  const [showDiff, setShowDiff] = useState(false);
   const spreadMm  = item.input.spreadWidth ? Math.round(item.input.spreadWidth * 1000) : 0;
   const cutMm     = item.input.cutStep     ? Math.round(item.input.cutStep     * 1000) : 0;
   const sizeStr   = spreadMm && cutMm ? `${spreadMm} × ${cutMm} mm` : '—';
@@ -171,6 +207,9 @@ function QuotationCard({ item, onClick, statusControl }: {
   const shownPrice = item.chotGia && item.chotGia > 0 ? item.chotGia : item.finalPrice;
   const diff      = item.chotGia && item.chotGia > 0 ? item.chotGia - item.finalPrice : 0;
   const diffPct   = diff !== 0 && item.finalPrice > 0 ? (diff / item.finalPrice) * 100 : 0;
+  const saleCount = countOverrides(item.saleOverrides);
+  const adminCount = countOverrides(item.adminOverrides);
+  const hasAnyOverrides = saleCount > 0 || adminCount > 0;
 
   return (
     <div className="quote-card" onClick={onClick} style={{ cursor: 'pointer' }}>
@@ -254,6 +293,23 @@ function QuotationCard({ item, onClick, statusControl }: {
           </div>
         </div>
       </div>
+
+      {/* Override diff button */}
+      {hasAnyOverrides && (
+        <>
+          <button className="override-diff-toggle"
+            onClick={(e) => { e.stopPropagation(); setShowDiff(!showDiff); }}>
+            {showDiff ? '▾ Ẩn thay đổi' : '▸ Xem thay đổi'}
+            <span className="override-diff-count">{saleCount} Sale / {adminCount} Admin</span>
+          </button>
+          {showDiff && (
+            <div className="override-diff-summary" onClick={e => e.stopPropagation()}>
+              {renderOverrideDiffs(item.saleOverrides, 'sale', '💼 Sale')}
+              {renderOverrideDiffs(item.adminOverrides, 'admin', '👑 Admin')}
+            </div>
+          )}
+        </>
+      )}
 
       <div className="quote-footer" style={{ justifyContent: 'center', color: 'var(--muted)', fontSize: '0.75rem', gap: 4 }}>
         <Eye size={12} />

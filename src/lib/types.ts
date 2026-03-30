@@ -108,6 +108,19 @@ export const QUOTE_STATUS_CONFIG: Record<QuoteStatus, {
   completed:        { label: 'Hoàn thành',  shortLabel: 'Xong',      color: '#059669', bg: 'rgba(5,150,105,0.1)',   step: 5, description: 'Khách hàng đã chốt' },
 };
 
+// ── Override Tables (Bảng 2 & 3 — Sale nhập / Admin nhập) ────────────────────
+export type OverrideRowKey = 'print' | 'lam-2' | 'lam-3' | 'lam-4' | 'lam-5' | 'cut';
+
+export interface OverrideFields {
+  width?: number;       // Khổ (m)
+  meters?: number;      // Thành phẩm (m)
+  waste?: number;       // Phi hao
+  inputVL?: number;     // Đầu vào VL
+  matPrice?: number;    // CP vật liệu (đ/m²)
+}
+
+export type OverrideTable = Partial<Record<OverrideRowKey, Partial<OverrideFields>>>;
+
 // ── History ───────────────────────────────────────────────────────────────────
 export interface HistoryItem {
   id: string;
@@ -121,6 +134,8 @@ export interface HistoryItem {
   quoteStatus?: QuoteStatus;
   sellerId?: string;       // id của sale đã tạo báo giá này
   sellerName?: string;     // tên hiển thị (lưu cùng để không cần join)
+  saleOverrides?: OverrideTable;   // Bảng (2) — Sale chỉnh sửa
+  adminOverrides?: OverrideTable;  // Bảng (3) — Admin chỉnh sửa
   input: CalculateInput;
 }
 

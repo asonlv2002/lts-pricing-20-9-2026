@@ -3623,3 +3623,229 @@ body {
     font-size: 0.75rem;
   }
 }
+
+/* ═══════════ OVERRIDE TABLE (Bảng Sale/Admin nhập) ═══════════ */
+
+.override-toggle-row {
+  display: flex;
+  gap: 10px;
+  margin: 14px 0;
+  flex-wrap: wrap;
+}
+.override-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  border: 1.5px dashed var(--border);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.override-toggle-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--surface2);
+}
+.override-toggle-btn.active {
+  border-style: solid;
+  color: var(--text);
+  background: var(--surface2);
+}
+.override-toggle-btn.active.sale { border-color: #3b82f6; color: #3b82f6; }
+.override-toggle-btn.active.admin { border-color: #d97706; color: #d97706; }
+
+.override-section {
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
+  background: var(--surface);
+  margin-bottom: 14px;
+  overflow: hidden;
+}
+.override-section--sale { border-left-color: #3b82f6; }
+.override-section--admin { border-left-color: #d97706; }
+
+.override-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+}
+.override-section-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.override-section--sale .override-section-title { color: #3b82f6; }
+.override-section--admin .override-section-title { color: #d97706; }
+
+.override-section .table-responsive { padding: 0; }
+.override-section .data-table { margin: 0; }
+
+/* Editable cells */
+.override-cell {
+  cursor: pointer;
+  position: relative;
+}
+.override-cell:hover {
+  background: rgba(59, 130, 246, 0.06) !important;
+}
+.override-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.15s;
+}
+.override-cell:hover .override-display {
+  border-bottom-color: var(--accent);
+}
+.override-indicator {
+  font-size: 0.7rem;
+  color: var(--muted);
+  opacity: 0.5;
+}
+
+/* Changed cells */
+.override-changed {
+  background: rgba(251, 191, 36, 0.12) !important;
+  position: relative;
+}
+.override-changed::after {
+  content: '';
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #d97706;
+}
+[data-theme="dark"] .override-changed {
+  background: rgba(251, 191, 36, 0.08) !important;
+}
+
+/* Inline input */
+.override-input {
+  width: 90px;
+  padding: 2px 6px;
+  border: 1.5px solid var(--accent);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-align: right;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+.override-input:focus {
+  border-color: var(--accent);
+}
+
+/* Save button row */
+.override-save-row {
+  display: flex;
+  justify-content: flex-end;
+  padding: 10px 16px;
+  gap: 8px;
+  border-top: 1px solid var(--border);
+}
+
+/* Total row highlight in override table */
+.override-section .total-row td {
+  font-weight: 700;
+}
+
+/* Read-only indicator */
+.override-readonly-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+/* ─── QuotationCard diff button ─── */
+.override-diff-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: calc(100% - 24px);
+  margin: 6px 12px;
+  padding: 6px 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.override-diff-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--surface2);
+}
+.override-diff-count {
+  font-size: 0.7rem;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--surface2);
+  color: var(--dim);
+}
+
+.override-diff-summary {
+  padding: 8px 14px 12px;
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.override-diff-group-title {
+  font-weight: 700;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin-top: 4px;
+  padding-bottom: 2px;
+}
+.override-diff-group-title.sale { color: #3b82f6; }
+.override-diff-group-title.admin { color: #d97706; }
+
+.override-diff-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text);
+  padding: 2px 0;
+}
+.override-diff-item .diff-label {
+  color: var(--muted);
+  min-width: 90px;
+}
+.override-diff-item .diff-arrow {
+  color: var(--dim);
+  font-size: 0.68rem;
+}
+.override-diff-item .diff-old {
+  text-decoration: line-through;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+.override-diff-item .diff-new {
+  font-weight: 700;
+  color: var(--accent);
+}
