@@ -1,0 +1,171 @@
+================================================================================
+                    HISTORYITEM LIFECYCLE ANALYSIS
+================================================================================
+
+1. INTERFACE DEFINITION
+   File: src/lib/types.ts (Lines 111-125)
+   
+   Fields:
+   - id: string (timestamp-based)
+   - date: string (localized dd/mm/yyyy)
+   - customer: string
+   - productName: string
+   - structure: string (material composition)
+   - quantity: number
+   - finalPrice: number (calculated)
+   - chotGia?: number (negotiated price, optional)
+   - quoteStatus?: QuoteStatus (drafted/sent/pending_approval/approved/completed)
+   - sellerId?: string
+   - sellerName?: string
+   - input: CalculateInput (full calculator parameters)
+
+2. CREATION - addCurrentToHistory()
+   File: src/store/calculatorStore.ts (Lines 206-240)
+   
+   Process:
+   - Creates HistoryItem with timestamp id
+   - Deep copies state.input
+   - Captures result.finalPrice, result.structureText
+   - Sets quoteStatus = 'drafted'
+   - Prepends to history array, keeps max 200
+   - Saves to localStorage immediately
+   - POST to /api/history (fire-and-forget)
+
+3. LOADING - loadHistoryItem()
+   File: src/store/calculatorStore.ts (Lines 257-269)
+   
+   Process:
+   - Finds item in state.history by id (no server call)
+   - Deep copies item.input to form
+   - Recalculates result with current config
+   - Restores chotGia
+   - Switches to calculator view
+
+4. DISPLAY - QuotationModule.tsx
+   File: src/components/QuotationModule.tsx
+   
+   QuotationCard (Lines 162-264):
+   - Shows date, status badge
+   - Displays customer, productName, structure
+   - Shows quantity, colors, size (from input)
+   - Shows proposed price (finalPrice) and chốt giá (chotGia)
+   - Calculates total value
+   
+   AdminView (Lines 303-408):
+   - Groups by sellerId/sellerName
+   - Filters status != 'drafted'
+   - Collapsible groups with stats
+   
+   SaleView (Lines 413-455):
+   - Filters by current seller
+   - Shows all statuses
+   
+   Status Controls:
+   - AdminStatusDropdown: pending_approval/approved/completed
+   - SaleStatusControl: drafted + "Gửi Admin" button
+
+5. API ROUTES
+   
+   GET /api/history
+   - File: src/app/api/history/route.ts:7-18
+   - Returns all HistoryItems
+   
+   POST /api/history
+   - File: src/app/api/history/route.ts:22-51
+   - Creates new item, idempotency check, keeps max 200
+   
+   DELETE /api/history/:id
+   - File: src/app/api/history/[id]/route.ts:11-34
+   - Removes item
+   
+   PATCH /api/history/:id
+   - File: src/app/api/history/[id]/route.ts:38-66
+   - Updates fields (protects id and input)
+   - Used for chotGia and quoteStatus updates
+
+6. DATABASE PERSISTENCE
+   File: src/lib/db.ts
+   
+   readHistory(): data/history.json or []
+   writeHistory(): data/history.json with atomic write + lock
+   
+   Write locking prevents concurrent corruption
+   Atomic write (.tmp then rename) prevents crash corruption
+
+7. LIFECYCLE FLOW
+   
+   User Input
+     ↓
+   addCurrentToHistory()
+     ├→ localStorage (sync)
+     └→ POST /api/history (async)
+     ↓
+   state.history updated
+     ↓
+   QuotationModule renders
+     ├→ AdminView (grouped by seller)
+     └→ SaleView (filtered by seller)
+     ↓
+   Click card → loadHistoryItem()
+     → restore input + recalculate
+     ↓
+   Edit form
+     → Save again → new HistoryItem
+     ↓
+   Status updates:
+     → updateQuoteStatus() → PATCH /api/history/:id
+     ↓
+   Price updates:
+     → setChotGiaForLatest() → PATCH /api/history/:id
+
+8. EXTENSION: ADD saleOverrides & adminOverrides
+   
+   Step 1: Add to HistoryItem (src/lib/types.ts:125)
+     saleOverrides?: Record<string, any>;
+     adminOverrides?: Record<string, any>;
+   
+   Step 2: Initialize in addCurrentToHistory
+     saleOverrides: undefined,
+     adminOverrides: undefined,
+   
+   Step 3: Add store actions
+     setSaleOverrides(id, overrides) - same pattern as setChotGiaForLatest
+     setAdminOverrides(id, overrides) - same pattern as setChotGiaForLatest
+   
+   Step 4: Display in QuotationCard
+     Show indicators if overrides present
+   
+   Step 5: API Already Supports
+     PATCH endpoint uses: const { id: _id, input: _input, ...safeUpdates } = body;
+     New fields automatically included!
+
+9. KEY PATTERNS
+   
+   Dual persistence: localStorage (sync) + Server (async)
+   Immutability: Spread operators only
+   Deep copy: Input copied on save/load
+   Guarded mutations: id and input protected in PATCH
+   Idempotent POST: Checks for duplicate id
+   Fire-and-forget: Server calls don't block
+   Recalculation: Result recalculated on load with current config
+
+10. FILES & LINE NUMBERS
+    
+    HistoryItem: src/lib/types.ts:111-125
+    addCurrentToHistory: src/store/calculatorStore.ts:206-240
+    loadHistoryItem: src/store/calculatorStore.ts:257-269
+    updateQuoteStatus: src/store/calculatorStore.ts:294-310
+    setChotGiaForLatest: src/store/calculatorStore.ts:271-290
+    removeHistoryItem: src/store/calculatorStore.ts:242-255
+    
+    QuotationCard: src/components/QuotationModule.tsx:162-264
+    AdminStatusDropdown: src/components/QuotationModule.tsx:43-91
+    SaleStatusControl: src/components/QuotationModule.tsx:99-157
+    AdminView: src/components/QuotationModule.tsx:303-408
+    SaleView: src/components/QuotationModule.tsx:413-455
+    StatsBar: src/components/QuotationModule.tsx:269-298
+    
+    GET/POST: src/app/api/history/route.ts:1-52
+    DELETE/PATCH: src/app/api/history/[id]/route.ts:1-67
+    DB: src/lib/db.ts:111-117
+

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CalculateInput, HistoryItem, Material, AppConstants, ProfitRow, CalculateResult, QuoteStatus } from '../lib/types';
+import { CalculateInput, HistoryItem, Material, AppConstants, ProfitRow, CalculateResult, QuoteStatus, OverrideTable, OverrideRowKey, OverrideFields } from '../lib/types';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE } from '../lib/data';
 import { calculate } from '../lib/engine';
 
@@ -22,6 +22,14 @@ export interface CalculatorState {
   currentSellerName: string;  // tên hiển thị
   isDirty: boolean;           // true khi form đã thay đổi nhưng chưa lưu vào history
   history: HistoryItem[];
+
+  // Override tables (Bảng 2 & 3)
+  saleOverrides: OverrideTable;
+  adminOverrides: OverrideTable;
+  showSaleOverrides: boolean;
+  showAdminOverrides: boolean;
+  loadedHistoryId: string | null;  // id của HistoryItem đang được load
+  role: string;                    // synced từ AppShell
 
   // Trạng thái đồng bộ server
   serverSyncStatus: 'idle' | 'syncing' | 'error';
@@ -52,6 +60,14 @@ export interface CalculatorState {
   persistMaterials: () => Promise<void>;
   persistConstants: () => Promise<void>;
   persistProfitTable: () => Promise<void>;
+
+  // Override actions
+  setSaleOverride: (rowKey: OverrideRowKey, field: keyof OverrideFields, value: number | undefined) => void;
+  setAdminOverride: (rowKey: OverrideRowKey, field: keyof OverrideFields, value: number | undefined) => void;
+  setShowSaleOverrides: (v: boolean) => void;
+  setShowAdminOverrides: (v: boolean) => void;
+  persistOverrides: (historyId: string) => void;
+  setRole: (r: string) => void;
 }
 
 // ── Debounce helper (tránh gọi API mỗi keystroke) ─────────────────────────────
@@ -136,6 +152,14 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
     history: [],
     serverSyncStatus: 'idle',
 
+    // Override tables
+    saleOverrides: {},
+    adminOverrides: {},
+    showSaleOverrides: false,
+    showAdminOverrides: false,
+    loadedHistoryId: null,
+    role: 'admin',
+
     setActiveView: (v) => set({ activeView: v }),
     setActiveModule: (v) => set({ activeModule: v }),
     setLayoutType: (v) => set({ layoutType: v }),
@@ -198,6 +222,11 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
         result: calculate(defaultInput, state.materials, state.constants, state.profitTable),
         currentChotGia: 0,
         isDirty: false,
+        saleOverrides: {},
+        adminOverrides: {},
+        showSaleOverrides: false,
+        showAdminOverrides: false,
+        loadedHistoryId: null,
       }));
     },
 
@@ -219,6 +248,8 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
           quoteStatus: 'drafted',       // Luôn bắt đầu ở trạng thái "Đã lập"
           sellerId: state.currentSellerId,
           sellerName: state.currentSellerName,
+          saleOverrides: Object.keys(state.saleOverrides).length > 0 ? state.saleOverrides : undefined,
+          adminOverrides: Object.keys(state.adminOverrides).length > 0 ? state.adminOverrides : undefined,
           input: { ...state.input },
         };
         const history = [item, ...state.history].slice(0, 200);
@@ -235,7 +266,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
           body: JSON.stringify(item),
         }).catch(err => console.warn('[history] Server persist failed:', err));
 
-        return { history, isDirty: false };
+        return { history, isDirty: false, loadedHistoryId: item.id };
       });
     },
 
@@ -258,12 +289,19 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
       set((state) => {
         const item = state.history.find((h) => h.id === id);
         if (!item) return state;
+        const hasSaleOv = !!item.saleOverrides && Object.keys(item.saleOverrides).length > 0;
+        const hasAdminOv = !!item.adminOverrides && Object.keys(item.adminOverrides).length > 0;
         return {
           input: { ...item.input },
           result: calculate(item.input, state.materials, state.constants, state.profitTable),
           currentChotGia: item.chotGia || 0,
           activeView: 'manager',
           isDirty: false,
+          loadedHistoryId: item.id,
+          saleOverrides: item.saleOverrides ?? {},
+          adminOverrides: item.adminOverrides ?? {},
+          showSaleOverrides: hasSaleOv,
+          showAdminOverrides: hasAdminOv,
         };
       });
     },
@@ -332,6 +370,62 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
 
     recalculate: () => {
       set((state) => ({ result: calculate(state.input, state.materials, state.constants, state.profitTable) }));
+    },
+
+    // ── Override actions ─────────────────────────────────────────────────────
+
+    setSaleOverride: (rowKey, field, value) => {
+      set((state) => {
+        const newOv = { ...state.saleOverrides };
+        if (value === undefined) {
+          if (newOv[rowKey]) {
+            const { [field]: _, ...rest } = newOv[rowKey]!;
+            if (Object.keys(rest).length === 0) delete newOv[rowKey];
+            else newOv[rowKey] = rest;
+          }
+        } else {
+          newOv[rowKey] = { ...newOv[rowKey], [field]: value };
+        }
+        return { saleOverrides: newOv };
+      });
+    },
+
+    setAdminOverride: (rowKey, field, value) => {
+      set((state) => {
+        const newOv = { ...state.adminOverrides };
+        if (value === undefined) {
+          if (newOv[rowKey]) {
+            const { [field]: _, ...rest } = newOv[rowKey]!;
+            if (Object.keys(rest).length === 0) delete newOv[rowKey];
+            else newOv[rowKey] = rest;
+          }
+        } else {
+          newOv[rowKey] = { ...newOv[rowKey], [field]: value };
+        }
+        return { adminOverrides: newOv };
+      });
+    },
+
+    setShowSaleOverrides: (v) => set({ showSaleOverrides: v }),
+    setShowAdminOverrides: (v) => set({ showAdminOverrides: v }),
+    setRole: (r) => set({ role: r }),
+
+    persistOverrides: (historyId) => {
+      const { saleOverrides, adminOverrides, history } = get();
+      const saleOv = Object.keys(saleOverrides).length > 0 ? saleOverrides : undefined;
+      const adminOv = Object.keys(adminOverrides).length > 0 ? adminOverrides : undefined;
+      const updatedHistory = history.map(h =>
+        h.id === historyId ? { ...h, saleOverrides: saleOv, adminOverrides: adminOv } : h
+      );
+      set({ history: updatedHistory });
+      if (typeof window !== 'undefined') {
+        try { window.localStorage.setItem('lts_history', JSON.stringify(updatedHistory)); } catch { /* quota */ }
+      }
+      fetch(`/api/history/${historyId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ saleOverrides: saleOv, adminOverrides: adminOv }),
+      }).catch(err => console.warn('[overrides] Server persist failed:', err));
     },
 
     // ── Server-sync actions ───────────────────────────────────────────────────
