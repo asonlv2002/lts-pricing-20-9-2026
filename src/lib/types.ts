@@ -90,6 +90,19 @@ export interface CalculateInput {
   micOverrides?: Record<string, number>;
 }
 
+// ── History ───────────────────────────────────────────────────────────────────
+export interface HistoryItem {
+  id: string;
+  date: string;
+  customer: string;
+  productName: string;
+  structure: string;
+  quantity: number;
+  finalPrice: number;
+  chotGia?: number;
+  input: CalculateInput;
+}
+
 export interface CalculateResult {
   input: CalculateInput;
   structureText: string;

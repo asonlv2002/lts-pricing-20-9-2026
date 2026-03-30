@@ -4,6 +4,7 @@ import { useCalculatorStore } from '../../store/calculatorStore';
 import CustomerModule from '../CustomerModule';
 import SellerModule from '../SellerModule';
 import QuotationModule from '../QuotationModule';
+import HistoryModule from '../HistoryModule';
 import ConfigPage from '../ConfigPage';
 import {
   Calculator, FileText, Users, Settings, Menu, Factory,
@@ -263,12 +264,11 @@ function ModulePlaceholder({ moduleId }: { moduleId: ModuleId }) {
 // APP SHELL
 // ============================================================
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const [activeModule, setActiveModule] = useState<ModuleId>('calculator');
   const [role, setRole] = useState('admin');
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
 
-  const { result } = useCalculatorStore();
+  const { result, activeModule, setActiveModule } = useCalculatorStore();
 
   // Detect mobile on mount and resize
   useEffect(() => {
@@ -345,7 +345,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     URL.revokeObjectURL(url);
   };
 
-  const isScrollModule = activeModule !== 'calculator' || isMobile;
+  const isScrollModule = true;
 
   return (
     <div className={`lts-shell ${isMobile ? 'lts-shell--mobile' : ''}`}>
@@ -378,13 +378,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className={`lts-shell-content ${isScrollModule ? 'lts-shell-content--scroll' : ''}`}>
           {activeModule === 'calculator' && children}
-          {activeModule === 'quotations' && <QuotationModule role={role} currentSellerId="S1" />}
-          {activeModule === 'customers' && <CustomerModule role={role} currentSellerId="S1" />}
-          {activeModule === 'sellers'   && <SellerModule />}
+          {activeModule === 'quotations'  && <QuotationModule role={role} currentSellerId="S1" />}
+          {activeModule === 'history_db'  && <HistoryModule onNavigate={setActiveModule} />}
+          {activeModule === 'customers'   && <CustomerModule role={role} currentSellerId="S1" />}
+          {activeModule === 'sellers'     && <SellerModule />}
           {activeModule === 'master_data' && <ConfigPage />}
-          
+
           {activeModule !== 'calculator' &&
            activeModule !== 'quotations' &&
+           activeModule !== 'history_db' &&
            activeModule !== 'customers' &&
            activeModule !== 'sellers' &&
            activeModule !== 'master_data' && (

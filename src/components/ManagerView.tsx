@@ -16,7 +16,7 @@ function fmtPercent(n: number) {
 function fmtM2(n: number) { return fmt(n, 4) + ' m²'; }
 
 export default function ManagerView() {
-  const { result, activeView, input, materials, constants, profitTable, setChotGiaForLatest, currentChotGia, setCurrentChotGia } = useCalculatorStore();
+  const { result, activeView, input, materials, constants, profitTable, setChotGiaForLatest, currentChotGia, setCurrentChotGia, addCurrentToHistory, setActiveModule } = useCalculatorStore();
   const [selectedRollMat, setSelectedRollMat] = React.useState('');
 
   if (activeView !== 'manager') return null;
@@ -280,7 +280,29 @@ export default function ManagerView() {
                   setChotGiaForLatest(chotGiaNum);
                 }}
               >
-                ✓ Lưu
+                ✓ Lưu giá chốt
+              </button>
+              <button
+                className="btn btn-sm btn-accent"
+                style={{marginBottom: 0, height: '40px'}}
+                title="Lưu bảng tính này vào lịch sử báo giá"
+                onClick={() => {
+                  addCurrentToHistory();
+                  // Hiện toast clickable 5s — click để vào lịch sử
+                  const container = document.getElementById('toastContainer');
+                  if (!container) return;
+                  const toast = document.createElement('div');
+                  toast.className = 'toast toast-clickable';
+                  toast.innerHTML = '💾 Đã lưu báo giá! <span style="text-decoration:underline;margin-left:6px;">Xem lịch sử →</span>';
+                  toast.addEventListener('click', () => {
+                    setActiveModule('history_db');
+                    toast.remove();
+                  });
+                  container.appendChild(toast);
+                  setTimeout(() => toast.remove(), 5000);
+                }}
+              >
+                💾 Lưu báo giá
               </button>
             </div>
             <div id="chotAnalysis">

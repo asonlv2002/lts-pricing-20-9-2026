@@ -39,3 +39,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Server-side runtime data (dữ liệu live, không phải source code)
+# Lưu ý: src/data/ (seed files tĩnh) vẫn được commit bình thường
+/data/

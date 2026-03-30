@@ -3,6 +3,15 @@ import React from 'react';
 import { useCalculatorStore } from '../store/calculatorStore';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE } from '../lib/data';
 
+// Debounced persist profit table — tránh gọi API mỗi keystroke
+let _profitPersistTimer: ReturnType<typeof setTimeout>;
+const debouncedPersistProfitTable = () => {
+  clearTimeout(_profitPersistTimer);
+  _profitPersistTimer = setTimeout(() => {
+    useCalculatorStore.getState().persistProfitTable();
+  }, 800);
+};
+
 export default function ConfigPage() {
   const { materials, constants, profitTable, setMaterialParam, setConstantParam } = useCalculatorStore();
   const [customerGroup, setCustomerGroup] = React.useState('other');
@@ -356,6 +365,7 @@ export default function ConfigPage() {
                             newTable[i] = { ...newTable[i], col1: (val / 100) - offset };
                             useCalculatorStore.setState({ profitTable: newTable });
                             store.recalculate();
+                            debouncedPersistProfitTable();
                           }}
                           style={{width:'70px', textAlign:'right'}}
                         /> %
@@ -370,6 +380,7 @@ export default function ConfigPage() {
                             newTable[i] = { ...newTable[i], col2: (val / 100) - offset };
                             useCalculatorStore.setState({ profitTable: newTable });
                             store.recalculate();
+                            debouncedPersistProfitTable();
                           }}
                           style={{width:'70px', textAlign:'right'}}
                         /> %
