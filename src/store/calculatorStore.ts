@@ -130,7 +130,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
     advancedOpen: false,
     currentChotGia: 0,
     currentSellerId: 'S1',
-    currentSellerName: 'Sale 1',
+    currentSellerName: 'Nguyễn Văn An',
     isDirty: false,
     // Khởi đầu rỗng — hydrate từ server hoặc localStorage khi page mount
     history: [],
@@ -216,6 +216,7 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
           quantity: state.input.quantity,
           finalPrice: state.result.finalPrice,
           chotGia: state.currentChotGia || undefined,
+          quoteStatus: 'drafted',       // Luôn bắt đầu ở trạng thái "Đã lập"
           sellerId: state.currentSellerId,
           sellerName: state.currentSellerName,
           input: { ...state.input },
@@ -341,10 +342,15 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json() as { success: boolean; data: HistoryItem[] };
         if (json.success && Array.isArray(json.data) && json.data.length > 0) {
-          set({ history: json.data });
+          // Backfill: item cũ trên server chưa có quoteStatus → gán 'drafted'
+          const patched = json.data.map(h => ({
+            ...h,
+            quoteStatus: h.quoteStatus ?? 'drafted' as QuoteStatus,
+          }));
+          set({ history: patched });
           // Cập nhật localStorage cache để hoạt động offline
           if (typeof window !== 'undefined') {
-            try { window.localStorage.setItem('lts_history', JSON.stringify(json.data)); } catch { /* quota */ }
+            try { window.localStorage.setItem('lts_history', JSON.stringify(patched)); } catch { /* quota */ }
           }
         }
       } catch (err) {

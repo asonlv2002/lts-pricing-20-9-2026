@@ -14,7 +14,7 @@ import {
 // Map role → sellerId/sellerName tạm thời (sau này thay bằng auth thực)
 const ROLE_SELLER_MAP: Record<string, { id: string; name: string }> = {
   admin: { id: 'admin', name: 'Quản trị viên' },
-  sale:  { id: 'S1',    name: 'Sale 1' },
+  sale:  { id: 'S1',    name: 'Nguyễn Văn An' },
   tech:  { id: 'tech',  name: 'Kỹ thuật' },
 };
 
@@ -332,6 +332,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const seller = ROLE_SELLER_MAP[r] ?? { id: r, name: r };
     setCurrentSeller(seller.id, seller.name);
   };
+
+  // Sync initial role on mount (default role = 'admin' cần set vào store)
+  useEffect(() => {
+    const seller = ROLE_SELLER_MAP[role] ?? { id: role, name: role };
+    setCurrentSeller(seller.id, seller.name);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Detect mobile on mount and resize
   useEffect(() => {

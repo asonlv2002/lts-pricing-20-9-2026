@@ -57,7 +57,12 @@ export default function App() {
       if (raw) {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          useCalculatorStore.setState({ history: parsed });
+          // Backfill: item cũ chưa có quoteStatus → gán 'drafted'
+          const patched = parsed.map((h: any) => ({
+            ...h,
+            quoteStatus: h.quoteStatus ?? 'drafted',
+          }));
+          useCalculatorStore.setState({ history: patched });
         }
       }
 

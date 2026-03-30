@@ -368,8 +368,19 @@ export default function ManagerView() {
                 ))}
                 <li className="bl-total">
                   <span className="bl-label" style={{color:'var(--orange)'}}>GIÁ BÁN ĐỀ XUẤT / TÚI</span>
-                  <span className="bl-value" style={{color:'var(--orange)'}}>{fmt(shownPrice, 0)} đ</span>
+                  <span className="bl-value" style={{color:'var(--orange)'}}>{fmt(r.finalPrice, 0)} đ</span>
                 </li>
+                {hasChotGia && (
+                  <li className="bl-total" style={{borderTop: '1px dashed var(--border)', marginTop: '6px', paddingTop: '8px'}}>
+                    <span className="bl-label" style={{color:'var(--green)'}}>GIÁ BÁN CHỐT / TÚI</span>
+                    <span className="bl-value" style={{color:'var(--green)'}}>
+                      {fmt(chotGiaNum, 0)} đ
+                      <span style={{fontSize:'0.75em', fontWeight:400, marginLeft:'8px', color: diff >= 0 ? 'var(--green)' : 'var(--red)'}}>
+                        ({diff >= 0 ? '+' : ''}{fmt(diff, 0)} đ)
+                      </span>
+                    </span>
+                  </li>
+                )}
               </ul>
             </div>
           </div>

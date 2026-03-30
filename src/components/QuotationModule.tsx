@@ -13,6 +13,9 @@ import { QUOTE_STATUS_CONFIG } from '../lib/types';
 // ════════════════════════════════════════════════════════════
 const PIPELINE_STEPS: QuoteStatus[] = ['drafted', 'sent', 'pending_approval', 'approved', 'completed'];
 
+// Bước Admin được phép xem & thao tác (không có drafted/sent vì đó là phía Sale)
+const ADMIN_STEPS: QuoteStatus[] = ['pending_approval', 'approved', 'completed'];
+
 const STEP_ICONS: Record<QuoteStatus, React.ReactNode> = {
   drafted:          <FileText size={13} />,
   sent:             <Send size={13} />,
@@ -22,36 +25,28 @@ const STEP_ICONS: Record<QuoteStatus, React.ReactNode> = {
 };
 
 function getStatus(item: HistoryItem): QuoteStatus {
-  if (item.quoteStatus) return item.quoteStatus;
-  return item.chotGia && item.chotGia > 0 ? 'completed' : 'drafted';
+  // Luôn dùng quoteStatus tường minh; fallback 'drafted' nếu item cũ chưa có field này
+  return item.quoteStatus ?? 'drafted';
+}
+
+// Một item "đã gửi lên admin" khi status >= pending_approval
+function isSentToAdmin(item: HistoryItem): boolean {
+  const s = getStatus(item);
+  return s === 'pending_approval' || s === 'approved' || s === 'completed';
 }
 
 function fmt(n: number) { return n.toLocaleString('vi-VN'); }
 
 // ════════════════════════════════════════════════════════════
-// STATUS DROPDOWN
+// ADMIN STATUS DROPDOWN — chỉ cho phép chọn trong ADMIN_STEPS
 // ════════════════════════════════════════════════════════════
-function StatusDropdown({ item, onUpdate, readonly }: {
+function AdminStatusDropdown({ item, onUpdate }: {
   item: HistoryItem;
   onUpdate: (id: string, status: QuoteStatus) => void;
-  readonly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const current = getStatus(item);
   const cfg = QUOTE_STATUS_CONFIG[current];
-
-  if (readonly) {
-    return (
-      <span
-        className="qcard-status-trigger"
-        style={{ color: cfg.color, background: cfg.bg, borderColor: cfg.color + '55', cursor: 'default' }}
-      >
-        <span className="qcard-status-dot" style={{ background: cfg.color }} />
-        <span className="qcard-status-trigger-icon">{STEP_ICONS[current]}</span>
-        <span>{cfg.label}</span>
-      </span>
-    );
-  }
 
   return (
     <div className="qcard-status-dropdown-wrap" onClick={e => e.stopPropagation()}>
@@ -71,7 +66,7 @@ function StatusDropdown({ item, onUpdate, readonly }: {
         <>
           <div className="qcard-dropdown-backdrop" onClick={() => setOpen(false)} />
           <div className="qcard-dropdown">
-            {PIPELINE_STEPS.map((step) => {
+            {ADMIN_STEPS.map((step) => {
               const scfg = QUOTE_STATUS_CONFIG[step];
               const isActive = step === current;
               return (
@@ -96,13 +91,78 @@ function StatusDropdown({ item, onUpdate, readonly }: {
 }
 
 // ════════════════════════════════════════════════════════════
-// QUOTATION CARD
+// SALE STATUS BADGE + NÚT GỬI ADMIN
+// Seller chỉ có 2 hành động:
+//   drafted → nút "Gửi Admin" → pending_approval
+//   pending_approval / approved / completed → badge đọc-only
 // ════════════════════════════════════════════════════════════
-function QuotationCard({ item, onClick, onStatusUpdate, readonly }: {
+function SaleStatusControl({ item, onUpdate }: {
+  item: HistoryItem;
+  onUpdate: (id: string, status: QuoteStatus) => void;
+}) {
+  const [confirm, setConfirm] = useState(false);
+  const current = getStatus(item);
+  const cfg = QUOTE_STATUS_CONFIG[current];
+
+  if (current === 'drafted') {
+    return (
+      <div className="qcard-sale-controls" onClick={e => e.stopPropagation()}>
+        {/* Badge đang soạn */}
+        <span className="qcard-status-trigger"
+          style={{ color: cfg.color, background: cfg.bg, borderColor: cfg.color + '55', cursor: 'default' }}>
+          <span className="qcard-status-dot" style={{ background: cfg.color }} />
+          <span className="qcard-status-trigger-icon">{STEP_ICONS[current]}</span>
+          <span>{cfg.label}</span>
+        </span>
+
+        {/* Nút Gửi */}
+        {!confirm ? (
+          <button
+            className="qcard-send-btn"
+            onClick={() => setConfirm(true)}
+            title="Gửi báo giá cho Admin duyệt"
+          >
+            <Send size={12} />
+            Gửi Admin
+          </button>
+        ) : (
+          <div className="qcard-send-confirm">
+            <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>Xác nhận gửi?</span>
+            <button className="qcard-send-btn qcard-send-btn--yes"
+              onClick={() => { onUpdate(item.id, 'pending_approval'); setConfirm(false); }}>
+              ✓
+            </button>
+            <button className="qcard-send-btn qcard-send-btn--no"
+              onClick={() => setConfirm(false)}>
+              ✕
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Đã gửi → read-only badge
+  return (
+    <span
+      className="qcard-status-trigger"
+      style={{ color: cfg.color, background: cfg.bg, borderColor: cfg.color + '55', cursor: 'default' }}
+      title={cfg.description}
+    >
+      <span className="qcard-status-dot" style={{ background: cfg.color }} />
+      <span className="qcard-status-trigger-icon">{STEP_ICONS[current]}</span>
+      <span>{cfg.label}</span>
+    </span>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// QUOTATION CARD — dùng chung, nhận control node từ ngoài
+// ════════════════════════════════════════════════════════════
+function QuotationCard({ item, onClick, statusControl }: {
   item: HistoryItem;
   onClick: () => void;
-  onStatusUpdate: (id: string, status: QuoteStatus) => void;
-  readonly?: boolean;
+  statusControl: React.ReactNode;
 }) {
   const spreadMm  = item.input.spreadWidth ? Math.round(item.input.spreadWidth * 1000) : 0;
   const cutMm     = item.input.cutStep     ? Math.round(item.input.cutStep     * 1000) : 0;
@@ -119,7 +179,7 @@ function QuotationCard({ item, onClick, onStatusUpdate, readonly }: {
           <FileText size={14} className="quote-icon" />
           <span className="quote-id">{item.date}</span>
         </div>
-        <StatusDropdown item={item} onUpdate={onStatusUpdate} readonly={readonly} />
+        {statusControl}
       </div>
 
       <div className="quote-body">
@@ -206,7 +266,8 @@ function QuotationCard({ item, onClick, onStatusUpdate, readonly }: {
 // ════════════════════════════════════════════════════════════
 // STATS BAR
 // ════════════════════════════════════════════════════════════
-function StatsBar({ items }: { items: HistoryItem[] }) {
+function StatsBar({ items, isAdmin }: { items: HistoryItem[]; isAdmin: boolean }) {
+  const steps = isAdmin ? ADMIN_STEPS : PIPELINE_STEPS;
   const counts = useMemo(() => {
     const c: Record<QuoteStatus, number> = { drafted: 0, sent: 0, pending_approval: 0, approved: 0, completed: 0 };
     items.forEach(h => { c[getStatus(h)]++; });
@@ -219,7 +280,7 @@ function StatsBar({ items }: { items: HistoryItem[] }) {
 
   return (
     <div className="quote-stats-overview">
-      {PIPELINE_STEPS.map(step => {
+      {steps.map(step => {
         const cfg = QUOTE_STATUS_CONFIG[step];
         return (
           <div key={step} className="quote-stat-card">
@@ -237,7 +298,7 @@ function StatsBar({ items }: { items: HistoryItem[] }) {
 }
 
 // ════════════════════════════════════════════════════════════
-// ADMIN VIEW — nhóm theo seller, có thể đổi trạng thái
+// ADMIN VIEW — nhóm theo seller, chỉ thấy item đã gửi
 // ════════════════════════════════════════════════════════════
 function AdminView({ items, search, onOpen, onStatusUpdate }: {
   items: HistoryItem[];
@@ -247,15 +308,19 @@ function AdminView({ items, search, onOpen, onStatusUpdate }: {
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-  // Nhóm theo sellerId
   const groups = useMemo(() => {
-    const filtered = search.trim()
-      ? items.filter(i =>
-          i.customer.toLowerCase().includes(search.toLowerCase()) ||
-          i.productName.toLowerCase().includes(search.toLowerCase()) ||
-          i.structure.toLowerCase().includes(search.toLowerCase())
+    // Admin chỉ thấy item đã gửi (status != drafted)
+    const visible = items.filter(isSentToAdmin);
+
+    const q = search.trim().toLowerCase();
+    const filtered = q
+      ? visible.filter(i =>
+          i.customer.toLowerCase().includes(q) ||
+          i.productName.toLowerCase().includes(q) ||
+          i.structure.toLowerCase().includes(q) ||
+          (i.sellerName || '').toLowerCase().includes(q)
         )
-      : items;
+      : visible;
 
     const map = new Map<string, { id: string; name: string; items: HistoryItem[] }>();
     filtered.forEach(item => {
@@ -269,30 +334,48 @@ function AdminView({ items, search, onOpen, onStatusUpdate }: {
 
   const toggle = (id: string) => setCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
 
+  // Badge "chờ duyệt" count toàn bộ
+  const pendingCount = items.filter(i => getStatus(i) === 'pending_approval').length;
+
   if (groups.length === 0) {
     return (
       <div className="crm-empty">
         <FileText size={40} />
-        <p>{items.length === 0 ? 'Chưa có báo giá nào.' : 'Không có báo giá phù hợp.'}</p>
+        <p>
+          {items.filter(isSentToAdmin).length === 0
+            ? 'Chưa có báo giá nào được gửi lên.'
+            : 'Không có báo giá phù hợp.'}
+        </p>
       </div>
     );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Banner chờ duyệt */}
+      {pendingCount > 0 && (
+        <div className="qadmin-pending-banner">
+          <Clock size={15} />
+          <span>Có <strong>{pendingCount}</strong> báo giá đang chờ bạn duyệt</span>
+        </div>
+      )}
+
       {groups.map(group => {
         const isOpen = !collapsed[group.id];
+        const pendingInGroup = group.items.filter(h => getStatus(h) === 'pending_approval').length;
         const groupRevenue = group.items
           .filter(h => getStatus(h) === 'completed')
           .reduce((s, h) => s + (h.chotGia || h.finalPrice) * h.quantity, 0);
 
         return (
           <div key={group.id} className="qgroup">
-            {/* Group header */}
             <button className="qgroup-header" onClick={() => toggle(group.id)}>
               <span className="qgroup-icon"><Users size={16} /></span>
               <span className="qgroup-name">{group.name}</span>
               <span className="qgroup-count">{group.items.length} báo giá</span>
+              {pendingInGroup > 0 && (
+                <span className="qgroup-pending">{pendingInGroup} chờ duyệt</span>
+              )}
               {groupRevenue > 0 && (
                 <span className="qgroup-revenue">
                   {(groupRevenue / 1_000_000).toFixed(1)} Tr VNĐ
@@ -303,16 +386,16 @@ function AdminView({ items, search, onOpen, onStatusUpdate }: {
               </span>
             </button>
 
-            {/* Group cards */}
             {isOpen && (
-              <div className="quote-grid" style={{ padding: '12px 0 0' }}>
+              <div className="quote-grid" style={{ padding: '12px 16px 16px' }}>
                 {group.items.map(item => (
                   <QuotationCard
                     key={item.id}
                     item={item}
                     onClick={() => onOpen(item.id)}
-                    onStatusUpdate={onStatusUpdate}
-                    readonly={false}
+                    statusControl={
+                      <AdminStatusDropdown item={item} onUpdate={onStatusUpdate} />
+                    }
                   />
                 ))}
               </div>
@@ -325,7 +408,7 @@ function AdminView({ items, search, onOpen, onStatusUpdate }: {
 }
 
 // ════════════════════════════════════════════════════════════
-// SALE VIEW — chỉ xem báo giá của mình, không đổi trạng thái
+// SALE VIEW — tất cả báo giá của mình, nút gửi khi drafted
 // ════════════════════════════════════════════════════════════
 function SaleView({ items, search, onOpen, onStatusUpdate }: {
   items: HistoryItem[];
@@ -349,8 +432,8 @@ function SaleView({ items, search, onOpen, onStatusUpdate }: {
         <FileText size={40} />
         <p>{items.length === 0
           ? 'Bạn chưa có báo giá nào. Hãy lưu bảng tính giá đầu tiên!'
-          : 'Không có báo giá phù hợp.'
-        }</p>
+          : 'Không có báo giá phù hợp.'}
+        </p>
       </div>
     );
   }
@@ -362,8 +445,9 @@ function SaleView({ items, search, onOpen, onStatusUpdate }: {
           key={item.id}
           item={item}
           onClick={() => onOpen(item.id)}
-          onStatusUpdate={onStatusUpdate}
-          readonly={true}
+          statusControl={
+            <SaleStatusControl item={item} onUpdate={onStatusUpdate} />
+          }
         />
       ))}
     </div>
@@ -379,11 +463,13 @@ export default function QuotationModule({ role }: { role: string; currentSellerI
 
   const isAdmin = role === 'admin';
 
-  // Sale chỉ thấy báo giá của mình
   const myItems = useMemo(() =>
     isAdmin ? history : history.filter(h => h.sellerId === currentSellerId),
     [history, isAdmin, currentSellerId]
   );
+
+  // Stats cho admin: chỉ đếm item đã gửi
+  const statsItems = isAdmin ? history.filter(isSentToAdmin) : myItems;
 
   const handleOpen = (id: string) => {
     loadHistoryItem(id);
@@ -392,13 +478,12 @@ export default function QuotationModule({ role }: { role: string; currentSellerI
 
   return (
     <div className="crm-root quote-root">
-      {/* TOOLBAR */}
       <div className="crm-toolbar">
         <div className="crm-search-box">
           <Search size={15} className="crm-search-icon" />
           <input
             className="crm-search-input"
-            placeholder="Tìm khách hàng, sản phẩm, chất liệu..."
+            placeholder={isAdmin ? 'Tìm theo seller, khách hàng, sản phẩm...' : 'Tìm khách hàng, sản phẩm, chất liệu...'}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
@@ -406,17 +491,15 @@ export default function QuotationModule({ role }: { role: string; currentSellerI
         </div>
         {isAdmin && (
           <div className="crm-toolbar-right">
-            <span style={{ fontSize: '0.78rem', color: 'var(--muted)', padding: '0 8px' }}>
-              👑 Xem tất cả — nhóm theo Seller
+            <span style={{ fontSize: '0.78rem', color: 'var(--muted)', padding: '0 8px', whiteSpace: 'nowrap' }}>
+              👑 Xem theo Seller
             </span>
           </div>
         )}
       </div>
 
-      {/* STATS */}
-      <StatsBar items={myItems} />
+      <StatsBar items={statsItems} isAdmin={isAdmin} />
 
-      {/* LIST */}
       <div className="crm-list quote-list-container">
         {isAdmin ? (
           <AdminView
