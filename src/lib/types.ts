@@ -1,3 +1,15 @@
+// ── User / Auth ───────────────────────────────────────────────────────────────
+export interface AppUser {
+  id: string;           // e.g. "U001"
+  username: string;     // login username
+  passwordHash: string; // SHA-256 hex via Node.js crypto
+  displayName: string;  // tên hiển thị
+  role: 'admin' | 'sale' | 'purchase';
+  sellerId?: string;    // linked seller ID (for sale role)
+  active: boolean;      // tài khoản có hoạt động không
+  createdAt: string;
+}
+
 export interface Material {
   id: string;
   name: string;
@@ -55,6 +67,7 @@ export interface CalculateInput {
   productType: string;
   bagType: string;
   filmType: string;
+  filmRollLength: number; // chiều dài mỗi cuộn màng thành phẩm (m), chỉ dùng khi productType='mang'
   quantity: number;
   numColors: number | null;
   numImages: number;
@@ -179,6 +192,8 @@ export interface CalculateResult {
   actualBoxPrice: number;
   actualBagsPerBox: number;
   numBoxes: number;
+  filmRollArea: number;       // diện tích 1 cuộn màng TP (m²) = khổ trải × chiều dài cuộn / số con hình
+  packagingPerUnit: number;   // phí đóng gói / đơn vị (đ/m² cho màng, đ/túi cho túi)
   tareWeight: number;
   shippingPerUnit: number;
   shippingTotal: number;

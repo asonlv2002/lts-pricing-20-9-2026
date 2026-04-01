@@ -1,8 +1,42 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import { useCalculatorStore } from '../store/calculatorStore';
 import { calculate } from '../lib/engine';
 import type { OverrideRowKey, OverrideFields, OverrideTable } from '../lib/types';
+
+// ── Collapsible card dùng trong phần kết quả ────────────────────────────────
+// Mỗi lần render với resetKey mới → luôn bắt đầu ở trạng thái ĐÓNG
+function CollapsibleCard({
+  title,
+  children,
+  resetKey,
+  style,
+}: {
+  title: React.ReactNode;
+  children: React.ReactNode;
+  resetKey: string | number;
+  style?: React.CSSProperties;
+}) {
+  const [open, setOpen] = useState(false);
+  // Đặt lại về đóng khi resetKey thay đổi (tức là khi có kết quả mới)
+  React.useEffect(() => { setOpen(false); }, [resetKey]);
+
+  return (
+    <div className="card" style={style}>
+      <div
+        className="card-title collapsible"
+        onClick={() => setOpen(v => !v)}
+        aria-expanded={open}
+      >
+        {title}
+        <span className={`card-collapse-arrow${open ? ' open' : ''}`}>▼</span>
+      </div>
+      <div className={`card-body-collapsible${open ? ' open' : ''}`}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 // Format helpers mirroring the original engine.js
 function fmt(n: number | null | undefined, decimals = 0): string {
@@ -224,18 +258,31 @@ export default function ManagerView() {
   }
   const r = result;
   const rInput = r.input;
+  // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
+  const resultKey = `${r.finalPrice}|${rInput.quantity}|${r.totalThickness}|${rInput.spreadWidth}|${rInput.cutStep}`;
+  const isMang = rInput.productType === 'mang';
+  const filmRollLength = (rInput as any).filmRollLength || 6000;
+  const unitLabel = isMang ? 'm²' : 'túi'; // đơn vị hiển thị
 
   // ── Summary info ──
   const numColorsText = rInput.numColors && rInput.numColors > 0 ? `${rInput.numColors} màu` : 'Không in';
   const spreadMm = +(rInput.spreadWidth * 1000).toFixed(0);
   const cutMm = +(rInput.cutStep * 1000).toFixed(0);
   
+  const filmMap: Record<string, string> = {
+    'mangIn': 'Màng in',
+    'mangGhep': 'Màng ghép',
+    'mangDongGoi': 'Màng đóng gói tự động',
+    // legacy keys
+    'mangGhepKoIn': 'Màng ghép không in',
+    'mangGhepCoIn': 'Màng ghép có in',
+  };
   const bagMap: Record<string, string> = {
     '3bien': '3 biên', '4bien': '4 biên', 'xephong_lech': 'Xếp hông dán lưng lệch',
     'xephong_giua': 'Xếp hông dán lưng giữa', 'dayDung': 'Đáy đứng', 'cutSeal': 'Cut seal'
   };
   let bagStr = bagMap[rInput.bagType] || '';
-  if (rInput.productType === 'tui' && bagStr) {
+  if (!isMang && bagStr) {
     if (rInput.hasZipper) {
       if (rInput.bagType === 'cutSeal') {
         bagStr = 'Cute seal nắp băng keo';
@@ -243,8 +290,8 @@ export default function ManagerView() {
         bagStr = 'Zipper ' + bagStr;
       }
     }
-  } else if (rInput.productType === 'mang') {
-    bagStr = 'Màng cuộn';
+  } else if (isMang) {
+    bagStr = filmMap[rInput.filmType] || 'Màng cuộn';
   }
 
   const cylPerUnit = r.cylinderCostPerUnit;
@@ -259,7 +306,7 @@ export default function ManagerView() {
   if (rInput.hasTape) breakdownItems.push(['Chi phí Băng keo', fmt(r.tapePerUnit, 1) + ' đ']);
   if (rInput.hasHandle) breakdownItems.push(['Chi phí Quai', fmt(r.handlePerUnit, 1) + ' đ']);
   breakdownItems.push(
-    ['Chi phí Thùng giấy', fmt(r.boxPerUnit, 1) + ' đ'],
+    [isMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', fmt(r.boxPerUnit, 1) + ' đ'],
     ['Chi phí Vận chuyển', fmt(r.shippingPerUnit, 1) + ' đ'],
     [`Lãi vay vốn (${fmtPercent(r.interestRate30)})`, fmt(r.interestPerUnit, 1) + ' đ'],
     ['Hoa hồng kinh doanh', fmt(r.commissionPerUnit, 1) + ' đ']
@@ -414,11 +461,15 @@ export default function ManagerView() {
 
   // ── Weight items ──
   const weightItems: [string, string][] = [
-    ['Diện tích 1 túi', fmtM2(r.bagArea)],
+    [isMang ? 'Diện tích băng (m²/m dài)' : 'Diện tích 1 túi', fmtM2(r.bagArea)],
     ['Tổng diện tích đơn hàng', fmt(r.totalArea, 1) + ' m²'],
-    ['Trọng lượng / túi (Tare)', fmt(r.tareWeight, 2) + ' gr'],
-    ['Tổng trọng lượng', fmt(r.tareWeight * rInput.quantity / 1000, 1) + ' kg'],
-    ['Trọng lượng (tấn)', fmt(r.tareWeight * rInput.quantity / 1000000, 3) + ' tấn']
+    ...(!isMang ? [
+      ['Trọng lượng / túi (Tare)', fmt(r.tareWeight, 2) + ' gr'] as [string, string],
+      ['Tổng trọng lượng', fmt(r.tareWeight * rInput.quantity / 1000, 1) + ' kg'] as [string, string],
+      ['Trọng lượng (tấn)', fmt(r.tareWeight * rInput.quantity / 1000000, 3) + ' tấn'] as [string, string],
+    ] : [
+      ['Chiều dài cuộn TP', fmt(filmRollLength) + ' m/cuộn'] as [string, string],
+    ]),
   ];
 
   return (
@@ -432,23 +483,49 @@ export default function ManagerView() {
           <div className="card" style={{marginBottom: '14px', padding: 0, background: 'transparent', border: 'none', boxShadow: 'none'}}>
             
             <div className="price-hero">
-              <div className="label">Giá đề xuất / túi</div>
+              <div className="label">Giá đề xuất / {unitLabel}</div>
               <div className="value" id="s-price">
                 {fmt(shownPrice, 0)}
                 {hasChotGia && <span style={{fontSize:'0.45em', fontWeight:700, color:'var(--green)', verticalAlign:'middle', background:'rgba(46,204,113,0.15)', padding:'4px 8px', borderRadius:'12px', marginLeft:'8px'}}>Giá chốt</span>}
               </div>
               <div className="unit">(chưa VAT)</div>
+
+              {/* 3 loại giá cho màng */}
+              {isMang && r.filmRollArea > 0 && (
+                <div style={{display:'flex', flexWrap:'wrap', justifyContent:'center', gap:'12px 24px', marginTop:'12px', fontSize:'0.92rem'}}>
+                  <div style={{background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'8px', padding:'8px 16px', textAlign:'center'}}>
+                    <div style={{fontSize:'0.72rem', color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.03em'}}>Giá / m²</div>
+                    <div style={{fontWeight:700, color:'var(--accent)', fontSize:'1.1rem'}}>{fmt(shownPrice, 1)} đ</div>
+                  </div>
+                  <div style={{background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'8px', padding:'8px 16px', textAlign:'center'}}>
+                    <div style={{fontSize:'0.72rem', color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.03em'}}>Giá / cuộn ({fmt(spreadMm)}mm × {fmt(filmRollLength)}m)</div>
+                    <div style={{fontWeight:700, color:'var(--green)', fontSize:'1.1rem'}}>{fmt(shownPrice * r.filmRollArea, 0)} đ</div>
+                  </div>
+                  <div style={{background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'8px', padding:'8px 16px', textAlign:'center'}}>
+                    <div style={{fontSize:'0.72rem', color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.03em'}}>DT cuộn</div>
+                    <div style={{fontWeight:700, color:'var(--text)', fontSize:'1.1rem'}}>{fmt(r.filmRollArea, 1)} m²</div>
+                  </div>
+                </div>
+              )}
+
               <div className="sub" id="s-structure">
                 <div style={{fontWeight:600, color:'var(--text)', fontSize:'1.05rem', marginBottom:'12px'}}>{rInput.customer} — {rInput.productName}</div>
                 <div style={{display:'flex', flexWrap:'wrap', justifyContent:'center', gap:'8px 20px', fontSize:'0.9rem', margin:'0 auto', maxWidth:'600px'}}>
                   <div><strong>Chất liệu:</strong> {r.structureText}</div>
-                  <div><strong>Số lượng:</strong> {fmt(rInput.quantity)} túi</div>
+                  {isMang ? (
+                    <div><strong>Diện tích:</strong> {fmt(rInput.quantity)} m²</div>
+                  ) : (
+                    <div><strong>Số lượng:</strong> {fmt(rInput.quantity)} túi</div>
+                  )}
                   <div><strong>Số màu:</strong> {numColorsText}</div>
                   <div><strong>Kích thước:</strong> KT {spreadMm} mm x BC {cutMm} mm</div>
                   <div><strong>Độ dày:</strong> {r.totalThickness} mic</div>
-                  <div><strong>Diện tích:</strong> {fmtM2(r.bagArea)}</div>
-                  <div><strong>Trọng lượng:</strong> {fmt(r.tareWeight, 2)} gr</div>
-                  <div><strong>Loại {rInput.productType === 'mang' ? 'sản phẩm' : 'túi'}:</strong> {bagStr}</div>
+                  <div><strong>Diện tích {isMang ? 'băng' : '1 túi'}:</strong> {fmtM2(r.bagArea)}</div>
+                  {!isMang && <div><strong>Trọng lượng:</strong> {fmt(r.tareWeight, 2)} gr</div>}
+                  <div><strong>Loại {isMang ? 'màng' : 'túi'}:</strong> {bagStr}</div>
+                  {isMang && (
+                    <div><strong>Cuộn màng TP:</strong> {fmt(filmRollLength)} m/cuộn ({fmt(r.filmRollArea, 1)} m²/cuộn)</div>
+                  )}
                   {numTr > 0 && (
                     <div><strong>Trục in:</strong> D {fmt(r.cylLength * 1000)} mm x CV {fmt(r.cylCircum * 1000)} mm - {fmt(cylPerUnit)} đ/trục * {numTr} trục = {fmt(cylTotal)} đ</div>
                   )}
@@ -458,7 +535,7 @@ export default function ManagerView() {
 
             <div className="chot-gia-row">
               <div className="form-group">
-                <label className="form-label">Giá bán chốt (đ/túi)</label>
+                <label className="form-label">Giá bán chốt (đ/{unitLabel})</label>
                 <input
                   className="form-input"
                   placeholder="Nhập giá chốt..."
@@ -504,12 +581,12 @@ export default function ManagerView() {
               {hasChotGia ? (
                 <div className={`chot-analysis ${diff >= 0 ? 'positive' : 'negative'}`}>
                   <div className="chot-row">
-                    <span className="chot-label">{diff >= 0 ? '✅' : '⚠️'} Chênh lệch / túi</span>
-                    <span className="chot-value">{diff >= 0 ? '+' : ''}{fmt(diff, 1)} đ/túi</span>
+                    <span className="chot-label">{diff >= 0 ? '✅' : '⚠️'} Chênh lệch / {unitLabel}</span>
+                    <span className="chot-value">{diff >= 0 ? '+' : ''}{fmt(diff, 1)} đ/{unitLabel}</span>
                   </div>
                   <div className="chot-row" style={{fontWeight:700}}>
                     <span className="chot-label">Doanh thu tổng</span>
-                    <span className="chot-value">{fmt(shownPrice)} đ/túi × {fmt(rInput.quantity)} túi = {fmt(doanhThuChot)} đ</span>
+                    <span className="chot-value">{fmt(shownPrice)} đ/{unitLabel} × {fmt(rInput.quantity)} {unitLabel} = {fmt(doanhThuChot)} đ</span>
                   </div>
                   <div className="chot-row">
                     <span className="chot-label">LN công ty ({fmtPercent(pctLoiNhuanCongTyChot)})</span>
@@ -536,11 +613,11 @@ export default function ManagerView() {
                 )}
               </div>
               <div className="stat-card cyan">
-                <div className="stat-label">Doanh thu túi</div>
+                <div className="stat-label">Doanh thu</div>
                 <div className="stat-value">{fmt(hasChotGia ? doanhThuChot : r.revenue)} đ</div>
               </div>
               <div className="stat-card orange">
-                <div className="stat-label">Giá Bán/Túi</div>
+                <div className="stat-label">Giá Bán/{isMang ? 'm²' : 'Túi'}</div>
                 <div className="stat-value">{fmt(shownPrice, 0)} đ</div>
               </div>
               <div className="stat-card pink">
@@ -548,26 +625,29 @@ export default function ManagerView() {
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
                   {fmt(hasChotGia ? tongHoaHongChot : totalCommission)} đ
                   <div style={{fontSize:'0.85rem', fontWeight:'normal', marginTop:'4px'}}>
-                    {fmt(hasChotGia ? newCommissionPerUnit : r.commissionPerUnit, 1)} đ/túi ({fmtPercent(hasChotGia ? commissionPctShown : commissionPct)})
+                    {fmt(hasChotGia ? newCommissionPerUnit : r.commissionPerUnit, 1)} đ/{unitLabel} ({fmtPercent(hasChotGia ? commissionPctShown : commissionPct)})
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Chi tiết giá bán đề xuất / túi */}
-            <div className="card" style={{marginBottom: '14px'}}>
-              <div className="card-title"><span className="icon">💰</span> Chi tiết giá bán đề xuất / túi</div>
+            {/* Chi tiết giá bán đề xuất */}
+            <CollapsibleCard
+              resetKey={resultKey}
+              style={{marginBottom: '14px'}}
+              title={<><span className="icon">💰</span> Chi tiết giá bán đề xuất / {unitLabel}</>}
+            >
               <ul className="breakdown-list" id="s-breakdown">
                 {breakdownItems.map(([l, v], i) => (
                   <li key={i}><span className="bl-label">{l}</span><span className="bl-value">{v}</span></li>
                 ))}
                 <li className="bl-total">
-                  <span className="bl-label" style={{color:'var(--orange)'}}>GIÁ BÁN ĐỀ XUẤT / TÚI</span>
+                  <span className="bl-label" style={{color:'var(--orange)'}}>GIÁ BÁN ĐỀ XUẤT / {unitLabel.toUpperCase()}</span>
                   <span className="bl-value" style={{color:'var(--orange)'}}>{fmt(r.finalPrice, 0)} đ</span>
                 </li>
                 {hasChotGia && (
                   <li className="bl-total" style={{borderTop: '1px dashed var(--border)', marginTop: '6px', paddingTop: '8px'}}>
-                    <span className="bl-label" style={{color:'var(--green)'}}>GIÁ BÁN CHỐT / TÚI</span>
+                    <span className="bl-label" style={{color:'var(--green)'}}>GIÁ BÁN CHỐT / {unitLabel.toUpperCase()}</span>
                     <span className="bl-value" style={{color:'var(--green)'}}>
                       {fmt(chotGiaNum, 0)} đ
                       <span style={{fontSize:'0.75em', fontWeight:400, marginLeft:'8px', color: diff >= 0 ? 'var(--green)' : 'var(--red)'}}>
@@ -577,13 +657,16 @@ export default function ManagerView() {
                   </li>
                 )}
               </ul>
-            </div>
+            </CollapsibleCard>
           </div>
 
           {/* ═══ SECTION: Đặc tả kỹ thuật & nguyên liệu ═══ */}
           <div id="sect-tech" className="manager-section-anchor"></div>
-          <div className="card" style={{marginBottom: '14px'}}>
-            <div className="card-title"><span className="icon">🏭</span> Đặc tả kỹ thuật & nguyên liệu</div>
+          <CollapsibleCard
+            resetKey={resultKey}
+            style={{marginBottom: '14px'}}
+            title={<><span className="icon">🏭</span> Đặc tả kỹ thuật &amp; nguyên liệu</>}
+          >
             <div className="table-responsive">
               <table className="data-table" id="m-t-unified-table">
                 <thead>
@@ -627,7 +710,7 @@ export default function ManagerView() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </CollapsibleCard>
 
           {/* ═══ SECTION: Override Toggle + Tables ═══ */}
           {(() => {
@@ -688,8 +771,11 @@ export default function ManagerView() {
 
           {/* ═══ SECTION: Bảng giá theo số lượng (MOQ) ═══ */}
           <div id="sect-moq" className="manager-section-anchor"></div>
-          <div className="card" style={{marginBottom: '14px', marginTop: '14px'}}>
-            <div className="card-title"><span className="icon">📦</span> Bảng giá theo số lượng (MOQ)</div>
+          <CollapsibleCard
+            resetKey={resultKey}
+            style={{marginBottom: '14px', marginTop: '14px'}}
+            title={<><span className="icon">📦</span> Bảng giá theo số lượng (MOQ)</>}
+          >
             <div className="info-box">
               <span className="icon">💡</span>
               So sánh giá khi thay đổi số lượng đặt hàng. Dòng tô sáng là số lượng hiện tại.
@@ -698,7 +784,7 @@ export default function ManagerView() {
               <table className="moq-table" id="moq-table">
                 <thead>
                   <tr>
-                    <th>Số lượng</th><th>LN %</th><th>Giá vốn+LN/túi</th><th>Giá đề xuất</th><th>Tổng DT</th>
+                    <th>Số lượng</th><th>LN %</th><th>Giá vốn+LN/{unitLabel}</th><th>Giá đề xuất</th><th>Tổng DT</th>
                     {matCols.map((col, i) => <th key={i}>{col.name}</th>)}
                   </tr>
                 </thead>
@@ -709,7 +795,7 @@ export default function ManagerView() {
                       <tr key={qty} className={isCurrent ? 'moq-highlight' : ''}>
                         <td data-label="Số lượng" style={{fontWeight: isCurrent ? 700 : 400}}>{fmt(qty)}</td>
                         <td data-label="LN %">{fmtPercent(res.profitRate)}</td>
-                        <td data-label="Giá vốn+LN/túi">{fmt(res.costPerUnit, 1)}</td>
+                        <td data-label="Giá vốn+LN">{fmt(res.costPerUnit, 1)}</td>
                         <td data-label="Giá đề xuất" style={{fontWeight:700, color: isCurrent ? 'var(--accent)' : 'inherit'}}>{fmt(res.finalPrice, 0)}</td>
                         <td data-label="Tổng DT">{fmt(res.finalPrice * qty / 1000000, 2)}tr</td>
                         {matCols.map((col, ci) => {
@@ -729,12 +815,15 @@ export default function ManagerView() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </CollapsibleCard>
 
           {/* ═══ SECTION: Số lượng theo cuộn màng (Roll MOQ) ═══ */}
           <div id="sect-roll" className="manager-section-anchor"></div>
-          <div className="card" style={{marginBottom: '14px'}}>
-            <div className="card-title"><span className="icon">🎞️</span> SỐ LƯỢNG THEO CUỘN MÀNG</div>
+          <CollapsibleCard
+            resetKey={resultKey}
+            style={{marginBottom: '14px'}}
+            title={<><span className="icon">🎞️</span> SỐ LƯỢNG THEO CUỘN MÀNG</>}
+          >
             <div className="info-box">
               <span className="icon">💡</span>
               Số lượng tối ưu theo cuộn màng tiêu chuẩn của lớp in. Giúp đặt hàng khớp cuộn, giảm hao hụt.
@@ -766,7 +855,7 @@ export default function ManagerView() {
                             })}
                           </select>
                         </th>
-                        <th>SL túi</th>
+                        <th>SL {unitLabel}</th>
                         {otherLayers.map((c, i) => <th key={i}>{c.name}</th>)}
                         <th>Giá đề xuất</th>
                         <th>Tổng DT</th>
@@ -786,7 +875,7 @@ export default function ManagerView() {
                               </>
                             )}
                           </td>
-                          <td data-label="SL túi" style={{fontWeight: row.isCurrent ? 700 : 400}}>{fmt(row.estQty)}</td>
+                          <td data-label={`SL ${unitLabel}`} style={{fontWeight: row.isCurrent ? 700 : 400}}>{fmt(row.estQty)}</td>
                           {otherLayers.map((col: any, i: number) => {
                             const layerData = getLayerData(row.res, col);
                             const layerMeters = layerData ? layerData.meters + layerData.waste : 0;
@@ -807,18 +896,21 @@ export default function ManagerView() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </CollapsibleCard>
 
           {/* ═══ SECTION: Trọng lượng & Vận chuyển ═══ */}
           <div id="sect-weight" className="manager-section-anchor"></div>
-          <div className="card" style={{marginTop: '14px'}}>
-            <div className="card-title"><span className="icon">⚖️</span> Trọng lượng & Vận chuyển</div>
+          <CollapsibleCard
+            resetKey={resultKey}
+            style={{marginTop: '14px'}}
+            title={<><span className="icon">⚖️</span> Trọng lượng &amp; Vận chuyển</>}
+          >
             <ul className="breakdown-list" id="m-t-weight">
               {weightItems.map(([l, v], i) => (
                 <li key={i}><span className="bl-label">{l}</span><span className="bl-value">{v}</span></li>
               ))}
             </ul>
-          </div>
+          </CollapsibleCard>
 
         </div> {/* End manager-content */}
 

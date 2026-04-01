@@ -12,7 +12,7 @@ export interface CalculatorState {
 
   // UI State
   activeView: 'manager' | 'tech' | 'history' | 'config' | 'bento';
-  activeModule: 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings';
+  activeModule: 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users';
   layoutType: 'default' | 'stacked' | 'wide' | 'bento';
   density: 'compact' | 'comfortable' | 'spacious';
   theme: 'light' | 'dark';
@@ -35,7 +35,7 @@ export interface CalculatorState {
   serverSyncStatus: 'idle' | 'syncing' | 'error';
 
   setActiveView: (v: 'manager' | 'tech' | 'history' | 'config' | 'bento') => void;
-  setActiveModule: (v: 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings') => void;
+  setActiveModule: (v: 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users') => void;
   setLayoutType: (v: 'default' | 'stacked' | 'wide' | 'bento') => void;
   setDensity: (v: 'compact' | 'comfortable' | 'spacious') => void;
   setTheme: (v: 'light' | 'dark') => void;
@@ -85,6 +85,7 @@ const defaultInput: CalculateInput = {
   productType: '',
   bagType: '',
   filmType: '',
+  filmRollLength: 6000,
   quantity: 0,
   numColors: null,
   numImages: 1,
