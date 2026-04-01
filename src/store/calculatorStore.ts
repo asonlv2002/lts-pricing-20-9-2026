@@ -85,6 +85,7 @@ const defaultInput: CalculateInput = {
   productType: '',
   bagType: '',
   filmType: '',
+  filmRollLength: 6000,
   quantity: 0,
   numColors: null,
   numImages: 1,

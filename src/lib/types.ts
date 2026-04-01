@@ -55,6 +55,7 @@ export interface CalculateInput {
   productType: string;
   bagType: string;
   filmType: string;
+  filmRollLength: number; // chiều dài mỗi cuộn màng thành phẩm (m), chỉ dùng khi productType='mang'
   quantity: number;
   numColors: number | null;
   numImages: number;
@@ -179,6 +180,8 @@ export interface CalculateResult {
   actualBoxPrice: number;
   actualBagsPerBox: number;
   numBoxes: number;
+  filmRollArea: number;       // diện tích 1 cuộn màng TP (m²) = khổ trải × chiều dài cuộn / số con hình
+  packagingPerUnit: number;   // phí đóng gói / đơn vị (đ/m² cho màng, đ/túi cho túi)
   tareWeight: number;
   shippingPerUnit: number;
   shippingTotal: number;

@@ -2449,6 +2449,51 @@ body {
   background: var(--surface2);
 }
 
+/* ─── Type toggle (Cá nhân / Công ty) ─── */
+.crm-type-toggle {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.crm-type-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 18px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.crm-type-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.crm-type-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+/* ─── Section title inside modal ─── */
+.crm-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+}
+
 /* ═══════════════════════════════════════════════════════════
    SELLER MODULE
 ═══════════════════════════════════════════════════════════ */

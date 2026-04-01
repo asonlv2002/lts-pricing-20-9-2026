@@ -167,11 +167,33 @@ export function calculate(
 
   const extraAccessoryWeightPerUnit = quantity > 0 ? (zipperWeightTotal + tapeWeightTotal) / quantity : 0;
 
+  const isMang = input.productType === 'mang';
+  const filmRollLength = (input as any).filmRollLength || 6000;
+  // Diện tích cuộn màng TP = khổ trải × chiều dài cuộn / số con hình
+  const filmRollArea = isMang ? (spreadWidth * filmRollLength / numImages) : 0;
+
   const actualBagsPerBox = bagsPerBox || 0;
   const actualBoxPrice = boxPrice || 0;
-  const numBoxes = actualBagsPerBox > 0 ? quantity / actualBagsPerBox : 0;
-  const boxTotal = actualBoxPrice * numBoxes;
-  const boxPerUnit = quantity > 0 ? boxTotal / quantity : 0;
+
+  let numBoxes: number;
+  let boxTotal: number;
+  let boxPerUnit: number;
+  let packagingPerUnit: number;
+
+  if (isMang && actualBoxPrice > 0 && filmRollArea > 0) {
+    // Màng: người dùng nhập giá đóng gói mỗi cuộn (đ/cuộn)
+    // Phí đóng gói / m² = giá_đóng_gói / diện_tích_cuộn
+    packagingPerUnit = actualBoxPrice / filmRollArea;
+    boxPerUnit = packagingPerUnit;
+    boxTotal = boxPerUnit * quantity;
+    numBoxes = filmRollArea > 0 ? quantity / filmRollArea : 0;
+  } else {
+    // Túi: tính theo thùng (giữ nguyên logic cũ)
+    numBoxes = actualBagsPerBox > 0 ? quantity / actualBagsPerBox : 0;
+    boxTotal = actualBoxPrice * numBoxes;
+    boxPerUnit = quantity > 0 ? boxTotal / quantity : 0;
+    packagingPerUnit = boxPerUnit;
+  }
 
   const tareWeight = totalGSM * bagArea + handleWeight + extraAccessoryWeightPerUnit;
 
@@ -223,7 +245,7 @@ export function calculate(
     totalProductionCost, totalLamCost, profitRate, profitAmount, revenue,
     costPerUnit,
     zipperPerUnit, zipperTotal, tapePerUnit, tapeTotal, handlePerUnit, handleTotal,
-    boxPerUnit, boxTotal, actualBoxPrice, actualBagsPerBox, numBoxes,
+    boxPerUnit, boxTotal, actualBoxPrice, actualBagsPerBox, numBoxes, filmRollArea, packagingPerUnit,
     tareWeight, shippingPerUnit, shippingTotal, shippingRate,
     actualShippingPerKm, actualShippingKm,
     interestPerUnit, interestRate30, paymentDays: paymentDaysLocal,
