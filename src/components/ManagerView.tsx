@@ -1,8 +1,42 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import { useCalculatorStore } from '../store/calculatorStore';
 import { calculate } from '../lib/engine';
 import type { OverrideRowKey, OverrideFields, OverrideTable } from '../lib/types';
+
+// ── Collapsible card dùng trong phần kết quả ────────────────────────────────
+// Mỗi lần render với resetKey mới → luôn bắt đầu ở trạng thái ĐÓNG
+function CollapsibleCard({
+  title,
+  children,
+  resetKey,
+  style,
+}: {
+  title: React.ReactNode;
+  children: React.ReactNode;
+  resetKey: string | number;
+  style?: React.CSSProperties;
+}) {
+  const [open, setOpen] = useState(false);
+  // Đặt lại về đóng khi resetKey thay đổi (tức là khi có kết quả mới)
+  React.useEffect(() => { setOpen(false); }, [resetKey]);
+
+  return (
+    <div className="card" style={style}>
+      <div
+        className="card-title collapsible"
+        onClick={() => setOpen(v => !v)}
+        aria-expanded={open}
+      >
+        {title}
+        <span className={`card-collapse-arrow${open ? ' open' : ''}`}>▼</span>
+      </div>
+      <div className={`card-body-collapsible${open ? ' open' : ''}`}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 // Format helpers mirroring the original engine.js
 function fmt(n: number | null | undefined, decimals = 0): string {
@@ -224,6 +258,8 @@ export default function ManagerView() {
   }
   const r = result;
   const rInput = r.input;
+  // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
+  const resultKey = `${r.finalPrice}|${rInput.quantity}|${r.totalThickness}|${rInput.spreadWidth}|${rInput.cutStep}`;
   const isMang = rInput.productType === 'mang';
   const filmRollLength = (rInput as any).filmRollLength || 6000;
   const unitLabel = isMang ? 'm²' : 'túi'; // đơn vị hiển thị
@@ -596,8 +632,11 @@ export default function ManagerView() {
             </div>
 
             {/* Chi tiết giá bán đề xuất */}
-            <div className="card" style={{marginBottom: '14px'}}>
-              <div className="card-title"><span className="icon">💰</span> Chi tiết giá bán đề xuất / {unitLabel}</div>
+            <CollapsibleCard
+              resetKey={resultKey}
+              style={{marginBottom: '14px'}}
+              title={<><span className="icon">💰</span> Chi tiết giá bán đề xuất / {unitLabel}</>}
+            >
               <ul className="breakdown-list" id="s-breakdown">
                 {breakdownItems.map(([l, v], i) => (
                   <li key={i}><span className="bl-label">{l}</span><span className="bl-value">{v}</span></li>
@@ -618,13 +657,16 @@ export default function ManagerView() {
                   </li>
                 )}
               </ul>
-            </div>
+            </CollapsibleCard>
           </div>
 
           {/* ═══ SECTION: Đặc tả kỹ thuật & nguyên liệu ═══ */}
           <div id="sect-tech" className="manager-section-anchor"></div>
-          <div className="card" style={{marginBottom: '14px'}}>
-            <div className="card-title"><span className="icon">🏭</span> Đặc tả kỹ thuật & nguyên liệu</div>
+          <CollapsibleCard
+            resetKey={resultKey}
+            style={{marginBottom: '14px'}}
+            title={<><span className="icon">🏭</span> Đặc tả kỹ thuật &amp; nguyên liệu</>}
+          >
             <div className="table-responsive">
               <table className="data-table" id="m-t-unified-table">
                 <thead>
@@ -668,7 +710,7 @@ export default function ManagerView() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </CollapsibleCard>
 
           {/* ═══ SECTION: Override Toggle + Tables ═══ */}
           {(() => {
@@ -729,8 +771,11 @@ export default function ManagerView() {
 
           {/* ═══ SECTION: Bảng giá theo số lượng (MOQ) ═══ */}
           <div id="sect-moq" className="manager-section-anchor"></div>
-          <div className="card" style={{marginBottom: '14px', marginTop: '14px'}}>
-            <div className="card-title"><span className="icon">📦</span> Bảng giá theo số lượng (MOQ)</div>
+          <CollapsibleCard
+            resetKey={resultKey}
+            style={{marginBottom: '14px', marginTop: '14px'}}
+            title={<><span className="icon">📦</span> Bảng giá theo số lượng (MOQ)</>}
+          >
             <div className="info-box">
               <span className="icon">💡</span>
               So sánh giá khi thay đổi số lượng đặt hàng. Dòng tô sáng là số lượng hiện tại.
@@ -770,12 +815,15 @@ export default function ManagerView() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </CollapsibleCard>
 
           {/* ═══ SECTION: Số lượng theo cuộn màng (Roll MOQ) ═══ */}
           <div id="sect-roll" className="manager-section-anchor"></div>
-          <div className="card" style={{marginBottom: '14px'}}>
-            <div className="card-title"><span className="icon">🎞️</span> SỐ LƯỢNG THEO CUỘN MÀNG</div>
+          <CollapsibleCard
+            resetKey={resultKey}
+            style={{marginBottom: '14px'}}
+            title={<><span className="icon">🎞️</span> SỐ LƯỢNG THEO CUỘN MÀNG</>}
+          >
             <div className="info-box">
               <span className="icon">💡</span>
               Số lượng tối ưu theo cuộn màng tiêu chuẩn của lớp in. Giúp đặt hàng khớp cuộn, giảm hao hụt.
@@ -848,18 +896,21 @@ export default function ManagerView() {
                 </tbody>
               </table>
             </div>
-          </div>
+          </CollapsibleCard>
 
           {/* ═══ SECTION: Trọng lượng & Vận chuyển ═══ */}
           <div id="sect-weight" className="manager-section-anchor"></div>
-          <div className="card" style={{marginTop: '14px'}}>
-            <div className="card-title"><span className="icon">⚖️</span> Trọng lượng & Vận chuyển</div>
+          <CollapsibleCard
+            resetKey={resultKey}
+            style={{marginTop: '14px'}}
+            title={<><span className="icon">⚖️</span> Trọng lượng &amp; Vận chuyển</>}
+          >
             <ul className="breakdown-list" id="m-t-weight">
               {weightItems.map(([l, v], i) => (
                 <li key={i}><span className="bl-label">{l}</span><span className="bl-value">{v}</span></li>
               ))}
             </ul>
-          </div>
+          </CollapsibleCard>
 
         </div> {/* End manager-content */}
 

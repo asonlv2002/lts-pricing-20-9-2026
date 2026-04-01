@@ -10,7 +10,17 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import type { Material, AppConstants, ProfitRow, HistoryItem } from './types';
+import crypto from 'crypto';
+import type { Material, AppConstants, ProfitRow, HistoryItem, AppUser } from './types';
+
+// ── Password helpers ──────────────────────────────────────────────────────────
+export function hashPassword(password: string): string {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
+
+export function verifyPassword(password: string, hash: string): boolean {
+  return hashPassword(password) === hash;
+}
 
 // ── Paths ──────────────────────────────────────────────────────────────────────
 const DATA_DIR       = path.join(process.cwd(), 'data');
@@ -18,6 +28,7 @@ const HISTORY_FILE   = path.join(DATA_DIR, 'history.json');
 const MATERIALS_FILE = path.join(DATA_DIR, 'materials.json');
 const CONSTANTS_FILE = path.join(DATA_DIR, 'constants.json');
 const PROFIT_FILE    = path.join(DATA_DIR, 'profit-table.json');
+const USERS_FILE     = path.join(DATA_DIR, 'users.json');
 
 // ── Per-file write locks (tránh interleaved async writes) ──────────────────────
 const writeLocks = new Map<string, Promise<void>>();
@@ -151,6 +162,29 @@ export async function writeProfitTable(
   });
 }
 
+// ── Users ─────────────────────────────────────────────────────────────────────
+function getDefaultUsers(): AppUser[] {
+  return [
+    {
+      id: 'U001',
+      username: 'admin',
+      passwordHash: hashPassword('admin123'),
+      displayName: 'Quản trị viên',
+      role: 'admin',
+      active: true,
+      createdAt: '2025-01-01',
+    },
+  ];
+}
+
+export async function readUsers(): Promise<AppUser[]> {
+  return readJson<AppUser[]>(USERS_FILE, getDefaultUsers());
+}
+
+export async function writeUsers(users: AppUser[]): Promise<void> {
+  await writeJson(USERS_FILE, users);
+}
+
 // ── Startup initialisation ────────────────────────────────────────────────────
 // Gọi một lần khi server khởi động để đảm bảo tất cả file tồn tại.
 // Idempotent — an toàn khi gọi nhiều lần.
@@ -161,5 +195,6 @@ export async function initDataFiles(): Promise<void> {
     readMaterials(),    // tạo materials.json = defaults nếu chưa có
     readConstants(),    // tạo constants.json = defaults nếu chưa có
     readProfitTable(),  // tạo profit-table.json = defaults nếu chưa có
+    readUsers(),        // tạo users.json = [admin] nếu chưa có
   ]);
 }

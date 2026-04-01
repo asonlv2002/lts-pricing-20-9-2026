@@ -1,3 +1,15 @@
+// ── User / Auth ───────────────────────────────────────────────────────────────
+export interface AppUser {
+  id: string;           // e.g. "U001"
+  username: string;     // login username
+  passwordHash: string; // SHA-256 hex via Node.js crypto
+  displayName: string;  // tên hiển thị
+  role: 'admin' | 'sale' | 'purchase';
+  sellerId?: string;    // linked seller ID (for sale role)
+  active: boolean;      // tài khoản có hoạt động không
+  createdAt: string;
+}
+
 export interface Material {
   id: string;
   name: string;
