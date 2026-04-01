@@ -33,7 +33,7 @@ interface MenuItem {
 }
 
 const MENU_ITEMS: MenuItem[] = [
-  { id: 'calculator',  label: 'Tính giá Sản phẩm',  icon: <Calculator size={20} />, roles: ['admin', 'sale', 'purchase'] },
+  { id: 'calculator',  label: 'Tính giá Sản phẩm',  icon: <Calculator size={20} />, roles: ['admin', 'sale']            },
   { id: 'quotations',  label: 'Danh sách Báo giá',   icon: <FileText   size={20} />, roles: ['admin', 'sale']            },
   { id: 'history_db',  label: 'Lịch sử tính giá',    icon: <Database   size={20} />, roles: ['admin', 'sale']            },
   { id: 'master_data', label: 'Bảng định mức',        icon: <Factory    size={20} />, roles: ['admin', 'purchase']        },
