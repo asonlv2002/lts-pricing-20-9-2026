@@ -68,7 +68,9 @@ function OverridableCell({ rowKey, field, sourceVal, overrideVal, canEdit, onSet
   const commit = () => {
     setEditing(false);
     const parsed = parseFloat(tempVal);
-    if (isNaN(parsed) || Math.abs(parsed - sourceVal) < 0.001) {
+    // Từ chối: NaN, số âm (khổ/số mét/phi hao/giá VL không thể âm),
+    // hoặc gần bằng giá trị nguồn (revert về gốc)
+    if (isNaN(parsed) || parsed < 0 || Math.abs(parsed - sourceVal) < 0.001) {
       onSet(rowKey, field, undefined); // revert
     } else {
       onSet(rowKey, field, parsed);
@@ -121,15 +123,16 @@ interface UniRow {
   costMat: number | null;
 }
 
-function OverrideTableSection({ title, colorClass, uniRows, sourceOverrides, currentOverrides, canEdit, onSet, onSave, loadedHistoryId }: {
+function OverrideTableSection({ title, colorClass, uniRows, sourceOverrides, currentOverrides, canEdit, onSet, onSave, onSaveNew, loadedHistoryId }: {
   title: string;
   colorClass: 'sale' | 'admin';
   uniRows: UniRow[];
-  sourceOverrides: OverrideTable; // engine-resolved (sale) hoặc sale-resolved (admin)
+  sourceOverrides: OverrideTable;
   currentOverrides: OverrideTable;
   canEdit: boolean;
   onSet: (rk: OverrideRowKey, f: keyof OverrideFields, v: number | undefined) => void;
   onSave: (id: string) => void;
+  onSaveNew: () => void; // gọi khi chưa có loadedHistoryId — tự lưu history rồi persist
   loadedHistoryId: string | null;
 }) {
   // For each row, resolve value: currentOverride → sourceOverride → engine
@@ -226,9 +229,12 @@ function OverrideTableSection({ title, colorClass, uniRows, sourceOverrides, cur
           </tbody>
         </table>
       </div>
-      {canEdit && loadedHistoryId && (
+      {canEdit && (
         <div className="override-save-row">
-          <button className="btn btn-sm btn-green" onClick={() => onSave(loadedHistoryId)}>
+          <button
+            className="btn btn-sm btn-green"
+            onClick={() => loadedHistoryId ? onSave(loadedHistoryId) : onSaveNew()}
+          >
             💾 Lưu thay đổi
           </button>
         </div>
@@ -335,12 +341,10 @@ export default function ManagerView() {
   const effProfitAmount = effProfitRate * effTotalProdCost;
   const effRevenue = effTotalProdCost + effProfitAmount;
   const effCostPerUnit = rInput.quantity > 0 ? effRevenue / rInput.quantity : 0;
-  const effFinalPrice = effCostPerUnit
-    + r.zipperPerUnit + r.tapePerUnit + r.handlePerUnit
-    + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + r.commissionPerUnit;
 
   // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
-  const resultKey = `${effFinalPrice}|${rInput.quantity}|${r.totalThickness}|${rInput.spreadWidth}|${rInput.cutStep}`;
+  // (dùng effCostPerUnit tạm, effFinalPriceWithComm sẽ được tính ở phần breakdown bên dưới)
+  const resultKey = `${effCostPerUnit}|${rInput.quantity}|${r.totalThickness}|${rInput.spreadWidth}|${rInput.cutStep}`;
   const filmRollLength = (rInput as any).filmRollLength || 6000;
   const unitLabel = isMang ? 'm²' : 'túi'; // đơn vị hiển thị
 
@@ -378,6 +382,12 @@ export default function ManagerView() {
   const numTr = rInput.numColors || 0;
   const cylTotal = r.cylinderCost;
 
+  // Commission phải tính lại từ effCostPerUnit (sau override), không dùng r.commissionPerUnit (engine gốc)
+  // Vì: commissionPerUnit = commissionRate × costPerUnit → costPerUnit thay đổi thì commission thay đổi theo
+  const effCommissionPerUnit = rInput.commissionFixedVND > 0
+    ? rInput.commissionFixedVND
+    : rInput.commissionRate * effCostPerUnit;
+
   // ── Breakdown items ──
   const breakdownItems: [string, string][] = [
     [`Giá ban đầu (Vốn + ${fmtPercent(effProfitRate)} LN)`, fmt(effCostPerUnit, 1) + ' đ'],
@@ -389,16 +399,20 @@ export default function ManagerView() {
     [isMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', fmt(r.boxPerUnit, 1) + ' đ'],
     ['Chi phí Vận chuyển', fmt(r.shippingPerUnit, 1) + ' đ'],
     [`Lãi vay vốn (${fmtPercent(r.interestRate30)})`, fmt(r.interestPerUnit, 1) + ' đ'],
-    ['Hoa hồng kinh doanh', fmt(r.commissionPerUnit, 1) + ' đ']
+    ['Hoa hồng kinh doanh', fmt(effCommissionPerUnit, 1) + ' đ']
   );
 
-  const totalCommission = r.commissionPerUnit * rInput.quantity;
-  const commissionPct = effCostPerUnit > 0 ? (r.commissionPerUnit / effCostPerUnit) : 0;
+  const totalCommission = effCommissionPerUnit * rInput.quantity;
+  const commissionPct = effCostPerUnit > 0 ? (effCommissionPerUnit / effCostPerUnit) : 0;
   const chotGiaNum = currentChotGia || 0;
   const hasChotGia = chotGiaNum > 0;
-  const shownPrice = hasChotGia ? chotGiaNum : effFinalPrice;
-  const diff = hasChotGia ? chotGiaNum - effFinalPrice : 0;
-  const rawNewCommission = r.commissionPerUnit + diff;
+  // effFinalPrice tính lại với commission mới
+  const effFinalPriceWithComm = effCostPerUnit
+    + r.zipperPerUnit + r.tapePerUnit + r.handlePerUnit
+    + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + effCommissionPerUnit;
+  const shownPrice = hasChotGia ? chotGiaNum : effFinalPriceWithComm;
+  const diff = hasChotGia ? chotGiaNum - effFinalPriceWithComm : 0;
+  const rawNewCommission = effCommissionPerUnit + diff;
   const profitDropFromChot = rawNewCommission < 0 ? Math.abs(rawNewCommission) * rInput.quantity : 0;
   const profitDropPct = rawNewCommission < 0 && effProfitAmount > 0 ? (profitDropFromChot / effProfitAmount) : 0;
   const newCommissionPerUnit = Math.max(0, rawNewCommission);
@@ -529,7 +543,7 @@ export default function ManagerView() {
               </div>
               {hasChotGia && (
                 <div style={{fontSize:'0.82rem', color:'var(--muted)', marginTop:'2px', marginBottom:'2px'}}>
-                  (giá đề xuất {fmt(effFinalPrice, 0)} đ/{unitLabel})
+                  (giá đề xuất {fmt(effFinalPriceWithComm, 0)} đ/{unitLabel})
                 </div>
               )}
               <div className="unit">(chưa VAT)</div>
@@ -662,7 +676,7 @@ export default function ManagerView() {
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
                   {fmt(hasChotGia ? tongHoaHongChot : totalCommission)} đ
                   <div style={{fontSize:'0.85rem', fontWeight:'normal', marginTop:'4px'}}>
-                    {fmt(hasChotGia ? newCommissionPerUnit : r.commissionPerUnit, 1)} đ/{unitLabel} ({fmtPercent(hasChotGia ? commissionPctShown : commissionPct)})
+                    {fmt(hasChotGia ? newCommissionPerUnit : effCommissionPerUnit, 1)} đ/{unitLabel} ({fmtPercent(hasChotGia ? commissionPctShown : commissionPct)})
                   </div>
                 </div>
               </div>
@@ -680,7 +694,7 @@ export default function ManagerView() {
                 ))}
                 <li className="bl-total">
                   <span className="bl-label" style={{color:'var(--orange)'}}>GIÁ BÁN ĐỀ XUẤT / {unitLabel.toUpperCase()}</span>
-                  <span className="bl-value" style={{color:'var(--orange)'}}>{fmt(effFinalPrice, 0)} đ</span>
+                  <span className="bl-value" style={{color:'var(--orange)'}}>{fmt(effFinalPriceWithComm, 0)} đ</span>
                 </li>
                 {hasChotGia && (
                   <li className="bl-total" style={{borderTop: '1px dashed var(--border)', marginTop: '6px', paddingTop: '8px'}}>
@@ -756,6 +770,14 @@ export default function ManagerView() {
             const canSaleEdit = role === 'sale' && quoteStatus === 'drafted';
             const canAdminEdit = role === 'admin';
             // Source for bảng Admin = sale-resolved values (engine overridden by sale)
+
+            // Khi chưa có loadedHistoryId: tự lưu history trước rồi persist override
+            const handleSaveNew = () => {
+              addCurrentToHistory();
+              // loadedHistoryId vừa được set bởi addCurrentToHistory (sync state)
+              const newId = useCalculatorStore.getState().loadedHistoryId;
+              if (newId) persistOverrides(newId);
+            };
             const emptyOv: OverrideTable = {};
 
             return (
@@ -785,6 +807,7 @@ export default function ManagerView() {
                     canEdit={canSaleEdit}
                     onSet={setSaleOverride}
                     onSave={persistOverrides}
+                    onSaveNew={handleSaveNew}
                     loadedHistoryId={loadedHistoryId}
                   />
                 )}
@@ -799,6 +822,7 @@ export default function ManagerView() {
                     canEdit={canAdminEdit}
                     onSet={setAdminOverride}
                     onSave={persistOverrides}
+                    onSaveNew={handleSaveNew}
                     loadedHistoryId={loadedHistoryId}
                   />
                 )}

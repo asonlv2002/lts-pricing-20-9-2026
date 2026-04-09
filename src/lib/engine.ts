@@ -188,15 +188,22 @@ export function calculate(
   let boxPerUnit: number;
   let packagingPerUnit: number;
 
-  if (isMang && actualBoxPrice > 0 && filmRollArea > 0) {
-    // Màng: người dùng nhập giá đóng gói mỗi cuộn (đ/cuộn)
-    // Phí đóng gói / m² = giá_đóng_gói / diện_tích_cuộn
-    packagingPerUnit = actualBoxPrice / filmRollArea;
-    boxPerUnit = packagingPerUnit;
-    boxTotal = boxPerUnit * quantity;
-    numBoxes = filmRollArea > 0 ? quantity / filmRollArea : 0;
+  if (isMang) {
+    // Màng: guard filmRollArea <= 0 → không tính đóng gói (tránh NaN/Infinity)
+    if (actualBoxPrice > 0 && filmRollArea > 0) {
+      // Phí đóng gói / m² = giá_đóng_gói / diện_tích_cuộn
+      packagingPerUnit = actualBoxPrice / filmRollArea;
+      boxPerUnit = packagingPerUnit;
+      boxTotal = boxPerUnit * quantity;
+      numBoxes = quantity / filmRollArea;
+    } else {
+      packagingPerUnit = 0;
+      boxPerUnit = 0;
+      boxTotal = 0;
+      numBoxes = filmRollArea > 0 ? quantity / filmRollArea : 0;
+    }
   } else {
-    // Túi: tính theo thùng (giữ nguyên logic cũ)
+    // Túi: tính theo thùng
     numBoxes = actualBagsPerBox > 0 ? quantity / actualBagsPerBox : 0;
     boxTotal = actualBoxPrice * numBoxes;
     boxPerUnit = quantity > 0 ? boxTotal / quantity : 0;

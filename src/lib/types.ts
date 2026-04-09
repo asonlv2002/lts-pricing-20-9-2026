@@ -91,7 +91,7 @@ export interface CalculateInput {
   profitColumn: number;
   commissionRate: number;
   commissionFixedVND: number;
-  commissionUnit: string;
+  commissionUnit: 'percent' | 'vnd';
   commissionInputValue: number;
   bagsPerBox: number;
   boxPrice: number;
