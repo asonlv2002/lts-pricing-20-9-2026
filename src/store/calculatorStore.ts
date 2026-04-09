@@ -178,10 +178,9 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
           const sw = newInput.spreadWidth || 0;
           const ni = newInput.numImages || 1;
           if (sw > 0) {
-            const base = sw * ni;
-            let nCalc = 1;
-            while (base * nCalc + 0.1 < 0.7) nCalc++;
-            newInput.cylLength = Number((base * nCalc + 0.1).toFixed(3));
+            // Chiều dài trục = khổ trải × số con hình + 0.1m; tối thiểu 0.7m
+            const raw = sw * ni + 0.1;
+            newInput.cylLength = Number(Math.max(0.7, raw).toFixed(3));
           } else {
             newInput.cylLength = 0;
           }

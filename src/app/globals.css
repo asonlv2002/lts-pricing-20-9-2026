@@ -164,7 +164,7 @@ body {
 .container { width: 100%; padding: 20px; position: relative; z-index: 1; }
 
 /* Layout: side-by-side (default) */
-.main-grid { display: grid; grid-template-columns: 370px 1fr; gap: 20px; align-items: start; }
+.main-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
 
 @media (min-width: 801px) {
   html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page) body {
@@ -204,7 +204,7 @@ body {
 [data-layout="stacked"] #inputCard { position: static !important; }
 
 /* Layout: wide — input smaller */
-[data-layout="wide"] .main-grid { grid-template-columns: 320px 1fr; }
+[data-layout="wide"] .main-grid { grid-template-columns: 260px 1fr; }
 
 /* ═══════════ BENTO LAYOUT ═══════════ */
 [data-layout="bento"] .main-grid { grid-template-columns: 1fr; }
@@ -1287,7 +1287,7 @@ body {
 .manager-toc .toc-link { transition: all 0.2s; }
 .manager-toc .toc-link:hover { opacity: 0.8; background: var(--surface2) !important; color: var(--accent) !important; padding-left: 16px !important; }
 
-.manager-content { padding-right: 220px; }
+.manager-content { padding-right: 180px; }
 
 @media (max-width: 1200px) {
   .manager-toc {
@@ -1377,10 +1377,15 @@ body {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
+  width: 240px;
   transition: width 0.28s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
   z-index: 200;
   border-right: 1px solid rgba(255,255,255,0.04);
+}
+
+.lts-sidebar--collapsed {
+  width: 72px;
 }
 
 [data-theme="dark"] .lts-sidebar {

@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { useCalculatorStore } from '../store/calculatorStore';
-import { calculate } from '../lib/engine';
+import { calculate, lookupProfit } from '../lib/engine';
 import type { OverrideRowKey, OverrideFields, OverrideTable } from '../lib/types';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
@@ -258,9 +258,89 @@ export default function ManagerView() {
   }
   const r = result;
   const rInput = r.input;
-  // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
-  const resultKey = `${r.finalPrice}|${rInput.quantity}|${r.totalThickness}|${rInput.spreadWidth}|${rInput.cutStep}`;
   const isMang = rInput.productType === 'mang';
+
+  // ── Unified production table rows (cần trước effFinalPrice) ──
+  const uniRows: UniRow[] = [];
+  let totalCPSX = 0, totalCPVL = 0;
+
+  totalCPSX += r.printCostCPSX;
+  totalCPVL += r.printCostMaterial;
+  uniRows.push({
+    rowKey: 'print',
+    stage: 'CPSX IN', mat: r.layers.print.material.name,
+    width: r.printNLWidth, meters: r.printMeters, waste: r.printWaste,
+    cpsx: r.printCPSX, costCPSX: r.printCostCPSX,
+    matPrice: r.layers.print.material.pricePerM2, costMat: r.printCostMaterial
+  });
+
+  if (r.layers.laminations) {
+    r.layers.laminations.forEach((lam: any) => {
+      totalCPSX += lam.costCPSX;
+      totalCPVL += lam.costMat;
+      uniRows.push({
+        rowKey: `lam-${lam.layerNum}` as OverrideRowKey,
+        stage: `GHÉP (Lớp ${lam.layerNum})`, mat: lam.material.name,
+        width: lam.width, meters: lam.meters, waste: lam.waste,
+        cpsx: constants.ghepCPSX, costCPSX: lam.costCPSX,
+        matPrice: lam.material.pricePerM2, costMat: lam.costMat
+      });
+    });
+  }
+
+  if (!isMang) {
+    totalCPSX += r.cutCostCPSX;
+    uniRows.push({
+      rowKey: 'cut',
+      stage: 'CẮT', mat: '—',
+      width: r.cutWidth, meters: r.cutMeters, waste: r.cutWaste,
+      cpsx: r.cutCPSX, costCPSX: r.cutCostCPSX,
+      matPrice: null, costMat: null
+    });
+  }
+
+  const grandTotal = totalCPSX + totalCPVL;
+
+  // ── Tính giá hiệu lực sau override (Sale → Admin) ────────────────────────────
+  // Bảng admin (nếu có) ghi đè lên bảng sale, bảng sale ghi đè lên engine.
+  // Mỗi override row có thể thay width, inputVL và matPrice → costCPSX + costMat thay đổi.
+  // Từ đó suy ra totalProductionCost mới → profitRate → costPerUnit → finalPrice mới.
+  const activeOverrideOv: OverrideTable =
+    Object.keys(adminOverrides).length > 0 ? adminOverrides
+    : Object.keys(saleOverrides).length > 0 ? saleOverrides
+    : {};
+  const sourceForActive: OverrideTable =
+    Object.keys(adminOverrides).length > 0 ? saleOverrides : {};
+  const hasAnyOverride = Object.keys(activeOverrideOv).length > 0;
+
+  let effTotalProdCost = r.totalProductionCost;
+
+  if (hasAnyOverride) {
+    let effTotalCPSX = 0;
+    let effTotalCPVL = 0;
+    for (const row of uniRows) {
+      const rk = row.rowKey;
+      const src = sourceForActive[rk] ?? {};
+      const cur = activeOverrideOv[rk] ?? {};
+      const width = cur.width ?? src.width ?? row.width;
+      const inputVL = cur.inputVL ?? src.inputVL ?? (row.meters + row.waste);
+      const matPrice = cur.matPrice ?? src.matPrice ?? row.matPrice;
+      effTotalCPSX += row.cpsx * inputVL * width;
+      if (matPrice != null) effTotalCPVL += matPrice * inputVL * width;
+    }
+    effTotalProdCost = effTotalCPSX + effTotalCPVL;
+  }
+
+  const effProfitRate = lookupProfit(effTotalProdCost, rInput.profitColumn, profitTable);
+  const effProfitAmount = effProfitRate * effTotalProdCost;
+  const effRevenue = effTotalProdCost + effProfitAmount;
+  const effCostPerUnit = rInput.quantity > 0 ? effRevenue / rInput.quantity : 0;
+  const effFinalPrice = effCostPerUnit
+    + r.zipperPerUnit + r.tapePerUnit + r.handlePerUnit
+    + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + r.commissionPerUnit;
+
+  // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
+  const resultKey = `${effFinalPrice}|${rInput.quantity}|${r.totalThickness}|${rInput.spreadWidth}|${rInput.cutStep}`;
   const filmRollLength = (rInput as any).filmRollLength || 6000;
   const unitLabel = isMang ? 'm²' : 'túi'; // đơn vị hiển thị
 
@@ -300,7 +380,7 @@ export default function ManagerView() {
 
   // ── Breakdown items ──
   const breakdownItems: [string, string][] = [
-    [`Giá ban đầu (Vốn + ${fmtPercent(r.profitRate)} LN)`, fmt(r.costPerUnit, 1) + ' đ'],
+    [`Giá ban đầu (Vốn + ${fmtPercent(effProfitRate)} LN)`, fmt(effCostPerUnit, 1) + ' đ'],
   ];
   if (rInput.hasZipper) breakdownItems.push(['Chi phí Zipper', fmt(r.zipperPerUnit, 1) + ' đ']);
   if (rInput.hasTape) breakdownItems.push(['Chi phí Băng keo', fmt(r.tapePerUnit, 1) + ' đ']);
@@ -313,61 +393,21 @@ export default function ManagerView() {
   );
 
   const totalCommission = r.commissionPerUnit * rInput.quantity;
-  const commissionPct = r.costPerUnit > 0 ? (r.commissionPerUnit / r.costPerUnit) : 0;
+  const commissionPct = effCostPerUnit > 0 ? (r.commissionPerUnit / effCostPerUnit) : 0;
   const chotGiaNum = currentChotGia || 0;
   const hasChotGia = chotGiaNum > 0;
-  const shownPrice = hasChotGia ? chotGiaNum : r.finalPrice;
-  const diff = hasChotGia ? chotGiaNum - r.finalPrice : 0;
+  const shownPrice = hasChotGia ? chotGiaNum : effFinalPrice;
+  const diff = hasChotGia ? chotGiaNum - effFinalPrice : 0;
   const rawNewCommission = r.commissionPerUnit + diff;
   const profitDropFromChot = rawNewCommission < 0 ? Math.abs(rawNewCommission) * rInput.quantity : 0;
-  const profitDropPct = rawNewCommission < 0 && r.profitAmount > 0 ? (profitDropFromChot / r.profitAmount) : 0;
+  const profitDropPct = rawNewCommission < 0 && effProfitAmount > 0 ? (profitDropFromChot / effProfitAmount) : 0;
   const newCommissionPerUnit = Math.max(0, rawNewCommission);
   const doanhThuChot = shownPrice * rInput.quantity;
   const tongHoaHongChot = newCommissionPerUnit * rInput.quantity;
-  const tongChiPhi = r.totalProductionCost + r.zipperTotal + r.tapeTotal + r.handleTotal + r.boxTotal + r.shippingTotal + (r.interestPerUnit * rInput.quantity);
+  const tongChiPhi = effTotalProdCost + r.zipperTotal + r.tapeTotal + r.handleTotal + r.boxTotal + r.shippingTotal + (r.interestPerUnit * rInput.quantity);
   const loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
-  const pctLoiNhuanCongTyChot = r.totalProductionCost > 0 ? (loiNhuanCongTyChot / r.totalProductionCost) : 0;
-  const commissionPctShown = r.costPerUnit > 0 ? (newCommissionPerUnit / r.costPerUnit) : 0;
-
-  // ── Unified production table rows ──
-  const uniRows: UniRow[] = [];
-  let totalCPSX = 0, totalCPVL = 0;
-
-  const printInput = r.printMeters + r.printWaste;
-  totalCPSX += r.printCostCPSX;
-  totalCPVL += r.printCostMaterial;
-  uniRows.push({
-    rowKey: 'print',
-    stage: 'CPSX IN', mat: r.layers.print.material.name,
-    width: r.printNLWidth, meters: r.printMeters, waste: r.printWaste,
-    cpsx: r.printCPSX, costCPSX: r.printCostCPSX,
-    matPrice: r.layers.print.material.pricePerM2, costMat: r.printCostMaterial
-  });
-
-  if (r.layers.laminations) {
-    r.layers.laminations.forEach((lam: any) => {
-      totalCPSX += lam.costCPSX;
-      totalCPVL += lam.costMat;
-      uniRows.push({
-        rowKey: `lam-${lam.layerNum}` as OverrideRowKey,
-        stage: `GHÉP (Lớp ${lam.layerNum})`, mat: lam.material.name,
-        width: lam.width, meters: lam.meters, waste: lam.waste,
-        cpsx: constants.ghepCPSX, costCPSX: lam.costCPSX,
-        matPrice: lam.material.pricePerM2, costMat: lam.costMat
-      });
-    });
-  }
-
-  totalCPSX += r.cutCostCPSX;
-  uniRows.push({
-    rowKey: 'cut',
-    stage: 'CẮT', mat: '—',
-    width: r.cutWidth, meters: r.cutMeters, waste: r.cutWaste,
-    cpsx: r.cutCPSX, costCPSX: r.cutCostCPSX,
-    matPrice: null, costMat: null
-  });
-
-  const grandTotal = totalCPSX + totalCPVL;
+  const pctLoiNhuanCongTyChot = effTotalProdCost > 0 ? (loiNhuanCongTyChot / effTotalProdCost) : 0;
+  const commissionPctShown = effCostPerUnit > 0 ? (newCommissionPerUnit / effCostPerUnit) : 0;
 
   // ── MOQ Table ──
   const moqLevels = [5000, 10000, 15000, 20000, 30000, 40000, 50000, 70000, 100000, 150000, 200000];
@@ -483,27 +523,24 @@ export default function ManagerView() {
           <div className="card" style={{marginBottom: '14px', padding: 0, background: 'transparent', border: 'none', boxShadow: 'none'}}>
             
             <div className="price-hero">
-              <div className="label">Giá đề xuất / {unitLabel}</div>
-              <div className="value" id="s-price">
+              <div className="label">{hasChotGia ? `Giá chốt / ${unitLabel}` : `Giá đề xuất / ${unitLabel}`}</div>
+              <div className="value" id="s-price" style={hasChotGia ? {color:'var(--green)'} : undefined}>
                 {fmt(shownPrice, 0)}
-                {hasChotGia && <span style={{fontSize:'0.45em', fontWeight:700, color:'var(--green)', verticalAlign:'middle', background:'rgba(46,204,113,0.15)', padding:'4px 8px', borderRadius:'12px', marginLeft:'8px'}}>Giá chốt</span>}
               </div>
+              {hasChotGia && (
+                <div style={{fontSize:'0.82rem', color:'var(--muted)', marginTop:'2px', marginBottom:'2px'}}>
+                  (giá đề xuất {fmt(effFinalPrice, 0)} đ/{unitLabel})
+                </div>
+              )}
               <div className="unit">(chưa VAT)</div>
 
-              {/* 3 loại giá cho màng */}
+              {/* Giá cuộn cho màng — gộp giá cuộn + DT cuộn vào 1 ô */}
               {isMang && r.filmRollArea > 0 && (
                 <div style={{display:'flex', flexWrap:'wrap', justifyContent:'center', gap:'12px 24px', marginTop:'12px', fontSize:'0.92rem'}}>
                   <div style={{background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'8px', padding:'8px 16px', textAlign:'center'}}>
-                    <div style={{fontSize:'0.72rem', color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.03em'}}>Giá / m²</div>
-                    <div style={{fontWeight:700, color:'var(--accent)', fontSize:'1.1rem'}}>{fmt(shownPrice, 1)} đ</div>
-                  </div>
-                  <div style={{background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'8px', padding:'8px 16px', textAlign:'center'}}>
                     <div style={{fontSize:'0.72rem', color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.03em'}}>Giá / cuộn ({fmt(spreadMm)}mm × {fmt(filmRollLength)}m)</div>
                     <div style={{fontWeight:700, color:'var(--green)', fontSize:'1.1rem'}}>{fmt(shownPrice * r.filmRollArea, 0)} đ</div>
-                  </div>
-                  <div style={{background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'8px', padding:'8px 16px', textAlign:'center'}}>
-                    <div style={{fontSize:'0.72rem', color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.03em'}}>DT cuộn</div>
-                    <div style={{fontWeight:700, color:'var(--text)', fontSize:'1.1rem'}}>{fmt(r.filmRollArea, 1)} m²</div>
+                    <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px'}}>DT cuộn: {fmt(r.filmRollArea, 1)} m²</div>
                   </div>
                 </div>
               )}
@@ -606,7 +643,7 @@ export default function ManagerView() {
               <div className="stat-card green" style={{position: 'relative'}}>
                 <div className="stat-label">Lợi Nhuận</div>
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
-                  {fmt(hasChotGia ? loiNhuanCongTyChot : r.profitAmount)}đ <span style={{fontSize: '0.85rem'}}>({fmtPercent(hasChotGia ? pctLoiNhuanCongTyChot : r.profitRate)})</span>
+                  {fmt(hasChotGia ? loiNhuanCongTyChot : effProfitAmount)}đ <span style={{fontSize: '0.85rem'}}>({fmtPercent(hasChotGia ? pctLoiNhuanCongTyChot : effProfitRate)})</span>
                 </div>
                 {profitDropFromChot > 0 && (
                   <div style={{color:'#d9534f', fontSize:'0.85rem', fontWeight:700, marginTop:'8px'}}>⚠️ Giảm {fmt(profitDropFromChot)} đ ({fmtPercent(profitDropPct)}) LN so với đề xuất</div>
@@ -614,10 +651,10 @@ export default function ManagerView() {
               </div>
               <div className="stat-card cyan">
                 <div className="stat-label">Doanh thu</div>
-                <div className="stat-value">{fmt(hasChotGia ? doanhThuChot : r.revenue)} đ</div>
+                <div className="stat-value">{fmt(hasChotGia ? doanhThuChot : effRevenue)} đ</div>
               </div>
               <div className="stat-card orange">
-                <div className="stat-label">Giá Bán/{isMang ? 'm²' : 'Túi'}</div>
+                <div className="stat-label">{hasChotGia ? `Giá Chốt/${isMang ? 'm²' : 'Túi'}` : `Giá Bán/${isMang ? 'm²' : 'Túi'}`}</div>
                 <div className="stat-value">{fmt(shownPrice, 0)} đ</div>
               </div>
               <div className="stat-card pink">
@@ -635,7 +672,7 @@ export default function ManagerView() {
             <CollapsibleCard
               resetKey={resultKey}
               style={{marginBottom: '14px'}}
-              title={<><span className="icon">💰</span> Chi tiết giá bán đề xuất / {unitLabel}</>}
+              title={<><span className="icon">💰</span> Chi tiết giá {hasChotGia ? 'chốt' : 'đề xuất'} / {unitLabel}</>}
             >
               <ul className="breakdown-list" id="s-breakdown">
                 {breakdownItems.map(([l, v], i) => (
@@ -643,7 +680,7 @@ export default function ManagerView() {
                 ))}
                 <li className="bl-total">
                   <span className="bl-label" style={{color:'var(--orange)'}}>GIÁ BÁN ĐỀ XUẤT / {unitLabel.toUpperCase()}</span>
-                  <span className="bl-value" style={{color:'var(--orange)'}}>{fmt(r.finalPrice, 0)} đ</span>
+                  <span className="bl-value" style={{color:'var(--orange)'}}>{fmt(effFinalPrice, 0)} đ</span>
                 </li>
                 {hasChotGia && (
                   <li className="bl-total" style={{borderTop: '1px dashed var(--border)', marginTop: '6px', paddingTop: '8px'}}>
@@ -915,7 +952,7 @@ export default function ManagerView() {
         </div> {/* End manager-content */}
 
         {/* RIGHT: Floating TOC Sub-Menu */}
-        <div className="manager-toc" style={{width: '250px', position: 'fixed', right: '20px', top: '80px', background: 'var(--surface)', padding: '16px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', zIndex: 90}}>
+        <div className="manager-toc" style={{width: '200px', position: 'fixed', right: '12px', top: '80px', background: 'var(--surface)', padding: '12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', zIndex: 90}}>
           <div style={{fontSize:'0.85rem', fontWeight:700, color:'var(--muted)', textTransform:'uppercase', marginBottom:'12px', letterSpacing:'0.5px'}}>Mục lục các bảng</div>
           <a href="#sect-sale" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>1. Bảng Báo Giá Gợi Ý</a>
           <a href="#sect-tech" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>2. Bảng Đặc Tả Kỹ Thuật</a>
