@@ -198,7 +198,7 @@ export default function InputCard() {
     }
   };
 
-  const handleCommissionChange = (val: number, unit: string) => {
+  const handleCommissionChange = (val: number, unit: 'percent' | 'vnd') => {
     setInput({
       commissionInputValue: val,
       commissionUnit: unit,
@@ -497,7 +497,7 @@ export default function InputCard() {
               <label className="form-label">Hoa hồng</label>
               <div className="commission-row">
                 <FormattedNumberInput className="form-input" value={input.commissionInputValue || 0} onChange={(val: number) => handleCommissionChange(val, input.commissionUnit)} />
-                <select className="form-select" value={input.commissionUnit} onChange={e => handleCommissionChange(input.commissionInputValue, e.target.value)} style={{ width: '90px', flexShrink: 0 }}>
+                <select className="form-select" value={input.commissionUnit} onChange={e => handleCommissionChange(input.commissionInputValue, e.target.value as 'percent' | 'vnd')} style={{ width: '90px', flexShrink: 0 }}>
                   <option value="percent">%</option>
                   <option value="vnd">VND</option>
                 </select>

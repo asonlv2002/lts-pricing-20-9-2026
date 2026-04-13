@@ -82,8 +82,7 @@ function Sidebar({ activeModule, setActiveModule, role, setRole, isOpen, setIsOp
       )}
 
       <aside
-        className={`lts-sidebar ${isMobile ? 'lts-sidebar--mobile' : ''} ${isMobile && !isOpen ? 'lts-sidebar--hidden' : ''}`}
-        style={!isMobile ? { width: isOpen ? '240px' : '72px' } : undefined}
+        className={`lts-sidebar ${isMobile ? 'lts-sidebar--mobile' : ''} ${isMobile && !isOpen ? 'lts-sidebar--hidden' : ''} ${!isMobile && !isOpen ? 'lts-sidebar--collapsed' : ''}`}
       >
         {/* Logo area */}
         <div className="lts-sidebar-logo">

@@ -5,7 +5,7 @@ function getMaterial(id: string, materials: Material[]): Material | undefined {
   return materials.find(m => m.id === id);
 }
 
-function lookupProfit(totalCost: number, column: number, profitTable: ProfitRow[]): number {
+export function lookupProfit(totalCost: number, column: number, profitTable: ProfitRow[]): number {
   const col = column === 1 ? 'col1' : 'col2';
   let val = PROFIT_DEFAULT[col as keyof typeof PROFIT_DEFAULT];
   for (const row of profitTable) {
@@ -59,13 +59,15 @@ export function calculate(
   const numImages = input.numImages || 1;
 
   const bagArea = spreadWidth * cutStep;
-  const totalArea = quantity * bagArea;
+  // Với màng: quantity nhập vào đã là m², không nhân thêm bagArea
+  // Với túi: quantity là số cái → tổng m² = số cái × m²/cái
+  const totalArea = input.productType === 'mang' ? quantity : quantity * bagArea;
   const printWidth = spreadWidth * numImages + 0.02;
   const filmLength = printWidth > 0 ? totalArea / printWidth : 0;
 
   const cutWidth = printWidth;
   const cutMeters = filmLength;
-  const cutWaste = cutMeters / 3000 * 20 + 100;
+  const cutWaste = input.productType === 'mang' ? 0 : (cutMeters / 3000 * 20 + 100);
   const cutWastePercent = numLaminations <= 1 ? 3 : 6;
 
   const laminations: any[] = [];
@@ -114,20 +116,27 @@ export function calculate(
   const printCostMaterial = (layer1.pricePerM2 || 0) * (printWaste + printMeters) * printNLWidth;
   const printTotalCost = printCostCPSX + printCostMaterial;
 
-  let cutCPSX;
-  const cutBase = constants.cutBase || 971;
-  const cutT1 = constants.cutThreshold1 || 0.07;
-  const cutT2 = constants.cutThreshold2 || 0.2;
-  const cutM1 = constants.cutMult1 || 1.4;
-  const cutM2 = constants.cutMult2 || 1.2;
-  const cutM3 = constants.cutMult3 || 0.8;
-  
-  if (bagArea < cutT1)           cutCPSX = cutBase * cutM1;
-  else if (bagArea < cutT2)      cutCPSX = cutBase * cutM2;
-  else                           cutCPSX = cutBase * cutM3;
-  
-  const cutCostCPSX = cutCPSX * (cutWaste + cutMeters) * cutWidth;
-  const cutTotalCost = cutCostCPSX;
+  let cutCPSX = 0;
+  let cutCostCPSX = 0;
+  let cutTotalCost = 0;
+
+  const isMang = input.productType === 'mang';
+
+  if (!isMang) {
+    const cutBase = constants.cutBase || 971;
+    const cutT1 = constants.cutThreshold1 || 0.07;
+    const cutT2 = constants.cutThreshold2 || 0.2;
+    const cutM1 = constants.cutMult1 || 1.4;
+    const cutM2 = constants.cutMult2 || 1.2;
+    const cutM3 = constants.cutMult3 || 0.8;
+    
+    if (bagArea < cutT1)           cutCPSX = cutBase * cutM1;
+    else if (bagArea < cutT2)      cutCPSX = cutBase * cutM2;
+    else                           cutCPSX = cutBase * cutM3;
+    
+    cutCostCPSX = cutCPSX * (cutWaste + cutMeters) * cutWidth;
+    cutTotalCost = cutCostCPSX;
+  }
 
   const totalProductionCost = printTotalCost + totalLamCost + cutTotalCost;
 
@@ -167,7 +176,6 @@ export function calculate(
 
   const extraAccessoryWeightPerUnit = quantity > 0 ? (zipperWeightTotal + tapeWeightTotal) / quantity : 0;
 
-  const isMang = input.productType === 'mang';
   const filmRollLength = (input as any).filmRollLength || 6000;
   // Diện tích cuộn màng TP = khổ trải × chiều dài cuộn / số con hình
   const filmRollArea = isMang ? (spreadWidth * filmRollLength / numImages) : 0;
@@ -180,15 +188,22 @@ export function calculate(
   let boxPerUnit: number;
   let packagingPerUnit: number;
 
-  if (isMang && actualBoxPrice > 0 && filmRollArea > 0) {
-    // Màng: người dùng nhập giá đóng gói mỗi cuộn (đ/cuộn)
-    // Phí đóng gói / m² = giá_đóng_gói / diện_tích_cuộn
-    packagingPerUnit = actualBoxPrice / filmRollArea;
-    boxPerUnit = packagingPerUnit;
-    boxTotal = boxPerUnit * quantity;
-    numBoxes = filmRollArea > 0 ? quantity / filmRollArea : 0;
+  if (isMang) {
+    // Màng: guard filmRollArea <= 0 → không tính đóng gói (tránh NaN/Infinity)
+    if (actualBoxPrice > 0 && filmRollArea > 0) {
+      // Phí đóng gói / m² = giá_đóng_gói / diện_tích_cuộn
+      packagingPerUnit = actualBoxPrice / filmRollArea;
+      boxPerUnit = packagingPerUnit;
+      boxTotal = boxPerUnit * quantity;
+      numBoxes = quantity / filmRollArea;
+    } else {
+      packagingPerUnit = 0;
+      boxPerUnit = 0;
+      boxTotal = 0;
+      numBoxes = filmRollArea > 0 ? quantity / filmRollArea : 0;
+    }
   } else {
-    // Túi: tính theo thùng (giữ nguyên logic cũ)
+    // Túi: tính theo thùng
     numBoxes = actualBagsPerBox > 0 ? quantity / actualBagsPerBox : 0;
     boxTotal = actualBoxPrice * numBoxes;
     boxPerUnit = quantity > 0 ? boxTotal / quantity : 0;

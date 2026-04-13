@@ -41,10 +41,12 @@ export default function TechView() {
     });
   }
 
-  uniRows.push({
-    stage: 'CẮT', mat: '—',
-    width: layers.cut.width, meters: layers.cut.meters, waste: layers.cut.waste,
-  });
+  if (input.productType !== 'mang') {
+    uniRows.push({
+      stage: 'CẮT', mat: '—',
+      width: layers.cut.width, meters: layers.cut.meters, waste: layers.cut.waste,
+    });
+  }
 
   // Weight items
   const tWeightItems: [string, string][] = [
@@ -68,10 +70,12 @@ export default function TechView() {
           <div className="stat-label">Đầu Vào Khâu In</div>
           <div className="stat-value">{fmt(r.printMeters + r.printWaste, 0)} m</div>
         </div>
-        <div className="stat-card cyan">
-          <div className="stat-label">Đầu Vào Khâu Cắt</div>
-          <div className="stat-value">{fmt(r.cutMeters + r.cutWaste, 0)} m</div>
-        </div>
+        {input.productType !== 'mang' && (
+          <div className="stat-card cyan">
+            <div className="stat-label">Đầu Vào Khâu Cắt</div>
+            <div className="stat-value">{fmt(r.cutMeters + r.cutWaste, 0)} m</div>
+          </div>
+        )}
         <div className="stat-card green">
           <div className="stat-label">Khổ Thành Phẩm</div>
           <div className="stat-value">{fmt(r.printWidth, 3)} m</div>
