@@ -10,6 +10,9 @@
 //     Table: 2 cột (4928+5245 DXA) — MÁY IN → MÁY CHIA → Footer
 //   Colors: #fabf8f (orange headers), #c2d69b (green SP title), yellow highlight
 //   Font: Times New Roman, 11pt default, 16pt headers, 14pt company name
+//
+// PDF workflow: exportLSXtoPDF → buildLSXHtml (mirror 1:1 DOCX) → window.open → window.print
+//   @page A4, Times New Roman, logo base64 inline, -webkit-print-color-adjust: exact
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { ProductionOrder } from './types';
@@ -26,32 +29,15 @@ function vd(val: string | number | null | undefined, suffix = ''): string {
 function qty(n: number): string { return n > 0 ? n.toLocaleString('vi-VN') : '...'; }
 function safeFn(s: string): string { return (s || 'unknown').replace(/[<>:"/\\|?*\s]+/g, '_').slice(0, 60); }
 
-// ── Timeout + CDN ─────────────────────────────────────────────────────────────
+// ── Timeout ───────────────────────────────────────────────────────────────────
 function withTimeout<T>(p: Promise<T>, ms: number, lbl: string): Promise<T> {
   return new Promise<T>((res, rej) => {
     const t = setTimeout(() => rej(new Error(`Timeout ${ms}ms: ${lbl}`)), ms);
     p.then(v => { clearTimeout(t); res(v); }, e => { clearTimeout(t); rej(e); });
   });
 }
-const sc: Record<string, Promise<void> | undefined> = {};
-function loadS(url: string, g: string): Promise<void> {
-  if (typeof window !== 'undefined' && (window as any)[g]) return Promise.resolve();
-  if (sc[url]) return sc[url];
-  sc[url] = new Promise<void>((r, j) => { const s = document.createElement('script'); s.src = url; s.async = true; s.onload = () => r(); s.onerror = () => j(new Error(`CDN: ${g}`)); document.head.appendChild(s); });
-  return sc[url];
-}
-async function getJsPDF(): Promise<any> {
-  try { const m = await withTimeout(import('jspdf'), 8000, 'jspdf'); const C = m.jsPDF || (m as any).default?.jsPDF || (m as any).default; if (C) return C; } catch { /**/ }
-  await withTimeout(loadS('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js', 'jspdf'), 10000, 'jspdf CDN');
-  return (window as any).jspdf?.jsPDF ?? (() => { throw new Error('jsPDF!'); })();
-}
-async function getH2C(): Promise<any> {
-  try { const m = await withTimeout(import('html2canvas'), 8000, 'h2c'); const fn = (m as any).default || m; if (typeof fn === 'function') return fn; } catch { /**/ }
-  await withTimeout(loadS('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', 'html2canvas'), 10000, 'h2c CDN');
-  return (window as any).html2canvas ?? (() => { throw new Error('h2c!'); })();
-}
 
-// ── Load logo ─────────────────────────────────────────────────────────────────
+// ── Load logo → base64 data URL (dùng cho cả DOCX và print HTML) ─────────────
 async function loadLogoBytes(): Promise<Uint8Array | null> {
   try {
     const resp = await fetch('/logo_lts.png');
@@ -60,12 +46,21 @@ async function loadLogoBytes(): Promise<Uint8Array | null> {
     return new Uint8Array(buf);
   } catch { return null; }
 }
+async function loadLogoDataUrl(): Promise<string> {
+  try {
+    const resp = await fetch('/logo_lts.png');
+    if (!resp.ok) return '';
+    const buf = await resp.arrayBuffer();
+    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+    return `data:image/png;base64,${b64}`;
+  } catch { return ''; }
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// ████  EXPORT DOCX — pixel-perfect copy of QT.ISO-22-BM02  ████
+// ████  BUILD DOCX BLOB — pixel-perfect copy of QT.ISO-22-BM02  ████
+// ████  Dùng chung cho export DOCX và chuyển đổi PDF             ████
 // ═══════════════════════════════════════════════════════════════════════════════
-export async function exportLSXtoDOCX(order: ProductionOrder): Promise<void> {
-  console.log('[LSX] DOCX start:', order.id);
+export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
 
   const [D, logoBytes] = await Promise.all([
     withTimeout(import('docx'), 10000, 'docx').catch(() => { throw new Error('Không load được thư viện docx'); }),
@@ -417,6 +412,14 @@ export async function exportLSXtoDOCX(order: ProductionOrder): Promise<void> {
   });
 
   const blob = await Packer.toBlob(doc);
+  return blob;
+}
+
+// ── Export DOCX — wrapper gọi buildLSXDocxBlob rồi trigger download ───────────
+export async function exportLSXtoDOCX(order: ProductionOrder): Promise<void> {
+  console.log('[LSX] DOCX start:', order.id);
+  const blob = await buildLSXDocxBlob(order);
+  const { snapshot: s, manual: m } = order;
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -427,199 +430,541 @@ export async function exportLSXtoDOCX(order: ProductionOrder): Promise<void> {
   console.log('[LSX] DOCX done:', a.download);
 }
 
+// ── helper chỉ dùng bởi buildLSXHtml (browser print fallback, giữ lại) ────────
+function buildLSXHtml(order: ProductionOrder, logoDataUrl: string): string {
+  const F = 'font-family:"Times New Roman",Times,serif';
+  const B = `border:1px solid #000;${F};vertical-align:top;padding:3px 6px;`;
+  const SZ: Record<number, string> = { 22: '14.7px', 24: '16px', 26: '17.3px', 28: '18.7px', 32: '21.3px' };
+  const td = (extra = '') => `style="${B}font-size:${SZ[22]};${extra}"`;
+  const th = (bg: string, sz = 32) => `style="${B}background:${bg};font-weight:bold;text-align:center;font-size:${SZ[sz]};padding:4px 6px;"`;
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ████  EXPORT PDF — inline HTML, layout giống mẫu gốc  ████
-// ═══════════════════════════════════════════════════════════════════════════════
-const FNT = 'font-family:Times New Roman,serif;';
-const TD = `border:1px solid #000;padding:3px 5px;vertical-align:top;font-size:11px;${FNT}`;
-const LBL = `${TD}font-weight:bold;`;
-const HDR_S = `${TD}background:#fabf8f;font-weight:bold;text-align:center;font-size:16px;padding:4px;`;
-const SP_HDR = `${TD}background:#c2d69b;font-weight:bold;text-align:center;font-size:16px;padding:3px;`;
-
-function buildHtml(order: ProductionOrder): string {
   const { snapshot: s, manual: m } = order;
   const isTui = s.productType !== 'mang';
   const khoMM = Math.round(s.spreadWidth * 1000);
-  const dlMM = Math.round(s.cutStep * 1000);
+  const dlMM  = Math.round(s.cutStep * 1000);
 
-  return `
-<!-- HEADER TABLE 1: Logo + Công ty + ISO -->
-<table style="border-collapse:collapse;width:100%;${FNT}">
+  // ── Helpers dùng inline ──
+  const bold = (t: string) => `<b>${t}</b>`;
+  const red  = (t: string) => `<span style="color:#cc0000">${t}</span>`;
+  const hl   = (t: string) => `<span style="background:#ffff00">${t}</span>`;
+  const br   = '<br>';
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // TABLE 1 — Logo + Tên công ty + ISO (4 cột: 22.1 / 37.6 / 19.4 / 21.0%)
+  // ─────────────────────────────────────────────────────────────────────────
+  const t1 = `
+<table style="border-collapse:collapse;width:100%;table-layout:fixed;${F}">
+  <colgroup>
+    <col style="width:22.1%"><col style="width:37.6%">
+    <col style="width:19.4%"><col style="width:21.0%">
+  </colgroup>
   <tr>
-    <td rowspan="5" style="${TD}width:22%;vertical-align:middle;text-align:center;">
-      <img src="/logo_lts.png" style="width:65px;height:52px;" alt="LTS"/>
+    <td rowspan="5" ${td('text-align:center;vertical-align:middle;')}>
+      <img src="${logoDataUrl || '/logo_lts.png'}" style="width:80px;height:64px;display:block;margin:auto;" onerror="this.style.display='none'"/>
     </td>
-    <td rowspan="3" style="${TD}width:38%;vertical-align:middle;text-align:center;font-size:14px;">
+    <td rowspan="3" ${td(`text-align:center;vertical-align:middle;font-size:${SZ[28]};`)}>
       Công Ty CP TM và SX Bao Bì Lai Trường Sơn- Long An
     </td>
-    <td style="${TD}width:19%;font-style:italic;font-size:12px;">Ký mã hiệu</td>
-    <td style="${TD}width:21%;text-align:center;font-size:12px;">QT.ISO-22-BM02</td>
+    <td ${td(`font-style:italic;font-size:${SZ[24]};`)} >Ký mã hiệu</td>
+    <td ${td(`text-align:center;font-size:${SZ[24]};`)} >QT.ISO-22-BM02</td>
   </tr>
   <tr>
-    <td style="${TD}font-style:italic;font-size:12px;">Lần ban hành</td>
-    <td style="${TD}text-align:center;font-size:12px;">02</td>
+    <td ${td(`font-style:italic;font-size:${SZ[24]};`)} >Lần ban hành</td>
+    <td ${td(`text-align:center;font-size:${SZ[24]};`)} >02</td>
   </tr>
   <tr>
-    <td style="${TD}font-style:italic;font-size:12px;">Ngày ban hành</td>
-    <td style="${TD}text-align:center;font-size:12px;">01/03/2025</td>
+    <td ${td(`font-style:italic;font-size:${SZ[24]};`)} >Ngày ban hành</td>
+    <td ${td(`text-align:center;font-size:${SZ[24]};`)} >01/03/2025</td>
   </tr>
   <tr>
-    <td rowspan="2" style="${TD}vertical-align:middle;text-align:center;font-weight:bold;font-size:16px;">LỆNH SẢN XUẤT</td>
-    <td style="${TD}font-style:italic;font-size:12px;">Số lệnh SX:</td>
-    <td style="${TD}text-align:center;font-size:12px;">${m.lsxNumber || order.id}</td>
+    <td rowspan="2" ${td(`text-align:center;vertical-align:middle;font-weight:bold;font-size:${SZ[32]};`)} >LỆNH SẢN XUẤT</td>
+    <td ${td(`font-style:italic;font-size:${SZ[24]};`)} >Số lệnh SX:</td>
+    <td ${td(`text-align:center;font-size:${SZ[24]};`)} >${m.lsxNumber || order.id}</td>
   </tr>
   <tr>
-    <td style="${TD}font-style:italic;font-size:12px;">Ngày xuống LSX:</td>
-    <td style="${TD}text-align:center;font-size:12px;">${m.issuedDate || '…/…./20…'}</td>
+    <td ${td(`font-style:italic;font-size:${SZ[24]};`)} >Ngày xuống LSX:</td>
+    <td ${td(`text-align:center;font-size:${SZ[24]};`)} >${m.issuedDate || '…/…./20…'}</td>
   </tr>
-</table>
+</table>`;
 
-<!-- HEADER TABLE 2: I. THÔNG TIN SẢN PHẨM -->
-<table style="border-collapse:collapse;width:100%;${FNT}margin-top:-1px;">
-  <tr><td colspan="2" style="${SP_HDR}">I . THÔNG TIN SẢN PHẨM</td></tr>
+  // ─────────────────────────────────────────────────────────────────────────
+  // TABLE 2 — I. THÔNG TIN SẢN PHẨM (2 cột: 47.3 / 52.7%)
+  // ─────────────────────────────────────────────────────────────────────────
+  const t2 = `
+<table style="border-collapse:collapse;width:100%;table-layout:fixed;${F};margin-top:-1px;">
+  <colgroup><col style="width:47.3%"><col style="width:52.7%"></colgroup>
   <tr>
-    <td colspan="2" style="${TD}"><b>Khách hàng:</b> &nbsp; ${s.customer || 'CÔNG TY ………..'}</td>
+    <td colspan="2" ${th('#c2d69b', 32)} >I . THÔNG TIN SẢN PHẨM</td>
   </tr>
   <tr>
-    <td style="${TD}width:47%;"><b>MSP:</b> &nbsp; ${m.msp || 'TP_0……..MA'}</td>
-    <td style="${TD}"><b>Tên SP:</b> &nbsp; <b>${m.tenSP || s.productName || 'MÀNG IN …….'}</b></td>
+    <td colspan="2" ${td()} >${bold('Khách hàng:')} &nbsp; ${bold(s.customer || 'CÔNG TY ………..') }</td>
   </tr>
   <tr>
-    <td style="${TD}"><b>Cấu trúc:</b> ${v(s.structure)}<br><b>Khổ màng:</b> K${khoMM}mm</td>
-    <td style="${TD}"><b>Quy cách:</b> ${m.quyCachNote || '.'}<br><b>Quy cách cuộn:</b> ${isTui ? '' : (m.quyCachCuon || '.')}<br><b>Chiều ra cuộn:</b> ${isTui ? '' : (m.chieuRaCuonSP || '.')}</td>
+    <td ${td()} >${bold('MSP:')} &nbsp; ${m.msp || 'TP_0……..MA'}</td>
+    <td ${td()} >${bold('Tên SP:')} &nbsp; ${bold(m.tenSP || s.productName || 'MÀNG IN …….')}</td>
   </tr>
   <tr>
-    <td style="${TD}"><b>Số màu:</b> ${vd(s.numColors)} màu</td>
-    <td style="${TD}"><b>Số lượng ĐH:</b> ${m.soLuongDHNote || qty(s.quantity) + (isTui ? ' túi' : ' m²')}</td>
-  </tr>
-</table>
-
-<!-- BODY TABLE: MÁY IN + MÁY CHIA/GHÉP -->
-<table style="border-collapse:collapse;width:100%;${FNT}margin-top:-1px;">
-  <!-- MÁY IN -->
-  <tr><td colspan="2" style="${HDR_S}">MÁY IN</td></tr>
-  <tr>
-    <td style="${LBL}width:48%;">Màng in: <span style="color:red;font-weight:normal;">${v(m.printFilmName) || v(s.layer1Name)}</span></td>
-    <td style="${LBL}">Khổ: <span style="font-weight:normal;">${v(khoMM, 'mm')}</span></td>
-  </tr>
-  <tr>
-    <td style="${TD}vertical-align:middle;"><b>Quy cách trục:</b> ${v(m.cylDiameter) ? `D:${v(m.cylDiameter)} x ${v(m.cylWidth)}mm` : ''}<br><b>MST:</b> ${v(m.printMST)}</td>
-    <td style="${TD}"><b>Số trục:</b> <span style="color:red;">${vd(m.numCylinders)}</span><br><b>Chiều ra cuộn:</b> <span style="color:red;">${v(m.rollOutWidth, 'mm')}</span></td>
-  </tr>
-  <tr>
-    <td colspan="2" style="${TD}line-height:1.5;">
-      <b><span style="background:yellow;">Thành phẩm in yêu cầu</span></b>:<br>
-      Định mức phi hao: ${v(m.printWastePercent, ' M')}<br>
-      Số lượng cấp vật tư: ${v(m.materialQtySupplied)}<br><br>
-      <b>Ghi chú:</b><br>${m.printNotes || 'Sử dụng mang'}<br>
-      <b>Trục in :</b> ${v(m.cylInfo)}
+    <td ${td('vertical-align:middle;')} >
+      ${bold('Cấu trúc:')} ${v(s.structure)}${br}
+      ${bold('Khổ màng:')} K${khoMM}mm
+    </td>
+    <td ${td('vertical-align:middle;')} >
+      ${bold('Quy cách:')} ${m.quyCachNote || '.'}${br}
+      ${bold('Quy cách cuộn:')} ${isTui ? '' : (m.quyCachCuon || '.')}${br}
+      ${bold('Chiều ra cuộn:')} ${isTui ? '' : (m.chieuRaCuonSP || '.')}
     </td>
   </tr>
+  <tr>
+    <td ${td()} >${bold('Số màu:')} ${vd(s.numColors)} màu</td>
+    <td ${td()} >${bold('Số lượng ĐH:')} ${m.soLuongDHNote || qty(s.quantity) + (isTui ? ' túi' : ' m²')}</td>
+  </tr>
+</table>`;
 
-${!isTui ? `
-  <!-- MÁY CHIA -->
-  <tr><td colspan="2" style="${HDR_S}">MÁY CHIA</td></tr>
+  // ─────────────────────────────────────────────────────────────────────────
+  // TABLE 3 — BODY: MÁY IN + MÁY CHIA/GHÉP (2 cột: 48.4 / 51.6%)
+  // ─────────────────────────────────────────────────────────────────────────
+
+  // ── MÁY IN ──
+  const mayIn = `
+  <tr><td colspan="2" ${th('#fabf8f')} >MÁY IN</td></tr>
   <tr>
-    <td style="${LBL}">Khổ màng: <span style="font-weight:normal;">${v(khoMM, 'mm')}</span></td>
-    <td style="${LBL}">Khổ chia:<span style="font-weight:normal;"> ${vd(m.divideWidth, 'mm')}</span></td>
+    <td ${td()} >${bold('Màng in:')} ${red(v(m.printFilmName) || v(s.layer1Name))}</td>
+    <td ${td()} >${bold('Khổ:')} ${v(khoMM, 'mm')}</td>
   </tr>
   <tr>
-    <td style="${TD}vertical-align:middle;"><b>Chiều dài quấn cuộn:</b> ${vd(m.rollLength, ' m')}<br><span style="color:red;">(Lưu ý: Dựa vào số mét thực tế mà linh động chia cuộn hợp lý)</span></td>
-    <td style="${TD}vertical-align:middle;"><b>Chiều ra cuộn:</b> ${vd(m.divideRollOutWidth, 'mm')}</td>
-  </tr>
-  <tr>
-    <td colspan="2" style="${TD}line-height:1.5;">
-      Định mức phi hao: 0m<br><br>
-      <b>Khách hàng yêu cầu giao:</b> ${v(m.divideDeliveryReq)}<br><br>
-      ${m.divideNotes || 'Ghi chú: Quấn cuộn đúng quy cách, cuộn lẻ không quá ……m/cuộn<br>Cân ký cẩn thận, đảm bảo chính xác tránh sai lệnh quá nhiều.<br>Đánh dấu từng cặp MT-MS để khách hàng phân biệt.'}<br><br>
-      <b style="font-size:13px;">** Lưu ý:</b>
+    <td ${td('vertical-align:middle;')} >
+      ${bold('Quy cách trục:')} ${m.cylDiameter ? `D:${v(m.cylDiameter)} x ${v(m.cylWidth)}mm` : ''}${br}
+      ${bold('MST:')} ${v(m.printMST)}
+    </td>
+    <td ${td()} >
+      ${bold('Số trục:')} ${red(vd(m.numCylinders))}${br}
+      ${bold('Chiều ra cuộn:')} ${red(v(m.rollOutWidth, 'mm'))}
     </td>
   </tr>
-` : `
-  <!-- MÁY GHÉP -->
-  <tr><td colspan="2" style="${HDR_S}">MÁY GHÉP</td></tr>
   <tr>
-    <td style="${LBL}">Màng ghép 1: <span style="font-weight:normal;">${v(m.laminateFilm1) || v(s.layer2Name)}</span></td>
-    <td style="${LBL}">Khổ: K<span style="font-weight:normal;">${vd(m.laminateFilm1Width, 'mm')}</span></td>
-  </tr>
-  <tr>
-    <td style="${LBL}">Màng ghép 2: <span style="font-weight:normal;">${v(m.laminateFilm2)}</span></td>
-    <td style="${LBL}">Khổ: K</td>
-  </tr>
-  <tr><td colspan="2" style="${TD}line-height:1.5;">
-    Định mức phi hao<br>
-    Thành phẩm yêu cầu: ${vd(m.lamProductQty)} ${v(m.lamProductUnit)}<br>
-    <b>Ghi chú:</b> ${m.laminateNotes || ''}
-  </td></tr>
+    <td colspan="2" ${td('line-height:1.7;')} >
+      ${bold(hl('Thành phẩm in yêu cầu'))}:${br}
+      Định mức phi hao: ${v(m.printWastePercent, ' M')}${br}
+      Số lượng cấp vật tư: ${v(m.materialQtySupplied)}${br}${br}
+      ${bold('Ghi chú:')}${br}${m.printNotes || 'Sử dụng mang'}${br}
+      ${bold('Trục in:')} ${v(m.cylInfo)}
+    </td>
+  </tr>`;
 
-  <!-- MÁY CHIA -->
-  <tr><td colspan="2" style="${HDR_S}">MÁY CHIA</td></tr>
+  // ── MÁY CHIA (màng) ──
+  const mayChiaMang = `
+  <tr><td colspan="2" ${th('#fabf8f')} >MÁY CHIA</td></tr>
+  <tr>
+    <td ${td()} >${bold('Khổ màng:')} ${v(khoMM, 'mm')}</td>
+    <td ${td()} >${bold('Khổ chia:')} ${vd(m.divideWidth, 'mm')}</td>
+  </tr>
+  <tr>
+    <td ${td('vertical-align:middle;')} >
+      ${bold('Chiều dài quấn cuộn:')} ${vd(m.rollLength, ' m')}${br}
+      ${red('(Lưu ý: Dựa vào số mét thực tế mà linh động chia cuộn hợp lý)')}
+    </td>
+    <td ${td('vertical-align:middle;')} >${bold('Chiều ra cuộn:')} ${vd(m.divideRollOutWidth, 'mm')}</td>
+  </tr>
+  <tr>
+    <td colspan="2" ${td('line-height:1.7;min-height:120px;')} >
+      Định mức phi hao: 0m${br}${br}
+      ${bold('Khách hàng yêu cầu giao:')} ${v(m.divideDeliveryReq)}${br}${br}
+      ${m.divideNotes || `Ghi chú: Quấn cuộn đúng quy cách, cuộn lẻ không quá ……m/cuộn${br}
+      Cân ký cẩn thận, đảm bảo chính xác tránh sai lệnh quá nhiều.${br}
+      Đánh dấu từng cặp MT-MS để khách hàng phân biệt.`}${br}${br}
+      ${bold('** Lưu ý:')}
+    </td>
+  </tr>`;
 
-  <!-- MÁY LÀM TÚI -->
-  <tr><td colspan="2" style="${HDR_S}">MÁY LÀM TÚI</td></tr>
-  <tr>
-    <td style="${LBL}">Kiểu túi: <span style="font-weight:normal;">${v(s.bagType) || 'TÚI 4 BIÊN'}</span></td>
-    <td style="${TD}"></td>
-  </tr>
-  <tr>
-    <td style="${TD}"><b>Chiều rộng:</b> ${khoMM}mm</td>
-    <td style="${TD}"><b>Chiều dài:</b> ${dlMM}mm</td>
-  </tr>
-  <tr>
-    <td style="${TD}"><b>Dán biên:</b> ${v(m.sealEdge)}</td>
-    <td style="${TD}"><b>Xếp đáy:</b> ${v(m.foldBottom)}</td>
-  </tr>
-  <tr>
-    <td style="${TD}"><b>Nhấn xé</b> ${v(m.tearNotch)}</td>
-    <td style="${TD}"></td>
-  </tr>
-  <tr><td colspan="2" style="${TD}line-height:1.5;">
-    - Định mức phi hao: ${vd(m.bagWasteMeters, ' M~')}
-    ${m.useSemicircularMold ? '<br>- Sử dụng khuôn đáy đứng bán nguyệt' : ''}
-    ${m.useDualCutter ? '<br>- Sử dụng dao cắt 2 nhịp để cắt' : ''}
-  </td></tr>
-  <tr>
-    <td style="${TD}"><b>Yêu cầu giao hàng:</b><br>${m.deliveryNotes || ''}</td>
-    <td style="${TD}"><b>Ghi chú:</b> <span style="color:red;">${m.bagMachineNotes || 'chạy theo mẫu đã sản xuất'}</span></td>
-  </tr>
-`}
+  // ── MÁY GHÉP + CHIA + LÀM TÚI ──
+  const bagNoteLines = [
+    `- Định mức phi hao: ${vd(m.bagWasteMeters, ' M~')}`,
+    m.useSemicircularMold ? '- Sử dụng khuôn đáy đứng bán nguyệt' : '',
+    m.useDualCutter ? '- Sử dụng dao cắt 2 nhịp để cắt' : '',
+  ].filter(Boolean).join(br);
 
-  <!-- FOOTER -->
+  const mayTui = `
+  <tr><td colspan="2" ${th('#fabf8f')} >MÁY GHÉP</td></tr>
   <tr>
-    <td style="${LBL}padding:10px;height:30px;">Người lập:</td>
-    <td style="${LBL}padding:10px;height:30px;">Người Duyệt:</td>
+    <td ${td()} >${bold('Màng ghép 1:')} ${v(m.laminateFilm1) || v(s.layer2Name)}</td>
+    <td ${td()} >${bold('Khổ: K')}${vd(m.laminateFilm1Width, 'mm')}</td>
   </tr>
-</table>
-`;
+  <tr>
+    <td ${td()} >${bold('Màng ghép 2:')} ${v(m.laminateFilm2)}</td>
+    <td ${td()} >${bold('Khổ: K')}</td>
+  </tr>
+  <tr>
+    <td colspan="2" ${td('line-height:1.7;')} >
+      ${bold('Định mức phi hao')}${br}
+      ${bold('Thành phẩm yêu cầu:')} ${vd(m.lamProductQty)} ${v(m.lamProductUnit)}${br}
+      ${bold('Ghi chú:')} ${m.laminateNotes || ''}
+    </td>
+  </tr>
+  <tr><td colspan="2" ${th('#fabf8f')} >MÁY CHIA</td></tr>
+  <tr><td colspan="2" ${th('#fabf8f')} >MÁY LÀM TÚI</td></tr>
+  <tr>
+    <td ${td()} >${bold('Kiểu túi:')} ${v(s.bagType) || 'TÚI 4 BIÊN'}</td>
+    <td ${td()} ></td>
+  </tr>
+  <tr>
+    <td ${td()} >${bold('Chiều rộng:')} ${khoMM}mm</td>
+    <td ${td()} >${bold('Chiều dài:')} ${dlMM}mm</td>
+  </tr>
+  <tr>
+    <td ${td()} >${bold('Dán biên:')} ${v(m.sealEdge)}</td>
+    <td ${td()} >${bold('Xếp đáy:')} ${v(m.foldBottom)}</td>
+  </tr>
+  <tr>
+    <td ${td()} >${bold('Nhấn xé')} ${v(m.tearNotch)}</td>
+    <td ${td()} ></td>
+  </tr>
+  <tr><td colspan="2" ${td('line-height:1.7;')} >${bagNoteLines}</td></tr>
+  <tr>
+    <td ${td('line-height:1.7;')} >${bold('Yêu cầu giao hàng:')}${br}${m.deliveryNotes || ''}</td>
+    <td ${td('line-height:1.7;')} >${bold('Ghi chú:')} ${red(m.bagMachineNotes || 'chạy theo mẫu đã sản xuất')}</td>
+  </tr>`;
+
+  const t3 = `
+<table style="border-collapse:collapse;width:100%;table-layout:fixed;${F};margin-top:-1px;">
+  <colgroup><col style="width:48.4%"><col style="width:51.6%"></colgroup>
+  ${mayIn}
+  ${isTui ? mayTui : mayChiaMang}
+  <tr>
+    <td ${td('font-weight:bold;padding:10px 6px;height:40px;')} >Người lập:</td>
+    <td ${td('font-weight:bold;padding:10px 6px;height:40px;')} >Người Duyệt:</td>
+  </tr>
+</table>`;
+
+  return `<!DOCTYPE html><html><head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4 portrait; margin: 12mm 9mm 9mm 12mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #fff; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  @media print {
+    body { margin: 0; }
+  }
+</style>
+</head><body>
+<div style="${F};font-size:${SZ[22]};">
+  ${t1}
+  <div style="margin-top:-1px;">${t2}</div>
+  <div style="margin-top:-1px;">${t3}</div>
+</div>
+</body></html>`;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ████  EXPORT PDF — pdfmake, layout 1:1 với DOCX  ████
+//
+// Dùng pdfmake để vẽ PDF vector trực tiếp từ data, không qua browser render.
+// Font: Times (PDF built-in 14 standard fonts) — tương đương Times New Roman.
+// Margin DOCX (twips→mm): top=1134→20mm, left=1134→20mm, right=851→15mm, bottom=851→15mm
+// Column widths từ DXA (total page width 10173 DXA ≈ 175mm nội dung):
+//   hdrT1: [38.5, 65.6, 33.8, 36.6] mm  (2185+3726+1918+2078 DXA)
+//   hdrT2: [83.2, 92.6] mm              (4786+5326 DXA, total 10112)
+//   body:  [85.2, 90.8] mm              (4928+5245 DXA, total 10173)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Màu sắc
+const CLR_ORANGE = '#fabf8f';
+const CLR_GREEN  = '#c2d69b';
+const CLR_YELLOW = '#ffff00';
+const CLR_RED    = '#cc0000';
+const CLR_BLACK  = '#000000';
+
+// Tạo cell pdfmake
+type CellDef = {
+  text?: any; stack?: any[]; image?: string; fit?: [number, number];
+  colSpan?: number; rowSpan?: number;
+  fillColor?: string; color?: string; background?: string;
+  bold?: boolean; italics?: boolean; fontSize?: number;
+  alignment?: 'left' | 'center' | 'right' | 'justify';
+  margin?: [number, number, number, number];
+  border?: [boolean, boolean, boolean, boolean];
+  borderColor?: [string, string, string, string];
+  lineHeight?: number; noWrap?: boolean;
+};
+function mk(def: CellDef): any {
+  return {
+    ...def,
+    border: [true, true, true, true] as [boolean, boolean, boolean, boolean],
+    borderColor: [CLR_BLACK, CLR_BLACK, CLR_BLACK, CLR_BLACK] as [string, string, string, string],
+    margin: def.margin ?? [3, 2, 3, 2],
+  };
+}
+// Placeholder cho merged cells
+const PH: any = { text: '', border: [false, false, false, false], margin: [0, 0, 0, 0] };
+
+// Tạo inline text array (pdfmake "rich text")
+type Span = { text: string; bold?: boolean; italics?: boolean; color?: string; background?: string; fontSize?: number };
+function span(text: string, o: Omit<Span, 'text'> = {}): Span { return { text, ...o }; }
+function bold(text: string, o: Omit<Span, 'text' | 'bold'> = {}): Span { return { text, bold: true, ...o }; }
+function red(text: string): Span { return { text, color: CLR_RED }; }
+function hl(text: string): Span { return { text, bold: true, background: CLR_YELLOW }; }
+
+// Header row (màu cam hoặc xanh)
+function hdrRow(text: string, colSpan: number, fillColor: string): any[] {
+  const row: any[] = [mk({ text, bold: true, fontSize: 14, alignment: 'center', fillColor, colSpan })];
+  for (let i = 1; i < colSpan; i++) row.push(PH);
+  return row;
 }
 
 export async function exportLSXtoPDF(order: ProductionOrder): Promise<void> {
-  console.log('[LSX] PDF start:', order.id);
-  const [JsPDF, h2c] = await Promise.all([getJsPDF(), getH2C()]);
+  console.log('[LSX] PDF (pdfmake):', order.id);
 
-  const container = document.createElement('div');
-  container.style.cssText = `position:absolute;left:-9999px;top:0;width:794px;background:#fff;${FNT}font-size:11px;color:#000;padding:20px 18px;box-sizing:border-box;z-index:-1;`;
-  container.innerHTML = buildHtml(order);
-  document.body.appendChild(container);
+  // Load pdfmake + Roboto font (bundle sẵn, hỗ trợ Vietnamese) + logo
+  const [pdfMod, robotoMod, logoDataUrl] = await Promise.all([
+    withTimeout(import('pdfmake/build/pdfmake' as any), 15000, 'pdfmake'),
+    withTimeout(import('pdfmake/build/fonts/Roboto' as any), 10000, 'pdfmake/Roboto'),
+    loadLogoDataUrl(),
+  ]);
 
-  try {
-    await new Promise(r => setTimeout(r, 800));
-    const canvas: HTMLCanvasElement = await withTimeout(
-      h2c(container, { scale: 2, useCORS: true, logging: false, backgroundColor: '#fff', windowWidth: 794 }),
-      30000, 'h2c',
-    );
-    if (!canvas || canvas.width === 0) throw new Error('Canvas empty');
+  const pdfmake = (pdfMod as any).default ?? pdfMod;
+  const RobotoFont = (robotoMod as any).default ?? robotoMod;
 
-    const img = canvas.toDataURL('image/png');
-    const pdf = new JsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-    const pW = pdf.internal.pageSize.getWidth();
-    const pH = pdf.internal.pageSize.getHeight();
-    const iH = (canvas.height * pW) / canvas.width;
-    let y = 0;
-    while (y < iH) { if (y > 0) pdf.addPage(); pdf.addImage(img, 'PNG', 0, -y, pW, iH); y += pH; }
+  // Nạp TTF files vào VirtualFileSystem
+  const vfs = pdfmake.virtualfs;
+  for (const [filename, entry] of Object.entries(RobotoFont.vfs as Record<string, { data: string; encoding: string }>)) {
+    if (!vfs.existsSync(filename)) {
+      vfs.writeFileSync(filename, entry.data, entry.encoding);
+    }
+  }
+  pdfmake.addFonts(RobotoFont.fonts);
 
-    pdf.save(`LSX_${safeFn(order.manual.lsxNumber || order.id)}_${safeFn(order.snapshot.customer)}.pdf`);
-    console.log('[LSX] PDF done');
-  } finally { document.body.removeChild(container); }
+  const { snapshot: s, manual: m } = order;
+  const isTui = s.productType !== 'mang';
+  const khoMM = Math.round(s.spreadWidth * 1000);
+  const dlMM  = Math.round(s.cutStep * 1000);
+
+  const FS = 9;      // font size mặc định (pt) — DOCX sz22 = 11pt, thu nhỏ chút cho vừa trang
+  const FSS = 10;    // sz24
+  const FSL = 12;    // sz28 — tên công ty
+  const FSH = 14;    // sz32 — header tiêu đề section
+
+  // ── TABLE 1: Logo + Tên công ty + ISO ──────────────────────────────────────
+  // Widths: [38.5, 65.6, 33.8, 36.6] mm tổng ~174.5mm
+  const W1 = [38.5, 65.6, 33.8, 36.6];
+
+  const logoCell: any = logoDataUrl
+    ? mk({ image: 'logo', fit: [55, 55], rowSpan: 5, alignment: 'center', margin: [2, 4, 2, 4] })
+    : mk({ text: 'LTS', bold: true, fontSize: FSL, rowSpan: 5, alignment: 'center' });
+
+  const t1Rows: any[][] = [
+    [
+      logoCell,
+      mk({ text: 'Công Ty CP TM và SX Bao Bì Lai Trường Sơn- Long An', fontSize: FSL, alignment: 'center', rowSpan: 3, margin: [3, 6, 3, 6] }),
+      mk({ text: 'Ký mã hiệu', italics: true, fontSize: FSS }),
+      mk({ text: 'QT.ISO-22-BM02', fontSize: FSS, alignment: 'center' }),
+    ],
+    [PH, PH, mk({ text: 'Lần ban hành', italics: true, fontSize: FSS }), mk({ text: '02', fontSize: FSS, alignment: 'center' })],
+    [PH, PH, mk({ text: 'Ngày ban hành', italics: true, fontSize: FSS }), mk({ text: '01/03/2025', fontSize: FSS, alignment: 'center' })],
+    [
+      PH,
+      mk({ text: 'LỆNH SẢN XUẤT', bold: true, fontSize: FSH, alignment: 'center', rowSpan: 2, margin: [3, 8, 3, 8] }),
+      mk({ text: 'Số lệnh SX:', italics: true, fontSize: FSS }),
+      mk({ text: m.lsxNumber || order.id, fontSize: FSS, alignment: 'center' }),
+    ],
+    [PH, PH, mk({ text: 'Ngày xuống LSX:', italics: true, fontSize: FSS }), mk({ text: m.issuedDate || '…/…./20…', fontSize: FSS, alignment: 'center' })],
+  ];
+
+  // ── TABLE 2: THÔNG TIN SẢN PHẨM ───────────────────────────────────────────
+  // Widths: [83.2, 92.6] mm (total 175.8mm ~ full page)
+  const W2 = [83.2, 92.6];
+
+  const t2Rows: any[][] = [
+    [mk({ text: 'I . THÔNG TIN SẢN PHẨM', bold: true, fontSize: FSH, alignment: 'center', fillColor: CLR_GREEN, colSpan: 2 }), PH],
+    [mk({ text: [bold('Khách hàng:'), span('  '), bold(s.customer || 'CÔNG TY ………..') ], colSpan: 2 }), PH],
+    [
+      mk({ text: [bold('MSP:'), span('  '), span(m.msp || 'TP_0……..MA')] }),
+      mk({ text: [bold('Tên SP:'), span('  '), bold(m.tenSP || s.productName || 'MÀNG IN …….')] }),
+    ],
+    [
+      mk({ stack: [
+        { text: [bold('Cấu trúc:'), span(' '), span(v(s.structure))] },
+        { text: [bold('Khổ màng:'), span(` K${khoMM}mm`)] },
+      ], lineHeight: 1.5 }),
+      mk({ stack: [
+        { text: [bold('Quy cách:'), span(' '), span(m.quyCachNote || '.')] },
+        { text: [bold('Quy cách cuộn:'), span(' '), span(isTui ? '' : (m.quyCachCuon || '.'))] },
+        { text: [bold('Chiều ra cuộn:'), span(' '), span(isTui ? '' : (m.chieuRaCuonSP || '.'))] },
+      ], lineHeight: 1.5 }),
+    ],
+    [
+      mk({ text: [bold('Số màu:'), span(' '), span(vd(s.numColors) + ' màu')] }),
+      mk({ text: [bold('Số lượng ĐH:'), span(' '), span(m.soLuongDHNote || qty(s.quantity) + (isTui ? ' túi' : ' m²'))] }),
+    ],
+  ];
+
+  // ── TABLE 3: BODY — MÁY IN ────────────────────────────────────────────────
+  const W3 = [85.2, 90.8];
+  const bodyRows: any[][] = [];
+
+  // MÁY IN header
+  bodyRows.push(hdrRow('MÁY IN', 2, CLR_ORANGE));
+
+  bodyRows.push([
+    mk({ text: [bold('Màng in: '), red(v(m.printFilmName) || v(s.layer1Name))] }),
+    mk({ text: [bold('Khổ: '), span(v(khoMM, 'mm'))] }),
+  ]);
+  bodyRows.push([
+    mk({ stack: [
+      { text: [bold('Quy cách trục: '), span(m.cylDiameter ? `D:${v(m.cylDiameter)} x ${v(m.cylWidth)}mm` : '')] },
+      { text: [bold('MST: '), span(v(m.printMST))] },
+    ], lineHeight: 1.4 }),
+    mk({ stack: [
+      { text: [bold('Số trục: '), red(vd(m.numCylinders))] },
+      { text: [bold('Chiều ra cuộn: '), red(v(m.rollOutWidth, 'mm'))] },
+    ], lineHeight: 1.4 }),
+  ]);
+  bodyRows.push([
+    mk({
+      colSpan: 2,
+      stack: [
+        { text: [hl('Thành phẩm in yêu cầu'), bold(':')], lineHeight: 1.5 },
+        { text: [span('Định mức phi hao: '), span(v(m.printWastePercent, ' M'))], lineHeight: 1.4 },
+        { text: [span('Số lượng cấp vật tư: '), span(v(m.materialQtySupplied))], lineHeight: 1.4 },
+        { text: ' ' },
+        { text: [bold('Ghi chú:\n'), span(m.printNotes || 'Sử dụng mang')], lineHeight: 1.4 },
+        { text: [bold('Trục in: '), span(v(m.cylInfo))], lineHeight: 1.4 },
+      ],
+      margin: [3, 4, 3, 4],
+    }), PH,
+  ]);
+
+  // ── MÁY CHIA (màng) ──────────────────────────────────────────────────────
+  if (!isTui) {
+    bodyRows.push(hdrRow('MÁY CHIA', 2, CLR_ORANGE));
+    bodyRows.push([
+      mk({ text: [bold('Khổ màng: '), span(v(khoMM, 'mm'))] }),
+      mk({ text: [bold('Khổ chia: '), span(vd(m.divideWidth, 'mm'))] }),
+    ]);
+    bodyRows.push([
+      mk({ stack: [
+        { text: [bold('Chiều dài quấn cuộn: '), span(vd(m.rollLength, ' m'))] },
+        { text: '(Lưu ý: Dựa vào số mét thực tế mà linh động chia cuộn hợp lý)', color: CLR_RED, fontSize: FS - 1 },
+      ], lineHeight: 1.4 }),
+      mk({ text: [bold('Chiều ra cuộn: '), span(vd(m.divideRollOutWidth, 'mm'))] }),
+    ]);
+    bodyRows.push([
+      mk({
+        colSpan: 2,
+        stack: [
+          { text: 'Định mức phi hao: 0m', lineHeight: 1.4 },
+          { text: ' ' },
+          { text: [bold('Khách hàng yêu cầu giao: '), span(v(m.divideDeliveryReq))], lineHeight: 1.4 },
+          { text: ' ' },
+          { text: m.divideNotes || 'Ghi chú: Quấn cuộn đúng quy cách, cuộn lẻ không quá ……m/cuộn', lineHeight: 1.4 },
+          { text: 'Cân ký cẩn thận, đảm bảo chính xác tránh sai lệnh quá nhiều.', lineHeight: 1.4 },
+          { text: 'Đánh dấu từng cặp MT-MS để khách hàng phân biệt.', lineHeight: 1.4 },
+          { text: ' ' },
+          { text: [bold('** Lưu ý:')], lineHeight: 1.4 },
+        ],
+        margin: [3, 4, 3, 30],
+      }), PH,
+    ]);
+  } else {
+    // ── MÁY GHÉP ──────────────────────────────────────────────────────────
+    bodyRows.push(hdrRow('MÁY GHÉP', 2, CLR_ORANGE));
+    bodyRows.push([
+      mk({ text: [bold('Màng ghép 1: '), span(v(m.laminateFilm1) || v(s.layer2Name))] }),
+      mk({ text: [bold('Khổ: K'), span(vd(m.laminateFilm1Width, 'mm'))] }),
+    ]);
+    bodyRows.push([
+      mk({ text: [bold('Màng ghép 2: '), span(v(m.laminateFilm2))] }),
+      mk({ text: [bold('Khổ: K')] }),
+    ]);
+    bodyRows.push([
+      mk({
+        colSpan: 2,
+        stack: [
+          { text: bold('Định mức phi hao'), lineHeight: 1.4 },
+          { text: [bold('Thành phẩm yêu cầu: '), span(`${vd(m.lamProductQty)} ${v(m.lamProductUnit)}`)], lineHeight: 1.4 },
+          { text: [bold('Ghi chú: '), span(m.laminateNotes || '')], lineHeight: 1.4 },
+        ],
+        margin: [3, 3, 3, 3],
+      }), PH,
+    ]);
+
+    // ── MÁY CHIA (cho túi) ─────────────────────────────────────────────────
+    bodyRows.push(hdrRow('MÁY CHIA', 2, CLR_ORANGE));
+
+    // ── MÁY LÀM TÚI ───────────────────────────────────────────────────────
+    bodyRows.push(hdrRow('MÁY LÀM TÚI', 2, CLR_ORANGE));
+    bodyRows.push([
+      mk({ text: [bold('Kiểu túi: '), span(v(s.bagType) || 'TÚI 4 BIÊN')] }),
+      mk({ text: '' }),
+    ]);
+    bodyRows.push([
+      mk({ text: [bold('Chiều rộng: '), span(`${khoMM}mm`)] }),
+      mk({ text: [bold('Chiều dài: '), span(`${dlMM}mm`)] }),
+    ]);
+    bodyRows.push([
+      mk({ text: [bold('Dán biên: '), span(v(m.sealEdge))] }),
+      mk({ text: [bold('Xếp đáy: '), span(v(m.foldBottom))] }),
+    ]);
+    bodyRows.push([
+      mk({ text: [bold('Nhấn xé '), span(v(m.tearNotch))] }),
+      mk({ text: '' }),
+    ]);
+    const bagNoteStack: any[] = [
+      { text: `- Định mức phi hao: ${vd(m.bagWasteMeters, ' M~')}`, lineHeight: 1.4 },
+    ];
+    if (m.useSemicircularMold) bagNoteStack.push({ text: '- Sử dụng khuôn đáy đứng bán nguyệt', lineHeight: 1.4 });
+    if (m.useDualCutter) bagNoteStack.push({ text: '- Sử dụng dao cắt 2 nhịp để cắt', lineHeight: 1.4 });
+    bodyRows.push([mk({ colSpan: 2, stack: bagNoteStack, margin: [3, 3, 3, 3] }), PH]);
+    bodyRows.push([
+      mk({ stack: [
+        { text: bold('Yêu cầu giao hàng:'), lineHeight: 1.4 },
+        { text: m.deliveryNotes || '', lineHeight: 1.4 },
+      ], margin: [3, 3, 3, 3] }),
+      mk({ text: [bold('Ghi chú: '), red(m.bagMachineNotes || 'chạy theo mẫu đã sản xuất')], lineHeight: 1.4 }),
+    ]);
+  }
+
+  // FOOTER
+  bodyRows.push([
+    mk({ text: bold('Người lập:'), margin: [3, 8, 3, 8] }),
+    mk({ text: bold('Người Duyệt:'), margin: [3, 8, 3, 8] }),
+  ]);
+
+  // ── Build document definition ─────────────────────────────────────────────
+  const docDef: any = {
+    pageSize: 'A4',
+    pageOrientation: 'portrait',
+    pageMargins: [20, 20, 15, 15], // [left, top, right, bottom] mm
+    defaultStyle: { font: 'Roboto', fontSize: FS, lineHeight: 1.2 },
+    content: [
+      {
+        table: { widths: W1, body: t1Rows },
+        layout: {
+          hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+          hLineColor: () => CLR_BLACK, vLineColor: () => CLR_BLACK,
+        },
+      },
+      { text: '', margin: [0, -0.5, 0, 0] },
+      {
+        table: { widths: W2, body: t2Rows },
+        layout: {
+          hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+          hLineColor: () => CLR_BLACK, vLineColor: () => CLR_BLACK,
+        },
+      },
+      { text: '', margin: [0, -0.5, 0, 0] },
+      {
+        table: { widths: W3, body: bodyRows },
+        layout: {
+          hLineWidth: () => 0.5, vLineWidth: () => 0.5,
+          hLineColor: () => CLR_BLACK, vLineColor: () => CLR_BLACK,
+        },
+      },
+    ],
+    images: logoDataUrl ? { logo: logoDataUrl } : {},
+  };
+
+  pdfmake.createPdf(docDef).download(
+    `LSX_${safeFn(m.lsxNumber || order.id)}_${safeFn(s.customer)}.pdf`,
+  );
+  console.log('[LSX] PDF done');
 }
+
