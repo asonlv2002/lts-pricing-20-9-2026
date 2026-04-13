@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { CalculateInput, HistoryItem, Material, AppConstants, ProfitRow, CalculateResult, QuoteStatus, OverrideTable, OverrideRowKey, OverrideFields } from '../lib/types';
+import { CalculateInput, HistoryItem, Material, AppConstants, ProfitRow, CalculateResult, QuoteStatus, OverrideTable, OverrideRowKey, OverrideFields, ProductionOrder, LSXStatus } from '../lib/types';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE } from '../lib/data';
 import { calculate } from '../lib/engine';
 
@@ -12,7 +12,7 @@ export interface CalculatorState {
 
   // UI State
   activeView: 'manager' | 'tech' | 'history' | 'config' | 'bento';
-  activeModule: 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users';
+  activeModule: 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders';
   layoutType: 'default' | 'stacked' | 'wide' | 'bento';
   density: 'compact' | 'comfortable' | 'spacious';
   theme: 'light' | 'dark';
@@ -35,7 +35,7 @@ export interface CalculatorState {
   serverSyncStatus: 'idle' | 'syncing' | 'error';
 
   setActiveView: (v: 'manager' | 'tech' | 'history' | 'config' | 'bento') => void;
-  setActiveModule: (v: 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users') => void;
+  setActiveModule: (v: 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders') => void;
   setLayoutType: (v: 'default' | 'stacked' | 'wide' | 'bento') => void;
   setDensity: (v: 'compact' | 'comfortable' | 'spacious') => void;
   setTheme: (v: 'light' | 'dark') => void;
@@ -68,6 +68,13 @@ export interface CalculatorState {
   setShowAdminOverrides: (v: boolean) => void;
   persistOverrides: (historyId: string) => void;
   setRole: (r: string) => void;
+
+  // Production Orders (Lệnh Sản Xuất)
+  productionOrders: ProductionOrder[];
+  loadProductionOrdersFromServer: () => Promise<void>;
+  createProductionOrder: (order: ProductionOrder) => Promise<void>;
+  updateProductionOrder: (id: string, patch: Partial<Pick<ProductionOrder, 'status' | 'manual'>>) => Promise<void>;
+  deleteProductionOrder: (id: string) => Promise<void>;
 }
 
 // ── Debounce helper (tránh gọi API mỗi keystroke) ─────────────────────────────
@@ -160,6 +167,9 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
     showAdminOverrides: false,
     loadedHistoryId: null,
     role: 'admin',
+
+    // Production Orders
+    productionOrders: [],
 
     setActiveView: (v) => set({ activeView: v }),
     setActiveModule: (v) => set({ activeModule: v }),
@@ -563,6 +573,51 @@ export const useCalculatorStore = create<CalculatorState>((set, get) => {
       } catch (err) {
         console.warn('[profitTable] Server persist failed:', err);
       }
+    },
+
+    // ── Production Orders ─────────────────────────────────────────────────────
+
+    loadProductionOrdersFromServer: async () => {
+      try {
+        const res = await fetch('/api/production-orders');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json() as { success: boolean; data: ProductionOrder[] };
+        if (json.success && Array.isArray(json.data)) {
+          set({ productionOrders: json.data });
+        }
+      } catch (err) {
+        console.warn('[lsx] Could not load from server:', err);
+      }
+    },
+
+    createProductionOrder: async (order: ProductionOrder) => {
+      // Cập nhật local state ngay lập tức
+      set(state => ({ productionOrders: [order, ...state.productionOrders] }));
+      // Persist lên server (fire-and-forget)
+      fetch('/api/production-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(order),
+      }).catch(err => console.warn('[lsx] Server persist failed:', err));
+    },
+
+    updateProductionOrder: async (id, patch) => {
+      set(state => ({
+        productionOrders: state.productionOrders.map(o => o.id === id ? { ...o, ...patch } : o),
+      }));
+      fetch(`/api/production-orders/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      }).catch(err => console.warn('[lsx] Server update failed:', err));
+    },
+
+    deleteProductionOrder: async (id) => {
+      set(state => ({
+        productionOrders: state.productionOrders.filter(o => o.id !== id),
+      }));
+      fetch(`/api/production-orders/${id}`, { method: 'DELETE' })
+        .catch(err => console.warn('[lsx] Server delete failed:', err));
     },
   };
 });

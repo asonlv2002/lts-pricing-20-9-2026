@@ -7,10 +7,11 @@ import QuotationModule from '../QuotationModule';
 import HistoryModule from '../HistoryModule';
 import ConfigPage from '../ConfigPage';
 import UserManagementModule from '../UserManagementModule';
+import ProductionOrderModule from '../ProductionOrderModule';
 import {
   Calculator, FileText, Users, Settings, Menu, Factory,
   Database, Printer, Briefcase, X, ChevronRight, Plus,
-  UserCog,
+  UserCog, ClipboardList,
 } from 'lucide-react';
 
 // Map role → sellerId/sellerName tạm thời (sau này thay bằng auth thực)
@@ -23,7 +24,7 @@ const ROLE_SELLER_MAP: Record<string, { id: string; name: string }> = {
 // ============================================================
 // MODULE DEFINITION
 // ============================================================
-type ModuleId = 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users';
+type ModuleId = 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders';
 
 interface MenuItem {
   id: ModuleId;
@@ -33,25 +34,27 @@ interface MenuItem {
 }
 
 const MENU_ITEMS: MenuItem[] = [
-  { id: 'calculator',  label: 'Tính giá Sản phẩm',  icon: <Calculator size={20} />, roles: ['admin', 'sale']            },
-  { id: 'quotations',  label: 'Danh sách Báo giá',   icon: <FileText   size={20} />, roles: ['admin', 'sale']            },
-  { id: 'history_db',  label: 'Lịch sử tính giá',    icon: <Database   size={20} />, roles: ['admin', 'sale']            },
-  { id: 'master_data', label: 'Bảng định mức',        icon: <Factory    size={20} />, roles: ['admin', 'purchase']        },
-  { id: 'customers',   label: 'Khách hàng (CRM)',     icon: <Users      size={20} />, roles: ['admin', 'sale']            },
-  { id: 'sellers',     label: 'Quản lý Seller',       icon: <Briefcase  size={20} />, roles: ['admin']                   },
-  { id: 'users',       label: 'Tài khoản hệ thống',   icon: <UserCog    size={20} />, roles: ['admin']                   },
-  { id: 'settings',    label: 'Cài đặt hệ thống',     icon: <Settings   size={20} />, roles: ['admin']                   },
+  { id: 'calculator',        label: 'Tính giá Sản phẩm',   icon: <Calculator    size={20} />, roles: ['admin', 'sale']            },
+  { id: 'quotations',        label: 'Danh sách Báo giá',    icon: <FileText      size={20} />, roles: ['admin', 'sale']            },
+  { id: 'history_db',        label: 'Lịch sử tính giá',     icon: <Database      size={20} />, roles: ['admin', 'sale']            },
+  { id: 'production_orders', label: 'Lệnh Sản Xuất',        icon: <ClipboardList size={20} />, roles: ['admin', 'purchase']        },
+  { id: 'master_data',       label: 'Bảng định mức',         icon: <Factory       size={20} />, roles: ['admin', 'purchase']        },
+  { id: 'customers',         label: 'Khách hàng (CRM)',      icon: <Users         size={20} />, roles: ['admin', 'sale']            },
+  { id: 'sellers',           label: 'Quản lý Seller',        icon: <Briefcase     size={20} />, roles: ['admin']                   },
+  { id: 'users',             label: 'Tài khoản hệ thống',    icon: <UserCog       size={20} />, roles: ['admin']                   },
+  { id: 'settings',          label: 'Cài đặt hệ thống',      icon: <Settings      size={20} />, roles: ['admin']                   },
 ];
 
 const MODULE_TITLES: Record<ModuleId, string> = {
-  calculator:  'Tính giá Sản phẩm',
-  quotations:  'Danh sách Báo giá',
-  history_db:  'Lịch sử tính giá',
-  master_data: 'Bảng định mức chung',
-  customers:   'Quản lý Khách hàng',
-  sellers:     'Báo cáo Nhân sự',
-  users:       'Tài khoản hệ thống',
-  settings:    'Cài đặt hệ thống',
+  calculator:        'Tính giá Sản phẩm',
+  quotations:        'Danh sách Báo giá',
+  history_db:        'Lịch sử tính giá',
+  master_data:       'Bảng định mức chung',
+  production_orders: 'Danh sách Lệnh Sản Xuất',
+  customers:         'Quản lý Khách hàng',
+  sellers:           'Báo cáo Nhân sự',
+  users:             'Tài khoản hệ thống',
+  settings:          'Cài đặt hệ thống',
 };
 
 // ============================================================
@@ -439,21 +442,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         />
 
         <div className="lts-shell-content lts-shell-content--scroll">
-          {activeModule === 'calculator'  && children}
-          {activeModule === 'quotations'  && <QuotationModule role={role} />}
-          {activeModule === 'history_db'  && <HistoryModule onNavigate={setActiveModule} />}
-          {activeModule === 'customers'   && <CustomerModule role={role} currentSellerId={currentSellerId} />}
-          {activeModule === 'sellers'     && <SellerModule />}
-          {activeModule === 'master_data' && <ConfigPage />}
-          {activeModule === 'users'       && <UserManagementModule />}
+          {activeModule === 'calculator'        && children}
+          {activeModule === 'quotations'        && <QuotationModule role={role} />}
+          {activeModule === 'history_db'        && <HistoryModule onNavigate={setActiveModule} />}
+          {activeModule === 'customers'         && <CustomerModule role={role} currentSellerId={currentSellerId} />}
+          {activeModule === 'sellers'           && <SellerModule />}
+          {activeModule === 'master_data'       && <ConfigPage />}
+          {activeModule === 'users'             && <UserManagementModule />}
+          {activeModule === 'production_orders' && <ProductionOrderModule />}
 
-          {activeModule !== 'calculator'  &&
-           activeModule !== 'quotations'  &&
-           activeModule !== 'history_db'  &&
-           activeModule !== 'customers'   &&
-           activeModule !== 'sellers'     &&
-           activeModule !== 'master_data' &&
-           activeModule !== 'users'       && (
+          {activeModule !== 'calculator'        &&
+           activeModule !== 'quotations'        &&
+           activeModule !== 'history_db'        &&
+           activeModule !== 'customers'         &&
+           activeModule !== 'sellers'           &&
+           activeModule !== 'master_data'       &&
+           activeModule !== 'users'             &&
+           activeModule !== 'production_orders' && (
             <ModulePlaceholder moduleId={activeModule} />
           )}
         </div>

@@ -11,7 +11,7 @@
 import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
-import type { Material, AppConstants, ProfitRow, HistoryItem, AppUser } from './types';
+import type { Material, AppConstants, ProfitRow, HistoryItem, AppUser, ProductionOrder } from './types';
 
 // ── Password helpers ──────────────────────────────────────────────────────────
 export function hashPassword(password: string): string {
@@ -29,6 +29,7 @@ const MATERIALS_FILE = path.join(DATA_DIR, 'materials.json');
 const CONSTANTS_FILE = path.join(DATA_DIR, 'constants.json');
 const PROFIT_FILE    = path.join(DATA_DIR, 'profit-table.json');
 const USERS_FILE     = path.join(DATA_DIR, 'users.json');
+const LSX_FILE       = path.join(DATA_DIR, 'production-orders.json');
 
 // ── Per-file write locks (tránh interleaved async writes) ──────────────────────
 const writeLocks = new Map<string, Promise<void>>();
@@ -185,16 +186,26 @@ export async function writeUsers(users: AppUser[]): Promise<void> {
   await writeJson(USERS_FILE, users);
 }
 
+// ── Production Orders (Lệnh Sản Xuất) ────────────────────────────────────────
+export async function readProductionOrders(): Promise<ProductionOrder[]> {
+  return readJson<ProductionOrder[]>(LSX_FILE, []);
+}
+
+export async function writeProductionOrders(orders: ProductionOrder[]): Promise<void> {
+  await writeJson(LSX_FILE, orders);
+}
+
 // ── Startup initialisation ────────────────────────────────────────────────────
 // Gọi một lần khi server khởi động để đảm bảo tất cả file tồn tại.
 // Idempotent — an toàn khi gọi nhiều lần.
 export async function initDataFiles(): Promise<void> {
   await ensureDataDir();
   await Promise.all([
-    readHistory(),      // tạo history.json = [] nếu chưa có
-    readMaterials(),    // tạo materials.json = defaults nếu chưa có
-    readConstants(),    // tạo constants.json = defaults nếu chưa có
-    readProfitTable(),  // tạo profit-table.json = defaults nếu chưa có
-    readUsers(),        // tạo users.json = [admin] nếu chưa có
+    readHistory(),            // tạo history.json = [] nếu chưa có
+    readMaterials(),          // tạo materials.json = defaults nếu chưa có
+    readConstants(),          // tạo constants.json = defaults nếu chưa có
+    readProfitTable(),        // tạo profit-table.json = defaults nếu chưa có
+    readUsers(),              // tạo users.json = [admin] nếu chưa có
+    readProductionOrders(),   // tạo production-orders.json = [] nếu chưa có
   ]);
 }

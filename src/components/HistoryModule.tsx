@@ -1,7 +1,9 @@
 "use client";
 import { useState, useMemo } from 'react';
-import { Search, Database, RotateCcw, Trash2 } from 'lucide-react';
+import { Search, Database, RotateCcw, Trash2, ClipboardList } from 'lucide-react';
 import { useCalculatorStore } from '../store/calculatorStore';
+import type { HistoryItem } from '../lib/types';
+import LSXFormModal from './LSXFormModal';
 
 function fmt(n: number, decimals = 0): string {
   return n.toLocaleString('vi-VN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -14,6 +16,7 @@ export default function HistoryModule({ onNavigate }: { onNavigate?: (module: 'c
   const { history, loadHistoryItem, removeHistoryItem } = useCalculatorStore();
   const [search, setSearch] = useState('');
   const [filterHasChotGia, setFilterHasChotGia] = useState<'all' | 'chot' | 'pending'>('all');
+  const [lsxItem, setLsxItem] = useState<HistoryItem | null>(null);
 
   const filtered = useMemo(() => {
     let list = [...history];
@@ -42,6 +45,10 @@ export default function HistoryModule({ onNavigate }: { onNavigate?: (module: 'c
 
   return (
     <div className="crm-root hist-root">
+      {/* LSX Form Modal */}
+      {lsxItem && (
+        <LSXFormModal historyItem={lsxItem} onClose={() => setLsxItem(null)} />
+      )}
       {/* TOOLBAR */}
       <div className="crm-toolbar">
         <div className="crm-search-box">
@@ -171,6 +178,20 @@ export default function HistoryModule({ onNavigate }: { onNavigate?: (module: 'c
                           Tải
                         </button>
                         {' '}
+                        {hasChotGia && (
+                          <>
+                            <button
+                              className="btn btn-sm btn-outline"
+                              title="Tạo Lệnh Sản Xuất"
+                              onClick={() => setLsxItem(h)}
+                              style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}
+                            >
+                              <ClipboardList size={13} style={{ display: 'inline', marginRight: '3px' }} />
+                              LSX
+                            </button>
+                            {' '}
+                          </>
+                        )}
                         <button
                           className="btn btn-sm btn-outline"
                           title="Xóa khỏi lịch sử"
