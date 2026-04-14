@@ -1682,6 +1682,13 @@ body {
   overflow-x: hidden;
 }
 
+/* Variant: always-scroll (used on mobile to prevent overflow:hidden clipping) */
+.lts-shell-content--scroll {
+  overflow-y: auto !important;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Override the old .header height-based px off-screen: 
    Now that header is fixed at 60px, update scrollable height calc */
 @media (min-width: 801px) {
@@ -4329,3 +4336,956 @@ body {
   .um-table td:nth-child(5) { display: none; }
   .lts-login-card { padding: 32px 22px 28px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE CALCULATOR — TWO-PANE TAB SWITCHER
+   page.tsx dùng: .mobile-calc-container, .grid-col-input,
+   .grid-col-result, .mobile-calc-nav, .m-tab, .m-tab-badge
+═══════════════════════════════════════════════════════════════ */
+
+/* Desktop: layout bình thường, không cần mobile nav */
+.mobile-calc-nav { display: none; }
+.grid-col-input,
+.grid-col-result { display: contents; }
+
+/* Mobile: ẩn/hiện pane theo active tab */
+@media (max-width: 767px) {
+  /* Bật mobile-calc-nav */
+  .mobile-calc-nav {
+    display: flex;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 500;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+    /* iOS safe area */
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .m-tab {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 10px 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 0.72rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .m-tab:first-child {
+    border-right: 1px solid var(--border);
+  }
+
+  .m-tab.active {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  .m-tab.active::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 20%;
+    right: 20%;
+    height: 2px;
+    background: var(--accent);
+    border-radius: 0 0 2px 2px;
+  }
+
+  .m-tab-badge {
+    position: absolute;
+    top: 8px;
+    right: calc(50% - 22px);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    animation: pulse 2s infinite;
+  }
+
+  /* Container: padding-bottom = height of bottom nav */
+  .mobile-calc-container {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom, 0));
+  }
+
+  /* Two-pane display logic */
+  .grid-col-input  { display: block; }
+  .grid-col-result { display: block; }
+
+  .grid-col-input:not(.active)  { display: none; }
+  .grid-col-result:not(.active) { display: none; }
+
+  /* The main grid on mobile: single column */
+  .main-grid {
+    display: block !important;
+  }
+
+  /* Fix calculator input/result panels height on mobile */
+  #inputCard,
+  #resultArea {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE FAB FLOATING MENU  (.lts-fab-*)
+═══════════════════════════════════════════════════════════════ */
+.lts-fab-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  z-index: 450;
+  backdrop-filter: blur(2px);
+}
+
+.lts-fab-container {
+  position: fixed;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0));
+  right: 16px;
+  z-index: 460;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.lts-fab-trigger {
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 6px 24px rgba(79,70,229,0.45);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.lts-fab-trigger:hover,
+.lts-fab-trigger:active {
+  transform: scale(1.06);
+}
+
+.lts-fab-label-below {
+  font-size: 0.52rem;
+  font-weight: 600;
+  white-space: nowrap;
+  opacity: 0.85;
+  max-width: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1;
+}
+
+.lts-fab-icon-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* FAB popup sheet */
+.lts-fab-popup {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: 0 12px 48px rgba(0,0,0,0.2);
+  width: 300px;
+  max-width: calc(100vw - 32px);
+  overflow: hidden;
+  animation: fabPopupIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+}
+
+@keyframes fabPopupIn {
+  from { opacity: 0; transform: scale(0.85) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.lts-fab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px 10px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--border);
+}
+
+.lts-fab-header button {
+  background: none;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+.lts-fab-header button:hover { background: var(--surface2); }
+
+.lts-fab-list {
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lts-fab-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: background 0.15s, color 0.15s;
+}
+
+.lts-fab-item:hover {
+  background: var(--surface2);
+}
+
+.lts-fab-item.active {
+  background: rgba(79,70,229,0.1);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.lts-fab-role {
+  padding: 10px 16px 14px;
+  border-top: 1px solid var(--border);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE SIDEBAR CSS (backdrop, drawer)
+═══════════════════════════════════════════════════════════════ */
+.lts-sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 195;
+  backdrop-filter: blur(2px);
+}
+
+/* Mobile sidebar slides in from left */
+.lts-sidebar--mobile {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 260px !important;
+  z-index: 200;
+  transform: translateX(0);
+  transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 4px 0 24px rgba(0,0,0,0.25);
+}
+
+.lts-sidebar--hidden {
+  transform: translateX(-100%) !important;
+}
+
+/* Brand mini (collapsed) */
+.lts-sidebar-brand-mini {
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: #ffffff;
+  letter-spacing: 0.1em;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE STAT CARDS — THIẾT KẾ TỐI ƯU CHO MÀN HÌNH NHỎ
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  /* Price hero responsive */
+  .price-hero {
+    padding: 20px 16px;
+  }
+  .price-hero .value {
+    font-size: 2.4rem !important;
+    word-break: break-all;
+  }
+  .price-hero .label {
+    font-size: 0.72rem;
+  }
+
+  /* Stat grid: 2 cột cân bằng */
+  .stat-grid {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px;
+  }
+  .stat-card .stat-value {
+    font-size: 1.05rem;
+  }
+  .stat-card .stat-label {
+    font-size: 0.62rem;
+  }
+
+  /* Chot gia row xếp dọc */
+  .chot-gia-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .chot-gia-row .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Breakdown list font */
+  .breakdown-list li {
+    font-size: 0.78rem;
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+  .breakdown-list .bl-value {
+    font-size: 0.82rem;
+  }
+
+  /* Form rows single column */
+  .form-row,
+  .form-row-3 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Card padding */
+  .card {
+    padding: 14px 12px;
+  }
+
+  /* Container padding */
+  .container {
+    padding: 10px 10px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DATA TABLE — MOBILE "CARD" REFLOW
+   Bảng rộng nhiều cột sẽ chuyển thành dạng label:value
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 600px) {
+  /* Wrap inside scroll container; không force card reflow (giữ scroll ngang) */
+  .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 10px;
+    /* Thêm shadow gợi ý có thể cuộn */
+    background:
+      linear-gradient(to right, var(--surface) 30%, rgba(255,255,255,0)) left center,
+      linear-gradient(to left,  var(--surface) 30%, rgba(255,255,255,0)) right center;
+    background-size: 32px 100%, 32px 100%;
+    background-repeat: no-repeat;
+    background-attachment: local, local;
+  }
+
+  .data-table {
+    min-width: 560px; /* giữ layout bảng, cho phép cuộn ngang */
+    font-size: 0.72rem;
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: 8px 7px;
+    white-space: nowrap;
+  }
+
+  /* MOQ table */
+  .moq-table { min-width: 440px; font-size: 0.72rem; }
+  .moq-table th, .moq-table td { padding: 8px 7px; }
+
+  /* Config table */
+  .config-table { min-width: 420px; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOPBAR MOBILE — giảm padding, ẩn bớt nút
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  .lts-topbar {
+    padding: 0 12px;
+    height: 56px;
+  }
+
+  .lts-topbar-title {
+    font-size: 0.85rem;
+    max-width: 180px;
+  }
+
+  .lts-topbar-actions {
+    gap: 6px;
+  }
+
+  /* Ẩn layout/density/print/export toolbar trên mobile — chỉ giữ theme toggle */
+  .lts-shell--mobile .toolbar-group {
+    display: none;
+  }
+
+  /* Shell mobile: không sidebar nên full width */
+  .lts-shell--mobile {
+    flex-direction: column;
+  }
+
+  /* Nội dung: thêm top padding = height topbar */
+  .lts-shell--mobile .lts-shell-content {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Tắt overflow hidden của body trên mobile */
+  html.lts-shell--mobile body,
+  .lts-shell--mobile ~ * {
+    overflow: auto;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MANAGER VIEW MOBILE — tối ưu hiển thị kết quả báo giá
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  /* Manager content: bỏ padding-right reserve cho TOC */
+  .manager-content {
+    padding-right: 0 !important;
+  }
+
+  /* TOC (nếu có): ẩn hoàn toàn trên mobile */
+  .manager-toc {
+    display: none !important;
+  }
+
+  /* Chot-analysis: text nhỏ hơn, wrap tốt */
+  .chot-analysis .chot-row {
+    flex-wrap: wrap;
+    gap: 2px;
+  }
+  .chot-analysis .chot-value {
+    font-size: 0.88rem;
+  }
+
+  /* Override toggle row */
+  .override-toggle-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  /* Breadcrumb stats wrap */
+  .bento { grid-template-columns: 1fr 1fr !important; gap: 10px; }
+  .bento-hero .bento-hero-price { font-size: 2rem !important; }
+  .bento-metric .bento-metric-value { font-size: 1.4rem !important; }
+  .bento-metric { grid-column: span 1 !important; }
+  .bento-structure,
+  .bento-donut,
+  .bento-breakdown,
+  .bento-wide { grid-column: 1 / -1 !important; }
+
+  /* Ensure override tables legible (horizontal scroll) */
+  .override-section .table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Quick actions full width */
+  .quick-actions {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .quick-actions .btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Film roll info */
+  .price-hero > div[style*="flexWrap"] {
+    justify-content: flex-start !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CRM MODULE MOBILE
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  .crm-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .crm-search-box {
+    max-width: 100%;
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .crm-toolbar-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .crm-stats-bar {
+    display: none; /* ẩn thanh stats trên mobile để tiết kiệm chỗ */
+  }
+
+  /* Ẩn các cột phụ không cần thiết trên mobile */
+  .crm-customer-contact,
+  .crm-customer-location,
+  .crm-customer-seller-badge,
+  .crm-col-contact,
+  .crm-col-location,
+  .crm-col-seller {
+    display: none;
+  }
+
+  .crm-customer-actions {
+    width: auto;
+  }
+
+  .crm-list {
+    padding: 10px 12px 20px;
+  }
+
+  /* Admin tabs: scrollable */
+  .crm-admin-tabs {
+    overflow-x: auto;
+    gap: 0;
+    padding: 0 12px;
+    white-space: nowrap;
+  }
+
+  .crm-admin-tab {
+    padding: 9px 14px;
+    font-size: 0.8rem;
+    flex-shrink: 0;
+  }
+
+  /* Seller card: full width, compact */
+  .crm-seller-header {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   QUOTATION MODULE MOBILE
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  /* Quote header stack on mobile */
+  .quote-header {
+    flex-direction: column;
+    text-align: center;
+    gap: 10px;
+  }
+  .quote-header img {
+    height: 48px !important;
+    margin: 0 auto;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   INPUT CARD MOBILE — form nhập liệu
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  #inputCard {
+    border-radius: 12px;
+  }
+
+  /* Collapsible advanced sections: nhỏ hơn */
+  .advanced-toggle {
+    padding: 9px 12px;
+    font-size: 0.78rem;
+  }
+
+  /* Option-group buttons: đủ lớn để tap */
+  .option-btn {
+    padding: 10px 4px;
+    font-size: 0.75rem;
+  }
+
+  /* Cylinder preview: compact */
+  .cylinder-preview {
+    font-size: 0.72rem;
+    padding: 6px 8px;
+  }
+
+  /* Form labels: nổi bật hơn */
+  .form-label {
+    font-size: 0.72rem;
+    margin-bottom: 5px;
+  }
+
+  /* Form inputs: đủ lớn để gõ trên mobile */
+  .form-input,
+  .form-select {
+    padding: 10px 12px;
+    font-size: 0.92rem;
+    border-radius: 10px;
+  }
+
+  /* Button primary */
+  .btn-primary {
+    padding: 12px 20px;
+    font-size: 0.92rem;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PRODUCTION ORDER MODULE MOBILE  (.po-*)
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  .po-toolbar {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .po-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   GENERAL MOBILE POLISH
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  /* Toast: full width trên mobile */
+  .toast-container {
+    top: 56px;
+    right: 10px;
+    left: 10px;
+  }
+  .toast {
+    max-width: 100%;
+  }
+
+  /* Config card padding */
+  .config-card {
+    padding: 16px 14px;
+  }
+
+  /* Dialogs: full width */
+  .lts-confirm-dialog {
+    width: calc(100% - 24px);
+    padding: 24px 20px 18px;
+  }
+
+  /* History items: compact */
+  .history-item {
+    padding: 10px 12px;
+  }
+  .history-item .hi-name {
+    font-size: 0.84rem;
+  }
+
+  /* Modal backdrop: full screen scroll */
+  .um-backdrop {
+    align-items: flex-end;
+    padding: 0;
+  }
+  .um-modal {
+    max-width: 100%;
+    border-radius: 18px 18px 0 0;
+    max-height: 92vh;
+  }
+
+  /* LSX Modal sheet */
+  .lsx-modal-overlay {
+    align-items: flex-end;
+  }
+  .lsx-modal-box {
+    border-radius: 18px 18px 0 0 !important;
+    max-height: 96vh;
+    overflow-y: auto;
+  }
+
+  /* Prevent text from being cut off */
+  body { -webkit-text-size-adjust: 100%; }
+
+  /* Larger tap targets */
+  button, a, select, input[type="checkbox"], input[type="radio"] {
+    min-height: 36px;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    min-height: initial;
+    width: 18px;
+    height: 18px;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MINI PRICE STRIP  (.mini-price-strip, .mps-*)
+   Hiển thị tóm tắt giá ở đầu form nhập liệu (mobile only)
+═══════════════════════════════════════════════════════════════ */
+.mini-price-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  margin-bottom: 10px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(79,70,229,0.1), rgba(8,145,178,0.08));
+  border: 1px solid rgba(79,70,229,0.2);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+  animation: mpsSlideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  user-select: none;
+}
+
+@keyframes mpsSlideIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.mini-price-strip:hover,
+.mini-price-strip:active {
+  background: linear-gradient(135deg, rgba(79,70,229,0.15), rgba(8,145,178,0.12));
+  transform: scale(1.01);
+}
+
+[data-theme="dark"] .mini-price-strip {
+  background: linear-gradient(135deg, rgba(129,140,248,0.12), rgba(34,211,238,0.08));
+  border-color: rgba(129,140,248,0.25);
+}
+
+.mps-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.mps-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.mps-price {
+  font-size: 1.15rem;
+  font-weight: 800;
+  background: var(--grad);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.mps-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.mps-profit {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--green);
+  background: rgba(5,150,105,0.08);
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(5,150,105,0.18);
+}
+
+.mps-arrow {
+  font-size: 0.65rem;
+  color: var(--accent);
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DESKTOP RESIZABLE PANEL DIVIDER  (.panel-resizer)
+═══════════════════════════════════════════════════════════════ */
+.panel-resizer {
+  width: 4px;
+  cursor: col-resize;
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  flex-shrink: 0;
+  z-index: 10;
+  /* Only on desktop */
+}
+
+.panel-resizer-handle {
+  width: 4px;
+  background: var(--border);
+  border-radius: 2px;
+  transition: background 0.2s, width 0.15s;
+  position: relative;
+}
+
+.panel-resizer-handle::before {
+  content: '⋮';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1rem;
+  color: var(--dim);
+  opacity: 0;
+  transition: opacity 0.2s;
+  pointer-events: none;
+  writing-mode: vertical-rl;
+}
+
+.panel-resizer:hover .panel-resizer-handle,
+.panel-resizer:focus .panel-resizer-handle {
+  background: var(--accent);
+  width: 4px;
+}
+
+.panel-resizer:hover .panel-resizer-handle::before {
+  opacity: 1;
+}
+
+/* Hide on mobile, stacked, bento */
+@media (max-width: 767px) {
+  .panel-resizer { display: none; }
+}
+
+/* Desktop resize width hint pill */
+.panel-resize-hint {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 14px;
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  box-shadow: var(--shadow-md);
+  font-size: 0.75rem;
+  color: var(--accent);
+  font-weight: 600;
+  animation: fadeIn 0.2s ease;
+  pointer-events: auto;
+}
+
+.panel-resize-hint button {
+  background: rgba(79,70,229,0.08);
+  border: 1px solid rgba(79,70,229,0.2);
+  border-radius: 10px;
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  cursor: pointer;
+  transition: background 0.15s;
+  min-height: auto;
+}
+
+.panel-resize-hint button:hover {
+  background: rgba(79,70,229,0.15);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SWIPE HINT  (.swipe-hint)
+   Subtle indicator shown briefly at the bottom on mobile
+═══════════════════════════════════════════════════════════════ */
+.swipe-hint {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .swipe-hint {
+    display: block;
+    position: fixed;
+    bottom: calc(68px + env(safe-area-inset-bottom, 0));
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 0.65rem;
+    color: var(--dim);
+    pointer-events: none;
+    animation: swipeHintFade 4s ease forwards;
+    white-space: nowrap;
+    background: var(--surface2);
+    padding: 3px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    z-index: 490;
+  }
+}
+
+@keyframes swipeHintFade {
+  0%   { opacity: 0; }
+  10%  { opacity: 0.6; }
+  70%  { opacity: 0.6; }
+  100% { opacity: 0; }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   PANE SLIDE TRANSITION (mobile)
+   Smooth slide animation when switching panes
+═══════════════════════════════════════════════════════════════ */
+@media (max-width: 767px) {
+  .grid-col-input.active,
+  .grid-col-result.active {
+    animation: paneIn 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+@keyframes paneIn {
+  from { opacity: 0.6; transform: translateY(6px); }
+  to   { opacity: 1;   transform: translateY(0); }
+}
+
+/* ── Adjust main-grid to accommodate resizer column on desktop ── */
+@media (min-width: 768px) {
+  /* Default layout: input | 4px resizer | result */
+  html:not([data-layout="stacked"]):not([data-layout="bento"]) .main-grid {
+    display: grid;
+    grid-template-columns: 300px 4px 1fr;
+    gap: 0;
+    column-gap: 0;
+  }
+
+  /* Gap between resizer and result panel */
+  .grid-col-result {
+    padding-left: 20px;
+  }
+
+  /* Wide layout */
+  html[data-layout="wide"] .main-grid {
+    grid-template-columns: 260px 4px 1fr;
+  }
+}
+
