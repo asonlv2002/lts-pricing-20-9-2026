@@ -439,7 +439,7 @@ export default function InputCard() {
               {' · '} Cả bộ ({input.numColors || 0} màu): <span className="cyl-val">{(((input.cylLength || 0) * (input.cylCircum || 0) * (input.cylUnitPrice || 7300000) * (input.numColors || 0)) || 0).toLocaleString('vi-VN')} đ</span>
             </div>
 
-            <div className="advanced-sub-title">{input.productType === 'mang' ? '📦 Đóng gói & Vận chuyển' : '📦 Thùng & Vận chuyển'}</div>
+            <div className="advanced-sub-title">📦 Đóng gói & Vận chuyển</div>
             {input.productType === 'mang' ? (
               <div className="form-group">
                 <label className="form-label">Đóng gói (đ/cuộn)</label>

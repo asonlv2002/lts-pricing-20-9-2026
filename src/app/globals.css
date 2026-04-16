@@ -164,7 +164,7 @@ body {
 .container { width: 100%; padding: 20px; position: relative; z-index: 1; }
 
 /* Layout: side-by-side (default) */
-.main-grid { display: grid; grid-template-columns: 300px 1fr; gap: 20px; align-items: start; }
+.main-grid { display: grid; grid-template-columns: 345px 1fr; gap: 20px; align-items: start; }
 
 @media (min-width: 801px) {
   html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page) body {
@@ -174,16 +174,31 @@ body {
   html:not([data-layout="stacked"]):not([data-layout="bento"]) .main-grid > #resultArea {
     height: calc(100vh - 104px);
     overflow-y: auto;
+    overscroll-behavior: contain;
     position: static !important;
     padding-right: 6px; /* Space for scrollbar */
   }
-  /* Hide scrollbar for input panel but keep functionality */
+  /* Thin scrollbar for input panel — hiện khi hover */
   html:not([data-layout="stacked"]) .main-grid > #inputCard::-webkit-scrollbar {
-    display: none;
+    width: 4px;
+  }
+  html:not([data-layout="stacked"]) .main-grid > #inputCard::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  html:not([data-layout="stacked"]) .main-grid > #inputCard::-webkit-scrollbar-thumb {
+    background: transparent;
+    border-radius: 4px;
+    transition: background 0.2s;
+  }
+  html:not([data-layout="stacked"]) .main-grid > #inputCard:hover::-webkit-scrollbar-thumb {
+    background: var(--border);
   }
   html:not([data-layout="stacked"]) .main-grid > #inputCard {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  html:not([data-layout="stacked"]) .main-grid > #inputCard:hover {
+    scrollbar-color: var(--border) transparent;
   }
 
   /* Custom thin scrollbar for result panel */
@@ -204,7 +219,7 @@ body {
 [data-layout="stacked"] #inputCard { position: static !important; }
 
 /* Layout: wide — input smaller */
-[data-layout="wide"] .main-grid { grid-template-columns: 260px 1fr; }
+[data-layout="wide"] .main-grid { grid-template-columns: 299px 1fr; }
 
 /* ═══════════ BENTO LAYOUT ═══════════ */
 [data-layout="bento"] .main-grid { grid-template-columns: 1fr; }
@@ -658,6 +673,9 @@ body {
   margin-bottom: 4px;
   text-transform: uppercase;
   letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .form-input, .form-select {
   width: 100%;
@@ -5273,7 +5291,7 @@ body {
   /* Default layout: input | 4px resizer | result */
   html:not([data-layout="stacked"]):not([data-layout="bento"]) .main-grid {
     display: grid;
-    grid-template-columns: 300px 4px 1fr;
+    grid-template-columns: 345px 4px 1fr;
     gap: 0;
     column-gap: 0;
   }
@@ -5285,7 +5303,7 @@ body {
 
   /* Wide layout */
   html[data-layout="wide"] .main-grid {
-    grid-template-columns: 260px 4px 1fr;
+    grid-template-columns: 299px 4px 1fr;
   }
 }
 

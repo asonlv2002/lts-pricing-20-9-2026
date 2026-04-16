@@ -43,6 +43,12 @@ export interface AppConstants {
   paymentDays: number;
   cylinderPricePerUnit: number;
   ghepCPSX: number;
+  ghepWasteA: number;  // mẫu số (3000): cứ A mét thì hao B mét
+  ghepWasteB: number;  // tử số phí hao biến đổi (20)
+  ghepWasteC: number;  // phi hao cố định mỗi lần ghép (100)
+  cutWasteA: number;   // mẫu số phi hao cắt (3000)
+  cutWasteB: number;   // hệ số phi hao biến đổi cắt (20)
+  cutWasteC: number;   // phi hao cố định cắt (100)
   shippingPerKmDefault: number;
   shippingKmDefault: number;
   laborCost: number;

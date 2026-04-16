@@ -66,8 +66,12 @@ export function calculate(
   const filmLength = printWidth > 0 ? totalArea / printWidth : 0;
 
   const cutWidth = printWidth;
-  const cutMeters = filmLength;
-  const cutWaste = input.productType === 'mang' ? 0 : (cutMeters / 3000 * 20 + 100);
+  // Tính từ dưới lên: Tp cắt = bước cắt × SL (túi), hoặc filmLength (màng)
+  const cutMeters = input.productType === 'mang' ? filmLength : cutStep * quantity;
+  const cA = constants.cutWasteA || 3000;
+  const cB = constants.cutWasteB || 20;
+  const cC = constants.cutWasteC || 100;
+  const cutWaste = input.productType === 'mang' ? 0 : (cutMeters / cA * cB + cC);
   const cutWastePercent = numLaminations <= 1 ? 3 : 6;
 
   const laminations: any[] = [];
@@ -80,9 +84,12 @@ export function calculate(
 
   lamChain.forEach(({ layer, num }) => {
     if (!layer) return;
-    const width = cutWidth + 0.02;
+    const width = cutWidth;  // khổ ghép = printWidth (spreadWidth × numImages + 0.02)
     const meters = currentNeededMeters;
-    const waste = meters / 3000 * 20 + 100;
+    const gA = constants.ghepWasteA || 3000;
+    const gB = constants.ghepWasteB || 20;
+    const gC = constants.ghepWasteC || 100;
+    const waste = meters / gA * gB + gC;
     const cpsx = constants.ghepCPSX;
     const costCPSX = cpsx * (waste + meters) * width;
     const costMat = (layer.pricePerM2 || 0) * (waste + meters) * width;
@@ -96,7 +103,7 @@ export function calculate(
   const totalLamWaste = laminations.reduce((sum, lam) => sum + lam.waste, 0);
   const totalLamCost = laminations.reduce((sum, lam) => sum + lam.total, 0);
 
-  const printNLWidth = cutWidth + 0.02;
+  const printNLWidth = cutWidth;  // khổ in = printWidth (spreadWidth × numImages + 0.02)
   const printMeters = cutMeters + cutWaste + totalLamWaste;
   
   const cSetup = numColors! > 0 ? (constants.colorSetup[numColors!] || (numColors! * 200 + 200)) : 0; 
@@ -163,13 +170,15 @@ export function calculate(
     + (layer4 ? layerGSM(layer4.thickness, layer4.density) : 0)
     + (layer5 ? layerGSM(layer5.thickness, layer5.density) : 0);
 
-  const zipperTotal = hasZipper ? (cutMeters + cutWaste) * constants.zipperPrice : 0;
+  // Zipper: mỗi túi cần 1 đoạn zipper dài = bước cắt (cutStep)
+  const zipperTotal = hasZipper ? quantity * cutStep * constants.zipperPrice : 0;
   const zipperPerUnit = quantity > 0 ? zipperTotal / quantity : 0;
-  const zipperWeightTotal = hasZipper ? (cutMeters + cutWaste) * zipperWeight : 0;
+  const zipperWeightTotal = hasZipper ? quantity * cutStep * zipperWeight : 0;
 
-  const tapeTotal = hasTape ? (cutMeters + cutWaste) * constants.tapePrice : 0;
+  // Tape: tương tự zipper, mỗi túi = bước cắt
+  const tapeTotal = hasTape ? quantity * cutStep * constants.tapePrice : 0;
   const tapePerUnit = quantity > 0 ? tapeTotal / quantity : 0;
-  const tapeWeightTotal = hasTape ? (cutMeters + cutWaste) * tapeWeight : 0;
+  const tapeWeightTotal = hasTape ? quantity * cutStep * tapeWeight : 0;
 
   const handleTotal = hasHandle ? quantity * constants.handlePrice : 0;
   const handlePerUnit = hasHandle ? constants.handlePrice : 0;
@@ -212,16 +221,17 @@ export function calculate(
 
   const tareWeight = totalGSM * bagArea + handleWeight + extraAccessoryWeightPerUnit;
 
+  // Vận chuyển: tổng phí = đơn giá/km × km, chia đều cho số túi/m²
   const actualShippingPerKm = shippingPerKm || 0;
   const actualShippingKm = shippingKm || 0;
   const shippingRate = actualShippingPerKm * actualShippingKm;
-  const totalWeightTons = tareWeight * quantity / 1000000;
-  const shippingTotal = totalWeightTons * shippingRate;
+  const shippingTotal = shippingRate;
   const shippingPerUnit = quantity > 0 ? shippingTotal / quantity : 0;
 
+  // Lãi vay: tính theo số ngày thanh toán thực tế
   const paymentDaysLocal = input.paymentDays || 30;
   const interestRate30 = input.paymentInterestRate || 0.0025;
-  const interestPerUnit = interestRate30 * costPerUnit;
+  const interestPerUnit = (interestRate30 / 30) * paymentDaysLocal * costPerUnit;
 
   const commissionFixedVND = input.commissionFixedVND || 0;
   let commissionPerUnit;
