@@ -49,7 +49,7 @@ export default function ConfigPage() {
     });
     // Reset constants
     const resetKeys: (keyof typeof INITIAL_CONSTANTS)[] = [
-      'laborCost', 'nhuPrice', 'moPrice', 'ghepCPSX', 'cutBase',
+      'laborCost', 'nhuPrice', 'moPrice', 'ghepCPSX', 'ghepWasteA', 'ghepWasteB', 'ghepWasteC', 'cutBase', 'cutWasteA', 'cutWasteB', 'cutWasteC',
       'cutThreshold1', 'cutThreshold2', 'cutMult1', 'cutMult2', 'cutMult3',
       'zipperPrice', 'zipperWeight', 'tapePrice', 'tapeWeight', 'handlePrice', 'handleWeight',
       'printWasteA', 'printWasteB', 'printWasteC', 'printWasteD'
@@ -271,25 +271,77 @@ export default function ConfigPage() {
           <div className="config-group-header" id="sect-config-ghep" style={{scrollMarginTop: '80px'}}>🔗 CPSX Khâu Ghép</div>
 
           <div className="card config-card">
-            <div className="config-section-title"><span>⚙️ CPSX Ghép</span></div>
-            <div className="config-cpsx-grid">
-              <div className="config-cpsx-item">
-                <label>CPSX Ghép (đ/m²)</label>
-                <input type="number" className="form-input" value={constants.ghepCPSX} onChange={e => setConstantParam('ghepCPSX', parseFloat(e.target.value)||0)} />
+            <div style={{display:'flex', alignItems:'stretch', gap:'0'}}>
+              {/* Cột trái: CPSX Ghép */}
+              <div style={{padding:'12px 20px 12px 0', minWidth:'180px', borderRight:'2px solid var(--border)'}}>
+                <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>CPSX Ghép (đ/m²)</div>
+                <input type="number" className="form-input" value={constants.ghepCPSX} onChange={e => setConstantParam('ghepCPSX', parseFloat(e.target.value)||0)} style={{width:'130px'}} />
+              </div>
+              {/* Cột phải: Phi hao */}
+              <div style={{padding:'12px 0 12px 20px', flex:1}}>
+                <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>Phi hao ghép = (Chiều dài ÷ A × B) + C</div>
+                <div style={{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap'}}>
+                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
+                    <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>A — mẫu số</span>
+                    <input type="number" className="config-inline-input" style={{width:'80px', fontWeight:700, textAlign:'center'}}
+                      value={constants.ghepWasteA ?? 3000}
+                      onChange={e => setConstantParam('ghepWasteA', parseFloat(e.target.value)||3000)} />
+                  </div>
+                  <span style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>×</span>
+                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
+                    <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>B — hao/A mét</span>
+                    <input type="number" className="config-inline-input" style={{width:'70px', fontWeight:700, textAlign:'center'}}
+                      value={constants.ghepWasteB ?? 20}
+                      onChange={e => setConstantParam('ghepWasteB', parseFloat(e.target.value)||0)} />
+                  </div>
+                  <span style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>+</span>
+                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
+                    <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>C — cố định (m)</span>
+                    <input type="number" className="config-inline-input" style={{width:'70px', fontWeight:700, textAlign:'center'}}
+                      value={constants.ghepWasteC ?? 100}
+                      onChange={e => setConstantParam('ghepWasteC', parseFloat(e.target.value)||0)} />
+                  </div>
+                </div>
               </div>
             </div>
-            <p className="config-note">💡 Chi phí sản xuất ghép tính trên mỗi m² màng.</p>
+            <p className="config-note" style={{marginTop:'8px'}}>💡 Chi phí sản xuất ghép tính trên mỗi m² màng. Phi hao = (Tp ghép ÷ A × B) + C.</p>
           </div>
 
           {/* ═══════════ NHÓM 3: CHI PHÍ KHÂU CẮT ═══════════ */}
           <div className="config-group-header" id="sect-config-cat" style={{scrollMarginTop: '80px'}}>✂️ CPSX Khâu cắt</div>
 
           <div className="card config-card">
-            <div className="config-section-title"><span>✂️ Định Mức Cắt</span></div>
-            <div className="config-cpsx-grid">
-              <div className="config-cpsx-item">
-                <label>CPSX Cắt cơ bản (đ)</label>
-                <input type="number" className="form-input" value={constants.cutBase} onChange={e => setConstantParam('cutBase', parseFloat(e.target.value)||0)} />
+            <div style={{display:'flex', alignItems:'stretch', gap:'0'}}>
+              {/* Cột trái: CPSX Cắt cơ bản */}
+              <div style={{padding:'12px 20px 12px 0', minWidth:'180px', borderRight:'2px solid var(--border)'}}>
+                <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>CPSX Cắt cơ bản (đ)</div>
+                <input type="number" className="form-input" value={constants.cutBase} onChange={e => setConstantParam('cutBase', parseFloat(e.target.value)||0)} style={{width:'130px'}} />
+              </div>
+              {/* Cột phải: Phi hao cắt */}
+              <div style={{padding:'12px 0 12px 20px', flex:1}}>
+                <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>Phi hao cắt = (Chiều dài ÷ A × B) + C</div>
+                <div style={{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap'}}>
+                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
+                    <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>A — mẫu số</span>
+                    <input type="number" className="config-inline-input" style={{width:'80px', fontWeight:700, textAlign:'center'}}
+                      value={constants.cutWasteA ?? 3000}
+                      onChange={e => setConstantParam('cutWasteA', parseFloat(e.target.value)||3000)} />
+                  </div>
+                  <span style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>×</span>
+                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
+                    <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>B — hao/A mét</span>
+                    <input type="number" className="config-inline-input" style={{width:'70px', fontWeight:700, textAlign:'center'}}
+                      value={constants.cutWasteB ?? 20}
+                      onChange={e => setConstantParam('cutWasteB', parseFloat(e.target.value)||0)} />
+                  </div>
+                  <span style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>+</span>
+                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
+                    <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>C — cố định (m)</span>
+                    <input type="number" className="config-inline-input" style={{width:'70px', fontWeight:700, textAlign:'center'}}
+                      value={constants.cutWasteC ?? 100}
+                      onChange={e => setConstantParam('cutWasteC', parseFloat(e.target.value)||0)} />
+                  </div>
+                </div>
               </div>
             </div>
             <div className="config-table-wrap" style={{marginTop:'12px'}}>

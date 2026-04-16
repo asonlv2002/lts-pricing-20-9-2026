@@ -43,6 +43,12 @@ export interface AppConstants {
   paymentDays: number;
   cylinderPricePerUnit: number;
   ghepCPSX: number;
+  ghepWasteA: number;  // mẫu số (3000): cứ A mét thì hao B mét
+  ghepWasteB: number;  // tử số phí hao biến đổi (20)
+  ghepWasteC: number;  // phi hao cố định mỗi lần ghép (100)
+  cutWasteA: number;   // mẫu số phi hao cắt (3000)
+  cutWasteB: number;   // hệ số phi hao biến đổi cắt (20)
+  cutWasteC: number;   // phi hao cố định cắt (100)
   shippingPerKmDefault: number;
   shippingKmDefault: number;
   laborCost: number;
@@ -216,4 +222,125 @@ export interface CalculateResult {
     laminations: any[];
     cut: any;
   }
+}
+
+// ── Production Order (Lệnh Sản Xuất) ─────────────────────────────────────────
+export type LSXStatus = 'created' | 'in_production' | 'completed' | 'cancelled';
+
+export const LSX_STATUS_CONFIG: Record<LSXStatus, {
+  label: string;
+  color: string;
+  bg: string;
+}> = {
+  created:       { label: 'Mới tạo',     color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
+  in_production: { label: 'Đang SX',     color: '#d97706', bg: 'rgba(217,119,6,0.1)'   },
+  completed:     { label: 'Hoàn thành',  color: '#059669', bg: 'rgba(5,150,105,0.1)'   },
+  cancelled:     { label: 'Đã huỷ',      color: '#dc2626', bg: 'rgba(220,38,38,0.1)'   },
+};
+
+export interface LSXManualFields {
+  // Chung (cả màng và túi)
+  lsxNumber: string;            // Số LSX (auto-generated, có thể sửa)
+  issuedDate: string;           // Ngày xuống LSX (dd/mm/yyyy)
+  preparedBy: string;           // Người lập
+  approvedBy: string;           // Người duyệt
+  deliveryDate: string;         // Ngày giao hàng yêu cầu
+  notes: string;                // Ghi chú chung
+
+  // Thông tin sản phẩm bổ sung
+  msp: string;                  // Mã sản phẩm (vd: TP_077020TU)
+  tenSP: string;                // Tên sản phẩm (vd: TÚI GẠO THƠM SUM VẦY 5KG)
+  maMucNhu: string;             // Mã mực nhủ (vd: Q-Chromax Pet GD-Z07)
+  quyCachNote: string;          // Quy cách chi tiết (vd: R:250mm x D:500mm (±2mm))
+  quyCachCuon: string;          // Quy cách cuộn (vd: "K500mm x 1000m") — chỉ dùng cho màng
+  chieuRaCuonSP: string;        // Chiều ra cuộn (section thông tin SP) — chỉ dùng cho màng
+  soLuongDHNote: string;        // Ghi chú số lượng đơn hàng (vd: 5.400 túi -6.000 túi)
+
+  // Máy In
+  printFilmName: string;        // Tên màng in
+  printWastePercent: number;    // Định mức phi hao in (m)
+  printProductQty: number;      // Thành phẩm in (m²)
+  numCylinders: number;         // Số trục
+  cylDiameter: number;          // Đường kính trục (mm) — hiện trên form: D:760
+  cylWidth: number;             // Chiều dài trục (mm) — hiện: × 600mm
+  rollOutWidth: number;         // Chiều ra cuộn sau in (mm)
+  materialQtySupplied: number;  // Số lượng cấp VT (m)
+  printNotes: string;           // Ghi chú máy in
+  cylInfo: string;              // Trục in (vd: "23/3 vế")
+  printDirection: string;       // Chiều in (vd: "Đầu chữ ra trước")
+  printMST: string;             // MST trục in
+  printProductUnit: string;     // Đơn vị thành phẩm in (vd: "MD", "M²")
+
+  // Máy Chia
+  divideWidth: number;          // Khổ chia (mm)
+  rollLength: number;           // Chiều dài quấn cuộn (m)
+  divideRollOutWidth: number;   // Chiều ra cuộn sau chia (mm)
+  divideDeliveryReq: string;    // Yêu cầu giao hàng máy chia
+  divideNotes: string;          // Ghi chú máy chia
+
+  // Máy Ghép (chỉ túi)
+  laminateFilm1: string;        // Màng ghép (tên/mã, vd: I.LDPE130)
+  laminateFilm1Width: number;   // Khổ màng ghép (mm)
+  lamWaste: number;             // Định mức phù hao ghép (m)
+  lamProductQty: number;        // Thành phẩm ghép (m²)
+  lamBTP: number;               // BTP (m)
+  laminateFilm2: string;        // Chi tiết phụ (vd: I.LDPE130-K640)
+  laminateNotes: string;        // Ghi chú máy ghép
+  lamMaterialSupplyQty: string; // Số lượng cấp vật tư (text)
+  lamProductUnit: string;       // Đơn vị thành phẩm ghép (vd: "MD")
+  lamBTPNote: string;           // Ghi chú BTP (vd: "ghép hết BTP in 3.300m")
+
+  // Phần giữa — SL đóng gói & yêu cầu giao hàng
+  packagingInfo: string;        // Thông tin đóng gói (vd: "2 cái × 4.000 túi")
+  packagingNotes: string;       // Ghi chú đóng gói (vd: "Đón băng: Không được thiếu")
+  deliveryNotes: string;        // Yêu cầu giao hàng (vd: "PHÁT HIỆN LỖI BÁO CẤP TRÊN ĐỂ...")
+
+  // Máy Làm Túi (chỉ túi)
+  sealEdge: string;             // Dán biên
+  foldBottom: string;           // Xếp đáy / Hàn đáy
+  tearNotch: string;            // Nhấn xé vở
+  hanTruoc: number;             // Hàn trước (mm)
+  hanSau: number;               // Hàn sau (mm)
+  hanBien: number;              // Hàn biên (mm)
+  hanDau: number;               // Hàn đáu (mm)
+  xepHong: number;              // Xếp hông (mm)
+  holePunchInfo: string;        // Đục lỗ (vd: "Đục 3 lỗ trên quai xách (Theo Market)")
+  ventHoleInfo: string;         // Lỗ thông hơi (vd: "6 lỗ/mặt: Ø1mm")
+  bagWasteMeters: number;       // Định mức phi hao máy túi (m)
+  bagLuuY: string;              // Lưu ý máy túi
+  useSemicircularMold: boolean; // Dùng khuôn đáy bán nguyệt
+  useDualCutter: boolean;       // Dùng dao cắt 2 nhịp
+  bagMachineWaste: number;      // Định mức phi hao máy túi (%)
+  bagDeliveryReq: string;       // Yêu cầu giao hàng
+  bagMachineNotes: string;      // Ghi chú máy làm túi
+}
+
+export interface ProductionOrder {
+  id: string;                   // Auto: "LSX-YYYYMMDD-XXX"
+  quoteId: string;              // ID của HistoryItem gốc
+  createdAt: string;            // ISO timestamp
+  status: LSXStatus;
+  manual: LSXManualFields;      // Các trường admin điền tay
+  // Snapshot dữ liệu báo giá tại thời điểm tạo LSX (immutable)
+  snapshot: {
+    customer: string;
+    productName: string;
+    productType: string;        // 'tui' | 'mang'
+    structure: string;
+    quantity: number;
+    spreadWidth: number;        // Khổ trải (m → hiển thị mm)
+    cutStep: number;            // Bước cắt (m → hiển thị mm)
+    numColors: number | null;
+    bagType: string;
+    cylLength: number;          // Chiều dài trục (m)
+    cylCircum: number;          // Chu vi trục (m)
+    filmRollLength: number;     // Chiều dài cuộn màng (m)
+    layer1Name: string;         // Tên vật liệu lớp 1 (in)
+    layer2Name: string;
+    layer3Name: string;
+    layer4Name: string;
+    layer5Name: string;
+    chotGia: number;            // Giá chốt hoặc finalPrice
+    totalArea: number;          // Tổng diện tích đơn hàng (m²)
+  };
 }

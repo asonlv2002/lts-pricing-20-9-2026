@@ -4,7 +4,41 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
-## Đã sửa / Known Fixes (cập nhật 2026-04-09)
+## Đã sửa / Known Fixes (cập nhật 2026-04-13)
+
+### 6. Module Lệnh Sản Xuất (LSX) — 2026-04-13
+Thêm module tạo & quản lý Lệnh Sản Xuất từ đơn hàng `approved`.
+
+**Packages cài thêm:** `jspdf`, `html2canvas`, `docx`
+
+**Files mới:**
+- `src/lib/types.ts` — thêm `LSXStatus`, `LSX_STATUS_CONFIG`, `LSXManualFields`, `ProductionOrder`
+- `src/lib/db.ts` — thêm `readProductionOrders()`, `writeProductionOrders()`, file `data/production-orders.json`
+- `src/app/api/production-orders/route.ts` — GET (list), POST (create)
+- `src/app/api/production-orders/[id]/route.ts` — GET, PATCH (status/manual), DELETE
+- `src/store/calculatorStore.ts` — thêm `productionOrders[]`, `loadProductionOrdersFromServer`, `createProductionOrder`, `updateProductionOrder`, `deleteProductionOrder`
+- `src/lib/lsxExport.ts` — `exportLSXtoPDF()` (jspdf+html2canvas) + `exportLSXtoDOCX()` (docx library)
+- `src/components/LSXFormModal.tsx` — modal form điền tay, phân nhánh theo `productType` (mang / tui), 2 nút "Lưu & Xuất PDF" / "Lưu & Xuất DOCX"
+- `src/components/ProductionOrderModule.tsx` — danh sách LSX, filter, đổi trạng thái, re-export
+
+**Files sửa:**
+- `src/components/HistoryModule.tsx` — thêm nút "LSX" cho các đơn có `chotGia` (giá chốt)
+- `src/components/layout/AppShell.tsx` — đăng ký module `production_orders` (role: admin + purchase)
+
+**Luồng sử dụng:**
+1. Đơn hàng `approved` → Lịch sử tính giá → nút "LSX"
+2. Admin điền form (máy IN / GHÉP / CHIA / LÀM TÚI tùy loại)
+3. Click "Lưu & Xuất PDF" hoặc "Lưu & Xuất DOCX" → file download
+4. Module "Lệnh Sản Xuất" trên sidebar → danh sách, đổi trạng thái, re-export
+
+**Template LSX theo mẫu gốc** (QT.ISO-22-BM02 lần ban hành 02 ngày 01/03/2025):
+- Header: logo công ty + ký mã hiệu/lần ban hành/ngày/số lần
+- I. Thông tin sản phẩm (Khách hàng, MSP, Tên SP, Cấu trúc, Khổ, Quy cách, Số màu, SL)
+- II. Màng: Máy IN → Máy CHIA
+- II. Túi: Máy IN → Máy GHÉP → Máy CHIA → Máy LÀM TÚI
+- Footer: Người lập / Người duyệt
+
+
 
 ### 1. Trục in — `calculatorStore.ts`
 - **Công thức:** `cylLength = max(0.7, spreadWidth × numImages + 0.1)`
@@ -88,6 +122,7 @@ The app is split between a rich client-side calculator and a thin server layer:
 - `auth/login`, `auth/logout`, `auth/me` — session management
 - `config` (GET), `config/materials` (PUT), `config/constants` (PUT), `config/profit-table` (PUT)
 - `history` (GET/POST), `history/[id]` (GET/PATCH/DELETE)
+- `production-orders` (GET/POST), `production-orders/[id]` (GET/PATCH/DELETE)
 - `users` (GET/POST), `users/[id]` (PUT/DELETE)
 - `migrate` (POST) — one-time localStorage → server migration
 
@@ -95,7 +130,7 @@ The app is split between a rich client-side calculator and a thin server layer:
 
 **Seed data** (committed): `src/data/constants.json`, `src/data/materials.json`, `src/data/profitTable.json`, `src/data/mockHistory.json`
 
-**Runtime data** (gitignored, generated on first request): `/data/history.json`, `/data/users.json`, `/data/materials.json`, `/data/constants.json`, `/data/profit-table.json`
+**Runtime data** (gitignored, generated on first request): `/data/history.json`, `/data/users.json`, `/data/materials.json`, `/data/constants.json`, `/data/profit-table.json`, `/data/production-orders.json`
 
 Default credentials on first run: `admin` / `admin123`
 
@@ -109,12 +144,14 @@ Large components, each representing a full page/tab:
 - `InputCard.tsx` (28 KB) — calculator input form with 100+ fields, material layer picker
 - `ManagerView.tsx` (47 KB) — results display with override table management for sales/admin
 - `TechView.tsx` — technical cost breakdown
-- `HistoryModule.tsx` + `HistoryView.tsx` — quotation history list, 5-step status workflow
+- `HistoryModule.tsx` + `HistoryView.tsx` — quotation history list, 5-step status workflow; nút "LSX" cho đơn approved
 - `QuotationModule.tsx` (25 KB) — quotation generation and status management
 - `ConfigPage.tsx` (26 KB) — material catalog, constants, and profit table editors
 - `CustomerModule.tsx` (30 KB) — CRM
 - `UserManagementModule.tsx` (22 KB) — user CRUD
 - `SellerModule.tsx` (13 KB) — sales staff reporting
+- `LSXFormModal.tsx` — modal form tạo Lệnh Sản Xuất (điền tay + xuất PDF/DOCX)
+- `ProductionOrderModule.tsx` — danh sách LSX, filter, đổi trạng thái, re-export (role: admin + purchase)
 
 ### State Management Notes
 
