@@ -553,8 +553,8 @@ export default function ManagerView() {
                 <div style={{display:'flex', flexWrap:'wrap', justifyContent:'center', gap:'12px 24px', marginTop:'12px', fontSize:'0.92rem'}}>
                   <div style={{background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'8px', padding:'8px 16px', textAlign:'center'}}>
                     <div style={{fontSize:'0.72rem', color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.03em'}}>Giá / cuộn ({fmt(spreadMm)}mm × {fmt(filmRollLength)}m)</div>
-                    <div style={{fontWeight:700, color:'var(--green)', fontSize:'1.1rem'}}>{fmt(shownPrice * r.filmRollArea, 0)} đ</div>
-                    <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px'}}>DT cuộn: {fmt(r.filmRollArea, 1)} m²</div>
+                    <div style={{fontWeight:700, color:'var(--green)', fontSize:'1.1rem'}}>{fmt(Math.round(shownPrice) * r.filmRollArea, 0)} đ</div>
+                    <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px'}}>DT cuộn: {fmt(r.filmRollArea, 1)} m² · {fmt(Math.round(shownPrice), 0)} đ/m²</div>
                   </div>
                 </div>
               )}

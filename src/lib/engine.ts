@@ -7,6 +7,8 @@ function getMaterial(id: string, materials: Material[]): Material | undefined {
 
 export function lookupProfit(totalCost: number, column: number, profitTable: ProfitRow[]): number {
   const col = column === 1 ? 'col1' : 'col2';
+  // profitDefault = LN thấp nhất (đơn hàng rất lớn vượt mọi ngưỡng)
+  // Bảng được sắp xếp tăng dần theo threshold → break tại ngưỡng đầu tiên lớn hơn cost
   let val = PROFIT_DEFAULT[col as keyof typeof PROFIT_DEFAULT];
   for (const row of profitTable) {
     if (totalCost < row.threshold) {
@@ -63,23 +65,29 @@ export function calculate(
   // Với túi: quantity là số cái → tổng m² = số cái × m²/cái
   const totalArea = input.productType === 'mang' ? quantity : quantity * bagArea;
   const printWidth = spreadWidth * numImages + 0.02;
-  const filmLength = printWidth > 0 ? totalArea / printWidth : 0;
+  // Chiều dài cuộn TP = S / (khổ trải × số con hình) — không cộng lề 0.02
+  const filmLength = spreadWidth * numImages > 0 ? totalArea / (spreadWidth * numImages) : 0;
 
   const cutWidth = printWidth;
-  // Tính từ dưới lên: Tp cắt = bước cắt × SL (túi), hoặc filmLength (màng)
-  const cutMeters = input.productType === 'mang' ? filmLength : cutStep * quantity;
+  // Tính từ dưới lên:
+  // Túi: Tp cắt = bước cắt × SL
+  // Màng: Tp cắt = diện tích / khổ trải (chiều dài cuộn TP giao khách)
+  const cutMeters = input.productType === 'mang'
+    ? (spreadWidth > 0 ? totalArea / spreadWidth : 0)
+    : cutStep * quantity;
   const cA = constants.cutWasteA || 3000;
   const cB = constants.cutWasteB || 20;
   const cC = constants.cutWasteC || 100;
-  const cutWaste = input.productType === 'mang' ? 0 : (cutMeters / cA * cB + cC);
-  const cutWastePercent = numLaminations <= 1 ? 3 : 6;
+  // Phi hao áp dụng cho cả túi lẫn màng
+  const cutWaste = cutMeters / cA * cB + cC;
 
   const laminations: any[] = [];
+  // Thứ tự đúng: layer2 nhận đầu tiên (gần cắt nhất), layer5 nhận cuối
   const lamChain = [
-    { layer: layer5, num: 5 }, { layer: layer4, num: 4 },
-    { layer: layer3, num: 3 }, { layer: layer2, num: 2 }
+    { layer: layer2, num: 2 }, { layer: layer3, num: 3 },
+    { layer: layer4, num: 4 }, { layer: layer5, num: 5 }
   ].filter(item => !!item.layer);
-  
+
   let currentNeededMeters = cutMeters + cutWaste;
 
   lamChain.forEach(({ layer, num }) => {
@@ -93,8 +101,8 @@ export function calculate(
     const cpsx = constants.ghepCPSX;
     const costCPSX = cpsx * (waste + meters) * width;
     const costMat = (layer.pricePerM2 || 0) * (waste + meters) * width;
-    
-    laminations.unshift({
+
+    laminations.push({
       layerNum: num, material: layer, width, meters, waste, cpsx, costCPSX, costMat, total: costCPSX + costMat
     });
     currentNeededMeters = meters + waste;
@@ -185,7 +193,7 @@ export function calculate(
 
   const extraAccessoryWeightPerUnit = quantity > 0 ? (zipperWeightTotal + tapeWeightTotal) / quantity : 0;
 
-  const filmRollLength = (input as any).filmRollLength || 6000;
+  const filmRollLength = input.filmRollLength || 6000;
   // Diện tích cuộn màng TP = khổ trải × chiều dài cuộn / số con hình
   const filmRollArea = isMang ? (spreadWidth * filmRollLength / numImages) : 0;
 
@@ -219,7 +227,10 @@ export function calculate(
     packagingPerUnit = boxPerUnit;
   }
 
-  const tareWeight = totalGSM * bagArea + handleWeight + extraAccessoryWeightPerUnit;
+  // Túi: trọng lượng/túi = GSM × diện tích 1 túi
+  // Màng: trọng lượng/m² = GSM × 1.0 m² (1 unit = 1 m²)
+  const unitArea = isMang ? 1.0 : bagArea;
+  const tareWeight = totalGSM * unitArea + handleWeight + extraAccessoryWeightPerUnit;
 
   // Vận chuyển: tổng phí = đơn giá/km × km, chia đều cho số túi/m²
   const actualShippingPerKm = shippingPerKm || 0;
@@ -234,22 +245,21 @@ export function calculate(
   const interestPerUnit = (interestRate30 / 30) * paymentDaysLocal * costPerUnit;
 
   const commissionFixedVND = input.commissionFixedVND || 0;
-  let commissionPerUnit;
-  if (commissionFixedVND > 0) {
-    commissionPerUnit = commissionFixedVND;
-  } else {
-    commissionPerUnit = commissionRate * costPerUnit;
-  }
+  // Ưu tiên commissionUnit để tránh nhầm khi user đổi mode
+  const commissionPerUnit = input.commissionUnit === 'vnd'
+    ? commissionFixedVND
+    : commissionRate * costPerUnit;
 
   const finalPrice = costPerUnit + zipperPerUnit + tapePerUnit + handlePerUnit + boxPerUnit
     + shippingPerUnit + interestPerUnit + commissionPerUnit;
 
-  const cylLengthLocal = input.cylLength || 0.63;
-  const cylCircumLocal = input.cylCircum || 0.4;
+  // cylLength = 0 nghĩa là chưa có thông tin trục → cylinderCost = 0
+  const cylLengthLocal = input.cylLength ?? 0;
+  const cylCircumLocal = input.cylCircum ?? 0;
   const cylUnitPriceLocal = input.cylUnitPrice || constants.cylinderPricePerUnit;
   const cylAreaLocal = cylLengthLocal * cylCircumLocal;
   const cylinderCostPerUnitLocal = cylAreaLocal * cylUnitPriceLocal;
-  const cylinderCostLocal = cylinderCostPerUnitLocal * numColors!;
+  const cylinderCostLocal = cylinderCostPerUnitLocal * (numColors || 0);
 
   const productionDays = Math.ceil(quantity / 30000) + 4;
 
@@ -265,7 +275,7 @@ export function calculate(
     totalThickness,
     totalGSM,
     bagArea, totalArea, printWidth, filmLength,
-    cutWidth, cutMeters, cutWaste, cutWastePercent, cutCPSX, cutCostCPSX, cutTotalCost,
+    cutWidth, cutMeters, cutWaste, cutCPSX, cutCostCPSX, cutTotalCost,
     printNLWidth, printMeters, printWaste, printCPSX, printCostCPSX, printCostMaterial, printTotalCost,
     totalProductionCost, totalLamCost, profitRate, profitAmount, revenue,
     costPerUnit,

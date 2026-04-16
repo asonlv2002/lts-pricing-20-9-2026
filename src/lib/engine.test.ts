@@ -121,8 +121,8 @@ section('2. Màng: totalArea = quantity (không nhân bagArea)');
 if (r2) {
   assertApprox('totalArea = quantity (5000 m²)', r2.totalArea, baseMangInput.quantity, 0.1);
 
-  // filmLength = totalArea / printWidth = 5000 / (0.5*1 + 0.02) = 5000 / 0.52 ≈ 9615 m
-  const expectedFilmLength = baseMangInput.quantity / (baseMangInput.spreadWidth * baseMangInput.numImages + 0.02);
+  // filmLength = totalArea / (spreadWidth × numImages) — không cộng lề 0.02
+  const expectedFilmLength = baseMangInput.quantity / (baseMangInput.spreadWidth * baseMangInput.numImages);
   assertApprox('filmLength màng đúng công thức', r2.filmLength, expectedFilmLength, 0.1);
 
   // Kiểm tra không bị nhân bagArea (nếu nhân thì filmLength sẽ nhỏ hơn nhiều)
@@ -142,9 +142,9 @@ if (r1) {
   const expectedArea = baseTuiInput.quantity * baseTuiInput.spreadWidth * baseTuiInput.cutStep;
   assertApprox('totalArea túi = qty × bagArea', r1.totalArea, expectedArea, 0.1);
 
-  // filmLength = totalArea / printWidth
-  const printWidth = baseTuiInput.spreadWidth * (baseTuiInput.numImages || 1) + 0.02;
-  const expectedFilmLen = expectedArea / printWidth;
+  // filmLength = totalArea / (spreadWidth × numImages)
+  const numImages = baseTuiInput.numImages || 1;
+  const expectedFilmLen = expectedArea / (baseTuiInput.spreadWidth * numImages);
   assertApprox('filmLength túi đúng công thức', r1.filmLength, expectedFilmLen, 0.1);
 }
 
