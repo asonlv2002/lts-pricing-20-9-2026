@@ -4,7 +4,7 @@ import { useCalculatorStore } from '../../store/calculatorStore';
 import CustomerModule from '../CustomerModule';
 import SellerModule from '../SellerModule';
 import QuotationModule from '../QuotationModule';
-import HistoryModule from '../HistoryModule';
+import HistoryDbModule from '../HistoryDbModule';
 import ConfigPage from '../ConfigPage';
 import UserManagementModule from '../UserManagementModule';
 import ProductionOrderModule from '../ProductionOrderModule';
@@ -301,19 +301,6 @@ function TopHeader({ activeModule, onExport, onMenuToggle, isMobile }: TopHeader
 }
 
 // ============================================================
-// PLACEHOLDER
-// ============================================================
-function ModulePlaceholder({ moduleId }: { moduleId: ModuleId }) {
-  return (
-    <div className="lts-placeholder">
-      <Database size={52} className="lts-placeholder-icon" />
-      <h2 className="lts-placeholder-title">{MODULE_TITLES[moduleId]}</h2>
-      <p className="lts-placeholder-desc">Giao diện đang được tích hợp…</p>
-    </div>
-  );
-}
-
-// ============================================================
 // APP SHELL
 // ============================================================
 export default function AppShell({ children }: { children: React.ReactNode }) {
@@ -444,23 +431,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="lts-shell-content lts-shell-content--scroll">
           {activeModule === 'calculator'        && children}
           {activeModule === 'quotations'        && <QuotationModule role={role} />}
-          {activeModule === 'history_db'        && <HistoryModule onNavigate={setActiveModule} />}
+          {activeModule === 'history_db'        && <HistoryDbModule onNavigate={setActiveModule} />}
           {activeModule === 'customers'         && <CustomerModule role={role} currentSellerId={currentSellerId} />}
           {activeModule === 'sellers'           && <SellerModule />}
           {activeModule === 'master_data'       && <ConfigPage />}
           {activeModule === 'users'             && <UserManagementModule />}
           {activeModule === 'production_orders' && <ProductionOrderModule />}
-
-          {activeModule !== 'calculator'        &&
-           activeModule !== 'quotations'        &&
-           activeModule !== 'history_db'        &&
-           activeModule !== 'customers'         &&
-           activeModule !== 'sellers'           &&
-           activeModule !== 'master_data'       &&
-           activeModule !== 'users'             &&
-           activeModule !== 'production_orders' && (
-            <ModulePlaceholder moduleId={activeModule} />
-          )}
+          {/* Fallback: TypeScript đảm bảo ModuleId luôn có case ở trên — nếu không có sẽ bắt lỗi compile */}
         </div>
       </div>
     </div>

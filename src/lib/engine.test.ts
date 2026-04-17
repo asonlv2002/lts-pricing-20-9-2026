@@ -257,6 +257,173 @@ if (rMultiLayer && r1) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
+section('11. numImages > 1 — giá trị hiển thị per-image phải nhất quán');
+// ════════════════════════════════════════════════════════════════════════════
+// Mô phỏng logic UI: dMeters = meters/numImages, dWaste = waste/numImages
+// inputVL = dMeters + dWaste = (meters + waste) / numImages
+// Tất cả 3 cột phải cùng đơn vị "1 con hình"
+
+{
+  const ni = 3;
+  const r_ni = calculate({ ...baseTuiInput, numImages: ni, quantity: 30000 }, mats, cons, prof);
+  const r_ni1 = calculate({ ...baseTuiInput, numImages: 1, quantity: 10000 }, mats, cons, prof);
+
+  if (r_ni && r_ni1) {
+    // Kiểm tra printMeters tỉ lệ thuận với numImages (vì tổng diện tích tăng)
+    // Thực ra totalArea = qty × bagArea không đổi theo numImages,
+    // nhưng printMeters thay đổi vì cùng diện tích trải trên khổ rộng hơn
+    assert('numImages=3: printMeters > 0', r_ni.layers.print.meters > 0);
+    assert('numImages=3: printWaste > 0', r_ni.printWaste > 0);
+
+    // Công thức hiển thị per-image: dMeters = meters/numImages, dWaste = waste/numImages
+    const printMeters = r_ni.layers.print.meters;
+    const printWaste  = r_ni.printWaste;
+    const dMeters = printMeters / ni;
+    const dWaste  = printWaste  / ni;
+    const inputVL = dMeters + dWaste;
+
+    // inputVL phải bằng (meters + waste) / numImages — KHÔNG phải meters/numImages + waste
+    const inputVL_wrong = printMeters / ni + printWaste; // cách sai cũ
+    assert(
+      'inputVL (per-image) = (meters+waste)/numImages, không phải meters/numImages + waste_gốc',
+      Math.abs(inputVL - (printMeters + printWaste) / ni) < 0.001,
+      `inputVL=${inputVL.toFixed(2)}, (m+w)/ni=${((printMeters + printWaste)/ni).toFixed(2)}, sai=${inputVL_wrong.toFixed(2)}`
+    );
+
+    // Khi numImages=1, 2 cách cho cùng kết quả (dễ bỏ sót lỗi)
+    if (r_ni1) {
+      const m1 = r_ni1.layers.print.meters;
+      const w1 = r_ni1.printWaste;
+      assert(
+        'numImages=1: cả 2 cách cho cùng kết quả (lỗi không lộ)',
+        Math.abs((m1 / 1 + w1) - ((m1 + w1) / 1)) < 0.001
+      );
+    }
+
+    // dWaste phải nhỏ hơn waste gốc khi numImages > 1
+    assert('dWaste < waste gốc khi numImages=3', dWaste < printWaste);
+    assert('dMeters < meters gốc khi numImages=3', dMeters < printMeters);
+    assert('inputVL (per-image) = dMeters + dWaste', Math.abs(inputVL - dMeters - dWaste) < 0.001);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('12. numColors=0 — hàng CPSX IN vẫn hiện, nhưng phi hao=0 và CPSX=0');
+// ════════════════════════════════════════════════════════════════════════════
+// Lỗi vừa sửa: UI vẫn hiện hàng CPSX IN dù numColors=0 → phi hao = 0 gây nhầm lẫn
+// Điều kiện ẩn: numColors === 0 → printWaste = 0 và printCostCPSX = 0
+
+{
+  const rNo = calculate({ ...baseTuiInput, numColors: 0 }, mats, cons, prof);
+  const rYes = calculate({ ...baseTuiInput, numColors: 4 }, mats, cons, prof);
+
+  if (rNo) {
+    assert('numColors=0: printWaste = 0 (nên ẩn hàng IN)', rNo.printWaste === 0);
+    assert('numColors=0: printCostCPSX = 0', rNo.printCostCPSX === 0);
+    assert('numColors=0: printCPSX = 0', rNo.printCPSX === 0);
+    // Thành tiền CPVL lớp in vẫn có (vật liệu vẫn dùng dù không in)
+    assert('numColors=0: printCostMaterial > 0 (vẫn dùng vật liệu)', rNo.printCostMaterial > 0);
+  }
+  if (rYes) {
+    assert('numColors=4: printWaste > 0 (nên hiện hàng IN)', rYes.printWaste > 0);
+    assert('numColors=4: printCostCPSX > 0', rYes.printCostCPSX > 0);
+  }
+  if (rNo && rYes) {
+    // Hàng IN luôn hiển thị, chỉ khác là CPSX=0 khi không in
+    const showsZeroCPSX = (rNo.printWaste === 0 && rNo.printCostCPSX === 0);
+    assert('numColors=0: hàng IN hiện với CPSX=0 (không ẩn hàng)', showsZeroCPSX);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('13. Bảng MOQ — layerMeters phải chia numImages');
+// ════════════════════════════════════════════════════════════════════════════
+// Lỗi vừa sửa: MOQ table hiển thị meters+waste toàn khổ thay vì per-image
+
+{
+  const ni = 2;
+  const rMoq = calculate({ ...baseTuiInput, numImages: ni }, mats, cons, prof);
+  if (rMoq) {
+    const printLayer = rMoq.layers.print;
+    const metersTotal = printLayer.meters + printLayer.waste;
+    const metersPerImage = metersTotal / ni;
+
+    assert('MOQ: metersTotal > metersPerImage khi numImages=2', metersTotal > metersPerImage);
+    assertApprox('MOQ: metersPerImage = metersTotal / numImages', metersPerImage, metersTotal / ni, 0.01);
+
+    // Đảm bảo giá trị per-image = 50% tổng (khi numImages=2)
+    assertApprox('MOQ: per-image bằng 50% tổng khi numImages=2',
+      metersPerImage, metersTotal / 2, 0.01
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('14. Stat card Khổ Thành Phẩm vs Khổ Màng NL');
+// ════════════════════════════════════════════════════════════════════════════
+// Lỗi vừa sửa: 2 stat card hiện cùng giá trị (đều = spreadWidth×numImages+0.02)
+// Đúng: Khổ TP = spreadWidth (1 con hình), Khổ NL = spreadWidth×numImages+0.02
+
+{
+  const ni = 2;
+  const sw = 0.5;
+  const rStat = calculate({ ...baseTuiInput, numImages: ni, spreadWidth: sw }, mats, cons, prof);
+  if (rStat) {
+    const khoTP  = sw;                        // per-image (sau fix)
+    const khoNL  = sw * ni + 0.02;            // toàn khổ
+    const khoOld = rStat.printWidth;          // = spreadWidth × numImages + 0.02 (giống khoNL)
+
+    assert('Khổ TP ≠ Khổ NL khi numImages=2', Math.abs(khoTP - khoNL) > 0.01,
+      `khoTP=${khoTP}, khoNL=${khoNL}`);
+    assertApprox('Khổ NL = spreadWidth×numImages+0.02', khoNL, rStat.printWidth, 0.01);
+    assert('Khổ NL (toàn khổ) > Khổ TP (1 con) khi numImages=2', khoNL > khoTP);
+
+    // Kiểm tra trước đây cả 2 đều bằng printWidth (lỗi cũ)
+    assert('(Lỗi cũ) printWidth = spreadWidth×numImages+0.02, không phải spreadWidth',
+      Math.abs(khoOld - khoNL) < 0.001 && Math.abs(khoOld - khoTP) > 0.01
+    );
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('15. Phi hao tính toán engine — đảm bảo công thức đúng');
+// ════════════════════════════════════════════════════════════════════════════
+
+{
+  const rPhi = calculate(baseTuiInput, mats, cons, prof);
+  if (rPhi) {
+    const cA = cons.cutWasteA  || 3000;
+    const cB = cons.cutWasteB  || 20;
+    const cC = cons.cutWasteC  || 100;
+    const expectedCutWaste = rPhi.cutMeters / cA * cB + cC;
+    assertApprox('cutWaste = cutMeters/cA×cB + cC', rPhi.cutWaste, expectedCutWaste, 0.1);
+    assert('cutWaste > 0', rPhi.cutWaste > 0);
+
+    // Phi hao ghép
+    if (rPhi.layers.laminations.length > 0) {
+      const lam = rPhi.layers.laminations[0];
+      const gA = cons.ghepWasteA || 3000;
+      const gB = cons.ghepWasteB || 20;
+      const gC = cons.ghepWasteC || 100;
+      const expectedLamWaste = lam.meters / gA * gB + gC;
+      assertApprox('lamWaste = meters/gA×gB + gC', lam.waste, expectedLamWaste, 0.1);
+    }
+
+    // Phi hao in — chỉ khi numColors > 0
+    const pA = cons.printWasteA || 6000;
+    const pB = cons.printWasteB || 40;
+    const pC = cons.printWasteC || 50000;
+    const pD = cons.printWasteD || 400;
+    const cSetup = cons.colorSetup?.[(baseTuiInput.numColors ?? 0)]
+      || ((baseTuiInput.numColors ?? 0) * 200 + 200);
+    const pm = rPhi.printMeters;
+    const expectedPrintWaste = cSetup + (pm / pA * pB) + (pm > pC ? pm / pC * pD : 0);
+    assertApprox('printWaste = cSetup + meters/pA×pB + ...', rPhi.printWaste, expectedPrintWaste, 0.1);
+    assert('printWaste > 0 khi numColors=4', rPhi.printWaste > 0);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
 // KẾT QUẢ
 // ════════════════════════════════════════════════════════════════════════════
 

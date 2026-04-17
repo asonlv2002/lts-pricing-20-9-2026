@@ -69,12 +69,14 @@ export function calculate(
   const filmLength = spreadWidth * numImages > 0 ? totalArea / (spreadWidth * numImages) : 0;
 
   const cutWidth = printWidth;
-  // Tính từ dưới lên:
-  // Túi: Tp cắt = bước cắt × SL
-  // Màng: Tp cắt = diện tích / khổ trải (chiều dài cuộn TP giao khách)
+  // Tính từ dưới lên — CHIỀU DÀI CUỘN NVL (không phải tp giao khách):
+  // Khổ cuộn đã nhân numImages (spreadWidth × numImages + 0.02),
+  // nên meters phải CHIA numImages để giữ tổng m² = totalArea + lề.
+  // Túi:  cutMeters = cutStep × SL / numImages
+  // Màng: cutMeters = totalArea / (spreadWidth × numImages)
   const cutMeters = input.productType === 'mang'
-    ? (spreadWidth > 0 ? totalArea / spreadWidth : 0)
-    : cutStep * quantity;
+    ? (spreadWidth * numImages > 0 ? totalArea / (spreadWidth * numImages) : 0)
+    : (cutStep * quantity) / numImages;
   const cA = constants.cutWasteA || 3000;
   const cB = constants.cutWasteB || 20;
   const cC = constants.cutWasteC || 100;

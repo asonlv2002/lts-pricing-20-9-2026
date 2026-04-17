@@ -4,7 +4,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
-## Đã sửa / Known Fixes (cập nhật 2026-04-13)
+## Đã sửa / Known Fixes (cập nhật 2026-04-17)
+
+> **QUAN TRỌNG:** Trước khi sửa bất kỳ công thức nào trong `src/lib/engine.ts`, PHẢI đọc `.claude/training/Train.md` — nguồn chân lý duy nhất cho mọi công thức.
+
+### 7. Bug cutMeters không chia numImages — 2026-04-17
+**Triệu chứng:** Đơn có `numImages > 1` bị đội giá ~numImages lần.
+
+**Nguyên nhân:** `cutMeters` (chiều dài cuộn NVL) KHÔNG chia cho `numImages`, trong khi `cutWidth = spreadWidth × numImages + 0.02` đã nhân numImages → `cost = cpsx × meters × width` thừa một hệ số numImages. Bug lan sang cả ghép + in (vì chuỗi `needed_i = meters + waste` truyền xuôi).
+
+**Fix** (`src/lib/engine.ts`):
+- Túi:  `cutMeters = cutStep × quantity / numImages`
+- Màng: `cutMeters = totalArea / (spreadWidth × numImages)`
+
+**Kiểm chứng đại số:** `cutMeters × cutWidth = totalArea + lề` → khớp với nguyên lý **NVL = TP + Phi hao**.
 
 ### 6. Module Lệnh Sản Xuất (LSX) — 2026-04-13
 Thêm module tạo & quản lý Lệnh Sản Xuất từ đơn hàng `approved`.

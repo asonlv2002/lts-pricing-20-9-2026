@@ -12,7 +12,7 @@ function fmt(n: number, decimals = 0): string {
 // ════════════════════════════════════════════════════════════
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
-export default function HistoryModule({ onNavigate }: { onNavigate?: (module: 'calculator') => void }) {
+export default function HistoryDbModule({ onNavigate }: { onNavigate?: (module: 'calculator') => void }) {
   const { history, loadHistoryItem, removeHistoryItem } = useCalculatorStore();
   const [search, setSearch] = useState('');
   const [filterHasChotGia, setFilterHasChotGia] = useState<'all' | 'chot' | 'pending'>('all');

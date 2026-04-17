@@ -732,14 +732,15 @@ export default function ManagerView() {
                   {uniRows.map((row, idx) => {
                     let dWidth = row.stage !== 'CẮT' ? rInput.spreadWidth * rInput.numImages + 0.02 : row.width;
                     let dMeters = row.meters / rInput.numImages;
-                    let inputVL = row.meters + row.waste;
+                    let dWaste = row.waste / rInput.numImages;
+                    let inputVL = dMeters + dWaste;
                     return (
                       <tr key={idx}>
                         <td data-label="Công đoạn">{row.stage}</td>
                         <td data-label="Vật liệu">{row.mat}</td>
                         <td className="num" data-label="Khổ (m)">{fmt(dWidth, 3)}</td>
                         <td className="num" data-label="Thành phẩm (m)">{fmt(dMeters, 0)}</td>
-                        <td className="num" data-label="Phi hao">{fmt(row.waste, 0)}</td>
+                        <td className="num" data-label="Phi hao">{fmt(dWaste, 0)}</td>
                         <td className="num highlight" data-label="Đầu vào VL">{fmt(inputVL, 0)}</td>
                         <td className="num" data-label="CPSX (đ/m²)">{fmt(row.cpsx, 0)}</td>
                         <td className="num" data-label="Thành tiền CPSX">{fmt(row.costCPSX, 0)}</td>
@@ -861,7 +862,7 @@ export default function ManagerView() {
                         <td data-label="Tổng DT">{fmt(res.finalPrice * qty / 1000000, 2)}tr</td>
                         {matCols.map((col, ci) => {
                           const layerData = getLayerData(res, col);
-                          const layerMeters = layerData ? layerData.meters + layerData.waste : 0;
+                          const layerMeters = layerData ? (layerData.meters + layerData.waste) / rInput.numImages : 0;
                           const kg = calcKg(layerData?.material, layerMeters, layerData?.width || 0);
                           return (
                             <td key={ci} data-label={col.name}>
@@ -939,7 +940,7 @@ export default function ManagerView() {
                           <td data-label={`SL ${unitLabel}`} style={{fontWeight: row.isCurrent ? 700 : 400}}>{fmt(row.estQty)}</td>
                           {otherLayers.map((col: any, i: number) => {
                             const layerData = getLayerData(row.res, col);
-                            const layerMeters = layerData ? layerData.meters + layerData.waste : 0;
+                            const layerMeters = layerData ? (layerData.meters + layerData.waste) / rInput.numImages : 0;
                             const kg = calcKg(layerData?.material, layerMeters, layerData?.width || 0);
                             return (
                               <td data-label={col.name} key={i}>

@@ -68,17 +68,17 @@ export default function TechView() {
       <div className="stat-grid" id="t-stats">
         <div className="stat-card accent">
           <div className="stat-label">Đầu Vào Khâu In</div>
-          <div className="stat-value">{fmt(r.printMeters + r.printWaste, 0)} m</div>
+          <div className="stat-value">{fmt((r.printMeters + r.printWaste) / input.numImages, 0)} m</div>
         </div>
         {input.productType !== 'mang' && (
           <div className="stat-card cyan">
             <div className="stat-label">Đầu Vào Khâu Cắt</div>
-            <div className="stat-value">{fmt(r.cutMeters + r.cutWaste, 0)} m</div>
+            <div className="stat-value">{fmt((r.cutMeters + r.cutWaste) / input.numImages, 0)} m</div>
           </div>
         )}
         <div className="stat-card green">
           <div className="stat-label">Khổ Thành Phẩm</div>
-          <div className="stat-value">{fmt(r.printWidth, 3)} m</div>
+          <div className="stat-value">{fmt(input.spreadWidth, 3)} m</div>
         </div>
         <div className="stat-card orange">
           <div className="stat-label">Khổ Màng NL</div>
@@ -104,14 +104,15 @@ export default function TechView() {
               {uniRows.map((row, idx) => {
                 let dWidth = row.stage !== 'CẮT' ? input.spreadWidth * input.numImages + 0.02 : row.width;
                 let dMeters = row.meters / input.numImages;
-                let inputVL = row.meters + row.waste;
+                let dWaste = row.waste / input.numImages;
+                let inputVL = dMeters + dWaste;
                 return (
                   <tr key={idx}>
                     <td>{row.stage}</td>
                     <td>{row.mat}</td>
                     <td className="num">{fmt(dWidth, 3)}</td>
                     <td className="num">{fmt(dMeters, 0)}</td>
-                    <td className="num">{fmt(row.waste, 0)}</td>
+                    <td className="num">{fmt(dWaste, 0)}</td>
                     <td className="num highlight">{fmt(inputVL, 0)}</td>
                   </tr>
                 );
