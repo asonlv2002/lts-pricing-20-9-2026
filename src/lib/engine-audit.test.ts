@@ -251,9 +251,9 @@ section('4. ĐẶC TẢ KỸ THUẬT NVL');
   const printWidth = input.spreadWidth * input.numImages + 0.02;
   assertExact('4A.3 printWidth = spreadWidth × numImages + 0.02', r.printWidth, printWidth);
 
-  const filmLength = totalArea / printWidth;
-  assertApprox('4A.4 filmLength = totalArea / printWidth', r.filmLength, filmLength, 0.01);
-  console.log(`  filmLength = ${totalArea} / ${printWidth} = ${filmLength.toFixed(2)} m`);
+  const filmLength = totalArea / (input.spreadWidth * input.numImages);
+  assertApprox('4A.4 filmLength = totalArea / (spreadWidth × numImages)', r.filmLength, filmLength, 0.01);
+  console.log(`  filmLength = ${totalArea} / (${input.spreadWidth}×${input.numImages}) = ${filmLength.toFixed(2)} m`);
 
   // cutMeters tính từ dưới lên: bước cắt × SL
   const cutMeters = input.cutStep * input.quantity;
@@ -261,9 +261,7 @@ section('4. ĐẶC TẢ KỸ THUẬT NVL');
   console.log(`  cutMeters = ${input.cutStep} × ${input.quantity} = ${cutMeters} m`);
 
   const cutWaste = cutMeters / 3000 * 20 + 100;
-  assertApprox('4A.6 cutWaste = cutMeters/3000 × 20 + 100', r.cutWaste, cutWaste, 0.1);
-
-  assert('4A.7 cutWastePercent = 3 (1 lớp)', r.cutWastePercent === 3);
+  assertApprox('4A.6 cutWaste = cutMeters/A × B + C', r.cutWaste, cutWaste, 0.1);
 
   const printMeters = cutMeters + cutWaste;
   assertApprox('4A.8 printMeters = cutMeters + cutWaste (1 lớp, no lamWaste)', r.printMeters, printMeters, 0.1);
@@ -282,8 +280,7 @@ section('4. ĐẶC TẢ KỸ THUẬT NVL');
     const input = { ...baseTui, layer2Id: peId };
     const r = calculate(input, mats, cons, prof)!;
 
-    // numLaminations = middleLayers(layer2) = 1, cutWastePercent = 3
-    assert('4B.1 cutWastePercent = 3 (numLam=1)', r.cutWastePercent === 3);
+    assert('4B.1 (cutWastePercent removed — no longer tracked)', true);
     assert('4B.2 laminations.length = 1', r.layers.laminations.length === 1);
 
     const lam = r.layers.laminations[0];
@@ -302,14 +299,21 @@ section('4. ĐẶC TẢ KỸ THUẬT NVL');
   const r = calculate(baseMang, mats, cons, prof)!;
 
   assertExact('4C.1 totalArea = quantity (màng)', r.totalArea, baseMang.quantity);
-  assertExact('4C.2 cutWaste = 0 cho màng', r.cutWaste, 0);
+
+  // Màng: cutMeters = totalArea / spreadWidth
+  const mangCutMeters = baseMang.quantity / baseMang.spreadWidth;
+  assertApprox('4C.2 cutMeters màng = totalArea / spreadWidth', r.cutMeters, mangCutMeters, 0.01);
+
+  // Phi hao màng áp dụng giống túi
+  const mangCutWaste = mangCutMeters / (cons.cutWasteA||3000) * (cons.cutWasteB||20) + (cons.cutWasteC||100);
+  assertApprox('4C.3 cutWaste màng = cutMeters/A × B + C', r.cutWaste, mangCutWaste, 0.1);
 
   const printWidth = baseMang.spreadWidth * baseMang.numImages + 0.02;
-  const filmLength = baseMang.quantity / printWidth;
-  assertApprox('4C.3 filmLength = quantity / printWidth', r.filmLength, filmLength, 0.01);
+  const filmLength = baseMang.quantity / (baseMang.spreadWidth * baseMang.numImages);
+  assertApprox('4C.4 filmLength = quantity / (spreadWidth × numImages)', r.filmLength, filmLength, 0.01);
 
   const filmRollArea = baseMang.spreadWidth * baseMang.filmRollLength / baseMang.numImages;
-  assertApprox('4C.4 filmRollArea đúng', r.filmRollArea, filmRollArea, 0.01);
+  assertApprox('4C.5 filmRollArea đúng', r.filmRollArea, filmRollArea, 0.01);
 }
 
 // 4D. Thickness & GSM

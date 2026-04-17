@@ -170,7 +170,6 @@ export interface CalculateResult {
   cutWidth: number;
   cutMeters: number;
   cutWaste: number;
-  cutWastePercent: number;
   cutCPSX: number;
   cutCostCPSX: number;
   cutTotalCost: number;
