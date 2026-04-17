@@ -256,127 +256,105 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
   // Word tự stack từ trên xuống, không đè nhau.
   // (Header API của docx tạo floating header region, không thích hợp với 2 bảng cao ~100mm)
 
-  // ╔══════════════════════════════════════════════════════════════════╗
-  // ║  BODY TABLE: 5 cột [2943, 2126, 2410, 567, 2092] DXA          ║
-  // ║  II. CÔNG VIỆC CẦN THỰC HIỆN                                   ║
-  // ╚══════════════════════════════════════════════════════════════════╝
-  // Tổng: 10138 DXA
-  // c1=2943 c2=2126 c3=2410 c4=567 c5=2092
-  // Nhóm trái (MÁY IN / MÁY CHIA) = c1+c2 = 5069 DXA
-  // Nhóm phải (MÁY GHÉP / MÁY LÀM TÚI) = c3+c4+c5 = 5069 DXA
+  // ╔═══════════════════════════════════════════════════════════════╗
+  // ║  BODY TABLE — compact 1 trang A4, y mẫu gốc                ║
+  // ║  TÚI: 5 cột [2943,2126,2410,567,2092] (LSX TÚI.docx)      ║
+  // ║  MÀNG: 2 cột [4928,5245] (LSX MÀNG IN.docx)                ║
+  // ╚═══════════════════════════════════════════════════════════════╝
 
-  const bodyRows: any[] = [];
-
-  // ── R1: II. CÔNG VIỆC CẦN THỰC HIỆN (colspan=5, xanh lá) ──
-  bodyRows.push(rowH(402,
-    cell([para([run('II. CÔNG VIỆC CẦN THỰC HIỆN', { b: true, sz: 32 })], AlignmentType.CENTER)],
-      { cs: 5, bg: 'c2d69b', va: 'center' }),
-  ));
+  let bodyTable: any;
 
   if (!isTui) {
-    // ════════════════════════════════════════════════
-    // MÀNG: MÁY IN (full 5 cols) → MÁY CHIA (full 5 cols)
-    // ════════════════════════════════════════════════
-
-    // MÁY IN header
-    bodyRows.push(rowH(419,
-      cell([para([run('MÁY IN', { b: true, sz: 32 })], AlignmentType.CENTER)],
-        { cs: 5, bg: 'fabf8f', va: 'center' }),
+    // ════ MÀNG: 2-cột layout y mẫu LSX MÀNG IN.docx ════
+    const mR: any[] = [];
+    mR.push(rowH(300, cell([para([run('MÁY IN', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' })));
+    mR.push(rowH(280,
+      cell([para([run('Màng in: ', { b: true }), run(m.printFilmName || s.layer1Name || '')])]),
+      cell([para([run('Khổ: ', { b: true }), run(`${khoMM}mm`)])]),
     ));
-    // Màng in | Khổ
-    bodyRows.push(rowH(376,
-      cell([para([run('Màng in: ', { b: true, clr: 'ff0000' }), run(m.printFilmName || s.layer1Name || '')])], { cs: 3 }),
-      cell([para([run('Khổ: ', { b: true }), run(`${khoMM}mm`, { clr: 'ff0000' })])], { cs: 2 }),
-    ));
-    // Trục in | Số trục + Chiều xả
-    bodyRows.push(rowH(435,
+    mR.push(rowH(360,
       cell([
-        para([run('Trục in: ', { b: true }), run(v(m.cylDiameter) ? `D${v(m.cylDiameter)} x CV${v(m.cylWidth)}` : '')]),
-        para([run('Mã Số Trục: ', { b: true }), run(v(m.printMST))]),
-      ], { cs: 3, va: 'center' }),
+        para([run('Quy cách trục: ', { b: true }), run(v(m.cylDiameter) ? `D:${v(m.cylDiameter)} x ${v(m.cylWidth)}mm` : '')]),
+        para([run('MST: ', { b: true }), run(v(m.printMST))]),
+      ]),
       cell([
-        para([run('Số trục: ', { b: true }), run(`= số màu`, { clr: 'ff0000' })]),
-        para([run('Chiều xả: ', { b: true }), run(v(m.printDirection), { clr: 'ff0000' })]),
-      ], { cs: 2, va: 'center' }),
+        para([run('Số trục: ', { b: true }), run(vd(m.numCylinders))]),
+        para([run('Chiều ra cuộn: ', { b: true }), run(v(m.rollOutWidth, 'mm'))]),
+      ]),
     ));
-    // Nội dung MÁY IN (tall)
-    bodyRows.push(rowH(1451,
-      cell([
-        para([run(`Định mức phí hao: ${v(m.printWastePercent, 'm')}`)]),
-        para([run(`Thành phẩm yêu cầu: ${v(m.printProductQty, 'm')}`)]),
-        para([run('Ghi chú: ', { b: true }), run(m.printNotes || 'tự điền')]),
-        para([run('- Màu sắc: duyệt màu theo ', { }),
-              run(v(m.maMucNhu) || 'tự điền')]),
-        para([run('- Chiều xả: ', { }), run(v(m.printDirection) || 'tự điền')]),
-      ], { cs: 5 }),
+    mR.push(rowH(1100, cell([
+      para([run('Thành phẩm in yêu cầu:', { b: true })]),
+      para([run(`Định mức phi hao: ${v(m.printWastePercent, 'm')}`)]),
+      para([run(`Số lượng cấp vật tư: ${v(m.materialQtySupplied)}`)]),
+      para([]),
+      para([run('Ghi chú:', { b: true })]),
+      para([run(m.printNotes || '')]),
+      para([run('Trục in: ', { b: true }), run(v(m.cylInfo))]),
+    ], { cs: 2 })));
+    mR.push(rowH(300, cell([para([run('MÁY CHIA', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' })));
+    mR.push(rowH(280,
+      cell([para([run('Khổ màng: ', { b: true }), run(`${khoMM}mm`)])]),
+      cell([para([run('Khổ chia: ', { b: true }), run(vd(m.divideWidth, 'mm'))])]),
     ));
-
-    // MÁY CHIA header
-    bodyRows.push(rowH(301,
-      cell([para([run('MÁY CHIA', { b: true, sz: 32 })], AlignmentType.CENTER)],
-        { cs: 5, bg: 'fabf8f', va: 'center' }),
-    ));
-    bodyRows.push(rowH(376,
-      cell([para([run('Khổ màng: ', { b: true }), run(`${khoMM}mm`)])], { cs: 3 }),
-      cell([para([run('Khổ chia: ', { b: true }), run(vd(m.divideWidth, 'mm'))])], { cs: 2 }),
-    ));
-    bodyRows.push(rowH(431,
+    mR.push(rowH(360,
       cell([
         para([run('Chiều dài quấn cuộn: ', { b: true }), run(vd(m.rollLength, ' m'))]),
-        para([run('(Lưu ý: Dựa vào số mét thực tế mà linh động chia cuộn hợp lý)', { clr: 'ff0000' })]),
-      ], { cs: 3, va: 'center' }),
-      cell([para([run('Chiều ra cuộn: ', { b: true }), run(vd(m.divideRollOutWidth, 'mm'))])], { cs: 2, va: 'center' }),
+        para([run('(Lưu ý: Dựa vào số mét thực tế mà linh động chia cuộn hợp lý)', { clr: 'ff0000', sz: 18 })]),
+      ]),
+      cell([para([run('Chiều ra cuộn: ', { b: true }), run(vd(m.divideRollOutWidth, 'mm'))])]),
     ));
-    // Nội dung MÁY CHIA (tall)
-    bodyRows.push(rowH(3067,
-      cell([
-        para([run('Định mức phí hao: 0m')]),
-        para([]),
-        para([run('Khách hàng yêu cầu giao: ', { b: true }), run(v(m.divideDeliveryReq))]),
-        para([]),
-        para([run(m.divideNotes || 'Ghi chú: Quấn cuộn đúng quy cách, cuộn lẻ không quá ……m/cuộn')]),
-        para([run('Cân ký cẩn thận, đảm bảo chính xác tránh sai lệnh quá nhiều.')]),
-        para([run('Đánh dấu từng cặp MT-MS để khách hàng phân biệt.')]),
-        para([]),
-        para([run('** Lưu ý:', { b: true, sz: 26 })]),
-      ], { cs: 5 }),
+    mR.push(rowH(2200, cell([
+      para([run('Định mức phí hao: 0m')]),
+      para([]),
+      para([run('Khách hàng yêu cầu giao: ', { b: true }), run(v(m.divideDeliveryReq))]),
+      para([]),
+      para([run(m.divideNotes || 'Ghi chú: Quấn cuộn đúng quy cách, cuộn lẻ không quá ……m/cuộn')]),
+      para([run('Cân ký cẩn thận, đảm bảo chính xác tránh sai lệnh quá nhiều.')]),
+      para([run('Đánh dấu từng cặp MT-MS để khách hàng phân biệt.')]),
+      para([]),
+      para([run('** Lưu ý:', { b: true, sz: 26 })]),
+    ], { cs: 2 })));
+    mR.push(rowH(600,
+      cell([para([run('Người lập:', { b: true })]), para([run(m.preparedBy || '')])], { va: 'center' }),
+      cell([para([run('Người Duyệt:', { b: true })]), para([run(m.approvedBy || '')])], { va: 'center' }),
     ));
+
+    bodyTable = new Table({
+      width: { size: 10173, type: WidthType.DXA },
+      layout: TableLayoutType.FIXED,
+      columnWidths: [4928, 5245],
+      rows: mR,
+    });
 
   } else {
-    // ════════════════════════════════════════════════════════════════
-    // TÚI: 5-cột layout theo mẫu gốc
-    // Trái (c1+c2): MÁY IN / MÁY CHIA
-    // Phải (c3+c4+c5): MÁY GHÉP / MÁY LÀM TÚI
-    // ════════════════════════════════════════════════════════════════
-
-    // R2: [MÁY IN c1+c2] | [MÁY GHÉP c3+c4+c5] — fill cam
-    bodyRows.push(rowH(419,
-      cell([para([run('MÁY IN', { b: true, sz: 32 })], AlignmentType.CENTER)],
-        { cs: 2, bg: 'fabf8f', va: 'center' }),
-      cell([para([run('MÁY GHÉP', { b: true, sz: 32 })], AlignmentType.CENTER)],
-        { cs: 3, bg: 'fabf8f', va: 'center' }),
+    // ════ TÚI: 5-cột layout y mẫu LSX TÚI.docx ════
+    const tR: any[] = [];
+    // R0: tiêu đề xanh
+    tR.push(rowH(320, cell([para([run('II. CÔNG VIỆC CẦN THỰC HIỆN', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 5, bg: 'c2d69b', va: 'center' })));
+    // R1: MÁY IN | MÁY GHÉP
+    tR.push(rowH(280,
+      cell([para([run('MÁY IN', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' }),
+      cell([para([run('MÁY GHÉP', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 3, bg: 'fabf8f', va: 'center' }),
     ));
-    // R3: Màng in: ... | Khổ: ... || Màng ghép 1: ... | Khổ: ...
-    bodyRows.push(rowH(376,
-      cell([para([run('Màng in: ', { b: true, clr: 'ff0000' }), run(m.printFilmName || s.layer1Name || '')])]),
-      cell([para([run('Khổ: ', { b: true }), run(`${khoMM}mm`, { clr: 'ff0000' })])]),
+    // R2: Màng in | Khổ | Màng ghép 1 | Khổ
+    tR.push(rowH(280,
+      cell([para([run('Màng in: ', { b: true }), run(m.printFilmName || s.layer1Name || '')])]),
+      cell([para([run('Khổ: ', { b: true }), run(`${khoMM}mm`)])]),
       cell([para([run('Màng ghép 1: ', { b: true }), run(m.laminateFilm1 || s.layer2Name || '')])], { cs: 2 }),
       cell([para([run('Khổ: ', { b: true }), run(vd(m.laminateFilm1Width, 'mm'))])]),
     ));
-    // R4: Trục in D×CV | Số trục || Màng ghép 2: | Khổ:
-    bodyRows.push(rowH(435,
+    // R3: Trục in | Số trục | Màng ghép 2 | Khổ
+    tR.push(rowH(360,
       cell([
         para([run('Trục in: ', { b: true }), run(v(m.cylDiameter) ? `D${v(m.cylDiameter)} x CV${v(m.cylWidth)}` : '')]),
         para([run('Mã Số Trục: ', { b: true }), run(v(m.printMST))]),
-      ], { va: 'center' }),
-      cell([
-        para([run('Số trục: ', { b: true }), run(`= số màu`, { clr: 'ff0000' })]),
-      ], { va: 'center' }),
+      ]),
+      cell([para([run('Số trục: ', { b: true }), run(`= số màu`)])]),
       cell([para([run('Màng ghép 2: ', { b: true }), run(m.laminateFilm2 || s.layer3Name || '')])], { cs: 2 }),
-      cell([para([run('Khổ: ', { b: true })])]),
+      cell([para([run('Khổ: ', { b: true }), run(`${khoMM}mm`)])]),
     ));
-    // R5: [c1+c2 tall — nội dung MÁY IN] | [c3+c4+c5 — nội dung MÁY GHÉP]
-    bodyRows.push(rowH(1451,
+    // R4: nội dung MÁY IN | nội dung MÁY GHÉP
+    tR.push(rowH(1000,
       cell([
         para([run(`Định mức phí hao: ${v(m.printWastePercent, 'm')}`)]),
         para([run(`Thành phẩm yêu cầu: ${v(m.printProductQty, 'm')}`)]),
@@ -390,115 +368,108 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
         para([run('Ghi chú: ', { b: true }), run(m.laminateNotes || 'tự điền')]),
       ], { cs: 3 }),
     ));
-
-    // R6: [c1+c2] MÁY CHIA | [c3+c4+c5] MÁY LÀM TÚI — fill cam
-    bodyRows.push(rowH(301,
-      cell([para([run('MÁY CHIA', { b: true, sz: 32 })], AlignmentType.CENTER)],
-        { cs: 2, bg: 'fabf8f', va: 'center' }),
-      cell([para([run('MÁY LÀM TÚI', { b: true, sz: 32 })], AlignmentType.CENTER)],
-        { cs: 3, bg: 'fabf8f', va: 'center' }),
+    // R5: MÁY CHIA | MÁY LÀM TÚI
+    tR.push(rowH(260,
+      cell([para([run('MÁY CHIA', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' }),
+      cell([para([run('MÁY LÀM TÚI', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 3, bg: 'fabf8f', va: 'center' }),
     ));
-
-    // R7: [c1+c2 vMerge=restart — MÁY CHIA nội dung] | [c3+c4+c5] Kiểu túi
-    bodyRows.push(rowH(585,
+    // R6: MÁY CHIA vMerge start | Kiểu túi
+    tR.push(rowH(340,
       cell([
         para([run('Khổ màng: ', { b: true }), run(`${khoMM}mm`)]),
         para([run('Khổ chia: ', { b: true }), run(vd(m.divideWidth, 'mm'))]),
       ], { cs: 2, vm: VM_START, va: 'top' }),
-      cell([para([run('Kiểu túi: ', { b: true }), run(s.bagType || 'zipper 3 biên')])], { cs: 3 }),
+      cell([para([run('Kiểu túi: ', { b: true }), run(s.bagType || 'zipper 3 biên')], AlignmentType.CENTER)], { cs: 3 }),
     ));
-    // R8: [c1+c2 vMerge cont] | [c3 cs=1 Chiều rộng] | [c4+c5 cs=2 Chiều dài]
-    bodyRows.push(rowH(435,
+    // R7: vMerge | Chiều rộng | Chiều dài
+    tR.push(rowH(260,
       cell([para([])], { cs: 2, vm: VM_CONTINUE }),
       cell([para([run('Chiều rộng: ', { b: true }), run(`${khoMM}mm`)])]),
       cell([para([run('Chiều dài: ', { b: true }), run(`${dlMM}mm`)])], { cs: 2 }),
     ));
-    // R9: [c1+c2 vMerge cont] | [c3 cs=1 Hàn biên] | [c4+c5 cs=2 Xếp đáy]
-    bodyRows.push(rowH(467,
+    // R8: vMerge | Hàn biên | Xếp đáy
+    tR.push(rowH(260,
       cell([para([])], { cs: 2, vm: VM_CONTINUE }),
-      cell([para([run('Hàn biên: ', { b: true }), run(v(m.hanBien, 'mm') || 'mặc định 10mm (có thể sửa)')])]),
+      cell([para([run('Hàn biên: ', { b: true }), run(v(m.hanBien, 'mm') || 'mặc định 10mm')])]),
       cell([para([run('Xếp đáy: ', { b: true }), run(v(m.foldBottom))])], { cs: 2 }),
     ));
-    // R10: [c1+c2 vMerge cont] | Nhấn xé
-    bodyRows.push(rowH(467,
+    // R9: vMerge | Nhấn xé
+    tR.push(rowH(260,
       cell([para([])], { cs: 2, vm: VM_CONTINUE }),
-      cell([para([run("Nhấn xé 'v': ", { b: true }), run(v(m.tearNotch), { clr: 'ff0000' })])], { cs: 3 }),
+      cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch))])], { cs: 3 }),
     ));
-
-    // R11: [c1+c2 vMerge restart — phần thứ 2 của MÁY CHIA] | [c3+c4+c5] Hàn đầu
-    bodyRows.push(rowH(557,
+    // R10: MÁY CHIA part2 vMerge restart | Hàn đầu
+    tR.push(rowH(420,
       cell([
         para([run('Chiều dài quấn cuộn: ', { b: true }), run(vd(m.rollLength, ' m'))]),
         para([run('Chiều ra cuộn: ', { b: true }), run(vd(m.divideRollOutWidth, 'mm'))]),
         para([run('Ghi chú: ', { b: true }), run(m.divideNotes || 'tự điền')]),
-        para([run('Yêu cầu giao hàng: ', { b: true }), run(v(m.divideDeliveryReq) || 'tự điền')]),
+        para([run('Yêu cầu giao hàng: ', { b: true }), run(v(m.divideDeliveryReq) || '')]),
       ], { cs: 2, vm: VM_START, va: 'top' }),
       cell([para([run('Hàn đầu: ', { b: true }), run(v(m.hanDau, 'mm') || 'tự điền')])], { cs: 3 }),
     ));
-    // R12: [c1+c2 vMerge cont] | Dao cắt + khuôn bán nguyệt (đỏ, in đậm)
-    bodyRows.push(rowH(557,
+    // R11: vMerge | Dao cắt + khuôn
+    tR.push(rowH(340,
       cell([para([])], { cs: 2, vm: VM_CONTINUE }),
       cell([
-        ...(m.useDualCutter ? [para([run('Sử dụng dao cắt 2 nhịp để cắt', { b: true, clr: 'ff0000' })])] : []),
-        ...(m.useSemicircularMold ? [para([run('Sử dụng khuôn đáy đứng bán nguyệt', { b: true, clr: 'ff0000' })])] : []),
-        ...((!m.useDualCutter && !m.useSemicircularMold) ? [para([run('tự điền')])] : []),
+        ...(m.useDualCutter ? [para([run('Sử dụng dao cắt 2 nhịp để cắt', { b: true })])] : []),
+        ...(m.useSemicircularMold ? [para([run('Sử dụng khuôn đáy đứng bán nguyệt', { b: true })])] : []),
+        ...((!m.useDualCutter && !m.useSemicircularMold) ? [para([run('')])] : []),
       ], { cs: 3 }),
     ));
-    // R13: [c1+c2 vMerge cont] | DMPH + Ghi chú
-    bodyRows.push(rowH(659,
+    // R12: vMerge | DMPH + Ghi chú
+    tR.push(rowH(360,
       cell([para([])], { cs: 2, vm: VM_CONTINUE }),
       cell([
-        para([run(`DMPH: ${vd(m.bagWasteMeters, 'm')}`, { b: true, sz: 22 })]),
-        para([run('Ghi chú: ', { b: true, sz: 22 }), run(m.bagLuuY || 'tự điền', { sz: 22 })]),
+        para([run(`DMPH: ${vd(m.bagWasteMeters, 'm')}`, { b: true })]),
+        para([run('Ghi chú: ', { b: true }), run(m.bagLuuY || 'tự điền')]),
       ], { cs: 3 }),
     ));
-    // R14: [c1+c2 vMerge cont] | Ghi chú chạy theo mẫu
-    bodyRows.push(rowH(886,
+    // R13: vMerge | Ghi chú chạy theo mẫu
+    tR.push(rowH(600,
       cell([para([])], { cs: 2, vm: VM_CONTINUE }),
       cell([
-        para([run('Ghi chú: ', { b: true }), run(m.bagMachineNotes || 'chạy theo mẫu đã sản xuất', { clr: 'ff0000' })]),
+        para([run('Ghi chú: ', { b: true }), run(m.bagMachineNotes || 'chạy theo mẫu đã sản xuất')]),
         para([run(`SL đóng gói: ${v(m.packagingInfo)}`)]),
         para([run(m.packagingNotes || '')]),
         para([run('Yêu cầu giao hàng: ', { b: true })]),
         para([run(m.deliveryNotes || '')]),
       ], { cs: 3 }),
     ));
+    // R14: Người lập | Người duyệt
+    tR.push(rowH(600,
+      cell([para([run('Người lập:', { b: true })]), para([run(m.preparedBy || '')])], { cs: 2, va: 'center' }),
+      cell([para([run('Người duyệt:', { b: true })]), para([run(m.approvedBy || '')])], { cs: 3, va: 'center' }),
+    ));
+
+    bodyTable = new Table({
+      width: { size: 10138, type: WidthType.DXA },
+      layout: TableLayoutType.FIXED,
+      columnWidths: [2943, 2126, 2410, 567, 2092],
+      rows: tR,
+    });
   }
 
-  // ═══ FOOTER: Người lập | Người duyệt ═══
-  bodyRows.push(rowH(918,
-    cell([
-      para([run('Người lập:', { b: true })]),
-      para([run(m.preparedBy || '')]),
-    ], { cs: 2, va: 'center' }),
-    cell([
-      para([run('Người duyệt:', { b: true })]),
-      para([run(m.approvedBy || '')]),
-    ], { cs: 3, va: 'center' }),
-  ));
-
-  const bodyTable = new Table({
-    width: { size: 10138, type: WidthType.DXA },
-    layout: TableLayoutType.FIXED,
-    columnWidths: [2943, 2126, 2410, 567, 2092],
-    rows: bodyRows,
-  });
-
   // ══════════════════════════════════════════════════════
-  // BUILD DOCUMENT — A4 portrait
-  // Tất cả bảng nằm trong body (children), không dùng Word Header.
-  // Lề trang nhỏ, bảng stack từ trên xuống không bị đè.
-  // left=1134 right=851 top=1134 bottom=851 (lề nhỏ, bảng chiếm full)
+  // BUILD DOCUMENT — A4 portrait, gọn 1 trang
+  // Bỏ spacing giữa các bảng để nội dung vừa 1 trang A4
   // ══════════════════════════════════════════════════════
+  const zeroSp = { before: 0, after: 0 };
   const doc = new Document({
     sections: [{
       properties: {
         page: {
           size: { width: 11907, height: 16840, orientation: 'portrait' as any },
-          margin: { top: 1134, bottom: 851, left: 1134, right: 851 },
+          margin: { top: 567, bottom: 567, left: 1134, right: 851 },
         },
       },
-      children: [hdrT1, para([]), hdrT2, para([]), bodyTable],
+      children: [
+        hdrT1,
+        para([], AlignmentType.LEFT, zeroSp),
+        hdrT2,
+        para([], AlignmentType.LEFT, zeroSp),
+        bodyTable,
+      ],
     }],
   });
 
@@ -728,7 +699,7 @@ function buildLSXHtml(order: ProductionOrder, logoDataUrl: string): string {
   return `<!DOCTYPE html><html><head>
 <meta charset="utf-8">
 <style>
-  @page { size: A4 portrait; margin: 12mm 9mm 9mm 12mm; }
+  @page { size: A4 portrait; margin: 10mm 9mm 10mm 12mm; }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { background: #fff; color: #000; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   @media print {
@@ -1058,7 +1029,7 @@ export async function exportLSXtoPDF(order: ProductionOrder): Promise<void> {
   const docDef: any = {
     pageSize: 'A4',
     pageOrientation: 'portrait',
-    pageMargins: [mm(20), mm(20), mm(15), mm(15)], // left top right bottom → pt
+    pageMargins: [mm(20), mm(10), mm(15), mm(10)], // left top right bottom → pt
     defaultStyle: { font: 'Roboto', fontSize: FS, lineHeight: 1.2 },
     content: [
       {
