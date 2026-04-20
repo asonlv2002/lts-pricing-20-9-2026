@@ -1,6 +1,5 @@
 // mo_hinh/kieu_du_lieu.dart — Toàn bộ kiểu dữ liệu (port từ types.ts)
 import 'package:flutter/material.dart';
-
 // ─── Vật liệu ───────────────────────────────────────────────────────────────
 class VatLieu {
   final String maVL;
@@ -339,5 +338,196 @@ class MucLichSu {
     required this.giaBanCuoi,
     this.giaChotGia,
     required this.dauVao,
+  });
+}
+
+// ─── Trạng thái báo giá ─────────────────────────────────────────────────────
+enum TrangThaiBaoGia { soThao, daDGui, choXetDuyet, daDuyet, hoangThanh }
+
+extension TrangThaiBaoGiaExt on TrangThaiBaoGia {
+  String get nhan {
+    switch (this) {
+      case TrangThaiBaoGia.soThao:       return 'Đang soạn';
+      case TrangThaiBaoGia.daDGui:       return 'Đã gửi';
+      case TrangThaiBaoGia.choXetDuyet:  return 'Chờ duyệt';
+      case TrangThaiBaoGia.daDuyet:      return 'Đã duyệt';
+      case TrangThaiBaoGia.hoangThanh:   return 'Hoàn thành';
+    }
+  }
+  Color get mau {
+    switch (this) {
+      case TrangThaiBaoGia.soThao:       return const Color(0xFF6B7280);
+      case TrangThaiBaoGia.daDGui:       return const Color(0xFF0891B2);
+      case TrangThaiBaoGia.choXetDuyet:  return const Color(0xFFD97706);
+      case TrangThaiBaoGia.daDuyet:      return const Color(0xFF4F46E5);
+      case TrangThaiBaoGia.hoangThanh:   return const Color(0xFF059669);
+    }
+  }
+  Color get mauNen {
+    return Color.fromRGBO(mau.red, mau.green, mau.blue, 0.12);
+  }
+}
+
+// ─── Mục lịch sử mở rộng (có trạng thái báo giá) ────────────────────────────
+class MucBaoGia extends MucLichSu {
+  TrangThaiBaoGia trangThai;
+  String? tenSeller;
+  String? maSeller;
+  double? tongGiaTri;
+
+  MucBaoGia({
+    required super.id,
+    required super.ngay,
+    required super.tenKhach,
+    required super.tenSP,
+    required super.cauTruc,
+    required super.soLuong,
+    required super.giaBanCuoi,
+    super.giaChotGia,
+    required super.dauVao,
+    this.trangThai = TrangThaiBaoGia.soThao,
+    this.tenSeller,
+    this.maSeller,
+  }) : tongGiaTri = (giaChotGia != null && giaChotGia > 0 ? giaChotGia : giaBanCuoi) * soLuong;
+}
+
+// ─── Trạng thái Lệnh SX ─────────────────────────────────────────────────────
+enum TrangThaiLSX { moiTao, dangSX, hoangThanh, huiBo }
+
+extension TrangThaiLSXExt on TrangThaiLSX {
+  String get nhan {
+    switch (this) {
+      case TrangThaiLSX.moiTao:      return 'Mới tạo';
+      case TrangThaiLSX.dangSX:      return 'Đang SX';
+      case TrangThaiLSX.hoangThanh:  return 'Hoàn thành';
+      case TrangThaiLSX.huiBo:       return 'Huỷ bỏ';
+    }
+  }
+  Color get mau {
+    switch (this) {
+      case TrangThaiLSX.moiTao:      return const Color(0xFF6B7280);
+      case TrangThaiLSX.dangSX:      return const Color(0xFFD97706);
+      case TrangThaiLSX.hoangThanh:  return const Color(0xFF059669);
+      case TrangThaiLSX.huiBo:       return const Color(0xFFDC2626);
+    }
+  }
+  Color get mauNen => Color.fromRGBO(mau.red, mau.green, mau.blue, 0.12);
+}
+
+// ─── Lệnh Sản Xuất ─────────────────────────────────────────────────────────
+class LenhSX {
+  final String id;
+  final String soLSX;
+  final String tenKhach;
+  final String tenSP;
+  final String cauTruc;
+  final double soLuong;
+  final String loaiSP; // 'tui' | 'mang'
+  final String ngayTao;
+  TrangThaiLSX trangThai;
+
+  LenhSX({
+    required this.id,
+    required this.soLSX,
+    required this.tenKhach,
+    required this.tenSP,
+    required this.cauTruc,
+    required this.soLuong,
+    required this.loaiSP,
+    required this.ngayTao,
+    this.trangThai = TrangThaiLSX.moiTao,
+  });
+}
+
+// ─── Khách hàng ─────────────────────────────────────────────────────────────
+enum LoaiKhachHang { congTy, caNhan }
+
+class KhachHang {
+  final String id;
+  final LoaiKhachHang loai;
+  final String tenCongTy;
+  final String maSoThue;
+  final String diaChi;
+  final String emailCT;
+  final String sdtCT;
+  final String tenNguoiLienHe;
+  final String sdt;
+  final String email;
+  String? maSeller;
+  final String ngayTao;
+
+  KhachHang({
+    required this.id,
+    required this.loai,
+    this.tenCongTy = '',
+    this.maSoThue = '',
+    this.diaChi = '',
+    this.emailCT = '',
+    this.sdtCT = '',
+    required this.tenNguoiLienHe,
+    required this.sdt,
+    this.email = '',
+    this.maSeller,
+    required this.ngayTao,
+  });
+}
+
+// ─── Seller ─────────────────────────────────────────────────────────────────
+class Seller {
+  final String id;
+  String ten;
+  String email;
+  String sdt;
+  final String ngayThamGia;
+  bool dangHoatDong;
+
+  Seller({
+    required this.id,
+    required this.ten,
+    required this.email,
+    required this.sdt,
+    required this.ngayThamGia,
+    this.dangHoatDong = true,
+  });
+}
+
+// ─── Tài khoản người dùng ────────────────────────────────────────────────────
+enum VaiTroTK { admin, sale, purchase }
+
+extension VaiTroTKExt on VaiTroTK {
+  String get nhan {
+    switch (this) {
+      case VaiTroTK.admin:    return 'Quản trị';
+      case VaiTroTK.sale:     return 'Kinh doanh';
+      case VaiTroTK.purchase: return 'Thu mua';
+    }
+  }
+  Color get mau {
+    switch (this) {
+      case VaiTroTK.admin:    return const Color(0xFF7C3AED);
+      case VaiTroTK.sale:     return const Color(0xFF0891B2);
+      case VaiTroTK.purchase: return const Color(0xFF059669);
+    }
+  }
+  Color get mauNen => Color.fromRGBO(mau.red, mau.green, mau.blue, 0.12);
+}
+
+class TaiKhoanNguoiDung {
+  final String id;
+  final String tenDangNhap;
+  String tenHienThi;
+  VaiTroTK vaiTro;
+  String? maSellerLienKet;
+  bool dangHoatDong;
+  final String ngayTao;
+
+  TaiKhoanNguoiDung({
+    required this.id,
+    required this.tenDangNhap,
+    required this.tenHienThi,
+    required this.vaiTro,
+    this.maSellerLienKet,
+    this.dangHoatDong = true,
+    required this.ngayTao,
   });
 }

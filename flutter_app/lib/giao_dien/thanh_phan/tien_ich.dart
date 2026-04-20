@@ -4,9 +4,6 @@ import 'package:intl/intl.dart';
 import '../khung_chinh/chu_de.dart';
 
 // ─── Format số ───────────────────────────────────────────────────────────────
-final _fmtSo = NumberFormat('#,###', 'vi_VN');
-final _fmtSoCham = NumberFormat('#,###.##', 'vi_VN');
-
 String dinhDangSo(double? n, {int chiSoThapPhan = 0}) {
   if (n == null || n.isNaN || n.isInfinite) return '—';
   if (chiSoThapPhan == 0) {
@@ -36,7 +33,7 @@ class TheThongKe extends StatelessWidget {
         color: ChuDe.mauMatTheo(toi),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: ChuDe.mauVienTheo(toi)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 4, offset: const Offset(0, 1))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 1))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -87,7 +84,7 @@ class _TheCoTheGapState extends State<TheCoTheGap> {
         color: ChuDe.mauMatTheo(toi),
         borderRadius: BorderRadius.circular(ChuDe.bKinhRadius),
         border: Border.all(color: ChuDe.mauVienTheo(toi)),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 3)],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 3)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -155,9 +152,9 @@ class HopThongTin extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
-        color: ChuDe.mauTruc2(toi).withOpacity(0.06),
+        color: ChuDe.mauTruc2(toi).withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: ChuDe.mauTruc2(toi).withOpacity(0.2)),
+        border: Border.all(color: ChuDe.mauTruc2(toi).withValues(alpha: 0.2)),
       ),
       child: Row(children: [
         Text('ℹ️', style: const TextStyle(fontSize: 14)),
@@ -233,7 +230,7 @@ class NutChinh extends StatelessWidget {
           color: onNhan == null ? ChuDe.mauVienTheo(toi) : null,
           borderRadius: BorderRadius.circular(10),
           boxShadow: onNhan == null ? [] : [
-            BoxShadow(color: ChuDe.mauTruc(toi).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 3))
+            BoxShadow(color: ChuDe.mauTruc(toi).withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 3))
           ],
         ),
         alignment: Alignment.center,
@@ -438,7 +435,7 @@ class ChonLuaTheoNhom extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       decoration: BoxDecoration(
-        color: disabled ? ChuDe.mauVienTheo(toi).withOpacity(0.3) : ChuDe.mauInputTheo(toi),
+        color: disabled ? ChuDe.mauVienTheo(toi).withValues(alpha: 0.3) : ChuDe.mauInputTheo(toi),
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: ChuDe.mauVienTheo(toi)),
       ),

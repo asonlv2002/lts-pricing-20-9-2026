@@ -8,6 +8,12 @@ import 'giao_dien/thanh_phan/form_nhap.dart';
 import 'giao_dien/thanh_phan/xem_quan_ly.dart';
 import 'giao_dien/thanh_phan/xem_ky_thuat.dart';
 import 'giao_dien/thanh_phan/xem_lich_su.dart';
+import 'giao_dien/thanh_phan/bao_gia.dart';
+import 'giao_dien/thanh_phan/lenh_sx.dart';
+import 'giao_dien/thanh_phan/khach_hang.dart';
+import 'giao_dien/thanh_phan/quan_ly_seller.dart';
+import 'giao_dien/thanh_phan/tai_khoan.dart';
+import 'giao_dien/thanh_phan/cai_dat.dart';
 
 void main() {
   runApp(ChangeNotifierProvider(
@@ -119,45 +125,25 @@ class _RouterModule extends StatelessWidget {
     switch (kho.moduleDangXem) {
       case 'lichSu':
         return const XemLichSu();
-      case 'bangDinhMuc':
-        return _TrangDangPhatTrien(ten: 'Bảng định mức', toi: toi);
       case 'baoGia':
-        return _TrangDangPhatTrien(ten: 'Danh sách Báo giá', toi: toi);
+        return const ModuleBaoGia();
       case 'lenhSX':
-        return _TrangDangPhatTrien(ten: 'Lệnh Sản Xuất', toi: toi);
+        return const ModuleLenhSX();
       case 'khachHang':
-        return _TrangDangPhatTrien(ten: 'Khách hàng (CRM)', toi: toi);
+        return const ModuleKhachHang();
       case 'seller':
-        return _TrangDangPhatTrien(ten: 'Quản lý Seller', toi: toi);
+        return const ModuleQuanLySeller();
       case 'taiKhoan':
-        return _TrangDangPhatTrien(ten: 'Tài khoản hệ thống', toi: toi);
+        return const ModuleTaiKhoan();
+      case 'bangDinhMuc':
       case 'caiDat':
-        return _TrangDangPhatTrien(ten: 'Cài đặt hệ thống', toi: toi);
+        return const ModuleCaiDat();
       default:
         return _ManHinhMayTinh(toi: toi);
     }
   }
 }
 
-// ─── Trang "đang phát triển" placeholder ─────────────────────────────────────
-class _TrangDangPhatTrien extends StatelessWidget {
-  final String ten;
-  final bool toi;
-  const _TrangDangPhatTrien({required this.ten, required this.toi});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        Text('🚧', style: const TextStyle(fontSize: 48)),
-        const SizedBox(height: 12),
-        Text(ten, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: ChuDe.mauChuTheo(toi))),
-        const SizedBox(height: 4),
-        Text('Đang phát triển...', style: TextStyle(fontSize: 13, color: ChuDe.mauNhatTheo(toi))),
-      ]),
-    );
-  }
-}
 
 // ─── Module máy tính — layout 2 cột desktop ───────────────────────────────────
 class _ManHinhMayTinh extends StatelessWidget {
