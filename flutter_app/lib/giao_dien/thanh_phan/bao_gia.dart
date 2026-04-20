@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../../kho_luu_tru/kho_chinh.dart';
 import '../../mo_hinh/kieu_du_lieu.dart';
 import '../khung_chinh/chu_de.dart';
-import 'tien_ich.dart';
 
 // ─── Dữ liệu mock (sẽ thay bằng store sau) ───────────────────────────────────
 final _dsMockBaoGia = <MucBaoGia>[
@@ -178,13 +177,14 @@ class _CardBaoGia extends StatelessWidget {
             ),
           ],
 
-          // Nút gửi admin (sale, trạng thái soThao)
+          // Nút gửi admin (sale, trạng thái soThao) — khớp SaleStatusControl bên Next.js.
+          // Chuyển soThao → choXetDuyet khi sale bấm "Gửi Admin".
           if (!laAdmin && muc.trangThai == TrangThaiBaoGia.soThao) ...[
             const SizedBox(height: 8),
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {},
+                onPressed: onDoiTrangThai, // bấm = gửi → choXetDuyet (admin xử lý ở callback)
                 icon: const Icon(Icons.send, size: 13),
                 label: const Text('Gửi Admin', style: TextStyle(fontSize: 12)),
                 style: ElevatedButton.styleFrom(
@@ -271,8 +271,10 @@ class _TheThongKe extends StatelessWidget {
 }
 
 // ─── Dialog đổi trạng thái ────────────────────────────────────────────────────
+// Admin chỉ thao tác trong 3 bước (chờ duyệt → đã duyệt → hoàn thành) — khớp ADMIN_STEPS bên Next.js.
 Future<TrangThaiBaoGia?> _hienDialogDoiTrangThai(BuildContext context, TrangThaiBaoGia hienTai) {
   final toi = Theme.of(context).brightness == Brightness.dark;
+  const adminSteps = [TrangThaiBaoGia.choXetDuyet, TrangThaiBaoGia.daDuyet, TrangThaiBaoGia.hoangThanh];
   return showDialog<TrangThaiBaoGia>(
     context: context,
     builder: (ctx) => AlertDialog(
@@ -280,7 +282,7 @@ Future<TrangThaiBaoGia?> _hienDialogDoiTrangThai(BuildContext context, TrangThai
       title: Text('Đổi trạng thái', style: TextStyle(color: ChuDe.mauChuTheo(toi), fontSize: 16)),
       content: Column(
         mainAxisSize: MainAxisSize.min,
-        children: [TrangThaiBaoGia.choXetDuyet, TrangThaiBaoGia.daDuyet, TrangThaiBaoGia.hoangThanh].map((tt) =>
+        children: adminSteps.map((tt) =>
           ListTile(
             dense: true,
             leading: Container(width: 10, height: 10, decoration: BoxDecoration(color: tt.mau, shape: BoxShape.circle)),
@@ -326,10 +328,10 @@ class _ModuleBaoGiaState extends State<ModuleBaoGia> {
     final toi = kho.cheDoGiaoDien == ThemeMode.dark;
     final laAdmin = kho.vaiTro == VaiTro.admin;
 
-    // Nhóm theo seller nếu admin
+    // Nhóm theo seller nếu admin — admin chỉ thấy item đã gửi (!= soThao), khớp isSentToAdmin bên Next.
     final Map<String, List<MucBaoGia>> nhomSeller = {};
     for (final m in _mucsLoc) {
-      if (!laAdmin && m.trangThai == TrangThaiBaoGia.soThao) continue;
+      if (laAdmin && m.trangThai == TrangThaiBaoGia.soThao) continue;
       final key = m.maSeller ?? 'unknown';
       nhomSeller.putIfAbsent(key, () => []).add(m);
     }
@@ -398,13 +400,15 @@ class _ModuleBaoGiaState extends State<ModuleBaoGia> {
                   );
                 }).toList(),
               )
-            // Sale: flat list
+            // Sale: flat list — nút "Gửi Admin" chuyển trực tiếp sang choXetDuyet.
             : ListView.builder(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 itemCount: _mucsLoc.length,
                 itemBuilder: (_, i) => _CardBaoGia(
                   muc: _mucsLoc[i], laAdmin: false,
-                  onDoiTrangThai: null,
+                  onDoiTrangThai: _mucsLoc[i].trangThai == TrangThaiBaoGia.soThao
+                    ? () => setState(() { _mucsLoc[i].trangThai = TrangThaiBaoGia.choXetDuyet; })
+                    : null,
                 ),
               ),
       ),

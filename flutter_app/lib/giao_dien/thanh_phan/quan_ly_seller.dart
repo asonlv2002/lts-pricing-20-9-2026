@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../kho_luu_tru/kho_chinh.dart';
 import '../../mo_hinh/kieu_du_lieu.dart';
 import '../khung_chinh/chu_de.dart';
-import 'tien_ich.dart';
 
 const _avatarColors2 = [Color(0xFF4F46E5), Color(0xFF0891B2), Color(0xFF059669), Color(0xFFD97706), Color(0xFFDB2777), Color(0xFF7C3AED)];
 Color _ac2(String s) => _avatarColors2[s.codeUnits.first % _avatarColors2.length];

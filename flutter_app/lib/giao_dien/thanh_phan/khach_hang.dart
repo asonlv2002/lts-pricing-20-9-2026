@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import '../../kho_luu_tru/kho_chinh.dart';
 import '../../mo_hinh/kieu_du_lieu.dart';
 import '../khung_chinh/chu_de.dart';
-import 'tien_ich.dart';
 
 // ─── Mock data ───────────────────────────────────────────────────────────────
 final _dsMockKH = <KhachHang>[
@@ -75,7 +74,26 @@ class _HangKhachHang extends StatelessWidget {
         _Avatar(kh.tenNguoiLienHe),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(tenHienThi, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ChuDe.mauChuTheo(toi))),
+          Row(children: [
+            Expanded(child: Text(tenHienThi, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: ChuDe.mauChuTheo(toi)))),
+            // ── Badge loại KH (doanh nghiệp / cá nhân) — tham chiếu CustomerModule bên Next.
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                color: kh.loai == LoaiKhachHang.congTy
+                  ? const Color(0xFF0891B2).withValues(alpha: 0.12)
+                  : const Color(0xFF7C3AED).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(99),
+              ),
+              child: Text(
+                kh.loai == LoaiKhachHang.congTy ? '🏢 Doanh nghiệp' : '👤 Cá nhân',
+                style: TextStyle(
+                  fontSize: 10, fontWeight: FontWeight.w600,
+                  color: kh.loai == LoaiKhachHang.congTy ? const Color(0xFF0891B2) : const Color(0xFF7C3AED),
+                ),
+              ),
+            ),
+          ]),
           if (tenPhu.isNotEmpty)
             Text(tenPhu, style: TextStyle(fontSize: 11, color: ChuDe.mauNhatTheo(toi))),
           if (kh.maSoThue.isNotEmpty)

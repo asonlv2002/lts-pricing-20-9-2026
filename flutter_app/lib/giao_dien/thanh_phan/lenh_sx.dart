@@ -5,7 +5,6 @@ import 'package:intl/intl.dart';
 import '../../kho_luu_tru/kho_chinh.dart';
 import '../../mo_hinh/kieu_du_lieu.dart';
 import '../khung_chinh/chu_de.dart';
-import 'tien_ich.dart';
 
 // ─── Dữ liệu mock ────────────────────────────────────────────────────────────
 final _dsMockLSX = <LenhSX>[
@@ -164,12 +163,35 @@ class _CardLenhSX extends StatelessWidget {
         Row(children: [
           _DropdownTrangThaiLSX(lenh: lenh, onDoiTrangThai: onDoiTrangThai),
           const Spacer(),
+          // ── Xuất PDF (placeholder; bản web dùng jspdf+html2canvas qua lsxExport.ts).
+          //    Trên Flutter cần plugin `pdf` + `path_provider`; hiện chỉ hiển thị SnackBar.
+          IconButton(
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Xuất PDF — sẽ hỗ trợ ở phiên bản tới'), duration: Duration(seconds: 2)),
+            ),
+            icon: const Icon(Icons.picture_as_pdf, size: 18),
+            color: const Color(0xFF4F46E5),
+            tooltip: 'Xuất PDF',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+          ),
+          // ── Xuất DOCX (placeholder; web dùng `docx` lib bên Next.js).
+          IconButton(
+            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Xuất DOCX — sẽ hỗ trợ ở phiên bản tới'), duration: Duration(seconds: 2)),
+            ),
+            icon: const Icon(Icons.description, size: 18),
+            color: const Color(0xFF0891B2),
+            tooltip: 'Xuất DOCX',
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+          ),
           IconButton(
             onPressed: onXoa,
             icon: const Icon(Icons.delete_outline, size: 18),
             color: const Color(0xFFDC2626),
             padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(),
+            constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
           ),
         ]),
       ]),

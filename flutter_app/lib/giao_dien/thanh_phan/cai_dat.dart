@@ -5,7 +5,6 @@ import '../../kho_luu_tru/kho_chinh.dart';
 import '../../mo_hinh/kieu_du_lieu.dart';
 import '../../mo_hinh/du_lieu_mac_dinh.dart';
 import '../khung_chinh/chu_de.dart';
-import 'tien_ich.dart';
 
 class ModuleCaiDat extends StatefulWidget {
   const ModuleCaiDat({super.key});
@@ -130,6 +129,30 @@ class _ModuleCaiDatState extends State<ModuleCaiDat> {
             Icon(Icons.info_outline, size: 14, color: ChuDe.mauTruc(toi)),
             const SizedBox(width: 8),
             Expanded(child: Text('Chỉnh Độ dày và Giá/kg — Giá/m² tự động tính lại. Thay đổi áp dụng cho lần tính giá tiếp theo.', style: TextStyle(fontSize: 11, color: ChuDe.mauTruc(toi)))),
+          ]),
+        ),
+        const SizedBox(height: 24),
+
+        const SizedBox(height: 24),
+
+        // ── Hằng số / Constants (rút gọn — bản Next có cột màu in & bảng mực).
+        //    Chỉ hiển thị tổng quan; chỉnh sửa đầy đủ ở bản desktop.
+        _sectionHeader('⚙️ Hằng Số Chi Phí', toi),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: ChuDe.mauMatTheo(toi),
+            borderRadius: BorderRadius.circular(ChuDe.bKinhRadius),
+            border: Border.all(color: ChuDe.mauVienTheo(toi)),
+          ),
+          child: Row(children: [
+            Icon(Icons.tune, size: 14, color: ChuDe.mauNhatTheo(toi)),
+            const SizedBox(width: 8),
+            Expanded(child: Text(
+              'CPSX (In/Ghép/Cắt), phi hao, giá trục in, bảng màu mực — chỉnh ở bản Web để đồng bộ server.',
+              style: TextStyle(fontSize: 12, color: ChuDe.mauNhatTheo(toi)),
+            )),
           ]),
         ),
         const SizedBox(height: 24),
