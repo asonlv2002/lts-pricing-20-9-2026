@@ -1,45 +1,69 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
+# ── Dependencies ─────────────────────────────────────────────────────────────
+node_modules/
+.pnp
 .pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
 
-# testing
-/coverage
+# ── Build outputs ─────────────────────────────────────────────────────────────
+.next/
+out/
+apps/web/.next/
+apps/web/out/
+apps/web/build/
+packages/*/dist/
+dist/
 
-# next.js
-/.next/
-/out/
+# ── Expo / Mobile ─────────────────────────────────────────────────────────────
+apps/mobile/.expo/
+apps/mobile/android/
+apps/mobile/ios/
 
-# production
-/build
+# ── Turbo cache ───────────────────────────────────────────────────────────────
+.turbo/
+packages/*/.turbo/
 
-# misc
-.DS_Store
-*.pem
+# ── Runtime data server (dữ liệu live, không commit) ─────────────────────────
+# apps/web/src/data/ (seed files tĩnh) vẫn được commit
+apps/web/data/history.json
+apps/web/data/users.json
+apps/web/data/materials.json
+apps/web/data/constants.json
+apps/web/data/profit-table.json
+apps/web/data/production-orders.json
 
-# debug
+# ── TypeScript ────────────────────────────────────────────────────────────────
+*.tsbuildinfo
+next-env.d.ts
+
+# ── Env ──────────────────────────────────────────────────────────────────────
+.env
+.env.local
+.env*.local
+
+# ── Logs & debug ─────────────────────────────────────────────────────────────
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# ── File phân tích / ghi chú tạm (không phải source code) ────────────────────
+CODEBASE_ANALYSIS_FINAL.txt
+CUSTOMER_ANALYSIS_FINAL.txt
+CYLINDER_QUICK_REFERENCE.txt
+CYLINDER_TRUC_IN_ANALYSIS.txt
+LAYOUT_FINAL_REPORT.txt
+RESPONSIVE_DESIGN_ANALYSIS.txt
+RESPONSIVE_SUMMARY.txt
+analysis.txt
+findings.txt
+LSX_EXPORT_BUG_REPORT.txt
 
-# vercel
+# ── package-lock.json (dùng pnpm rồi, không cần file này nữa) ────────────────
+package-lock.json
+
+# ── Misc ─────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.pem
 .vercel
-
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# Server-side runtime data (dữ liệu live, không phải source code)
-# Lưu ý: src/data/ (seed files tĩnh) vẫn được commit bình thường
-/data/
+coverage/

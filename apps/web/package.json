@@ -1,0 +1,41 @@
+{
+  "name": "web",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "eslint",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@lts/bang-tinh-gia": "workspace:*",
+    "@lts/hang-so": "workspace:*",
+    "@lts/kieu-du-lieu": "workspace:*",
+    "clsx": "^2.1.1",
+    "docx": "^9.6.1",
+    "docx-preview": "^0.3.7",
+    "html2canvas": "^1.4.1",
+    "jose": "^6.2.2",
+    "jspdf": "^4.2.1",
+    "lucide-react": "^0.475.0",
+    "next": "16.2.1",
+    "pdfmake": "^0.3.7",
+    "react": "19.2.4",
+    "react-dom": "19.2.4",
+    "tailwind-merge": "^3.5.0",
+    "zustand": "^5.0.12"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "eslint": "^9",
+    "eslint-config-next": "16.2.1",
+    "tailwindcss": "^4",
+    "tsx": "^4.19.3",
+    "typescript": "^5"
+  }
+}
