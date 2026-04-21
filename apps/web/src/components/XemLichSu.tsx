@@ -8,7 +8,7 @@ function fmt(n: number, decimals = 0): string {
 }
 
 export default function HistoryView() {
-  const { activeView, history, taiLichSu, xoaLichSu } = dungCuaHangTinhGia();
+  const { activeView, history, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu } = dungCuaHangTinhGia();
 
   if (activeView !== 'history') return null;
 

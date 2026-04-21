@@ -310,7 +310,7 @@ export default function UserManagementModule() {
   const closeModal = () => { setModal(null); setSelected(null); };
 
   // ── CRUD handlers ────────────────────────────────────────────────────────────
-  const handleAdd = (data: Partial<SafeUser> & { password?: string }) => {
+  const handleAdd = async (data: Partial<SafeUser> & { password?: string }) => {
     setSaving(true);
     try {
       const mucMoi: SafeUser = {
@@ -328,7 +328,7 @@ export default function UserManagementModule() {
     finally { setSaving(false); }
   };
 
-  const handleEdit = (data: Partial<SafeUser> & { password?: string }) => {
+  const handleEdit = async (data: Partial<SafeUser> & { password?: string }) => {
     setSaving(true);
     try {
       saveUsers(loadUsers().map(u => u.id === data.id ? { ...u, ...data } : u));
@@ -337,12 +337,12 @@ export default function UserManagementModule() {
     finally { setSaving(false); }
   };
 
-  const handleResetPassword = (_password: string) => {
+  const handleResetPassword = async (_password: string) => {
     showToast('✅ Đã đặt lại mật khẩu (lưu cục bộ).');
     closeModal();
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!selected) return;
     setSaving(true);
     try {

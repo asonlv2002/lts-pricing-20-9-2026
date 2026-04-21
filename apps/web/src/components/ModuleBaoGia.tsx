@@ -200,15 +200,15 @@ function QuotationCard({ item, onClick, statusControl }: {
   statusControl: React.ReactNode;
 }) {
   const [showDiff, setShowDiff] = useState(false);
-  const spreadMm  = item.dauVao.spreadWidth ? Math.round(item.dauVao.spreadWidth * 1000) : 0;
-  const cutMm     = item.dauVao.cutStep     ? Math.round(item.dauVao.cutStep     * 1000) : 0;
+  const spreadMm  = item.input.spreadWidth ? Math.round(item.input.spreadWidth * 1000) : 0;
+  const cutMm     = item.input.cutStep     ? Math.round(item.input.cutStep     * 1000) : 0;
   const sizeStr   = spreadMm && cutMm ? `${spreadMm} × ${cutMm} mm` : '—';
-  const numColors = item.dauVao.numColors ?? 0;
+  const numColors = item.input.numColors ?? 0;
   const shownPrice = item.chotGia && item.chotGia > 0 ? item.chotGia : item.finalPrice;
   const diff      = item.chotGia && item.chotGia > 0 ? item.chotGia - item.finalPrice : 0;
   const diffPct   = diff !== 0 && item.finalPrice > 0 ? (diff / item.finalPrice) * 100 : 0;
-  const saleCount = countOverrides(item.ghiDeSale);
-  const adminCount = countOverrides(item.ghiDeAdmin);
+  const saleCount = countOverrides(item.saleOverrides);
+  const adminCount = countOverrides(item.adminOverrides);
   const hasAnyOverrides = saleCount > 0 || adminCount > 0;
 
   return (
@@ -304,8 +304,8 @@ function QuotationCard({ item, onClick, statusControl }: {
           </button>
           {showDiff && (
             <div className="override-diff-summary" onClick={e => e.stopPropagation()}>
-              {renderOverrideDiffs(item.ghiDeSale, 'sale', '💼 Sale')}
-              {renderOverrideDiffs(item.ghiDeAdmin, 'admin', '👑 Admin')}
+              {renderOverrideDiffs(item.saleOverrides, 'sale', '💼 Sale')}
+              {renderOverrideDiffs(item.adminOverrides, 'admin', '👑 Admin')}
             </div>
           )}
         </>
@@ -514,7 +514,7 @@ function SaleView({ items, search, onOpen, onStatusUpdate }: {
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
 export default function QuotationModule({ role }: { role: string; currentSellerId?: string }) {
-  const { history, taiLichSu, datPhan, capNhatTrangThaiDon, currentSellerId } = dungCuaHangTinhGia();
+  const { history, loadHistoryItem: taiLichSu, setActiveModule: datPhan, updateQuoteStatus: capNhatTrangThaiDon, currentSellerId } = dungCuaHangTinhGia();
   const [search, setSearch] = useState('');
 
   const isAdmin = role === 'admin';

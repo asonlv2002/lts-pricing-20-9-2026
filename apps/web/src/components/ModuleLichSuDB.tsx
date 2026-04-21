@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react';
 import { Search, Database, RotateCcw, Trash2, ClipboardList } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { HistoryItem } from '../lib/types';
-import LSXFormModal from './LSXFormModal';
+import LSXFormModal from './ModalDonLSX';
 
 function fmt(n: number, decimals = 0): string {
   return n.toLocaleString('vi-VN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -13,13 +13,13 @@ function fmt(n: number, decimals = 0): string {
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
 export default function HistoryDbModule({ onNavigate }: { onNavigate?: (module: 'calculator') => void }) {
-  const { history, taiLichSu, xoaLichSu } = dungCuaHangTinhGia();
+  const { history, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu } = dungCuaHangTinhGia();
   const [search, setSearch] = useState('');
   const [filterHasChotGia, setFilterHasChotGia] = useState<'all' | 'chot' | 'pending'>('all');
   const [lsxItem, setLsxItem] = useState<HistoryItem | null>(null);
 
   const filtered = useMemo(() => {
-    let list = [...lichSu];
+    let list = [...history];
 
     if (filterHasChotGia === 'chot') {
       list = list.filter(h => h.chotGia && h.chotGia > 0);

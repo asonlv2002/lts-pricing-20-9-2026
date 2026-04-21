@@ -68,7 +68,7 @@ const baseTuiInput: CalculateInput = {
   profitColumn: 1,
   commissionRate: 0,
   commissionFixedVND: 0,
-  commissionUnit: '',
+  commissionUnit: 'percent',
   commissionInputValue: 0,
   bagsPerBox: 1000,
   boxPrice: 50000,

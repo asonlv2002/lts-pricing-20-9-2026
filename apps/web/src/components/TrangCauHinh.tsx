@@ -8,12 +8,12 @@ let _profitPersistTimer: ReturnType<typeof setTimeout>;
 const debouncedPersistProfitTable = () => {
   clearTimeout(_profitPersistTimer);
   _profitPersistTimer = setTimeout(() => {
-    dungCuaHangTinhGia.getState().persistProfitTable();
+    dungCuaHangTinhGia.getState().recalculate();
   }, 800);
 };
 
 export default function ConfigPage() {
-  const { materials, constants, profitTable, capNhatVatLieu, capNhatHangSo } = dungCuaHangTinhGia();
+  const { materials, constants, profitTable, setMaterialParam: capNhatVatLieu, setConstantParam: capNhatHangSo } = dungCuaHangTinhGia();
   const [customerGroup, setCustomerGroup] = React.useState('other');
 
   const offset = customerGroup === 'svlg' ? -0.03 : 0;
@@ -67,7 +67,7 @@ export default function ConfigPage() {
   };
 
   const handleColorSetupChange = (colorNum: number, val: number) => {
-    const newSetup = { ...hangSo.colorSetup, [colorNum]: val };
+    const newSetup = { ...constants.colorSetup, [colorNum]: val };
     capNhatHangSo('colorSetup' as any, newSetup as any);
   };
 
@@ -131,7 +131,7 @@ export default function ConfigPage() {
                     <tr key={m.id}>
                       <td style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
                       <td style={{fontWeight:600}}>{m.name} <span style={{fontSize:'0.75rem', color:'var(--dim)'}}>{m.id}</span></td>
-                      <td>{m.matDoHienThi}</td>
+                      <td>{m.density}</td>
                       <td><input type="number" className="config-inline-input" value={m.thickness} onChange={(e) => capNhatVatLieu(m.id, { thickness: parseFloat(e.target.value)||0 })} style={{width:'80px', textAlign:'right'}} /></td>
                       <td><input type="number" className="config-inline-input" value={m.pricePerKg} onChange={(e) => capNhatVatLieu(m.id, { pricePerKg: parseFloat(e.target.value)||0 })} style={{width:'100px', textAlign:'right', fontWeight:700}} /></td>
                       <td style={{fontWeight:700, color:'var(--accent)'}}>{m.pricePerM2?.toLocaleString('vi-VN', {maximumFractionDigits:0})} đ</td>
@@ -413,10 +413,10 @@ export default function ConfigPage() {
                             const val = parseFloat(e.target.value) || 0;
                             // Store back: subtract offset
                             const store = dungCuaHangTinhGia.getState();
-                            const newTable = [...store.bangLoiNhuan];
+                            const newTable = [...store.profitTable];
                             newTable[i] = { ...newTable[i], col1: (val / 100) - offset };
                             dungCuaHangTinhGia.setState({ profitTable: newTable });
-                            store.tinhLai();
+                            store.recalculate();
                             debouncedPersistProfitTable();
                           }}
                           style={{width:'70px', textAlign:'right'}}
@@ -428,10 +428,10 @@ export default function ConfigPage() {
                           onChange={(e) => {
                             const val = parseFloat(e.target.value) || 0;
                             const store = dungCuaHangTinhGia.getState();
-                            const newTable = [...store.bangLoiNhuan];
+                            const newTable = [...store.profitTable];
                             newTable[i] = { ...newTable[i], col2: (val / 100) - offset };
                             dungCuaHangTinhGia.setState({ profitTable: newTable });
-                            store.tinhLai();
+                            store.recalculate();
                             debouncedPersistProfitTable();
                           }}
                           style={{width:'70px', textAlign:'right'}}

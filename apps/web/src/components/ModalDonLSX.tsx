@@ -215,7 +215,7 @@ function TI({ value, onChange, placeholder, style }: {
 }) {
   return (
     <input
-      style={{ ...styles.dauVao, ...style }}
+      style={{ ...styles.input, ...style }}
       value={value}
       placeholder={placeholder ?? ''}
       onChange={e => onChange(e.target.value)}
@@ -265,7 +265,7 @@ interface Props {
 
 export default function LSXFormModal({ historyItem, onClose }: Props) {
   const { materials, productionOrders, themLSX, currentSellerName } = dungCuaHangTinhGia();
-  const inp = historyItem.dauVao;
+  const inp = historyItem.input;
   const isMang = inp.productType === 'mang';
   const isTui = !isMang;
   const khoMM = Math.round(inp.spreadWidth * 1000);
@@ -294,7 +294,7 @@ export default function LSXFormModal({ historyItem, onClose }: Props) {
   // Tạo snapshot từ HistoryItem + materials
   function buildSnapshot(): ProductionOrder['snapshot'] {
     const getMat = (id?: string | null) => getMaterialName(materials, id);
-    const result = historyItem.dauVao;
+    const result = historyItem.input;
     const area = result.quantity * result.spreadWidth * result.cutStep;
     return {
       customer: historyItem.customer,

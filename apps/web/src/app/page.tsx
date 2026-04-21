@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import type { Material, ProfitRow } from '../lib/types';
 import TheNhapLieu from '../components/TheNhapLieu';
 import ManHinhQuanLy from '../components/ManHinhQuanLy';
 import ManHinhKyThuat from '../components/ManHinhKyThuat';
@@ -13,11 +14,11 @@ function dinhDangSo(n: number, soLe = 0): string {
 
 // ── Thanh giá mini (mobile) ───────────────────────────────────────────────────
 function ThanhGiaMini({ onNhan }: { onNhan: () => void }) {
-  const { ketQua, giaChotHienTai } = dungCuaHangTinhGia();
-  if (!ketQua) return null;
+  const { result, currentChotGia } = dungCuaHangTinhGia();
+  if (!result) return null;
 
-  const gia = giaChotHienTai > 0 ? giaChotHienTai : ketQua.finalPrice;
-  const laMang = ketQua.input.productType === 'mang';
+  const gia = currentChotGia > 0 ? currentChotGia : result.finalPrice;
+  const laMang = result.input.productType === 'mang';
   const donVi = laMang ? 'm²' : 'túi';
 
   return (
@@ -26,11 +27,11 @@ function ThanhGiaMini({ onNhan }: { onNhan: () => void }) {
       title="Nhấn để xem kết quả chi tiết"
     >
       <div className="mps-left">
-        <span className="mps-label">Giá {giaChotHienTai > 0 ? 'chốt' : 'đề xuất'}</span>
+        <span className="mps-label">Giá {currentChotGia > 0 ? 'chốt' : 'đề xuất'}</span>
         <span className="mps-price">{dinhDangSo(gia, 0)} đ/{donVi}</span>
       </div>
       <div className="mps-right">
-        <span className="mps-profit">LN: {dinhDangSo(ketQua.profitRate * 100, 1)}%</span>
+        <span className="mps-profit">LN: {dinhDangSo(result.profitRate * 100, 1)}%</span>
         <span className="mps-arrow">→ Xem chi tiết</span>
       </div>
     </div>
@@ -85,9 +86,9 @@ function ThanhKeoPanel({ onKeo }: { onKeo: (delta: number) => void }) {
 // ── Trang chính ───────────────────────────────────────────────────────────────
 export default function TrangChinh() {
   const {
-    gocNhinHienTai, kieuBoTriCuc, matDoHienThi, chuDe, moRongNangCao,
-    danhSachVatLieu, hangSo, bangLoiNhuan, ketQua,
-    datGocNhin,
+    activeView: gocNhinHienTai, layoutType: kieuBoTriCuc, density: matDoHienThi, theme: chuDe, advancedOpen: moRongNangCao,
+    materials: danhSachVatLieu, constants: hangSo, profitTable: bangLoiNhuan, result: ketQua,
+    setActiveView: datGocNhin,
   } = dungCuaHangTinhGia();
 
   const [tabMobile, datTabMobile] = useState<'input' | 'result'>('input');
@@ -164,10 +165,10 @@ export default function TrangChinh() {
         };
         dungCuaHangTinhGia.setState(s => ({
           ...s,
-          kieuBoTriCuc: ui.kieuBoTriCuc ?? s.kieuBoTriCuc,
-          matDoHienThi: ui.matDoHienThi ?? s.matDoHienThi,
-          chuDe: ui.chuDe ?? s.chuDe,
-          moRongNangCao: typeof ui.moRongNangCao === 'boolean' ? ui.moRongNangCao : s.moRongNangCao,
+          layoutType: ui.kieuBoTriCuc ?? s.layoutType,
+          density: ui.matDoHienThi ?? s.density,
+          theme: ui.chuDe ?? s.theme,
+          advancedOpen: typeof ui.moRongNangCao === 'boolean' ? ui.moRongNangCao : s.advancedOpen,
         }));
       }
 
@@ -177,7 +178,7 @@ export default function TrangChinh() {
         const parsed = JSON.parse(rawLichSu);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const patched = parsed.map((h: any) => ({ ...h, quoteStatus: h.quoteStatus ?? 'drafted' }));
-          dungCuaHangTinhGia.setState({ lichSu: patched });
+        dungCuaHangTinhGia.setState({ history: patched });
         }
       }
 
@@ -185,7 +186,7 @@ export default function TrangChinh() {
       const rawLSX = window.localStorage.getItem('lts_production_orders');
       if (rawLSX) {
         const parsed = JSON.parse(rawLSX);
-        if (Array.isArray(parsed)) dungCuaHangTinhGia.setState({ danhSachLSX: parsed });
+        if (Array.isArray(parsed)) dungCuaHangTinhGia.setState({ productionOrders: parsed });
       }
 
       // Cấu hình vật liệu & hằng số
@@ -198,15 +199,15 @@ export default function TrangChinh() {
           profitTable?: Array<{ col1: number; col2: number }>;
         };
         dungCuaHangTinhGia.setState(s => {
-          let vatLieuMoi = s.danhSachVatLieu;
+          let vatLieuMoi = s.materials;
           if (cfg.materials?.length) {
-            vatLieuMoi = s.danhSachVatLieu.map(m => {
+            vatLieuMoi = s.materials.map(m => {
               const saved = cfg.materials!.find(x => x.id === m.id);
               if (!saved) return m;
               return { ...m, thickness: saved.thickness, pricePerKg: saved.pricePerKg, inkPricePerColor: saved.inkPricePerColor, pricePerM2: saved.pricePerKg * saved.thickness * m.density / 1000 };
             });
           }
-          const hangSoMoi = { ...s.hangSo, ...(cfg.cpsx || {}) };
+          const hangSoMoi = { ...s.constants, ...(cfg.cpsx || {}) };
           if (cfg.printWaste) {
             if (cfg.printWaste.colorSetup) hangSoMoi.colorSetup = cfg.printWaste.colorSetup;
             if (cfg.printWaste.A != null) hangSoMoi.printWasteA = cfg.printWaste.A;
@@ -214,13 +215,13 @@ export default function TrangChinh() {
             if (cfg.printWaste.C != null) hangSoMoi.printWasteC = cfg.printWaste.C;
             if (cfg.printWaste.D != null) hangSoMoi.printWasteD = cfg.printWaste.D;
           }
-          let loiNhuanMoi = s.bangLoiNhuan;
-          if (cfg.profitTable?.length === s.bangLoiNhuan.length) {
-            loiNhuanMoi = s.bangLoiNhuan.map((row, i) => ({ ...row, col1: cfg.profitTable![i].col1, col2: cfg.profitTable![i].col2 }));
+          let loiNhuanMoi = s.profitTable;
+          if (cfg.profitTable?.length === s.profitTable.length) {
+            loiNhuanMoi = s.profitTable.map((row, i) => ({ ...row, col1: cfg.profitTable![i].col1, col2: cfg.profitTable![i].col2 }));
           }
-          return { ...s, danhSachVatLieu: vatLieuMoi, hangSo: hangSoMoi, bangLoiNhuan: loiNhuanMoi };
+          return { ...s, materials: vatLieuMoi, constants: hangSoMoi, profitTable: loiNhuanMoi };
         });
-        dungCuaHangTinhGia.getState().tinhLai();
+        dungCuaHangTinhGia.getState().recalculate();
       }
     } catch { /* localStorage lỗi */ }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -233,7 +234,7 @@ export default function TrangChinh() {
   // ── Lưu config cache ────────────────────────────────────────────────────────
   useEffect(() => {
     window.localStorage.setItem('lts_material_config', JSON.stringify({
-      materials: danhSachVatLieu.map(m => ({ id: m.id, thickness: m.thickness, pricePerKg: m.pricePerKg, inkPricePerColor: m.inkPricePerColor })),
+      materials: danhSachVatLieu.map((m: Material) => ({ id: m.id, thickness: m.thickness, pricePerKg: m.pricePerKg, inkPricePerColor: m.inkPricePerColor })),
       cpsx: {
         ghepCPSX: hangSo.ghepCPSX, laborCost: hangSo.laborCost,
         cutBase: hangSo.cutBase, cutThreshold1: hangSo.cutThreshold1, cutThreshold2: hangSo.cutThreshold2,
@@ -245,7 +246,7 @@ export default function TrangChinh() {
         handlePrice: hangSo.handlePrice, handleWeight: hangSo.handleWeight,
       },
       printWaste: { colorSetup: hangSo.colorSetup, A: hangSo.printWasteA, B: hangSo.printWasteB, C: hangSo.printWasteC, D: hangSo.printWasteD },
-      profitTable: bangLoiNhuan.map(r => ({ col1: r.col1, col2: r.col2 })),
+      profitTable: bangLoiNhuan.map((r: ProfitRow) => ({ col1: r.col1, col2: r.col2 })),
     }));
   }, [danhSachVatLieu, hangSo, bangLoiNhuan]);
 

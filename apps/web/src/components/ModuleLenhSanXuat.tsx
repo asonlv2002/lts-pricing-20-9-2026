@@ -78,7 +78,7 @@ function StatusDropdown({ order, onUpdate }: { order: ProductionOrder; onUpdate:
 
 // ── Main Module ───────────────────────────────────────────────────────────────
 export default function ProductionOrderModule() {
-  const { danhSachLSX: productionOrders, capNhatLSX, xoaLSX } = dungCuaHangTinhGia();
+  const { productionOrders, capNhatLSX, xoaLSX } = dungCuaHangTinhGia();
   const [search, setSearch] = useState('');
   const [filterType, setFilterType] = useState<'all' | 'mang' | 'tui'>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | LSXStatus>('all');
@@ -89,7 +89,7 @@ export default function ProductionOrderModule() {
   // LSX đã được load từ localStorage trong page.tsx khi khởi động
 
   const filtered = useMemo(() => {
-    let list = [...danhSachLSX];
+    let list = [...productionOrders];
     if (filterType !== 'all') list = list.filter(o => o.snapshot.productType === filterType);
     if (filterStatus !== 'all') list = list.filter(o => o.status === filterStatus);
     if (search.trim()) {

@@ -3,7 +3,7 @@ import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 
 export default function Header() {
-  const { activeView, datGocNhin, layoutType, datKieuBoTriCuc, density, datMatDoHienThi, theme, datChuDe, result, history, currentChotGia } = dungCuaHangTinhGia();
+  const { activeView, setActiveView: datGocNhin, layoutType, setLayoutType: datKieuBoTriCuc, density, setDensity: datMatDoHienThi, theme, setTheme: datChuDe, result, history, currentChotGia } = dungCuaHangTinhGia();
 
   const handleExport = () => {
     if (activeView === 'history') {
@@ -31,11 +31,11 @@ export default function Header() {
       'BÁO GIÁ TÚI BAO BÌ - CTY CP LAI TRƯỜNG SƠN',
       '═'.repeat(50),
       `Ngày: ${new Date().toLocaleDateString('vi-VN')}`,
-      `Khách hàng: ${r.dauVao.customer || 'N/A'}`,
-      `Sản phẩm: ${r.dauVao.productName || 'N/A'}`,
+      `Khách hàng: ${r.input.customer || 'N/A'}`,
+      `Sản phẩm: ${r.input.productName || 'N/A'}`,
       `Cấu trúc: ${r.structureText}`,
-      `Số lượng: ${r.dauVao.quantity.toLocaleString('vi-VN')} túi`,
-      `Kích thước: ${+(r.dauVao.spreadWidth * 1000).toFixed(0)} × ${+(r.dauVao.cutStep * 1000).toFixed(0)} mm²`,
+      `Số lượng: ${r.input.quantity.toLocaleString('vi-VN')} túi`,
+      `Kích thước: ${+(r.input.spreadWidth * 1000).toFixed(0)} × ${+(r.input.cutStep * 1000).toFixed(0)} mm²`,
       `Độ dày: ${r.totalThickness} mic`,
       `Trọng lượng: ${fmtE(r.tareWeight, 2)} gr/cái`,
       '',
@@ -59,7 +59,7 @@ export default function Header() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `BaoGia_${r.dauVao.customer || 'N_A'}_${r.dauVao.productName || 'N_A'}_${new Date().toISOString().slice(0, 10)}.txt`;
+    a.download = `BaoGia_${r.input.customer || 'N_A'}_${r.input.productName || 'N_A'}_${new Date().toISOString().slice(0, 10)}.txt`;
     a.click();
     URL.revokeObjectURL(url);
   };

@@ -101,7 +101,7 @@ const DecimalInput = ({ value, onChange, placeholder, min, step, className, disa
 };
 
 export default function InputCard() {
-  const { input, capNhatDauVao, materials, advancedOpen, datMoRongNangCao, result, datLaiDauVao, themVaoLichSu } = dungCuaHangTinhGia();
+  const { input, setInput: capNhatDauVao, materials, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu } = dungCuaHangTinhGia();
   const [layerGroups, setLayerGroups] = React.useState<Record<string, string>>({});
 
   const handleProductType = (val: string) => {
@@ -116,7 +116,7 @@ export default function InputCard() {
       if (layerKey === 'layer3Id') { partial.layer4Id = null; partial.layer5Id = null; }
       if (layerKey === 'layer4Id') { partial.layer5Id = null; }
     }
-    const newMicOverrides = { ...dauVao.micOverrides };
+    const newMicOverrides = { ...input.micOverrides };
     delete newMicOverrides[layerKey];
     partial.micOverrides = newMicOverrides;
 
@@ -134,7 +134,7 @@ export default function InputCard() {
   };
 
   const handleMicOverride = (layerKey: string, val: number) => {
-    capNhatDauVao({ micOverrides: { ...dauVao.micOverrides, [layerKey]: val } });
+    capNhatDauVao({ micOverrides: { ...input.micOverrides, [layerKey]: val } });
   };
 
   const renderLayerSelect = (label: string, layerKey: keyof typeof input, disabled: boolean) => {
@@ -249,15 +249,15 @@ export default function InputCard() {
       alert('Chưa có kết quả để copy.');
       return;
     }
-    const isMang = result.dauVao.productType === 'mang';
+    const isMang = result.input.productType === 'mang';
     const fmtPct = (n: number) => parseFloat((n * 100).toFixed(2)) + '%';
-    const rollLength = (result.dauVao as any).filmRollLength || 6000;
+    const rollLength = (result.input as any).filmRollLength || 6000;
     const text = [
-      `${result.dauVao.customer || 'N/A'} — ${result.dauVao.productName || 'N/A'}`,
+      `${result.input.customer || 'N/A'} — ${result.input.productName || 'N/A'}`,
       `Cấu trúc: ${result.structureText} | Độ dày: ${result.totalThickness}mic`,
       isMang
-        ? `Diện tích: ${result.dauVao.quantity.toLocaleString('vi-VN')} m² | KT: ${+(result.dauVao.spreadWidth * 1000).toFixed(0)}×${+(result.dauVao.cutStep * 1000).toFixed(0)} mm² | Cuộn: ${rollLength.toLocaleString('vi-VN')}m/cuộn`
-        : `SL: ${result.dauVao.quantity.toLocaleString('vi-VN')} túi | KT: ${+(result.dauVao.spreadWidth * 1000).toFixed(0)}×${+(result.dauVao.cutStep * 1000).toFixed(0)} mm²`,
+        ? `Diện tích: ${result.input.quantity.toLocaleString('vi-VN')} m² | KT: ${+(result.input.spreadWidth * 1000).toFixed(0)}×${+(result.input.cutStep * 1000).toFixed(0)} mm² | Cuộn: ${rollLength.toLocaleString('vi-VN')}m/cuộn`
+        : `SL: ${result.input.quantity.toLocaleString('vi-VN')} túi | KT: ${+(result.input.spreadWidth * 1000).toFixed(0)}×${+(result.input.cutStep * 1000).toFixed(0)} mm²`,
       isMang
         ? `GIÁ ĐỀ XUẤT: ${Math.round(result.finalPrice).toLocaleString('vi-VN')} đ/m² (chưa VAT)`
         : `GIÁ ĐỀ XUẤT: ${Math.round(result.finalPrice).toLocaleString('vi-VN')} đ/túi (chưa VAT)`,

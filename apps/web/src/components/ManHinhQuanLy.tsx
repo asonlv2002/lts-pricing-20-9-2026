@@ -244,10 +244,10 @@ function OverrideTableSection({ title, colorClass, uniRows, sourceOverrides, cur
 }
 
 export default function ManagerView() {
-  const { result, activeView, input, materials, constants, profitTable, datGiaChotChoMoiNhat, currentChotGia, datGiaChotHienTai, themVaoLichSu, datPhan,
+  const { result, activeView, input, materials, constants, profitTable, setChotGiaForLatest: datGiaChotChoMoiNhat, currentChotGia, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, setActiveModule: datPhan,
     role, loadedHistoryId, history,
     saleOverrides, adminOverrides, showSaleOverrides, showAdminOverrides,
-    datGhiDeSale, datGhiDeAdmin, datHienGhiDeSale, datHienGhiDeAdmin, luuGhiDe,
+    setSaleOverride: datGhiDeSale, setAdminOverride: datGhiDeAdmin, setShowSaleOverrides: datHienGhiDeSale, setShowAdminOverrides: datHienGhiDeAdmin, persistOverrides: luuGhiDe,
   } = dungCuaHangTinhGia();
   const [selectedRollMat, setSelectedRollMat] = React.useState('');
 
@@ -263,7 +263,7 @@ export default function ManagerView() {
     );
   }
   const r = result;
-  const rInput = r.dauVao;
+  const rInput = r.input;
   const isMang = rInput.productType === 'mang';
 
   // ── Unified production table rows (cần trước effFinalPrice) ──
@@ -776,7 +776,7 @@ export default function ManagerView() {
             const handleSaveNew = () => {
               themVaoLichSu();
               // loadedHistoryId vừa được set bởi themVaoLichSu (sync state)
-              const newId = dungCuaHangTinhGia.getState().idLichSuDangLoad;
+              const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
               if (newId) luuGhiDe(newId);
             };
             const emptyOv: OverrideTable = {};

@@ -266,7 +266,7 @@ function TopHeader({ activeModule, onExport, onMenuToggle, isMobile }: TopHeader
                 <button className={`toolbar-btn ${layoutType === 'default' ? 'active' : ''}`} onClick={() => setLayoutType('default')}>☰</button>
                 <button className={`toolbar-btn ${layoutType === 'stacked' ? 'active' : ''}`} onClick={() => setLayoutType('stacked')}>▤</button>
                 <button className={`toolbar-btn ${layoutType === 'wide'    ? 'active' : ''}`} onClick={() => setLayoutType('wide')}>⬚</button>
-                <button className={`toolbar-btn ${layoutType === 'bento'   ? 'active' : ''}`} onClick={() => { setLayoutType('bento'); dungCuaHangTinhGia.setState({ gocNhinHienTai: 'bento' }); }}>◫</button>
+                <button className={`toolbar-btn ${layoutType === 'bento'   ? 'active' : ''}`} onClick={() => { setLayoutType('bento'); dungCuaHangTinhGia.setState({ activeView: 'bento' }); }}>◫</button>
               </div>
               <div className="toolbar-group" title="Mật độ">
                 <button className={`toolbar-btn ${density === 'compact'     ? 'active' : ''}`} onClick={() => setDensity('compact')}>S</button>
