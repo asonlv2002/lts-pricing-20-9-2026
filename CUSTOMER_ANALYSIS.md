@@ -1,3 +1,0 @@
-CUSTOMER MANAGEMENT SYSTEM ANALYSIS
-================================================
-

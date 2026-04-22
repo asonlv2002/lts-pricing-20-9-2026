@@ -11,7 +11,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#1e40af"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.lts.pricing"
@@ -27,6 +29,12 @@
       "expo-router",
       "expo-secure-store"
     ],
-    "scheme": "lts-pricing"
+    "scheme": "lts-pricing",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "107674d4-a21f-4a4b-a438-6a440a8e224f"
+      }
+    }
   }
 }
