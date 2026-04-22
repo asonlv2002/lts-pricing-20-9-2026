@@ -105,10 +105,10 @@ const defaultInput: CalculateInput = {
   spreadWidth: 0, cutStep: 0, metallicSurcharge: 0, coverageRatio: 1,
   handleWeight: 0, zipperWeight: 0, tapeWeight: 0,
   hasZipper: false, hasTape: false, hasHandle: false,
-  paymentDays: 30, paymentInterestRate: 0.0025, profitColumn: 2,
+  paymentDays: 30, profitColumn: 2,
   commissionRate: 0, commissionFixedVND: 0, commissionUnit: 'percent', commissionInputValue: 0,
   bagsPerBox: 0, boxPrice: 0, shippingPerKm: 0, shippingKm: 0,
-  cylLength: 0, cylCircum: 0, cylUnitPrice: 7300000, micOverrides: {},
+  cylLength: 0, cylCircum: 0, cylUnitPrice: 7300000, cylType: 'A' as const, cylIncluded: false, micOverrides: {},
 };
 
 // ── Store ─────────────────────────────────────────────────────────────────────
@@ -182,6 +182,13 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
       newInput.handleWeight = newInput.hasHandle ? state.constants.handleWeight : 0;
       newInput.zipperWeight = newInput.hasZipper ? state.constants.zipperWeight : 0;
       newInput.tapeWeight   = newInput.hasTape   ? state.constants.tapeWeight   : 0;
+
+      // Tự cập nhật cylUnitPrice khi đổi loại trục (A/B tự lấy từ constants; custom giữ giá trị nhập tay)
+      if ('cylType' in partial) {
+        if (newInput.cylType === 'A') newInput.cylUnitPrice = state.constants.cylPriceA ?? state.constants.cylinderPricePerUnit;
+        else if (newInput.cylType === 'B') newInput.cylUnitPrice = state.constants.cylPriceB ?? 6500000;
+        // custom: giữ nguyên cylUnitPrice hiện tại
+      }
 
       return { input: newInput, result: calculate(newInput, state.materials, state.constants, state.profitTable), isDirty: true };
     });

@@ -4,6 +4,44 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+## Đã sửa / Known Fixes (cập nhật 2026-04-22)
+
+### 8. Tái cấu trúc Lãi Vay — 2026-04-22
+
+**Yêu cầu:** Tách lãi suất thành 2 thành phần: **Mức** (cơ sở / cố định) + **Thêm** (tình huống / linh hoạt), đơn vị **% / Năm**. Thêm mốc thời hạn **45 ngày**.
+
+**Công thức mới (`engine.ts`):**
+```
+lãiNăm        = interestBase + interestSpread   (% / năm, dạng thập phân)
+lãiTháng      = lãiNăm / 12
+sốTháng       = paymentDays / 30               (14→0.5 | 30→1 | 45→1.5 | 90→3)
+interestPerUnit = lãiTháng × sốTháng × costPerUnit
+                = (interestBase + interestSpread) / 12 × (paymentDays / 30) × costPerUnit
+```
+
+**Phân công UI:**
+- `TheNhapLieu.tsx` — chỉ có **dropdown chọn số ngày** (14 / 30 / 45 / 90), KHÔNG nhập lãi suất ở đây
+- `TrangCauHinh.tsx` (bảng định mức) — nhập **Mức** và **Thêm** (% / năm), lưu vào `AppConstants`
+- `engine.ts` đọc `interestBase` + `interestSpread` từ `constants`, đọc `paymentDays` từ `input`
+
+**Phạm vi thay đổi:**
+
+| File | Thay đổi |
+|---|---|
+| `apps/web/src/lib/types.ts` | `AppConstants`: thêm `interestBase`, `interestSpread` (thay `interestRate`). `CalculateInput`: bỏ `paymentInterestRate`. `CalculateResult`: thêm `interestBase`, `interestSpread` |
+| `apps/web/src/data/constants.json` | Thêm `"interestBase": 0.10`, `"interestSpread": 0.03` (thay `interestRate`) |
+| `apps/web/src/lib/engine.ts` | Sửa công thức: đọc `interestBase`+`interestSpread` từ constants thay vì `paymentInterestRate` từ input |
+| `apps/web/src/components/TheNhapLieu.tsx` | Chỉ sửa danh sách radio: thêm mốc **45 ngày**, bỏ ô nhập lãi suất inline |
+| `apps/web/src/components/TrangCauHinh.tsx` | Thêm 2 ô nhập **Mức** / **Thêm** (% / năm) vào bảng định mức |
+| `apps/web/src/components/ManHinhQuanLy.tsx` | Hiển thị breakdown: mức + thêm |
+| `apps/web/src/store/CuaHangTinhGia.ts` | `defaultInput` bỏ `paymentInterestRate`; default `paymentDays: 30` |
+
+**Giá trị mặc định:** `interestBase = 10% / năm`, `interestSpread = 3% / năm`
+
+**Thời hạn vay:** 14 / 30 / 45 / 90 ngày
+
+---
+
 ## Đã sửa / Known Fixes (cập nhật 2026-04-17)
 
 > **QUAN TRỌNG:** Trước khi sửa bất kỳ công thức nào trong `src/lib/engine.ts`, PHẢI đọc `.claude/training/Train.md` — nguồn chân lý duy nhất cho mọi công thức.

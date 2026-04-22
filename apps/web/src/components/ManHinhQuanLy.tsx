@@ -398,10 +398,14 @@ export default function ManagerView() {
   breakdownItems.push(
     [isMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', fmt(r.boxPerUnit, 1) + ' đ'],
     ['Chi phí Vận chuyển', fmt(r.shippingPerUnit, 1) + ' đ'],
-    [`Lãi vay vốn (${fmtPercent(r.interestRate30)})`, fmt(r.interestPerUnit, 1) + ' đ'],
+    [`Lãi vay vốn (${fmtPercent((r.interestBase ?? 0) + (r.interestSpread ?? 0))}/năm)`, fmt(r.interestPerUnit, 1) + ' đ'],
     ['Hoa hồng kinh doanh', fmt(effCommissionPerUnit, 1) + ' đ']
   );
+  if (rInput.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
+    breakdownItems.push([`Trục in phân bổ (bao trục / 200k m²)`, fmt(r.cylAllocPerUnit ?? 0, 2) + ' đ']);
+  }
 
+  const cylAllocTotal = rInput.cylIncluded ? ((r.cylAllocPerUnit ?? 0) * rInput.quantity) : 0;
   const totalCommission = effCommissionPerUnit * rInput.quantity;
   const commissionPct = effCostPerUnit > 0 ? (effCommissionPerUnit / effCostPerUnit) : 0;
   const chotGiaNum = currentChotGia || 0;
@@ -409,7 +413,8 @@ export default function ManagerView() {
   // effFinalPrice tính lại với commission mới
   const effFinalPriceWithComm = effCostPerUnit
     + r.zipperPerUnit + r.tapePerUnit + r.handlePerUnit
-    + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + effCommissionPerUnit;
+    + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + effCommissionPerUnit
+    + (r.cylAllocPerUnit ?? 0);
   const shownPrice = hasChotGia ? chotGiaNum : effFinalPriceWithComm;
   const diff = hasChotGia ? chotGiaNum - effFinalPriceWithComm : 0;
   const rawNewCommission = effCommissionPerUnit + diff;
@@ -544,6 +549,11 @@ export default function ManagerView() {
               {hasChotGia && (
                 <div style={{fontSize:'0.82rem', color:'var(--muted)', marginTop:'2px', marginBottom:'2px'}}>
                   (giá đề xuất {fmt(effFinalPriceWithComm, 0)} đ/{unitLabel})
+                </div>
+              )}
+              {rInput.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0 && (
+                <div style={{fontSize:'0.78rem', color:'var(--primary)', marginTop:'2px', fontWeight:600}}>
+                  📌 Có bao trục (+{fmt(r.cylAllocPerUnit ?? 0, 2)} đ/{unitLabel})
                 </div>
               )}
               <div className="unit">(chưa VAT)</div>

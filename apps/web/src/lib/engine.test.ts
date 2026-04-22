@@ -64,7 +64,7 @@ const baseTuiInput: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 1,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -77,6 +77,8 @@ const baseTuiInput: CalculateInput = {
   cylLength: 0,
   cylCircum: 0,
   cylUnitPrice: 0,
+  cylType: 'A',
+  cylIncluded: false,
 };
 
 // Base input màng

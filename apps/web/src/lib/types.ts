@@ -39,9 +39,12 @@ export interface AppConstants {
   handleWeight: number;
   boxPriceDefault: number;
   bagsPerBoxDefault: number;
-  interestRate: number;
+  interestBase: number;    // lãi suất cơ sở (% / năm, dạng thập phân, vd: 0.10 = 10%)
+  interestSpread: number;  // lãi suất thêm / tình huống (% / năm, dạng thập phân)
   paymentDays: number;
-  cylinderPricePerUnit: number;
+  cylinderPricePerUnit: number; // đơn giá trục mặc định (fallback)
+  cylPriceA: number;            // đơn giá Trục A (đ/m²), mặc định 7,300,000
+  cylPriceB: number;            // đơn giá Trục B (đ/m²), mặc định 6,500,000
   ghepCPSX: number;
   ghepWasteA: number;  // mẫu số (3000): cứ A mét thì hao B mét
   ghepWasteB: number;  // tử số phí hao biến đổi (20)
@@ -93,7 +96,7 @@ export interface CalculateInput {
   hasTape: boolean;
   hasHandle: boolean;
   paymentDays: number;
-  paymentInterestRate: number;
+  // paymentInterestRate đã bỏ — lãi suất nay lấy từ AppConstants (interestBase + interestSpread)
   profitColumn: number;
   commissionRate: number;
   commissionFixedVND: number;
@@ -106,6 +109,8 @@ export interface CalculateInput {
   cylLength: number;
   cylCircum: number;
   cylUnitPrice: number;
+  cylType: 'A' | 'B' | 'custom'; // loại trục: A (7.3tr), B (6.5tr), hoặc tự nhập
+  cylIncluded: boolean;           // true = bao trục (phân bổ vào đơn giá), false = tách riêng
   micOverrides?: Record<string, number>;
 }
 
@@ -206,12 +211,14 @@ export interface CalculateResult {
   actualShippingPerKm: number;
   actualShippingKm: number;
   interestPerUnit: number;
-  interestRate30: number;
+  interestBase: number;    // lãi cơ sở (% / năm)
+  interestSpread: number;  // lãi thêm (% / năm)
   paymentDays: number;
   commissionPerUnit: number;
   finalPrice: number;
   cylinderCost: number;
   cylinderCostPerUnit: number;
+  cylAllocPerUnit: number;  // chi phí trục phân bổ vào đơn giá (> 0 khi cylIncluded=true)
   cylArea: number;
   cylLength: number;
   cylCircum: number;

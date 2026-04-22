@@ -77,7 +77,7 @@ const input: CalculateInput = {
   handleWeight: 0, zipperWeight: 0, tapeWeight: 0,
   hasZipper: false, hasTape: false, hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 2,   // LN 20%
   commissionRate: 0.02,
   commissionFixedVND: 0,
@@ -88,6 +88,8 @@ const input: CalculateInput = {
   shippingPerKm: 20000,
   shippingKm: 25,
   cylLength: 0, cylCircum: 0, cylUnitPrice: 0,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer2Id: 120 },  // LLDPE 120µm → 6.660đ/m²
 };
 

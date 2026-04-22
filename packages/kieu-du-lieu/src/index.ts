@@ -40,9 +40,13 @@ export interface HangSo {
   khoiLuongQuaiXach: number;
   giaThuungMacDinh: number;
   soTuiPerThuungMacDinh: number;
-  laiSuatMacDinh: number;
+  laiSuatMacDinh: number;       // giữ để backward-compat, dùng laiSuatCoBan + laiSuatThem thay thế
+  laiSuatCoBan: number;         // lãi suất cơ sở (% / năm, thập phân, vd 0.10 = 10%)
+  laiSuatThem: number;          // lãi suất thêm / tình huống (% / năm)
   ngayThanhToanMacDinh: number;
-  giaTrucDonVi: number;
+  giaTrucDonVi: number;         // fallback
+  giaTrucA: number;             // đơn giá Trục A (đ/m²)
+  giaTrucB: number;             // đơn giá Trục B (đ/m²)
   cpSXGhep: number;
   hatHaoGhepA: number;
   hatHaoGhepB: number;
@@ -102,7 +106,9 @@ export interface DauVaoTinhGia {
   coBangKeo: boolean;
   coQuaiXach: boolean;
   ngayThanhToan: number;
-  laiSuatThanhToan: number;
+  loaiTruc: 'A' | 'B' | 'custom'; // loại trục: A, B, hoặc tự nhập
+  baoTruc: boolean;               // true = phân bổ chi phí trục vào đơn giá
+  // laiSuatThanhToan đã bỏ — lãi suất lấy từ HangSo (laiSuatCoBan + laiSuatThem)
   cotLoiNhuan: number;
   tyLeHoaHong: number;
   hoaHongCoDinhVND: number;
@@ -238,12 +244,14 @@ export interface KetQuaTinhGia {
   cuocVanChuyenThucTePerKm: number;
   soKmThucTe: number;
   laiSuatPerDonVi: number;
-  laiSuat30Ngay: number;
+  laiSuatCoBan: number;          // lãi cơ sở (% / năm)
+  laiSuatThem: number;           // lãi thêm (% / năm)
   ngayThanhToan: number;
   hoaHongPerDonVi: number;
   giaCuoiCung: number;
   chiPhiTruc: number;
   chiPhiTrucPerDonVi: number;
+  chiPhiTrucPhanBo: number;      // chi phí trục phân bổ vào đơn giá khi baoTruc=true
   dienTichTruc: number;
   chieuDaiTruc: number;
   chuViTruc: number;
