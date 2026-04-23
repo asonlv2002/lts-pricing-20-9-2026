@@ -1,0 +1,19 @@
+{
+  "name": "@lts/flutter-app-engine-bundler",
+  "version": "0.1.0",
+  "private": true,
+  "description": "esbuild bundler cho engine.ts → assets/engine.bundle.js (flutter_js)",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build-engine.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@lts/bang-tinh-gia": "workspace:*",
+    "@lts/hang-so": "workspace:*",
+    "@lts/kieu-du-lieu": "workspace:*"
+  }
+}

@@ -6,6 +6,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Đã sửa / Known Fixes (cập nhật 2026-04-23)
 
+### 10. Flutter Android App qua flutter_js — 2026-04-23
+
+**Tạo `apps/flutter_app/`** — app Android viết bằng Flutter, **tái sử dụng nguyên engine JS** của
+web qua `flutter_js` (QuickJS), không port logic sang Dart. UI đầy đủ 4 module: Tính giá / Lịch sử
+/ Cấu hình / LSX. Material 3, tiếng Việt, responsive (BottomNav phone, NavigationRail tablet).
+
+**Cấu trúc:**
+```
+apps/flutter_app/
+├── package.json + scripts/build-engine.mjs   ← esbuild bundle engine TS → 1 file IIFE
+├── scripts/engine-entry.ts                   ← entry: import @lts/bang-tinh-gia, expose globalThis.LTS
+├── assets/engine.bundle.js                   ← output ~27 KB (gitignore)
+├── assets/data/{constants,materials,profitTable}.json  ← copy từ apps/web/src/data
+├── pubspec.yaml                              ← flutter_js, provider, shared_preferences, pdf, printing, intl
+└── lib/
+    ├── main.dart                             ← init JS runtime + AppState rồi runApp
+    ├── engine/{js_runtime,models}.dart       ← bridge Dart ↔ QuickJS (truyền JSON string)
+    ├── store/{app_state,local_storage}.dart  ← Provider + SharedPreferences
+    ├── theme/{app_theme,format}.dart         ← Material 3 cyan-600, NumberFormat vi_VN
+    ├── screens/{home_shell,tinh_gia,lich_su,cau_hinh,lsx}_screen.dart
+    └── widgets/{form_widgets,price_hero}.dart
+```
+
+**Build flow:**
+1. `pnpm install` (root) — cài esbuild qua pnpm workspace
+2. `pnpm build:engine` → sinh `apps/flutter_app/assets/engine.bundle.js`
+3. `cd apps/flutter_app && flutter create . --org vn.laitruongson.lts --project-name lts_pricing --platforms=android --overwrite` (lần đầu)
+4. `flutter pub get`
+5. `flutter run -d <device>` hoặc `flutter build apk --release`
+
+**Bridge pattern (`lib/engine/js_runtime.dart`):** Truyền 4 chuỗi JSON sang QuickJS, JS parse + tính
++ trả JSON string. Tránh issue marshal complex object qua flutter_js FFI.
+
+**Khi engine logic update bên web:** chỉ cần `pnpm build:engine` + hot-restart Flutter (không phải
+hot-reload — vì assets).
+
+**LSX PDF export:** dùng package `pdf` + `printing`, template tham khảo QT.ISO-22-BM02.
+
+📄 **Chi tiết:** xem `apps/flutter_app/README.md`
+
+---
+
 ### 9. Build Mobile (Expo Android) — 2026-04-23
 
 **Đã fix 3 lỗi khi build app mobile lần đầu:**

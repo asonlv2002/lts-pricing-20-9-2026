@@ -14,7 +14,9 @@
     "android": "pnpm --filter mobile android",
     "start": "pnpm --filter mobile start",
     "mobile": "pnpm --filter mobile start",
-    "mobile:android": "pnpm --filter mobile android"
+    "mobile:android": "pnpm --filter mobile android",
+    "build:engine": "pnpm --filter @lts/flutter-app-engine-bundler build",
+    "flutter:engine": "pnpm --filter @lts/flutter-app-engine-bundler build"
   },
   "devDependencies": {
     "turbo": "^2.5.3",
