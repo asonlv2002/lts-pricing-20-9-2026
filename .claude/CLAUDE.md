@@ -4,7 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
-## Đã sửa / Known Fixes (cập nhật 2026-04-22)
+## Đã sửa / Known Fixes (cập nhật 2026-04-23)
+
+### 9. Build Mobile (Expo Android) — 2026-04-23
+
+**Đã fix 3 lỗi khi build app mobile lần đầu:**
+1. `This computer is not authorized for developing on Device` — USB debugging chưa trust
+2. HTTP 404 trên `.expo/.virtual-metro-entry.bundle` — virtual entry conflict với `unstable_serverRoot` của pnpm monorepo → đổi `getJSMainModuleName() = "index"` trong `MainApplication.kt`
+3. `Cannot find native module 'ExpoLinking'` — `expo-router` cần `expo-linking` nhưng nó thiếu trong `apps/mobile/package.json` → `pnpm --filter mobile add expo-linking@~7.1.7`
+
+📄 **Chi tiết đầy đủ + cheatsheet + checklist:** xem [`.claude/MOBILE_BUILD_NOTES.md`](./MOBILE_BUILD_NOTES.md)
+
+---
 
 ### 8. Tái cấu trúc Lãi Vay — 2026-04-22
 

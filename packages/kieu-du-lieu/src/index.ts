@@ -317,3 +317,22 @@ export interface LenhSanXuat {
     giaChot: number; tongDienTich: number;
   };
 }
+
+// ── Khách hàng ───────────────────────────────────────────────────────────────
+export interface KhachHang {
+  id: string;
+  loai: 'cong_ty' | 'ca_nhan';
+  // Thông tin công ty (chỉ dùng khi loai === 'cong_ty')
+  tenCongTy: string;
+  maSoThue: string;
+  diaChiCongTy: string;
+  emailCongTy: string;
+  sdtCongTy: string;
+  // Người liên hệ (luôn có) — hoặc tên cá nhân
+  tenLienHe: string;
+  sdt: string;
+  email: string;
+  // Phân công
+  idNhanVienBan: string | null;
+  ngayTao: string;
+}
