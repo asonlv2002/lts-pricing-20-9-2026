@@ -4,7 +4,6 @@
 import React from 'react';
 import { ScrollView, View, StyleSheet } from 'react-native';
 import { Text, List, Switch, Button, Card, Divider, useTheme } from 'react-native-paper';
-import { router } from 'expo-router';
 import { dungCuaHangUI } from '../store/cua-hang-ui';
 import { dungCuaHangAuth, NHAN_VAI_TRO } from '../store/cua-hang-auth';
 
@@ -14,8 +13,8 @@ export default function ManHinhCaiDat() {
   const { vaiTroHienTai, thoatVaiTro } = dungCuaHangAuth();
 
   function xuLyDoiVaiTro() {
+    // Root navigator sẽ tự switch sang stack Auth khi vaiTroHienTai = null
     thoatVaiTro();
-    router.replace('/(auth)/chon-vai-tro');
   }
 
   return (

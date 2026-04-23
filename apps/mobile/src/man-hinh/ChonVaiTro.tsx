@@ -5,8 +5,7 @@
 import React from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
 import { Text, Card, useTheme, Icon } from 'react-native-paper';
-import { router } from 'expo-router';
-import { dungCuaHangAuth, NHAN_VAI_TRO, type VaiTro } from '../../src/store/cua-hang-auth';
+import { dungCuaHangAuth, NHAN_VAI_TRO, type VaiTro } from '../store/cua-hang-auth';
 
 type MucVaiTro = {
   vaiTro: VaiTro;
@@ -42,7 +41,8 @@ export default function ManHinhChonVaiTro() {
 
   function xuLyChon(vt: VaiTro) {
     chonVaiTro(vt);
-    router.replace('/(tabs)');
+    // Không cần navigate thủ công — root navigator sẽ tự chuyển sang Tabs
+    // khi vaiTroHienTai thay đổi (pattern auth flow của React Navigation).
   }
 
   return (

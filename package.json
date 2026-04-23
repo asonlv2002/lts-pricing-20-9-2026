@@ -11,8 +11,7 @@
     "lint": "turbo run lint",
     "test": "turbo run test",
     "type-check": "turbo run type-check",
-    "android": "expo run:android",
-    "ios": "expo run:ios",
+    "android": "pnpm --filter mobile android",
     "start": "pnpm --filter mobile start",
     "mobile": "pnpm --filter mobile start",
     "mobile:android": "pnpm --filter mobile android"
@@ -26,13 +25,12 @@
     "node": ">=20"
   },
   "dependencies": {
-    "expo": "~53.0.27",
     "react": "19.0.0",
     "react-native": "0.79.6"
   },
   "pnpm": {
     "overrides": {
-      "use-latest-callback": "0.1.11"
+      "use-latest-callback": "^0.2.4"
     }
   }
 }
