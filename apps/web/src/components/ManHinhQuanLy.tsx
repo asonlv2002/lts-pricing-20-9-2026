@@ -274,10 +274,10 @@ export default function ManagerView() {
   totalCPVL += r.printCostMaterial;
   uniRows.push({
     rowKey: 'print',
-    stage: 'CPSX IN', mat: r.layers.print.material.name,
+    stage: 'CPSX IN', mat: r.layers.print?.material?.name ?? '',
     width: r.printNLWidth, meters: r.printMeters, waste: r.printWaste,
     cpsx: r.printCPSX, costCPSX: r.printCostCPSX,
-    matPrice: r.layers.print.material.pricePerM2, costMat: r.printCostMaterial
+    matPrice: r.layers.print?.material?.pricePerM2 ?? 0, costMat: r.printCostMaterial
   });
 
   if (r.layers.laminations) {
@@ -286,10 +286,10 @@ export default function ManagerView() {
       totalCPVL += lam.costMat;
       uniRows.push({
         rowKey: `lam-${lam.layerNum}` as OverrideRowKey,
-        stage: `GHÉP (Lớp ${lam.layerNum})`, mat: lam.material.name,
+        stage: `GHÉP (Lớp ${lam.layerNum})`, mat: lam.material?.name ?? '',
         width: lam.width, meters: lam.meters, waste: lam.waste,
         cpsx: constants.ghepCPSX, costCPSX: lam.costCPSX,
-        matPrice: lam.material.pricePerM2, costMat: lam.costMat
+        matPrice: lam.material?.pricePerM2 ?? 0, costMat: lam.costMat
       });
     });
   }
@@ -437,9 +437,10 @@ export default function ManagerView() {
   }
 
   const matCols: any[] = [];
-  if (r.layers.print) matCols.push({ type: 'print', name: r.layers.print.material.name.split(' ')[0], fullName: r.layers.print.material.name });
+  if (r.layers.print && r.layers.print.material) matCols.push({ type: 'print', name: r.layers.print.material.name.split(' ')[0], fullName: r.layers.print.material.name });
   if (r.layers.laminations) {
     r.layers.laminations.forEach((lam: any) => {
+      if (!lam.material) return;
       matCols.push({ type: 'lam', layerNum: lam.layerNum, name: lam.material.name.split(' ')[0], fullName: lam.material.name });
     });
   }

@@ -108,7 +108,10 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
 }
 
 // ── KetQuaTinhGia VN → CalculateResult EN ────────────────────────────────────
-function toResult(r: KetQuaTinhGia, originalInput: CalculateInput): CalculateResult {
+function toResult(r: KetQuaTinhGia, originalInput: CalculateInput, materials: Material[]): CalculateResult {
+  const findMat = (id?: string) => materials.find(m => m.id === id) || null;
+  const printMat = findMat(originalInput.layer1Id);
+  const lamIds = [originalInput.layer2Id, originalInput.layer3Id, originalInput.layer4Id, originalInput.layer5Id];
   return {
     input: originalInput,
     structureText: r.chuoiCauTruc,
@@ -171,7 +174,7 @@ function toResult(r: KetQuaTinhGia, originalInput: CalculateInput): CalculateRes
     productionDays: r.ngaySanXuat,
     layers: {
       print: {
-        material: null, // original Material ref not available through adapter
+        material: printMat, // resolve by layer1Id from materials catalog
         width: r.cacLop.in.kho,
         meters: r.cacLop.in.met,
         waste: r.cacLop.in.hatHao,
@@ -180,7 +183,9 @@ function toResult(r: KetQuaTinhGia, originalInput: CalculateInput): CalculateRes
         costMat: r.cacLop.in.chiPhiVL,
         total: r.cacLop.in.tongCong,
       },
-      laminations: r.cacLop.ghep.map((g: any) => ({
+      laminations: r.cacLop.ghep.map((g: any, idx: number) => ({
+        layerNum: idx + 2,
+        material: findMat(lamIds[idx]),
         width: g.kho,
         meters: g.met,
         waste: g.hatHao,
@@ -216,5 +221,5 @@ export function calculate(
   const ketQua = tinhGia(dauVao, vatLieu, hangSo, bangLN);
   if (!ketQua) return null;
 
-  return toResult(ketQua, input);
+  return toResult(ketQua, input, materials);
 }
