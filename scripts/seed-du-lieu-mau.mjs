@@ -29,10 +29,10 @@ const outPath = outIdx !== -1
   ? path.resolve(args[outIdx + 1])
   : path.join(ROOT, 'data', 'history.json');
 
-// ── Load raw data (từ apps/web/src/data/) ────────────────────────────────────
-const materialsRaw = JSON.parse(fs.readFileSync(path.join(WEB, 'src/data/materials.json'), 'utf-8'));
-const constantsRaw = JSON.parse(fs.readFileSync(path.join(WEB, 'src/data/constants.json'), 'utf-8'));
-const profitRaw    = JSON.parse(fs.readFileSync(path.join(WEB, 'src/data/profitTable.json'), 'utf-8'));
+// ── Load raw data (từ /data root — single source of truth) ──────────────────
+const materialsRaw = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/materials.json'), 'utf-8'));
+const constantsRaw = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/constants.json'), 'utf-8'));
+const profitRaw    = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/profitTable.json'), 'utf-8'));
 
 const materials = materialsRaw.map(m => ({
   ...m,

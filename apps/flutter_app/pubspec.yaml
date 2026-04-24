@@ -47,3 +47,4 @@ flutter:
     - assets/data/constants.json
     - assets/data/materials.json
     - assets/data/profitTable.json
+    - assets/data/history.json

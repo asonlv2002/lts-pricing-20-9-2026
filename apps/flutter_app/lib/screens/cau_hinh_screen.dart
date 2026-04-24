@@ -22,20 +22,32 @@ class CauHinhScreen extends StatelessWidget {
         children: [
           Container(
             color: scheme.surface,
-            child: TabBar(
-              labelColor: scheme.primary,
-              unselectedLabelColor: scheme.onSurfaceVariant,
-              indicatorColor: scheme.primary,
-              indicatorWeight: 3,
-              indicatorSize: TabBarIndicatorSize.label,
-              labelStyle: const TextStyle(
-                  fontWeight: FontWeight.w700, fontSize: 13),
-              unselectedLabelStyle: const TextStyle(
-                  fontWeight: FontWeight.w500, fontSize: 13),
-              tabs: const [
-                Tab(icon: Icon(Icons.inventory_2_outlined, size: 22), text: 'Vật liệu'),
-                Tab(icon: Icon(Icons.tune, size: 22), text: 'Hằng số'),
-                Tab(icon: Icon(Icons.trending_up, size: 22), text: 'Lợi nhuận'),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TabBar(
+                    labelColor: scheme.primary,
+                    unselectedLabelColor: scheme.onSurfaceVariant,
+                    indicatorColor: scheme.primary,
+                    indicatorWeight: 3,
+                    indicatorSize: TabBarIndicatorSize.label,
+                    labelStyle: const TextStyle(
+                        fontWeight: FontWeight.w700, fontSize: 13),
+                    unselectedLabelStyle: const TextStyle(
+                        fontWeight: FontWeight.w500, fontSize: 13),
+                    tabs: const [
+                      Tab(icon: Icon(Icons.inventory_2_outlined, size: 22), text: 'Vật liệu'),
+                      Tab(icon: Icon(Icons.tune, size: 22), text: 'Hằng số'),
+                      Tab(icon: Icon(Icons.trending_up, size: 22), text: 'Lợi nhuận'),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Reset về dữ liệu mặc định',
+                  icon: const Icon(Icons.restore_rounded),
+                  onPressed: () => _confirmReset(context),
+                ),
+                const SizedBox(width: 4),
               ],
             ),
           ),
@@ -47,6 +59,40 @@ class CauHinhScreen extends StatelessWidget {
             ]),
           ),
         ],
+      ),
+    );
+  }
+
+  Future<void> _confirmReset(BuildContext context) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        icon: const Icon(Icons.restore_rounded, size: 32),
+        title: const Text('Reset cấu hình về mặc định?'),
+        content: const Text(
+          'Sẽ thay thế Vật liệu / Hằng số / Bảng lợi nhuận hiện tại '
+          'bằng dữ liệu gốc đi kèm app (/data ở root repo).\n\n'
+          'Lịch sử báo giá và Lệnh sản xuất KHÔNG bị ảnh hưởng.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Huỷ'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    await context.read<AppState>().resetConfigToDefaults();
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Đã reset về dữ liệu mặc định'),
+        duration: Duration(seconds: 2),
       ),
     );
   }

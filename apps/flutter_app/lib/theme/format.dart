@@ -7,6 +7,7 @@ class Fmt {
   static final _nf = NumberFormat.decimalPattern('vi_VN');
   static final _nf2 = NumberFormat('#,##0.##', 'vi_VN');
   static final _nf3 = NumberFormat('#,##0.###', 'vi_VN');
+  static final _nf4 = NumberFormat('#,##0.####', 'vi_VN');
   static final _nfPct = NumberFormat('#,##0.##', 'vi_VN');
 
   /// 1234567 → "1.234.567"
@@ -23,6 +24,19 @@ class Fmt {
 
   /// 1.234 → "1,234"
   static String d3(num? v) => v == null ? '0' : _nf3.format(v);
+
+  /// 1.23456 → "1,2346"
+  static String d4(num? v) => v == null ? '0' : _nf4.format(v);
+
+  /// 12_500_000 → "12.5" (triệu)
+  static String shortM(num? v) {
+    if (v == null) return '0';
+    final m = v / 1000000;
+    if (m >= 1000) return '${(m / 1000).toStringAsFixed(1)}tỷ';
+    if (m >= 1) return m.toStringAsFixed(1);
+    final k = v / 1000;
+    return '${k.toStringAsFixed(0)}k';
+  }
 
   /// "2026-04-23T10:30:00" → "23/04/2026 10:30"
   static String dateTime(String iso) {

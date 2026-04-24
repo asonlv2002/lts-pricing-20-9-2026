@@ -1,5 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Lịch sử — dashboard stats + search + filter + cards swipe
+// LichSuScreen — Lịch sử báo giá
+// Cải tiến: Filter tabs theo trạng thái + pull-to-refresh + better cards
 // ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,6 +9,7 @@ import '../engine/models.dart';
 import '../store/app_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/format.dart';
+import '../widgets/expandable_table.dart';
 
 class LichSuScreen extends StatefulWidget {
   const LichSuScreen({super.key});
@@ -16,78 +18,333 @@ class LichSuScreen extends StatefulWidget {
   State<LichSuScreen> createState() => _LichSuScreenState();
 }
 
-class _LichSuScreenState extends State<LichSuScreen> {
+class _LichSuScreenState extends State<LichSuScreen>
+    with SingleTickerProviderStateMixin {
   String _query = '';
+  String? _filterStatus; // null = tất cả
+  late TabController _tabCtrl;
+
+  static const _tabs = [
+    (null, 'Tất cả'),
+    ('drafted', 'Đã lập'),
+    ('approved', 'Đã duyệt'),
+    ('completed', 'Hoàn thành'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _tabCtrl = TabController(length: _tabs.length, vsync: this);
+    _tabCtrl.addListener(() {
+      if (!_tabCtrl.indexIsChanging) return;
+      setState(() => _filterStatus = _tabs[_tabCtrl.index].$1);
+    });
+  }
+
+  @override
+  void dispose() {
+    _tabCtrl.dispose();
+    super.dispose();
+  }
+
+  void _openHistoryTable(BuildContext context, List<HistoryItem> items) {
+    final scheme = Theme.of(context).colorScheme;
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        fullscreenDialog: true,
+        builder: (_) => Scaffold(
+          backgroundColor: scheme.surface,
+          appBar: AppBar(
+            title: const Text('Lịch sử báo giá — dạng bảng'),
+            actions: [
+              IconButton(
+                tooltip: 'Đóng',
+                icon: const Icon(Icons.close_rounded),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+          body: SafeArea(
+            child: OrientationBuilder(
+              builder: (context, orient) {
+                return Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Column(
+                    children: [
+                      if (orient == Orientation.portrait)
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          margin: const EdgeInsets.only(bottom: 6),
+                          decoration: BoxDecoration(
+                            color: scheme.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(children: [
+                            Icon(Icons.screen_rotation,
+                                size: 16, color: scheme.primary),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Xoay ngang máy để xem rộng hơn (cuộn ngang nếu cần)',
+                                style: TextStyle(
+                                    fontSize: 12,
+                                    color: scheme.primary,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ]),
+                        ),
+                      Expanded(
+                        child: ExpandableTableCard(
+                          title: '${items.length} báo giá',
+                          icon: Icons.history_rounded,
+                          iconColor: AppColors.info,
+                          columns: const [
+                            TableColumn('Ngày', minWidth: 90),
+                            TableColumn('Khách hàng', minWidth: 140),
+                            TableColumn('Sản phẩm', minWidth: 160),
+                            TableColumn('Cấu trúc', minWidth: 140),
+                            TableColumn('SL', minWidth: 70, align: TextAlign.right),
+                            TableColumn('Giá / đv', minWidth: 100, align: TextAlign.right),
+                            TableColumn('Doanh thu', minWidth: 120, align: TextAlign.right),
+                            TableColumn('Trạng thái', minWidth: 100),
+                          ],
+                          rows: items.map((h) {
+                            final dt = DateTime.tryParse(h.date);
+                            final dateStr = dt == null
+                                ? h.date
+                                : '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+                            return [
+                              TableCellData(dateStr),
+                              TableCellData(h.customer.isEmpty ? '—' : h.customer),
+                              TableCellData(h.productName.isEmpty ? '—' : h.productName),
+                              TableCellData(h.structure),
+                              TableCellData(h.quantity.toString(),
+                                  align: TextAlign.right),
+                              TableCellData(Fmt.vnd(h.finalPrice.toDouble()),
+                                  align: TextAlign.right,
+                                  style: TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppColors.success)),
+                              TableCellData(
+                                  Fmt.vnd(h.finalPrice.toDouble() *
+                                      h.quantity.toDouble()),
+                                  align: TextAlign.right,
+                                  style: const TextStyle(
+                                      fontSize: 12.5,
+                                      fontWeight: FontWeight.w600)),
+                              TableCellData(_statusLabel(h.quoteStatus)),
+                            ];
+                          }).toList(),
+                          dense: true,
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _statusLabel(String? status) {
+    switch (status) {
+      case 'drafted':
+        return 'Đã lập';
+      case 'pending_approval':
+        return 'Chờ duyệt';
+      case 'approved':
+        return 'Đã duyệt';
+      case 'completed':
+        return 'Hoàn thành';
+      case 'rejected':
+        return 'Từ chối';
+      default:
+        return status ?? '—';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
     final all = s.history;
+    final scheme = Theme.of(context).colorScheme;
 
-    final filtered = _query.isEmpty
-        ? all
-        : all.where((h) {
-            final q = _query.toLowerCase();
-            return h.customer.toLowerCase().contains(q) ||
-                h.productName.toLowerCase().contains(q) ||
-                h.structure.toLowerCase().contains(q);
-          }).toList();
+    final filtered = all.where((h) {
+      final matchQuery = _query.isEmpty ||
+          h.customer.toLowerCase().contains(_query.toLowerCase()) ||
+          h.productName.toLowerCase().contains(_query.toLowerCase()) ||
+          h.structure.toLowerCase().contains(_query.toLowerCase());
+      final matchStatus = _filterStatus == null ||
+          h.quoteStatus == _filterStatus ||
+          (_filterStatus == 'approved' &&
+              (h.quoteStatus == 'approved' || h.quoteStatus == 'pending_approval'));
+      return matchQuery && matchStatus;
+    }).toList();
 
-    final totalRev =
-        all.fold<double>(0, (sum, h) => sum + h.finalPrice.toDouble() * h.quantity.toDouble());
+    final totalRev = all.fold<double>(
+        0, (sum, h) => sum + h.finalPrice.toDouble() * h.quantity.toDouble());
     final approvedCount = all
         .where((h) =>
             h.quoteStatus == 'approved' || h.quoteStatus == 'completed')
         .length;
 
-    if (all.isEmpty) {
-      return _Empty();
-    }
+    if (all.isEmpty) return _Empty();
 
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+    return Column(
       children: [
-        _StatsRow(
-          totalQuotes: all.length,
-          totalRevenue: totalRev,
-          approved: approvedCount,
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          decoration: InputDecoration(
-            hintText: 'Tìm khách hàng, sản phẩm, cấu trúc…',
-            prefixIcon: const Icon(Icons.search, size: 20),
-            suffixIcon: _query.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.close, size: 18),
-                    onPressed: () => setState(() => _query = ''),
-                  )
-                : null,
+        // Stats
+        Container(
+          color: scheme.surface,
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+          child: _StatsRow(
+            totalQuotes: all.length,
+            totalRevenue: totalRev,
+            approved: approvedCount,
           ),
-          onChanged: (v) => setState(() => _query = v),
         ),
-        const SizedBox(height: 12),
-        Row(
-          children: [
-            Text('${filtered.length} báo giá',
-                style: Theme.of(context).textTheme.titleSmall),
-            const Spacer(),
-            Text('Vuốt sang trái để xoá',
-                style: Theme.of(context).textTheme.bodySmall),
-          ],
-        ),
-        const SizedBox(height: 8),
-        if (filtered.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 32),
-            child: Center(
-                child: Text('Không tìm thấy báo giá phù hợp',
-                    style: Theme.of(context).textTheme.bodyMedium)),
+
+        // Search bar
+        Container(
+          color: scheme.surface,
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          child: Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Tìm khách hàng, sản phẩm…',
+                    prefixIcon: const Icon(Icons.search, size: 20),
+                    suffixIcon: _query.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: () => setState(() => _query = ''),
+                          )
+                        : null,
+                    isDense: true,
+                  ),
+                  onChanged: (v) => setState(() => _query = v),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                tooltip: 'Xem dạng bảng (phóng to)',
+                icon: const Icon(Icons.table_chart_outlined),
+                style: IconButton.styleFrom(
+                  backgroundColor:
+                      scheme.surfaceContainerHighest.withValues(alpha: 0.6),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+                onPressed: filtered.isEmpty
+                    ? null
+                    : () => _openHistoryTable(context, filtered),
+              ),
+            ],
           ),
-        for (final h in filtered) ...[
-          _SwipeableCard(item: h, state: s),
-          const SizedBox(height: 10),
-        ],
+        ),
+
+        // Tab bar filter
+        Container(
+          color: scheme.surface,
+          child: TabBar(
+            controller: _tabCtrl,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelColor: scheme.primary,
+            unselectedLabelColor: scheme.onSurfaceVariant,
+            indicatorColor: scheme.primary,
+            indicatorWeight: 2.5,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelStyle: const TextStyle(
+                fontWeight: FontWeight.w700, fontSize: 12.5),
+            unselectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.w500, fontSize: 12.5),
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            tabs: _tabs.map((t) {
+              final count = t.$1 == null
+                  ? all.length
+                  : all.where((h) => h.quoteStatus == t.$1).length;
+              return Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(t.$2),
+                    if (count > 0) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 1),
+                        decoration: BoxDecoration(
+                          color: scheme.primary.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(count.toString(),
+                            style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: scheme.primary)),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+
+        const Divider(height: 1),
+
+        // List
+        Expanded(
+          child: filtered.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.search_off,
+                            size: 56, color: scheme.onSurfaceVariant.withValues(alpha: 0.4)),
+                        const SizedBox(height: 12),
+                        Text('Không tìm thấy báo giá phù hợp',
+                            style: Theme.of(context).textTheme.bodyMedium),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 32),
+                  itemCount: filtered.length + 1,
+                  separatorBuilder: (_, __) => const SizedBox(height: 8),
+                  itemBuilder: (ctx, i) {
+                    if (i == 0) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          children: [
+                            Text('${filtered.length} báo giá',
+                                style:
+                                    Theme.of(context).textTheme.titleSmall),
+                            const Spacer(),
+                            Text('← Vuốt trái để xoá',
+                                style: Theme.of(context).textTheme.bodySmall),
+                          ],
+                        ),
+                      );
+                    }
+                    return _SwipeableCard(
+                        item: filtered[i - 1], state: s);
+                  },
+                ),
+        ),
       ],
     );
   }
@@ -104,19 +361,19 @@ class _Empty extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              width: 96,
-              height: 96,
+              width: 100,
+              height: 100,
               decoration: BoxDecoration(
-                color: scheme.primary.withValues(alpha: 0.1),
+                color: scheme.primary.withValues(alpha: 0.08),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.history_edu_outlined,
-                  size: 48, color: scheme.primary),
+                  size: 50, color: scheme.primary),
             ),
             const SizedBox(height: 20),
             Text('Chưa có báo giá nào',
                 style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 6),
+            const SizedBox(height: 8),
             Text('Lưu báo giá từ tab Tính giá để xem ở đây',
                 style: Theme.of(context).textTheme.bodyMedium,
                 textAlign: TextAlign.center),
@@ -245,9 +502,20 @@ class _SwipeableCard extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.symmetric(horizontal: 24),
         decoration: BoxDecoration(
-            color: AppColors.danger.withValues(alpha: 0.15),
+            color: AppColors.danger.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(16)),
-        child: Icon(Icons.delete_outline, color: AppColors.danger, size: 26),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.delete_outline, color: AppColors.danger, size: 24),
+            const SizedBox(height: 4),
+            Text('Xoá',
+                style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.danger)),
+          ],
+        ),
       ),
       confirmDismiss: (_) async {
         return await showDialog<bool>(
@@ -270,25 +538,27 @@ class _SwipeableCard extends StatelessWidget {
             false;
       },
       onDismissed: (_) => state.deleteHistory(item.id),
-      child: _HistoryCard(item: item),
+      child: _HistoryCard(item: item, state: state),
     );
   }
 }
 
 class _HistoryCard extends StatelessWidget {
   final HistoryItem item;
-  const _HistoryCard({required this.item});
+  final AppState state;
+  const _HistoryCard({required this.item, required this.state});
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final isMang = (item.input['productType'] as String?) == 'mang';
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
         onTap: () {
           context.read<AppState>().loadFromHistory(item);
           ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Row(children: const [
+            content: const Row(children: [
               Icon(Icons.swap_horiz, color: Colors.white, size: 18),
               SizedBox(width: 8),
               Text('Đã nạp vào form — chuyển tab Tính giá'),
@@ -303,16 +573,22 @@ class _HistoryCard extends StatelessWidget {
             children: [
               Row(
                 children: [
+                  // Icon loại sản phẩm
                   Container(
-                    width: 42,
-                    height: 42,
+                    width: 44,
+                    height: 44,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: scheme.primary.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
+                      color: scheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(Icons.receipt_long,
-                        color: scheme.primary, size: 22),
+                    child: Icon(
+                      isMang
+                          ? Icons.view_stream_outlined
+                          : Icons.shopping_bag_outlined,
+                      color: scheme.primary,
+                      size: 22,
+                    ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -328,7 +604,7 @@ class _HistoryCard extends StatelessWidget {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
                         const SizedBox(height: 2),
-                        Text(item.customer,
+                        Text(item.customer.isEmpty ? '—' : item.customer,
                             style: Theme.of(context).textTheme.bodySmall,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis),
@@ -338,22 +614,22 @@ class _HistoryCard extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(Fmt.vnd(item.finalPrice),
+                      Text(Fmt.vnd(item.chotGia ?? item.finalPrice),
                           style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.w800,
                               color: scheme.primary,
                               letterSpacing: -0.3)),
                       const SizedBox(height: 2),
-                      Text('${Fmt.n(item.quantity)} đv',
-                          style:
-                              Theme.of(context).textTheme.bodySmall),
+                      Text(
+                          '/${isMang ? 'm²' : 'cái'} · ${Fmt.n(item.quantity)} đv',
+                          style: Theme.of(context).textTheme.bodySmall),
                     ],
                   ),
                 ],
               ),
               if (item.structure.isNotEmpty) ...[
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 5),
@@ -388,12 +664,108 @@ class _HistoryCard extends StatelessWidget {
                 Text(Fmt.dateTime(item.date),
                     style: Theme.of(context).textTheme.bodySmall),
                 const Spacer(),
-                if (item.quoteStatus != null)
-                  _StatusChip(status: item.quoteStatus!),
+                // Nút đổi trạng thái
+                GestureDetector(
+                  onTap: () => _showStatusMenu(context, item, state),
+                  child: item.quoteStatus != null
+                      ? _StatusChip(status: item.quoteStatus!)
+                      : Text('• Đặt trạng thái',
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: scheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w500)),
+                ),
               ]),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showStatusMenu(
+      BuildContext context, HistoryItem item, AppState state) {
+    showModalBottomSheet(
+      context: context,
+      builder: (_) => _StatusSheet(item: item, state: state),
+    );
+  }
+}
+
+class _StatusSheet extends StatelessWidget {
+  final HistoryItem item;
+  final AppState state;
+  const _StatusSheet({required this.item, required this.state});
+
+  static final _statuses = [
+    ('drafted', 'Đã lập', const Color(0xFF6B7280), Icons.edit_outlined),
+    ('sent', 'Đã gửi', const Color(0xFF3B82F6), Icons.send_outlined),
+    ('pending_approval', 'Chờ duyệt', const Color(0xFFD97706), Icons.hourglass_empty),
+    ('approved', 'Đã duyệt', const Color(0xFF8B5CF6), Icons.verified_outlined),
+    ('completed', 'Hoàn thành', const Color(0xFF059669), Icons.check_circle_outline),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Đặt trạng thái báo giá',
+              style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: 4),
+          Text('${item.customer} — ${item.productName}',
+              style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: 16),
+          ..._statuses.map((st) {
+            final isSelected = item.quoteStatus == st.$1;
+            return ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  color: st.$3.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(st.$4, size: 18, color: st.$3),
+              ),
+              title: Text(st.$2,
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 14, color: st.$3)),
+              trailing: isSelected
+                  ? Icon(Icons.check_circle, color: st.$3, size: 20)
+                  : null,
+              onTap: () async {
+                // Update history item's quoteStatus
+                final idx =
+                    state.history.indexWhere((h) => h.id == item.id);
+                if (idx < 0) return;
+                final updated = HistoryItem(
+                  id: item.id,
+                  date: item.date,
+                  customer: item.customer,
+                  productName: item.productName,
+                  structure: item.structure,
+                  quantity: item.quantity,
+                  finalPrice: item.finalPrice,
+                  chotGia: item.chotGia,
+                  quoteStatus: st.$1,
+                  input: item.input,
+                );
+                final newList = List<HistoryItem>.of(state.history);
+                newList[idx] = updated;
+                state.history = newList;
+                await state.saveHistoryDirectly(newList);
+                if (!context.mounted) return;
+                Navigator.pop(context);
+              },
+            );
+          }),
+        ],
       ),
     );
   }

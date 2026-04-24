@@ -1,7 +1,8 @@
 import { Material, ProfitRow, AppConstants } from './types';
-import materialsJson  from '../data/materials.json';
-import constantsJson  from '../data/constants.json';
-import profitJson     from '../data/profitTable.json';
+// Single source of truth: /data ở root repo (dùng chung cho web + Flutter)
+import materialsJson  from '@data/materials.json';
+import constantsJson  from '@data/constants.json';
+import profitJson     from '@data/profitTable.json';
 
 // ── Materials ────────────────────────────────────────────────────────────────
 export const INITIAL_MATERIALS: Material[] = (materialsJson as Omit<Material, 'pricePerM2'>[]).map(m => ({

@@ -1,6 +1,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// HomeShell — Header gradient + segmented chip switch + bottom navigation
+// HomeShell — Header + Floating draggable menu (giống AssistiveTouch iOS)
 // ═══════════════════════════════════════════════════════════════════════════
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -48,10 +50,7 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isTablet = width >= 720;
     final state = context.watch<AppState>();
-    final scheme = Theme.of(context).colorScheme;
 
     final header = _AppHeader(
       title: _tabs[_index].label,
@@ -62,66 +61,280 @@ class _HomeShellState extends State<HomeShell> {
           : ThemeMode.dark),
     );
 
-    if (isTablet) {
-      return Scaffold(
-        body: SafeArea(
-          child: Row(
-            children: [
-              Container(
-                width: width >= 1100 ? 220 : 84,
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                header,
+                Expanded(child: _body()),
+              ],
+            ),
+            // Floating draggable menu — luôn nằm trên nội dung
+            _FloatingNavMenu(
+              tabs: _tabs,
+              selected: _index,
+              onSelect: (i) => setState(() => _index = i),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Floating draggable menu — kéo thả tự do, không neo, idle thì mờ
+// ─────────────────────────────────────────────────────────────────────────────
+class _FloatingNavMenu extends StatefulWidget {
+  final List<_TabDef> tabs;
+  final int selected;
+  final ValueChanged<int> onSelect;
+  const _FloatingNavMenu({
+    required this.tabs,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  State<_FloatingNavMenu> createState() => _FloatingNavMenuState();
+}
+
+class _FloatingNavMenuState extends State<_FloatingNavMenu> {
+  // Vị trí góc trên-trái của nút FAB. null = chưa init → đặt mặc định ở góc dưới phải.
+  Offset? _pos;
+  bool _menuOpen = false;
+  bool _dimmed = false;
+  Timer? _idleTimer;
+
+  static const double _fabSize = 56.0;
+  static const double _margin = 16.0;
+  static const Duration _idleAfter = Duration(seconds: 3);
+
+  @override
+  void initState() {
+    super.initState();
+    _scheduleDim();
+  }
+
+  @override
+  void dispose() {
+    _idleTimer?.cancel();
+    super.dispose();
+  }
+
+  void _scheduleDim() {
+    _idleTimer?.cancel();
+    _dimmed = false;
+    _idleTimer = Timer(_idleAfter, () {
+      if (!mounted || _menuOpen) return;
+      setState(() => _dimmed = true);
+    });
+  }
+
+  void _wake() {
+    if (_dimmed) {
+      setState(() => _dimmed = false);
+    }
+    _scheduleDim();
+  }
+
+  Offset _defaultPos(Size screen) {
+    final padding = MediaQuery.paddingOf(context);
+    return Offset(
+      screen.width - _fabSize - _margin,
+      screen.height - _fabSize - _margin - padding.bottom - 8,
+    );
+  }
+
+  Offset _clamp(Offset raw, Size screen) {
+    final padding = MediaQuery.paddingOf(context);
+    final minX = _margin;
+    final minY = padding.top + _margin;
+    final maxX = screen.width - _fabSize - _margin;
+    final maxY = screen.height - _fabSize - _margin - padding.bottom;
+    return Offset(
+      raw.dx.clamp(minX, maxX),
+      raw.dy.clamp(minY, maxY),
+    );
+  }
+
+  void _toggleMenu() {
+    setState(() => _menuOpen = !_menuOpen);
+    _wake();
+  }
+
+  void _select(int i) {
+    widget.onSelect(i);
+    setState(() => _menuOpen = false);
+    _scheduleDim();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final size = MediaQuery.sizeOf(context);
+    _pos ??= _defaultPos(size);
+    final pos = _clamp(_pos!, size);
+    final scheme = Theme.of(context).colorScheme;
+
+    // Hướng bung popup: nếu nút ở nửa dưới → bung lên trên, ngược lại bung xuống.
+    final openUp = pos.dy > size.height / 2;
+    // Căn ngang: nếu nút ở nửa phải → align phải, ngược lại align trái.
+    final alignRight = pos.dx > size.width / 2;
+
+    const popupItemH = 52.0;
+    final popupHeight = widget.tabs.length * popupItemH + 16;
+    const popupWidth = 200.0;
+
+    final popupTop = openUp ? pos.dy - popupHeight - 8 : pos.dy + _fabSize + 8;
+    final popupLeft = alignRight
+        ? pos.dx + _fabSize - popupWidth
+        : pos.dx.toDouble();
+
+    return Stack(
+      children: [
+        // Backdrop để bấm ngoài đóng menu
+        if (_menuOpen)
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.translucent,
+              onTap: () => setState(() => _menuOpen = false),
+            ),
+          ),
+        // Popup
+        if (_menuOpen)
+          AnimatedPositioned(
+            duration: const Duration(milliseconds: 180),
+            curve: Curves.easeOut,
+            top: popupTop.clamp(_margin, size.height - popupHeight - _margin),
+            left: popupLeft.clamp(_margin, size.width - popupWidth - _margin),
+            child: Material(
+              elevation: 12,
+              borderRadius: BorderRadius.circular(16),
+              color: scheme.surface,
+              shadowColor: Colors.black.withValues(alpha: 0.3),
+              child: Container(
+                width: popupWidth,
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 decoration: BoxDecoration(
-                  color: scheme.surface,
-                  border: Border(
-                      right: BorderSide(
-                          color:
-                              scheme.outlineVariant.withValues(alpha: 0.4))),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: scheme.outlineVariant.withValues(alpha: 0.4),
+                  ),
                 ),
-                child: _SidebarNav(
-                  tabs: _tabs,
-                  selected: _index,
-                  expanded: width >= 1100,
-                  onSelect: (i) => setState(() => _index = i),
-                  themeMode: state.themeMode,
-                  onToggleTheme: () => state.setThemeMode(
-                      state.themeMode == ThemeMode.dark
-                          ? ThemeMode.light
-                          : ThemeMode.dark),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (int i = 0; i < widget.tabs.length; i++)
+                      _PopupItem(
+                        tab: widget.tabs[i],
+                        selected: i == widget.selected,
+                        onTap: () => _select(i),
+                        height: popupItemH,
+                      ),
+                  ],
                 ),
               ),
-              Expanded(
-                child: Column(
-                  children: [
-                    header,
-                    Expanded(child: _body()),
+            ),
+          ),
+        // Nút FAB kéo thả
+        Positioned(
+          left: pos.dx,
+          top: pos.dy,
+          child: GestureDetector(
+            onPanStart: (_) => _wake(),
+            onPanUpdate: (details) {
+              setState(() {
+                _pos = (_pos ?? pos) + details.delta;
+              });
+              _wake();
+            },
+            onPanEnd: (_) {
+              setState(() => _pos = _clamp(_pos!, size));
+              _scheduleDim();
+            },
+            onTap: _toggleMenu,
+            child: AnimatedOpacity(
+              duration: const Duration(milliseconds: 350),
+              opacity: _dimmed ? 0.4 : 1.0,
+              child: Container(
+                width: _fabSize,
+                height: _fabSize,
+                decoration: BoxDecoration(
+                  gradient: AppGradients.brandMark,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: AppColors.seed.withValues(alpha: 0.4),
+                      blurRadius: 16,
+                      offset: const Offset(0, 6),
+                    ),
                   ],
+                ),
+                child: Icon(
+                  _menuOpen ? Icons.close_rounded : Icons.apps_rounded,
+                  color: Colors.white,
+                  size: 26,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PopupItem extends StatelessWidget {
+  final _TabDef tab;
+  final bool selected;
+  final VoidCallback onTap;
+  final double height;
+  const _PopupItem({
+    required this.tab,
+    required this.selected,
+    required this.onTap,
+    required this.height,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          height: height,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            color: selected
+                ? scheme.primary.withValues(alpha: 0.12)
+                : Colors.transparent,
+          ),
+          child: Row(
+            children: [
+              Icon(
+                selected ? tab.iconSelected : tab.icon,
+                size: 22,
+                color: selected ? scheme.primary : scheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  tab.label,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                    color: selected ? scheme.primary : scheme.onSurface,
+                  ),
                 ),
               ),
             ],
           ),
         ),
-      );
-    }
-
-    return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            header,
-            Expanded(child: _body()),
-          ],
-        ),
-      ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _index,
-        onDestinationSelected: (i) => setState(() => _index = i),
-        destinations: _tabs
-            .map((t) => NavigationDestination(
-                  icon: Icon(t.icon),
-                  selectedIcon: Icon(t.iconSelected),
-                  label: t.label,
-                ))
-            .toList(),
       ),
     );
   }
@@ -201,145 +414,6 @@ class _AppHeader extends StatelessWidget {
             onPressed: onToggleTheme,
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _SidebarNav extends StatelessWidget {
-  final List<_TabDef> tabs;
-  final int selected;
-  final bool expanded;
-  final ValueChanged<int> onSelect;
-  final ThemeMode themeMode;
-  final VoidCallback onToggleTheme;
-  const _SidebarNav({
-    required this.tabs,
-    required this.selected,
-    required this.expanded,
-    required this.onSelect,
-    required this.themeMode,
-    required this.onToggleTheme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Container(
-            padding:
-                EdgeInsets.symmetric(horizontal: expanded ? 12 : 6, vertical: 8),
-            child: Row(
-              mainAxisAlignment: expanded
-                  ? MainAxisAlignment.start
-                  : MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    gradient: AppGradients.brandMark,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Text('LTS',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 10)),
-                ),
-                if (expanded) ...[
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text('Pricing',
-                        style: Theme.of(context).textTheme.titleMedium,
-                        overflow: TextOverflow.ellipsis),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          for (int i = 0; i < tabs.length; i++)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: _SidebarItem(
-                tab: tabs[i],
-                selected: i == selected,
-                expanded: expanded,
-                onTap: () => onSelect(i),
-              ),
-            ),
-          const Spacer(),
-          IconButton(
-            tooltip: 'Đổi theme',
-            icon: Icon(
-              themeMode == ThemeMode.dark
-                  ? Icons.light_mode_outlined
-                  : Icons.dark_mode_outlined,
-              color: scheme.onSurfaceVariant,
-            ),
-            onPressed: onToggleTheme,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SidebarItem extends StatelessWidget {
-  final _TabDef tab;
-  final bool selected;
-  final bool expanded;
-  final VoidCallback onTap;
-  const _SidebarItem(
-      {required this.tab,
-      required this.selected,
-      required this.expanded,
-      required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: selected
-          ? scheme.primary.withValues(alpha: 0.12)
-          : Colors.transparent,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(12),
-        onTap: onTap,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-              horizontal: expanded ? 12 : 6, vertical: 12),
-          child: Row(
-            mainAxisAlignment: expanded
-                ? MainAxisAlignment.start
-                : MainAxisAlignment.center,
-            children: [
-              Icon(selected ? tab.iconSelected : tab.icon,
-                  size: 22,
-                  color: selected ? scheme.primary : scheme.onSurfaceVariant),
-              if (expanded) ...[
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(tab.label,
-                      style: TextStyle(
-                          fontSize: 14,
-                          fontWeight:
-                              selected ? FontWeight.w700 : FontWeight.w500,
-                          color: selected
-                              ? scheme.primary
-                              : scheme.onSurface)),
-                ),
-              ],
-            ],
-          ),
-        ),
       ),
     );
   }

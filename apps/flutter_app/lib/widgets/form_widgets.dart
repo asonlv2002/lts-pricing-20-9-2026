@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Form widgets — section card, labeled field, number/text/chip select
-// Phong cách Material 3: rounded 12, border nhẹ, padding thoáng
+// Form widgets — section card, labeled field, number/text/chip/dropdown
+// Tối ưu mobile: touch target lớn, format số VN, animation mượt
 // ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,6 +14,8 @@ class SectionCard extends StatelessWidget {
   final Widget? trailing;
   final List<Widget> children;
   final EdgeInsets? padding;
+  final bool collapsible;
+  final bool initiallyExpanded;
 
   const SectionCard({
     super.key,
@@ -24,15 +26,53 @@ class SectionCard extends StatelessWidget {
     this.trailing,
     required this.children,
     this.padding,
+    this.collapsible = false,
+    this.initiallyExpanded = true,
   });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final color = iconColor ?? scheme.primary;
+
+    if (collapsible) {
+      return Card(
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            initiallyExpanded: initiallyExpanded,
+            tilePadding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+            childrenPadding: padding ?? const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            leading: icon != null
+                ? Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(icon, size: 18, color: color),
+                  )
+                : null,
+            title: Text(title, style: Theme.of(context).textTheme.titleSmall),
+            subtitle: subtitle != null
+                ? Text(subtitle!, style: Theme.of(context).textTheme.bodySmall)
+                : null,
+            trailing: trailing,
+            shape: const RoundedRectangleBorder(),
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Card(
       child: Padding(
-        padding: padding ?? const EdgeInsets.fromLTRB(18, 16, 18, 18),
+        padding: padding ?? const EdgeInsets.fromLTRB(16, 14, 16, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -55,7 +95,7 @@ class SectionCard extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(title,
-                          style: Theme.of(context).textTheme.titleMedium),
+                          style: Theme.of(context).textTheme.titleSmall),
                       if (subtitle != null) ...[
                         const SizedBox(height: 2),
                         Text(subtitle!,
@@ -67,7 +107,7 @@ class SectionCard extends StatelessWidget {
                 if (trailing != null) trailing!,
               ],
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 14),
             ...children,
           ],
         ),
@@ -82,6 +122,7 @@ class LabeledField extends StatelessWidget {
   final String? hint;
   final String? suffix;
   final IconData? icon;
+  final Widget? hintWidget;
   const LabeledField({
     super.key,
     required this.label,
@@ -89,6 +130,7 @@ class LabeledField extends StatelessWidget {
     this.hint,
     this.suffix,
     this.icon,
+    this.hintWidget,
   });
 
   @override
@@ -127,6 +169,11 @@ class LabeledField extends StatelessWidget {
                       .textTheme
                       .bodySmall
                       ?.copyWith(fontSize: 11)),
+            ),
+          if (hintWidget != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 5),
+              child: hintWidget!,
             ),
         ],
       ),
@@ -196,6 +243,7 @@ class _TxtFieldState extends State<TxtField> {
   }
 }
 
+/// NumField với format VN: dấu chấm ngàn khi không focus, nhập số tự nhiên khi focus
 class NumField extends StatefulWidget {
   final num initial;
   final ValueChanged<double> onChanged;
@@ -219,25 +267,50 @@ class _NumFieldState extends State<NumField> {
   late TextEditingController _c;
   bool _focused = false;
 
-  String _fmt(num v) {
-    if (widget.integer) return v.toInt().toString();
+  String _fmtDisplay(num v) {
+    if (widget.integer) {
+      final n = v.toInt();
+      if (n == 0) return '';
+      return _addThousandDots(n.toString());
+    }
     final d = v.toDouble();
+    if (d == 0.0) return '';
+    if (d == d.roundToDouble()) return _addThousandDots(d.toInt().toString());
+    return d.toString();
+  }
+
+  String _fmtEdit(num v) {
+    if (widget.integer) return v.toInt() == 0 ? '' : v.toInt().toString();
+    final d = v.toDouble();
+    if (d == 0.0) return '';
     if (d == d.roundToDouble()) return d.toInt().toString();
     return d.toString();
+  }
+
+  String _addThousandDots(String digits) {
+    if (digits.length <= 3) return digits;
+    final result = StringBuffer();
+    int count = 0;
+    for (int i = digits.length - 1; i >= 0; i--) {
+      if (count > 0 && count % 3 == 0) result.write('.');
+      result.write(digits[i]);
+      count++;
+    }
+    return result.toString().split('').reversed.join();
   }
 
   @override
   void initState() {
     super.initState();
-    _c = TextEditingController(text: _fmt(widget.initial));
+    _c = TextEditingController(text: _fmtDisplay(widget.initial));
   }
 
   @override
   void didUpdateWidget(covariant NumField old) {
     super.didUpdateWidget(old);
-    final newText = _fmt(widget.initial);
-    if (newText != _c.text && !_focused) {
-      _c.text = newText;
+    if (!_focused) {
+      final newText = _fmtDisplay(widget.initial);
+      if (newText != _c.text) _c.text = newText;
     }
   }
 
@@ -250,7 +323,41 @@ class _NumFieldState extends State<NumField> {
   @override
   Widget build(BuildContext context) {
     return Focus(
-      onFocusChange: (f) => setState(() => _focused = f),
+      onFocusChange: (f) {
+        setState(() => _focused = f);
+        if (f) {
+          // khi vào focus: hiện số thuần không có dấu chấm ngàn
+          final editText = _fmtEdit(widget.initial);
+          _c.text = editText;
+          _c.selection = TextSelection(
+              baseOffset: 0, extentOffset: editText.length);
+        } else {
+          // khi rời focus: format lại có dấu chấm ngàn
+          // QUAN TRỌNG: integer mode -> '.' là dấu ngàn -> xóa hết
+          //             decimal mode -> '.' là thập phân -> giữ dấu '.' cuối,
+          //             chỉ xóa các '.' phía trước (nếu user lỡ format ngàn)
+          final raw = _c.text.replaceAll(',', '.');
+          double parsed;
+          if (widget.integer) {
+            parsed = double.tryParse(raw.replaceAll('.', '')) ?? 0;
+          } else {
+            // Giữ dấu '.' cuối cùng (thập phân), xóa các '.' phía trước
+            final lastDot = raw.lastIndexOf('.');
+            if (lastDot < 0) {
+              parsed = double.tryParse(raw) ?? 0;
+            } else {
+              final intPart =
+                  raw.substring(0, lastDot).replaceAll('.', '');
+              final decPart = raw.substring(lastDot + 1);
+              parsed = double.tryParse(
+                      decPart.isEmpty ? intPart : '$intPart.$decPart') ??
+                  0;
+            }
+          }
+          widget.onChanged(parsed);
+          _c.text = _fmtDisplay(parsed);
+        }
+      },
       child: TextField(
         controller: _c,
         decoration: InputDecoration(
@@ -267,6 +374,7 @@ class _NumFieldState extends State<NumField> {
               RegExp(widget.integer ? r'^\d*' : r'^[\d.,]*')),
         ],
         onChanged: (s) {
+          // Khi đang gõ (focused): chỉ thay ',' thành '.', không động vào dấu '.'
           final normalized = s.replaceAll(',', '.');
           final parsed = double.tryParse(normalized);
           widget.onChanged(parsed ?? 0);
@@ -276,7 +384,64 @@ class _NumFieldState extends State<NumField> {
   }
 }
 
-/// Chip select — radio giữa các giá trị, wrap auto.
+/// Dropdown dùng cho danh sách tuỳ chọn — native và mobile-friendly
+class DropdownField<T> extends StatelessWidget {
+  final List<(T? value, String label)> options;
+  final T? selected;
+  final ValueChanged<T?> onChanged;
+  final String? hintText;
+  final bool enabled;
+  const DropdownField({
+    super.key,
+    required this.options,
+    required this.selected,
+    required this.onChanged,
+    this.hintText,
+    this.enabled = true,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    // Chỉ giữ item có value duy nhất (tránh assertion "exactly one item")
+    final seen = <T?>{};
+    final uniqueOptions = <(T?, String)>[];
+    for (final o in options) {
+      if (seen.add(o.$1)) uniqueOptions.add(o);
+    }
+    // Nếu selected không khớp option nào → coi như null để tránh vỡ assertion
+    final matchCount = uniqueOptions.where((o) => o.$1 == selected).length;
+    final safeSelected = matchCount == 1 ? selected : null;
+
+    return DropdownButtonFormField<T>(
+      value: safeSelected,
+      isExpanded: true,
+      decoration: InputDecoration(
+        hintText: hintText,
+        enabled: enabled,
+        filled: true,
+        fillColor: enabled
+            ? null
+            : scheme.surfaceContainerHighest.withValues(alpha: 0.2),
+      ),
+      items: uniqueOptions
+          .map((o) => DropdownMenuItem<T>(
+                value: o.$1,
+                child: Text(o.$2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: 14,
+                        color: o.$1 == null
+                            ? scheme.onSurfaceVariant
+                            : scheme.onSurface)),
+              ))
+          .toList(),
+      onChanged: enabled ? onChanged : null,
+    );
+  }
+}
+
+/// Chip select — radio giữa các giá trị, wrap auto. Tối ưu kích cỡ touch target.
 class ChipSelect<T> extends StatelessWidget {
   final List<(T value, String label)> options;
   final T selected;
@@ -302,7 +467,7 @@ class ChipSelect<T> extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
             padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
               color: isSelected
                   ? scheme.primary.withValues(alpha: 0.12)
@@ -319,12 +484,12 @@ class ChipSelect<T> extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (isSelected) ...[
-                  Icon(Icons.check_circle, size: 15, color: scheme.primary),
-                  const SizedBox(width: 6),
+                  Icon(Icons.check_circle, size: 14, color: scheme.primary),
+                  const SizedBox(width: 5),
                 ],
                 Text(o.$2,
                     style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 13.5,
                         fontWeight:
                             isSelected ? FontWeight.w700 : FontWeight.w500,
                         color: isSelected
@@ -361,45 +526,164 @@ class ToggleTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final color = accent ?? scheme.primary;
+    return GestureDetector(
+      onTap: () => onChanged(!value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: value
+              ? color.withValues(alpha: 0.08)
+              : scheme.surfaceContainerHighest.withValues(alpha: 0.25),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: value
+                  ? color.withValues(alpha: 0.35)
+                  : scheme.outlineVariant.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon,
+                size: 18, color: value ? color : scheme.onSurfaceVariant),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(title,
+                      style: TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurface)),
+                  if (subtitle != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(subtitle!,
+                          style: Theme.of(context).textTheme.bodySmall),
+                    ),
+                ],
+              ),
+            ),
+            Switch.adaptive(
+                value: value,
+                onChanged: onChanged,
+                activeThumbColor: color),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Highlight info box
+class InfoBox extends StatelessWidget {
+  final String text;
+  final Color color;
+  final IconData icon;
+  const InfoBox(
+      {super.key,
+      required this.text,
+      required this.color,
+      this.icon = Icons.info_outline});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: value
-            ? color.withValues(alpha: 0.08)
-            : scheme.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: value
-                ? color.withValues(alpha: 0.35)
-                : scheme.outlineVariant.withValues(alpha: 0.4)),
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
-          Icon(icon,
-              size: 18, color: value ? color : scheme.onSurfaceVariant),
-          const SizedBox(width: 10),
+          Icon(icon, size: 15, color: color),
+          const SizedBox(width: 8),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(title,
-                    style: TextStyle(
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                        color: scheme.onSurface)),
-                if (subtitle != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Text(subtitle!,
-                        style: Theme.of(context).textTheme.bodySmall),
-                  ),
-              ],
-            ),
+            child: Text(text,
+                style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: color)),
           ),
-          Switch.adaptive(value: value, onChanged: onChanged, activeThumbColor: color),
         ],
+      ),
+    );
+  }
+}
+
+/// Warning chip hiển thị validation
+class WarningText extends StatelessWidget {
+  final String text;
+  const WarningText(this.text, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
+      child: Row(
+        children: [
+          const Icon(Icons.warning_amber_rounded,
+              size: 13, color: Color(0xFFD97706)),
+          const SizedBox(width: 4),
+          Text(text,
+              style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFFD97706))),
+        ],
+      ),
+    );
+  }
+}
+
+/// CheckboxRow — compact checkbox cho các option phụ
+class CheckboxRow extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final Color? color;
+  const CheckboxRow({
+    super.key,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final c = color ?? scheme.primary;
+    return InkWell(
+      onTap: () => onChanged(!value),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 20,
+              height: 20,
+              child: Checkbox(
+                value: value,
+                onChanged: (v) => onChanged(v ?? false),
+                activeColor: c,
+                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                visualDensity: VisualDensity.compact,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    color: scheme.onSurface)),
+          ],
+        ),
       ),
     );
   }

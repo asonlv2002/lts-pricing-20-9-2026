@@ -63,7 +63,10 @@ class EngineService {
     if (raw.isEmpty) return null;
     final decoded = jsonDecode(raw);
     if (decoded is Map && decoded['error'] != null) {
-      throw Exception('Engine returned error: ${decoded['error']}');
+      final err = decoded['error'].toString();
+      // null_result = input chưa đủ (thiếu material, quantity=0...) — không phải lỗi thật
+      if (err == 'null_result') return null;
+      throw Exception('Engine returned error: $err');
     }
     if (decoded == null) return null;
     return CalculateResult.fromJson((decoded as Map).cast<String, dynamic>());

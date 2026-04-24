@@ -50,6 +50,10 @@ class AppState extends ChangeNotifier {
     profitTable = LocalStorage.instance.readProfit() ?? await _loadProfitAsset();
 
     history = LocalStorage.instance.readHistory();
+    if (history.isEmpty) {
+      history = await _loadHistoryAsset();
+      if (history.isNotEmpty) await LocalStorage.instance.writeHistory(history);
+    }
     productionOrders = LocalStorage.instance.readLSX();
 
     notifyListeners();
@@ -83,9 +87,34 @@ class AppState extends ChangeNotifier {
     return rows.map((e) => ProfitRow.fromJson((e as Map).cast<String, dynamic>())).toList();
   }
 
+  static Future<List<HistoryItem>> _loadHistoryAsset() async {
+    try {
+      final raw = await rootBundle.loadString('assets/data/history.json');
+      final list = jsonDecode(raw) as List;
+      return list
+          .map((e) => HistoryItem.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
   // ── Input updates ────────────────────────────────────────────────────────
   void updateInput(String key, dynamic value) {
     currentInput = currentInput.withField(key, value);
+    // Auto-compute cylLength khi spreadWidth hoặc numImages đổi
+    // Công thức (theo web): cylLength = max(0.7, spreadWidth * numImages + 0.1)
+    if (key == 'spreadWidth' || key == 'numImages') {
+      final sw = (currentInput.raw['spreadWidth'] as num?)?.toDouble() ?? 0;
+      final ni = (currentInput.raw['numImages'] as num?)?.toInt() ?? 1;
+      if (sw > 0) {
+        final computed = (sw * ni) + 0.1;
+        final cyl = computed < 0.7 ? 0.7 : computed;
+        // Làm tròn 2 chữ số thập phân để tránh lỗi floating point
+        final rounded = (cyl * 100).round() / 100.0;
+        currentInput = currentInput.withField('cylLength', rounded);
+      }
+    }
     notifyListeners();
     _scheduleRecompute();
   }
@@ -121,6 +150,17 @@ class AppState extends ChangeNotifier {
   /// Force tính ngay (dùng khi user nhấn nút).
   void recomputeNow() => _recompute();
 
+  /// Reset config (materials/constants/profit) về defaults từ assets.
+  /// Dùng khi user muốn lấy lại data gốc đi kèm app, bỏ override đã lưu.
+  Future<void> resetConfigToDefaults() async {
+    await LocalStorage.instance.clearConfigOverrides();
+    materials = await _loadMaterialsAsset();
+    constants = await _loadConstantsAsset();
+    profitTable = await _loadProfitAsset();
+    notifyListeners();
+    _scheduleRecompute();
+  }
+
   // ── History ──────────────────────────────────────────────────────────────
   Future<void> saveCurrentToHistory() async {
     if (currentResult == null) return;
@@ -138,6 +178,13 @@ class AppState extends ChangeNotifier {
     );
     history = [item, ...history];
     await LocalStorage.instance.writeHistory(history);
+    notifyListeners();
+  }
+
+  /// Lưu trực tiếp danh sách history (dùng khi cập nhật trạng thái từ màn Lịch sử)
+  Future<void> saveHistoryDirectly(List<HistoryItem> items) async {
+    history = items;
+    await LocalStorage.instance.writeHistory(items);
     notifyListeners();
   }
 

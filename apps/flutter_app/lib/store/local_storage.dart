@@ -105,4 +105,11 @@ class LocalStorage {
   // ── Theme mode ────────────────────────────────────────────────────────────
   String readThemeMode() => _sp.getString(_kThemeMode) ?? 'system';
   Future<void> writeThemeMode(String m) => _sp.setString(_kThemeMode, m);
+
+  // ── Clear cached config (force reload từ assets next time) ────────────────
+  Future<void> clearConfigOverrides() async {
+    await _sp.remove(_kMaterials);
+    await _sp.remove(_kConstants);
+    await _sp.remove(_kProfit);
+  }
 }
