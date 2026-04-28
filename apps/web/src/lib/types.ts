@@ -111,6 +111,7 @@ export interface CalculateInput {
   cylUnitPrice: number;
   cylType: 'A' | 'B' | 'custom'; // loại trục: A (7.3tr), B (6.5tr), hoặc tự nhập
   cylIncluded: boolean;           // true = bao trục (phân bổ vào đơn giá), false = tách riêng
+  targetThickness?: number;
   micOverrides?: Record<string, number>;
 }
 

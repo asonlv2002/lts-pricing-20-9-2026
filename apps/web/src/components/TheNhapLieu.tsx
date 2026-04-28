@@ -227,14 +227,38 @@ export default function InputCard() {
       );
     }
 
+    const sumMic = layers.reduce((s, l) => s + (l.override || l.mat!.thickness), 0);
+    const glueMic = (layers.length - 1) * 3;
+    const totalMic = sumMic + glueMic;
+    const target = input.targetThickness || 0;
+    const outOfRange = target > 0 && (totalMic < target - 5 || totalMic > target + 5);
+
     return (
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '14px', flexWrap: 'wrap' }}>
-        {layers.map((l, i) => (
-          <div key={i} style={{ flex: 1, minWidth: '40px', background: 'var(--surface2)', border: '1px solid var(--border)', padding: '6px 4px', borderRadius: '4px', textAlign: 'center' }}>
-            <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text)' }}>{l.mat!.name.split(' ')[0]}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text)' }}>{l.override || l.mat!.thickness}mic</div>
+      <div style={{ marginBottom: '14px' }}>
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+          {layers.map((l, i) => (
+            <React.Fragment key={i}>
+              <div style={{ flex: 1, minWidth: '40px', background: 'var(--surface2)', border: '1px solid var(--border)', padding: '6px 4px', borderRadius: '4px', textAlign: 'center' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text)' }}>{l.mat!.name.split(' ')[0]}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text)' }}>{l.override || l.mat!.thickness}mic</div>
+              </div>
+              {i < layers.length - 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.65rem', color: 'var(--text-secondary)', opacity: 0.7 }}>3mic</div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+        {layers.length > 0 && (
+          <div style={{ fontSize: '0.75rem', marginTop: '6px', color: 'var(--text-secondary)' }}>
+            Tổng: <strong>{totalMic}</strong> mic (vật liệu {sumMic} + keo {glueMic})
+            {target > 0 && <span> — Mục tiêu: {target} mic (±5)</span>}
           </div>
-        ))}
+        )}
+        {outOfRange && (
+          <div style={{ fontSize: '0.75rem', marginTop: '4px', padding: '6px 10px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '4px', color: '#dc2626' }}>
+            Tổng độ dày {totalMic} mic nằm ngoài khoảng [{target - 5}, {target + 5}]. Vui lòng điều chỉnh lớp vật liệu.
+          </div>
+        )}
       </div>
     );
   };
@@ -371,6 +395,12 @@ export default function InputCard() {
               <option value="5">5 màu</option><option value="6">6 màu</option>
               <option value="7">7 màu</option><option value="8">8 màu</option>
             </select>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Độ dày mục tiêu (mic)</label>
+            <FormattedNumberInput className="form-input" value={input.targetThickness || 0}
+              placeholder="VD: 150" onChange={(val: number) => capNhatDauVao({ targetThickness: val })} />
           </div>
 
           <StructurePreview />

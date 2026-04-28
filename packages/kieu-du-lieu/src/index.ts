@@ -121,6 +121,7 @@ export interface DauVaoTinhGia {
   chieuDaiTruc: number;
   chuViTruc: number;
   giaTrucDonVi: number;
+  doDayMucTieu?: number;
   ghiDeDayLop?: Record<string, number>;
 }
 

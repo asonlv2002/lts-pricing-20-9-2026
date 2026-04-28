@@ -97,6 +97,7 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
     chieuDaiTruc: i.cylLength || 0,
     chuViTruc: i.cylCircum || 0,
     giaTrucDonVi: i.cylUnitPrice || 0,
+    doDayMucTieu: i.targetThickness || 0,
     ghiDeDayLop: i.micOverrides ? Object.fromEntries(
       Object.entries(i.micOverrides).map(([k, v]) => {
         // layer1Id → idLop1, layer2Id → idLop2, ...

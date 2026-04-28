@@ -178,8 +178,20 @@ export default function TrangChinh() {
         const parsed = JSON.parse(rawLichSu);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const patched = parsed.map((h: any) => ({ ...h, quoteStatus: h.quoteStatus ?? 'drafted' }));
-        dungCuaHangTinhGia.setState({ history: patched });
+          dungCuaHangTinhGia.setState({ history: patched });
         }
+      } else {
+        // Lần đầu: fetch dữ liệu mẫu từ seed file
+        fetch('/seed-history.json')
+          .then(r => r.ok ? r.json() : [])
+          .then((seed: any[]) => {
+            if (Array.isArray(seed) && seed.length > 0) {
+              const patched = seed.map((h: any) => ({ ...h, quoteStatus: h.quoteStatus ?? 'drafted' }));
+              dungCuaHangTinhGia.setState({ history: patched });
+              try { window.localStorage.setItem('lts_history', JSON.stringify(patched)); } catch {}
+            }
+          })
+          .catch(() => {});
       }
 
       // LSX

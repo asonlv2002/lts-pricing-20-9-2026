@@ -108,7 +108,7 @@ const defaultInput: CalculateInput = {
   paymentDays: 30, profitColumn: 2,
   commissionRate: 0, commissionFixedVND: 0, commissionUnit: 'percent', commissionInputValue: 0,
   bagsPerBox: 0, boxPrice: 0, shippingPerKm: 0, shippingKm: 0,
-  cylLength: 0, cylCircum: 0, cylUnitPrice: 7300000, cylType: 'A' as const, cylIncluded: false, micOverrides: {},
+  cylLength: 0, cylCircum: 0, cylUnitPrice: 7300000, cylType: 'A' as const, cylIncluded: false, targetThickness: 0, micOverrides: {},
 };
 
 // ── Store ─────────────────────────────────────────────────────────────────────
