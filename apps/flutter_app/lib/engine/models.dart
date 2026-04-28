@@ -159,6 +159,7 @@ class CalculateInput {
         'cylUnitPrice': 0,
         'cylType': 'A',
         'cylIncluded': false,
+        'targetThickness': 0,
       });
 
   factory CalculateInput.fromJson(Map<String, dynamic> j) => CalculateInput(Map.of(j));

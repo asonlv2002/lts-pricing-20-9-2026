@@ -37,7 +37,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -52,7 +51,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer2Id": 80
-      }
+      },
+      "targetThickness": 95
     }
   },
   {
@@ -92,7 +92,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -107,7 +106,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer2Id": 40
-      }
+      },
+      "targetThickness": 65
     }
   },
   {
@@ -147,7 +147,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 45,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0.03,
       "commissionFixedVND": 0,
@@ -162,7 +161,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer2Id": 80
-      }
+      },
+      "targetThickness": 100
     }
   },
   {
@@ -202,7 +202,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -217,7 +216,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer2Id": 70
-      }
+      },
+      "targetThickness": 90
     }
   },
   {
@@ -257,7 +257,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 2,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -272,7 +271,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer3Id": 100
-      }
+      },
+      "targetThickness": 135
     }
   },
   {
@@ -313,7 +313,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 2,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -328,7 +327,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer3Id": 60
-      }
+      },
+      "targetThickness": 100
     }
   },
   {
@@ -369,7 +369,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 2,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -384,7 +383,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer3Id": 90
-      }
+      },
+      "targetThickness": 120
     }
   },
   {
@@ -424,7 +424,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 2,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -439,7 +438,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer2Id": 50
-      }
+      },
+      "targetThickness": 75
     }
   },
   {
@@ -479,7 +479,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 2,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -494,7 +493,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer3Id": 60
-      }
+      },
+      "targetThickness": 100
     }
   },
   {
@@ -534,7 +534,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -549,7 +548,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer1Id": 50
-      }
+      },
+      "targetThickness": 0
     }
   },
   {
@@ -590,7 +590,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 45,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -605,7 +604,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer1Id": 60
-      }
+      },
+      "targetThickness": 0
     }
   },
   {
@@ -645,7 +645,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -660,7 +659,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer2Id": 50
-      }
+      },
+      "targetThickness": 0
     }
   },
   {
@@ -700,7 +700,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 2,
       "commissionRate": 0.02,
       "commissionFixedVND": 0,
@@ -715,7 +714,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer3Id": 90
-      }
+      },
+      "targetThickness": 125
     }
   },
   {
@@ -755,7 +755,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 15,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -768,7 +767,8 @@
       "cylLength": 0.82,
       "cylCircum": 0.4,
       "cylUnitPrice": 7300000,
-      "micOverrides": {}
+      "micOverrides": {},
+      "targetThickness": 40
     }
   },
   {
@@ -809,7 +809,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -822,7 +821,8 @@
       "cylLength": 0.72,
       "cylCircum": 0.44,
       "cylUnitPrice": 7300000,
-      "micOverrides": {}
+      "micOverrides": {},
+      "targetThickness": 65
     }
   },
   {
@@ -862,7 +862,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -875,7 +874,8 @@
       "cylLength": 0.68,
       "cylCircum": 0.36,
       "cylUnitPrice": 7300000,
-      "micOverrides": {}
+      "micOverrides": {},
+      "targetThickness": 60
     }
   },
   {
@@ -915,7 +915,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 45,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0.025,
       "commissionFixedVND": 0,
@@ -930,7 +929,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer2Id": 100
-      }
+      },
+      "targetThickness": 120
     }
   },
   {
@@ -970,7 +970,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 2,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -985,7 +984,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer2Id": 60
-      }
+      },
+      "targetThickness": 85
     }
   },
   {
@@ -1026,7 +1026,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 2,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -1039,7 +1038,8 @@
       "cylLength": 1.1,
       "cylCircum": 0.6,
       "cylUnitPrice": 7300000,
-      "micOverrides": {}
+      "micOverrides": {},
+      "targetThickness": 0
     }
   },
   {
@@ -1079,7 +1079,6 @@
       "hasTape": false,
       "hasHandle": true,
       "paymentDays": 60,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -1094,7 +1093,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer2Id": 80
-      }
+      },
+      "targetThickness": 115
     }
   },
   {
@@ -1135,7 +1135,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -1148,7 +1147,8 @@
       "cylLength": 0.58,
       "cylCircum": 0.28,
       "cylUnitPrice": 7300000,
-      "micOverrides": {}
+      "micOverrides": {},
+      "targetThickness": 80
     }
   },
   {
@@ -1188,7 +1188,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 45,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 2,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -1201,7 +1200,8 @@
       "cylLength": 0.64,
       "cylCircum": 0.32,
       "cylUnitPrice": 7300000,
-      "micOverrides": {}
+      "micOverrides": {},
+      "targetThickness": 65
     }
   },
   {
@@ -1241,7 +1241,6 @@
       "hasTape": false,
       "hasHandle": false,
       "paymentDays": 30,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 1,
       "commissionRate": 0.015,
       "commissionFixedVND": 0,
@@ -1256,7 +1255,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer1Id": 50
-      }
+      },
+      "targetThickness": 0
     }
   },
   {
@@ -1297,7 +1297,6 @@
       "hasTape": false,
       "hasHandle": true,
       "paymentDays": 60,
-      "paymentInterestRate": 0.0025,
       "profitColumn": 2,
       "commissionRate": 0,
       "commissionFixedVND": 0,
@@ -1312,7 +1311,8 @@
       "cylUnitPrice": 7300000,
       "micOverrides": {
         "layer3Id": 120
-      }
+      },
+      "targetThickness": 160
     }
   }
 ]

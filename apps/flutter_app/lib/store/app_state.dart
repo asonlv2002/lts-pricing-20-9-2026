@@ -30,6 +30,7 @@ class AppState extends ChangeNotifier {
 
   // ── UI ───────────────────────────────────────────────────────────────────
   ThemeMode themeMode = ThemeMode.system;
+  int? requestedTabIndex;
 
   Timer? _debounce;
 
@@ -196,6 +197,16 @@ class AppState extends ChangeNotifier {
 
   void loadFromHistory(HistoryItem item) {
     setInput(CalculateInput.fromJson(item.input));
+    requestTabSwitch(0);
+  }
+
+  void requestTabSwitch(int index) {
+    requestedTabIndex = index;
+    notifyListeners();
+  }
+
+  void consumeTabRequest() {
+    requestedTabIndex = null;
   }
 
   // ── Materials / Constants / Profit (cấu hình) ─────────────────────────────

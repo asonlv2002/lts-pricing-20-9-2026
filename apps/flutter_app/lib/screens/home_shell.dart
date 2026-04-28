@@ -52,6 +52,15 @@ class _HomeShellState extends State<HomeShell> {
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
 
+    if (state.requestedTabIndex != null && state.requestedTabIndex != _index) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        setState(() => _index = state.requestedTabIndex!);
+        state.consumeTabRequest();
+      });
+    } else if (state.requestedTabIndex != null) {
+      state.consumeTabRequest();
+    }
+
     final header = _AppHeader(
       title: _tabs[_index].label,
       subtitle: _tabs[_index].subtitle,

@@ -57,6 +57,7 @@ interface CalculateInput {
   shippingPerKm: number; shippingKm: number;
   cylLength: number; cylCircum: number; cylUnitPrice: number;
   cylType: 'A' | 'B' | 'custom'; cylIncluded: boolean;
+  targetThickness?: number;
   micOverrides?: Record<string, number>;
 }
 
@@ -135,6 +136,7 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
     chieuDaiTruc: i.cylLength || 0,
     chuViTruc: i.cylCircum || 0,
     giaTrucDonVi: i.cylUnitPrice || 0,
+    doDayMucTieu: i.targetThickness || 0,
     ghiDeDayLop: i.micOverrides ? Object.fromEntries(
       Object.entries(i.micOverrides).map(([k, v]) => {
         const num = k.replace('layer', '').replace('Id', '');

@@ -349,7 +349,22 @@ class _InputFormState extends State<_InputForm> {
             icon: Icons.layers_outlined,
             iconColor: AppColors.accent,
             children: [
-              _StructurePreview(materials: s.materials, input: i),
+              LabeledField(
+                label: 'Độ dày mục tiêu',
+                suffix: '(mic)',
+                icon: Icons.straighten_outlined,
+                child: NumField(
+                  initial: (i['targetThickness'] as num?) ?? 0,
+                  integer: true,
+                  suffix: 'mic',
+                  onChanged: (v) => u('targetThickness', v.toInt()),
+                ),
+              ),
+              _StructurePreview(
+                materials: s.materials,
+                input: i,
+                targetThickness: (i['targetThickness'] as num?)?.toInt() ?? 0,
+              ),
               const SizedBox(height: 8),
               _LayerPickerRow(
                 label: 'Lớp 1 (In)',
@@ -359,6 +374,7 @@ class _InputFormState extends State<_InputForm> {
                 disabled: false,
                 input: i,
                 onChanged: (v) => _onLayerChange('layer1Id', v),
+                onMicOverride: _onMicOverride,
               ),
               _LayerPickerRow(
                 label: 'Lớp 2',
@@ -367,6 +383,7 @@ class _InputFormState extends State<_InputForm> {
                 disabled: i['layer1Id'] == null,
                 input: i,
                 onChanged: (v) => _onLayerChange('layer2Id', v),
+                onMicOverride: _onMicOverride,
               ),
               _LayerPickerRow(
                 label: 'Lớp 3',
@@ -375,6 +392,7 @@ class _InputFormState extends State<_InputForm> {
                 disabled: i['layer2Id'] == null,
                 input: i,
                 onChanged: (v) => _onLayerChange('layer3Id', v),
+                onMicOverride: _onMicOverride,
               ),
               _LayerPickerRow(
                 label: 'Lớp 4',
@@ -383,6 +401,7 @@ class _InputFormState extends State<_InputForm> {
                 disabled: i['layer3Id'] == null,
                 input: i,
                 onChanged: (v) => _onLayerChange('layer4Id', v),
+                onMicOverride: _onMicOverride,
               ),
               _LayerPickerRow(
                 label: 'Lớp 5',
@@ -391,6 +410,7 @@ class _InputFormState extends State<_InputForm> {
                 disabled: i['layer4Id'] == null,
                 input: i,
                 onChanged: (v) => _onLayerChange('layer5Id', v),
+                onMicOverride: _onMicOverride,
               ),
             ],
           ),
@@ -571,7 +591,9 @@ class _InputFormState extends State<_InputForm> {
 
   void _onLayerChange(String layerKey, String? value) {
     u(layerKey, value);
-    // Cascade clear: nếu clear lớp N thì clear các lớp N+1 trở đi
+    final micOverrides = Map<String, dynamic>.from(
+        (s.currentInput.raw['micOverrides'] as Map?) ?? {});
+    micOverrides.remove(layerKey);
     if (value == null) {
       const keys = [
         'layer1Id',
@@ -583,8 +605,17 @@ class _InputFormState extends State<_InputForm> {
       final idx = keys.indexOf(layerKey);
       for (int k = idx + 1; k < keys.length; k++) {
         u(keys[k], null);
+        micOverrides.remove(keys[k]);
       }
     }
+    u('micOverrides', micOverrides);
+  }
+
+  void _onMicOverride(String layerKey, double value) {
+    final micOverrides = Map<String, dynamic>.from(
+        (s.currentInput.raw['micOverrides'] as Map?) ?? {});
+    micOverrides[layerKey] = value;
+    u('micOverrides', micOverrides);
   }
 }
 
@@ -592,16 +623,21 @@ class _InputFormState extends State<_InputForm> {
 class _StructurePreview extends StatelessWidget {
   final List<MaterialDef> materials;
   final Map<String, dynamic> input;
-  const _StructurePreview({required this.materials, required this.input});
+  final int targetThickness;
+  const _StructurePreview({
+    required this.materials,
+    required this.input,
+    this.targetThickness = 0,
+  });
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final layerIds =
-        ['layer1Id', 'layer2Id', 'layer3Id', 'layer4Id', 'layer5Id']
-            .map((k) => input[k] as String?)
-            .where((id) => id != null)
-            .toList();
+    final layerKeys = ['layer1Id', 'layer2Id', 'layer3Id', 'layer4Id', 'layer5Id'];
+    final layerIds = layerKeys
+        .map((k) => input[k] as String?)
+        .where((id) => id != null)
+        .toList();
 
     if (layerIds.isEmpty) {
       return Container(
@@ -627,6 +663,19 @@ class _StructurePreview extends StatelessWidget {
           ));
     }).toList();
 
+    // Thickness calculation
+    final micOverrides = (input['micOverrides'] as Map?)?.cast<String, dynamic>() ?? {};
+    int sumMic = 0;
+    for (int idx = 0; idx < layerIds.length; idx++) {
+      final key = layerKeys[idx];
+      final override = (micOverrides[key] as num?)?.toInt();
+      sumMic += override ?? layers[idx].thickness.toInt();
+    }
+    final glueMic = (layers.length - 1) * 3;
+    final totalMic = sumMic + glueMic;
+    final outOfRange = targetThickness > 0 &&
+        (totalMic < targetThickness - 5 || totalMic > targetThickness + 5);
+
     final colors = [
       const Color(0xFF6366F1),
       const Color(0xFF0891B2),
@@ -635,45 +684,96 @@ class _StructurePreview extends StatelessWidget {
       const Color(0xFFDC2626),
     ];
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: layers.asMap().entries.map((entry) {
-          final idx = entry.key;
-          final mat = entry.value;
-          final color = colors[idx % colors.length];
-          return Expanded(
-            child: Container(
-              margin: EdgeInsets.only(left: idx == 0 ? 0 : 4),
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: color.withValues(alpha: 0.35)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    mat.name.split(' ').first,
-                    style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: color),
-                    textAlign: TextAlign.center,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        // Layer bars with glue indicators
+        Row(
+          children: layers.asMap().entries.expand((entry) {
+            final idx = entry.key;
+            final mat = entry.value;
+            final color = colors[idx % colors.length];
+            final micKey = layerKeys[idx];
+            final override = (micOverrides[micKey] as num?)?.toInt();
+            final mic = override ?? mat.thickness.toInt();
+            return [
+              if (idx > 0)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text('3μ',
+                      style: TextStyle(
+                          fontSize: 8,
+                          color: scheme.onSurfaceVariant.withValues(alpha: 0.5))),
+                ),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: color.withValues(alpha: 0.35)),
                   ),
-                  Text(
-                    '${mat.thickness.toInt()}μ',
-                    style: TextStyle(fontSize: 9.5, color: color),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        mat.name.split(' ').first,
+                        style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: color),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      Text('${mic}μ',
+                          style: TextStyle(fontSize: 9.5, color: color)),
+                    ],
                   ),
-                ],
+                ),
               ),
+            ];
+          }).toList(),
+        ),
+        const SizedBox(height: 6),
+        // Thickness summary
+        Text(
+          'Tổng: $totalMic mic (vật liệu $sumMic + keo $glueMic)'
+          '${targetThickness > 0 ? ' — Mục tiêu: $targetThickness mic (±5)' : ''}',
+          style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant),
+        ),
+        // Validation warning
+        if (outOfRange) ...[
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.danger.withValues(alpha: 0.08),
+              border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+              borderRadius: BorderRadius.circular(8),
             ),
-          );
-        }).toList(),
-      ),
+            child: Row(
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    size: 16, color: AppColors.danger),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Tổng độ dày $totalMic mic nằm ngoài khoảng '
+                    '[${targetThickness - 5}, ${targetThickness + 5}]. '
+                    'Vui lòng điều chỉnh lớp vật liệu.',
+                    style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.danger,
+                        fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        const SizedBox(height: 12),
+      ],
     );
   }
 }
@@ -687,6 +787,7 @@ class _LayerPickerRow extends StatelessWidget {
   final bool disabled;
   final Map<String, dynamic> input;
   final ValueChanged<String?> onChanged;
+  final void Function(String layerKey, double value)? onMicOverride;
   const _LayerPickerRow({
     required this.label,
     this.icon,
@@ -695,17 +796,52 @@ class _LayerPickerRow extends StatelessWidget {
     required this.disabled,
     required this.input,
     required this.onChanged,
+    this.onMicOverride,
   });
 
   @override
   Widget build(BuildContext context) {
     if (disabled) return const SizedBox.shrink();
-    return MaterialPickerField(
-      label: label,
-      icon: icon,
-      materials: materials,
-      value: input[layerKey] as String?,
-      onChanged: onChanged,
+    final selectedId = input[layerKey] as String?;
+    final mat = selectedId != null
+        ? materials.cast<MaterialDef?>().firstWhere((m) => m!.id == selectedId, orElse: () => null)
+        : null;
+    final micOverrides = (input['micOverrides'] as Map?)?.cast<String, dynamic>() ?? {};
+    final currentMic = (micOverrides[layerKey] as num?)?.toDouble() ?? mat?.thickness ?? 0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        MaterialPickerField(
+          label: label,
+          icon: icon,
+          materials: materials,
+          value: selectedId,
+          onChanged: onChanged,
+        ),
+        if (mat != null && mat.adjustableMic == true)
+          Padding(
+            padding: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
+            child: Row(
+              children: [
+                Icon(Icons.tune, size: 14, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 6),
+                Text('Độ dày:',
+                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                const SizedBox(width: 8),
+                SizedBox(
+                  width: 100,
+                  child: NumField(
+                    initial: currentMic,
+                    integer: true,
+                    suffix: 'mic',
+                    onChanged: (v) => onMicOverride?.call(layerKey, v),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 }

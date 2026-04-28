@@ -557,14 +557,6 @@ class _HistoryCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         onTap: () {
           context.read<AppState>().loadFromHistory(item);
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: const Row(children: [
-              Icon(Icons.swap_horiz, color: Colors.white, size: 18),
-              SizedBox(width: 8),
-              Text('Đã nạp vào form — chuyển tab Tính giá'),
-            ]),
-            duration: const Duration(seconds: 2),
-          ));
         },
         child: Padding(
           padding: const EdgeInsets.all(14),
