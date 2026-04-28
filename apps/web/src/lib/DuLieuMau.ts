@@ -52,7 +52,7 @@ export const TUI_2_LOP_CA_PHE: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 1,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -65,6 +65,8 @@ export const TUI_2_LOP_CA_PHE: CalculateInput = {
   cylLength: 0.73,
   cylCircum: 0.52,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer2Id: 80 },
 };
 
@@ -93,7 +95,7 @@ export const TUI_2_LOP_BANH_QUY: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 1,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -106,6 +108,8 @@ export const TUI_2_LOP_BANH_QUY: CalculateInput = {
   cylLength: 0.79,
   cylCircum: 0.51,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer2Id: 40 },
 };
 
@@ -134,7 +138,7 @@ export const TUI_2_LOP_HAT_DIEU: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 45,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 1,
   commissionRate: 0.03,
   commissionFixedVND: 0,
@@ -147,6 +151,8 @@ export const TUI_2_LOP_HAT_DIEU: CalculateInput = {
   cylLength: 0.82,
   cylCircum: 0.60,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer2Id: 80 },
 };
 
@@ -180,7 +186,7 @@ export const TUI_3_LOP_NUOC_TUONG: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 2,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -193,6 +199,8 @@ export const TUI_3_LOP_NUOC_TUONG: CalculateInput = {
   cylLength: 0.80,
   cylCircum: 0.56,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer3Id: 100 },
 };
 
@@ -222,7 +230,7 @@ export const TUI_3_LOP_MI_GOI: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 2,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -235,6 +243,8 @@ export const TUI_3_LOP_MI_GOI: CalculateInput = {
   cylLength: 0.76,
   cylCircum: 0.48,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer3Id: 60 },
 };
 
@@ -263,7 +273,7 @@ export const TUI_2_LOP_HUT_CHAN_KHONG: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 2,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -276,6 +286,8 @@ export const TUI_2_LOP_HUT_CHAN_KHONG: CalculateInput = {
   cylLength: 0.72,
   cylCircum: 0.40,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer2Id: 70 },
 };
 
@@ -309,7 +321,7 @@ export const TUI_DAY_DUNG_ZIP_BOT_MILO: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 2,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -322,6 +334,8 @@ export const TUI_DAY_DUNG_ZIP_BOT_MILO: CalculateInput = {
   cylLength: 0.92,
   cylCircum: 0.70,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer3Id: 90 },
 };
 
@@ -350,7 +364,7 @@ export const TUI_DAY_DUNG_BANH_CHOCO: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 2,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -363,6 +377,8 @@ export const TUI_DAY_DUNG_BANH_CHOCO: CalculateInput = {
   cylLength: 0.94,
   cylCircum: 0.40,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer2Id: 50 },
 };
 
@@ -394,7 +410,7 @@ export const MANG_CO_SUA_VINAMILK: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 1,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -407,6 +423,8 @@ export const MANG_CO_SUA_VINAMILK: CalculateInput = {
   cylLength: 0.90,
   cylCircum: 0.30,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer1Id: 50 },
 };
 
@@ -434,7 +452,7 @@ export const MANG_BOC_SUA_TH_TRUE_MILK: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 45,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 1,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -447,6 +465,8 @@ export const MANG_BOC_SUA_TH_TRUE_MILK: CalculateInput = {
   cylLength: 1.12,
   cylCircum: 0.54,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer1Id: 60 },
 };
 
@@ -475,7 +495,7 @@ export const MANG_GHEP_DONG_GOI_SNACK: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 1,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -488,6 +508,8 @@ export const MANG_GHEP_DONG_GOI_SNACK: CalculateInput = {
   cylLength: 0.82,
   cylCircum: 0.60,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer2Id: 50 },
 };
 
@@ -521,7 +543,7 @@ export const TUI_NUOC_MAM_CHINSU: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 2,
   commissionRate: 0.02,
   commissionFixedVND: 0,
@@ -534,6 +556,8 @@ export const TUI_NUOC_MAM_CHINSU: CalculateInput = {
   cylLength: 0.78,
   cylCircum: 0.50,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer3Id: 90 },
 };
 
@@ -562,7 +586,7 @@ export const TUI_TRA_CAO_CAP: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 15,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 2,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -575,6 +599,8 @@ export const TUI_TRA_CAO_CAP: CalculateInput = {
   cylLength: 0.82,
   cylCircum: 0.40,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: {},
 };
 
@@ -604,7 +630,7 @@ export const TUI_DAY_DUNG_COOKIE_HAI_HA: CalculateInput = {
   hasTape: false,
   hasHandle: false,
   paymentDays: 30,
-  paymentInterestRate: 0.0025,
+  // paymentInterestRate removed,
   profitColumn: 2,
   commissionRate: 0,
   commissionFixedVND: 0,
@@ -617,6 +643,8 @@ export const TUI_DAY_DUNG_COOKIE_HAI_HA: CalculateInput = {
   cylLength: 1.02,
   cylCircum: 0.44,
   cylUnitPrice: 7300000,
+  cylType: 'A',
+  cylIncluded: false,
   micOverrides: { layer3Id: 60 },
 };
 

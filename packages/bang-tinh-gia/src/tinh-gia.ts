@@ -58,6 +58,14 @@ export function tinhGia(
   if (dauVao.loaiSanPham === 'tui' && !dauVao.loaiTui) return null;
   if (dauVao.loaiSanPham === 'mang' && !dauVao.loaiMang) return null;
 
+  const doDayMucTieu = dauVao.doDayMucTieu || 0;
+  if (doDayMucTieu > 0) {
+    const doDayTho_ = lop1.doDay + (lop2?.doDay||0) + (lop3?.doDay||0) + (lop4?.doDay||0) + (lop5?.doDay||0);
+    const soLop_ = 1 + (lop2?1:0) + (lop3?1:0) + (lop4?1:0) + (lop5?1:0);
+    const doDayThucTe = doDayTho_ + (soLop_ - 1) * 3;
+    if (doDayThucTe < doDayMucTieu - 5 || doDayThucTe > doDayMucTieu + 5) return null;
+  }
+
   const soHinh = dauVao.soHinh || 1;
   const laMang = dauVao.loaiSanPham === 'mang';
 
@@ -193,21 +201,38 @@ export function tinhGia(
   const cuocVanChuyenPerDonVi = soLuong > 0 ? tongCuocVanChuyen / soLuong : 0;
 
   const ngayThanhToanThucTe = dauVao.ngayThanhToan || 30;
-  const laiSuat30Ngay = dauVao.laiSuatThanhToan || 0.0025;
-  const laiSuatPerDonVi = (laiSuat30Ngay / 30) * ngayThanhToanThucTe * chiPhiDonVi;
+  const laiSuatCoBan  = hangSo.laiSuatCoBan  ?? 0.10;
+  const laiSuatThem   = hangSo.laiSuatThem   ?? 0.03;
+  // Công thức: (cơ sở + thêm) / 12 tháng × (số ngày / 30) × giá vốn
+  const laiSuatPerDonVi = (laiSuatCoBan + laiSuatThem) / 12 * (ngayThanhToanThucTe / 30) * chiPhiDonVi;
 
   const hoaHongCoDinhVND = dauVao.hoaHongCoDinhVND || 0;
   const hoaHongPerDonVi = dauVao.donViHoaHong === 'vnd' ? hoaHongCoDinhVND : tyLeHoaHong * chiPhiDonVi;
 
-  const giaCuoiCung = chiPhiDonVi + khoaPerDonVi + bangKeoPerDonVi + quaiXachPerDonVi
-    + thuungPerDonVi + cuocVanChuyenPerDonVi + laiSuatPerDonVi + hoaHongPerDonVi;
-
   const chieuDaiTrucThucTe = dauVao.chieuDaiTruc ?? 0;
   const chuViTrucThucTe = dauVao.chuViTruc ?? 0;
-  const giaTrucDonViThucTe = dauVao.giaTrucDonVi || hangSo.giaTrucDonVi;
+
+  // Đơn giá trục theo loại: A → giaTrucA, B → giaTrucB, custom → giaTrucDonVi nhập tay
+  const loaiTruc = dauVao.loaiTruc ?? 'A';
+  const giaTrucDonViThucTe = loaiTruc === 'A'
+    ? (hangSo.giaTrucA ?? hangSo.giaTrucDonVi)
+    : loaiTruc === 'B'
+      ? (hangSo.giaTrucB ?? 6500000)
+      : (dauVao.giaTrucDonVi || hangSo.giaTrucDonVi);
+
   const dienTichTruc = chieuDaiTrucThucTe * chuViTrucThucTe;
   const chiPhiTrucPerDonVi = dienTichTruc * giaTrucDonViThucTe;
   const chiPhiTruc = chiPhiTrucPerDonVi * (soMau || 0);
+
+  // Bao trục: phân bổ chi phí trục vào đơn giá theo định mức 200.000 m²
+  const DINH_MUC_TRUC = 200000;
+  const baoTruc = dauVao.baoTruc ?? false;
+  const chiPhiTrucPhanBo = baoTruc && chiPhiTruc > 0
+    ? (laMang ? chiPhiTruc / DINH_MUC_TRUC : chiPhiTruc / DINH_MUC_TRUC * dienTichTui)
+    : 0;
+
+  const giaCuoiCung = chiPhiDonVi + khoaPerDonVi + bangKeoPerDonVi + quaiXachPerDonVi
+    + thuungPerDonVi + cuocVanChuyenPerDonVi + laiSuatPerDonVi + hoaHongPerDonVi + chiPhiTrucPhanBo;
   const ngaySanXuat = Math.ceil(soLuong / 30000) + 4;
 
   let chuoiCauTruc = lop1.ten + ' ' + lop1.doDay;
@@ -227,9 +252,9 @@ export function tinhGia(
     thuungPerDonVi, tongTienThuung, giaThuungThucTe, soTuiPerThuungThucTe, soThuung,
     dienTichCuonMang, phiDongGoiPerDonVi, khoiLuongTare,
     cuocVanChuyenPerDonVi, tongCuocVanChuyen, tyLeCuocVanChuyen, cuocVanChuyenThucTePerKm, soKmThucTe,
-    laiSuatPerDonVi, laiSuat30Ngay, ngayThanhToan: ngayThanhToanThucTe,
+    laiSuatPerDonVi, laiSuatCoBan, laiSuatThem, ngayThanhToan: ngayThanhToanThucTe,
     hoaHongPerDonVi, giaCuoiCung,
-    chiPhiTruc, chiPhiTrucPerDonVi, dienTichTruc,
+    chiPhiTruc, chiPhiTrucPerDonVi, chiPhiTrucPhanBo, dienTichTruc,
     chieuDaiTruc: chieuDaiTrucThucTe, chuViTruc: chuViTrucThucTe, ngaySanXuat,
     cacLop: {
       in: { vatLieu: chiPhiVatLieuIn, kho: khoNLIn, met: metIn, hatHao: hatHaoIn, cpsx: cpSXIn, chiPhiSX: chiPhiSXIn, chiPhiVL: chiPhiVatLieuIn, tongCong: tongChiPhiIn } as ChiTietLop,

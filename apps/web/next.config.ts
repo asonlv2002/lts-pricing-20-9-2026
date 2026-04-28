@@ -8,6 +8,7 @@ if (isGithubActions && process.env.GITHUB_REPOSITORY) {
 
 const nextConfig: NextConfig = {
   /* config options here */
+  //transpilePackages: ['@lts/bang-tinh-gia', '@lts/hang-so', '@lts/kieu-du-lieu'],
   allowedDevOrigins: ['192.168.1.10', 'localhost'],
 };
 

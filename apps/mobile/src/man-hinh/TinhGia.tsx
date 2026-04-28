@@ -1,6 +1,44 @@
-import React from 'react';
-import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, ScrollView, TextInput, TouchableOpacity, StyleSheet, Switch, Modal, FlatList } from 'react-native';
 import { dungStore } from '../store/store-nhap-lieu';
+
+// ── Simple Dropdown (thay Picker, không cần native module) ──────────────────
+function Dropdown<T extends string | number>({ value, items, onSelect, style }: {
+  value: T; items: { label: string; value: T }[]; onSelect: (v: T) => void; style?: any;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = items.find(i => i.value === value);
+  return (
+    <View style={style}>
+      <TouchableOpacity style={dd.trigger} onPress={() => setOpen(true)}>
+        <Text style={dd.triggerText}>{selected?.label ?? '— Chọn —'}</Text>
+        <Text style={dd.arrow}>▼</Text>
+      </TouchableOpacity>
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <TouchableOpacity style={dd.overlay} activeOpacity={1} onPress={() => setOpen(false)}>
+          <View style={dd.menu}>
+            <FlatList data={items} keyExtractor={(_, i) => String(i)} renderItem={({ item }) => (
+              <TouchableOpacity style={[dd.item, item.value === value && dd.itemActive]} onPress={() => { onSelect(item.value); setOpen(false); }}>
+                <Text style={[dd.itemText, item.value === value && dd.itemTextActive]}>{item.label}</Text>
+              </TouchableOpacity>
+            )} />
+          </View>
+        </TouchableOpacity>
+      </Modal>
+    </View>
+  );
+}
+const dd = StyleSheet.create({
+  trigger: { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, padding: 10, backgroundColor: '#f9fafb', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  triggerText: { fontSize: 14, color: '#111827' },
+  arrow: { fontSize: 10, color: '#6b7280' },
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'center', padding: 40 },
+  menu: { backgroundColor: '#fff', borderRadius: 12, maxHeight: 300, overflow: 'hidden' },
+  item: { padding: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
+  itemActive: { backgroundColor: '#eff6ff' },
+  itemText: { fontSize: 15, color: '#374151' },
+  itemTextActive: { color: '#2563eb', fontWeight: '600' },
+});
 
 export default function ManHinhTinhGia() {
   const { dauVao, ketQua, capNhatDauVao, luuVaoLichSu } = dungStore();
@@ -84,6 +122,86 @@ export default function ManHinhTinhGia() {
         </View>
       </View>
 
+      {/* Trục in */}
+      <View style={styles.the}>
+        <Text style={styles.tieuDeThe}>🖨️ Trục in</Text>
+
+        <View style={styles.hangNgang}>
+          <View style={styles.oNhapNua}>
+            <Text style={styles.nhan}>Dài (m)</Text>
+            <TextInput
+              style={[styles.oNhap, styles.oNhapDoc]}
+              value={dauVao.chieuDaiTruc ? dauVao.chieuDaiTruc.toString() : ''}
+              onChangeText={(v) => capNhatDauVao({ chieuDaiTruc: parseFloat(v) || 0 })}
+              keyboardType="decimal-pad"
+              placeholder="Tự tính"
+            />
+          </View>
+          <View style={styles.oNhapNua}>
+            <Text style={styles.nhan}>Chu vi (m)</Text>
+            <TextInput
+              style={[styles.oNhap, styles.oNhapDoc]}
+              value={dauVao.chuViTruc ? dauVao.chuViTruc.toString() : ''}
+              onChangeText={(v) => capNhatDauVao({ chuViTruc: parseFloat(v) || 0 })}
+              keyboardType="decimal-pad"
+              placeholder="Tự tính"
+            />
+          </View>
+        </View>
+
+        <Text style={styles.nhan}>Loại trục</Text>
+        <Dropdown
+          value={dauVao.loaiTruc ?? 'A'}
+          items={[
+            { label: 'Trục A', value: 'A' as const },
+            { label: 'Trục B', value: 'B' as const },
+            { label: 'Trục khác', value: 'custom' as const },
+          ]}
+          onSelect={(v) => capNhatDauVao({ loaiTruc: v as 'A' | 'B' | 'custom' })}
+        />
+
+        {(dauVao.loaiTruc ?? 'A') === 'custom' && (
+          <>
+            <Text style={styles.nhan}>Đơn giá trục khác (đ/m²)</Text>
+            <TextInput
+              style={styles.oNhap}
+              value={dauVao.giaTrucDonVi ? dauVao.giaTrucDonVi.toString() : ''}
+              onChangeText={(v) => capNhatDauVao({ giaTrucDonVi: parseFloat(v) || 0 })}
+              keyboardType="numeric"
+              placeholder="7300000"
+            />
+          </>
+        )}
+
+        <View style={styles.hangSwitch}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.nhanSwitch}>Bao trục</Text>
+            <Text style={styles.moTaSwitch}>Phân bổ chi phí trục vào đơn giá (định mức 200.000 m²)</Text>
+          </View>
+          <Switch
+            value={dauVao.baoTruc ?? false}
+            onValueChange={(v) => capNhatDauVao({ baoTruc: v })}
+          />
+        </View>
+      </View>
+
+      {/* Thanh toán */}
+      <View style={styles.the}>
+        <Text style={styles.tieuDeThe}>⏳ Thanh toán</Text>
+        <Text style={styles.nhan}>Thời hạn thanh toán</Text>
+        <Dropdown
+          value={dauVao.ngayThanhToan ?? 30}
+          items={[
+            { label: '14 ngày', value: 14 },
+            { label: '30 ngày', value: 30 },
+            { label: '45 ngày', value: 45 },
+            { label: '90 ngày', value: 90 },
+          ]}
+          onSelect={(v) => capNhatDauVao({ ngayThanhToan: v })}
+        />
+        <Text style={styles.ghiChu}>Lãi suất cấu hình tại máy chủ (Mức + Thêm)</Text>
+      </View>
+
       {/* Kết quả */}
       {ketQua && (
         <View style={[styles.the, styles.theKetQua]}>
@@ -104,12 +222,44 @@ export default function ManHinhTinhGia() {
             <Text style={styles.giaTriKetQua}>{formatTien(ketQua.chiPhiDonVi)}</Text>
           </View>
 
+          <View style={styles.hangKetQua}>
+            <Text style={styles.nhanKetQua}>
+              Lãi vay ({(((ketQua.laiSuatCoBan ?? 0) + (ketQua.laiSuatThem ?? 0)) * 100).toFixed(1)}%/năm · {ketQua.ngayThanhToan} ngày)
+            </Text>
+            <Text style={styles.giaTriKetQua}>{formatTien(ketQua.laiSuatPerDonVi)}</Text>
+          </View>
+
+          {ketQua.chiPhiTruc > 0 && (
+            <View style={styles.hangKetQua}>
+              <Text style={styles.nhanKetQua}>
+                Chi phí bộ trục {(dauVao.baoTruc) ? '(đã bao trục)' : '(tách riêng)'}
+              </Text>
+              <Text style={styles.giaTriKetQua}>{formatTien(ketQua.chiPhiTruc)}</Text>
+            </View>
+          )}
+
+          {(dauVao.baoTruc) && ketQua.chiPhiTrucPhanBo > 0 && (
+            <View style={styles.hangKetQua}>
+              <Text style={styles.nhanKetQua}>Trục phân bổ vào đơn giá</Text>
+              <Text style={[styles.giaTriKetQua, { color: '#3b82f6' }]}>+{formatTien(ketQua.chiPhiTrucPhanBo)}</Text>
+            </View>
+          )}
+
           <View style={styles.phanCach} />
 
           <View style={styles.hangKetQua}>
-            <Text style={styles.nhanGiaCuoi}>Giá đề xuất / {dauVao.loaiSanPham === 'mang' ? 'm²' : 'túi'}</Text>
+            <Text style={styles.nhanGiaCuoi}>
+              Giá đề xuất / {dauVao.loaiSanPham === 'mang' ? 'm²' : 'túi'}
+              {dauVao.baoTruc ? ' 📌 Bao trục' : ''}
+            </Text>
             <Text style={styles.giaTriGiaCuoi}>{formatTien(ketQua.giaCuoiCung)}</Text>
           </View>
+
+          {!dauVao.baoTruc && ketQua.chiPhiTruc > 0 && (
+            <Text style={styles.ghiChuTruc}>
+              + Chi phí trục tách riêng: {formatTien(ketQua.chiPhiTruc)}
+            </Text>
+          )}
 
           <TouchableOpacity style={styles.nutLuu} onPress={luuVaoLichSu}>
             <Text style={styles.chuNut}>💾 Lưu vào lịch sử</Text>
@@ -145,14 +295,24 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8,
     padding: 10, fontSize: 14, color: '#111827', backgroundColor: '#f9fafb',
   },
+  oNhapDoc: { color: '#6b7280' },
   hangNgang: { flexDirection: 'row', gap: 12 },
   oNhapNua: { flex: 1 },
+  hangSwitch: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    marginTop: 12, paddingTop: 12,
+    borderTopWidth: 1, borderTopColor: '#f3f4f6',
+  },
+  nhanSwitch: { fontSize: 14, fontWeight: '600', color: '#111827' },
+  moTaSwitch: { fontSize: 12, color: '#6b7280', marginTop: 2 },
+  ghiChu: { fontSize: 12, color: '#9ca3af', marginTop: 6, fontStyle: 'italic' },
   hangKetQua: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  nhanKetQua: { fontSize: 13, color: '#6b7280' },
+  nhanKetQua: { fontSize: 13, color: '#6b7280', flex: 1, marginRight: 8 },
   giaTriKetQua: { fontSize: 13, fontWeight: '500', color: '#374151' },
   phanCach: { height: 1, backgroundColor: '#e5e7eb', marginVertical: 10 },
-  nhanGiaCuoi: { fontSize: 15, fontWeight: '600', color: '#1e3a5f' },
+  nhanGiaCuoi: { fontSize: 15, fontWeight: '600', color: '#1e3a5f', flex: 1, marginRight: 8 },
   giaTriGiaCuoi: { fontSize: 20, fontWeight: '700', color: '#3b82f6' },
+  ghiChuTruc: { fontSize: 12, color: '#6b7280', marginTop: 4, fontStyle: 'italic', textAlign: 'right' },
   nutLuu: {
     backgroundColor: '#3b82f6', borderRadius: 8, padding: 12,
     alignItems: 'center', marginTop: 12,

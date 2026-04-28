@@ -274,10 +274,10 @@ export default function ManagerView() {
   totalCPVL += r.printCostMaterial;
   uniRows.push({
     rowKey: 'print',
-    stage: 'CPSX IN', mat: r.layers.print.material.name,
+    stage: 'CPSX IN', mat: r.layers.print?.material?.name ?? '',
     width: r.printNLWidth, meters: r.printMeters, waste: r.printWaste,
     cpsx: r.printCPSX, costCPSX: r.printCostCPSX,
-    matPrice: r.layers.print.material.pricePerM2, costMat: r.printCostMaterial
+    matPrice: r.layers.print?.material?.pricePerM2 ?? 0, costMat: r.printCostMaterial
   });
 
   if (r.layers.laminations) {
@@ -286,10 +286,10 @@ export default function ManagerView() {
       totalCPVL += lam.costMat;
       uniRows.push({
         rowKey: `lam-${lam.layerNum}` as OverrideRowKey,
-        stage: `GHÉP (Lớp ${lam.layerNum})`, mat: lam.material.name,
+        stage: `GHÉP (Lớp ${lam.layerNum})`, mat: lam.material?.name ?? '',
         width: lam.width, meters: lam.meters, waste: lam.waste,
         cpsx: constants.ghepCPSX, costCPSX: lam.costCPSX,
-        matPrice: lam.material.pricePerM2, costMat: lam.costMat
+        matPrice: lam.material?.pricePerM2 ?? 0, costMat: lam.costMat
       });
     });
   }
@@ -398,10 +398,14 @@ export default function ManagerView() {
   breakdownItems.push(
     [isMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', fmt(r.boxPerUnit, 1) + ' đ'],
     ['Chi phí Vận chuyển', fmt(r.shippingPerUnit, 1) + ' đ'],
-    [`Lãi vay vốn (${fmtPercent(r.interestRate30)})`, fmt(r.interestPerUnit, 1) + ' đ'],
+    [`Lãi vay vốn (${fmtPercent((r.interestBase ?? 0) + (r.interestSpread ?? 0))}/năm)`, fmt(r.interestPerUnit, 1) + ' đ'],
     ['Hoa hồng kinh doanh', fmt(effCommissionPerUnit, 1) + ' đ']
   );
+  if (rInput.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
+    breakdownItems.push([`Trục in phân bổ (bao trục / 200k m²)`, fmt(r.cylAllocPerUnit ?? 0, 2) + ' đ']);
+  }
 
+  const cylAllocTotal = rInput.cylIncluded ? ((r.cylAllocPerUnit ?? 0) * rInput.quantity) : 0;
   const totalCommission = effCommissionPerUnit * rInput.quantity;
   const commissionPct = effCostPerUnit > 0 ? (effCommissionPerUnit / effCostPerUnit) : 0;
   const chotGiaNum = currentChotGia || 0;
@@ -409,7 +413,8 @@ export default function ManagerView() {
   // effFinalPrice tính lại với commission mới
   const effFinalPriceWithComm = effCostPerUnit
     + r.zipperPerUnit + r.tapePerUnit + r.handlePerUnit
-    + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + effCommissionPerUnit;
+    + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + effCommissionPerUnit
+    + (r.cylAllocPerUnit ?? 0);
   const shownPrice = hasChotGia ? chotGiaNum : effFinalPriceWithComm;
   const diff = hasChotGia ? chotGiaNum - effFinalPriceWithComm : 0;
   const rawNewCommission = effCommissionPerUnit + diff;
@@ -432,9 +437,10 @@ export default function ManagerView() {
   }
 
   const matCols: any[] = [];
-  if (r.layers.print) matCols.push({ type: 'print', name: r.layers.print.material.name.split(' ')[0], fullName: r.layers.print.material.name });
+  if (r.layers.print && r.layers.print.material) matCols.push({ type: 'print', name: r.layers.print.material.name.split(' ')[0], fullName: r.layers.print.material.name });
   if (r.layers.laminations) {
     r.layers.laminations.forEach((lam: any) => {
+      if (!lam.material) return;
       matCols.push({ type: 'lam', layerNum: lam.layerNum, name: lam.material.name.split(' ')[0], fullName: lam.material.name });
     });
   }
@@ -544,6 +550,11 @@ export default function ManagerView() {
               {hasChotGia && (
                 <div style={{fontSize:'0.82rem', color:'var(--muted)', marginTop:'2px', marginBottom:'2px'}}>
                   (giá đề xuất {fmt(effFinalPriceWithComm, 0)} đ/{unitLabel})
+                </div>
+              )}
+              {rInput.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0 && (
+                <div style={{fontSize:'0.78rem', color:'var(--primary)', marginTop:'2px', fontWeight:600}}>
+                  📌 Có bao trục (+{fmt(r.cylAllocPerUnit ?? 0, 2)} đ/{unitLabel})
                 </div>
               )}
               <div className="unit">(chưa VAT)</div>

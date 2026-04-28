@@ -227,14 +227,38 @@ export default function InputCard() {
       );
     }
 
+    const sumMic = layers.reduce((s, l) => s + (l.override || l.mat!.thickness), 0);
+    const glueMic = (layers.length - 1) * 3;
+    const totalMic = sumMic + glueMic;
+    const target = input.targetThickness || 0;
+    const outOfRange = target > 0 && (totalMic < target - 5 || totalMic > target + 5);
+
     return (
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '14px', flexWrap: 'wrap' }}>
-        {layers.map((l, i) => (
-          <div key={i} style={{ flex: 1, minWidth: '40px', background: 'var(--surface2)', border: '1px solid var(--border)', padding: '6px 4px', borderRadius: '4px', textAlign: 'center' }}>
-            <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text)' }}>{l.mat!.name.split(' ')[0]}</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text)' }}>{l.override || l.mat!.thickness}mic</div>
+      <div style={{ marginBottom: '14px' }}>
+        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+          {layers.map((l, i) => (
+            <React.Fragment key={i}>
+              <div style={{ flex: 1, minWidth: '40px', background: 'var(--surface2)', border: '1px solid var(--border)', padding: '6px 4px', borderRadius: '4px', textAlign: 'center' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text)' }}>{l.mat!.name.split(' ')[0]}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text)' }}>{l.override || l.mat!.thickness}mic</div>
+              </div>
+              {i < layers.length - 1 && (
+                <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.65rem', color: 'var(--text-secondary)', opacity: 0.7 }}>3mic</div>
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+        {layers.length > 0 && (
+          <div style={{ fontSize: '0.75rem', marginTop: '6px', color: 'var(--text-secondary)' }}>
+            Tổng: <strong>{totalMic}</strong> mic (vật liệu {sumMic} + keo {glueMic})
+            {target > 0 && <span> — Mục tiêu: {target} mic (±5)</span>}
           </div>
-        ))}
+        )}
+        {outOfRange && (
+          <div style={{ fontSize: '0.75rem', marginTop: '4px', padding: '6px 10px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '4px', color: '#dc2626' }}>
+            Tổng độ dày {totalMic} mic nằm ngoài khoảng [{target - 5}, {target + 5}]. Vui lòng điều chỉnh lớp vật liệu.
+          </div>
+        )}
       </div>
     );
   };
@@ -373,6 +397,12 @@ export default function InputCard() {
             </select>
           </div>
 
+          <div className="form-group">
+            <label className="form-label">Độ dày mục tiêu (mic)</label>
+            <FormattedNumberInput className="form-input" value={input.targetThickness || 0}
+              placeholder="VD: 150" onChange={(val: number) => capNhatDauVao({ targetThickness: val })} />
+          </div>
+
           <StructurePreview />
 
           {renderLayerSelect('Lớp 1', 'layer1Id', false)}
@@ -415,28 +445,60 @@ export default function InputCard() {
             )}
 
             <div className="advanced-sub-title">🖨️ Trục in</div>
+
+            {/* Hàng 1: Dài | Chu vi | Loại trục */}
             <div className="form-row-3">
               <div className="form-group">
                 <label className="form-label">Dài (m)</label>
-                <DecimalInput className="form-input" step="0.01" value={input.cylLength || 0} onChange={() => { }} disabled />
+                <DecimalInput className="form-input" step="0.01" value={input.cylLength || 0}
+                  onChange={(val: number) => capNhatDauVao({ cylLength: val })} />
                 {!!input.cylLength && input.cylLength < 0.7 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Dưới tối thiểu (0.7m)</div> : null}
                 {!!input.cylLength && input.cylLength > 1.25 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Vượt tối đa (1.25m)</div> : null}
               </div>
               <div className="form-group">
                 <label className="form-label">Chu vi (m)</label>
-                <DecimalInput className="form-input" step="0.01" value={input.cylCircum || 0} onChange={() => { }} disabled />
+                <DecimalInput className="form-input" step="0.01" value={input.cylCircum || 0}
+                  onChange={(val: number) => capNhatDauVao({ cylCircum: val })} />
                 {!!input.cylCircum && input.cylCircum < 0.4 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Dưới tối thiểu (0.4m)</div> : null}
                 {!!input.cylCircum && input.cylCircum > 0.9 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Vượt tối đa (0.9m)</div> : null}
               </div>
               <div className="form-group">
-                <label className="form-label">Đơn giá (đ/m²)</label>
-                <FormattedNumberInput className="form-input" value={input.cylUnitPrice || 0} onChange={(val: number) => capNhatDauVao({ cylUnitPrice: val })} />
+                <label className="form-label">Loại trục</label>
+                <select className="form-select" value={input.cylType ?? 'A'}
+                  onChange={e => capNhatDauVao({ cylType: e.target.value as 'A' | 'B' | 'custom' })}>
+                  <option value="A">Trục A</option>
+                  <option value="B">Trục B</option>
+                  <option value="custom">Trục khác</option>
+                </select>
               </div>
             </div>
-            <div className="cylinder-preview">
+
+            {/* Hàng 2 (chỉ hiện khi chọn Trục khác): Đơn giá */}
+            {(input.cylType ?? 'A') === 'custom' && (
+              <div className="form-group" style={{ marginBottom: '8px' }}>
+                <label className="form-label">Đơn giá trục khác (đ/m²)</label>
+                <FormattedNumberInput className="form-input" value={input.cylUnitPrice || 0}
+                  onChange={(val: number) => capNhatDauVao({ cylUnitPrice: val })} />
+              </div>
+            )}
+
+            {/* Preview + Bao trục */}
+            <div className="cylinder-preview" style={{ marginBottom: '10px' }}>
               DT: <span className="cyl-val">{((input.cylLength || 0) * (input.cylCircum || 0)).toFixed(4)} m²</span>
               {' · '} 1 trục: <span className="cyl-val">{(((input.cylLength || 0) * (input.cylCircum || 0) * (input.cylUnitPrice || 7300000)) || 0).toLocaleString('vi-VN')} đ</span>
               {' · '} Cả bộ ({input.numColors || 0} màu): <span className="cyl-val">{(((input.cylLength || 0) * (input.cylCircum || 0) * (input.cylUnitPrice || 7300000) * (input.numColors || 0)) || 0).toLocaleString('vi-VN')} đ</span>
+            </div>
+
+            <div className="form-group" style={{ marginBottom: '14px' }}>
+              <label className="form-check" style={{ alignItems: 'flex-start', gap: '8px' }}>
+                <input type="checkbox" checked={input.cylIncluded ?? false} onChange={e => capNhatDauVao({ cylIncluded: e.target.checked })} style={{ marginTop: '2px' }} />
+                <span>
+                  <strong>Bao trục</strong> — phân bổ chi phí bộ trục vào đơn giá sản phẩm
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '2px' }}>
+                    Định mức 200.000 m² · {input.productType === 'mang' ? 'màng: cộng đ/m²' : 'túi: cộng đ/túi'}
+                  </div>
+                </span>
+              </label>
             </div>
 
             <div className="advanced-sub-title">📦 Đóng gói & Vận chuyển</div>
@@ -470,26 +532,18 @@ export default function InputCard() {
 
             <div className="advanced-sub-title">⏳ Thanh toán</div>
             <div className="form-group" style={{ marginBottom: '14px' }}>
-              <label className="form-label">Ngày giải ngân</label>
-              {[
-                { days: 14, defaultRate: 0.1 },
-                { days: 30, defaultRate: 0.25 },
-                { days: 90, defaultRate: 0.75 }
-              ].map(term => (
-                <div key={term.days} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                  <label className="form-check" style={{ marginBottom: 0 }}>
-                    <input type="radio" checked={paymentDaysLocal === term.days} onChange={() => capNhatDauVao({ paymentDays: term.days, paymentInterestRate: term.defaultRate / 100 })} /> {term.days} ngày
+              <label className="form-label">Thời hạn thanh toán</label>
+              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                {[14, 30, 45, 90].map(days => (
+                  <label key={days} className="form-check" style={{ marginBottom: 0, padding: '6px 12px', border: `1px solid ${paymentDaysLocal === days ? 'var(--primary)' : 'var(--border)'}`, borderRadius: '6px', cursor: 'pointer', background: paymentDaysLocal === days ? 'var(--primary-light, #eff6ff)' : 'transparent' }}>
+                    <input type="radio" style={{ marginRight: '6px' }} checked={paymentDaysLocal === days} onChange={() => capNhatDauVao({ paymentDays: days })} />
+                    {days} ngày
                   </label>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <DecimalInput step="0.01" className="form-input"
-                      value={paymentDaysLocal === term.days ? parseFloat((input.paymentInterestRate * 100).toFixed(2)) : term.defaultRate}
-                      onChange={(val: number) => paymentDaysLocal === term.days && capNhatDauVao({ paymentInterestRate: val / 100 })}
-                      style={{ width: '70px', textAlign: 'right', marginBottom: 0 }}
-                      disabled={paymentDaysLocal !== term.days} />
-                    <span style={{ fontSize: '0.8em', color: 'var(--muted)' }}>%</span>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '6px' }}>
+                Lãi suất cấu hình tại Bảng Định Mức
+              </div>
             </div>
 
             <div className="advanced-sub-title">💵 Hoa hồng</div>

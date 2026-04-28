@@ -4,6 +4,97 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 @AGENTS.md
 
+## Đã sửa / Known Fixes (cập nhật 2026-04-23)
+
+### 10. Flutter Android App qua flutter_js — 2026-04-23
+
+**Tạo `apps/flutter_app/`** — app Android viết bằng Flutter, **tái sử dụng nguyên engine JS** của
+web qua `flutter_js` (QuickJS), không port logic sang Dart. UI đầy đủ 4 module: Tính giá / Lịch sử
+/ Cấu hình / LSX. Material 3, tiếng Việt, responsive (BottomNav phone, NavigationRail tablet).
+
+**Cấu trúc:**
+```
+apps/flutter_app/
+├── package.json + scripts/build-engine.mjs   ← esbuild bundle engine TS → 1 file IIFE
+├── scripts/engine-entry.ts                   ← entry: import @lts/bang-tinh-gia, expose globalThis.LTS
+├── assets/engine.bundle.js                   ← output ~27 KB (gitignore)
+├── assets/data/{constants,materials,profitTable}.json  ← copy từ apps/web/src/data
+├── pubspec.yaml                              ← flutter_js, provider, shared_preferences, pdf, printing, intl
+└── lib/
+    ├── main.dart                             ← init JS runtime + AppState rồi runApp
+    ├── engine/{js_runtime,models}.dart       ← bridge Dart ↔ QuickJS (truyền JSON string)
+    ├── store/{app_state,local_storage}.dart  ← Provider + SharedPreferences
+    ├── theme/{app_theme,format}.dart         ← Material 3 cyan-600, NumberFormat vi_VN
+    ├── screens/{home_shell,tinh_gia,lich_su,cau_hinh,lsx}_screen.dart
+    └── widgets/{form_widgets,price_hero}.dart
+```
+
+**Build flow:**
+1. `pnpm install` (root) — cài esbuild qua pnpm workspace
+2. `pnpm build:engine` → sinh `apps/flutter_app/assets/engine.bundle.js`
+3. `cd apps/flutter_app && flutter create . --org vn.laitruongson.lts --project-name lts_pricing --platforms=android --overwrite` (lần đầu)
+4. `flutter pub get`
+5. `flutter run -d <device>` hoặc `flutter build apk --release`
+
+**Bridge pattern (`lib/engine/js_runtime.dart`):** Truyền 4 chuỗi JSON sang QuickJS, JS parse + tính
++ trả JSON string. Tránh issue marshal complex object qua flutter_js FFI.
+
+**Khi engine logic update bên web:** chỉ cần `pnpm build:engine` + hot-restart Flutter (không phải
+hot-reload — vì assets).
+
+**LSX PDF export:** dùng package `pdf` + `printing`, template tham khảo QT.ISO-22-BM02.
+
+📄 **Chi tiết:** xem `apps/flutter_app/README.md`
+
+---
+
+### 9. Build Mobile (Expo Android) — 2026-04-23
+
+**Đã fix 3 lỗi khi build app mobile lần đầu:**
+1. `This computer is not authorized for developing on Device` — USB debugging chưa trust
+2. HTTP 404 trên `.expo/.virtual-metro-entry.bundle` — virtual entry conflict với `unstable_serverRoot` của pnpm monorepo → đổi `getJSMainModuleName() = "index"` trong `MainApplication.kt`
+3. `Cannot find native module 'ExpoLinking'` — `expo-router` cần `expo-linking` nhưng nó thiếu trong `apps/mobile/package.json` → `pnpm --filter mobile add expo-linking@~7.1.7`
+
+📄 **Chi tiết đầy đủ + cheatsheet + checklist:** xem [`.claude/MOBILE_BUILD_NOTES.md`](./MOBILE_BUILD_NOTES.md)
+
+---
+
+### 8. Tái cấu trúc Lãi Vay — 2026-04-22
+
+**Yêu cầu:** Tách lãi suất thành 2 thành phần: **Mức** (cơ sở / cố định) + **Thêm** (tình huống / linh hoạt), đơn vị **% / Năm**. Thêm mốc thời hạn **45 ngày**.
+
+**Công thức mới (`engine.ts`):**
+```
+lãiNăm        = interestBase + interestSpread   (% / năm, dạng thập phân)
+lãiTháng      = lãiNăm / 12
+sốTháng       = paymentDays / 30               (14→0.5 | 30→1 | 45→1.5 | 90→3)
+interestPerUnit = lãiTháng × sốTháng × costPerUnit
+                = (interestBase + interestSpread) / 12 × (paymentDays / 30) × costPerUnit
+```
+
+**Phân công UI:**
+- `TheNhapLieu.tsx` — chỉ có **dropdown chọn số ngày** (14 / 30 / 45 / 90), KHÔNG nhập lãi suất ở đây
+- `TrangCauHinh.tsx` (bảng định mức) — nhập **Mức** và **Thêm** (% / năm), lưu vào `AppConstants`
+- `engine.ts` đọc `interestBase` + `interestSpread` từ `constants`, đọc `paymentDays` từ `input`
+
+**Phạm vi thay đổi:**
+
+| File | Thay đổi |
+|---|---|
+| `apps/web/src/lib/types.ts` | `AppConstants`: thêm `interestBase`, `interestSpread` (thay `interestRate`). `CalculateInput`: bỏ `paymentInterestRate`. `CalculateResult`: thêm `interestBase`, `interestSpread` |
+| `apps/web/src/data/constants.json` | Thêm `"interestBase": 0.10`, `"interestSpread": 0.03` (thay `interestRate`) |
+| `apps/web/src/lib/engine.ts` | Sửa công thức: đọc `interestBase`+`interestSpread` từ constants thay vì `paymentInterestRate` từ input |
+| `apps/web/src/components/TheNhapLieu.tsx` | Chỉ sửa danh sách radio: thêm mốc **45 ngày**, bỏ ô nhập lãi suất inline |
+| `apps/web/src/components/TrangCauHinh.tsx` | Thêm 2 ô nhập **Mức** / **Thêm** (% / năm) vào bảng định mức |
+| `apps/web/src/components/ManHinhQuanLy.tsx` | Hiển thị breakdown: mức + thêm |
+| `apps/web/src/store/CuaHangTinhGia.ts` | `defaultInput` bỏ `paymentInterestRate`; default `paymentDays: 30` |
+
+**Giá trị mặc định:** `interestBase = 10% / năm`, `interestSpread = 3% / năm`
+
+**Thời hạn vay:** 14 / 30 / 45 / 90 ngày
+
+---
+
 ## Đã sửa / Known Fixes (cập nhật 2026-04-17)
 
 > **QUAN TRỌNG:** Trước khi sửa bất kỳ công thức nào trong `src/lib/engine.ts`, PHẢI đọc `.claude/training/Train.md` — nguồn chân lý duy nhất cho mọi công thức.

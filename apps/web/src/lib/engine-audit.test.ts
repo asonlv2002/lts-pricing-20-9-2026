@@ -64,12 +64,14 @@ const baseTui: CalculateInput = {
   metallicSurcharge: 0, coverageRatio: 1,
   handleWeight: 0, zipperWeight: 5, tapeWeight: 3,
   hasZipper: false, hasTape: false, hasHandle: false,
-  paymentDays: 30, paymentInterestRate: 0.0025,
+  paymentDays: 30, // paymentInterestRate removed,
   profitColumn: 1, commissionRate: 0, commissionFixedVND: 0,
   commissionUnit: 'percent', commissionInputValue: 0,
   bagsPerBox: 1000, boxPrice: 50000,
   shippingPerKm: 5000, shippingKm: 200,
   cylLength: 0, cylCircum: 0, cylUnitPrice: 0,
+  cylType: 'A',
+  cylIncluded: false,
 };
 
 const baseMang: CalculateInput = {
@@ -197,7 +199,7 @@ section('3. LÃI VAY (Interest) — ĐÃ SỬA');
 
 {
   // 30 ngày → lãi = rate × costPerUnit (giống cũ)
-  const input30 = { ...baseTui, paymentDays: 30, paymentInterestRate: 0.0025, shippingPerKm: 0, shippingKm: 0 };
+  const input30 = { ...baseTui, paymentDays: 30, shippingPerKm: 0, shippingKm: 0 };
   const r30 = calculate(input30, mats, cons, prof)!;
 
   const expected30 = 0.0025 * r30.costPerUnit;

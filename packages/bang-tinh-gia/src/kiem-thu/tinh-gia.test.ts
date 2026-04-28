@@ -60,7 +60,6 @@ const dauVaoTuiCoBan: DauVaoTinhGia = {
   coBangKeo: false,
   coQuaiXach: false,
   ngayThanhToan: 30,
-  laiSuatThanhToan: 0.0025,
   cotLoiNhuan: 1,
   tyLeHoaHong: 0,
   hoaHongCoDinhVND: 0,
@@ -73,6 +72,8 @@ const dauVaoTuiCoBan: DauVaoTinhGia = {
   chieuDaiTruc: 0,
   chuViTruc: 0,
   giaTrucDonVi: 0,
+  loaiTruc: 'A',
+  baoTruc: false,
 };
 
 // Đầu vào màng cơ bản

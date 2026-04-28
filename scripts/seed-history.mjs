@@ -9,10 +9,10 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
 
-// Load raw data
-const materialsRaw = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/data/materials.json'), 'utf-8'));
-const constantsRaw = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/data/constants.json'), 'utf-8'));
-const profitRaw = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/data/profitTable.json'), 'utf-8'));
+// Load raw data từ /data root (single source of truth)
+const materialsRaw = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/materials.json'), 'utf-8'));
+const constantsRaw = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/constants.json'), 'utf-8'));
+const profitRaw = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/profitTable.json'), 'utf-8'));
 
 const materials = materialsRaw.map(m => ({
   ...m,

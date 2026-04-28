@@ -10,7 +10,13 @@
     "build:web": "turbo run build --filter=web",
     "lint": "turbo run lint",
     "test": "turbo run test",
-    "type-check": "turbo run type-check"
+    "type-check": "turbo run type-check",
+    "android": "pnpm --filter mobile android",
+    "start": "pnpm --filter mobile start",
+    "mobile": "pnpm --filter mobile start",
+    "mobile:android": "pnpm --filter mobile android",
+    "build:engine": "pnpm --filter @lts/flutter-app-engine-bundler build",
+    "flutter:engine": "pnpm --filter @lts/flutter-app-engine-bundler build"
   },
   "devDependencies": {
     "turbo": "^2.5.3",
@@ -19,5 +25,14 @@
   "packageManager": "pnpm@10.33.0",
   "engines": {
     "node": ">=20"
+  },
+  "dependencies": {
+    "react": "19.0.0",
+    "react-native": "0.79.6"
+  },
+  "pnpm": {
+    "overrides": {
+      "use-latest-callback": "^0.2.4"
+    }
   }
 }

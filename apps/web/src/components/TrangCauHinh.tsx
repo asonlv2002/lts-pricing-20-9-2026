@@ -52,7 +52,8 @@ export default function ConfigPage() {
       'laborCost', 'nhuPrice', 'moPrice', 'ghepCPSX', 'ghepWasteA', 'ghepWasteB', 'ghepWasteC', 'cutBase', 'cutWasteA', 'cutWasteB', 'cutWasteC',
       'cutThreshold1', 'cutThreshold2', 'cutMult1', 'cutMult2', 'cutMult3',
       'zipperPrice', 'zipperWeight', 'tapePrice', 'tapeWeight', 'handlePrice', 'handleWeight',
-      'printWasteA', 'printWasteB', 'printWasteC', 'printWasteD'
+      'printWasteA', 'printWasteB', 'printWasteC', 'printWasteD',
+      'cylPriceA', 'cylPriceB', 'interestBase', 'interestSpread'
     ];
     resetKeys.forEach(key => {
       capNhatHangSo(key, INITIAL_CONSTANTS[key] as number);
@@ -265,6 +266,65 @@ export default function ConfigPage() {
               </div>
             </div>
             <p className="config-note">💡 Chi phí nhân công và chi phí khác được cộng vào CPSX in cho mỗi đơn hàng.</p>
+          </div>
+
+          {/* 1.5 Lãi vay */}
+          <div className="card config-card">
+            <div className="config-section-title"><span>💰 Lãi Vay</span></div>
+            <div className="config-cpsx-grid">
+              <div className="config-cpsx-item">
+                <label>Mức (lãi cơ sở, % / năm)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <input type="number" className="form-input" style={{ width: '100px' }}
+                    value={parseFloat(((constants.interestBase ?? 0.10) * 100).toFixed(4))}
+                    step="0.1" min="0"
+                    onChange={e => capNhatHangSo('interestBase', (parseFloat(e.target.value) || 0) / 100)} />
+                  <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>%/năm</span>
+                </div>
+              </div>
+              <div className="config-cpsx-item">
+                <label>Thêm (lãi tình huống, % / năm)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <input type="number" className="form-input" style={{ width: '100px' }}
+                    value={parseFloat(((constants.interestSpread ?? 0.03) * 100).toFixed(4))}
+                    step="0.1" min="0"
+                    onChange={e => capNhatHangSo('interestSpread', (parseFloat(e.target.value) || 0) / 100)} />
+                  <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>%/năm</span>
+                </div>
+              </div>
+            </div>
+            <p className="config-note">
+              💡 Tổng lãi = Mức + Thêm = <strong>{(((constants.interestBase ?? 0.10) + (constants.interestSpread ?? 0.03)) * 100).toFixed(2)}%/năm</strong>.
+              Công thức: lãi/đơn = (Mức + Thêm) ÷ 12 × (số ngày ÷ 30) × giá vốn.
+            </p>
+          </div>
+
+          {/* 1.6 Đơn giá trục in */}
+          <div className="card config-card">
+            <div className="config-section-title"><span>🖨️ Đơn Giá Trục In</span></div>
+            <div className="config-cpsx-grid">
+              <div className="config-cpsx-item">
+                <label>Trục A (đ/m²)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <input type="number" className="form-input" style={{ width: '130px' }}
+                    value={constants.cylPriceA ?? 7300000}
+                    step="100000" min="0"
+                    onChange={e => capNhatHangSo('cylPriceA', parseFloat(e.target.value) || 0)} />
+                  <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>đ/m²</span>
+                </div>
+              </div>
+              <div className="config-cpsx-item">
+                <label>Trục B (đ/m²)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <input type="number" className="form-input" style={{ width: '130px' }}
+                    value={constants.cylPriceB ?? 6500000}
+                    step="100000" min="0"
+                    onChange={e => capNhatHangSo('cylPriceB', parseFloat(e.target.value) || 0)} />
+                  <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>đ/m²</span>
+                </div>
+              </div>
+            </div>
+            <p className="config-note">💡 Trục Khác: người dùng tự nhập trực tiếp trên form nhập liệu.</p>
           </div>
 
           {/* ═══════════ NHÓM 2: CHI PHÍ KHÂU GHÉP ═══════════ */}
