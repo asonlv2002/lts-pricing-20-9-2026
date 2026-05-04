@@ -160,10 +160,14 @@ class CalculateInput {
         'cylType': 'A',
         'cylIncluded': false,
         'targetThickness': 0,
+        'autoOptimizeThickness': false, // tự động tối ưu độ dày
       });
 
   factory CalculateInput.fromJson(Map<String, dynamic> j) => CalculateInput(Map.of(j));
   Map<String, dynamic> toJson() => raw;
+
+  bool get autoOptimizeThickness => raw['autoOptimizeThickness'] as bool? ?? false;
+  CalculateInput withAutoOptimizeThickness(bool v) => withField('autoOptimizeThickness', v);
 
   CalculateInput withField(String key, dynamic value) {
     final next = Map<String, dynamic>.of(raw);

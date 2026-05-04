@@ -3,11 +3,14 @@
 // Flow: Thông tin cơ bản → Chọn loại → Cấu trúc lớp → Kích thước → Nâng cao
 // Sticky bottom bar với nút Lưu + Reset
 // ═══════════════════════════════════════════════════════════════════════════
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../engine/models.dart';
+import '../engine/js_runtime.dart';
 import '../store/app_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/form_widgets.dart';
@@ -360,6 +363,108 @@ class _InputFormState extends State<_InputForm> {
                   onChanged: (v) => u('targetThickness', v.toInt()),
                 ),
               ),
+              if (((i['targetThickness'] as num?)?.toInt() ?? 0) > 0)
+                LabeledField(
+                  label: 'Tự động tối ưu',
+                  child: Row(
+                    children: [
+                      Switch(
+                        value: (i['autoOptimizeThickness'] as bool?) ?? false,
+                        onChanged: (v) => u('autoOptimizeThickness', v),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Tìm mức thấp nhất thỏa '
+                          '[${((i['targetThickness'] as num?)?.toInt() ?? 0) - 5}, '
+                          '${((i['targetThickness'] as num?)?.toInt() ?? 0) + 5}] mic',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              if (((i['targetThickness'] as num?)?.toInt() ?? 0) > 0 &&
+                  (i['autoOptimizeThickness'] as bool?) == true)
+                Padding(
+                  padding: const EdgeInsets.only(top: 4, bottom: 8),
+                  child: FilledButton.icon(
+                    onPressed: () async {
+                      final target = (i['targetThickness'] as num?)?.toInt() ?? 0;
+                      if (target <= 0) return;
+                      // Build current layers
+                      final layers = <Map<String, dynamic>>[];
+                      for (final k in ['layer1Id', 'layer2Id', 'layer3Id', 'layer4Id', 'layer5Id']) {
+                        final id = i[k] as String?;
+                        if (id == null) continue;
+                        final mat = s.materials.firstWhere(
+                          (m) => m.id == id,
+                          orElse: () => MaterialDef(
+                            id: id, name: id, density: 0, thickness: 0,
+                            pricePerKg: 0, isPETorPA: false, rollLength: 0, inkPricePerColor: 0,
+                          ),
+                        );
+                        layers.add({
+                          'id': k,
+                          'doDay': (i['micOverrides'] as Map?)?[k] as num? ?? mat.thickness,
+                          'isLLDPE': mat.name.toLowerCase().contains('lldpe') ||
+                              (mat.group?.toLowerCase().contains('lldpe') ?? false),
+                        });
+                      }
+                      if (layers.isEmpty) return;
+                      // Call JS engine via EngineService
+                      final engine = EngineService.instance;
+                      if (!engine.isReady) await engine.init();
+                      final layersJson = jsonEncode(layers);
+                      final matsJson = jsonEncode(s.materials.map((m) => m.toJson()).toList());
+                      final code = 'globalThis.LTS.toiUuDoDay($target, JSON.parse(\'$layersJson\'), JSON.parse(\'$matsJson\'))';
+                      final resultJson = engine.evaluateCode(code);
+                      if (resultJson != null && !resultJson.isError) {
+                        final result = jsonDecode(resultJson.stringResult) as Map<String, dynamic>;
+                        final optimized = result['ketQua'] as List? ?? [];
+                        final newOverrides = Map<String, dynamic>.from(
+                            (i['micOverrides'] as Map?) ?? {});
+                        for (final kq in optimized) {
+                          final layerId = kq['layerId'] as String;
+                          final adjusted = (kq['adjustedThickness'] as num).toDouble();
+                          final mat = s.materials.firstWhere(
+                            (m) => m.id == i[layerId],
+                            orElse: () => MaterialDef(
+                              id: '', name: '', density: 0, thickness: 0,
+                              pricePerKg: 0, isPETorPA: false, rollLength: 0, inkPricePerColor: 0,
+                            ),
+                          );
+                          if (adjusted != mat.thickness) {
+                            newOverrides[layerId] = adjusted;
+                          } else {
+                            newOverrides.remove(layerId);
+                          }
+                        }
+                        u('micOverrides', newOverrides);
+                        final tongThucTe = (result['tongThucTe'] as num).toInt();
+                        final datYeuCau = result['datYeuCau'] as bool? ?? false;
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                datYeuCau
+                                    ? 'Đã tối ưu: $tongThucTe mic (thỏa [${target - 5}, ${target + 5}])'
+                                    : (result['canhBao'] as String? ?? 'Không đạt yêu cầu'),
+                              ),
+                              duration: const Duration(seconds: 3),
+                            ),
+                          );
+                        }
+                      }
+                    },
+                    icon: const Icon(Icons.auto_fix_high, size: 16),
+                    label: const Text('Tính độ dày'),
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                  ),
+                ),
               _StructurePreview(
                 materials: s.materials,
                 input: i,
@@ -992,23 +1097,15 @@ class _AdvancedSection extends StatelessWidget {
               onChanged: (v) => u('cylUnitPrice', v),
             ),
           ),
-        if (cylArea > 0)
+        // Hiển thị diện tích trục từ engine (cylArea = cylLength × cylCircum)
+        if (state.currentResult != null)
           InfoBox(
-            text: 'DT: ${cylArea.toStringAsFixed(4)} m²'
-                ' · 1 trục: ${_fmt(cylOneCost)} đ'
-                ' · Cả bộ ($numColors màu): ${_fmt(cylTotalCost)} đ',
+            text: 'DT: ${state.currentResult!.d('cylArea').toStringAsFixed(4)} m²'
+                ' · 1 trục: ${_fmt(state.currentResult!.d('cylinderCostPerUnit'))} đ'
+                ' · Cả bộ (${numColors ?? 0} màu): ${_fmt(state.currentResult!.cylinderCost)} đ',
             color: AppColors.muted,
             icon: Icons.album_outlined,
           ),
-        const SizedBox(height: 10),
-        ToggleTile(
-          title: 'Bao trục',
-          subtitle: 'Phân bổ chi phí trục vào đơn giá (định mức 200.000 m²)',
-          icon: Icons.all_inclusive,
-          value: (i['cylIncluded'] as bool?) ?? false,
-          onChanged: (v) => u('cylIncluded', v),
-        ),
-        const SizedBox(height: 12),
 
         // Đóng gói
         _SubTitle('📦 Đóng gói & Vận chuyển'),

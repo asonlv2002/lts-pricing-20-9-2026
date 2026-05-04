@@ -103,19 +103,6 @@ class AppState extends ChangeNotifier {
   // ── Input updates ────────────────────────────────────────────────────────
   void updateInput(String key, dynamic value) {
     currentInput = currentInput.withField(key, value);
-    // Auto-compute cylLength khi spreadWidth hoặc numImages đổi
-    // Công thức (theo web): cylLength = max(0.7, spreadWidth * numImages + 0.1)
-    if (key == 'spreadWidth' || key == 'numImages') {
-      final sw = (currentInput.raw['spreadWidth'] as num?)?.toDouble() ?? 0;
-      final ni = (currentInput.raw['numImages'] as num?)?.toInt() ?? 1;
-      if (sw > 0) {
-        final computed = (sw * ni) + 0.1;
-        final cyl = computed < 0.7 ? 0.7 : computed;
-        // Làm tròn 2 chữ số thập phân để tránh lỗi floating point
-        final rounded = (cyl * 100).round() / 100.0;
-        currentInput = currentInput.withField('cylLength', rounded);
-      }
-    }
     notifyListeners();
     _scheduleRecompute();
   }

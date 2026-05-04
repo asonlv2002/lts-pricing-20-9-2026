@@ -87,4 +87,12 @@ class EngineService {
     _rt = null;
     _ready = false;
   }
+
+  /// Evaluate JS code và trả về kết quả. Chỉ dùng sau khi init().
+  dynamic evaluateCode(String code) {
+    if (!_ready || _rt == null) {
+      throw StateError('EngineService chưa init — gọi init() trước.');
+    }
+    return _rt!.evaluate(code);
+  }
 }

@@ -52,7 +52,7 @@
 html { font-size: 14px; scroll-behavior: smooth; }
 .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans), 'Inter', sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -1208,7 +1208,7 @@ body {
   width: 110px; padding: 5px 8px; border: 1.5px solid var(--border);
   border-radius: 8px; background: var(--input-bg);
   font-size: 0.88rem; text-align: right;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans), 'Inter', sans-serif;
   color: var(--text);
   transition: border 0.2s, box-shadow 0.2s;
 }
@@ -1242,7 +1242,7 @@ body {
 .config-cpsx-item input {
   padding: 8px 12px; border: 1.5px solid var(--border);
   border-radius: 10px; background: var(--input-bg);
-  font-size: 0.95rem; font-family: 'Inter', sans-serif;
+  font-size: 0.95rem; font-family: var(--font-sans), 'Inter', sans-serif;
   color: var(--text); text-align: right;
   transition: border 0.2s, box-shadow 0.2s;
 }
@@ -1272,7 +1272,7 @@ body {
   border-radius: 8px;
   background: var(--input-bg);
   font-size: 0.88rem;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--font-sans), 'Inter', sans-serif;
   color: var(--text);
   text-align: center;
   transition: border 0.2s;

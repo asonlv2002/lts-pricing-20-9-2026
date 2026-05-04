@@ -1,8 +1,7 @@
-// ═══════════════════════════════════════════════════════════════════════════
-// Adapter: chuyển đổi EN ↔ VN rồi gọi engine chung @lts/bang-tinh-gia
+// ── Adapter: chuyển đổi EN ↔ VN rồi gọi engine chung @lts/bang-tinh-gia
 // Web UI giữ tên biến tiếng Anh, engine core dùng tiếng Việt.
 // ═══════════════════════════════════════════════════════════════════════════
-import { tinhGia, traLoiNhuan } from '@lts/bang-tinh-gia';
+import { tinhGia, traLoiNhuan, toiUuDoDay, KetQuaToiUuDoDay } from '@lts/bang-tinh-gia';
 import type { DauVaoTinhGia, KetQuaTinhGia, VatLieu, HangSo } from '@lts/kieu-du-lieu';
 import type { DongLoiNhuan } from '@lts/hang-so';
 import { CalculateInput, CalculateResult, Material, AppConstants, ProfitRow } from './types';
@@ -19,6 +18,39 @@ export function lookupProfit(totalCost: number, column: number, profitTable: Pro
     }
   }
   return val;
+}
+
+// ── Auto-optimize thickness using engine ─────────────────────────────────
+export function optimizeThickness(
+  input: CalculateInput,
+  materials: Material[]
+): {
+  optimizedMicOverrides: Record<string, number>;
+  result: ReturnType<typeof toiUuDoDay>;
+} | null {
+  if (!input.targetThickness || input.targetThickness <= 0) return null;
+
+  const vatLieuDangChon: { id: string; doDay: number; laLLDPE: boolean }[] = [
+    { id: 'layer1Id', doDay: materials.find(m => m.id === input.layer1Id)?.thickness ?? 0, laLLDPE: false },
+    ...[2,3,4,5].map(i => {
+      const key = `layer${i}Id` as keyof typeof input;
+      const m = materials.find(mm => mm.id === input[key]);
+      return m ? { id: key, doDay: m.thickness, laLLDPE: m.name.toLowerCase().includes('lldpe') || (m.group?.toLowerCase().includes('lldpe') ?? false) } : null;
+    }).filter((item): item is NonNullable<typeof item> => item !== null)
+  ];
+
+  const vatLieuVN = materials.map(toVatLieu);
+  const ketQua = toiUuDoDay(input.targetThickness, vatLieuDangChon, vatLieuVN);
+
+  const optimizedMicOverrides: Record<string, number> = {};
+  ketQua.ketQua.forEach(k => {
+    const m = materials.find(mm => mm.id === input[k.layerId as keyof typeof input]);
+    if (m && k.adjustedThickness !== m.thickness) {
+      optimizedMicOverrides[k.layerId] = k.adjustedThickness;
+    }
+  });
+
+  return { optimizedMicOverrides, result: ketQua };
 }
 
 // ── Material EN → VatLieu VN ─────────────────────────────────────────────────
@@ -98,6 +130,7 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
     chuViTruc: i.cylCircum || 0,
     giaTrucDonVi: i.cylUnitPrice || 0,
     doDayMucTieu: i.targetThickness || 0,
+    // tuDongToiUuDoDay bỏ qua - xử lý bên ngoài qua optimizeThickness()
     ghiDeDayLop: i.micOverrides ? Object.fromEntries(
       Object.entries(i.micOverrides).map(([k, v]) => {
         // layer1Id → idLop1, layer2Id → idLop2, ...
@@ -109,8 +142,8 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
 }
 
 // ── KetQuaTinhGia VN → CalculateResult EN ────────────────────────────────────
-function toResult(r: KetQuaTinhGia, originalInput: CalculateInput, materials: Material[]): CalculateResult {
-  const findMat = (id?: string) => materials.find(m => m.id === id) || null;
+	function toResult(r: KetQuaTinhGia, originalInput: CalculateInput, materials: Material[]): CalculateResult {
+  const findMat = (id: string | null | undefined) => materials.find(m => m.id === id) || null;
   const printMat = findMat(originalInput.layer1Id);
   const lamIds = [originalInput.layer2Id, originalInput.layer3Id, originalInput.layer4Id, originalInput.layer5Id];
   return {
