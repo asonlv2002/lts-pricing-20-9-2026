@@ -123,7 +123,10 @@ export function toiUuDoDay(
         const hienTai = ketQua[i].adjustedThickness;
         // Tìm bội số 5 tiếp theo >= hienTai + (minChapNhan - tongThucTe)
         const canTangThem = minChapNhan - tongThucTe;
-        const boiSoTiepTheo = Math.ceil((hienTai + canTangThem) / 5) * 5;
+        const boiSoTiepTheo = Math.max(
+          Math.ceil((hienTai + Math.max(canTangThem, 1)) / 5) * 5,
+          hienTai + 5 // ít nhất tăng thêm 5
+        );
 
         if (boiSoTiepTheo > hienTai) {
           const tangThem = boiSoTiepTheo - hienTai;
@@ -477,7 +480,8 @@ export function tinhGia(
     cuocVanChuyenPerDonVi, tongCuocVanChuyen, tyLeCuocVanChuyen, cuocVanChuyenThucTePerKm, soKmThucTe,
     laiSuatPerDonVi, laiSuatCoBan, laiSuatThem, ngayThanhToan: ngayThanhToanThucTe,
     hoaHongPerDonVi, giaCuoiCung,
-    chiPhiTruc, chiPhiTrucPerDonVi, chiPhiTrucPhanBo, dienTichTruc,
+    chiPhiTruc, chiPhiTrucPerDonVi, chiPhiTrucPhanBo,
+    dienTichTruc: dienTichTruc,
     chieuDaiTruc: chieuDaiTrucThucTe, chuViTruc: chuViTrucThucTe, ngaySanXuat,
     cacLop: {
       in: { vatLieu: chiPhiVatLieuIn, kho: khoNLIn, met: metIn, hatHao: hatHaoIn, cpsx: cpSXIn, chiPhiSX: chiPhiSXIn, chiPhiVL: chiPhiVatLieuIn, tongCong: tongChiPhiIn } as ChiTietLop,

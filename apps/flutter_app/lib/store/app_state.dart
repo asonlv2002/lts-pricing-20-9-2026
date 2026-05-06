@@ -105,6 +105,58 @@ class AppState extends ChangeNotifier {
     currentInput = currentInput.withField(key, value);
     notifyListeners();
     _scheduleRecompute();
+
+    // Auto-trigger thickness optimization when layer or micOverrides change
+    if (!_isLayerKey(key) && key != 'micOverrides') return;
+    final i = currentInput.raw;
+    final target = (i['targetThickness'] as num?)?.toInt() ?? 0;
+    final autoOpt = (i['autoOptimizeThickness'] as bool?) ?? false;
+    if (target > 0 && autoOpt) {
+      _scheduleThicknessOptimization();
+    }
+  }
+
+  static bool _isLayerKey(String key) =>
+      ['layer1Id','layer2Id','layer3Id','layer4Id','layer5Id'].contains(key);
+
+  Timer? _thicknessTimer;
+
+  void _scheduleThicknessOptimization() {
+    _thicknessTimer?.cancel();
+    _thicknessTimer = Timer(const Duration(milliseconds: 300), _runThicknessOptimization);
+  }
+
+  void _runThicknessOptimization() {
+    if (!EngineService.instance.isReady) return;
+    final i = currentInput.raw;
+    final target = (i['targetThickness'] as num?)?.toInt() ?? 0;
+    if (target <= 0) return;
+
+    final layerKeys = ['layer1Id','layer2Id','layer3Id','layer4Id','layer5Id'];
+    final hasLayer = layerKeys.any((k) => (i[k] as String?) != null);
+    if (!hasLayer) return;
+
+    try {
+      final inputJson = jsonEncode(currentInput.toJson());
+      final matsJson = jsonEncode(materials.map((m) => m.toJson()).toList());
+      final code = 'globalThis.LTS.optimizeThickness("$inputJson","$matsJson")';
+      final res = EngineService.instance.evaluateCode(code);
+      if (res == null || res.isError) return;
+      final decoded = jsonDecode(res.stringResult);
+      if (decoded == null || (decoded as Map).containsKey('error')) return;
+      final optResult = decoded as Map<String, dynamic>;
+      final overrides = optResult['optimizedMicOverrides'] as Map<String, dynamic>?;
+      if (overrides != null && overrides.isNotEmpty) {
+        final newOverrides = Map<String, dynamic>.from(
+            (i['micOverrides'] as Map?)?.cast<String, dynamic>() ?? {});
+        newOverrides.addAll(overrides);
+        currentInput = currentInput.withField('micOverrides', newOverrides);
+        notifyListeners();
+        _scheduleRecompute();
+      }
+    } catch (_) {
+      // Silently fail — optimization is best-effort
+    }
   }
 
   void setInput(CalculateInput next) {

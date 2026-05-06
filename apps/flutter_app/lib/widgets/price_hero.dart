@@ -50,7 +50,7 @@ class PriceHero extends StatelessWidget {
 
     final isMang = productType == 'mang';
     final finalPrice = r.finalPrice;
-    final rollArea = r.d('filmRollArea');
+    final rollArea = r.d('dienTichCuonMang');
 
     return Container(
       decoration: BoxDecoration(
@@ -202,7 +202,7 @@ class BreakdownPanel extends StatelessWidget {
     String typeStr = isMang ? (filmMap[filmType] ?? 'Màng cuộn') : (hasZipper ? 'Zipper ${bagMap[bagType] ?? bagType}' : (bagMap[bagType] ?? bagType));
 
     final numColorsText = numColors > 0 ? '$numColors màu' : 'Không in';
-    final rollArea = r.d('filmRollArea');
+    final rollArea = r.d('dienTichCuonMang');
 
     // uniRows từ engine raw output
     final layers = raw['layers'] as Map?;
@@ -242,11 +242,11 @@ class BreakdownPanel extends StatelessWidget {
       if ((inp['hasTape'] as bool?) == true) _KVItem('Chi phí Băng keo', '${Fmt.n(r.d('tapePerUnit').round())} đ'),
       if ((inp['hasHandle'] as bool?) == true) _KVItem('Chi phí Quai', '${Fmt.n(r.d('handlePerUnit').round())} đ'),
       _KVItem(isMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', '${Fmt.n(r.d('boxPerUnit').round())} đ'),
-      _KVItem('Chi phí Vận chuyển', '${Fmt.n(r.d('shippingPerUnit').round())} đ'),
-      _KVItem('Lãi vay vốn (${Fmt.pct((r.d('interestBase') + r.d('interestSpread')))}%/năm)', '${Fmt.n(r.d('interestPerUnit').round())} đ'),
+      _KVItem('Chi phí Vận chuyển', '${Fmt.n(r.d('cuocVanChuyenPerDonVi').round())} đ'),
+      _KVItem('Lãi vay vốn (${Fmt.pct((r.d('laiSuatCoBan') + r.d('laiSuatThem')))}%/năm)', '${Fmt.n(r.d('laiSuatPerDonVi').round())} đ'),
       _KVItem('Hoa hồng kinh doanh', '${Fmt.n(commPerUnit.round())} đ'),
-      if (cylInc && r.d('cylAllocPerUnit') > 0)
-        _KVItem('Trục in phân bổ (bao / 200k m²)', '+${Fmt.n(r.d('cylAllocPerUnit').round())} đ'),
+      if (cylInc && r.d('chiPhiTrucPhanBo') > 0)
+        _KVItem('Trục in phân bổ (bao / 200k m²)', '+${Fmt.n(r.d('chiPhiTrucPhanBo').round())} đ'),
     ];
 
     // ─── Section 4: Bảng đặc tả kỹ thuật (uniRows) ──────────────────────
@@ -256,13 +256,13 @@ class BreakdownPanel extends StatelessWidget {
       final mat = printLayer['material'] as Map?;
       uniRows.add(_UniRow(
         stage: 'CPSX IN', mat: (mat?['name'] as String?) ?? '',
-        width: r.d('printNLWidth') / numImages + 0.02,
-        meters: r.d('printMeters') / numImages,
-        waste: r.d('printWaste') / numImages,
-        cpsx: (raw['printCPSX'] as num?)?.toDouble() ?? 0,
-        costCPSX: r.d('printCostCPSX'),
+        width: (printLayer['kho'] as num?)?.toDouble() ?? 0,
+        meters: (printLayer['met'] as num?)?.toDouble() ?? 0,
+        waste: (printLayer['hatHao'] as num?)?.toDouble() ?? 0,
+        cpsx: (printLayer['cpsx'] as num?)?.toDouble() ?? 0,
+        costCPSX: (printLayer['chiPhiSX'] as num?)?.toDouble() ?? 0,
         matPrice: (mat?['pricePerM2'] as num?)?.toDouble(),
-        costMat: r.d('printCostMaterial'),
+        costMat: (printLayer['chiPhiVL'] as num?)?.toDouble() ?? 0,
       ));
     }
     for (final lam in laminations) {
@@ -271,23 +271,24 @@ class BreakdownPanel extends StatelessWidget {
       final layerNum = lamMap['layerNum'] as int? ?? 0;
       uniRows.add(_UniRow(
         stage: 'GHÉP (Lớp $layerNum)', mat: (mat?['name'] as String?) ?? '',
-        width: (lamMap['width'] as num?)?.toDouble() ?? 0,
-        meters: ((lamMap['meters'] as num?)?.toDouble() ?? 0) / numImages,
-        waste: ((lamMap['waste'] as num?)?.toDouble() ?? 0) / numImages,
-        cpsx: raw['ghepCPSX'] is num ? (raw['ghepCPSX'] as num).toDouble() : r.d('ghepCPSX'),
-        costCPSX: (lamMap['costCPSX'] as num?)?.toDouble() ?? 0,
+        width: (lamMap['kho'] as num?)?.toDouble() ?? 0,
+        meters: (lamMap['met'] as num?)?.toDouble() ?? 0,
+        waste: (lamMap['hatHao'] as num?)?.toDouble() ?? 0,
+        cpsx: (lamMap['cpsx'] as num?)?.toDouble() ?? 0,
+        costCPSX: (lamMap['chiPhiSX'] as num?)?.toDouble() ?? 0,
         matPrice: (mat?['pricePerM2'] as num?)?.toDouble(),
-        costMat: (lamMap['costMat'] as num?)?.toDouble(),
+        costMat: (lamMap['chiPhiVL'] as num?)?.toDouble() ?? 0,
       ));
     }
     if (!isMang) {
+      final cat = raw['layers']?['cut'] as Map?;
       uniRows.add(_UniRow(
         stage: 'CẮT', mat: '—',
-        width: r.d('cutWidth'),
-        meters: r.d('cutMeters') / numImages,
-        waste: r.d('cutWaste') / numImages,
-        cpsx: r.d('cutCPSX'),
-        costCPSX: r.d('cutTotalCost'),
+        width: (cat?['kho'] as num?)?.toDouble() ?? 0,
+        meters: (cat?['met'] as num?)?.toDouble() ?? 0,
+        waste: (cat?['hatHao'] as num?)?.toDouble() ?? 0,
+        cpsx: (cat?['cpsx'] as num?)?.toDouble() ?? 0,
+        costCPSX: (cat?['chiPhiSX'] as num?)?.toDouble() ?? 0,
         matPrice: null, costMat: null,
       ));
     }
@@ -297,12 +298,12 @@ class BreakdownPanel extends StatelessWidget {
 
     // ─── Section 5: Trọng lượng ──────────────────────────────────────────
     final weightItems = <_KVItem>[
-      _KVItem(isMang ? 'Diện tích băng (m²/m dài)' : 'Diện tích 1 túi', '${Fmt.d4(r.d('bagArea'))} m²'),
+      _KVItem(isMang ? 'Diện tích băng (m²/m dài)' : 'Diện tích 1 túi', '${Fmt.d4(r.d('dienTichTui'))} m²'),
       _KVItem('Tổng diện tích đơn hàng', '${Fmt.d3(r.totalArea)} m²'),
       if (!isMang) ...[
-        _KVItem('Trọng lượng / túi (Tare)', '${Fmt.d3(r.d('tareWeight'))} g'),
-        _KVItem('Tổng trọng lượng', '${Fmt.d3(r.d('tareWeight') * qty / 1000)} kg'),
-        _KVItem('Trọng lượng (tấn)', '${(r.d('tareWeight') * qty / 1000000).toStringAsFixed(3)} tấn'),
+        _KVItem('Trọng lượng / túi (Tare)', '${Fmt.d3(r.d('khoiLuongTare'))} g'),
+        _KVItem('Tổng trọng lượng', '${Fmt.d3(r.d('khoiLuongTare') * qty / 1000)} kg'),
+        _KVItem('Trọng lượng (tấn)', '${(r.d('khoiLuongTare') * qty / 1000000).toStringAsFixed(3)} tấn'),
       ] else ...[
         _KVItem('Chiều dài cuộn TP', '$filmRollLength m/cuộn'),
         if (rollArea > 0) _KVItem('Số cuộn ước tính', '${(qty / rollArea).ceil()} cuộn'),
@@ -621,18 +622,18 @@ class _CostBreakdownContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final totalProd = r.d('totalProductionCost');
+    final totalProd = r.d('tongChiPhiSX');
     final items = [
-      ('🖨️ In ấn', r.d('printTotalCost')),
-      ('🔗 Ghép màng', r.d('totalLamCost')),
-      ('✂️ Cắt bao', r.d('cutTotalCost')),
+      ('🖨️ In ấn', r.d('tongChiPhiIn')),
+      ('🔗 Ghép màng', r.d('tongChiPhiGhep')),
+      ('✂️ Cắt bao', r.d('tongChiPhiCat')),
       ('✨ Nhũ', r.d('nhuCost')),
       ('🌫️ Phủ mờ', r.d('moCost')),
-      ('🔒 Zipper', r.d('zipperTotal')),
-      ('📎 Băng keo', r.d('tapeTotal')),
-      ('🛍️ Quai xách', r.d('handleTotal')),
-      ('📦 Đóng gói', r.d('boxTotal')),
-      ('🚚 Vận chuyển', r.d('shippingTotal')),
+      ('🔒 Zipper', r.d('tongTienKhoa')),
+      ('📎 Băng keo', r.d('tongTienBangKeo')),
+      ('🛍️ Quai xách', r.d('tongTienQuaiXach')),
+      ('📦 Đóng gói', r.d('phiDongGoiPerDonVi')),
+      ('🚚 Vận chuyển', r.d('tongCuocVanChuyen')),
     ].where((x) => x.$2 > 0).toList();
 
     final maxVal = items.fold(0.0, (m, it) => it.$2 > m ? it.$2 : m);
@@ -683,11 +684,11 @@ class _CylinderContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cylLength  = r.d('cylLength');
-    final cylCircum  = r.d('cylCircum');
+    final cylLength  = r.d('chieuDaiTruc');
+    final cylCircum  = r.d('chuViTruc');
     final cylCost    = r.cylinderCost;
-    final cylPerUnit = r.d('cylinderCostPerUnit');
-    final cylAlloc   = r.d('cylAllocPerUnit');
+    final cylPerUnit = r.d('chiPhiTrucPerDonVi');
+    final cylAlloc   = r.d('chiPhiTrucPhanBo');
     final cylIncluded = (inp['cylIncluded'] as bool?) ?? false;
     final cylType    = (inp['cylType'] as String?) ?? 'A';
     final oneTruc    = numColors > 0 ? cylCost / numColors : cylCost;
@@ -712,7 +713,7 @@ class _CylinderContent extends StatelessWidget {
               const SizedBox(width: 14),
               _CylDim('Chu vi', '${cylCircum.toStringAsFixed(3)} m'),
               const SizedBox(width: 14),
-              _CylDim('DT', '${r.d('cylArea').toStringAsFixed(4)} m²'),
+              _CylDim('DT', '${r.d('dienTichTruc').toStringAsFixed(4)} m²'),
             ]),
           ])),
         ]),

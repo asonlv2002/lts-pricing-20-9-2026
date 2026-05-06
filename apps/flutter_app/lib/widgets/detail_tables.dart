@@ -273,9 +273,9 @@ void showOverviewTable(BuildContext context, CalculateResult r) {
     _row('Giá vốn / $ul', Fmt.vnd(r.costPerUnit), normal: true),
     _row('Lợi nhuận / $ul', '+${Fmt.vnd(r.finalPrice - r.costPerUnit)}',
         color: AppColors.success),
-    _row('Hoa hồng / $ul', Fmt.vnd(r.d('commissionPerUnit'))),
-    if (r.d('cylAllocPerUnit') > 0)
-      _row('Trục phân bổ / $ul', '+${Fmt.vnd(r.d('cylAllocPerUnit'))}',
+    _row('Hoa hồng / $ul', Fmt.vnd(r.d('hoaHongPerDonVi'))),
+    if (r.d('chiPhiTrucPhanBo') > 0)
+      _row('Trục phân bổ / $ul', '+${Fmt.vnd(r.d('chiPhiTrucPhanBo'))}',
           color: AppColors.warning),
     _row('GIÁ ĐỀ XUẤT / $ul', Fmt.vnd(r.finalPrice),
         bold: true, color: AppColors.success),
@@ -286,20 +286,20 @@ void showOverviewTable(BuildContext context, CalculateResult r) {
     _row('Tỷ lệ LN', '${Fmt.pct(r.profitRate)}%',
         bold: true, color: AppColors.success),
     _row('', '', divider: true),
-    _row('Lãi suất cơ sở', '${Fmt.pct(r.d('interestBase'))}%/năm'),
-    _row('Lãi suất bổ sung', '${Fmt.pct(r.d('interestSpread'))}%/năm'),
-    _row('Thời hạn thanh toán', '${r.d('paymentDays').round()} ngày'),
-    _row('Lãi suất / $ul', Fmt.vnd(r.d('interestPerUnit'))),
+    _row('Lãi suất cơ sở', '${Fmt.pct(r.d('laiSuatCoBan'))}%/năm'),
+    _row('Lãi suất bổ sung', '${Fmt.pct(r.d('laiSuatThem'))}%/năm'),
+    _row('Thời hạn thanh toán', '${r.d('ngayThanhToan').round()} ngày'),
+    _row('Lãi suất / $ul', Fmt.vnd(r.d('laiSuatPerDonVi'))),
     if (!isMang) ...[
       _row('', '', divider: true),
-      _row('Số thùng', '${r.d('numBoxes').round()} thùng'),
-      _row('Đóng gói / $ul', Fmt.vnd(r.d('packagingPerUnit'))),
-      _row('Vận chuyển / $ul', Fmt.vnd(r.d('shippingPerUnit'))),
-      _row('Tổng vận chuyển', Fmt.vnd(r.d('shippingTotal'))),
+      _row('Số thùng', '${r.d('soThuung').round()} thùng'),
+      _row('Đóng gói / $ul', Fmt.vnd(r.d('phiDongGoiPerDonVi'))),
+      _row('Vận chuyển / $ul', Fmt.vnd(r.d('cuocVanChuyenPerDonVi'))),
+      _row('Tổng vận chuyển', Fmt.vnd(r.d('tongCuocVanChuyen'))),
     ] else ...[
       _row('', '', divider: true),
-      _row('Diện tích 1 cuộn', '${Fmt.d3(r.d('filmRollArea'))} m²'),
-      _row('Giá 1 cuộn', Fmt.vnd(r.d('filmRollArea') * r.finalPrice)),
+      _row('Diện tích 1 cuộn', '${Fmt.d3(r.d('dienTichCuonMang'))} m²'),
+      _row('Giá 1 cuộn', Fmt.vnd(r.d('dienTichCuonMang') * r.finalPrice)),
     ],
   ];
 
@@ -319,18 +319,18 @@ void showOverviewTable(BuildContext context, CalculateResult r) {
 
 /// Tab 1: Chi phí — bảng từng khoản chi phí sản xuất
 void showCostTable(BuildContext context, CalculateResult r) {
-  final totalProd = r.d('totalProductionCost');
+  final totalProd = r.d('tongChiPhiSX');
   final items = [
-    ('🖨️ In ấn', r.d('printTotalCost')),
-    ('🔗 Ghép màng (CPSX)', r.d('totalLamCost')),
-    ('✂️ Cắt bao', r.d('cutTotalCost')),
+    ('🖨️ In ấn', r.d('tongChiPhiIn')),
+    ('🔗 Ghép màng (CPSX)', r.d('tongChiPhiGhep')),
+    ('✂️ Cắt bao', r.d('tongChiPhiCat')),
     ('✨ Nhũ', r.d('nhuCost')),
     ('🌫️ Phủ mờ', r.d('moCost')),
-    ('🔒 Zipper', r.d('zipperTotal')),
-    ('📎 Băng keo', r.d('tapeTotal')),
-    ('🛍️ Quai xách', r.d('handleTotal')),
-    ('📦 Đóng gói', r.d('boxTotal')),
-    ('🚚 Vận chuyển', r.d('shippingTotal')),
+    ('🔒 Zipper', r.d('tongTienKhoa')),
+    ('📎 Băng keo', r.d('tongTienBangKeo')),
+    ('🛍️ Quai xách', r.d('tongTienQuaiXach')),
+    ('📦 Đóng gói', r.d('phiDongGoiPerDonVi')),
+    ('🚚 Vận chuyển', r.d('tongCuocVanChuyen')),
   ].where((x) => x.$2 > 0).toList();
 
   final rows = <List<TableCellData>>[
@@ -376,10 +376,10 @@ void showCostTable(BuildContext context, CalculateResult r) {
             align: TextAlign.right,
             style: TextStyle(color: AppColors.muted, fontSize: 11.5)),
       ],
-      if (r.d('cylAllocPerUnit') > 0)
+      if (r.d('chiPhiTrucPhanBo') > 0)
         [
           TableCellData('Phân bổ trục / đv (bao)'),
-          TableCellData('+${Fmt.vnd(r.d('cylAllocPerUnit'))}',
+          TableCellData('+${Fmt.vnd(r.d('chiPhiTrucPhanBo'))}',
               align: TextAlign.right,
               style: TextStyle(fontWeight: FontWeight.w700, color: AppColors.warning)),
           TableCellData('Đã cộng vào giá',
@@ -406,9 +406,12 @@ void showCostTable(BuildContext context, CalculateResult r) {
 
 /// Tab 2: Sản xuất — bảng thông số kỹ thuật chi tiết
 void showProductionTable(BuildContext context, CalculateResult r) {
-  final isMang = (r.raw['input'] as Map?)?['productType'] == 'mang';
-  final ul = isMang ? 'm²' : 'cái';
   final inp = r.raw['input'] as Map? ?? {};
+  final layers = r.raw['cacLop'] as Map? ?? {};
+  final printLayer = layers['in'] as Map?;
+  final cat = layers['cat'] as Map?;
+  final isMang = ((inp['productType'] as String?) ?? 'tui') == 'mang';
+  final ul = isMang ? 'm²' : 'cái';
   final spreadMm = ((inp['spreadWidth'] as num?) ?? 0) * 1000;
   final cutMm = ((inp['cutStep'] as num?) ?? 0) * 1000;
   final numColors = (inp['numColors'] as num?) ?? 0;
@@ -419,25 +422,25 @@ void showProductionTable(BuildContext context, CalculateResult r) {
     _row3('Bước cắt', '${cutMm.toStringAsFixed(0)} mm', 'Kích thước'),
     _row3('Số con hình', '$numImages con', 'In ấn'),
     _row3('Số màu in', numColors == 0 ? 'Không in' : '$numColors màu', 'In ấn'),
-    _row3('Tổng độ dày', '${r.d('totalThickness').toStringAsFixed(1)} mic', 'Vật liệu'),
-    _row3('Định lượng (GSM)', '${r.d('totalGSM').toStringAsFixed(2)} g/m²', 'Vật liệu'),
-    _row3('Diện tích 1 $ul', '${Fmt.d4(r.d('bagArea'))} m²', 'Kích thước'),
+    _row3('Tổng độ dày', '${r.d('tongDoDay').toStringAsFixed(1)} mic', 'Vật liệu'),
+    _row3('Định lượng (GSM)', '${r.d('tongGSM').toStringAsFixed(2)} g/m²', 'Vật liệu'),
+    _row3('Diện tích 1 $ul', '${Fmt.d4(r.d('dienTichTui'))} m²', 'Kích thước'),
     _row3('Tổng diện tích', '${Fmt.d3(r.totalArea)} m²', 'Sản lượng', bold: true),
-    _row3('Cân nặng tare', '${Fmt.d3(r.d('tareWeight'))} kg', 'Thông số'),
+    _row3('Cân nặng tare', '${Fmt.d3(r.d('khoiLuongTare'))} kg', 'Thông số'),
     _row3('', '', ''),
-    _row3('Khổ giấy in', '${Fmt.d3(r.d('printNLWidth'))} m', 'In ấn'),
-    _row3('Chiều dài in', '${Fmt.d3(r.d('printMeters'))} m', 'In ấn'),
-    _row3('Phế hao in', '${Fmt.d3(r.d('printWaste'))} m', 'In ấn'),
-    _row3('Chiều dài màng in', '${Fmt.d3(r.d('filmLength'))} m', 'In ấn'),
-    _row3('CP mực ấn (CPSX)', Fmt.vnd(r.d('printCostCPSX')), 'Chi phí in'),
-    _row3('CP vật liệu in', Fmt.vnd(r.d('printCostMaterial')), 'Chi phí in'),
-    _row3('Tổng CP In', Fmt.vnd(r.d('printTotalCost')), 'Chi phí in', bold: true),
+    _row3('Khổ giấy in', '${Fmt.d3((printLayer?['kho'] as num?)?.toDouble() ?? 0)} m', 'In ấn'),
+    _row3('Chiều dài in', '${Fmt.d3((printLayer?['met'] as num?)?.toDouble() ?? 0)} m', 'In ấn'),
+    _row3('Phế hao in', '${Fmt.d3((printLayer?['hatHao'] as num?)?.toDouble() ?? 0)} m', 'In ấn'),
+    _row3('Chiều dài màng in', '${Fmt.d3(r.d('chieuDaiMang'))} m', 'In ấn'),
+    _row3('CP mực ấn (CPSX)', Fmt.vnd((printLayer?['chiPhiSX'] as num?)?.toDouble() ?? 0), 'Chi phí in'),
+    _row3('CP vật liệu in', Fmt.vnd((printLayer?['chiPhiVL'] as num?)?.toDouble() ?? 0), 'Chi phí in'),
+    _row3('Tổng CP In', Fmt.vnd(r.d('tongChiPhiIn')), 'Chi phí in', bold: true),
     _row3('', '', ''),
-    _row3('Khổ cắt', '${Fmt.d3(r.d('cutWidth'))} m', 'Cắt'),
-    _row3('Chiều dài cắt', '${Fmt.d3(r.d('cutMeters'))} m', 'Cắt'),
-    _row3('Phế hao cắt', '${Fmt.d3(r.d('cutWaste'))} m', 'Cắt'),
-    _row3('CP cắt/CPSX', Fmt.vnd(r.d('cutCostCPSX')), 'Chi phí cắt'),
-    _row3('Tổng CP Cắt', Fmt.vnd(r.d('cutTotalCost')), 'Chi phí cắt', bold: true),
+    _row3('Khổ cắt', '${Fmt.d3((cat?['kho'] as num?)?.toDouble() ?? 0)} m', 'Cắt'),
+    _row3('Chiều dài cắt', '${Fmt.d3((cat?['met'] as num?)?.toDouble() ?? 0)} m', 'Cắt'),
+    _row3('Phế hao cắt', '${Fmt.d3((cat?['hatHao'] as num?)?.toDouble() ?? 0)} m', 'Cắt'),
+    _row3('CP cắt/CPSX', Fmt.vnd((cat?['cpsx'] as num?)?.toDouble() ?? 0), 'Chi phí cắt'),
+    _row3('Tổng CP Cắt', Fmt.vnd(r.d('tongChiPhiCat')), 'Chi phí cắt', bold: true),
     _row3('', '', ''),
     _row3('Thời gian SX ước tính',
         '${r.d('productionDays').toStringAsFixed(1)} ngày', 'Tiến độ', bold: true),
@@ -461,12 +464,12 @@ void showProductionTable(BuildContext context, CalculateResult r) {
 /// Tab 3: Trục in — bảng thông số trục chi tiết
 void showCylinderTable(BuildContext context, CalculateResult r) {
   final inp = r.raw['input'] as Map? ?? {};
-  final cylLength = r.d('cylLength');
-  final cylCircum = r.d('cylCircum');
-  final cylArea = r.d('cylArea');
+  final cylLength = r.d('chieuDaiTruc');
+  final cylCircum = r.d('chuViTruc');
+  final cylArea = r.d('dienTichTruc');
   final cylCost = r.cylinderCost;
-  final cylPerUnit = r.d('cylinderCostPerUnit');
-  final cylAlloc = r.d('cylAllocPerUnit');
+  final cylPerUnit = r.d('chiPhiTrucPerDonVi');
+  final cylAlloc = r.d('chiPhiTrucPhanBo');
   final numColors = (inp['numColors'] as num?) ?? 0;
   final cylType = (inp['cylType'] as String?) ?? 'A';
   final cylIncluded = (inp['cylIncluded'] as bool?) ?? false;

@@ -100,6 +100,17 @@ class _StickyBottomBar extends StatelessWidget {
         children: [
           Expanded(
             child: FilledButton.icon(
+              onPressed: () => _tinhGia(context),
+              icon: const Icon(Icons.calculate_outlined, size: 18),
+              label: const Text('Tính giá'),
+              style: FilledButton.styleFrom(
+                backgroundColor: scheme.primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: FilledButton.tonalIcon(
               onPressed: state.currentResult == null
                   ? null
                   : () async {
@@ -119,14 +130,13 @@ class _StickyBottomBar extends StatelessWidget {
                       }
                     },
               icon: const Icon(Icons.bookmark_add_outlined, size: 18),
-              label: const Text('Lưu báo giá'),
+              label: const Text('Lưu'),
             ),
           ),
-          const SizedBox(width: 10),
-          OutlinedButton.icon(
+          const SizedBox(width: 8),
+          OutlinedButton(
             onPressed: () => state.setInput(CalculateInput.defaults()),
-            icon: const Icon(Icons.refresh, size: 18),
-            label: const Text('Reset'),
+            child: const Text('Reset'),
           ),
           if (state.currentResult != null) ...[
             const SizedBox(width: 8),
@@ -141,12 +151,84 @@ class _StickyBottomBar extends StatelessWidget {
     );
   }
 
+  /// Validate + trigger recompute + show errors
+  void _tinhGia(BuildContext context) {
+    final i = state.currentInput.raw;
+    final productType = (i['productType'] as String?) ?? '';
+    final bagType = (i['bagType'] as String?) ?? '';
+    final filmType = (i['filmType'] as String?) ?? '';
+    final quantity = (i['quantity'] as num?)?.toDouble() ?? 0;
+    final spreadWidth = (i['spreadWidth'] as num?)?.toDouble() ?? 0;
+    final cutStep = (i['cutStep'] as num?)?.toDouble() ?? 0;
+    final numColors = (i['numColors'] as num?)?.toInt();
+
+    final errors = <String>[];
+    if (productType.isEmpty) errors.add('Chưa chọn loại sản phẩm');
+    if (productType == 'tui' && bagType.isEmpty) errors.add('Chưa chọn loại túi');
+    if (productType == 'mang' && filmType.isEmpty) errors.add('Chưa chọn loại màng');
+    if (quantity <= 0) errors.add('Chưa nhập số lượng');
+    if (spreadWidth <= 0) errors.add('Chưa nhập khổ trải');
+    if (cutStep <= 0) errors.add('Chưa nhập bước cắt');
+    if (numColors == null) errors.add('Chưa chọn số màu in');
+
+    if (errors.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(errors.join('\n'),
+                    style: const TextStyle(fontSize: 13)),
+              ),
+            ],
+          ),
+          backgroundColor: AppColors.danger,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      return;
+    }
+
+    state.recomputeNow();
+    if (state.lastError != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Expanded(child: Text('Lỗi: ${state.lastError}')),
+            ],
+          ),
+          backgroundColor: AppColors.danger,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    } else if (state.currentResult != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text('Đã tính xong'),
+            ],
+          ),
+          backgroundColor: AppColors.success,
+          duration: const Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
   void _copyResult(BuildContext context, AppState state) async {
     final r = state.currentResult;
     if (r == null) return;
     final i = state.currentInput;
     final isMang = i.productType == 'mang';
-    final unitLabel = isMang ? 'm²' : 'cái';
+    final filmRollLength = i.get<num>('filmRollLength')?.toInt() ?? 6000;
     final fmtPct = (double n) =>
         '${(n * 100).toStringAsFixed(2)}%';
     final fmtVnd = (double v) => v
@@ -155,11 +237,16 @@ class _StickyBottomBar extends StatelessWidget {
         .replaceAllMapped(
             RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
     final text = [
-      '${i.customer.isEmpty ? 'KH' : i.customer} — ${i.productName.isEmpty ? 'SP' : i.productName}',
-      'Cấu trúc: ${r.structureText}',
-      'SL: ${i.quantity} $unitLabel',
-      'GIÁ ĐỀ XUẤT: ${fmtVnd(r.finalPrice)} đ/$unitLabel',
-      'Giá vốn: ${fmtVnd(r.costPerUnit)} đ | LN: ${fmtPct(r.profitRate)}',
+      '${i.customer.isEmpty ? 'N/A' : i.customer} — ${i.productName.isEmpty ? 'N/A' : i.productName}',
+      'Cấu trúc: ${r.structureText} | Độ dày: ${r.d('totalThickness').toStringAsFixed(1)}mic',
+      isMang
+          ? 'Diện tích: ${fmtVnd(i.quantity.toDouble())} m² | KT: ${(r.d('spreadWidth') * 1000).toStringAsFixed(0)}×${(r.d('cutStep') * 1000).toStringAsFixed(0)} mm² | Cuộn: ${fmtVnd(filmRollLength.toDouble())}m/cuộn'
+          : 'SL: ${fmtVnd(i.quantity.toDouble())} túi | KT: ${(r.d('spreadWidth') * 1000).toStringAsFixed(0)}×${(r.d('cutStep') * 1000).toStringAsFixed(0)} mm²',
+      isMang
+          ? 'GIÁ ĐỀ XUẤT: ${fmtVnd(r.finalPrice)} đ/m² (chưa VAT)'
+          : 'GIÁ ĐỀ XUẤT: ${fmtVnd(r.finalPrice)} đ/túi (chưa VAT)',
+      'Giá vốn: ${fmtVnd(r.costPerUnit)} đ | LN: ${fmtPct(r.profitRate)} | DT: ${(r.revenue / 1000000).toStringAsFixed(1)}tr',
+      'Trục in: ${(r.cylinderCost / 1000000).toStringAsFixed(1)}tr (riêng)',
     ].join('\n');
 
     await Clipboard.setData(ClipboardData(text: text));
@@ -424,6 +511,8 @@ class _InputFormState extends State<_InputForm> {
                         final optimized = result['ketQua'] as List? ?? [];
                         final newOverrides = Map<String, dynamic>.from(
                             (i['micOverrides'] as Map?) ?? {});
+                        // Build change summary
+                        final changes = <String>[];
                         for (final kq in optimized) {
                           final layerId = kq['layerId'] as String;
                           final adjusted = (kq['adjustedThickness'] as num).toDouble();
@@ -436,6 +525,7 @@ class _InputFormState extends State<_InputForm> {
                           );
                           if (adjusted != mat.thickness) {
                             newOverrides[layerId] = adjusted;
+                            changes.add('${mat.name}: ${mat.thickness}→$adjusted');
                           } else {
                             newOverrides.remove(layerId);
                           }
@@ -448,10 +538,10 @@ class _InputFormState extends State<_InputForm> {
                             SnackBar(
                               content: Text(
                                 datYeuCau
-                                    ? 'Đã tối ưu: $tongThucTe mic (thỏa [${target - 5}, ${target + 5}])'
+                                    ? 'Đã tối ưu: $tongThucTe mic (thỏa [${target - 5}, ${target + 5}])\n${changes.join(', ')}'
                                     : (result['canhBao'] as String? ?? 'Không đạt yêu cầu'),
                               ),
-                              duration: const Duration(seconds: 3),
+                              duration: const Duration(seconds: 4),
                             ),
                           );
                         }
@@ -535,7 +625,10 @@ class _InputFormState extends State<_InputForm> {
                     child: NumField(
                       initial: (i['spreadWidth'] as num?) ?? 0,
                       suffix: 'm',
-                      onChanged: (v) => u('spreadWidth', v),
+                      onChanged: (v) {
+                        u('spreadWidth', v);
+                        _autoUpdateCylLength(v, (i['numImages'] as num?)?.toInt() ?? 1);
+                      },
                     ),
                   ),
                 ),
@@ -547,7 +640,10 @@ class _InputFormState extends State<_InputForm> {
                     child: NumField(
                       initial: (i['cutStep'] as num?) ?? 0,
                       suffix: 'm',
-                      onChanged: (v) => u('cutStep', v),
+                      onChanged: (v) {
+                        u('cutStep', v);
+                        _autoUpdateCylCircum(v);
+                      },
                     ),
                   ),
                 ),
@@ -559,8 +655,11 @@ class _InputFormState extends State<_InputForm> {
                     child: NumField(
                       initial: (i['numImages'] as num?) ?? 1,
                       integer: true,
-                      onChanged: (v) =>
-                          u('numImages', v.toInt().clamp(1, 99)),
+                      onChanged: (v) {
+                        final vi = v.toInt().clamp(1, 99);
+                        u('numImages', vi);
+                        _autoUpdateCylLength((i['spreadWidth'] as num?)?.toDouble() ?? 0, vi);
+                      },
                     ),
                   ),
                 ),
@@ -686,7 +785,7 @@ class _InputFormState extends State<_InputForm> {
                 onChanged: (v) => u('profitColumn', v),
               ),
             ),
-            _CommissionRow(input: i, onUpdate: (key, val) => u(key, val)),
+            _CommissionRow(state: s),
           ],
         ),
         const SizedBox(height: 80),
@@ -721,6 +820,31 @@ class _InputFormState extends State<_InputForm> {
         (s.currentInput.raw['micOverrides'] as Map?) ?? {});
     micOverrides[layerKey] = value;
     u('micOverrides', micOverrides);
+  }
+
+  /// Tự động tính độ dài trục theo đúng logic web app (CuaHangTinhGia.ts):
+  /// cylLength = max(0.7, spreadWidth × numImages + 0.1)
+  void _autoUpdateCylLength(double spreadWidth, int numImages) {
+    if (spreadWidth <= 0) return;
+    final n = numImages > 0 ? numImages : 1;
+    final raw = spreadWidth * n + 0.1;
+    final cylLength = raw > 0.7 ? raw : 0.7;
+    u('cylLength', cylLength);
+  }
+
+  /// Tự động tính chu vi trục theo đúng logic web app:
+  /// cylCircum = cutStep × N (N là bội số nhỏ nhất sao cho cutStep × N ≥ 0.4)
+  void _autoUpdateCylCircum(double cutStep) {
+    if (cutStep <= 0) {
+      u('cylCircum', 0);
+      return;
+    }
+    int N = 1;
+    while (cutStep * N < 0.4) {
+      N++;
+    }
+    final cylCircum = cutStep * N;
+    u('cylCircum', cylCircum);
   }
 }
 
@@ -1098,14 +1222,23 @@ class _AdvancedSection extends StatelessWidget {
             ),
           ),
         // Hiển thị diện tích trục từ engine (cylArea = cylLength × cylCircum)
-        if (state.currentResult != null)
+        if (cylLength > 0 && cylCircum > 0)
           InfoBox(
-            text: 'DT: ${state.currentResult!.d('cylArea').toStringAsFixed(4)} m²'
-                ' · 1 trục: ${_fmt(state.currentResult!.d('cylinderCostPerUnit'))} đ'
-                ' · Cả bộ (${numColors ?? 0} màu): ${_fmt(state.currentResult!.cylinderCost)} đ',
+            text: 'DT: ${(cylLength * cylCircum).toStringAsFixed(4)} m²'
+                ' · 1 trục: ${_fmt(cylOneCost)} đ'
+                ' · Cả bộ ($numColors màu): ${_fmt(cylTotalCost)} đ',
             color: AppColors.muted,
             icon: Icons.album_outlined,
           ),
+
+        ToggleTile(
+          title: 'Bao trục',
+          subtitle: 'Phân bổ chi phí bộ trục vào đơn giá (định mức 200.000 m²)',
+          icon: Icons.album_outlined,
+          accent: AppColors.success,
+          value: (i['cylIncluded'] as bool?) ?? false,
+          onChanged: (v) => u('cylIncluded', v),
+        ),
 
         // Đóng gói
         _SubTitle('📦 Đóng gói & Vận chuyển'),
@@ -1180,68 +1313,111 @@ class _AdvancedSection extends StatelessWidget {
 }
 
 // ─── Commission row ───────────────────────────────────────────────────────────
-class _CommissionRow extends StatelessWidget {
-  final Map<String, dynamic> input;
-  final void Function(String key, dynamic val) onUpdate;
-  const _CommissionRow({required this.input, required this.onUpdate});
+class _CommissionRow extends StatefulWidget {
+  final AppState state;
+  const _CommissionRow({required this.state});
+
+  @override
+  State<_CommissionRow> createState() => _CommissionRowState();
+}
+
+class _CommissionRowState extends State<_CommissionRow> {
+  AppState get s => widget.state;
+  Map<String, dynamic> get i => s.currentInput.raw;
+  void u(String key, dynamic value) => s.updateInput(key, value);
 
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final unit = (input['commissionUnit'] as String?) ?? 'percent';
-    final val = (input['commissionInputValue'] as num?)?.toDouble() ?? 0;
+    final unit = (i['commissionUnit'] as String?) ?? 'percent';
+    final val = (i['commissionInputValue'] as num?)?.toDouble() ?? 0;
+    final r = s.currentResult;
+    final isMang = ((i['productType'] as String?) ?? 'tui') == 'mang';
+    final unitLabel = isMang ? 'm²' : 'túi';
 
-    return LabeledField(
-      label: 'Hoa hồng',
-      child: Row(
-        children: [
-          Expanded(
-            child: NumField(
-              initial: val,
-              suffix: unit == 'percent' ? '%' : 'đ',
-              onChanged: (v) {
-                onUpdate('commissionInputValue', v);
-                onUpdate('commissionRate', unit == 'percent' ? v / 100 : 0);
-                onUpdate('commissionFixedVND', unit == 'vnd' ? v : 0);
-              },
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            decoration: BoxDecoration(
-              color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                _UnitChip(
-                  label: '%',
-                  selected: unit == 'percent',
-                  onTap: () {
-                    onUpdate('commissionUnit', 'percent');
-                    onUpdate('commissionRate', val / 100);
-                    onUpdate('commissionFixedVND', 0);
+    // Commission hint giống web: hiện = X đ/túi hoặc = X%
+    String? hintText;
+    if (r != null && val > 0) {
+      if (unit == 'percent') {
+        final vndPerUnit = (val / 100) * r.costPerUnit;
+        hintText = '= ${_vnd(vndPerUnit)} đ/$unitLabel';
+      } else {
+        final pct = r.costPerUnit > 0 ? (val / r.costPerUnit * 100) : 0.0;
+        hintText = '= ${pct.toStringAsFixed(2)}% (trên giá vốn+LN)';
+      }
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LabeledField(
+          label: 'Hoa hồng',
+          child: Row(
+            children: [
+              Expanded(
+                child: NumField(
+                  initial: val,
+                  suffix: unit == 'percent' ? '%' : 'đ',
+                  onChanged: (v) {
+                    u('commissionInputValue', v);
+                    u('commissionRate', unit == 'percent' ? v / 100 : 0);
+                    u('commissionFixedVND', unit == 'vnd' ? v : 0);
                   },
                 ),
-                _UnitChip(
-                  label: 'VND',
-                  selected: unit == 'vnd',
-                  onTap: () {
-                    onUpdate('commissionUnit', 'vnd');
-                    onUpdate('commissionRate', 0);
-                    onUpdate('commissionFixedVND', val);
-                  },
+              ),
+              const SizedBox(width: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                decoration: BoxDecoration(
+                  color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
                 ),
-              ],
-            ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _UnitChip(
+                      label: '%',
+                      selected: unit == 'percent',
+                      onTap: () {
+                        u('commissionUnit', 'percent');
+                        u('commissionRate', val / 100);
+                        u('commissionFixedVND', 0);
+                        setState(() {});
+                      },
+                    ),
+                    _UnitChip(
+                      label: 'VND',
+                      selected: unit == 'vnd',
+                      onTap: () {
+                        u('commissionUnit', 'vnd');
+                        u('commissionRate', 0);
+                        u('commissionFixedVND', val);
+                        setState(() {});
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
-      ),
+        ),
+        if (hintText != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 2),
+            child: Text(hintText,
+                style: TextStyle(
+                    fontSize: 11.5,
+                    color: AppColors.muted,
+                    fontStyle: FontStyle.italic)),
+          ),
+      ],
     );
   }
+
+  String _vnd(double v) =>
+      v.round().toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
 }
 
 class _UnitChip extends StatelessWidget {

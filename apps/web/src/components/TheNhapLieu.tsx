@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import { optimizeThickness } from '../lib/engine';
 
 // --- FORMAT NUMBER INPUT ---
 const FormattedNumberInput = ({ value, onChange, placeholder, min, step, className }: any) => {
@@ -404,6 +405,66 @@ export default function InputCard() {
           </div>
 
           <StructurePreview />
+
+          {/* Nút tối ưu độ dày */}
+          {showStructure && (input.targetThickness ?? 0) > 0 && (
+            <div style={{ marginTop: '12px', marginBottom: '8px' }}>
+              <button
+                className="btn btn-primary"
+                onClick={async () => {
+                  const target = input.targetThickness;
+                  if (!target || target <= 0) return;
+
+                  // Build layers for optimization
+                  const layers = [];
+                  for (const k of ['layer1Id', 'layer2Id', 'layer3Id', 'layer4Id', 'layer5Id']) {
+                    const id = (input as any)[k];
+                    if (!id) continue;
+                    const mat = materials.find((m: any) => m.id === id);
+                    if (!mat) continue;
+                    layers.push({
+                      id: k,
+                      doDay: ((input as any).micOverrides?.[k] ?? mat.thickness),
+                      isLLDPE: mat.name?.toLowerCase().includes('lldpe') ||
+                        mat.group?.toLowerCase().includes('lldpe'),
+                    });
+                  }
+                  if (layers.length === 0) return;
+
+                  try {
+                    const result = optimizeThickness(
+                      input as any,
+                      materials as any,
+                    );
+                    if (result && result.result) {
+                      const newOverrides = { ...(input as any).micOverrides };
+                      result.result.ketQua.forEach((kq: any) => {
+                        const layerId = kq.layerId;
+                        const adjusted = kq.adjustedThickness;
+                        const mat = materials.find((m: any) => m.id === (input as any)[layerId]);
+                        if (adjusted !== mat?.thickness) {
+                          newOverrides[layerId] = adjusted;
+                        } else {
+                          delete newOverrides[layerId];
+                        }
+                      });
+                      capNhatDauVao({ micOverrides: newOverrides });
+
+                      const datYeuCau = (result.result as any).datYeuCau;
+                      const tongThucTe = (result.result as any).tongThucTe;
+                      alert(datYeuCau
+                        ? `Đã tối ưu: ${tongThucTe} mic (thỏa [${target - 5}, ${target + 5}])`
+                        : ((result.result as any).canhBao || 'Không đạt yêu cầu'));
+                    }
+                  } catch (e: any) {
+                    alert('Lỗi tối ưu: ' + e.message);
+                  }
+                }}
+              >
+                🔧 Tính độ dày
+              </button>
+            </div>
+          )}
 
           {renderLayerSelect('Lớp 1', 'layer1Id', false)}
           {renderLayerSelect('Lớp 2', 'layer2Id', !input.layer1Id)}

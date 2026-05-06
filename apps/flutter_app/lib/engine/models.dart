@@ -192,15 +192,17 @@ class CalculateResult {
   double d(String key) => (raw[key] as num?)?.toDouble() ?? 0;
   String s(String key) => raw[key] as String? ?? '';
 
-  double get finalPrice => d('finalPrice');
-  double get costPerUnit => d('costPerUnit');
-  double get revenue => d('revenue');
-  double get totalArea => d('totalArea');
-  double get totalProductionCost => d('totalProductionCost');
-  double get profitAmount => d('profitAmount');
-  double get profitRate => d('profitRate');
-  double get cylinderCost => d('cylinderCost');
-  String get structureText => s('structureText');
+  double get finalPrice => d('giaCuoiCung');
+  double get costPerUnit => d('chiPhiDonVi');
+  double get revenue => d('doanhThu');
+  double get totalArea => d('tongDienTich');
+  double get totalProductionCost => d('tongChiPhiSX');
+  double get profitAmount => d('soTienLoiNhuan');
+  double get profitRate => d('tyLeLoiNhuan');
+  double get cylinderCost => d('chiPhiTruc');
+  double get cylLength => d('chieuDaiTruc');
+  double get cylCircum => d('chuViTruc');
+  String get structureText => s('chuoiCauTruc');
 }
 
 /// History item — giống HistoryItem trong types.ts (rút gọn cho mobile).

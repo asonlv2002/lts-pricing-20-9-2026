@@ -4,7 +4,7 @@
 // Expose globalThis.LTS = { calculate(inputJson, materialsJson, constantsJson, profitTableJson) }
 // Tất cả tham số là JSON string (để tránh issue marshal phức tạp giữa Dart ↔ QuickJS).
 // ═══════════════════════════════════════════════════════════════════════════
-import { tinhGia, traLoiNhuan, layVatLieu } from '../../../packages/bang-tinh-gia/src';
+import { tinhGia, traLoiNhuan, layVatLieu, toiUuDoDay, KetQuaToiUuDoDay } from '../../../packages/bang-tinh-gia/src';
 import type {
   DauVaoTinhGia,
   KetQuaTinhGia,
@@ -239,6 +239,41 @@ function lookupProfit(totalCost: number, column: number, profitTable: ProfitRow[
   return val;
 }
 
+function optimizeThickness(
+  input: CalculateInput,
+  materials: Material[],
+): any {
+  if (!input.targetThickness || input.targetThickness <= 0) return null;
+
+  const vatLieuDangChon = [
+    { id: 'layer1Id', doDay: input.layer1Id ? (input.micOverrides?.['layer1Id'] ?? materials.find(m => m.id === input.layer1Id)?.thickness ?? 0) : 0, laLLDPE: false },
+    ...([2, 3, 4, 5].map(idx => {
+      const key = `layer${idx}Id` as keyof CalculateInput;
+      const id = input[key] as string | null | undefined;
+      if (!id) return null;
+      const m = materials.find(mm => mm.id === id);
+      return m ? {
+        id: key,
+        doDay: input.micOverrides?.[key] ?? m.thickness,
+        laLLDPE: m.name.toLowerCase().includes('lldpe') || (m.group?.toLowerCase().includes('lldpe') ?? false),
+      } : null;
+    }).filter(Boolean) as { id: string; doDay: number; laLLDPE: boolean }[])
+  ];
+
+  const vatLieuVN = materials.map(toVatLieu);
+  const ketQua = toiUuDoDay(input.targetThickness, vatLieuDangChon, vatLieuVN);
+
+  const optimizedMicOverrides: Record<string, number> = {};
+  ketQua.ketQua.forEach(k => {
+    const m = materials.find(mm => mm.id === (input as any)[k.layerId]);
+    if (m && k.adjustedThickness !== m.thickness) {
+      optimizedMicOverrides[k.layerId] = k.adjustedThickness;
+    }
+  });
+
+  return { optimizedMicOverrides, result: ketQua };
+}
+
 // ── Public API: tất cả nhận JSON string, trả JSON string ─────────────────────
 function calculate(
   inputJson: string,
@@ -270,6 +305,15 @@ function calculate(
   lookupProfit: (totalCost: number, column: number, profitTableJson: string) => {
     const rows: ProfitRow[] = JSON.parse(profitTableJson);
     return lookupProfit(totalCost, column, rows);
+  },
+  optimizeThickness: (inputJson: string, materialsJson: string) => {
+    try {
+      const input: CalculateInput = JSON.parse(inputJson);
+      const materials: Material[] = JSON.parse(materialsJson);
+      return JSON.stringify(optimizeThickness(input, materials));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
   },
   version: '0.1.0',
 };
