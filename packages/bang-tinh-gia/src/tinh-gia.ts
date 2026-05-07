@@ -35,14 +35,23 @@ export function traLoiNhuan(tongChiPhi: number, cotLoiNhuan: number, bangLoiNhua
 
 export interface KetQuaToiUuDoDay {
   layerId: string;          // id lớp (idLop1, idLop2...)
+  materialId?: string;      // mã vật liệu được chọn sau tối ưu
+  originalMaterialId?: string; // mã vật liệu ban đầu
   adjustedThickness: number;  // độ dày sau điều chỉnh (mic)
   originalThickness: number;  // độ dày gốc (mic)
   isLLDPE: boolean;          // có phải LLDPE không
 }
 
+type VatLieuDangChonToiUu = {
+  id: string;                 // key lớp: layer1Id, idLop1...
+  materialId?: string;        // mã vật liệu thật trong danh mục
+  doDay: number;
+  laLLDPE?: boolean;
+};
+
 export function toiUuDoDay(
   mucTieu: number,                      // độ dày mục tiêu (mic)
-  vatLieuDangChon: { id: string; doDay: number; laLLDPE: boolean }[],
+  vatLieuDangChon: VatLieuDangChonToiUu[],
   danhSachVatLieu: VatLieu[],          // toàn bộ danh sách vật liệu
 ): {
   ketQua: KetQuaToiUuDoDay[];
@@ -55,184 +64,156 @@ export function toiUuDoDay(
   const soLopGhep = vatLieuDangChon.length - 1; // lớp 1 là in, còn lại là ghép
   const keoPerLop = 3;
   const tongDoDayKeo = soLopGhep * keoPerLop;
-
-  // Tìm vật liệu trong danh sách để biết có phải LLDPE không
-  const laLLDPE = (id: string): boolean => {
-    const vl = danhSachVatLieu.find(v => v.id === id);
-    return vl ? (vl.ten.toLowerCase().includes('lldpe') || (vl.nhom?.toLowerCase().includes('lldpe') ?? false)) : false;
-  };
-
-  // Lọc danh sách vật liệu theo nhóm (cho lớp in và các lớp ghép)
-  const vatLieuTheoNhom = (nhom?: string) => {
-    if (!nhom) return danhSachVatLieu;
-    return danhSachVatLieu.filter(v => v.nhom === nhom);
-  };
-
-  // Khởi tạo kết quả với độ dày hiện tại
-  const ketQua: KetQuaToiUuDoDay[] = vatLieuDangChon.map(v => ({
-    layerId: v.id,
-    adjustedThickness: v.doDay,
-    originalThickness: v.doDay,
-    isLLDPE: laLLDPE(v.id),
-  }));
-
-  // Tính tổng độ dày vật liệu hiện tại
-  let tongVatLieu = ketQua.reduce((sum, k) => sum + k.adjustedThickness, 0);
-  let tongThucTe = tongVatLieu + tongDoDayKeo;
-
   const minChapNhan = mucTieu - 5;
   const maxChapNhan = mucTieu + 5;
 
-  // Nếu đã đạt yêu cầu và ở mức thấp nhất có thể → return luôn
-  if (tongThucTe >= minChapNhan && tongThucTe <= maxChapNhan) {
-    return { ketQua, tongDoDayVatLieu: tongVatLieu, tongDoDayKeo, tongThucTe, datYeuCau: true };
-  }
+  const timVatLieu = (lop: VatLieuDangChonToiUu) =>
+    danhSachVatLieu.find(v => v.id === lop.materialId) ??
+    danhSachVatLieu.find(v => v.id === lop.id);
 
-  // TH1: Tổng quá thấp (< minChapNhan) → cần tăng
-  if (tongThucTe < minChapNhan) {
-    const canTang = minChapNhan - tongThucTe;
+  const laLLDPE = (vl?: VatLieu, lop?: VatLieuDangChonToiUu): boolean =>
+    !!lop?.laLLDPE ||
+    !!vl?.ten.toLowerCase().includes('lldpe') ||
+    !!vl?.nhom?.toLowerCase().includes('lldpe');
 
-    // Ưu tiên 1: Thử tăng các lớp vật liệu có sẵn (trừ LLDPE)
-    for (let i = 0; i < ketQua.length && tongThucTe < minChapNhan; i++) {
-      if (ketQua[i].isLLDPE) continue; // bỏ qua LLDPE, để ưu tiên 2
+  const coTheNhapMicTuDo = (vl?: VatLieu, lop?: VatLieuDangChonToiUu): boolean =>
+    !!vl?.doiDuocMic || laLLDPE(vl, lop);
 
-      const vl = danhSachVatLieu.find(v => v.id === ketQua[i].layerId);
-      if (!vl || !vl.doiDuocMic) continue;
+  type LuaChonLop = {
+    layerId: string;
+    materialId?: string;
+    originalMaterialId?: string;
+    doDay: number;
+    originalThickness: number;
+    isLLDPE: boolean;
+    costPerM2: number;
+  };
 
-      const nhom = vl.nhom;
-      const cacDoDay = vatLieuTheoNhom(nhom)
-        .filter(v => v.doiDuocMic)
-        .map(v => v.doDay)
-        .sort((a, b) => a - b);
+  const giaMoiM2 = (vl: VatLieu | undefined, doDay: number): number => {
+    if (!vl) return Number.MAX_SAFE_INTEGER;
+    return vl.giaMoiKg * doDay * vl.khoiLuongRieng / 1000;
+  };
 
-      const hienTai = ketQua[i].adjustedThickness;
-      const lonHon = cacDoDay.find(d => d > hienTai);
-      if (lonHon !== undefined) {
-        const tangThem = lonHon - hienTai;
-        ketQua[i].adjustedThickness = lonHon;
-        tongVatLieu += tangThem;
-        tongThucTe += tangThem;
+  const taoLuaChonChoLop = (lop: VatLieuDangChonToiUu): LuaChonLop[] => {
+    const vlHienTai = timVatLieu(lop);
+    const originalMaterialId = vlHienTai?.id ?? lop.materialId;
+    const laPe = laLLDPE(vlHienTai, lop);
+
+    if (coTheNhapMicTuDo(vlHienTai, lop)) {
+      const minPE = 30;
+      const maxCanThiet = Math.max(
+        minPE,
+        lop.doDay,
+        maxChapNhan - tongDoDayKeo,
+      );
+      const maxPE = Math.ceil((maxCanThiet + 20) / 5) * 5;
+      const ds: LuaChonLop[] = [];
+      for (let mic = minPE; mic <= maxPE; mic += 5) {
+        ds.push({
+          layerId: lop.id,
+          materialId: vlHienTai?.id ?? lop.materialId,
+          originalMaterialId,
+          doDay: mic,
+          originalThickness: lop.doDay,
+          isLLDPE: laPe,
+          costPerM2: giaMoiM2(vlHienTai, mic),
+        });
       }
+      return ds;
     }
 
-    // Ưu tiên 2: Nếu vẫn chưa đạt, tăng LLDPE theo bội số 5
-    if (tongThucTe < minChapNhan) {
-      for (let i = 0; i < ketQua.length && tongThucTe < minChapNhan; i++) {
-        if (!ketQua[i].isLLDPE) continue;
+    const vatLieuCungNhom = vlHienTai?.nhom
+      ? danhSachVatLieu.filter(v => v.nhom === vlHienTai.nhom)
+      : vlHienTai ? [vlHienTai] : [];
 
-        const hienTai = ketQua[i].adjustedThickness;
-        // Tìm bội số 5 tiếp theo >= hienTai + (minChapNhan - tongThucTe)
-        const canTangThem = minChapNhan - tongThucTe;
-        const boiSoTiepTheo = Math.max(
-          Math.ceil((hienTai + Math.max(canTangThem, 1)) / 5) * 5,
-          hienTai + 5 // ít nhất tăng thêm 5
-        );
-
-        if (boiSoTiepTheo > hienTai) {
-          const tangThem = boiSoTiepTheo - hienTai;
-          ketQua[i].adjustedThickness = boiSoTiepTheo;
-          tongVatLieu += tangThem;
-          tongThucTe += tangThem;
-        }
-      }
+    if (vatLieuCungNhom.length === 0) {
+      return [{
+        layerId: lop.id,
+        materialId: lop.materialId,
+        originalMaterialId,
+        doDay: lop.doDay,
+        originalThickness: lop.doDay,
+        isLLDPE: !!lop.laLLDPE,
+        costPerM2: Number.MAX_SAFE_INTEGER,
+      }];
     }
 
-    // Ưu tiên 3: Nếu vẫn chưa đạt và chưa thử tất cả tổ hợp → tìm tổ hợp tối ưu
-    if (tongThucTe < minChapNhan) {
-      // Tìm tất cả vật liệu có thể thay thế cho từng lớp
-      const cacLopTimKiem = vatLieuDangChon.map((v, idx) => {
-        const vl = danhSachVatLieu.find(x => x.id === v.id);
-        const nhom = vl?.nhom;
-        const cacLuaChon = nhom
-          ? danhSachVatLieu.filter(x => x.nhom === nhom).sort((a, b) => a.doDay - b.doDay)
-          : [vl!].filter(Boolean);
-        return { idx, cacLuaChon, hienTai: v.doDay };
-      });
+    return vatLieuCungNhom
+      .slice()
+      .sort((a, b) => a.doDay - b.doDay || a.id.localeCompare(b.id))
+      .map(vl => ({
+        layerId: lop.id,
+        materialId: vl.id,
+        originalMaterialId,
+        doDay: vl.doDay,
+        originalThickness: lop.doDay,
+        isLLDPE: laLLDPE(vl, lop),
+        costPerM2: giaMoiM2(vl, vl.doDay),
+      }));
+  };
 
-      // Tìm tổ hợp độ dày thấp nhất thỏa mãn
-      let totNhat: KetQuaToiUuDoDay[] | null = null;
-      let tongThapNhat = Infinity;
+  const cacLuaChonTheoLop = vatLieuDangChon.map(taoLuaChonChoLop);
 
-      // Duyệt tất cả tổ hợp (giới hạn 100 tổ hợp để tránh quá tải)
-      const dfs = (lop: number, tongHienTai: number, chon: KetQuaToiUuDoDay[]) => {
-        if (lop >= cacLopTimKiem.length) {
-          const thucTe = tongHienTai + tongDoDayKeo;
-          if (thucTe >= minChapNhan && thucTe <= maxChapNhan && tongHienTai < tongThapNhat) {
-            totNhat = chon.map(k => ({ ...k }));
-            tongThapNhat = tongHienTai;
-          }
-          return;
-        }
+  let ketQuaTotNhat: LuaChonLop[] | null = null;
+  let tongVatLieuTotNhat = 0;
+  let tongThucTeTotNhat = vatLieuDangChon.reduce((sum, lop) => sum + lop.doDay, 0) + tongDoDayKeo;
+  let chiPhiTotNhat = Infinity;
 
-        const { cacLuaChon } = cacLopTimKiem[lop];
-        for (const vl of cacLuaChon.slice(0, 10)) { // giới hạn 10 lựa chọn/lớp
-          if (tongHienTai + vl.doDay >= tongThapNhat) break; // tỉa nhánh
-          dfs(lop + 1, tongHienTai + vl.doDay, [
-            ...chon,
-            {
-              layerId: vatLieuDangChon[lop].id,
-              adjustedThickness: vl.doDay,
-              originalThickness: vatLieuDangChon[lop].doDay,
-              isLLDPE: laLLDPE(vl.id),
-            }
-          ]);
-        }
-      };
+  const soSanhTotHon = (chon: LuaChonLop[], tongVatLieu: number, tongThucTe: number) => {
+    const chiPhi = chon.reduce((sum, c) => sum + c.costPerM2, 0);
+    if (chiPhi < chiPhiTotNhat - 0.0001) return true;
+    if (Math.abs(chiPhi - chiPhiTotNhat) > 0.0001) return false;
+    const doLech = Math.abs(tongThucTe - mucTieu);
+    const doLechTotNhat = Math.abs(tongThucTeTotNhat - mucTieu);
+    if (doLech < doLechTotNhat) return true;
+    if (doLech > doLechTotNhat) return false;
+    return tongVatLieu < tongVatLieuTotNhat;
+  };
 
-      dfs(0, 0, []);
-      if (totNhat) {
-        ketQua.splice(0, ketQua.length, ...(totNhat as KetQuaToiUuDoDay[]));
-        tongVatLieu = ketQua.reduce((sum, k) => sum + k.adjustedThickness, 0);
-        tongThucTe = tongVatLieu + tongDoDayKeo;
+  const dfs = (idx: number, tongVatLieu: number, chon: LuaChonLop[]) => {
+    if (idx >= cacLuaChonTheoLop.length) {
+      const tongThucTe = tongVatLieu + tongDoDayKeo;
+      if (tongThucTe < minChapNhan || tongThucTe > maxChapNhan) return;
+      if (soSanhTotHon(chon, tongVatLieu, tongThucTe)) {
+        ketQuaTotNhat = chon.map(c => ({ ...c }));
+        tongVatLieuTotNhat = tongVatLieu;
+        tongThucTeTotNhat = tongThucTe;
+        chiPhiTotNhat = chon.reduce((sum, c) => sum + c.costPerM2, 0);
       }
-    }
-  }
-
-  // TH2: Tổng quá cao (> maxChapNhan) → cần giảm
-  if (tongThucTe > maxChapNhan) {
-    const canGiam = tongThucTe - maxChapNhan;
-
-    // Thử giảm các lớp vật liệu có sẵn (trừ LLDPE)
-    for (let i = 0; i < ketQua.length && tongThucTe > maxChapNhan; i++) {
-      if (ketQua[i].isLLDPE) continue;
-
-      const vl = danhSachVatLieu.find(v => v.id === ketQua[i].layerId);
-      if (!vl || !vl.doiDuocMic) continue;
-
-      const nhom = vl.nhom;
-      const cacDoDay = vatLieuTheoNhom(nhom)
-        .filter(v => v.doiDuocMic)
-        .map(v => v.doDay)
-        .sort((a, b) => b - a); // sắp giảm dần để tìm thấp hơn
-
-      const hienTai = ketQua[i].adjustedThickness;
-      const thapHon = cacDoDay.reverse().find(d => d < hienTai);
-      if (thapHon !== undefined) {
-        const giamBot = hienTai - thapHon;
-        ketQua[i].adjustedThickness = thapHon;
-        tongVatLieu -= giamBot;
-        tongThucTe -= giamBot;
-      }
+      return;
     }
 
-    // Thử giảm LLDPE theo bội số 5
-    if (tongThucTe > maxChapNhan) {
-      for (let i = 0; i < ketQua.length && tongThucTe > maxChapNhan; i++) {
-        if (!ketQua[i].isLLDPE) continue;
-
-        const hienTai = ketQua[i].adjustedThickness;
-        const boiSoTruocDo = Math.floor((hienTai - (tongThucTe - maxChapNhan)) / 5) * 5;
-
-        if (boiSoTruocDo < hienTai && boiSoTruocDo >= 35) { // LLDPE tối thiểu 35 mic
-          const giamBot = hienTai - boiSoTruocDo;
-          ketQua[i].adjustedThickness = boiSoTruocDo;
-          tongVatLieu -= giamBot;
-          tongThucTe -= giamBot;
-        }
-      }
+    for (const luaChon of cacLuaChonTheoLop[idx]) {
+      const tongMoi = tongVatLieu + luaChon.doDay;
+      if (tongMoi + tongDoDayKeo > maxChapNhan) continue;
+      dfs(idx + 1, tongMoi, [...chon, luaChon]);
     }
-  }
+  };
 
+  dfs(0, 0, []);
+
+  const ketQua: KetQuaToiUuDoDay[] = (ketQuaTotNhat ?? vatLieuDangChon.map(lop => {
+    const vl = timVatLieu(lop);
+    return {
+      layerId: lop.id,
+      materialId: vl?.id ?? lop.materialId,
+      originalMaterialId: vl?.id ?? lop.materialId,
+      doDay: lop.doDay,
+      originalThickness: lop.doDay,
+      isLLDPE: laLLDPE(vl, lop),
+      costPerM2: giaMoiM2(vl, lop.doDay),
+    };
+  })).map(k => ({
+    layerId: k.layerId,
+    materialId: k.materialId,
+    originalMaterialId: k.originalMaterialId,
+    adjustedThickness: k.doDay,
+    originalThickness: k.originalThickness,
+    isLLDPE: k.isLLDPE,
+  }));
+
+  const tongVatLieu = ketQua.reduce((sum, k) => sum + k.adjustedThickness, 0);
+  const tongThucTe = tongVatLieu + tongDoDayKeo;
   const datYeuCau = tongThucTe >= minChapNhan && tongThucTe <= maxChapNhan;
   const canhBao = !datYeuCau
     ? `Không tìm được tổ hợp độ dày thỏa mãn ${minChapNhan}-${maxChapNhan} mic (hiện tại: ${tongThucTe} mic). Vui lòng chọn vật liệu khác.`
@@ -264,10 +245,14 @@ export function tinhGia(
     ghiDeDayLop = {},
   } = dauVao;
 
+  const laLLDPEVatLieu = (vl: VatLieu) =>
+    vl.ten.toLowerCase().includes('lldpe') ||
+    (vl.nhom?.toLowerCase().includes('lldpe') ?? false);
+
   const nhanBanVatLieu = (vl?: VatLieu | null, khoaLop?: string): VatLieu | null => {
     if (!vl) return null;
     const ban = { ...vl };
-    if (khoaLop && ghiDeDayLop[khoaLop] && vl.doiDuocMic) {
+    if (khoaLop && ghiDeDayLop[khoaLop] && (vl.doiDuocMic || laLLDPEVatLieu(vl))) {
       ban.doDay = ghiDeDayLop[khoaLop];
       ban.giaMoiM2 = ban.giaMoiKg * ban.doDay * ban.khoiLuongRieng / 1000;
     }

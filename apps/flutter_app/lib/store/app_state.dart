@@ -139,18 +139,37 @@ class AppState extends ChangeNotifier {
     try {
       final inputJson = jsonEncode(currentInput.toJson());
       final matsJson = jsonEncode(materials.map((m) => m.toJson()).toList());
-      final code = 'globalThis.LTS.optimizeThickness("$inputJson","$matsJson")';
+      final code = 'globalThis.LTS.optimizeThickness(${jsonEncode(inputJson)},${jsonEncode(matsJson)})';
       final res = EngineService.instance.evaluateCode(code);
       if (res == null || res.isError) return;
       final decoded = jsonDecode(res.stringResult);
       if (decoded == null || (decoded as Map).containsKey('error')) return;
       final optResult = decoded as Map<String, dynamic>;
       final overrides = optResult['optimizedMicOverrides'] as Map<String, dynamic>?;
-      if (overrides != null && overrides.isNotEmpty) {
-        final newOverrides = Map<String, dynamic>.from(
-            (i['micOverrides'] as Map?)?.cast<String, dynamic>() ?? {});
-        newOverrides.addAll(overrides);
-        currentInput = currentInput.withField('micOverrides', newOverrides);
+      final layerIds = optResult['optimizedLayerIds'] as Map<String, dynamic>?;
+      var changed = false;
+      var nextInput = currentInput;
+
+      if (layerIds != null && layerIds.isNotEmpty) {
+        for (final entry in layerIds.entries) {
+          if (nextInput.raw[entry.key] != entry.value) {
+            nextInput = nextInput.withField(entry.key, entry.value);
+            changed = true;
+          }
+        }
+      }
+
+      if (overrides != null) {
+        final currentOverrides = (i['micOverrides'] as Map?)?.cast<String, dynamic>() ?? {};
+        final newOverrides = Map<String, dynamic>.from(overrides);
+        if (jsonEncode(currentOverrides) != jsonEncode(newOverrides)) {
+          nextInput = nextInput.withField('micOverrides', newOverrides);
+          changed = true;
+        }
+      }
+
+      if (changed) {
+        currentInput = nextInput;
         notifyListeners();
         _scheduleRecompute();
       }

@@ -493,6 +493,7 @@ class _InputFormState extends State<_InputForm> {
                         );
                         layers.add({
                           'id': k,
+                          'materialId': mat.id,
                           'doDay': (i['micOverrides'] as Map?)?[k] as num? ?? mat.thickness,
                           'isLLDPE': mat.name.toLowerCase().contains('lldpe') ||
                               (mat.group?.toLowerCase().contains('lldpe') ?? false),
@@ -504,7 +505,7 @@ class _InputFormState extends State<_InputForm> {
                       if (!engine.isReady) await engine.init();
                       final layersJson = jsonEncode(layers);
                       final matsJson = jsonEncode(s.materials.map((m) => m.toJson()).toList());
-                      final code = 'globalThis.LTS.toiUuDoDay($target, JSON.parse(\'$layersJson\'), JSON.parse(\'$matsJson\'))';
+                      final code = 'globalThis.LTS.toiUuDoDay($target, JSON.parse(${jsonEncode(layersJson)}), JSON.parse(${jsonEncode(matsJson)}))';
                       final resultJson = engine.evaluateCode(code);
                       if (resultJson != null && !resultJson.isError) {
                         final result = jsonDecode(resultJson.stringResult) as Map<String, dynamic>;
@@ -516,6 +517,7 @@ class _InputFormState extends State<_InputForm> {
                         for (final kq in optimized) {
                           final layerId = kq['layerId'] as String;
                           final adjusted = (kq['adjustedThickness'] as num).toDouble();
+                          final selectedMaterialId = kq['materialId'] as String?;
                           final mat = s.materials.firstWhere(
                             (m) => m.id == i[layerId],
                             orElse: () => MaterialDef(
@@ -523,9 +525,17 @@ class _InputFormState extends State<_InputForm> {
                               pricePerKg: 0, isPETorPA: false, rollLength: 0, inkPricePerColor: 0,
                             ),
                           );
-                          if (adjusted != mat.thickness) {
+                          final selectedMat = s.materials.firstWhere(
+                            (m) => m.id == (selectedMaterialId ?? mat.id),
+                            orElse: () => mat,
+                          );
+                          if (selectedMaterialId != null && selectedMaterialId != mat.id) {
+                            u(layerId, selectedMaterialId);
+                            changes.add('${mat.name}: ${selectedMat.name} ${selectedMat.thickness}');
+                          }
+                          if (adjusted != selectedMat.thickness) {
                             newOverrides[layerId] = adjusted;
-                            changes.add('${mat.name}: ${mat.thickness}→$adjusted');
+                            changes.add('${selectedMat.name}: ${selectedMat.thickness}→$adjusted');
                           } else {
                             newOverrides.remove(layerId);
                           }

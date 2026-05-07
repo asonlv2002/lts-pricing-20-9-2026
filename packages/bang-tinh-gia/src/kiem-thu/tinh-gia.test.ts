@@ -2,7 +2,7 @@
  * tinh-gia.test.ts — Kiểm thử engine tính giá
  * Chạy: npx tsx src/kiem-thu/tinh-gia.test.ts
  */
-import { tinhGia } from '../tinh-gia';
+import { tinhGia, toiUuDoDay } from '../tinh-gia';
 import { VAT_LIEU_MAC_DINH, HANG_SO_MAC_DINH, BANG_LOI_NHUAN_MAC_DINH } from '@lts/hang-so';
 import type { DauVaoTinhGia } from '@lts/kieu-du-lieu';
 
@@ -345,6 +345,40 @@ tieu('15. Công thức phi hao — đảm bảo đúng');
     kiemGanDung('hatHaoIn = csDatMau + m/pA×pB + ...', kqPhi.hatHaoIn, kyVongHatHaoIn, 0.1);
     kiem('hatHaoIn > 0 khi soMau=4', kqPhi.hatHaoIn > 0);
   }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+tieu('16. Tối ưu độ dày — dung sai ±5 và nhảy nhóm');
+// ════════════════════════════════════════════════════════════════════════════
+
+{
+  const pet = vatLieu.find(vl => vl.id === 'PET')!;
+  const cpp20 = vatLieu.find(vl => vl.id === 'CPP20')!;
+  const kq = toiUuDoDay(50, [
+    { id: 'layer1Id', materialId: pet.id, doDay: pet.doDay, laLLDPE: false },
+    { id: 'layer2Id', materialId: cpp20.id, doDay: cpp20.doDay, laLLDPE: false },
+  ], vatLieu);
+
+  const lop2 = kq.ketQua.find(k => k.layerId === 'layer2Id');
+  kiem('CPP20 có thể nhảy nhóm sang CPP30 dù không adjustableMic',
+    lop2?.materialId === 'CPP30' && lop2.adjustedThickness === 30,
+    `materialId=${lop2?.materialId}, mic=${lop2?.adjustedThickness}`);
+  kiem('Tổng danh định nằm trong target ±5 mic', kq.tongThucTe >= 45 && kq.tongThucTe <= 55);
+}
+
+{
+  const pet = vatLieu.find(vl => vl.id === 'PET')!;
+  const lldpe = vatLieu.find(vl => vl.id === 'LLDPE')!;
+  const kq = toiUuDoDay(135, [
+    { id: 'layer1Id', materialId: pet.id, doDay: pet.doDay, laLLDPE: false },
+    { id: 'layer2Id', materialId: lldpe.id, doDay: lldpe.doDay, laLLDPE: true },
+  ], vatLieu);
+
+  const pe = kq.ketQua.find(k => k.layerId === 'layer2Id');
+  kiem('LLDPE được cân theo bội số 5 trong vùng target ±5',
+    pe?.materialId === 'LLDPE' && pe.adjustedThickness === 115,
+    `materialId=${pe?.materialId}, mic=${pe?.adjustedThickness}`);
+  kiem('Dung sai optimizer là ±5 mic', kq.datYeuCau && kq.tongThucTe >= 130 && kq.tongThucTe <= 140);
 }
 
 // ════════════════════════════════════════════════════════════════════════════

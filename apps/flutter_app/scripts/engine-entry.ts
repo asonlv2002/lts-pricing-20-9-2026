@@ -246,7 +246,15 @@ function optimizeThickness(
   if (!input.targetThickness || input.targetThickness <= 0) return null;
 
   const vatLieuDangChon = [
-    { id: 'layer1Id', doDay: input.layer1Id ? (input.micOverrides?.['layer1Id'] ?? materials.find(m => m.id === input.layer1Id)?.thickness ?? 0) : 0, laLLDPE: false },
+    (() => {
+      const m = input.layer1Id ? materials.find(mm => mm.id === input.layer1Id) : undefined;
+      return {
+        id: 'layer1Id',
+        materialId: m?.id,
+        doDay: input.layer1Id ? (input.micOverrides?.['layer1Id'] ?? m?.thickness ?? 0) : 0,
+        laLLDPE: !!m && (m.name.toLowerCase().includes('lldpe') || (m.group?.toLowerCase().includes('lldpe') ?? false)),
+      };
+    })(),
     ...([2, 3, 4, 5].map(idx => {
       const key = `layer${idx}Id` as keyof CalculateInput;
       const id = input[key] as string | null | undefined;
@@ -254,24 +262,30 @@ function optimizeThickness(
       const m = materials.find(mm => mm.id === id);
       return m ? {
         id: key,
+        materialId: m.id,
         doDay: input.micOverrides?.[key] ?? m.thickness,
         laLLDPE: m.name.toLowerCase().includes('lldpe') || (m.group?.toLowerCase().includes('lldpe') ?? false),
       } : null;
-    }).filter(Boolean) as { id: string; doDay: number; laLLDPE: boolean }[])
-  ];
+    }).filter(Boolean) as { id: string; materialId?: string; doDay: number; laLLDPE: boolean }[])
+  ].filter(layer => layer.doDay > 0);
 
   const vatLieuVN = materials.map(toVatLieu);
   const ketQua = toiUuDoDay(input.targetThickness, vatLieuDangChon, vatLieuVN);
 
+  const optimizedLayerIds: Record<string, string> = {};
   const optimizedMicOverrides: Record<string, number> = {};
   ketQua.ketQua.forEach(k => {
     const m = materials.find(mm => mm.id === (input as any)[k.layerId]);
-    if (m && k.adjustedThickness !== m.thickness) {
+    if (k.materialId && k.materialId !== m?.id) {
+      optimizedLayerIds[k.layerId] = k.materialId;
+    }
+    const selected = materials.find(mm => mm.id === (k.materialId ?? m?.id));
+    if (selected && k.adjustedThickness !== selected.thickness) {
       optimizedMicOverrides[k.layerId] = k.adjustedThickness;
     }
   });
 
-  return { optimizedMicOverrides, result: ketQua };
+  return { optimizedLayerIds, optimizedMicOverrides, result: ketQua };
 }
 
 // ── Public API: tất cả nhận JSON string, trả JSON string ─────────────────────
@@ -311,6 +325,13 @@ function calculate(
       const input: CalculateInput = JSON.parse(inputJson);
       const materials: Material[] = JSON.parse(materialsJson);
       return JSON.stringify(optimizeThickness(input, materials));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+  toiUuDoDay: (target: number, layers: any[], materials: Material[]) => {
+    try {
+      return JSON.stringify(toiUuDoDay(target, layers, materials.map(toVatLieu)));
     } catch (e: any) {
       return JSON.stringify({ error: String(e && e.message ? e.message : e) });
     }

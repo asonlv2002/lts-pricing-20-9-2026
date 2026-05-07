@@ -438,17 +438,22 @@ export default function InputCard() {
                     );
                     if (result && result.result) {
                       const newOverrides = { ...(input as any).micOverrides };
+                      const layerUpdates: Record<string, string> = {};
                       result.result.ketQua.forEach((kq: any) => {
                         const layerId = kq.layerId;
                         const adjusted = kq.adjustedThickness;
-                        const mat = materials.find((m: any) => m.id === (input as any)[layerId]);
-                        if (adjusted !== mat?.thickness) {
+                        const currentMat = materials.find((m: any) => m.id === (input as any)[layerId]);
+                        const selectedMat = materials.find((m: any) => m.id === (kq.materialId || currentMat?.id));
+                        if (kq.materialId && kq.materialId !== currentMat?.id) {
+                          layerUpdates[layerId] = kq.materialId;
+                        }
+                        if (selectedMat && adjusted !== selectedMat.thickness) {
                           newOverrides[layerId] = adjusted;
                         } else {
                           delete newOverrides[layerId];
                         }
                       });
-                      capNhatDauVao({ micOverrides: newOverrides });
+                      capNhatDauVao({ ...layerUpdates, micOverrides: newOverrides });
 
                       const datYeuCau = (result.result as any).datYeuCau;
                       const tongThucTe = (result.result as any).tongThucTe;

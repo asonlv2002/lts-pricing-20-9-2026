@@ -25,32 +25,51 @@ export function optimizeThickness(
   input: CalculateInput,
   materials: Material[]
 ): {
+  optimizedLayerIds: Record<string, string>;
   optimizedMicOverrides: Record<string, number>;
   result: ReturnType<typeof toiUuDoDay>;
 } | null {
   if (!input.targetThickness || input.targetThickness <= 0) return null;
 
-  const vatLieuDangChon: { id: string; doDay: number; laLLDPE: boolean }[] = [
-    { id: 'layer1Id', doDay: materials.find(m => m.id === input.layer1Id)?.thickness ?? 0, laLLDPE: false },
+  const vatLieuDangChon: { id: string; materialId?: string; doDay: number; laLLDPE: boolean }[] = [
+    (() => {
+      const m = materials.find(mm => mm.id === input.layer1Id);
+      return {
+        id: 'layer1Id',
+        materialId: m?.id,
+        doDay: (input.micOverrides?.layer1Id ?? m?.thickness ?? 0),
+        laLLDPE: !!m && (m.name.toLowerCase().includes('lldpe') || (m.group?.toLowerCase().includes('lldpe') ?? false)),
+      };
+    })(),
     ...[2,3,4,5].map(i => {
       const key = `layer${i}Id` as keyof typeof input;
       const m = materials.find(mm => mm.id === input[key]);
-      return m ? { id: key, doDay: m.thickness, laLLDPE: m.name.toLowerCase().includes('lldpe') || (m.group?.toLowerCase().includes('lldpe') ?? false) } : null;
+      return m ? {
+        id: key,
+        materialId: m.id,
+        doDay: input.micOverrides?.[key as string] ?? m.thickness,
+        laLLDPE: m.name.toLowerCase().includes('lldpe') || (m.group?.toLowerCase().includes('lldpe') ?? false),
+      } : null;
     }).filter((item): item is NonNullable<typeof item> => item !== null)
-  ];
+  ].filter(item => item.doDay > 0);
 
   const vatLieuVN = materials.map(toVatLieu);
   const ketQua = toiUuDoDay(input.targetThickness, vatLieuDangChon, vatLieuVN);
 
+  const optimizedLayerIds: Record<string, string> = {};
   const optimizedMicOverrides: Record<string, number> = {};
   ketQua.ketQua.forEach(k => {
     const m = materials.find(mm => mm.id === input[k.layerId as keyof typeof input]);
-    if (m && k.adjustedThickness !== m.thickness) {
+    if (k.materialId && k.materialId !== m?.id) {
+      optimizedLayerIds[k.layerId] = k.materialId;
+    }
+    const selected = materials.find(mm => mm.id === (k.materialId ?? m?.id));
+    if (selected && k.adjustedThickness !== selected.thickness) {
       optimizedMicOverrides[k.layerId] = k.adjustedThickness;
     }
   });
 
-  return { optimizedMicOverrides, result: ketQua };
+  return { optimizedLayerIds, optimizedMicOverrides, result: ketQua };
 }
 
 // ── Material EN → VatLieu VN ─────────────────────────────────────────────────
