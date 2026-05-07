@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════════════════
 // Models — mirror đúng shape của apps/web/src/lib/types.ts
 // Dùng Map<String, dynamic> ở phía nội bộ (vì engine JS nhận/trả JSON tự do).
 // Class chỉ wrap để IDE-friendly + default values + copyWith.
@@ -189,20 +189,83 @@ class CalculateResult {
 
   factory CalculateResult.fromJson(Map<String, dynamic> j) => CalculateResult(j);
 
-  double d(String key) => (raw[key] as num?)?.toDouble() ?? 0;
-  String s(String key) => raw[key] as String? ?? '';
+  static const Map<String, String> _aliases = {
+    'giaCuoiCung': 'finalPrice',
+    'chiPhiDonVi': 'costPerUnit',
+    'doanhThu': 'revenue',
+    'tongDienTich': 'totalArea',
+    'tongChiPhiSX': 'totalProductionCost',
+    'tongChiPhiGhep': 'totalLamCost',
+    'soTienLoiNhuan': 'profitAmount',
+    'tyLeLoiNhuan': 'profitRate',
+    'chiPhiTruc': 'cylinderCost',
+    'chieuDaiTruc': 'cylLength',
+    'chuViTruc': 'cylCircum',
+    'chuoiCauTruc': 'structureText',
+    'tongDoDay': 'totalThickness',
+    'tongGSM': 'totalGSM',
+    'dienTichTui': 'bagArea',
+    'dienTichCuonMang': 'filmRollArea',
+    'khoiLuongTare': 'tareWeight',
+    'chieuDaiMang': 'filmLength',
+    'laiSuatCoBan': 'interestBase',
+    'laiSuatThem': 'interestSpread',
+    'ngayThanhToan': 'paymentDays',
+    'laiSuatPerDonVi': 'interestPerUnit',
+    'hoaHongPerDonVi': 'commissionPerUnit',
+    'chiPhiTrucPhanBo': 'cylAllocPerUnit',
+    'chiPhiTrucPerDonVi': 'cylinderCostPerUnit',
+    'dienTichTruc': 'cylArea',
+    'soThuung': 'numBoxes',
+    'phiDongGoiPerDonVi': 'packagingPerUnit',
+    'cuocVanChuyenPerDonVi': 'shippingPerUnit',
+    'tongCuocVanChuyen': 'shippingTotal',
+    'thuungPerDonVi': 'boxPerUnit',
+    'khoaPerDonVi': 'zipperPerUnit',
+    'tongTienKhoa': 'zipperTotal',
+    'bangKeoPerDonVi': 'tapePerUnit',
+    'tongTienBangKeo': 'tapeTotal',
+    'quaiXachPerDonVi': 'handlePerUnit',
+    'tongTienQuaiXach': 'handleTotal',
+    'tongChiPhiIn': 'printTotalCost',
+    'tongChiPhiCat': 'cutTotalCost',
+    'khoCatIn': 'printWidth',
+    'khoCat': 'cutWidth',
+    'metCat': 'cutMeters',
+    'hatHaoCat': 'cutWaste',
+    'cpSXCat': 'cutCPSX',
+    'chiPhiSXCat': 'cutCostCPSX',
+    'khoNLIn': 'printNLWidth',
+    'metIn': 'printMeters',
+    'hatHaoIn': 'printWaste',
+    'cpSXIn': 'printCPSX',
+    'chiPhiSXIn': 'printCostCPSX',
+    'chiPhiVatLieuIn': 'printCostMaterial',
+    'ngaySanXuat': 'productionDays',
+    'productionDays': 'productionDays',
+  };
 
-  double get finalPrice => d('giaCuoiCung');
-  double get costPerUnit => d('chiPhiDonVi');
-  double get revenue => d('doanhThu');
-  double get totalArea => d('tongDienTich');
-  double get totalProductionCost => d('tongChiPhiSX');
-  double get profitAmount => d('soTienLoiNhuan');
-  double get profitRate => d('tyLeLoiNhuan');
-  double get cylinderCost => d('chiPhiTruc');
-  double get cylLength => d('chieuDaiTruc');
-  double get cylCircum => d('chuViTruc');
-  String get structureText => s('chuoiCauTruc');
+  double d(String key) {
+    final value = raw[key] ?? raw[_aliases[key]];
+    return (value as num?)?.toDouble() ?? 0;
+  }
+
+  String s(String key) {
+    final value = raw[key] ?? raw[_aliases[key]];
+    return value as String? ?? '';
+  }
+
+  double get finalPrice => d('finalPrice');
+  double get costPerUnit => d('costPerUnit');
+  double get revenue => d('revenue');
+  double get totalArea => d('totalArea');
+  double get totalProductionCost => d('totalProductionCost');
+  double get profitAmount => d('profitAmount');
+  double get profitRate => d('profitRate');
+  double get cylinderCost => d('cylinderCost');
+  double get cylLength => d('cylLength');
+  double get cylCircum => d('cylCircum');
+  String get structureText => s('structureText');
 }
 
 /// History item — giống HistoryItem trong types.ts (rút gọn cho mobile).
@@ -304,3 +367,7 @@ class ProductionOrder {
         snapshot: snapshot,
       );
 }
+
+
+
+

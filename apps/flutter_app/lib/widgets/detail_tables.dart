@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════════════════
 // DetailTables — Bảng chi tiết full-screen, hỗ trợ xoay ngang
 // Mỗi tab BreakdownPanel có nút "📊 Xem bảng" mở popup landscape
 // ═══════════════════════════════════════════════════════════════════════════
@@ -407,9 +407,9 @@ void showCostTable(BuildContext context, CalculateResult r) {
 /// Tab 2: Sản xuất — bảng thông số kỹ thuật chi tiết
 void showProductionTable(BuildContext context, CalculateResult r) {
   final inp = r.raw['input'] as Map? ?? {};
-  final layers = r.raw['cacLop'] as Map? ?? {};
-  final printLayer = layers['in'] as Map?;
-  final cat = layers['cat'] as Map?;
+  final layers = r.raw['layers'] as Map? ?? {};
+  final printLayer = (layers['print'] ?? layers['in']) as Map?;
+  final cat = (layers['cut'] ?? layers['cat']) as Map?;
   final isMang = ((inp['productType'] as String?) ?? 'tui') == 'mang';
   final ul = isMang ? 'm²' : 'cái';
   final spreadMm = ((inp['spreadWidth'] as num?) ?? 0) * 1000;
@@ -582,3 +582,5 @@ List<TableCellData> _row3(
         ),
       ),
     ];
+
+
