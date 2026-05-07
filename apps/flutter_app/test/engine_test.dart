@@ -1,13 +1,22 @@
-import 'dart:io';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_js/flutter_js.dart';
-import '../lib/engine/js_runtime.dart';
-import '../lib/engine/models.dart';
+import 'package:lts_pricing/engine/models.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+      .setMockMessageHandler('flutter/assets', (message) async {
+    final key = const StringCodec().decodeMessage(message)!;
+    if (key == 'packages/flutter_js/assets/js/fetch.js') {
+      return const StringCodec().encodeMessage('');
+    }
+    final file = File(Directory.current.uri.resolve(key).toFilePath());
+    final bytes = await file.readAsBytes();
+    return ByteData.sublistView(bytes);
+  });
 
   setUpAll(() async {
     // Override rootBundle to load the file from the filesystem during tests
@@ -50,28 +59,16 @@ void main() {
 
     final inputWithLayer = input.withField('layer1Id', mat.id);
 
-    final constants = AppConstants({
-      'phiGhep': 1000,
-      'phiChia': 500,
-      'phiCat': 50,
-      'phiChiecKhauQuaiXach': 0,
-      'phiChiecKhauKhoa': 0,
-      'phiChiecKhauBangKeo': 0,
-      'phiGiaoHang': 0,
-      'loiNhuanCat': 0,
-      'pA': 1000,
-      'pB': 0,
-      'csDatMau': 100,
-      'hA': 1000,
-      'hB': 0,
-      'hC': 100,
-      'tyGiaTruc': 1,
-      'heSoLoiNhuan': 1,
-    });
+    final constRaw = await rootBundle.loadString('assets/data/constants.json');
+    final constants = AppConstants.fromJson(
+      (jsonDecode(constRaw) as Map).cast<String, dynamic>(),
+    );
 
-    final profitTable = [
-      ProfitRow(threshold: 0, col1: 0, col2: 0),
-    ];
+    final profitRaw = await rootBundle.loadString('assets/data/profitTable.json');
+    final profitRows = (jsonDecode(profitRaw) as Map<String, dynamic>)['rows'] as List;
+    final profitTable = profitRows
+        .map((e) => ProfitRow.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
 
     String escapeJsString(String s) {
       return s

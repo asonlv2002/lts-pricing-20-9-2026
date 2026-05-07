@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import { calculate, lookupProfit } from '../lib/engine';
+import { buildProductionRows, calculateEffectivePricing, resolveOverrideRows, type UniRow } from '../lib/manager-calculation';
 import type { OverrideRowKey, OverrideFields, OverrideTable } from '../lib/types';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
@@ -110,19 +110,6 @@ function OverridableCell({ rowKey, field, sourceVal, overrideVal, canEdit, onSet
 }
 
 // ── Override Table Section ────────────────────────────────────────────────────
-interface UniRow {
-  rowKey: OverrideRowKey;
-  stage: string;
-  mat: string;
-  width: number;
-  meters: number;
-  waste: number;
-  cpsx: number;
-  costCPSX: number;
-  matPrice: number | null;
-  costMat: number | null;
-}
-
 function OverrideTableSection({ title, colorClass, uniRows, sourceOverrides, currentOverrides, canEdit, onSet, onSave, onSaveNew, loadedHistoryId }: {
   title: string;
   colorClass: 'sale' | 'admin';
@@ -135,41 +122,7 @@ function OverrideTableSection({ title, colorClass, uniRows, sourceOverrides, cur
   onSaveNew: () => void; // gọi khi chưa có loadedHistoryId — tự lưu history rồi persist
   loadedHistoryId: string | null;
 }) {
-  // For each row, resolve value: currentOverride → sourceOverride → engine
-  const resolvedRows = uniRows.map(row => {
-    const rk = row.rowKey;
-    const src = sourceOverrides[rk] ?? {};
-    const cur = currentOverrides[rk] ?? {};
-
-    const width = cur.width ?? src.width ?? row.width;
-    const meters = cur.meters ?? src.meters ?? row.meters;
-    const waste = cur.waste ?? src.waste ?? row.waste;
-    const inputVL = cur.inputVL ?? src.inputVL ?? (row.meters + row.waste);
-    const matPrice = cur.matPrice ?? src.matPrice ?? row.matPrice;
-
-    // Source values for this table (what we compare against)
-    const srcWidth = src.width ?? row.width;
-    const srcMeters = src.meters ?? row.meters;
-    const srcWaste = src.waste ?? row.waste;
-    const srcInputVL = src.inputVL ?? (row.meters + row.waste);
-    const srcMatPrice = src.matPrice ?? row.matPrice;
-
-    // Recalculate derived columns
-    const costCPSX = row.cpsx * inputVL * width;
-    const costMat = matPrice != null ? matPrice * inputVL * width : null;
-
-    return {
-      ...row, width, meters, waste, inputVL, matPrice,
-      costCPSX, costMat,
-      srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice,
-    };
-  });
-
-  let totalCPSX = 0, totalCPVL = 0;
-  resolvedRows.forEach(r => {
-    totalCPSX += r.costCPSX;
-    if (r.costMat != null) totalCPVL += r.costMat;
-  });
+  const { rows: resolvedRows, totalCPSX, totalCPVL } = resolveOverrideRows(uniRows, sourceOverrides, currentOverrides);
 
   return (
     <div className={`override-section override-section--${colorClass}`}>
@@ -244,10 +197,10 @@ function OverrideTableSection({ title, colorClass, uniRows, sourceOverrides, cur
 }
 
 export default function ManagerView() {
-  const { result, activeView, input, materials, constants, profitTable, setChotGiaForLatest: datGiaChotChoMoiNhat, currentChotGia, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, setActiveModule: datPhan,
+  const { result, activeView, input, constants, profitTable, setChotGiaForLatest: datGiaChotChoMoiNhat, currentChotGia, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, setActiveModule: datPhan,
     role, loadedHistoryId, history,
     saleOverrides, adminOverrides, showSaleOverrides, showAdminOverrides,
-    setSaleOverride: datGhiDeSale, setAdminOverride: datGhiDeAdmin, setShowSaleOverrides: datHienGhiDeSale, setShowAdminOverrides: datHienGhiDeAdmin, persistOverrides: luuGhiDe,
+    setSaleOverride: datGhiDeSale, setAdminOverride: datGhiDeAdmin, setShowSaleOverrides: datHienGhiDeSale, setShowAdminOverrides: datHienGhiDeAdmin, persistOverrides: luuGhiDe, calculateForInput,
   } = dungCuaHangTinhGia();
   const [selectedRollMat, setSelectedRollMat] = React.useState('');
 
@@ -266,81 +219,14 @@ export default function ManagerView() {
   const rInput = r.input;
   const isMang = rInput.productType === 'mang';
 
-  // ── Unified production table rows (cần trước effFinalPrice) ──
-  const uniRows: UniRow[] = [];
-  let totalCPSX = 0, totalCPVL = 0;
-
-  totalCPSX += r.printCostCPSX;
-  totalCPVL += r.printCostMaterial;
-  uniRows.push({
-    rowKey: 'print',
-    stage: 'CPSX IN', mat: r.layers.print?.material?.name ?? '',
-    width: r.printNLWidth, meters: r.printMeters, waste: r.printWaste,
-    cpsx: r.printCPSX, costCPSX: r.printCostCPSX,
-    matPrice: r.layers.print?.material?.pricePerM2 ?? 0, costMat: r.printCostMaterial
+  const { uniRows, totalCPSX, totalCPVL, grandTotal } = buildProductionRows(r, constants);
+  const { effTotalProdCost, effProfitRate, effProfitAmount, effRevenue, effCostPerUnit } = calculateEffectivePricing({
+    result: r,
+    uniRows,
+    saleOverrides,
+    adminOverrides,
+    profitTable,
   });
-
-  if (r.layers.laminations) {
-    r.layers.laminations.forEach((lam: any) => {
-      totalCPSX += lam.costCPSX;
-      totalCPVL += lam.costMat;
-      uniRows.push({
-        rowKey: `lam-${lam.layerNum}` as OverrideRowKey,
-        stage: `GHÉP (Lớp ${lam.layerNum})`, mat: lam.material?.name ?? '',
-        width: lam.width, meters: lam.meters, waste: lam.waste,
-        cpsx: constants.ghepCPSX, costCPSX: lam.costCPSX,
-        matPrice: lam.material?.pricePerM2 ?? 0, costMat: lam.costMat
-      });
-    });
-  }
-
-  if (!isMang) {
-    totalCPSX += r.cutCostCPSX;
-    uniRows.push({
-      rowKey: 'cut',
-      stage: 'CẮT', mat: '—',
-      width: r.cutWidth, meters: r.cutMeters, waste: r.cutWaste,
-      cpsx: r.cutCPSX, costCPSX: r.cutCostCPSX,
-      matPrice: null, costMat: null
-    });
-  }
-
-  const grandTotal = totalCPSX + totalCPVL;
-
-  // ── Tính giá hiệu lực sau override (Sale → Admin) ────────────────────────────
-  // Bảng admin (nếu có) ghi đè lên bảng sale, bảng sale ghi đè lên engine.
-  // Mỗi override row có thể thay width, inputVL và matPrice → costCPSX + costMat thay đổi.
-  // Từ đó suy ra totalProductionCost mới → profitRate → costPerUnit → finalPrice mới.
-  const activeOverrideOv: OverrideTable =
-    Object.keys(adminOverrides).length > 0 ? adminOverrides
-    : Object.keys(saleOverrides).length > 0 ? saleOverrides
-    : {};
-  const sourceForActive: OverrideTable =
-    Object.keys(adminOverrides).length > 0 ? saleOverrides : {};
-  const hasAnyOverride = Object.keys(activeOverrideOv).length > 0;
-
-  let effTotalProdCost = r.totalProductionCost;
-
-  if (hasAnyOverride) {
-    let effTotalCPSX = 0;
-    let effTotalCPVL = 0;
-    for (const row of uniRows) {
-      const rk = row.rowKey;
-      const src = sourceForActive[rk] ?? {};
-      const cur = activeOverrideOv[rk] ?? {};
-      const width = cur.width ?? src.width ?? row.width;
-      const inputVL = cur.inputVL ?? src.inputVL ?? (row.meters + row.waste);
-      const matPrice = cur.matPrice ?? src.matPrice ?? row.matPrice;
-      effTotalCPSX += row.cpsx * inputVL * width;
-      if (matPrice != null) effTotalCPVL += matPrice * inputVL * width;
-    }
-    effTotalProdCost = effTotalCPSX + effTotalCPVL;
-  }
-
-  const effProfitRate = lookupProfit(effTotalProdCost, rInput.profitColumn, profitTable);
-  const effProfitAmount = effProfitRate * effTotalProdCost;
-  const effRevenue = effTotalProdCost + effProfitAmount;
-  const effCostPerUnit = rInput.quantity > 0 ? effRevenue / rInput.quantity : 0;
 
   // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
   // (dùng effCostPerUnit tạm, effFinalPriceWithComm sẽ được tính ở phần breakdown bên dưới)
@@ -456,7 +342,7 @@ export default function ManagerView() {
 
   const moqResults = moqLevels.map(qty => {
     const inp = { ...rInput, quantity: qty };
-    const res = calculate(inp, materials, constants, profitTable);
+    const res = calculateForInput(inp);
     return { qty, res, isCurrent: qty === currentQty };
   }).filter(x => x.res);
 
@@ -481,7 +367,7 @@ export default function ManagerView() {
     let bestQty = 0;
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
-      const res = calculate({ ...rInput, quantity: mid }, materials, constants, profitTable);
+      const res = calculateForInput({ ...rInput, quantity: mid });
       if (!res) return low;
       const layerData = selectedCol ? getLayerData(res, selectedCol) : null;
       const currentMeters = layerData ? layerData.meters + layerData.waste : 0;
@@ -500,7 +386,7 @@ export default function ManagerView() {
       : levelVal * rollLen;
     const estQty = findEstQtyForMeters(availableMeters);
     if (estQty <= 0) return null;
-    const res = calculate({ ...rInput, quantity: estQty }, materials, constants, profitTable);
+    const res = calculateForInput({ ...rInput, quantity: estQty });
     if (!res) return null;
     let isCurrent = false;
     if (isKgBase) {

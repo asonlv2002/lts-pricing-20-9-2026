@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { CalculateInput, HistoryItem, Material, AppConstants, ProfitRow, CalculateResult, QuoteStatus, OverrideTable, OverrideRowKey, OverrideFields, ProductionOrder } from '../lib/types';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE } from '../lib/data';
-import { calculate } from '../lib/engine';
+import { calculateMoqResult, calculateQuote, optimizeThickness } from '../lib/manager-calculation';
 
 // ── LocalStorage keys ─────────────────────────────────────────────────────────
 const LS_HISTORY  = 'lts_history';
@@ -85,6 +85,9 @@ export interface CuaHangTinhGia {
   setMaterialParam: (id: string, partial: Partial<Material>) => void;
   setConstantParam: (key: keyof AppConstants, val: any) => void;
   recalculate: () => void;
+  calculateForInput: (input: CalculateInput) => CalculateResult | null;
+  calculateForQuantity: (quantity: number) => CalculateResult | null;
+  optimizeCurrentThickness: () => ReturnType<typeof optimizeThickness>;
 
   setSaleOverride: (rowKey: OverrideRowKey, field: keyof OverrideFields, value: number | undefined) => void;
   setAdminOverride: (rowKey: OverrideRowKey, field: keyof OverrideFields, value: number | undefined) => void;
@@ -117,7 +120,7 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
   materials: INITIAL_MATERIALS,
   constants: INITIAL_CONSTANTS,
   profitTable: INITIAL_PROFIT_TABLE,
-  result: calculate(defaultInput, INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE),
+  result: calculateQuote(defaultInput, INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE),
 
   activeView: 'manager',
   activeModule: 'calculator',
@@ -190,14 +193,14 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
         // custom: giữ nguyên cylUnitPrice hiện tại
       }
 
-      return { input: newInput, result: calculate(newInput, state.materials, state.constants, state.profitTable), isDirty: true };
+      return { input: newInput, result: calculateQuote(newInput, state.materials, state.constants, state.profitTable), isDirty: true };
     });
   },
 
   resetInput: () => {
     set((state) => ({
       input: { ...defaultInput },
-      result: calculate(defaultInput, state.materials, state.constants, state.profitTable),
+      result: calculateQuote(defaultInput, state.materials, state.constants, state.profitTable),
       currentChotGia: 0, isDirty: false,
       saleOverrides: {}, adminOverrides: {},
       showSaleOverrides: false, showAdminOverrides: false,
@@ -246,7 +249,7 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
       if (!item) return state;
       return {
         input: { ...item.input },
-        result: calculate(item.input, state.materials, state.constants, state.profitTable),
+        result: calculateQuote(item.input, state.materials, state.constants, state.profitTable),
         currentChotGia: item.chotGia || 0,
         activeView: 'manager',
         isDirty: false,
@@ -287,7 +290,7 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
         : m
       );
       luuConfigVaoLS(materials, state.constants, state.profitTable);
-      return { materials, result: calculate(state.input, materials, state.constants, state.profitTable) };
+      return { materials, result: calculateQuote(state.input, materials, state.constants, state.profitTable) };
     });
   },
 
@@ -295,12 +298,27 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
     set((state) => {
       const constants = { ...state.constants, [key]: val };
       luuConfigVaoLS(state.materials, constants, state.profitTable);
-      return { constants, result: calculate(state.input, state.materials, constants, state.profitTable) };
+      return { constants, result: calculateQuote(state.input, state.materials, constants, state.profitTable) };
     });
   },
 
   recalculate: () => {
-    set((state) => ({ result: calculate(state.input, state.materials, state.constants, state.profitTable) }));
+    set((state) => ({ result: calculateQuote(state.input, state.materials, state.constants, state.profitTable) }));
+  },
+
+  calculateForInput: (input) => {
+    const state = get();
+    return calculateQuote(input, state.materials, state.constants, state.profitTable);
+  },
+
+  calculateForQuantity: (quantity) => {
+    const state = get();
+    return calculateMoqResult(state.input, quantity, state.materials, state.constants, state.profitTable);
+  },
+
+  optimizeCurrentThickness: () => {
+    const state = get();
+    return optimizeThickness(state.input, state.materials);
   },
 
   // ── Overrides ─────────────────────────────────────────────────────────────────

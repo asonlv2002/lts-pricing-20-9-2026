@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════════════════
 // TinhGiaScreen — Redesign full mobile-first
 // Flow: Thông tin cơ bản → Chọn loại → Cấu trúc lớp → Kích thước → Nâng cao
 // Sticky bottom bar với nút Lưu + Reset
@@ -13,6 +13,7 @@ import '../engine/models.dart';
 import '../engine/js_runtime.dart';
 import '../store/app_state.dart';
 import '../theme/app_theme.dart';
+import '../widgets/detail_tables.dart';
 import '../widgets/form_widgets.dart';
 import '../widgets/material_picker.dart';
 import '../widgets/price_hero.dart';
@@ -49,32 +50,170 @@ class TinhGiaScreen extends StatelessWidget {
       );
     }
 
-    // Mobile layout: kết quả ở trên (collapsed nếu chưa tính), form ở dưới
-    return Stack(
-      children: [
-        SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(14, 14, 14, 96),
-          child: Column(
-            children: [
-              _ResultPanel(state: s),
-              const SizedBox(height: 14),
-              _InputForm(state: s),
-            ],
-          ),
-        ),
-        // Sticky bottom bar
-        Positioned(
-          bottom: 0,
-          left: 0,
-          right: 0,
-          child: _StickyBottomBar(state: s),
-        ),
-      ],
-    );
+    return _MobilePricingWorkspace(state: s);
+
   }
 }
 
 // ─── Sticky bottom action bar ────────────────────────────────────────────────
+
+class _MobilePricingWorkspace extends StatefulWidget {
+  final AppState state;
+  const _MobilePricingWorkspace({required this.state});
+  @override
+  State<_MobilePricingWorkspace> createState() => _MobilePricingWorkspaceState();
+}
+
+class _MobilePricingWorkspaceState extends State<_MobilePricingWorkspace> with SingleTickerProviderStateMixin {
+  late final TabController _controller;
+  AppState get state => widget.state;
+  @override
+  void initState() { super.initState(); _controller = TabController(length: 2, vsync: this); }
+  @override
+  void didUpdateWidget(covariant _MobilePricingWorkspace oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final requested = state.requestedTabIndex;
+    if (requested != null && requested >= 0 && requested < _controller.length) {
+      _controller.animateTo(requested);
+      state.consumeTabRequest();
+    }
+  }
+  @override
+  void dispose() { _controller.dispose(); super.dispose(); }
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Column(children: [
+      Material(color: scheme.surface, child: SafeArea(bottom: false, child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
+        child: Column(children: [
+          _LiveQuoteStrip(state: state, onOpenResult: () => _controller.animateTo(1)),
+          const SizedBox(height: 10),
+          Container(height: 52, padding: const EdgeInsets.all(4), decoration: BoxDecoration(
+            color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.35)),
+          ), child: TabBar(controller: _controller, indicatorSize: TabBarIndicatorSize.tab,
+            dividerColor: Colors.transparent, labelColor: scheme.onPrimary,
+            unselectedLabelColor: scheme.onSurfaceVariant,
+            indicator: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(12)),
+            tabs: const [
+              Tab(child: _CompactTabLabel(icon: Icons.edit_note_outlined, text: 'Nhập liệu')),
+              Tab(child: _CompactTabLabel(icon: Icons.analytics_outlined, text: 'Kết quả')),
+            ])),
+        ]),
+      ))),
+      Expanded(child: TabBarView(controller: _controller, children: [
+        SingleChildScrollView(padding: const EdgeInsets.fromLTRB(12, 8, 12, 0), child: _InputForm(state: state)),
+        SingleChildScrollView(padding: const EdgeInsets.fromLTRB(12, 8, 12, 96), child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [_MobileResultQuickActions(result: state.currentResult), const SizedBox(height: 12), _ResultPanel(state: state)],
+        )),
+      ])),
+      _StickyBottomBar(state: state),
+    ]);
+  }
+}
+
+class _CompactTabLabel extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _CompactTabLabel({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: 6),
+        Flexible(child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis)),
+      ],
+    );
+  }
+}
+class _LiveQuoteStrip extends StatelessWidget {
+  final AppState state;
+  final VoidCallback onOpenResult;
+  const _LiveQuoteStrip({required this.state, required this.onOpenResult});
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final input = state.currentInput;
+    final raw = input.raw;
+    final result = state.currentResult;
+    final isMang = input.productType == 'mang';
+    final unit = isMang ? 'm²' : 'túi';
+    final qty = (raw['quantity'] as num?)?.toDouble() ?? 0;
+    final title = input.productName.isEmpty ? 'Báo giá mới' : input.productName;
+    final subtitle = [input.customer.isEmpty ? null : input.customer, result?.structureText.isNotEmpty == true ? result!.structureText : null].whereType<String>().join(' · ');
+    return InkWell(borderRadius: BorderRadius.circular(18), onTap: result == null ? null : onOpenResult, child: Container(
+      padding: const EdgeInsets.all(14), decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [scheme.primaryContainer.withValues(alpha: 0.95), scheme.tertiaryContainer.withValues(alpha: 0.62)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(18), border: Border.all(color: scheme.primary.withValues(alpha: 0.12)),
+      ), child: Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text(subtitle.isEmpty ? 'Nhập thông tin để xem giá trực tiếp' : subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
+          const SizedBox(height: 8),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            _MiniPill(icon: Icons.inventory_2_outlined, text: isMang ? 'Màng' : 'Túi'),
+            _MiniPill(icon: Icons.format_list_numbered, text: '${_fmt(qty)} $unit'),
+            if (result != null) _MiniPill(icon: Icons.straighten, text: '${result.d('tongDoDay').toStringAsFixed(1)} mic'),
+          ]),
+        ])),
+        const SizedBox(width: 10),
+        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          Text(result == null ? 'Chưa có giá' : '${_fmt(result.finalPrice)} đ', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900, color: result == null ? scheme.onSurfaceVariant : AppColors.success)),
+          Text('/$unit', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
+          if (result != null) ...[const SizedBox(height: 6), Icon(Icons.arrow_forward_ios_rounded, size: 14, color: scheme.onSurfaceVariant)],
+        ]),
+      ]),
+    ));
+  }
+}
+
+class _MiniPill extends StatelessWidget {
+  final IconData icon; final String text;
+  const _MiniPill({required this.icon, required this.text});
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: scheme.surface.withValues(alpha: 0.72), borderRadius: BorderRadius.circular(999)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 13, color: scheme.primary), const SizedBox(width: 4), Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700))]));
+  }
+}
+
+class _MobileResultQuickActions extends StatelessWidget {
+  final CalculateResult? result;
+  const _MobileResultQuickActions({required this.result});
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final r = result;
+    return Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [Icon(Icons.table_chart_outlined, size: 18, color: scheme.primary), const SizedBox(width: 8), Expanded(child: Text('Bảng tính nhanh', style: Theme.of(context).textTheme.titleSmall)), Text('Xoay ngang', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant))]),
+      const SizedBox(height: 12),
+      GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, mainAxisSpacing: 8, crossAxisSpacing: 8, childAspectRatio: 2.9, children: [
+        _TableAction(label: 'Tổng quan', icon: Icons.account_balance_wallet_outlined, enabled: r != null, onTap: () => showOverviewTable(context, r!)),
+        _TableAction(label: 'Chi phí', icon: Icons.pie_chart_outline, enabled: r != null, onTap: () => showCostTable(context, r!)),
+        _TableAction(label: 'Sản xuất', icon: Icons.precision_manufacturing_outlined, enabled: r != null, onTap: () => showProductionTable(context, r!)),
+        _TableAction(label: 'Trục in', icon: Icons.album_outlined, enabled: r != null, onTap: () => showCylinderTable(context, r!)),
+      ]),
+    ])));
+  }
+}
+
+class _TableAction extends StatelessWidget {
+  final String label; final IconData icon; final bool enabled; final VoidCallback onTap;
+  const _TableAction({required this.label, required this.icon, required this.enabled, required this.onTap});
+  @override
+  Widget build(BuildContext context) => OutlinedButton.icon(onPressed: enabled ? onTap : null, icon: Icon(icon, size: 16), label: Text(label), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)));
+}
+
+String _fmt(num v) => v.round().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+
 class _StickyBottomBar extends StatelessWidget {
   final AppState state;
   const _StickyBottomBar({required this.state});
@@ -1477,3 +1616,8 @@ class _SubTitle extends StatelessWidget {
     );
   }
 }
+
+
+
+
+

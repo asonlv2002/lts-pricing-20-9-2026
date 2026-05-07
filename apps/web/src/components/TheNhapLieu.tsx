@@ -1,7 +1,6 @@
 "use client";
 import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import { optimizeThickness } from '../lib/engine';
 
 // --- FORMAT NUMBER INPUT ---
 const FormattedNumberInput = ({ value, onChange, placeholder, min, step, className }: any) => {
@@ -102,7 +101,7 @@ const DecimalInput = ({ value, onChange, placeholder, min, step, className, disa
 };
 
 export default function InputCard() {
-  const { input, setInput: capNhatDauVao, materials, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu } = dungCuaHangTinhGia();
+  const { input, setInput: capNhatDauVao, materials, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness } = dungCuaHangTinhGia();
   const [layerGroups, setLayerGroups] = React.useState<Record<string, string>>({});
 
   const handleProductType = (val: string) => {
@@ -415,27 +414,8 @@ export default function InputCard() {
                   const target = input.targetThickness;
                   if (!target || target <= 0) return;
 
-                  // Build layers for optimization
-                  const layers = [];
-                  for (const k of ['layer1Id', 'layer2Id', 'layer3Id', 'layer4Id', 'layer5Id']) {
-                    const id = (input as any)[k];
-                    if (!id) continue;
-                    const mat = materials.find((m: any) => m.id === id);
-                    if (!mat) continue;
-                    layers.push({
-                      id: k,
-                      doDay: ((input as any).micOverrides?.[k] ?? mat.thickness),
-                      isLLDPE: mat.name?.toLowerCase().includes('lldpe') ||
-                        mat.group?.toLowerCase().includes('lldpe'),
-                    });
-                  }
-                  if (layers.length === 0) return;
-
                   try {
-                    const result = optimizeThickness(
-                      input as any,
-                      materials as any,
-                    );
+                    const result = optimizeCurrentThickness();
                     if (result && result.result) {
                       const newOverrides = { ...(input as any).micOverrides };
                       const layerUpdates: Record<string, string> = {};

@@ -186,7 +186,6 @@ class BreakdownPanel extends StatelessWidget {
     final numColors = (inp['numColors'] as num?)?.toInt() ?? 0;
     final spreadMm = ((inp['spreadWidth'] as num?) ?? 0) * 1000;
     final cutMm   = ((inp['cutStep'] as num?) ?? 0) * 1000;
-    final numImages = (inp['numImages'] as num?)?.toInt() ?? 1;
     final filmRollLength = (inp['filmRollLength'] as num?)?.toInt() ?? 6000;
     final bagType  = (inp['bagType'] as String?) ?? '';
     final filmType = (inp['filmType'] as String?) ?? '';
