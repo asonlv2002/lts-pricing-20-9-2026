@@ -87,11 +87,37 @@ export function toiUuDoDay(
     originalThickness: number;
     isLLDPE: boolean;
     costPerM2: number;
+    popularityRank: number;
   };
 
   const giaMoiM2 = (vl: VatLieu | undefined, doDay: number): number => {
     if (!vl) return Number.MAX_SAFE_INTEGER;
     return vl.giaMoiKg * doDay * vl.khoiLuongRieng / 1000;
+  };
+
+  const coLopBOPPHoacMatt = vatLieuDangChon.some(lop => {
+    const vl = timVatLieu(lop);
+    const nhom = vl?.nhom?.toLowerCase() ?? '';
+    const ten = vl?.ten?.toLowerCase() ?? '';
+    return nhom === 'bopp' || nhom === 'matt opp' || ten.includes('bopp') || ten.includes('matt opp');
+  });
+
+  const diemPhoBien = (vl: VatLieu | undefined, doDay: number): number => {
+    const nhom = vl?.nhom?.toLowerCase() ?? '';
+    const ten = vl?.ten?.toLowerCase() ?? '';
+    const laBOPPHoacMatt = nhom === 'bopp' || nhom === 'matt opp' || ten.includes('bopp') || ten.includes('matt opp');
+    if (laBOPPHoacMatt) {
+      if (doDay === 18) return 0;
+      if (doDay === 20) return 1;
+      return 10 + doDay;
+    }
+    if (coLopBOPPHoacMatt && (nhom === 'cpp' || ten === 'cpp')) {
+      if (doDay === 50) return 0;
+      if (doDay === 40) return 1;
+      if (doDay === 30) return 2;
+      return 10 + doDay;
+    }
+    return 5;
   };
 
   const taoLuaChonChoLop = (lop: VatLieuDangChonToiUu): LuaChonLop[] => {
@@ -117,6 +143,7 @@ export function toiUuDoDay(
           originalThickness: lop.doDay,
           isLLDPE: laPe,
           costPerM2: giaMoiM2(vlHienTai, mic),
+          popularityRank: diemPhoBien(vlHienTai, mic),
         });
       }
       return ds;
@@ -135,6 +162,7 @@ export function toiUuDoDay(
         originalThickness: lop.doDay,
         isLLDPE: !!lop.laLLDPE,
         costPerM2: Number.MAX_SAFE_INTEGER,
+        popularityRank: 99,
       }];
     }
 
@@ -149,6 +177,7 @@ export function toiUuDoDay(
         originalThickness: lop.doDay,
         isLLDPE: laLLDPE(vl, lop),
         costPerM2: giaMoiM2(vl, vl.doDay),
+        popularityRank: diemPhoBien(vl, vl.doDay),
       }));
   };
 
@@ -158,8 +187,12 @@ export function toiUuDoDay(
   let tongVatLieuTotNhat = 0;
   let tongThucTeTotNhat = vatLieuDangChon.reduce((sum, lop) => sum + lop.doDay, 0) + tongDoDayKeo;
   let chiPhiTotNhat = Infinity;
+  let diemPhoBienTotNhat = Infinity;
 
   const soSanhTotHon = (chon: LuaChonLop[], tongVatLieu: number, tongThucTe: number) => {
+    const diemPhoBien = chon.reduce((sum, c) => sum + c.popularityRank, 0);
+    if (diemPhoBien < diemPhoBienTotNhat) return true;
+    if (diemPhoBien > diemPhoBienTotNhat) return false;
     const chiPhi = chon.reduce((sum, c) => sum + c.costPerM2, 0);
     if (chiPhi < chiPhiTotNhat - 0.0001) return true;
     if (Math.abs(chiPhi - chiPhiTotNhat) > 0.0001) return false;
@@ -170,15 +203,23 @@ export function toiUuDoDay(
     return tongVatLieu < tongVatLieuTotNhat;
   };
 
+  const dungSaiLLDPE = (chon: LuaChonLop[]) => chon.filter(c => c.isLLDPE).length * 3;
+
+  const datDungSaiThanhPham = (tongThucTe: number, chon: LuaChonLop[]) => {
+    const bienDoLLDPE = dungSaiLLDPE(chon);
+    return tongThucTe - bienDoLLDPE >= minChapNhan && tongThucTe + bienDoLLDPE <= maxChapNhan;
+  };
+
   const dfs = (idx: number, tongVatLieu: number, chon: LuaChonLop[]) => {
     if (idx >= cacLuaChonTheoLop.length) {
       const tongThucTe = tongVatLieu + tongDoDayKeo;
-      if (tongThucTe < minChapNhan || tongThucTe > maxChapNhan) return;
+      if (!datDungSaiThanhPham(tongThucTe, chon)) return;
       if (soSanhTotHon(chon, tongVatLieu, tongThucTe)) {
         ketQuaTotNhat = chon.map(c => ({ ...c }));
         tongVatLieuTotNhat = tongVatLieu;
         tongThucTeTotNhat = tongThucTe;
         chiPhiTotNhat = chon.reduce((sum, c) => sum + c.costPerM2, 0);
+        diemPhoBienTotNhat = chon.reduce((sum, c) => sum + c.popularityRank, 0);
       }
       return;
     }
@@ -202,6 +243,7 @@ export function toiUuDoDay(
       originalThickness: lop.doDay,
       isLLDPE: laLLDPE(vl, lop),
       costPerM2: giaMoiM2(vl, lop.doDay),
+      popularityRank: diemPhoBien(vl, lop.doDay),
     };
   })).map(k => ({
     layerId: k.layerId,
@@ -214,7 +256,8 @@ export function toiUuDoDay(
 
   const tongVatLieu = ketQua.reduce((sum, k) => sum + k.adjustedThickness, 0);
   const tongThucTe = tongVatLieu + tongDoDayKeo;
-  const datYeuCau = tongThucTe >= minChapNhan && tongThucTe <= maxChapNhan;
+  const bienDoLLDPE = ketQua.filter(k => k.isLLDPE).length * 3;
+  const datYeuCau = tongThucTe - bienDoLLDPE >= minChapNhan && tongThucTe + bienDoLLDPE <= maxChapNhan;
   const canhBao = !datYeuCau
     ? `Không tìm được tổ hợp độ dày thỏa mãn ${minChapNhan}-${maxChapNhan} mic (hiện tại: ${tongThucTe} mic). Vui lòng chọn vật liệu khác.`
     : undefined;
