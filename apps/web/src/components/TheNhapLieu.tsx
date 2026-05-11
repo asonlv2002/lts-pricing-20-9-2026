@@ -108,6 +108,8 @@ export default function InputCard() {
     capNhatDauVao({ productType: val, bagType: '', filmType: '' });
   };
 
+  const laNhomLLDPE = (tenNhom: string) => tenNhom.toLowerCase().includes('lldpe');
+
   const handleLayerChange = (layerKey: string, val: string) => {
     const partial: any = { [layerKey]: val || null };
     if (!val) {
@@ -125,7 +127,17 @@ export default function InputCard() {
 
   const handleLayerMainSelect = (layerKey: string, val: string) => {
     if (val.startsWith('GROUP_')) {
+      const groupName = val.replace('GROUP_', '');
       setLayerGroups(prev => ({ ...prev, [layerKey]: val }));
+
+      if ((input.targetThickness ?? 0) > 0 && !laNhomLLDPE(groupName)) {
+        const defaultMat = materials
+          .filter(m => m.group === groupName)
+          .sort((a, b) => a.thickness - b.thickness)[0];
+        handleLayerChange(layerKey, defaultMat?.id || '');
+        return;
+      }
+
       handleLayerChange(layerKey, '');
     } else {
       setLayerGroups(prev => ({ ...prev, [layerKey]: '' }));
@@ -160,7 +172,8 @@ export default function InputCard() {
           })}
         </select>
 
-        {currentGroup && currentGroup.startsWith('GROUP_') && (
+        {currentGroup && currentGroup.startsWith('GROUP_') &&
+          ((input.targetThickness ?? 0) <= 0 || laNhomLLDPE(currentGroup.replace('GROUP_', ''))) && (
           <div className="mic-adjust" style={{ marginTop: '6px', paddingLeft: '8px', borderLeft: '2px solid var(--border)' }}>
             <label className="form-label" style={{ fontSize: '0.72rem' }}>Độ dày (mic)</label>
             <select className="form-select" value={matId || ''} onChange={e => handleLayerChange(layerKey, e.target.value)}>

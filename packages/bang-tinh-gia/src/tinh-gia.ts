@@ -313,12 +313,6 @@ export function tinhGia(
   if (dauVao.loaiSanPham === 'mang' && !dauVao.loaiMang) return null;
 
   const doDayMucTieu = dauVao.doDayMucTieu || 0;
-  if (doDayMucTieu > 0) {
-    const doDayTho_ = lop1.doDay + (lop2?.doDay||0) + (lop3?.doDay||0) + (lop4?.doDay||0) + (lop5?.doDay||0);
-    const soLop_ = 1 + (lop2?1:0) + (lop3?1:0) + (lop4?1:0) + (lop5?1:0);
-    const doDayThucTe = doDayTho_ + (soLop_ - 1) * 3;
-    if (doDayThucTe < doDayMucTieu - 5 || doDayThucTe > doDayMucTieu + 5) return null;
-  }
 
   const soHinh = dauVao.soHinh || 1;
   const laMang = dauVao.loaiSanPham === 'mang';
