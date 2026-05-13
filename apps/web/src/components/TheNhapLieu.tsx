@@ -112,6 +112,7 @@ export default function InputCard() {
 
   const handleLayerChange = (layerKey: string, val: string) => {
     const partial: any = { [layerKey]: val || null };
+    if (layerKey === 'layer2Id' && !val) partial.layer2AltId = null;
     if (!val) {
       if (layerKey === 'layer1Id') { partial.layer2Id = null; partial.layer3Id = null; partial.layer4Id = null; partial.layer5Id = null; }
       if (layerKey === 'layer2Id') { partial.layer3Id = null; partial.layer4Id = null; partial.layer5Id = null; }
@@ -120,6 +121,7 @@ export default function InputCard() {
     }
     const newMicOverrides = { ...input.micOverrides };
     delete newMicOverrides[layerKey];
+    if (layerKey === 'layer2Id' && !val) delete newMicOverrides.layer2AltId;
     partial.micOverrides = newMicOverrides;
 
     capNhatDauVao(partial);
@@ -224,7 +226,7 @@ export default function InputCard() {
     const getLayer = (id: string | null | undefined) => materials.find(m => m.id === id);
     const layers = [
       { mat: getLayer(input.layer1Id), override: input.micOverrides?.layer1Id },
-      { mat: getLayer(input.layer2Id), override: input.micOverrides?.layer2Id },
+      { mat: getLayer(input.layer2Id), override: input.micOverrides?.layer2Id, alt: getLayer((input as any).layer2AltId), altOverride: input.micOverrides?.layer2AltId },
       { mat: getLayer(input.layer3Id), override: input.micOverrides?.layer3Id },
       { mat: getLayer(input.layer4Id), override: input.micOverrides?.layer4Id },
       { mat: getLayer(input.layer5Id), override: input.micOverrides?.layer5Id }
@@ -240,7 +242,7 @@ export default function InputCard() {
       );
     }
 
-    const sumMic = layers.reduce((s, l) => s + (l.override || l.mat!.thickness), 0);
+    const sumMic = layers.reduce((s, l: any) => s + Math.max(l.override || l.mat!.thickness, l.alt ? (l.altOverride || l.alt.thickness) : 0), 0);
     const glueMic = (layers.length - 1) * 3;
     const totalMic = sumMic + glueMic;
     const target = input.targetThickness || 0;
@@ -252,8 +254,8 @@ export default function InputCard() {
           {layers.map((l, i) => (
             <React.Fragment key={i}>
               <div style={{ flex: 1, minWidth: '40px', background: 'var(--surface2)', border: '1px solid var(--border)', padding: '6px 4px', borderRadius: '4px', textAlign: 'center' }}>
-                <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text)' }}>{l.mat!.name.split(' ')[0]}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text)' }}>{l.override || l.mat!.thickness}mic</div>
+                <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text)' }}>{l.mat!.name.split(' ')[0]}{(l as any).alt ? ` + ${(l as any).alt.name.split(' ')[0]}` : ''}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text)' }}>{Math.max(l.override || l.mat!.thickness, (l as any).alt ? ((l as any).altOverride || (l as any).alt.thickness) : 0)}mic</div>
               </div>
               {i < layers.length - 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.65rem', color: 'var(--text-secondary)', opacity: 0.7 }}>3mic</div>
@@ -466,6 +468,29 @@ export default function InputCard() {
 
           {renderLayerSelect('Lớp 1', 'layer1Id', false)}
           {renderLayerSelect('Lớp 2', 'layer2Id', !input.layer1Id)}
+          {input.layer2Id && (
+            <div style={{ marginTop: '-6px', marginBottom: '10px' }}>
+              {!(input as any).layer2AltId ? (
+                <button className="btn btn-secondary" type="button" onClick={() => capNhatDauVao({ layer2AltId: input.layer2Id } as any)}>
+                  + Th?m c?u tr?c
+                </button>
+              ) : (
+                <div style={{ padding: '10px', border: '1px dashed var(--border)', borderRadius: '8px', background: 'var(--surface2)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center', marginBottom: '8px' }}>
+                    <label className="form-label" style={{ margin: 0 }}>L?p 2 - c?u tr?c ph?</label>
+                    <button className="btn btn-secondary" type="button" onClick={() => capNhatDauVao({ layer2AltId: null } as any)}>B?</button>
+                  </div>
+                  <select className="form-select" value={(input as any).layer2AltId || ''} onChange={e => capNhatDauVao({ layer2AltId: e.target.value || null } as any)}>
+                    <option value="">-- Ch?n v?t li?u --</option>
+                    {materials.filter(m => m.thickness === (materials.find(x => x.id === input.layer2Id)?.thickness || 0)).map(m => <option key={m.id} value={m.id}>{m.name} ({m.thickness}mic)</option>)}
+                  </select>
+                  <div style={{ marginTop: '6px', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                    Ch? hi?n v?t li?u c?ng ?? d?y v?i l?p 2; khi t?nh gi? s? t?ch chi ph? t?ng v?t li?u theo kh? ri?ng.
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
           {renderLayerSelect('Lớp 3', 'layer3Id', !input.layer2Id)}
           {renderLayerSelect('Lớp 4', 'layer4Id', !input.layer3Id)}
           {renderLayerSelect('Lớp 5', 'layer5Id', !input.layer4Id)}

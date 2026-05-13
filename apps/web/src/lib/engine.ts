@@ -125,7 +125,7 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
     loaiSanPham: i.productType, loaiTui: i.bagType, loaiMang: i.filmType,
     chieuDaiCuonMang: i.filmRollLength || 6000,
     soLuong: i.quantity, soMau: i.numColors, soHinh: i.numImages || 1,
-    idLop1: i.layer1Id, idLop2: i.layer2Id, idLop3: i.layer3Id, idLop4: i.layer4Id, idLop5: i.layer5Id,
+    idLop1: i.layer1Id, idLop2: i.layer2Id, idLop2Phu: i.layer2AltId, idLop3: i.layer3Id, idLop4: i.layer4Id, idLop5: i.layer5Id,
     khoTrai: i.spreadWidth, buocCat: i.cutStep,
     phiKimLoai: i.metallicSurcharge || 0,
     tyLePhuMucMuc: i.coverageRatio || 1,
@@ -150,6 +150,7 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
     giaTrucDonVi: i.cylUnitPrice || 0,
     doDayMucTieu: i.targetThickness || 0,
     // tuDongToiUuDoDay bỏ qua - xử lý bên ngoài qua optimizeThickness()
+    cauTrucNhieuVatLieu: i.multiStructureLayers,
     ghiDeDayLop: i.micOverrides ? Object.fromEntries(
       Object.entries(i.micOverrides).map(([k, v]) => {
         // layer1Id → idLop1, layer2Id → idLop2, ...
@@ -165,6 +166,8 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
   const findMat = (id: string | null | undefined) => materials.find(m => m.id === id) || null;
   const printMat = findMat(originalInput.layer1Id);
   const lamIds = [originalInput.layer2Id, originalInput.layer3Id, originalInput.layer4Id, originalInput.layer5Id];
+  const layer2AltMat = findMat(originalInput.layer2AltId);
+  const layer2Materials = [findMat(originalInput.layer2Id), layer2AltMat].filter(Boolean);
   return {
     input: originalInput,
     structureText: r.chuoiCauTruc,
@@ -239,12 +242,14 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
       laminations: r.cacLop.ghep.map((g: any, idx: number) => ({
         layerNum: idx + 2,
         material: findMat(lamIds[idx]),
+        materials: idx === 0 && layer2Materials.length > 1 ? layer2Materials : undefined,
         width: g.kho,
         meters: g.met,
         waste: g.hatHao,
         cpsx: g.cpsx,
         costCPSX: g.chiPhiSX,
         costMat: g.chiPhiVL,
+        chiTietVatLieu: g.chiTietVatLieu,
         total: g.tongCong,
       })),
       cut: {

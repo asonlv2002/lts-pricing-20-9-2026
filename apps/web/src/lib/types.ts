@@ -82,6 +82,7 @@ export interface CalculateInput {
   numImages: number;
   layer1Id?: string | null;
   layer2Id?: string | null;
+  layer2AltId?: string | null;
   layer3Id?: string | null;
   layer4Id?: string | null;
   layer5Id?: string | null;
@@ -114,6 +115,7 @@ export interface CalculateInput {
   targetThickness?: number;
   autoOptimizeThickness?: boolean; // tự động tối ưu độ dày (ưu tiên thấp nhất thỏa ±5 mic)
   micOverrides?: Record<string, number>;
+  multiStructureLayers?: Record<string, string[]>;
 }
 
 // ── Quote Status (luồng báo giá 5 bước) ──────────────────────────────────────

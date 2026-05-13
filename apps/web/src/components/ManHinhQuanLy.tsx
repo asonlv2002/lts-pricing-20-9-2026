@@ -327,7 +327,9 @@ export default function ManagerView() {
   if (r.layers.laminations) {
     r.layers.laminations.forEach((lam: any) => {
       if (!lam.material) return;
-      matCols.push({ type: 'lam', layerNum: lam.layerNum, name: lam.material.name.split(' ')[0], fullName: lam.material.name });
+      const label = lam.materials?.length > 1 ? lam.materials.map((m: any) => m.name.split(' ')[0]).join('+') : lam.material.name.split(' ')[0];
+      const full = lam.materials?.length > 1 ? lam.materials.map((m: any) => m.name).join(' + ') : lam.material.name;
+      matCols.push({ type: 'lam', layerNum: lam.layerNum, name: label, fullName: full });
     });
   }
 
@@ -337,7 +339,16 @@ export default function ManagerView() {
   };
   const calcKg = (layerMat: any, meters: number, width: number) => {
     if (!layerMat) return 0;
-    return meters * width * layerMat.thickness * layerMat.matDoHienThi / 1000;
+    const density = layerMat.matDoHienThi ?? layerMat.density ?? 0;
+    return meters * width * layerMat.thickness * density / 1000;
+  };
+  const renderMaterialBreakdown = (layerData: any) => {
+    if (!layerData?.materials || !layerData?.chiTietVatLieu) return null;
+    return <div style={{ marginTop: '4px', fontSize: '0.68rem', color: 'var(--muted)', lineHeight: 1.35 }}>
+      {layerData.chiTietVatLieu.map((item: any, idx: number) => (
+        <div key={idx}>{item.ten}: {fmt(item.kho, 3)}m</div>
+      ))}
+    </div>;
   };
 
   const moqResults = moqLevels.map(qty => {
@@ -765,6 +776,7 @@ export default function ManagerView() {
                             <td key={ci} data-label={col.name}>
                               {fmt(layerMeters, 0)} m<br/>
                               <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({fmt(kg, 1)} kg)</span>
+                              {renderMaterialBreakdown(layerData)}
                             </td>
                           );
                         })}
@@ -843,6 +855,7 @@ export default function ManagerView() {
                               <td data-label={col.name} key={i}>
                                 {fmt(layerMeters, 0)} m<br />
                                 <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({fmt(kg, 1)} kg)</span>
+                                {renderMaterialBreakdown(layerData)}
                               </td>
                             );
                           })}
