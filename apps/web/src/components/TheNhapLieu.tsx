@@ -496,7 +496,7 @@ export default function InputCard() {
                 <div className="layer2-split-stack">
                   <select aria-label="Chọn vật liệu lớp 2 thứ hai" className="form-select" value={(input as any).layer2AltId || ''} onChange={e => capNhatDauVao({ layer2AltId: e.target.value || null } as any)}>
                     <option value="">-- Chọn vật liệu --</option>
-                    {materials.filter(m => m.thickness === (materials.find(x => x.id === input.layer2Id)?.thickness || 0)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                    {materials.filter(m => m.id !== input.layer2Id && m.thickness === (materials.find(x => x.id === input.layer2Id)?.thickness || 0)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
                   </select>
 
                   <div className="layer2-length-row">
@@ -525,6 +525,14 @@ export default function InputCard() {
                   {(() => {
                     const lengths = (input as any).layer2Lengths;
                     if (!lengths) return null;
+                    if ((input as any).layer2AltId === input.layer2Id) {
+                      return (
+                        <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span aria-hidden="true">⚠️</span>
+                          <span>Vật liệu phụ phải khác vật liệu chính trong lớp 2</span>
+                        </div>
+                      );
+                    }
                     if (lengths.mat1 <= 0 || lengths.mat2 <= 0) {
                       return (
                         <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
