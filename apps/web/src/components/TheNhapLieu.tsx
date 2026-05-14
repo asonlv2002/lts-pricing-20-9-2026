@@ -108,8 +108,22 @@ export default function InputCard() {
     capNhatDauVao({ productType: val, bagType: '', filmType: '' });
   };
 
+  const laNhomLLDPE = (tenNhom: string) => tenNhom.toLowerCase().includes('lldpe');
+
   const handleLayerChange = (layerKey: string, val: string) => {
     const partial: any = { [layerKey]: val || null };
+    if (layerKey === 'layer2Id' && !val) {
+      partial.layer2AltId = null;
+      partial.layer2Lengths = undefined;
+    }
+    if (layerKey === 'layer2Id' && val && input.layer2AltId) {
+      const newMat = materials.find(m => m.id === val);
+      const altMat = materials.find(m => m.id === input.layer2AltId);
+      if (newMat && altMat && newMat.thickness !== altMat.thickness) {
+        partial.layer2AltId = null;
+        partial.layer2Lengths = undefined;
+      }
+    }
     if (!val) {
       if (layerKey === 'layer1Id') { partial.layer2Id = null; partial.layer3Id = null; partial.layer4Id = null; partial.layer5Id = null; }
       if (layerKey === 'layer2Id') { partial.layer3Id = null; partial.layer4Id = null; partial.layer5Id = null; }
@@ -118,6 +132,7 @@ export default function InputCard() {
     }
     const newMicOverrides = { ...input.micOverrides };
     delete newMicOverrides[layerKey];
+    if (layerKey === 'layer2Id' && !val) delete newMicOverrides.layer2AltId;
     partial.micOverrides = newMicOverrides;
 
     capNhatDauVao(partial);
@@ -125,7 +140,17 @@ export default function InputCard() {
 
   const handleLayerMainSelect = (layerKey: string, val: string) => {
     if (val.startsWith('GROUP_')) {
+      const groupName = val.replace('GROUP_', '');
       setLayerGroups(prev => ({ ...prev, [layerKey]: val }));
+
+      if ((input.targetThickness ?? 0) > 0 && !laNhomLLDPE(groupName)) {
+        const defaultMat = materials
+          .filter(m => m.group === groupName)
+          .sort((a, b) => a.thickness - b.thickness)[0];
+        handleLayerChange(layerKey, defaultMat?.id || '');
+        return;
+      }
+
       handleLayerChange(layerKey, '');
     } else {
       setLayerGroups(prev => ({ ...prev, [layerKey]: '' }));
@@ -160,7 +185,8 @@ export default function InputCard() {
           })}
         </select>
 
-        {currentGroup && currentGroup.startsWith('GROUP_') && (
+        {currentGroup && currentGroup.startsWith('GROUP_') &&
+          ((input.targetThickness ?? 0) <= 0 || laNhomLLDPE(currentGroup.replace('GROUP_', ''))) && (
           <div className="mic-adjust" style={{ marginTop: '6px', paddingLeft: '8px', borderLeft: '2px solid var(--border)' }}>
             <label className="form-label" style={{ fontSize: '0.72rem' }}>Độ dày (mic)</label>
             <select className="form-select" value={matId || ''} onChange={e => handleLayerChange(layerKey, e.target.value)}>
@@ -211,7 +237,7 @@ export default function InputCard() {
     const getLayer = (id: string | null | undefined) => materials.find(m => m.id === id);
     const layers = [
       { mat: getLayer(input.layer1Id), override: input.micOverrides?.layer1Id },
-      { mat: getLayer(input.layer2Id), override: input.micOverrides?.layer2Id },
+      { mat: getLayer(input.layer2Id), override: input.micOverrides?.layer2Id, alt: getLayer((input as any).layer2AltId), altOverride: input.micOverrides?.layer2AltId },
       { mat: getLayer(input.layer3Id), override: input.micOverrides?.layer3Id },
       { mat: getLayer(input.layer4Id), override: input.micOverrides?.layer4Id },
       { mat: getLayer(input.layer5Id), override: input.micOverrides?.layer5Id }
@@ -227,7 +253,7 @@ export default function InputCard() {
       );
     }
 
-    const sumMic = layers.reduce((s, l) => s + (l.override || l.mat!.thickness), 0);
+    const sumMic = layers.reduce((s, l: any) => s + Math.max(l.override || l.mat!.thickness, l.alt ? (l.altOverride || l.alt.thickness) : 0), 0);
     const glueMic = (layers.length - 1) * 3;
     const totalMic = sumMic + glueMic;
     const target = input.targetThickness || 0;
@@ -239,8 +265,8 @@ export default function InputCard() {
           {layers.map((l, i) => (
             <React.Fragment key={i}>
               <div style={{ flex: 1, minWidth: '40px', background: 'var(--surface2)', border: '1px solid var(--border)', padding: '6px 4px', borderRadius: '4px', textAlign: 'center' }}>
-                <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text)' }}>{l.mat!.name.split(' ')[0]}</div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--text)' }}>{l.override || l.mat!.thickness}mic</div>
+                <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text)' }}>{l.mat!.name.split(' ')[0]}{(l as any).alt ? ` + ${(l as any).alt.name.split(' ')[0]}` : ''}</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text)' }}>{Math.max(l.override || l.mat!.thickness, (l as any).alt ? ((l as any).altOverride || (l as any).alt.thickness) : 0)}mic</div>
               </div>
               {i < layers.length - 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', fontSize: '0.65rem', color: 'var(--text-secondary)', opacity: 0.7 }}>3mic</div>
@@ -453,6 +479,92 @@ export default function InputCard() {
 
           {renderLayerSelect('Lớp 1', 'layer1Id', false)}
           {renderLayerSelect('Lớp 2', 'layer2Id', !input.layer1Id)}
+          {input.layer2Id && (
+            <div style={{ marginTop: '-6px', marginBottom: '10px' }}>
+              {!(input as any).layer2AltId ? (
+                <button
+                  className="btn btn-secondary"
+                  type="button"
+                  onClick={() => capNhatDauVao({
+                    layer2AltId: input.layer2Id,
+                    layer2Lengths: { mat1: input.spreadWidth || 0, mat2: 0 },
+                  } as any)}
+                >
+                  + Thêm cấu trúc
+                </button>
+              ) : (
+                <div className="layer2-split-stack">
+                  <select aria-label="Chọn vật liệu lớp 2 thứ hai" className="form-select" value={(input as any).layer2AltId || ''} onChange={e => capNhatDauVao({ layer2AltId: e.target.value || null } as any)}>
+                    <option value="">-- Chọn vật liệu --</option>
+                    {materials.filter(m => m.id !== input.layer2Id && m.thickness === (materials.find(x => x.id === input.layer2Id)?.thickness || 0)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                  </select>
+
+                  <div className="layer2-length-row">
+                    <DecimalInput
+                      className="form-input"
+                      value={(input as any).layer2Lengths?.mat1 || 0}
+                      placeholder="Khổ vật liệu 1 (m)"
+                      step="0.001"
+                      onChange={(val: number) => {
+                        const current = (input as any).layer2Lengths || { mat1: 0, mat2: 0 };
+                        capNhatDauVao({ layer2Lengths: { ...current, mat1: val } } as any);
+                      }}
+                    />
+                    <DecimalInput
+                      className="form-input"
+                      value={(input as any).layer2Lengths?.mat2 || 0}
+                      placeholder="Khổ vật liệu 2 (m)"
+                      step="0.001"
+                      onChange={(val: number) => {
+                        const current = (input as any).layer2Lengths || { mat1: 0, mat2: 0 };
+                        capNhatDauVao({ layer2Lengths: { ...current, mat2: val } } as any);
+                      }}
+                    />
+                  </div>
+
+                  {(() => {
+                    const lengths = (input as any).layer2Lengths;
+                    if (!lengths) return null;
+                    if ((input as any).layer2AltId === input.layer2Id) {
+                      return (
+                        <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span aria-hidden="true">⚠️</span>
+                          <span>Vật liệu phụ phải khác vật liệu chính trong lớp 2</span>
+                        </div>
+                      );
+                    }
+                    if (lengths.mat1 <= 0 || lengths.mat2 <= 0) {
+                      return (
+                        <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span aria-hidden="true">⚠️</span>
+                          <span>Khổ vật liệu 1 và 2 phải lớn hơn 0m</span>
+                        </div>
+                      );
+                    }
+                    const total = lengths.mat1 + lengths.mat2;
+                    const spreadWidthM = input.spreadWidth || 0;
+                    const diff = Math.abs(total - spreadWidthM);
+                    if (diff > 0.0005) {
+                      return (
+                        <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span aria-hidden="true">⚠️</span>
+                          <span>Tổng khổ ({total.toFixed(3)}m) ≠ khổ trải ({spreadWidthM.toFixed(3)}m)</span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div style={{ padding: '6px', background: 'rgba(5, 150, 105, 0.1)', border: '1px solid #059669', borderRadius: '6px', color: '#059669', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span aria-hidden="true">✓</span>
+                        <span>Tổng khổ khớp với khổ trải</span>
+                      </div>
+                    );
+                  })()}
+
+                  <button className="btn btn-secondary" type="button" onClick={() => capNhatDauVao({ layer2AltId: null, layer2Lengths: undefined } as any)}>Bỏ cấu trúc phụ</button>
+                </div>
+              )}
+            </div>
+          )}
           {renderLayerSelect('Lớp 3', 'layer3Id', !input.layer2Id)}
           {renderLayerSelect('Lớp 4', 'layer4Id', !input.layer3Id)}
           {renderLayerSelect('Lớp 5', 'layer5Id', !input.layer4Id)}

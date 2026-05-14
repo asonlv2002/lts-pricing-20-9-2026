@@ -104,7 +104,7 @@ export interface CuaHangTinhGia {
 const defaultInput: CalculateInput = {
   customer: '', productName: '', productType: '', bagType: '', filmType: '',
   filmRollLength: 6000, quantity: 0, numColors: null, numImages: 1,
-  layer1Id: null, layer2Id: null, layer3Id: null, layer4Id: null, layer5Id: null,
+  layer1Id: null, layer2Id: null, layer2AltId: null, layer2Lengths: undefined, layer3Id: null, layer4Id: null, layer5Id: null,
   spreadWidth: 0, cutStep: 0, metallicSurcharge: 0, coverageRatio: 1,
   handleWeight: 0, zipperWeight: 0, tapeWeight: 0,
   hasZipper: false, hasTape: false, hasHandle: false,
@@ -162,6 +162,11 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
         const sw = newInput.spreadWidth || 0;
         const ni = newInput.numImages || 1;
         newInput.cylLength = sw > 0 ? Number(Math.max(0.7, sw * ni + 0.1).toFixed(3)) : 0;
+      }
+
+      if ('layer2Id' in partial && !newInput.layer2Id) {
+        newInput.layer2AltId = null;
+        newInput.layer2Lengths = undefined;
       }
 
       if ('cutStep' in partial) {

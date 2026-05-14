@@ -92,6 +92,8 @@ export interface DauVaoTinhGia {
   soHinh: number;
   idLop1?: string | null;
   idLop2?: string | null;
+  idLop2Phu?: string | null;
+  chieuDaiLop2?: { vl1: number; vl2: number };
   idLop3?: string | null;
   idLop4?: string | null;
   idLop5?: string | null;
@@ -123,6 +125,7 @@ export interface DauVaoTinhGia {
   giaTrucDonVi: number;
   doDayMucTieu?: number;
   ghiDeDayLop?: Record<string, number>;
+  cauTrucNhieuVatLieu?: Record<string, string[]>;
 }
 
 // ── Trạng thái đơn hàng ───────────────────────────────────────────────────────

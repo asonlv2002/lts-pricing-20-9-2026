@@ -327,7 +327,9 @@ export default function ManagerView() {
   if (r.layers.laminations) {
     r.layers.laminations.forEach((lam: any) => {
       if (!lam.material) return;
-      matCols.push({ type: 'lam', layerNum: lam.layerNum, name: lam.material.name.split(' ')[0], fullName: lam.material.name });
+      const label = lam.materials?.length > 1 ? lam.materials.map((m: any) => m.name.split(' ')[0]).join('+') : lam.material.name.split(' ')[0];
+      const full = lam.materials?.length > 1 ? lam.materials.map((m: any) => m.name).join(' + ') : lam.material.name;
+      matCols.push({ type: 'lam', layerNum: lam.layerNum, name: label, fullName: full });
     });
   }
 
@@ -337,7 +339,16 @@ export default function ManagerView() {
   };
   const calcKg = (layerMat: any, meters: number, width: number) => {
     if (!layerMat) return 0;
-    return meters * width * layerMat.thickness * layerMat.matDoHienThi / 1000;
+    const density = layerMat.matDoHienThi ?? layerMat.density ?? 0;
+    return meters * width * layerMat.thickness * density / 1000;
+  };
+  const renderMaterialBreakdown = (layerData: any) => {
+    if (!layerData?.materials || !layerData?.chiTietVatLieu) return null;
+    return <div style={{ marginTop: '4px', fontSize: '0.68rem', color: 'var(--muted)', lineHeight: 1.35 }}>
+      {layerData.chiTietVatLieu.map((item: any, idx: number) => (
+        <div key={idx}>{item.ten}: {fmt(item.kho, 3)}m</div>
+      ))}
+    </div>;
   };
 
   const moqResults = moqLevels.map(qty => {
@@ -631,6 +642,29 @@ export default function ManagerView() {
                     let dMeters = row.meters / rInput.numImages;
                     let dWaste = row.waste / rInput.numImages;
                     let inputVL = dMeters + dWaste;
+
+                    if (row.materialDetails?.length) {
+                      const totalDetailWidth = row.materialDetails.reduce((sum, detail) => sum + detail.width, 0) || row.width;
+                      const rowSpan = row.materialDetails.length;
+                      return row.materialDetails.map((detail, detailIdx) => {
+                        const detailCostCPSX = row.costCPSX * detail.width / totalDetailWidth;
+                        return (
+                          <tr key={`${idx}-${detailIdx}`} className="detail-group-row">
+                            {detailIdx === 0 && <td data-label="Công đoạn" rowSpan={rowSpan}>{row.stage}</td>}
+                            <td data-label="Vật liệu">{detail.name}</td>
+                            <td className="num" data-label="Khổ (m)">{fmt(detail.width, 3)}</td>
+                            <td className="num" data-label="Thành phẩm (m)">{fmt(dMeters, 0)}</td>
+                            <td className="num" data-label="Phi hao">{fmt(dWaste, 0)}</td>
+                            <td className="num highlight" data-label="Đầu vào VL">{fmt(inputVL, 0)}</td>
+                            <td className="num" data-label="CPSX (đ/m²)">{fmt(row.cpsx, 0)}</td>
+                            <td className="num" data-label="Thành tiền CPSX">{fmt(detailCostCPSX, 0)}</td>
+                            <td className="num" data-label="CP vật liệu (đ/m²)">{fmt(detail.matPrice, 1)}</td>
+                            <td className="num" data-label="Thành tiền CPVL">{fmt(detail.costMat, 0)}</td>
+                          </tr>
+                        );
+                      });
+                    }
+
                     return (
                       <tr key={idx}>
                         <td data-label="Công đoạn">{row.stage}</td>
@@ -765,6 +799,7 @@ export default function ManagerView() {
                             <td key={ci} data-label={col.name}>
                               {fmt(layerMeters, 0)} m<br/>
                               <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({fmt(kg, 1)} kg)</span>
+                              {renderMaterialBreakdown(layerData)}
                             </td>
                           );
                         })}
@@ -843,6 +878,7 @@ export default function ManagerView() {
                               <td data-label={col.name} key={i}>
                                 {fmt(layerMeters, 0)} m<br />
                                 <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({fmt(kg, 1)} kg)</span>
+                                {renderMaterialBreakdown(layerData)}
                               </td>
                             );
                           })}

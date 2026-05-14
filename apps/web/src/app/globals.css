@@ -707,6 +707,16 @@ body {
 }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .form-row-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+.layer2-split-stack {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.layer2-length-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
 .form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; }
 .form-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
 .divider { height: 1px; background: var(--border); margin: 14px 0; }
@@ -888,6 +898,10 @@ body {
 .data-table .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
 .data-table .highlight { color: var(--accent); font-weight: 700; }
 .data-table .total-row td { border-top: 2px solid var(--accent); font-weight: 700; background: rgba(79,70,229,0.04); }
+.data-table tr.detail-group-row td { background: rgba(79,70,229,0.025); vertical-align: middle; }
+.data-table tr.detail-group-row + tr.detail-group-row td { border-top: 0; }
+.data-table tr.detail-group-row td[rowspan] { font-weight: 600; border-bottom: 1px solid var(--border); }
+.data-table tr.detail-group-row:hover td { background: rgba(79,70,229,0.06); }
 
 /* ═══════════ COST BAR ═══════════ */
 .cost-bar { display: flex; height: 28px; border-radius: 8px; overflow: hidden; margin: 12px 0; box-shadow: var(--shadow-sm); }

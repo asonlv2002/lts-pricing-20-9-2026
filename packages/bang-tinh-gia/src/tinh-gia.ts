@@ -285,7 +285,7 @@ export function tinhGia(
     tyLePhuMucMuc = 1, cotLoiNhuan = 2,
     tyLeHoaHong = 0, coKhoa = false, coBangKeo = false, coQuaiXach = false,
     cuocVanChuyenPerKm, soKmVanChuyen, giaThuung, soTuiPerThuung,
-    ghiDeDayLop = {},
+    ghiDeDayLop = {}, cauTrucNhieuVatLieu = {},
   } = dauVao;
 
   const laLLDPEVatLieu = (vl: VatLieu) =>
@@ -304,6 +304,7 @@ export function tinhGia(
 
   const lop1 = dauVao.idLop1 ? nhanBanVatLieu(layVatLieu(dauVao.idLop1, danhSachVatLieu), 'idLop1') : null;
   const lop2 = dauVao.idLop2 ? nhanBanVatLieu(layVatLieu(dauVao.idLop2, danhSachVatLieu), 'idLop2') : null;
+  const lop2Phu = dauVao.idLop2Phu ? nhanBanVatLieu(layVatLieu(dauVao.idLop2Phu, danhSachVatLieu), 'idLop2Phu') : null;
   const lop3 = dauVao.idLop3 ? nhanBanVatLieu(layVatLieu(dauVao.idLop3, danhSachVatLieu), 'idLop3') : null;
   const lop4 = dauVao.idLop4 ? nhanBanVatLieu(layVatLieu(dauVao.idLop4, danhSachVatLieu), 'idLop4') : null;
   const lop5 = dauVao.idLop5 ? nhanBanVatLieu(layVatLieu(dauVao.idLop5, danhSachVatLieu), 'idLop5') : null;
@@ -313,12 +314,6 @@ export function tinhGia(
   if (dauVao.loaiSanPham === 'mang' && !dauVao.loaiMang) return null;
 
   const doDayMucTieu = dauVao.doDayMucTieu || 0;
-  if (doDayMucTieu > 0) {
-    const doDayTho_ = lop1.doDay + (lop2?.doDay||0) + (lop3?.doDay||0) + (lop4?.doDay||0) + (lop5?.doDay||0);
-    const soLop_ = 1 + (lop2?1:0) + (lop3?1:0) + (lop4?1:0) + (lop5?1:0);
-    const doDayThucTe = doDayTho_ + (soLop_ - 1) * 3;
-    if (doDayThucTe < doDayMucTieu - 5 || doDayThucTe > doDayMucTieu + 5) return null;
-  }
 
   const soHinh = dauVao.soHinh || 1;
   const laMang = dauVao.loaiSanPham === 'mang';
@@ -340,13 +335,13 @@ export function tinhGia(
 
   const danhSachGhep: any[] = [];
   const chuoiGhep = [
-    { lop: lop2, soLop: 2 }, { lop: lop3, soLop: 3 },
+    { lop: lop2, lopPhu: lop2Phu, soLop: 2 }, { lop: lop3, soLop: 3 },
     { lop: lop4, soLop: 4 }, { lop: lop5, soLop: 5 },
   ].filter(item => !!item.lop);
 
   let metCanThiet = metCat + hatHaoCat;
 
-  chuoiGhep.forEach(({ lop, soLop }) => {
+  chuoiGhep.forEach(({ lop, lopPhu, soLop }) => {
     if (!lop) return;
     const kho = khoCat;
     const met = metCanThiet;
@@ -356,8 +351,46 @@ export function tinhGia(
     const hatHao = met / hHGhepA * hHGhepB + hHGhepC;
     const cpsx = hangSo.cpSXGhep;
     const chiPhiSX = cpsx * (hatHao + met) * kho;
-    const chiPhiVL = (lop.giaMoiM2 || 0) * (hatHao + met) * kho;
-    danhSachGhep.push({ soLop, kho, met, hatHao, cpsx, chiPhiSX, chiPhiVL, tongCong: chiPhiSX + chiPhiVL });
+    let chiPhiVL = (lop.giaMoiM2 || 0) * (hatHao + met) * kho;
+    let chiTietVatLieu: any[] | undefined;
+    if (soLop === 2 && lopPhu) {
+      if (dauVao.chieuDaiLop2 && dauVao.chieuDaiLop2.vl1 > 0 && dauVao.chieuDaiLop2.vl2 > 0) {
+        const khoLopChinh = dauVao.chieuDaiLop2.vl1 / 1000;
+        const khoLopPhu = dauVao.chieuDaiLop2.vl2 / 1000;
+        const soHinhThucTe = Math.max(1, soHinh || 1);
+        const bienMoiMep = 0.01;
+        const themChiTiet = (vl: VatLieu, khoSegment: number) => ({
+          vatLieuId: vl.id,
+          ten: vl.ten,
+          kho: khoSegment,
+          donGia: vl.giaMoiM2 || 0,
+          chiPhiVL: (vl.giaMoiM2 || 0) * (hatHao + met) * khoSegment,
+        });
+        chiTietVatLieu = soHinhThucTe > 1
+          ? [
+              themChiTiet(lop, khoLopChinh + bienMoiMep),
+              themChiTiet(lopPhu, khoLopPhu * soHinhThucTe),
+              themChiTiet(lop, khoLopChinh + bienMoiMep),
+            ]
+          : [
+              themChiTiet(lop, khoLopChinh + bienMoiMep),
+              themChiTiet(lopPhu, khoLopPhu + bienMoiMep),
+            ];
+      } else {
+        const soHinhThucTe = Math.max(1, soHinh || 1);
+        const bien = 0.01;
+        const khoMotCauTruc = khoTrai + bien;
+        const khoGiua = Math.max(0, khoTrai * soHinhThucTe + 0.02 - khoMotCauTruc * 2);
+        const khoLopChinh = soHinhThucTe > 1 ? khoMotCauTruc * 2 : khoMotCauTruc;
+        const khoLopPhu = soHinhThucTe > 1 ? khoGiua : Math.max(0, kho - khoLopChinh);
+        chiTietVatLieu = [
+          { vatLieuId: lop.id, ten: lop.ten, kho: khoLopChinh, donGia: lop.giaMoiM2 || 0, chiPhiVL: (lop.giaMoiM2 || 0) * (hatHao + met) * khoLopChinh },
+          { vatLieuId: lopPhu.id, ten: lopPhu.ten, kho: khoLopPhu, donGia: lopPhu.giaMoiM2 || 0, chiPhiVL: (lopPhu.giaMoiM2 || 0) * (hatHao + met) * khoLopPhu },
+        ];
+      }
+      chiPhiVL = chiTietVatLieu.reduce((sum, item) => sum + item.chiPhiVL, 0);
+    }
+    danhSachGhep.push({ soLop, kho, met, hatHao, cpsx, chiPhiSX, chiPhiVL, chiTietVatLieu, tongCong: chiPhiSX + chiPhiVL });
     metCanThiet = met + hatHao;
   });
 
@@ -400,13 +433,15 @@ export function tinhGia(
   const doanhThu = tongChiPhiSX + soTienLoiNhuan;
   const chiPhiDonVi = soLuong > 0 ? doanhThu / soLuong : 0;
 
-  const doDayTho = lop1.doDay + (lop2?.doDay||0) + (lop3?.doDay||0) + (lop4?.doDay||0) + (lop5?.doDay||0);
+  const doDayLop2 = Math.max(lop2?.doDay || 0, lop2Phu?.doDay || 0);
+  const doDayTho = lop1.doDay + doDayLop2 + (lop3?.doDay||0) + (lop4?.doDay||0) + (lop5?.doDay||0);
   const soLopHoatDong = 1 + (lop2?1:0) + (lop3?1:0) + (lop4?1:0) + (lop5?1:0);
   const tongDoDay = Math.round((doDayTho + (soLopHoatDong - 1) * 3) / 5) * 5;
 
   const tinhGSMLop = (doDay: number, kl: number) => (doDay / 1000000) * (kl * 1000000);
   const tongGSM = tinhGSMLop(lop1.doDay, lop1.khoiLuongRieng)
     + (lop2 ? tinhGSMLop(lop2.doDay, lop2.khoiLuongRieng) : 0)
+    + (lop2Phu ? tinhGSMLop(lop2Phu.doDay, lop2Phu.khoiLuongRieng) : 0)
     + (lop3 ? tinhGSMLop(lop3.doDay, lop3.khoiLuongRieng) : 0)
     + (lop4 ? tinhGSMLop(lop4.doDay, lop4.khoiLuongRieng) : 0)
     + (lop5 ? tinhGSMLop(lop5.doDay, lop5.khoiLuongRieng) : 0);
@@ -490,7 +525,7 @@ export function tinhGia(
   const ngaySanXuat = Math.ceil(soLuong / 30000) + 4;
 
   let chuoiCauTruc = lop1.ten + ' ' + lop1.doDay;
-  if (lop2) chuoiCauTruc += '//' + lop2.ten + ' ' + lop2.doDay;
+  if (lop2) chuoiCauTruc += '//' + (lop2Phu ? `[${lop2.ten} ${lop2.doDay} + ${lop2Phu.ten} ${lop2Phu.doDay}]` : lop2.ten + ' ' + lop2.doDay);
   if (lop3) chuoiCauTruc += '//' + lop3.ten + ' ' + lop3.doDay;
   if (lop4) chuoiCauTruc += '//' + lop4.ten + ' ' + lop4.doDay;
   if (lop5) chuoiCauTruc += '//' + lop5.ten + ' ' + lop5.doDay;
@@ -513,7 +548,7 @@ export function tinhGia(
     chieuDaiTruc: chieuDaiTrucThucTe, chuViTruc: chuViTrucThucTe, ngaySanXuat,
     cacLop: {
       in: { vatLieu: chiPhiVatLieuIn, kho: khoNLIn, met: metIn, hatHao: hatHaoIn, cpsx: cpSXIn, chiPhiSX: chiPhiSXIn, chiPhiVL: chiPhiVatLieuIn, tongCong: tongChiPhiIn } as ChiTietLop,
-      ghep: danhSachGhep.map(g => ({ vatLieu: g.chiPhiVL, kho: g.kho, met: g.met, hatHao: g.hatHao, cpsx: g.cpsx, chiPhiSX: g.chiPhiSX, chiPhiVL: g.chiPhiVL, tongCong: g.tongCong } as ChiTietLop)),
+      ghep: danhSachGhep.map(g => ({ vatLieu: g.chiPhiVL, chiTietVatLieu: g.chiTietVatLieu, kho: g.kho, met: g.met, hatHao: g.hatHao, cpsx: g.cpsx, chiPhiSX: g.chiPhiSX, chiPhiVL: g.chiPhiVL, tongCong: g.tongCong } as ChiTietLop)),
       cat: { kho: khoCat, met: metCat, hatHao: hatHaoCat, cpsx: cpSXCat, chiPhiSX: chiPhiSXCat, tongCong: tongChiPhiCat } as ChiTietLopCat,
     },
   };
