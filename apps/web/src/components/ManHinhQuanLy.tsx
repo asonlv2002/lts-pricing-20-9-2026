@@ -346,7 +346,7 @@ export default function ManagerView() {
     if (!layerData?.materials || !layerData?.chiTietVatLieu) return null;
     return <div style={{ marginTop: '4px', fontSize: '0.68rem', color: 'var(--muted)', lineHeight: 1.35 }}>
       {layerData.chiTietVatLieu.map((item: any, idx: number) => (
-        <div key={idx}>{item.ten}: {fmt(item.kho, 3)}m</div>
+        <div key={idx}>{item.viTri ? `${item.viTri}. ` : ''}{item.vaiTro === 'front' ? 'TRƯỚC' : item.vaiTro === 'back_bottom' ? 'ĐÁY+SAU' : ''} {item.ten}: {fmt(item.kho, 3)}m</div>
       ))}
     </div>;
   };

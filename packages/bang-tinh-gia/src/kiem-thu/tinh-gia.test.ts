@@ -341,7 +341,7 @@ tieu('15. Công thức phi hao — đảm bảo đúng');
     const pD = hangSo.hatHaoInD || 400;
     const csDatMau = hangSo.chiPhiCaiDatMau[(dauVaoTuiCoBan.soMau ?? 0)] || ((dauVaoTuiCoBan.soMau ?? 0) * 200 + 200);
     const pm = kqPhi.metIn;
-    const kyVongHatHaoIn = csDatMau + (pm / pA * pB) + (pm > pC ? pm / pC * pD : 0);
+    const kyVongHatHaoIn = csDatMau + (pm / pA * pB) + (pm > pC ? (pm - pC) / pC * pD : 0);
     kiemGanDung('hatHaoIn = csDatMau + m/pA×pB + ...', kqPhi.hatHaoIn, kyVongHatHaoIn, 0.1);
     kiem('hatHaoIn > 0 khi soMau=4', kqPhi.hatHaoIn > 0);
   }

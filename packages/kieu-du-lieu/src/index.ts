@@ -94,6 +94,8 @@ export interface DauVaoTinhGia {
   idLop2?: string | null;
   idLop2Phu?: string | null;
   chieuDaiLop2?: { vl1: number; vl2: number };
+  matTruocLop2?: 'main' | 'alt';
+  kieuGhepLop2?: 'bottom_to_bottom' | 'front_to_front';
   idLop3?: string | null;
   idLop4?: string | null;
   idLop5?: string | null;

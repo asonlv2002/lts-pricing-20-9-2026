@@ -84,6 +84,8 @@ export interface CalculateInput {
   layer2Id?: string | null;
   layer2AltId?: string | null;
   layer2Lengths?: { mat1: number; mat2: number };
+  layer2FrontPart?: 'main' | 'alt';
+  layer2PairingMode?: 'bottom_to_bottom' | 'front_to_front';
   layer3Id?: string | null;
   layer4Id?: string | null;
   layer5Id?: string | null;

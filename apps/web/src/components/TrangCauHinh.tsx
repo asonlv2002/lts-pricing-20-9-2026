@@ -225,7 +225,7 @@ export default function ConfigPage() {
                       </td>
                       <td style={{textAlign:'center', verticalAlign:'middle'}}>
                         <div style={{display:'flex', justifyContent:'center', alignItems:'center', gap:'8px'}}>
-                          <span style={{fontSize:'0.9em', color:'var(--text)'}}>+ CD / {constants.printWasteC}</span>
+                          <span style={{fontSize:'0.9em', color:'var(--text)'}}>+ max(0, CD - {constants.printWasteC}) / {constants.printWasteC}</span>
                           <span style={{fontSize:'0.9em', color:'var(--muted)'}}>×</span>
                           <input type="number" className="config-inline-input" style={{width:'75px'}}
                             value={constants.printWasteD}
