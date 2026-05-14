@@ -1,6 +1,6 @@
 hiện tại sẽ có những yêu cầu sau:
 1. chỗ lớp 2 sẽ thêm một button [thêm cấu trúc]
-Khi mà thêm cấu trúc sẽ cho họ chọn loại vật liệu, đảm bảo là 2 loại vật liệu phải chung độ dày, nên là khi tính độ dày phải xem xét cả 2 á
+Khi mà thêm cấu trúc sẽ cho họ chọn loại vật liệu, đảm bảo là 2 loại vật liệu phải chung độ dày, nên là khi tính độ dày phải xem xét cả 2 á. Về ui nhập liệu là hàng ở dưới,và sẽ tạo ra 2 ô để nhập giá trị độ dài của vật liệu nó nằm trong khổ. Nếu tổng 2 độ dài khác khổ trãi sẽ báo Notice đỏ <!>
 2. Khi mà hiển thị kết quả đặc tả nguyên vật liệu, ở phần nào có nhiều cấu trúc sẽ ghi ra cấu trúc đó luôn
 Ví dụ 1 cấu trúc:
 lớp 2: pet (nội dung)

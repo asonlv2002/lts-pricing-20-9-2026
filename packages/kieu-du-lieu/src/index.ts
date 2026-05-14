@@ -93,6 +93,7 @@ export interface DauVaoTinhGia {
   idLop1?: string | null;
   idLop2?: string | null;
   idLop2Phu?: string | null;
+  chieuDaiLop2?: { vl1: number; vl2: number };
   idLop3?: string | null;
   idLop4?: string | null;
   idLop5?: string | null;

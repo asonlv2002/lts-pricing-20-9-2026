@@ -83,6 +83,7 @@ export interface CalculateInput {
   layer1Id?: string | null;
   layer2Id?: string | null;
   layer2AltId?: string | null;
+  layer2Lengths?: { mat1: number; mat2: number };
   layer3Id?: string | null;
   layer4Id?: string | null;
   layer5Id?: string | null;

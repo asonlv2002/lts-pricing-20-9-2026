@@ -354,16 +354,40 @@ export function tinhGia(
     let chiPhiVL = (lop.giaMoiM2 || 0) * (hatHao + met) * kho;
     let chiTietVatLieu: any[] | undefined;
     if (soLop === 2 && lopPhu) {
-      const soHinhThucTe = Math.max(1, soHinh || 1);
-      const bien = 0.01;
-      const khoMotCauTruc = khoTrai + bien;
-      const khoGiua = Math.max(0, khoTrai * soHinhThucTe + 0.02 - khoMotCauTruc * 2);
-      const khoLopChinh = soHinhThucTe > 1 ? khoMotCauTruc * 2 : khoMotCauTruc;
-      const khoLopPhu = soHinhThucTe > 1 ? khoGiua : Math.max(0, kho - khoLopChinh);
-      chiTietVatLieu = [
-        { vatLieuId: lop.id, ten: lop.ten, kho: khoLopChinh, chiPhiVL: (lop.giaMoiM2 || 0) * (hatHao + met) * khoLopChinh },
-        { vatLieuId: lopPhu.id, ten: lopPhu.ten, kho: khoLopPhu, chiPhiVL: (lopPhu.giaMoiM2 || 0) * (hatHao + met) * khoLopPhu },
-      ];
+      if (dauVao.chieuDaiLop2 && dauVao.chieuDaiLop2.vl1 > 0 && dauVao.chieuDaiLop2.vl2 > 0) {
+        const khoLopChinh = dauVao.chieuDaiLop2.vl1 / 1000;
+        const khoLopPhu = dauVao.chieuDaiLop2.vl2 / 1000;
+        const soHinhThucTe = Math.max(1, soHinh || 1);
+        const bienMoiMep = 0.01;
+        const themChiTiet = (vl: VatLieu, khoSegment: number) => ({
+          vatLieuId: vl.id,
+          ten: vl.ten,
+          kho: khoSegment,
+          donGia: vl.giaMoiM2 || 0,
+          chiPhiVL: (vl.giaMoiM2 || 0) * (hatHao + met) * khoSegment,
+        });
+        chiTietVatLieu = soHinhThucTe > 1
+          ? [
+              themChiTiet(lop, khoLopChinh + bienMoiMep),
+              themChiTiet(lopPhu, khoLopPhu * soHinhThucTe),
+              themChiTiet(lop, khoLopChinh + bienMoiMep),
+            ]
+          : [
+              themChiTiet(lop, khoLopChinh + bienMoiMep),
+              themChiTiet(lopPhu, khoLopPhu + bienMoiMep),
+            ];
+      } else {
+        const soHinhThucTe = Math.max(1, soHinh || 1);
+        const bien = 0.01;
+        const khoMotCauTruc = khoTrai + bien;
+        const khoGiua = Math.max(0, khoTrai * soHinhThucTe + 0.02 - khoMotCauTruc * 2);
+        const khoLopChinh = soHinhThucTe > 1 ? khoMotCauTruc * 2 : khoMotCauTruc;
+        const khoLopPhu = soHinhThucTe > 1 ? khoGiua : Math.max(0, kho - khoLopChinh);
+        chiTietVatLieu = [
+          { vatLieuId: lop.id, ten: lop.ten, kho: khoLopChinh, donGia: lop.giaMoiM2 || 0, chiPhiVL: (lop.giaMoiM2 || 0) * (hatHao + met) * khoLopChinh },
+          { vatLieuId: lopPhu.id, ten: lopPhu.ten, kho: khoLopPhu, donGia: lopPhu.giaMoiM2 || 0, chiPhiVL: (lopPhu.giaMoiM2 || 0) * (hatHao + met) * khoLopPhu },
+        ];
+      }
       chiPhiVL = chiTietVatLieu.reduce((sum, item) => sum + item.chiPhiVL, 0);
     }
     danhSachGhep.push({ soLop, kho, met, hatHao, cpsx, chiPhiSX, chiPhiVL, chiTietVatLieu, tongCong: chiPhiSX + chiPhiVL });

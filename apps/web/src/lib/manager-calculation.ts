@@ -14,6 +14,7 @@ export interface UniRow {
   costCPSX: number;
   matPrice: number | null;
   costMat: number | null;
+  materialDetails?: Array<{ name: string; width: number; matPrice: number; costMat: number }>;
 }
 
 export interface ResolvedOverrideRow extends UniRow {
@@ -64,17 +65,24 @@ export function buildProductionRows(result: CalculateResult, constants: AppConst
   r.layers.laminations?.forEach((lam: any) => {
     totalCPSX += lam.costCPSX;
     totalCPVL += lam.costMat;
+    const materialDetails = lam.chiTietVatLieu?.map((item: any) => ({
+      name: item.ten,
+      width: item.kho,
+      matPrice: item.donGia ?? 0,
+      costMat: item.chiPhiVL ?? 0,
+    }));
     uniRows.push({
       rowKey: `lam-${lam.layerNum}` as OverrideRowKey,
       stage: `GHEP (Lop ${lam.layerNum})`,
-      mat: lam.material?.name ?? '',
+      mat: materialDetails?.length ? '' : (lam.material?.name ?? ''),
       width: lam.width,
       meters: lam.meters,
       waste: lam.waste,
       cpsx: constants.ghepCPSX,
       costCPSX: lam.costCPSX,
-      matPrice: lam.material?.pricePerM2 ?? 0,
+      matPrice: materialDetails?.length ? null : (lam.material?.pricePerM2 ?? 0),
       costMat: lam.costMat,
+      materialDetails,
     });
   });
 
@@ -117,7 +125,9 @@ export function resolveOverrideRows(
     const srcInputVL = src.inputVL ?? (row.meters + row.waste);
     const srcMatPrice = src.matPrice ?? row.matPrice;
     const costCPSX = row.cpsx * inputVL * width;
-    const costMat = matPrice != null ? matPrice * inputVL * width : null;
+    const costMat = row.materialDetails
+      ? row.materialDetails.reduce((sum, detail) => sum + detail.matPrice * inputVL * detail.width, 0)
+      : matPrice != null ? matPrice * inputVL * width : null;
     return { ...row, width, meters, waste, inputVL, matPrice, costCPSX, costMat, srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice };
   });
   const totalCPSX = rows.reduce((sum, row) => sum + row.costCPSX, 0);

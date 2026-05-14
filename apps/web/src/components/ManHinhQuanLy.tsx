@@ -642,6 +642,29 @@ export default function ManagerView() {
                     let dMeters = row.meters / rInput.numImages;
                     let dWaste = row.waste / rInput.numImages;
                     let inputVL = dMeters + dWaste;
+
+                    if (row.materialDetails?.length) {
+                      const totalDetailWidth = row.materialDetails.reduce((sum, detail) => sum + detail.width, 0) || row.width;
+                      const rowSpan = row.materialDetails.length;
+                      return row.materialDetails.map((detail, detailIdx) => {
+                        const detailCostCPSX = row.costCPSX * detail.width / totalDetailWidth;
+                        return (
+                          <tr key={`${idx}-${detailIdx}`} className="detail-group-row">
+                            {detailIdx === 0 && <td data-label="Công đoạn" rowSpan={rowSpan}>{row.stage}</td>}
+                            <td data-label="Vật liệu">{detail.name}</td>
+                            <td className="num" data-label="Khổ (m)">{fmt(detail.width, 3)}</td>
+                            <td className="num" data-label="Thành phẩm (m)">{fmt(dMeters, 0)}</td>
+                            <td className="num" data-label="Phi hao">{fmt(dWaste, 0)}</td>
+                            <td className="num highlight" data-label="Đầu vào VL">{fmt(inputVL, 0)}</td>
+                            <td className="num" data-label="CPSX (đ/m²)">{fmt(row.cpsx, 0)}</td>
+                            <td className="num" data-label="Thành tiền CPSX">{fmt(detailCostCPSX, 0)}</td>
+                            <td className="num" data-label="CP vật liệu (đ/m²)">{fmt(detail.matPrice, 1)}</td>
+                            <td className="num" data-label="Thành tiền CPVL">{fmt(detail.costMat, 0)}</td>
+                          </tr>
+                        );
+                      });
+                    }
+
                     return (
                       <tr key={idx}>
                         <td data-label="Công đoạn">{row.stage}</td>
