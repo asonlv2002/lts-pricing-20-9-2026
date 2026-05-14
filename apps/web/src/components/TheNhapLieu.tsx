@@ -108,8 +108,6 @@ export default function InputCard() {
     capNhatDauVao({ productType: val, bagType: '', filmType: '' });
   };
 
-  const laNhomLLDPE = (tenNhom: string) => tenNhom.toLowerCase().includes('lldpe');
-
   const handleLayerChange = (layerKey: string, val: string) => {
     const partial: any = { [layerKey]: val || null };
     if (layerKey === 'layer2Id' && !val) {
@@ -143,15 +141,10 @@ export default function InputCard() {
       const groupName = val.replace('GROUP_', '');
       setLayerGroups(prev => ({ ...prev, [layerKey]: val }));
 
-      if ((input.targetThickness ?? 0) > 0 && !laNhomLLDPE(groupName)) {
-        const defaultMat = materials
-          .filter(m => m.group === groupName)
-          .sort((a, b) => a.thickness - b.thickness)[0];
-        handleLayerChange(layerKey, defaultMat?.id || '');
-        return;
-      }
-
-      handleLayerChange(layerKey, '');
+      const defaultMat = materials
+        .filter(m => m.group === groupName)
+        .sort((a, b) => a.thickness - b.thickness)[0];
+      handleLayerChange(layerKey, defaultMat?.id || '');
     } else {
       setLayerGroups(prev => ({ ...prev, [layerKey]: '' }));
       handleLayerChange(layerKey, val);
@@ -171,7 +164,6 @@ export default function InputCard() {
 
     const flatOptions = materials.filter(m => !m.group);
     const groupNames = Array.from(new Set(materials.filter(m => m.group).map(m => m.group as string)));
-    const layer1OnlyGroups = ['BOPP', 'Matt OPP'];
 
     return (
       <div className="form-group">
@@ -179,14 +171,10 @@ export default function InputCard() {
         <select className="form-select" value={mainVal} onChange={e => handleLayerMainSelect(layerKey, e.target.value)} disabled={disabled}>
           <option value="">— {disabled || layerKey !== 'layer1Id' ? 'Không' : 'Chọn'} —</option>
           {flatOptions.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-          {groupNames.map(g => {
-            if (layerKey !== 'layer1Id' && layer1OnlyGroups.includes(g)) return null;
-            return <option key={g} value={`GROUP_${g}`}>{g}</option>;
-          })}
+          {groupNames.map(g => <option key={g} value={`GROUP_${g}`}>{g}</option>)}
         </select>
 
-        {currentGroup && currentGroup.startsWith('GROUP_') &&
-          ((input.targetThickness ?? 0) <= 0 || laNhomLLDPE(currentGroup.replace('GROUP_', ''))) && (
+        {currentGroup && currentGroup.startsWith('GROUP_') && (
           <div className="mic-adjust" style={{ marginTop: '6px', paddingLeft: '8px', borderLeft: '2px solid var(--border)' }}>
             <label className="form-label" style={{ fontSize: '0.72rem' }}>Độ dày (mic)</label>
             <select className="form-select" value={matId || ''} onChange={e => handleLayerChange(layerKey, e.target.value)}>
