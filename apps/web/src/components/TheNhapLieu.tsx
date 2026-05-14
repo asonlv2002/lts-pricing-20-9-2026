@@ -155,6 +155,40 @@ export default function InputCard() {
     capNhatDauVao({ micOverrides: { ...input.micOverrides, [layerKey]: val } });
   };
 
+
+  const getLayer2LayoutSegments = () => {
+    const mainMat = materials.find(m => m.id === input.layer2Id);
+    const altMat = materials.find(m => m.id === (input as any).layer2AltId);
+    const lengths = (input as any).layer2Lengths || { mat1: 0, mat2: 0 };
+    if (!mainMat || !altMat) return [];
+    const frontPart = (input as any).layer2FrontPart || 'main';
+    const pairingMode = (input as any).layer2PairingMode || 'bottom_to_bottom';
+    const partInfo = (part: 'front' | 'back_bottom') => {
+      const useMain = (part === 'front') === (frontPart === 'main');
+      return {
+        part,
+        mat: useMain ? mainMat : altMat,
+        width: useMain ? lengths.mat1 : lengths.mat2,
+        source: useMain ? 'main' : 'alt',
+      };
+    };
+    const front = partInfo('front');
+    const backBottom = partInfo('back_bottom');
+    if ((input.numImages || 1) >= 2) {
+      return pairingMode === 'front_to_front'
+        ? [backBottom, front, front, backBottom]
+        : [front, backBottom, backBottom, front];
+    }
+    return [front, backBottom];
+  };
+
+  const Layer2ChoiceCard = ({ active, title, subtitle, onClick }: { active: boolean; title: string; subtitle?: string; onClick: () => void }) => (
+    <button type="button" onClick={onClick} className="btn btn-secondary" style={{ flex: 1, minWidth: '135px', justifyContent: 'flex-start', textAlign: 'left', borderColor: active ? 'var(--accent)' : 'var(--border)', background: active ? 'rgba(79,70,229,0.08)' : 'var(--surface2)', color: 'var(--text)', padding: '10px 12px' }}>
+      <span style={{ marginRight: '8px', color: active ? '#059669' : 'transparent', fontWeight: 900 }}>{active ? '?' : '?'}</span>
+      <span><strong>{title}</strong>{subtitle ? <><br/><small style={{ color: 'var(--muted)' }}>{subtitle}</small></> : null}</span>
+    </button>
+  );
+
   const renderLayerSelect = (label: string, layerKey: keyof typeof input, disabled: boolean) => {
     const matId = input[layerKey] as string | null | undefined;
     const mat = materials.find(m => m.id === matId);
@@ -476,6 +510,8 @@ export default function InputCard() {
                   onClick={() => capNhatDauVao({
                     layer2AltId: input.layer2Id,
                     layer2Lengths: { mat1: input.spreadWidth || 0, mat2: 0 },
+                    layer2FrontPart: 'main',
+                    layer2PairingMode: 'bottom_to_bottom',
                   } as any)}
                 >
                   + Thêm cấu trúc
@@ -509,6 +545,55 @@ export default function InputCard() {
                       }}
                     />
                   </div>
+
+                  {(() => {
+                    const mainMat = materials.find(m => m.id === input.layer2Id);
+                    const altMat = materials.find(m => m.id === (input as any).layer2AltId);
+                    const frontPart = (input as any).layer2FrontPart || 'main';
+                    const pairingMode = (input as any).layer2PairingMode || 'bottom_to_bottom';
+                    const otherRole = frontPart === 'main' ? altMat?.name : mainMat?.name;
+                    const segments = getLayer2LayoutSegments();
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                        <div>
+                          <label className="form-label">Vật liệu nào là MẶT TRƯỚC?</label>
+                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            <Layer2ChoiceCard active={frontPart === 'main'} title={mainMat?.name || 'Vật liệu chính'} subtitle="Vật liệu chính" onClick={() => capNhatDauVao({ layer2FrontPart: 'main' } as any)} />
+                            <Layer2ChoiceCard active={frontPart === 'alt'} title={altMat?.name || 'Vật liệu phụ'} subtitle="Vật liệu phụ" onClick={() => capNhatDauVao({ layer2FrontPart: 'alt' } as any)} />
+                          </div>
+                          {otherRole && <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '6px' }}>Vật liệu còn lại: <strong>{otherRole}</strong> = ĐÁY + MẶT SAU</div>}
+                        </div>
+
+                        {(input.numImages || 1) >= 2 && (
+                          <div>
+                            <label className="form-label">Ghép 2 con hình</label>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              <Layer2ChoiceCard active={pairingMode === 'bottom_to_bottom'} title="Hai đáy ghép nhau" onClick={() => capNhatDauVao({ layer2PairingMode: 'bottom_to_bottom' } as any)} />
+                              <Layer2ChoiceCard active={pairingMode === 'front_to_front'} title="Hai trước ghép nhau" onClick={() => capNhatDauVao({ layer2PairingMode: 'front_to_front' } as any)} />
+                            </div>
+                          </div>
+                        )}
+
+                        {segments.length > 0 && (
+                          <div>
+                            <label className="form-label">Xem trước bố trí khổ</label>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '6px' }}>
+                              {(input.numImages || 1)} con hình{(input.numImages || 1) >= 2 ? ` - ${pairingMode === 'bottom_to_bottom' ? 'Hai đáy ghép nhau' : 'Hai trước ghép nhau'}` : ''}
+                            </div>
+                            <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', minHeight: '54px' }}>
+                              {segments.map((seg: any, idx: number) => (
+                                <div key={idx} style={{ flex: Math.max(seg.width || 0.01, 0.01), minWidth: '58px', padding: '6px 5px', borderRight: idx < segments.length - 1 ? '1px solid var(--border)' : 'none', background: seg.part === 'front' ? 'rgba(8,145,178,0.10)' : 'rgba(217,119,6,0.10)', textAlign: 'center' }}>
+                                  <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--text)' }}>{seg.part === 'front' ? 'TRƯỚC' : 'ĐÁY + SAU'}</div>
+                                  <div style={{ fontSize: '0.72rem', fontWeight: 700 }}>{seg.mat.name.split(' ')[0]}</div>
+                                  <div style={{ fontSize: '0.68rem', color: 'var(--muted)' }}>{(seg.width || 0).toFixed(3)}m</div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {(() => {
                     const lengths = (input as any).layer2Lengths;
@@ -548,7 +633,7 @@ export default function InputCard() {
                     );
                   })()}
 
-                  <button className="btn btn-secondary" type="button" onClick={() => capNhatDauVao({ layer2AltId: null, layer2Lengths: undefined } as any)}>Bỏ cấu trúc phụ</button>
+                  <button className="btn btn-secondary" type="button" onClick={() => capNhatDauVao({ layer2AltId: null, layer2Lengths: undefined, layer2FrontPart: 'main', layer2PairingMode: 'bottom_to_bottom' } as any)}>Bỏ cấu trúc phụ</button>
                 </div>
               )}
             </div>

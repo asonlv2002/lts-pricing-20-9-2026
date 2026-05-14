@@ -366,16 +366,39 @@ export function tinhGia(
           donGia: vl.giaMoiM2 || 0,
           chiPhiVL: (vl.giaMoiM2 || 0) * (hatHao + met) * khoSegment,
         });
-        chiTietVatLieu = soHinhThucTe > 1
-          ? [
-              themChiTiet(lop, khoLopChinh + bienMoiMep),
-              themChiTiet(lopPhu, khoLopPhu * soHinhThucTe),
-              themChiTiet(lop, khoLopChinh + bienMoiMep),
-            ]
-          : [
-              themChiTiet(lop, khoLopChinh + bienMoiMep),
-              themChiTiet(lopPhu, khoLopPhu + bienMoiMep),
-            ];
+        const matTruoc = dauVao.matTruocLop2 ?? 'main';
+        const kieuGhep = dauVao.kieuGhepLop2 ?? 'bottom_to_bottom';
+        const taoPhan = (vaiTro: 'front' | 'back_bottom') => {
+          const dungLopChinh = (vaiTro === 'front') === (matTruoc === 'main');
+          return {
+            vl: dungLopChinh ? lop : lopPhu,
+            kho: dungLopChinh ? khoLopChinh : khoLopPhu,
+            vaiTro,
+          };
+        };
+        const matTruocPhan = taoPhan('front');
+        const daySauPhan = taoPhan('back_bottom');
+        const thuTuPhan = soHinhThucTe > 1
+          ? (kieuGhep === 'front_to_front'
+              ? [daySauPhan, matTruocPhan, matTruocPhan, daySauPhan]
+              : [matTruocPhan, daySauPhan, daySauPhan, matTruocPhan])
+          : [matTruocPhan, daySauPhan];
+        const chiTietTho = thuTuPhan.map((phan, idx) => ({
+          ...themChiTiet(phan.vl, phan.kho + (idx === 0 || idx === thuTuPhan.length - 1 ? bienMoiMep : 0)),
+          vaiTro: phan.vaiTro,
+          viTri: idx + 1,
+        }));
+        chiTietVatLieu = chiTietTho.reduce((ds: any[], item) => {
+          const truoc = ds[ds.length - 1];
+          if (truoc && truoc.vatLieuId === item.vatLieuId && truoc.vaiTro === item.vaiTro) {
+            truoc.kho += item.kho;
+            truoc.chiPhiVL += item.chiPhiVL;
+            truoc.viTriKetThuc = item.viTri;
+            return ds;
+          }
+          ds.push({ ...item, viTriBatDau: item.viTri, viTriKetThuc: item.viTri });
+          return ds;
+        }, []);
       } else {
         const soHinhThucTe = Math.max(1, soHinh || 1);
         const bien = 0.01;
@@ -406,7 +429,7 @@ export function tinhGia(
   const hHInC = hangSo.hatHaoInC || 50000;
   const hHInD = hangSo.hatHaoInD || 400;
   const hatHaoIn = soMau! > 0
-    ? (chiPhiCaiDatMau + (metIn / hHInA * hHInB) + (metIn > hHInC ? metIn / hHInC * hHInD : 0))
+    ? (chiPhiCaiDatMau + (metIn / hHInA * hHInB) + (metIn > hHInC ? (metIn - hHInC) / hHInC * hHInD : 0))
     : 0;
 
   const giaMucPerMau = lop1.giaMucMoiMau || (lop1.laPEThoaPA ? 135 : 120);

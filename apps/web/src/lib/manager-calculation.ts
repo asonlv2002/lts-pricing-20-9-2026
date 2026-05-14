@@ -70,6 +70,9 @@ export function buildProductionRows(result: CalculateResult, constants: AppConst
       width: item.kho,
       matPrice: item.donGia ?? 0,
       costMat: item.chiPhiVL ?? 0,
+      role: item.vaiTro,
+      position: item.viTriBatDau ?? item.viTri,
+      endPosition: item.viTriKetThuc ?? item.viTri,
     }));
     uniRows.push({
       rowKey: `lam-${lam.layerNum}` as OverrideRowKey,
