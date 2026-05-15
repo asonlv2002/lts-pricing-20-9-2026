@@ -165,27 +165,29 @@ export default function InputCard() {
     const pairingMode = (input as any).layer2PairingMode || 'bottom_to_bottom';
     const isTwoImages = (input.numImages || 1) >= 2;
     if (!isTwoImages) {
-      return [
+      const normalOrder = [
         { mat: mainMat, width: Math.max(lengths.mat1 || 0, 0), source: 'main' },
         { mat: altMat, width: Math.max(lengths.mat2 || 0, 0), source: 'alt' },
       ];
+      return pairingMode === 'front_to_front' ? normalOrder.reverse() : normalOrder;
     }
 
+    const mainSideWidth = Math.max((lengths.mat1 || 0) / 2, 0);
+    const altSideWidth = Math.max((lengths.mat2 || 0) / 2, 0);
+
     if (pairingMode === 'front_to_front') {
-      const altSideWidth = Math.max((lengths.mat2 || 0) / 2, 0);
-      const mainCenterWidth = Math.max(lengths.mat1 || 0, 0);
       return [
         { mat: altMat, width: altSideWidth, source: 'alt' },
-        { mat: mainMat, width: mainCenterWidth, source: 'main' },
+        { mat: mainMat, width: mainSideWidth, source: 'main' },
+        { mat: mainMat, width: mainSideWidth, source: 'main' },
         { mat: altMat, width: altSideWidth, source: 'alt' },
       ];
     }
 
-    const mainSideWidth = Math.max((lengths.mat1 || 0) / 2, 0);
-    const altCenterWidth = Math.max(lengths.mat2 || 0, 0);
     return [
       { mat: mainMat, width: mainSideWidth, source: 'main' },
-      { mat: altMat, width: altCenterWidth, source: 'alt' },
+      { mat: altMat, width: altSideWidth, source: 'alt' },
+      { mat: altMat, width: altSideWidth, source: 'alt' },
       { mat: mainMat, width: mainSideWidth, source: 'main' },
     ];
   };
