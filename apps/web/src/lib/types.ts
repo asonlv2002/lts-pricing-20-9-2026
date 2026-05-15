@@ -24,6 +24,14 @@ export interface Material {
   pricePerM2?: number;
 }
 
+export interface SmallWidthMaterialPrice {
+  id: string;
+  materialId: string;
+  widthThresholdMm: number;
+  pricePerKg: number;
+  pricePerM2?: number;
+}
+
 export interface ProfitRow {
   threshold: number;
   col1: number;

@@ -205,6 +205,7 @@ export default function TrangChinh() {
       if (cfgRaw) {
         const cfg = JSON.parse(cfgRaw) as {
           materials?: Array<{ id: string; thickness: number; pricePerKg: number; inkPricePerColor: number }>;
+          smallWidthPrices?: Array<{ id: string; materialId: string; widthThresholdMm: number; pricePerKg: number }>;
           cpsx?: Record<string, any>;
           printWaste?: { colorSetup?: Record<number, number>; A?: number; B?: number; C?: number; D?: number };
           profitTable?: Array<{ col1: number; col2: number }>;
@@ -216,6 +217,16 @@ export default function TrangChinh() {
               const saved = cfg.materials!.find(x => x.id === m.id);
               if (!saved) return m;
               return { ...m, thickness: saved.thickness, pricePerKg: saved.pricePerKg, inkPricePerColor: saved.inkPricePerColor, pricePerM2: saved.pricePerKg * saved.thickness * m.density / 1000 };
+            });
+          }
+          let giaKhoNhoMoi = s.smallWidthPrices;
+          if (cfg.smallWidthPrices?.length) {
+            giaKhoNhoMoi = s.smallWidthPrices.map(p => {
+              const saved = cfg.smallWidthPrices!.find(x => x.id === p.id);
+              if (!saved) return p;
+              const material = vatLieuMoi.find(m => m.id === saved.materialId);
+              if (!material) return p;
+              return { ...p, widthThresholdMm: saved.widthThresholdMm, pricePerKg: saved.pricePerKg, pricePerM2: saved.pricePerKg * material.thickness * material.density / 1000 };
             });
           }
           const hangSoMoi = { ...s.constants, ...(cfg.cpsx || {}) };
@@ -230,7 +241,7 @@ export default function TrangChinh() {
           if (cfg.profitTable?.length === s.profitTable.length) {
             loiNhuanMoi = s.profitTable.map((row, i) => ({ ...row, col1: cfg.profitTable![i].col1, col2: cfg.profitTable![i].col2 }));
           }
-          return { ...s, materials: vatLieuMoi, constants: hangSoMoi, profitTable: loiNhuanMoi };
+          return { ...s, materials: vatLieuMoi, smallWidthPrices: giaKhoNhoMoi, constants: hangSoMoi, profitTable: loiNhuanMoi };
         });
         dungCuaHangTinhGia.getState().recalculate();
       }

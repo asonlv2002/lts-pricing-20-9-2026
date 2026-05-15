@@ -2,7 +2,7 @@
 // @lts/bang-tinh-gia — Engine tính giá bao bì
 // Pure TypeScript — không phụ thuộc DOM, Node, hay bất kỳ framework nào.
 // ═══════════════════════════════════════════════════════════════════════════
-import type { DauVaoTinhGia, KetQuaTinhGia, VatLieu, HangSo, ChiTietLop, ChiTietLopCat } from '@lts/kieu-du-lieu';
+import type { DauVaoTinhGia, KetQuaTinhGia, VatLieu, HangSo, ChiTietLop, ChiTietLopCat, GiaVatLieuKhoNho } from '@lts/kieu-du-lieu';
 import type { DongLoiNhuan } from '@lts/hang-so';
 import { LOI_NHUAN_MAC_DINH_KHI_KHONG_KHOP } from '@lts/hang-so';
 
@@ -309,6 +309,15 @@ export function tinhGia(
   const lop4 = dauVao.idLop4 ? nhanBanVatLieu(layVatLieu(dauVao.idLop4, danhSachVatLieu), 'idLop4') : null;
   const lop5 = dauVao.idLop5 ? nhanBanVatLieu(layVatLieu(dauVao.idLop5, danhSachVatLieu), 'idLop5') : null;
 
+  const layGiaVatLieuTheoKho = (vl: VatLieu, khoM: number): number => {
+    const bangGiaKhoNho = dauVao.bangGiaKhoNho ?? [];
+    const khoMm = khoM * 1000;
+    const mucGia = bangGiaKhoNho
+      .filter((row: GiaVatLieuKhoNho) => row.vatLieuId === vl.id && khoMm <= row.nguongKhoMm)
+      .sort((a: GiaVatLieuKhoNho, b: GiaVatLieuKhoNho) => a.nguongKhoMm - b.nguongKhoMm)[0];
+    return mucGia?.giaMoiM2 ?? vl.giaMoiM2 ?? 0;
+  };
+
   if (!lop1 || soLuong <= 0 || khoTrai <= 0 || buocCat <= 0 || !dauVao.loaiSanPham || dauVao.soMau === null) return null;
   if (dauVao.loaiSanPham === 'tui' && !dauVao.loaiTui) return null;
   if (dauVao.loaiSanPham === 'mang' && !dauVao.loaiMang) return null;
@@ -351,7 +360,8 @@ export function tinhGia(
     const hatHao = met / hHGhepA * hHGhepB + hHGhepC;
     const cpsx = hangSo.cpSXGhep;
     const chiPhiSX = cpsx * (hatHao + met) * kho;
-    let chiPhiVL = (lop.giaMoiM2 || 0) * (hatHao + met) * kho;
+    const donGiaLop = layGiaVatLieuTheoKho(lop, kho);
+    let chiPhiVL = donGiaLop * (hatHao + met) * kho;
     let chiTietVatLieu: any[] | undefined;
     if (soLop === 2 && lopPhu) {
       if (dauVao.chieuDaiLop2 && dauVao.chieuDaiLop2.vl1 > 0 && dauVao.chieuDaiLop2.vl2 > 0) {
@@ -359,13 +369,16 @@ export function tinhGia(
         const khoLopPhu = dauVao.chieuDaiLop2.vl2 / 1000;
         const soHinhThucTe = Math.max(1, soHinh || 1);
         const bienMoiMep = 0.01;
-        const themChiTiet = (vl: VatLieu, khoSegment: number) => ({
-          vatLieuId: vl.id,
-          ten: vl.ten,
-          kho: khoSegment,
-          donGia: vl.giaMoiM2 || 0,
-          chiPhiVL: (vl.giaMoiM2 || 0) * (hatHao + met) * khoSegment,
-        });
+        const themChiTiet = (vl: VatLieu, khoSegment: number) => {
+          const donGia = layGiaVatLieuTheoKho(vl, khoSegment);
+          return {
+            vatLieuId: vl.id,
+            ten: vl.ten,
+            kho: khoSegment,
+            donGia,
+            chiPhiVL: donGia * (hatHao + met) * khoSegment,
+          };
+        };
         const matTruoc = dauVao.matTruocLop2 ?? 'main';
         const kieuGhep = dauVao.kieuGhepLop2 ?? 'bottom_to_bottom';
         const taoPhan = (vaiTro: 'front' | 'back_bottom') => {
@@ -406,14 +419,16 @@ export function tinhGia(
         const khoGiua = Math.max(0, khoTrai * soHinhThucTe + 0.02 - khoMotCauTruc * 2);
         const khoLopChinh = soHinhThucTe > 1 ? khoMotCauTruc * 2 : khoMotCauTruc;
         const khoLopPhu = soHinhThucTe > 1 ? khoGiua : Math.max(0, kho - khoLopChinh);
+        const donGiaLopChinh = layGiaVatLieuTheoKho(lop, khoLopChinh);
+        const donGiaLopPhu = layGiaVatLieuTheoKho(lopPhu, khoLopPhu);
         chiTietVatLieu = [
-          { vatLieuId: lop.id, ten: lop.ten, kho: khoLopChinh, donGia: lop.giaMoiM2 || 0, chiPhiVL: (lop.giaMoiM2 || 0) * (hatHao + met) * khoLopChinh },
-          { vatLieuId: lopPhu.id, ten: lopPhu.ten, kho: khoLopPhu, donGia: lopPhu.giaMoiM2 || 0, chiPhiVL: (lopPhu.giaMoiM2 || 0) * (hatHao + met) * khoLopPhu },
+          { vatLieuId: lop.id, ten: lop.ten, kho: khoLopChinh, donGia: donGiaLopChinh, chiPhiVL: donGiaLopChinh * (hatHao + met) * khoLopChinh },
+          { vatLieuId: lopPhu.id, ten: lopPhu.ten, kho: khoLopPhu, donGia: donGiaLopPhu, chiPhiVL: donGiaLopPhu * (hatHao + met) * khoLopPhu },
         ];
       }
       chiPhiVL = chiTietVatLieu.reduce((sum, item) => sum + item.chiPhiVL, 0);
     }
-    danhSachGhep.push({ soLop, kho, met, hatHao, cpsx, chiPhiSX, chiPhiVL, chiTietVatLieu, tongCong: chiPhiSX + chiPhiVL });
+    danhSachGhep.push({ soLop, kho, met, hatHao, cpsx, chiPhiSX, chiPhiVL, donGia: donGiaLop, chiTietVatLieu, tongCong: chiPhiSX + chiPhiVL });
     metCanThiet = met + hatHao;
   });
 
@@ -435,7 +450,8 @@ export function tinhGia(
   const giaMucPerMau = lop1.giaMucMoiMau || (lop1.laPEThoaPA ? 135 : 120);
   const cpSXIn = soMau! > 0 ? (soMau! * giaMucPerMau * tyLePhuMucMuc + hangSo.chiPhiNhanCong + phiKimLoai) : 0;
   const chiPhiSXIn = cpSXIn * (hatHaoIn + metIn) * khoNLIn;
-  const chiPhiVatLieuIn = (lop1.giaMoiM2 || 0) * (hatHaoIn + metIn) * khoNLIn;
+  const donGiaVatLieuIn = layGiaVatLieuTheoKho(lop1, khoNLIn);
+  const chiPhiVatLieuIn = donGiaVatLieuIn * (hatHaoIn + metIn) * khoNLIn;
   const tongChiPhiIn = chiPhiSXIn + chiPhiVatLieuIn;
 
   let cpSXCat = 0, chiPhiSXCat = 0, tongChiPhiCat = 0;
@@ -570,8 +586,8 @@ export function tinhGia(
     dienTichTruc: dienTichTruc,
     chieuDaiTruc: chieuDaiTrucThucTe, chuViTruc: chuViTrucThucTe, ngaySanXuat,
     cacLop: {
-      in: { vatLieu: chiPhiVatLieuIn, kho: khoNLIn, met: metIn, hatHao: hatHaoIn, cpsx: cpSXIn, chiPhiSX: chiPhiSXIn, chiPhiVL: chiPhiVatLieuIn, tongCong: tongChiPhiIn } as ChiTietLop,
-      ghep: danhSachGhep.map(g => ({ vatLieu: g.chiPhiVL, chiTietVatLieu: g.chiTietVatLieu, kho: g.kho, met: g.met, hatHao: g.hatHao, cpsx: g.cpsx, chiPhiSX: g.chiPhiSX, chiPhiVL: g.chiPhiVL, tongCong: g.tongCong } as ChiTietLop)),
+      in: { vatLieu: chiPhiVatLieuIn, donGia: donGiaVatLieuIn, kho: khoNLIn, met: metIn, hatHao: hatHaoIn, cpsx: cpSXIn, chiPhiSX: chiPhiSXIn, chiPhiVL: chiPhiVatLieuIn, tongCong: tongChiPhiIn } as ChiTietLop,
+      ghep: danhSachGhep.map(g => ({ vatLieu: g.chiPhiVL, donGia: g.donGia, chiTietVatLieu: g.chiTietVatLieu, kho: g.kho, met: g.met, hatHao: g.hatHao, cpsx: g.cpsx, chiPhiSX: g.chiPhiSX, chiPhiVL: g.chiPhiVL, tongCong: g.tongCong } as ChiTietLop)),
       cat: { kho: khoCat, met: metCat, hatHao: hatHaoCat, cpsx: cpSXCat, chiPhiSX: chiPhiSXCat, tongCong: tongChiPhiCat } as ChiTietLopCat,
     },
   };

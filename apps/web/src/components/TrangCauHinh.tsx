@@ -1,7 +1,7 @@
 "use client";
 import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE } from '../lib/data';
+import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES } from '../lib/data';
 
 // Debounced persist profit table — tránh gọi API mỗi keystroke
 let _profitPersistTimer: ReturnType<typeof setTimeout>;
@@ -13,8 +13,9 @@ const debouncedPersistProfitTable = () => {
 };
 
 export default function ConfigPage() {
-  const { materials, constants, profitTable, setMaterialParam: capNhatVatLieu, setConstantParam: capNhatHangSo } = dungCuaHangTinhGia();
+  const { materials, constants, profitTable, smallWidthPrices, setMaterialParam: capNhatVatLieu, setConstantParam: capNhatHangSo, setSmallWidthPriceParam: capNhatGiaKhoNho } = dungCuaHangTinhGia();
   const [customerGroup, setCustomerGroup] = React.useState('other');
+  const [showSmallWidthTable, setShowSmallWidthTable] = React.useState(false);
 
   const offset = customerGroup === 'svlg' ? -0.03 : 0;
 
@@ -72,21 +73,25 @@ export default function ConfigPage() {
     capNhatHangSo('colorSetup' as any, newSetup as any);
   };
 
-  const getRangeLabel = (i: number, threshold: number) => {
-    if (i === 0) return 'Dưới 9.900.000';
-    if (threshold === 19000000) return '10.000.000 - 19.000.000';
-    if (threshold === 30000000) return '20.000.000 - 30.000.000';
-    if (threshold === 40000000) return '31.000.000 - 40.000.000';
-    if (threshold === 60000000) return '41.000.000 - 60.000.000';
-    if (threshold === 80000000) return '61.000.000 - 80.000.000';
-    if (threshold === 100000000) return '81.000.000 - 100.000.000';
-    if (threshold === 150000000) return '101.000.000 - 150.000.000';
-    if (threshold === 200000000) return '151.000.000 - 200.000.000';
-    if (threshold === 300000000) return '201.000.000 - 300.000.000';
-    if (threshold === 400000000) return '301.000.000 - 400.000.000';
-    if (threshold === 600000000) return '401.000.000 - 600.000.000';
-    return `Trên ${profitTable[i-1]?.threshold.toLocaleString('vi-VN')}`;
+  const fmtVnd = (n: number) => n.toLocaleString('vi-VN');
+
+  const getProfitBounds = (i: number, threshold: number) => {
+    const from = i === 0 ? 0 : profitTable[i - 1]?.threshold ?? 0;
+    return { from, to: threshold };
   };
+
+  const updateProfitThreshold = (i: number, value: number) => {
+    const store = dungCuaHangTinhGia.getState();
+    const newTable = [...store.profitTable];
+    const min = i === 0 ? 1 : (newTable[i - 1]?.threshold ?? 0) + 1;
+    const max = i < newTable.length - 1 ? (newTable[i + 1]?.threshold ?? Number.MAX_SAFE_INTEGER) - 1 : Number.MAX_SAFE_INTEGER;
+    const threshold = Math.max(min, Math.min(max, Math.round(value || 0)));
+    newTable[i] = { ...newTable[i], threshold };
+    dungCuaHangTinhGia.setState({ profitTable: newTable });
+    store.recalculate();
+    debouncedPersistProfitTable();
+  };
+
 
   return (
     <div className="config-page" id="configPage" style={{display: 'block'}}>
@@ -113,35 +118,97 @@ export default function ConfigPage() {
           <div className="card config-card" id="sect-config-nvl" style={{scrollMarginTop: '80px'}}>
             <div className="config-section-title">
               <span>📦 Giá Nguyên Vật Liệu Cập Nhật Hàng Ngày</span>
-              <button className="btn btn-sm btn-outline" onClick={handleReset}>🔄 Reset mặc định</button>
+              <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                <select
+                  value={showSmallWidthTable ? 'small' : 'normal'}
+                  onChange={(e) => setShowSmallWidthTable(e.target.value === 'small')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    minWidth: '150px'
+                  }}
+                >
+                  <option value="normal">Khổ bình thường</option>
+                  <option value="small">Khổ nhỏ</option>
+                </select>
+                <button className="btn btn-sm btn-outline" onClick={handleReset}>🔄 Reset mặc định</button>
+              </div>
             </div>
-            <div className="config-table-wrap">
-              <table className="config-table" id="materialPriceTable">
-                <thead>
-                  <tr>
-                    <th>STT</th>
-                    <th>Màng</th>
-                    <th>Tỉ trọng (g/m³)</th>
-                    <th>Độ dày (mic)</th>
-                    <th>Giá (VNĐ/kg)</th>
-                    <th>Giá (VNĐ/m²)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materials.map((m, idx) => (
-                    <tr key={m.id}>
-                      <td style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
-                      <td style={{fontWeight:600}}>{m.name} <span style={{fontSize:'0.75rem', color:'var(--dim)'}}>{m.id}</span></td>
-                      <td>{m.density}</td>
-                      <td><input type="number" className="config-inline-input" value={m.thickness} onChange={(e) => capNhatVatLieu(m.id, { thickness: parseFloat(e.target.value)||0 })} style={{width:'80px', textAlign:'right'}} /></td>
-                      <td><input type="number" className="config-inline-input" value={m.pricePerKg} onChange={(e) => capNhatVatLieu(m.id, { pricePerKg: parseFloat(e.target.value)||0 })} style={{width:'100px', textAlign:'right', fontWeight:700}} /></td>
-                      <td style={{fontWeight:700, color:'var(--accent)'}}>{m.pricePerM2?.toLocaleString('vi-VN', {maximumFractionDigits:0})} đ</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="config-note">💡 Chỉnh <strong>Độ dày</strong> và <strong>Giá VNĐ/kg</strong> — giá VNĐ/m² tự động tính lại. Thay đổi sẽ áp dụng ngay cho lần tính giá tiếp theo.</p>
+            {!showSmallWidthTable ? (
+              // Bảng khổ bình thường
+              <>
+                <div className="config-table-wrap">
+                  <table className="config-table" id="materialPriceTable">
+                    <thead>
+                      <tr>
+                        <th>STT</th>
+                        <th>Màng</th>
+                        <th>Tỉ trọng (g/m³)</th>
+                        <th>Độ dày (mic)</th>
+                        <th>Giá (VNĐ/kg)</th>
+                        <th>Giá (VNĐ/m²)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {materials.map((m, idx) => (
+                        <tr key={m.id}>
+                          <td style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
+                          <td style={{fontWeight:600}}>{m.name} <span style={{fontSize:'0.75rem', color:'var(--dim)'}}>{m.id}</span></td>
+                          <td>{m.density}</td>
+                          <td><input type="number" className="config-inline-input" value={m.thickness} onChange={(e) => capNhatVatLieu(m.id, { thickness: parseFloat(e.target.value)||0 })} style={{width:'80px', textAlign:'right'}} /></td>
+                          <td><input type="number" className="config-inline-input" value={m.pricePerKg} onChange={(e) => capNhatVatLieu(m.id, { pricePerKg: parseFloat(e.target.value)||0 })} style={{width:'100px', textAlign:'right', fontWeight:700}} /></td>
+                          <td style={{fontWeight:700, color:'var(--accent)'}}>{m.pricePerM2?.toLocaleString('vi-VN', {maximumFractionDigits:0})} đ</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="config-note">💡 Chỉnh <strong>Độ dày</strong> và <strong>Giá VNĐ/kg</strong> — giá VNĐ/m² tự động tính lại. Thay đổi sẽ áp dụng ngay cho lần tính giá tiếp theo.</p>
+              </>
+            ) : (
+              // Bảng khổ nhỏ
+              <>
+                <div className="config-table-wrap">
+                  <table className="config-table" id="smallWidthPriceTable">
+                    <thead>
+                      <tr>
+                        <th>STT</th>
+                        <th>Màng</th>
+                        <th>Tỉ trọng (g/m³)</th>
+                        <th>Độ dày (mic)</th>
+                        <th>Khổ nhỏ (mm)</th>
+                        <th>Giá (VNĐ/kg)</th>
+                        <th>Giá (VNĐ/m²)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {smallWidthPrices.map((p, idx) => {
+                        const material = materials.find(m => m.id === p.materialId);
+                        if (!material) return null;
+                        return (
+                          <tr key={p.id}>
+                            <td style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
+                            <td style={{fontWeight:600}}>{material.name} <span style={{fontSize:'0.75rem', color:'var(--dim)'}}>{material.id}</span></td>
+                            <td>{material.density}</td>
+                            <td>{material.thickness}</td>
+                            <td><input type="number" className="config-inline-input" value={p.widthThresholdMm} onChange={(e) => capNhatGiaKhoNho(p.id, { widthThresholdMm: parseFloat(e.target.value)||0 })} style={{width:'80px', textAlign:'right'}} /></td>
+                            <td><input type="number" className="config-inline-input" value={p.pricePerKg} onChange={(e) => capNhatGiaKhoNho(p.id, { pricePerKg: parseFloat(e.target.value)||0 })} style={{width:'100px', textAlign:'right', fontWeight:700}} /></td>
+                            <td style={{fontWeight:700, color:'var(--accent)'}}>{p.pricePerM2?.toLocaleString('vi-VN', {maximumFractionDigits:0})} đ</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="config-note">💡 Khi khổ nguyên vật liệu ≤ ngưỡng khổ nhỏ, hệ thống sẽ dùng giá khổ nhỏ thay cho giá thường. Ví dụ: khổ 350mm sẽ dùng giá mốc 400mm nếu có.</p>
+              </>
+            )}
           </div>
 
           {/* ═══════════ NHÓM 1: CHI PHÍ KHÂU IN ═══════════ */}
@@ -444,7 +511,7 @@ export default function ConfigPage() {
 
           <div className="card config-card">
             <div className="config-section-title" style={{alignItems: 'center'}}>
-              <span>📈 Tỉ Lệ Lợi Nhuận Theo Giá Vốn</span>
+              <span>📈 Tỉ lệ lợi nhuận theo giá vốn</span>
               <div style={{display:'flex', alignItems:'center', gap: '8px'}}>
                 <span style={{fontSize:'0.85rem', fontWeight:'normal', color:'var(--muted)'}}>Nhóm Khách hàng:</span>
                 <select className="form-select" value={customerGroup} onChange={e => setCustomerGroup(e.target.value)} style={{width: 'auto', padding: '4px 24px 4px 10px', fontWeight: 'normal', fontSize: '0.85rem'}}>
@@ -457,15 +524,33 @@ export default function ConfigPage() {
               <table className="config-table" id="profitTable">
                 <thead>
                   <tr>
-                    <th>Giá Vốn</th>
-                    <th>Túi 3,4 biên, màng ghép: 2 lớp</th>
-                    <th>Túi zipper, Đáy đứng, MPET, AL, giấy, màng ghép 3 lớp..</th>
+                    <th>Từ</th>
+                    <th>Đến</th>
+                    <th>Túi 3, 4 biên, màng ghép 2 lớp</th>
+                    <th>Túi zipper, đáy đứng, MPET, AL, giấy, màng ghép 3 lớp...</th>
                   </tr>
                 </thead>
                 <tbody>
                   {profitTable.map((row, i) => (
                     <tr key={i}>
-                      <td>{getRangeLabel(i, row.threshold)}</td>
+                      {(() => {
+                        const bounds = getProfitBounds(i, row.threshold);
+                        return (
+                          <>
+                            <td>
+                              <span style={{fontWeight: 700}}>{fmtVnd(bounds.from)}</span>
+                            </td>
+                            <td>
+                              <input className="config-inline-input" type="number" step="1000000"
+                                value={row.threshold}
+                                onChange={(e) => updateProfitThreshold(i, parseFloat(e.target.value) || 0)}
+                                style={{width:'130px', textAlign:'right', fontWeight:700}}
+                              />
+                              <div style={{fontSize:'0.72rem', color:'var(--muted)', marginTop:'2px'}}>&lt; {fmtVnd(row.threshold)}</div>
+                            </td>
+                          </>
+                        );
+                      })()}
                       <td>
                         <input className="config-inline-input" type="number" step="0.5" 
                           value={+((row.col1 + offset) * 100).toFixed(2)}

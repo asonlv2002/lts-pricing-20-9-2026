@@ -1,5 +1,5 @@
 import { calculate, lookupProfit, optimizeThickness } from './engine';
-import type { AppConstants, CalculateInput, CalculateResult, Material, OverrideRowKey, OverrideTable, ProfitRow } from './types';
+import type { AppConstants, CalculateInput, CalculateResult, Material, OverrideRowKey, OverrideTable, ProfitRow, SmallWidthMaterialPrice } from './types';
 
 export { optimizeThickness };
 
@@ -31,8 +31,9 @@ export function calculateQuote(
   materials: Material[],
   constants: AppConstants,
   profitTable: ProfitRow[],
+  smallWidthPrices: SmallWidthMaterialPrice[] = [],
 ): CalculateResult | null {
-  return calculate(input, materials, constants, profitTable);
+  return calculate(input, materials, constants, profitTable, smallWidthPrices);
 }
 
 export function buildProductionRows(result: CalculateResult, constants: AppConstants): {
@@ -58,7 +59,7 @@ export function buildProductionRows(result: CalculateResult, constants: AppConst
     waste: r.printWaste,
     cpsx: r.printCPSX,
     costCPSX: r.printCostCPSX,
-    matPrice: r.layers.print?.material?.pricePerM2 ?? 0,
+    matPrice: r.layers.print?.matPrice ?? r.layers.print?.material?.pricePerM2 ?? 0,
     costMat: r.printCostMaterial,
   });
 
@@ -83,7 +84,7 @@ export function buildProductionRows(result: CalculateResult, constants: AppConst
       waste: lam.waste,
       cpsx: constants.ghepCPSX,
       costCPSX: lam.costCPSX,
-      matPrice: materialDetails?.length ? null : (lam.material?.pricePerM2 ?? 0),
+      matPrice: materialDetails?.length ? null : (lam.matPrice ?? lam.material?.pricePerM2 ?? 0),
       costMat: lam.costMat,
       materialDetails,
     });
@@ -164,6 +165,7 @@ export function calculateMoqResult(
   materials: Material[],
   constants: AppConstants,
   profitTable: ProfitRow[],
+  smallWidthPrices: SmallWidthMaterialPrice[] = [],
 ) {
-  return calculateQuote({ ...input, quantity }, materials, constants, profitTable);
+  return calculateQuote({ ...input, quantity }, materials, constants, profitTable, smallWidthPrices);
 }

@@ -2,9 +2,9 @@
 // Web UI giữ tên biến tiếng Anh, engine core dùng tiếng Việt.
 // ═══════════════════════════════════════════════════════════════════════════
 import { tinhGia, traLoiNhuan, toiUuDoDay, KetQuaToiUuDoDay } from '@lts/bang-tinh-gia';
-import type { DauVaoTinhGia, KetQuaTinhGia, VatLieu, HangSo } from '@lts/kieu-du-lieu';
+import type { DauVaoTinhGia, KetQuaTinhGia, VatLieu, HangSo, GiaVatLieuKhoNho } from '@lts/kieu-du-lieu';
 import type { DongLoiNhuan } from '@lts/hang-so';
-import { CalculateInput, CalculateResult, Material, AppConstants, ProfitRow } from './types';
+import { CalculateInput, CalculateResult, Material, AppConstants, ProfitRow, SmallWidthMaterialPrice } from './types';
 import { PROFIT_DEFAULT } from './data';
 
 // ── Lookup Profit (giữ nguyên API cũ cho ManHinhQuanLy) ──────────────────────
@@ -118,8 +118,22 @@ function toDongLoiNhuan(rows: ProfitRow[]): DongLoiNhuan[] {
   return rows.map(r => ({ nguong: r.threshold, cot1: r.col1, cot2: r.col2 }));
 }
 
+function toGiaKhoNho(rows: SmallWidthMaterialPrice[], materials: Material[]): GiaVatLieuKhoNho[] {
+  return rows.map(row => {
+    const material = materials.find(m => m.id === row.materialId);
+    const giaMoiM2 = row.pricePerM2 ?? (material ? row.pricePerKg * material.thickness * material.density / 1000 : 0);
+    return {
+      id: row.id,
+      vatLieuId: row.materialId,
+      nguongKhoMm: row.widthThresholdMm,
+      giaMoiKg: row.pricePerKg,
+      giaMoiM2,
+    };
+  }).filter(row => row.nguongKhoMm > 0 && row.giaMoiM2 > 0);
+}
+
 // ── CalculateInput EN → DauVaoTinhGia VN ─────────────────────────────────────
-function toDauVao(i: CalculateInput): DauVaoTinhGia {
+function toDauVao(i: CalculateInput, bangGiaKhoNho?: GiaVatLieuKhoNho[]): DauVaoTinhGia {
   return {
     khachHang: i.customer, tenSanPham: i.productName,
     loaiSanPham: i.productType, loaiTui: i.bagType, loaiMang: i.filmType,
@@ -162,6 +176,7 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
         return [`idLop${num}`, v];
       })
     ) : {},
+    bangGiaKhoNho,
   };
 }
 
@@ -241,6 +256,7 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
         cpsx: r.cacLop.in.cpsx,
         costCPSX: r.cacLop.in.chiPhiSX,
         costMat: r.cacLop.in.chiPhiVL,
+        matPrice: (r.cacLop.in as any).donGia,
         total: r.cacLop.in.tongCong,
       },
       laminations: r.cacLop.ghep.map((g: any, idx: number) => ({
@@ -253,6 +269,7 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
         cpsx: g.cpsx,
         costCPSX: g.chiPhiSX,
         costMat: g.chiPhiVL,
+        matPrice: g.donGia,
         chiTietVatLieu: g.chiTietVatLieu,
         total: g.tongCong,
       })),
@@ -273,9 +290,11 @@ export function calculate(
   input: CalculateInput,
   materials: Material[],
   constants: AppConstants,
-  profitTable: ProfitRow[]
+  profitTable: ProfitRow[],
+  smallWidthPrices: SmallWidthMaterialPrice[] = []
 ): CalculateResult | null {
-  const dauVao = toDauVao(input);
+  const bangGiaKhoNho = toGiaKhoNho(smallWidthPrices, materials);
+  const dauVao = toDauVao(input, bangGiaKhoNho);
   const vatLieu = materials.map(toVatLieu);
   const hangSo = toHangSo(constants);
   const bangLN = toDongLoiNhuan(profitTable);

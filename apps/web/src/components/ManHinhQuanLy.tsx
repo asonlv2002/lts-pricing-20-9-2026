@@ -363,9 +363,10 @@ export default function ManagerView() {
   const selectedCol = rollOptions.find((c) => getRollColId(c) === selectedRollMat) || rollOptions[0];
   const selectedData = selectedCol ? getLayerData(r, selectedCol) : null;
   const selectedMat = selectedData?.material;
-  const isKgBase = !!selectedMat && (selectedMat.name.toUpperCase().includes('LLDPE') || selectedMat.name.toUpperCase() === 'PE');
+  const isKgBase = !isMang && !!selectedMat && (selectedMat.name.toUpperCase().includes('LLDPE') || selectedMat.name.toUpperCase() === 'PE');
   const rollLevels = isKgBase ? [200, 300, 400, 500, 600, 700] : [1, 2, 3, 4, 5, 6];
-  const rollLen = selectedMat?.rollLength || 6000;
+  const rollLen = isMang ? filmRollLength : (selectedMat?.rollLength || 6000);
+  const filmRollAreaTP = rInput.spreadWidth * rollLen;
   const totalSelectedMeters = selectedData ? selectedData.meters + selectedData.waste : 0;
   const otherLayers = rollOptions.filter((c) => c !== selectedCol);
   const getMetersFromKg = (layerMat: any, targetKg: number, width: number) => {
@@ -392,15 +393,21 @@ export default function ManagerView() {
     return Math.floor(bestQty / 100) * 100;
   };
   const rollRows = selectedCol && selectedData && selectedMat ? rollLevels.map((levelVal) => {
-    const availableMeters = isKgBase
-      ? getMetersFromKg(selectedMat, levelVal, selectedData.width)
-      : levelVal * rollLen;
-    const estQty = findEstQtyForMeters(availableMeters);
+    const availableMeters = isMang
+      ? levelVal * rollLen
+      : isKgBase
+        ? getMetersFromKg(selectedMat, levelVal, selectedData.width)
+        : levelVal * rollLen;
+    const estQty = isMang
+      ? Math.round(levelVal * filmRollAreaTP)
+      : findEstQtyForMeters(availableMeters);
     if (estQty <= 0) return null;
     const res = calculateForInput({ ...rInput, quantity: estQty });
     if (!res) return null;
     let isCurrent = false;
-    if (isKgBase) {
+    if (isMang) {
+      isCurrent = levelVal === Math.ceil(rInput.quantity / filmRollAreaTP);
+    } else if (isKgBase) {
       const currentKg = calcKg(selectedMat, totalSelectedMeters, selectedData.width);
       isCurrent = (Math.ceil(currentKg / 100) * 100) === levelVal;
     } else {
@@ -820,7 +827,9 @@ export default function ManagerView() {
           >
             <div className="info-box">
               <span className="icon">💡</span>
-              Số lượng tối ưu theo cuộn màng tiêu chuẩn của lớp in. Giúp đặt hàng khớp cuộn, giảm hao hụt.
+              {isMang
+                ? 'Số lượng theo cuộn màng thành phẩm: SL = số cuộn × khổ TP × chiều dài cuộn TP.'
+                : 'Số lượng tối ưu theo cuộn màng tiêu chuẩn của lớp in. Giúp đặt hàng khớp cuộn, giảm hao hụt.'}
             </div>
             <div className="table-responsive">
               <table className="moq-table" id="moq-roll-table">
@@ -865,7 +874,11 @@ export default function ManagerView() {
                             ) : (
                               <>
                                 <span style={{fontWeight:700}}>{row.levelVal} cuộn</span><br />
-                                <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({fmt(row.availableMeters, 0)}m - {fmt(row.selectedKg, 1)} kg)</span>
+                                <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>
+                                  {isMang
+                                    ? `${fmt(row.availableMeters, 0)}m × ${fmt(rInput.spreadWidth, 3)}m = ${fmt(row.estQty, 0)} m²`
+                                    : `(${fmt(row.availableMeters, 0)}m - ${fmt(row.selectedKg, 1)} kg)`}
+                                </span>
                               </>
                             )}
                           </td>

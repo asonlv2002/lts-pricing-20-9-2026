@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import { CalculateInput, HistoryItem, Material, AppConstants, ProfitRow, CalculateResult, QuoteStatus, OverrideTable, OverrideRowKey, OverrideFields, ProductionOrder } from '../lib/types';
-import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE } from '../lib/data';
+import { CalculateInput, HistoryItem, Material, AppConstants, ProfitRow, CalculateResult, QuoteStatus, OverrideTable, OverrideRowKey, OverrideFields, ProductionOrder, SmallWidthMaterialPrice } from '../lib/types';
+import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES } from '../lib/data';
 import { calculateMoqResult, calculateQuote, optimizeThickness } from '../lib/manager-calculation';
 
 // ── LocalStorage keys ─────────────────────────────────────────────────────────
@@ -13,9 +13,10 @@ function lsSet(key: string, value: unknown) {
   try { window.localStorage.setItem(key, JSON.stringify(value)); } catch { /* quota */ }
 }
 
-function luuConfigVaoLS(materials: Material[], constants: AppConstants, profitTable: ProfitRow[]) {
+function luuConfigVaoLS(materials: Material[], constants: AppConstants, profitTable: ProfitRow[], smallWidthPrices: SmallWidthMaterialPrice[]) {
   lsSet(LS_CONFIG, {
     materials: materials.map(m => ({ id: m.id, thickness: m.thickness, pricePerKg: m.pricePerKg, inkPricePerColor: m.inkPricePerColor })),
+    smallWidthPrices: smallWidthPrices.map(p => ({ id: p.id, materialId: p.materialId, widthThresholdMm: p.widthThresholdMm, pricePerKg: p.pricePerKg })),
     cpsx: {
       ghepCPSX: constants.ghepCPSX, laborCost: constants.laborCost,
       cutBase: constants.cutBase, cutThreshold1: constants.cutThreshold1, cutThreshold2: constants.cutThreshold2,
@@ -64,6 +65,9 @@ export interface CuaHangTinhGia {
   // Production Orders
   productionOrders: ProductionOrder[];
 
+  // Small Width Prices
+  smallWidthPrices: SmallWidthMaterialPrice[];
+
   // ── Actions (tên tiếng Việt) ──────────────────────────────────────────────
   setActiveView: (v: 'manager' | 'tech' | 'history' | 'config' | 'bento') => void;
   setActiveModule: (v: 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders') => void;
@@ -95,6 +99,8 @@ export interface CuaHangTinhGia {
   setShowAdminOverrides: (v: boolean) => void;
   persistOverrides: (historyId: string) => void;
 
+  setSmallWidthPriceParam: (id: string, partial: Partial<SmallWidthMaterialPrice>) => void;
+
   themLSX: (order: ProductionOrder) => void;
   capNhatLSX: (id: string, patch: Partial<Pick<ProductionOrder, 'status' | 'manual'>>) => void;
   xoaLSX: (id: string) => void;
@@ -120,7 +126,7 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
   materials: INITIAL_MATERIALS,
   constants: INITIAL_CONSTANTS,
   profitTable: INITIAL_PROFIT_TABLE,
-  result: calculateQuote(defaultInput, INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE),
+  result: calculateQuote(defaultInput, INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES),
 
   activeView: 'manager',
   activeModule: 'calculator',
@@ -142,6 +148,7 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
   showAdminOverrides: false,
 
   productionOrders: [],
+  smallWidthPrices: INITIAL_SMALL_WIDTH_PRICES,
 
   // ── UI setters ────────────────────────────────────────────────────────────────
   setActiveView:    (v) => set({ activeView: v }),
@@ -200,14 +207,14 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
         // custom: giữ nguyên cylUnitPrice hiện tại
       }
 
-      return { input: newInput, result: calculateQuote(newInput, state.materials, state.constants, state.profitTable), isDirty: true };
+      return { input: newInput, result: calculateQuote(newInput, state.materials, state.constants, state.profitTable, state.smallWidthPrices), isDirty: true };
     });
   },
 
   resetInput: () => {
     set((state) => ({
       input: { ...defaultInput },
-      result: calculateQuote(defaultInput, state.materials, state.constants, state.profitTable),
+      result: calculateQuote(defaultInput, state.materials, state.constants, state.profitTable, state.smallWidthPrices),
       currentChotGia: 0, isDirty: false,
       saleOverrides: {}, adminOverrides: {},
       showSaleOverrides: false, showAdminOverrides: false,
@@ -256,7 +263,7 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
       if (!item) return state;
       return {
         input: { ...item.input },
-        result: calculateQuote(item.input, state.materials, state.constants, state.profitTable),
+        result: calculateQuote(item.input, state.materials, state.constants, state.profitTable, state.smallWidthPrices),
         currentChotGia: item.chotGia || 0,
         activeView: 'manager',
         isDirty: false,
@@ -296,31 +303,57 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
         ? { ...m, ...partial, pricePerM2: (partial.pricePerKg || m.pricePerKg) * (partial.thickness || m.thickness) * m.density / 1000 }
         : m
       );
-      luuConfigVaoLS(materials, state.constants, state.profitTable);
-      return { materials, result: calculateQuote(state.input, materials, state.constants, state.profitTable) };
+      const changedMaterial = materials.find(m => m.id === id);
+      const smallWidthPrices = changedMaterial
+        ? state.smallWidthPrices.map(p => p.materialId === id
+          ? { ...p, pricePerM2: p.pricePerKg * changedMaterial.thickness * changedMaterial.density / 1000 }
+          : p
+        )
+        : state.smallWidthPrices;
+      luuConfigVaoLS(materials, state.constants, state.profitTable, smallWidthPrices);
+      return { materials, smallWidthPrices, result: calculateQuote(state.input, materials, state.constants, state.profitTable, smallWidthPrices) };
+    });
+  },
+
+  setSmallWidthPriceParam: (id, partial) => {
+    set((state) => {
+      const smallWidthPrices = state.smallWidthPrices.map(p => {
+        if (p.id !== id) return p;
+        const material = state.materials.find(m => m.id === p.materialId);
+        if (!material) return p;
+        const newPricePerKg = partial.pricePerKg ?? p.pricePerKg;
+        const newWidthThresholdMm = partial.widthThresholdMm ?? p.widthThresholdMm;
+        return {
+          ...p,
+          ...partial,
+          pricePerM2: newPricePerKg * material.thickness * material.density / 1000,
+        };
+      });
+      luuConfigVaoLS(state.materials, state.constants, state.profitTable, smallWidthPrices);
+      return { smallWidthPrices, result: calculateQuote(state.input, state.materials, state.constants, state.profitTable, smallWidthPrices) };
     });
   },
 
   setConstantParam: (key, val) => {
     set((state) => {
       const constants = { ...state.constants, [key]: val };
-      luuConfigVaoLS(state.materials, constants, state.profitTable);
-      return { constants, result: calculateQuote(state.input, state.materials, constants, state.profitTable) };
+      luuConfigVaoLS(state.materials, constants, state.profitTable, state.smallWidthPrices);
+      return { constants, result: calculateQuote(state.input, state.materials, constants, state.profitTable, state.smallWidthPrices) };
     });
   },
 
   recalculate: () => {
-    set((state) => ({ result: calculateQuote(state.input, state.materials, state.constants, state.profitTable) }));
+    set((state) => ({ result: calculateQuote(state.input, state.materials, state.constants, state.profitTable, state.smallWidthPrices) }));
   },
 
   calculateForInput: (input) => {
     const state = get();
-    return calculateQuote(input, state.materials, state.constants, state.profitTable);
+    return calculateQuote(input, state.materials, state.constants, state.profitTable, state.smallWidthPrices);
   },
 
   calculateForQuantity: (quantity) => {
     const state = get();
-    return calculateMoqResult(state.input, quantity, state.materials, state.constants, state.profitTable);
+    return calculateMoqResult(state.input, quantity, state.materials, state.constants, state.profitTable, state.smallWidthPrices);
   },
 
   optimizeCurrentThickness: () => {
