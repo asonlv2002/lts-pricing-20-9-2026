@@ -480,7 +480,7 @@ export function tinhGia(
   const khoiLuongPhuKienThemPerDonVi = soLuong > 0 ? (tongKhoiLuongKhoa + tongKhoiLuongBangKeo) / soLuong : 0;
 
   const chieuDaiCuonMang = dauVao.chieuDaiCuonMang || 6000;
-  const dienTichCuonMang = laMang ? (khoTrai * chieuDaiCuonMang / soHinh) : 0;
+  const dienTichCuonMang = laMang ? khoTrai * chieuDaiCuonMang : 0;
 
   const soTuiPerThuungThucTe = soTuiPerThuung || 0;
   const giaThuungThucTe = giaThuung || 0;

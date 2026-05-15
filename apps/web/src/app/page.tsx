@@ -134,7 +134,6 @@ export default function TrangChinh() {
     yVuotBatDau.current = null;
   }, []);
 
-  // ── Kéo panel desktop ───────────────────────────────────────────────────────
   const xuLyKeoPanel = useCallback((delta: number) => {
     datDoRongTrai(prev => {
       const hienTai = prev ?? 300;
@@ -285,7 +284,10 @@ export default function TrangChinh() {
         <div className="main-grid" style={gridStyle}>
 
           {/* Panel trái: nhập liệu */}
-          <div id="inputCard" className={`grid-col-input ${tabMobile === 'input' ? 'active' : ''}`}>
+          <div
+            id="inputCard"
+            className={`grid-col-input ${tabMobile === 'input' ? 'active' : ''}`}
+          >
             {laMobile && tabMobile === 'input' && ketQua && (
               <ThanhGiaMini onNhan={() => datTabMobile('result')} />
             )}
@@ -298,7 +300,10 @@ export default function TrangChinh() {
           )}
 
           {/* Panel phải: kết quả */}
-          <div id="resultArea" className={`grid-col-result ${tabMobile === 'result' ? 'active' : ''}`}>
+          <div
+            id="resultArea"
+            className={`grid-col-result ${tabMobile === 'result' ? 'active' : ''}`}
+          >
             <ManHinhQuanLy />
             <ManHinhKyThuat />
           </div>

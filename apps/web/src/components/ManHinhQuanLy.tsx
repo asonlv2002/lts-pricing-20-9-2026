@@ -639,8 +639,8 @@ export default function ManagerView() {
                 <tbody>
                   {uniRows.map((row, idx) => {
                     let dWidth = row.stage !== 'CẮT' ? rInput.spreadWidth * rInput.numImages + 0.02 : row.width;
-                    let dMeters = row.meters / rInput.numImages;
-                    let dWaste = row.waste / rInput.numImages;
+                    let dMeters = row.meters;
+                    let dWaste = row.waste;
                     let inputVL = dMeters + dWaste;
 
                     if (row.materialDetails?.length) {

@@ -68,12 +68,12 @@ export default function TechView() {
       <div className="stat-grid" id="t-stats">
         <div className="stat-card accent">
           <div className="stat-label">Đầu Vào Khâu In</div>
-          <div className="stat-value">{fmt((r.printMeters + r.printWaste) / input.numImages, 0)} m</div>
+          <div className="stat-value">{fmt(r.printMeters + r.printWaste, 0)} m</div>
         </div>
         {input.productType !== 'mang' && (
           <div className="stat-card cyan">
             <div className="stat-label">Đầu Vào Khâu Cắt</div>
-            <div className="stat-value">{fmt((r.cutMeters + r.cutWaste) / input.numImages, 0)} m</div>
+            <div className="stat-value">{fmt(r.cutMeters + r.cutWaste, 0)} m</div>
           </div>
         )}
         <div className="stat-card green">
@@ -103,8 +103,8 @@ export default function TechView() {
             <tbody>
               {uniRows.map((row, idx) => {
                 let dWidth = row.stage !== 'CẮT' ? input.spreadWidth * input.numImages + 0.02 : row.width;
-                let dMeters = row.meters / input.numImages;
-                let dWaste = row.waste / input.numImages;
+                let dMeters = row.meters;
+                let dWaste = row.waste;
                 let inputVL = dMeters + dWaste;
                 return (
                   <tr key={idx}>
