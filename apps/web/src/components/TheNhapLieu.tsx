@@ -161,25 +161,33 @@ export default function InputCard() {
     const altMat = materials.find(m => m.id === (input as any).layer2AltId);
     const lengths = (input as any).layer2Lengths || { mat1: 0, mat2: 0 };
     if (!mainMat || !altMat) return [];
-    const frontPart = (input as any).layer2FrontPart || 'main';
+
     const pairingMode = (input as any).layer2PairingMode || 'bottom_to_bottom';
-    const partInfo = (part: 'front' | 'back_bottom') => {
-      const useMain = (part === 'front') === (frontPart === 'main');
-      return {
-        part,
-        mat: useMain ? mainMat : altMat,
-        width: useMain ? lengths.mat1 : lengths.mat2,
-        source: useMain ? 'main' : 'alt',
-      };
-    };
-    const front = partInfo('front');
-    const backBottom = partInfo('back_bottom');
-    if ((input.numImages || 1) >= 2) {
-      return pairingMode === 'front_to_front'
-        ? [backBottom, front, front, backBottom]
-        : [front, backBottom, backBottom, front];
+    const isTwoImages = (input.numImages || 1) >= 2;
+    if (!isTwoImages) {
+      return [
+        { mat: mainMat, width: Math.max(lengths.mat1 || 0, 0), source: 'main' },
+        { mat: altMat, width: Math.max(lengths.mat2 || 0, 0), source: 'alt' },
+      ];
     }
-    return [front, backBottom];
+
+    if (pairingMode === 'front_to_front') {
+      const altSideWidth = Math.max((lengths.mat2 || 0) / 2, 0);
+      const mainCenterWidth = Math.max(lengths.mat1 || 0, 0);
+      return [
+        { mat: altMat, width: altSideWidth, source: 'alt' },
+        { mat: mainMat, width: mainCenterWidth, source: 'main' },
+        { mat: altMat, width: altSideWidth, source: 'alt' },
+      ];
+    }
+
+    const mainSideWidth = Math.max((lengths.mat1 || 0) / 2, 0);
+    const altCenterWidth = Math.max(lengths.mat2 || 0, 0);
+    return [
+      { mat: mainMat, width: mainSideWidth, source: 'main' },
+      { mat: altMat, width: altCenterWidth, source: 'alt' },
+      { mat: mainMat, width: mainSideWidth, source: 'main' },
+    ];
   };
 
   const Layer2ChoiceCard = ({ active, title, subtitle, onClick }: { active: boolean; title: string; subtitle?: string; onClick: () => void }) => (
@@ -212,7 +220,7 @@ export default function InputCard() {
           <div className="mic-adjust" style={{ marginTop: '6px', paddingLeft: '8px', borderLeft: '2px solid var(--border)' }}>
             <label className="form-label" style={{ fontSize: '0.72rem' }}>Độ dày (mic)</label>
             <select className="form-select" value={matId || ''} onChange={e => handleLayerChange(layerKey, e.target.value)}>
-              <option value="">— Chọn Độ Dày —</option>
+              <option value="">— Chọn độ dày —</option>
               {materials.filter(m => m.group === currentGroup.replace('GROUP_', '')).map(m => (
                 <option key={m.id} value={m.id}>{m.thickness}</option>
               ))}
@@ -345,7 +353,7 @@ export default function InputCard() {
   };
 
   return (
-    <div className="card" id="inputCard" style={{ position: 'sticky', top: '64px' }}>
+    <div className="card input-form-card" style={{ position: 'sticky', top: '64px' }}>
       <div className="auto-calc-badge"><div className="pulse-dot"></div> Tự động tính khi thay đổi</div>
       <div className="card-title"><span className="icon">📝</span> Thông tin đơn hàng</div>
 
@@ -425,7 +433,7 @@ export default function InputCard() {
               <DecimalInput className="form-input" value={input.cutStep || 0} step="0.001" min="0.05" onChange={(val: number) => capNhatDauVao({ cutStep: val })} />
             </div>
             <div className="form-group">
-              <label className="form-label">Số con hình</label>
+              <label className="form-label">Số hình trên khổ</label>
               <DecimalInput className="form-input" value={input.numImages || 0} step="1" min="1" onChange={(val: number) => capNhatDauVao({ numImages: val })} />
             </div>
           </div>
@@ -500,142 +508,147 @@ export default function InputCard() {
           )}
 
           {renderLayerSelect('Lớp 1', 'layer1Id', false)}
-          {renderLayerSelect('Lớp 2', 'layer2Id', !input.layer1Id)}
-          {input.layer2Id && (
-            <div style={{ marginTop: '-6px', marginBottom: '10px' }}>
-              {!(input as any).layer2AltId ? (
-                <button
-                  className="btn btn-secondary"
-                  type="button"
-                  onClick={() => capNhatDauVao({
-                    layer2AltId: input.layer2Id,
-                    layer2Lengths: { mat1: input.spreadWidth || 0, mat2: 0 },
-                    layer2FrontPart: 'main',
-                    layer2PairingMode: 'bottom_to_bottom',
-                  } as any)}
-                >
-                  + Thêm cấu trúc
-                </button>
-              ) : (
-                <div className="layer2-split-stack">
-                  <select aria-label="Chọn vật liệu lớp 2 thứ hai" className="form-select" value={(input as any).layer2AltId || ''} onChange={e => capNhatDauVao({ layer2AltId: e.target.value || null } as any)}>
-                    <option value="">-- Chọn vật liệu --</option>
-                    {materials.filter(m => m.id !== input.layer2Id && m.thickness === (materials.find(x => x.id === input.layer2Id)?.thickness || 0)).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
-
-                  <div className="layer2-length-row">
-                    <DecimalInput
-                      className="form-input"
-                      value={(input as any).layer2Lengths?.mat1 || 0}
-                      placeholder="Khổ vật liệu 1 (m)"
-                      step="0.001"
-                      onChange={(val: number) => {
-                        const current = (input as any).layer2Lengths || { mat1: 0, mat2: 0 };
-                        capNhatDauVao({ layer2Lengths: { ...current, mat1: val } } as any);
-                      }}
-                    />
-                    <DecimalInput
-                      className="form-input"
-                      value={(input as any).layer2Lengths?.mat2 || 0}
-                      placeholder="Khổ vật liệu 2 (m)"
-                      step="0.001"
-                      onChange={(val: number) => {
-                        const current = (input as any).layer2Lengths || { mat1: 0, mat2: 0 };
-                        capNhatDauVao({ layer2Lengths: { ...current, mat2: val } } as any);
-                      }}
-                    />
-                  </div>
-
-                  {(() => {
-                    const mainMat = materials.find(m => m.id === input.layer2Id);
-                    const altMat = materials.find(m => m.id === (input as any).layer2AltId);
-                    const frontPart = (input as any).layer2FrontPart || 'main';
-                    const pairingMode = (input as any).layer2PairingMode || 'bottom_to_bottom';
-                    const otherRole = frontPart === 'main' ? altMat?.name : mainMat?.name;
-                    const segments = getLayer2LayoutSegments();
-                    return (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
-                        <div>
-                          <label className="form-label">Vật liệu nào là MẶT TRƯỚC?</label>
-                          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                            <Layer2ChoiceCard active={frontPart === 'main'} title={mainMat?.name || 'Vật liệu chính'} subtitle="Vật liệu chính" onClick={() => capNhatDauVao({ layer2FrontPart: 'main' } as any)} />
-                            <Layer2ChoiceCard active={frontPart === 'alt'} title={altMat?.name || 'Vật liệu phụ'} subtitle="Vật liệu phụ" onClick={() => capNhatDauVao({ layer2FrontPart: 'alt' } as any)} />
-                          </div>
-                          {otherRole && <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '6px' }}>Vật liệu còn lại: <strong>{otherRole}</strong> = ĐÁY + MẶT SAU</div>}
-                        </div>
-
-                        {(input.numImages || 1) >= 2 && (
-                          <div>
-                            <label className="form-label">Ghép 2 con hình</label>
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                              <Layer2ChoiceCard active={pairingMode === 'bottom_to_bottom'} title="Hai đáy ghép nhau" onClick={() => capNhatDauVao({ layer2PairingMode: 'bottom_to_bottom' } as any)} />
-                              <Layer2ChoiceCard active={pairingMode === 'front_to_front'} title="Hai trước ghép nhau" onClick={() => capNhatDauVao({ layer2PairingMode: 'front_to_front' } as any)} />
-                            </div>
-                          </div>
-                        )}
-
-                        {segments.length > 0 && (
-                          <div>
-                            <label className="form-label">Xem trước bố trí khổ</label>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: '6px' }}>
-                              {(input.numImages || 1)} con hình{(input.numImages || 1) >= 2 ? ` - ${pairingMode === 'bottom_to_bottom' ? 'Hai đáy ghép nhau' : 'Hai trước ghép nhau'}` : ''}
-                            </div>
-                            <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', minHeight: '54px' }}>
-                              {segments.map((seg: any, idx: number) => (
-                                <div key={idx} style={{ flex: Math.max(seg.width || 0.01, 0.01), minWidth: '58px', padding: '6px 5px', borderRight: idx < segments.length - 1 ? '1px solid var(--border)' : 'none', background: seg.part === 'front' ? 'rgba(8,145,178,0.10)' : 'rgba(217,119,6,0.10)', textAlign: 'center' }}>
-                                  <div style={{ fontSize: '0.68rem', fontWeight: 800, color: 'var(--text)' }}>{seg.part === 'front' ? 'TRƯỚC' : 'ĐÁY + SAU'}</div>
-                                  <div style={{ fontSize: '0.72rem', fontWeight: 700 }}>{seg.mat.name.split(' ')[0]}</div>
-                                  <div style={{ fontSize: '0.68rem', color: 'var(--muted)' }}>{(seg.width || 0).toFixed(3)}m</div>
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })()}
-
-                  {(() => {
-                    const lengths = (input as any).layer2Lengths;
-                    if (!lengths) return null;
-                    if ((input as any).layer2AltId === input.layer2Id) {
-                      return (
-                        <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span aria-hidden="true">⚠️</span>
-                          <span>Vật liệu phụ phải khác vật liệu chính trong lớp 2</span>
-                        </div>
-                      );
-                    }
-                    if (lengths.mat1 <= 0 || lengths.mat2 <= 0) {
-                      return (
-                        <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span aria-hidden="true">⚠️</span>
-                          <span>Khổ vật liệu 1 và 2 phải lớn hơn 0m</span>
-                        </div>
-                      );
-                    }
-                    const total = lengths.mat1 + lengths.mat2;
-                    const spreadWidthM = input.spreadWidth || 0;
-                    const diff = Math.abs(total - spreadWidthM);
-                    if (diff > 0.0005) {
-                      return (
-                        <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span aria-hidden="true">⚠️</span>
-                          <span>Tổng khổ ({total.toFixed(3)}m) ≠ khổ trải ({spreadWidthM.toFixed(3)}m)</span>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div style={{ padding: '6px', background: 'rgba(5, 150, 105, 0.1)', border: '1px solid #059669', borderRadius: '6px', color: '#059669', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span aria-hidden="true">✓</span>
-                        <span>Tổng khổ khớp với khổ trải</span>
-                      </div>
-                    );
-                  })()}
-
-                  <button className="btn btn-secondary" type="button" onClick={() => capNhatDauVao({ layer2AltId: null, layer2Lengths: undefined, layer2FrontPart: 'main', layer2PairingMode: 'bottom_to_bottom' } as any)}>Bỏ cấu trúc phụ</button>
+          {!(input as any).layer2AltId ? (
+            <>
+              {renderLayerSelect('Lớp 2', 'layer2Id', !input.layer1Id)}
+              {input.layer2Id && (
+                <div style={{ marginTop: '-6px', marginBottom: '10px' }}>
+                  <button
+                    className="btn btn-secondary"
+                    type="button"
+                    onClick={() => capNhatDauVao({
+                      layer2AltId: input.layer2Id,
+                      layer2Lengths: { mat1: input.spreadWidth || 0, mat2: 0 },
+                      layer2FrontPart: 'main',
+                      layer2PairingMode: 'bottom_to_bottom',
+                    } as any)}
+                  >
+                    + Thêm cấu trúc
+                  </button>
                 </div>
               )}
+            </>
+          ) : (
+            <div className="form-group">
+              <label className="form-label">Lớp 2</label>
+              <div className="layer2-split-stack">
+                {(() => {
+                  const isTwoImages = (input.numImages || 1) >= 2;
+                  const pairingMode = (input as any).layer2PairingMode || 'bottom_to_bottom';
+                  const outerIsMain = pairingMode === 'bottom_to_bottom';
+                  const outerMat = outerIsMain ? materials.find(m => m.id === input.layer2Id) : materials.find(m => m.id === (input as any).layer2AltId);
+                  const centerMat = outerIsMain ? materials.find(m => m.id === (input as any).layer2AltId) : materials.find(m => m.id === input.layer2Id);
+                  const sideWidth = outerIsMain
+                    ? ((input as any).layer2Lengths?.mat1 || 0) / (isTwoImages ? 2 : 1)
+                    : ((input as any).layer2Lengths?.mat2 || 0) / (isTwoImages ? 2 : 1);
+                  const centerWidth = outerIsMain
+                    ? ((input as any).layer2Lengths?.mat2 || 0)
+                    : ((input as any).layer2Lengths?.mat1 || 0);
+                  const setOuterMaterial = (val: string) => {
+                    if (outerIsMain) handleLayerChange('layer2Id', val);
+                    else capNhatDauVao({ layer2AltId: val || null } as any);
+                  };
+                  const setCenterMaterial = (val: string) => {
+                    if (outerIsMain) capNhatDauVao({ layer2AltId: val || null } as any);
+                    else handleLayerChange('layer2Id', val);
+                  };
+                  const setOuterWidth = (val: number) => {
+                    const current = (input as any).layer2Lengths || { mat1: 0, mat2: 0 };
+                    if (outerIsMain) capNhatDauVao({ layer2Lengths: { ...current, mat1: val * (isTwoImages ? 2 : 1) } } as any);
+                    else capNhatDauVao({ layer2Lengths: { ...current, mat2: val * (isTwoImages ? 2 : 1) } } as any);
+                  };
+                  const setCenterWidth = (val: number) => {
+                    const current = (input as any).layer2Lengths || { mat1: 0, mat2: 0 };
+                    if (outerIsMain) capNhatDauVao({ layer2Lengths: { ...current, mat2: val } } as any);
+                    else capNhatDauVao({ layer2Lengths: { ...current, mat1: val } } as any);
+                  };
+                  const matchingOuterOptions = materials.filter(m => !centerMat || (m.thickness === centerMat.thickness && m.id !== centerMat.id) || m.id === outerMat?.id);
+                  const matchingCenterOptions = materials.filter(m => !outerMat || (m.thickness === outerMat.thickness && m.id !== outerMat.id) || m.id === centerMat?.id);
+                  return (
+                    <div className={isTwoImages ? 'layer2-segment-grid layer2-segment-grid--three' : 'layer2-segment-grid'}>
+                      <div className="layer2-segment-cell">
+                        <select aria-label="Vật liệu ngoài" className="form-select" value={outerMat?.id || ''} onChange={e => setOuterMaterial(e.target.value)}>
+                          <option value="">-- Chọn vật liệu --</option>
+                          {matchingOuterOptions.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        </select>
+                        <DecimalInput className="form-input" value={sideWidth} placeholder="m" step="0.001" onChange={setOuterWidth} />
+                      </div>
+
+                      <div className="layer2-segment-cell">
+                        <select aria-label="Vật liệu giữa" className="form-select" value={centerMat?.id || ''} onChange={e => setCenterMaterial(e.target.value)}>
+                          <option value="">-- Chọn vật liệu --</option>
+                          {matchingCenterOptions.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                        </select>
+                        <DecimalInput className="form-input" value={centerWidth} placeholder="m" step="0.001" onChange={setCenterWidth} />
+                      </div>
+
+                      {isTwoImages && (
+                        <div className="layer2-segment-cell layer2-segment-cell--locked">
+                          <div className="layer2-locked-select">{outerMat?.name || '--'}</div>
+                          <div className="layer2-locked-input">{sideWidth ? sideWidth.toString() : ''}</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {(() => {
+                  const pairingMode = (input as any).layer2PairingMode || 'bottom_to_bottom';
+                  const segments = getLayer2LayoutSegments();
+                  return segments.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
+                      <div>
+                        <label className="form-label">Xem trước bố trí khổ</label>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--muted)', flex: 1 }}>
+                            {pairingMode === 'bottom_to_bottom' ? 'Vật liệu chính ở hai bên' : 'Vật liệu phụ ở hai bên'}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            style={{ padding: '6px 10px', fontSize: '0.75rem' }}
+                            onClick={() => capNhatDauVao({ layer2PairingMode: pairingMode === 'bottom_to_bottom' ? 'front_to_front' : 'bottom_to_bottom' } as any)}
+                          >
+                            Đảo
+                          </button>
+                        </div>
+                        <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', minHeight: '54px' }}>
+                          {segments.map((seg: any, idx: number) => (
+                            <div key={idx} style={{ flex: Math.max(seg.width || 0.01, 0.01), minWidth: '58px', padding: '10px 6px', borderRight: idx < segments.length - 1 ? '1px solid var(--border)' : 'none', background: seg.source === 'main' ? 'rgba(8,145,178,0.10)' : 'rgba(217,119,6,0.10)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                              <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text)' }}>{seg.mat.name.split(' ')[0]}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+
+                {(() => {
+                  const lengths = (input as any).layer2Lengths;
+                  if (!lengths) return null;
+                  if ((input as any).layer2AltId === input.layer2Id) {
+                    return <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem' }}>Vật liệu phụ phải khác vật liệu chính trong lớp 2</div>;
+                  }
+                  const mainMat = materials.find(m => m.id === input.layer2Id);
+                  const altMat = materials.find(m => m.id === (input as any).layer2AltId);
+                  if (mainMat && altMat && mainMat.thickness !== altMat.thickness) {
+                    return <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem' }}>Hai vật liệu trong lớp 2 phải cùng độ dày ({mainMat.thickness} mic ≠ {altMat.thickness} mic)</div>;
+                  }
+                  if (lengths.mat1 <= 0 || lengths.mat2 <= 0) {
+                    return <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem' }}>Khổ vật liệu 1 và 2 phải lớn hơn 0m</div>;
+                  }
+                  const total = lengths.mat1 + lengths.mat2;
+                  const spreadWidthM = input.spreadWidth || 0;
+                  const diff = Math.abs(total - spreadWidthM);
+                  if (diff > 0.0005) {
+                    return <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem' }}>Tổng khổ ({total.toFixed(3)}m) khác khổ trải ({spreadWidthM.toFixed(3)}m)</div>;
+                  }
+                  return <div style={{ padding: '6px', background: 'rgba(5, 150, 105, 0.1)', border: '1px solid #059669', borderRadius: '6px', color: '#059669', fontSize: '0.75rem' }}>Tổng khổ khớp với khổ trải</div>;
+                })()}
+
+                <button className="btn btn-secondary" type="button" onClick={() => capNhatDauVao({ layer2AltId: null, layer2Lengths: undefined, layer2FrontPart: 'main', layer2PairingMode: 'bottom_to_bottom' } as any)}>Bỏ cấu trúc phụ</button>
+              </div>
             </div>
           )}
           {renderLayerSelect('Lớp 3', 'layer3Id', !input.layer2Id)}
@@ -822,13 +835,13 @@ export default function InputCard() {
             alert(`Giá đề xuất: ${Math.round(result.finalPrice).toLocaleString('vi-VN')} đ/${unitLabel}`);
           }}
         >
-          ⚡ Tính Giá
+          ⚡ Tính giá
         </button>
       </div>
 
       <div className="quick-actions">
-        <button className="btn btn-sm btn-outline" onClick={handleReset}>🔄 Reset</button>
-        <button className="btn btn-sm btn-outline" onClick={handleCopy}>📋 Copy</button>
+        <button className="btn btn-sm btn-outline" onClick={handleReset}>🔄 Đặt lại</button>
+        <button className="btn btn-sm btn-outline" onClick={handleCopy}>📋 Sao chép</button>
       </div>
     </div>
   );

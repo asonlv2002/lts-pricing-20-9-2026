@@ -159,11 +159,11 @@ tieu('4. Chiều dài trục in (clamp về 0.7m)');
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-tieu('5. Màng: dienTichCuonMang = khoTrai × chieuDaiCuonMang / soHinh');
+tieu('5. Màng: dienTichCuonMang = khoTrai × chieuDaiCuonMang');
 // ════════════════════════════════════════════════════════════════════════════
 
 if (kq2) {
-  const kyVong = dauVaoMangCoBan.khoTrai * dauVaoMangCoBan.chieuDaiCuonMang / (dauVaoMangCoBan.soHinh || 1);
+  const kyVong = dauVaoMangCoBan.khoTrai * dauVaoMangCoBan.chieuDaiCuonMang;
   kiemGanDung('dienTichCuonMang đúng công thức', kq2.dienTichCuonMang, kyVong, 0.1);
   kiem('dienTichCuonMang > 0 khi màng', kq2.dienTichCuonMang > 0);
   if (kq1) kiem('dienTichCuonMang = 0 khi túi', kq1.dienTichCuonMang === 0);
@@ -348,7 +348,75 @@ tieu('15. Công thức phi hao — đảm bảo đúng');
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-tieu('16. Tối ưu độ dày — dung sai ±5 và nhảy nhóm');
+tieu('16. Regression 100 case — nhập liệu và kết quả màng/túi');
+// ════════════════════════════════════════════════════════════════════════════
+
+{
+  const widths = [0.32, 0.45, 0.5, 0.62, 0.8];
+  const rollLengths = [3000, 4000, 5000, 6000, 8000];
+  const imageCounts = [1, 2, 3, 4];
+  const filmQuantities = [3000, 5000, 9000, 12000, 18000];
+  const cutSteps = [0.18, 0.25, 0.32, 0.4, 0.55];
+  const bagQuantities = [5000, 10000, 15000, 20000, 30000];
+  let soCase = 0;
+
+  for (let i = 0; i < 50; i++) {
+    const khoTrai = widths[i % widths.length];
+    const chieuDaiCuonMang = rollLengths[Math.floor(i / widths.length) % rollLengths.length];
+    const soHinh = imageCounts[i % imageCounts.length];
+    const soLuong = filmQuantities[Math.floor(i / imageCounts.length) % filmQuantities.length];
+    const dauVao = { ...dauVaoMangCoBan, khoTrai, chieuDaiCuonMang, soHinh, soLuong };
+    const kq = tinhGia(dauVao, vatLieu, hangSo, bnlhuan);
+    soCase++;
+
+    const dienTichCuonKyVong = khoTrai * chieuDaiCuonMang;
+    const chieuDaiMangKyVong = soLuong / (khoTrai * soHinh);
+    const metCatKyVong = soLuong / (khoTrai * soHinh);
+    const khoNLKyVong = khoTrai * soHinh + 0.02;
+    const ok = !!kq &&
+      Math.abs(kq.tongDienTich - soLuong) < 0.001 &&
+      Math.abs(kq.dienTichCuonMang - dienTichCuonKyVong) < 0.001 &&
+      Math.abs(kq.chieuDaiMang - chieuDaiMangKyVong) < 0.001 &&
+      Math.abs(kq.metCat - metCatKyVong) < 0.001 &&
+      Math.abs(kq.khoCatIn - khoNLKyVong) < 0.001 &&
+      (soHinh === 1 || Math.abs(kq.dienTichCuonMang - dienTichCuonKyVong / soHinh) > 0.001) &&
+      kq.giaCuoiCung > 0;
+
+    kiem(`Case ${soCase}/100 màng: khổ=${khoTrai}m, cuộn=${chieuDaiCuonMang}m, số hình=${soHinh}, SL=${soLuong}m²`, ok,
+      kq ? `DT cuộn=${kq.dienTichCuonMang}, kỳ vọng=${dienTichCuonKyVong}; metCat=${kq.metCat}, kỳ vọng=${metCatKyVong}` : 'kết quả null');
+  }
+
+  for (let i = 0; i < 50; i++) {
+    const khoTrai = widths[i % widths.length];
+    const buocCat = cutSteps[Math.floor(i / widths.length) % cutSteps.length];
+    const soHinh = imageCounts[i % imageCounts.length];
+    const soLuong = bagQuantities[Math.floor(i / imageCounts.length) % bagQuantities.length];
+    const soMau = i % 5;
+    const dauVao = { ...dauVaoTuiCoBan, khoTrai, buocCat, soHinh, soLuong, soMau };
+    const kq = tinhGia(dauVao, vatLieu, hangSo, bnlhuan);
+    soCase++;
+
+    const dienTichTuiKyVong = khoTrai * buocCat;
+    const tongDienTichKyVong = soLuong * dienTichTuiKyVong;
+    const metCatKyVong = buocCat * soLuong / soHinh;
+    const khoNLKyVong = khoTrai * soHinh + 0.02;
+    const ok = !!kq &&
+      Math.abs(kq.dienTichTui - dienTichTuiKyVong) < 0.001 &&
+      Math.abs(kq.tongDienTich - tongDienTichKyVong) < 0.001 &&
+      Math.abs(kq.metCat - metCatKyVong) < 0.001 &&
+      Math.abs(kq.khoCatIn - khoNLKyVong) < 0.001 &&
+      Math.abs(kq.dienTichCuonMang) < 0.001 &&
+      kq.giaCuoiCung > 0 &&
+      kq.tongChiPhiCat > 0 &&
+      (soMau === 0 ? kq.hatHaoIn === 0 && kq.cpSXIn === 0 : kq.hatHaoIn > 0 && kq.cpSXIn > 0);
+
+    kiem(`Case ${soCase}/100 túi: khổ=${khoTrai}m, bước=${buocCat}m, số hình=${soHinh}, SL=${soLuong}, màu=${soMau}`, ok,
+      kq ? `metCat=${kq.metCat}, kỳ vọng=${metCatKyVong}; tổng DT=${kq.tongDienTich}, kỳ vọng=${tongDienTichKyVong}` : 'kết quả null');
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+tieu('17. Tối ưu độ dày — dung sai ±5 và nhảy nhóm');
 // ════════════════════════════════════════════════════════════════════════════
 
 {

@@ -167,8 +167,9 @@ body {
 .main-grid { display: grid; grid-template-columns: 345px 1fr; gap: 20px; align-items: start; }
 
 @media (min-width: 801px) {
-  html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page) body {
-    overflow: hidden; /* Disable page scroll, favor local scroll */
+  html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page) body,
+  html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page) .lts-shell-content {
+    overflow: hidden; /* Disable page scroll, favor local panel scroll */
   }
   html:not([data-layout="stacked"]):not([data-layout="bento"]) .main-grid > #inputCard,
   html:not([data-layout="stacked"]):not([data-layout="bento"]) .main-grid > #resultArea {
@@ -717,6 +718,46 @@ body {
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
+
+.layer2-line-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 8px;
+  align-items: center;
+}
+
+.layer2-segment-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.layer2-segment-grid--three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.layer2-segment-cell {
+  display: grid;
+  gap: 8px;
+}
+.layer2-locked-select,
+.layer2-locked-input {
+  width: 100%;
+  padding: 9px 12px;
+  background: var(--surface2);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  min-height: 39px;
+  display: flex;
+  align-items: center;
+}
+@media (max-width: 640px) {
+  .layer2-segment-grid,
+  .layer2-segment-grid--three {
+    grid-template-columns: 1fr;
+  }
+}
+
 .form-check { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 0.85rem; }
 .form-check input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; }
 .divider { height: 1px; background: var(--border); margin: 14px 0; }

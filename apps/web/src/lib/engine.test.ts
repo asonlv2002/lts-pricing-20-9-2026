@@ -184,12 +184,12 @@ section('4. Chiều dài trục in');
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-section('5. Màng: filmRollArea = spreadWidth × filmRollLength / numImages');
+section('5. Màng: filmRollArea = spreadWidth × filmRollLength');
 // ════════════════════════════════════════════════════════════════════════════
 
 if (r2) {
-  // spreadWidth=0.5, filmRollLength=6000, numImages=1 → 0.5×6000/1 = 3000 m²
-  const expectedArea = baseMangInput.spreadWidth * baseMangInput.filmRollLength / (baseMangInput.numImages || 1);
+  // spreadWidth=0.5, filmRollLength=6000 → 0.5×6000 = 3000 m²
+  const expectedArea = baseMangInput.spreadWidth * baseMangInput.filmRollLength;
   assertApprox('filmRollArea đúng công thức', r2.filmRollArea, expectedArea, 0.1);
   assert('filmRollArea > 0 khi màng', r2.filmRollArea > 0);
 

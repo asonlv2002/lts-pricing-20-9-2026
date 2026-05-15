@@ -314,7 +314,7 @@ section('4. ĐẶC TẢ KỸ THUẬT NVL');
   const filmLength = baseMang.quantity / (baseMang.spreadWidth * baseMang.numImages);
   assertApprox('4C.4 filmLength = quantity / (spreadWidth × numImages)', r.filmLength, filmLength, 0.01);
 
-  const filmRollArea = baseMang.spreadWidth * baseMang.filmRollLength / baseMang.numImages;
+  const filmRollArea = baseMang.spreadWidth * baseMang.filmRollLength;
   assertApprox('4C.5 filmRollArea đúng', r.filmRollArea, filmRollArea, 0.01);
 }
 

@@ -30,6 +30,14 @@ export interface VatLieu {
   giaMoiM2?: number;
 }
 
+export interface GiaVatLieuKhoNho {
+  id: string;
+  vatLieuId: string;
+  nguongKhoMm: number;
+  giaMoiKg: number;
+  giaMoiM2: number;
+}
+
 // ── Hằng số hệ thống ─────────────────────────────────────────────────────────
 export interface HangSo {
   giaKhoa: number;
@@ -128,6 +136,7 @@ export interface DauVaoTinhGia {
   doDayMucTieu?: number;
   ghiDeDayLop?: Record<string, number>;
   cauTrucNhieuVatLieu?: Record<string, string[]>;
+  bangGiaKhoNho?: GiaVatLieuKhoNho[];
 }
 
 // ── Trạng thái đơn hàng ───────────────────────────────────────────────────────
