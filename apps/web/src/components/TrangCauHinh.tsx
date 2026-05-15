@@ -53,6 +53,7 @@ export default function ConfigPage() {
       'laborCost', 'nhuPrice', 'moPrice', 'ghepCPSX', 'ghepWasteA', 'ghepWasteB', 'ghepWasteC', 'cutBase', 'cutWasteA', 'cutWasteB', 'cutWasteC',
       'cutThreshold1', 'cutThreshold2', 'cutMult1', 'cutMult2', 'cutMult3',
       'zipperPrice', 'zipperWeight', 'tapePrice', 'tapeWeight', 'handlePrice', 'handleWeight',
+      'boxPriceDefault', 'bagsPerBoxDefault', 'boxOptions',
       'printWasteA', 'printWasteB', 'printWasteC', 'printWasteD',
       'cylPriceA', 'cylPriceB', 'interestBase', 'interestSpread'
     ];
@@ -71,6 +72,13 @@ export default function ConfigPage() {
   const handleColorSetupChange = (colorNum: number, val: number) => {
     const newSetup = { ...constants.colorSetup, [colorNum]: val };
     capNhatHangSo('colorSetup' as any, newSetup as any);
+  };
+
+  const handleBoxOptionChange = (key: string, field: 'price' | 'bagsPerBox', val: number) => {
+    const boxOptions = (constants.boxOptions ?? []).map(option =>
+      option.key === key ? { ...option, [field]: val } : option
+    );
+    capNhatHangSo('boxOptions' as any, boxOptions as any);
   };
 
   const fmtVnd = (n: number) => n.toLocaleString('vi-VN');
@@ -110,6 +118,7 @@ export default function ConfigPage() {
           <a href="#sect-config-cat" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>✂️ CPSX Khâu cắt</a>
           <a href="#sect-config-loinhuan" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>💰 Lợi Nhuận</a>
           <a href="#sect-config-phukien" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>🎀 Giá Phụ Kiện</a>
+          <a href="#sect-config-donggoi" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>📦 Đóng gói</a>
         </div>
 
         <div className="config-content">
@@ -624,6 +633,50 @@ export default function ConfigPage() {
               </table>
             </div>
             <p className="config-note">💡 Đơn giá thay đổi tùy thời điểm, tự động áp dụng khi chốt giá cho đơn hàng.</p>
+          </div>
+
+          {/* ═══════════ NHÓM 6: ĐÓNG GÓI THÙNG ═══════════ */}
+          <div className="config-group-header" id="sect-config-donggoi" style={{scrollMarginTop: '80px'}}>📦 Đóng gói thùng</div>
+
+          <div className="card config-card">
+            <div className="config-section-title"><span>📦 Định mức loại thùng</span></div>
+            <div className="config-table-wrap">
+              <table className="config-table">
+                <thead>
+                  <tr>
+                    <th>Loại thùng</th>
+                    <th>Túi/thùng</th>
+                    <th>Giá thùng (đ)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(constants.boxOptions ?? []).map(option => (
+                    <tr key={option.key}>
+                      <td style={{fontWeight:700}}>{option.label}</td>
+                      <td>
+                        <input
+                          type="number"
+                          className="config-inline-input"
+                          value={option.bagsPerBox}
+                          onChange={e => handleBoxOptionChange(option.key, 'bagsPerBox', parseFloat(e.target.value) || 0)}
+                          style={{width:'100px', textAlign:'right', fontWeight:700}}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          className="config-inline-input"
+                          value={option.price}
+                          onChange={e => handleBoxOptionChange(option.key, 'price', parseFloat(e.target.value) || 0)}
+                          style={{width:'120px', textAlign:'right', fontWeight:700}}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="config-note">💡 Khi nhập đơn túi, chọn loại thùng để tự điền số túi/thùng và giá thùng. Người dùng vẫn có thể chỉnh tay cho trường hợp đặc biệt.</p>
           </div>
 
         </div>

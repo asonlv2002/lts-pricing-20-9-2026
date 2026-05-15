@@ -7,6 +7,26 @@
   "handleWeight": 0,
   "boxPriceDefault": 18000,
   "bagsPerBoxDefault": 1000,
+  "boxOptions": [
+    {
+      "key": "large",
+      "label": "Thùng lớn",
+      "price": 18000,
+      "bagsPerBox": 1000
+    },
+    {
+      "key": "medium",
+      "label": "Thùng trung bình",
+      "price": 15000,
+      "bagsPerBox": 500
+    },
+    {
+      "key": "small",
+      "label": "Thùng nhỏ",
+      "price": 12000,
+      "bagsPerBox": 250
+    }
+  ],
   "interestBase": 0.10,
   "interestSpread": 0.03,
   "paymentDays": 30,

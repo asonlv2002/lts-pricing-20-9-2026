@@ -38,6 +38,15 @@ export interface ProfitRow {
   col2: number;
 }
 
+export type BoxOptionKey = 'large' | 'medium' | 'small';
+
+export interface BoxOption {
+  key: BoxOptionKey;
+  label: string;
+  price: number;
+  bagsPerBox: number;
+}
+
 export interface AppConstants {
   zipperPrice: number;
   zipperWeight: number;
@@ -47,6 +56,7 @@ export interface AppConstants {
   handleWeight: number;
   boxPriceDefault: number;
   bagsPerBoxDefault: number;
+  boxOptions: BoxOption[];
   interestBase: number;    // lãi suất cơ sở (% / năm, dạng thập phân, vd: 0.10 = 10%)
   interestSpread: number;  // lãi suất thêm / tình huống (% / năm, dạng thập phân)
   paymentDays: number;
@@ -116,6 +126,7 @@ export interface CalculateInput {
   commissionInputValue: number;
   bagsPerBox: number;
   boxPrice: number;
+  boxOptionKey?: BoxOptionKey | 'custom' | null;
   shippingPerKm: number;
   shippingKm: number;
   cylLength: number;

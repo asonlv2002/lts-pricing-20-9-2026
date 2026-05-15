@@ -1,4 +1,4 @@
-import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice } from './types';
+import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption } from './types';
 // Single source of truth: /data ở root repo (dùng chung cho web + Flutter)
 import materialsJson  from '@data/materials.json';
 import constantsJson  from '@data/constants.json';
@@ -34,10 +34,18 @@ export const INITIAL_PROFIT_TABLE: ProfitRow[] = profitJson.rows as ProfitRow[];
 export const PROFIT_DEFAULT = profitJson.profitDefault;
 
 // ── App constants ─────────────────────────────────────────────────────────────
+const rawConstants = constantsJson as typeof constantsJson & { boxOptions?: BoxOption[] };
+const fallbackBoxOptions: BoxOption[] = [
+  { key: 'large', label: 'Thùng lớn', price: rawConstants.boxPriceDefault ?? 0, bagsPerBox: rawConstants.bagsPerBoxDefault ?? 0 },
+  { key: 'medium', label: 'Thùng trung bình', price: rawConstants.boxPriceDefault ?? 0, bagsPerBox: rawConstants.bagsPerBoxDefault ?? 0 },
+  { key: 'small', label: 'Thùng nhỏ', price: rawConstants.boxPriceDefault ?? 0, bagsPerBox: rawConstants.bagsPerBoxDefault ?? 0 },
+];
+
 export const INITIAL_CONSTANTS: AppConstants = {
-  ...constantsJson,
+  ...rawConstants,
+  boxOptions: rawConstants.boxOptions?.length ? rawConstants.boxOptions : fallbackBoxOptions,
   // JSON stores colorSetup keys as strings → convert back to number keys
   colorSetup: Object.fromEntries(
-    Object.entries(constantsJson.colorSetup).map(([k, v]) => [Number(k), v])
+    Object.entries(rawConstants.colorSetup).map(([k, v]) => [Number(k), v])
   ) as Record<number, number>,
 };

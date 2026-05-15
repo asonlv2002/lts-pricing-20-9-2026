@@ -101,7 +101,7 @@ const DecimalInput = ({ value, onChange, placeholder, min, step, className, disa
 };
 
 export default function InputCard() {
-  const { input, setInput: capNhatDauVao, materials, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness } = dungCuaHangTinhGia();
+  const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness } = dungCuaHangTinhGia();
   const [layerGroups, setLayerGroups] = React.useState<Record<string, string>>({});
 
   const handleProductType = (val: string) => {
@@ -263,6 +263,25 @@ export default function InputCard() {
       commissionRate: unit === 'percent' ? val / 100 : 0,
       commissionFixedVND: unit === 'vnd' ? val : 0
     });
+  };
+
+  const handleBoxOptionChange = (key: string) => {
+    if (key === 'custom' || key === '') {
+      capNhatDauVao({ boxOptionKey: key === 'custom' ? 'custom' : null });
+      return;
+    }
+
+    const selected = constants.boxOptions?.find(option => option.key === key);
+    if (!selected) return;
+    capNhatDauVao({
+      boxOptionKey: selected.key,
+      bagsPerBox: selected.bagsPerBox,
+      boxPrice: selected.price,
+    });
+  };
+
+  const handleBoxOverride = (field: 'bagsPerBox' | 'boxPrice', val: number) => {
+    capNhatDauVao({ [field]: val, boxOptionKey: 'custom' } as any);
   };
 
   const StructurePreview = () => {
@@ -754,16 +773,42 @@ export default function InputCard() {
                 <FormattedNumberInput className="form-input" value={input.boxPrice || 0} onChange={(val: number) => capNhatDauVao({ boxPrice: val })} />
               </div>
             ) : (
-              <div className="form-row">
+              <>
                 <div className="form-group">
-                  <label className="form-label">Túi/thùng</label>
-                  <FormattedNumberInput className="form-input" value={input.bagsPerBox || 0} onChange={(val: number) => capNhatDauVao({ bagsPerBox: val })} />
+                  <label className="form-label">Loại thùng</label>
+                  <select
+                    className="form-select"
+                    value={input.boxOptionKey ?? ''}
+                    onChange={e => handleBoxOptionChange(e.target.value)}
+                  >
+                    <option value="">— Chọn loại thùng —</option>
+                    {(constants.boxOptions ?? []).map(option => (
+                      <option key={option.key} value={option.key}>
+                        {option.label} — {option.bagsPerBox.toLocaleString('vi-VN')} túi / {option.price.toLocaleString('vi-VN')} đ
+                      </option>
+                    ))}
+                    <option value="custom">Tự nhập</option>
+                  </select>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '6px' }}>
+                    Chọn loại thùng để tự điền số túi/thùng và giá thùng; có thể chỉnh tay bên dưới.
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label className="form-label">Giá thùng (đ)</label>
-                  <FormattedNumberInput className="form-input" value={input.boxPrice || 0} onChange={(val: number) => capNhatDauVao({ boxPrice: val })} />
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Túi/thùng</label>
+                    <FormattedNumberInput className="form-input" value={input.bagsPerBox || 0} onChange={(val: number) => handleBoxOverride('bagsPerBox', val)} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Giá thùng (đ)</label>
+                    <FormattedNumberInput className="form-input" value={input.boxPrice || 0} onChange={(val: number) => handleBoxOverride('boxPrice', val)} />
+                  </div>
                 </div>
-              </div>
+                {input.boxOptionKey === 'custom' && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '-4px', marginBottom: '8px' }}>
+                    Đang dùng định mức thùng nhập tay cho đơn này.
+                  </div>
+                )}
+              </>
             )}
             <div className="form-row">
               <div className="form-group">

@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import type { Material, ProfitRow } from '../lib/types';
+import type { Material, ProfitRow, BoxOption } from '../lib/types';
 import TheNhapLieu from '../components/TheNhapLieu';
 import ManHinhQuanLy from '../components/ManHinhQuanLy';
 import ManHinhKyThuat from '../components/ManHinhKyThuat';
@@ -208,6 +208,7 @@ export default function TrangChinh() {
           smallWidthPrices?: Array<{ id: string; materialId: string; widthThresholdMm: number; pricePerKg: number }>;
           cpsx?: Record<string, any>;
           printWaste?: { colorSetup?: Record<number, number>; A?: number; B?: number; C?: number; D?: number };
+          packaging?: { boxOptions?: BoxOption[]; boxPriceDefault?: number; bagsPerBoxDefault?: number };
           profitTable?: Array<{ col1: number; col2: number }>;
         };
         dungCuaHangTinhGia.setState(s => {
@@ -230,6 +231,11 @@ export default function TrangChinh() {
             });
           }
           const hangSoMoi = { ...s.constants, ...(cfg.cpsx || {}) };
+          if (cfg.packaging) {
+            if (cfg.packaging.boxOptions?.length) hangSoMoi.boxOptions = cfg.packaging.boxOptions;
+            if (cfg.packaging.boxPriceDefault != null) hangSoMoi.boxPriceDefault = cfg.packaging.boxPriceDefault;
+            if (cfg.packaging.bagsPerBoxDefault != null) hangSoMoi.bagsPerBoxDefault = cfg.packaging.bagsPerBoxDefault;
+          }
           if (cfg.printWaste) {
             if (cfg.printWaste.colorSetup) hangSoMoi.colorSetup = cfg.printWaste.colorSetup;
             if (cfg.printWaste.A != null) hangSoMoi.printWasteA = cfg.printWaste.A;
@@ -266,6 +272,11 @@ export default function TrangChinh() {
         zipperPrice: hangSo.zipperPrice, zipperWeight: hangSo.zipperWeight,
         tapePrice: hangSo.tapePrice, tapeWeight: hangSo.tapeWeight,
         handlePrice: hangSo.handlePrice, handleWeight: hangSo.handleWeight,
+      },
+      packaging: {
+        boxOptions: hangSo.boxOptions,
+        boxPriceDefault: hangSo.boxPriceDefault,
+        bagsPerBoxDefault: hangSo.bagsPerBoxDefault,
       },
       printWaste: { colorSetup: hangSo.colorSetup, A: hangSo.printWasteA, B: hangSo.printWasteB, C: hangSo.printWasteC, D: hangSo.printWasteD },
       profitTable: bangLoiNhuan.map((r: ProfitRow) => ({ col1: r.col1, col2: r.col2 })),

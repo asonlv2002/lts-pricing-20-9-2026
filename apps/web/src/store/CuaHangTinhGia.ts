@@ -27,6 +27,11 @@ function luuConfigVaoLS(materials: Material[], constants: AppConstants, profitTa
       tapePrice: constants.tapePrice, tapeWeight: constants.tapeWeight,
       handlePrice: constants.handlePrice, handleWeight: constants.handleWeight,
     },
+    packaging: {
+      boxOptions: constants.boxOptions,
+      boxPriceDefault: constants.boxPriceDefault,
+      bagsPerBoxDefault: constants.bagsPerBoxDefault,
+    },
     printWaste: { colorSetup: constants.colorSetup, A: constants.printWasteA, B: constants.printWasteB, C: constants.printWasteC, D: constants.printWasteD },
     profitTable: profitTable.map(r => ({ col1: r.col1, col2: r.col2 })),
   });
@@ -116,7 +121,7 @@ const defaultInput: CalculateInput = {
   hasZipper: false, hasTape: false, hasHandle: false,
   paymentDays: 30, profitColumn: 2,
   commissionRate: 0, commissionFixedVND: 0, commissionUnit: 'percent', commissionInputValue: 0,
-  bagsPerBox: 0, boxPrice: 0, shippingPerKm: 0, shippingKm: 0,
+  bagsPerBox: 0, boxPrice: 0, boxOptionKey: null, shippingPerKm: 0, shippingKm: 0,
   cylLength: 0, cylCircum: 0, cylUnitPrice: 7300000, cylType: 'A' as const, cylIncluded: false, targetThickness: 0, micOverrides: {},
 };
 
