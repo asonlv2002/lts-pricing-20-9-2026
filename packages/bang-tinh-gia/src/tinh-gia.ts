@@ -365,9 +365,9 @@ export function tinhGia(
     let chiTietVatLieu: any[] | undefined;
     if (soLop === 2 && lopPhu) {
       if (dauVao.chieuDaiLop2 && dauVao.chieuDaiLop2.vl1 > 0 && dauVao.chieuDaiLop2.vl2 > 0) {
-        const khoLopChinh = dauVao.chieuDaiLop2.vl1 / 1000;
-        const khoLopPhu = dauVao.chieuDaiLop2.vl2 / 1000;
         const soHinhThucTe = Math.max(1, soHinh || 1);
+        const khoLopChinh = dauVao.chieuDaiLop2.vl1 / 1000 / (soHinhThucTe > 1 ? 2 : 1);
+        const khoLopPhu = dauVao.chieuDaiLop2.vl2 / 1000 / (soHinhThucTe > 1 ? 2 : 1);
         const bienMoiMep = 0.01;
         const themChiTiet = (vl: VatLieu, khoSegment: number) => {
           const donGia = layGiaVatLieuTheoKho(vl, khoSegment);
