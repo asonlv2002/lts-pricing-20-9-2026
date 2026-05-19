@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 import React, { useState, useMemo } from 'react';
 import {
   FileText, Search, Clock, Building2, Calendar,
   Send, ShieldCheck, PackageCheck, Eye, Users, ChevronDown, ChevronRight,
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import { lapDongSanXuat, tinhBaoGia, xuLyDongGhiDe } from '../lib/manager-calculation';
 import type { HistoryItem, QuoteStatus, OverrideTable } from '../lib/types';
 import { QUOTE_STATUS_CONFIG } from '../lib/types';
 
@@ -210,6 +211,16 @@ function QuotationCard({ muc, onClick, statusControl }: {
   const saleCount = demGhiDe(muc.saleOverrides);
   const adminCount = demGhiDe(muc.adminOverrides);
   const hasAnyOverrides = saleCount > 0 || adminCount > 0;
+  const { materials, constants, profitTable, smallWidthPrices } = dungCuaHangTinhGia();
+
+  const specRows = useMemo(() => {
+    const res = tinhBaoGia(muc.input, materials, constants, profitTable, smallWidthPrices);
+    if (!res) return [];
+    const base = lapDongSanXuat(res, constants).uniRows;
+    const source = adminCount > 0 ? (muc.saleOverrides ?? {}) : {};
+    const current = adminCount > 0 ? (muc.adminOverrides ?? {}) : (muc.saleOverrides ?? {});
+    return xuLyDongGhiDe(base, source, current).rows;
+  }, [muc.input, muc.saleOverrides, muc.adminOverrides, materials, constants, profitTable, smallWidthPrices, adminCount]);
 
   return (
     <div className="quote-card" onClick={onClick} style={{ cursor: 'pointer' }}>
@@ -306,6 +317,23 @@ function QuotationCard({ muc, onClick, statusControl }: {
             <div className="override-diff-summary" onClick={e => e.stopPropagation()}>
               {hienThiKhacBietGhiDe(muc.saleOverrides, 'sale', '💼 Sale')}
               {hienThiKhacBietGhiDe(muc.adminOverrides, 'admin', '👑 Admin')}
+              <div className="override-diff-group-title" style={{ marginTop: 8 }}>📋 Đặc tả kỹ thuật sau thay đổi</div>
+              {specRows.flatMap(row => row.materialDetails?.length
+                ? row.materialDetails.map((d, idx) => (
+                  <div key={`${row.rowKey}-${idx}`} className="override-diff-item">
+                    <span className="diff-label">{row.stage} · {d.name}</span>
+                    <span className="diff-arrow">→</span>
+                    <span className="diff-new">Khổ {d.width.toLocaleString('vi-VN', { maximumFractionDigits: 3 })}m · VL {(row.inputVL).toLocaleString('vi-VN', { maximumFractionDigits: 0 })}m · {d.matPrice.toLocaleString('vi-VN', { maximumFractionDigits: 1 })}đ/m²</span>
+                  </div>
+                ))
+                : [(
+                  <div key={row.rowKey} className="override-diff-item">
+                    <span className="diff-label">{row.stage} · {row.mat || '—'}</span>
+                    <span className="diff-arrow">→</span>
+                    <span className="diff-new">Khổ {row.width.toLocaleString('vi-VN', { maximumFractionDigits: 3 })}m · TP {row.meters.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}m · Hao {row.waste.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}m · VL {row.inputVL.toLocaleString('vi-VN', { maximumFractionDigits: 0 })}m</span>
+                  </div>
+                )]
+              )}
             </div>
           )}
         </>

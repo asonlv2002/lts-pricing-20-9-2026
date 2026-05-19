@@ -177,29 +177,60 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
             </tr>
           </thead>
           <tbody>
-            {cacDongDaXuLy.map((row) => (
-              <tr key={row.rowKey}>
-                <td data-label="Công đoạn">{row.stage}</td>
-                <td data-label="Vật liệu">{row.mat}</td>
-                <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={row.srcWidth}
-                  giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
-                <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
-                  giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
-                  giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
-                  giaTriGhiDe={ghiDeHienTai[row.rowKey]?.inputVL} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                <td className="num" data-label="CPSX (đ/m²)">{dinhDangSo(row.cpsx, 0)}</td>
-                <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(row.costCPSX, 0)}</td>
-                {row.matPrice != null ? (
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="matPrice" giaTriGoc={row.srcMatPrice ?? 0}
-                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.matPrice} duocSua={duocSua && row.matPrice != null} khiDat={khiDat} soLe={1} />
-                ) : (
-                  <td className="num" data-label="CP vật liệu">—</td>
-                )}
-                <td className="num" data-label="Thành tiền CPVL">{row.costMat != null ? dinhDangSo(row.costMat, 0) : '—'}</td>
-              </tr>
-            ))}
+            {cacDongDaXuLy.flatMap((row) => {
+              if (row.materialDetails?.length) {
+                const totalDetailWidth = row.materialDetails.reduce((sum, detail) => sum + detail.width, 0) || row.width || 1;
+                const rawDetailCosts = row.materialDetails.map(detail => detail.matPrice * row.inputVL * detail.width);
+                const rawDetailTotal = rawDetailCosts.reduce((sum, v) => sum + v, 0);
+                return row.materialDetails.map((detail, detailIdx) => {
+                  const detailCostCPSX = row.costCPSX * detail.width / totalDetailWidth;
+                  const detailCostMat = row.costMat != null && rawDetailTotal > 0
+                    ? row.costMat * rawDetailCosts[detailIdx] / rawDetailTotal
+                    : detail.matPrice * row.inputVL * detail.width;
+                  return (
+                    <tr key={`${row.rowKey}-${detailIdx}`} className="detail-group-row">
+                      <td data-label="Công đoạn">{row.stage}</td>
+                      <td data-label="Vật liệu">{detail.name}</td>
+                      <td className="num" data-label="Khổ (m)">{dinhDangSo(detail.width, 3)}</td>
+                      <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
+                        giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                      <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
+                        giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                      <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
+                        giaTriGhiDe={ghiDeHienTai[row.rowKey]?.inputVL} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                      <td className="num" data-label="CPSX (đ/m²)">{dinhDangSo(row.cpsx, 0)}</td>
+                      <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(detailCostCPSX, 0)}</td>
+                      <td className="num" data-label="CP vật liệu (đ/m²)">{dinhDangSo(detail.matPrice, 1)}</td>
+                      <td className="num" data-label="Thành tiền CPVL">{dinhDangSo(detailCostMat, 0)}</td>
+                    </tr>
+                  );
+                });
+              }
+
+              return [(
+                <tr key={row.rowKey}>
+                  <td data-label="Công đoạn">{row.stage}</td>
+                  <td data-label="Vật liệu">{row.mat}</td>
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={row.srcWidth}
+                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
+                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
+                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
+                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.inputVL} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                  <td className="num" data-label="CPSX (đ/m²)">{dinhDangSo(row.cpsx, 0)}</td>
+                  <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(row.costCPSX, 0)}</td>
+                  {row.matPrice != null ? (
+                    <OCoTheGhiDe khoaDong={row.rowKey} truong="matPrice" giaTriGoc={row.srcMatPrice ?? 0}
+                      giaTriGhiDe={ghiDeHienTai[row.rowKey]?.matPrice} duocSua={duocSua && row.matPrice != null} khiDat={khiDat} soLe={1} />
+                  ) : (
+                    <td className="num" data-label="CP vật liệu">—</td>
+                  )}
+                  <td className="num" data-label="Thành tiền CPVL">{row.costMat != null ? dinhDangSo(row.costMat, 0) : '—'}</td>
+                </tr>
+              )];
+            })}
             <tr className="total-row">
               <td colSpan={7}>TỔNG</td>
               <td className="num">{dinhDangSo(tongCPSX, 0)}</td>
@@ -273,7 +304,7 @@ export default function ManHinhQuanLy() {
   const chuSoMau = dauVaoKq.numColors && dauVaoKq.numColors > 0 ? `${dauVaoKq.numColors} màu` : 'Không in';
   const khoTraiMm = +(dauVaoKq.spreadWidth * 1000).toFixed(0);
   const buocCatMm = +(dauVaoKq.cutStep * 1000).toFixed(0);
-  
+
   const tenLoaiMang: Record<string, string> = {
     'mangIn': 'Màng in',
     'mangGhep': 'Màng ghép',
@@ -477,13 +508,13 @@ export default function ManHinhQuanLy() {
   return (
     <div className="panel active" id="panel-manager">
       <div className="manager-layout" style={{position: 'relative'}}>
-        
+
         <div className="manager-content">
-          
+
           {/* ═══ SECTION: Báo Giá Gợi Ý ═══ */}
           <div id="sect-sale" className="manager-section-anchor"></div>
           <div className="card" style={{marginBottom: '14px', padding: 0, background: 'transparent', border: 'none', boxShadow: 'none'}}>
-            
+
             <div className="price-hero">
               <div className="label">{hasChotGia ? `Giá chốt / ${nhanDonVi}` : `Giá đề xuất / ${nhanDonVi}`}</div>
               <div className="value" id="s-price" style={hasChotGia ? {color:'var(--green)'} : undefined}>
@@ -997,4 +1028,3 @@ export default function ManHinhQuanLy() {
     </div>
   );
 }
-
