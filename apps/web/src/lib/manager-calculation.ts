@@ -24,6 +24,9 @@ export interface ResolvedOverrideRow extends UniRow {
   srcWaste: number;
   srcInputVL: number;
   srcMatPrice: number | null;
+  srcCpsx: number;
+  srcCostCPSX: number;
+  srcCostMat: number | null;
 }
 
 export function tinhBaoGia(
@@ -118,21 +121,29 @@ export function xuLyDongGhiDe(
     const rk = row.rowKey;
     const src = sourceOverrides[rk] ?? {};
     const cur = currentOverrides[rk] ?? {};
+    const stage = cur.stage ?? src.stage ?? row.stage;
+    const mat = cur.mat ?? src.mat ?? row.mat;
     const width = cur.width ?? src.width ?? row.width;
     const meters = cur.meters ?? src.meters ?? row.meters;
     const waste = cur.waste ?? src.waste ?? row.waste;
     const inputVL = cur.inputVL ?? src.inputVL ?? (row.meters + row.waste);
+    const cpsx = cur.cpsx ?? src.cpsx ?? row.cpsx;
     const matPrice = cur.matPrice ?? src.matPrice ?? row.matPrice;
     const srcWidth = src.width ?? row.width;
     const srcMeters = src.meters ?? row.meters;
     const srcWaste = src.waste ?? row.waste;
     const srcInputVL = src.inputVL ?? (row.meters + row.waste);
     const srcMatPrice = src.matPrice ?? row.matPrice;
-    const costCPSX = row.cpsx * inputVL * width;
-    const costMat = row.materialDetails
+    const srcCpsx = src.cpsx ?? row.cpsx;
+    const rawCostCPSX = cpsx * inputVL * width;
+    const rawCostMat = row.materialDetails
       ? row.materialDetails.reduce((sum, detail) => sum + detail.matPrice * inputVL * detail.width, 0)
       : matPrice != null ? matPrice * inputVL * width : null;
-    return { ...row, width, meters, waste, inputVL, matPrice, costCPSX, costMat, srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice };
+    const costCPSX = cur.costCPSX ?? src.costCPSX ?? rawCostCPSX;
+    const costMat = cur.costMat ?? src.costMat ?? rawCostMat;
+    const srcCostCPSX = src.costCPSX ?? row.costCPSX;
+    const srcCostMat = src.costMat ?? row.costMat;
+    return { ...row, stage, mat, width, meters, waste, inputVL, cpsx, matPrice, costCPSX, costMat, srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice, srcCpsx, srcCostCPSX, srcCostMat };
   });
   const totalCPSX = rows.reduce((sum, row) => sum + row.costCPSX, 0);
   const totalCPVL = rows.reduce((sum, row) => sum + (row.costMat ?? 0), 0);

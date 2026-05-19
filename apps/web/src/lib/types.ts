@@ -174,13 +174,17 @@ export const QUOTE_STATUS_CONFIG: Record<QuoteStatus, {
 export type OverrideRowKey = 'print' | 'lam-2' | 'lam-3' | 'lam-4' | 'lam-5' | 'cut';
 
 export interface OverrideFields {
-  width?: number;       // Khổ (m)
-  meters?: number;      // Thành phẩm (m)
-  waste?: number;       // Phi hao
-  inputVL?: number;     // Đầu vào VL
-  matPrice?: number;    // CP vật liệu (đ/m²)
+  stage?: string;
+  mat?: string;
+  width?: number;
+  meters?: number;
+  waste?: number;
+  inputVL?: number;
+  cpsx?: number;
+  costCPSX?: number;
+  matPrice?: number;
+  costMat?: number;
 }
-
 export type OverrideTable = Partial<Record<OverrideRowKey, Partial<OverrideFields>>>;
 
 // ── History ───────────────────────────────────────────────────────────────────

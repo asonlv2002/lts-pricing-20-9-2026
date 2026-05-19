@@ -57,7 +57,7 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
   giaTriGoc: number;
   giaTriGhiDe: number | undefined;
   duocSua: boolean;
-  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: number | undefined) => void;
+  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
   soLe?: number;
 }) {
   const giaTriHienThi = giaTriGhiDe ?? giaTriGoc;
@@ -109,6 +109,39 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
   );
 }
 
+function OChuCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat }: {
+  khoaDong: OverrideRowKey;
+  truong: keyof OverrideFields;
+  giaTriGoc: string;
+  giaTriGhiDe: string | undefined;
+  duocSua: boolean;
+  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
+}) {
+  const giaTriHienThi = giaTriGhiDe ?? giaTriGoc;
+  const daThayDoi = giaTriGhiDe !== undefined && giaTriGhiDe !== giaTriGoc;
+  const [dangSua, datDangSua] = React.useState(false);
+  const [giaTriTam, datGiaTriTam] = React.useState('');
+  const xacNhan = () => {
+    datDangSua(false);
+    const v = giaTriTam.trim();
+    khiDat(khoaDong, truong, !v || v === giaTriGoc ? undefined : v);
+  };
+  if (!duocSua) return <td className={daThayDoi ? 'override-changed' : ''} title={daThayDoi ? `Gốc: ${giaTriGoc}` : undefined}>{giaTriHienThi}</td>;
+  return (
+    <td className={`override-cell ${daThayDoi ? 'override-changed' : ''}`} title={daThayDoi ? `Gốc: ${giaTriGoc}` : undefined}>
+      {dangSua ? (
+        <input className="override-input" type="text" value={giaTriTam}
+          onChange={e => datGiaTriTam(e.target.value)} onBlur={xacNhan}
+          onKeyDown={e => { if (e.key === 'Enter') xacNhan(); if (e.key === 'Escape') datDangSua(false); }} autoFocus />
+      ) : (
+        <span className="override-display" onClick={() => { datGiaTriTam(giaTriHienThi); datDangSua(true); }}>
+          {giaTriHienThi}{duocSua && <span className="override-indicator"> ✎</span>}
+        </span>
+      )}
+    </td>
+  );
+}
+
 // ── Override Table Section ────────────────────────────────────────────────────
 function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, duocSua, khiDat, khiLuu, khiLuuMoi, loadedHistoryId }: {
   title: string;
@@ -117,7 +150,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
   ghiDeNguon: OverrideTable;
   ghiDeHienTai: OverrideTable;
   duocSua: boolean;
-  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: number | undefined) => void;
+  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
   khiLuu: (id: string) => void;
   khiLuuMoi: () => void; // gọi khi chưa có loadedHistoryId — tự lưu lichSu rồi persist
   loadedHistoryId: string | null;
@@ -400,8 +433,9 @@ export default function ManHinhQuanLy() {
       : isKgBase
         ? getMetersFromKg(selectedMat, levelVal, selectedData.width)
         : levelVal * rollLen;
+    const areaM2 = laMang ? availableMeters * (dauVaoKq.spreadWidth || 0) : 0;
     const estQty = laMang
-      ? Math.round(levelVal * filmRollAreaTP)
+      ? Math.round(areaM2)
       : findEstQtyForMeters(availableMeters);
     if (estQty <= 0) return null;
     const res = calculateForInput({ ...dauVaoKq, quantity: estQty });
@@ -418,6 +452,7 @@ export default function ManHinhQuanLy() {
     return {
       levelVal,
       availableMeters,
+      areaM2,
       estQty,
       res,
       isCurrent,
@@ -712,8 +747,8 @@ export default function ManHinhQuanLy() {
           {(() => {
             const loadedItem = loadedHistoryId ? lichSu.find(h => h.id === loadedHistoryId) : null;
             const quoteStatus = loadedItem?.quoteStatus ?? 'drafted';
-            const canSaleEdit = role === 'sale' && quoteStatus === 'drafted';
-            const canAdminEdit = role === 'admin';
+            const canSaleEdit = role === 'sale' || role === 'admin';
+            const canAdminEdit = role === 'admin' || role === 'sale';
             // Source for bảng Admin = sale-resolved values (engine overridden by sale)
 
             // Khi chưa có loadedHistoryId: tự lưu lichSu trước rồi persist override
@@ -864,7 +899,14 @@ export default function ManHinhQuanLy() {
                             })}
                           </select>
                         </th>
-                        <th>SL {nhanDonVi}</th>
+                        {laMang ? (
+                          <>
+                            <th>Mét dài TP</th>
+                            <th>Diện tích tính giá (m²)</th>
+                          </>
+                        ) : (
+                          <th>SL {nhanDonVi}</th>
+                        )}
                         {otherLayers.map((c, i) => <th key={i}>{c.name}</th>)}
                         <th>Giá đề xuất</th>
                         <th>Tổng DT</th>
@@ -888,7 +930,20 @@ export default function ManHinhQuanLy() {
                               </>
                             )}
                           </td>
-                          <td data-label={`SL ${nhanDonVi}`} style={{fontWeight: row.isCurrent ? 700 : 400}}>{dinhDangSo(row.estQty)}</td>
+                          {laMang ? (
+                            <>
+                              <td data-label="Mét dài TP" style={{fontWeight: row.isCurrent ? 700 : 400}}>{dinhDangSo(row.availableMeters, 0)} m</td>
+                              <td data-label="Diện tích tính giá" style={{fontWeight: row.isCurrent ? 700 : 400}}>
+                                {dinhDangSo(row.areaM2, 0)} m²
+                                <br />
+                                <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>
+                                  {dinhDangSo(row.availableMeters, 0)}m × {dinhDangSo(dauVaoKq.spreadWidth, 3)}m
+                                </span>
+                              </td>
+                            </>
+                          ) : (
+                            <td data-label={`SL ${nhanDonVi}`} style={{fontWeight: row.isCurrent ? 700 : 400}}>{dinhDangSo(row.estQty)}</td>
+                          )}
                           {otherLayers.map((col: any, i: number) => {
                             const layerData = getLayerData(row.res, col);
                             const layerMeters = layerData ? (layerData.meters + layerData.waste) / dauVaoKq.numImages : 0;

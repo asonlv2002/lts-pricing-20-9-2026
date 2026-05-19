@@ -99,8 +99,8 @@ export interface CuaHangTinhGia {
   calculateForQuantity: (quantity: number) => CalculateResult | null;
   optimizeCurrentThickness: () => ReturnType<typeof toiUuDoDayTheoVatLieu>;
 
-  setSaleOverride: (rowKey: OverrideRowKey, field: keyof OverrideFields, value: number | undefined) => void;
-  setAdminOverride: (rowKey: OverrideRowKey, field: keyof OverrideFields, value: number | undefined) => void;
+  setSaleOverride: (rowKey: OverrideRowKey, field: keyof OverrideFields, value: OverrideFields[keyof OverrideFields] | undefined) => void;
+  setAdminOverride: (rowKey: OverrideRowKey, field: keyof OverrideFields, value: OverrideFields[keyof OverrideFields] | undefined) => void;
   setShowSaleOverrides: (v: boolean) => void;
   setShowAdminOverrides: (v: boolean) => void;
   persistOverrides: (historyId: string) => void;
