@@ -17,6 +17,48 @@ export interface UniRow {
   materialDetails?: Array<{ name: string; width: number; matPrice: number; costMat: number }>;
 }
 
+
+function getExpandedLayer2Details(input: CalculateInput, lam: any) {
+  const details = lam.chiTietVatLieu;
+  const lengths = input.layer2Lengths;
+  if (!Array.isArray(details) || !lengths || details.length < 2 || (input.numImages || 1) < 2) {
+    return details;
+  }
+
+  const mainDetail = details.find((item: any) => item.vatLieuId === input.layer2Id || item.source === 'main') ?? details[0];
+  const altDetail = details.find((item: any) => item.vatLieuId === input.layer2AltId || item.source === 'alt') ?? details.find((item: any) => item !== mainDetail) ?? details[1];
+  if (!mainDetail || !altDetail) return details;
+
+  const mainWidth = Math.max(lengths.mat1 || 0, 0);
+  const altWidth = Math.max(lengths.mat2 || 0, 0);
+  const edgeBleed = 0.01;
+  const pairingMode = input.layer2PairingMode || 'bottom_to_bottom';
+  const raw = pairingMode === 'front_to_front'
+    ? [
+        { base: altDetail, width: altWidth + edgeBleed },
+        { base: mainDetail, width: mainWidth },
+        { base: mainDetail, width: mainWidth },
+        { base: altDetail, width: altWidth + edgeBleed },
+      ]
+    : [
+        { base: mainDetail, width: mainWidth + edgeBleed },
+        { base: altDetail, width: altWidth },
+        { base: altDetail, width: altWidth },
+        { base: mainDetail, width: mainWidth + edgeBleed },
+      ];
+
+  return raw.reduce((items: any[], part) => {
+    const prev = items[items.length - 1];
+    if (prev && prev.vatLieuId === part.base.vatLieuId) {
+      prev.kho += part.width;
+      prev.chiPhiVL = (prev.donGia ?? 0) * (lam.meters + lam.waste) * prev.kho;
+      return items;
+    }
+    items.push({ ...part.base, kho: part.width, chiPhiVL: (part.base.donGia ?? 0) * (lam.meters + lam.waste) * part.width });
+    return items;
+  }, []);
+}
+
 export interface ResolvedOverrideRow extends UniRow {
   inputVL: number;
   srcWidth: number;
@@ -66,7 +108,8 @@ export function buildProductionRows(result: CalculateResult, constants: AppConst
   r.layers.laminations?.forEach((lam: any) => {
     totalCPSX += lam.costCPSX;
     totalCPVL += lam.costMat;
-    const materialDetails = lam.chiTietVatLieu?.map((item: any) => ({
+    const expandedDetails = lam.layerNum === 2 ? getExpandedLayer2Details(r.input, lam) : lam.chiTietVatLieu;
+    const materialDetails = expandedDetails?.map((item: any) => ({
       name: item.ten,
       width: item.kho,
       matPrice: item.donGia ?? 0,

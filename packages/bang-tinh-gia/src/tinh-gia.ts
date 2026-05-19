@@ -366,8 +366,8 @@ export function tinhGia(
     if (soLop === 2 && lopPhu) {
       if (dauVao.chieuDaiLop2 && dauVao.chieuDaiLop2.vl1 > 0 && dauVao.chieuDaiLop2.vl2 > 0) {
         const soHinhThucTe = Math.max(1, soHinh || 1);
-        const khoLopChinh = dauVao.chieuDaiLop2.vl1 / 1000 / (soHinhThucTe > 1 ? 2 : 1);
-        const khoLopPhu = dauVao.chieuDaiLop2.vl2 / 1000 / (soHinhThucTe > 1 ? 2 : 1);
+        const khoLopChinh = dauVao.chieuDaiLop2.vl1 / 1000;
+        const khoLopPhu = dauVao.chieuDaiLop2.vl2 / 1000;
         const bienMoiMep = 0.01;
         const themChiTiet = (vl: VatLieu, khoSegment: number) => {
           const donGia = layGiaVatLieuTheoKho(vl, khoSegment);
@@ -403,9 +403,12 @@ export function tinhGia(
         }));
         chiTietVatLieu = chiTietTho.reduce((ds: any[], item) => {
           const truoc = ds[ds.length - 1];
-          if (truoc && truoc.vatLieuId === item.vatLieuId && truoc.vaiTro === item.vaiTro) {
-            truoc.kho += item.kho;
-            truoc.chiPhiVL += item.chiPhiVL;
+          if (truoc && truoc.vatLieuId === item.vatLieuId) {
+            const khoMoi = truoc.kho + item.kho;
+            const donGiaMoi = layGiaVatLieuTheoKho(item.vatLieuId === lop.id ? lop : lopPhu, khoMoi);
+            truoc.kho = khoMoi;
+            truoc.donGia = donGiaMoi;
+            truoc.chiPhiVL = donGiaMoi * (hatHao + met) * khoMoi;
             truoc.viTriKetThuc = item.viTri;
             return ds;
           }

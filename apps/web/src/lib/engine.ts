@@ -140,7 +140,10 @@ function toDauVao(i: CalculateInput, bangGiaKhoNho?: GiaVatLieuKhoNho[]): DauVao
     chieuDaiCuonMang: i.filmRollLength || 6000,
     soLuong: i.quantity, soMau: i.numColors, soHinh: i.numImages || 1,
     idLop1: i.layer1Id, idLop2: i.layer2Id, idLop2Phu: i.layer2AltId,
-    chieuDaiLop2: i.layer2Lengths ? { vl1: i.layer2Lengths.mat1 * 1000, vl2: i.layer2Lengths.mat2 * 1000 } : undefined,
+    chieuDaiLop2: i.layer2Lengths ? {
+      vl1: (i.numImages || 1) >= 2 ? i.layer2Lengths.mat1 * 500 : i.layer2Lengths.mat1 * 1000,
+      vl2: (i.numImages || 1) >= 2 ? i.layer2Lengths.mat2 * 500 : i.layer2Lengths.mat2 * 1000,
+    } : undefined,
     matTruocLop2: i.layer2FrontPart ?? 'main',
     kieuGhepLop2: i.layer2PairingMode ?? 'bottom_to_bottom',
     idLop3: i.layer3Id, idLop4: i.layer4Id, idLop5: i.layer5Id,

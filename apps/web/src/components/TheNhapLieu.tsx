@@ -1,5 +1,6 @@
 "use client";
 import React from 'react';
+import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 
 // --- FORMAT NUMBER INPUT ---
@@ -163,41 +164,45 @@ export default function InputCard() {
     if (!mainMat || !altMat) return [];
 
     const pairingMode = (input as any).layer2PairingMode || 'bottom_to_bottom';
+    const mainWidth = Math.max(lengths.mat1 || 0, 0);
+    const altWidth = Math.max(lengths.mat2 || 0, 0);
     const isTwoImages = (input.numImages || 1) >= 2;
-    if (!isTwoImages) {
-      const normalOrder = [
-        { mat: mainMat, width: Math.max(lengths.mat1 || 0, 0), source: 'main' },
-        { mat: altMat, width: Math.max(lengths.mat2 || 0, 0), source: 'alt' },
-      ];
-      return pairingMode === 'front_to_front' ? normalOrder.reverse() : normalOrder;
-    }
+    const edgeBleed = isTwoImages ? 0.01 : 0;
 
-    const mainSideWidth = Math.max((lengths.mat1 || 0) / 2, 0);
-    const altSideWidth = Math.max((lengths.mat2 || 0) / 2, 0);
+    const raw = !isTwoImages
+      ? (pairingMode === 'front_to_front'
+          ? [
+              { mat: altMat, width: altWidth, source: 'alt' },
+              { mat: mainMat, width: mainWidth, source: 'main' },
+            ]
+          : [
+              { mat: mainMat, width: mainWidth, source: 'main' },
+              { mat: altMat, width: altWidth, source: 'alt' },
+            ])
+      : (pairingMode === 'front_to_front'
+          ? [
+              { mat: altMat, width: altWidth + edgeBleed, source: 'alt' },
+              { mat: mainMat, width: mainWidth, source: 'main' },
+              { mat: mainMat, width: mainWidth, source: 'main' },
+              { mat: altMat, width: altWidth + edgeBleed, source: 'alt' },
+            ]
+          : [
+              { mat: mainMat, width: mainWidth + edgeBleed, source: 'main' },
+              { mat: altMat, width: altWidth, source: 'alt' },
+              { mat: altMat, width: altWidth, source: 'alt' },
+              { mat: mainMat, width: mainWidth + edgeBleed, source: 'main' },
+            ]);
 
-    if (pairingMode === 'front_to_front') {
-      return [
-        { mat: altMat, width: altSideWidth, source: 'alt' },
-        { mat: mainMat, width: mainSideWidth, source: 'main' },
-        { mat: mainMat, width: mainSideWidth, source: 'main' },
-        { mat: altMat, width: altSideWidth, source: 'alt' },
-      ];
-    }
-
-    return [
-      { mat: mainMat, width: mainSideWidth, source: 'main' },
-      { mat: altMat, width: altSideWidth, source: 'alt' },
-      { mat: altMat, width: altSideWidth, source: 'alt' },
-      { mat: mainMat, width: mainSideWidth, source: 'main' },
-    ];
+    return raw.reduce((segments: any[], item) => {
+      const prev = segments[segments.length - 1];
+      if (prev && prev.source === item.source && prev.mat.id === item.mat.id) {
+        prev.width += item.width;
+      } else {
+        segments.push({ ...item });
+      }
+      return segments;
+    }, []);
   };
-
-  const Layer2ChoiceCard = ({ active, title, subtitle, onClick }: { active: boolean; title: string; subtitle?: string; onClick: () => void }) => (
-    <button type="button" onClick={onClick} className="btn btn-secondary" style={{ flex: 1, minWidth: '135px', justifyContent: 'flex-start', textAlign: 'left', borderColor: active ? 'var(--accent)' : 'var(--border)', background: active ? 'rgba(79,70,229,0.08)' : 'var(--surface2)', color: 'var(--text)', padding: '10px 12px' }}>
-      <span style={{ marginRight: '8px', color: active ? '#059669' : 'transparent', fontWeight: 900 }}>{active ? '?' : '?'}</span>
-      <span><strong>{title}</strong>{subtitle ? <><br/><small style={{ color: 'var(--muted)' }}>{subtitle}</small></> : null}</span>
-    </button>
-  );
 
   const renderLayerSelect = (label: string, layerKey: keyof typeof input, disabled: boolean) => {
     const matId = input[layerKey] as string | null | undefined;
@@ -537,12 +542,16 @@ export default function InputCard() {
                   <button
                     className="btn btn-secondary"
                     type="button"
-                    onClick={() => capNhatDauVao({
-                      layer2AltId: input.layer2Id,
-                      layer2Lengths: { mat1: input.spreadWidth || 0, mat2: 0 },
-                      layer2FrontPart: 'main',
-                      layer2PairingMode: 'bottom_to_bottom',
-                    } as any)}
+                    onClick={() => {
+                      const mainMat = materials.find(m => m.id === input.layer2Id);
+                      const altMat = materials.find(m => m.id !== input.layer2Id && (!mainMat || m.thickness === mainMat.thickness));
+                      capNhatDauVao({
+                        layer2AltId: altMat?.id || null,
+                        layer2Lengths: { mat1: (input.spreadWidth || 0) / 2, mat2: (input.spreadWidth || 0) / 2 },
+                        layer2FrontPart: 'main',
+                        layer2PairingMode: 'bottom_to_bottom',
+                      } as any);
+                    }}
                   >
                     + Thêm cấu trúc
                   </button>
@@ -554,14 +563,13 @@ export default function InputCard() {
               <label className="form-label">Lớp 2</label>
               <div className="layer2-split-stack">
                 {(() => {
-                  const isTwoImages = (input.numImages || 1) >= 2;
                   const pairingMode = (input as any).layer2PairingMode || 'bottom_to_bottom';
                   const outerIsMain = pairingMode === 'bottom_to_bottom';
                   const outerMat = outerIsMain ? materials.find(m => m.id === input.layer2Id) : materials.find(m => m.id === (input as any).layer2AltId);
                   const centerMat = outerIsMain ? materials.find(m => m.id === (input as any).layer2AltId) : materials.find(m => m.id === input.layer2Id);
                   const sideWidth = outerIsMain
-                    ? ((input as any).layer2Lengths?.mat1 || 0) / (isTwoImages ? 2 : 1)
-                    : ((input as any).layer2Lengths?.mat2 || 0) / (isTwoImages ? 2 : 1);
+                    ? ((input as any).layer2Lengths?.mat1 || 0)
+                    : ((input as any).layer2Lengths?.mat2 || 0);
                   const centerWidth = outerIsMain
                     ? ((input as any).layer2Lengths?.mat2 || 0)
                     : ((input as any).layer2Lengths?.mat1 || 0);
@@ -575,8 +583,8 @@ export default function InputCard() {
                   };
                   const setOuterWidth = (val: number) => {
                     const current = (input as any).layer2Lengths || { mat1: 0, mat2: 0 };
-                    if (outerIsMain) capNhatDauVao({ layer2Lengths: { ...current, mat1: val * (isTwoImages ? 2 : 1) } } as any);
-                    else capNhatDauVao({ layer2Lengths: { ...current, mat2: val * (isTwoImages ? 2 : 1) } } as any);
+                    if (outerIsMain) capNhatDauVao({ layer2Lengths: { ...current, mat1: val } } as any);
+                    else capNhatDauVao({ layer2Lengths: { ...current, mat2: val } } as any);
                   };
                   const setCenterWidth = (val: number) => {
                     const current = (input as any).layer2Lengths || { mat1: 0, mat2: 0 };
@@ -586,7 +594,8 @@ export default function InputCard() {
                   const matchingOuterOptions = materials.filter(m => !centerMat || (m.thickness === centerMat.thickness && m.id !== centerMat.id) || m.id === outerMat?.id);
                   const matchingCenterOptions = materials.filter(m => !outerMat || (m.thickness === outerMat.thickness && m.id !== outerMat.id) || m.id === centerMat?.id);
                   return (
-                    <div className={isTwoImages ? 'layer2-segment-grid layer2-segment-grid--three' : 'layer2-segment-grid'}>
+                    <>
+                    <div className="layer2-segment-grid">
                       <div className="layer2-segment-cell">
                         <select aria-label="Vật liệu ngoài" className="form-select" value={outerMat?.id || ''} onChange={e => setOuterMaterial(e.target.value)}>
                           <option value="">-- Chọn vật liệu --</option>
@@ -602,14 +611,8 @@ export default function InputCard() {
                         </select>
                         <DecimalInput className="form-input" value={centerWidth} placeholder="m" step="0.001" onChange={setCenterWidth} />
                       </div>
-
-                      {isTwoImages && (
-                        <div className="layer2-segment-cell layer2-segment-cell--locked">
-                          <div className="layer2-locked-select">{outerMat?.name || '--'}</div>
-                          <div className="layer2-locked-input">{sideWidth ? sideWidth.toString() : ''}</div>
-                        </div>
-                      )}
                     </div>
+                    </>
                   );
                 })()}
 
@@ -619,53 +622,29 @@ export default function InputCard() {
                   return segments.length > 0 ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '10px' }}>
                       <div>
-                        <label className="form-label">Xem trước bố trí khổ</label>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--muted)', flex: 1 }}>
-                            {pairingMode === 'bottom_to_bottom' ? 'Vật liệu chính ở hai bên' : 'Vật liệu phụ ở hai bên'}
-                          </div>
-                          <button
-                            type="button"
-                            className="btn btn-secondary"
-                            style={{ padding: '6px 10px', fontSize: '0.75rem' }}
-                            onClick={() => capNhatDauVao({ layer2PairingMode: pairingMode === 'bottom_to_bottom' ? 'front_to_front' : 'bottom_to_bottom' } as any)}
-                          >
-                            Đảo
-                          </button>
-                        </div>
-                        <div style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', minHeight: '54px' }}>
+                        <label className="form-label">Preview bố trí lớp 2</label>
+                        <div style={{ display: 'flex', alignItems: 'stretch', gap: '8px' }}>
+                          <div style={{ display: 'flex', flex: 1, border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden', minHeight: '54px' }}>
                           {segments.map((seg: any, idx: number) => (
                             <div key={idx} style={{ flex: Math.max(seg.width || 0.01, 0.01), minWidth: '58px', padding: '10px 6px', borderRight: idx < segments.length - 1 ? '1px solid var(--border)' : 'none', background: seg.source === 'main' ? 'rgba(8,145,178,0.10)' : 'rgba(217,119,6,0.10)', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                               <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text)' }}>{seg.mat.name.split(' ')[0]}</div>
                             </div>
                           ))}
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-secondary"
+                            title="Đảo vật tư nằm giữa"
+                            aria-label="Đảo vật tư nằm giữa"
+                            style={{ width: '44px', padding: 0, fontSize: '1rem', flexShrink: 0 }}
+                            onClick={() => capNhatDauVao({ layer2PairingMode: pairingMode === 'bottom_to_bottom' ? 'front_to_front' : 'bottom_to_bottom' } as any)}
+                          >
+                            <ArrowLeftRight size={18} strokeWidth={2.4} />
+                          </button>
                         </div>
                       </div>
                     </div>
                   ) : null;
-                })()}
-
-                {(() => {
-                  const lengths = (input as any).layer2Lengths;
-                  if (!lengths) return null;
-                  if ((input as any).layer2AltId === input.layer2Id) {
-                    return <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem' }}>Vật liệu phụ phải khác vật liệu chính trong lớp 2</div>;
-                  }
-                  const mainMat = materials.find(m => m.id === input.layer2Id);
-                  const altMat = materials.find(m => m.id === (input as any).layer2AltId);
-                  if (mainMat && altMat && mainMat.thickness !== altMat.thickness) {
-                    return <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem' }}>Hai vật liệu trong lớp 2 phải cùng độ dày ({mainMat.thickness} mic ≠ {altMat.thickness} mic)</div>;
-                  }
-                  if (lengths.mat1 <= 0 || lengths.mat2 <= 0) {
-                    return <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem' }}>Khổ vật liệu 1 và 2 phải lớn hơn 0m</div>;
-                  }
-                  const total = lengths.mat1 + lengths.mat2;
-                  const spreadWidthM = input.spreadWidth || 0;
-                  const diff = Math.abs(total - spreadWidthM);
-                  if (diff > 0.0005) {
-                    return <div style={{ padding: '8px', background: 'rgba(220, 38, 38, 0.1)', border: '1px solid #dc2626', borderRadius: '6px', color: '#dc2626', fontSize: '0.8rem' }}>Tổng khổ ({total.toFixed(3)}m) khác khổ trải ({spreadWidthM.toFixed(3)}m)</div>;
-                  }
-                  return <div style={{ padding: '6px', background: 'rgba(5, 150, 105, 0.1)', border: '1px solid #059669', borderRadius: '6px', color: '#059669', fontSize: '0.75rem' }}>Tổng khổ khớp với khổ trải</div>;
                 })()}
 
                 <button className="btn btn-secondary" type="button" onClick={() => capNhatDauVao({ layer2AltId: null, layer2Lengths: undefined, layer2FrontPart: 'main', layer2PairingMode: 'bottom_to_bottom' } as any)}>Bỏ cấu trúc phụ</button>
