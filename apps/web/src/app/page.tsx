@@ -252,7 +252,7 @@ export default function TrangChinh() {
         dungCuaHangTinhGia.getState().recalculate();
       }
     } catch { /* localStorage lỗi */ }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   // ── Lưu UI prefs ────────────────────────────────────────────────────────────
   useEffect(() => {

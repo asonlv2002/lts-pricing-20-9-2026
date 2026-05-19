@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useState, useMemo } from 'react';
 import {
   FileText, Search, Clock, Building2, Calendar,
@@ -11,12 +11,12 @@ import { QUOTE_STATUS_CONFIG } from '../lib/types';
 // ════════════════════════════════════════════════════════════
 // CONSTANTS
 // ════════════════════════════════════════════════════════════
-const PIPELINE_STEPS: QuoteStatus[] = ['drafted', 'sent', 'pending_approval', 'approved', 'completed'];
+const CAC_BUOC_QUY_TRINH: QuoteStatus[] = ['drafted', 'sent', 'pending_approval', 'approved', 'completed'];
 
 // Bước Admin được phép xem & thao tác (không có drafted/sent vì đó là phía Sale)
-const ADMIN_STEPS: QuoteStatus[] = ['pending_approval', 'approved', 'completed'];
+const CAC_BUOC_ADMIN: QuoteStatus[] = ['pending_approval', 'approved', 'completed'];
 
-const STEP_ICONS: Record<QuoteStatus, React.ReactNode> = {
+const ICON_BUOC: Record<QuoteStatus, React.ReactNode> = {
   drafted:          <FileText size={13} />,
   sent:             <Send size={13} />,
   pending_approval: <Clock size={13} />,
@@ -24,47 +24,47 @@ const STEP_ICONS: Record<QuoteStatus, React.ReactNode> = {
   completed:        <PackageCheck size={13} />,
 };
 
-function getStatus(item: HistoryItem): QuoteStatus {
-  // Luôn dùng quoteStatus tường minh; fallback 'drafted' nếu item cũ chưa có field này
-  return item.quoteStatus ?? 'drafted';
+function layTrangThai(muc: HistoryItem): QuoteStatus {
+  // Luôn dùng quoteStatus tường minh; fallback 'drafted' nếu muc cũ chưa có truong này
+  return muc.quoteStatus ?? 'drafted';
 }
 
-// Một item "đã gửi lên admin" khi status >= pending_approval
-function isSentToAdmin(item: HistoryItem): boolean {
-  const s = getStatus(item);
+// Một muc "đã gửi lên admin" khi status >= pending_approval
+function daGuiAdmin(muc: HistoryItem): boolean {
+  const s = layTrangThai(muc);
   return s === 'pending_approval' || s === 'approved' || s === 'completed';
 }
 
-function fmt(n: number) { return n.toLocaleString('vi-VN'); }
+function dinhDangSo(n: number) { return n.toLocaleString('vi-VN'); }
 
 // ── Override diff helpers ────────────────────────────────────────────────────
-const ROW_KEY_LABELS: Record<string, string> = {
+const NHAN_DONG: Record<string, string> = {
   print: 'In', 'lam-2': 'Ghép L2', 'lam-3': 'Ghép L3',
   'lam-4': 'Ghép L4', 'lam-5': 'Ghép L5', cut: 'Cắt',
 };
-const FIELD_LABELS: Record<string, string> = {
+const NHAN_TRUONG: Record<string, string> = {
   width: 'Khổ', meters: 'Thành phẩm', waste: 'Phi hao',
   inputVL: 'Đầu vào VL', matPrice: 'CP vật liệu',
 };
 
-function countOverrides(ov?: OverrideTable): number {
+function demGhiDe(ov?: OverrideTable): number {
   if (!ov) return 0;
   return Object.values(ov).reduce((s, r) => s + (r ? Object.keys(r).length : 0), 0);
 }
 
-function renderOverrideDiffs(ov: OverrideTable | undefined, groupClass: string, groupLabel: string) {
+function hienThiKhacBietGhiDe(ov: OverrideTable | undefined, lopNhom: string, nhanNhom: string) {
   if (!ov) return null;
-  const entries = Object.entries(ov) as [string, Record<string, number>][];
-  if (entries.length === 0) return null;
+  const cacMuc = Object.entries(ov) as [string, Record<string, number>][];
+  if (cacMuc.length === 0) return null;
   return (
     <>
-      <div className={`override-diff-group-title ${groupClass}`}>{groupLabel}</div>
-      {entries.map(([rk, fields]) =>
-        Object.entries(fields).map(([field, val]) => (
-          <div key={`${rk}-${field}`} className="override-diff-item">
-            <span className="diff-label">{ROW_KEY_LABELS[rk] || rk} · {FIELD_LABELS[field] || field}</span>
+      <div className={`override-diff-group-title ${lopNhom}`}>{nhanNhom}</div>
+      {cacMuc.map(([rk, cacTruong]) =>
+        Object.entries(cacTruong).map(([truong, giaTri]) => (
+          <div key={`${rk}-${truong}`} className="override-diff-item">
+            <span className="diff-label">{NHAN_DONG[rk] || rk} · {NHAN_TRUONG[truong] || truong}</span>
             <span className="diff-arrow">→</span>
-            <span className="diff-new">{typeof val === 'number' ? val.toLocaleString('vi-VN') : val}</span>
+            <span className="diff-new">{typeof giaTri === 'number' ? giaTri.toLocaleString('vi-VN') : giaTri}</span>
           </div>
         ))
       )}
@@ -73,48 +73,48 @@ function renderOverrideDiffs(ov: OverrideTable | undefined, groupClass: string, 
 }
 
 // ════════════════════════════════════════════════════════════
-// ADMIN STATUS DROPDOWN — chỉ cho phép chọn trong ADMIN_STEPS
+// ADMIN STATUS DROPDOWN — chỉ cho phép chọn trong CAC_BUOC_ADMIN
 // ════════════════════════════════════════════════════════════
-function AdminStatusDropdown({ item, onUpdate }: {
-  item: HistoryItem;
-  onUpdate: (id: string, status: QuoteStatus) => void;
+function HopChonTrangThaiAdmin({ muc, khiCapNhat }: {
+  muc: HistoryItem;
+  khiCapNhat: (id: string, status: QuoteStatus) => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const current = getStatus(item);
-  const cfg = QUOTE_STATUS_CONFIG[current];
+  const [mo, datMo] = useState(false);
+  const hienTai = layTrangThai(muc);
+  const cauHinh = QUOTE_STATUS_CONFIG[hienTai];
 
   return (
     <div className="qcard-status-dropdown-wrap" onClick={e => e.stopPropagation()}>
       <button
         className="qcard-status-trigger"
-        style={{ color: cfg.color, background: cfg.bg, borderColor: cfg.color + '55' }}
-        onClick={() => setOpen(v => !v)}
+        style={{ color: cauHinh.color, background: cauHinh.bg, borderColor: cauHinh.color + '55' }}
+        onClick={() => datMo(v => !v)}
         title="Đổi trạng thái"
       >
-        <span className="qcard-status-dot" style={{ background: cfg.color }} />
-        <span className="qcard-status-trigger-icon">{STEP_ICONS[current]}</span>
-        <span>{cfg.label}</span>
+        <span className="qcard-status-dot" style={{ background: cauHinh.color }} />
+        <span className="qcard-status-trigger-icon">{ICON_BUOC[hienTai]}</span>
+        <span>{cauHinh.label}</span>
         <span className="qcard-status-trigger-caret">▾</span>
       </button>
 
-      {open && (
+      {mo && (
         <>
-          <div className="qcard-dropdown-backdrop" onClick={() => setOpen(false)} />
+          <div className="qcard-dropdown-backdrop" onClick={() => datMo(false)} />
           <div className="qcard-dropdown">
-            {ADMIN_STEPS.map((step) => {
-              const scfg = QUOTE_STATUS_CONFIG[step];
-              const isActive = step === current;
+            {CAC_BUOC_ADMIN.map((buoc) => {
+              const cauHinhBuoc = QUOTE_STATUS_CONFIG[buoc];
+              const dangChon = buoc === hienTai;
               return (
                 <button
-                  key={step}
-                  className={`qcard-dropdown-item ${isActive ? 'active' : ''}`}
-                  onClick={() => { onUpdate(item.id, step); setOpen(false); }}
+                  key={buoc}
+                  className={`qcard-dropdown-item ${dangChon ? 'active' : ''}`}
+                  onClick={() => { khiCapNhat(muc.id, buoc); datMo(false); }}
                 >
-                  <span className="qcard-dropdown-dot" style={{ background: scfg.color }} />
-                  <span className="qcard-dropdown-icon">{STEP_ICONS[step]}</span>
-                  <span className="qcard-dropdown-label">{scfg.label}</span>
-                  <span className="qcard-dropdown-desc">{scfg.description}</span>
-                  {isActive && <span className="qcard-dropdown-check">✓</span>}
+                  <span className="qcard-dropdown-dot" style={{ background: cauHinhBuoc.color }} />
+                  <span className="qcard-dropdown-icon">{ICON_BUOC[buoc]}</span>
+                  <span className="qcard-dropdown-label">{cauHinhBuoc.label}</span>
+                  <span className="qcard-dropdown-desc">{cauHinhBuoc.description}</span>
+                  {dangChon && <span className="qcard-dropdown-check">âœ“</span>}
                 </button>
               );
             })}
@@ -131,45 +131,45 @@ function AdminStatusDropdown({ item, onUpdate }: {
 //   drafted → nút "Gửi Admin" → pending_approval
 //   pending_approval / approved / completed → badge đọc-only
 // ════════════════════════════════════════════════════════════
-function SaleStatusControl({ item, onUpdate }: {
-  item: HistoryItem;
-  onUpdate: (id: string, status: QuoteStatus) => void;
+function DieuKhienTrangThaiSale({ muc, khiCapNhat }: {
+  muc: HistoryItem;
+  khiCapNhat: (id: string, status: QuoteStatus) => void;
 }) {
-  const [confirm, setConfirm] = useState(false);
-  const current = getStatus(item);
-  const cfg = QUOTE_STATUS_CONFIG[current];
+  const [xacNhan, datXacNhan] = useState(false);
+  const hienTai = layTrangThai(muc);
+  const cauHinh = QUOTE_STATUS_CONFIG[hienTai];
 
-  if (current === 'drafted') {
+  if (hienTai === 'drafted') {
     return (
       <div className="qcard-sale-controls" onClick={e => e.stopPropagation()}>
         {/* Badge đang soạn */}
         <span className="qcard-status-trigger"
-          style={{ color: cfg.color, background: cfg.bg, borderColor: cfg.color + '55', cursor: 'default' }}>
-          <span className="qcard-status-dot" style={{ background: cfg.color }} />
-          <span className="qcard-status-trigger-icon">{STEP_ICONS[current]}</span>
-          <span>{cfg.label}</span>
+          style={{ color: cauHinh.color, background: cauHinh.bg, borderColor: cauHinh.color + '55', cursor: 'default' }}>
+          <span className="qcard-status-dot" style={{ background: cauHinh.color }} />
+          <span className="qcard-status-trigger-icon">{ICON_BUOC[hienTai]}</span>
+          <span>{cauHinh.label}</span>
         </span>
 
         {/* Nút Gửi */}
-        {!confirm ? (
+        {!xacNhan ? (
           <button
             className="qcard-send-btn"
-            onClick={() => setConfirm(true)}
+            onClick={() => datXacNhan(true)}
             title="Gửi báo giá cho Admin duyệt"
           >
             <Send size={12} />
             Gửi Admin
           </button>
         ) : (
-          <div className="qcard-send-confirm">
+          <div className="qcard-send-xacNhan">
             <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>Xác nhận gửi?</span>
             <button className="qcard-send-btn qcard-send-btn--yes"
-              onClick={() => { onUpdate(item.id, 'pending_approval'); setConfirm(false); }}>
-              ✓
+              onClick={() => { khiCapNhat(muc.id, 'pending_approval'); datXacNhan(false); }}>
+              âœ“
             </button>
             <button className="qcard-send-btn qcard-send-btn--no"
-              onClick={() => setConfirm(false)}>
-              ✕
+              onClick={() => datXacNhan(false)}>
+              âœ•
             </button>
           </div>
         )}
@@ -181,12 +181,12 @@ function SaleStatusControl({ item, onUpdate }: {
   return (
     <span
       className="qcard-status-trigger"
-      style={{ color: cfg.color, background: cfg.bg, borderColor: cfg.color + '55', cursor: 'default' }}
-      title={cfg.description}
+      style={{ color: cauHinh.color, background: cauHinh.bg, borderColor: cauHinh.color + '55', cursor: 'default' }}
+      title={cauHinh.description}
     >
-      <span className="qcard-status-dot" style={{ background: cfg.color }} />
-      <span className="qcard-status-trigger-icon">{STEP_ICONS[current]}</span>
-      <span>{cfg.label}</span>
+      <span className="qcard-status-dot" style={{ background: cauHinh.color }} />
+      <span className="qcard-status-trigger-icon">{ICON_BUOC[hienTai]}</span>
+      <span>{cauHinh.label}</span>
     </span>
   );
 }
@@ -194,21 +194,21 @@ function SaleStatusControl({ item, onUpdate }: {
 // ════════════════════════════════════════════════════════════
 // QUOTATION CARD — dùng chung, nhận control node từ ngoài
 // ════════════════════════════════════════════════════════════
-function QuotationCard({ item, onClick, statusControl }: {
-  item: HistoryItem;
+function QuotationCard({ muc, onClick, statusControl }: {
+  muc: HistoryItem;
   onClick: () => void;
   statusControl: React.ReactNode;
 }) {
   const [showDiff, setShowDiff] = useState(false);
-  const spreadMm  = item.input.spreadWidth ? Math.round(item.input.spreadWidth * 1000) : 0;
-  const cutMm     = item.input.cutStep     ? Math.round(item.input.cutStep     * 1000) : 0;
+  const spreadMm  = muc.input.spreadWidth ? Math.round(muc.input.spreadWidth * 1000) : 0;
+  const cutMm     = muc.input.cutStep     ? Math.round(muc.input.cutStep     * 1000) : 0;
   const sizeStr   = spreadMm && cutMm ? `${spreadMm} × ${cutMm} mm` : '—';
-  const numColors = item.input.numColors ?? 0;
-  const shownPrice = item.chotGia && item.chotGia > 0 ? item.chotGia : item.finalPrice;
-  const diff      = item.chotGia && item.chotGia > 0 ? item.chotGia - item.finalPrice : 0;
-  const diffPct   = diff !== 0 && item.finalPrice > 0 ? (diff / item.finalPrice) * 100 : 0;
-  const saleCount = countOverrides(item.saleOverrides);
-  const adminCount = countOverrides(item.adminOverrides);
+  const numColors = muc.input.numColors ?? 0;
+  const shownPrice = muc.chotGia && muc.chotGia > 0 ? muc.chotGia : muc.finalPrice;
+  const diff      = muc.chotGia && muc.chotGia > 0 ? muc.chotGia - muc.finalPrice : 0;
+  const diffPct   = diff !== 0 && muc.finalPrice > 0 ? (diff / muc.finalPrice) * 100 : 0;
+  const saleCount = demGhiDe(muc.saleOverrides);
+  const adminCount = demGhiDe(muc.adminOverrides);
   const hasAnyOverrides = saleCount > 0 || adminCount > 0;
 
   return (
@@ -216,18 +216,18 @@ function QuotationCard({ item, onClick, statusControl }: {
       <div className="quote-header">
         <div className="quote-id-wrap">
           <FileText size={14} className="quote-icon" />
-          <span className="quote-id">{item.date}</span>
+          <span className="quote-id">{muc.date}</span>
         </div>
         {statusControl}
       </div>
 
       <div className="quote-body">
-        <h3 className="quote-title">{item.productName || '—'}</h3>
+        <h3 className="quote-title">{muc.productName || '—'}</h3>
 
         <div className="quote-meta">
-          <div className="quote-meta-item">
+          <div className="quote-meta-muc">
             <Building2 size={13} style={{ color: '#4f46e5' }} />
-            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{item.customer || '—'}</span>
+            <span style={{ fontWeight: 600, color: 'var(--text)' }}>{muc.customer || '—'}</span>
           </div>
 
           <div style={{
@@ -237,7 +237,7 @@ function QuotationCard({ item, onClick, statusControl }: {
           }}>
             <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr' }}>
               <span style={{ color: 'var(--muted)', fontSize: '0.76rem' }}>Chất liệu:</span>
-              <strong style={{ color: 'var(--text)', fontSize: '0.76rem' }}>{item.structure || '—'}</strong>
+              <strong style={{ color: 'var(--text)', fontSize: '0.76rem' }}>{muc.structure || '—'}</strong>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr' }}>
               <span style={{ color: 'var(--muted)', fontSize: '0.76rem' }}>Kích thước:</span>
@@ -245,7 +245,7 @@ function QuotationCard({ item, onClick, statusControl }: {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr' }}>
               <span style={{ color: 'var(--muted)', fontSize: '0.76rem' }}>Số lượng:</span>
-              <span><strong style={{ color: 'var(--accent)' }}>{fmt(item.quantity)}</strong> túi</span>
+              <span><strong style={{ color: 'var(--accent)' }}>{dinhDangSo(muc.quantity)}</strong> túi</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr' }}>
               <span style={{ color: 'var(--muted)', fontSize: '0.76rem' }}>Màu in:</span>
@@ -253,9 +253,9 @@ function QuotationCard({ item, onClick, statusControl }: {
             </div>
           </div>
 
-          <div className="quote-meta-item" style={{ marginTop: '4px' }}>
+          <div className="quote-meta-muc" style={{ marginTop: '4px' }}>
             <Calendar size={12} />
-            <span style={{ fontSize: '0.76rem' }}>Ngày lập: {item.date}</span>
+            <span style={{ fontSize: '0.76rem' }}>Ngày lập: {muc.date}</span>
           </div>
         </div>
 
@@ -266,13 +266,13 @@ function QuotationCard({ item, onClick, statusControl }: {
         }}>
           <div>
             <div style={{ color: 'var(--dim)', fontSize: '0.7rem', textTransform: 'uppercase' }}>Giá đề xuất / túi</div>
-            <div style={{ fontWeight: 700, color: 'var(--text)' }}>{fmt(item.finalPrice)} đ</div>
+            <div style={{ fontWeight: 700, color: 'var(--text)' }}>{dinhDangSo(muc.finalPrice)} đ</div>
           </div>
-          {item.chotGia && item.chotGia > 0 ? (
+          {muc.chotGia && muc.chotGia > 0 ? (
             <div style={{ textAlign: 'right' }}>
               <div style={{ color: 'var(--dim)', fontSize: '0.7rem', textTransform: 'uppercase' }}>Giá chốt / túi</div>
               <div style={{ fontWeight: 700, color: 'var(--green)' }}>
-                {fmt(item.chotGia)} đ
+                {dinhDangSo(muc.chotGia)} đ
                 <span style={{ fontSize: '0.72rem', marginLeft: 4, color: diff >= 0 ? 'var(--green)' : 'var(--red)' }}>
                   ({diff >= 0 ? '+' : ''}{diffPct.toFixed(1)}%)
                 </span>
@@ -288,8 +288,8 @@ function QuotationCard({ item, onClick, statusControl }: {
 
         <div className="quote-price-box">
           <div className="quote-price-label">Tổng giá trị ước tính</div>
-          <div className="quote-price-value">
-            {fmt(Math.round(shownPrice * item.quantity))} <span className="quote-currency">VNĐ</span>
+          <div className="quote-price-giaTriue">
+            {dinhDangSo(Math.round(shownPrice * muc.quantity))} <span className="quote-currency">VNĐ</span>
           </div>
         </div>
       </div>
@@ -304,8 +304,8 @@ function QuotationCard({ item, onClick, statusControl }: {
           </button>
           {showDiff && (
             <div className="override-diff-summary" onClick={e => e.stopPropagation()}>
-              {renderOverrideDiffs(item.saleOverrides, 'sale', '💼 Sale')}
-              {renderOverrideDiffs(item.adminOverrides, 'admin', '👑 Admin')}
+              {hienThiKhacBietGhiDe(muc.saleOverrides, 'sale', '💼 Sale')}
+              {hienThiKhacBietGhiDe(muc.adminOverrides, 'admin', '👑 Admin')}
             </div>
           )}
         </>
@@ -322,31 +322,31 @@ function QuotationCard({ item, onClick, statusControl }: {
 // ════════════════════════════════════════════════════════════
 // STATS BAR
 // ════════════════════════════════════════════════════════════
-function StatsBar({ items, isAdmin }: { items: HistoryItem[]; isAdmin: boolean }) {
-  const steps = isAdmin ? ADMIN_STEPS : PIPELINE_STEPS;
+function StatsBar({ mucs, isAdmin }: { mucs: HistoryItem[]; isAdmin: boolean }) {
+  const buocs = isAdmin ? CAC_BUOC_ADMIN : CAC_BUOC_QUY_TRINH;
   const counts = useMemo(() => {
     const c: Record<QuoteStatus, number> = { drafted: 0, sent: 0, pending_approval: 0, approved: 0, completed: 0 };
-    items.forEach(h => { c[getStatus(h)]++; });
+    mucs.forEach(h => { c[layTrangThai(h)]++; });
     return c;
-  }, [items]);
+  }, [mucs]);
 
-  const revenue = items
-    .filter(h => getStatus(h) === 'completed')
+  const revenue = mucs
+    .filter(h => layTrangThai(h) === 'completed')
     .reduce((sum, h) => sum + (h.chotGia || h.finalPrice) * h.quantity, 0);
 
   return (
     <div className="quote-stats-overview">
-      {steps.map(step => {
-        const cfg = QUOTE_STATUS_CONFIG[step];
+      {buocs.map(buoc => {
+        const cauHinh = QUOTE_STATUS_CONFIG[buoc];
         return (
-          <div key={step} className="quote-stat-card">
-            <div className="quote-stat-val" style={{ color: cfg.color, fontSize: '1.5rem' }}>{counts[step]}</div>
-            <div className="quote-stat-lbl">{cfg.label}</div>
+          <div key={buoc} className="quote-stat-card">
+            <div className="quote-stat-giaTri" style={{ color: cauHinh.color, fontSize: '1.5rem' }}>{counts[buoc]}</div>
+            <div className="quote-stat-lbl">{cauHinh.label}</div>
           </div>
         );
       })}
       <div className="quote-stat-card quote-stat-card--total">
-        <div className="quote-stat-val">{(revenue / 1_000_000).toFixed(1)}<small> Tr</small></div>
+        <div className="quote-stat-giaTri">{(revenue / 1_000_000).toFixed(1)}<small> Tr</small></div>
         <div className="quote-stat-lbl">Doanh thu (Hoàn thành)</div>
       </div>
     </div>
@@ -354,10 +354,10 @@ function StatsBar({ items, isAdmin }: { items: HistoryItem[]; isAdmin: boolean }
 }
 
 // ════════════════════════════════════════════════════════════
-// ADMIN VIEW — nhóm theo seller, chỉ thấy item đã gửi
+// ADMIN VIEW — nhóm theo seller, chỉ thấy muc đã gửi
 // ════════════════════════════════════════════════════════════
-function AdminView({ items, search, onOpen, onStatusUpdate }: {
-  items: HistoryItem[];
+function AdminView({ mucs, search, onOpen, onStatusUpdate }: {
+  mucs: HistoryItem[];
   search: string;
   onOpen: (id: string) => void;
   onStatusUpdate: (id: string, status: QuoteStatus) => void;
@@ -365,8 +365,8 @@ function AdminView({ items, search, onOpen, onStatusUpdate }: {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
   const groups = useMemo(() => {
-    // Admin chỉ thấy item đã gửi (status != drafted)
-    const visible = items.filter(isSentToAdmin);
+    // Admin chỉ thấy muc đã gửi (status != drafted)
+    const visible = mucs.filter(daGuiAdmin);
 
     const q = search.trim().toLowerCase();
     const filtered = q
@@ -378,27 +378,27 @@ function AdminView({ items, search, onOpen, onStatusUpdate }: {
         )
       : visible;
 
-    const map = new Map<string, { id: string; name: string; items: HistoryItem[] }>();
-    filtered.forEach(item => {
-      const sid = item.sellerId || 'unknown';
-      const sname = item.sellerName || 'Không rõ';
-      if (!map.has(sid)) map.set(sid, { id: sid, name: sname, items: [] });
-      map.get(sid)!.items.push(item);
+    const map = new Map<string, { id: string; name: string; mucs: HistoryItem[] }>();
+    filtered.forEach(muc => {
+      const sid = muc.sellerId || 'unknown';
+      const sname = muc.sellerName || 'Không rõ';
+      if (!map.has(sid)) map.set(sid, { id: sid, name: sname, mucs: [] });
+      map.get(sid)!.mucs.push(muc);
     });
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [items, search]);
+  }, [mucs, search]);
 
   const toggle = (id: string) => setCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
 
   // Badge "chờ duyệt" count toàn bộ
-  const pendingCount = items.filter(i => getStatus(i) === 'pending_approval').length;
+  const pendingCount = mucs.filter(i => layTrangThai(i) === 'pending_approval').length;
 
   if (groups.length === 0) {
     return (
       <div className="crm-empty">
         <FileText size={40} />
         <p>
-          {items.filter(isSentToAdmin).length === 0
+          {mucs.filter(daGuiAdmin).length === 0
             ? 'Chưa có báo giá nào được gửi lên.'
             : 'Không có báo giá phù hợp.'}
         </p>
@@ -418,9 +418,9 @@ function AdminView({ items, search, onOpen, onStatusUpdate }: {
 
       {groups.map(group => {
         const isOpen = !collapsed[group.id];
-        const pendingInGroup = group.items.filter(h => getStatus(h) === 'pending_approval').length;
-        const groupRevenue = group.items
-          .filter(h => getStatus(h) === 'completed')
+        const pendingInGroup = group.mucs.filter(h => layTrangThai(h) === 'pending_approval').length;
+        const groupRevenue = group.mucs
+          .filter(h => layTrangThai(h) === 'completed')
           .reduce((s, h) => s + (h.chotGia || h.finalPrice) * h.quantity, 0);
 
         return (
@@ -428,7 +428,7 @@ function AdminView({ items, search, onOpen, onStatusUpdate }: {
             <button className="qgroup-header" onClick={() => toggle(group.id)}>
               <span className="qgroup-icon"><Users size={16} /></span>
               <span className="qgroup-name">{group.name}</span>
-              <span className="qgroup-count">{group.items.length} báo giá</span>
+              <span className="qgroup-count">{group.mucs.length} báo giá</span>
               {pendingInGroup > 0 && (
                 <span className="qgroup-pending">{pendingInGroup} chờ duyệt</span>
               )}
@@ -444,13 +444,13 @@ function AdminView({ items, search, onOpen, onStatusUpdate }: {
 
             {isOpen && (
               <div className="quote-grid" style={{ padding: '12px 16px 16px' }}>
-                {group.items.map(item => (
+                {group.mucs.map(muc => (
                   <QuotationCard
-                    key={item.id}
-                    item={item}
-                    onClick={() => onOpen(item.id)}
+                    key={muc.id}
+                    muc={muc}
+                    onClick={() => onOpen(muc.id)}
                     statusControl={
-                      <AdminStatusDropdown item={item} onUpdate={onStatusUpdate} />
+                      <HopChonTrangThaiAdmin muc={muc} khiCapNhat={onStatusUpdate} />
                     }
                   />
                 ))}
@@ -466,27 +466,27 @@ function AdminView({ items, search, onOpen, onStatusUpdate }: {
 // ════════════════════════════════════════════════════════════
 // SALE VIEW — tất cả báo giá của mình, nút gửi khi drafted
 // ════════════════════════════════════════════════════════════
-function SaleView({ items, search, onOpen, onStatusUpdate }: {
-  items: HistoryItem[];
+function SaleView({ mucs, search, onOpen, onStatusUpdate }: {
+  mucs: HistoryItem[];
   search: string;
   onOpen: (id: string) => void;
   onStatusUpdate: (id: string, status: QuoteStatus) => void;
 }) {
   const filtered = useMemo(() => {
-    if (!search.trim()) return items;
+    if (!search.trim()) return mucs;
     const q = search.toLowerCase();
-    return items.filter(i =>
+    return mucs.filter(i =>
       i.customer.toLowerCase().includes(q) ||
       i.productName.toLowerCase().includes(q) ||
       i.structure.toLowerCase().includes(q)
     );
-  }, [items, search]);
+  }, [mucs, search]);
 
   if (filtered.length === 0) {
     return (
       <div className="crm-empty">
         <FileText size={40} />
-        <p>{items.length === 0
+        <p>{mucs.length === 0
           ? 'Bạn chưa có báo giá nào. Hãy lưu bảng tính giá đầu tiên!'
           : 'Không có báo giá phù hợp.'}
         </p>
@@ -496,13 +496,13 @@ function SaleView({ items, search, onOpen, onStatusUpdate }: {
 
   return (
     <div className="quote-grid">
-      {filtered.map(item => (
+      {filtered.map(muc => (
         <QuotationCard
-          key={item.id}
-          item={item}
-          onClick={() => onOpen(item.id)}
+          key={muc.id}
+          muc={muc}
+          onClick={() => onOpen(muc.id)}
           statusControl={
-            <SaleStatusControl item={item} onUpdate={onStatusUpdate} />
+            <DieuKhienTrangThaiSale muc={muc} khiCapNhat={onStatusUpdate} />
           }
         />
       ))}
@@ -513,19 +513,19 @@ function SaleView({ items, search, onOpen, onStatusUpdate }: {
 // ════════════════════════════════════════════════════════════
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
-export default function QuotationModule({ role }: { role: string; currentSellerId?: string }) {
-  const { history, loadHistoryItem: taiLichSu, setActiveModule: datPhan, updateQuoteStatus: capNhatTrangThaiDon, currentSellerId } = dungCuaHangTinhGia();
+export default function QuotationModule({ role }: { role: string; hienTaiSellerId?: string }) {
+  const { history, loadHistoryItem: taiLichSu, setActiveModule: datPhan, updateQuoteStatus: capNhatTrangThaiDon, currentSellerId: hienTaiSellerId } = dungCuaHangTinhGia();
   const [search, setSearch] = useState('');
 
   const isAdmin = role === 'admin';
 
   const myItems = useMemo(() =>
-    isAdmin ? history : history.filter(h => h.sellerId === currentSellerId),
-    [history, isAdmin, currentSellerId]
+    isAdmin ? history : history.filter(h => h.sellerId === hienTaiSellerId),
+    [history, isAdmin, hienTaiSellerId]
   );
 
-  // Stats cho admin: chỉ đếm item đã gửi
-  const statsItems = isAdmin ? history.filter(isSentToAdmin) : myItems;
+  // Stats cho admin: chỉ đếm muc đã gửi
+  const statsItems = isAdmin ? history.filter(daGuiAdmin) : myItems;
 
   const handleOpen = (id: string) => {
     taiLichSu(id);
@@ -543,7 +543,7 @@ export default function QuotationModule({ role }: { role: string; currentSellerI
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
-          {search && <button className="crm-search-clear" onClick={() => setSearch('')}>✕</button>}
+          {search && <button className="crm-search-clear" onClick={() => setSearch('')}>âœ•</button>}
         </div>
         {isAdmin && (
           <div className="crm-toolbar-right">
@@ -554,19 +554,19 @@ export default function QuotationModule({ role }: { role: string; currentSellerI
         )}
       </div>
 
-      <StatsBar items={statsItems} isAdmin={isAdmin} />
+      <StatsBar mucs={statsItems} isAdmin={isAdmin} />
 
       <div className="crm-list quote-list-container">
         {isAdmin ? (
           <AdminView
-            items={history}
+            mucs={history}
             search={search}
             onOpen={handleOpen}
             onStatusUpdate={capNhatTrangThaiDon}
           />
         ) : (
           <SaleView
-            items={myItems}
+            mucs={myItems}
             search={search}
             onOpen={handleOpen}
             onStatusUpdate={capNhatTrangThaiDon}

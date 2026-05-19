@@ -1,5 +1,5 @@
 // ── Adapter: chuyển đổi EN ↔ VN rồi gọi engine chung @lts/bang-tinh-gia
-// Web UI giữ tên biến tiếng Anh, engine core dùng tiếng Việt.
+// Web UI vẫn nhận schema cũ, nhưng phần xử lý ưu tiên tên tiếng Việt ở adapter.
 // ═══════════════════════════════════════════════════════════════════════════
 import { tinhGia, traLoiNhuan, toiUuDoDay, KetQuaToiUuDoDay } from '@lts/bang-tinh-gia';
 import type { DauVaoTinhGia, KetQuaTinhGia, VatLieu, HangSo, GiaVatLieuKhoNho } from '@lts/kieu-du-lieu';
@@ -7,21 +7,22 @@ import type { DongLoiNhuan } from '@lts/hang-so';
 import { CalculateInput, CalculateResult, Material, AppConstants, ProfitRow, SmallWidthMaterialPrice } from './types';
 import { PROFIT_DEFAULT } from './data';
 
-// ── Lookup Profit (giữ nguyên API cũ cho ManHinhQuanLy) ──────────────────────
-export function lookupProfit(totalCost: number, column: number, profitTable: ProfitRow[]): number {
-  const col = column === 1 ? 'col1' : 'col2';
-  let val = PROFIT_DEFAULT[col as keyof typeof PROFIT_DEFAULT];
-  for (const row of profitTable) {
-    if (totalCost < row.threshold) {
-      val = row[col as keyof typeof row] as number;
+// ── Tra lợi nhuận (giữ alias cũ cho các module chưa đổi) ──────────────────────
+export function traLoiNhuanTheoBang(tongChiPhi: number, cot: number, bangLoiNhuan: ProfitRow[]): number {
+  const tenCot = cot === 1 ? 'col1' : 'col2';
+  let giaTri = PROFIT_DEFAULT[tenCot as keyof typeof PROFIT_DEFAULT];
+  for (const dong of bangLoiNhuan) {
+    if (tongChiPhi < dong.threshold) {
+      giaTri = dong[tenCot as keyof typeof dong] as number;
       break;
     }
   }
-  return val;
+  return giaTri;
 }
+export const lookupProfit = traLoiNhuanTheoBang;
 
 // ── Auto-optimize thickness using engine ─────────────────────────────────
-export function optimizeThickness(
+export function toiUuDoDayTheoVatLieu(
   input: CalculateInput,
   materials: Material[]
 ): {
@@ -53,7 +54,7 @@ export function optimizeThickness(
     }).filter((item): item is NonNullable<typeof item> => item !== null)
   ].filter(item => item.doDay > 0);
 
-  const vatLieuVN = materials.map(toVatLieu);
+  const vatLieuVN = materials.map(doiSangVatLieu);
   const ketQua = toiUuDoDay(input.targetThickness, vatLieuDangChon, vatLieuVN);
 
   const optimizedLayerIds: Record<string, string> = {};
@@ -73,7 +74,7 @@ export function optimizeThickness(
 }
 
 // ── Material EN → VatLieu VN ─────────────────────────────────────────────────
-function toVatLieu(m: Material): VatLieu {
+function doiSangVatLieu(m: Material): VatLieu {
   return {
     id: m.id, ten: m.name, nhom: m.group,
     khoiLuongRieng: m.density, doDay: m.thickness,
@@ -85,11 +86,12 @@ function toVatLieu(m: Material): VatLieu {
 }
 
 // ── AppConstants EN → HangSo VN ──────────────────────────────────────────────
-function toHangSo(c: AppConstants): HangSo {
+function doiSangHangSo(c: AppConstants, input?: CalculateInput): HangSo {
+  const luaChonQuai = c.handleOptions?.find(o => o.key === input?.handleOptionKey);
   return {
     giaKhoa: c.zipperPrice, khoiLuongKhoa: c.zipperWeight,
     giaBangKeo: c.tapePrice, khoiLuongBangKeo: c.tapeWeight,
-    giaQuaiXach: c.handlePrice, khoiLuongQuaiXach: c.handleWeight,
+    giaQuaiXach: luaChonQuai?.price ?? c.handlePrice, khoiLuongQuaiXach: luaChonQuai?.weight ?? c.handleWeight,
     giaThuungMacDinh: c.boxPriceDefault, soTuiPerThuungMacDinh: c.bagsPerBoxDefault,
     laiSuatMacDinh: c.interestBase ?? 0.10,
     laiSuatCoBan: c.interestBase ?? 0.10,
@@ -114,11 +116,11 @@ function toHangSo(c: AppConstants): HangSo {
 }
 
 // ── ProfitRow EN → DongLoiNhuan VN ──────────────────────────────────────────
-function toDongLoiNhuan(rows: ProfitRow[]): DongLoiNhuan[] {
+function doiSangDongLoiNhuan(rows: ProfitRow[]): DongLoiNhuan[] {
   return rows.map(r => ({ nguong: r.threshold, cot1: r.col1, cot2: r.col2 }));
 }
 
-function toGiaKhoNho(rows: SmallWidthMaterialPrice[], materials: Material[]): GiaVatLieuKhoNho[] {
+function doiSangGiaKhoNho(rows: SmallWidthMaterialPrice[], materials: Material[]): GiaVatLieuKhoNho[] {
   return rows.map(row => {
     const material = materials.find(m => m.id === row.materialId);
     const giaMoiM2 = row.pricePerM2 ?? (material ? row.pricePerKg * material.thickness * material.density / 1000 : 0);
@@ -133,17 +135,14 @@ function toGiaKhoNho(rows: SmallWidthMaterialPrice[], materials: Material[]): Gi
 }
 
 // ── CalculateInput EN → DauVaoTinhGia VN ─────────────────────────────────────
-function toDauVao(i: CalculateInput, bangGiaKhoNho?: GiaVatLieuKhoNho[]): DauVaoTinhGia {
+function doiSangDauVao(i: CalculateInput, bangGiaKhoNho?: GiaVatLieuKhoNho[]): DauVaoTinhGia {
   return {
     khachHang: i.customer, tenSanPham: i.productName,
     loaiSanPham: i.productType, loaiTui: i.bagType, loaiMang: i.filmType,
     chieuDaiCuonMang: i.filmRollLength || 6000,
     soLuong: i.quantity, soMau: i.numColors, soHinh: i.numImages || 1,
     idLop1: i.layer1Id, idLop2: i.layer2Id, idLop2Phu: i.layer2AltId,
-    chieuDaiLop2: i.layer2Lengths ? {
-      vl1: (i.numImages || 1) >= 2 ? i.layer2Lengths.mat1 * 500 : i.layer2Lengths.mat1 * 1000,
-      vl2: (i.numImages || 1) >= 2 ? i.layer2Lengths.mat2 * 500 : i.layer2Lengths.mat2 * 1000,
-    } : undefined,
+    chieuDaiLop2: i.layer2Lengths ? { vl1: i.layer2Lengths.mat1 * 1000, vl2: i.layer2Lengths.mat2 * 1000 } : undefined,
     matTruocLop2: i.layer2FrontPart ?? 'main',
     kieuGhepLop2: i.layer2PairingMode ?? 'bottom_to_bottom',
     idLop3: i.layer3Id, idLop4: i.layer4Id, idLop5: i.layer5Id,
@@ -184,7 +183,7 @@ function toDauVao(i: CalculateInput, bangGiaKhoNho?: GiaVatLieuKhoNho[]): DauVao
 }
 
 // ── KetQuaTinhGia VN → CalculateResult EN ────────────────────────────────────
-	function toResult(r: KetQuaTinhGia, originalInput: CalculateInput, materials: Material[]): CalculateResult {
+	function doiSangKetQua(r: KetQuaTinhGia, originalInput: CalculateInput, materials: Material[]): CalculateResult {
   const findMat = (id: string | null | undefined) => materials.find(m => m.id === id) || null;
   const printMat = findMat(originalInput.layer1Id);
   const lamIds = [originalInput.layer2Id, originalInput.layer3Id, originalInput.layer4Id, originalInput.layer5Id];
@@ -289,21 +288,24 @@ function toDauVao(i: CalculateInput, bangGiaKhoNho?: GiaVatLieuKhoNho[]): DauVao
 }
 
 // ── Main calculate — API giữ nguyên cho web ──────────────────────────────────
-export function calculate(
+export function tinhGiaWeb(
   input: CalculateInput,
   materials: Material[],
   constants: AppConstants,
   profitTable: ProfitRow[],
   smallWidthPrices: SmallWidthMaterialPrice[] = []
 ): CalculateResult | null {
-  const bangGiaKhoNho = toGiaKhoNho(smallWidthPrices, materials);
-  const dauVao = toDauVao(input, bangGiaKhoNho);
-  const vatLieu = materials.map(toVatLieu);
-  const hangSo = toHangSo(constants);
-  const bangLN = toDongLoiNhuan(profitTable);
+  const bangGiaKhoNho = doiSangGiaKhoNho(smallWidthPrices, materials);
+  const dauVao = doiSangDauVao(input, bangGiaKhoNho);
+  const vatLieu = materials.map(doiSangVatLieu);
+  const hangSo = doiSangHangSo(constants, input);
+  const bangLN = doiSangDongLoiNhuan(profitTable);
 
   const ketQua = tinhGia(dauVao, vatLieu, hangSo, bangLN);
   if (!ketQua) return null;
 
-  return toResult(ketQua, input, materials);
+  return doiSangKetQua(ketQua, input, materials);
 }
+
+export const optimizeThickness = toiUuDoDayTheoVatLieu;
+export const calculate = tinhGiaWeb;

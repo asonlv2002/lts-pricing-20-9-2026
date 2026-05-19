@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useState, useEffect } from 'react';
 import { dungCuaHangTinhGia } from '../../store/CuaHangTinhGia';
 import ModuleKhachHang from '../ModuleKhachHang';
@@ -14,8 +14,8 @@ import {
   UserCog, ClipboardList,
 } from 'lucide-react';
 
-// Map role → sellerId/sellerName tạm thời (sau này thay bằng auth thực)
-const ROLE_SELLER_MAP: Record<string, { id: string; name: string }> = {
+// Map vaiTro → sellerId/sellerName tạm thời (sau này thay bằng auth thực)
+const BAN_DO_ROLE_NHAN_VIEN: Record<string, { id: string; name: string }> = {
   admin:    { id: 'admin', name: 'Quản trị viên' },
   sale:     { id: 'S1',   name: 'Nguyễn Văn An' },
   purchase: { id: 'P1',   name: 'Thu mua' },
@@ -24,28 +24,28 @@ const ROLE_SELLER_MAP: Record<string, { id: string; name: string }> = {
 // ============================================================
 // MODULE DEFINITION
 // ============================================================
-type ModuleId = 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders';
+type MaModule = 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders';
 
-interface MenuItem {
-  id: ModuleId;
+interface MucMenu {
+  id: MaModule;
   label: string;
   icon: React.ReactNode;
-  roles: string[];
+  vaiTros: string[];
 }
 
-const MENU_ITEMS: MenuItem[] = [
-  { id: 'calculator',        label: 'Tính giá Sản phẩm',   icon: <Calculator    size={20} />, roles: ['admin', 'sale']            },
-  { id: 'quotations',        label: 'Danh sách Báo giá',    icon: <FileText      size={20} />, roles: ['admin', 'sale']            },
-  { id: 'history_db',        label: 'Lịch sử tính giá',     icon: <Database      size={20} />, roles: ['admin', 'sale']            },
-  { id: 'production_orders', label: 'Lệnh Sản Xuất',        icon: <ClipboardList size={20} />, roles: ['admin', 'purchase']        },
-  { id: 'master_data',       label: 'Bảng định mức',         icon: <Factory       size={20} />, roles: ['admin', 'purchase']        },
-  { id: 'customers',         label: 'Khách hàng (CRM)',      icon: <Users         size={20} />, roles: ['admin', 'sale']            },
-  { id: 'sellers',           label: 'Quản lý Seller',        icon: <Briefcase     size={20} />, roles: ['admin']                   },
-  { id: 'users',             label: 'Tài khoản hệ thống',    icon: <UserCog       size={20} />, roles: ['admin']                   },
-  { id: 'settings',          label: 'Cài đặt hệ thống',      icon: <Settings      size={20} />, roles: ['admin']                   },
+const CAC_MUC_MENU: MucMenu[] = [
+  { id: 'calculator',        label: 'Tính giá Sản phẩm',   icon: <Calculator    size={20} />, vaiTros: ['admin', 'sale']            },
+  { id: 'quotations',        label: 'Danh sách Báo giá',    icon: <FileText      size={20} />, vaiTros: ['admin', 'sale']            },
+  { id: 'history_db',        label: 'Lịch sử tính giá',     icon: <Database      size={20} />, vaiTros: ['admin', 'sale']            },
+  { id: 'production_orders', label: 'Lệnh Sản Xuất',        icon: <ClipboardList size={20} />, vaiTros: ['admin', 'purchase']        },
+  { id: 'master_data',       label: 'Bảng định mức',         icon: <Factory       size={20} />, vaiTros: ['admin', 'purchase']        },
+  { id: 'customers',         label: 'Khách hàng (CRM)',      icon: <Users         size={20} />, vaiTros: ['admin', 'sale']            },
+  { id: 'sellers',           label: 'Quản lý Seller',        icon: <Briefcase     size={20} />, vaiTros: ['admin']                   },
+  { id: 'users',             label: 'Tài khoản hệ thống',    icon: <UserCog       size={20} />, vaiTros: ['admin']                   },
+  { id: 'settings',          label: 'Cài đặt hệ thống',      icon: <Settings      size={20} />, vaiTros: ['admin']                   },
 ];
 
-const MODULE_TITLES: Record<ModuleId, string> = {
+const TIEU_DE_MODULE: Record<MaModule, string> = {
   calculator:        'Tính giá Sản phẩm',
   quotations:        'Danh sách Báo giá',
   history_db:        'Lịch sử tính giá',
@@ -60,74 +60,74 @@ const MODULE_TITLES: Record<ModuleId, string> = {
 // ============================================================
 // SIDEBAR
 // ============================================================
-interface SidebarProps {
-  activeModule: ModuleId;
-  setActiveModule: (id: ModuleId) => void;
-  role: string;
-  setRole: (r: string) => void;
-  isOpen: boolean;
-  setIsOpen: (v: boolean) => void;
-  isMobile: boolean;
+interface ThuocTinhThanhBen {
+  moduleDangMo: MaModule;
+  datModuleDangMo: (id: MaModule) => void;
+  vaiTro: string;
+  datVaiTro: (r: string) => void;
+  dangMo: boolean;
+  datDangMo: (v: boolean) => void;
+  laMobile: boolean;
 }
 
-function Sidebar({ activeModule, setActiveModule, role, setRole, isOpen, setIsOpen, isMobile }: SidebarProps) {
-  const visibleMenu = MENU_ITEMS.filter(item => item.roles.includes(role));
+function ThanhBen({ moduleDangMo, datModuleDangMo, vaiTro, datVaiTro, dangMo, datDangMo, laMobile }: ThuocTinhThanhBen) {
+  const menuHienThi = CAC_MUC_MENU.filter(item => item.vaiTros.includes(vaiTro));
 
-  const handleNav = (id: ModuleId) => {
-    setActiveModule(id);
-    if (isMobile) setIsOpen(false);
+  const xuLyDieuHuong = (id: MaModule) => {
+    datModuleDangMo(id);
+    if (laMobile) datDangMo(false);
   };
 
   return (
     <>
-      {isMobile && isOpen && (
-        <div className="lts-sidebar-backdrop" onClick={() => setIsOpen(false)} />
+      {laMobile && dangMo && (
+        <div className="lts-sidebar-backdrop" onClick={() => datDangMo(false)} />
       )}
 
       <aside
-        className={`lts-sidebar ${isMobile ? 'lts-sidebar--mobile' : ''} ${isMobile && !isOpen ? 'lts-sidebar--hidden' : ''} ${!isMobile && !isOpen ? 'lts-sidebar--collapsed' : ''}`}
+        className={`lts-sidebar ${laMobile ? 'lts-sidebar--mobile' : ''} ${laMobile && !dangMo ? 'lts-sidebar--hidden' : ''} ${!laMobile && !dangMo ? 'lts-sidebar--collapsed' : ''}`}
       >
         {/* Logo area */}
         <div className="lts-sidebar-logo">
-          {(isOpen || isMobile) ? (
+          {(dangMo || laMobile) ? (
             <span className="lts-sidebar-brand">
               LTS<span className="lts-brand-accent">PRICING</span>
             </span>
           ) : <span className="lts-sidebar-brand-mini">LTS</span>}
           <button
             className="lts-sidebar-toggle"
-            onClick={() => setIsOpen(!isOpen)}
-            title={isOpen ? 'Thu gọn menu' : 'Mở menu'}
+            onClick={() => datDangMo(!dangMo)}
+            title={dangMo ? 'Thu gọn menu' : 'Mở menu'}
           >
-            {isMobile ? <X size={20} /> : <Menu size={20} />}
+            {laMobile ? <X size={20} /> : <Menu size={20} />}
           </button>
         </div>
 
         {/* Navigation */}
         <nav className="lts-sidebar-nav">
-          {visibleMenu.map((item) => (
+          {menuHienThi.map((item) => (
             <button
               key={item.id}
-              onClick={() => handleNav(item.id)}
-              className={`lts-nav-item ${activeModule === item.id ? 'active' : ''}`}
-              title={!isOpen && !isMobile ? item.label : undefined}
+              onClick={() => xuLyDieuHuong(item.id)}
+              className={`lts-nav-item ${moduleDangMo === item.id ? 'active' : ''}`}
+              title={!dangMo && !laMobile ? item.label : undefined}
             >
               <span className="lts-nav-icon">{item.icon}</span>
-              {(isOpen || isMobile) && <span className="lts-nav-label">{item.label}</span>}
-              {(isOpen || isMobile) && <ChevronRight size={14} className="lts-nav-chevron" />}
+              {(dangMo || laMobile) && <span className="lts-nav-label">{item.label}</span>}
+              {(dangMo || laMobile) && <ChevronRight size={14} className="lts-nav-chevron" />}
             </button>
           ))}
         </nav>
 
         {/* Role switcher */}
         <div className="lts-sidebar-footer">
-          {(isOpen || isMobile) && (
-            <div className="lts-role-label">Góc nhìn / Phân quyền</div>
+          {(dangMo || laMobile) && (
+            <div className="lts-vaiTro-label">Góc nhìn / Phân quyền</div>
           )}
           <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="lts-role-select"
+            value={vaiTro}
+            onChange={(e) => datVaiTro(e.target.value)}
+            className="lts-vaiTro-select"
             title="Chọn vai trò"
           >
             <option value="admin">👑 Quản trị (Admin)</option>
@@ -143,35 +143,35 @@ function Sidebar({ activeModule, setActiveModule, role, setRole, isOpen, setIsOp
 // ============================================================
 // MOBILE FLOATING MENU
 // ============================================================
-function MobileFloatingMenu({ activeModule, setActiveModule, role, setRole }: {
-  activeModule: ModuleId;
-  setActiveModule: (id: ModuleId) => void;
-  role: string;
-  setRole: (r: string) => void;
+function MenuNoiMobile({ moduleDangMo, datModuleDangMo, vaiTro, datVaiTro }: {
+  moduleDangMo: MaModule;
+  datModuleDangMo: (id: MaModule) => void;
+  vaiTro: string;
+  datVaiTro: (r: string) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const activeItem = MENU_ITEMS.find(i => i.id === activeModule) || MENU_ITEMS[0];
+  const [dangMo, datDangMo] = useState(false);
+  const activeItem = CAC_MUC_MENU.find(i => i.id === moduleDangMo) || CAC_MUC_MENU[0];
 
   return (
     <>
-      {isOpen && <div className="lts-fab-backdrop" onClick={() => setIsOpen(false)} />}
+      {dangMo && <div className="lts-fab-backdrop" onClick={() => datDangMo(false)} />}
 
-      <div className={`lts-fab-container ${isOpen ? 'open' : ''}`}>
-        {isOpen && (
+      <div className={`lts-fab-container ${dangMo ? 'open' : ''}`}>
+        {dangMo && (
           <div className="lts-fab-popup">
             <div className="lts-fab-header">
               <span>Chuyển tiếp phân hệ</span>
-              <button onClick={() => setIsOpen(false)}><X size={18} /></button>
+              <button onClick={() => datDangMo(false)}><X size={18} /></button>
             </div>
 
             <div className="lts-fab-list">
-              {MENU_ITEMS.filter(item => item.roles.includes(role)).map(item => {
-                const isActive = item.id === activeModule;
+              {CAC_MUC_MENU.filter(item => item.vaiTros.includes(vaiTro)).map(item => {
+                const isActive = item.id === moduleDangMo;
                 return (
                   <button
                     key={item.id}
                     className={`lts-fab-item ${isActive ? 'active' : ''}`}
-                    onClick={() => { setActiveModule(item.id); setIsOpen(false); }}
+                    onClick={() => { datModuleDangMo(item.id); datDangMo(false); }}
                   >
                     <span className="lts-fab-icon-wrap">{item.icon}</span>
                     <span>{item.label}</span>
@@ -180,12 +180,12 @@ function MobileFloatingMenu({ activeModule, setActiveModule, role, setRole }: {
               })}
             </div>
 
-            <div className="lts-fab-role">
-              <div className="lts-role-label">Chọn quyền xem:</div>
+            <div className="lts-fab-vaiTro">
+              <div className="lts-vaiTro-label">Chọn quyền xem:</div>
               <select
-                value={role}
-                onChange={e => { setRole(e.target.value); setIsOpen(false); }}
-                className="lts-role-select"
+                value={vaiTro}
+                onChange={e => { datVaiTro(e.target.value); datDangMo(false); }}
+                className="lts-vaiTro-select"
               >
                 <option value="admin">👑 Quản trị (Admin)</option>
                 <option value="sale">💼 Kinh doanh (Sale)</option>
@@ -195,7 +195,7 @@ function MobileFloatingMenu({ activeModule, setActiveModule, role, setRole }: {
           </div>
         )}
 
-        <button className="lts-fab-trigger" onClick={() => setIsOpen(!isOpen)}>
+        <button className="lts-fab-trigger" onClick={() => datDangMo(!dangMo)}>
           <span className="lts-fab-icon-wrap">{activeItem.icon}</span>
           <span className="lts-fab-label-below">{activeItem.label}</span>
         </button>
@@ -207,41 +207,41 @@ function MobileFloatingMenu({ activeModule, setActiveModule, role, setRole }: {
 // ============================================================
 // TOP HEADER
 // ============================================================
-interface TopHeaderProps {
-  activeModule: ModuleId;
+interface DauTrangTrenProps {
+  moduleDangMo: MaModule;
   onExport: () => void;
   onMenuToggle: () => void;
-  isMobile: boolean;
+  laMobile: boolean;
 }
 
-function TopHeader({ activeModule, onExport, onMenuToggle, isMobile }: TopHeaderProps) {
-  const { theme, setTheme, layoutType, setLayoutType, density, setDensity, result, isDirty, resetInput } = dungCuaHangTinhGia();
-  const [showNewConfirm, setShowNewConfirm] = useState(false);
+function DauTrangTren({ moduleDangMo, onExport, onMenuToggle, laMobile }: DauTrangTrenProps) {
+  const { theme: chuDe, setTheme: datChuDe, layoutType: kieuBoCuc, setLayoutType: datKieuBoCuc, density: matDo, setDensity: datMatDo, result: ketQua, isDirty: dangBan, resetInput: datLaiDauVao } = dungCuaHangTinhGia();
+  const [hienXacNhanMoi, datHienXacNhanMoi] = useState(false);
 
-  const handleNew = () => {
-    if (isDirty) setShowNewConfirm(true);
-    else resetInput();
+  const xuLyTaoMoi = () => {
+    if (dangBan) datHienXacNhanMoi(true);
+    else datLaiDauVao();
   };
 
-  const confirmNew = () => {
-    resetInput();
-    setShowNewConfirm(false);
+  const xacNhanTaoMoi = () => {
+    datLaiDauVao();
+    datHienXacNhanMoi(false);
   };
 
   return (
     <>
-      {showNewConfirm && (
-        <div className="lts-confirm-backdrop" onClick={() => setShowNewConfirm(false)}>
+      {hienXacNhanMoi && (
+        <div className="lts-confirm-backdrop" onClick={() => datHienXacNhanMoi(false)}>
           <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
-            <div className="lts-confirm-icon">⚠️</div>
+            <div className="lts-confirm-icon">âš ï¸</div>
             <h3 className="lts-confirm-title">Chưa lưu báo giá</h3>
             <p className="lts-confirm-desc">
               Bảng tính hiện tại có thay đổi chưa được lưu vào lịch sử.<br />
               Tạo mới sẽ xóa toàn bộ dữ liệu đang nhập.
             </p>
             <div className="lts-confirm-actions">
-              <button className="btn btn-outline" onClick={() => setShowNewConfirm(false)}>Quay lại</button>
-              <button className="btn btn-danger" onClick={confirmNew}>Tạo mới (không lưu)</button>
+              <button className="btn btn-outline" onClick={() => datHienXacNhanMoi(false)}>Quay lại</button>
+              <button className="btn btn-danger" onClick={xacNhanTaoMoi}>Tạo mới (không lưu)</button>
             </div>
           </div>
         </div>
@@ -249,29 +249,29 @@ function TopHeader({ activeModule, onExport, onMenuToggle, isMobile }: TopHeader
 
       <header className="lts-topbar">
         <div className="lts-topbar-left">
-          <h1 className="lts-topbar-title">{MODULE_TITLES[activeModule]}</h1>
-          {activeModule === 'calculator' && (
-            <button className="lts-new-btn" onClick={handleNew} title="Tạo bảng tính giá mới">
+          <h1 className="lts-topbar-title">{TIEU_DE_MODULE[moduleDangMo]}</h1>
+          {moduleDangMo === 'calculator' && (
+            <button className="lts-new-btn" onClick={xuLyTaoMoi} title="Tạo bảng tính giá mới">
               <Plus size={15} />
               <span>Mới</span>
-              {isDirty && <span className="lts-dirty-dot" title="Có thay đổi chưa lưu" />}
+              {dangBan && <span className="lts-dirty-dot" title="Có thay đổi chưa lưu" />}
             </button>
           )}
         </div>
 
         <div className="lts-topbar-actions">
-          {!isMobile && activeModule === 'calculator' && (
+          {!laMobile && moduleDangMo === 'calculator' && (
             <>
               <div className="toolbar-group" title="Bố cục">
-                <button className={`toolbar-btn ${layoutType === 'default' ? 'active' : ''}`} onClick={() => setLayoutType('default')}>☰</button>
-                <button className={`toolbar-btn ${layoutType === 'stacked' ? 'active' : ''}`} onClick={() => setLayoutType('stacked')}>▤</button>
-                <button className={`toolbar-btn ${layoutType === 'wide'    ? 'active' : ''}`} onClick={() => setLayoutType('wide')}>⬚</button>
-                <button className={`toolbar-btn ${layoutType === 'bento'   ? 'active' : ''}`} onClick={() => { setLayoutType('bento'); dungCuaHangTinhGia.setState({ activeView: 'bento' }); }}>◫</button>
+                <button className={`toolbar-btn ${kieuBoCuc === 'default' ? 'active' : ''}`} onClick={() => datKieuBoCuc('default')}>â˜°</button>
+                <button className={`toolbar-btn ${kieuBoCuc === 'stacked' ? 'active' : ''}`} onClick={() => datKieuBoCuc('stacked')}>▤</button>
+                <button className={`toolbar-btn ${kieuBoCuc === 'wide'    ? 'active' : ''}`} onClick={() => datKieuBoCuc('wide')}>â¬š</button>
+                <button className={`toolbar-btn ${kieuBoCuc === 'bento'   ? 'active' : ''}`} onClick={() => { datKieuBoCuc('bento'); dungCuaHangTinhGia.setState({ activeView: 'bento' }); }}>â—«</button>
               </div>
               <div className="toolbar-group" title="Mật độ">
-                <button className={`toolbar-btn ${density === 'compact'     ? 'active' : ''}`} onClick={() => setDensity('compact')}>S</button>
-                <button className={`toolbar-btn ${density === 'comfortable' ? 'active' : ''}`} onClick={() => setDensity('comfortable')}>M</button>
-                <button className={`toolbar-btn ${density === 'spacious'    ? 'active' : ''}`} onClick={() => setDensity('spacious')}>L</button>
+                <button className={`toolbar-btn ${matDo === 'compact'     ? 'active' : ''}`} onClick={() => datMatDo('compact')}>S</button>
+                <button className={`toolbar-btn ${matDo === 'comfortable' ? 'active' : ''}`} onClick={() => datMatDo('comfortable')}>M</button>
+                <button className={`toolbar-btn ${matDo === 'spacious'    ? 'active' : ''}`} onClick={() => datMatDo('spacious')}>L</button>
               </div>
             </>
           )}
@@ -279,17 +279,17 @@ function TopHeader({ activeModule, onExport, onMenuToggle, isMobile }: TopHeader
           <button
             className="theme-toggle"
             title="Chuyển đổi Sáng/Tối"
-            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            onClick={() => datChuDe(chuDe === 'dark' ? 'light' : 'dark')}
           />
 
-          {!isMobile && (
+          {!laMobile && (
             <button className="btn btn-sm btn-outline" onClick={() => window.print()}>
               <Printer size={14} style={{ display: 'inline', marginRight: '4px' }} />
               In
             </button>
           )}
 
-          {result && !isMobile && (
+          {ketQua && !laMobile && (
             <button className="btn btn-sm btn-outline" onClick={onExport}>
               📥 Xuất
             </button>
@@ -304,140 +304,140 @@ function TopHeader({ activeModule, onExport, onMenuToggle, isMobile }: TopHeader
 // APP SHELL
 // ============================================================
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const [role, setRole] = useState('admin');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
+  const [vaiTro, datVaiTro] = useState('admin');
+  const [thanhBenDangMo, datThanhBenDangMo] = useState(true);
+  const [laMobile, datLaMobile] = useState(false);
 
-  const { result, activeModule, setActiveModule, setCurrentSeller, setRole: setStoreRole } = dungCuaHangTinhGia();
+  const { result: ketQua, activeModule: moduleDangMo, setActiveModule: datModuleDangMo, setCurrentSeller: datNhanVienHienTai, setRole: datVaiTroStore } = dungCuaHangTinhGia();
 
-  // Sync role → sellerId/sellerName + store.role mỗi khi đổi role
-  const handleSetRole = (r: string) => {
-    setRole(r);
-    const seller = ROLE_SELLER_MAP[r] ?? { id: r, name: r };
-    setCurrentSeller(seller.id, seller.name);
-    setStoreRole(r);
+  // Sync vaiTro → sellerId/sellerName + store.vaiTro mỗi khi đổi vaiTro
+  const xuLyDatVaiTro = (r: string) => {
+    datVaiTro(r);
+    const nhanVien = BAN_DO_ROLE_NHAN_VIEN[r] ?? { id: r, name: r };
+    datNhanVienHienTai(nhanVien.id, nhanVien.name);
+    datVaiTroStore(r);
   };
 
-  // Sync initial role on mount
+  // Sync initial vaiTro on mount
   useEffect(() => {
-    const seller = ROLE_SELLER_MAP[role] ?? { id: role, name: role };
-    setCurrentSeller(seller.id, seller.name);
-    setStoreRole(role);
+    const nhanVien = BAN_DO_ROLE_NHAN_VIEN[vaiTro] ?? { id: vaiTro, name: vaiTro };
+    datNhanVienHienTai(nhanVien.id, nhanVien.name);
+    datVaiTroStore(vaiTro);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Detect mobile on mount and resize
   useEffect(() => {
-    const checkMobile = () => {
-      const mobile = window.innerWidth < 768;
-      setIsMobile(mobile);
-      if (mobile) setIsSidebarOpen(false);
+    const kiemTraMobile = () => {
+      const laManHinhMobile = window.innerWidth < 768;
+      datLaMobile(laManHinhMobile);
+      if (laManHinhMobile) datThanhBenDangMo(false);
     };
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    return () => window.removeEventListener('resize', checkMobile);
+    kiemTraMobile();
+    window.addEventListener('resize', kiemTraMobile);
+    return () => window.removeEventListener('resize', kiemTraMobile);
   }, []);
 
   // Sync html classes for overflow control
   useEffect(() => {
     const html = document.documentElement;
-    if (activeModule === 'master_data') {
+    if (moduleDangMo === 'master_data') {
       html.classList.add('in-config-page');
     } else {
       html.classList.remove('in-config-page');
     }
-    if (activeModule === 'customers' || activeModule === 'sellers' ||
-        activeModule === 'quotations' || activeModule === 'users') {
+    if (moduleDangMo === 'customers' || moduleDangMo === 'sellers' ||
+        moduleDangMo === 'quotations' || moduleDangMo === 'users') {
       html.classList.add('in-crm-page');
     } else {
       html.classList.remove('in-crm-page');
     }
-    if (isMobile) html.classList.add('in-crm-page');
-  }, [activeModule, isMobile]);
+    if (laMobile) html.classList.add('in-crm-page');
+  }, [moduleDangMo, laMobile]);
 
   // Export handler
-  const handleExport = () => {
-    if (!result) return;
-    const r = result;
-    const fmtE = (n: number, d = 1) => n.toLocaleString('vi-VN', { maximumFractionDigits: d });
-    const fmtPct = (n: number) => parseFloat((n * 100).toFixed(2)) + '%';
-    const text = [
+  const xuLyXuat = () => {
+    if (!ketQua) return;
+    const kq = ketQua;
+    const dinhDangSo = (n: number, d = 1) => n.toLocaleString('vi-VN', { maximumFractionDigits: d });
+    const dinhDangPhanTram = (n: number) => parseFloat((n * 100).toFixed(2)) + '%';
+    const noiDung = [
       'BÁO GIÁ TÚI BAO BÌ - CTY CP LAI TRƯỜNG SƠN',
       '═'.repeat(50),
       `Ngày: ${new Date().toLocaleDateString('vi-VN')}`,
-      `Khách hàng: ${r.input.customer || 'N/A'}`,
-      `Sản phẩm: ${r.input.productName || 'N/A'}`,
-      `Cấu trúc: ${r.structureText}`,
-      `Số lượng: ${r.input.quantity.toLocaleString('vi-VN')} túi`,
-      `Kích thước: ${+(r.input.spreadWidth * 1000).toFixed(0)} × ${+(r.input.cutStep * 1000).toFixed(0)} mm²`,
-      `Độ dày: ${r.totalThickness} mic`,
-      `Trọng lượng: ${fmtE(r.tareWeight, 2)} gr/cái`,
+      `Khách hàng: ${kq.input.customer || 'N/A'}`,
+      `Sản phẩm: ${kq.input.productName || 'N/A'}`,
+      `Cấu trúc: ${kq.structureText}`,
+      `Số lượng: ${kq.input.quantity.toLocaleString('vi-VN')} túi`,
+      `Kích thước: ${+(kq.input.spreadWidth * 1000).toFixed(0)} × ${+(kq.input.cutStep * 1000).toFixed(0)} mm²`,
+      `Độ dày: ${kq.totalThickness} mic`,
+      `Trọng lượng: ${dinhDangSo(kq.tareWeight, 2)} gr/cái`,
       '',
       'CHI TIẾT GIÁ BÁN / TÚI',
       '─'.repeat(40),
-      `Giá vốn + LN:  ${fmtE(r.costPerUnit)} đ`,
-      `Zipper:        ${fmtE(r.zipperPerUnit)} đ`,
-      `Thùng giấy:    ${fmtE(r.boxPerUnit)} đ`,
-      `Vận chuyển:    ${fmtE(r.shippingPerUnit)} đ`,
-      `Lãi vay:       ${fmtE(r.interestPerUnit)} đ`,
-      `Hoa hồng:      ${fmtE(r.commissionPerUnit)} đ`,
+      `Giá vốn + LN:  ${dinhDangSo(kq.costPerUnit)} đ`,
+      `Zipper:        ${dinhDangSo(kq.zipperPerUnit)} đ`,
+      `Thùng giấy:    ${dinhDangSo(kq.boxPerUnit)} đ`,
+      `Vận chuyển:    ${dinhDangSo(kq.shippingPerUnit)} đ`,
+      `Lãi vay:       ${dinhDangSo(kq.interestPerUnit)} đ`,
+      `Hoa hồng:      ${dinhDangSo(kq.commissionPerUnit)} đ`,
       '─'.repeat(40),
-      `GIÁ ĐỀ XUẤT:  ${Math.round(r.finalPrice).toLocaleString('vi-VN')} đ/túi (chưa VAT)`,
+      `GIÁ ĐỀ XUẤT:  ${Math.round(kq.finalPrice).toLocaleString('vi-VN')} đ/túi (chưa VAT)`,
       '',
-      `Tỉ lệ LN: ${fmtPct(r.profitRate)}`,
-      `Doanh thu: ${r.revenue.toLocaleString('vi-VN')} đ`,
-      `Giá trục in: ${r.cylinderCost.toLocaleString('vi-VN')} đ (riêng)`,
+      `Tỉ lệ LN: ${dinhDangPhanTram(kq.profitRate)}`,
+      `Doanh thu: ${kq.revenue.toLocaleString('vi-VN')} đ`,
+      `Giá trục in: ${kq.cylinderCost.toLocaleString('vi-VN')} đ (riêng)`,
     ].filter(Boolean).join('\n');
 
-    const blob = new Blob(['\ufeff' + text], { type: 'text/plain;charset=utf-8' });
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement('a');
-    a.href     = url;
-    a.download = `BaoGia_${r.input.customer || 'N_A'}_${new Date().toISOString().slice(0, 10)}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const tepBlob = new Blob(['\ufeff' + noiDung], { type: 'text/plain;charset=utf-8' });
+    const duongDan  = URL.createObjectURL(tepBlob);
+    const theTai = document.createElement('a');
+    theTai.href     = duongDan;
+    theTai.download = `BaoGia_${kq.input.customer || 'N_A'}_${new Date().toISOString().slice(0, 10)}.txt`;
+    theTai.click();
+    URL.revokeObjectURL(duongDan);
   };
 
-  const currentSellerId = dungCuaHangTinhGia(s => s.currentSellerId);
+  const idNhanVienHienTai = dungCuaHangTinhGia(s => s.currentSellerId);
 
   return (
-    <div className={`lts-shell ${isMobile ? 'lts-shell--mobile' : ''}`}>
-      {!isMobile ? (
-        <Sidebar
-          activeModule={activeModule}
-          setActiveModule={setActiveModule}
-          role={role}
-          setRole={handleSetRole}
-          isOpen={isSidebarOpen}
-          setIsOpen={setIsSidebarOpen}
-          isMobile={false}
+    <div className={`lts-shell ${laMobile ? 'lts-shell--mobile' : ''}`}>
+      {!laMobile ? (
+        <ThanhBen
+          moduleDangMo={moduleDangMo}
+          datModuleDangMo={datModuleDangMo}
+          vaiTro={vaiTro}
+          datVaiTro={xuLyDatVaiTro}
+          dangMo={thanhBenDangMo}
+          datDangMo={datThanhBenDangMo}
+          laMobile={false}
         />
       ) : (
-        <MobileFloatingMenu
-          activeModule={activeModule}
-          setActiveModule={setActiveModule}
-          role={role}
-          setRole={handleSetRole}
+        <MenuNoiMobile
+          moduleDangMo={moduleDangMo}
+          datModuleDangMo={datModuleDangMo}
+          vaiTro={vaiTro}
+          datVaiTro={xuLyDatVaiTro}
         />
       )}
 
       <div className="lts-shell-main">
-        <TopHeader
-          activeModule={activeModule}
-          onExport={handleExport}
-          onMenuToggle={() => setIsSidebarOpen(v => !v)}
-          isMobile={isMobile}
+        <DauTrangTren
+          moduleDangMo={moduleDangMo}
+          onExport={xuLyXuat}
+          onMenuToggle={() => datThanhBenDangMo(v => !v)}
+          laMobile={laMobile}
         />
 
         <div className="lts-shell-content lts-shell-content--scroll">
-          {activeModule === 'calculator'        && children}
-          {activeModule === 'quotations'        && <ModuleBaoGia role={role} />}
-          {activeModule === 'history_db'        && <ModuleLichSuDB onNavigate={setActiveModule} />}
-          {activeModule === 'customers'         && <ModuleKhachHang role={role} currentSellerId={currentSellerId} />}
-          {activeModule === 'sellers'           && <ModuleNhanVienBan />}
-          {activeModule === 'master_data'       && <TrangCauHinh />}
-          {activeModule === 'users'             && <ModuleQuanLyNguoiDung />}
-          {activeModule === 'production_orders' && <ModuleLenhSanXuat />}
-          {/* Fallback: TypeScript đảm bảo ModuleId luôn có case ở trên — nếu không có sẽ bắt lỗi compile */}
+          {moduleDangMo === 'calculator'        && children}
+          {moduleDangMo === 'quotations'        && <ModuleBaoGia role={vaiTro} />}
+          {moduleDangMo === 'history_db'        && <ModuleLichSuDB khiDieuHuong={datModuleDangMo} />}
+          {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTro} currentSellerId={idNhanVienHienTai} />}
+          {moduleDangMo === 'sellers'           && <ModuleNhanVienBan />}
+          {moduleDangMo === 'master_data'       && <TrangCauHinh />}
+          {moduleDangMo === 'users'             && <ModuleQuanLyNguoiDung />}
+          {moduleDangMo === 'production_orders' && <ModuleLenhSanXuat />}
+          {/* Fallback: TypeScript đảm bảo MaModule luôn có case ở trên — nếu không có sẽ bắt lỗi compile */}
         </div>
       </div>
     </div>

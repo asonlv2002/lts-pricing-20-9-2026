@@ -39,12 +39,20 @@ export interface ProfitRow {
 }
 
 export type BoxOptionKey = 'large' | 'medium' | 'small';
+export type HandleOptionKey = 'large' | 'small' | 'color';
 
 export interface BoxOption {
   key: BoxOptionKey;
   label: string;
   price: number;
   bagsPerBox: number;
+}
+
+export interface HandleOption {
+  key: HandleOptionKey;
+  label: string;
+  price: number;
+  weight: number;
 }
 
 export interface AppConstants {
@@ -54,6 +62,7 @@ export interface AppConstants {
   tapeWeight: number;
   handlePrice: number;
   handleWeight: number;
+  handleOptions?: HandleOption[];
   boxPriceDefault: number;
   bagsPerBoxDefault: number;
   boxOptions: BoxOption[];
@@ -94,6 +103,8 @@ export interface CalculateInput {
   productType: string;
   bagType: string;
   filmType: string;
+  filmQuantityUnit?: 'm2' | 'meter'; // đơn vị nhập SL màng; engine vẫn nhận quantity là m²
+  filmInputQuantity?: number; // SL màng gốc user nhập
   filmRollLength: number; // chiều dài mỗi cuộn màng thành phẩm (m), chỉ dùng khi productType='mang'
   quantity: number;
   numColors: number | null;
@@ -117,6 +128,7 @@ export interface CalculateInput {
   hasZipper: boolean;
   hasTape: boolean;
   hasHandle: boolean;
+  handleOptionKey?: HandleOptionKey | 'custom' | null;
   paymentDays: number;
   // paymentInterestRate đã bỏ — lãi suất nay lấy từ AppConstants (interestBase + interestSpread)
   profitColumn: number;

@@ -2,66 +2,66 @@
 import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 
-export default function Header() {
-  const { activeView, setActiveView: datGocNhin, layoutType, setLayoutType: datKieuBoTriCuc, density, setDensity: datMatDoHienThi, theme, setTheme: datChuDe, result, history, currentChotGia } = dungCuaHangTinhGia();
+export default function DauTrang() {
+  const { activeView: manHinhDangMo, setActiveView: datGocNhin, layoutType: kieuBoCuc, setLayoutType: datKieuBoTriCuc, density: matDo, setDensity: datMatDoHienThi, theme: chuDe, setTheme: datChuDe, result: ketQua, history: lichSu, currentChotGia: giaChotHienTai } = dungCuaHangTinhGia();
 
-  const handleExport = () => {
-    if (activeView === 'history') {
-      if (!history.length) return;
-      let csv = '\ufeffNgày,Khách hàng,Sản phẩm,Cấu trúc,Số lượng,Giá đề xuất,Giá chốt\n';
-      history.forEach((h) => {
-        csv += `"${h.date}","${h.customer}","${h.productName}","${h.structure}",${h.quantity},${Math.round(h.finalPrice)},${h.chotGia || ''}\n`;
+  const xuLyXuat = () => {
+    if (manHinhDangMo === 'history') {
+      if (!lichSu.length) return;
+      let duLieuCsv = '\ufeffNgày,Khách hàng,Sản phẩm,Cấu trúc,Số lượng,Giá đề xuất,Giá chốt\n';
+      lichSu.forEach((h) => {
+        duLieuCsv += `"${h.date}","${h.customer}","${h.productName}","${h.structure}",${h.quantity},${Math.round(h.finalPrice)},${h.chotGia || ''}\n`;
       });
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `LichSu_BaoGia_${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const tepBlob = new Blob([duLieuCsv], { type: 'text/csv;charset=utf-8' });
+      const duongDanTai = URL.createObjectURL(tepBlob);
+      const theTai = document.createElement('a');
+      theTai.href = duongDanTai;
+      theTai.download = `LichSu_BaoGia_${new Date().toISOString().slice(0, 10)}.csv`;
+      theTai.click();
+      URL.revokeObjectURL(duongDanTai);
       return;
     }
 
-    if (!result) return;
-    const r = result;
-    const chotGia = currentChotGia > 0 ? currentChotGia : null;
-    const fmtE = (n: number, d = 1) => n.toLocaleString('vi-VN', { maximumFractionDigits: d });
-    const fmtPct = (n: number) => parseFloat((n * 100).toFixed(2)) + '%';
-    const text = [
+    if (!ketQua) return;
+    const kq = ketQua;
+    const giaChot = giaChotHienTai > 0 ? giaChotHienTai : null;
+    const dinhDangSo = (n: number, d = 1) => n.toLocaleString('vi-VN', { maximumFractionDigits: d });
+    const dinhDangPhanTram = (n: number) => parseFloat((n * 100).toFixed(2)) + '%';
+    const noiDungXuat = [
       'BÁO GIÁ TÚI BAO BÌ - CTY CP LAI TRƯỜNG SƠN',
       '═'.repeat(50),
       `Ngày: ${new Date().toLocaleDateString('vi-VN')}`,
-      `Khách hàng: ${r.input.customer || 'N/A'}`,
-      `Sản phẩm: ${r.input.productName || 'N/A'}`,
-      `Cấu trúc: ${r.structureText}`,
-      `Số lượng: ${r.input.quantity.toLocaleString('vi-VN')} túi`,
-      `Kích thước: ${+(r.input.spreadWidth * 1000).toFixed(0)} × ${+(r.input.cutStep * 1000).toFixed(0)} mm²`,
-      `Độ dày: ${r.totalThickness} mic`,
-      `Trọng lượng: ${fmtE(r.tareWeight, 2)} gr/cái`,
+      `Khách hàng: ${kq.input.customer || 'N/A'}`,
+      `Sản phẩm: ${kq.input.productName || 'N/A'}`,
+      `Cấu trúc: ${kq.structureText}`,
+      `Số lượng: ${kq.input.quantity.toLocaleString('vi-VN')} túi`,
+      `Kích thước: ${+(kq.input.spreadWidth * 1000).toFixed(0)} × ${+(kq.input.cutStep * 1000).toFixed(0)} mm²`,
+      `Độ dày: ${kq.totalThickness} mic`,
+      `Trọng lượng: ${dinhDangSo(kq.tareWeight, 2)} gr/cái`,
       '',
       'CHI TIẾT GIÁ BÁN / TÚI',
       '─'.repeat(40),
-      `Giá vốn + LN:  ${fmtE(r.costPerUnit)} đ`,
-      `Zipper:         ${fmtE(r.zipperPerUnit)} đ`,
-      `Thùng giấy:     ${fmtE(r.boxPerUnit)} đ`,
-      `Vận chuyển:     ${fmtE(r.shippingPerUnit)} đ`,
-      `Lãi vay:        ${fmtE(r.interestPerUnit)} đ`,
-      `Hoa hồng:       ${fmtE(r.commissionPerUnit)} đ`,
+      `Giá vốn + LN:  ${dinhDangSo(kq.costPerUnit)} đ`,
+      `Zipper:         ${dinhDangSo(kq.zipperPerUnit)} đ`,
+      `Thùng giấy:     ${dinhDangSo(kq.boxPerUnit)} đ`,
+      `Vận chuyển:     ${dinhDangSo(kq.shippingPerUnit)} đ`,
+      `Lãi vay:        ${dinhDangSo(kq.interestPerUnit)} đ`,
+      `Hoa hồng:       ${dinhDangSo(kq.commissionPerUnit)} đ`,
       '─'.repeat(40),
-      `GIÁ ĐỀ XUẤT:   ${Math.round(r.finalPrice).toLocaleString('vi-VN')} đ/túi (chưa VAT)`,
-      chotGia ? `GIÁ CHỐT:       ${Math.round(chotGia).toLocaleString('vi-VN')} đ/túi` : '',
+      `GIÁ ĐỀ XUẤT:   ${Math.round(kq.finalPrice).toLocaleString('vi-VN')} đ/túi (chưa VAT)`,
+      giaChot ? `GIÁ CHỐT:       ${Math.round(giaChot).toLocaleString('vi-VN')} đ/túi` : '',
       '',
-      `Tỉ lệ LN: ${fmtPct(r.profitRate)}`,
-      `Doanh thu túi: ${r.revenue.toLocaleString('vi-VN')} đ`,
-      `Giá trục in: ${r.cylinderCost.toLocaleString('vi-VN')} đ (riêng)`,
+      `Tỉ lệ LN: ${dinhDangPhanTram(kq.profitRate)}`,
+      `Doanh thu túi: ${kq.revenue.toLocaleString('vi-VN')} đ`,
+      `Giá trục in: ${kq.cylinderCost.toLocaleString('vi-VN')} đ (riêng)`,
     ].filter(Boolean).join('\n');
-    const blob = new Blob(['\ufeff' + text], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `BaoGia_${r.input.customer || 'N_A'}_${r.input.productName || 'N_A'}_${new Date().toISOString().slice(0, 10)}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
+    const tepBlob = new Blob(['\ufeff' + noiDungXuat], { type: 'text/plain;charset=utf-8' });
+    const duongDanTai = URL.createObjectURL(tepBlob);
+    const theTai = document.createElement('a');
+    theTai.href = duongDanTai;
+    theTai.download = `BaoGia_${kq.input.customer || 'N_A'}_${kq.input.productName || 'N_A'}_${new Date().toISOString().slice(0, 10)}.txt`;
+    theTai.click();
+    URL.revokeObjectURL(duongDanTai);
   };
 
   return (
@@ -70,19 +70,19 @@ export default function Header() {
       
       <div className="tabs" id="viewTabs">
         <button 
-          className={`tab ${activeView === 'manager' || activeView === 'bento' ? 'active' : ''}`} 
-          onClick={() => datGocNhin(layoutType === 'bento' ? 'bento' : 'manager')}
+          className={`tab ${manHinhDangMo === 'manager' || manHinhDangMo === 'bento' ? 'active' : ''}`} 
+          onClick={() => datGocNhin(kieuBoCuc === 'bento' ? 'bento' : 'manager')}
         >
           📊 Quản Lý
         </button>
         <button 
-          className={`tab ${activeView === 'tech' ? 'active' : ''}`} 
+          className={`tab ${manHinhDangMo === 'tech' ? 'active' : ''}`} 
           onClick={() => datGocNhin('tech')}
         >
           ⚙️ Kỹ Thuật
         </button>
         <button 
-          className={`tab ${activeView === 'history' ? 'active' : ''}`} 
+          className={`tab ${manHinhDangMo === 'history' ? 'active' : ''}`} 
           onClick={() => datGocNhin('history')}
         >
           📋 Lịch Sử
@@ -91,7 +91,7 @@ export default function Header() {
       
       <div className="tab-divider"></div>
       <button 
-        className={`tab tab-config ${activeView === 'config' ? 'active' : ''}`} 
+        className={`tab tab-config ${manHinhDangMo === 'config' ? 'active' : ''}`} 
         onClick={() => datGocNhin('config')}
       >
         🏭 Bảng Định Mức
@@ -99,27 +99,27 @@ export default function Header() {
 
       <div className="header-right">
         <div className="toolbar-group" id="layoutToolbar" title="Bố cục">
-          <button className={`toolbar-btn ${layoutType === 'default' ? 'active' : ''}`} onClick={() => datKieuBoTriCuc('default')}>☰</button>
-          <button className={`toolbar-btn ${layoutType === 'stacked' ? 'active' : ''}`} onClick={() => datKieuBoTriCuc('stacked')}>▤</button>
-          <button className={`toolbar-btn ${layoutType === 'wide' ? 'active' : ''}`} onClick={() => datKieuBoTriCuc('wide')}>⬚</button>
-          <button className={`toolbar-btn ${layoutType === 'bento' ? 'active' : ''}`} onClick={() => {datKieuBoTriCuc('bento'); datGocNhin('bento');}}>◫</button>
+          <button className={`toolbar-btn ${kieuBoCuc === 'default' ? 'active' : ''}`} onClick={() => datKieuBoTriCuc('default')}>☰</button>
+          <button className={`toolbar-btn ${kieuBoCuc === 'stacked' ? 'active' : ''}`} onClick={() => datKieuBoTriCuc('stacked')}>▤</button>
+          <button className={`toolbar-btn ${kieuBoCuc === 'wide' ? 'active' : ''}`} onClick={() => datKieuBoTriCuc('wide')}>⬚</button>
+          <button className={`toolbar-btn ${kieuBoCuc === 'bento' ? 'active' : ''}`} onClick={() => {datKieuBoTriCuc('bento'); datGocNhin('bento');}}>◫</button>
         </div>
         
-        <div className="toolbar-group" id="densityToolbar" title="Mật độ hiển thị">
-          <button className={`toolbar-btn ${density === 'compact' ? 'active' : ''}`} onClick={() => datMatDoHienThi('compact')}>S</button>
-          <button className={`toolbar-btn ${density === 'comfortable' ? 'active' : ''}`} onClick={() => datMatDoHienThi('comfortable')}>M</button>
-          <button className={`toolbar-btn ${density === 'spacious' ? 'active' : ''}`} onClick={() => datMatDoHienThi('spacious')}>L</button>
+        <div className="toolbar-group" id="matDoToolbar" title="Mật độ hiển thị">
+          <button className={`toolbar-btn ${matDo === 'compact' ? 'active' : ''}`} onClick={() => datMatDoHienThi('compact')}>S</button>
+          <button className={`toolbar-btn ${matDo === 'comfortable' ? 'active' : ''}`} onClick={() => datMatDoHienThi('comfortable')}>M</button>
+          <button className={`toolbar-btn ${matDo === 'spacious' ? 'active' : ''}`} onClick={() => datMatDoHienThi('spacious')}>L</button>
         </div>
         
         <button 
           className="theme-toggle" 
-          id="themeToggle" 
+          id="chuDeToggle" 
           title="Chuyển đổi Sáng/Tối"
-          onClick={() => datChuDe(theme === 'dark' ? 'light' : 'dark')}
+          onClick={() => datChuDe(chuDe === 'dark' ? 'light' : 'dark')}
         ></button>
         
         <button className="btn btn-sm btn-outline" onClick={() => window.print()}>🖨️</button>
-        <button className="btn btn-sm btn-outline" onClick={handleExport}>📥 Xuất</button>
+        <button className="btn btn-sm btn-outline" onClick={xuLyXuat}>📥 Xuất</button>
       </div>
     </header>
   );

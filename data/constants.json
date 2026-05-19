@@ -27,7 +27,7 @@
       "bagsPerBox": 250
     }
   ],
-  "interestBase": 0.10,
+  "interestBase": 0.1,
   "interestSpread": 0.03,
   "paymentDays": 30,
   "cylinderPricePerUnit": 7300000,
@@ -64,5 +64,25 @@
   "printWasteA": 6000,
   "printWasteB": 40,
   "printWasteC": 50000,
-  "printWasteD": 400
+  "printWasteD": 400,
+  "handleOptions": [
+    {
+      "key": "large",
+      "label": "Quai lớn",
+      "price": 900,
+      "weight": 0
+    },
+    {
+      "key": "small",
+      "label": "Quai nhỏ",
+      "price": 650,
+      "weight": 0
+    },
+    {
+      "key": "color",
+      "label": "Quai màu",
+      "price": 1200,
+      "weight": 0
+    }
+  ]
 }

@@ -1,4 +1,4 @@
-import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption } from './types';
+import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption } from './types';
 // Single source of truth: /data ở root repo (dùng chung cho web + Flutter)
 import materialsJson  from '@data/materials.json';
 import constantsJson  from '@data/constants.json';
@@ -11,22 +11,13 @@ export const INITIAL_MATERIALS: Material[] = (materialsJson as Omit<Material, 'p
 }));
 
 // ── Small Width Material Prices ──────────────────────────────────────────────
-export const INITIAL_SMALL_WIDTH_PRICES: SmallWidthMaterialPrice[] = INITIAL_MATERIALS.flatMap(m => [
-  {
-    id: `${m.id}_400`,
-    materialId: m.id,
-    widthThresholdMm: 400,
-    pricePerKg: m.pricePerKg,
-    pricePerM2: m.pricePerKg * m.thickness * m.density / 1000,
-  },
-  {
-    id: `${m.id}_300`,
-    materialId: m.id,
-    widthThresholdMm: 300,
-    pricePerKg: m.pricePerKg,
-    pricePerM2: m.pricePerKg * m.thickness * m.density / 1000,
-  },
-]);
+export const INITIAL_SMALL_WIDTH_PRICES: SmallWidthMaterialPrice[] = INITIAL_MATERIALS.map(m => ({
+  id: `${m.id}_400`,
+  materialId: m.id,
+  widthThresholdMm: 400,
+  pricePerKg: m.pricePerKg,
+  pricePerM2: m.pricePerKg * m.thickness * m.density / 1000,
+}));
 
 // ── Profit table ─────────────────────────────────────────────────────────────
 export const INITIAL_PROFIT_TABLE: ProfitRow[] = profitJson.rows as ProfitRow[];
@@ -34,16 +25,23 @@ export const INITIAL_PROFIT_TABLE: ProfitRow[] = profitJson.rows as ProfitRow[];
 export const PROFIT_DEFAULT = profitJson.profitDefault;
 
 // ── App constants ─────────────────────────────────────────────────────────────
-const rawConstants = constantsJson as typeof constantsJson & { boxOptions?: BoxOption[] };
+const rawConstants = constantsJson as typeof constantsJson & { boxOptions?: BoxOption[]; handleOptions?: HandleOption[] };
 const fallbackBoxOptions: BoxOption[] = [
   { key: 'large', label: 'Thùng lớn', price: rawConstants.boxPriceDefault ?? 0, bagsPerBox: rawConstants.bagsPerBoxDefault ?? 0 },
   { key: 'medium', label: 'Thùng trung bình', price: rawConstants.boxPriceDefault ?? 0, bagsPerBox: rawConstants.bagsPerBoxDefault ?? 0 },
   { key: 'small', label: 'Thùng nhỏ', price: rawConstants.boxPriceDefault ?? 0, bagsPerBox: rawConstants.bagsPerBoxDefault ?? 0 },
 ];
 
+const fallbackHandleOptions: HandleOption[] = [
+  { key: 'large', label: 'Quai l?n', price: rawConstants.handlePrice ?? 0, weight: rawConstants.handleWeight ?? 0 },
+  { key: 'small', label: 'Quai nh?', price: rawConstants.handlePrice ?? 0, weight: rawConstants.handleWeight ?? 0 },
+  { key: 'color', label: 'Quai m?u', price: rawConstants.handlePrice ?? 0, weight: rawConstants.handleWeight ?? 0 },
+];
+
 export const INITIAL_CONSTANTS: AppConstants = {
   ...rawConstants,
   boxOptions: rawConstants.boxOptions?.length ? rawConstants.boxOptions : fallbackBoxOptions,
+  handleOptions: rawConstants.handleOptions?.length ? rawConstants.handleOptions : fallbackHandleOptions,
   // JSON stores colorSetup keys as strings → convert back to number keys
   colorSetup: Object.fromEntries(
     Object.entries(rawConstants.colorSetup).map(([k, v]) => [Number(k), v])

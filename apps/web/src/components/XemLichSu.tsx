@@ -3,16 +3,16 @@ import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { Calendar, User, Package, Layers, Hash, RotateCcw, Trash2 } from 'lucide-react';
 
-function fmt(n: number, decimals = 0): string {
+function dinhDangSo(n: number, decimals = 0): string {
   return n.toLocaleString('vi-VN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-export default function HistoryView() {
-  const { activeView, history, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu } = dungCuaHangTinhGia();
+export default function XemLichSu() {
+  const { activeView: manHinhDangMo, history: lichSu, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu } = dungCuaHangTinhGia();
 
-  if (activeView !== 'history') return null;
+  if (manHinhDangMo !== 'history') return null;
 
-  if (!history.length) {
+  if (!lichSu.length) {
     return (
       <div className="panel active">
         <div className="empty-state">
@@ -43,58 +43,58 @@ export default function HistoryView() {
             </div>
 
             {/* Rows */}
-            {history.map((item) => {
-              const hasChotGia = item.chotGia && item.chotGia > 0;
-              const diff = hasChotGia ? item.chotGia! - item.finalPrice : 0;
-              const diffPct = hasChotGia && item.finalPrice > 0 ? (diff / item.finalPrice) * 100 : 0;
+            {lichSu.map((muc) => {
+              const coGiaChot = muc.chotGia && muc.chotGia > 0;
+              const chenhLech = coGiaChot ? muc.chotGia! - muc.finalPrice : 0;
+              const phanTramChenh = coGiaChot && muc.finalPrice > 0 ? (chenhLech / muc.finalPrice) * 100 : 0;
 
               return (
-                <div key={item.id} className="hist-row">
+                <div key={muc.id} className="hist-row">
                   {/* Date */}
                   <div className="hist-cell hist-cell--date">
                     <Calendar size={13} className="hist-cell-icon" />
-                    <span>{item.date}</span>
+                    <span>{muc.date}</span>
                   </div>
 
                   {/* Customer & Product */}
                   <div className="hist-cell hist-cell--main">
                     <div className="hist-customer">
                       <User size={13} className="hist-cell-icon" />
-                      <span className="hist-customer-name">{item.customer || '—'}</span>
+                      <span className="hist-customer-name">{muc.customer || '—'}</span>
                     </div>
                     <div className="hist-product">
                       <Package size={13} className="hist-cell-icon" style={{ opacity: 0.5 }} />
-                      <span className="hist-product-name">{item.productName || '—'}</span>
+                      <span className="hist-product-name">{muc.productName || '—'}</span>
                     </div>
                   </div>
 
                   {/* Structure */}
                   <div className="hist-cell hist-cell--structure">
                     <Layers size={13} className="hist-cell-icon" />
-                    <span className="hist-structure-text">{item.structure}</span>
+                    <span className="hist-structure-text">{muc.structure}</span>
                   </div>
 
                   {/* Quantity */}
                   <div className="hist-cell hist-cell--qty">
                     <Hash size={13} className="hist-cell-icon" />
-                    <span>{fmt(item.quantity)}</span>
+                    <span>{dinhDangSo(muc.quantity)}</span>
                   </div>
 
                   {/* Prices */}
                   <div className="hist-cell hist-cell--prices">
                     <div className="hist-price-row">
                       <span className="hist-price-label">Đề xuất:</span>
-                      <span className="hist-price-val hist-price-val--suggested">{fmt(item.finalPrice)} đ</span>
+                      <span className="hist-price-val hist-price-val--suggested">{dinhDangSo(muc.finalPrice)} đ</span>
                     </div>
-                    {hasChotGia ? (
+                    {coGiaChot ? (
                       <div className="hist-price-row">
                         <span className="hist-price-label">Chốt:</span>
-                        <span className="hist-price-val hist-price-val--final">{fmt(item.chotGia!)} đ</span>
+                        <span className="hist-price-val hist-price-val--final">{dinhDangSo(muc.chotGia!)} đ</span>
                         <span
-                          className="hist-price-diff"
-                          style={{ color: diff >= 0 ? 'var(--green)' : 'var(--red)' }}
+                          className="hist-price-chenhLech"
+                          style={{ color: chenhLech >= 0 ? 'var(--green)' : 'var(--red)' }}
                         >
-                          ({diff >= 0 ? '+' : ''}{diffPct.toFixed(1)}%)
+                          ({chenhLech >= 0 ? '+' : ''}{phanTramChenh.toFixed(1)}%)
                         </span>
                       </div>
                     ) : (
@@ -110,7 +110,7 @@ export default function HistoryView() {
                     <button
                       className="crm-btn crm-btn-ghost hist-action-btn"
                       title="Tải lại và chỉnh sửa tính toán này"
-                      onClick={() => taiLichSu(item.id)}
+                      onClick={() => taiLichSu(muc.id)}
                     >
                       <RotateCcw size={14} />
                       <span>Tải</span>
@@ -118,7 +118,7 @@ export default function HistoryView() {
                     <button
                       className="crm-btn crm-btn-ghost hist-action-btn hist-action-btn--danger"
                       title="Xóa khỏi lịch sử"
-                      onClick={() => xoaLichSu(item.id)}
+                      onClick={() => xoaLichSu(muc.id)}
                     >
                       <Trash2 size={14} />
                     </button>
