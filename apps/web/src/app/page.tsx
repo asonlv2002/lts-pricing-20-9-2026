@@ -252,7 +252,7 @@ export default function TrangChinh() {
         dungCuaHangTinhGia.getState().recalculate();
       }
     } catch { /* localStorage lỗi */ }
-  }, []);  
+  }, []);
 
   // ── Lưu UI prefs ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -335,11 +335,11 @@ export default function TrangChinh() {
         {/* Nav mobile */}
         <nav className="mobile-calc-nav" aria-label="Điều hướng máy tính">
           <button className={`m-tab ${tabMobile === 'input' ? 'active' : ''}`}
-            onClick={() => datTabMobile('input')} aria-selected={tabMobile === 'input'}>
+            onClick={() => datTabMobile('input')} aria-pressed={tabMobile === 'input'}>
             📋 Nhập liệu
           </button>
           <button className={`m-tab ${tabMobile === 'result' ? 'active' : ''}`}
-            onClick={() => datTabMobile('result')} aria-selected={tabMobile === 'result'}>
+            onClick={() => datTabMobile('result')} aria-pressed={tabMobile === 'result'}>
             💰 Kết quả
             {ketQua && <div className="m-tab-badge" aria-hidden="true" />}
           </button>
