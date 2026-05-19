@@ -2,17 +2,17 @@
 import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 
-function fmt(n: number | null | undefined, decimals = 0): string {
+function dinhDangSo(n: number | null | undefined, decimals = 0): string {
   if (n == null || isNaN(n)) return '—';
   return n.toLocaleString('vi-VN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-export default function TechView() {
-  const { result, activeView, constants } = dungCuaHangTinhGia();
+export default function ManHinhKyThuat() {
+  const { result: ketQua, activeView: manHinhDangMo, constants: hangSo } = dungCuaHangTinhGia();
 
-  if (activeView !== 'tech') return null;
+  if (manHinhDangMo !== 'tech') return null;
 
-  if (!result) {
+  if (!ketQua) {
     return (
       <div className="empty-state" id="emptyState">
         <div className="icon">⚙️</div>
@@ -21,68 +21,68 @@ export default function TechView() {
     );
   }
 
-  const { input, layers } = result;
-  const r = result;
+  const { input: dauVao, layers: cacLop } = ketQua;
+  const kq = ketQua;
 
-  // ── Build unified rows (Tech view columns: Công đoạn, Vật liệu, Khổ, Thành phẩm, Phi hao, Đầu vào VL) ──
-  const uniRows: any[] = [];
+  // ── Build unified dongs (Tech view columns: Công đoạn, Vật liệu, Khổ, Thành phẩm, Phi hao, Đầu vào VL) ──
+  const cacDong: any[] = [];
   
-  uniRows.push({
-    stage: 'CPSX IN', mat: layers.print.material?.name,
-    width: r.printNLWidth, meters: r.printMeters, waste: r.printWaste,
+  cacDong.push({
+    congDoan: 'CPSX IN', vatLieu: cacLop.print.material?.name,
+    kho: kq.printNLWidth, met: kq.printMeters, haoHut: kq.printWaste,
   });
 
-  if (layers.laminations) {
-    layers.laminations.forEach((lam: any) => {
-      uniRows.push({
-        stage: `GHÉP (Lớp ${lam.layerNum})`, mat: lam.material?.name,
-        width: lam.width, meters: lam.meters, waste: lam.waste,
+  if (cacLop.laminations) {
+    cacLop.laminations.forEach((dongGhep: any) => {
+      cacDong.push({
+        congDoan: `GHÉP (Lớp ${dongGhep.layerNum})`, vatLieu: dongGhep.material?.name,
+        kho: dongGhep.width, met: dongGhep.meters, haoHut: dongGhep.waste,
       });
     });
   }
 
-  if (input.productType !== 'mang') {
-    uniRows.push({
-      stage: 'CẮT', mat: '—',
-      width: layers.cut.width, meters: layers.cut.meters, waste: layers.cut.waste,
+  if (dauVao.productType !== 'mang') {
+    cacDong.push({
+      congDoan: 'CẮT', vatLieu: '—',
+      kho: cacLop.cut.width, met: cacLop.cut.meters, haoHut: cacLop.cut.waste,
     });
   }
 
   // Weight items
-  const tWeightItems: [string, string][] = [
-    ['Diện tích 1 túi', fmt(r.bagArea, 4) + ' m²'],
-    ['Tổng diện tích đơn hàng', fmt(r.totalArea, 1) + ' m²'],
-    ['Trọng lượng / túi (Tare)', fmt(r.tareWeight, 2) + ' gr'],
-    ['Tổng trọng lượng', fmt(r.tareWeight * input.quantity / 1000, 1) + ' kg'],
-    ['Trọng lượng (tấn)', fmt(r.tareWeight * input.quantity / 1000000, 3) + ' tấn']
+  const cacDongTrongLuong: [string, string][] = [
+    ['Diện tích 1 túi', dinhDangSo(kq.bagArea, 4) + ' m²'],
+    ['Tổng diện tích đơn hàng', dinhDangSo(kq.totalArea, 1) + ' m²'],
+    ['Trọng lượng / túi (Tare)', dinhDangSo(kq.tareWeight, 2) + ' gr'],
+    ['Tổng trọng lượng', dinhDangSo(kq.tareWeight * dauVao.quantity / 1000, 1) + ' kg'],
+    ['Trọng lượng (tấn)', dinhDangSo(kq.tareWeight * dauVao.quantity / 1000000, 3) + ' tấn']
   ];
 
   return (
     <div className="panel active" id="panel-tech">
       <div className="info-box">
         <span className="icon">ℹ️</span>
-        Chỉ Đạo Sản Xuất <strong id="t-structure">{r.structureText}</strong>
+        Chỉ Đạo Sản Xuất <strong id="t-structure">{kq.structureText}</strong>
       </div>
       
-      {/* Stat cards matching original: Đầu Vào Khâu In, Đầu Vào Khâu Cắt, Khổ Thành Phẩm, Khổ Màng NL */}
+      {/* Stat cards vatLieuching original: Đầu Vào Khâu In, Đầu Vào Khâu Cắt, Khổ Thành Phẩm, Khổ Màng NL */}
       <div className="stat-grid" id="t-stats">
         <div className="stat-card accent">
           <div className="stat-label">Đầu Vào Khâu In</div>
-          <div className="stat-value">{fmt((r.printMeters + r.printWaste) / input.numImages, 0)} m</div>
+          <div className="stat-value">{dinhDangSo(kq.printMeters + kq.printWaste, 0)} m</div>
         </div>
-        {input.productType !== 'mang' && (
+        {dauVao.productType !== 'mang' && (
           <div className="stat-card cyan">
             <div className="stat-label">Đầu Vào Khâu Cắt</div>
-            <div className="stat-value">{fmt((r.cutMeters + r.cutWaste) / input.numImages, 0)} m</div>
+            <div className="stat-value">{dinhDangSo(kq.cutMeters + kq.cutWaste, 0)} m</div>
           </div>
         )}
         <div className="stat-card green">
           <div className="stat-label">Khổ Thành Phẩm</div>
-          <div className="stat-value">{fmt(input.spreadWidth, 3)} m</div>
+          <div className="stat-value">{dinhDangSo(dauVao.spreadWidth, 3)} m</div>
         </div>
         <div className="stat-card orange">
           <div className="stat-label">Khổ Màng NL</div>
-          <div className="stat-value">{fmt(input.spreadWidth * input.numImages + 0.02, 3)} m</div>
+          <div className="stat-value">{dinhDangSo(dauVao.spreadWidth * dauVao.numImages + 0.02, 3)} m</div>
         </div>
       </div>
 
@@ -101,19 +101,19 @@ export default function TechView() {
               </tr>
             </thead>
             <tbody>
-              {uniRows.map((row, idx) => {
-                let dWidth = row.stage !== 'CẮT' ? input.spreadWidth * input.numImages + 0.02 : row.width;
-                let dMeters = row.meters / input.numImages;
-                let dWaste = row.waste / input.numImages;
-                let inputVL = dMeters + dWaste;
+              {cacDong.map((dong, chiSo) => {
+                const khoHienThi = dong.congDoan !== 'CẮT' ? dauVao.spreadWidth * dauVao.numImages + 0.02 : dong.kho;
+                const metHienThi = dong.met;
+                const haoHutHienThi = dong.haoHut;
+                const dauVaoVL = metHienThi + haoHutHienThi;
                 return (
-                  <tr key={idx}>
-                    <td>{row.stage}</td>
-                    <td>{row.mat}</td>
-                    <td className="num">{fmt(dWidth, 3)}</td>
-                    <td className="num">{fmt(dMeters, 0)}</td>
-                    <td className="num">{fmt(dWaste, 0)}</td>
-                    <td className="num highlight">{fmt(inputVL, 0)}</td>
+                  <tr key={chiSo}>
+                    <td>{dong.congDoan}</td>
+                    <td>{dong.vatLieu}</td>
+                    <td className="num">{dinhDangSo(khoHienThi, 3)}</td>
+                    <td className="num">{dinhDangSo(metHienThi, 0)}</td>
+                    <td className="num">{dinhDangSo(haoHutHienThi, 0)}</td>
+                    <td className="num highlight">{dinhDangSo(dauVaoVL, 0)}</td>
                   </tr>
                 );
               })}
@@ -125,7 +125,7 @@ export default function TechView() {
       <div className="card">
         <div className="card-title"><span className="icon">⚖️</span> Trọng lượng & Vận chuyển</div>
         <ul className="breakdown-list" id="t-weight">
-          {tWeightItems.map(([l, v], i) => (
+          {cacDongTrongLuong.map(([l, v], i) => (
             <li key={i}>
               <span className="bl-label">{l}</span>
               <span className="bl-value">{v}</span>

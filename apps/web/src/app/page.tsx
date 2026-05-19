@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import type { Material, ProfitRow } from '../lib/types';
+import type { Material, ProfitRow, BoxOption } from '../lib/types';
 import TheNhapLieu from '../components/TheNhapLieu';
 import ManHinhQuanLy from '../components/ManHinhQuanLy';
 import ManHinhKyThuat from '../components/ManHinhKyThuat';
@@ -134,7 +134,6 @@ export default function TrangChinh() {
     yVuotBatDau.current = null;
   }, []);
 
-  // ── Kéo panel desktop ───────────────────────────────────────────────────────
   const xuLyKeoPanel = useCallback((delta: number) => {
     datDoRongTrai(prev => {
       const hienTai = prev ?? 300;
@@ -206,8 +205,10 @@ export default function TrangChinh() {
       if (cfgRaw) {
         const cfg = JSON.parse(cfgRaw) as {
           materials?: Array<{ id: string; thickness: number; pricePerKg: number; inkPricePerColor: number }>;
+          smallWidthPrices?: Array<{ id: string; materialId: string; widthThresholdMm: number; pricePerKg: number }>;
           cpsx?: Record<string, any>;
           printWaste?: { colorSetup?: Record<number, number>; A?: number; B?: number; C?: number; D?: number };
+          packaging?: { boxOptions?: BoxOption[]; boxPriceDefault?: number; bagsPerBoxDefault?: number };
           profitTable?: Array<{ col1: number; col2: number }>;
         };
         dungCuaHangTinhGia.setState(s => {
@@ -219,7 +220,22 @@ export default function TrangChinh() {
               return { ...m, thickness: saved.thickness, pricePerKg: saved.pricePerKg, inkPricePerColor: saved.inkPricePerColor, pricePerM2: saved.pricePerKg * saved.thickness * m.density / 1000 };
             });
           }
+          let giaKhoNhoMoi = s.smallWidthPrices;
+          if (cfg.smallWidthPrices?.length) {
+            giaKhoNhoMoi = s.smallWidthPrices.map(p => {
+              const saved = cfg.smallWidthPrices!.find(x => x.id === p.id);
+              if (!saved) return p;
+              const material = vatLieuMoi.find(m => m.id === saved.materialId);
+              if (!material) return p;
+              return { ...p, widthThresholdMm: saved.widthThresholdMm, pricePerKg: saved.pricePerKg, pricePerM2: saved.pricePerKg * material.thickness * material.density / 1000 };
+            });
+          }
           const hangSoMoi = { ...s.constants, ...(cfg.cpsx || {}) };
+          if (cfg.packaging) {
+            if (cfg.packaging.boxOptions?.length) hangSoMoi.boxOptions = cfg.packaging.boxOptions;
+            if (cfg.packaging.boxPriceDefault != null) hangSoMoi.boxPriceDefault = cfg.packaging.boxPriceDefault;
+            if (cfg.packaging.bagsPerBoxDefault != null) hangSoMoi.bagsPerBoxDefault = cfg.packaging.bagsPerBoxDefault;
+          }
           if (cfg.printWaste) {
             if (cfg.printWaste.colorSetup) hangSoMoi.colorSetup = cfg.printWaste.colorSetup;
             if (cfg.printWaste.A != null) hangSoMoi.printWasteA = cfg.printWaste.A;
@@ -231,12 +247,12 @@ export default function TrangChinh() {
           if (cfg.profitTable?.length === s.profitTable.length) {
             loiNhuanMoi = s.profitTable.map((row, i) => ({ ...row, col1: cfg.profitTable![i].col1, col2: cfg.profitTable![i].col2 }));
           }
-          return { ...s, materials: vatLieuMoi, constants: hangSoMoi, profitTable: loiNhuanMoi };
+          return { ...s, materials: vatLieuMoi, smallWidthPrices: giaKhoNhoMoi, constants: hangSoMoi, profitTable: loiNhuanMoi };
         });
         dungCuaHangTinhGia.getState().recalculate();
       }
     } catch { /* localStorage lỗi */ }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);  
 
   // ── Lưu UI prefs ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -256,6 +272,11 @@ export default function TrangChinh() {
         zipperPrice: hangSo.zipperPrice, zipperWeight: hangSo.zipperWeight,
         tapePrice: hangSo.tapePrice, tapeWeight: hangSo.tapeWeight,
         handlePrice: hangSo.handlePrice, handleWeight: hangSo.handleWeight,
+      },
+      packaging: {
+        boxOptions: hangSo.boxOptions,
+        boxPriceDefault: hangSo.boxPriceDefault,
+        bagsPerBoxDefault: hangSo.bagsPerBoxDefault,
       },
       printWaste: { colorSetup: hangSo.colorSetup, A: hangSo.printWasteA, B: hangSo.printWasteB, C: hangSo.printWasteC, D: hangSo.printWasteD },
       profitTable: bangLoiNhuan.map((r: ProfitRow) => ({ col1: r.col1, col2: r.col2 })),
@@ -285,7 +306,10 @@ export default function TrangChinh() {
         <div className="main-grid" style={gridStyle}>
 
           {/* Panel trái: nhập liệu */}
-          <div id="inputCard" className={`grid-col-input ${tabMobile === 'input' ? 'active' : ''}`}>
+          <div
+            id="inputCard"
+            className={`grid-col-input ${tabMobile === 'input' ? 'active' : ''}`}
+          >
             {laMobile && tabMobile === 'input' && ketQua && (
               <ThanhGiaMini onNhan={() => datTabMobile('result')} />
             )}
@@ -298,7 +322,10 @@ export default function TrangChinh() {
           )}
 
           {/* Panel phải: kết quả */}
-          <div id="resultArea" className={`grid-col-result ${tabMobile === 'result' ? 'active' : ''}`}>
+          <div
+            id="resultArea"
+            className={`grid-col-result ${tabMobile === 'result' ? 'active' : ''}`}
+          >
             <ManHinhQuanLy />
             <ManHinhKyThuat />
           </div>

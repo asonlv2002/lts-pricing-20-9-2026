@@ -5,49 +5,49 @@ import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { HistoryItem } from '../lib/types';
 import LSXFormModal from './ModalDonLSX';
 
-function fmt(n: number, decimals = 0): string {
+function dinhDangSo(n: number, decimals = 0): string {
   return n.toLocaleString('vi-VN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
 // ════════════════════════════════════════════════════════════
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
-export default function HistoryDbModule({ onNavigate }: { onNavigate?: (module: 'calculator') => void }) {
-  const { history, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu } = dungCuaHangTinhGia();
-  const [search, setSearch] = useState('');
-  const [filterHasChotGia, setFilterHasChotGia] = useState<'all' | 'chot' | 'pending'>('all');
-  const [lsxItem, setLsxItem] = useState<HistoryItem | null>(null);
+export default function ModuleLichSuDB({ khiDieuHuong }: { khiDieuHuong?: (module: 'calculator') => void }) {
+  const { history: lichSu, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu } = dungCuaHangTinhGia();
+  const [tuKhoa, datTuKhoa] = useState('');
+  const [locGiaChot, datLocGiaChot] = useState<'all' | 'chot' | 'pending'>('all');
+  const [mucLsx, datMucLsx] = useState<HistoryItem | null>(null);
 
-  const filtered = useMemo(() => {
-    let list = [...history];
+  const daLoc = useMemo(() => {
+    let danhSach = [...lichSu];
 
-    if (filterHasChotGia === 'chot') {
-      list = list.filter(h => h.chotGia && h.chotGia > 0);
-    } else if (filterHasChotGia === 'pending') {
-      list = list.filter(h => !h.chotGia || h.chotGia === 0);
+    if (locGiaChot === 'chot') {
+      danhSach = danhSach.filter(h => h.chotGia && h.chotGia > 0);
+    } else if (locGiaChot === 'pending') {
+      danhSach = danhSach.filter(h => !h.chotGia || h.chotGia === 0);
     }
 
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter(h =>
+    if (tuKhoa.trim()) {
+      const q = tuKhoa.toLowerCase();
+      danhSach = danhSach.filter(h =>
         h.customer.toLowerCase().includes(q) ||
         h.productName.toLowerCase().includes(q) ||
         h.structure.toLowerCase().includes(q)
       );
     }
 
-    return list;
-  }, [history, search, filterHasChotGia]);
+    return danhSach;
+  }, [lichSu, tuKhoa, locGiaChot]);
 
-  const totalItems = history.length;
-  const chotCount  = history.filter(h => h.chotGia && h.chotGia > 0).length;
-  const pendingCount = totalItems - chotCount;
+  const tongSo = lichSu.length;
+  const soDaChot  = lichSu.filter(h => h.chotGia && h.chotGia > 0).length;
+  const soChuaChot = tongSo - soDaChot;
 
   return (
     <div className="crm-root hist-root">
       {/* LSX Form Modal */}
-      {lsxItem && (
-        <LSXFormModal historyItem={lsxItem} onClose={() => setLsxItem(null)} />
+      {mucLsx && (
+        <LSXFormModal historyItem={mucLsx} onClose={() => datMucLsx(null)} />
       )}
       {/* TOOLBAR */}
       <div className="crm-toolbar">
@@ -56,31 +56,31 @@ export default function HistoryDbModule({ onNavigate }: { onNavigate?: (module: 
           <input
             className="crm-search-input"
             placeholder="Tìm khách hàng, sản phẩm, cấu trúc..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+            value={tuKhoa}
+            onChange={e => datTuKhoa(e.target.value)}
           />
-          {search && (
-            <button className="crm-search-clear" onClick={() => setSearch('')}>✕</button>
+          {tuKhoa && (
+            <button className="crm-search-clear" onClick={() => datTuKhoa('')}>✕</button>
           )}
         </div>
 
         <div className="crm-toolbar-right">
           <div className="toolbar-group" style={{ display: 'flex' }}>
             <button
-              className={`toolbar-btn ${filterHasChotGia === 'all' ? 'active' : ''}`}
-              onClick={() => setFilterHasChotGia('all')}
+              className={`toolbar-btn ${locGiaChot === 'all' ? 'active' : ''}`}
+              onClick={() => datLocGiaChot('all')}
             >
               Tất cả
             </button>
             <button
-              className={`toolbar-btn ${filterHasChotGia === 'chot' ? 'active' : ''}`}
-              onClick={() => setFilterHasChotGia('chot')}
+              className={`toolbar-btn ${locGiaChot === 'chot' ? 'active' : ''}`}
+              onClick={() => datLocGiaChot('chot')}
             >
               Đã chốt giá
             </button>
             <button
-              className={`toolbar-btn ${filterHasChotGia === 'pending' ? 'active' : ''}`}
-              onClick={() => setFilterHasChotGia('pending')}
+              className={`toolbar-btn ${locGiaChot === 'pending' ? 'active' : ''}`}
+              onClick={() => datLocGiaChot('pending')}
             >
               Chưa chốt
             </button>
@@ -91,26 +91,26 @@ export default function HistoryDbModule({ onNavigate }: { onNavigate?: (module: 
       {/* STATS OVERVIEW */}
       <div className="quote-stats-overview">
         <div className="quote-stat-card">
-          <div className="quote-stat-val">{totalItems}</div>
+          <div className="quote-stat-val">{tongSo}</div>
           <div className="quote-stat-lbl">Tổng lịch sử</div>
         </div>
         <div className="quote-stat-card">
-          <div className="quote-stat-val" style={{ color: 'var(--green)' }}>{chotCount}</div>
+          <div className="quote-stat-val" style={{ color: 'var(--green)' }}>{soDaChot}</div>
           <div className="quote-stat-lbl">Đã chốt giá</div>
         </div>
         <div className="quote-stat-card">
-          <div className="quote-stat-val" style={{ color: 'var(--orange)' }}>{pendingCount}</div>
+          <div className="quote-stat-val" style={{ color: 'var(--orange)' }}>{soChuaChot}</div>
           <div className="quote-stat-lbl">Chưa chốt</div>
         </div>
         <div className="quote-stat-card quote-stat-card--total">
-          <div className="quote-stat-val">{50 - totalItems}</div>
+          <div className="quote-stat-val">{50 - tongSo}</div>
           <div className="quote-stat-lbl">Còn lại / 50</div>
         </div>
       </div>
 
       {/* TABLE */}
-      <div className="crm-list hist-list-container">
-        {history.length === 0 ? (
+      <div className="crm-danhSach hist-danhSach-container">
+        {lichSu.length === 0 ? (
           <div className="crm-empty">
             <Database size={40} />
             <p>Chưa có lịch sử tính giá nào.</p>
@@ -118,7 +118,7 @@ export default function HistoryDbModule({ onNavigate }: { onNavigate?: (module: 
               Hãy tính giá sản phẩm và lưu vào lịch sử từ tab Quản Lý.
             </p>
           </div>
-        ) : filtered.length === 0 ? (
+        ) : daLoc.length === 0 ? (
           <div className="crm-empty">
             <Search size={40} />
             <p>Không tìm thấy kết quả phù hợp.</p>
@@ -139,10 +139,10 @@ export default function HistoryDbModule({ onNavigate }: { onNavigate?: (module: 
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(h => {
-                  const hasChotGia = h.chotGia && h.chotGia > 0;
-                  const diff = hasChotGia ? h.chotGia! - h.finalPrice : 0;
-                  const diffPct = hasChotGia && h.finalPrice > 0 ? (diff / h.finalPrice) * 100 : 0;
+                {daLoc.map(h => {
+                  const coGiaChot = h.chotGia && h.chotGia > 0;
+                  const chenhLech = coGiaChot ? h.chotGia! - h.finalPrice : 0;
+                  const phanTramChenh = coGiaChot && h.finalPrice > 0 ? (chenhLech / h.finalPrice) * 100 : 0;
 
                   return (
                     <tr key={h.id}>
@@ -150,15 +150,15 @@ export default function HistoryDbModule({ onNavigate }: { onNavigate?: (module: 
                       <td>{h.customer}</td>
                       <td>{h.productName}</td>
                       <td style={{ fontFamily: "'Courier New', monospace", fontSize: '0.78rem', color: 'var(--accent2)' }}>{h.structure}</td>
-                      <td className="num">{fmt(h.quantity)}</td>
-                      <td className="num" style={{ fontWeight: 600 }}>{fmt(h.finalPrice)} đ</td>
+                      <td className="num">{dinhDangSo(h.quantity)}</td>
+                      <td className="num" style={{ fontWeight: 600 }}>{dinhDangSo(h.finalPrice)} đ</td>
                       <td className="num">
-                        {hasChotGia ? (
+                        {coGiaChot ? (
                           <span>
-                            <span style={{ color: 'var(--green)', fontWeight: 600 }}>{fmt(h.chotGia!)} đ</span>
+                            <span style={{ color: 'var(--green)', fontWeight: 600 }}>{dinhDangSo(h.chotGia!)} đ</span>
                             <br />
-                            <span style={{ fontSize: '0.75rem', color: diff >= 0 ? 'var(--green)' : 'var(--red)' }}>
-                              ({diff >= 0 ? '+' : ''}{diffPct.toFixed(1)}%)
+                            <span style={{ fontSize: '0.75rem', color: chenhLech >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                              ({chenhLech >= 0 ? '+' : ''}{phanTramChenh.toFixed(1)}%)
                             </span>
                           </span>
                         ) : (
@@ -171,19 +171,19 @@ export default function HistoryDbModule({ onNavigate }: { onNavigate?: (module: 
                           title="Tải lại tính toán này"
                           onClick={() => {
                             taiLichSu(h.id);
-                            onNavigate?.('calculator');
+                            khiDieuHuong?.('calculator');
                           }}
                         >
                           <RotateCcw size={13} style={{ display: 'inline', marginRight: '3px' }} />
                           Tải
                         </button>
                         {' '}
-                        {hasChotGia && (
+                        {coGiaChot && (
                           <>
                             <button
                               className="btn btn-sm btn-outline"
                               title="Tạo Lệnh Sản Xuất"
-                              onClick={() => setLsxItem(h)}
+                              onClick={() => datMucLsx(h)}
                               style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}
                             >
                               <ClipboardList size={13} style={{ display: 'inline', marginRight: '3px' }} />

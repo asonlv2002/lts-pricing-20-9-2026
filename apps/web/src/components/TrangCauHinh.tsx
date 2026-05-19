@@ -1,92 +1,121 @@
 "use client";
 import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE } from '../lib/data';
+import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES } from '../lib/data';
 
 // Debounced persist profit table — tránh gọi API mỗi keystroke
-let _profitPersistTimer: ReturnType<typeof setTimeout>;
-const debouncedPersistProfitTable = () => {
-  clearTimeout(_profitPersistTimer);
-  _profitPersistTimer = setTimeout(() => {
+let boDemLuuBangLoiNhuan: ReturnType<typeof setTimeout>;
+const luuBangLoiNhuanTre = () => {
+  clearTimeout(boDemLuuBangLoiNhuan);
+  boDemLuuBangLoiNhuan = setTimeout(() => {
     dungCuaHangTinhGia.getState().recalculate();
   }, 800);
 };
 
-export default function ConfigPage() {
-  const { materials, constants, profitTable, setMaterialParam: capNhatVatLieu, setConstantParam: capNhatHangSo } = dungCuaHangTinhGia();
-  const [customerGroup, setCustomerGroup] = React.useState('other');
+export default function TrangCauHinh() {
+  const { materials: vatLieu, constants: hangSo, profitTable: bangLoiNhuan, smallWidthPrices: bangGiaKhoNho, setMaterialParam: capNhatVatLieu, setConstantParam: capNhatHangSo, setSmallWidthPriceParam: capNhatGiaKhoNho } = dungCuaHangTinhGia();
+  const [nhomKhachHang, datNhomKhachHang] = React.useState('other');
+  const [hienBangKhoNho, datHienBangKhoNho] = React.useState(false);
 
-  const offset = customerGroup === 'svlg' ? -0.03 : 0;
+  const chenhLech = nhomKhachHang === 'svlg' ? -0.03 : 0;
+  const bangGiaKhoNhoMotDong = vatLieu
+    .map(m => bangGiaKhoNho.find(p => p.materialId === m.id))
+    .filter((p): p is NonNullable<typeof p> => Boolean(p));
 
   // Unique material names for ink price table
-  const seenNames = new Set<string>();
-  const uniqueMaterials = materials.filter(m => {
-    if (seenNames.has(m.name)) return false;
-    seenNames.add(m.name);
+  const tenDaGap = new Set<string>();
+  const vatLieuDuyNhat = vatLieu.filter(m => {
+    if (tenDaGap.has(m.name)) return false;
+    tenDaGap.add(m.name);
     return true;
   });
 
-  const handleInkPriceChange = (name: string, val: number) => {
+  const xuLyDoiGiaMuc = (ten: string, giaTri: number) => {
     // Apply to ALL materials sharing the same name
-    materials.forEach(m => {
-      if (m.name === name) {
-        capNhatVatLieu(m.id, { inkPricePerColor: val });
+    vatLieu.forEach(m => {
+      if (m.name === ten) {
+        capNhatVatLieu(m.id, { inkPricePerColor: giaTri });
       }
     });
   };
 
-  const handleReset = () => {
+  const xuLyDatLai = () => {
     if (!confirm('Reset tất cả giá về mặc định?')) return;
-    INITIAL_MATERIALS.forEach((def, i) => {
-      const m = materials[i];
+    INITIAL_MATERIALS.forEach((macDinh, i) => {
+      const m = vatLieu[i];
       if (m) {
         capNhatVatLieu(m.id, { 
-          thickness: def.thickness, 
-          pricePerKg: def.pricePerKg, 
-          inkPricePerColor: def.inkPricePerColor 
+          thickness: macDinh.thickness, 
+          pricePerKg: macDinh.pricePerKg, 
+          inkPricePerColor: macDinh.inkPricePerColor 
         });
       }
     });
     // Reset constants
-    const resetKeys: (keyof typeof INITIAL_CONSTANTS)[] = [
+    const cacKhoaDatLai: (keyof typeof INITIAL_CONSTANTS)[] = [
       'laborCost', 'nhuPrice', 'moPrice', 'ghepCPSX', 'ghepWasteA', 'ghepWasteB', 'ghepWasteC', 'cutBase', 'cutWasteA', 'cutWasteB', 'cutWasteC',
       'cutThreshold1', 'cutThreshold2', 'cutMult1', 'cutMult2', 'cutMult3',
       'zipperPrice', 'zipperWeight', 'tapePrice', 'tapeWeight', 'handlePrice', 'handleWeight',
+      'boxPriceDefault', 'bagsPerBoxDefault', 'boxOptions', 'handleOptions',
       'printWasteA', 'printWasteB', 'printWasteC', 'printWasteD',
       'cylPriceA', 'cylPriceB', 'interestBase', 'interestSpread'
     ];
-    resetKeys.forEach(key => {
+    cacKhoaDatLai.forEach(key => {
       capNhatHangSo(key, INITIAL_CONSTANTS[key] as number);
     });
     // Reset colorSetup
     Object.keys(INITIAL_CONSTANTS.colorSetup).forEach(k => {
-      const numK = Number(k);
-      if (constants.colorSetup[numK] !== INITIAL_CONSTANTS.colorSetup[numK]) {
+      const khoaSo = Number(k);
+      if (hangSo.colorSetup[khoaSo] !== INITIAL_CONSTANTS.colorSetup[khoaSo]) {
         capNhatHangSo('colorSetup', { ...INITIAL_CONSTANTS.colorSetup } as any);
       }
     });
   };
 
-  const handleColorSetupChange = (colorNum: number, val: number) => {
-    const newSetup = { ...constants.colorSetup, [colorNum]: val };
-    capNhatHangSo('colorSetup' as any, newSetup as any);
+  const xuLyDoiCaiDatMau = (soMau: number, giaTri: number) => {
+    const caiDatMoi = { ...hangSo.colorSetup, [soMau]: giaTri };
+    capNhatHangSo('colorSetup' as any, caiDatMoi as any);
   };
 
-  const getRangeLabel = (i: number, threshold: number) => {
-    if (i === 0) return 'Dưới 9.900.000';
-    if (threshold === 19000000) return '10.000.000 - 19.000.000';
-    if (threshold === 30000000) return '20.000.000 - 30.000.000';
-    if (threshold === 40000000) return '31.000.000 - 40.000.000';
-    if (threshold === 60000000) return '41.000.000 - 60.000.000';
-    if (threshold === 80000000) return '61.000.000 - 80.000.000';
-    if (threshold === 100000000) return '81.000.000 - 100.000.000';
-    if (threshold === 150000000) return '101.000.000 - 150.000.000';
-    if (threshold === 200000000) return '151.000.000 - 200.000.000';
-    if (threshold === 300000000) return '201.000.000 - 300.000.000';
-    if (threshold === 400000000) return '301.000.000 - 400.000.000';
-    if (threshold === 600000000) return '401.000.000 - 600.000.000';
-    return `Trên ${profitTable[i-1]?.threshold.toLocaleString('vi-VN')}`;
+  const xuLyDoiLoaiThung = (khoa: string, truong: 'price' | 'bagsPerBox', giaTri: number) => {
+    const cacLoaiThung = (hangSo.boxOptions ?? []).map(option =>
+      option.key === khoa ? { ...option, [truong]: giaTri } : option
+    );
+    capNhatHangSo('boxOptions' as any, cacLoaiThung as any);
   };
+
+
+  const xuLyDoiLoaiQuai = (khoa: string, truong: 'price' | 'weight', giaTri: number) => {
+    const cacLoaiQuai = (hangSo.handleOptions ?? []).map(option =>
+      option.key === khoa ? { ...option, [truong]: giaTri } : option
+    );
+    capNhatHangSo('handleOptions' as any, cacLoaiQuai as any);
+    const macDinh = cacLoaiQuai.find(o => o.key === 'small') ?? cacLoaiQuai[0];
+    if (macDinh) {
+      capNhatHangSo('handlePrice', macDinh.price as any);
+      capNhatHangSo('handleWeight', macDinh.weight as any);
+    }
+  };
+
+  const dinhDangVnd = (n: number) => n.toLocaleString('vi-VN');
+
+  const layBienLoiNhuan = (i: number, nguong: number) => {
+    const from = i === 0 ? 0 : bangLoiNhuan[i - 1]?.threshold ?? 0;
+    return { from, to: nguong };
+  };
+
+  const capNhatNguongLoiNhuan = (i: number, value: number) => {
+    const cuaHang = dungCuaHangTinhGia.getState();
+    const bangMoi = [...cuaHang.profitTable];
+    const min = i === 0 ? 1 : (bangMoi[i - 1]?.threshold ?? 0) + 1;
+    const max = i < bangMoi.length - 1 ? (bangMoi[i + 1]?.threshold ?? Number.MAX_SAFE_INTEGER) - 1 : Number.MAX_SAFE_INTEGER;
+    const nguong = Math.max(min, Math.min(max, Math.round(value || 0)));
+    bangMoi[i] = { ...bangMoi[i], threshold: nguong };
+    dungCuaHangTinhGia.setState({ profitTable: bangMoi });
+    cuaHang.recalculate();
+    luuBangLoiNhuanTre();
+  };
+
 
   return (
     <div className="config-page" id="configPage" style={{display: 'block'}}>
@@ -105,6 +134,7 @@ export default function ConfigPage() {
           <a href="#sect-config-cat" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>✂️ CPSX Khâu cắt</a>
           <a href="#sect-config-loinhuan" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>💰 Lợi Nhuận</a>
           <a href="#sect-config-phukien" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>🎀 Giá Phụ Kiện</a>
+          <a href="#sect-config-donggoi" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>📦 Đóng gói</a>
         </div>
 
         <div className="config-content">
@@ -113,35 +143,97 @@ export default function ConfigPage() {
           <div className="card config-card" id="sect-config-nvl" style={{scrollMarginTop: '80px'}}>
             <div className="config-section-title">
               <span>📦 Giá Nguyên Vật Liệu Cập Nhật Hàng Ngày</span>
-              <button className="btn btn-sm btn-outline" onClick={handleReset}>🔄 Reset mặc định</button>
+              <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+                <select
+                  value={hienBangKhoNho ? 'small' : 'normal'}
+                  onChange={(e) => datHienBangKhoNho(e.target.value === 'small')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg)',
+                    color: 'var(--text)',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                    minWidth: '150px'
+                  }}
+                >
+                  <option value="normal">Khổ bình thường</option>
+                  <option value="small">Khổ nhỏ</option>
+                </select>
+                <button className="btn btn-sm btn-outline" onClick={xuLyDatLai}>🔄 Reset mặc định</button>
+              </div>
             </div>
-            <div className="config-table-wrap">
-              <table className="config-table" id="materialPriceTable">
-                <thead>
-                  <tr>
-                    <th>STT</th>
-                    <th>Màng</th>
-                    <th>Tỉ trọng (g/m³)</th>
-                    <th>Độ dày (mic)</th>
-                    <th>Giá (VNĐ/kg)</th>
-                    <th>Giá (VNĐ/m²)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materials.map((m, idx) => (
-                    <tr key={m.id}>
-                      <td style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
-                      <td style={{fontWeight:600}}>{m.name} <span style={{fontSize:'0.75rem', color:'var(--dim)'}}>{m.id}</span></td>
-                      <td>{m.density}</td>
-                      <td><input type="number" className="config-inline-input" value={m.thickness} onChange={(e) => capNhatVatLieu(m.id, { thickness: parseFloat(e.target.value)||0 })} style={{width:'80px', textAlign:'right'}} /></td>
-                      <td><input type="number" className="config-inline-input" value={m.pricePerKg} onChange={(e) => capNhatVatLieu(m.id, { pricePerKg: parseFloat(e.target.value)||0 })} style={{width:'100px', textAlign:'right', fontWeight:700}} /></td>
-                      <td style={{fontWeight:700, color:'var(--accent)'}}>{m.pricePerM2?.toLocaleString('vi-VN', {maximumFractionDigits:0})} đ</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="config-note">💡 Chỉnh <strong>Độ dày</strong> và <strong>Giá VNĐ/kg</strong> — giá VNĐ/m² tự động tính lại. Thay đổi sẽ áp dụng ngay cho lần tính giá tiếp theo.</p>
+            {!hienBangKhoNho ? (
+              // Bảng khổ bình thường
+              <>
+                <div className="config-table-wrap">
+                  <table className="config-table" id="materialPriceTable">
+                    <thead>
+                      <tr>
+                        <th>STT</th>
+                        <th>Màng</th>
+                        <th>Tỉ trọng (g/m³)</th>
+                        <th>Độ dày (mic)</th>
+                        <th>Giá (VNĐ/kg)</th>
+                        <th>Giá (VNĐ/m²)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {vatLieu.map((m, idx) => (
+                        <tr key={m.id}>
+                          <td style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
+                          <td style={{fontWeight:600}}>{m.name} <span style={{fontSize:'0.75rem', color:'var(--dim)'}}>{m.id}</span></td>
+                          <td>{m.density}</td>
+                          <td><input type="number" className="config-inline-input" value={m.thickness} onChange={(e) => capNhatVatLieu(m.id, { thickness: parseFloat(e.target.value)||0 })} style={{width:'80px', textAlign:'right'}} /></td>
+                          <td><input type="number" className="config-inline-input" value={m.pricePerKg} onChange={(e) => capNhatVatLieu(m.id, { pricePerKg: parseFloat(e.target.value)||0 })} style={{width:'100px', textAlign:'right', fontWeight:700}} /></td>
+                          <td style={{fontWeight:700, color:'var(--accent)'}}>{m.pricePerM2?.toLocaleString('vi-VN', {maximumFractionDigits:0})} đ</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="config-note">💡 Chỉnh <strong>Độ dày</strong> và <strong>Giá VNĐ/kg</strong> — giá VNĐ/m² tự động tính lại. Thay đổi sẽ áp dụng ngay cho lần tính giá tiếp theo.</p>
+              </>
+            ) : (
+              // Bảng khổ nhỏ
+              <>
+                <div className="config-table-wrap">
+                  <table className="config-table" id="smallWidthPriceTable">
+                    <thead>
+                      <tr>
+                        <th>STT</th>
+                        <th>Màng</th>
+                        <th>Tỉ trọng (g/m³)</th>
+                        <th>Độ dày (mic)</th>
+                        <th>Khổ nhỏ (mm)</th>
+                        <th>Giá (VNĐ/kg)</th>
+                        <th>Giá (VNĐ/m²)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bangGiaKhoNhoMotDong.map((p, idx) => {
+                        const material = vatLieu.find(m => m.id === p.materialId);
+                        if (!material) return null;
+                        return (
+                          <tr key={p.id}>
+                            <td style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
+                            <td style={{fontWeight:600}}>{material.name}</td>
+                            <td>{material.density}</td>
+                            <td>{material.thickness}</td>
+                            <td><input type="number" className="config-inline-input" value={p.widthThresholdMm} onChange={(e) => capNhatGiaKhoNho(p.id, { widthThresholdMm: parseFloat(e.target.value)||0 })} style={{width:'80px', textAlign:'right'}} /></td>
+                            <td><input type="number" className="config-inline-input" value={p.pricePerKg} onChange={(e) => capNhatGiaKhoNho(p.id, { pricePerKg: parseFloat(e.target.value)||0 })} style={{width:'100px', textAlign:'right', fontWeight:700}} /></td>
+                            <td style={{fontWeight:700, color:'var(--accent)'}}>{p.pricePerM2?.toLocaleString('vi-VN', {maximumFractionDigits:0})} đ</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <p className="config-note">💡 Khi khổ nguyên vật liệu ≤ ngưỡng khổ nhỏ, hệ thống sẽ dùng giá khổ nhỏ thay cho giá thường. Ví dụ: khổ 350mm sẽ dùng giá mốc 400mm nếu có.</p>
+              </>
+            )}
           </div>
 
           {/* ═══════════ NHÓM 1: CHI PHÍ KHÂU IN ═══════════ */}
@@ -160,13 +252,13 @@ export default function ConfigPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {uniqueMaterials.map((m, idx) => (
+                  {vatLieuDuyNhat.map((m, idx) => (
                     <tr key={m.id}>
                       <td>{idx + 1}</td>
                       <td className="mat-name">{m.name}</td>
                       <td>
                         <input type="number" className="config-inline-input" value={m.inkPricePerColor}
-                          onChange={(e) => handleInkPriceChange(m.name, parseFloat(e.target.value) || 0)}
+                          onChange={(e) => xuLyDoiGiaMuc(m.name, parseFloat(e.target.value) || 0)}
                           style={{width:'80px', textAlign:'right', fontWeight:700}} />
                       </td>
                     </tr>
@@ -190,7 +282,7 @@ export default function ConfigPage() {
                       Phi hao<br/>
                       <span style={{fontSize:'0.8rem', fontWeight:'normal', textTransform:'none'}}>
                         (CD / <input type="number" className="config-inline-input" style={{width:'75px', margin:'0 4px', padding:'4px', fontWeight:700}}
-                          value={constants.printWasteA}
+                          value={hangSo.printWasteA}
                           onChange={(e) => capNhatHangSo('printWasteA', parseFloat(e.target.value) || 6000)}
                         /> × B)
                       </span>
@@ -198,7 +290,7 @@ export default function ConfigPage() {
                     <th style={{paddingBottom: '8px'}}>
                       Vượt định mức{' '}
                       <input type="number" className="config-inline-input" style={{width:'75px', margin:'0 4px', padding:'4px', fontWeight:700}}
-                        value={constants.printWasteC}
+                        value={hangSo.printWasteC}
                         onChange={(e) => capNhatHangSo('printWasteC', parseFloat(e.target.value) || 50000)}
                       /> m<br/>
                       <span style={{fontSize:'0.75rem', fontWeight:'normal', textTransform:'none'}}>(cộng thêm CD / C × D)</span>
@@ -211,24 +303,24 @@ export default function ConfigPage() {
                       <td>{i} màu</td>
                       <td>
                         <input className="config-inline-input" type="number" style={{width:'70px'}}
-                          value={constants.colorSetup[i] || 0}
-                          onChange={(e) => handleColorSetupChange(i, parseFloat(e.target.value) || 0)} />
+                          value={hangSo.colorSetup[i] || 0}
+                          onChange={(e) => xuLyDoiCaiDatMau(i, parseFloat(e.target.value) || 0)} />
                       </td>
                       <td style={{textAlign:'center', verticalAlign:'middle'}}>
                         <div style={{display:'flex', justifyContent:'center', alignItems:'center', gap:'8px'}}>
-                          <span style={{fontSize:'0.9em', color:'var(--text)'}}>CD / {constants.printWasteA}</span>
+                          <span style={{fontSize:'0.9em', color:'var(--text)'}}>CD / {hangSo.printWasteA}</span>
                           <span style={{fontSize:'0.9em', color:'var(--muted)'}}>×</span>
                           <input type="number" className="config-inline-input" style={{width:'75px'}}
-                            value={constants.printWasteB}
+                            value={hangSo.printWasteB}
                             onChange={(e) => capNhatHangSo('printWasteB', parseFloat(e.target.value) || 40)} />
                         </div>
                       </td>
                       <td style={{textAlign:'center', verticalAlign:'middle'}}>
                         <div style={{display:'flex', justifyContent:'center', alignItems:'center', gap:'8px'}}>
-                          <span style={{fontSize:'0.9em', color:'var(--text)'}}>+ max(0, CD - {constants.printWasteC}) / {constants.printWasteC}</span>
+                          <span style={{fontSize:'0.9em', color:'var(--text)'}}>+ max(0, CD - {hangSo.printWasteC}) / {hangSo.printWasteC}</span>
                           <span style={{fontSize:'0.9em', color:'var(--muted)'}}>×</span>
                           <input type="number" className="config-inline-input" style={{width:'75px'}}
-                            value={constants.printWasteD}
+                            value={hangSo.printWasteD}
                             onChange={(e) => capNhatHangSo('printWasteD', parseFloat(e.target.value) || 400)} />
                         </div>
                       </td>
@@ -246,11 +338,11 @@ export default function ConfigPage() {
             <div className="config-cpsx-grid">
               <div className="config-cpsx-item">
                 <label>Giá nhũ (đ)</label>
-                <input type="number" className="form-input" value={constants.nhuPrice} onChange={e => capNhatHangSo('nhuPrice', parseFloat(e.target.value)||0)} />
+                <input type="number" className="form-input" value={hangSo.nhuPrice} onChange={e => capNhatHangSo('nhuPrice', parseFloat(e.target.value)||0)} />
               </div>
               <div className="config-cpsx-item">
                 <label>Giá phủ mờ (đ)</label>
-                <input type="number" className="form-input" value={constants.moPrice} onChange={e => capNhatHangSo('moPrice', parseFloat(e.target.value)||0)} />
+                <input type="number" className="form-input" value={hangSo.moPrice} onChange={e => capNhatHangSo('moPrice', parseFloat(e.target.value)||0)} />
               </div>
             </div>
             <p className="config-note">💡 Khi tích Nhũ hoặc Phủ mờ ở form nhập liệu, giá trị tương ứng sẽ được cộng vào CPSX in.</p>
@@ -262,7 +354,7 @@ export default function ConfigPage() {
             <div className="config-cpsx-grid">
               <div className="config-cpsx-item">
                 <label>Chi phí nhân công + khác (đ)</label>
-                <input type="number" className="form-input" value={constants.laborCost} onChange={e => capNhatHangSo('laborCost', parseFloat(e.target.value)||0)} />
+                <input type="number" className="form-input" value={hangSo.laborCost} onChange={e => capNhatHangSo('laborCost', parseFloat(e.target.value)||0)} />
               </div>
             </div>
             <p className="config-note">💡 Chi phí nhân công và chi phí khác được cộng vào CPSX in cho mỗi đơn hàng.</p>
@@ -276,7 +368,7 @@ export default function ConfigPage() {
                 <label>Mức (lãi cơ sở, % / năm)</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <input type="number" className="form-input" style={{ width: '100px' }}
-                    value={parseFloat(((constants.interestBase ?? 0.10) * 100).toFixed(4))}
+                    value={parseFloat(((hangSo.interestBase ?? 0.10) * 100).toFixed(4))}
                     step="0.1" min="0"
                     onChange={e => capNhatHangSo('interestBase', (parseFloat(e.target.value) || 0) / 100)} />
                   <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>%/năm</span>
@@ -286,7 +378,7 @@ export default function ConfigPage() {
                 <label>Thêm (lãi tình huống, % / năm)</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <input type="number" className="form-input" style={{ width: '100px' }}
-                    value={parseFloat(((constants.interestSpread ?? 0.03) * 100).toFixed(4))}
+                    value={parseFloat(((hangSo.interestSpread ?? 0.03) * 100).toFixed(4))}
                     step="0.1" min="0"
                     onChange={e => capNhatHangSo('interestSpread', (parseFloat(e.target.value) || 0) / 100)} />
                   <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>%/năm</span>
@@ -294,7 +386,7 @@ export default function ConfigPage() {
               </div>
             </div>
             <p className="config-note">
-              💡 Tổng lãi = Mức + Thêm = <strong>{(((constants.interestBase ?? 0.10) + (constants.interestSpread ?? 0.03)) * 100).toFixed(2)}%/năm</strong>.
+              💡 Tổng lãi = Mức + Thêm = <strong>{(((hangSo.interestBase ?? 0.10) + (hangSo.interestSpread ?? 0.03)) * 100).toFixed(2)}%/năm</strong>.
               Công thức: lãi/đơn = (Mức + Thêm) ÷ 12 × (số ngày ÷ 30) × giá vốn.
             </p>
           </div>
@@ -307,7 +399,7 @@ export default function ConfigPage() {
                 <label>Trục A (đ/m²)</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <input type="number" className="form-input" style={{ width: '130px' }}
-                    value={constants.cylPriceA ?? 7300000}
+                    value={hangSo.cylPriceA ?? 7300000}
                     step="100000" min="0"
                     onChange={e => capNhatHangSo('cylPriceA', parseFloat(e.target.value) || 0)} />
                   <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>đ/m²</span>
@@ -317,7 +409,7 @@ export default function ConfigPage() {
                 <label>Trục B (đ/m²)</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <input type="number" className="form-input" style={{ width: '130px' }}
-                    value={constants.cylPriceB ?? 6500000}
+                    value={hangSo.cylPriceB ?? 6500000}
                     step="100000" min="0"
                     onChange={e => capNhatHangSo('cylPriceB', parseFloat(e.target.value) || 0)} />
                   <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>đ/m²</span>
@@ -335,7 +427,7 @@ export default function ConfigPage() {
               {/* Cột trái: CPSX Ghép */}
               <div style={{padding:'12px 20px 12px 0', minWidth:'180px', borderRight:'2px solid var(--border)'}}>
                 <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>CPSX Ghép (đ/m²)</div>
-                <input type="number" className="form-input" value={constants.ghepCPSX} onChange={e => capNhatHangSo('ghepCPSX', parseFloat(e.target.value)||0)} style={{width:'130px'}} />
+                <input type="number" className="form-input" value={hangSo.ghepCPSX} onChange={e => capNhatHangSo('ghepCPSX', parseFloat(e.target.value)||0)} style={{width:'130px'}} />
               </div>
               {/* Cột phải: Phi hao */}
               <div style={{padding:'12px 0 12px 20px', flex:1}}>
@@ -344,21 +436,21 @@ export default function ConfigPage() {
                   <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
                     <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>A — mẫu số</span>
                     <input type="number" className="config-inline-input" style={{width:'80px', fontWeight:700, textAlign:'center'}}
-                      value={constants.ghepWasteA ?? 3000}
+                      value={hangSo.ghepWasteA ?? 3000}
                       onChange={e => capNhatHangSo('ghepWasteA', parseFloat(e.target.value)||3000)} />
                   </div>
                   <span style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>×</span>
                   <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
                     <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>B — hao/A mét</span>
                     <input type="number" className="config-inline-input" style={{width:'70px', fontWeight:700, textAlign:'center'}}
-                      value={constants.ghepWasteB ?? 20}
+                      value={hangSo.ghepWasteB ?? 20}
                       onChange={e => capNhatHangSo('ghepWasteB', parseFloat(e.target.value)||0)} />
                   </div>
                   <span style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>+</span>
                   <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
                     <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>C — cố định (m)</span>
                     <input type="number" className="config-inline-input" style={{width:'70px', fontWeight:700, textAlign:'center'}}
-                      value={constants.ghepWasteC ?? 100}
+                      value={hangSo.ghepWasteC ?? 100}
                       onChange={e => capNhatHangSo('ghepWasteC', parseFloat(e.target.value)||0)} />
                   </div>
                 </div>
@@ -375,7 +467,7 @@ export default function ConfigPage() {
               {/* Cột trái: CPSX Cắt cơ bản */}
               <div style={{padding:'12px 20px 12px 0', minWidth:'180px', borderRight:'2px solid var(--border)'}}>
                 <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>CPSX Cắt cơ bản (đ)</div>
-                <input type="number" className="form-input" value={constants.cutBase} onChange={e => capNhatHangSo('cutBase', parseFloat(e.target.value)||0)} style={{width:'130px'}} />
+                <input type="number" className="form-input" value={hangSo.cutBase} onChange={e => capNhatHangSo('cutBase', parseFloat(e.target.value)||0)} style={{width:'130px'}} />
               </div>
               {/* Cột phải: Phi hao cắt */}
               <div style={{padding:'12px 0 12px 20px', flex:1}}>
@@ -384,21 +476,21 @@ export default function ConfigPage() {
                   <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
                     <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>A — mẫu số</span>
                     <input type="number" className="config-inline-input" style={{width:'80px', fontWeight:700, textAlign:'center'}}
-                      value={constants.cutWasteA ?? 3000}
+                      value={hangSo.cutWasteA ?? 3000}
                       onChange={e => capNhatHangSo('cutWasteA', parseFloat(e.target.value)||3000)} />
                   </div>
                   <span style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>×</span>
                   <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
                     <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>B — hao/A mét</span>
                     <input type="number" className="config-inline-input" style={{width:'70px', fontWeight:700, textAlign:'center'}}
-                      value={constants.cutWasteB ?? 20}
+                      value={hangSo.cutWasteB ?? 20}
                       onChange={e => capNhatHangSo('cutWasteB', parseFloat(e.target.value)||0)} />
                   </div>
                   <span style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>+</span>
                   <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
                     <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>C — cố định (m)</span>
                     <input type="number" className="config-inline-input" style={{width:'70px', fontWeight:700, textAlign:'center'}}
-                      value={constants.cutWasteC ?? 100}
+                      value={hangSo.cutWasteC ?? 100}
                       onChange={e => capNhatHangSo('cutWasteC', parseFloat(e.target.value)||0)} />
                   </div>
                 </div>
@@ -417,21 +509,21 @@ export default function ConfigPage() {
                 <tbody>
                   <tr>
                     <td>Nhỏ</td>
-                    <td><input type="number" className="config-inline-input" value={constants.cutThreshold1} step="0.01" onChange={e => capNhatHangSo('cutThreshold1', parseFloat(e.target.value)||0)} /></td>
-                    <td><input type="number" className="config-inline-input" value={constants.cutMult1} step="0.1" onChange={e => capNhatHangSo('cutMult1', parseFloat(e.target.value)||0)} /></td>
-                    <td className="cut-preview">{(constants.cutBase * constants.cutMult1).toLocaleString('vi-VN', {maximumFractionDigits:0})}</td>
+                    <td><input type="number" className="config-inline-input" value={hangSo.cutThreshold1} step="0.01" onChange={e => capNhatHangSo('cutThreshold1', parseFloat(e.target.value)||0)} /></td>
+                    <td><input type="number" className="config-inline-input" value={hangSo.cutMult1} step="0.1" onChange={e => capNhatHangSo('cutMult1', parseFloat(e.target.value)||0)} /></td>
+                    <td className="cut-preview">{(hangSo.cutBase * hangSo.cutMult1).toLocaleString('vi-VN', {maximumFractionDigits:0})}</td>
                   </tr>
                   <tr>
                     <td>Trung bình</td>
-                    <td><input type="number" className="config-inline-input" value={constants.cutThreshold2} step="0.01" onChange={e => capNhatHangSo('cutThreshold2', parseFloat(e.target.value)||0)} /></td>
-                    <td><input type="number" className="config-inline-input" value={constants.cutMult2} step="0.1" onChange={e => capNhatHangSo('cutMult2', parseFloat(e.target.value)||0)} /></td>
-                    <td className="cut-preview">{(constants.cutBase * constants.cutMult2).toLocaleString('vi-VN', {maximumFractionDigits:0})}</td>
+                    <td><input type="number" className="config-inline-input" value={hangSo.cutThreshold2} step="0.01" onChange={e => capNhatHangSo('cutThreshold2', parseFloat(e.target.value)||0)} /></td>
+                    <td><input type="number" className="config-inline-input" value={hangSo.cutMult2} step="0.1" onChange={e => capNhatHangSo('cutMult2', parseFloat(e.target.value)||0)} /></td>
+                    <td className="cut-preview">{(hangSo.cutBase * hangSo.cutMult2).toLocaleString('vi-VN', {maximumFractionDigits:0})}</td>
                   </tr>
                   <tr>
                     <td>Lớn</td>
                     <td>—</td>
-                    <td><input type="number" className="config-inline-input" value={constants.cutMult3} step="0.1" onChange={e => capNhatHangSo('cutMult3', parseFloat(e.target.value)||0)} /></td>
-                    <td className="cut-preview">{(constants.cutBase * constants.cutMult3).toLocaleString('vi-VN', {maximumFractionDigits:0})}</td>
+                    <td><input type="number" className="config-inline-input" value={hangSo.cutMult3} step="0.1" onChange={e => capNhatHangSo('cutMult3', parseFloat(e.target.value)||0)} /></td>
+                    <td className="cut-preview">{(hangSo.cutBase * hangSo.cutMult3).toLocaleString('vi-VN', {maximumFractionDigits:0})}</td>
                   </tr>
                 </tbody>
               </table>
@@ -444,55 +536,73 @@ export default function ConfigPage() {
 
           <div className="card config-card">
             <div className="config-section-title" style={{alignItems: 'center'}}>
-              <span>📈 Tỉ Lệ Lợi Nhuận Theo Giá Vốn</span>
+              <span>📈 Tỉ lệ lợi nhuận theo giá vốn</span>
               <div style={{display:'flex', alignItems:'center', gap: '8px'}}>
                 <span style={{fontSize:'0.85rem', fontWeight:'normal', color:'var(--muted)'}}>Nhóm Khách hàng:</span>
-                <select className="form-select" value={customerGroup} onChange={e => setCustomerGroup(e.target.value)} style={{width: 'auto', padding: '4px 24px 4px 10px', fontWeight: 'normal', fontSize: '0.85rem'}}>
+                <select className="form-select" value={nhomKhachHang} onChange={e => datNhomKhachHang(e.target.value)} style={{width: 'auto', padding: '4px 24px 4px 10px', fontWeight: 'normal', fontSize: '0.85rem'}}>
                   <option value="svlg">Sen Việt và Lương Gia</option>
                   <option value="other">Khác</option>
                 </select>
               </div>
             </div>
             <div className="config-table-wrap">
-              <table className="config-table" id="profitTable">
+              <table className="config-table" id="bangLoiNhuan">
                 <thead>
                   <tr>
-                    <th>Giá Vốn</th>
-                    <th>Túi 3,4 biên, màng ghép: 2 lớp</th>
-                    <th>Túi zipper, Đáy đứng, MPET, AL, giấy, màng ghép 3 lớp..</th>
+                    <th>Từ</th>
+                    <th>Đến</th>
+                    <th>Túi 3, 4 biên, màng ghép 2 lớp</th>
+                    <th>Túi zipper, đáy đứng, MPET, AL, giấy, màng ghép 3 lớp...</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {profitTable.map((row, i) => (
+                  {bangLoiNhuan.map((row, i) => (
                     <tr key={i}>
-                      <td>{getRangeLabel(i, row.threshold)}</td>
+                      {(() => {
+                        const bounds = layBienLoiNhuan(i, row.threshold);
+                        return (
+                          <>
+                            <td>
+                              <span style={{fontWeight: 700}}>{dinhDangVnd(bounds.from)}</span>
+                            </td>
+                            <td>
+                              <input className="config-inline-input" type="number" step="1000000"
+                                value={row.threshold}
+                                onChange={(e) => capNhatNguongLoiNhuan(i, parseFloat(e.target.value) || 0)}
+                                style={{width:'130px', textAlign:'right', fontWeight:700}}
+                              />
+                              <div style={{fontSize:'0.72rem', color:'var(--muted)', marginTop:'2px'}}>&lt; {dinhDangVnd(row.threshold)}</div>
+                            </td>
+                          </>
+                        );
+                      })()}
                       <td>
                         <input className="config-inline-input" type="number" step="0.5" 
-                          value={+((row.col1 + offset) * 100).toFixed(2)}
+                          value={+((row.col1 + chenhLech) * 100).toFixed(2)}
                           onChange={(e) => {
                             const val = parseFloat(e.target.value) || 0;
-                            // Store back: subtract offset
-                            const store = dungCuaHangTinhGia.getState();
-                            const newTable = [...store.profitTable];
-                            newTable[i] = { ...newTable[i], col1: (val / 100) - offset };
-                            dungCuaHangTinhGia.setState({ profitTable: newTable });
-                            store.recalculate();
-                            debouncedPersistProfitTable();
+                            // Store back: subtract chenhLech
+                            const cuaHang = dungCuaHangTinhGia.getState();
+                            const bangMoi = [...cuaHang.profitTable];
+                            bangMoi[i] = { ...bangMoi[i], col1: (val / 100) - chenhLech };
+                            dungCuaHangTinhGia.setState({ profitTable: bangMoi });
+                            cuaHang.recalculate();
+                            luuBangLoiNhuanTre();
                           }}
                           style={{width:'70px', textAlign:'right'}}
                         /> %
                       </td>
                       <td>
                         <input className="config-inline-input" type="number" step="0.5"
-                          value={+((row.col2 + offset) * 100).toFixed(2)}
+                          value={+((row.col2 + chenhLech) * 100).toFixed(2)}
                           onChange={(e) => {
                             const val = parseFloat(e.target.value) || 0;
-                            const store = dungCuaHangTinhGia.getState();
-                            const newTable = [...store.profitTable];
-                            newTable[i] = { ...newTable[i], col2: (val / 100) - offset };
-                            dungCuaHangTinhGia.setState({ profitTable: newTable });
-                            store.recalculate();
-                            debouncedPersistProfitTable();
+                            const cuaHang = dungCuaHangTinhGia.getState();
+                            const bangMoi = [...cuaHang.profitTable];
+                            bangMoi[i] = { ...bangMoi[i], col2: (val / 100) - chenhLech };
+                            dungCuaHangTinhGia.setState({ profitTable: bangMoi });
+                            cuaHang.recalculate();
+                            luuBangLoiNhuanTre();
                           }}
                           style={{width:'70px', textAlign:'right'}}
                         /> %
@@ -522,23 +632,69 @@ export default function ConfigPage() {
                 <tbody>
                   <tr>
                     <td>Zipper</td>
-                    <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={constants.zipperPrice} onChange={e => capNhatHangSo('zipperPrice', parseFloat(e.target.value)||0)} /> đ/m</td>
-                    <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={constants.zipperWeight} step="0.1" min="0" onChange={e => capNhatHangSo('zipperWeight', parseFloat(e.target.value)||0)} /> Gr/m</td>
+                    <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={hangSo.zipperPrice} onChange={e => capNhatHangSo('zipperPrice', parseFloat(e.target.value)||0)} /> đ/m</td>
+                    <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={hangSo.zipperWeight} step="0.1" min="0" onChange={e => capNhatHangSo('zipperWeight', parseFloat(e.target.value)||0)} /> Gr/m</td>
                   </tr>
                   <tr>
                     <td>Băng keo</td>
-                    <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={constants.tapePrice} onChange={e => capNhatHangSo('tapePrice', parseFloat(e.target.value)||0)} /> đ/m</td>
-                    <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={constants.tapeWeight} step="0.1" min="0" onChange={e => capNhatHangSo('tapeWeight', parseFloat(e.target.value)||0)} /> Gr/m</td>
+                    <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={hangSo.tapePrice} onChange={e => capNhatHangSo('tapePrice', parseFloat(e.target.value)||0)} /> đ/m</td>
+                    <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={hangSo.tapeWeight} step="0.1" min="0" onChange={e => capNhatHangSo('tapeWeight', parseFloat(e.target.value)||0)} /> Gr/m</td>
                   </tr>
-                  <tr>
-                    <td>Quai</td>
-                    <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={constants.handlePrice} onChange={e => capNhatHangSo('handlePrice', parseFloat(e.target.value)||0)} /> đ/cái</td>
-                    <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={constants.handleWeight} step="0.1" min="0" onChange={e => capNhatHangSo('handleWeight', parseFloat(e.target.value)||0)} /> Gr/cái</td>
-                  </tr>
+                  {(hangSo.handleOptions ?? []).map(option => (
+                    <tr key={option.key}>
+                      <td>{option.label}</td>
+                      <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={option.price} onChange={e => xuLyDoiLoaiQuai(option.key, 'price', parseFloat(e.target.value)||0)} /> đ/cái</td>
+                      <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={option.weight} step="0.1" min="0" onChange={e => xuLyDoiLoaiQuai(option.key, 'weight', parseFloat(e.target.value)||0)} /> Gr/cái</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
             <p className="config-note">💡 Đơn giá thay đổi tùy thời điểm, tự động áp dụng khi chốt giá cho đơn hàng.</p>
+          </div>
+
+          {/* ═══════════ NHÓM 6: ĐÓNG GÓI THÙNG ═══════════ */}
+          <div className="config-group-header" id="sect-config-donggoi" style={{scrollMarginTop: '80px'}}>📦 Đóng gói thùng</div>
+
+          <div className="card config-card">
+            <div className="config-section-title"><span>📦 Định mức loại thùng</span></div>
+            <div className="config-table-wrap">
+              <table className="config-table">
+                <thead>
+                  <tr>
+                    <th>Loại thùng</th>
+                    <th>Túi/thùng</th>
+                    <th>Giá thùng (đ)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(hangSo.boxOptions ?? []).map(option => (
+                    <tr key={option.key}>
+                      <td style={{fontWeight:700}}>{option.label}</td>
+                      <td>
+                        <input
+                          type="number"
+                          className="config-inline-input"
+                          value={option.bagsPerBox}
+                          onChange={e => xuLyDoiLoaiThung(option.key, 'bagsPerBox', parseFloat(e.target.value) || 0)}
+                          style={{width:'100px', textAlign:'right', fontWeight:700}}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="number"
+                          className="config-inline-input"
+                          value={option.price}
+                          onChange={e => xuLyDoiLoaiThung(option.key, 'price', parseFloat(e.target.value) || 0)}
+                          style={{width:'120px', textAlign:'right', fontWeight:700}}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="config-note">💡 Khi nhập đơn túi, chọn loại thùng để tự điền số túi/thùng và giá thùng. Người dùng vẫn có thể chỉnh tay cho trường hợp đặc biệt.</p>
           </div>
 
         </div>

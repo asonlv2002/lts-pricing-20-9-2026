@@ -1,13 +1,13 @@
 "use client";
 import React, { useState } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import { buildProductionRows, calculateEffectivePricing, resolveOverrideRows, type UniRow } from '../lib/manager-calculation';
+import { lapDongSanXuat, tinhGiaHieuLuc, xuLyDongGhiDe, type UniRow } from '../lib/manager-calculation';
 import type { OverrideRowKey, OverrideFields, OverrideTable } from '../lib/types';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
 // Mỗi lần render với resetKey mới → luôn bắt đầu ở trạng thái ĐÓNG
-function CollapsibleCard({
-  title,
+function TheThuGon({
+  title: tieuDe,
   children,
   resetKey,
   style,
@@ -17,21 +17,21 @@ function CollapsibleCard({
   resetKey: string | number;
   style?: React.CSSProperties;
 }) {
-  const [open, setOpen] = useState(false);
+  const [mo, datMo] = useState(false);
   // Đặt lại về đóng khi resetKey thay đổi (tức là khi có kết quả mới)
-  React.useEffect(() => { setOpen(false); }, [resetKey]);
+  React.useEffect(() => { datMo(false); }, [resetKey]);
 
   return (
     <div className="card" style={style}>
       <div
         className="card-title collapsible"
-        onClick={() => setOpen(v => !v)}
-        aria-expanded={open}
+        onClick={() => datMo(v => !v)}
+        aria-expanded={mo}
       >
-        {title}
-        <span className={`card-collapse-arrow${open ? ' open' : ''}`}>▼</span>
+        {tieuDe}
+        <span className={`card-collapse-arrow${mo ? ' open' : ''}`}>▼</span>
       </div>
-      <div className={`card-body-collapsible${open ? ' open' : ''}`}>
+      <div className={`card-body-collapsible${mo ? ' open' : ''}`}>
         {children}
       </div>
     </div>
@@ -39,70 +39,103 @@ function CollapsibleCard({
 }
 
 // Format helpers mirroring the original engine.js
-function fmt(n: number | null | undefined, decimals = 0): string {
+function dinhDangSo(n: number | null | undefined, soLe = 0): string {
   if (n == null || isNaN(n)) return '—';
-  return n.toLocaleString('vi-VN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  return n.toLocaleString('vi-VN', { minimumFractionDigits: soLe, maximumFractionDigits: soLe });
 }
-function fmtVND(n: number) { return fmt(n) + ' đ'; }
-function fmtPercent(n: number) {
+function dinhDangVND(n: number) { return dinhDangSo(n) + ' đ'; }
+function dinhDangPhanTram(n: number) {
   const val = n * 100;
   return parseFloat(val.toFixed(2)) + '%';
 }
-function fmtM2(n: number) { return fmt(n, 4) + ' m²'; }
+function dinhDangM2(n: number) { return dinhDangSo(n, 4) + ' m²'; }
 
 // ── Overridable Cell (click-to-edit inline) ──────────────────────────────────
-function OverridableCell({ rowKey, field, sourceVal, overrideVal, canEdit, onSet, decimals = 0 }: {
-  rowKey: OverrideRowKey;
-  field: keyof OverrideFields;
-  sourceVal: number;
-  overrideVal: number | undefined;
-  canEdit: boolean;
-  onSet: (rk: OverrideRowKey, f: keyof OverrideFields, v: number | undefined) => void;
-  decimals?: number;
+function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat, soLe = 0 }: {
+  khoaDong: OverrideRowKey;
+  truong: keyof OverrideFields;
+  giaTriGoc: number;
+  giaTriGhiDe: number | undefined;
+  duocSua: boolean;
+  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
+  soLe?: number;
 }) {
-  const displayVal = overrideVal ?? sourceVal;
-  const isChanged = overrideVal !== undefined && Math.abs(overrideVal - sourceVal) > 0.001;
-  const [editing, setEditing] = React.useState(false);
-  const [tempVal, setTempVal] = React.useState('');
+  const giaTriHienThi = giaTriGhiDe ?? giaTriGoc;
+  const daThayDoi = giaTriGhiDe !== undefined && Math.abs(giaTriGhiDe - giaTriGoc) > 0.001;
+  const [dangSua, datDangSua] = React.useState(false);
+  const [giaTriTam, datGiaTriTam] = React.useState('');
 
-  const commit = () => {
-    setEditing(false);
-    const parsed = parseFloat(tempVal);
+  const xacNhan = () => {
+    datDangSua(false);
+    const soDaDoc = parseFloat(giaTriTam);
     // Từ chối: NaN, số âm (khổ/số mét/phi hao/giá VL không thể âm),
     // hoặc gần bằng giá trị nguồn (revert về gốc)
-    if (isNaN(parsed) || parsed < 0 || Math.abs(parsed - sourceVal) < 0.001) {
-      onSet(rowKey, field, undefined); // revert
+    if (isNaN(soDaDoc) || soDaDoc < 0 || Math.abs(soDaDoc - giaTriGoc) < 0.001) {
+      khiDat(khoaDong, truong, undefined); // revert
     } else {
-      onSet(rowKey, field, parsed);
+      khiDat(khoaDong, truong, soDaDoc);
     }
   };
 
-  if (!canEdit) {
+  if (!duocSua) {
     return (
-      <td className={`num ${isChanged ? 'override-changed' : ''}`}
-          title={isChanged ? `Gốc: ${fmt(sourceVal, decimals)}` : undefined}
-          data-label={field}>
-        {fmt(displayVal, decimals)}
+      <td className={`num ${daThayDoi ? 'override-changed' : ''}`}
+          title={daThayDoi ? `Gốc: ${dinhDangSo(giaTriGoc, soLe)}` : undefined}
+          data-label={truong}>
+        {dinhDangSo(giaTriHienThi, soLe)}
       </td>
     );
   }
 
   return (
-    <td className={`num override-cell ${isChanged ? 'override-changed' : ''}`}
-        title={isChanged ? `Gốc: ${fmt(sourceVal, decimals)}` : undefined}
-        data-label={field}>
-      {editing ? (
+    <td className={`num override-cell ${daThayDoi ? 'override-changed' : ''}`}
+        title={daThayDoi ? `Gốc: ${dinhDangSo(giaTriGoc, soLe)}` : undefined}
+        data-label={truong}>
+      {dangSua ? (
         <input className="override-input" type="number" step="any"
-          value={tempVal}
-          onChange={e => setTempVal(e.target.value)}
-          onBlur={commit}
-          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false); }}
+          value={giaTriTam}
+          onChange={e => datGiaTriTam(e.target.value)}
+          onBlur={xacNhan}
+          onKeyDown={e => { if (e.key === 'Enter') xacNhan(); if (e.key === 'Escape') datDangSua(false); }}
           autoFocus />
       ) : (
         <span className="override-display"
-          onClick={() => { setTempVal(String(Math.round(displayVal * 10000) / 10000)); setEditing(true); }}>
-          {fmt(displayVal, decimals)}
-          {canEdit && <span className="override-indicator"> ✎</span>}
+          onClick={() => { datGiaTriTam(String(Math.round(giaTriHienThi * 10000) / 10000)); datDangSua(true); }}>
+          {dinhDangSo(giaTriHienThi, soLe)}
+          {duocSua && <span className="override-indicator"> ✎</span>}
+        </span>
+      )}
+    </td>
+  );
+}
+
+function OChuCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat }: {
+  khoaDong: OverrideRowKey;
+  truong: keyof OverrideFields;
+  giaTriGoc: string;
+  giaTriGhiDe: string | undefined;
+  duocSua: boolean;
+  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
+}) {
+  const giaTriHienThi = giaTriGhiDe ?? giaTriGoc;
+  const daThayDoi = giaTriGhiDe !== undefined && giaTriGhiDe !== giaTriGoc;
+  const [dangSua, datDangSua] = React.useState(false);
+  const [giaTriTam, datGiaTriTam] = React.useState('');
+  const xacNhan = () => {
+    datDangSua(false);
+    const v = giaTriTam.trim();
+    khiDat(khoaDong, truong, !v || v === giaTriGoc ? undefined : v);
+  };
+  if (!duocSua) return <td className={daThayDoi ? 'override-changed' : ''} title={daThayDoi ? `Gốc: ${giaTriGoc}` : undefined}>{giaTriHienThi}</td>;
+  return (
+    <td className={`override-cell ${daThayDoi ? 'override-changed' : ''}`} title={daThayDoi ? `Gốc: ${giaTriGoc}` : undefined}>
+      {dangSua ? (
+        <input className="override-input" type="text" value={giaTriTam}
+          onChange={e => datGiaTriTam(e.target.value)} onBlur={xacNhan}
+          onKeyDown={e => { if (e.key === 'Enter') xacNhan(); if (e.key === 'Escape') datDangSua(false); }} autoFocus />
+      ) : (
+        <span className="override-display" onClick={() => { datGiaTriTam(giaTriHienThi); datDangSua(true); }}>
+          {giaTriHienThi}{duocSua && <span className="override-indicator"> ✎</span>}
         </span>
       )}
     </td>
@@ -110,27 +143,27 @@ function OverridableCell({ rowKey, field, sourceVal, overrideVal, canEdit, onSet
 }
 
 // ── Override Table Section ────────────────────────────────────────────────────
-function OverrideTableSection({ title, colorClass, uniRows, sourceOverrides, currentOverrides, canEdit, onSet, onSave, onSaveNew, loadedHistoryId }: {
+function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, duocSua, khiDat, khiLuu, khiLuuMoi, loadedHistoryId }: {
   title: string;
-  colorClass: 'sale' | 'admin';
-  uniRows: UniRow[];
-  sourceOverrides: OverrideTable;
-  currentOverrides: OverrideTable;
-  canEdit: boolean;
-  onSet: (rk: OverrideRowKey, f: keyof OverrideFields, v: number | undefined) => void;
-  onSave: (id: string) => void;
-  onSaveNew: () => void; // gọi khi chưa có loadedHistoryId — tự lưu history rồi persist
+  lopMau: 'sale' | 'admin';
+  cacDongSanXuat: UniRow[];
+  ghiDeNguon: OverrideTable;
+  ghiDeHienTai: OverrideTable;
+  duocSua: boolean;
+  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
+  khiLuu: (id: string) => void;
+  khiLuuMoi: () => void; // gọi khi chưa có loadedHistoryId — tự lưu lichSu rồi persist
   loadedHistoryId: string | null;
 }) {
-  const { rows: resolvedRows, totalCPSX, totalCPVL } = resolveOverrideRows(uniRows, sourceOverrides, currentOverrides);
+  const { rows: cacDongDaXuLy, totalCPSX: tongCPSX, totalCPVL: tongCPVL } = xuLyDongGhiDe(cacDongSanXuat, ghiDeNguon, ghiDeHienTai);
 
   return (
-    <div className={`override-section override-section--${colorClass}`}>
+    <div className={`override-section override-section--${lopMau}`}>
       <div className="override-section-header">
         <div className="override-section-title">
-          {colorClass === 'sale' ? '💼' : '👑'} {title}
+          {lopMau === 'sale' ? '💼' : '👑'} {tieuDe}
         </div>
-        {!canEdit && <span className="override-readonly-badge">Chỉ xem</span>}
+        {!duocSua && <span className="override-readonly-badge">Chỉ xem</span>}
       </div>
       <div className="table-responsive">
         <table className="data-table">
@@ -144,49 +177,49 @@ function OverrideTableSection({ title, colorClass, uniRows, sourceOverrides, cur
             </tr>
           </thead>
           <tbody>
-            {resolvedRows.map((row) => (
+            {cacDongDaXuLy.map((row) => (
               <tr key={row.rowKey}>
                 <td data-label="Công đoạn">{row.stage}</td>
                 <td data-label="Vật liệu">{row.mat}</td>
-                <OverridableCell rowKey={row.rowKey} field="width" sourceVal={row.srcWidth}
-                  overrideVal={currentOverrides[row.rowKey]?.width} canEdit={canEdit} onSet={onSet} decimals={3} />
-                <OverridableCell rowKey={row.rowKey} field="meters" sourceVal={row.srcMeters}
-                  overrideVal={currentOverrides[row.rowKey]?.meters} canEdit={canEdit} onSet={onSet} decimals={0} />
-                <OverridableCell rowKey={row.rowKey} field="waste" sourceVal={row.srcWaste}
-                  overrideVal={currentOverrides[row.rowKey]?.waste} canEdit={canEdit} onSet={onSet} decimals={0} />
-                <OverridableCell rowKey={row.rowKey} field="inputVL" sourceVal={row.srcInputVL}
-                  overrideVal={currentOverrides[row.rowKey]?.inputVL} canEdit={canEdit} onSet={onSet} decimals={0} />
-                <td className="num" data-label="CPSX (đ/m²)">{fmt(row.cpsx, 0)}</td>
-                <td className="num" data-label="Thành tiền CPSX">{fmt(row.costCPSX, 0)}</td>
+                <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={row.srcWidth}
+                  giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
+                <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
+                  giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
+                  giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
+                  giaTriGhiDe={ghiDeHienTai[row.rowKey]?.inputVL} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                <td className="num" data-label="CPSX (đ/m²)">{dinhDangSo(row.cpsx, 0)}</td>
+                <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(row.costCPSX, 0)}</td>
                 {row.matPrice != null ? (
-                  <OverridableCell rowKey={row.rowKey} field="matPrice" sourceVal={row.srcMatPrice ?? 0}
-                    overrideVal={currentOverrides[row.rowKey]?.matPrice} canEdit={canEdit && row.matPrice != null} onSet={onSet} decimals={1} />
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="matPrice" giaTriGoc={row.srcMatPrice ?? 0}
+                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.matPrice} duocSua={duocSua && row.matPrice != null} khiDat={khiDat} soLe={1} />
                 ) : (
                   <td className="num" data-label="CP vật liệu">—</td>
                 )}
-                <td className="num" data-label="Thành tiền CPVL">{row.costMat != null ? fmt(row.costMat, 0) : '—'}</td>
+                <td className="num" data-label="Thành tiền CPVL">{row.costMat != null ? dinhDangSo(row.costMat, 0) : '—'}</td>
               </tr>
             ))}
             <tr className="total-row">
               <td colSpan={7}>TỔNG</td>
-              <td className="num">{fmt(totalCPSX, 0)}</td>
+              <td className="num">{dinhDangSo(tongCPSX, 0)}</td>
               <td className="num"></td>
-              <td className="num">{fmt(totalCPVL, 0)}</td>
+              <td className="num">{dinhDangSo(tongCPVL, 0)}</td>
             </tr>
             <tr className="total-row" style={{ fontSize: '1.05em' }}>
               <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
               <td colSpan={3} className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>
-                {fmt(totalCPSX + totalCPVL, 0)} đ
+                {dinhDangSo(tongCPSX + tongCPVL, 0)} đ
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-      {canEdit && (
+      {duocSua && (
         <div className="override-save-row">
           <button
             className="btn btn-sm btn-green"
-            onClick={() => loadedHistoryId ? onSave(loadedHistoryId) : onSaveNew()}
+            onClick={() => loadedHistoryId ? khiLuu(loadedHistoryId) : khiLuuMoi()}
           >
             💾 Lưu thay đổi
           </button>
@@ -196,17 +229,17 @@ function OverrideTableSection({ title, colorClass, uniRows, sourceOverrides, cur
   );
 }
 
-export default function ManagerView() {
-  const { result, activeView, input, constants, profitTable, setChotGiaForLatest: datGiaChotChoMoiNhat, currentChotGia, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, setActiveModule: datPhan,
-    role, loadedHistoryId, history,
-    saleOverrides, adminOverrides, showSaleOverrides, showAdminOverrides,
+export default function ManHinhQuanLy() {
+  const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, setChotGiaForLatest: datGiaChotChoMoiNhat, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, setActiveModule: datPhan,
+    role, loadedHistoryId: loadedHistoryId, history: lichSu,
+    saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin, showSaleOverrides: hienGhiDeSale, showAdminOverrides: hienGhiDeAdmin,
     setSaleOverride: datGhiDeSale, setAdminOverride: datGhiDeAdmin, setShowSaleOverrides: datHienGhiDeSale, setShowAdminOverrides: datHienGhiDeAdmin, persistOverrides: luuGhiDe, calculateForInput,
   } = dungCuaHangTinhGia();
-  const [selectedRollMat, setSelectedRollMat] = React.useState('');
+  const [vatLieuCuonDangChon, datVatLieuCuonDangChon] = React.useState('');
 
-  if (activeView !== 'manager') return null;
+  if (manHinhDangMo !== 'manager') return null;
 
-  if (!result) {
+  if (!ketQua) {
     return (
       <div className="empty-state" id="emptyState">
         <div className="icon">📦</div>
@@ -215,31 +248,33 @@ export default function ManagerView() {
       </div>
     );
   }
-  const r = result;
-  const rInput = r.input;
-  const isMang = rInput.productType === 'mang';
+  const r = ketQua;
+  const dauVaoKq = r.input;
+  const laMang = dauVaoKq.productType === 'mang';
 
-  const { uniRows, totalCPSX, totalCPVL, grandTotal } = buildProductionRows(r, constants);
-  const { effTotalProdCost, effProfitRate, effProfitAmount, effRevenue, effCostPerUnit } = calculateEffectivePricing({
+  const { uniRows: cacDongSanXuat, totalCPSX: tongCPSX, totalCPVL: tongCPVL, grandTotal: tongCong } = lapDongSanXuat(r, hangSo);
+  const { effTotalProdCost: tongChiPhiSXHieuLuc, effProfitRate: tyLeLoiNhuanHieuLuc, effProfitAmount: tienLoiNhuanHieuLuc, effRevenue: doanhThuHieuLuc, effCostPerUnit: giaVonDonViHieuLuc } = tinhGiaHieuLuc({
     result: r,
-    uniRows,
-    saleOverrides,
-    adminOverrides,
-    profitTable,
+    uniRows: cacDongSanXuat,
+    saleOverrides: ghiDeSale,
+    adminOverrides: ghiDeAdmin,
+    profitTable: bangLoiNhuan,
   });
 
   // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
-  // (dùng effCostPerUnit tạm, effFinalPriceWithComm sẽ được tính ở phần breakdown bên dưới)
-  const resultKey = `${effCostPerUnit}|${rInput.quantity}|${r.totalThickness}|${rInput.spreadWidth}|${rInput.cutStep}`;
-  const filmRollLength = (rInput as any).filmRollLength || 6000;
-  const unitLabel = isMang ? 'm²' : 'túi'; // đơn vị hiển thị
+  // (dùng giaVonDonViHieuLuc tạm, effFinalPriceWithComm sẽ được tính ở phần breakdown bên dưới)
+  const khoaKetQua = `${giaVonDonViHieuLuc}|${dauVaoKq.quantity}|${r.totalThickness}|${dauVaoKq.spreadWidth}|${dauVaoKq.cutStep}`;
+  const chieuDaiCuonMang = (dauVaoKq as any).chieuDaiCuonMang || (dauVaoKq as any).filmRollLength || 6000;
+  const nhanDonVi = laMang ? 'm²' : 'túi'; // đơn vị hiển thị
+  const dienTichMoiCuonMang = laMang ? (dauVaoKq.spreadWidth || 0) * chieuDaiCuonMang : 0;
+  const soLuongCuonMang = laMang && dienTichMoiCuonMang > 0 ? dauVaoKq.quantity / dienTichMoiCuonMang : 0;
 
   // ── Summary info ──
-  const numColorsText = rInput.numColors && rInput.numColors > 0 ? `${rInput.numColors} màu` : 'Không in';
-  const spreadMm = +(rInput.spreadWidth * 1000).toFixed(0);
-  const cutMm = +(rInput.cutStep * 1000).toFixed(0);
+  const chuSoMau = dauVaoKq.numColors && dauVaoKq.numColors > 0 ? `${dauVaoKq.numColors} màu` : 'Không in';
+  const khoTraiMm = +(dauVaoKq.spreadWidth * 1000).toFixed(0);
+  const buocCatMm = +(dauVaoKq.cutStep * 1000).toFixed(0);
   
-  const filmMap: Record<string, string> = {
+  const tenLoaiMang: Record<string, string> = {
     'mangIn': 'Màng in',
     'mangGhep': 'Màng ghép',
     'mangDongGoi': 'Màng đóng gói tự động',
@@ -247,76 +282,76 @@ export default function ManagerView() {
     'mangGhepKoIn': 'Màng ghép không in',
     'mangGhepCoIn': 'Màng ghép có in',
   };
-  const bagMap: Record<string, string> = {
+  const tenLoaiTui: Record<string, string> = {
     '3bien': '3 biên', '4bien': '4 biên', 'xephong_lech': 'Xếp hông dán lưng lệch',
     'xephong_giua': 'Xếp hông dán lưng giữa', 'dayDung': 'Đáy đứng', 'cutSeal': 'Cut seal'
   };
-  let bagStr = bagMap[rInput.bagType] || '';
-  if (!isMang && bagStr) {
-    if (rInput.hasZipper) {
-      if (rInput.bagType === 'cutSeal') {
-        bagStr = 'Cute seal nắp băng keo';
+  let chuoiLoaiTui = tenLoaiTui[dauVaoKq.bagType] || '';
+  if (!laMang && chuoiLoaiTui) {
+    if (dauVaoKq.hasZipper) {
+      if (dauVaoKq.bagType === 'cutSeal') {
+        chuoiLoaiTui = 'Cute seal nắp băng keo';
       } else {
-        bagStr = 'Zipper ' + bagStr;
+        chuoiLoaiTui = 'Zipper ' + chuoiLoaiTui;
       }
     }
-  } else if (isMang) {
-    bagStr = filmMap[rInput.filmType] || 'Màng cuộn';
+  } else if (laMang) {
+    chuoiLoaiTui = tenLoaiMang[dauVaoKq.filmType] || 'Màng cuộn';
   }
 
   const cylPerUnit = r.cylinderCostPerUnit;
-  const numTr = rInput.numColors || 0;
+  const numTr = dauVaoKq.numColors || 0;
   const cylTotal = r.cylinderCost;
 
-  // Commission phải tính lại từ effCostPerUnit (sau override), không dùng r.commissionPerUnit (engine gốc)
+  // Commission phải tính lại từ giaVonDonViHieuLuc (sau override), không dùng r.commissionPerUnit (engine gốc)
   // Vì: commissionPerUnit = commissionRate × costPerUnit → costPerUnit thay đổi thì commission thay đổi theo
-  const effCommissionPerUnit = rInput.commissionFixedVND > 0
-    ? rInput.commissionFixedVND
-    : rInput.commissionRate * effCostPerUnit;
+  const effCommissionPerUnit = dauVaoKq.commissionFixedVND > 0
+    ? dauVaoKq.commissionFixedVND
+    : dauVaoKq.commissionRate * giaVonDonViHieuLuc;
 
   // ── Breakdown items ──
   const breakdownItems: [string, string][] = [
-    [`Giá ban đầu (Vốn + ${fmtPercent(effProfitRate)} LN)`, fmt(effCostPerUnit, 1) + ' đ'],
+    [`Giá ban đầu (Vốn + ${dinhDangPhanTram(tyLeLoiNhuanHieuLuc)} LN)`, dinhDangSo(giaVonDonViHieuLuc, 1) + ' đ'],
   ];
-  if (rInput.hasZipper) breakdownItems.push(['Chi phí Zipper', fmt(r.zipperPerUnit, 1) + ' đ']);
-  if (rInput.hasTape) breakdownItems.push(['Chi phí Băng keo', fmt(r.tapePerUnit, 1) + ' đ']);
-  if (rInput.hasHandle) breakdownItems.push(['Chi phí Quai', fmt(r.handlePerUnit, 1) + ' đ']);
+  if (dauVaoKq.hasZipper) breakdownItems.push(['Chi phí Zipper', dinhDangSo(r.zipperPerUnit, 1) + ' đ']);
+  if (dauVaoKq.hasTape) breakdownItems.push(['Chi phí Băng keo', dinhDangSo(r.tapePerUnit, 1) + ' đ']);
+  if (dauVaoKq.hasHandle) breakdownItems.push(['Chi phí Quai', dinhDangSo(r.handlePerUnit, 1) + ' đ']);
   breakdownItems.push(
-    [isMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', fmt(r.boxPerUnit, 1) + ' đ'],
-    ['Chi phí Vận chuyển', fmt(r.shippingPerUnit, 1) + ' đ'],
-    [`Lãi vay vốn (${fmtPercent((r.interestBase ?? 0) + (r.interestSpread ?? 0))}/năm)`, fmt(r.interestPerUnit, 1) + ' đ'],
-    ['Hoa hồng kinh doanh', fmt(effCommissionPerUnit, 1) + ' đ']
+    [laMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSo(r.boxPerUnit, 1) + ' đ'],
+    ['Chi phí Vận chuyển', dinhDangSo(r.shippingPerUnit, 1) + ' đ'],
+    [`Lãi vay vốn (${dinhDangPhanTram((r.interestBase ?? 0) + (r.interestSpread ?? 0))}/năm)`, dinhDangSo(r.interestPerUnit, 1) + ' đ'],
+    ['Hoa hồng kinh doanh', dinhDangSo(effCommissionPerUnit, 1) + ' đ']
   );
-  if (rInput.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
-    breakdownItems.push([`Trục in phân bổ (bao trục / 200k m²)`, fmt(r.cylAllocPerUnit ?? 0, 2) + ' đ']);
+  if (dauVaoKq.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
+    breakdownItems.push([`Trục in phân bổ (bao trục / 200k m²)`, dinhDangSo(r.cylAllocPerUnit ?? 0, 2) + ' đ']);
   }
 
-  const cylAllocTotal = rInput.cylIncluded ? ((r.cylAllocPerUnit ?? 0) * rInput.quantity) : 0;
-  const totalCommission = effCommissionPerUnit * rInput.quantity;
-  const commissionPct = effCostPerUnit > 0 ? (effCommissionPerUnit / effCostPerUnit) : 0;
-  const chotGiaNum = currentChotGia || 0;
+  const cylAllocTotal = dauVaoKq.cylIncluded ? ((r.cylAllocPerUnit ?? 0) * dauVaoKq.quantity) : 0;
+  const totalCommission = effCommissionPerUnit * dauVaoKq.quantity;
+  const commissionPct = giaVonDonViHieuLuc > 0 ? (effCommissionPerUnit / giaVonDonViHieuLuc) : 0;
+  const chotGiaNum = giaChotHienTai || 0;
   const hasChotGia = chotGiaNum > 0;
   // effFinalPrice tính lại với commission mới
-  const effFinalPriceWithComm = effCostPerUnit
+  const effFinalPriceWithComm = giaVonDonViHieuLuc
     + r.zipperPerUnit + r.tapePerUnit + r.handlePerUnit
     + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + effCommissionPerUnit
     + (r.cylAllocPerUnit ?? 0);
   const shownPrice = hasChotGia ? chotGiaNum : effFinalPriceWithComm;
   const diff = hasChotGia ? chotGiaNum - effFinalPriceWithComm : 0;
   const rawNewCommission = effCommissionPerUnit + diff;
-  const profitDropFromChot = rawNewCommission < 0 ? Math.abs(rawNewCommission) * rInput.quantity : 0;
-  const profitDropPct = rawNewCommission < 0 && effProfitAmount > 0 ? (profitDropFromChot / effProfitAmount) : 0;
+  const profitDropFromChot = rawNewCommission < 0 ? Math.abs(rawNewCommission) * dauVaoKq.quantity : 0;
+  const profitDropPct = rawNewCommission < 0 && tienLoiNhuanHieuLuc > 0 ? (profitDropFromChot / tienLoiNhuanHieuLuc) : 0;
   const newCommissionPerUnit = Math.max(0, rawNewCommission);
-  const doanhThuChot = shownPrice * rInput.quantity;
-  const tongHoaHongChot = newCommissionPerUnit * rInput.quantity;
-  const tongChiPhi = effTotalProdCost + r.zipperTotal + r.tapeTotal + r.handleTotal + r.boxTotal + r.shippingTotal + (r.interestPerUnit * rInput.quantity);
+  const doanhThuChot = shownPrice * dauVaoKq.quantity;
+  const tongHoaHongChot = newCommissionPerUnit * dauVaoKq.quantity;
+  const tongChiPhi = tongChiPhiSXHieuLuc + r.zipperTotal + r.tapeTotal + r.handleTotal + r.boxTotal + r.shippingTotal + (r.interestPerUnit * dauVaoKq.quantity);
   const loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
-  const pctLoiNhuanCongTyChot = effTotalProdCost > 0 ? (loiNhuanCongTyChot / effTotalProdCost) : 0;
-  const commissionPctShown = effCostPerUnit > 0 ? (newCommissionPerUnit / effCostPerUnit) : 0;
+  const pctLoiNhuanCongTyChot = tongChiPhiSXHieuLuc > 0 ? (loiNhuanCongTyChot / tongChiPhiSXHieuLuc) : 0;
+  const commissionPctShown = giaVonDonViHieuLuc > 0 ? (newCommissionPerUnit / giaVonDonViHieuLuc) : 0;
 
   // ── MOQ Table ──
   const moqLevels = [5000, 10000, 15000, 20000, 30000, 40000, 50000, 70000, 100000, 150000, 200000];
-  const currentQty = rInput.quantity;
+  const currentQty = dauVaoKq.quantity;
   if (!moqLevels.includes(currentQty) && currentQty > 0) {
     moqLevels.push(currentQty);
     moqLevels.sort((a, b) => a - b);
@@ -346,13 +381,13 @@ export default function ManagerView() {
     if (!layerData?.materials || !layerData?.chiTietVatLieu) return null;
     return <div style={{ marginTop: '4px', fontSize: '0.68rem', color: 'var(--muted)', lineHeight: 1.35 }}>
       {layerData.chiTietVatLieu.map((item: any, idx: number) => (
-        <div key={idx}>{item.viTri ? `${item.viTri}. ` : ''}{item.vaiTro === 'front' ? 'TRƯỚC' : item.vaiTro === 'back_bottom' ? 'ĐÁY+SAU' : ''} {item.ten}: {fmt(item.kho, 3)}m</div>
+        <div key={idx}>{item.viTri ? `${item.viTri}. ` : ''}{item.vaiTro === 'front' ? 'TRƯỚC' : item.vaiTro === 'back_bottom' ? 'ĐÁY+SAU' : ''} {item.ten}: {dinhDangSo(item.kho, 3)}m</div>
       ))}
     </div>;
   };
 
   const moqResults = moqLevels.map(qty => {
-    const inp = { ...rInput, quantity: qty };
+    const inp = { ...dauVaoKq, quantity: qty };
     const res = calculateForInput(inp);
     return { qty, res, isCurrent: qty === currentQty };
   }).filter(x => x.res);
@@ -360,12 +395,13 @@ export default function ManagerView() {
   // ── Roll MOQ Table ──
   const rollOptions = matCols;
   const getRollColId = (col: any) => (col.type === 'print' ? 'print' : `lam-${col.layerNum}`);
-  const selectedCol = rollOptions.find((c) => getRollColId(c) === selectedRollMat) || rollOptions[0];
+  const selectedCol = rollOptions.find((c) => getRollColId(c) === vatLieuCuonDangChon) || rollOptions[0];
   const selectedData = selectedCol ? getLayerData(r, selectedCol) : null;
   const selectedMat = selectedData?.material;
-  const isKgBase = !!selectedMat && (selectedMat.name.toUpperCase().includes('LLDPE') || selectedMat.name.toUpperCase() === 'PE');
+  const isKgBase = !laMang && !!selectedMat && (selectedMat.name.toUpperCase().includes('LLDPE') || selectedMat.name.toUpperCase() === 'PE');
   const rollLevels = isKgBase ? [200, 300, 400, 500, 600, 700] : [1, 2, 3, 4, 5, 6];
-  const rollLen = selectedMat?.rollLength || 6000;
+  const rollLen = laMang ? chieuDaiCuonMang : (selectedMat?.rollLength || 6000);
+  const filmRollAreaTP = dauVaoKq.spreadWidth * rollLen;
   const totalSelectedMeters = selectedData ? selectedData.meters + selectedData.waste : 0;
   const otherLayers = rollOptions.filter((c) => c !== selectedCol);
   const getMetersFromKg = (layerMat: any, targetKg: number, width: number) => {
@@ -378,7 +414,7 @@ export default function ManagerView() {
     let bestQty = 0;
     while (low <= high) {
       const mid = Math.floor((low + high) / 2);
-      const res = calculateForInput({ ...rInput, quantity: mid });
+      const res = calculateForInput({ ...dauVaoKq, quantity: mid });
       if (!res) return low;
       const layerData = selectedCol ? getLayerData(res, selectedCol) : null;
       const currentMeters = layerData ? layerData.meters + layerData.waste : 0;
@@ -392,15 +428,22 @@ export default function ManagerView() {
     return Math.floor(bestQty / 100) * 100;
   };
   const rollRows = selectedCol && selectedData && selectedMat ? rollLevels.map((levelVal) => {
-    const availableMeters = isKgBase
-      ? getMetersFromKg(selectedMat, levelVal, selectedData.width)
-      : levelVal * rollLen;
-    const estQty = findEstQtyForMeters(availableMeters);
+    const availableMeters = laMang
+      ? levelVal * rollLen
+      : isKgBase
+        ? getMetersFromKg(selectedMat, levelVal, selectedData.width)
+        : levelVal * rollLen;
+    const areaM2 = laMang ? availableMeters * (dauVaoKq.spreadWidth || 0) : 0;
+    const estQty = laMang
+      ? Math.round(areaM2)
+      : findEstQtyForMeters(availableMeters);
     if (estQty <= 0) return null;
-    const res = calculateForInput({ ...rInput, quantity: estQty });
+    const res = calculateForInput({ ...dauVaoKq, quantity: estQty });
     if (!res) return null;
     let isCurrent = false;
-    if (isKgBase) {
+    if (laMang) {
+      isCurrent = levelVal === Math.ceil(dauVaoKq.quantity / filmRollAreaTP);
+    } else if (isKgBase) {
       const currentKg = calcKg(selectedMat, totalSelectedMeters, selectedData.width);
       isCurrent = (Math.ceil(currentKg / 100) * 100) === levelVal;
     } else {
@@ -409,6 +452,7 @@ export default function ManagerView() {
     return {
       levelVal,
       availableMeters,
+      areaM2,
       estQty,
       res,
       isCurrent,
@@ -418,14 +462,15 @@ export default function ManagerView() {
 
   // ── Weight items ──
   const weightItems: [string, string][] = [
-    [isMang ? 'Diện tích băng (m²/m dài)' : 'Diện tích 1 túi', fmtM2(r.bagArea)],
-    ['Tổng diện tích đơn hàng', fmt(r.totalArea, 1) + ' m²'],
-    ...(!isMang ? [
-      ['Trọng lượng / túi (Tare)', fmt(r.tareWeight, 2) + ' gr'] as [string, string],
-      ['Tổng trọng lượng', fmt(r.tareWeight * rInput.quantity / 1000, 1) + ' kg'] as [string, string],
-      ['Trọng lượng (tấn)', fmt(r.tareWeight * rInput.quantity / 1000000, 3) + ' tấn'] as [string, string],
+    [laMang ? 'Diện tích băng (m²/m dài)' : 'Diện tích 1 túi', dinhDangM2(r.bagArea)],
+    ['Tổng diện tích đơn hàng', dinhDangSo(r.totalArea, 1) + ' m²'],
+    ...(!laMang ? [
+      ['Trọng lượng / túi (Tare)', dinhDangSo(r.tareWeight, 2) + ' gr'] as [string, string],
+      ['Tổng trọng lượng', dinhDangSo(r.tareWeight * dauVaoKq.quantity / 1000, 1) + ' kg'] as [string, string],
+      ['Trọng lượng (tấn)', dinhDangSo(r.tareWeight * dauVaoKq.quantity / 1000000, 3) + ' tấn'] as [string, string],
     ] : [
-      ['Chiều dài cuộn TP', fmt(filmRollLength) + ' m/cuộn'] as [string, string],
+      ['Chiều dài cuộn TP', dinhDangSo(chieuDaiCuonMang) + ' m/cuộn'] as [string, string],
+      ['Số lượng cuộn', dinhDangSo(soLuongCuonMang, 2) + ' cuộn'] as [string, string],
     ]),
   ];
 
@@ -440,53 +485,56 @@ export default function ManagerView() {
           <div className="card" style={{marginBottom: '14px', padding: 0, background: 'transparent', border: 'none', boxShadow: 'none'}}>
             
             <div className="price-hero">
-              <div className="label">{hasChotGia ? `Giá chốt / ${unitLabel}` : `Giá đề xuất / ${unitLabel}`}</div>
+              <div className="label">{hasChotGia ? `Giá chốt / ${nhanDonVi}` : `Giá đề xuất / ${nhanDonVi}`}</div>
               <div className="value" id="s-price" style={hasChotGia ? {color:'var(--green)'} : undefined}>
-                {fmt(shownPrice, 0)}
+                {dinhDangSo(shownPrice, 0)}
               </div>
               {hasChotGia && (
                 <div style={{fontSize:'0.82rem', color:'var(--muted)', marginTop:'2px', marginBottom:'2px'}}>
-                  (giá đề xuất {fmt(effFinalPriceWithComm, 0)} đ/{unitLabel})
+                  (giá đề xuất {dinhDangSo(effFinalPriceWithComm, 0)} đ/{nhanDonVi})
                 </div>
               )}
-              {rInput.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0 && (
+              {dauVaoKq.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0 && (
                 <div style={{fontSize:'0.78rem', color:'var(--primary)', marginTop:'2px', fontWeight:600}}>
-                  📌 Có bao trục (+{fmt(r.cylAllocPerUnit ?? 0, 2)} đ/{unitLabel})
+                  📌 Có bao trục (+{dinhDangSo(r.cylAllocPerUnit ?? 0, 2)} đ/{nhanDonVi})
                 </div>
               )}
               <div className="unit">(chưa VAT)</div>
 
               {/* Giá cuộn cho màng — gộp giá cuộn + DT cuộn vào 1 ô */}
-              {isMang && r.filmRollArea > 0 && (
+              {laMang && r.filmRollArea > 0 && (
                 <div style={{display:'flex', flexWrap:'wrap', justifyContent:'center', gap:'12px 24px', marginTop:'12px', fontSize:'0.92rem'}}>
                   <div style={{background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'8px', padding:'8px 16px', textAlign:'center'}}>
-                    <div style={{fontSize:'0.72rem', color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.03em'}}>Giá / cuộn ({fmt(spreadMm)}mm × {fmt(filmRollLength)}m)</div>
-                    <div style={{fontWeight:700, color:'var(--green)', fontSize:'1.1rem'}}>{fmt(Math.round(shownPrice) * r.filmRollArea, 0)} đ</div>
-                    <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px'}}>DT cuộn: {fmt(r.filmRollArea, 1)} m² · {fmt(Math.round(shownPrice), 0)} đ/m²</div>
+                    <div style={{fontSize:'0.72rem', color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.03em'}}>Giá / cuộn ({dinhDangSo(khoTraiMm)}mm × {dinhDangSo(chieuDaiCuonMang)}m)</div>
+                    <div style={{fontWeight:700, color:'var(--green)', fontSize:'1.1rem'}}>{dinhDangSo(Math.round(shownPrice) * r.filmRollArea, 0)} đ</div>
+                    <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px'}}>DT cuộn: {dinhDangSo(r.filmRollArea, 1)} m² · {dinhDangSo(Math.round(shownPrice), 0)} đ/m²</div>
                   </div>
                 </div>
               )}
 
               <div className="sub" id="s-structure">
-                <div style={{fontWeight:600, color:'var(--text)', fontSize:'1.05rem', marginBottom:'12px'}}>{rInput.customer} — {rInput.productName}</div>
+                <div style={{fontWeight:600, color:'var(--text)', fontSize:'1.05rem', marginBottom:'12px'}}>{dauVaoKq.customer} — {dauVaoKq.productName}</div>
                 <div style={{display:'flex', flexWrap:'wrap', justifyContent:'center', gap:'8px 20px', fontSize:'0.9rem', margin:'0 auto', maxWidth:'600px'}}>
                   <div><strong>Chất liệu:</strong> {r.structureText}</div>
-                  {isMang ? (
-                    <div><strong>Diện tích:</strong> {fmt(rInput.quantity)} m²</div>
+                  {laMang ? (
+                    <>
+                      <div><strong>Diện tích:</strong> {dinhDangSo(dauVaoKq.quantity)} m²</div>
+                      <div><strong>Số lượng cuộn:</strong> {dinhDangSo(soLuongCuonMang, 2)} cuộn</div>
+                    </>
                   ) : (
-                    <div><strong>Số lượng:</strong> {fmt(rInput.quantity)} túi</div>
+                    <div><strong>Số lượng:</strong> {dinhDangSo(dauVaoKq.quantity)} túi</div>
                   )}
-                  <div><strong>Số màu:</strong> {numColorsText}</div>
-                  <div><strong>Kích thước:</strong> KT {spreadMm} mm x BC {cutMm} mm</div>
+                  <div><strong>Số màu:</strong> {chuSoMau}</div>
+                  <div><strong>Kích thước:</strong> KT {khoTraiMm} mm x BC {buocCatMm} mm</div>
                   <div><strong>Độ dày:</strong> {r.totalThickness} mic</div>
-                  <div><strong>Diện tích {isMang ? 'băng' : '1 túi'}:</strong> {fmtM2(r.bagArea)}</div>
-                  {!isMang && <div><strong>Trọng lượng:</strong> {fmt(r.tareWeight, 2)} gr</div>}
-                  <div><strong>Loại {isMang ? 'màng' : 'túi'}:</strong> {bagStr}</div>
-                  {isMang && (
-                    <div><strong>Cuộn màng TP:</strong> {fmt(filmRollLength)} m/cuộn ({fmt(r.filmRollArea, 1)} m²/cuộn)</div>
+                  <div><strong>Diện tích {laMang ? 'băng' : '1 túi'}:</strong> {dinhDangM2(r.bagArea)}</div>
+                  {!laMang && <div><strong>Trọng lượng:</strong> {dinhDangSo(r.tareWeight, 2)} gr</div>}
+                  <div><strong>Loại {laMang ? 'màng' : 'túi'}:</strong> {chuoiLoaiTui}</div>
+                  {laMang && (
+                    <div><strong>Cuộn màng TP:</strong> {dinhDangSo(chieuDaiCuonMang)} m/cuộn ({dinhDangSo(r.filmRollArea, 1)} m²/cuộn)</div>
                   )}
                   {numTr > 0 && (
-                    <div><strong>Trục in:</strong> D {fmt(r.cylLength * 1000)} mm x CV {fmt(r.cylCircum * 1000)} mm - {fmt(cylPerUnit)} đ/trục * {numTr} trục = {fmt(cylTotal)} đ</div>
+                    <div><strong>Trục in:</strong> D {dinhDangSo(r.cylLength * 1000)} mm x CV {dinhDangSo(r.cylCircum * 1000)} mm - {dinhDangSo(cylPerUnit)} đ/trục * {numTr} trục = {dinhDangSo(cylTotal)} đ</div>
                   )}
                 </div>
               </div>
@@ -494,12 +542,12 @@ export default function ManagerView() {
 
             <div className="chot-gia-row">
               <div className="form-group">
-                <label className="form-label">Giá bán chốt (đ/{unitLabel})</label>
+                <label className="form-label">Giá bán chốt (đ/{nhanDonVi})</label>
                 <input
                   className="form-input"
                   placeholder="Nhập giá chốt..."
                   style={{borderColor: 'var(--green)'}}
-                  value={currentChotGia > 0 ? String(Math.round(currentChotGia)) : ''}
+                  value={giaChotHienTai > 0 ? String(Math.round(giaChotHienTai)) : ''}
                   onChange={(e) => datGiaChotHienTai(Number(e.target.value.replace(/[^\d.]/g, '')) || 0)}
                 />
               </div>
@@ -540,20 +588,20 @@ export default function ManagerView() {
               {hasChotGia ? (
                 <div className={`chot-analysis ${diff >= 0 ? 'positive' : 'negative'}`}>
                   <div className="chot-row">
-                    <span className="chot-label">{diff >= 0 ? '✅' : '⚠️'} Chênh lệch / {unitLabel}</span>
-                    <span className="chot-value">{diff >= 0 ? '+' : ''}{fmt(diff, 1)} đ/{unitLabel}</span>
+                    <span className="chot-label">{diff >= 0 ? '✅' : '⚠️'} Chênh lệch / {nhanDonVi}</span>
+                    <span className="chot-value">{diff >= 0 ? '+' : ''}{dinhDangSo(diff, 1)} đ/{nhanDonVi}</span>
                   </div>
                   <div className="chot-row" style={{fontWeight:700}}>
                     <span className="chot-label">Doanh thu tổng</span>
-                    <span className="chot-value">{fmt(shownPrice)} đ/{unitLabel} × {fmt(rInput.quantity)} {unitLabel} = {fmt(doanhThuChot)} đ</span>
+                    <span className="chot-value">{dinhDangSo(shownPrice)} đ/{nhanDonVi} × {dinhDangSo(dauVaoKq.quantity)} {nhanDonVi} = {dinhDangSo(doanhThuChot)} đ</span>
                   </div>
                   <div className="chot-row">
-                    <span className="chot-label">LN công ty ({fmtPercent(pctLoiNhuanCongTyChot)})</span>
-                    <span className="chot-value">{fmt(loiNhuanCongTyChot)} đ</span>
+                    <span className="chot-label">LN công ty ({dinhDangPhanTram(pctLoiNhuanCongTyChot)})</span>
+                    <span className="chot-value">{dinhDangSo(loiNhuanCongTyChot)} đ</span>
                   </div>
                   <div className="chot-row">
-                    <span className="chot-label">% Hoa hồng ({fmtPercent(commissionPctShown)})</span>
-                    <span className="chot-value">{fmt(tongHoaHongChot)} đ</span>
+                    <span className="chot-label">% Hoa hồng ({dinhDangPhanTram(commissionPctShown)})</span>
+                    <span className="chot-value">{dinhDangSo(tongHoaHongChot)} đ</span>
                   </div>
                 </div>
               ) : null}
@@ -565,64 +613,64 @@ export default function ManagerView() {
               <div className="stat-card green" style={{position: 'relative'}}>
                 <div className="stat-label">Lợi Nhuận</div>
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
-                  {fmt(hasChotGia ? loiNhuanCongTyChot : effProfitAmount)}đ <span style={{fontSize: '0.85rem'}}>({fmtPercent(hasChotGia ? pctLoiNhuanCongTyChot : effProfitRate)})</span>
+                  {dinhDangSo(hasChotGia ? loiNhuanCongTyChot : tienLoiNhuanHieuLuc)}đ <span style={{fontSize: '0.85rem'}}>({dinhDangPhanTram(hasChotGia ? pctLoiNhuanCongTyChot : tyLeLoiNhuanHieuLuc)})</span>
                 </div>
                 {profitDropFromChot > 0 && (
-                  <div style={{color:'#d9534f', fontSize:'0.85rem', fontWeight:700, marginTop:'8px'}}>⚠️ Giảm {fmt(profitDropFromChot)} đ ({fmtPercent(profitDropPct)}) LN so với đề xuất</div>
+                  <div style={{color:'#d9534f', fontSize:'0.85rem', fontWeight:700, marginTop:'8px'}}>⚠️ Giảm {dinhDangSo(profitDropFromChot)} đ ({dinhDangPhanTram(profitDropPct)}) LN so với đề xuất</div>
                 )}
               </div>
               <div className="stat-card cyan">
                 <div className="stat-label">Doanh thu</div>
-                <div className="stat-value">{fmt(hasChotGia ? doanhThuChot : effRevenue)} đ</div>
+                <div className="stat-value">{dinhDangSo(hasChotGia ? doanhThuChot : doanhThuHieuLuc)} đ</div>
               </div>
               <div className="stat-card orange">
-                <div className="stat-label">{hasChotGia ? `Giá Chốt/${isMang ? 'm²' : 'Túi'}` : `Giá Bán/${isMang ? 'm²' : 'Túi'}`}</div>
-                <div className="stat-value">{fmt(shownPrice, 0)} đ</div>
+                <div className="stat-label">{hasChotGia ? `Giá Chốt/${laMang ? 'm²' : 'Túi'}` : `Giá Bán/${laMang ? 'm²' : 'Túi'}`}</div>
+                <div className="stat-value">{dinhDangSo(shownPrice, 0)} đ</div>
               </div>
               <div className="stat-card pink">
                 <div className="stat-label">Hoa hồng</div>
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
-                  {fmt(hasChotGia ? tongHoaHongChot : totalCommission)} đ
+                  {dinhDangSo(hasChotGia ? tongHoaHongChot : totalCommission)} đ
                   <div style={{fontSize:'0.85rem', fontWeight:'normal', marginTop:'4px'}}>
-                    {fmt(hasChotGia ? newCommissionPerUnit : effCommissionPerUnit, 1)} đ/{unitLabel} ({fmtPercent(hasChotGia ? commissionPctShown : commissionPct)})
+                    {dinhDangSo(hasChotGia ? newCommissionPerUnit : effCommissionPerUnit, 1)} đ/{nhanDonVi} ({dinhDangPhanTram(hasChotGia ? commissionPctShown : commissionPct)})
                   </div>
                 </div>
               </div>
             </div>
 
             {/* Chi tiết giá bán đề xuất */}
-            <CollapsibleCard
-              resetKey={resultKey}
+            <TheThuGon
+              resetKey={khoaKetQua}
               style={{marginBottom: '14px'}}
-              title={<><span className="icon">💰</span> Chi tiết giá {hasChotGia ? 'chốt' : 'đề xuất'} / {unitLabel}</>}
+              title={<><span className="icon">💰</span> Chi tiết giá {hasChotGia ? 'chốt' : 'đề xuất'} / {nhanDonVi}</>}
             >
               <ul className="breakdown-list" id="s-breakdown">
                 {breakdownItems.map(([l, v], i) => (
                   <li key={i}><span className="bl-label">{l}</span><span className="bl-value">{v}</span></li>
                 ))}
                 <li className="bl-total">
-                  <span className="bl-label" style={{color:'var(--orange)'}}>GIÁ BÁN ĐỀ XUẤT / {unitLabel.toUpperCase()}</span>
-                  <span className="bl-value" style={{color:'var(--orange)'}}>{fmt(effFinalPriceWithComm, 0)} đ</span>
+                  <span className="bl-label" style={{color:'var(--orange)'}}>GIÁ BÁN ĐỀ XUẤT / {nhanDonVi.toUpperCase()}</span>
+                  <span className="bl-value" style={{color:'var(--orange)'}}>{dinhDangSo(effFinalPriceWithComm, 0)} đ</span>
                 </li>
                 {hasChotGia && (
                   <li className="bl-total" style={{borderTop: '1px dashed var(--border)', marginTop: '6px', paddingTop: '8px'}}>
-                    <span className="bl-label" style={{color:'var(--green)'}}>GIÁ BÁN CHỐT / {unitLabel.toUpperCase()}</span>
+                    <span className="bl-label" style={{color:'var(--green)'}}>GIÁ BÁN CHỐT / {nhanDonVi.toUpperCase()}</span>
                     <span className="bl-value" style={{color:'var(--green)'}}>
-                      {fmt(chotGiaNum, 0)} đ
+                      {dinhDangSo(chotGiaNum, 0)} đ
                       <span style={{fontSize:'0.75em', fontWeight:400, marginLeft:'8px', color: diff >= 0 ? 'var(--green)' : 'var(--red)'}}>
-                        ({diff >= 0 ? '+' : ''}{fmt(diff, 0)} đ)
+                        ({diff >= 0 ? '+' : ''}{dinhDangSo(diff, 0)} đ)
                       </span>
                     </span>
                   </li>
                 )}
               </ul>
-            </CollapsibleCard>
+            </TheThuGon>
           </div>
 
           {/* ═══ SECTION: Đặc tả kỹ thuật & nguyên liệu ═══ */}
           <div id="sect-tech" className="manager-section-anchor"></div>
-          <CollapsibleCard
-            resetKey={resultKey}
+          <TheThuGon
+            resetKey={khoaKetQua}
             style={{marginBottom: '14px'}}
             title={<><span className="icon">🏭</span> Đặc tả kỹ thuật &amp; nguyên liệu</>}
           >
@@ -637,11 +685,11 @@ export default function ManagerView() {
                   </tr>
                 </thead>
                 <tbody>
-                  {uniRows.map((row, idx) => {
-                    let dWidth = row.stage !== 'CẮT' ? rInput.spreadWidth * rInput.numImages + 0.02 : row.width;
-                    let dMeters = row.meters / rInput.numImages;
-                    let dWaste = row.waste / rInput.numImages;
-                    let inputVL = dMeters + dWaste;
+                  {cacDongSanXuat.map((row, idx) => {
+                    const dWidth = row.stage !== 'CẮT' ? dauVaoKq.spreadWidth * dauVaoKq.numImages + 0.02 : row.width;
+                    const dMeters = row.meters;
+                    const dWaste = row.waste;
+                    const inputVL = dMeters + dWaste;
 
                     if (row.materialDetails?.length) {
                       const totalDetailWidth = row.materialDetails.reduce((sum, detail) => sum + detail.width, 0) || row.width;
@@ -652,14 +700,14 @@ export default function ManagerView() {
                           <tr key={`${idx}-${detailIdx}`} className="detail-group-row">
                             {detailIdx === 0 && <td data-label="Công đoạn" rowSpan={rowSpan}>{row.stage}</td>}
                             <td data-label="Vật liệu">{detail.name}</td>
-                            <td className="num" data-label="Khổ (m)">{fmt(detail.width, 3)}</td>
-                            <td className="num" data-label="Thành phẩm (m)">{fmt(dMeters, 0)}</td>
-                            <td className="num" data-label="Phi hao">{fmt(dWaste, 0)}</td>
-                            <td className="num highlight" data-label="Đầu vào VL">{fmt(inputVL, 0)}</td>
-                            <td className="num" data-label="CPSX (đ/m²)">{fmt(row.cpsx, 0)}</td>
-                            <td className="num" data-label="Thành tiền CPSX">{fmt(detailCostCPSX, 0)}</td>
-                            <td className="num" data-label="CP vật liệu (đ/m²)">{fmt(detail.matPrice, 1)}</td>
-                            <td className="num" data-label="Thành tiền CPVL">{fmt(detail.costMat, 0)}</td>
+                            <td className="num" data-label="Khổ (m)">{dinhDangSo(detail.width, 3)}</td>
+                            <td className="num" data-label="Thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
+                            <td className="num" data-label="Phi hao">{dinhDangSo(dWaste, 0)}</td>
+                            <td className="num highlight" data-label="Đầu vào VL">{dinhDangSo(inputVL, 0)}</td>
+                            <td className="num" data-label="CPSX (đ/m²)">{dinhDangSo(row.cpsx, 0)}</td>
+                            <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(detailCostCPSX, 0)}</td>
+                            <td className="num" data-label="CP vật liệu (đ/m²)">{dinhDangSo(detail.matPrice, 1)}</td>
+                            <td className="num" data-label="Thành tiền CPVL">{dinhDangSo(detail.costMat, 0)}</td>
                           </tr>
                         );
                       });
@@ -669,41 +717,41 @@ export default function ManagerView() {
                       <tr key={idx}>
                         <td data-label="Công đoạn">{row.stage}</td>
                         <td data-label="Vật liệu">{row.mat}</td>
-                        <td className="num" data-label="Khổ (m)">{fmt(dWidth, 3)}</td>
-                        <td className="num" data-label="Thành phẩm (m)">{fmt(dMeters, 0)}</td>
-                        <td className="num" data-label="Phi hao">{fmt(dWaste, 0)}</td>
-                        <td className="num highlight" data-label="Đầu vào VL">{fmt(inputVL, 0)}</td>
-                        <td className="num" data-label="CPSX (đ/m²)">{fmt(row.cpsx, 0)}</td>
-                        <td className="num" data-label="Thành tiền CPSX">{fmt(row.costCPSX, 0)}</td>
-                        <td className="num" data-label="CP vật liệu (đ/m²)">{row.matPrice != null ? fmt(row.matPrice, 1) : '—'}</td>
-                        <td className="num" data-label="Thành tiền CPVL">{row.costMat != null ? fmt(row.costMat, 0) : '—'}</td>
+                        <td className="num" data-label="Khổ (m)">{dinhDangSo(dWidth, 3)}</td>
+                        <td className="num" data-label="Thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
+                        <td className="num" data-label="Phi hao">{dinhDangSo(dWaste, 0)}</td>
+                        <td className="num highlight" data-label="Đầu vào VL">{dinhDangSo(inputVL, 0)}</td>
+                        <td className="num" data-label="CPSX (đ/m²)">{dinhDangSo(row.cpsx, 0)}</td>
+                        <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(row.costCPSX, 0)}</td>
+                        <td className="num" data-label="CP vật liệu (đ/m²)">{row.matPrice != null ? dinhDangSo(row.matPrice, 1) : '—'}</td>
+                        <td className="num" data-label="Thành tiền CPVL">{row.costMat != null ? dinhDangSo(row.costMat, 0) : '—'}</td>
                       </tr>
                     );
                   })}
                   <tr className="total-row">
                     <td colSpan={7}>TỔNG</td>
-                    <td className="num">{fmt(totalCPSX, 0)}</td>
+                    <td className="num">{dinhDangSo(tongCPSX, 0)}</td>
                     <td className="num"></td>
-                    <td className="num">{fmt(totalCPVL, 0)}</td>
+                    <td className="num">{dinhDangSo(tongCPVL, 0)}</td>
                   </tr>
                   <tr className="total-row" style={{fontSize: '1.05em'}}>
                     <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
-                    <td colSpan={3} className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{fmt(grandTotal, 0)} đ</td>
+                    <td colSpan={3} className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{dinhDangSo(tongCong, 0)} đ</td>
                   </tr>
                 </tbody>
               </table>
             </div>
-          </CollapsibleCard>
+          </TheThuGon>
 
           {/* ═══ SECTION: Override Toggle + Tables ═══ */}
           {(() => {
-            const loadedItem = loadedHistoryId ? history.find(h => h.id === loadedHistoryId) : null;
+            const loadedItem = loadedHistoryId ? lichSu.find(h => h.id === loadedHistoryId) : null;
             const quoteStatus = loadedItem?.quoteStatus ?? 'drafted';
-            const canSaleEdit = role === 'sale' && quoteStatus === 'drafted';
-            const canAdminEdit = role === 'admin';
+            const canSaleEdit = role === 'sale' || role === 'admin';
+            const canAdminEdit = role === 'admin' || role === 'sale';
             // Source for bảng Admin = sale-resolved values (engine overridden by sale)
 
-            // Khi chưa có loadedHistoryId: tự lưu history trước rồi persist override
+            // Khi chưa có loadedHistoryId: tự lưu lichSu trước rồi persist override
             const handleSaveNew = () => {
               themVaoLichSu();
               // loadedHistoryId vừa được set bởi themVaoLichSu (sync state)
@@ -716,45 +764,45 @@ export default function ManagerView() {
               <>
                 <div className="override-toggle-row">
                   <button
-                    className={`override-toggle-btn sale ${showSaleOverrides ? 'active' : ''}`}
-                    onClick={() => datHienGhiDeSale(!showSaleOverrides)}
+                    className={`override-toggle-btn sale ${hienGhiDeSale ? 'active' : ''}`}
+                    onClick={() => datHienGhiDeSale(!hienGhiDeSale)}
                   >
-                    {showSaleOverrides ? '− Ẩn' : '＋'} Thay đổi từ Sale
+                    {hienGhiDeSale ? '− Ẩn' : '＋'} Thay đổi từ Sale
                   </button>
                   <button
-                    className={`override-toggle-btn admin ${showAdminOverrides ? 'active' : ''}`}
-                    onClick={() => datHienGhiDeAdmin(!showAdminOverrides)}
+                    className={`override-toggle-btn admin ${hienGhiDeAdmin ? 'active' : ''}`}
+                    onClick={() => datHienGhiDeAdmin(!hienGhiDeAdmin)}
                   >
-                    {showAdminOverrides ? '− Ẩn' : '＋'} Thay đổi từ Admin
+                    {hienGhiDeAdmin ? '− Ẩn' : '＋'} Thay đổi từ Admin
                   </button>
                 </div>
 
-                {showSaleOverrides && (
-                  <OverrideTableSection
+                {hienGhiDeSale && (
+                  <BangGhiDe
                     title="Bảng thay đổi từ Sale"
-                    colorClass="sale"
-                    uniRows={uniRows}
-                    sourceOverrides={emptyOv}
-                    currentOverrides={saleOverrides}
-                    canEdit={canSaleEdit}
-                    onSet={datGhiDeSale}
-                    onSave={luuGhiDe}
-                    onSaveNew={handleSaveNew}
+                    lopMau="sale"
+                    cacDongSanXuat={cacDongSanXuat}
+                    ghiDeNguon={emptyOv}
+                    ghiDeHienTai={ghiDeSale}
+                    duocSua={canSaleEdit}
+                    khiDat={datGhiDeSale}
+                    khiLuu={luuGhiDe}
+                    khiLuuMoi={handleSaveNew}
                     loadedHistoryId={loadedHistoryId}
                   />
                 )}
 
-                {showAdminOverrides && (
-                  <OverrideTableSection
+                {hienGhiDeAdmin && (
+                  <BangGhiDe
                     title="Bảng thay đổi từ Admin"
-                    colorClass="admin"
-                    uniRows={uniRows}
-                    sourceOverrides={saleOverrides}
-                    currentOverrides={adminOverrides}
-                    canEdit={canAdminEdit}
-                    onSet={datGhiDeAdmin}
-                    onSave={luuGhiDe}
-                    onSaveNew={handleSaveNew}
+                    lopMau="admin"
+                    cacDongSanXuat={cacDongSanXuat}
+                    ghiDeNguon={ghiDeSale}
+                    ghiDeHienTai={ghiDeAdmin}
+                    duocSua={canAdminEdit}
+                    khiDat={datGhiDeAdmin}
+                    khiLuu={luuGhiDe}
+                    khiLuuMoi={handleSaveNew}
                     loadedHistoryId={loadedHistoryId}
                   />
                 )}
@@ -764,8 +812,8 @@ export default function ManagerView() {
 
           {/* ═══ SECTION: Bảng giá theo số lượng (MOQ) ═══ */}
           <div id="sect-moq" className="manager-section-anchor"></div>
-          <CollapsibleCard
-            resetKey={resultKey}
+          <TheThuGon
+            resetKey={khoaKetQua}
             style={{marginBottom: '14px', marginTop: '14px'}}
             title={<><span className="icon">📦</span> Bảng giá theo số lượng (MOQ)</>}
           >
@@ -777,7 +825,7 @@ export default function ManagerView() {
               <table className="moq-table" id="moq-table">
                 <thead>
                   <tr>
-                    <th>Số lượng</th><th>LN %</th><th>Giá vốn+LN/{unitLabel}</th><th>Giá đề xuất</th><th>Tổng DT</th>
+                    <th>Số lượng</th><th>LN %</th><th>Giá vốn+LN/{nhanDonVi}</th><th>Giá đề xuất</th><th>Tổng DT</th>
                     {matCols.map((col, i) => <th key={i}>{col.name}</th>)}
                   </tr>
                 </thead>
@@ -786,19 +834,19 @@ export default function ManagerView() {
                     if (!res) return null;
                     return (
                       <tr key={qty} className={isCurrent ? 'moq-highlight' : ''}>
-                        <td data-label="Số lượng" style={{fontWeight: isCurrent ? 700 : 400}}>{fmt(qty)}</td>
-                        <td data-label="LN %">{fmtPercent(res.profitRate)}</td>
-                        <td data-label="Giá vốn+LN">{fmt(res.costPerUnit, 1)}</td>
-                        <td data-label="Giá đề xuất" style={{fontWeight:700, color: isCurrent ? 'var(--accent)' : 'inherit'}}>{fmt(res.finalPrice, 0)}</td>
-                        <td data-label="Tổng DT">{fmt(res.finalPrice * qty / 1000000, 2)}tr</td>
+                        <td data-label="Số lượng" style={{fontWeight: isCurrent ? 700 : 400}}>{dinhDangSo(qty)}</td>
+                        <td data-label="LN %">{dinhDangPhanTram(res.profitRate)}</td>
+                        <td data-label="Giá vốn+LN">{dinhDangSo(res.costPerUnit, 1)}</td>
+                        <td data-label="Giá đề xuất" style={{fontWeight:700, color: isCurrent ? 'var(--accent)' : 'inherit'}}>{dinhDangSo(res.finalPrice, 0)}</td>
+                        <td data-label="Tổng DT">{dinhDangSo(res.finalPrice * qty / 1000000, 2)}tr</td>
                         {matCols.map((col, ci) => {
                           const layerData = getLayerData(res, col);
-                          const layerMeters = layerData ? (layerData.meters + layerData.waste) / rInput.numImages : 0;
+                          const layerMeters = layerData ? (layerData.meters + layerData.waste) / dauVaoKq.numImages : 0;
                           const kg = calcKg(layerData?.material, layerMeters, layerData?.width || 0);
                           return (
                             <td key={ci} data-label={col.name}>
-                              {fmt(layerMeters, 0)} m<br/>
-                              <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({fmt(kg, 1)} kg)</span>
+                              {dinhDangSo(layerMeters, 0)} m<br/>
+                              <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(kg, 1)} kg)</span>
                               {renderMaterialBreakdown(layerData)}
                             </td>
                           );
@@ -809,18 +857,20 @@ export default function ManagerView() {
                 </tbody>
               </table>
             </div>
-          </CollapsibleCard>
+          </TheThuGon>
 
           {/* ═══ SECTION: Số lượng theo cuộn màng (Roll MOQ) ═══ */}
           <div id="sect-roll" className="manager-section-anchor"></div>
-          <CollapsibleCard
-            resetKey={resultKey}
+          <TheThuGon
+            resetKey={khoaKetQua}
             style={{marginBottom: '14px'}}
             title={<><span className="icon">🎞️</span> SỐ LƯỢNG THEO CUỘN MÀNG</>}
           >
             <div className="info-box">
               <span className="icon">💡</span>
-              Số lượng tối ưu theo cuộn màng tiêu chuẩn của lớp in. Giúp đặt hàng khớp cuộn, giảm hao hụt.
+              {laMang
+                ? 'Số lượng theo cuộn màng thành phẩm: SL = số cuộn × khổ TP × chiều dài cuộn TP.'
+                : 'Số lượng tối ưu theo cuộn màng tiêu chuẩn của lớp in. Giúp đặt hàng khớp cuộn, giảm hao hụt.'}
             </div>
             <div className="table-responsive">
               <table className="moq-table" id="moq-roll-table">
@@ -836,7 +886,7 @@ export default function ManagerView() {
                           <select
                             className="form-select"
                             value={getRollColId(selectedCol)}
-                            onChange={(e) => setSelectedRollMat(e.target.value)}
+                            onChange={(e) => datVatLieuCuonDangChon(e.target.value)}
                             style={{fontWeight:700, color:'var(--accent)', border:'1.5px solid var(--accent)', padding:'4px 24px 4px 8px', borderRadius:'6px', cursor:'pointer', background:'transparent', display:'inline-block', fontSize:'0.85rem', margin:0, textTransform:'uppercase'}}
                           >
                             {rollOptions.map((c, i) => {
@@ -849,7 +899,14 @@ export default function ManagerView() {
                             })}
                           </select>
                         </th>
-                        <th>SL {unitLabel}</th>
+                        {laMang ? (
+                          <>
+                            <th>Mét dài TP</th>
+                            <th>Diện tích tính giá (m²)</th>
+                          </>
+                        ) : (
+                          <th>SL {nhanDonVi}</th>
+                        )}
                         {otherLayers.map((c, i) => <th key={i}>{c.name}</th>)}
                         <th>Giá đề xuất</th>
                         <th>Tổng DT</th>
@@ -859,31 +916,48 @@ export default function ManagerView() {
                           <td data-label={isKgBase ? 'Khối lượng (kg)' : 'Chỉ số Cuộn'}>
                             {isKgBase ? (
                               <>
-                                <span style={{fontWeight:700}}>{fmt(row.levelVal)} kg</span><br />
-                                <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({fmt(row.availableMeters, 0)} m)</span>
+                                <span style={{fontWeight:700}}>{dinhDangSo(row.levelVal)} kg</span><br />
+                                <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(row.availableMeters, 0)} m)</span>
                               </>
                             ) : (
                               <>
                                 <span style={{fontWeight:700}}>{row.levelVal} cuộn</span><br />
-                                <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({fmt(row.availableMeters, 0)}m - {fmt(row.selectedKg, 1)} kg)</span>
+                                <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>
+                                  {laMang
+                                    ? `${dinhDangSo(row.availableMeters, 0)}m × ${dinhDangSo(dauVaoKq.spreadWidth, 3)}m = ${dinhDangSo(row.estQty, 0)} m²`
+                                    : `(${dinhDangSo(row.availableMeters, 0)}m - ${dinhDangSo(row.selectedKg, 1)} kg)`}
+                                </span>
                               </>
                             )}
                           </td>
-                          <td data-label={`SL ${unitLabel}`} style={{fontWeight: row.isCurrent ? 700 : 400}}>{fmt(row.estQty)}</td>
+                          {laMang ? (
+                            <>
+                              <td data-label="Mét dài TP" style={{fontWeight: row.isCurrent ? 700 : 400}}>{dinhDangSo(row.availableMeters, 0)} m</td>
+                              <td data-label="Diện tích tính giá" style={{fontWeight: row.isCurrent ? 700 : 400}}>
+                                {dinhDangSo(row.areaM2, 0)} m²
+                                <br />
+                                <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>
+                                  {dinhDangSo(row.availableMeters, 0)}m × {dinhDangSo(dauVaoKq.spreadWidth, 3)}m
+                                </span>
+                              </td>
+                            </>
+                          ) : (
+                            <td data-label={`SL ${nhanDonVi}`} style={{fontWeight: row.isCurrent ? 700 : 400}}>{dinhDangSo(row.estQty)}</td>
+                          )}
                           {otherLayers.map((col: any, i: number) => {
                             const layerData = getLayerData(row.res, col);
-                            const layerMeters = layerData ? (layerData.meters + layerData.waste) / rInput.numImages : 0;
+                            const layerMeters = layerData ? (layerData.meters + layerData.waste) / dauVaoKq.numImages : 0;
                             const kg = calcKg(layerData?.material, layerMeters, layerData?.width || 0);
                             return (
                               <td data-label={col.name} key={i}>
-                                {fmt(layerMeters, 0)} m<br />
-                                <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({fmt(kg, 1)} kg)</span>
+                                {dinhDangSo(layerMeters, 0)} m<br />
+                                <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(kg, 1)} kg)</span>
                                 {renderMaterialBreakdown(layerData)}
                               </td>
                             );
                           })}
-                          <td data-label="Giá đề xuất" style={{fontWeight:700, color: row.isCurrent ? 'var(--accent)' : 'inherit'}}>{fmt(row.res.finalPrice, 0)}</td>
-                          <td data-label="Tổng DT">{fmt(row.res.finalPrice * row.estQty / 1000000, 2)}tr</td>
+                          <td data-label="Giá đề xuất" style={{fontWeight:700, color: row.isCurrent ? 'var(--accent)' : 'inherit'}}>{dinhDangSo(row.res.finalPrice, 0)}</td>
+                          <td data-label="Tổng DT">{dinhDangSo(row.res.finalPrice * row.estQty / 1000000, 2)}tr</td>
                         </tr>
                       ))}
                     </>
@@ -891,12 +965,12 @@ export default function ManagerView() {
                 </tbody>
               </table>
             </div>
-          </CollapsibleCard>
+          </TheThuGon>
 
           {/* ═══ SECTION: Trọng lượng & Vận chuyển ═══ */}
           <div id="sect-weight" className="manager-section-anchor"></div>
-          <CollapsibleCard
-            resetKey={resultKey}
+          <TheThuGon
+            resetKey={khoaKetQua}
             style={{marginTop: '14px'}}
             title={<><span className="icon">⚖️</span> Trọng lượng &amp; Vận chuyển</>}
           >
@@ -905,7 +979,7 @@ export default function ManagerView() {
                 <li key={i}><span className="bl-label">{l}</span><span className="bl-value">{v}</span></li>
               ))}
             </ul>
-          </CollapsibleCard>
+          </TheThuGon>
 
         </div> {/* End manager-content */}
 
@@ -923,3 +997,4 @@ export default function ManagerView() {
     </div>
   );
 }
+

@@ -1,7 +1,7 @@
-import { calculate, lookupProfit, optimizeThickness } from './engine';
-import type { AppConstants, CalculateInput, CalculateResult, Material, OverrideRowKey, OverrideTable, ProfitRow } from './types';
+import { tinhGiaWeb, traLoiNhuanTheoBang, toiUuDoDayTheoVatLieu } from './engine';
+import type { AppConstants, CalculateInput, CalculateResult, Material, OverrideRowKey, OverrideTable, ProfitRow, SmallWidthMaterialPrice } from './types';
 
-export { optimizeThickness };
+export { toiUuDoDayTheoVatLieu, toiUuDoDayTheoVatLieu as optimizeThickness };
 
 export interface UniRow {
   rowKey: OverrideRowKey;
@@ -24,18 +24,22 @@ export interface ResolvedOverrideRow extends UniRow {
   srcWaste: number;
   srcInputVL: number;
   srcMatPrice: number | null;
+  srcCpsx: number;
+  srcCostCPSX: number;
+  srcCostMat: number | null;
 }
 
-export function calculateQuote(
+export function tinhBaoGia(
   input: CalculateInput,
   materials: Material[],
   constants: AppConstants,
   profitTable: ProfitRow[],
+  smallWidthPrices: SmallWidthMaterialPrice[] = [],
 ): CalculateResult | null {
-  return calculate(input, materials, constants, profitTable);
+  return tinhGiaWeb(input, materials, constants, profitTable, smallWidthPrices);
 }
 
-export function buildProductionRows(result: CalculateResult, constants: AppConstants): {
+export function lapDongSanXuat(result: CalculateResult, constants: AppConstants): {
   uniRows: UniRow[];
   totalCPSX: number;
   totalCPVL: number;
@@ -58,7 +62,7 @@ export function buildProductionRows(result: CalculateResult, constants: AppConst
     waste: r.printWaste,
     cpsx: r.printCPSX,
     costCPSX: r.printCostCPSX,
-    matPrice: r.layers.print?.material?.pricePerM2 ?? 0,
+    matPrice: r.layers.print?.matPrice ?? r.layers.print?.material?.pricePerM2 ?? 0,
     costMat: r.printCostMaterial,
   });
 
@@ -83,7 +87,7 @@ export function buildProductionRows(result: CalculateResult, constants: AppConst
       waste: lam.waste,
       cpsx: constants.ghepCPSX,
       costCPSX: lam.costCPSX,
-      matPrice: materialDetails?.length ? null : (lam.material?.pricePerM2 ?? 0),
+      matPrice: materialDetails?.length ? null : (lam.matPrice ?? lam.material?.pricePerM2 ?? 0),
       costMat: lam.costMat,
       materialDetails,
     });
@@ -108,7 +112,7 @@ export function buildProductionRows(result: CalculateResult, constants: AppConst
   return { uniRows, totalCPSX, totalCPVL, grandTotal: totalCPSX + totalCPVL };
 }
 
-export function resolveOverrideRows(
+export function xuLyDongGhiDe(
   uniRows: UniRow[],
   sourceOverrides: OverrideTable,
   currentOverrides: OverrideTable,
@@ -117,28 +121,36 @@ export function resolveOverrideRows(
     const rk = row.rowKey;
     const src = sourceOverrides[rk] ?? {};
     const cur = currentOverrides[rk] ?? {};
+    const stage = cur.stage ?? src.stage ?? row.stage;
+    const mat = cur.mat ?? src.mat ?? row.mat;
     const width = cur.width ?? src.width ?? row.width;
     const meters = cur.meters ?? src.meters ?? row.meters;
     const waste = cur.waste ?? src.waste ?? row.waste;
     const inputVL = cur.inputVL ?? src.inputVL ?? (row.meters + row.waste);
+    const cpsx = cur.cpsx ?? src.cpsx ?? row.cpsx;
     const matPrice = cur.matPrice ?? src.matPrice ?? row.matPrice;
     const srcWidth = src.width ?? row.width;
     const srcMeters = src.meters ?? row.meters;
     const srcWaste = src.waste ?? row.waste;
     const srcInputVL = src.inputVL ?? (row.meters + row.waste);
     const srcMatPrice = src.matPrice ?? row.matPrice;
-    const costCPSX = row.cpsx * inputVL * width;
-    const costMat = row.materialDetails
+    const srcCpsx = src.cpsx ?? row.cpsx;
+    const rawCostCPSX = cpsx * inputVL * width;
+    const rawCostMat = row.materialDetails
       ? row.materialDetails.reduce((sum, detail) => sum + detail.matPrice * inputVL * detail.width, 0)
       : matPrice != null ? matPrice * inputVL * width : null;
-    return { ...row, width, meters, waste, inputVL, matPrice, costCPSX, costMat, srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice };
+    const costCPSX = cur.costCPSX ?? src.costCPSX ?? rawCostCPSX;
+    const costMat = cur.costMat ?? src.costMat ?? rawCostMat;
+    const srcCostCPSX = src.costCPSX ?? row.costCPSX;
+    const srcCostMat = src.costMat ?? row.costMat;
+    return { ...row, stage, mat, width, meters, waste, inputVL, cpsx, matPrice, costCPSX, costMat, srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice, srcCpsx, srcCostCPSX, srcCostMat };
   });
   const totalCPSX = rows.reduce((sum, row) => sum + row.costCPSX, 0);
   const totalCPVL = rows.reduce((sum, row) => sum + (row.costMat ?? 0), 0);
   return { rows, totalCPSX, totalCPVL, grandTotal: totalCPSX + totalCPVL };
 }
 
-export function calculateEffectivePricing(params: {
+export function tinhGiaHieuLuc(params: {
   result: CalculateResult;
   uniRows: UniRow[];
   saleOverrides: OverrideTable;
@@ -149,21 +161,29 @@ export function calculateEffectivePricing(params: {
   const activeOverrideOv = Object.keys(adminOverrides).length > 0 ? adminOverrides : Object.keys(saleOverrides).length > 0 ? saleOverrides : {};
   const sourceForActive = Object.keys(adminOverrides).length > 0 ? saleOverrides : {};
   const hasAnyOverride = Object.keys(activeOverrideOv).length > 0;
-  const totals = hasAnyOverride ? resolveOverrideRows(uniRows, sourceForActive, activeOverrideOv) : null;
+  const totals = hasAnyOverride ? xuLyDongGhiDe(uniRows, sourceForActive, activeOverrideOv) : null;
   const effTotalProdCost = totals?.grandTotal ?? result.totalProductionCost;
-  const effProfitRate = lookupProfit(effTotalProdCost, result.input.profitColumn, profitTable);
+  const effProfitRate = traLoiNhuanTheoBang(effTotalProdCost, result.input.profitColumn, profitTable);
   const effProfitAmount = effProfitRate * effTotalProdCost;
   const effRevenue = effTotalProdCost + effProfitAmount;
   const effCostPerUnit = result.input.quantity > 0 ? effRevenue / result.input.quantity : 0;
   return { effTotalProdCost, effProfitRate, effProfitAmount, effRevenue, effCostPerUnit };
 }
 
-export function calculateMoqResult(
+export function tinhKetQuaMoq(
   input: CalculateInput,
   quantity: number,
   materials: Material[],
   constants: AppConstants,
   profitTable: ProfitRow[],
+  smallWidthPrices: SmallWidthMaterialPrice[] = [],
 ) {
-  return calculateQuote({ ...input, quantity }, materials, constants, profitTable);
+  return tinhBaoGia({ ...input, quantity }, materials, constants, profitTable, smallWidthPrices);
 }
+
+// Alias tương thích cho các module đang import tên cũ.
+export const calculateQuote = tinhBaoGia;
+export const buildProductionRows = lapDongSanXuat;
+export const resolveOverrideRows = xuLyDongGhiDe;
+export const calculateEffectivePricing = tinhGiaHieuLuc;
+export const calculateMoqResult = tinhKetQuaMoq;

@@ -24,10 +24,35 @@ export interface Material {
   pricePerM2?: number;
 }
 
+export interface SmallWidthMaterialPrice {
+  id: string;
+  materialId: string;
+  widthThresholdMm: number;
+  pricePerKg: number;
+  pricePerM2?: number;
+}
+
 export interface ProfitRow {
   threshold: number;
   col1: number;
   col2: number;
+}
+
+export type BoxOptionKey = 'large' | 'medium' | 'small';
+export type HandleOptionKey = 'large' | 'small' | 'color';
+
+export interface BoxOption {
+  key: BoxOptionKey;
+  label: string;
+  price: number;
+  bagsPerBox: number;
+}
+
+export interface HandleOption {
+  key: HandleOptionKey;
+  label: string;
+  price: number;
+  weight: number;
 }
 
 export interface AppConstants {
@@ -37,8 +62,10 @@ export interface AppConstants {
   tapeWeight: number;
   handlePrice: number;
   handleWeight: number;
+  handleOptions?: HandleOption[];
   boxPriceDefault: number;
   bagsPerBoxDefault: number;
+  boxOptions: BoxOption[];
   interestBase: number;    // lãi suất cơ sở (% / năm, dạng thập phân, vd: 0.10 = 10%)
   interestSpread: number;  // lãi suất thêm / tình huống (% / năm, dạng thập phân)
   paymentDays: number;
@@ -76,6 +103,8 @@ export interface CalculateInput {
   productType: string;
   bagType: string;
   filmType: string;
+  filmQuantityUnit?: 'm2' | 'meter'; // đơn vị nhập SL màng; engine vẫn nhận quantity là m²
+  filmInputQuantity?: number; // SL màng gốc user nhập
   filmRollLength: number; // chiều dài mỗi cuộn màng thành phẩm (m), chỉ dùng khi productType='mang'
   quantity: number;
   numColors: number | null;
@@ -99,6 +128,7 @@ export interface CalculateInput {
   hasZipper: boolean;
   hasTape: boolean;
   hasHandle: boolean;
+  handleOptionKey?: HandleOptionKey | 'custom' | null;
   paymentDays: number;
   // paymentInterestRate đã bỏ — lãi suất nay lấy từ AppConstants (interestBase + interestSpread)
   profitColumn: number;
@@ -108,6 +138,7 @@ export interface CalculateInput {
   commissionInputValue: number;
   bagsPerBox: number;
   boxPrice: number;
+  boxOptionKey?: BoxOptionKey | 'custom' | null;
   shippingPerKm: number;
   shippingKm: number;
   cylLength: number;
@@ -143,13 +174,17 @@ export const QUOTE_STATUS_CONFIG: Record<QuoteStatus, {
 export type OverrideRowKey = 'print' | 'lam-2' | 'lam-3' | 'lam-4' | 'lam-5' | 'cut';
 
 export interface OverrideFields {
-  width?: number;       // Khổ (m)
-  meters?: number;      // Thành phẩm (m)
-  waste?: number;       // Phi hao
-  inputVL?: number;     // Đầu vào VL
-  matPrice?: number;    // CP vật liệu (đ/m²)
+  stage?: string;
+  mat?: string;
+  width?: number;
+  meters?: number;
+  waste?: number;
+  inputVL?: number;
+  cpsx?: number;
+  costCPSX?: number;
+  matPrice?: number;
+  costMat?: number;
 }
-
 export type OverrideTable = Partial<Record<OverrideRowKey, Partial<OverrideFields>>>;
 
 // ── History ───────────────────────────────────────────────────────────────────
