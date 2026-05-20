@@ -12,19 +12,19 @@
       "key": "large",
       "label": "Thùng lớn",
       "price": 18000,
-      "bagsPerBox": 1000
+      "weight": 0
     },
     {
       "key": "medium",
       "label": "Thùng trung bình",
       "price": 15000,
-      "bagsPerBox": 500
+      "weight": 0
     },
     {
       "key": "small",
       "label": "Thùng nhỏ",
       "price": 12000,
-      "bagsPerBox": 250
+      "weight": 0
     }
   ],
   "interestBase": 0.1,

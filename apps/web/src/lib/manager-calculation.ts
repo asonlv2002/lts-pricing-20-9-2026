@@ -66,7 +66,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
     costMat: r.printCostMaterial,
   });
 
-  r.layers.laminations?.forEach((lam: any) => {
+  r.layers.laminations?.slice().sort((a: any, b: any) => b.layerNum - a.layerNum).forEach((lam: any) => {
     totalCPSX += lam.costCPSX;
     totalCPVL += lam.costMat;
     const materialDetails = lam.chiTietVatLieu?.map((item: any) => ({
@@ -117,7 +117,9 @@ export function xuLyDongGhiDe(
   sourceOverrides: OverrideTable,
   currentOverrides: OverrideTable,
 ): { rows: ResolvedOverrideRow[]; totalCPSX: number; totalCPVL: number; grandTotal: number } {
-  const rows = uniRows.map(row => {
+  const rows: ResolvedOverrideRow[] = [];
+
+  uniRows.forEach((row) => {
     const rk = row.rowKey;
     const src = sourceOverrides[rk] ?? {};
     const cur = currentOverrides[rk] ?? {};
@@ -126,24 +128,33 @@ export function xuLyDongGhiDe(
     const width = cur.width ?? src.width ?? row.width;
     const meters = cur.meters ?? src.meters ?? row.meters;
     const waste = cur.waste ?? src.waste ?? row.waste;
-    const inputVL = cur.inputVL ?? src.inputVL ?? (row.meters + row.waste);
+    const inputVL = meters + waste;
     const cpsx = cur.cpsx ?? src.cpsx ?? row.cpsx;
     const matPrice = cur.matPrice ?? src.matPrice ?? row.matPrice;
     const srcWidth = src.width ?? row.width;
     const srcMeters = src.meters ?? row.meters;
     const srcWaste = src.waste ?? row.waste;
-    const srcInputVL = src.inputVL ?? (row.meters + row.waste);
+    const srcInputVL = srcMeters + srcWaste;
     const srcMatPrice = src.matPrice ?? row.matPrice;
     const srcCpsx = src.cpsx ?? row.cpsx;
-    const rawCostCPSX = cpsx * inputVL * width;
-    const rawCostMat = row.materialDetails
-      ? row.materialDetails.reduce((sum, detail) => sum + detail.matPrice * inputVL * detail.width, 0)
+    const detailOverrides = { ...(src.detailOverrides ?? {}), ...(cur.detailOverrides ?? {}) };
+    const materialDetails = row.materialDetails?.map((detail, index) => ({
+      ...detail,
+      width: detailOverrides[index]?.width ?? detail.width,
+      matPrice: detailOverrides[index]?.matPrice ?? detail.matPrice,
+    }));
+    const effectiveWidth = materialDetails?.length
+      ? materialDetails.reduce((sum, detail) => sum + detail.width, 0)
+      : width;
+    const rawCostCPSX = cpsx * inputVL * effectiveWidth;
+    const rawCostMat = materialDetails
+      ? materialDetails.reduce((sum, detail) => sum + detail.matPrice * inputVL * detail.width, 0)
       : matPrice != null ? matPrice * inputVL * width : null;
-    const costCPSX = cur.costCPSX ?? src.costCPSX ?? rawCostCPSX;
-    const costMat = cur.costMat ?? src.costMat ?? rawCostMat;
+    const costCPSX = rawCostCPSX;
+    const costMat = rawCostMat;
     const srcCostCPSX = src.costCPSX ?? row.costCPSX;
     const srcCostMat = src.costMat ?? row.costMat;
-    return { ...row, stage, mat, width, meters, waste, inputVL, cpsx, matPrice, costCPSX, costMat, srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice, srcCpsx, srcCostCPSX, srcCostMat };
+    rows.push({ ...row, stage, mat, width, meters, waste, inputVL, cpsx, matPrice, costCPSX, costMat, materialDetails, srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice, srcCpsx, srcCostCPSX, srcCostMat });
   });
   const totalCPSX = rows.reduce((sum, row) => sum + row.costCPSX, 0);
   const totalCPVL = rows.reduce((sum, row) => sum + (row.costMat ?? 0), 0);

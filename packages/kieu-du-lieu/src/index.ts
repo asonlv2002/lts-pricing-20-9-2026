@@ -128,6 +128,7 @@ export interface DauVaoTinhGia {
   giaTriHoaHongNhap: number;
   soTuiPerThuung: number;
   giaThuung: number;
+  khoiLuongThuung?: number;
   cuocVanChuyenPerKm: number;
   soKmVanChuyen: number;
   chieuDaiTruc: number;

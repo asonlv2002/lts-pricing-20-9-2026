@@ -205,7 +205,7 @@ export default function TrangChinh() {
       if (cfgRaw) {
         const cfg = JSON.parse(cfgRaw) as {
           materials?: Array<{ id: string; thickness: number; pricePerKg: number; inkPricePerColor: number }>;
-          smallWidthPrices?: Array<{ id: string; materialId: string; widthThresholdMm: number; pricePerKg: number }>;
+          smallWidthPrices?: Array<{ id: string; materialId: string; widthThresholdMm: number; thickness?: number; pricePerKg: number }>;
           cpsx?: Record<string, any>;
           printWaste?: { colorSetup?: Record<number, number>; A?: number; B?: number; C?: number; D?: number };
           packaging?: { boxOptions?: BoxOption[]; boxPriceDefault?: number; bagsPerBoxDefault?: number };
@@ -227,7 +227,7 @@ export default function TrangChinh() {
               if (!saved) return p;
               const material = vatLieuMoi.find(m => m.id === saved.materialId);
               if (!material) return p;
-              return { ...p, widthThresholdMm: saved.widthThresholdMm, pricePerKg: saved.pricePerKg, pricePerM2: saved.pricePerKg * material.thickness * material.density / 1000 };
+              return { ...p, widthThresholdMm: saved.widthThresholdMm, thickness: saved.thickness ?? material.thickness, pricePerKg: saved.pricePerKg, pricePerM2: saved.pricePerKg * (saved.thickness ?? material.thickness) * material.density / 1000 };
             });
           }
           const hangSoMoi = { ...s.constants, ...(cfg.cpsx || {}) };

@@ -28,6 +28,7 @@ export interface SmallWidthMaterialPrice {
   id: string;
   materialId: string;
   widthThresholdMm: number;
+  thickness?: number;
   pricePerKg: number;
   pricePerM2?: number;
 }
@@ -45,7 +46,7 @@ export interface BoxOption {
   key: BoxOptionKey;
   label: string;
   price: number;
-  bagsPerBox: number;
+  weight?: number;
 }
 
 export interface HandleOption {
@@ -138,6 +139,7 @@ export interface CalculateInput {
   commissionInputValue: number;
   bagsPerBox: number;
   boxPrice: number;
+  boxWeight?: number;
   boxOptionKey?: BoxOptionKey | 'custom' | null;
   shippingPerKm: number;
   shippingKm: number;
@@ -184,6 +186,7 @@ export interface OverrideFields {
   costCPSX?: number;
   matPrice?: number;
   costMat?: number;
+  detailOverrides?: Record<number, { width?: number; matPrice?: number }>;
 }
 export type OverrideTable = Partial<Record<OverrideRowKey, Partial<OverrideFields>>>;
 

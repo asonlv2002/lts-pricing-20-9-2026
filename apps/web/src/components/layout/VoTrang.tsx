@@ -575,12 +575,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="lts-shell-content lts-shell-content--scroll">
           {moduleDangMo === 'calculator'        && children}
-          {moduleDangMo === 'quotations'        && <ModuleBaoGia role={vaiTro} />}
-          {moduleDangMo === 'history_db'        && <ModuleLichSuDB khiDieuHuong={datModuleDangMo} />}
-          {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTro} currentSellerId={idNhanVienHienTai} />}
+          {moduleDangMo === 'quotations'        && <ModuleBaoGia role={vaiTro} menuDangChon={menuDangChon} />}
+          {moduleDangMo === 'history_db'        && <ModuleLichSuDB khiDieuHuong={datModuleDangMo} menuDangChon={menuDangChon} />}
+          {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTro} currentSellerId={idNhanVienHienTai} menuDangChon={menuDangChon} />}
           {moduleDangMo === 'sellers'           && <ModuleNhanVienBan />}
-          {moduleDangMo === 'master_data'       && <TrangCauHinh />}
-          {moduleDangMo === 'users'             && <ModuleQuanLyNguoiDung />}
+          {moduleDangMo === 'master_data'       && <TrangCauHinh menuDangChon={menuDangChon} />}
+          {moduleDangMo === 'users'             && <ModuleQuanLyNguoiDung menuDangChon={menuDangChon} />}
+          {moduleDangMo === 'settings'          && <div className="crm-root"><div className="crm-empty"><p>Module này chưa có màn hình chi tiết.</p><p style={{fontSize:'0.85rem',color:'var(--muted)'}}>Mục đang chọn: {CAC_MUC_MENU.find(i => i.key === menuDangChon)?.label ?? menuDangChon}</p></div></div>}
           {moduleDangMo === 'production_orders' && <ModuleLenhSanXuat />}
           {/* Fallback: TypeScript đảm bảo MaModule luôn có case ở trên — nếu không có sẽ bắt lỗi compile */}
         </div>

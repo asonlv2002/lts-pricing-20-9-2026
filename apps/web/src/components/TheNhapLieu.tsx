@@ -280,13 +280,13 @@ export default function TheNhapLieu() {
     if (!daChon) return;
     capNhatDauVao({
       boxOptionKey: daChon.key,
-      bagsPerBox: daChon.bagsPerBox,
       boxPrice: daChon.price,
+      boxWeight: daChon.weight || 0,
     });
   };
 
-  const xuLyGhiDeThung = (field: 'bagsPerBox' | 'boxPrice', val: number) => {
-    capNhatDauVao({ [field]: val, boxOptionKey: 'custom' } as any);
+  const xuLyGhiDeThung = (field: 'bagsPerBox' | 'boxPrice' | 'boxWeight', val: number) => {
+    capNhatDauVao({ [field]: val } as any);
   };
 
   const XemTruocCauTruc = () => {
@@ -784,38 +784,40 @@ export default function TheNhapLieu() {
               <>
                 <div className="form-group">
                   <label className="form-label">Loại thùng</label>
-                  <select
-                    className="form-select"
-                    value={input.boxOptionKey ?? ''}
-                    onChange={e => xuLyDoiLoaiThung(e.target.value)}
-                  >
-                    <option value="">— Chọn loại thùng —</option>
-                    {(constants.boxOptions ?? []).map(option => (
-                      <option key={option.key} value={option.key}>
-                        {option.label} — {option.bagsPerBox.toLocaleString('vi-VN')} túi / {option.price.toLocaleString('vi-VN')} đ
-                      </option>
-                    ))}
-                    <option value="custom">Tự nhập</option>
-                  </select>
+                  <div className="form-row" style={{ alignItems: 'flex-end', gap: '10px' }}>
+                    <div style={{ flex: '1 1 0', minWidth: 0 }}>
+                      <select
+                        className="form-select"
+                        value={input.boxOptionKey ?? ''}
+                        onChange={e => xuLyDoiLoaiThung(e.target.value)}
+                      >
+                        <option value="">— Chọn loại thùng —</option>
+                        {(constants.boxOptions ?? []).map(option => (
+                          <option key={option.key} value={option.key}>
+                            {option.label} / {option.price.toLocaleString('vi-VN')} đ
+                          </option>
+                        ))}
+                        <option value="custom">Tự nhập</option>
+                      </select>
+                    </div>
+                    <div style={{ flex: '0 0 120px' }}>
+                      <label className="form-label" style={{ fontSize: '0.68rem' }}>SL túi/thùng</label>
+                      <ONhapSoDinhDang className="form-input" value={input.bagsPerBox || 0} onChange={(val: number) => xuLyGhiDeThung('bagsPerBox', val)} />
+                    </div>
+                  </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '6px' }}>
-                    Chọn loại thùng để tự điền số túi/thùng và giá thùng; có thể chỉnh tay bên dưới.
-                  </div>
-                </div>
-                <div className="form-row">
-                  <div className="form-group">
-                    <label className="form-label">Túi/thùng</label>
-                    <ONhapSoDinhDang className="form-input" value={input.bagsPerBox || 0} onChange={(val: number) => xuLyGhiDeThung('bagsPerBox', val)} />
-                  </div>
-                  <div className="form-group">
-                    <label className="form-label">Giá thùng (đ)</label>
-                    <ONhapSoDinhDang className="form-input" value={input.boxPrice || 0} onChange={(val: number) => xuLyGhiDeThung('boxPrice', val)} />
+                    Chọn loại thùng để lấy giá; SL túi/thùng nhập theo kích thước túi của đơn này.
                   </div>
                 </div>
                 {input.boxOptionKey === 'custom' && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '-4px', marginBottom: '8px' }}>
-                    Đang dùng định mức thùng nhập tay cho đơn này.
+                  <div className="form-group">
+                    <label className="form-label">Giá thùng tự nhập (đ)</label>
+                    <ONhapSoDinhDang className="form-input" value={input.boxPrice || 0} onChange={(val: number) => xuLyGhiDeThung('boxPrice', val)} />
                   </div>
                 )}
+                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '-4px', marginBottom: '8px' }}>
+                  Khối lượng thùng: {(input.boxWeight || 0).toLocaleString('vi-VN')} gr/thùng
+                </div>
               </>
             )}
             <div className="form-row">

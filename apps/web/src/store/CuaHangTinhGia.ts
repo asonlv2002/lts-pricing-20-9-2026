@@ -16,7 +16,7 @@ function luuLocalStorage(key: string, giaTri: unknown) {
 function luuConfigVaoLS(materials: Material[], constants: AppConstants, profitTable: ProfitRow[], bangGiaKhoNho: SmallWidthMaterialPrice[]) {
   luuLocalStorage(LS_CONFIG, {
     materials: materials.map(m => ({ id: m.id, thickness: m.thickness, pricePerKg: m.pricePerKg, inkPricePerColor: m.inkPricePerColor })),
-    smallWidthPrices: bangGiaKhoNho.map(p => ({ id: p.id, materialId: p.materialId, widthThresholdMm: p.widthThresholdMm, pricePerKg: p.pricePerKg })),
+    smallWidthPrices: bangGiaKhoNho.map(p => ({ id: p.id, materialId: p.materialId, widthThresholdMm: p.widthThresholdMm, thickness: p.thickness, pricePerKg: p.pricePerKg })),
     cpsx: {
       ghepCPSX: constants.ghepCPSX, laborCost: constants.laborCost,
       cutBase: constants.cutBase, cutThreshold1: constants.cutThreshold1, cutThreshold2: constants.cutThreshold2,
@@ -124,6 +124,37 @@ export interface CuaHangTinhGia {
 }
 
 // ── Default input ─────────────────────────────────────────────────────────────
+function boDauTiengViet(chuoi: string): string {
+  return chuoi.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\u0111/g, 'd').replace(/\u0110/g, 'D');
+}
+
+function layCotLoiNhuanTuDong(input: CalculateInput, materials: Material[]): number {
+  const cacLopVatLy = [input.layer1Id, input.layer2Id, input.layer3Id, input.layer4Id, input.layer5Id]
+    .filter(Boolean) as string[];
+  const cacVatLieuDangDung = [...cacLopVatLy, input.layer2AltId].filter(Boolean) as string[];
+  const soLopVatLy = cacLopVatLy.length;
+  const coVatLieuDacBiet = cacVatLieuDangDung.some((id) => {
+    const vatLieu = materials.find(m => m.id === id);
+    const chuoiGoc = `${id} ${vatLieu?.name ?? ''} ${vatLieu?.group ?? ''}`;
+    const chuoiKiemTra = boDauTiengViet(chuoiGoc).toUpperCase();
+    return chuoiKiemTra.includes('MPET')
+      || /(^|[^A-Z])AL([^A-Z]|$)/.test(chuoiKiemTra)
+      || chuoiKiemTra.includes('GIAY')
+      || chuoiKiemTra.includes('PAPER');
+  });
+  const laTuiDacBiet = input.productType === 'tui' && (input.bagType === 'dayDung' || input.hasZipper);
+  const laMangNhieuLop = input.productType === 'mang' && soLopVatLy >= 3;
+  const laTuiNhieuLop = input.productType === 'tui' && soLopVatLy >= 3;
+
+  // Cot phai chi ap dung cho tui/mang >=3 lop, tui dac biet, hoac vat lieu barrier dac biet.
+  return (laMangNhieuLop || laTuiNhieuLop || laTuiDacBiet || coVatLieuDacBiet) ? 2 : 1;
+}
+
+function dongBoCotLoiNhuan(input: CalculateInput, materials: Material[]): CalculateInput {
+  const cotLoiNhuan = layCotLoiNhuanTuDong(input, materials);
+  return input.profitColumn === cotLoiNhuan ? input : { ...input, profitColumn: cotLoiNhuan };
+}
+
 const dauVaoMacDinh: CalculateInput = {
   customer: '', productName: '', productType: '', bagType: '', filmType: '',
   filmQuantityUnit: 'm2', filmInputQuantity: 0, filmRollLength: 6000, quantity: 0, numColors: null, numImages: 1,
@@ -131,21 +162,21 @@ const dauVaoMacDinh: CalculateInput = {
   spreadWidth: 0, cutStep: 0, metallicSurcharge: 0, coverageRatio: 1,
   handleWeight: 0, zipperWeight: 0, tapeWeight: 0,
   hasZipper: false, hasTape: false, hasHandle: false, handleOptionKey: null,
-  paymentDays: 30, profitColumn: 2,
+  paymentDays: 30, profitColumn: 1,
   commissionRate: 0, commissionFixedVND: 0, commissionUnit: 'percent', commissionInputValue: 0,
-  bagsPerBox: 0, boxPrice: 0, boxOptionKey: null, shippingPerKm: 0, shippingKm: 0,
+  bagsPerBox: 0, boxPrice: 0, boxWeight: 0, boxOptionKey: null, shippingPerKm: 0, shippingKm: 0,
   cylLength: 0, cylCircum: 0, cylUnitPrice: 7300000, cylType: 'A' as const, cylIncluded: false, targetThickness: 0, micOverrides: {},
 };
 
 // ── Store ─────────────────────────────────────────────────────────────────────
 export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
-  dauVao: dauVaoMacDinh,
-  input: dauVaoMacDinh,
+  dauVao: dongBoCotLoiNhuan(dauVaoMacDinh, INITIAL_MATERIALS),
+  input: dongBoCotLoiNhuan(dauVaoMacDinh, INITIAL_MATERIALS),
   materials: INITIAL_MATERIALS,
   constants: INITIAL_CONSTANTS,
   profitTable: INITIAL_PROFIT_TABLE,
   smallWidthPrices: INITIAL_SMALL_WIDTH_PRICES,
-  result: tinhBaoGia(dauVaoMacDinh, INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES),
+  result: tinhBaoGia(dongBoCotLoiNhuan(dauVaoMacDinh, INITIAL_MATERIALS), INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES),
 
   activeView: 'manager',
   activeModule: 'calculator',
@@ -229,9 +260,7 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
         }
       }
 
-      const cacLopDangDung = [dauVaoMoi.layer1Id, dauVaoMoi.layer2Id, dauVaoMoi.layer3Id, dauVaoMoi.layer4Id, dauVaoMoi.layer5Id].filter(Boolean);
-      const coMPETHoacAL = cacLopDangDung.some((id: string | null | undefined) => id && (id.toUpperCase().includes('MPET') || id.toUpperCase().includes('AL')));
-      dauVaoMoi.profitColumn = (cacLopDangDung.length >= 3 || coMPETHoacAL || dauVaoMoi.bagType === 'dayDung' || dauVaoMoi.hasZipper) ? 2 : 1;
+      Object.assign(dauVaoMoi, dongBoCotLoiNhuan(dauVaoMoi, state.materials));
 
       dauVaoMoi.metallicSurcharge = ((dauVaoMoi as any).hasNhu ? state.constants.nhuPrice : 0)
         + ((dauVaoMoi as any).hasMo ? state.constants.moPrice : 0);
@@ -258,9 +287,9 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
 
   resetInput: () => {
     set((state) => ({
-      dauVao: { ...dauVaoMacDinh },
-      input: { ...dauVaoMacDinh },
-      result: tinhBaoGia(dauVaoMacDinh, state.materials, state.constants, state.profitTable, state.smallWidthPrices),
+      dauVao: dongBoCotLoiNhuan({ ...dauVaoMacDinh }, state.materials),
+      input: dongBoCotLoiNhuan({ ...dauVaoMacDinh }, state.materials),
+      result: tinhBaoGia(dongBoCotLoiNhuan(dauVaoMacDinh, state.materials), state.materials, state.constants, state.profitTable, state.smallWidthPrices),
       currentChotGia: 0, isDirty: false,
       saleOverrides: {}, adminOverrides: {},
       showSaleOverrides: false, showAdminOverrides: false,
@@ -308,9 +337,9 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
       const item = state.history.find(h => h.id === id);
       if (!item) return state;
       return {
-        dauVao: { ...item.input },
-        input: { ...item.input },
-        result: tinhBaoGia(item.input, state.materials, state.constants, state.profitTable, state.smallWidthPrices),
+        dauVao: dongBoCotLoiNhuan({ ...item.input }, state.materials),
+        input: dongBoCotLoiNhuan({ ...item.input }, state.materials),
+        result: tinhBaoGia(dongBoCotLoiNhuan(item.input, state.materials), state.materials, state.constants, state.profitTable, state.smallWidthPrices),
         currentChotGia: item.chotGia || 0,
         activeView: 'manager',
         isDirty: false,
@@ -353,12 +382,12 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
       const vatLieuDaDoi = materials.find(m => m.id === id);
       const bangGiaKhoNho = vatLieuDaDoi
         ? state.smallWidthPrices.map(p => p.materialId === id
-          ? { ...p, pricePerM2: p.pricePerKg * vatLieuDaDoi.thickness * vatLieuDaDoi.density / 1000 }
+          ? { ...p, thickness: p.thickness ?? vatLieuDaDoi.thickness, pricePerM2: p.pricePerKg * (p.thickness ?? vatLieuDaDoi.thickness) * vatLieuDaDoi.density / 1000 }
           : p
         )
         : state.smallWidthPrices;
       luuConfigVaoLS(materials, state.constants, state.profitTable, bangGiaKhoNho);
-      return { materials, smallWidthPrices: bangGiaKhoNho, result: tinhBaoGia(state.input, materials, state.constants, state.profitTable, bangGiaKhoNho) };
+      return { materials, smallWidthPrices: bangGiaKhoNho, input: dongBoCotLoiNhuan(state.input, materials), dauVao: dongBoCotLoiNhuan(state.input, materials), result: tinhBaoGia(dongBoCotLoiNhuan(state.input, materials), materials, state.constants, state.profitTable, bangGiaKhoNho) };
     });
   },
 
@@ -369,15 +398,16 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
         const material = state.materials.find(m => m.id === p.materialId);
         if (!material) return p;
         const giaMoiKgMoi = partial.pricePerKg ?? p.pricePerKg;
-        const nguongKhoMmMoi = partial.widthThresholdMm ?? p.widthThresholdMm;
+        const doDayMoi = partial.thickness ?? p.thickness ?? material.thickness;
         return {
           ...p,
           ...partial,
-          pricePerM2: giaMoiKgMoi * material.thickness * material.density / 1000,
+          thickness: doDayMoi,
+          pricePerM2: giaMoiKgMoi * doDayMoi * material.density / 1000,
         };
       });
       luuConfigVaoLS(state.materials, state.constants, state.profitTable, bangGiaKhoNho);
-      return { smallWidthPrices: bangGiaKhoNho, result: tinhBaoGia(state.input, state.materials, state.constants, state.profitTable, bangGiaKhoNho) };
+      return { smallWidthPrices: bangGiaKhoNho, result: tinhBaoGia(dongBoCotLoiNhuan(state.input, state.materials), state.materials, state.constants, state.profitTable, bangGiaKhoNho) };
     });
   },
 
@@ -385,22 +415,22 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
     set((state) => {
       const constants = { ...state.constants, [key]: val };
       luuConfigVaoLS(state.materials, constants, state.profitTable, state.smallWidthPrices);
-      return { constants, result: tinhBaoGia(state.input, state.materials, constants, state.profitTable, state.smallWidthPrices) };
+      return { constants, result: tinhBaoGia(dongBoCotLoiNhuan(state.input, state.materials), state.materials, constants, state.profitTable, state.smallWidthPrices) };
     });
   },
 
   recalculate: () => {
-    set((state) => ({ result: tinhBaoGia(state.input, state.materials, state.constants, state.profitTable, state.smallWidthPrices) }));
+    set((state) => ({ input: dongBoCotLoiNhuan(state.input, state.materials), dauVao: dongBoCotLoiNhuan(state.input, state.materials), result: tinhBaoGia(dongBoCotLoiNhuan(state.input, state.materials), state.materials, state.constants, state.profitTable, state.smallWidthPrices) }));
   },
 
   calculateForInput: (input) => {
     const state = get();
-    return tinhBaoGia(input, state.materials, state.constants, state.profitTable, state.smallWidthPrices);
+    return tinhBaoGia(dongBoCotLoiNhuan(input, state.materials), state.materials, state.constants, state.profitTable, state.smallWidthPrices);
   },
 
   calculateForQuantity: (soLuong) => {
     const state = get();
-    return tinhKetQuaMoq(state.input, soLuong, state.materials, state.constants, state.profitTable, state.smallWidthPrices);
+    return tinhKetQuaMoq(dongBoCotLoiNhuan(state.input, state.materials), soLuong, state.materials, state.constants, state.profitTable, state.smallWidthPrices);
   },
 
   optimizeCurrentThickness: () => {

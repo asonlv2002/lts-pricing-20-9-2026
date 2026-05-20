@@ -277,7 +277,7 @@ function DeleteConfirmHopThoai({ user, onConfirm, khiDong, dangLuu }:
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function ModuleQuanLyNguoiDung() {
+export default function ModuleQuanLyNguoiDung({ menuDangChon }: { menuDangChon?: string }) {
   const [nguoiDung, datNguoiDung]       = useState<NguoiDungAnToan[]>([]);
   const [dangTai, datDangTai]   = useState(true);
   const [loi, datLoi]       = useState('');
@@ -288,6 +288,9 @@ export default function ModuleQuanLyNguoiDung() {
   type HopThoaiType = 'add' | 'edit' | 'reset' | 'delete' | null;
   const [hopThoai, datHopThoai]       = useState<HopThoaiType>(null);
   const [daChon, datDaChon] = useState<NguoiDungAnToan | null>(null);
+
+  const laNhomQuyen = menuDangChon === 'system.roles';
+  const laPhanQuyen = menuDangChon === 'system.permissions';
 
   // Toast helper
   const hienThongBao = (tinNhan: string) => {
@@ -357,6 +360,15 @@ export default function ModuleQuanLyNguoiDung() {
     <div className="um-root">
       {/* Toast */}
       {thongBao && <div className="um-toast">{thongBao}</div>}
+
+      {(laNhomQuyen || laPhanQuyen) && (
+        <div className="crm-empty" style={{ marginBottom: 16 }}>
+          <p>{laNhomQuyen ? 'Nhóm quyền' : 'Phân quyền tính năng'}</p>
+          <p style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+            Chưa có màn hình riêng; tạm thời dùng bảng người dùng bên dưới để quản lý vai trò hiện tại.
+          </p>
+        </div>
+      )}
 
       {/* Header */}
       <div className="um-header">
