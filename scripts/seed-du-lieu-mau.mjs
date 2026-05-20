@@ -192,7 +192,8 @@ function calc(input) {
   const totalWeightTons = totalGSM * totalArea / 1000000;
   const shippingPerUnit = unit > 0 ? (totalWeightTons * shippingPerKm * shippingKm) / unit : 0;
 
-  const interestPerUnit    = (input.paymentInterestRate || 0.0025) * costPerUnit;
+  const laiNam = (constants.interestBase ?? 0.10) + (constants.interestSpread ?? 0.03);
+  const interestPerUnit    = laiNam / 365 * (input.paymentDays || constants.paymentDays || 30) * costPerUnit;
   const commissionPerUnit  = commissionFixedVND > 0
     ? commissionFixedVND
     : commissionRate * costPerUnit;

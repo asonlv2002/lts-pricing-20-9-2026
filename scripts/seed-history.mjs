@@ -140,7 +140,8 @@ function calc(input) {
   const shippingTotal = totalWeightTons * shippingPerKm * shippingKm;
   const shippingPerUnit = quantity > 0 ? shippingTotal / quantity : 0;
 
-  const interestPerUnit = (input.paymentInterestRate || 0.0025) * costPerUnit;
+  const laiNam = (constants.interestBase ?? 0.10) + (constants.interestSpread ?? 0.03);
+  const interestPerUnit = laiNam / 365 * (input.paymentDays || constants.paymentDays || 30) * costPerUnit;
   let commissionPerUnit = commissionFixedVND > 0 ? commissionFixedVND : commissionRate * costPerUnit;
 
   const finalPrice = costPerUnit + zipperPerUnit + tapePerUnit + handlePerUnit
@@ -324,7 +325,6 @@ for (let i = 0; i < assignments.length; i++) {
     hasTape: false,
     hasHandle: false,
     paymentDays: 30,
-    paymentInterestRate: 0.0025,
     profitColumn: 2,
     commissionRate: 0,
     commissionFixedVND: 0,

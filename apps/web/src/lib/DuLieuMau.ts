@@ -85,7 +85,7 @@ export const DON_NUOC_MAM: CalculateInput = {
   customer: 'Masan Consumer', productName: 'Tui nuoc mam 500ml',
   quantity: 250000, numColors: 6, numImages: 2,
   layer1Id: 'PET', layer2Id: 'PA', layer3Id: 'LLDPE',
-  spreadWidth: 0.14, cutStep: 0.26, paymentDays: 60,
+  spreadWidth: 0.14, cutStep: 0.26, paymentDays: 90,
   micOverrides: { layer3Id: 95 },
 };
 
