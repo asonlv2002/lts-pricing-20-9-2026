@@ -68,7 +68,7 @@ export default function ManHinhKyThuat() {
 
   if (cacLop.laminations) {
 
-    cacLop.laminations.slice().sort((a: any, b: any) => b.layerNum - a.layerNum).forEach((dongGhep: any) => {
+    cacLop.laminations.slice().sort((a: any, b: any) => a.layerNum - b.layerNum).forEach((dongGhep: any) => {
 
       cacDong.push({
 

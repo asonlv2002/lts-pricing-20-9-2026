@@ -229,7 +229,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
           <thead>
             <tr>
               <th>Công đoạn</th><th>Vật liệu</th>
-              <th className="num">Khổ (m)</th><th className="num">Thành phẩm (m)</th>
+              <th className="num">Kho vao (m)</th><th className="num">Kho ra (m)</th><th className="num">Thanh pham (m)</th>
               <th className="num">Phi hao</th><th className="num">Đầu vào VL</th>
               <th className="num">CPSX (đ/m²)</th><th className="num">Thành tiền CPSX</th>
               <th className="num">CP vật liệu (đ/m²)</th><th className="num">Thành tiền CPVL</th>
@@ -254,14 +254,16 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                     <tr key={`${row.rowKey}-${detailIdx}`} className="detail-group-row">
                       <td data-label="Công đoạn">{row.stage}</td>
                       <td data-label="Vật liệu">{detail.name}</td>
-                      <td className="num" data-label="Khổ (m)">{dinhDangSo(detail.width, 3)}</td>
+                      <td className="num" data-label="Kho vao (m)">{dinhDangSo(detail.width, 3)}</td>
+                      <td className="num" data-label="Kho ra (m)">{dinhDangSo(row.outputWidth ?? row.width, 3)}</td>
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
                         giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
                         giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
                         giaTriGhiDe={ghiDeHienTai[row.rowKey]?.inputVL} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                      <td className="num" data-label="CPSX (đ/m²)">{dinhDangSo(row.cpsx, 0)}</td>
+                      <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
+                        giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(detailCostCPSX, 0)}</td>
                       <td className="num" data-label="CP vật liệu (đ/m²)">{dinhDangSo(detail.matPrice, 1)}</td>
                       <td className="num" data-label="Thành tiền CPVL">{dinhDangSo(detailCostMat, 0)}</td>
@@ -276,13 +278,15 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                   <td data-label="Vật liệu">{row.mat}</td>
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={row.srcWidth}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
+                  <td className="num" data-label="Kho ra (m)">{dinhDangSo(row.outputWidth ?? row.width, 3)}</td>
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.inputVL} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                  <td className="num" data-label="CPSX (đ/m²)">{dinhDangSo(row.cpsx, 0)}</td>
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
+                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                   <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(row.costCPSX, 0)}</td>
                   {row.matPrice != null ? (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="matPrice" giaTriGoc={row.srcMatPrice ?? 0}
@@ -295,13 +299,13 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
               )];
             })}
             <tr className="total-row">
-              <td colSpan={7}>TỔNG</td>
+              <td colSpan={8}>TỔNG</td>
               <td className="num">{dinhDangSo(tongCPSX, 0)}</td>
               <td className="num"></td>
               <td className="num">{dinhDangSo(tongCPVL, 0)}</td>
             </tr>
             <tr className="total-row" style={{ fontSize: '1.05em' }}>
-              <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
+              <td colSpan={8}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
               <td colSpan={3} className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>
                 {dinhDangSo(tongCPSX + tongCPVL, 0)} đ
               </td>
@@ -413,7 +417,7 @@ export default function ManHinhQuanLy() {
   breakdownItems.push(
     [laMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSo(r.boxPerUnit, 1) + ' đ'],
     ['Chi phí Vận chuyển', dinhDangSo(r.shippingPerUnit, 1) + ' đ'],
-    [`Lãi vay vốn (${dinhDangPhanTram((r.interestBase ?? 0) + (r.interestSpread ?? 0))}/năm)`, dinhDangSo(r.interestPerUnit, 1) + ' đ'],
+    [`Lai vay von (${dinhDangPhanTram((r.interestBase ?? 0) + (r.interestSpread ?? 0))}/nam x ${r.paymentDays ?? dauVaoKq.paymentDays ?? 30} ngay / 365)`, dinhDangSo(r.interestPerUnit, 1) + ' VND'],
     ['Hoa hồng kinh doanh', dinhDangSo(effCommissionPerUnit, 1) + ' đ']
   );
   if (dauVaoKq.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
@@ -774,14 +778,15 @@ export default function ManHinhQuanLy() {
                 <thead>
                   <tr>
                     <th>Công đoạn</th><th>Vật liệu</th>
-                    <th className="num">Khổ (m)</th><th className="num">Thành phẩm (m)</th><th className="num">Phi hao</th><th className="num">Đầu vào VL</th>
+                    <th className="num">Kho vao (m)</th><th className="num">Kho ra (m)</th><th className="num">Thanh pham (m)</th><th className="num">Phi hao</th><th className="num">Dau vao VL</th>
                     <th className="num">CPSX (đ/m²)</th><th className="num">Thành tiền CPSX</th>
                     <th className="num">CP vật liệu (đ/m²)</th><th className="num">Thành tiền CPVL</th>
                   </tr>
                 </thead>
                 <tbody>
                   {cacDongSanXuat.map((row, idx) => {
-                    const dWidth = row.stage !== 'CẮT' ? dauVaoKq.spreadWidth * dauVaoKq.numImages + 0.02 : row.width;
+                    const dWidth = row.width;
+                    const dOutputWidth = row.outputWidth ?? row.width;
                     const dMeters = row.meters;
                     const dWaste = row.waste;
                     const inputVL = dMeters + dWaste;
@@ -795,7 +800,8 @@ export default function ManHinhQuanLy() {
                           <tr key={`${idx}-${detailIdx}`} className="detail-group-row">
                             {detailIdx === 0 && <td data-label="Công đoạn" rowSpan={rowSpan}>{row.stage}</td>}
                             <td data-label="Vật liệu">{detail.name}</td>
-                            <td className="num" data-label="Khổ (m)">{dinhDangSo(detail.width, 3)}</td>
+                            <td className="num" data-label="Kho vao (m)">{dinhDangSo(detail.width, 3)}</td>
+                            <td className="num" data-label="Kho ra (m)">{dinhDangSo(dOutputWidth, 3)}</td>
                             <td className="num" data-label="Thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
                             <td className="num" data-label="Phi hao">{dinhDangSo(dWaste, 0)}</td>
                             <td className="num highlight" data-label="Đầu vào VL">{dinhDangSo(inputVL, 0)}</td>
@@ -812,7 +818,8 @@ export default function ManHinhQuanLy() {
                       <tr key={idx}>
                         <td data-label="Công đoạn">{row.stage}</td>
                         <td data-label="Vật liệu">{row.mat}</td>
-                        <td className="num" data-label="Khổ (m)">{dinhDangSo(dWidth, 3)}</td>
+                        <td className="num" data-label="Kho vao (m)">{dinhDangSo(dWidth, 3)}</td>
+                        <td className="num" data-label="Kho ra (m)">{dinhDangSo(dOutputWidth, 3)}</td>
                         <td className="num" data-label="Thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
                         <td className="num" data-label="Phi hao">{dinhDangSo(dWaste, 0)}</td>
                         <td className="num highlight" data-label="Đầu vào VL">{dinhDangSo(inputVL, 0)}</td>
@@ -824,13 +831,13 @@ export default function ManHinhQuanLy() {
                     );
                   })}
                   <tr className="total-row">
-                    <td colSpan={7}>TỔNG</td>
+                    <td colSpan={8}>TỔNG</td>
                     <td className="num">{dinhDangSo(tongCPSX, 0)}</td>
                     <td className="num"></td>
                     <td className="num">{dinhDangSo(tongCPVL, 0)}</td>
                   </tr>
                   <tr className="total-row" style={{fontSize: '1.05em'}}>
-                    <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
+                    <td colSpan={8}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
                     <td colSpan={3} className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{dinhDangSo(tongCong, 0)} đ</td>
                   </tr>
                 </tbody>
@@ -936,12 +943,22 @@ export default function ManHinhQuanLy() {
                         <td data-label="Tổng DT">{dinhDangSo(res.finalPrice * qty / 1000000, 2)}tr</td>
                         {matCols.map((col, ci) => {
                           const layerData = getLayerData(res, col);
-                          const layerMeters = layerData ? (layerData.meters + layerData.waste) / dauVaoKq.numImages : 0;
-                          const kg = calcKg(layerData?.material, layerMeters, layerData?.width || 0);
+                          const layerMetersTotal = layerData ? (layerData.meters + layerData.waste) : 0;
+                          const layerMetersPerImage = dauVaoKq.numImages > 1 ? layerMetersTotal / dauVaoKq.numImages : layerMetersTotal;
+                          const kgTotal = calcKg(layerData?.material, layerMetersTotal, layerData?.width || 0);
                           return (
                             <td key={ci} data-label={col.name}>
-                              {dinhDangSo(layerMeters, 0)} m<br/>
-                              <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(kg, 1)} kg)</span>
+                              {dauVaoKq.numImages > 1 ? (
+                                <>
+                                  {dinhDangSo(layerMetersPerImage, 0)} m/con<br/>
+                                  <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>total {dinhDangSo(layerMetersTotal, 0)} m / {dinhDangSo(kgTotal, 1)} kg</span>
+                                </>
+                              ) : (
+                                <>
+                                  {dinhDangSo(layerMetersTotal, 0)} m<br/>
+                                  <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(kgTotal, 1)} kg)</span>
+                                </>
+                              )}
                               {renderMaterialBreakdown(layerData)}
                             </td>
                           );
@@ -1002,7 +1019,7 @@ export default function ManHinhQuanLy() {
                         ) : (
                           <th>SL {nhanDonVi}</th>
                         )}
-                        {otherLayers.map((c, i) => <th key={i}>{c.name}</th>)}
+                        {otherLayers.map((c, i) => <th key={i}>{c.name}{dauVaoKq.numImages > 1 ? <><br/><span style={{fontSize:'0.7rem', fontWeight:400, color:'var(--muted)'}}>(m/con + total)</span></> : null}</th>)}
                         <th>Giá đề xuất</th>
                         <th>Tổng DT</th>
                       </tr>
@@ -1041,12 +1058,22 @@ export default function ManHinhQuanLy() {
                           )}
                           {otherLayers.map((col: any, i: number) => {
                             const layerData = getLayerData(row.res, col);
-                            const layerMeters = layerData ? (layerData.meters + layerData.waste) / dauVaoKq.numImages : 0;
-                            const kg = calcKg(layerData?.material, layerMeters, layerData?.width || 0);
+                            const layerMetersTotal = layerData ? (layerData.meters + layerData.waste) : 0;
+                            const layerMetersPerImage = dauVaoKq.numImages > 1 ? layerMetersTotal / dauVaoKq.numImages : layerMetersTotal;
+                            const kgTotal = calcKg(layerData?.material, layerMetersTotal, layerData?.width || 0);
                             return (
                               <td data-label={col.name} key={i}>
-                                {dinhDangSo(layerMeters, 0)} m<br />
-                                <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(kg, 1)} kg)</span>
+                                {dauVaoKq.numImages > 1 ? (
+                                  <>
+                                    {dinhDangSo(layerMetersPerImage, 0)} m/con<br />
+                                    <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>total {dinhDangSo(layerMetersTotal, 0)} m / {dinhDangSo(kgTotal, 1)} kg</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    {dinhDangSo(layerMetersTotal, 0)} m<br />
+                                    <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(kgTotal, 1)} kg)</span>
+                                  </>
+                                )}
                                 {renderMaterialBreakdown(layerData)}
                               </td>
                             );
