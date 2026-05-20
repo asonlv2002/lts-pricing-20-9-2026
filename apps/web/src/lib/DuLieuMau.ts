@@ -23,7 +23,7 @@ const BASE = {
   bagsPerBox: 0, boxPrice: 0, shippingPerKm: 0, shippingKm: 0,
   cylLength: 0, cylCircum: 0, cylUnitPrice: 7300000, cylType: 'A', cylIncluded: false,
   micOverrides: {},
-};
+} satisfies Omit<CalculateInput, 'customer' | 'productName'>;
 
 export const DON_GAO_ST25: CalculateInput = {
   ...BASE,
