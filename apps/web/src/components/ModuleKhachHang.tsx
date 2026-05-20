@@ -38,27 +38,29 @@ interface Seller {
 // MOCK DATA (sẽ thay bằng API sau)
 // ════════════════════════════════════════════════════════════
 const INITIAL_SELLERS: Seller[] = [
-  { id: 'S1', name: 'Nguyễn Văn An',   email: 'an.nv@ltspricing.vn',   phone: '0901 234 567' },
-  { id: 'S2', name: 'Trần Thị Bình',   email: 'binh.tt@ltspricing.vn', phone: '0912 345 678' },
-  { id: 'S3', name: 'Lê Hoàng Cường',  email: 'cuong.lh@ltspricing.vn', phone: '0987 654 321' },
+  { id: 'S1', name: 'Nguyen Minh An', email: 'an.nguyen@lts.vn', phone: '0901 234 567' },
+  { id: 'S2', name: 'Tran Gia Bao',   email: 'bao.tran@lts.vn', phone: '0912 345 678' },
+  { id: 'S3', name: 'Le Thu Ha',      email: 'ha.le@lts.vn',    phone: '0987 654 321' },
 ];
 
 const INITIAL_CUSTOMERS: Customer[] = [
-  { id: 'C01', type: 'company',    company: 'Công ty TNHH Đức Phát',      taxCode: '0312345678', companyAddress: 'TP. Hồ Chí Minh', companyEmail: 'info@ducphat.com',  companyPhone: '028 1234 5678', name: 'Phan Văn Đức',   phone: '0909 111 222', email: 'duc@ducphat.com',   sellerId: 'S1', createdAt: '2025-01-10' },
-  { id: 'C02', type: 'company',    company: 'Cty CP Giang Sơn Foods',      taxCode: '0398765432', companyAddress: 'Bình Dương',       companyEmail: 'info@giangs.vn',    companyPhone: '0274 222 3333', name: 'Lê Thị Giang',   phone: '0908 333 444', email: 'giang@giangs.vn',   sellerId: 'S1', createdAt: '2025-02-05' },
-  { id: 'C03', type: 'company',    company: 'Hiếu Long Packaging',         taxCode: '3600123456', companyAddress: 'Đồng Nai',         companyEmail: 'info@hieulong.vn',  companyPhone: '0251 333 4444', name: 'Trần Minh Hiếu', phone: '0901 555 666', email: 'hieu@hieulong.vn',  sellerId: 'S2', createdAt: '2025-01-22' },
-  { id: 'C04', type: 'company',    company: 'Kim Ngân Trading',            taxCode: '0101234567', companyAddress: 'Hà Nội',           companyEmail: 'info@kimngan.com',  companyPhone: '024 7777 8888', name: 'Nguyễn Thị Kim', phone: '0911 777 888', email: 'kim@kimngan.com',   sellerId: 'S2', createdAt: '2025-03-01' },
-  { id: 'C05', type: 'individual', company: '',                            taxCode: '',           companyAddress: 'Cần Thơ',          companyEmail: '',                  companyPhone: '',              name: 'Võ Quốc Linh',   phone: '0933 999 000', email: 'linh@linhvu.vn',    sellerId: 'S2', createdAt: '2025-03-15' },
-  { id: 'C06', type: 'company',    company: 'Cty TNHH SX Thanh Mai',      taxCode: '8200654321', companyAddress: 'Long An',           companyEmail: 'info@thanhmai.vn',  companyPhone: '0272 444 5555', name: 'Phạm Thanh Mai', phone: '0944 123 456', email: 'mai@thanhmai.vn',   sellerId: 'S3', createdAt: '2025-02-20' },
-  { id: 'C07', type: 'company',    company: 'Siêu Thị Nam Bùi',           taxCode: '5200789012', companyAddress: 'Bình Phước',        companyEmail: 'info@nambuist.com', companyPhone: '0271 555 6666', name: 'Bùi Đình Nam',   phone: '0955 234 567', email: 'nam@nambuist.com',  sellerId: 'S3', createdAt: '2025-03-10' },
-  { id: 'C08', type: 'individual', company: '',                            taxCode: '',           companyAddress: 'Vũng Tàu',         companyEmail: '',                  companyPhone: '',              name: 'Đỗ Hải Oanh',   phone: '0966 345 678', email: 'oanh@oanhhai.vn',   sellerId: null, createdAt: '2025-03-20' },
-  { id: 'C09', type: 'company',    company: 'Phú Thịnh Agri',             taxCode: '8201234567', companyAddress: 'Tiền Giang',        companyEmail: 'info@phuthinh.com', companyPhone: '0273 666 7777', name: 'Huỳnh Văn Phú',  phone: '0977 456 789', email: 'phu@phuthinh.com',  sellerId: null, createdAt: '2025-03-22' },
-  { id: 'C10', type: 'company',    company: 'Quyên Cao Cosmetics',        taxCode: '0501234567', companyAddress: 'Đà Nẵng',          companyEmail: 'info@caocosm.vn',   companyPhone: '0236 777 8888', name: 'Cao Thị Quyên',  phone: '0988 567 890', email: 'quyen@caocosm.vn',  sellerId: null, createdAt: '2025-03-25' },
+  { id: 'C01', type: 'company', company: 'Cong ty TNHH Gao Viet Xanh', taxCode: '0312456789', companyAddress: 'Long An', companyEmail: 'sales@gaovietxanh.vn', companyPhone: '0272 388 8899', name: 'Pham Van Tuan', phone: '0909 111 222', email: 'tuan@gaovietxanh.vn', sellerId: 'S1', createdAt: '2026-03-01' },
+  { id: 'C02', type: 'company', company: 'Cong ty CP Ca Phe Cao Nguyen', taxCode: '0319988776', companyAddress: 'Dak Lak', companyEmail: 'contact@caphecaonguyen.vn', companyPhone: '0262 377 8899', name: 'Hoang Thi Mai', phone: '0918 222 333', email: 'mai@caphecaonguyen.vn', sellerId: 'S1', createdAt: '2026-03-02' },
+  { id: 'C03', type: 'company', company: 'Orion Food Vina', taxCode: '3600123456', companyAddress: 'Binh Duong', companyEmail: 'packaging@orionvina.vn', companyPhone: '0274 333 4444', name: 'Nguyen Duc Huy', phone: '0933 444 555', email: 'huy@orionvina.vn', sellerId: 'S1', createdAt: '2026-03-03' },
+  { id: 'C04', type: 'company', company: 'Cong ty TNHH Tra Sua Moc', taxCode: '0315678901', companyAddress: 'TP. Ho Chi Minh', companyEmail: 'mua.hang@trasuamoc.vn', companyPhone: '028 7777 8888', name: 'Do Thi Lan', phone: '0902 555 666', email: 'lan@trasuamoc.vn', sellerId: 'S1', createdAt: '2026-03-04' },
+  { id: 'C05', type: 'company', company: 'Hat Dieu Binh Phuoc Premium', taxCode: '3800123456', companyAddress: 'Binh Phuoc', companyEmail: 'info@hatdieupremium.vn', companyPhone: '0271 666 7777', name: 'Bui Minh Quan', phone: '0944 777 888', email: 'quan@hatdieupremium.vn', sellerId: 'S2', createdAt: '2026-03-05' },
+  { id: 'C06', type: 'company', company: 'Cong ty CP Thuy San Mekong', taxCode: '1800987654', companyAddress: 'Can Tho', companyEmail: 'purchase@mekongseafood.vn', companyPhone: '0292 555 6666', name: 'Tran Hoai Nam', phone: '0966 888 999', email: 'nam@mekongseafood.vn', sellerId: 'S2', createdAt: '2026-03-06' },
+  { id: 'C07', type: 'company', company: 'Masan Consumer', taxCode: '0302012345', companyAddress: 'TP. Ho Chi Minh', companyEmail: 'packaging@masan.vn', companyPhone: '028 5555 6666', name: 'Le Quoc Bao', phone: '0977 111 333', email: 'bao@masan.vn', sellerId: 'S2', createdAt: '2026-03-07' },
+  { id: 'C08', type: 'company', company: 'Cong ty TNHH Hoa My Pham An Phat', taxCode: '0311122334', companyAddress: 'Dong Nai', companyEmail: 'info@anphatcare.vn', companyPhone: '0251 444 5555', name: 'Vu Hong Anh', phone: '0988 222 444', email: 'anh@anphatcare.vn', sellerId: 'S2', createdAt: '2026-03-08' },
+  { id: 'C09', type: 'company', company: 'Vinamilk', taxCode: '0300588569', companyAddress: 'TP. Ho Chi Minh', companyEmail: 'supply@vinamilk.com.vn', companyPhone: '028 5415 5555', name: 'Nguyen Thanh Son', phone: '0903 333 555', email: 'son@vinamilk.com.vn', sellerId: 'S3', createdAt: '2026-03-09' },
+  { id: 'C10', type: 'company', company: 'Acecook Viet Nam', taxCode: '0300808687', companyAddress: 'TP. Ho Chi Minh', companyEmail: 'packaging@acecookvietnam.vn', companyPhone: '028 3815 5555', name: 'Pham Minh Khoa', phone: '0914 444 666', email: 'khoa@acecookvietnam.vn', sellerId: 'S3', createdAt: '2026-03-10' },
+  { id: 'C11', type: 'company', company: 'Kinh Do Mondelez', taxCode: '0302705302', companyAddress: 'Binh Duong', companyEmail: 'procurement@mondelez.vn', companyPhone: '0274 888 9999', name: 'Cao Thi Ngoc', phone: '0925 555 777', email: 'ngoc@mondelez.vn', sellerId: 'S3', createdAt: '2026-03-11' },
+  { id: 'C12', type: 'company', company: 'TH True Water', taxCode: '2901234567', companyAddress: 'Nghe An', companyEmail: 'supply@thtruewater.vn', companyPhone: '0238 777 8888', name: 'Dang Viet Hung', phone: '0936 666 888', email: 'hung@thtruewater.vn', sellerId: 'S3', createdAt: '2026-03-12' },
 ];
 
-// ════════════════════════════════════════════════════════════
+// ????????????????????????????????????????????????????????????
 // HELPERS
-// ════════════════════════════════════════════════════════════
+// ????????????????????????????????????????????????????????????
 const AVATAR_COLORS = [
   '#4f46e5','#0891b2','#059669','#d97706','#db2777','#7c3aed','#dc2626','#0284c7'
 ];
@@ -292,8 +294,9 @@ function SellerCard({
 }
 
 // ════════════════════════════════════════════════════════════
-// ADD CUSTOMER MODAL
-// ════════════════════════════════════════════════════════════
+
+// ADD CUSTOMER VIEW
+// ????????????????????????????????????????????????????????????
 function AddCustomerModal({
   sellers,
   onAdd,
@@ -328,9 +331,9 @@ function AddCustomerModal({
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (type === 'company' && !form.company.trim()) e.company = 'Vui lòng nhập tên công ty';
-    if (!form.name.trim())  e.name  = 'Vui lòng nhập tên người liên hệ';
-    if (!form.phone.trim()) e.phone = 'Vui lòng nhập số điện thoại';
+    if (type === 'company' && !form.company.trim()) e.company = 'Vui l?ng nh?p t?n c?ng ty';
+    if (!form.name.trim())  e.name  = 'Vui l?ng nh?p t?n ng??i li?n h?';
+    if (!form.phone.trim()) e.phone = 'Vui l?ng nh?p s? ?i?n tho?i';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -372,10 +375,9 @@ function AddCustomerModal({
       {errors[fieldKey] && <div className="crm-field-error">{errors[fieldKey]}</div>}
     </div>
   );
-
   return (
-    <div className="crm-modal-overlay" onClick={onClose}>
-      <div className="crm-modal" style={{ maxWidth: 580 }} onClick={e => e.stopPropagation()}>
+    <div className="crm-list">
+      <div className="crm-modal" style={{ maxWidth: 760, margin: '0 auto' }}>
         <div className="crm-modal-header">
           <UserPlus size={20} style={{ color: '#4f46e5' }} />
           <h2 className="crm-modal-title">Thêm Khách Hàng Mới</h2>
@@ -479,12 +481,16 @@ export default function CustomerModule({ role, currentSellerId = 'S1', menuDangC
   const [search, setSearch] = useState('');
   const [adminTab, setAdminTab] = useState<'all' | 'by_seller'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [dismissedCreateTab, setDismissedCreateTab] = useState(false);
 
   useEffect(() => {
-    if (menuDangChon === 'customers.create') setShowAddModal(true);
+    if (menuDangChon === 'customers.create') { setDismissedCreateTab(false); setShowAddModal(false); }
     if (menuDangChon === 'customers.seller_assignment') setAdminTab('by_seller');
     if (menuDangChon === 'customers.list' || menuDangChon === 'overview.new_customers') setAdminTab('all');
   }, [menuDangChon]);
+
+  const showCreateView = showAddModal || (menuDangChon === 'customers.create' && !dismissedCreateTab);
+  const closeCreateView = () => { setShowAddModal(false); setDismissedCreateTab(true); };
 
   // ── Derived data ──
   const filteredCustomers = useMemo(() => {
@@ -533,7 +539,16 @@ export default function CustomerModule({ role, currentSellerId = 'S1', menuDangC
   // ════════════════════ RENDER ════════════════════
   return (
     <div className="crm-root">
-      {/* ── TOOLBAR ── */}
+      {showCreateView ? (
+        <AddCustomerModal
+          sellers={sellers}
+          onAdd={handleAddCustomer}
+          onClose={closeCreateView}
+          isAdmin={isAdmin}
+          defaultSellerId={currentSellerId}
+        />
+      ) : (
+      <>
       <div className="crm-toolbar">
         <div className="crm-search-box">
           <Search size={15} className="crm-search-icon" />
@@ -680,15 +695,7 @@ export default function CustomerModule({ role, currentSellerId = 'S1', menuDangC
         </div>
       )}
 
-      {/* ── MODAL ── */}
-      {showAddModal && (
-        <AddCustomerModal
-          sellers={sellers}
-          onAdd={handleAddCustomer}
-          onClose={() => setShowAddModal(false)}
-          isAdmin={isAdmin}
-          defaultSellerId={currentSellerId}
-        />
+      </>
       )}
     </div>
   );

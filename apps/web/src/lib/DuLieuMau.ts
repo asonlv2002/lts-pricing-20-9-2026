@@ -1,710 +1,176 @@
 /**
- * DuLieuMau.ts — Bộ dữ liệu mẫu cho LTS Pricing
- * ────────────────────────────────────────────────
- * File này là **nguồn chân lý** cho mọi dữ liệu mẫu trong hệ thống.
- * Các script seed (scripts/seed-*.mjs) import từ đây và có thể bị xoá sau khi
- * seed xong — nhưng file này cần được giữ lại để:
- *   1. Dev mới có thể tái seed bất kỳ lúc nào
- *   2. Test / Storybook sử dụng làm fixture
- *   3. Demo / trình bày
- *
- * KHÔNG import file này vào runtime production code (chỉ dùng cho seed & test).
+ * DuLieuMau.ts - du lieu mau moi (2026) cho LTS Pricing.
+ * Chi dung cho seed/demo/test, khong import runtime production.
  */
 
-import type { CalculateInput, HistoryItem, QuoteStatus } from './types';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Seller & Customer pools
-// ─────────────────────────────────────────────────────────────────────────────
+import type { CalculateInput, QuoteStatus } from './types';
 
 export const SELLERS_MAU = [
-  { id: 'S1', name: 'Nguyễn Văn An' },
-  { id: 'S2', name: 'Trần Thị Bích' },
-  { id: 'S3', name: 'Lê Hoàng Minh' },
+  { id: 'S1', name: 'Nguyen Minh An' },
+  { id: 'S2', name: 'Tran Gia Bao' },
+  { id: 'S3', name: 'Le Thu Ha' },
 ] as const;
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Bộ 1 — Túi 2 lớp thông dụng
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** Đơn giản nhất: PET//LLDPE 3 biên, 2 màu, không phụ kiện */
-export const TUI_2_LOP_CA_PHE: CalculateInput = {
-  customer: 'Công ty TNHH Thực Phẩm Minh Tâm',
-  productName: 'Túi cà phê rang xay 250g',
-  productType: 'tui',
-  bagType: '3bien',
-  filmType: '',
-  filmRollLength: 6000,
-  quantity: 50000,
-  numColors: 4,
-  numImages: 2,
-  layer1Id: 'PET',
-  layer2Id: 'LLDPE',
-  layer3Id: null, layer4Id: null, layer5Id: null,
-  spreadWidth: 0.18,
-  cutStep: 0.26,
-  metallicSurcharge: 0,
-  coverageRatio: 1,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 30,
-  // paymentInterestRate removed,
-  profitColumn: 1,
-  commissionRate: 0,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 0,
-  bagsPerBox: 0,
-  boxPrice: 0,
-  shippingPerKm: 0,
-  shippingKm: 0,
-  cylLength: 0.73,
-  cylCircum: 0.52,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer2Id: 80 },
-};
-
-/** BOPP//LLDPE 3 biên, in nhiều màu, in 3 con hình */
-export const TUI_2_LOP_BANH_QUY: CalculateInput = {
-  customer: 'Công ty CP Bánh Kẹo Hải Hà',
-  productName: 'Túi bánh quy giòn 200g',
-  productType: 'tui',
-  bagType: '3bien',
-  filmType: '',
-  filmRollLength: 6000,
-  quantity: 80000,
-  numColors: 6,
-  numImages: 3,
-  layer1Id: 'BOPP20',
-  layer2Id: 'LLDPE',
-  layer3Id: null, layer4Id: null, layer5Id: null,
-  spreadWidth: 0.19,
-  cutStep: 0.17,
-  metallicSurcharge: 0,
-  coverageRatio: 1,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 30,
-  // paymentInterestRate removed,
-  profitColumn: 1,
-  commissionRate: 0,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 0,
-  bagsPerBox: 500,
-  boxPrice: 45000,
-  shippingPerKm: 0,
-  shippingKm: 0,
-  cylLength: 0.79,
-  cylCircum: 0.51,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer2Id: 40 },
-};
-
-/** MattOPP//LLDPE 3 biên, hạt điều, matte finish */
-export const TUI_2_LOP_HAT_DIEU: CalculateInput = {
-  customer: 'Công ty TNHH Hạt Điều Bình Phước',
-  productName: 'Túi hạt điều rang muối 500g',
-  productType: 'tui',
-  bagType: '3bien',
-  filmType: '',
-  filmRollLength: 6000,
-  quantity: 40000,
-  numColors: 3,
-  numImages: 2,
-  layer1Id: 'MattOPP18',
-  layer2Id: 'LLDPE',
-  layer3Id: null, layer4Id: null, layer5Id: null,
-  spreadWidth: 0.20,
-  cutStep: 0.30,
-  metallicSurcharge: 0,
-  coverageRatio: 0.85,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 45,
-  // paymentInterestRate removed,
-  profitColumn: 1,
-  commissionRate: 0.03,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 3,
-  bagsPerBox: 200,
-  boxPrice: 35000,
-  shippingPerKm: 2500,
-  shippingKm: 50,
-  cylLength: 0.82,
-  cylCircum: 0.60,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer2Id: 80 },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Bộ 2 — Túi 3 lớp cao cấp
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** PET//PA//LLDPE 3 biên — nước tương, cần barrier oxygen */
-export const TUI_3_LOP_NUOC_TUONG: CalculateInput = {
-  customer: 'Công ty TNHH Gia Vị Cholimex',
-  productName: 'Túi đựng nước tương đậm đặc 500ml',
-  productType: 'tui',
-  bagType: '3bien',
-  filmType: '',
-  filmRollLength: 6000,
-  quantity: 120000,
-  numColors: 5,
-  numImages: 2,
-  layer1Id: 'PET',
-  layer2Id: 'PA',
-  layer3Id: 'LLDPE',
-  layer4Id: null, layer5Id: null,
-  spreadWidth: 0.14,
-  cutStep: 0.28,
-  metallicSurcharge: 0,
-  coverageRatio: 1,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 30,
-  // paymentInterestRate removed,
-  profitColumn: 2,
-  commissionRate: 0,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 0,
-  bagsPerBox: 1000,
-  boxPrice: 55000,
-  shippingPerKm: 0,
-  shippingKm: 0,
-  cylLength: 0.80,
-  cylCircum: 0.56,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer3Id: 100 },
-};
-
-/** BOPP//MPET//LLDPE — mì gói, đòi hỏi barrier cao */
-export const TUI_3_LOP_MI_GOI: CalculateInput = {
-  customer: 'Acecook Việt Nam',
-  productName: 'Bao bì mì gói Hảo Hảo tôm chua cay',
-  productType: 'tui',
-  bagType: '3bien',
-  filmType: '',
-  filmRollLength: 6000,
-  quantity: 500000,
-  numColors: 7,
-  numImages: 3,
-  layer1Id: 'BOPP20',
-  layer2Id: 'MPET',
-  layer3Id: 'LLDPE',
-  layer4Id: null, layer5Id: null,
-  spreadWidth: 0.18,
-  cutStep: 0.16,
-  metallicSurcharge: 0,
-  coverageRatio: 1,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 30,
-  // paymentInterestRate removed,
-  profitColumn: 2,
-  commissionRate: 0,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 0,
-  bagsPerBox: 0,
-  boxPrice: 0,
-  shippingPerKm: 0,
-  shippingKm: 0,
-  cylLength: 0.76,
-  cylCircum: 0.48,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer3Id: 60 },
-};
-
-/** PA//LLDPE — hút chân không thịt/hải sản, chịu nhiệt */
-export const TUI_2_LOP_HUT_CHAN_KHONG: CalculateInput = {
-  customer: 'Sài Gòn Food',
-  productName: 'Túi hút chân không xúc xích tiệt trùng 200g',
-  productType: 'tui',
-  bagType: '3bien',
-  filmType: '',
-  filmRollLength: 6000,
-  quantity: 80000,
-  numColors: 3,
-  numImages: 2,
-  layer1Id: 'PA',
-  layer2Id: 'LLDPE',
-  layer3Id: null, layer4Id: null, layer5Id: null,
-  spreadWidth: 0.15,
-  cutStep: 0.20,
-  metallicSurcharge: 0,
-  coverageRatio: 1,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 30,
-  // paymentInterestRate removed,
-  profitColumn: 2,
-  commissionRate: 0,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 0,
-  bagsPerBox: 0,
-  boxPrice: 0,
-  shippingPerKm: 0,
-  shippingKm: 0,
-  cylLength: 0.72,
-  cylCircum: 0.40,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer2Id: 70 },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Bộ 3 — Túi đáy đứng (stand-up pouch)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** PET//MPET//LLDPE dayDung có zipper — bột Milo */
-export const TUI_DAY_DUNG_ZIP_BOT_MILO: CalculateInput = {
-  customer: 'Nestlé Việt Nam',
-  productName: 'Túi zip đứng bột Milo 1kg',
-  productType: 'tui',
-  bagType: 'dayDung',
-  filmType: '',
-  filmRollLength: 6000,
-  quantity: 30000,
-  numColors: 4,
-  numImages: 1,
-  layer1Id: 'PET',
-  layer2Id: 'MPET',
-  layer3Id: 'LLDPE',
-  layer4Id: null, layer5Id: null,
-  spreadWidth: 0.22,
-  cutStep: 0.35,
-  metallicSurcharge: 0,
-  coverageRatio: 1,
-  handleWeight: 0,
-  zipperWeight: 3.5,
-  tapeWeight: 0,
-  hasZipper: true,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 30,
-  // paymentInterestRate removed,
-  profitColumn: 2,
-  commissionRate: 0,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 0,
-  bagsPerBox: 0,
-  boxPrice: 0,
-  shippingPerKm: 0,
-  shippingKm: 0,
-  cylLength: 0.92,
-  cylCircum: 0.70,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer3Id: 90 },
-};
-
-/** BOPP//LLDPE dayDung — bánh choco pie */
-export const TUI_DAY_DUNG_BANH_CHOCO: CalculateInput = {
-  customer: 'Orion Vina',
-  productName: 'Bao bì Choco Pie hộp 12 cái',
-  productType: 'tui',
-  bagType: 'dayDung',
-  filmType: '',
-  filmRollLength: 6000,
-  quantity: 60000,
-  numColors: 5,
-  numImages: 1,
-  layer1Id: 'BOPP20',
-  layer2Id: 'LLDPE',
-  layer3Id: null, layer4Id: null, layer5Id: null,
-  spreadWidth: 0.28,
-  cutStep: 0.20,
-  metallicSurcharge: 0,
-  coverageRatio: 1,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 30,
-  // paymentInterestRate removed,
-  profitColumn: 2,
-  commissionRate: 0,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 0,
-  bagsPerBox: 0,
-  boxPrice: 0,
-  shippingPerKm: 0,
-  shippingKm: 0,
-  cylLength: 0.94,
-  cylCircum: 0.40,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer2Id: 50 },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Bộ 4 — Màng cuộn (productType = 'mang')
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** LLDPE màng co sữa — đơn vị m², SL lớn */
-export const MANG_CO_SUA_VINAMILK: CalculateInput = {
-  customer: 'Vinamilk – Chi nhánh miền Nam',
-  productName: 'Màng co sữa lốc 4 hộp 180ml',
-  productType: 'mang',
-  bagType: '',
-  filmType: 'mangIn',
-  filmRollLength: 6000,
-  quantity: 200000,   // m²
-  numColors: 8,
-  numImages: 1,
-  layer1Id: 'LLDPE',
-  layer2Id: null, layer3Id: null, layer4Id: null, layer5Id: null,
-  spreadWidth: 0.40,
-  cutStep: 0.15,
-  metallicSurcharge: 0,
-  coverageRatio: 1,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 30,
-  // paymentInterestRate removed,
-  profitColumn: 1,
-  commissionRate: 0,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 0,
-  bagsPerBox: 0,
-  boxPrice: 0,
-  shippingPerKm: 0,
-  shippingKm: 0,
-  cylLength: 0.90,
-  cylCircum: 0.30,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer1Id: 50 },
-};
-
-/** LLDPE màng bọc sữa tươi 1L — khổ rộng hơn */
-export const MANG_BOC_SUA_TH_TRUE_MILK: CalculateInput = {
-  customer: 'TH True Milk',
-  productName: 'Màng bọc sữa tươi 1L × 12 hộp',
-  productType: 'mang',
-  bagType: '',
-  filmType: 'mangIn',
-  filmRollLength: 6000,
-  quantity: 150000,   // m²
-  numColors: 6,
-  numImages: 1,
-  layer1Id: 'LLDPE',
-  layer2Id: null, layer3Id: null, layer4Id: null, layer5Id: null,
-  spreadWidth: 0.52,
-  cutStep: 0.18,
-  metallicSurcharge: 0,
-  coverageRatio: 1,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 45,
-  // paymentInterestRate removed,
-  profitColumn: 1,
-  commissionRate: 0,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 0,
-  bagsPerBox: 0,
-  boxPrice: 0,
-  shippingPerKm: 0,
-  shippingKm: 0,
-  cylLength: 1.12,
-  cylCircum: 0.54,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer1Id: 60 },
-};
-
-/** PET//LLDPE màng ghép đóng gói tự động — snack */
-export const MANG_GHEP_DONG_GOI_SNACK: CalculateInput = {
-  customer: 'Pepsico Việt Nam',
-  productName: 'Màng ghép đóng gói snack Lays 35g (tự động)',
-  productType: 'mang',
-  bagType: '',
-  filmType: 'mangGhep',
-  filmRollLength: 6000,
-  quantity: 300000,   // m²
-  numColors: 5,
-  numImages: 2,
-  layer1Id: 'BOPP20',
-  layer2Id: 'LLDPE',
-  layer3Id: null, layer4Id: null, layer5Id: null,
-  spreadWidth: 0.24,
-  cutStep: 0.20,
-  metallicSurcharge: 0,
-  coverageRatio: 0.9,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 30,
-  // paymentInterestRate removed,
-  profitColumn: 1,
-  commissionRate: 0,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 0,
-  bagsPerBox: 0,
-  boxPrice: 0,
-  shippingPerKm: 0,
-  shippingKm: 0,
-  cylLength: 0.82,
-  cylCircum: 0.60,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer2Id: 50 },
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Bộ 5 — Đơn hàng đặc biệt (có phụ kiện, vận chuyển, hoa hồng…)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/** PET//PA//LLDPE 3 biên, nước mắm Chin-Su, số lượng lớn */
-export const TUI_NUOC_MAM_CHINSU: CalculateInput = {
-  customer: 'Masan Consumer',
-  productName: 'Túi nước mắm Chin-Su đặc biệt 500ml',
-  productType: 'tui',
-  bagType: '3bien',
-  filmType: '',
-  filmRollLength: 6000,
-  quantity: 300000,
-  numColors: 6,
-  numImages: 2,
-  layer1Id: 'PET',
-  layer2Id: 'PA',
-  layer3Id: 'LLDPE',
-  layer4Id: null, layer5Id: null,
-  spreadWidth: 0.13,
-  cutStep: 0.25,
-  metallicSurcharge: 0,
-  coverageRatio: 1,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 30,
-  // paymentInterestRate removed,
-  profitColumn: 2,
-  commissionRate: 0.02,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 2,
-  bagsPerBox: 2000,
-  boxPrice: 60000,
-  shippingPerKm: 3000,
-  shippingKm: 40,
-  cylLength: 0.78,
-  cylCircum: 0.50,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer3Id: 90 },
-};
-
-/** PET//MCPP trà cao cấp — số lượng nhỏ, đơn giá cao */
-export const TUI_TRA_CAO_CAP: CalculateInput = {
-  customer: 'Công ty CP Trà Phúc Long',
-  productName: 'Túi trà Earl Grey cao cấp 100g',
-  productType: 'tui',
-  bagType: '3bien',
-  filmType: '',
-  filmRollLength: 6000,
-  quantity: 25000,
-  numColors: 2,
-  numImages: 1,
-  layer1Id: 'PET',
-  layer2Id: 'MCPP25',
-  layer3Id: null, layer4Id: null, layer5Id: null,
-  spreadWidth: 0.12,
-  cutStep: 0.20,
-  metallicSurcharge: 0,
-  coverageRatio: 0.7,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 15,
-  // paymentInterestRate removed,
-  profitColumn: 2,
-  commissionRate: 0,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 0,
-  bagsPerBox: 500,
-  boxPrice: 30000,
-  shippingPerKm: 0,
-  shippingKm: 0,
-  cylLength: 0.82,
-  cylCircum: 0.40,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
+const BASE = {
+  productType: 'tui', bagType: '3bien', filmType: '', filmRollLength: 6000,
+  quantity: 50000, numColors: 4, numImages: 1,
+  layer1Id: 'PET', layer2Id: 'LLDPE', layer3Id: null, layer4Id: null, layer5Id: null,
+  spreadWidth: 0.18, cutStep: 0.24, metallicSurcharge: 0, coverageRatio: 1,
+  handleWeight: 0, zipperWeight: 0, tapeWeight: 0,
+  hasZipper: false, hasTape: false, hasHandle: false,
+  paymentDays: 30, profitColumn: 1,
+  commissionRate: 0, commissionFixedVND: 0, commissionUnit: 'percent', commissionInputValue: 0,
+  bagsPerBox: 0, boxPrice: 0, shippingPerKm: 0, shippingKm: 0,
+  cylLength: 0, cylCircum: 0, cylUnitPrice: 7300000, cylType: 'A', cylIncluded: false,
   micOverrides: {},
 };
 
-/** BOPP//MPET//LLDPE dayDung có vận chuyển — bánh cookie Hải Hà */
-export const TUI_DAY_DUNG_COOKIE_HAI_HA: CalculateInput = {
-  customer: 'Công ty CP Bánh Kẹo Hải Hà',
-  productName: 'Bao bì bánh cookie hộp quà 500g',
-  productType: 'tui',
-  bagType: 'dayDung',
-  filmType: '',
-  filmRollLength: 6000,
-  quantity: 100000,
-  numColors: 6,
-  numImages: 1,
-  layer1Id: 'BOPP20',
-  layer2Id: 'MPET',
-  layer3Id: 'LLDPE',
-  layer4Id: null, layer5Id: null,
-  spreadWidth: 0.32,
-  cutStep: 0.22,
-  metallicSurcharge: 0,
-  coverageRatio: 1,
-  handleWeight: 0,
-  zipperWeight: 0,
-  tapeWeight: 0,
-  hasZipper: false,
-  hasTape: false,
-  hasHandle: false,
-  paymentDays: 30,
-  // paymentInterestRate removed,
-  profitColumn: 2,
-  commissionRate: 0,
-  commissionFixedVND: 0,
-  commissionUnit: 'percent',
-  commissionInputValue: 0,
-  bagsPerBox: 300,
-  boxPrice: 50000,
-  shippingPerKm: 2000,
-  shippingKm: 60,
-  cylLength: 1.02,
-  cylCircum: 0.44,
-  cylUnitPrice: 7300000,
-  cylType: 'A',
-  cylIncluded: false,
-  micOverrides: { layer3Id: 60 },
+export const DON_GAO_ST25: CalculateInput = {
+  ...BASE,
+  customer: 'Cong ty TNHH Gao Viet Xanh', productName: 'Tui gao ST25 5kg',
+  quantity: 60000, numColors: 6, numImages: 1,
+  layer1Id: 'PET', layer2Id: 'MPET', layer3Id: 'LLDPE_GAO',
+  spreadWidth: 0.34, cutStep: 0.48, paymentDays: 30,
+  bagsPerBox: 100, boxPrice: 42000, shippingPerKm: 2500, shippingKm: 45,
+  micOverrides: { layer3Id: 120 },
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tổng hợp: tất cả inputs mẫu theo nhóm
-// ─────────────────────────────────────────────────────────────────────────────
+export const DON_CA_PHE_ZIP: CalculateInput = {
+  ...BASE,
+  customer: 'Cong ty CP Ca Phe Cao Nguyen', productName: 'Tui zip ca phe rang xay 500g',
+  bagType: 'dayDung', quantity: 35000, numColors: 5, numImages: 1,
+  layer1Id: 'PET', layer2Id: 'MPET', layer3Id: 'LLDPE',
+  spreadWidth: 0.22, cutStep: 0.32, hasZipper: true, zipperWeight: 3.2,
+  paymentDays: 45, commissionRate: 0.02, commissionInputValue: 2,
+  micOverrides: { layer3Id: 90 },
+};
 
-/** Tất cả bộ dữ liệu — dùng cho seed script */
+export const DON_SNACK_BOPP: CalculateInput = {
+  ...BASE,
+  customer: 'Orion Food Vina', productName: 'Bao bi snack khoai tay 35g',
+  quantity: 450000, numColors: 7, numImages: 3,
+  layer1Id: 'BOPP20', layer2Id: 'MPET', layer3Id: 'LLDPE',
+  spreadWidth: 0.18, cutStep: 0.16, paymentDays: 30,
+  micOverrides: { layer3Id: 55 },
+};
+
+export const DON_TRA_SUA: CalculateInput = {
+  ...BASE,
+  customer: 'Cong ty TNHH Tra Sua Moc', productName: 'Tui tra sua hoa tan 25g',
+  quantity: 120000, numColors: 6, numImages: 4,
+  layer1Id: 'PET', layer2Id: 'MCPP25', layer3Id: null,
+  spreadWidth: 0.12, cutStep: 0.18, paymentDays: 14,
+};
+
+export const DON_HAT_DIEU: CalculateInput = {
+  ...BASE,
+  customer: 'Hat Dieu Binh Phuoc Premium', productName: 'Tui hat dieu rang muoi 250g',
+  bagType: 'dayDung', quantity: 40000, numColors: 4, numImages: 2,
+  layer1Id: 'MattOPP20', layer2Id: 'LLDPE', layer3Id: null,
+  spreadWidth: 0.19, cutStep: 0.28, paymentDays: 30,
+  micOverrides: { layer2Id: 80 },
+};
+
+export const DON_THUY_SAN_PA: CalculateInput = {
+  ...BASE,
+  customer: 'Cong ty CP Thuy San Mekong', productName: 'Tui hut chan khong ca phi le 1kg',
+  quantity: 90000, numColors: 3, numImages: 2,
+  layer1Id: 'PA', layer2Id: 'LLDPE_HUT_CHAN_KHONG', layer3Id: null,
+  spreadWidth: 0.24, cutStep: 0.34, paymentDays: 45,
+  micOverrides: { layer2Id: 110 },
+};
+
+export const DON_NUOC_MAM: CalculateInput = {
+  ...BASE,
+  customer: 'Masan Consumer', productName: 'Tui nuoc mam 500ml',
+  quantity: 250000, numColors: 6, numImages: 2,
+  layer1Id: 'PET', layer2Id: 'PA', layer3Id: 'LLDPE',
+  spreadWidth: 0.14, cutStep: 0.26, paymentDays: 60,
+  micOverrides: { layer3Id: 95 },
+};
+
+export const DON_BOT_GIAT_QUAI: CalculateInput = {
+  ...BASE,
+  customer: 'Cong ty TNHH Hoa My Pham An Phat', productName: 'Tui bot giat quai xach 3kg',
+  bagType: 'dayDung', quantity: 50000, numColors: 5, numImages: 1,
+  layer1Id: 'PET', layer2Id: 'LLDPE', layer3Id: null,
+  spreadWidth: 0.32, cutStep: 0.46, hasHandle: true, handleWeight: 4,
+  paymentDays: 90, micOverrides: { layer2Id: 120 },
+};
+
+export const MANG_SUA_CHUA: CalculateInput = {
+  ...BASE,
+  customer: 'Vinamilk', productName: 'Mang co loc sua chua 4 hop',
+  productType: 'mang', bagType: '', filmType: 'mangIn', filmQuantityUnit: 'm2', filmInputQuantity: 180000,
+  quantity: 180000, numColors: 8, numImages: 1,
+  layer1Id: 'LLDPE_SUA', layer2Id: null, layer3Id: null,
+  spreadWidth: 0.42, cutStep: 0.16, paymentDays: 30,
+  micOverrides: { layer1Id: 55 },
+};
+
+export const MANG_MI_GOI: CalculateInput = {
+  ...BASE,
+  customer: 'Acecook Viet Nam', productName: 'Mang cuon mi goi tom chua cay',
+  productType: 'mang', bagType: '', filmType: 'mangGhep', filmQuantityUnit: 'm2', filmInputQuantity: 320000,
+  quantity: 320000, numColors: 7, numImages: 3,
+  layer1Id: 'BOPP20', layer2Id: 'MPET', layer3Id: 'LLDPE',
+  spreadWidth: 0.19, cutStep: 0.15, paymentDays: 30,
+  micOverrides: { layer3Id: 50 },
+};
+
+export const MANG_BANH_KEO: CalculateInput = {
+  ...BASE,
+  customer: 'Kinh Do Mondelez', productName: 'Mang cuon banh quy hop qua',
+  productType: 'mang', bagType: '', filmType: 'mangGhep', filmQuantityUnit: 'm2', filmInputQuantity: 160000,
+  quantity: 160000, numColors: 6, numImages: 2,
+  layer1Id: 'MattOPP20', layer2Id: 'CPP30', layer3Id: null,
+  spreadWidth: 0.28, cutStep: 0.2, paymentDays: 45,
+};
+
+export const MANG_NUOC_UONG: CalculateInput = {
+  ...BASE,
+  customer: 'TH True Water', productName: 'Mang co chai nuoc 500ml x 24',
+  productType: 'mang', bagType: '', filmType: 'mangIn', filmQuantityUnit: 'm2', filmInputQuantity: 240000,
+  quantity: 240000, numColors: 5, numImages: 1,
+  layer1Id: 'LLDPE', layer2Id: null, layer3Id: null,
+  spreadWidth: 0.5, cutStep: 0.18, paymentDays: 14,
+  micOverrides: { layer1Id: 45 },
+};
+
 export const TAT_CA_DU_LIEU_MAU: CalculateInput[] = [
-  // Túi 2 lớp
-  TUI_2_LOP_CA_PHE,
-  TUI_2_LOP_BANH_QUY,
-  TUI_2_LOP_HAT_DIEU,
-  TUI_2_LOP_HUT_CHAN_KHONG,
-  // Túi 3 lớp cao cấp
-  TUI_3_LOP_NUOC_TUONG,
-  TUI_3_LOP_MI_GOI,
-  // Túi đáy đứng
-  TUI_DAY_DUNG_ZIP_BOT_MILO,
-  TUI_DAY_DUNG_BANH_CHOCO,
-  TUI_DAY_DUNG_COOKIE_HAI_HA,
-  // Màng cuộn
-  MANG_CO_SUA_VINAMILK,
-  MANG_BOC_SUA_TH_TRUE_MILK,
-  MANG_GHEP_DONG_GOI_SNACK,
-  // Đặc biệt
-  TUI_NUOC_MAM_CHINSU,
-  TUI_TRA_CAO_CAP,
+  DON_GAO_ST25,
+  DON_CA_PHE_ZIP,
+  DON_SNACK_BOPP,
+  DON_TRA_SUA,
+  DON_HAT_DIEU,
+  DON_THUY_SAN_PA,
+  DON_NUOC_MAM,
+  DON_BOT_GIAT_QUAI,
+  MANG_SUA_CHUA,
+  MANG_MI_GOI,
+  MANG_BANH_KEO,
+  MANG_NUOC_UONG,
 ];
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Phân bố status & seller — dùng khi seed history
-// ─────────────────────────────────────────────────────────────────────────────
-
 export type PhanBoSeed = {
-  inputIndex: number;       // index trong TAT_CA_DU_LIEU_MAU
-  sellerIndex: number;      // index trong SELLERS_MAU
+  inputIndex: number;
+  sellerIndex: number;
   status: QuoteStatus;
-  chotGiaRatio?: number;    // hệ số nhân finalPrice → chotGia (undefined = không chốt)
-  ngayOffsetGio?: number;   // bù giờ kể từ baseTime (giờ)
+  chotGiaRatio?: number;
+  ngayOffsetGio?: number;
 };
 
 export const PHAN_BO_HISTORY: PhanBoSeed[] = [
-  // Sale An (S1) — đủ các trạng thái
-  { inputIndex: 0,  sellerIndex: 0, status: 'completed',        chotGiaRatio: 1.05,  ngayOffsetGio: 0   },
-  { inputIndex: 1,  sellerIndex: 0, status: 'approved',                              ngayOffsetGio: 6   },
-  { inputIndex: 2,  sellerIndex: 0, status: 'pending_approval',                      ngayOffsetGio: 12  },
-  { inputIndex: 3,  sellerIndex: 0, status: 'sent',                                  ngayOffsetGio: 18  },
-  { inputIndex: 4,  sellerIndex: 0, status: 'drafted',                               ngayOffsetGio: 24  },
-
-  // Sale Bích (S2)
-  { inputIndex: 5,  sellerIndex: 1, status: 'completed',        chotGiaRatio: 0.98,  ngayOffsetGio: 30  },
-  { inputIndex: 6,  sellerIndex: 1, status: 'completed',        chotGiaRatio: 1.02,  ngayOffsetGio: 36  },
-  { inputIndex: 7,  sellerIndex: 1, status: 'approved',                              ngayOffsetGio: 42  },
-  { inputIndex: 8,  sellerIndex: 1, status: 'pending_approval',                      ngayOffsetGio: 48  },
-  { inputIndex: 9,  sellerIndex: 1, status: 'drafted',                               ngayOffsetGio: 54  },
-
-  // Sale Minh (S3)
-  { inputIndex: 10, sellerIndex: 2, status: 'completed',        chotGiaRatio: 1.03,  ngayOffsetGio: 60  },
-  { inputIndex: 11, sellerIndex: 2, status: 'approved',                              ngayOffsetGio: 66  },
-  { inputIndex: 12, sellerIndex: 2, status: 'sent',                                  ngayOffsetGio: 72  },
-  { inputIndex: 13, sellerIndex: 2, status: 'drafted',                               ngayOffsetGio: 78  },
+  { inputIndex: 0,  sellerIndex: 0, status: 'completed', chotGiaRatio: 1.02, ngayOffsetGio: 0  },
+  { inputIndex: 1,  sellerIndex: 0, status: 'approved',                       ngayOffsetGio: 6  },
+  { inputIndex: 2,  sellerIndex: 0, status: 'pending_approval',               ngayOffsetGio: 12 },
+  { inputIndex: 3,  sellerIndex: 0, status: 'sent',                           ngayOffsetGio: 18 },
+  { inputIndex: 4,  sellerIndex: 1, status: 'drafted',                        ngayOffsetGio: 24 },
+  { inputIndex: 5,  sellerIndex: 1, status: 'completed', chotGiaRatio: 1.01,  ngayOffsetGio: 30 },
+  { inputIndex: 6,  sellerIndex: 1, status: 'approved',                       ngayOffsetGio: 36 },
+  { inputIndex: 7,  sellerIndex: 1, status: 'pending_approval',               ngayOffsetGio: 42 },
+  { inputIndex: 8,  sellerIndex: 2, status: 'completed', chotGiaRatio: 1.03,  ngayOffsetGio: 48 },
+  { inputIndex: 9,  sellerIndex: 2, status: 'approved',                       ngayOffsetGio: 54 },
+  { inputIndex: 10, sellerIndex: 2, status: 'sent',                           ngayOffsetGio: 60 },
+  { inputIndex: 11, sellerIndex: 2, status: 'drafted',                        ngayOffsetGio: 66 },
 ];
