@@ -504,7 +504,10 @@ export default function ManHinhQuanLy() {
   const otherLayers = rollOptions.filter((c) => c !== selectedCol);
   const getMetersFromKg = (layerMat: any, targetKg: number, width: number) => {
     if (!layerMat || width <= 0) return 0;
-    return targetKg * 1000 / (width * layerMat.thickness * layerMat.matDoHienThi);
+    const density = layerMat.matDoHienThi ?? layerMat.density ?? 0;
+    const thickness = layerMat.thickness ?? 0;
+    if (density <= 0 || thickness <= 0) return 0;
+    return targetKg * 1000 / (width * thickness * density);
   };
   const findEstQtyForMeters = (targetMeters: number) => {
     let low = 100;

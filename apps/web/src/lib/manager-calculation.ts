@@ -1,4 +1,4 @@
-import { tinhGiaWeb, traLoiNhuanTheoBang, toiUuDoDayTheoVatLieu } from './engine';
+﻿import { tinhGiaWeb, traLoiNhuanTheoBang, toiUuDoDayTheoVatLieu } from './engine';
 import type { AppConstants, CalculateInput, CalculateResult, Material, OverrideRowKey, OverrideTable, ProfitRow, SmallWidthMaterialPrice } from './types';
 
 export { toiUuDoDayTheoVatLieu, toiUuDoDayTheoVatLieu as optimizeThickness };
@@ -82,7 +82,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
     }));
     uniRows.push({
       rowKey: `lam-${lam.layerNum}` as OverrideRowKey,
-      stage: `GH?P (L?p ${lam.layerNum})`,
+      stage: `GHÉP (Lớp ${lam.layerNum})`,
       mat: materialDetails?.length ? '' : (lam.material?.name ?? ''),
       width: lam.width,
       meters: lam.meters,
@@ -100,7 +100,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
     totalCPSX += r.cutCostCPSX;
     uniRows.push({
       rowKey: 'cut',
-      stage: 'C?T',
+      stage: 'CẮT',
       mat: '-',
       width: r.cutWidth,
       meters: r.cutMeters,
