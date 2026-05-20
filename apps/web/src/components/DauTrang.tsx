@@ -3,7 +3,7 @@ import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 
 export default function DauTrang() {
-  const { activeView: manHinhDangMo, setActiveView: datGocNhin, layoutType: kieuBoCuc, setLayoutType: datKieuBoTriCuc, density: matDo, setDensity: datMatDoHienThi, theme: chuDe, setTheme: datChuDe, result: ketQua, history: lichSu, currentChotGia: giaChotHienTai } = dungCuaHangTinhGia();
+  const { activeView: manHinhDangMo, setActiveView: datGocNhin, layoutType: kieuBoCuc, result: ketQua, history: lichSu, currentChotGia: giaChotHienTai } = dungCuaHangTinhGia();
 
   const xuLyXuat = () => {
     if (manHinhDangMo === 'history') {
@@ -98,27 +98,6 @@ export default function DauTrang() {
       </button>
 
       <div className="header-right">
-        <div className="toolbar-group" id="layoutToolbar" title="Bố cục">
-          <button className={`toolbar-btn ${kieuBoCuc === 'default' ? 'active' : ''}`} onClick={() => datKieuBoTriCuc('default')}>☰</button>
-          <button className={`toolbar-btn ${kieuBoCuc === 'stacked' ? 'active' : ''}`} onClick={() => datKieuBoTriCuc('stacked')}>▤</button>
-          <button className={`toolbar-btn ${kieuBoCuc === 'wide' ? 'active' : ''}`} onClick={() => datKieuBoTriCuc('wide')}>⬚</button>
-          <button className={`toolbar-btn ${kieuBoCuc === 'bento' ? 'active' : ''}`} onClick={() => {datKieuBoTriCuc('bento'); datGocNhin('bento');}}>◫</button>
-        </div>
-        
-        <div className="toolbar-group" id="matDoToolbar" title="Mật độ hiển thị">
-          <button className={`toolbar-btn ${matDo === 'compact' ? 'active' : ''}`} onClick={() => datMatDoHienThi('compact')}>S</button>
-          <button className={`toolbar-btn ${matDo === 'comfortable' ? 'active' : ''}`} onClick={() => datMatDoHienThi('comfortable')}>M</button>
-          <button className={`toolbar-btn ${matDo === 'spacious' ? 'active' : ''}`} onClick={() => datMatDoHienThi('spacious')}>L</button>
-        </div>
-        
-        <button 
-          className="theme-toggle" 
-          id="chuDeToggle" 
-          title="Chuyển đổi Sáng/Tối"
-          onClick={() => datChuDe(chuDe === 'dark' ? 'light' : 'dark')}
-        ></button>
-        
-        <button className="btn btn-sm btn-outline" onClick={() => window.print()}>🖨️</button>
         <button className="btn btn-sm btn-outline" onClick={xuLyXuat}>📥 Xuất</button>
       </div>
     </header>

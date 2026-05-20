@@ -1,10 +1,10 @@
-/**
+﻿/**
  * engine-audit.test.ts — Test kiểm tra 3 vấn đề tính toán (đã sửa)
  * Chạy: npx tsx src/lib/engine-audit.test.ts
  *
  * 1. Chi phí Zipper = quantity × cutStep × zipperPrice
  * 2. Chi phí Vận chuyển = shippingPerKm × shippingKm / quantity
- * 3. Lãi vay = (rate/30) × paymentDays × costPerUnit
+ * 3. Lãi vay = (interestBase + interestSpread) / 365 × paymentDays × costPerUnit
  * 4. Đặc tả kỹ thuật NVL (kiểm tra chuỗi công thức)
  */
 
@@ -193,44 +193,31 @@ section('3. LÃI VAY (Interest) — ĐÃ SỬA');
 // ════════════════════════════════════════════════════════════════════════════
 
 /*
-  Công thức MỚI:
-    interestPerUnit = (interestRate30 / 30) × paymentDays × costPerUnit
+  C?ng th?c M?I:
+    interestPerUnit = (interestBase + interestSpread) / 365 ? paymentDays ? costPerUnit
 */
 
 {
-  // 30 ngày → lãi = rate × costPerUnit (giống cũ)
+  const laiNam = (cons.interestBase ?? 0.10) + (cons.interestSpread ?? 0.03);
   const input30 = { ...baseTui, paymentDays: 30, shippingPerKm: 0, shippingKm: 0 };
   const r30 = calculate(input30, mats, cons, prof)!;
 
-  const expected30 = 0.0025 * r30.costPerUnit;
-  assertApprox('3.1 30 ngày: interestPerUnit = rate × cost (giống cũ)', r30.interestPerUnit, expected30, 0.1);
-  console.log(`  30 ngày: costPerUnit=${r30.costPerUnit.toFixed(2)}, interest=${r30.interestPerUnit.toFixed(4)} đ`);
+  const expected30 = laiNam / 365 * 30 * r30.costPerUnit;
+  assertApprox('3.1 30 ng?y: interestPerUnit = l?i n?m/365 ? 30 ? cost', r30.interestPerUnit, expected30, 0.1);
 
-  // 60 ngày → lãi gấp đôi
-  const input60 = { ...input30, paymentDays: 60 };
-  const r60 = calculate(input60, mats, cons, prof)!;
+  const input45 = { ...input30, paymentDays: 45 };
+  const r45 = calculate(input45, mats, cons, prof)!;
+  const expected45 = laiNam / 365 * 45 * r45.costPerUnit;
+  assertApprox('3.2 45 ng?y: interestPerUnit = l?i n?m/365 ? 45 ? cost', r45.interestPerUnit, expected45, 0.1);
+  assertApprox('3.3 45 ng?y / 30 ng?y = 1.5?', r45.interestPerUnit / r30.interestPerUnit, 1.5, 0.1);
 
-  const expected60 = (0.0025 / 30) * 60 * r60.costPerUnit;
-  assertApprox('3.2 60 ngày: interestPerUnit = (rate/30) × 60 × cost', r60.interestPerUnit, expected60, 0.1);
-
-  // costPerUnit giống nhau (cùng input ngoài paymentDays) → lãi 60 ngày = 2 × lãi 30 ngày
-  const ratio = r60.interestPerUnit / r30.interestPerUnit;
-  assertApprox('3.3 60 ngày / 30 ngày = gấp đôi', ratio, 2.0, 0.1);
-  console.log(`  60 ngày: interest=${r60.interestPerUnit.toFixed(4)} đ (ratio=${ratio.toFixed(2)}×)`);
-
-  // 90 ngày → gấp 3
   const input90 = { ...input30, paymentDays: 90 };
   const r90 = calculate(input90, mats, cons, prof)!;
-  const ratio90 = r90.interestPerUnit / r30.interestPerUnit;
-  assertApprox('3.4 90 ngày / 30 ngày = gấp 3', ratio90, 3.0, 0.1);
-  console.log(`  90 ngày: interest=${r90.interestPerUnit.toFixed(4)} đ (ratio=${ratio90.toFixed(2)}×)`);
+  assertApprox('3.4 90 ng?y / 30 ng?y = 3?', r90.interestPerUnit / r30.interestPerUnit, 3.0, 0.1);
 
-  // 15 ngày → nửa
-  const input15 = { ...input30, paymentDays: 15 };
-  const r15 = calculate(input15, mats, cons, prof)!;
-  const ratio15 = r15.interestPerUnit / r30.interestPerUnit;
-  assertApprox('3.5 15 ngày / 30 ngày = một nửa', ratio15, 0.5, 0.1);
-  console.log(`  15 ngày: interest=${r15.interestPerUnit.toFixed(4)} đ (ratio=${ratio15.toFixed(2)}×)`);
+  const input14 = { ...input30, paymentDays: 14 };
+  const r14 = calculate(input14, mats, cons, prof)!;
+  assertApprox('3.5 14 ng?y / 30 ng?y = 14/30', r14.interestPerUnit / r30.interestPerUnit, 14 / 30, 0.1);
 }
 
 

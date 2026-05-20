@@ -1,4 +1,4 @@
-import { tinhGiaWeb, traLoiNhuanTheoBang, toiUuDoDayTheoVatLieu } from './engine';
+﻿import { tinhGiaWeb, traLoiNhuanTheoBang, toiUuDoDayTheoVatLieu } from './engine';
 import type { AppConstants, CalculateInput, CalculateResult, Material, OverrideRowKey, OverrideTable, ProfitRow, SmallWidthMaterialPrice } from './types';
 
 export { toiUuDoDayTheoVatLieu, toiUuDoDayTheoVatLieu as optimizeThickness };
@@ -14,6 +14,7 @@ export interface UniRow {
   costCPSX: number;
   matPrice: number | null;
   costMat: number | null;
+  outputWidth?: number;
   materialDetails?: Array<{ name: string; width: number; matPrice: number; costMat: number }>;
 }
 
@@ -64,9 +65,10 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
     costCPSX: r.printCostCPSX,
     matPrice: r.layers.print?.matPrice ?? r.layers.print?.material?.pricePerM2 ?? 0,
     costMat: r.printCostMaterial,
+    outputWidth: r.printNLWidth,
   });
 
-  r.layers.laminations?.slice().sort((a: any, b: any) => b.layerNum - a.layerNum).forEach((lam: any) => {
+  r.layers.laminations?.slice().sort((a: any, b: any) => a.layerNum - b.layerNum).forEach((lam: any) => {
     totalCPSX += lam.costCPSX;
     totalCPVL += lam.costMat;
     const materialDetails = lam.chiTietVatLieu?.map((item: any) => ({
@@ -80,7 +82,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
     }));
     uniRows.push({
       rowKey: `lam-${lam.layerNum}` as OverrideRowKey,
-      stage: `GHEP (Lop ${lam.layerNum})`,
+      stage: `GHÉP (Lớp ${lam.layerNum})`,
       mat: materialDetails?.length ? '' : (lam.material?.name ?? ''),
       width: lam.width,
       meters: lam.meters,
@@ -90,6 +92,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
       matPrice: materialDetails?.length ? null : (lam.matPrice ?? lam.material?.pricePerM2 ?? 0),
       costMat: lam.costMat,
       materialDetails,
+      outputWidth: lam.width,
     });
   });
 
@@ -97,7 +100,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
     totalCPSX += r.cutCostCPSX;
     uniRows.push({
       rowKey: 'cut',
-      stage: 'CAT',
+      stage: 'CẮT',
       mat: '-',
       width: r.cutWidth,
       meters: r.cutMeters,
@@ -106,6 +109,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
       costCPSX: r.cutCostCPSX,
       matPrice: null,
       costMat: null,
+      outputWidth: r.input.spreadWidth * (r.input.numImages || 1),
     });
   }
 

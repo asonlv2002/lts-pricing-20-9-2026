@@ -2,7 +2,6 @@
 import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES } from '../lib/data';
-
 // Debounced persist profit table — tránh gọi API mỗi keystroke
 let boDemLuuBangLoiNhuan: ReturnType<typeof setTimeout>;
 const luuBangLoiNhuanTre = () => {
@@ -11,9 +10,7 @@ const luuBangLoiNhuanTre = () => {
     dungCuaHangTinhGia.getState().recalculate();
   }, 800);
 };
-
-type NhomCauHinh = 'materials' | 'waste' | 'production' | 'outsource' | 'profit' | 'surcharges' | 'formulas';
-
+type NhomCauHinh = 'materials' | 'waste' | 'production' | 'outsource' | 'profit' | 'surcharges' | 'interest' | 'formulas';
 const layNhomCauHinh = (menuDangChon?: string): NhomCauHinh => {
   switch (menuDangChon) {
     case 'config.materials':
@@ -29,13 +26,14 @@ const layNhomCauHinh = (menuDangChon?: string): NhomCauHinh => {
       return 'profit';
     case 'config.surcharges':
       return 'surcharges';
+    case 'config.interest':
+      return 'interest';
     case 'config.formulas':
       return 'formulas';
     default:
       return 'materials';
   }
 };
-
 export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }) {
   const { materials: vatLieu, constants: hangSo, profitTable: bangLoiNhuan, smallWidthPrices: bangGiaKhoNho, setMaterialParam: capNhatVatLieu, setConstantParam: capNhatHangSo, setSmallWidthPriceParam: capNhatGiaKhoNho } = dungCuaHangTinhGia();
   const [nhomKhachHang, datNhomKhachHang] = React.useState('other');
@@ -47,13 +45,15 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   const hienGiaCongNgoai = nhomCauHinh === 'outsource';
   const hienLoiNhuan = nhomCauHinh === 'profit';
   const hienPhuPhi = nhomCauHinh === 'surcharges';
+  const hienLaiVay = nhomCauHinh === 'interest';
   const hienCongThuc = nhomCauHinh === 'formulas';
-
+  const tongLaiNam = (hangSo.interestBase ?? 0.10) + (hangSo.interestSpread ?? 0.03);
+  const mocNgayLaiVay = [14, 30, 45, 90];
+  const dinhDangTyLeLaiNgay = (days: number) => ((tongLaiNam / 365) * days * 100).toFixed(3);
   const chenhLech = nhomKhachHang === 'svlg' ? -0.03 : 0;
   const bangGiaKhoNhoMotDong = vatLieu
     .map(m => bangGiaKhoNho.find(p => p.materialId === m.id))
     .filter((p): p is NonNullable<typeof p> => Boolean(p));
-
   // Unique material names for ink price table
   const tenDaGap = new Set<string>();
   const vatLieuDuyNhat = vatLieu.filter(m => {
@@ -61,7 +61,6 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     tenDaGap.add(m.name);
     return true;
   });
-
   const xuLyDoiGiaMuc = (ten: string, giaTri: number) => {
     // Apply to ALL materials sharing the same name
     vatLieu.forEach(m => {
@@ -70,7 +69,6 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
       }
     });
   };
-
   const xuLyDatLai = () => {
     if (!confirm('Reset tất cả giá về mặc định?')) return;
     INITIAL_MATERIALS.forEach((macDinh, i) => {
@@ -103,20 +101,16 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
       }
     });
   };
-
   const xuLyDoiCaiDatMau = (soMau: number, giaTri: number) => {
     const caiDatMoi = { ...hangSo.colorSetup, [soMau]: giaTri };
     capNhatHangSo('colorSetup' as any, caiDatMoi as any);
   };
-
   const xuLyDoiLoaiThung = (khoa: string, truong: 'price' | 'weight', giaTri: number) => {
     const cacLoaiThung = (hangSo.boxOptions ?? []).map(option =>
       option.key === khoa ? { ...option, [truong]: giaTri } : option
     );
     capNhatHangSo('boxOptions' as any, cacLoaiThung as any);
   };
-
-
   const xuLyDoiLoaiQuai = (khoa: string, truong: 'price' | 'weight', giaTri: number) => {
     const cacLoaiQuai = (hangSo.handleOptions ?? []).map(option =>
       option.key === khoa ? { ...option, [truong]: giaTri } : option
@@ -128,14 +122,11 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
       capNhatHangSo('handleWeight', macDinh.weight as any);
     }
   };
-
   const dinhDangVnd = (n: number) => n.toLocaleString('vi-VN');
-
   const layBienLoiNhuan = (i: number, nguong: number) => {
     const from = i === 0 ? 0 : bangLoiNhuan[i - 1]?.threshold ?? 0;
     return { from, to: nguong };
   };
-
   const capNhatNguongLoiNhuan = (i: number, value: number) => {
     const cuaHang = dungCuaHangTinhGia.getState();
     const bangMoi = [...cuaHang.profitTable];
@@ -147,16 +138,9 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     cuaHang.recalculate();
     luuBangLoiNhuanTre();
   };
-
-
   return (
     <div className="config-page" id="configPage" style={{display: 'block'}}>
       <div className="config-page-inner">
-        <div className="config-page-header">
-          <h2>🏭 Bảng Định Mức Chi Phí</h2>
-          <p className="config-page-subtitle">Giá trị đầu vào dùng cho tính toán sản xuất</p>
-        </div>
-
         <div className="config-content">
           
           {hienVatTu && (
@@ -259,10 +243,8 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           </div>
           </>
           )}
-
           {/* ═══════════ NHÓM 1: CHI PHÍ KHÂU IN ═══════════ */}
           {(hienSanXuat || hienHaoHut || hienPhuPhi || hienCongThuc) && <div className="config-group-header" id="sect-config-in" style={{scrollMarginTop: '80px'}}>🖨️ CPSX Khâu in</div>}
-
           {/* 1.2 Bảng giá màu in */}
           {hienSanXuat && (
           <div className="card config-card">
@@ -294,7 +276,6 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note">💡 Giá mực in tính trên mỗi màu in. PET/PA mặc định 135 đ, các loại khác 120 đ.</p>
           </div>
           )}
-
           {/* 1.3 Công Thức Tính Phi Hao In */}
           {hienHaoHut && (
           <div className="card config-card">
@@ -359,7 +340,6 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note">💡 A, B, C, D là các tham số dùng chung cho mọi số màu in.</p>
           </div>
           )}
-
           {/* 1.3 Phụ phí nhũ / phủ mờ */}
           {hienPhuPhi && (
           <div className="card config-card">
@@ -377,7 +357,6 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note">💡 Khi tích Nhũ hoặc Phủ mờ ở form nhập liệu, giá trị tương ứng sẽ được cộng vào CPSX in.</p>
           </div>
           )}
-
           {/* 1.4 Chi phí nhân công và chi phí khác */}
           {hienSanXuat && (
           <div className="card config-card">
@@ -391,14 +370,12 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note">💡 Chi phí nhân công và chi phí khác được cộng vào CPSX in cho mỗi đơn hàng.</p>
           </div>
           )}
-
-          {/* 1.5 Lãi vay */}
-          {hienCongThuc && (
+          {hienLaiVay && (
           <div className="card config-card">
-            <div className="config-section-title"><span>💰 Lãi Vay</span></div>
+            <div className="config-section-title"><span>Lãi Vay Công Nợ</span></div>
             <div className="config-cpsx-grid">
               <div className="config-cpsx-item">
-                <label>Mức (lãi cơ sở, % / năm)</label>
+                <label>Mức (lãi cơ sở % / năm)</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <input type="number" className="form-input" style={{ width: '100px' }}
                     value={parseFloat(((hangSo.interestBase ?? 0.10) * 100).toFixed(4))}
@@ -408,7 +385,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                 </div>
               </div>
               <div className="config-cpsx-item">
-                <label>Thêm (lãi tình huống, % / năm)</label>
+                <label>Thêm (lãi tình huống % / năm)</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <input type="number" className="form-input" style={{ width: '100px' }}
                     value={parseFloat(((hangSo.interestSpread ?? 0.03) * 100).toFixed(4))}
@@ -418,13 +395,23 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                 </div>
               </div>
             </div>
-            <p className="config-note">
-              💡 Tổng lãi = Mức + Thêm = <strong>{(((hangSo.interestBase ?? 0.10) + (hangSo.interestSpread ?? 0.03)) * 100).toFixed(2)}%/năm</strong>.
-              Công thức: lãi/đơn = (Mức + Thêm) ÷ 12 × (số ngày ÷ 30) × giá vốn.
-            </p>
+            <div className="config-note" style={{marginTop:'12px'}}>
+              <div>Tổng lãi = Mức + Thêm = <strong>{(tongLaiNam * 100).toFixed(2)}%/năm</strong>.</div>
+              <div style={{marginTop:'10px', border:'1px solid var(--border)', borderRadius:'10px', overflow:'hidden', background:'var(--surface)'}}>
+                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', borderBottom:'1px solid var(--border)', fontWeight:700, color:'var(--muted)', fontSize:'0.78rem'}}>
+                  <div style={{padding:'8px 10px', textAlign:'center'}}>Ngày công nợ</div>
+                  <div style={{padding:'8px 10px', textAlign:'center'}}>Tỷ lệ lãi</div>
+                </div>
+                {mocNgayLaiVay.map(days => (
+                  <div key={days} style={{display:'grid', gridTemplateColumns:'1fr 1fr', borderTop:'1px solid var(--border)'}}>
+                    <div style={{padding:'10px', textAlign:'center', fontWeight:600}}>{days} ngày</div>
+                    <div style={{padding:'10px', textAlign:'center', fontSize:'1.05rem', fontWeight:800, color:'var(--accent)'}}>{dinhDangTyLeLaiNgay(days)}%</div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
           )}
-
           {/* 1.6 Đơn giá trục in */}
           {hienCongThuc && (
           <div className="card config-card">
@@ -454,10 +441,8 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note">💡 Trục Khác: người dùng tự nhập trực tiếp trên form nhập liệu.</p>
           </div>
           )}
-
           {/* ═══════════ NHÓM 2: CHI PHÍ KHÂU GHÉP ═══════════ */}
           {(hienSanXuat || hienHaoHut) && <div className="config-group-header" id="sect-config-ghep" style={{scrollMarginTop: '80px'}}>🔗 CPSX Khâu Ghép</div>}
-
           {(hienSanXuat || hienHaoHut) && (
           <div className="card config-card">
             <div style={{display:'flex', alignItems:'stretch', gap:'0'}}>
@@ -496,10 +481,8 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note" style={{marginTop:'8px'}}>💡 Chi phí sản xuất ghép tính trên mỗi m² màng. Phi hao = (Tp ghép ÷ A × B) + C.</p>
           </div>
           )}
-
           {/* ═══════════ NHÓM 3: CHI PHÍ KHÂU CẮT ═══════════ */}
           {(hienSanXuat || hienHaoHut) && <div className="config-group-header" id="sect-config-cat" style={{scrollMarginTop: '80px'}}>✂️ CPSX Khâu cắt</div>}
-
           {(hienSanXuat || hienHaoHut) && (
           <div className="card config-card">
             <div style={{display:'flex', alignItems:'stretch', gap:'0'}}>
@@ -570,10 +553,8 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note">💡 CPSX Cắt = Cắt cơ bản × Hệ số. Ngưỡng dựa trên diện tích túi (m²).</p>
           </div>
           )}
-
           {/* ═══════════ NHÓM 4: BẢNG LỢI NHUẬN ═══════════ */}
           {hienLoiNhuan && <div className="config-group-header" id="sect-config-loinhuan" style={{scrollMarginTop: '80px'}}>💰 Bảng Lợi Nhuận</div>}
-
           {hienLoiNhuan && (
           <div className="card config-card">
             <div className="config-section-title" style={{alignItems: 'center'}}>
@@ -656,10 +637,8 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note">💡 Tỉ lệ lợi nhuận tự động tính từ giá vốn. Các con số này có thể chỉnh sửa và tự động lưu.</p>
           </div>
           )}
-
           {/* ═══════════ NHÓM 5: GIÁ PHỤ KIỆN ═══════════ */}
           {hienPhuPhi && <div className="config-group-header" id="sect-config-phukien" style={{scrollMarginTop: '80px'}}>🎀 Giá Phụ Kiện</div>}
-
           {hienPhuPhi && (
           <div className="card config-card">
             <div className="config-section-title"><span>💰 Cài Đặt Đơn Giá Phụ Kiện</span></div>
@@ -696,10 +675,8 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note">💡 Đơn giá thay đổi tùy thời điểm, tự động áp dụng khi chốt giá cho đơn hàng.</p>
           </div>
           )}
-
           {/* ═══════════ NHÓM 6: ĐÓNG GÓI THÙNG ═══════════ */}
           {hienGiaCongNgoai && <div className="config-group-header" id="sect-config-donggoi" style={{scrollMarginTop: '80px'}}>📦 Đóng gói thùng</div>}
-
           {hienGiaCongNgoai && (
           <div className="card config-card">
             <div className="config-section-title"><span>📦 Định mức loại thùng</span></div>
@@ -742,7 +719,6 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note">💡 Khi nhập đơn túi, chọn loại thùng để tự điền giá thùng. Số túi/thùng do người dùng nhập theo kích thước thực tế của đơn.</p>
           </div>
           )}
-
         </div>
       </div>
     </div>

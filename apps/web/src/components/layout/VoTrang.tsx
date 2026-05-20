@@ -10,7 +10,7 @@ import ModuleQuanLyNguoiDung from '../ModuleQuanLyNguoiDung';
 import ModuleLenhSanXuat from '../ModuleLenhSanXuat';
 import {
   Calculator, FileText, Users, Settings, Menu, Factory,
-  Database, Printer, Briefcase, X, ChevronRight, Plus,
+  Database, Briefcase, X, ChevronRight, Plus,
   UserCog, ClipboardList, LayoutDashboard, Package, Shield,
 } from 'lucide-react';
 
@@ -115,6 +115,7 @@ const CAC_NHOM_MENU: NhomMenu[] = [
       { key: 'config.outsource_costs', id: 'master_data', label: 'Chi phí gia công ngoài', vaiTros: ['admin', 'purchase'] },
       { key: 'config.profit_margin', id: 'master_data', label: 'Biên lợi nhuận', vaiTros: ['admin', 'purchase'] },
       { key: 'config.surcharges', id: 'master_data', label: 'Phụ phí', vaiTros: ['admin', 'purchase'] },
+      { key: 'config.interest', id: 'master_data', label: 'Lãi vay công nợ', vaiTros: ['admin', 'purchase'] },
       { key: 'config.formulas', id: 'master_data', label: 'Tham số / công thức tính giá', vaiTros: ['admin', 'purchase'] },
     ],
   },
@@ -355,7 +356,7 @@ interface DauTrangTrenProps {
 }
 
 function DauTrangTren({ moduleDangMo, onExport, onMenuToggle, laMobile }: DauTrangTrenProps) {
-  const { theme: chuDe, setTheme: datChuDe, layoutType: kieuBoCuc, setLayoutType: datKieuBoCuc, density: matDo, setDensity: datMatDo, result: ketQua, isDirty: dangBan, resetInput: datLaiDauVao } = dungCuaHangTinhGia();
+  const { result: ketQua, isDirty: dangBan, resetInput: datLaiDauVao } = dungCuaHangTinhGia();
   const [hienXacNhanMoi, datHienXacNhanMoi] = useState(false);
 
   const xuLyTaoMoi = () => {
@@ -400,35 +401,6 @@ function DauTrangTren({ moduleDangMo, onExport, onMenuToggle, laMobile }: DauTra
         </div>
 
         <div className="lts-topbar-actions">
-          {!laMobile && moduleDangMo === 'calculator' && (
-            <>
-              <div className="toolbar-group" title="Bố cục">
-                <button className={`toolbar-btn ${kieuBoCuc === 'default' ? 'active' : ''}`} onClick={() => datKieuBoCuc('default')}>â˜°</button>
-                <button className={`toolbar-btn ${kieuBoCuc === 'stacked' ? 'active' : ''}`} onClick={() => datKieuBoCuc('stacked')}>▤</button>
-                <button className={`toolbar-btn ${kieuBoCuc === 'wide'    ? 'active' : ''}`} onClick={() => datKieuBoCuc('wide')}>â¬š</button>
-                <button className={`toolbar-btn ${kieuBoCuc === 'bento'   ? 'active' : ''}`} onClick={() => { datKieuBoCuc('bento'); dungCuaHangTinhGia.setState({ activeView: 'bento' }); }}>â—«</button>
-              </div>
-              <div className="toolbar-group" title="Mật độ">
-                <button className={`toolbar-btn ${matDo === 'compact'     ? 'active' : ''}`} onClick={() => datMatDo('compact')}>S</button>
-                <button className={`toolbar-btn ${matDo === 'comfortable' ? 'active' : ''}`} onClick={() => datMatDo('comfortable')}>M</button>
-                <button className={`toolbar-btn ${matDo === 'spacious'    ? 'active' : ''}`} onClick={() => datMatDo('spacious')}>L</button>
-              </div>
-            </>
-          )}
-
-          <button
-            className="theme-toggle"
-            title="Chuyển đổi Sáng/Tối"
-            onClick={() => datChuDe(chuDe === 'dark' ? 'light' : 'dark')}
-          />
-
-          {!laMobile && (
-            <button className="btn btn-sm btn-outline" onClick={() => window.print()}>
-              <Printer size={14} style={{ display: 'inline', marginRight: '4px' }} />
-              In
-            </button>
-          )}
-
           {ketQua && !laMobile && (
             <button className="btn btn-sm btn-outline" onClick={onExport}>
               📥 Xuất

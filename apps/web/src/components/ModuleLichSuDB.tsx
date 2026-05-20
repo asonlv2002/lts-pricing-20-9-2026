@@ -156,39 +156,6 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
             <Search size={40} />
             <p>Không tìm thấy kết quả phù hợp.</p>
           </div>
-        ) : laLichSuSanPhamTheoKhach ? (
-          <div className="table-responsive">
-            <table className="data-table hist-data-table">
-              <thead>
-                <tr>
-                  <th>Ngày</th>
-                  <th>Khách hàng</th>
-                  <th>Tên sản phẩm đã tính giá</th>
-                  <th>Cấu trúc</th>
-                  <th className="num">Số lượng</th>
-                  <th className="num">Giá đề xuất</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {daLoc.map(h => (
-                  <tr key={h.id}>
-                    <td>{h.date}</td>
-                    <td>{h.customer}</td>
-                    <td style={{ fontWeight: 700 }}>{h.productName}</td>
-                    <td style={{ fontFamily: "'Courier New', monospace", fontSize: '0.78rem', color: 'var(--accent2)' }}>{h.structure}</td>
-                    <td className="num">{dinhDangSo(h.quantity)}</td>
-                    <td className="num" style={{ fontWeight: 600 }}>{dinhDangSo(h.finalPrice)} đ</td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button className="btn btn-sm btn-outline" onClick={() => { taiLichSu(h.id); khiDieuHuong?.('calculator'); }}>
-                        <RotateCcw size={13} style={{ display: 'inline', marginRight: '3px' }} /> Tải
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
         ) : (
           <div className="table-responsive">
             <table className="data-table hist-data-table">

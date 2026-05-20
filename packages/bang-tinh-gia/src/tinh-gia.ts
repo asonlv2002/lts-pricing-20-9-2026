@@ -1612,10 +1612,10 @@ export function tinhGia(
   const laiSuatThem   = hangSo.laiSuatThem   ?? 0.03;
 
 
-  // Công thức: (cơ sở + thêm) / 12 tháng × (số ngày / 30) × giá vốn
+  // Cong thuc: (co so + them) / 365 ngay * so ngay cong no * gia von
 
 
-  const laiSuatPerDonVi = (laiSuatCoBan + laiSuatThem) / 12 * (ngayThanhToanThucTe / 30) * chiPhiDonVi;
+  const laiSuatPerDonVi = (laiSuatCoBan + laiSuatThem) / 365 * ngayThanhToanThucTe * chiPhiDonVi;
 
 
 

@@ -240,7 +240,7 @@ row('Giá bán đề xuất',     rZ.finalPrice,        2107);
 console.log(`\n  Tính tay kiểm:`);
 console.log(`  boxPerUnit      = 25.000 / (50.000/1.500) = ${(25000/(50000/1500)).toFixed(4)}`);
 console.log(`  shippingPerUnit = 20.000×25 / 50.000 = ${(20000*25/50000).toFixed(4)}`);
-console.log(`  interestPerUnit = 0.0025/30×30 × 1.946 = ${((0.0025/30)*30*1946).toFixed(4)}`);
+console.log(`  interestPerUnit = (interestBase+interestSpread)/365?paymentDays?costPerUnit`);
 console.log(`  commissionPU    = 0.02 × 1.946 = ${(0.02*1946).toFixed(4)}`);
 console.log(`  zipperPerUnit   = 0.24 × 378 = ${(0.24*378).toFixed(4)}`);
 
