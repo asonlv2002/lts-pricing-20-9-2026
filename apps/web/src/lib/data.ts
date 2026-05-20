@@ -15,6 +15,7 @@ export const INITIAL_SMALL_WIDTH_PRICES: SmallWidthMaterialPrice[] = INITIAL_MAT
   id: `${m.id}_400`,
   materialId: m.id,
   widthThresholdMm: 400,
+  thickness: m.thickness,
   pricePerKg: m.pricePerKg,
   pricePerM2: m.pricePerKg * m.thickness * m.density / 1000,
 }));
@@ -27,9 +28,9 @@ export const PROFIT_DEFAULT = profitJson.profitDefault;
 // ── App constants ─────────────────────────────────────────────────────────────
 const rawConstants = constantsJson as typeof constantsJson & { boxOptions?: BoxOption[]; handleOptions?: HandleOption[] };
 const fallbackBoxOptions: BoxOption[] = [
-  { key: 'large', label: 'Thùng lớn', price: rawConstants.boxPriceDefault ?? 0, bagsPerBox: rawConstants.bagsPerBoxDefault ?? 0 },
-  { key: 'medium', label: 'Thùng trung bình', price: rawConstants.boxPriceDefault ?? 0, bagsPerBox: rawConstants.bagsPerBoxDefault ?? 0 },
-  { key: 'small', label: 'Thùng nhỏ', price: rawConstants.boxPriceDefault ?? 0, bagsPerBox: rawConstants.bagsPerBoxDefault ?? 0 },
+  { key: 'large', label: 'Thùng lớn', price: rawConstants.boxPriceDefault ?? 0, weight: 0 },
+  { key: 'medium', label: 'Thùng trung bình', price: rawConstants.boxPriceDefault ?? 0, weight: 0 },
+  { key: 'small', label: 'Thùng nhỏ', price: rawConstants.boxPriceDefault ?? 0, weight: 0 },
 ];
 
 const fallbackHandleOptions: HandleOption[] = [

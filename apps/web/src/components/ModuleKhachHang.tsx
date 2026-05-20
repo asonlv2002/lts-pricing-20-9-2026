@@ -1,5 +1,5 @@
 ﻿"use client";
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Users, UserCircle, Search, Plus, UserPlus, ChevronDown,
   ChevronRight, Building2, Phone, Mail, MapPin, X, Check, AlertCircle,
@@ -468,9 +468,10 @@ interface CustomerModuleProps {
   role: string;
   /** Seller ID của user đang đăng nhập (khi role = 'sale') */
   currentSellerId?: string;
+  menuDangChon?: string;
 }
 
-export default function CustomerModule({ role, currentSellerId = 'S1' }: CustomerModuleProps) {
+export default function CustomerModule({ role, currentSellerId = 'S1', menuDangChon }: CustomerModuleProps) {
   const isAdmin = role === 'admin';
 
   const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
@@ -478,6 +479,12 @@ export default function CustomerModule({ role, currentSellerId = 'S1' }: Custome
   const [search, setSearch] = useState('');
   const [adminTab, setAdminTab] = useState<'all' | 'by_seller'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
+
+  useEffect(() => {
+    if (menuDangChon === 'customers.create') setShowAddModal(true);
+    if (menuDangChon === 'customers.seller_assignment') setAdminTab('by_seller');
+    if (menuDangChon === 'customers.list' || menuDangChon === 'overview.new_customers') setAdminTab('all');
+  }, [menuDangChon]);
 
   // ── Derived data ──
   const filteredCustomers = useMemo(() => {

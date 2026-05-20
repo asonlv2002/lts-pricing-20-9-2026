@@ -68,7 +68,7 @@ export default function ManHinhKyThuat() {
 
   if (cacLop.laminations) {
 
-    cacLop.laminations.forEach((dongGhep: any) => {
+    cacLop.laminations.slice().sort((a: any, b: any) => b.layerNum - a.layerNum).forEach((dongGhep: any) => {
 
       cacDong.push({
 
@@ -107,6 +107,8 @@ export default function ManHinhKyThuat() {
     ['Tổng diện tích đơn hàng', dinhDangSo(kq.totalArea, 1) + ' m²'],
 
     ['Trọng lượng / túi (Tare)', dinhDangSo(kq.tareWeight, 2) + ' gr'],
+
+    ['Khối lượng thùng quy đổi', dinhDangSo((dauVao.boxWeight || 0) / (dauVao.bagsPerBox || 1), 2) + ' gr/túi'],
 
     ['Tổng trọng lượng', dinhDangSo(kq.tareWeight * dauVao.quantity / 1000, 1) + ' kg'],
 
@@ -212,7 +214,9 @@ export default function ManHinhKyThuat() {
 
                 const haoHutHienThi = dong.haoHut;
 
-                const dauVaoVL = metHienThi + haoHutHienThi;
+                const dongTruoc = chiSo > 0 ? cacDong[chiSo - 1] : null;
+
+                const dauVaoVL = dongTruoc ? dongTruoc.met : metHienThi + haoHutHienThi;
 
                 return (
 

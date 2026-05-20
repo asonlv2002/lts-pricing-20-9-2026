@@ -11,7 +11,7 @@ import ModuleLenhSanXuat from '../ModuleLenhSanXuat';
 import {
   Calculator, FileText, Users, Settings, Menu, Factory,
   Database, Printer, Briefcase, X, ChevronRight, Plus,
-  UserCog, ClipboardList,
+  UserCog, ClipboardList, LayoutDashboard, Package, Shield,
 } from 'lucide-react';
 
 // Map vaiTro → sellerId/sellerName tạm thời (sau này thay bằng auth thực)
@@ -27,33 +27,130 @@ const BAN_DO_ROLE_NHAN_VIEN: Record<string, { id: string; name: string }> = {
 type MaModule = 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders';
 
 interface MucMenu {
+  key: string;
   id: MaModule;
+  label: string;
+  icon?: React.ReactNode;
+  vaiTros: string[];
+  disabled?: boolean;
+}
+
+interface NhomMenu {
+  id: string;
+  soThuTu: number;
   label: string;
   icon: React.ReactNode;
   vaiTros: string[];
+  mucCon: MucMenu[];
 }
 
-const CAC_MUC_MENU: MucMenu[] = [
-  { id: 'calculator',        label: 'Tính giá Sản phẩm',   icon: <Calculator    size={20} />, vaiTros: ['admin', 'sale']            },
-  { id: 'quotations',        label: 'Danh sách Báo giá',    icon: <FileText      size={20} />, vaiTros: ['admin', 'sale']            },
-  { id: 'history_db',        label: 'Lịch sử tính giá',     icon: <Database      size={20} />, vaiTros: ['admin', 'sale']            },
-  { id: 'production_orders', label: 'Lệnh Sản Xuất',        icon: <ClipboardList size={20} />, vaiTros: ['admin', 'purchase']        },
-  { id: 'master_data',       label: 'Bảng định mức',         icon: <Factory       size={20} />, vaiTros: ['admin', 'purchase']        },
-  { id: 'customers',         label: 'Khách hàng (CRM)',      icon: <Users         size={20} />, vaiTros: ['admin', 'sale']            },
-  { id: 'sellers',           label: 'Quản lý Seller',        icon: <Briefcase     size={20} />, vaiTros: ['admin']                   },
-  { id: 'users',             label: 'Tài khoản hệ thống',    icon: <UserCog       size={20} />, vaiTros: ['admin']                   },
-  { id: 'settings',          label: 'Cài đặt hệ thống',      icon: <Settings      size={20} />, vaiTros: ['admin']                   },
+const CAC_NHOM_MENU: NhomMenu[] = [
+  {
+    id: 'overview',
+    soThuTu: 1,
+    label: 'Tổng quan',
+    icon: <LayoutDashboard size={18} />,
+    vaiTros: ['admin', 'sale', 'purchase'],
+    mucCon: [
+      { key: 'overview.quotes_created', id: 'quotations', label: 'Số báo giá đã tạo', vaiTros: ['admin', 'sale'] },
+      { key: 'overview.quotes_pending', id: 'quotations', label: 'Báo giá chờ duyệt', vaiTros: ['admin', 'sale'] },
+      { key: 'overview.new_customers', id: 'customers', label: 'Khách hàng mới', vaiTros: ['admin', 'sale'] },
+      { key: 'overview.recent_products', id: 'history_db', label: 'Sản phẩm đã tính giá gần đây', vaiTros: ['admin', 'sale'] },
+      { key: 'overview.expected_revenue', id: 'quotations', label: 'Doanh thu dự kiến', vaiTros: ['admin', 'sale'] },
+      { key: 'overview.recent_activity', id: 'history_db', label: 'Hoạt động gần đây', vaiTros: ['admin', 'sale', 'purchase'] },
+    ],
+  },
+  {
+    id: 'pricing_quote',
+    soThuTu: 2,
+    label: 'Tính giá & Báo giá',
+    icon: <Calculator size={18} />,
+    vaiTros: ['admin', 'sale'],
+    mucCon: [
+      { key: 'pricing.create_calculation', id: 'calculator', label: 'Tạo bảng tính giá', vaiTros: ['admin', 'sale'] },
+      { key: 'pricing.calculation_list', id: 'history_db', label: 'Danh sách bảng tính giá', vaiTros: ['admin', 'sale'] },
+      { key: 'pricing.calculation_history', id: 'history_db', label: 'Lịch sử tính giá', vaiTros: ['admin', 'sale'] },
+      { key: 'pricing.create_quote', id: 'quotations', label: 'Tạo bảng báo giá', vaiTros: ['admin', 'sale'] },
+      { key: 'pricing.quote_list', id: 'quotations', label: 'Danh sách báo giá', vaiTros: ['admin', 'sale'] },
+    ],
+  },
+  {
+    id: 'customers',
+    soThuTu: 3,
+    label: 'Khách hàng',
+    icon: <Users size={18} />,
+    vaiTros: ['admin', 'sale'],
+    mucCon: [
+      { key: 'customers.list', id: 'customers', label: 'Danh sách khách hàng', vaiTros: ['admin', 'sale'] },
+      { key: 'customers.create', id: 'customers', label: 'Thêm khách hàng', vaiTros: ['admin', 'sale'] },
+      { key: 'customers.seller_assignment', id: 'sellers', label: 'Phân công Seller phụ trách', vaiTros: ['admin'] },
+      { key: 'customers.quote_history', id: 'quotations', label: 'Lịch sử báo giá theo khách hàng', vaiTros: ['admin', 'sale'] },
+      { key: 'customers.product_history', id: 'history_db', label: 'Lịch sử sản phẩm theo khách hàng', vaiTros: ['admin', 'sale'] },
+    ],
+  },
+  {
+    id: 'products_orders',
+    soThuTu: 4,
+    label: 'Sản phẩm & Đơn hàng',
+    icon: <Package size={18} />,
+    vaiTros: ['admin', 'sale', 'purchase'],
+    mucCon: [
+      { key: 'products.list', id: 'history_db', label: 'Danh sách sản phẩm', vaiTros: ['admin', 'sale'] },
+      { key: 'products.calculated', id: 'history_db', label: 'Sản phẩm đã tính giá', vaiTros: ['admin', 'sale'] },
+      { key: 'orders.confirmed', id: 'quotations', label: 'Đơn hàng đã chốt', vaiTros: ['admin', 'sale'] },
+      { key: 'orders.production_orders', id: 'production_orders', label: 'Lệnh sản xuất', vaiTros: ['admin', 'purchase'] },
+    ],
+  },
+  {
+    id: 'pricing_config',
+    soThuTu: 5,
+    label: 'Cấu hình tính giá',
+    icon: <Factory size={18} />,
+    vaiTros: ['admin', 'purchase'],
+    mucCon: [
+      { key: 'config.materials', id: 'master_data', label: 'Vật tư / nguyên vật liệu', vaiTros: ['admin', 'purchase'] },
+      { key: 'config.film_structures', id: 'master_data', label: 'Cấu trúc màng', vaiTros: ['admin', 'purchase'] },
+      { key: 'config.waste_norms', id: 'master_data', label: 'Bảng định mức hao hụt', vaiTros: ['admin', 'purchase'] },
+      { key: 'config.production_costs', id: 'master_data', label: 'Chi phí sản xuất', vaiTros: ['admin', 'purchase'] },
+      { key: 'config.outsource_costs', id: 'master_data', label: 'Chi phí gia công ngoài', vaiTros: ['admin', 'purchase'] },
+      { key: 'config.profit_margin', id: 'master_data', label: 'Biên lợi nhuận', vaiTros: ['admin', 'purchase'] },
+      { key: 'config.surcharges', id: 'master_data', label: 'Phụ phí', vaiTros: ['admin', 'purchase'] },
+      { key: 'config.formulas', id: 'master_data', label: 'Tham số / công thức tính giá', vaiTros: ['admin', 'purchase'] },
+    ],
+  },
+  {
+    id: 'system',
+    soThuTu: 6,
+    label: 'Quản trị hệ thống',
+    icon: <Shield size={18} />,
+    vaiTros: ['admin'],
+    mucCon: [
+      { key: 'system.users', id: 'users', label: 'Người dùng', vaiTros: ['admin'] },
+      { key: 'system.sellers', id: 'sellers', label: 'Seller / nhân sự kinh doanh', vaiTros: ['admin'] },
+      { key: 'system.roles', id: 'users', label: 'Nhóm quyền', vaiTros: ['admin'] },
+      { key: 'system.permissions', id: 'users', label: 'Phân quyền tính năng', vaiTros: ['admin'] },
+      { key: 'system.company_settings', id: 'settings', label: 'Cài đặt công ty', vaiTros: ['admin'] },
+      { key: 'system.quote_templates', id: 'settings', label: 'Mẫu báo giá', vaiTros: ['admin'] },
+      { key: 'system.audit_log', id: 'settings', label: 'Nhật ký hệ thống', vaiTros: ['admin'] },
+    ],
+  },
 ];
 
+const CAC_MUC_MENU: MucMenu[] = CAC_NHOM_MENU.flatMap(nhom => nhom.mucCon);
+
+const timNhomTheoMenu = (menuKey: string) => (
+  CAC_NHOM_MENU.find(nhom => nhom.mucCon.some(item => item.key === menuKey))?.id ?? CAC_NHOM_MENU[0].id
+);
+
 const TIEU_DE_MODULE: Record<MaModule, string> = {
-  calculator:        'Tính giá Sản phẩm',
-  quotations:        'Danh sách Báo giá',
+  calculator:        'Tạo bảng tính giá',
+  quotations:        'Danh sách báo giá',
   history_db:        'Lịch sử tính giá',
-  master_data:       'Bảng định mức chung',
-  production_orders: 'Danh sách Lệnh Sản Xuất',
-  customers:         'Quản lý Khách hàng',
-  sellers:           'Báo cáo Nhân sự',
-  users:             'Tài khoản hệ thống',
+  master_data:       'Cấu hình tính giá',
+  production_orders: 'Lệnh sản xuất',
+  customers:         'Khách hàng',
+  sellers:           'Seller / nhân sự kinh doanh',
+  users:             'Người dùng',
   settings:          'Cài đặt hệ thống',
 };
 
@@ -62,6 +159,8 @@ const TIEU_DE_MODULE: Record<MaModule, string> = {
 // ============================================================
 interface ThuocTinhThanhBen {
   moduleDangMo: MaModule;
+  menuDangChon: string;
+  datMenuDangChon: (key: string) => void;
   datModuleDangMo: (id: MaModule) => void;
   vaiTro: string;
   datVaiTro: (r: string) => void;
@@ -70,11 +169,27 @@ interface ThuocTinhThanhBen {
   laMobile: boolean;
 }
 
-function ThanhBen({ moduleDangMo, datModuleDangMo, vaiTro, datVaiTro, dangMo, datDangMo, laMobile }: ThuocTinhThanhBen) {
-  const menuHienThi = CAC_MUC_MENU.filter(item => item.vaiTros.includes(vaiTro));
+function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, vaiTro, datVaiTro, dangMo, datDangMo, laMobile }: ThuocTinhThanhBen) {
+  const [nhomDangMo, datNhomDangMo] = useState(() => timNhomTheoMenu(menuDangChon));
+  const nhomHienThi = CAC_NHOM_MENU
+    .map(nhom => ({
+      ...nhom,
+      mucCon: nhom.mucCon.filter(item => item.vaiTros.includes(vaiTro)),
+    }))
+    .filter(nhom => nhom.vaiTros.includes(vaiTro) && nhom.mucCon.length > 0);
 
-  const xuLyDieuHuong = (id: MaModule) => {
-    datModuleDangMo(id);
+  useEffect(() => {
+    datNhomDangMo(timNhomTheoMenu(menuDangChon));
+  }, [menuDangChon, datNhomDangMo]);
+
+  const xuLyChonNhom = (id: string) => {
+    if (!dangMo && !laMobile) datDangMo(true);
+    datNhomDangMo(nhomDangMo === id ? '' : id);
+  };
+
+  const xuLyDieuHuong = (item: MucMenu) => {
+    datMenuDangChon(item.key);
+    datModuleDangMo(item.id);
     if (laMobile) datDangMo(false);
   };
 
@@ -104,19 +219,41 @@ function ThanhBen({ moduleDangMo, datModuleDangMo, vaiTro, datVaiTro, dangMo, da
         </div>
 
         {/* Navigation */}
-        <nav className="lts-sidebar-nav">
-          {menuHienThi.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => xuLyDieuHuong(item.id)}
-              className={`lts-nav-item ${moduleDangMo === item.id ? 'active' : ''}`}
-              title={!dangMo && !laMobile ? item.label : undefined}
-            >
-              <span className="lts-nav-icon">{item.icon}</span>
-              {(dangMo || laMobile) && <span className="lts-nav-label">{item.label}</span>}
-              {(dangMo || laMobile) && <ChevronRight size={14} className="lts-nav-chevron" />}
-            </button>
-          ))}
+        <nav className="lts-sidebar-nav lts-sidebar-nav--tree">
+          {nhomHienThi.map((nhom) => {
+            const laNhomDangChon = nhom.mucCon.some(item => item.key === menuDangChon);
+            const laNhomDangMo = nhomDangMo === nhom.id;
+            return (
+              <div key={nhom.id} className={`lts-nav-group ${laNhomDangChon ? 'active' : ''} ${laNhomDangMo ? 'open' : ''}`}>
+                <button
+                  type="button"
+                  className="lts-nav-group-title"
+                  title={!dangMo && !laMobile ? nhom.label : undefined}
+                  onClick={() => xuLyChonNhom(nhom.id)}
+                >
+                  <span className="lts-nav-group-number">{nhom.soThuTu}</span>
+                  <span className="lts-nav-tree-line" />
+                  <span className="lts-nav-icon">{nhom.icon}</span>
+                  {(dangMo || laMobile) && <span className="lts-nav-group-label">{nhom.label}</span>}
+                  {(dangMo || laMobile) && <ChevronRight size={14} className="lts-nav-group-chevron" />}
+                </button>
+                {(dangMo || laMobile) && laNhomDangMo && (
+                  <div className="lts-nav-children">
+                    {nhom.mucCon.map((item, index) => (
+                      <button
+                        key={item.key}
+                        onClick={() => xuLyDieuHuong(item)}
+                        className={`lts-nav-item lts-nav-item--child ${menuDangChon === item.key ? 'active' : ''}`}
+                      >
+                        <span className="lts-nav-branch" />
+                        <span className="lts-nav-label">{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </nav>
 
         {/* Role switcher */}
@@ -143,14 +280,17 @@ function ThanhBen({ moduleDangMo, datModuleDangMo, vaiTro, datVaiTro, dangMo, da
 // ============================================================
 // MOBILE FLOATING MENU
 // ============================================================
-function MenuNoiMobile({ moduleDangMo, datModuleDangMo, vaiTro, datVaiTro }: {
+function MenuNoiMobile({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, vaiTro, datVaiTro }: {
   moduleDangMo: MaModule;
+  menuDangChon: string;
+  datMenuDangChon: (key: string) => void;
   datModuleDangMo: (id: MaModule) => void;
   vaiTro: string;
   datVaiTro: (r: string) => void;
 }) {
   const [dangMo, datDangMo] = useState(false);
-  const activeItem = CAC_MUC_MENU.find(i => i.id === moduleDangMo) || CAC_MUC_MENU[0];
+  const menuHienThi = CAC_NHOM_MENU.flatMap(nhom => nhom.mucCon).filter(item => item.vaiTros.includes(vaiTro));
+  const activeItem = menuHienThi.find(i => i.key === menuDangChon) || menuHienThi.find(i => i.id === moduleDangMo) || menuHienThi[0] || CAC_MUC_MENU[0];
 
   return (
     <>
@@ -165,13 +305,13 @@ function MenuNoiMobile({ moduleDangMo, datModuleDangMo, vaiTro, datVaiTro }: {
             </div>
 
             <div className="lts-fab-list">
-              {CAC_MUC_MENU.filter(item => item.vaiTros.includes(vaiTro)).map(item => {
-                const isActive = item.id === moduleDangMo;
+              {CAC_NHOM_MENU.map(nhom => ({ ...nhom, mucCon: nhom.mucCon.filter(item => item.vaiTros.includes(vaiTro)) })).filter(nhom => nhom.vaiTros.includes(vaiTro) && nhom.mucCon.length > 0).flatMap(nhom => nhom.mucCon).map(item => {
+                const isActive = item.key === menuDangChon;
                 return (
                   <button
-                    key={item.id}
+                    key={item.key}
                     className={`lts-fab-item ${isActive ? 'active' : ''}`}
-                    onClick={() => { datModuleDangMo(item.id); datDangMo(false); }}
+                    onClick={() => { datMenuDangChon(item.key); datModuleDangMo(item.id); datDangMo(false); }}
                   >
                     <span className="lts-fab-icon-wrap">{item.icon}</span>
                     <span>{item.label}</span>
@@ -307,6 +447,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [vaiTro, datVaiTro] = useState('admin');
   const [thanhBenDangMo, datThanhBenDangMo] = useState(true);
   const [laMobile, datLaMobile] = useState(false);
+  const [menuDangChon, datMenuDangChon] = useState('pricing.create_calculation');
 
   const { result: ketQua, activeModule: moduleDangMo, setActiveModule: datModuleDangMo, setCurrentSeller: datNhanVienHienTai, setRole: datVaiTroStore } = dungCuaHangTinhGia();
 
@@ -404,6 +545,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {!laMobile ? (
         <ThanhBen
           moduleDangMo={moduleDangMo}
+          menuDangChon={menuDangChon}
+          datMenuDangChon={datMenuDangChon}
           datModuleDangMo={datModuleDangMo}
           vaiTro={vaiTro}
           datVaiTro={xuLyDatVaiTro}
@@ -414,6 +557,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       ) : (
         <MenuNoiMobile
           moduleDangMo={moduleDangMo}
+          menuDangChon={menuDangChon}
+          datMenuDangChon={datMenuDangChon}
           datModuleDangMo={datModuleDangMo}
           vaiTro={vaiTro}
           datVaiTro={xuLyDatVaiTro}
@@ -430,12 +575,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="lts-shell-content lts-shell-content--scroll">
           {moduleDangMo === 'calculator'        && children}
-          {moduleDangMo === 'quotations'        && <ModuleBaoGia role={vaiTro} />}
-          {moduleDangMo === 'history_db'        && <ModuleLichSuDB khiDieuHuong={datModuleDangMo} />}
-          {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTro} currentSellerId={idNhanVienHienTai} />}
+          {moduleDangMo === 'quotations'        && <ModuleBaoGia role={vaiTro} menuDangChon={menuDangChon} />}
+          {moduleDangMo === 'history_db'        && <ModuleLichSuDB khiDieuHuong={datModuleDangMo} menuDangChon={menuDangChon} />}
+          {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTro} currentSellerId={idNhanVienHienTai} menuDangChon={menuDangChon} />}
           {moduleDangMo === 'sellers'           && <ModuleNhanVienBan />}
-          {moduleDangMo === 'master_data'       && <TrangCauHinh />}
-          {moduleDangMo === 'users'             && <ModuleQuanLyNguoiDung />}
+          {moduleDangMo === 'master_data'       && <TrangCauHinh menuDangChon={menuDangChon} />}
+          {moduleDangMo === 'users'             && <ModuleQuanLyNguoiDung menuDangChon={menuDangChon} />}
+          {moduleDangMo === 'settings'          && <div className="crm-root"><div className="crm-empty"><p>Module này chưa có màn hình chi tiết.</p><p style={{fontSize:'0.85rem',color:'var(--muted)'}}>Mục đang chọn: {CAC_MUC_MENU.find(i => i.key === menuDangChon)?.label ?? menuDangChon}</p></div></div>}
           {moduleDangMo === 'production_orders' && <ModuleLenhSanXuat />}
           {/* Fallback: TypeScript đảm bảo MaModule luôn có case ở trên — nếu không có sẽ bắt lỗi compile */}
         </div>

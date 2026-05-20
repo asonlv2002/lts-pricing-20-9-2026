@@ -120,10 +120,38 @@ function doiSangDongLoiNhuan(rows: ProfitRow[]): DongLoiNhuan[] {
   return rows.map(r => ({ nguong: r.threshold, cot1: r.col1, cot2: r.col2 }));
 }
 
+function boDauTiengViet(chuoi: string): string {
+  return chuoi.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\u0111/g, 'd').replace(/\u0110/g, 'D');
+}
+
+function layCotLoiNhuanTuDong(input: CalculateInput, materials: Material[]): number {
+  const cacLopVatLy = [input.layer1Id, input.layer2Id, input.layer3Id, input.layer4Id, input.layer5Id]
+    .filter(Boolean) as string[];
+  const cacVatLieuDangDung = [...cacLopVatLy, input.layer2AltId].filter(Boolean) as string[];
+  const soLopVatLy = cacLopVatLy.length;
+  const coVatLieuDacBiet = cacVatLieuDangDung.some((id) => {
+    const vatLieu = materials.find(m => m.id === id);
+    const chuoiKiemTra = boDauTiengViet(`${id} ${vatLieu?.name ?? ''} ${vatLieu?.group ?? ''}`).toUpperCase();
+    return chuoiKiemTra.includes('MPET')
+      || /(^|[^A-Z])AL([^A-Z]|$)/.test(chuoiKiemTra)
+      || chuoiKiemTra.includes('GIAY')
+      || chuoiKiemTra.includes('PAPER');
+  });
+  const laTuiDacBiet = input.productType === 'tui' && (input.bagType === 'dayDung' || input.hasZipper);
+  const laNhieuLopCanCotPhai = (input.productType === 'tui' || input.productType === 'mang') && soLopVatLy >= 3;
+  return (laNhieuLopCanCotPhai || laTuiDacBiet || coVatLieuDacBiet) ? 2 : 1;
+}
+
+function dongBoCotLoiNhuan(input: CalculateInput, materials: Material[]): CalculateInput {
+  const profitColumn = layCotLoiNhuanTuDong(input, materials);
+  return input.profitColumn === profitColumn ? input : { ...input, profitColumn };
+}
+
 function doiSangGiaKhoNho(rows: SmallWidthMaterialPrice[], materials: Material[]): GiaVatLieuKhoNho[] {
   return rows.map(row => {
     const material = materials.find(m => m.id === row.materialId);
-    const giaMoiM2 = row.pricePerM2 ?? (material ? row.pricePerKg * material.thickness * material.density / 1000 : 0);
+    const doDay = row.thickness ?? material?.thickness ?? 0;
+    const giaMoiM2 = row.pricePerM2 ?? (material ? row.pricePerKg * doDay * material.density / 1000 : 0);
     return {
       id: row.id,
       vatLieuId: row.materialId,
@@ -163,6 +191,7 @@ function doiSangDauVao(i: CalculateInput, bangGiaKhoNho?: GiaVatLieuKhoNho[]): D
     giaTriHoaHongNhap: i.commissionInputValue || 0,
     soTuiPerThuung: i.bagsPerBox || 0,
     giaThuung: i.boxPrice || 0,
+    khoiLuongThuung: i.boxWeight || 0,
     cuocVanChuyenPerKm: i.shippingPerKm || 0,
     soKmVanChuyen: i.shippingKm || 0,
     chieuDaiTruc: i.cylLength || 0,
@@ -295,16 +324,17 @@ export function tinhGiaWeb(
   profitTable: ProfitRow[],
   smallWidthPrices: SmallWidthMaterialPrice[] = []
 ): CalculateResult | null {
+  const inputDaDongBoCot = dongBoCotLoiNhuan(input, materials);
   const bangGiaKhoNho = doiSangGiaKhoNho(smallWidthPrices, materials);
-  const dauVao = doiSangDauVao(input, bangGiaKhoNho);
+  const dauVao = doiSangDauVao(inputDaDongBoCot, bangGiaKhoNho);
   const vatLieu = materials.map(doiSangVatLieu);
-  const hangSo = doiSangHangSo(constants, input);
+  const hangSo = doiSangHangSo(constants, inputDaDongBoCot);
   const bangLN = doiSangDongLoiNhuan(profitTable);
 
   const ketQua = tinhGia(dauVao, vatLieu, hangSo, bangLN);
   if (!ketQua) return null;
 
-  return doiSangKetQua(ketQua, input, materials);
+  return doiSangKetQua(ketQua, inputDaDongBoCot, materials);
 }
 
 export const optimizeThickness = toiUuDoDayTheoVatLieu;

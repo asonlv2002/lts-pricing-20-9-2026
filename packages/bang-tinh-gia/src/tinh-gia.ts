@@ -610,8 +610,21 @@ export function toiUuDoDay(
   };
 
 
-  const datDungSaiThanhPham = (tongThucTe: number) =>
-    tongThucTe >= minChapNhan && tongThucTe <= maxChapNhan;
+  const tinhKhoangDoDayCoDungSai = (chon: Pick<LuaChonLop, 'doDay' | 'isLLDPE'>[]) => {
+    const tongDanhDinh = chon.reduce((sum, c) => sum + c.doDay, 0) + tongDoDayKeo;
+    const tongDungSaiAm = chon.reduce((sum, c) => sum + (c.isLLDPE ? 3 : 0), 0);
+    const tongDungSaiDuong = chon.reduce((sum, c) => sum + (c.isLLDPE ? 3 : 0), 0);
+    return {
+      danhDinh: tongDanhDinh,
+      thapNhat: tongDanhDinh - tongDungSaiAm,
+      caoNhat: tongDanhDinh + tongDungSaiDuong,
+    };
+  };
+
+  const datDungSaiThanhPham = (chon: Pick<LuaChonLop, 'doDay' | 'isLLDPE'>[]) => {
+    const khoang = tinhKhoangDoDayCoDungSai(chon);
+    return khoang.thapNhat >= minChapNhan && khoang.caoNhat <= maxChapNhan;
+  };
 
 
 
@@ -626,7 +639,7 @@ export function toiUuDoDay(
       const tongThucTe = tongVatLieu + tongDoDayKeo;
 
 
-      if (!datDungSaiThanhPham(tongThucTe)) return;
+      if (!datDungSaiThanhPham(chon)) return;
 
 
       if (soSanhTotHon(chon, tongVatLieu, tongThucTe)) {
@@ -665,7 +678,7 @@ export function toiUuDoDay(
       const tongMoi = tongVatLieu + luaChon.doDay;
 
 
-      if (tongMoi + tongDoDayKeo > maxChapNhan) continue;
+      if (tongMoi + tongDoDayKeo > maxChapNhan + 20) continue;
 
 
       dfs(idx + 1, tongMoi, [...chon, luaChon]);
@@ -755,20 +768,15 @@ export function toiUuDoDay(
   const tongThucTe = tongVatLieu + tongDoDayKeo;
 
 
-  const datYeuCau = datDungSaiThanhPham(tongThucTe);
+  const khoangDoDay = tinhKhoangDoDayCoDungSai(ketQua.map(k => ({ doDay: k.adjustedThickness, isLLDPE: k.isLLDPE })));
 
+  const datYeuCau = khoangDoDay.thapNhat >= minChapNhan && khoangDoDay.caoNhat <= maxChapNhan;
 
   const canhBao = !datYeuCau
 
-
-    ? `Không tìm được tổ hợp độ dày thỏa mãn ${minChapNhan}-${maxChapNhan} mic (hiện tại: ${tongThucTe} mic). Vui lòng chọn vật liệu khác.`
-
+    ? `KhÃ´ng tÃ¬m Ä‘Æ°á»£c tá»• há»£p Ä‘á»™ dÃ y thá»a mÃ£n ${minChapNhan}-${maxChapNhan} mic sau dung sai NVL (danh Ä‘á»‹nh: ${tongThucTe} mic, thá»±c táº¿: ${khoangDoDay.thapNhat}-${khoangDoDay.caoNhat} mic). Vui lÃ²ng chá»n váº­t liá»‡u khÃ¡c.`
 
     : undefined;
-
-
-
-
 
   return {
 
@@ -836,7 +844,7 @@ export function tinhGia(
     tyLeHoaHong = 0, coKhoa = false, coBangKeo = false, coQuaiXach = false,
 
 
-    cuocVanChuyenPerKm, soKmVanChuyen, giaThuung, soTuiPerThuung,
+    cuocVanChuyenPerKm, soKmVanChuyen, giaThuung, soTuiPerThuung, khoiLuongThuung = 0,
 
 
     ghiDeDayLop = {}, cauTrucNhieuVatLieu = {},
@@ -1394,7 +1402,24 @@ export function tinhGia(
   const tongChiPhiSX = tongChiPhiIn + tongChiPhiGhep + tongChiPhiCat;
 
 
-  const tyLeLoiNhuan = traLoiNhuan(tongChiPhiSX, cotLoiNhuan, bangLoiNhuan);
+  const boDauTiengViet = (chuoi: string) => chuoi.normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\u0111/g, 'd')
+    .replace(/\u0110/g, 'D');
+  const cacLopVatLy = [lop1, lop2, lop3, lop4, lop5].filter((vl): vl is VatLieu => !!vl);
+  const cacVatLieuDangDung = [...cacLopVatLy, lop2Phu].filter((vl): vl is VatLieu => !!vl);
+  const coVatLieuDacBiet = cacVatLieuDangDung.some((vl) => {
+    const chuoiKiemTra = boDauTiengViet(`${vl.id ?? ''} ${vl.ten ?? ''} ${vl.nhom ?? ''}`).toUpperCase();
+    return chuoiKiemTra.includes('MPET')
+      || /(^|[^A-Z])AL([^A-Z]|$)/.test(chuoiKiemTra)
+      || chuoiKiemTra.includes('GIAY')
+      || chuoiKiemTra.includes('PAPER');
+  });
+  const laTuiDacBiet = dauVao.loaiSanPham === 'tui' && (dauVao.loaiTui === 'dayDung' || coKhoa);
+  const laNhieuLopCanCotPhai = (dauVao.loaiSanPham === 'tui' || dauVao.loaiSanPham === 'mang') && cacLopVatLy.length >= 3;
+  const cotLoiNhuanApDung = (laNhieuLopCanCotPhai || laTuiDacBiet || coVatLieuDacBiet) ? 2 : 1;
+
+  const tyLeLoiNhuan = traLoiNhuan(tongChiPhiSX, cotLoiNhuanApDung, bangLoiNhuan);
 
 
   const soTienLoiNhuan = tyLeLoiNhuan * tongChiPhiSX;
@@ -1553,7 +1578,8 @@ export function tinhGia(
   const dienTichDonVi = laMang ? 1.0 : dienTichTui;
 
 
-  const khoiLuongTare = tongGSM * dienTichDonVi + khoiLuongQuaiXach + khoiLuongPhuKienThemPerDonVi;
+  const khoiLuongThuungPerDonVi = !laMang && soTuiPerThuungThucTe > 0 ? khoiLuongThuung / soTuiPerThuungThucTe : 0;
+  const khoiLuongTare = tongGSM * dienTichDonVi + khoiLuongQuaiXach + khoiLuongPhuKienThemPerDonVi + khoiLuongThuungPerDonVi;
 
 
 

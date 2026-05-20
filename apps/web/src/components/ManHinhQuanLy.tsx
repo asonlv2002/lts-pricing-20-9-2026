@@ -109,6 +109,65 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
   );
 }
 
+
+function datGhiDeChiTiet(
+  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void,
+  ghiDeHienTai: OverrideTable,
+  khoaDong: OverrideRowKey,
+  chiTietIndex: number,
+  truong: 'width' | 'matPrice',
+  giaTri: number | undefined,
+) {
+  const hienTai = ghiDeHienTai[khoaDong]?.detailOverrides ?? {};
+  const dongHienTai = { ...(hienTai[chiTietIndex] ?? {}) };
+  if (giaTri === undefined) delete dongHienTai[truong];
+  else dongHienTai[truong] = giaTri;
+  const tiepTheo = { ...hienTai };
+  if (Object.keys(dongHienTai).length) tiepTheo[chiTietIndex] = dongHienTai;
+  else delete tiepTheo[chiTietIndex];
+  khiDat(khoaDong, 'detailOverrides', Object.keys(tiepTheo).length ? tiepTheo : undefined);
+}
+
+
+function OChiTietCoTheGhiDe({ khoaDong, chiTietIndex, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat, ghiDeHienTai, soLe = 0 }: {
+  khoaDong: OverrideRowKey;
+  chiTietIndex: number;
+  truong: 'width' | 'matPrice';
+  giaTriGoc: number;
+  giaTriGhiDe: number | undefined;
+  duocSua: boolean;
+  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
+  ghiDeHienTai: OverrideTable;
+  soLe?: number;
+}) {
+  const giaTriHienThi = giaTriGhiDe ?? giaTriGoc;
+  const daThayDoi = giaTriGhiDe !== undefined && Math.abs(giaTriGhiDe - giaTriGoc) > 0.001;
+  const [dangSua, datDangSua] = React.useState(false);
+  const [giaTriTam, datGiaTriTam] = React.useState('');
+  const xacNhan = () => {
+    datDangSua(false);
+    const soDaDoc = parseFloat(giaTriTam);
+    datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, truong,
+      isNaN(soDaDoc) || soDaDoc < 0 || Math.abs(soDaDoc - giaTriGoc) < 0.001 ? undefined : soDaDoc);
+  };
+  if (!duocSua) {
+    return <td className={`num ${daThayDoi ? 'override-changed' : ''}`}>{dinhDangSo(giaTriHienThi, soLe)}</td>;
+  }
+  return (
+    <td className={`num override-cell ${daThayDoi ? 'override-changed' : ''}`}>
+      {dangSua ? (
+        <input className="override-input" type="number" step="any" value={giaTriTam}
+          onChange={e => datGiaTriTam(e.target.value)} onBlur={xacNhan}
+          onKeyDown={e => { if (e.key === 'Enter') xacNhan(); if (e.key === 'Escape') datDangSua(false); }} autoFocus />
+      ) : (
+        <span className="override-display" onClick={() => { datGiaTriTam(String(Math.round(giaTriHienThi * 10000) / 10000)); datDangSua(true); }}>
+          {dinhDangSo(giaTriHienThi, soLe)}<span className="override-indicator"> ✎</span>
+        </span>
+      )}
+    </td>
+  );
+}
+
 function OChuCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat }: {
   khoaDong: OverrideRowKey;
   truong: keyof OverrideFields;
@@ -187,6 +246,10 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                   const detailCostMat = row.costMat != null && rawDetailTotal > 0
                     ? row.costMat * rawDetailCosts[detailIdx] / rawDetailTotal
                     : detail.matPrice * row.inputVL * detail.width;
+                  const dongGoc = cacDongSanXuat.find(dong => dong.rowKey === row.rowKey);
+                  const chiTietGoc = dongGoc?.materialDetails?.[detailIdx];
+                  const ghiDeNguonChiTiet = ghiDeNguon[row.rowKey]?.detailOverrides?.[detailIdx];
+                  const ghiDeHienTaiChiTiet = ghiDeHienTai[row.rowKey]?.detailOverrides?.[detailIdx];
                   return (
                     <tr key={`${row.rowKey}-${detailIdx}`} className="detail-group-row">
                       <td data-label="Công đoạn">{row.stage}</td>
@@ -497,6 +560,7 @@ export default function ManHinhQuanLy() {
     ['Tổng diện tích đơn hàng', dinhDangSo(r.totalArea, 1) + ' m²'],
     ...(!laMang ? [
       ['Trọng lượng / túi (Tare)', dinhDangSo(r.tareWeight, 2) + ' gr'] as [string, string],
+      ['Khối lượng thùng quy đổi', dinhDangSo((dauVaoKq.boxWeight || 0) / (dauVaoKq.bagsPerBox || 1), 2) + ' gr/túi'] as [string, string],
       ['Tổng trọng lượng', dinhDangSo(r.tareWeight * dauVaoKq.quantity / 1000, 1) + ' kg'] as [string, string],
       ['Trọng lượng (tấn)', dinhDangSo(r.tareWeight * dauVaoKq.quantity / 1000000, 3) + ' tấn'] as [string, string],
     ] : [
@@ -1013,16 +1077,6 @@ export default function ManHinhQuanLy() {
           </TheThuGon>
 
         </div> {/* End manager-content */}
-
-        {/* RIGHT: Floating TOC Sub-Menu */}
-        <div className="manager-toc" style={{width: '200px', position: 'fixed', right: '12px', top: '80px', background: 'var(--surface)', padding: '12px', borderRadius: 'var(--radius)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg)', zIndex: 90}}>
-          <div style={{fontSize:'0.85rem', fontWeight:700, color:'var(--muted)', textTransform:'uppercase', marginBottom:'12px', letterSpacing:'0.5px'}}>Mục lục các bảng</div>
-          <a href="#sect-sale" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>1. Bảng Báo Giá Gợi Ý</a>
-          <a href="#sect-tech" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>2. Bảng Đặc Tả Kỹ Thuật</a>
-          <a href="#sect-moq" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>3. Bảng Giá Theo MOQ</a>
-          <a href="#sect-roll" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>4. Bảng MOQ Cuộn Màng</a>
-          <a href="#sect-weight" className="toc-link" style={{display:'block', padding:'8px 12px', marginBottom:'4px', textDecoration:'none', color:'var(--text)', borderRadius:'6px', fontSize:'0.9rem', fontWeight:600, background:'var(--bg)'}}>5. Trọng Lượng &amp; Vận Chuyển</a>
-        </div>
 
       </div> {/* End manager-layout */}
     </div>

@@ -38,6 +38,21 @@ function daGuiAdmin(muc: HistoryItem): boolean {
 
 function dinhDangSo(n: number) { return n.toLocaleString('vi-VN'); }
 
+function doiNgayVnSangMs(date?: string): number {
+  if (!date) return 0;
+  const [day, month, year] = date.split('/').map(Number);
+  if (!day || !month || !year) return 0;
+  return new Date(year, month - 1, day).getTime();
+}
+
+function namTrongKhoangNgay(item: HistoryItem, tuNgay: string, denNgay: string): boolean {
+  const ms = doiNgayVnSangMs(item.date);
+  if (!ms) return true;
+  if (tuNgay && ms < new Date(tuNgay).setHours(0, 0, 0, 0)) return false;
+  if (denNgay && ms > new Date(denNgay).setHours(23, 59, 59, 999)) return false;
+  return true;
+}
+
 // ── Override diff helpers ────────────────────────────────────────────────────
 const NHAN_DONG: Record<string, string> = {
   print: 'In', 'lam-2': 'Ghép L2', 'lam-3': 'Ghép L3',
@@ -384,9 +399,10 @@ function StatsBar({ mucs, isAdmin }: { mucs: HistoryItem[]; isAdmin: boolean }) 
 // ════════════════════════════════════════════════════════════
 // ADMIN VIEW — nhóm theo seller, chỉ thấy muc đã gửi
 // ════════════════════════════════════════════════════════════
-function AdminView({ mucs, search, onOpen, onStatusUpdate }: {
+function AdminView({ mucs, search, chiTimKhachHang = false, onOpen, onStatusUpdate }: {
   mucs: HistoryItem[];
   search: string;
+  chiTimKhachHang?: boolean;
   onOpen: (id: string) => void;
   onStatusUpdate: (id: string, status: QuoteStatus) => void;
 }) {
@@ -398,12 +414,13 @@ function AdminView({ mucs, search, onOpen, onStatusUpdate }: {
 
     const q = search.trim().toLowerCase();
     const filtered = q
-      ? visible.filter(i =>
-          i.customer.toLowerCase().includes(q) ||
+      ? visible.filter(i => chiTimKhachHang
+        ? i.customer.toLowerCase().includes(q)
+        : i.customer.toLowerCase().includes(q) ||
           i.productName.toLowerCase().includes(q) ||
           i.structure.toLowerCase().includes(q) ||
           (i.sellerName || '').toLowerCase().includes(q)
-        )
+      )
       : visible;
 
     const map = new Map<string, { id: string; name: string; mucs: HistoryItem[] }>();
@@ -414,7 +431,7 @@ function AdminView({ mucs, search, onOpen, onStatusUpdate }: {
       map.get(sid)!.mucs.push(muc);
     });
     return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [mucs, search]);
+  }, [mucs, search, chiTimKhachHang]);
 
   const toggle = (id: string) => setCollapsed(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -494,21 +511,23 @@ function AdminView({ mucs, search, onOpen, onStatusUpdate }: {
 // ════════════════════════════════════════════════════════════
 // SALE VIEW — tất cả báo giá của mình, nút gửi khi drafted
 // ════════════════════════════════════════════════════════════
-function SaleView({ mucs, search, onOpen, onStatusUpdate }: {
+function SaleView({ mucs, search, chiTimKhachHang = false, onOpen, onStatusUpdate }: {
   mucs: HistoryItem[];
   search: string;
+  chiTimKhachHang?: boolean;
   onOpen: (id: string) => void;
   onStatusUpdate: (id: string, status: QuoteStatus) => void;
 }) {
   const filtered = useMemo(() => {
     if (!search.trim()) return mucs;
     const q = search.toLowerCase();
-    return mucs.filter(i =>
-      i.customer.toLowerCase().includes(q) ||
-      i.productName.toLowerCase().includes(q) ||
-      i.structure.toLowerCase().includes(q)
+    return mucs.filter(i => chiTimKhachHang
+      ? i.customer.toLowerCase().includes(q)
+      : i.customer.toLowerCase().includes(q) ||
+        i.productName.toLowerCase().includes(q) ||
+        i.structure.toLowerCase().includes(q)
     );
-  }, [mucs, search]);
+  }, [mucs, search, chiTimKhachHang]);
 
   if (filtered.length === 0) {
     return (
@@ -541,19 +560,28 @@ function SaleView({ mucs, search, onOpen, onStatusUpdate }: {
 // ════════════════════════════════════════════════════════════
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
-export default function QuotationModule({ role }: { role: string; hienTaiSellerId?: string }) {
+export default function QuotationModule({ role, menuDangChon }: { role: string; hienTaiSellerId?: string; menuDangChon?: string }) {
   const { history, loadHistoryItem: taiLichSu, setActiveModule: datPhan, updateQuoteStatus: capNhatTrangThaiDon, currentSellerId: hienTaiSellerId } = dungCuaHangTinhGia();
   const [search, setSearch] = useState('');
+  const [tuNgay, setTuNgay] = useState('');
+  const [denNgay, setDenNgay] = useState('');
 
   const isAdmin = role === 'admin';
+  const laLichSuBaoGiaTheoKhach = menuDangChon === 'customers.quote_history';
 
-  const myItems = useMemo(() =>
-    isAdmin ? history : history.filter(h => h.sellerId === hienTaiSellerId),
-    [history, isAdmin, hienTaiSellerId]
-  );
+  const myItems = useMemo(() => {
+    let items = isAdmin ? history : history.filter(h => h.sellerId === hienTaiSellerId);
+    if (menuDangChon === 'overview.quotes_pending') items = items.filter(h => layTrangThai(h) === 'pending_approval');
+    if (menuDangChon === 'orders.confirmed') items = items.filter(h => layTrangThai(h) === 'completed' || !!h.chotGia);
+    if (menuDangChon === 'pricing.create_quote') items = items.filter(h => layTrangThai(h) === 'drafted');
+    if (laLichSuBaoGiaTheoKhach) {
+      items = items.filter(h => daGuiAdmin(h) && namTrongKhoangNgay(h, tuNgay, denNgay));
+    }
+    return items;
+  }, [history, isAdmin, hienTaiSellerId, menuDangChon, laLichSuBaoGiaTheoKhach, tuNgay, denNgay]);
 
   // Stats cho admin: chỉ đếm muc đã gửi
-  const statsItems = isAdmin ? history.filter(daGuiAdmin) : myItems;
+  const statsItems = isAdmin ? myItems.filter(daGuiAdmin) : myItems;
 
   const handleOpen = (id: string) => {
     taiLichSu(id);
@@ -567,13 +595,18 @@ export default function QuotationModule({ role }: { role: string; hienTaiSellerI
           <Search size={15} className="crm-search-icon" />
           <input
             className="crm-search-input"
-            placeholder={isAdmin ? 'Tìm theo seller, khách hàng, sản phẩm...' : 'Tìm khách hàng, sản phẩm, chất liệu...'}
+            placeholder={laLichSuBaoGiaTheoKhach ? 'Nhập tên công ty/khách hàng, ví dụ: AAA...' : isAdmin ? 'Tìm theo seller, khách hàng, sản phẩm...' : 'Tìm khách hàng, sản phẩm, chất liệu...'}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
           {search && <button className="crm-search-clear" onClick={() => setSearch('')}>âœ•</button>}
         </div>
-        {isAdmin && (
+        {laLichSuBaoGiaTheoKhach ? (
+          <div className="crm-toolbar-right" style={{ gap: 8 }}>
+            <input className="form-input" type="date" value={tuNgay} onChange={e => setTuNgay(e.target.value)} style={{ width: 150 }} title="Từ ngày" />
+            <input className="form-input" type="date" value={denNgay} onChange={e => setDenNgay(e.target.value)} style={{ width: 150 }} title="Đến ngày" />
+          </div>
+        ) : isAdmin && (
           <div className="crm-toolbar-right">
             <span style={{ fontSize: '0.78rem', color: 'var(--muted)', padding: '0 8px', whiteSpace: 'nowrap' }}>
               👑 Xem theo Seller
@@ -587,8 +620,9 @@ export default function QuotationModule({ role }: { role: string; hienTaiSellerI
       <div className="crm-list quote-list-container">
         {isAdmin ? (
           <AdminView
-            mucs={history}
+            mucs={myItems}
             search={search}
+            chiTimKhachHang={laLichSuBaoGiaTheoKhach}
             onOpen={handleOpen}
             onStatusUpdate={capNhatTrangThaiDon}
           />
@@ -596,6 +630,7 @@ export default function QuotationModule({ role }: { role: string; hienTaiSellerI
           <SaleView
             mucs={myItems}
             search={search}
+            chiTimKhachHang={laLichSuBaoGiaTheoKhach}
             onOpen={handleOpen}
             onStatusUpdate={capNhatTrangThaiDon}
           />

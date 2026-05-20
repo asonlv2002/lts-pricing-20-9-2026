@@ -9,17 +9,43 @@ function dinhDangSo(n: number, decimals = 0): string {
   return n.toLocaleString('vi-VN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
+function doiNgayVnSangMs(date?: string): number {
+  if (!date) return 0;
+  const [day, month, year] = date.split('/').map(Number);
+  if (!day || !month || !year) return 0;
+  return new Date(year, month - 1, day).getTime();
+}
+
+function namTrongKhoangNgay(item: HistoryItem, tuNgay: string, denNgay: string): boolean {
+  const ms = doiNgayVnSangMs(item.date);
+  if (!ms) return true;
+  if (tuNgay && ms < new Date(tuNgay).setHours(0, 0, 0, 0)) return false;
+  if (denNgay && ms > new Date(denNgay).setHours(23, 59, 59, 999)) return false;
+  return true;
+}
+
 // ════════════════════════════════════════════════════════════
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
-export default function ModuleLichSuDB({ khiDieuHuong }: { khiDieuHuong?: (module: 'calculator') => void }) {
+export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieuHuong?: (module: 'calculator') => void; menuDangChon?: string }) {
   const { history: lichSu, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu } = dungCuaHangTinhGia();
   const [tuKhoa, datTuKhoa] = useState('');
   const [locGiaChot, datLocGiaChot] = useState<'all' | 'chot' | 'pending'>('all');
   const [mucLsx, datMucLsx] = useState<HistoryItem | null>(null);
+  const [tuNgay, datTuNgay] = useState('');
+  const [denNgay, datDenNgay] = useState('');
+  const laLichSuSanPhamTheoKhach = menuDangChon === 'customers.product_history';
 
   const daLoc = useMemo(() => {
     let danhSach = [...lichSu];
+
+    if (menuDangChon === 'products.calculated' || menuDangChon === 'overview.recent_products' || laLichSuSanPhamTheoKhach) {
+      danhSach = danhSach.filter(h => h.productName || h.structure);
+    }
+
+    if (laLichSuSanPhamTheoKhach) {
+      danhSach = danhSach.filter(h => namTrongKhoangNgay(h, tuNgay, denNgay));
+    }
 
     if (locGiaChot === 'chot') {
       danhSach = danhSach.filter(h => h.chotGia && h.chotGia > 0);
@@ -29,15 +55,16 @@ export default function ModuleLichSuDB({ khiDieuHuong }: { khiDieuHuong?: (modul
 
     if (tuKhoa.trim()) {
       const q = tuKhoa.toLowerCase();
-      danhSach = danhSach.filter(h =>
-        h.customer.toLowerCase().includes(q) ||
-        h.productName.toLowerCase().includes(q) ||
-        h.structure.toLowerCase().includes(q)
+      danhSach = danhSach.filter(h => laLichSuSanPhamTheoKhach
+        ? h.customer.toLowerCase().includes(q)
+        : h.customer.toLowerCase().includes(q) ||
+          h.productName.toLowerCase().includes(q) ||
+          h.structure.toLowerCase().includes(q)
       );
     }
 
     return danhSach;
-  }, [lichSu, tuKhoa, locGiaChot]);
+  }, [lichSu, tuKhoa, locGiaChot, menuDangChon, laLichSuSanPhamTheoKhach, tuNgay, denNgay]);
 
   const tongSo = lichSu.length;
   const soDaChot  = lichSu.filter(h => h.chotGia && h.chotGia > 0).length;
@@ -55,7 +82,7 @@ export default function ModuleLichSuDB({ khiDieuHuong }: { khiDieuHuong?: (modul
           <Search size={15} className="crm-search-icon" />
           <input
             className="crm-search-input"
-            placeholder="Tìm khách hàng, sản phẩm, cấu trúc..."
+            placeholder={laLichSuSanPhamTheoKhach ? 'Nhập tên công ty/khách hàng, ví dụ: AAA...' : 'Tìm khách hàng, sản phẩm, cấu trúc...'}
             value={tuKhoa}
             onChange={e => datTuKhoa(e.target.value)}
           />
@@ -65,6 +92,12 @@ export default function ModuleLichSuDB({ khiDieuHuong }: { khiDieuHuong?: (modul
         </div>
 
         <div className="crm-toolbar-right">
+          {laLichSuSanPhamTheoKhach && (
+            <>
+              <input className="form-input" type="date" value={tuNgay} onChange={e => datTuNgay(e.target.value)} style={{ width: 150 }} title="Từ ngày" />
+              <input className="form-input" type="date" value={denNgay} onChange={e => datDenNgay(e.target.value)} style={{ width: 150 }} title="Đến ngày" />
+            </>
+          )}
           <div className="toolbar-group" style={{ display: 'flex' }}>
             <button
               className={`toolbar-btn ${locGiaChot === 'all' ? 'active' : ''}`}
@@ -122,6 +155,39 @@ export default function ModuleLichSuDB({ khiDieuHuong }: { khiDieuHuong?: (modul
           <div className="crm-empty">
             <Search size={40} />
             <p>Không tìm thấy kết quả phù hợp.</p>
+          </div>
+        ) : laLichSuSanPhamTheoKhach ? (
+          <div className="table-responsive">
+            <table className="data-table hist-data-table">
+              <thead>
+                <tr>
+                  <th>Ngày</th>
+                  <th>Khách hàng</th>
+                  <th>Tên sản phẩm đã tính giá</th>
+                  <th>Cấu trúc</th>
+                  <th className="num">Số lượng</th>
+                  <th className="num">Giá đề xuất</th>
+                  <th>Thao tác</th>
+                </tr>
+              </thead>
+              <tbody>
+                {daLoc.map(h => (
+                  <tr key={h.id}>
+                    <td>{h.date}</td>
+                    <td>{h.customer}</td>
+                    <td style={{ fontWeight: 700 }}>{h.productName}</td>
+                    <td style={{ fontFamily: "'Courier New', monospace", fontSize: '0.78rem', color: 'var(--accent2)' }}>{h.structure}</td>
+                    <td className="num">{dinhDangSo(h.quantity)}</td>
+                    <td className="num" style={{ fontWeight: 600 }}>{dinhDangSo(h.finalPrice)} đ</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button className="btn btn-sm btn-outline" onClick={() => { taiLichSu(h.id); khiDieuHuong?.('calculator'); }}>
+                        <RotateCcw size={13} style={{ display: 'inline', marginRight: '3px' }} /> Tải
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         ) : (
           <div className="table-responsive">
