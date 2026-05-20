@@ -14,7 +14,6 @@ type NhomCauHinh = 'materials' | 'waste' | 'production' | 'outsource' | 'profit'
 const layNhomCauHinh = (menuDangChon?: string): NhomCauHinh => {
   switch (menuDangChon) {
     case 'config.materials':
-    case 'config.film_structures':
       return 'materials';
     case 'config.waste_norms':
       return 'waste';
@@ -74,10 +73,10 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     INITIAL_MATERIALS.forEach((macDinh, i) => {
       const m = vatLieu[i];
       if (m) {
-        capNhatVatLieu(m.id, { 
-          thickness: macDinh.thickness, 
-          pricePerKg: macDinh.pricePerKg, 
-          inkPricePerColor: macDinh.inkPricePerColor 
+        capNhatVatLieu(m.id, {
+          thickness: macDinh.thickness,
+          pricePerKg: macDinh.pricePerKg,
+          inkPricePerColor: macDinh.inkPricePerColor
         });
       }
     });
@@ -142,7 +141,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     <div className="config-page" id="configPage" style={{display: 'block'}}>
       <div className="config-page-inner">
         <div className="config-content">
-          
+
           {hienVatTu && (
           <>
           {/* ═══ 1. Bảng giá NVL ═══ */}
@@ -357,17 +356,17 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note">💡 Khi tích Nhũ hoặc Phủ mờ ở form nhập liệu, giá trị tương ứng sẽ được cộng vào CPSX in.</p>
           </div>
           )}
-          {/* 1.4 Chi phí nhân công và chi phí khác */}
+          {/* 1.4 CPSX khâu in */}
           {hienSanXuat && (
           <div className="card config-card">
-            <div className="config-section-title"><span>👷 Chi Phí Nhân Công & Chi Phí Khác</span></div>
+            <div className="config-section-title"><span>🖨️ CPSX Khâu in</span></div>
             <div className="config-cpsx-grid">
               <div className="config-cpsx-item">
-                <label>Chi phí nhân công + khác (đ)</label>
+                <label>CPSX khâu in (đ/m²)</label>
                 <input type="number" className="form-input" value={hangSo.laborCost} onChange={e => capNhatHangSo('laborCost', parseFloat(e.target.value)||0)} />
               </div>
             </div>
-            <p className="config-note">💡 Chi phí nhân công và chi phí khác được cộng vào CPSX in cho mỗi đơn hàng.</p>
+            <p className="config-note">💡 Khoản CPSX cố định cộng vào đơn giá in: CPSX in = giá mực/màu × số màu + CPSX khâu in (+ phụ phí nếu có).</p>
           </div>
           )}
           {hienLaiVay && (
@@ -599,7 +598,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                         );
                       })()}
                       <td>
-                        <input className="config-inline-input" type="number" step="0.5" 
+                        <input className="config-inline-input" type="number" step="0.5"
                           value={+((row.col1 + chenhLech) * 100).toFixed(2)}
                           onChange={(e) => {
                             const val = parseFloat(e.target.value) || 0;

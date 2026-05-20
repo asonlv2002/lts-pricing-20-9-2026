@@ -388,7 +388,7 @@ export default function LSXFormModal({ historyItem, onClose }: Props) {
           flexShrink: 0,
         }}>
           <div style={{ fontWeight: 700, fontSize: '13px', color: '#2E7D32' }}>
-            📋 Tạo Lệnh Sản Xuất — {isMang ? 'MÀNG IN' : 'TÚI'} — {historyItem.customer}
+            📋 Tạo Lệnh Sản Xuất {isMang ? 'MÀNG IN' : 'TÚI'} {historyItem.customer}
           </div>
           <button
             onClick={onClose}

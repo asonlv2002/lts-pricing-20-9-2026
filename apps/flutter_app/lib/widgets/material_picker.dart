@@ -109,7 +109,7 @@ class MaterialPickerField extends StatelessWidget {
                       children: [
                         Text(
                             selected == null
-                                ? '— Chọn vật liệu —'
+                                ? 'Chọn vật liệu'
                                 : selected.name,
                             style: TextStyle(
                                 fontSize: 14,

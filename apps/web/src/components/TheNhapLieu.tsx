@@ -218,7 +218,7 @@ export default function TheNhapLieu() {
       <div className="form-group">
         <label className="form-label">{label}</label>
         <select className="form-select" value={giaTriChinh} onChange={e => xuLyChonVatLieuChinh(khoaLop, e.target.value)} disabled={disabled}>
-          <option value="">— {disabled || khoaLop !== 'layer1Id' ? 'Không' : 'Chọn'} —</option>
+          <option value="">{disabled || khoaLop !== 'layer1Id' ? 'Không' : 'Chọn'}</option>
           {luaChonLe.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
           {tenCacNhom.map(g => <option key={g} value={`GROUP_${g}`}>{g}</option>)}
         </select>
@@ -227,7 +227,7 @@ export default function TheNhapLieu() {
           <div className="mic-adjust" style={{ marginTop: '6px', paddingLeft: '8px', borderLeft: '2px solid var(--border)' }}>
             <label className="form-label" style={{ fontSize: '0.72rem' }}>Độ dày (mic)</label>
             <select className="form-select" value={maVatLieu || ''} onChange={e => xuLyDoiLop(khoaLop, e.target.value)}>
-              <option value="">— Chọn độ dày —</option>
+              <option value="">Chọn độ dày</option>
               {materials.filter(m => m.group === nhomHienTai.replace('GROUP_', '')).map(m => (
                 <option key={m.id} value={m.id}>{m.thickness}</option>
               ))}
@@ -404,7 +404,7 @@ export default function TheNhapLieu() {
         <div className="form-group">
           <label className="form-label">Loại sản phẩm</label>
           <select className="form-select" value={input.productType} onChange={e => xuLyLoaiSanPham(e.target.value)}>
-            <option value="">— Chọn —</option>
+            <option value="">Chọn</option>
             <option value="tui">Túi</option>
             <option value="mang">Màng</option>
           </select>
@@ -413,7 +413,7 @@ export default function TheNhapLieu() {
           <div className="form-group">
             <label className="form-label">Loại túi</label>
             <select className="form-select" value={input.bagType} onChange={e => capNhatDauVao({ bagType: e.target.value })}>
-              <option value="">— Chọn —</option>
+              <option value="">Chọn</option>
               <option value="3bien">3 biên</option>
               <option value="4bien">4 biên</option>
               <option value="xephong_lech">Xếp hông dán lưng lệch</option>
@@ -426,8 +426,25 @@ export default function TheNhapLieu() {
         {input.productType === 'mang' && (
           <div className="form-group">
             <label className="form-label">Loại màng</label>
-            <select className="form-select" value={input.filmType} onChange={e => capNhatDauVao({ filmType: e.target.value })}>
-              <option value="">— Chọn —</option>
+            <select
+              className="form-select"
+              value={input.filmType}
+              onChange={e => {
+                const filmType = e.target.value;
+                capNhatDauVao({
+                  filmType,
+                  ...(filmType === 'mangIn' ? {
+                    layer2Id: null,
+                    layer2AltId: null,
+                    layer2Lengths: undefined,
+                    layer3Id: null,
+                    layer4Id: null,
+                    layer5Id: null,
+                  } : {}),
+                } as any);
+              }}
+            >
+              <option value="">Chọn</option>
               <option value="mangIn">Màng in</option>
               <option value="mangGhep">Màng ghép</option>
               <option value="mangDongGoi">Màng đóng gói tự động</option>
@@ -492,7 +509,7 @@ export default function TheNhapLieu() {
               const val = e.target.value;
               capNhatDauVao({ numColors: val === '' ? null : parseInt(val) });
             }}>
-              <option value="">— Chọn —</option>
+              <option value="">Chọn</option>
               <option value="0">Không in</option>
               <option value="1">1 màu</option><option value="2">2 màu</option>
               <option value="3">3 màu</option><option value="4">4 màu</option>
@@ -791,7 +808,7 @@ export default function TheNhapLieu() {
                         value={input.boxOptionKey ?? ''}
                         onChange={e => xuLyDoiLoaiThung(e.target.value)}
                       >
-                        <option value="">— Chọn loại thùng —</option>
+                        <option value="">Chọn loại thùng</option>
                         {(constants.boxOptions ?? []).map(option => (
                           <option key={option.key} value={option.key}>
                             {option.label} / {option.price.toLocaleString('vi-VN')} đ
@@ -804,9 +821,6 @@ export default function TheNhapLieu() {
                       <label className="form-label" style={{ fontSize: '0.68rem' }}>SL túi/thùng</label>
                       <ONhapSoDinhDang className="form-input" value={input.bagsPerBox || 0} onChange={(val: number) => xuLyGhiDeThung('bagsPerBox', val)} />
                     </div>
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '6px' }}>
-                    Chọn loại thùng để lấy giá; SL túi/thùng nhập theo kích thước túi của đơn này.
                   </div>
                 </div>
                 {input.boxOptionKey === 'custom' && (

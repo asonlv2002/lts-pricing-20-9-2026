@@ -125,9 +125,12 @@ function boDauTiengViet(chuoi: string): string {
 }
 
 function layCotLoiNhuanTuDong(input: CalculateInput, materials: Material[]): number {
-  const cacLopVatLy = [input.layer1Id, input.layer2Id, input.layer3Id, input.layer4Id, input.layer5Id]
-    .filter(Boolean) as string[];
-  const cacVatLieuDangDung = [...cacLopVatLy, input.layer2AltId].filter(Boolean) as string[];
+  const laMangIn = input.productType === 'mang' && input.filmType === 'mangIn';
+  const cacLopVatLy = (laMangIn
+    ? [input.layer1Id]
+    : [input.layer1Id, input.layer2Id, input.layer3Id, input.layer4Id, input.layer5Id]
+  ).filter(Boolean) as string[];
+  const cacVatLieuDangDung = (laMangIn ? cacLopVatLy : [...cacLopVatLy, input.layer2AltId]).filter(Boolean) as string[];
   const soLopVatLy = cacLopVatLy.length;
   const coVatLieuDacBiet = cacVatLieuDangDung.some((id) => {
     const vatLieu = materials.find(m => m.id === id);

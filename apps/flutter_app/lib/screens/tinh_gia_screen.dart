@@ -518,7 +518,7 @@ class _InputFormState extends State<_InputForm> {
                 label: 'Loại túi',
                 child: DropdownField<String>(
                   options: const [
-                    (null, '— Chọn loại túi —'),
+                    (null, 'Chọn loại túi'),
                     ('3bien', '3 biên'),
                     ('4bien', '4 biên'),
                     ('xephong_lech', 'Xếp hông dán lưng lệch'),
@@ -535,7 +535,7 @@ class _InputFormState extends State<_InputForm> {
                 label: 'Loại màng',
                 child: DropdownField<String>(
                   options: const [
-                    (null, '— Chọn loại màng —'),
+                    (null, 'Chọn loại màng'),
                     ('mangIn', 'Màng in'),
                     ('mangGhep', 'Màng ghép'),
                     ('mangDongGoi', 'Màng đóng gói tự động'),
@@ -817,7 +817,7 @@ class _InputFormState extends State<_InputForm> {
                   child: LabeledField(
                     label: 'Số màu in',
                     child: DropdownField<int>(
-                      hintText: '— Chọn số màu —',
+                      hintText: 'Chọn số màu',
                       options: const [
                         (0, 'Không in'),
                         (1, '1 màu'),

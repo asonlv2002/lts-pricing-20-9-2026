@@ -441,7 +441,7 @@ function AddCustomerModal({
                   value={form.sellerId || ''}
                   onChange={e => set('sellerId', e.target.value || null)}
                 >
-                  <option value="">— Chưa phân công —</option>
+                  <option value="">Chưa phân công</option>
                   {sellers.map(s => (
                     <option key={s.id} value={s.id}>{s.name} ({s.id})</option>
                   ))}

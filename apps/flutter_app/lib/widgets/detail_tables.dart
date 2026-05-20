@@ -362,7 +362,7 @@ void showCostTable(BuildContext context, CalculateResult r) {
     ],
     if (r.cylinderCost > 0) ...[
       [
-        TableCellData('—— Trục in (riêng) ——',
+        TableCellData(' Trục in (riêng) ',
             style: TextStyle(color: AppColors.muted, fontSize: 12)),
         TableCellData(''),
         TableCellData(''),

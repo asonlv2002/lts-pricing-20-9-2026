@@ -398,7 +398,7 @@ class _ConstantsTab extends StatelessWidget {
           children: [
             row('ghepCPSX', 'CPSX Ghép', integer: true, suffix: 'đ'),
             row('cutBase', 'CP Cắt cơ bản', integer: true, suffix: 'đ'),
-            row('laborCost', 'CP nhân công', integer: true, suffix: 'đ'),
+            row('laborCost', 'CPSX khâu in', integer: true, suffix: 'đ/m²'),
             const SizedBox(height: 4),
             Text('PHI HAO IN',
                 style: Theme.of(context).textTheme.labelMedium),

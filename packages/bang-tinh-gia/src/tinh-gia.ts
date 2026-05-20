@@ -1406,8 +1406,9 @@ export function tinhGia(
     .replace(/[\u0300-\u036f]/g, '')
     .replace(/\u0111/g, 'd')
     .replace(/\u0110/g, 'D');
-  const cacLopVatLy = [lop1, lop2, lop3, lop4, lop5].filter((vl): vl is VatLieu => !!vl);
-  const cacVatLieuDangDung = [...cacLopVatLy, lop2Phu].filter((vl): vl is VatLieu => !!vl);
+  const laMangIn = dauVao.loaiSanPham === 'mang' && dauVao.loaiMang === 'mangIn';
+  const cacLopVatLy = (laMangIn ? [lop1] : [lop1, lop2, lop3, lop4, lop5]).filter((vl): vl is VatLieu => !!vl);
+  const cacVatLieuDangDung = (laMangIn ? cacLopVatLy : [...cacLopVatLy, lop2Phu]).filter((vl): vl is VatLieu => !!vl);
   const coVatLieuDacBiet = cacVatLieuDangDung.some((vl) => {
     const chuoiKiemTra = boDauTiengViet(`${vl.id ?? ''} ${vl.ten ?? ''} ${vl.nhom ?? ''}`).toUpperCase();
     return chuoiKiemTra.includes('MPET')

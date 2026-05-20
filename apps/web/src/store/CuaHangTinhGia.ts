@@ -129,9 +129,12 @@ function boDauTiengViet(chuoi: string): string {
 }
 
 function layCotLoiNhuanTuDong(input: CalculateInput, materials: Material[]): number {
-  const cacLopVatLy = [input.layer1Id, input.layer2Id, input.layer3Id, input.layer4Id, input.layer5Id]
-    .filter(Boolean) as string[];
-  const cacVatLieuDangDung = [...cacLopVatLy, input.layer2AltId].filter(Boolean) as string[];
+  const laMangIn = input.productType === 'mang' && input.filmType === 'mangIn';
+  const cacLopVatLy = (laMangIn
+    ? [input.layer1Id]
+    : [input.layer1Id, input.layer2Id, input.layer3Id, input.layer4Id, input.layer5Id]
+  ).filter(Boolean) as string[];
+  const cacVatLieuDangDung = (laMangIn ? cacLopVatLy : [...cacLopVatLy, input.layer2AltId]).filter(Boolean) as string[];
   const soLopVatLy = cacLopVatLy.length;
   const coVatLieuDacBiet = cacVatLieuDangDung.some((id) => {
     const vatLieu = materials.find(m => m.id === id);
@@ -247,6 +250,17 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((set, get) => ({
         dauVaoMoi.layer2Lengths = undefined;
         dauVaoMoi.layer2FrontPart = 'main';
         dauVaoMoi.layer2PairingMode = 'bottom_to_bottom';
+      }
+
+      if (dauVaoMoi.productType === 'mang' && dauVaoMoi.filmType === 'mangIn') {
+        dauVaoMoi.layer2Id = null;
+        dauVaoMoi.layer2AltId = null;
+        dauVaoMoi.layer2Lengths = undefined;
+        dauVaoMoi.layer2FrontPart = 'main';
+        dauVaoMoi.layer2PairingMode = 'bottom_to_bottom';
+        dauVaoMoi.layer3Id = null;
+        dauVaoMoi.layer4Id = null;
+        dauVaoMoi.layer5Id = null;
       }
 
       if ('cutStep' in partial) {
