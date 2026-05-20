@@ -297,7 +297,7 @@ function SellerCard({
 
 // ADD CUSTOMER VIEW
 // ????????????????????????????????????????????????????????????
-function AddCustomerModal({
+function AddCustomerForm({
   sellers,
   onAdd,
   onClose,
@@ -331,9 +331,9 @@ function AddCustomerModal({
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (type === 'company' && !form.company.trim()) e.company = 'Vui l?ng nh?p t?n c?ng ty';
-    if (!form.name.trim())  e.name  = 'Vui l?ng nh?p t?n ng??i li?n h?';
-    if (!form.phone.trim()) e.phone = 'Vui l?ng nh?p s? ?i?n tho?i';
+    if (type === 'company' && !form.company.trim()) e.company = 'Vui lòng nhập tên công ty';
+    if (!form.name.trim())  e.name  = 'Vui lòng nhập tên người liên hệ';
+    if (!form.phone.trim()) e.phone = 'Vui lòng nhập số điện thoại';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -376,88 +376,65 @@ function AddCustomerModal({
     </div>
   );
   return (
-    <div className="crm-list">
-      <div className="crm-modal" style={{ maxWidth: 760, margin: '0 auto' }}>
-        <div className="crm-modal-header">
-          <UserPlus size={20} style={{ color: '#4f46e5' }} />
-          <h2 className="crm-modal-title">Thêm Khách Hàng Mới</h2>
-          <button className="crm-modal-close" onClick={onClose}><X size={18} /></button>
-        </div>
-
-        <div className="crm-modal-body">
-
-          {/* ── Type toggle ── */}
-          <div className="crm-type-toggle">
-            <button
-              className={`crm-type-btn ${type === 'company' ? 'active' : ''}`}
-              onClick={() => setType('company')}
-            >
-              <Building2 size={14} /> Công ty
-            </button>
-            <button
-              className={`crm-type-btn ${type === 'individual' ? 'active' : ''}`}
-              onClick={() => setType('individual')}
-            >
-              <User size={14} /> Cá nhân
-            </button>
+    <div className="crm-create-page">
+      <div className="crm-create-layout">
+        <main className="crm-create-form-card">
+          <div className="crm-create-section crm-create-section--type">
+            <div className="crm-create-section-head">
+              <div><h3>Loại khách hàng</h3><p>Chọn đúng loại để hiển thị trường phù hợp.</p></div>
+            </div>
+            <div className="crm-type-toggle crm-type-toggle--cards">
+              <button className={`crm-type-card ${type === 'company' ? 'active' : ''}`} onClick={() => setType('company')}>
+                <Building2 size={18} />
+                <span><b>Công ty</b><small>Doanh nghiệp / tổ chức</small></span>
+              </button>
+              <button className={`crm-type-card ${type === 'individual' ? 'active' : ''}`} onClick={() => setType('individual')}>
+                <User size={18} />
+                <span><b>Cá nhân</b><small>Khách hàng lẻ</small></span>
+              </button>
+            </div>
           </div>
 
-          {/* ── Company section ── */}
           {type === 'company' && (
-            <>
-              <div className="crm-section-title">
-                <Building2 size={13} /> Thông tin công ty
-              </div>
-              <div className="crm-modal-grid">
+            <section className="crm-create-section">
+              <div className="crm-create-section-head"><div><h3>Thông tin công ty</h3><p>Dữ liệu dùng cho báo giá, hợp đồng và xuất hóa đơn.</p></div></div>
+              <div className="crm-modal-grid crm-create-grid">
                 <InputField label="Tên công ty"   fieldKey="company"        placeholder="Tên công ty / doanh nghiệp" icon={<Building2 size={13} />} required />
                 <InputField label="Mã số thuế"    fieldKey="taxCode"        placeholder="0312345678"                  icon={<Hash      size={13} />} />
                 <InputField label="Địa chỉ"       fieldKey="companyAddress" placeholder="Tỉnh / Thành phố"           icon={<MapPin    size={13} />} />
                 <InputField label="Email công ty" fieldKey="companyEmail"   placeholder="info@company.com"           icon={<Mail      size={13} />} />
                 <InputField label="SĐT công ty"   fieldKey="companyPhone"   placeholder="028 xxxx xxxx"              icon={<Phone     size={13} />} />
               </div>
-            </>
+            </section>
           )}
 
-          {/* ── Contact person section ── */}
-          <div className="crm-section-title" style={{ marginTop: type === 'company' ? 14 : 0 }}>
-            <User size={13} /> {type === 'company' ? 'Người liên hệ' : 'Thông tin cá nhân'}
-          </div>
-          <div className="crm-modal-grid">
-            <InputField label={type === 'company' ? 'Tên người liên hệ' : 'Họ và tên'} fieldKey="name"  placeholder="Họ và tên đầy đủ" icon={<UserCircle size={13} />} required />
-            <InputField label="SĐT liên hệ"   fieldKey="phone" placeholder="0xxx xxx xxx"  icon={<Phone size={13} />} required />
-            <InputField label="Email liên hệ" fieldKey="email" placeholder="email@gmail.com" icon={<Mail size={13} />} />
-          </div>
+          <section className="crm-create-section">
+            <div className="crm-create-section-head"><div><h3>{type === 'company' ? 'Người liên hệ' : 'Thông tin cá nhân'}</h3><p>Thông tin chính để đội sales liên hệ và chăm sóc.</p></div></div>
+            <div className="crm-modal-grid crm-create-grid">
+              <InputField label={type === 'company' ? 'Tên người liên hệ' : 'Họ và tên'} fieldKey="name"  placeholder="Họ và tên đầy đủ" icon={<UserCircle size={13} />} required />
+              <InputField label="SĐT liên hệ"   fieldKey="phone" placeholder="0xxx xxx xxx"  icon={<Phone size={13} />} required />
+              <InputField label="Email liên hệ" fieldKey="email" placeholder="email@gmail.com" icon={<Mail size={13} />} />
+            </div>
+          </section>
 
-          {/* ── Seller assignment (admin only) ── */}
           {isAdmin && (
-            <>
-              <div className="crm-section-title" style={{ marginTop: 14 }}>
-                <Briefcase size={13} /> Nhân viên đảm nhận
-              </div>
-              <div className="crm-modal-field">
+            <section className="crm-create-section">
+              <div className="crm-create-section-head"><div><h3>Nhân viên đảm nhận</h3><p>Có thể để trống và phân công sau.</p></div></div>
+              <div className="crm-modal-field crm-create-seller-field">
                 <label className="crm-modal-label"><UserCircle size={13} /> Tên nhân viên + mã nhân viên</label>
-                <select
-                  className="crm-modal-input"
-                  value={form.sellerId || ''}
-                  onChange={e => set('sellerId', e.target.value || null)}
-                >
+                <select className="crm-modal-input" value={form.sellerId || ''} onChange={e => set('sellerId', e.target.value || null)}>
                   <option value="">Chưa phân công</option>
-                  {sellers.map(s => (
-                    <option key={s.id} value={s.id}>{s.name} ({s.id})</option>
-                  ))}
+                  {sellers.map(s => (<option key={s.id} value={s.id}>{s.name} ({s.id})</option>))}
                 </select>
               </div>
-            </>
+            </section>
           )}
 
-        </div>
-
-        <div className="crm-modal-footer">
-          <button className="crm-btn crm-btn-ghost" onClick={onClose}>Hủy</button>
-          <button className="crm-btn crm-btn-primary" onClick={handleSubmit}>
-            <Plus size={15} /> Thêm Khách Hàng
-          </button>
-        </div>
+          <div className="crm-create-actions">
+            <button className="crm-btn crm-btn-ghost" onClick={onClose}>Hủy</button>
+            <button className="crm-btn crm-btn-primary crm-create-submit" onClick={handleSubmit}><Plus size={15} /> Thêm Khách Hàng</button>
+          </div>
+        </main>
       </div>
     </div>
   );
@@ -480,17 +457,17 @@ export default function CustomerModule({ role, currentSellerId = 'S1', menuDangC
   const [sellers] = useState<Seller[]>(INITIAL_SELLERS);
   const [search, setSearch] = useState('');
   const [adminTab, setAdminTab] = useState<'all' | 'by_seller'>('all');
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [customerTab, setCustomerTab] = useState<'list' | 'create'>(menuDangChon === 'customers.create' ? 'create' : 'list');
   const [dismissedCreateTab, setDismissedCreateTab] = useState(false);
 
   useEffect(() => {
-    if (menuDangChon === 'customers.create') { setDismissedCreateTab(false); setShowAddModal(false); }
+    if (menuDangChon === 'customers.create') { setDismissedCreateTab(false); setCustomerTab('create'); }
     if (menuDangChon === 'customers.seller_assignment') setAdminTab('by_seller');
-    if (menuDangChon === 'customers.list' || menuDangChon === 'overview.new_customers') setAdminTab('all');
+    if (menuDangChon === 'customers.list' || menuDangChon === 'overview.new_customers') { setAdminTab('all'); setCustomerTab('list'); }
   }, [menuDangChon]);
 
-  const showCreateView = showAddModal || (menuDangChon === 'customers.create' && !dismissedCreateTab);
-  const closeCreateView = () => { setShowAddModal(false); setDismissedCreateTab(true); };
+  const showCreateView = customerTab === 'create' || (menuDangChon === 'customers.create' && !dismissedCreateTab);
+  const closeCreateView = () => { setCustomerTab('list'); setDismissedCreateTab(true); };
 
   // ── Derived data ──
   const filteredCustomers = useMemo(() => {
@@ -540,7 +517,7 @@ export default function CustomerModule({ role, currentSellerId = 'S1', menuDangC
   return (
     <div className="crm-root">
       {showCreateView ? (
-        <AddCustomerModal
+        <AddCustomerForm
           sellers={sellers}
           onAdd={handleAddCustomer}
           onClose={closeCreateView}
@@ -578,7 +555,7 @@ export default function CustomerModule({ role, currentSellerId = 'S1', menuDangC
           )}
 
           {/* Cả admin và sale đều có nút thêm khách */}
-          <button className="crm-btn crm-btn-primary" onClick={() => setShowAddModal(true)}>
+          <button className="crm-btn crm-btn-primary" onClick={() => { setCustomerTab('create'); setDismissedCreateTab(false); }}>
             <Plus size={15} /> Thêm Khách Hàng
           </button>
         </div>
