@@ -83,7 +83,7 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     mucCon: [
       { key: 'customers.list', id: 'customers', label: 'Danh sách khách hàng', vaiTros: ['admin', 'sale'] },
       { key: 'customers.create', id: 'customers', label: 'Thêm khách hàng', vaiTros: ['admin', 'sale'] },
-      { key: 'customers.seller_assignment', id: 'sellers', label: 'Phân công Seller phụ trách', vaiTros: ['admin'] },
+      { key: 'customers.seller_assignment', id: 'customers', label: 'Phân công Seller phụ trách', vaiTros: ['admin'] },
       { key: 'customers.quote_history', id: 'quotations', label: 'Lịch sử báo giá theo khách hàng', vaiTros: ['admin', 'sale'] },
       { key: 'customers.product_history', id: 'history_db', label: 'Lịch sử sản phẩm theo khách hàng', vaiTros: ['admin', 'sale'] },
     ],

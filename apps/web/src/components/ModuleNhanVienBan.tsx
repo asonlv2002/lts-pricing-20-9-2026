@@ -78,7 +78,7 @@ function ModalThemNhanVienBan({
       <div className="crm-modal" onClick={e => e.stopPropagation()}>
         <div className="crm-modal-header">
           <UserCircle size={20} style={{ color: '#4f46e5' }} />
-          <h2 className="crm-modal-title">Thêm nh?n vi?n Mới</h2>
+          <h2 className="crm-modal-title">Thêm nhân viên Mới</h2>
           <button className="crm-modal-close" onClick={onClose}><X size={18} /></button>
         </div>
         <div className="crm-modal-body">
@@ -102,7 +102,7 @@ function ModalThemNhanVienBan({
         <div className="crm-modal-footer">
           <button className="crm-btn crm-btn-ghost" onClick={onClose}>Hủy</button>
           <button className="crm-btn crm-btn-primary" onClick={xuLyGui}>
-            <Plus size={15} /> Thêm nh?n vi?n
+            <Plus size={15} /> Thêm nhân viên
           </button>
         </div>
       </div>
@@ -282,7 +282,7 @@ export default function ModuleNhanVienBan() {
           </div>
 
           <button className="crm-btn crm-btn-primary" onClick={() => setShowAdd(true)}>
-            <Plus size={15} /> Thêm nh?n vi?n
+            <Plus size={15} /> Thêm nhân viên
           </button>
         </div>
       </div>

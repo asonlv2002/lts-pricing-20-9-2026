@@ -1,12 +1,19 @@
-﻿"use client";
-import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowLeft, Briefcase, Building2, ChevronDown, Copy, Download, Eye, FileText, Filter, Hash, Lock, Mail, MapPin, MoreHorizontal, Package, Pencil, Phone, Plus, Save, Search, Shield, Unlock, User, Users, X } from 'lucide-react';
+"use client";
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  AlertCircle, ArrowLeft, Briefcase, Building2, ChevronDown, ChevronRight,
+  Copy, Download, Eye, FileText, Grid3X3, Hash, LayoutList, Lock,
+  Mail, MapPin, Package, Pencil, Phone, Plus, Save, Search,
+  Shield, Unlock, User, Users, X
+} from 'lucide-react';
 import seedCustomers from '../data/customers.json';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 
+// ── Types ────────────────────────────────────────────────────────────────────
 type CustomerStatus = 'active' | 'inactive';
 type CustomerType = 'company' | 'individual';
 type Role = 'admin' | 'sale' | 'purchase' | string;
+type ViewMode = 'grid' | 'table';
 
 interface Customer {
   id: string;
@@ -27,6 +34,7 @@ interface Customer {
   contactTitle?: string;
   contactNotes?: string;
   assignmentHistory?: string[];
+  assignmentNote?: string;
   status: CustomerStatus;
   isLocked: boolean;
   notes?: string;
@@ -38,39 +46,50 @@ interface CustomerFilters {
   keyword: string;
   sellerId: string;
   customerGroup: string;
-  status: 'all' | CustomerStatus | 'locked';
+  status: 'all' | CustomerStatus | 'locked' | 'unassigned';
   region: string;
   createdFrom: string;
   createdTo: string;
 }
 
+// ── Constants ────────────────────────────────────────────────────────────────
 const LS_CUSTOMERS = 'lts_customers';
 const LS_CUSTOMER_DRAFT = 'lts_customer_draft';
 const SELLERS = [
-  { id: 'S1', name: 'Nguyen Van An' },
-  { id: 'S2', name: 'Tran Gia Bao' },
-  { id: 'S3', name: 'Le Thu Ha' },
+  { id: 'S1', name: 'Nguyễn Văn An' },
+  { id: 'S2', name: 'Trần Gia Bảo' },
+  { id: 'S3', name: 'Lê Thu Hà' },
 ];
 const emptyFilters: CustomerFilters = { keyword: '', sellerId: '', customerGroup: '', status: 'all', region: '', createdFrom: '', createdTo: '' };
-const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', secondarySellerId: null, secondarySellerName: '', status: 'active', isLocked: false, notes: '', contactTitle: '', contactNotes: '', assignmentHistory: [], createdAt: '', updatedAt: '' };
+const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', secondarySellerId: null, secondarySellerName: '', status: 'active', isLocked: false, notes: '', contactTitle: '', contactNotes: '', assignmentHistory: [], assignmentNote: '', createdAt: '', updatedAt: '' };
 
 const FIELD_LABELS: Record<string, string> = {
   customerType: 'Loại khách hàng', customerCode: 'Mã khách hàng', companyName: 'Tên công ty', taxCode: 'Mã số thuế',
   contactName: 'Người liên hệ', phone: 'Số điện thoại', email: 'Email', address: 'Địa chỉ',
-  region: 'Khu vực', customerGroup: 'Nhóm khách hàng', notes: 'Ghi chú', contactTitle: 'Chức vụ', contactNotes: 'Ghi chú liên hệ', secondarySellerId: 'Sale phụ',
+  region: 'Khu vực', customerGroup: 'Nhóm khách hàng', sellerId: 'Sale phụ trách', secondarySellerId: 'Sale phụ', notes: 'Ghi chú', contactTitle: 'Chức vụ', contactNotes: 'Ghi chú liên hệ', assignmentNote: 'Ghi chú phân công',
 };
-const statusClass = (c: Customer) => c.isLocked ? 'crm-status--locked' : c.status === 'active' ? 'crm-status--active' : 'crm-status--inactive';
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 const getCustomerType = (c: Customer): CustomerType => c.customerType ?? 'company';
 const isIndividual = (c: Customer) => getCustomerType(c) === 'individual';
 const displayName = (c: Customer) => isIndividual(c) ? (c.contactName || c.companyName || 'Khách cá nhân') : (c.companyName || c.contactName || 'Khách doanh nghiệp');
 const typeLabel = (c: Customer) => isIndividual(c) ? 'Cá nhân' : 'Doanh nghiệp';
-
 const todayIso = () => new Date().toISOString();
 const fmtDate = (v?: string) => v ? new Date(v).toLocaleDateString('vi-VN') : '-';
 const statusLabel = (c: Customer) => c.isLocked ? 'Đã khóa' : c.status === 'active' ? 'Đang sử dụng' : 'Ngừng sử dụng';
-const normalize = (v?: string | null) => (v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const normalize = (v?: string | null) => (v ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 const canEdit = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || (role === 'sale' && c.sellerId === sellerId && !c.isLocked);
 const canLock = (role: Role) => role === 'admin';
+
+// Avatar color palette
+const AVATAR_COLORS = ['#0891b2','#7c3aed','#db2777','#ea580c','#059669','#4f46e5','#0d9488','#b91c1c','#7c2d12','#1d4ed8'];
+const getAvatarColor = (id: string) => AVATAR_COLORS[Math.abs([...id].reduce((a, c) => a + c.charCodeAt(0), 0)) % AVATAR_COLORS.length];
+const getInitials = (c: Customer) => {
+  const name = displayName(c);
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  return name.slice(0, 2).toUpperCase();
+};
 
 function loadLocalCustomers(): Customer[] {
   if (typeof window === 'undefined') return seedCustomers as Customer[];
@@ -86,13 +105,14 @@ function exportCsv(rows: Customer[]) {
   const headers = ['Loai KH','Ma KH','Ten khach hang','MST','Nguoi lien he','SDT','Email','Dia chi','Khu vuc','Nhom','Seller','Trang thai','Khoa','Ngay tao','Ghi chu'];
   const body = rows.map(c => [typeLabel(c),c.customerCode,displayName(c),c.taxCode,c.contactName,c.phone,c.email,c.address,c.region,c.customerGroup,c.sellerName,statusLabel(c),c.isLocked ? 'Co' : 'Khong',fmtDate(c.createdAt),c.notes]);
   const csv = [headers, ...body].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url; a.download = `danh-sach-khach-hang-${new Date().toISOString().slice(0,10)}.csv`; a.click();
   URL.revokeObjectURL(url);
 }
 
+// ── Wizard Steps ─────────────────────────────────────────────────────────────
 const WIZ_STEPS = [
   { label: 'Thông tin', icon: <Building2 size={14}/> },
   { label: 'Liên hệ', icon: <User size={14}/> },
@@ -115,6 +135,7 @@ function makeInitialCustomer(customer: Customer | undefined, role: Role, current
   };
 }
 
+// ── CustomerForm (Wizard) ────────────────────────────────────────────────────
 function CustomerForm({ customer, role, currentSellerId, customers = [], onSave, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; customers?: Customer[]; onSave: (c: Customer) => void; onCancel: () => void }) {
   const isNew = !customer;
   const [step, setStep] = useState(0);
@@ -138,7 +159,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
   const stepFields: Record<number, (keyof Customer)[]> = {
     0: ['customerCode', 'companyName', 'taxCode', 'customerGroup', 'region', 'address'],
     1: ['contactName', 'contactTitle', 'phone', 'email', 'contactNotes'],
-    2: ['sellerId', 'secondarySellerId', 'status', 'notes'],
+    2: ['sellerId', 'secondarySellerId', 'assignmentNote', 'notes'],
   };
 
   const validateStep = (s: number) => {
@@ -184,7 +205,6 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
   const saveDraft = () => {
     try { window.localStorage.setItem(LS_CUSTOMER_DRAFT, JSON.stringify(form)); alert('Đã lưu nháp khách hàng.'); } catch { alert('Không lưu được nháp.'); }
   };
-
   const loadDraft = () => {
     try {
       const raw = window.localStorage.getItem(LS_CUSTOMER_DRAFT);
@@ -199,68 +219,81 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
     onSave({ ...form, sellerName: seller?.name ?? form.sellerName ?? '', updatedAt: todayIso() });
   };
 
+  const progress = ((step + 1) / WIZ_STEPS.length) * 100;
+
   const Field = ({ k, icon, required, type = 'text', helper }: { k: keyof Customer; icon: React.ReactNode; required?: boolean; type?: string; helper?: string }) => {
     const err = errors[String(k)];
     const isSelect = k === 'sellerId' || k === 'secondarySellerId' || k === 'status';
-    const disabled = isLockedEdit && k !== 'notes';
+    const disabled = isLockedEdit && k !== 'notes' && k !== 'assignmentNote';
     return (
-      <div className="crm-wiz-field">
-        <label htmlFor={`wiz-${String(k)}`}>{icon}{FIELD_LABELS[String(k)] ?? String(k)} {required && <span className="req">*</span>}</label>
+      <div className="crm2-field">
+        <label htmlFor={`wiz-${String(k)}`} className="crm2-field-label">
+          {icon}<span>{FIELD_LABELS[String(k)] ?? String(k)}</span> {required && <span className="crm2-req">*</span>}
+        </label>
         {isSelect ? (
-          <select id={`wiz-${String(k)}`} className={`crm-wiz-input${err ? ' crm-wiz-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value || null)} disabled={k === 'status' && role !== 'admin' || disabled}>
-            {k === 'sellerId' && <option value="">Chưa phân công</option>}
-            {k === 'sellerId' && SELLERS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          <select id={`wiz-${String(k)}`} className={`crm2-input${err ? ' crm2-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value || null)} disabled={k === 'status' && role !== 'admin' || disabled}>
+            {(k === 'sellerId' || k === 'secondarySellerId') && <option value="">{k === 'sellerId' ? 'Chưa phân công' : 'Không có sale phụ'}</option>}
+            {(k === 'sellerId' || k === 'secondarySellerId') && SELLERS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             {k === 'status' && <><option value="active">Đang sử dụng</option><option value="inactive">Ngừng sử dụng</option></>}
           </select>
-        ) : k === 'notes' ? (
-          <textarea id={`wiz-${String(k)}`} className={`crm-wiz-input${err ? ' crm-wiz-input--error' : ''}`} rows={3} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value)} placeholder="VD: Điều khoản, thói quen đặt hàng, lưu ý công nợ..." disabled={disabled} />
+        ) : (k === 'notes' || k === 'assignmentNote') ? (
+          <textarea id={`wiz-${String(k)}`} className={`crm2-input crm2-textarea${err ? ' crm2-input--error' : ''}`} rows={3} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value)} placeholder={k === 'assignmentNote' ? 'VD: Lý do phân công, chuyển phụ trách hoặc thu hồi...' : 'VD: Điều khoản, thói quen đặt hàng, công nợ...'} disabled={disabled} />
         ) : (
-          <input id={`wiz-${String(k)}`} type={type} className={`crm-wiz-input${err ? ' crm-wiz-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value)} disabled={disabled} aria-invalid={!!err} />
+          <input id={`wiz-${String(k)}`} type={type} className={`crm2-input${err ? ' crm2-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value)} disabled={disabled} aria-invalid={!!err} />
         )}
         {err ? (
-          <span className="crm-wiz-error" role="alert"><AlertCircle size={11}/>{err}</span>
+          <span className="crm2-field-error" role="alert"><AlertCircle size={11}/>{err}</span>
         ) : helper ? (
-          <span className="crm-wiz-hint">{helper}</span>
+          <span className="crm2-field-hint">{helper}</span>
         ) : null}
       </div>
     );
   };
 
   return (
-    <div className="crm-pro-create">
+    <div className="crm2-wizard-wrap">
+      {/* Progress bar */}
+      <div className="crm2-wizard-progress">
+        <div className="crm2-wizard-progress-bar" style={{ width: `${progress}%` }} />
+      </div>
+
+      {/* Step labels */}
+      <div className="crm2-wizard-steps">
+        {WIZ_STEPS.map((s, i) => (
+          <button key={i} className={`crm2-wizard-step${i < step ? ' crm2-wizard-step--done' : i === step ? ' crm2-wizard-step--active' : ''}`} onClick={() => { if (i < step) setStep(i); }}>
+            <span className="crm2-wizard-step-num">{i < step ? '✓' : i + 1}</span>
+            <span>{s.label}</span>
+          </button>
+        ))}
+      </div>
+
       {/* Summary strip */}
-      <div className="crm-wiz-summary">
+      <div className="crm2-wizard-summary">
         <span><Hash size={11}/>{form.customerCode || '—'}</span>
         <span>{isIndividual(form) ? <User size={11}/> : <Building2 size={11}/>} {displayName(form) || '—'}</span>
-        <span><User size={11}/>{form.contactName || '—'}</span>
-        <span className={`crm-status-pill ${statusClass(form)}`}>{statusLabel(form)}</span>
+        <span className={`crm2-status-badge crm2-status-badge--${form.isLocked ? 'locked' : form.status}`}>{statusLabel(form)}</span>
       </div>
 
       {/* Locked banner */}
       {isLockedEdit && (
-        <div className="crm-wiz-locked"><Lock size={14}/> Khách hàng đang bị khóa. Chỉ admin mở khóa mới sửa được dữ liệu quan trọng.</div>
+        <div className="crm2-alert crm2-alert--warning"><Lock size={14}/> Khách hàng đang bị khóa. Chỉ admin mở khóa mới sửa được dữ liệu quan trọng.</div>
       )}
-
-      {/* Step indicator */}
-      <div className="crm-wiz-steps">
-        {WIZ_STEPS.map((s, i) => (
-          <div key={i} className={`crm-wiz-step${i < step ? ' done' : i === step ? ' active' : ''}`}>
-            <div className="crm-wiz-dot">{i < step ? <span style={{ fontWeight: 800 }}>✓</span> : s.icon}</div>
-            <span className="crm-wiz-label">{s.label}</span>
-          </div>
-        ))}
-      </div>
 
       {/* Step 0: Công ty */}
       {step === 0 && (
-        <div className="crm-wiz-card" key="step-0">
-          <div className="crm-wiz-card-title crm-wiz-card-title--with-toggle"><div style={{display:'flex',alignItems:'center',gap:8}}>{isIndividual(form) ? <User size={18} style={{ color: 'var(--accent)' }}/> : <Building2 size={18} style={{ color: 'var(--accent)' }}/>} 
+        <div className="crm2-wizard-card" key="step-0">
+          <div className="crm2-wizard-card-header">
+            <div className="crm2-wizard-card-icon">{isIndividual(form) ? <User size={20}/> : <Building2 size={20}/>}</div>
             <div>
               <h3>{isIndividual(form) ? 'Thông tin cá nhân' : 'Thông tin doanh nghiệp'}</h3>
               <p>{isIndividual(form) ? 'Họ tên, khu vực và nhóm khách hàng' : 'Mã số, tên và khu vực giao dịch'}</p>
-            </div></div><div className="crm-type-toggle-inline" role="tablist" aria-label="Loại khách hàng"><button type="button" className={form.customerType !== 'individual' ? 'active' : ''} onClick={() => set('customerType', 'company')}><Building2 size={14}/>Doanh nghiệp</button>
-            <button type="button" className={form.customerType === 'individual' ? 'active' : ''} onClick={() => set('customerType', 'individual')}><User size={14}/>Cá nhân</button></div></div>
-          <div className="crm-wiz-grid">
+            </div>
+            <div className="crm2-type-toggle" role="tablist" aria-label="Loại khách hàng">
+              <button type="button" className={form.customerType !== 'individual' ? 'crm2-type-toggle-btn crm2-type-toggle-btn--active' : 'crm2-type-toggle-btn'} onClick={() => set('customerType', 'company')}><Building2 size={13}/>DN</button>
+              <button type="button" className={form.customerType === 'individual' ? 'crm2-type-toggle-btn crm2-type-toggle-btn--active' : 'crm2-type-toggle-btn'} onClick={() => set('customerType', 'individual')}><User size={13}/>CN</button>
+            </div>
+          </div>
+          <div className="crm2-wizard-grid">
             <Field k="customerCode" icon={<Hash size={12}/>} required helper="VD: KH001, KH2026-001" />
             {isIndividual(form)
               ? <Field k="contactName" icon={<User size={12}/>} required helper="Họ tên khách hàng cá nhân" />
@@ -275,15 +308,15 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
 
       {/* Step 1: Liên hệ */}
       {step === 1 && (
-        <div className="crm-wiz-card" key="step-1">
-          <div className="crm-wiz-card-title">
-            <User size={18} style={{ color: 'var(--accent)' }}/>
+        <div className="crm2-wizard-card" key="step-1">
+          <div className="crm2-wizard-card-header">
+            <div className="crm2-wizard-card-icon"><User size={20}/></div>
             <div>
               <h3>{isIndividual(form) ? 'Thông tin liên hệ' : 'Người liên hệ chính'}</h3>
               <p>{isIndividual(form) ? 'Số điện thoại và email của khách hàng' : 'Người nhận báo giá và trao đổi đơn hàng'}</p>
             </div>
           </div>
-          <div className="crm-wiz-grid">
+          <div className="crm2-wizard-grid">
             {!isIndividual(form) && <Field k="contactName" icon={<User size={12}/>} required helper="Họ tên người liên hệ" />}
             <Field k="phone" icon={<Phone size={12}/>} required type="tel" helper="Số điện thoại liên hệ" />
             {!isIndividual(form) && <Field k="contactTitle" icon={<Briefcase size={12}/>} helper="VD: Trưởng phòng mua hàng" />}
@@ -295,35 +328,44 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
 
       {/* Step 2: Phân công */}
       {step === 2 && (
-        <div className="crm-wiz-card" key="step-2">
-          <div className="crm-wiz-card-title">
-            <Briefcase size={18} style={{ color: 'var(--accent)' }}/>
+        <div className="crm2-wizard-card" key="step-2">
+          <div className="crm2-wizard-card-header">
+            <div className="crm2-wizard-card-icon"><Briefcase size={20}/></div>
             <div>
-              <h3>Phân công &amp; trạng thái</h3>
-              <p>Sale phụ trách và trạng thái sử dụng</p>
+              <h3>Phân công phụ trách</h3>
+              <p>Sale chính, sale phụ và ghi chú phân công</p>
             </div>
           </div>
-          <div className="crm-wiz-grid">
+          <div className="crm2-wizard-grid">
             {role === 'admin' && <Field k="sellerId" icon={<Briefcase size={12}/>} helper="Sale chính được phân công sẽ thấy KH này" />}
             {role === 'admin' && <Field k="secondarySellerId" icon={<Users size={12}/>} helper="Sale phụ cùng theo dõi/hỗ trợ" />}
-            <Field k="status" icon={<Shield size={12}/>} />
+            <Field k="assignmentNote" icon={<FileText size={12}/>} helper="Lý do phân công/chuyển phụ trách/thu hồi" />
             <Field k="notes" icon={<FileText size={12}/>} helper="Điều khoản, thói quen đặt hàng, công nợ..." />
           </div>
         </div>
       )}
 
-      {duplicateWarnings.length > 0 && <div className="crm-wiz-locked" style={{ borderColor: 'var(--orange)', color: 'var(--orange)' }}><AlertCircle size={14}/> Cảnh báo trùng: {duplicateWarnings.join(' · ')}</div>}
+      {duplicateWarnings.length > 0 && (
+        <div className="crm2-alert crm2-alert--orange">
+          <AlertCircle size={14}/> Cảnh báo trùng: {duplicateWarnings.join(' · ')}
+        </div>
+      )}
 
-      {/* Action bar */}
-      <div className="crm-wiz-actions">
-        <div style={{ display: 'flex', gap: 8 }}>{step > 0 && <button className="crm-btn crm-wiz-btn-ghost" onClick={back}><ArrowLeft size={14}/> Quay lại</button>}<button className="crm-btn crm-wiz-btn-ghost" onClick={saveDraft}>Lưu nháp</button>{!customer && <button className="crm-btn crm-wiz-btn-ghost" onClick={loadDraft}>Tải nháp</button>}<button className="crm-btn crm-wiz-btn-ghost" onClick={onCancel}>Hủy</button></div>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+      {/* Floating action bar */}
+      <div className="crm2-wizard-actions">
+        <div className="crm2-wizard-actions-left">
+          {step > 0 && <button className="crm2-btn crm2-btn--ghost" onClick={back}><ArrowLeft size={14}/> Quay lại</button>}
+          <button className="crm2-btn crm2-btn--ghost" onClick={saveDraft}>Lưu nháp</button>
+          {!customer && <button className="crm2-btn crm2-btn--ghost" onClick={loadDraft}>Tải nháp</button>}
+          <button className="crm2-btn crm2-btn--ghost" onClick={onCancel}>Hủy</button>
+        </div>
+        <div>
           {step < 2 ? (
-            <button className="crm-btn crm-wiz-btn-primary" onClick={next}>
-              Tiếp tục <ChevronDown size={14} style={{ transform: 'rotate(-90deg)' }}/>
+            <button className="crm2-btn crm2-btn--primary" onClick={next}>
+              Tiếp tục <ChevronRight size={14}/>
             </button>
           ) : (
-            <button className="crm-btn crm-wiz-btn-primary" onClick={submit}>
+            <button className="crm2-btn crm2-btn--primary" onClick={submit}>
               <Save size={14}/>{isNew ? 'Tạo khách hàng' : 'Lưu thay đổi'}
             </button>
           )}
@@ -333,49 +375,305 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
   );
 }
 
-function CustomerDetail({ customer, onClose }: { customer: Customer; onClose: () => void }) {
+// ── Slide-in Detail Panel ────────────────────────────────────────────────────
+function CustomerDetailPanel({ customer, onClose }: { customer: Customer; onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<'info' | 'quotes' | 'products'>('info');
   const history = dungCuaHangTinhGia(s => s.history);
-  const related = history.filter(h => normalize(h.customer).includes(normalize(displayName(customer))) || normalize(h.input?.customer).includes(normalize(displayName(customer))));
   const loadHistoryItem = dungCuaHangTinhGia(s => s.loadHistoryItem);
   const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
-  const products = Array.from(new Map(related.map(h => [`${h.productName}-${h.structure}`, h])).values());
-  return <div className="crm-modal-backdrop" onClick={onClose}><div className="crm-create-form-card" style={{maxWidth:980, margin:'40px auto'}} onClick={e => e.stopPropagation()}>
-    <div className="crm-create-section-head"><div style={{display:'flex',gap:14,alignItems:'center'}}><div className="crm-avatar-lg"><Briefcase size={22}/></div><div><h3>{displayName(customer)}</h3><p>{customer.customerCode} · {typeLabel(customer)} · <span className={`crm-status-pill ${statusClass(customer)}`}>{statusLabel(customer)}</span> · Seller: {customer.sellerName || customer.sellerId || 'Chưa phân'}</p></div></div><button className="crm-btn crm-btn-ghost" aria-label="Đóng hồ sơ khách hàng" onClick={onClose}><X size={15}/> Đóng</button></div>
-    <div className="crm-admin-tabs"><button className="crm-admin-tab active"><Users size={15}/> Thông tin</button><button className="crm-admin-tab"><FileText size={15}/> Báo giá ({related.length})</button><button className="crm-admin-tab"><Package size={15}/> Sản phẩm ({products.length})</button></div>
-    <div className="crm-modal-grid crm-create-grid">{[['Loại khách hàng',typeLabel(customer)],['MST',customer.taxCode],['Người liên hệ',customer.contactName],['Chức vụ',customer.contactTitle],['SĐT',customer.phone],['Email',customer.email],['Địa chỉ',customer.address],['Khu vực',customer.region],['Nhóm',customer.customerGroup],['Sale phụ',customer.secondarySellerName || customer.secondarySellerId],['Ghi chú liên hệ',customer.contactNotes],['Ghi chú',customer.notes]].map(([k,v]) => <div className="crm-modal-field" key={k}><label className="crm-modal-label">{k}</label><div className="crm-modal-input" style={{height:'auto',minHeight:38}}>{v || '-'}</div></div>)}</div>
-    <h4><FileText size={16}/> Báo giá liên quan ({related.length})</h4>{related.slice(0,8).map(h => <div className="crm-customer-row" key={h.id}><FileText size={18}/><div className="crm-customer-main"><b>{h.productName}</b><small>{fmtDate(h.date)} · {Math.round(h.chotGia ?? h.finalPrice).toLocaleString('vi-VN')} đ</small></div><button className="crm-btn-icon" title="Mở bảng tính" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}><Eye size={14}/></button><button className="crm-btn-icon" title="Sao chép báo giá" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}><Copy size={14}/></button></div>)}
-    <h4><Package size={16}/> Sản phẩm liên quan ({products.length})</h4>{products.slice(0,8).map(h => <div className="crm-customer-row" key={h.id}><Package size={18}/><div className="crm-customer-main"><b>{h.productName}</b><small>{h.structure} · SL {h.quantity?.toLocaleString('vi-VN')}</small></div><button className="crm-btn-icon" title="Mở bảng tính liên quan" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}><Eye size={14}/></button><button className="crm-btn-icon" title="Sao chép sản phẩm" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}><Copy size={14}/></button></div>)}
-  </div></div>;
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const related = history.filter(h =>
+    normalize(h.customer).includes(normalize(displayName(customer))) ||
+    normalize(h.input?.customer).includes(normalize(displayName(customer)))
+  );
+  const products = Array.from(
+    new Map(related.map(h => [`${h.productName}-${h.structure}`, h])).values()
+  );
+
+  const infoFields: [string, string | undefined | null][] = [
+    ['Loại khách hàng', typeLabel(customer)],
+    ['Mã khách hàng', customer.customerCode],
+    ['Mã số thuế', customer.taxCode],
+    ['Người liên hệ', customer.contactName],
+    ['Chức vụ', customer.contactTitle],
+    ['Số điện thoại', customer.phone],
+    ['Email', customer.email],
+    ['Địa chỉ', customer.address],
+    ['Khu vực', customer.region],
+    ['Nhóm khách hàng', customer.customerGroup],
+    ['Sale phụ', customer.secondarySellerName || customer.secondarySellerId],
+    ['Ghi chú liên hệ', customer.contactNotes],
+    ['Ghi chú phân công', customer.assignmentNote],
+    ['Ghi chú', customer.notes],
+    ['Ngày tạo', fmtDate(customer.createdAt)],
+    ['Cập nhật', fmtDate(customer.updatedAt)],
+  ];
+
+  return (
+    <>
+      <div className="crm2-overlay crm2-overlay--open" onClick={onClose} />
+      <div className="crm2-slide-panel crm2-slide-panel--open" ref={panelRef}>
+        {/* Panel header */}
+        <div className="crm2-panel-header">
+          <div className="crm2-panel-avatar" style={{ background: getAvatarColor(customer.id) }}>
+            {getInitials(customer)}
+          </div>
+          <div className="crm2-panel-title">
+            <h3>{displayName(customer)}</h3>
+            <div className="crm2-panel-meta">
+              <span>{customer.customerCode}</span>
+              <span className="crm2-dot">·</span>
+              <span>{typeLabel(customer)}</span>
+              <span className="crm2-dot">·</span>
+              <span className={`crm2-status-badge crm2-status-badge--${customer.isLocked ? 'locked' : customer.status}`}>{statusLabel(customer)}</span>
+            </div>
+            <span className="crm2-panel-seller"><Briefcase size={11}/> {customer.sellerName || customer.sellerId || 'Chưa phân'}</span>
+          </div>
+          <button className="crm2-btn-icon crm2-btn-icon--close" aria-label="Đóng" onClick={onClose}><X size={18}/></button>
+        </div>
+
+        {/* Tabs */}
+        <div className="crm2-panel-tabs">
+          <button className={`crm2-panel-tab${activeTab === 'info' ? ' crm2-panel-tab--active' : ''}`} onClick={() => setActiveTab('info')}>
+            <Users size={14}/> Thông tin
+          </button>
+          <button className={`crm2-panel-tab${activeTab === 'quotes' ? ' crm2-panel-tab--active' : ''}`} onClick={() => setActiveTab('quotes')}>
+            <FileText size={14}/> Báo giá ({related.length})
+          </button>
+          <button className={`crm2-panel-tab${activeTab === 'products' ? ' crm2-panel-tab--active' : ''}`} onClick={() => setActiveTab('products')}>
+            <Package size={14}/> Sản phẩm ({products.length})
+          </button>
+        </div>
+
+        {/* Tab content */}
+        <div className="crm2-panel-body">
+          {activeTab === 'info' && (
+            <div className="crm2-info-grid">
+              {infoFields.map(([label, value]) => (
+                <div className="crm2-info-item" key={label}>
+                  <span className="crm2-info-label">{label}</span>
+                  <span className="crm2-info-value">{value || <span style={{ opacity: 0.4 }}>—</span>}</span>
+                </div>
+              ))}
+              {(customer.assignmentHistory?.length ?? 0) > 0 && (
+                <div className="crm2-info-item crm2-info-item--full">
+                  <span className="crm2-info-label">Lịch sử phân công</span>
+                  <div className="crm2-info-history">
+                    {customer.assignmentHistory!.map((entry, i) => (
+                      <div key={i} className="crm2-info-history-item">{entry}</div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'quotes' && (
+            <div className="crm2-panel-list">
+              {related.length === 0 ? (
+                <div className="crm2-empty-state">
+                  <FileText size={40} strokeWidth={1} />
+                  <p>Chưa có báo giá liên quan</p>
+                  <span>Báo giá sẽ hiển thị khi khách hàng có đơn trong lịch sử tính giá</span>
+                </div>
+              ) : (
+                related.slice(0, 20).map(h => (
+                  <div className="crm2-panel-list-item" key={h.id}>
+                    <div className="crm2-panel-list-icon"><FileText size={16}/></div>
+                    <div className="crm2-panel-list-content">
+                      <b>{h.productName}</b>
+                      <small>{fmtDate(h.date)} · {Math.round(h.chotGia ?? h.finalPrice).toLocaleString('vi-VN')} đ {h.quoteStatus ? `· ${h.quoteStatus}` : ''}</small>
+                    </div>
+                    <div className="crm2-panel-list-actions">
+                      <button className="crm2-btn-icon" title="Mở bảng tính" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}>
+                        <Eye size={14}/>
+                      </button>
+                      <button className="crm2-btn-icon" title="Sao chép" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}>
+                        <Copy size={14}/>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+
+          {activeTab === 'products' && (
+            <div className="crm2-panel-list">
+              {products.length === 0 ? (
+                <div className="crm2-empty-state">
+                  <Package size={40} strokeWidth={1} />
+                  <p>Chưa có sản phẩm liên quan</p>
+                  <span>Sản phẩm sẽ hiển thị khi khách hàng có báo giá đã lưu</span>
+                </div>
+              ) : (
+                products.slice(0, 20).map(h => (
+                  <div className="crm2-panel-list-item" key={h.id}>
+                    <div className="crm2-panel-list-icon"><Package size={16}/></div>
+                    <div className="crm2-panel-list-content">
+                      <b>{h.productName}</b>
+                      <small>{h.structure} · SL {h.quantity?.toLocaleString('vi-VN')}</small>
+                    </div>
+                    <div className="crm2-panel-list-actions">
+                      <button className="crm2-btn-icon" title="Mở bảng tính" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}>
+                        <Eye size={14}/>
+                      </button>
+                      <button className="crm2-btn-icon" title="Sao chép" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}>
+                        <Copy size={14}/>
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  );
 }
 
+// ── Assign Seller Dialog ────────────────────────────────────────────────────
+function AssignSellerDialog({ customer, onSave, onClose }: { customer: Customer; onSave: (sellerId: string | null, secondarySellerId: string | null, note: string) => void; onClose: () => void }) {
+  const [sellerId, setSellerId] = useState(customer.sellerId ?? '');
+  const [secondarySellerId, setSecondarySellerId] = useState(customer.secondarySellerId ?? '');
+  const [note, setNote] = useState('');
+  return (
+    <div className="crm2-overlay crm2-overlay--open" onClick={onClose}>
+      <div className="crm2-confirm-dialog" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
+        <h3>Phân công Seller — {displayName(customer)}</h3>
+        <p style={{ marginBottom: 16 }}>{customer.customerCode} · Seller hiện tại: {customer.sellerName || 'Chưa phân'}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="crm2-field">
+            <label className="crm2-field-label"><Briefcase size={12}/><span>Sale phụ trách chính</span></label>
+            <select className="crm2-input" value={sellerId} onChange={e => setSellerId(e.target.value)}>
+              <option value="">Chưa phân công</option>
+              {SELLERS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div className="crm2-field">
+            <label className="crm2-field-label"><Users size={12}/><span>Sale phụ</span></label>
+            <select className="crm2-input" value={secondarySellerId} onChange={e => setSecondarySellerId(e.target.value)}>
+              <option value="">Không có</option>
+              {SELLERS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div className="crm2-field">
+            <label className="crm2-field-label"><FileText size={12}/><span>Ghi chú phân công</span></label>
+            <textarea className="crm2-input crm2-textarea" rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="Lý do phân công, chuyển phụ trách..." />
+          </div>
+        </div>
+        <div className="crm2-confirm-actions" style={{ marginTop: 16 }}>
+          <button className="crm2-btn crm2-btn--ghost" onClick={onClose}>Hủy</button>
+          <button className="crm2-btn crm2-btn--primary" onClick={() => onSave(sellerId || null, secondarySellerId || null, note)}>
+            <Save size={14}/> Lưu phân công
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Customer Card ────────────────────────────────────────────────────────────
+function CustomerCard({ customer, role, currentSellerId, onView, onEdit, onToggleLock, onAssign }: {
+  customer: Customer; role: Role; currentSellerId?: string;
+  onView: () => void; onEdit: () => void;
+  onToggleLock: () => void; onAssign: () => void;
+}) {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div
+      className="crm2-card"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      onClick={onView}
+    >
+      <div className="crm2-card-top">
+        <div className="crm2-card-avatar" style={{ background: getAvatarColor(customer.id) }}>
+          {getInitials(customer)}
+        </div>
+        <div className="crm2-card-identity">
+          <span className="crm2-card-name">{displayName(customer)}</span>
+          <span className="crm2-card-code">{customer.customerCode}</span>
+        </div>
+        <span className={`crm2-status-badge crm2-status-badge--${customer.isLocked ? 'locked' : customer.status}`}>
+          {statusLabel(customer)}
+        </span>
+      </div>
+      <div className="crm2-card-info">
+        {customer.phone && <span className="crm2-card-info-row"><Phone size={12}/>{customer.phone}</span>}
+        {customer.email && <span className="crm2-card-info-row crm2-card-info-row--truncate"><Mail size={12}/>{customer.email}</span>}
+        {customer.region && <span className="crm2-card-info-row"><MapPin size={12}/>{customer.region}</span>}
+        {customer.sellerName && <span className="crm2-card-info-row"><Briefcase size={12}/>{customer.sellerName}</span>}
+      </div>
+      {/* Quick actions on hover */}
+      <div className={`crm2-card-actions${hovered ? ' crm2-card-actions--visible' : ''}`}>
+        <button className="crm2-btn-icon" title="Xem chi tiết" onClick={e => { e.stopPropagation(); onView(); }}><Eye size={14}/></button>
+        {canEdit(role, customer, currentSellerId) && <button className="crm2-btn-icon" title="Chỉnh sửa" onClick={e => { e.stopPropagation(); onEdit(); }}><Pencil size={14}/></button>}
+        {role === 'admin' && <button className="crm2-btn-icon" title="Phân công Seller" onClick={e => { e.stopPropagation(); onAssign(); }}><Briefcase size={14}/></button>}
+        {canLock(role) && <button className="crm2-btn-icon" title={customer.isLocked ? 'Mở khóa' : 'Khóa'} onClick={e => { e.stopPropagation(); onToggleLock(); }}>{customer.isLocked ? <Unlock size={14}/> : <Lock size={14}/>}</button>}
+      </div>
+    </div>
+  );
+}
+
+// ── Main Component ───────────────────────────────────────────────────────────
 export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDangChon }: { role: Role; currentSellerId?: string; menuDangChon?: string }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [filters, setFilters] = useState<CustomerFilters>(emptyFilters);
   const [editing, setEditing] = useState<Customer | null | undefined>(undefined);
   const [detail, setDetail] = useState<Customer | null>(null);
-  const [filterOpen, setFilterOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [confirm, setConfirm] = useState<{ title: string; desc: string; action: () => void } | null>(null);
+  const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
+  const [assigning, setAssigning] = useState<Customer | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+
   useEffect(() => setCustomers(loadLocalCustomers()), []);
   useEffect(() => { if (customers.length) saveLocalCustomers(customers); }, [customers]);
-  useEffect(() => { if (menuDangChon === 'customers.create') setEditing(null); }, [menuDangChon]);
+  useEffect(() => {
+    if (menuDangChon === 'customers.create') setEditing(null);
+    else if (menuDangChon === 'customers.seller_assignment') {
+      setEditing(undefined);
+      setFilters(f => ({ ...f, status: 'unassigned' }));
+    }
+    else setEditing(undefined);
+  }, [menuDangChon]);
+
+  // Ctrl+K shortcut for search
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, []);
 
   const options = useMemo(() => ({
     sellers: SELLERS,
     groups: Array.from(new Set(customers.map(c => c.customerGroup).filter(Boolean))) as string[],
     regions: Array.from(new Set(customers.map(c => c.region).filter(Boolean))) as string[],
   }), [customers]);
+
   const visible = useMemo(() => customers.filter(c => role === 'admin' || role === 'purchase' || c.sellerId === currentSellerId || c.secondarySellerId === currentSellerId), [customers, role, currentSellerId]);
+
   const filtered = useMemo(() => visible.filter(c => {
     const q = normalize(filters.keyword);
     const hay = normalize([displayName(c),c.companyName,c.customerCode,c.contactName,c.phone,c.email,c.taxCode,typeLabel(c)].join(' '));
     if (q && !hay.includes(q)) return false;
-    if (filters.sellerId && c.sellerId !== filters.sellerId) return false;
+    if (filters.sellerId && c.sellerId !== filters.sellerId && c.secondarySellerId !== filters.sellerId) return false;
     if (filters.customerGroup && c.customerGroup !== filters.customerGroup) return false;
     if (filters.region && c.region !== filters.region) return false;
     if (filters.status === 'locked' && !c.isLocked) return false;
-    if (filters.status !== 'all' && filters.status !== 'locked' && c.status !== filters.status) return false;
-    if (filters.createdFrom && c.createdAt.slice(0,10) < filters.createdFrom) return false;
-    if (filters.createdTo && c.createdAt.slice(0,10) > filters.createdTo) return false;
+    if (filters.status === 'unassigned' && c.sellerId) return false;
+    if (filters.status !== 'all' && filters.status !== 'locked' && filters.status !== 'unassigned' && c.status !== filters.status) return false;
+    const created = (c.createdAt || '').slice(0,10);
+    if (filters.createdFrom && created && created < filters.createdFrom) return false;
+    if (filters.createdTo && created && created > filters.createdTo) return false;
     return true;
   }), [visible, filters]);
 
@@ -383,40 +681,749 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     const seller = SELLERS.find(s => s.id === c.sellerId);
     const secondary = SELLERS.find(s => s.id === c.secondarySellerId);
     const old = prev.find(x => x.id === c.id);
-    const historyLine = old && old.sellerId !== c.sellerId ? `${new Date().toLocaleString('vi-VN')}: ${old.sellerName || old.sellerId || 'Chưa phân'} -> ${seller?.name || c.sellerId || 'Chưa phân'}` : undefined;
+    const changedSeller = old && (old.sellerId !== c.sellerId || old.secondarySellerId !== c.secondarySellerId);
+    const historyLine = changedSeller ? `${new Date().toLocaleString('vi-VN')}: chính ${old?.sellerName || old?.sellerId || 'Chưa phân'} → ${seller?.name || c.sellerId || 'Chưa phân'}; phụ ${old?.secondarySellerName || old?.secondarySellerId || 'Không có'} → ${secondary?.name || c.secondarySellerId || 'Không có'}${c.assignmentNote ? ` (${c.assignmentNote})` : ''}` : undefined;
     const saved = { ...c, sellerName: seller?.name ?? c.sellerName ?? '', secondarySellerName: secondary?.name ?? c.secondarySellerName ?? '', assignmentHistory: historyLine ? [...(old?.assignmentHistory ?? []), historyLine] : (c.assignmentHistory ?? []) };
     return prev.some(x => x.id === c.id) ? prev.map(x => x.id === c.id ? saved : x) : [saved, ...prev];
   });
   const patch = (id: string, partial: Partial<Customer>) => setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...partial, updatedAt: todayIso() } : c));
-  if (editing !== undefined) return <div className="crm-root crm-create-page"><CustomerForm customer={editing ?? undefined} role={role} currentSellerId={currentSellerId} customers={customers} onSave={c => { upsert(c); setEditing(undefined); }} onCancel={() => setEditing(undefined)} /></div>;
 
-  return <div className="crm-root">
-    {detail && <CustomerDetail customer={detail} onClose={() => setDetail(null)} />}
-    {confirm && <div className="crm-modal-backdrop" onClick={() => setConfirm(null)}><div className="crm-create-form-card" style={{maxWidth:460, margin:'70px auto'}} onClick={e => e.stopPropagation()}><h3>{confirm.title}</h3><p style={{color:'var(--muted)'}}>{confirm.desc}</p><div className="crm-create-actions"><button className="crm-btn crm-btn-ghost" onClick={() => setConfirm(null)}>Hủy</button><button className="crm-btn crm-btn-danger" onClick={() => { confirm.action(); setConfirm(null); }}>Xác nhận</button></div></div></div>}
-    <div className="crm-toolbar">
-      <div className="crm-search-box"><Search size={15} className="crm-search-icon"/><input className="crm-search-input" aria-label="Tìm kiếm khách hàng" placeholder="Tìm tên công ty, mã KH, liên hệ, SĐT, email, MST..." value={filters.keyword} onChange={e => setFilters(f => ({...f, keyword:e.target.value}))}/>{filters.keyword && <button aria-label="Xóa tìm kiếm" className="crm-search-clear" onClick={() => setFilters(f => ({...f, keyword:''}))}><X size={13}/></button>}</div>
-      <div className="crm-toolbar-right"><button className="crm-btn crm-btn-outline" onClick={() => setFilterOpen(v => !v)}><Filter size={15}/> Bộ lọc <ChevronDown size={14}/></button><button className="crm-btn crm-btn-outline" disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}><Download size={15}/> Xuất danh sách</button>{role !== 'purchase' && <button className="crm-btn crm-btn-primary" onClick={() => setEditing(null)}><Plus size={15}/> Thêm khách hàng</button>}</div>
+  const assignSeller = (customerId: string, sellerId: string | null, secondarySellerId: string | null, note: string) => {
+    const seller = SELLERS.find(s => s.id === sellerId);
+    const secondary = SELLERS.find(s => s.id === secondarySellerId);
+    setCustomers(prev => prev.map(c => {
+      if (c.id !== customerId) return c;
+      const historyLine = `${new Date().toLocaleString('vi-VN')}: chính ${c.sellerName || c.sellerId || 'Chưa phân'} → ${seller?.name || 'Chưa phân'}; phụ ${c.secondarySellerName || c.secondarySellerId || 'Không có'} → ${secondary?.name || 'Không có'}${note ? ` (${note})` : ''}`;
+      return {
+        ...c,
+        sellerId: sellerId,
+        sellerName: seller?.name ?? '',
+        secondarySellerId: secondarySellerId,
+        secondarySellerName: secondary?.name ?? '',
+        assignmentNote: note || c.assignmentNote,
+        assignmentHistory: [...(c.assignmentHistory ?? []), historyLine],
+        updatedAt: todayIso(),
+      };
+    }));
+    setAssigning(null);
+  };
+
+  // If editing mode, show wizard
+  if (editing !== undefined) {
+    return (
+      <div className="crm2-root">
+        <StyleInjector />
+        <CustomerForm customer={editing ?? undefined} role={role} currentSellerId={currentSellerId} customers={customers} onSave={c => { upsert(c); setEditing(undefined); }} onCancel={() => setEditing(undefined)} />
+      </div>
+    );
+  }
+
+  const activeCount = visible.filter(c => c.status === 'active' && !c.isLocked).length;
+  const lockedCount = visible.filter(c => c.isLocked).length;
+
+  const statusChips: { key: CustomerFilters['status']; label: string; count?: number }[] = [
+    { key: 'all', label: 'Tất cả', count: visible.length },
+    { key: 'active', label: 'Đang dùng', count: activeCount },
+    { key: 'inactive', label: 'Ngừng', count: visible.filter(c => c.status === 'inactive').length },
+    { key: 'locked', label: 'Đã khóa', count: lockedCount },
+    { key: 'unassigned', label: 'Chưa phân', count: visible.filter(c => !c.sellerId).length },
+  ];
+
+  return (
+    <div className="crm2-root">
+      <StyleInjector />
+      {/* Slide-in detail panel */}
+      {detail && <CustomerDetailPanel customer={detail} onClose={() => setDetail(null)} />}
+
+      {/* Confirm dialog */}
+      {confirm && (
+        <div className="crm2-overlay crm2-overlay--open" onClick={() => setConfirm(null)}>
+          <div className="crm2-confirm-dialog" onClick={e => e.stopPropagation()}>
+            <h3>{confirm.title}</h3>
+            <p>{confirm.desc}</p>
+            <div className="crm2-confirm-actions">
+              <button className="crm2-btn crm2-btn--ghost" onClick={() => setConfirm(null)}>Hủy</button>
+              <button className="crm2-btn crm2-btn--danger" onClick={() => { confirm.action(); setConfirm(null); }}>Xác nhận</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Assign seller dialog */}
+      {assigning && (
+        <AssignSellerDialog
+          customer={assigning}
+          onSave={(sid, ssid, note) => assignSeller(assigning.id, sid, ssid, note)}
+          onClose={() => setAssigning(null)}
+        />
+      )}
+
+      {/* Compact header */}
+      <header className="crm2-header">
+        <div className="crm2-header-left">
+          <div className="crm2-breadcrumb">
+            <span>CRM</span>
+            <ChevronRight size={12}/>
+            <span className="crm2-breadcrumb-current">Khách hàng</span>
+          </div>
+          <h1 className="crm2-title">Khách hàng <span className="crm2-title-count">({filtered.length})</span></h1>
+        </div>
+        <div className="crm2-header-right">
+          <button className="crm2-btn crm2-btn--ghost" disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}>
+            <Download size={15}/> Xuất CSV
+          </button>
+          {role !== 'purchase' && (
+            <button className="crm2-btn crm2-btn--primary" onClick={() => setEditing(null)}>
+              <Plus size={15}/> Thêm mới
+            </button>
+          )}
+        </div>
+      </header>
+
+      {/* Search bar */}
+      <div className="crm2-search-bar">
+        <Search size={16} className="crm2-search-icon"/>
+        <input
+          ref={searchRef}
+          className="crm2-search-input"
+          aria-label="Tìm kiếm khách hàng"
+          placeholder="Tìm tên, mã KH, SĐT, email, MST..."
+          value={filters.keyword}
+          onChange={e => setFilters(f => ({...f, keyword: e.target.value}))}
+        />
+        <kbd className="crm2-search-kbd">Ctrl+K</kbd>
+        {filters.keyword && (
+          <button className="crm2-btn-icon crm2-search-clear" aria-label="Xóa" onClick={() => setFilters(f => ({...f, keyword: ''}))}>
+            <X size={14}/>
+          </button>
+        )}
+      </div>
+
+      {/* Filter chips + view toggle + dropdown filters */}
+      <div className="crm2-toolbar">
+        <div className="crm2-chips">
+          {statusChips.map(chip => (
+            <button
+              key={chip.key}
+              className={filters.status === chip.key ? 'crm2-chip crm2-chip--active' : 'crm2-chip'}
+              onClick={() => setFilters(f => ({...f, status: chip.key}))}
+            >
+              {chip.label} {chip.count != null && <span className="crm2-chip-count">{chip.count}</span>}
+            </button>
+          ))}
+
+          {/* Seller dropdown */}
+          <div className="crm2-dropdown-wrap">
+            <button className={`crm2-chip${filters.sellerId ? ' crm2-chip--active' : ''}`} onClick={() => setDropdownOpen(d => d === 'seller' ? null : 'seller')}>
+              <Briefcase size={12}/> {filters.sellerId ? SELLERS.find(s => s.id === filters.sellerId)?.name : 'Seller'} <ChevronDown size={12}/>
+            </button>
+            {dropdownOpen === 'seller' && (
+              <div className="crm2-dropdown-menu">
+                <button onClick={() => { setFilters(f => ({...f, sellerId: ''})); setDropdownOpen(null); }}>Tất cả Seller</button>
+                {options.sellers.map(s => <button key={s.id} onClick={() => { setFilters(f => ({...f, sellerId: s.id})); setDropdownOpen(null); }}>{s.name}</button>)}
+              </div>
+            )}
+          </div>
+
+          {/* Group dropdown */}
+          <div className="crm2-dropdown-wrap">
+            <button className={`crm2-chip${filters.customerGroup ? ' crm2-chip--active' : ''}`} onClick={() => setDropdownOpen(d => d === 'group' ? null : 'group')}>
+              <Users size={12}/> {filters.customerGroup || 'Nhóm'} <ChevronDown size={12}/>
+            </button>
+            {dropdownOpen === 'group' && (
+              <div className="crm2-dropdown-menu">
+                <button onClick={() => { setFilters(f => ({...f, customerGroup: ''})); setDropdownOpen(null); }}>Tất cả nhóm</button>
+                {options.groups.map(g => <button key={g} onClick={() => { setFilters(f => ({...f, customerGroup: g})); setDropdownOpen(null); }}>{g}</button>)}
+              </div>
+            )}
+          </div>
+
+          {/* Region dropdown */}
+          <div className="crm2-dropdown-wrap">
+            <button className={`crm2-chip${filters.region ? ' crm2-chip--active' : ''}`} onClick={() => setDropdownOpen(d => d === 'region' ? null : 'region')}>
+              <MapPin size={12}/> {filters.region || 'Khu vực'} <ChevronDown size={12}/>
+            </button>
+            {dropdownOpen === 'region' && (
+              <div className="crm2-dropdown-menu">
+                <button onClick={() => { setFilters(f => ({...f, region: ''})); setDropdownOpen(null); }}>Tất cả khu vực</button>
+                {options.regions.map(r => <button key={r} onClick={() => { setFilters(f => ({...f, region: r})); setDropdownOpen(null); }}>{r}</button>)}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="crm2-toolbar-right">
+          <div className="crm2-view-toggle">
+            <button className={`crm2-view-btn${viewMode === 'grid' ? ' crm2-view-btn--active' : ''}`} onClick={() => setViewMode('grid')} title="Dạng lưới"><Grid3X3 size={16}/></button>
+            <button className={`crm2-view-btn${viewMode === 'table' ? ' crm2-view-btn--active' : ''}`} onClick={() => setViewMode('table')} title="Dạng bảng"><LayoutList size={16}/></button>
+          </div>
+        </div>
+      </div>
+
+      {/* Content area */}
+      {filtered.length === 0 ? (
+        <div className="crm2-empty-state crm2-empty-state--large">
+          <Shield size={48} strokeWidth={1} />
+          <p>Không có khách hàng phù hợp</p>
+          <span>Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</span>
+          <button className="crm2-btn crm2-btn--ghost" onClick={() => setFilters(emptyFilters)}>Xóa bộ lọc</button>
+        </div>
+      ) : viewMode === 'grid' ? (
+        /* Card Grid View */
+        <div className="crm2-card-grid">
+          {filtered.map(c => (
+            <CustomerCard
+              key={c.id}
+              customer={c}
+              role={role}
+              currentSellerId={currentSellerId}
+              onView={() => setDetail(c)}
+              onEdit={() => setEditing(c)}
+              onToggleLock={() => setConfirm({
+                title: c.isLocked ? 'Mở khóa khách hàng?' : 'Khóa khách hàng?',
+                desc: c.isLocked ? `${displayName(c)} sẽ được phép chỉnh sửa/tạo báo giá lại.` : `${displayName(c)} sẽ không được tạo báo giá mới hoặc sửa dữ liệu quan trọng.`,
+                action: () => patch(c.id, { isLocked: !c.isLocked })
+              })}
+              onAssign={() => setAssigning(c)}
+            />
+          ))}
+        </div>
+      ) : (
+        /* Table View */
+        <div className="crm2-table-wrap">
+          <table className="crm2-table">
+            <thead>
+              <tr>
+                <th>Khách hàng</th>
+                <th>Liên hệ</th>
+                <th>Khu vực</th>
+                <th>Seller</th>
+                <th>Trạng thái</th>
+                <th>Thao tác</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(c => (
+                <tr key={c.id} className="crm2-table-row" onClick={() => setDetail(c)}>
+                  <td>
+                    <div className="crm2-table-customer">
+                      <div className="crm2-table-avatar" style={{ background: getAvatarColor(c.id) }}>{getInitials(c)}</div>
+                      <div>
+                        <span className="crm2-table-name">{displayName(c)}</span>
+                        <span className="crm2-table-code">{c.customerCode} · {typeLabel(c)}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="crm2-table-contact">
+                      <span>{c.contactName || '-'}</span>
+                      <span>{c.phone || '-'}</span>
+                    </div>
+                  </td>
+                  <td>{c.region || '-'}</td>
+                  <td><span className="crm2-table-seller">{c.sellerName || 'Chưa phân'}</span></td>
+                  <td>
+                    <span className={`crm2-status-badge crm2-status-badge--${c.isLocked ? 'locked' : c.status}`}>
+                      {statusLabel(c)}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="crm2-table-actions" onClick={e => e.stopPropagation()}>
+                      <button className="crm2-btn-icon" title="Xem" onClick={() => setDetail(c)}><Eye size={14}/></button>
+                      {canEdit(role, c, currentSellerId) && <button className="crm2-btn-icon" title="Sửa" onClick={() => setEditing(c)}><Pencil size={14}/></button>}
+                      {role === 'admin' && <button className="crm2-btn-icon" title="Phân công" onClick={() => setAssigning(c)}><Briefcase size={14}/></button>}
+                      {canLock(role) && (
+                        <button className="crm2-btn-icon" title={c.isLocked ? 'Mở khóa' : 'Khóa'} onClick={() => setConfirm({
+                          title: c.isLocked ? 'Mở khóa?' : 'Khóa?',
+                          desc: c.isLocked ? `${displayName(c)} sẽ được mở khóa.` : `${displayName(c)} sẽ bị khóa.`,
+                          action: () => patch(c.id, { isLocked: !c.isLocked })
+                        })}>
+                          {c.isLocked ? <Unlock size={14}/> : <Lock size={14}/>}
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
-    {filterOpen && <div className="crm-filter-panel">
-      <div className="crm-modal-field"><label className="crm-modal-label">Seller phụ trách</label><select className="crm-modal-input" value={filters.sellerId} onChange={e => setFilters(f => ({...f, sellerId:e.target.value}))}><option value="">Tất cả Seller</option>{options.sellers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
-      <div className="crm-modal-field"><label className="crm-modal-label">Nhóm khách hàng</label><select className="crm-modal-input" value={filters.customerGroup} onChange={e => setFilters(f => ({...f, customerGroup:e.target.value}))}><option value="">Tất cả nhóm</option>{options.groups.map(g => <option key={g} value={g}>{g}</option>)}</select></div>
-      <div className="crm-modal-field"><label className="crm-modal-label">Trạng thái</label><select className="crm-modal-input" value={filters.status} onChange={e => setFilters(f => ({...f, status:e.target.value as CustomerFilters['status']}))}><option value="all">Tất cả trạng thái</option><option value="active">Đang sử dụng</option><option value="inactive">Ngừng sử dụng</option><option value="locked">Đã khóa</option></select></div>
-      <div className="crm-modal-field"><label className="crm-modal-label">Khu vực</label><select className="crm-modal-input" value={filters.region} onChange={e => setFilters(f => ({...f, region:e.target.value}))}><option value="">Tất cả khu vực</option>{options.regions.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
-      <div className="crm-modal-field"><label className="crm-modal-label">Tạo từ ngày</label><input className="crm-modal-input" type="date" value={filters.createdFrom} onChange={e => setFilters(f => ({...f, createdFrom:e.target.value}))}/></div>
-      <div className="crm-modal-field"><label className="crm-modal-label">Đến ngày</label><input className="crm-modal-input" type="date" value={filters.createdTo} onChange={e => setFilters(f => ({...f, createdTo:e.target.value}))}/></div>
-      <button className="crm-btn crm-btn-ghost" onClick={() => setFilters(emptyFilters)}>Xóa bộ lọc</button>
-    </div>}
-    <div className="crm-stats-bar"><div className="crm-stat"><span className="crm-stat-num">{filtered.length}</span><span className="crm-stat-label">Đang hiển thị</span></div><div className="crm-stat-divider"/><div className="crm-stat"><span className="crm-stat-num">{visible.length}</span><span className="crm-stat-label">Theo quyền</span></div><div className="crm-stat-divider"/><div className="crm-stat crm-stat--warn"><span className="crm-stat-num">{visible.filter(c=>c.isLocked).length}</span><span className="crm-stat-label">Đã khóa</span></div></div>
-    <div className="crm-customer-list"><div className="crm-list-header"><span style={{flex:1}}>Khách hàng</span><span className="crm-col-contact">Liên hệ</span><span className="crm-col-location">Khu vực/Nhóm</span><span className="crm-col-seller">Seller</span><span className="crm-col-actions">Thao tác</span></div>{filtered.map(c => <div className="crm-customer-row" key={c.id}>
-      <div className="crm-customer-main"><div className="crm-customer-name">{displayName(c)}</div><div className="crm-customer-company"><Hash size={11}/> {c.customerCode} · {typeLabel(c)}{!isIndividual(c) ? ` · MST ${c.taxCode || '-'}` : ''}</div><div className={`crm-status-pill ${statusClass(c)}`}>{statusLabel(c)}</div></div>
-      <div className="crm-customer-contact"><span><Users size={11}/> {c.contactName || '-'}</span><span><Phone size={11}/> {c.phone || '-'}</span><span><Mail size={11}/> {c.email || '-'}</span></div>
-      <div className="crm-customer-location"><MapPin size={11}/> {c.region || c.address || '-'}<br/>{c.customerGroup || '-'}</div>
-      <div className="crm-customer-seller-badge"><span className="crm-badge crm-badge-seller"><Briefcase size={10}/> {c.sellerName || c.sellerId || 'Chưa phân'}</span></div>
-      <div className="crm-customer-actions"><button className="crm-btn-icon" aria-label="Xem chi tiết khách hàng" title="Xem chi tiết" onClick={() => setDetail(c)}><Eye size={14}/></button>{canEdit(role,c,currentSellerId) && <button className="crm-btn-icon crm-btn-accent" aria-label="Chỉnh sửa khách hàng" title="Chỉnh sửa" onClick={() => setEditing(c)}><Pencil size={14}/></button>}{role === 'admin' && <button className="crm-btn-icon" aria-label="Chuyển trạng thái khách hàng" title="Chuyển trạng thái" onClick={() => setConfirm({title:'Chuyển trạng thái khách hàng?', desc:`${displayName(c)} sẽ chuyển sang ${c.status === 'active' ? 'ngừng sử dụng' : 'đang sử dụng'}.`, action:() => patch(c.id,{status:c.status === 'active' ? 'inactive' : 'active'})})}><AlertCircle size={14}/></button>}{canLock(role) && <button className="crm-btn-icon crm-btn-danger" aria-label="Khóa hoặc mở khóa khách hàng" title="Khóa/mở khóa" onClick={() => setConfirm({title:c.isLocked ? 'Mở khóa khách hàng?' : 'Khóa khách hàng?', desc:c.isLocked ? `${displayName(c)} sẽ được phép chỉnh sửa/tạo báo giá lại.` : `${displayName(c)} sẽ không được tạo báo giá mới hoặc sửa dữ liệu quan trọng.`, action:() => patch(c.id,{isLocked:!c.isLocked})})}>{c.isLocked ? <Unlock size={14}/> : <Lock size={14}/>}</button>}<MoreHorizontal size={14} style={{opacity:.35}}/></div>
-    </div>)}</div>{filtered.length === 0 && <div className="crm-empty"><Shield size={36}/><p>Không có khách hàng phù hợp bộ lọc hoặc quyền được phân.</p><button className="crm-btn crm-btn-outline" onClick={() => setFilters(emptyFilters)}>Xóa bộ lọc</button></div>}
-  </div>;
+  );
 }
 
+// ── Embedded Styles (crm2- prefix) ──────────────────────────────────────────
+const CRM2_STYLES = `
+.crm2-root {
+  --card: var(--surface);
+  --foreground: var(--text);
+  --muted-bg: var(--surface2);
+  position: relative;
+  padding: 24px;
+  max-width: none;
+  margin: 0;
+  font-family: inherit;
+  height: 100%;
+  overflow-y: auto;
+}
+.crm2-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.crm2-header-left { display: flex; flex-direction: column; gap: 4px; }
+.crm2-header-right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.crm2-breadcrumb {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--muted, #6b7280);
+}
+.crm2-breadcrumb-current { color: var(--foreground, #111); font-weight: 500; }
+.crm2-title {
+  font-size: 22px; font-weight: 700; margin: 0;
+  color: var(--foreground, #111);
+}
+.crm2-title-count { font-weight: 400; color: var(--muted, #6b7280); font-size: 16px; }
 
+/* Search */
+.crm2-search-bar {
+  position: relative;
+  display: flex; align-items: center;
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px;
+  padding: 0 14px;
+  margin-bottom: 16px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.crm2-search-bar:focus-within {
+  border-color: var(--accent, #0891b2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #0891b2) 12%, transparent);
+}
+.crm2-search-icon { color: var(--muted, #9ca3af); flex-shrink: 0; }
+.crm2-search-input {
+  flex: 1; border: none; outline: none; background: transparent;
+  padding: 12px 10px; font-size: 14px; color: var(--foreground, #111);
+}
+.crm2-search-input::placeholder { color: var(--muted, #9ca3af); }
+.crm2-search-kbd {
+  font-size: 11px; padding: 2px 6px; border-radius: 4px;
+  background: var(--muted-bg, #f3f4f6); color: var(--muted, #6b7280);
+  border: 1px solid var(--border, #e5e7eb); font-family: monospace;
+  user-select: none; flex-shrink: 0;
+}
+.crm2-search-clear { margin-left: 4px; }
 
+/* Toolbar */
+.crm2-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 20px; gap: 12px; flex-wrap: wrap;
+}
+.crm2-chips {
+  display: flex; align-items: center; gap: 6px;
+  overflow-x: auto; padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.crm2-chips::-webkit-scrollbar { display: none; }
+.crm2-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 6px 12px; border-radius: 20px; font-size: 13px;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--card, #fff); color: var(--foreground, #374151);
+  cursor: pointer; white-space: nowrap; transition: all 0.15s;
+  font-weight: 500;
+}
+.crm2-chip:hover { border-color: var(--accent, #0891b2); color: var(--accent, #0891b2); }
+.crm2-chip--active {
+  background: var(--accent, #0891b2); color: #fff;
+  border-color: var(--accent, #0891b2);
+}
+.crm2-chip--active:hover { opacity: 0.9; color: #fff; }
+.crm2-chip-count {
+  font-size: 11px; padding: 1px 6px; border-radius: 10px;
+  background: color-mix(in srgb, currentColor 12%, transparent);
+}
+.crm2-chip--active .crm2-chip-count { background: rgba(255,255,255,0.25); }
 
+/* Dropdown */
+.crm2-dropdown-wrap { position: relative; }
+.crm2-dropdown-menu {
+  position: absolute; top: calc(100% + 4px); left: 0; z-index: 50;
+  min-width: 160px; background: var(--card, #fff);
+  border: 1px solid var(--border, #e5e7eb); border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.1); padding: 4px;
+  animation: crm2-dropdown-in 0.15s ease;
+}
+@keyframes crm2-dropdown-in { from { opacity:0; transform: translateY(-4px); } to { opacity:1; transform: translateY(0); } }
+.crm2-dropdown-menu button {
+  display: block; width: 100%; text-align: left;
+  padding: 8px 12px; border: none; background: transparent;
+  font-size: 13px; border-radius: 4px; cursor: pointer;
+  color: var(--foreground, #374151);
+}
+.crm2-dropdown-menu button:hover { background: var(--muted-bg, #f3f4f6); }
+
+/* View toggle */
+.crm2-toolbar-right { display: flex; align-items: center; gap: 8px; }
+.crm2-view-toggle {
+  display: flex; border: 1px solid var(--border, #e5e7eb); border-radius: 8px; overflow: hidden;
+}
+.crm2-view-btn {
+  padding: 7px 10px; border: none; background: var(--card, #fff);
+  color: var(--muted, #9ca3af); cursor: pointer; transition: all 0.15s;
+  display: flex; align-items: center;
+}
+.crm2-view-btn:hover { color: var(--foreground, #374151); }
+.crm2-view-btn--active { background: var(--accent, #0891b2); color: #fff; }
+/* Card Grid */
+.crm2-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+.crm2-card {
+  position: relative;
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.crm2-card:hover {
+  border-color: var(--accent, #0891b2);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+  transform: translateY(-1px);
+}
+.crm2-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.crm2-card-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 14px; flex-shrink: 0;
+  letter-spacing: 0.5px;
+}
+.crm2-card-identity { flex: 1; min-width: 0; }
+.crm2-card-name {
+  display: block; font-weight: 600; font-size: 14px;
+  color: var(--foreground, #111); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.crm2-card-code { font-size: 12px; color: var(--muted, #6b7280); }
+.crm2-card-info { display: flex; flex-direction: column; gap: 6px; }
+.crm2-card-info-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--muted, #6b7280);
+}
+.crm2-card-info-row--truncate {
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.crm2-card-actions {
+  position: absolute; bottom: 12px; right: 12px;
+  display: flex; gap: 2px; opacity: 0;
+  transition: opacity 0.15s;
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  z-index: 2;
+}
+.crm2-card-actions--visible { opacity: 1; }
+
+/* Status badge */
+.crm2-status-badge {
+  display: inline-flex; align-items: center;
+  padding: 3px 8px; border-radius: 12px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.crm2-status-badge--active { background: #dcfce7; color: #166534; }
+.crm2-status-badge--inactive { background: #fef3c7; color: #92400e; }
+.crm2-status-badge--locked { background: #fee2e2; color: #991b1b; }
+
+/* Table */
+.crm2-table-wrap {
+  overflow-x: auto; border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px; background: var(--card, #fff);
+}
+.crm2-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.crm2-table th {
+  text-align: left; padding: 12px 14px; font-weight: 600;
+  color: var(--muted, #6b7280); font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.5px; border-bottom: 1px solid var(--border, #e5e7eb);
+  background: var(--muted-bg, #f9fafb);
+}
+.crm2-table td { padding: 12px 14px; border-bottom: 1px solid var(--border, #f3f4f6); }
+.crm2-table-row { cursor: pointer; transition: background 0.1s; }
+.crm2-table-row:hover { background: var(--muted-bg, #f9fafb); }
+.crm2-table-customer { display: flex; align-items: center; gap: 10px; }
+.crm2-table-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 11px; flex-shrink: 0;
+}
+.crm2-table-name { display: block; font-weight: 600; color: var(--foreground, #111); }
+.crm2-table-code { display: block; font-size: 12px; color: var(--muted, #6b7280); }
+.crm2-table-contact { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted, #6b7280); }
+.crm2-table-seller { font-size: 12px; }
+.crm2-table-actions { display: flex; gap: 4px; }
+
+/* Slide panel */
+.crm2-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.3);
+  z-index: 100; opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+}
+.crm2-overlay--open { opacity: 1; pointer-events: auto; }
+.crm2-slide-panel {
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 480px; max-width: 100vw;
+  background: var(--card, #fff); z-index: 101;
+  transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  display: flex; flex-direction: column;
+  box-shadow: -8px 0 32px rgba(0,0,0,0.1);
+}
+.crm2-slide-panel--open { transform: translateX(0); }
+.crm2-panel-header {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 24px 20px 16px; border-bottom: 1px solid var(--border, #e5e7eb);
+}
+.crm2-panel-avatar {
+  width: 52px; height: 52px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 700; font-size: 18px; flex-shrink: 0;
+}
+.crm2-panel-title { flex: 1; min-width: 0; }
+.crm2-panel-title h3 { margin: 0; font-size: 17px; font-weight: 700; }
+.crm2-panel-meta {
+  display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  margin-top: 4px; font-size: 12px; color: var(--muted, #6b7280);
+}
+.crm2-dot { opacity: 0.4; }
+.crm2-panel-seller { font-size: 12px; color: var(--muted, #6b7280); display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+/* Panel tabs */
+.crm2-panel-tabs {
+  display: flex; border-bottom: 1px solid var(--border, #e5e7eb);
+  padding: 0 20px;
+}
+.crm2-panel-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 12px 16px; border: none; background: transparent;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  color: var(--muted, #6b7280); border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+.crm2-panel-tab:hover { color: var(--foreground, #374151); }
+.crm2-panel-tab--active {
+  color: var(--accent, #0891b2);
+  border-bottom-color: var(--accent, #0891b2);
+}
+.crm2-panel-body { flex: 1; overflow-y: auto; padding: 20px; }
+
+/* Info grid */
+.crm2-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.crm2-info-item { display: flex; flex-direction: column; gap: 2px; }
+.crm2-info-item--full { grid-column: 1 / -1; }
+.crm2-info-label { font-size: 11px; font-weight: 600; color: var(--muted, #6b7280); text-transform: uppercase; letter-spacing: 0.3px; }
+.crm2-info-value { font-size: 13px; color: var(--foreground, #111); }
+.crm2-info-history { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.crm2-info-history-item { font-size: 12px; padding: 4px 0; border-bottom: 1px solid var(--border, #f3f4f6); color: var(--muted, #6b7280); }
+
+/* Panel list items */
+.crm2-panel-list { display: flex; flex-direction: column; gap: 2px; }
+.crm2-panel-list-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px; border-radius: 8px;
+  transition: background 0.1s;
+}
+.crm2-panel-list-item:hover { background: var(--muted-bg, #f9fafb); }
+.crm2-panel-list-icon { color: var(--muted, #9ca3af); flex-shrink: 0; }
+.crm2-panel-list-content { flex: 1; min-width: 0; }
+.crm2-panel-list-content b { display: block; font-size: 13px; font-weight: 600; }
+.crm2-panel-list-content small { font-size: 12px; color: var(--muted, #6b7280); }
+.crm2-panel-list-actions { display: flex; gap: 4px; }
+
+/* Buttons */
+.crm2-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border-radius: 8px; font-size: 13px;
+  font-weight: 500; border: none; cursor: pointer;
+  transition: all 0.15s; white-space: nowrap;
+}
+.crm2-btn--primary {
+  background: var(--accent, #0891b2); color: #fff;
+}
+.crm2-btn--primary:hover { opacity: 0.9; }
+.crm2-btn--ghost {
+  background: transparent; color: var(--foreground, #374151);
+  border: 1px solid var(--border, #e5e7eb);
+}
+.crm2-btn--ghost:hover { background: var(--muted-bg, #f3f4f6); }
+.crm2-btn--danger { background: #ef4444; color: #fff; }
+.crm2-btn--danger:hover { background: #dc2626; }
+.crm2-btn-icon {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border-radius: 6px;
+  border: none; background: transparent; cursor: pointer;
+  color: var(--muted, #6b7280); transition: all 0.15s;
+}
+.crm2-btn-icon:hover { background: var(--muted-bg, #f3f4f6); color: var(--foreground, #374151); }
+.crm2-btn-icon--close { position: absolute; top: 16px; right: 16px; }
+
+/* Empty state */
+.crm2-empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; padding: 40px 20px; gap: 8px;
+  color: var(--muted, #9ca3af); text-align: center;
+}
+.crm2-empty-state p { font-size: 15px; font-weight: 600; color: var(--foreground, #374151); margin: 8px 0 0; }
+.crm2-empty-state span { font-size: 13px; }
+.crm2-empty-state--large { padding: 80px 20px; }
+.crm2-empty-state--large svg { opacity: 0.4; }
+
+/* Confirm dialog */
+.crm2-confirm-dialog {
+  background: var(--card, #fff); border-radius: 12px;
+  padding: 24px; max-width: 420px; margin: 100px auto;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.15);
+}
+.crm2-confirm-dialog h3 { margin: 0 0 8px; font-size: 16px; }
+.crm2-confirm-dialog p { margin: 0 0 20px; font-size: 13px; color: var(--muted, #6b7280); }
+.crm2-confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Wizard */
+.crm2-wizard-wrap { max-width: 680px; margin: 0; }
+.crm2-wizard-progress {
+  height: 3px; background: var(--border, #e5e7eb);
+  border-radius: 2px; margin-bottom: 20px; overflow: hidden;
+}
+.crm2-wizard-progress-bar {
+  height: 100%; background: var(--accent, #0891b2);
+  border-radius: 2px; transition: width 0.3s ease;
+}
+.crm2-wizard-steps {
+  display: flex; gap: 4px; margin-bottom: 20px;
+}
+.crm2-wizard-step {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-radius: 8px; border: none;
+  background: transparent; cursor: pointer; font-size: 13px;
+  color: var(--muted, #9ca3af); font-weight: 500;
+  transition: all 0.15s;
+}
+.crm2-wizard-step--active { background: var(--muted-bg, #f3f4f6); color: var(--foreground, #111); }
+.crm2-wizard-step--done { color: var(--accent, #0891b2); }
+.crm2-wizard-step-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700;
+  background: var(--border, #e5e7eb); color: var(--muted, #6b7280);
+}
+.crm2-wizard-step--active .crm2-wizard-step-num { background: var(--accent, #0891b2); color: #fff; }
+.crm2-wizard-step--done .crm2-wizard-step-num { background: #dcfce7; color: #166534; }
+/* Wizard summary */
+.crm2-wizard-summary {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 10px 14px; border-radius: 8px;
+  background: var(--muted-bg, #f9fafb); margin-bottom: 16px;
+  font-size: 12px; color: var(--muted, #6b7280);
+}
+.crm2-wizard-summary span { display: flex; align-items: center; gap: 4px; }
+
+/* Wizard card */
+.crm2-wizard-card {
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px; padding: 20px; margin-bottom: 16px;
+}
+.crm2-wizard-card-header {
+  display: flex; align-items: flex-start; gap: 12px; margin-bottom: 20px;
+}
+.crm2-wizard-card-icon {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  background: color-mix(in srgb, var(--accent, #0891b2) 10%, transparent);
+  color: var(--accent, #0891b2); flex-shrink: 0;
+}
+.crm2-wizard-card-header h3 { margin: 0; font-size: 15px; font-weight: 600; }
+.crm2-wizard-card-header p { margin: 2px 0 0; font-size: 12px; color: var(--muted, #6b7280); }
+.crm2-wizard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 600px) { .crm2-wizard-grid { grid-template-columns: 1fr; } }
+
+/* Type toggle */
+.crm2-type-toggle { display: flex; margin-left: auto; border: 1px solid var(--border, #e5e7eb); border-radius: 8px; overflow: hidden; }
+.crm2-type-toggle-btn {
+  display: flex; align-items: center; gap: 4px;
+  padding: 6px 10px; border: none; background: transparent;
+  font-size: 12px; cursor: pointer; color: var(--muted, #6b7280);
+  transition: all 0.15s;
+}
+.crm2-type-toggle-btn--active { background: var(--accent, #0891b2); color: #fff; }
+
+/* Form fields */
+.crm2-field { display: flex; flex-direction: column; gap: 4px; }
+.crm2-field-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; font-weight: 500; color: var(--foreground, #374151);
+}
+.crm2-req { color: #ef4444; }
+.crm2-input {
+  padding: 9px 12px; border-radius: 8px;
+  border: 1px solid var(--border, #e5e7eb);
+  font-size: 13px; color: var(--foreground, #111);
+  background: var(--card, #fff);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  outline: none;
+}
+.crm2-input:focus {
+  border-color: var(--accent, #0891b2);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #0891b2) 10%, transparent);
+}
+.crm2-input--error { border-color: #ef4444; }
+.crm2-textarea { resize: vertical; min-height: 72px; }
+.crm2-field-error { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #ef4444; }
+.crm2-field-hint { font-size: 11px; color: var(--muted, #9ca3af); }
+
+/* Wizard actions */
+.crm2-wizard-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 0; border-top: 1px solid var(--border, #e5e7eb);
+  margin-top: 8px; gap: 8px; flex-wrap: wrap;
+}
+.crm2-wizard-actions-left { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Alert */
+.crm2-alert {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border-radius: 8px; font-size: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border, #e5e7eb);
+}
+.crm2-alert--warning { background: #fef3c7; border-color: #fbbf24; color: #92400e; }
+.crm2-alert--orange { background: #fff7ed; border-color: #fb923c; color: #c2410c; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .crm2-root { padding: 16px; }
+  .crm2-card-grid { grid-template-columns: 1fr; }
+  .crm2-slide-panel { width: 100vw; }
+  .crm2-info-grid { grid-template-columns: 1fr; }
+  .crm2-header { flex-direction: column; }
+}
+`;
+
+// Inject styles once
+function StyleInjector() {
+  useEffect(() => {
+    const id = 'crm2-styles';
+    if (document.getElementById(id)) return;
+    const style = document.createElement('style');
+    style.id = id;
+    style.textContent = CRM2_STYLES;
+    document.head.appendChild(style);
+    return () => { style.remove(); };
+  }, []);
+  return null;
+}
