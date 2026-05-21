@@ -373,7 +373,7 @@ function DauTrangTren({ moduleDangMo, onExport, onMenuToggle, laMobile }: DauTra
       {hienXacNhanMoi && (
         <div className="lts-confirm-backdrop" onClick={() => datHienXacNhanMoi(false)}>
           <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
-            <div className="lts-confirm-icon">âš ï¸</div>
+            <div className="lts-confirm-icon">!</div>
             <h3 className="lts-confirm-title">Chưa lưu báo giá</h3>
             <p className="lts-confirm-desc">
               Bảng tính hiện tại có thay đổi chưa được lưu vào lịch sử.<br />
@@ -560,3 +560,4 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+

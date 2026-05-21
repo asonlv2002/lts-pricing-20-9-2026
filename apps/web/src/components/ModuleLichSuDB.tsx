@@ -1,6 +1,6 @@
 "use client";
 import { useState, useMemo } from 'react';
-import { Search, Database, RotateCcw, Trash2, ClipboardList } from 'lucide-react';
+import { Search, Database, RotateCcw, Trash2, ClipboardList, Download, Copy, Lock, Unlock, Eye } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { HistoryItem } from '../lib/types';
 import LSXFormModal from './ModalDonLSX';
@@ -34,7 +34,16 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   const [mucLsx, datMucLsx] = useState<HistoryItem | null>(null);
   const [tuNgay, datTuNgay] = useState('');
   const [denNgay, datDenNgay] = useState('');
+  const [sanPhamKhoa, datSanPhamKhoa] = useState<Record<string, boolean>>(() => { try { return JSON.parse(window.localStorage.getItem('lts_locked_products') || '{}'); } catch { return {}; } });
   const laLichSuSanPhamTheoKhach = menuDangChon === 'customers.product_history';
+  const laDanhSachSanPham = menuDangChon === 'products.calculated' || menuDangChon === 'products.list' || laLichSuSanPhamTheoKhach;
+  const khoaSanPham = (key: string) => datSanPhamKhoa(prev => { const next = { ...prev, [key]: !prev[key] }; try { window.localStorage.setItem('lts_locked_products', JSON.stringify(next)); } catch {} return next; });
+  const xuatCsvSanPham = () => {
+    const headers = ['Ngay','Khach hang','San pham','Cau truc','So luong','Gia de xuat','Trang thai khoa'];
+    const csv = [headers, ...daLoc.map(h => [h.date,h.customer,h.productName,h.structure,h.quantity,Math.round(h.finalPrice),sanPhamKhoa[`${h.productName}-${h.structure}`] ? 'Khoa' : 'Mo'])].map(r => r.map(v => `"${String(v ?? '').replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `lich-su-san-pham-${new Date().toISOString().slice(0,10)}.csv`; a.click(); URL.revokeObjectURL(url);
+  };
 
   const daLoc = useMemo(() => {
     let danhSach = [...lichSu];
@@ -92,6 +101,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
         </div>
 
         <div className="crm-toolbar-right">
+          {laDanhSachSanPham && <button className="btn btn-sm btn-outline" onClick={xuatCsvSanPham} disabled={daLoc.length === 0}><Download size={13}/> Xuất SP</button>}
           {laLichSuSanPhamTheoKhach && (
             <>
               <input className="form-input" type="date" value={tuNgay} onChange={e => datTuNgay(e.target.value)} style={{ width: 150 }} title="Từ ngày" />
@@ -211,6 +221,11 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
                           Tải
                         </button>
                         {' '}
+                        {laDanhSachSanPham && (() => { const key = h.productName + '-' + h.structure; const locked = !!sanPhamKhoa[key]; return <>
+                          <button className="btn btn-sm btn-outline" title="Xem chi tiết sản phẩm" onClick={() => { taiLichSu(h.id); khiDieuHuong?.('calculator'); }}><Eye size={13} style={{ display:'inline', marginRight:3 }}/>Chi tiết</button>{' '}
+                          <button className="btn btn-sm btn-outline" title="Sao chép sản phẩm/bảng tính" onClick={() => { taiLichSu(h.id); khiDieuHuong?.('calculator'); }}><Copy size={13} style={{ display:'inline', marginRight:3 }}/>Sao chép</button>{' '}
+                          <button className="btn btn-sm btn-outline" title={locked ? 'Mở khóa sản phẩm' : 'Khóa sản phẩm'} onClick={() => khoaSanPham(key)} style={{ color: locked ? 'var(--green)' : 'var(--red)' }}>{locked ? <Unlock size={13} style={{ display:'inline', marginRight:3 }}/> : <Lock size={13} style={{ display:'inline', marginRight:3 }}/>} {locked ? 'Mở khóa' : 'Khóa'}</button>{' '}
+                        </>; })()}
                         {coGiaChot && (
                           <>
                             <button

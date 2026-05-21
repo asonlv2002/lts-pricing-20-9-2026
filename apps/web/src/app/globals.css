@@ -5693,3 +5693,143 @@ body {
 .crm-pro-create .crm-wiz-actions{display:flex!important;width:100%!important;max-width:none!important;min-width:100%!important;align-self:stretch!important}
 .crm-pro-create .crm-wiz-actions>div:first-child{min-width:0;flex:1}
 .crm-pro-create .crm-wiz-actions>div:last-child{margin-left:auto!important;padding-left:0!important}
+
+
+/* Customer create/edit hard reset — ensure CSS applies */
+.crm-create-page {
+  min-height: 100%;
+  height: auto !important;
+  overflow: auto !important;
+  padding: 24px !important;
+  background: var(--bg);
+}
+.crm-create-page .crm-pro-create {
+  position: static !important;
+  top: auto !important;
+  display: block !important;
+  width: min(920px, 100%) !important;
+  max-width: 920px !important;
+  max-height: none !important;
+  overflow: visible !important;
+  margin: 0 auto !important;
+  padding: 0 0 48px !important;
+}
+.crm-create-page .crm-wiz-summary {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 10px !important;
+  margin-bottom: 16px !important;
+  padding: 12px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 16px !important;
+  background: var(--surface) !important;
+}
+.crm-create-page .crm-wiz-summary span {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  min-height: 34px !important;
+  padding: 7px 10px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 12px !important;
+  background: var(--surface2) !important;
+  color: var(--muted) !important;
+  font-size: .8rem !important;
+  font-weight: 700 !important;
+  overflow: hidden !important;
+}
+.crm-create-page .crm-wiz-steps {
+  display: flex !important;
+  align-items: center !important;
+  margin-bottom: 18px !important;
+  padding: 14px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 16px !important;
+  background: var(--surface) !important;
+}
+.crm-create-page .crm-wiz-step {
+  flex: 1 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  position: relative !important;
+}
+.crm-create-page .crm-wiz-card {
+  display: block !important;
+  padding: 22px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 18px !important;
+  background: var(--surface) !important;
+  box-shadow: 0 8px 26px rgba(15,23,42,.06) !important;
+}
+.crm-create-page .crm-wiz-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+}
+.crm-create-page .crm-wiz-field {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 6px !important;
+}
+.crm-create-page .crm-wiz-field label {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: .82rem !important;
+  font-weight: 750 !important;
+  color: var(--text) !important;
+}
+.crm-create-page .crm-wiz-input {
+  width: 100% !important;
+  min-height: 42px !important;
+  padding: 9px 12px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 11px !important;
+  background: var(--input-bg) !important;
+  color: var(--text) !important;
+  font: inherit !important;
+  outline: none !important;
+}
+.crm-create-page .crm-wiz-input:focus {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 0 3px rgba(8,145,178,.12) !important;
+}
+.crm-create-page .crm-wiz-actions {
+  position: static !important;
+  display: flex !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  gap: 12px !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  margin-top: 18px !important;
+  padding: 14px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 16px !important;
+  background: var(--surface) !important;
+  box-shadow: 0 8px 24px rgba(15,23,42,.06) !important;
+}
+.crm-create-page .crm-wiz-actions > div:first-child {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 8px !important;
+}
+.crm-create-page .crm-wiz-actions .crm-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  min-height: 40px !important;
+  padding: 9px 14px !important;
+  border-radius: 11px !important;
+  font-weight: 750 !important;
+}
+@media(max-width: 760px) {
+  .crm-create-page { padding: 14px !important; }
+  .crm-create-page .crm-wiz-summary,
+  .crm-create-page .crm-wiz-grid { grid-template-columns: 1fr !important; }
+  .crm-create-page .crm-wiz-actions { flex-direction: column !important; align-items: stretch !important; }
+  .crm-create-page .crm-wiz-actions > div { width: 100% !important; }
+  .crm-create-page .crm-wiz-actions .crm-btn { flex: 1 1 auto !important; }
+}

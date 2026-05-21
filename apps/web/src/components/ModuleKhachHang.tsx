@@ -1,6 +1,6 @@
 ﻿"use client";
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, ArrowLeft, Briefcase, Building2, ChevronDown, Download, Eye, FileText, Filter, Hash, Lock, Mail, MapPin, MoreHorizontal, Package, Pencil, Phone, Plus, Save, Search, Shield, Unlock, User, Users, X } from 'lucide-react';
+import { AlertCircle, ArrowLeft, Briefcase, Building2, ChevronDown, Copy, Download, Eye, FileText, Filter, Hash, Lock, Mail, MapPin, MoreHorizontal, Package, Pencil, Phone, Plus, Save, Search, Shield, Unlock, User, Users, X } from 'lucide-react';
 import seedCustomers from '../data/customers.json';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 
@@ -40,18 +40,19 @@ interface CustomerFilters {
 }
 
 const LS_CUSTOMERS = 'lts_customers';
+const LS_CUSTOMER_DRAFT = 'lts_customer_draft';
 const SELLERS = [
   { id: 'S1', name: 'Nguyen Van An' },
   { id: 'S2', name: 'Tran Gia Bao' },
   { id: 'S3', name: 'Le Thu Ha' },
 ];
 const emptyFilters: CustomerFilters = { keyword: '', sellerId: '', customerGroup: '', status: 'all', region: '', createdFrom: '', createdTo: '' };
-const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', status: 'active', isLocked: false, notes: '', createdAt: '', updatedAt: '' };
+const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', secondarySellerId: null, secondarySellerName: '', status: 'active', isLocked: false, notes: '', contactTitle: '', contactNotes: '', assignmentHistory: [], createdAt: '', updatedAt: '' };
 
 const FIELD_LABELS: Record<string, string> = {
   customerType: 'Loại khách hàng', customerCode: 'Mã khách hàng', companyName: 'Tên công ty', taxCode: 'Mã số thuế',
   contactName: 'Người liên hệ', phone: 'Số điện thoại', email: 'Email', address: 'Địa chỉ',
-  region: 'Khu vực', customerGroup: 'Nhóm khách hàng', notes: 'Ghi chú',
+  region: 'Khu vực', customerGroup: 'Nhóm khách hàng', notes: 'Ghi chú', contactTitle: 'Chức vụ', contactNotes: 'Ghi chú liên hệ', secondarySellerId: 'Sale phụ',
 };
 const statusClass = (c: Customer) => c.isLocked ? 'crm-status--locked' : c.status === 'active' ? 'crm-status--active' : 'crm-status--inactive';
 const getCustomerType = (c: Customer): CustomerType => c.customerType ?? 'company';
@@ -109,11 +110,12 @@ function makeInitialCustomer(customer: Customer | undefined, role: Role, current
   };
 }
 
-function CustomerForm({ customer, role, currentSellerId, onSave, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; onSave: (c: Customer) => void; onCancel: () => void }) {
+function CustomerForm({ customer, role, currentSellerId, customers = [], onSave, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; customers?: Customer[]; onSave: (c: Customer) => void; onCancel: () => void }) {
   const isNew = !customer;
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<Customer>(makeInitialCustomer(customer, role, currentSellerId));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [duplicateWarnings, setDuplicateWarnings] = useState<string[]>([]);
   const seller = SELLERS.find(s => s.id === form.sellerId);
   const isLockedEdit = !isNew && !!customer?.isLocked;
 
@@ -130,8 +132,8 @@ function CustomerForm({ customer, role, currentSellerId, onSave, onCancel }: { c
 
   const stepFields: Record<number, (keyof Customer)[]> = {
     0: ['customerCode', 'companyName', 'taxCode', 'customerGroup', 'region', 'address'],
-    1: ['contactName', 'phone', 'email'],
-    2: ['sellerId', 'status', 'notes'],
+    1: ['contactName', 'contactTitle', 'phone', 'email', 'contactNotes'],
+    2: ['sellerId', 'secondarySellerId', 'status', 'notes'],
   };
 
   const validateStep = (s: number) => {
@@ -160,6 +162,31 @@ function CustomerForm({ customer, role, currentSellerId, onSave, onCancel }: { c
     return Object.keys(e).length === 0;
   };
 
+  const checkDuplicates = () => {
+    const norm = (v?: string | null) => normalize(v).trim();
+    const warnings: string[] = [];
+    customers.filter(c => c.id !== form.id).forEach(c => {
+      if (norm(form.companyName) && norm(c.companyName) === norm(form.companyName)) warnings.push(`Trùng tên: ${displayName(c)} (${c.customerCode})`);
+      if (norm(form.taxCode) && norm(c.taxCode) === norm(form.taxCode)) warnings.push(`Trùng MST: ${c.taxCode} (${displayName(c)})`);
+      if (norm(form.phone) && norm(c.phone) === norm(form.phone)) warnings.push(`Trùng SĐT: ${c.phone} (${displayName(c)})`);
+      if (norm(form.email) && norm(c.email) === norm(form.email)) warnings.push(`Trùng email: ${c.email} (${displayName(c)})`);
+    });
+    setDuplicateWarnings(Array.from(new Set(warnings)).slice(0, 4));
+  };
+
+  useEffect(() => { checkDuplicates(); }, [form.companyName, form.taxCode, form.phone, form.email]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveDraft = () => {
+    try { window.localStorage.setItem(LS_CUSTOMER_DRAFT, JSON.stringify(form)); alert('Đã lưu nháp khách hàng.'); } catch { alert('Không lưu được nháp.'); }
+  };
+
+  const loadDraft = () => {
+    try {
+      const raw = window.localStorage.getItem(LS_CUSTOMER_DRAFT);
+      if (raw) setForm({ ...blankCustomer, ...JSON.parse(raw), updatedAt: todayIso() });
+    } catch { /* ignore */ }
+  };
+
   const next = () => { if (validateStep(step)) setStep(s => s + 1); };
   const back = () => setStep(s => s - 1);
   const submit = () => {
@@ -169,7 +196,7 @@ function CustomerForm({ customer, role, currentSellerId, onSave, onCancel }: { c
 
   const Field = ({ k, icon, required, type = 'text', helper }: { k: keyof Customer; icon: React.ReactNode; required?: boolean; type?: string; helper?: string }) => {
     const err = errors[String(k)];
-    const isSelect = k === 'sellerId' || k === 'status';
+    const isSelect = k === 'sellerId' || k === 'secondarySellerId' || k === 'status';
     const disabled = isLockedEdit && k !== 'notes';
     return (
       <div className="crm-wiz-field">
@@ -254,7 +281,9 @@ function CustomerForm({ customer, role, currentSellerId, onSave, onCancel }: { c
           <div className="crm-wiz-grid">
             {!isIndividual(form) && <Field k="contactName" icon={<User size={12}/>} required helper="Họ tên người liên hệ" />}
             <Field k="phone" icon={<Phone size={12}/>} required type="tel" helper="Số điện thoại liên hệ" />
+            {!isIndividual(form) && <Field k="contactTitle" icon={<Briefcase size={12}/>} helper="VD: Trưởng phòng mua hàng" />}
             <Field k="email" icon={<Mail size={12}/>} type="email" helper="Email (không bắt buộc)" />
+            <Field k="contactNotes" icon={<FileText size={12}/>} helper="Ghi chú riêng cho liên hệ" />
           </div>
         </div>
       )}
@@ -270,16 +299,19 @@ function CustomerForm({ customer, role, currentSellerId, onSave, onCancel }: { c
             </div>
           </div>
           <div className="crm-wiz-grid">
-            {role === 'admin' && <Field k="sellerId" icon={<Briefcase size={12}/>} helper="Sale được phân công sẽ thấy KH này" />}
+            {role === 'admin' && <Field k="sellerId" icon={<Briefcase size={12}/>} helper="Sale chính được phân công sẽ thấy KH này" />}
+            {role === 'admin' && <Field k="secondarySellerId" icon={<Users size={12}/>} helper="Sale phụ cùng theo dõi/hỗ trợ" />}
             <Field k="status" icon={<Shield size={12}/>} />
             <Field k="notes" icon={<FileText size={12}/>} helper="Điều khoản, thói quen đặt hàng, công nợ..." />
           </div>
         </div>
       )}
 
+      {duplicateWarnings.length > 0 && <div className="crm-wiz-locked" style={{ borderColor: 'var(--orange)', color: 'var(--orange)' }}><AlertCircle size={14}/> Cảnh báo trùng: {duplicateWarnings.join(' · ')}</div>}
+
       {/* Action bar */}
       <div className="crm-wiz-actions">
-        <div>{step > 0 && <button className="crm-btn crm-wiz-btn-ghost" onClick={back}><ArrowLeft size={14}/> Quay lại</button>}</div>
+        <div style={{ display: 'flex', gap: 8 }}>{step > 0 && <button className="crm-btn crm-wiz-btn-ghost" onClick={back}><ArrowLeft size={14}/> Quay lại</button>}<button className="crm-btn crm-wiz-btn-ghost" onClick={saveDraft}>Lưu nháp</button>{!customer && <button className="crm-btn crm-wiz-btn-ghost" onClick={loadDraft}>Tải nháp</button>}<button className="crm-btn crm-wiz-btn-ghost" onClick={onCancel}>Hủy</button></div>
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
           {step < 2 ? (
             <button className="crm-btn crm-wiz-btn-primary" onClick={next}>
@@ -299,13 +331,15 @@ function CustomerForm({ customer, role, currentSellerId, onSave, onCancel }: { c
 function CustomerDetail({ customer, onClose }: { customer: Customer; onClose: () => void }) {
   const history = dungCuaHangTinhGia(s => s.history);
   const related = history.filter(h => normalize(h.customer).includes(normalize(displayName(customer))) || normalize(h.input?.customer).includes(normalize(displayName(customer))));
+  const loadHistoryItem = dungCuaHangTinhGia(s => s.loadHistoryItem);
+  const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
   const products = Array.from(new Map(related.map(h => [`${h.productName}-${h.structure}`, h])).values());
   return <div className="crm-modal-backdrop" onClick={onClose}><div className="crm-create-form-card" style={{maxWidth:980, margin:'40px auto'}} onClick={e => e.stopPropagation()}>
     <div className="crm-create-section-head"><div style={{display:'flex',gap:14,alignItems:'center'}}><div className="crm-avatar-lg"><Briefcase size={22}/></div><div><h3>{displayName(customer)}</h3><p>{customer.customerCode} · {typeLabel(customer)} · <span className={`crm-status-pill ${statusClass(customer)}`}>{statusLabel(customer)}</span> · Seller: {customer.sellerName || customer.sellerId || 'Chưa phân'}</p></div></div><button className="crm-btn crm-btn-ghost" aria-label="Đóng hồ sơ khách hàng" onClick={onClose}><X size={15}/> Đóng</button></div>
     <div className="crm-admin-tabs"><button className="crm-admin-tab active"><Users size={15}/> Thông tin</button><button className="crm-admin-tab"><FileText size={15}/> Báo giá ({related.length})</button><button className="crm-admin-tab"><Package size={15}/> Sản phẩm ({products.length})</button></div>
-    <div className="crm-modal-grid crm-create-grid">{[['Loại khách hàng',typeLabel(customer)],['MST',customer.taxCode],['Người liên hệ',customer.contactName],['SĐT',customer.phone],['Email',customer.email],['Địa chỉ',customer.address],['Khu vực',customer.region],['Nhóm',customer.customerGroup],['Ghi chú',customer.notes]].map(([k,v]) => <div className="crm-modal-field" key={k}><label className="crm-modal-label">{k}</label><div className="crm-modal-input" style={{height:'auto',minHeight:38}}>{v || '-'}</div></div>)}</div>
-    <h4><FileText size={16}/> Báo giá liên quan ({related.length})</h4>{related.slice(0,8).map(h => <div className="crm-customer-row" key={h.id}><FileText size={18}/><div className="crm-customer-main"><b>{h.productName}</b><small>{fmtDate(h.date)} · {Math.round(h.chotGia ?? h.finalPrice).toLocaleString('vi-VN')} đ</small></div></div>)}
-    <h4><Package size={16}/> Sản phẩm liên quan ({products.length})</h4>{products.slice(0,8).map(h => <div className="crm-customer-row" key={h.id}><Package size={18}/><div className="crm-customer-main"><b>{h.productName}</b><small>{h.structure} · SL {h.quantity?.toLocaleString('vi-VN')}</small></div></div>)}
+    <div className="crm-modal-grid crm-create-grid">{[['Loại khách hàng',typeLabel(customer)],['MST',customer.taxCode],['Người liên hệ',customer.contactName],['Chức vụ',customer.contactTitle],['SĐT',customer.phone],['Email',customer.email],['Địa chỉ',customer.address],['Khu vực',customer.region],['Nhóm',customer.customerGroup],['Sale phụ',customer.secondarySellerName || customer.secondarySellerId],['Ghi chú liên hệ',customer.contactNotes],['Ghi chú',customer.notes]].map(([k,v]) => <div className="crm-modal-field" key={k}><label className="crm-modal-label">{k}</label><div className="crm-modal-input" style={{height:'auto',minHeight:38}}>{v || '-'}</div></div>)}</div>
+    <h4><FileText size={16}/> Báo giá liên quan ({related.length})</h4>{related.slice(0,8).map(h => <div className="crm-customer-row" key={h.id}><FileText size={18}/><div className="crm-customer-main"><b>{h.productName}</b><small>{fmtDate(h.date)} · {Math.round(h.chotGia ?? h.finalPrice).toLocaleString('vi-VN')} đ</small></div><button className="crm-btn-icon" title="Mở bảng tính" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}><Eye size={14}/></button><button className="crm-btn-icon" title="Sao chép báo giá" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}><Copy size={14}/></button></div>)}
+    <h4><Package size={16}/> Sản phẩm liên quan ({products.length})</h4>{products.slice(0,8).map(h => <div className="crm-customer-row" key={h.id}><Package size={18}/><div className="crm-customer-main"><b>{h.productName}</b><small>{h.structure} · SL {h.quantity?.toLocaleString('vi-VN')}</small></div><button className="crm-btn-icon" title="Mở bảng tính liên quan" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}><Eye size={14}/></button><button className="crm-btn-icon" title="Sao chép sản phẩm" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}><Copy size={14}/></button></div>)}
   </div></div>;
 }
 
@@ -325,7 +359,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     groups: Array.from(new Set(customers.map(c => c.customerGroup).filter(Boolean))) as string[],
     regions: Array.from(new Set(customers.map(c => c.region).filter(Boolean))) as string[],
   }), [customers]);
-  const visible = useMemo(() => customers.filter(c => role === 'admin' || role === 'purchase' || c.sellerId === currentSellerId), [customers, role, currentSellerId]);
+  const visible = useMemo(() => customers.filter(c => role === 'admin' || role === 'purchase' || c.sellerId === currentSellerId || c.secondarySellerId === currentSellerId), [customers, role, currentSellerId]);
   const filtered = useMemo(() => visible.filter(c => {
     const q = normalize(filters.keyword);
     const hay = normalize([displayName(c),c.companyName,c.customerCode,c.contactName,c.phone,c.email,c.taxCode,typeLabel(c)].join(' '));
@@ -340,9 +374,16 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     return true;
   }), [visible, filters]);
 
-  const upsert = (c: Customer) => setCustomers(prev => prev.some(x => x.id === c.id) ? prev.map(x => x.id === c.id ? c : x) : [c, ...prev]);
+  const upsert = (c: Customer) => setCustomers(prev => {
+    const seller = SELLERS.find(s => s.id === c.sellerId);
+    const secondary = SELLERS.find(s => s.id === c.secondarySellerId);
+    const old = prev.find(x => x.id === c.id);
+    const historyLine = old && old.sellerId !== c.sellerId ? `${new Date().toLocaleString('vi-VN')}: ${old.sellerName || old.sellerId || 'Chưa phân'} -> ${seller?.name || c.sellerId || 'Chưa phân'}` : undefined;
+    const saved = { ...c, sellerName: seller?.name ?? c.sellerName ?? '', secondarySellerName: secondary?.name ?? c.secondarySellerName ?? '', assignmentHistory: historyLine ? [...(old?.assignmentHistory ?? []), historyLine] : (c.assignmentHistory ?? []) };
+    return prev.some(x => x.id === c.id) ? prev.map(x => x.id === c.id ? saved : x) : [saved, ...prev];
+  });
   const patch = (id: string, partial: Partial<Customer>) => setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...partial, updatedAt: todayIso() } : c));
-  if (editing !== undefined) return <CustomerForm customer={editing ?? undefined} role={role} currentSellerId={currentSellerId} onSave={c => { upsert(c); setEditing(undefined); }} onCancel={() => setEditing(undefined)} />;
+  if (editing !== undefined) return <div className="crm-root crm-create-page"><CustomerForm customer={editing ?? undefined} role={role} currentSellerId={currentSellerId} customers={customers} onSave={c => { upsert(c); setEditing(undefined); }} onCancel={() => setEditing(undefined)} /></div>;
 
   return <div className="crm-root">
     {detail && <CustomerDetail customer={detail} onClose={() => setDetail(null)} />}

@@ -21,24 +21,51 @@
   },
   {
     "id": "LLDPE",
-    "name": "LLDPE",
+    "name": "LLDPE thường",
     "density": 0.925,
     "thickness": 105,
     "pricePerKg": 60000,
     "isPETorPA": false,
     "adjustableMic": true,
     "rollLength": 6000,
+    "inkPricePerColor": 140,
+    "group": "LLDPE"
+  },
+  {
+    "id": "LLDPE_HUT_CHAN_KHONG",
+    "group": "LLDPE",
+    "name": "LLDPE (hút chân không)",
+    "density": 0.925,
+    "thickness": 105,
+    "pricePerKg": 65000,
+    "isPETorPA": false,
+    "adjustableMic": true,
+    "rollLength": 6000,
     "inkPricePerColor": 140
   },
   {
-    "id": "LLDPE Sua",
+    "id": "LLDPE_GAO",
+    "group": "LLDPE",
+    "name": "LLDPE (gạo)",
+    "density": 0.925,
+    "thickness": 105,
+    "pricePerKg": 58000,
+    "isPETorPA": false,
+    "adjustableMic": true,
+    "rollLength": 6000,
+    "inkPricePerColor": 140
+  },
+  {
+    "id": "LLDPE_SUA",
     "name": "LLDPE sữa",
     "density": 0.99,
     "thickness": 65,
     "pricePerKg": 39000,
     "isPETorPA": false,
     "rollLength": 6000,
-    "inkPricePerColor": 140
+    "inkPricePerColor": 140,
+    "group": "LLDPE",
+    "adjustableMic": true
   },
   {
     "id": "BOPP18",
