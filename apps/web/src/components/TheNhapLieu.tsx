@@ -2,6 +2,21 @@
 import React from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import customersSeed from '../data/customers.json';
+
+type KhachHangGoiY = {
+  id: string;
+  customerCode: string;
+  companyName: string;
+  contactName?: string;
+  phone?: string;
+  sellerId?: string | null;
+  sellerName?: string;
+  status?: string;
+  isLocked?: boolean;
+};
+
+const boDau = (chuoi: string) => chuoi.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
 
 // --- FORMAT NUMBER INPUT ---
 const ONhapSoDinhDang = ({ value, onChange, placeholder, min, step, className }: any) => {
@@ -102,8 +117,19 @@ const ONhapSoThapPhan = ({ value, onChange, placeholder, min, step, className, d
 };
 
 export default function TheNhapLieu() {
-  const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness } = dungCuaHangTinhGia();
+  const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness, currentSellerId, role } = dungCuaHangTinhGia();
   const [nhomTheoLop, datNhomTheoLop] = React.useState<Record<string, string>>({});
+  const [dangFocusKhachHang, datDangFocusKhachHang] = React.useState(false);
+
+  const goiYKhachHang = React.useMemo(() => {
+    const tuKhoa = boDau(input.customer.trim());
+    if (!dangFocusKhachHang || tuKhoa.length < 1) return [];
+
+    return (customersSeed as KhachHangGoiY[])
+      .filter(kh => (role === 'admin' || kh.sellerId === currentSellerId) && kh.status !== 'inactive' && !kh.isLocked)
+      .filter(kh => boDau(`${kh.companyName} ${kh.customerCode} ${kh.contactName ?? ''} ${kh.phone ?? ''}`).includes(tuKhoa))
+      .slice(0, 6);
+  }, [currentSellerId, dangFocusKhachHang, input.customer, role]);
 
   const xuLyLoaiSanPham = (val: string) => {
     capNhatDauVao({ productType: val, bagType: '', filmType: '' });
@@ -390,9 +416,45 @@ export default function TheNhapLieu() {
       <div className="card-title"><span className="icon">📝</span> Thông tin đơn hàng</div>
 
       <div className="form-row">
-        <div className="form-group">
+        <div className="form-group" style={{ position: 'relative' }}>
           <label className="form-label">Khách hàng</label>
-          <input className="form-input" placeholder="Tên khách hàng" value={input.customer} onChange={e => capNhatDauVao({ customer: e.target.value })} />
+          <input
+            className="form-input"
+            placeholder="Tên khách hàng"
+            value={input.customer}
+            onFocus={() => datDangFocusKhachHang(true)}
+            onBlur={() => setTimeout(() => datDangFocusKhachHang(false), 120)}
+            onChange={e => capNhatDauVao({ customer: e.target.value })}
+            autoComplete="off"
+          />
+          {goiYKhachHang.length > 0 && (
+            <div style={{
+              position: 'absolute', zIndex: 30, left: 0, right: 0, top: '100%', marginTop: 4,
+              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10,
+              boxShadow: '0 14px 34px rgba(15,23,42,.18)', overflow: 'hidden'
+            }}>
+              {goiYKhachHang.map(kh => (
+                <button
+                  key={kh.id}
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => {
+                    capNhatDauVao({ customer: kh.companyName });
+                    datDangFocusKhachHang(false);
+                  }}
+                  style={{
+                    width: '100%', border: 0, background: 'transparent', textAlign: 'left', padding: '9px 11px',
+                    cursor: 'pointer', borderBottom: '1px solid var(--border)', color: 'var(--text)'
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '.86rem' }}>{kh.companyName}</div>
+                  <div style={{ fontSize: '.74rem', color: 'var(--muted)', marginTop: 2 }}>
+                    {kh.customerCode} · {kh.contactName || '—'} · {kh.phone || '—'}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         <div className="form-group">
           <label className="form-label">Tên hàng</label>
@@ -916,3 +978,4 @@ export default function TheNhapLieu() {
     </div>
   );
 }
+
