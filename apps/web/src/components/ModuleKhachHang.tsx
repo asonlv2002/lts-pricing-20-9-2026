@@ -22,6 +22,11 @@ interface Customer {
   customerGroup?: string;
   sellerId?: string | null;
   sellerName?: string;
+  secondarySellerId?: string | null;
+  secondarySellerName?: string;
+  contactTitle?: string;
+  contactNotes?: string;
+  assignmentHistory?: string[];
   status: CustomerStatus;
   isLocked: boolean;
   notes?: string;
@@ -411,6 +416,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     </div>)}</div>{filtered.length === 0 && <div className="crm-empty"><Shield size={36}/><p>Không có khách hàng phù hợp bộ lọc hoặc quyền được phân.</p><button className="crm-btn crm-btn-outline" onClick={() => setFilters(emptyFilters)}>Xóa bộ lọc</button></div>}
   </div>;
 }
+
 
 
 
