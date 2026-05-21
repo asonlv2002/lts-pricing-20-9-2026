@@ -5512,3 +5512,184 @@ body {
   }
 }
 
+
+/* Cylinder price editor */
+.cylinder-price-panel {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface);
+}
+.cylinder-price-head,
+.cylinder-price-row {
+  display: grid;
+  grid-template-columns: 150px minmax(0, 1fr);
+  align-items: center;
+}
+.cylinder-price-head {
+  background: var(--surface2);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.cylinder-price-head > div,
+.cylinder-price-row > div { padding: 12px 14px; }
+.cylinder-price-row { border-top: 1px solid var(--border); }
+.cylinder-price-row:hover { background: rgba(79,70,229,0.035); }
+.cylinder-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(8,145,178,0.12);
+  color: var(--accent);
+  font-weight: 800;
+}
+.cylinder-type-badge--b { background: rgba(139,92,246,0.12); color: #7c3aed; }
+.cylinder-type-badge--custom { background: rgba(100,116,139,0.12); color: var(--muted); }
+.cylinder-price-input { display: flex; align-items: center; gap: 8px; }
+.cylinder-price-input .form-input { width: 180px; text-align: right; font-weight: 800; }
+.cylinder-price-input span,
+.cylinder-custom-note { color: var(--muted); font-size: 0.86rem; }
+.cylinder-price-row--muted { background: rgba(100,116,139,0.04); }
+@media (max-width: 640px) {
+  .cylinder-price-head,
+  .cylinder-price-row { grid-template-columns: 1fr; }
+  .cylinder-price-head > div:first-child { display: none; }
+  .cylinder-price-head > div,
+  .cylinder-price-row > div { padding: 10px 12px; }
+  .cylinder-price-input .form-input { width: 100%; }
+}
+
+/* Customer UX polish */
+.crm-filter-panel{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;align-items:end;padding:14px;margin:10px 0 14px;border:1px solid var(--border);border-radius:16px;background:var(--surface)}
+.crm-status-pill{display:inline-flex;align-items:center;gap:6px;width:max-content;border-radius:999px;padding:3px 9px;font-size:.74rem;font-weight:700}
+.crm-status--active{color:#047857;background:rgba(5,150,105,.11)}
+.crm-status--inactive{color:#92400e;background:rgba(217,119,6,.12)}
+.crm-status--locked{color:#b91c1c;background:rgba(220,38,38,.12)}
+.crm-avatar-lg{width:52px;height:52px;border-radius:16px;display:grid;place-items:center;background:linear-gradient(135deg,#0891b2,#4f46e5);color:white;box-shadow:0 10px 30px rgba(8,145,178,.22)}
+.crm-btn[disabled]{opacity:.45;cursor:not-allowed}
+@media (max-width:760px){.crm-customer-list .crm-list-header{display:none}.crm-customer-row{display:grid;grid-template-columns:1fr;gap:10px;align-items:start}.crm-customer-contact,.crm-customer-location,.crm-customer-seller-badge,.crm-customer-actions{width:100%;justify-content:flex-start}.crm-toolbar{flex-direction:column;align-items:stretch}.crm-toolbar-right{width:100%;flex-wrap:wrap}.crm-toolbar-right .crm-btn{flex:1 1 auto}.crm-filter-panel{grid-template-columns:1fr}}
+
+/* Customer create/edit pro form */
+.crm-pro-create{max-width:1180px;margin:0 auto;padding-bottom:36px}
+.crm-pro-hero{border:1px solid var(--border);border-radius:22px;background:linear-gradient(135deg,rgba(8,145,178,.10),rgba(79,70,229,.08)),var(--surface);padding:18px 20px;margin-bottom:16px;display:grid;gap:16px}
+.crm-pro-hero-main{display:flex;align-items:center;gap:16px}.crm-pro-hero h2{margin:0;font-size:1.55rem;letter-spacing:-.02em}.crm-pro-hero p{margin:4px 0 0;color:var(--muted);line-height:1.5}.crm-eyebrow{font-size:.75rem!important;text-transform:uppercase;letter-spacing:.08em;font-weight:800;color:var(--accent)!important}
+.crm-pro-steps{display:flex;gap:8px;flex-wrap:wrap}.crm-pro-steps span{padding:7px 10px;border:1px solid var(--border);border-radius:999px;color:var(--muted);font-size:.78rem;font-weight:700;background:var(--surface)}.crm-pro-steps span.active{background:rgba(8,145,178,.12);color:#0891b2;border-color:rgba(8,145,178,.25)}
+.crm-pro-form-shell{display:grid;gap:16px}.crm-pro-section{border:1px solid var(--border);border-radius:20px;background:var(--surface);padding:18px;box-shadow:0 10px 28px rgba(15,23,42,.04)}.crm-pro-section-head{display:flex;gap:10px;align-items:flex-start;margin-bottom:14px}.crm-pro-section-head h3{margin:0;font-size:1rem}.crm-pro-section-head p{margin:3px 0 0;color:var(--muted);font-size:.86rem}
+.crm-pro-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.crm-pro-field--wide{grid-column:1/-1}.crm-pro-field .crm-modal-label{display:flex;align-items:center;gap:6px}.crm-required{color:#dc2626}.crm-helper{display:block;margin-top:5px;color:var(--muted);font-size:.76rem}.crm-field-error{display:block;margin-top:5px;color:#dc2626;font-size:.78rem;font-weight:700}.crm-modal-input--error{border-color:#dc2626!important;box-shadow:0 0 0 3px rgba(220,38,38,.10)!important}
+.crm-form-alert{display:flex;align-items:center;gap:8px;margin-bottom:14px;padding:11px 13px;border-radius:14px;background:rgba(220,38,38,.10);color:#b91c1c;font-weight:700}.crm-pro-actions{position:sticky;bottom:12px;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--border);border-radius:18px;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(10px);box-shadow:0 14px 40px rgba(15,23,42,.12)}.crm-pro-actions small{display:block;color:var(--muted);margin-top:2px}.crm-pro-actions>div:last-child{display:flex;gap:10px}
+@media (max-width:760px){.crm-pro-hero-main{align-items:flex-start}.crm-pro-grid{grid-template-columns:1fr}.crm-pro-actions{position:static;align-items:stretch;flex-direction:column}.crm-pro-actions>div:last-child{display:grid;grid-template-columns:1fr 1fr}.crm-pro-hero h2{font-size:1.25rem}}
+
+/* Customer form office-style override */
+.crm-pro-create{max-width:1040px}
+.crm-pro-hero{border-radius:16px;background:var(--surface);box-shadow:none;padding:14px 16px;grid-template-columns:auto 1fr;align-items:center}
+.crm-pro-hero>.crm-btn{justify-self:start}.crm-pro-hero-main{grid-column:1/-1;border-top:1px solid var(--border);padding-top:14px}.crm-pro-hero h2{font-size:1.25rem;font-weight:700}.crm-pro-hero p{font-size:.88rem}.crm-eyebrow{color:var(--muted)!important;letter-spacing:.04em}.crm-avatar-office{width:44px;height:44px;border-radius:12px;background:rgba(8,145,178,.10);color:var(--accent);box-shadow:none}.crm-pro-summary{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap}.crm-pro-summary span{border:1px solid var(--border);border-radius:999px;padding:5px 9px;font-size:.78rem;color:var(--muted);background:var(--bg)}.crm-pro-summary .crm-status-pill{border:0;color:inherit;background:rgba(5,150,105,.11)}
+.crm-pro-section{border-radius:14px;box-shadow:none;padding:16px}.crm-pro-section-head{padding-bottom:10px;border-bottom:1px solid var(--border);margin-bottom:14px}.crm-pro-section-head>svg{color:var(--accent);margin-top:2px}.crm-pro-section-head h3{font-size:.98rem}.crm-pro-section-head p{font-size:.82rem}.crm-pro-grid{gap:12px}.crm-pro-actions{position:static;border-radius:14px;box-shadow:none;background:var(--surface)}
+@media (min-width:900px){.crm-pro-hero{grid-template-columns:auto 1fr auto}.crm-pro-hero-main{grid-column:auto;border-top:0;padding-top:0}.crm-pro-summary{grid-column:auto;justify-content:flex-end}.crm-pro-actions{position:sticky}}
+
+/* ── Customer form: wizard layout ── */
+.crm-pro-create{max-width:680px;margin:0 auto;padding:20px 16px 36px}
+.crm-wiz-header{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid var(--border)}
+.crm-wiz-back{display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:9px;background:var(--surface);color:var(--muted);font-size:.82rem;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap}
+.crm-wiz-back:hover{border-color:var(--accent);color:var(--accent);background:rgba(79,70,229,.04)}
+.crm-wiz-title{flex:1}
+.crm-wiz-title h2{margin:0;font-size:1.2rem;font-weight:800;color:var(--text);letter-spacing:-.02em}
+.crm-wiz-title p{margin:2px 0 0;font-size:.8rem;color:var(--muted)}
+.crm-wiz-title p span{color:var(--accent);font-weight:600}
+
+/* Step indicator */
+.crm-wiz-steps{display:flex;align-items:center;margin-bottom:22px;padding:0 4px}
+.crm-wiz-step{display:flex;flex-direction:column;align-items:center;flex:1;position:relative}
+.crm-wiz-step:not(:last-child)::after{content:'';position:absolute;top:16px;left:calc(50% + 18px);right:calc(-50% + 18px);height:2px;background:var(--border);transition:background .3s}
+.crm-wiz-step.done:not(:last-child)::after{background:var(--accent)}
+.crm-wiz-dot{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:.75rem;font-weight:800;transition:all .25s;z-index:1;border:2px solid var(--border);background:var(--surface);color:var(--muted)}
+.crm-wiz-step.active .crm-wiz-dot{border-color:var(--accent);background:var(--accent);color:#fff;box-shadow:0 4px 14px rgba(79,70,229,.35)}
+.crm-wiz-step.done .crm-wiz-dot{border-color:var(--accent);background:rgba(79,70,229,.08);color:var(--accent)}
+.crm-wiz-label{font-size:.72rem;font-weight:700;color:var(--muted);margin-top:6px;text-align:center;white-space:nowrap}
+.crm-wiz-step.active .crm-wiz-label{color:var(--accent)}
+.crm-wiz-step.done .crm-wiz-label{color:var(--text)}
+
+/* Step content */
+.crm-wiz-card{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:22px 20px;box-shadow:0 4px 16px rgba(15,23,42,.05);animation:wizFadeIn .22s ease}
+@keyframes wizFadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.crm-wiz-card-title{display:flex;align-items:center;gap:8px;margin-bottom:18px}
+.crm-wiz-card-title h3{margin:0;font-size:1rem;font-weight:800;color:var(--text)}
+.crm-wiz-card-title p{margin:2px 0 0;font-size:.82rem;color:var(--muted)}
+.crm-wiz-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+.crm-wiz-field{display:flex;flex-direction:column;gap:5px}
+.crm-wiz-field label{display:flex;align-items:center;gap:5px;font-size:.78rem;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.04em}
+.crm-wiz-field label .req{color:var(--red);font-size:.9em}
+.crm-wiz-input{padding:9px 12px;background:var(--input-bg);border:1.5px solid var(--border);border-radius:10px;color:var(--text);font-family:inherit;font-size:.88rem;transition:border-color .2s,box-shadow .2s;outline:none;min-height:40px}
+.crm-wiz-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(79,70,229,.1)}
+.crm-wiz-input--error{border-color:var(--red)!important;box-shadow:0 0 0 3px rgba(220,38,38,.08)!important}
+.crm-wiz-error{font-size:.72rem;color:var(--red);font-weight:600;display:flex;align-items:center;gap:4px}
+.crm-wiz-hint{font-size:.72rem;color:var(--muted);margin-top:2px}
+
+/* Action bar */
+.crm-wiz-actions{position:sticky;bottom:16px;z-index:5;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--border);border-radius:18px;background:color-mix(in srgb,var(--surface) 95%,transparent);backdrop-filter:blur(12px);box-shadow:0 8px 32px rgba(15,23,42,.1);margin-top:18px}
+.crm-wiz-actions .crm-btn{display:inline-flex;align-items:center;gap:6px;padding:9px 18px;border-radius:10px;font-family:inherit;font-size:.84rem;font-weight:600;cursor:pointer;transition:all .2s;border:none}
+.crm-wiz-btn-ghost{background:var(--surface2);color:var(--muted);border:1px solid var(--border)!important}
+.crm-wiz-btn-ghost:hover{background:var(--border);color:var(--text)}
+.crm-wiz-btn-primary{background:var(--accent);color:#fff;box-shadow:0 3px 10px rgba(79,70,229,.3)}
+.crm-wiz-btn-primary:hover{background:#4338ca;transform:translateY(-1px);box-shadow:0 5px 14px rgba(79,70,229,.4)}
+.crm-wiz-btn-primary:active{transform:translateY(0)}
+.crm-wiz-step-count{font-size:.8rem;color:var(--muted);font-weight:500}
+.crm-wiz-step-count strong{color:var(--accent)}
+
+/* Summary strip */
+.crm-wiz-summary{display:flex;gap:8px;flex-wrap:wrap;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;margin-bottom:16px}
+.crm-wiz-summary span{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;font-size:.75rem;font-weight:600;color:var(--muted);background:var(--surface);border:1px solid var(--border)}
+
+/* Locked banner */
+.crm-wiz-locked{color:#b91c1c;font-size:.82rem;font-weight:700;padding:10px 14px;background:rgba(220,38,38,.08);border:1px solid rgba(220,38,38,.2);border-radius:12px;display:flex;align-items:center;gap:8px;margin-bottom:14px}
+
+/* Responsive */
+@media(max-width:640px){.crm-pro-create{padding:14px 12px 24px}.crm-wiz-header{gap:8px}.crm-wiz-title h2{font-size:1.05rem}.crm-wiz-steps{padding:0}.crm-wiz-label{font-size:.65rem}.crm-wiz-dot{width:28px;height:28px;font-size:.68rem}.crm-wiz-step:not(:last-child)::after{top:14px;left:calc(50% + 15px);right:calc(-50% + 15px)}.crm-wiz-card{padding:16px 14px;border-radius:14px}.crm-wiz-grid{grid-template-columns:1fr;gap:12px}.crm-wiz-actions{position:static;flex-wrap:wrap;border-radius:14px;box-shadow:none}.crm-wiz-actions .crm-btn{flex:1;justify-content:center;min-height:44px}}
+
+
+/* Applied wireframe: no header, office step form */
+.crm-pro-create{max-width:760px;margin:0 auto;padding:8px 12px 32px}
+.crm-wiz-summary{margin:0 0 12px;padding:10px 12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.crm-wiz-summary span{min-height:30px;justify-content:flex-start;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:5px 9px;font-size:.76rem;color:var(--muted)}
+.crm-wiz-summary .crm-status-pill{background:rgba(5,150,105,.10);border-color:transparent;color:#047857;justify-content:center}
+.crm-wiz-steps{margin:0 0 12px;padding:12px 14px;border:1px solid var(--border);border-radius:12px;background:var(--surface)}
+.crm-wiz-dot{width:28px;height:28px;border-radius:50%;box-shadow:none;border:1px solid var(--border);background:var(--bg);font-size:.72rem}
+.crm-wiz-step.active .crm-wiz-dot{background:var(--accent);border-color:var(--accent);box-shadow:none;color:#fff}.crm-wiz-step.done .crm-wiz-dot{background:rgba(8,145,178,.08);border-color:rgba(8,145,178,.35);color:var(--accent)}.crm-wiz-step:not(:last-child)::after{top:14px;height:1px}.crm-wiz-step.done:not(:last-child)::after{background:var(--accent)}.crm-wiz-label{font-size:.74rem;margin-top:5px}
+.crm-wiz-card{border-radius:14px;box-shadow:none;padding:18px;background:var(--surface);border:1px solid var(--border)}.crm-wiz-card-title{padding-bottom:12px;border-bottom:1px solid var(--border);margin-bottom:14px}.crm-wiz-card-title h3{font-size:1rem;font-weight:750}.crm-wiz-card-title p{font-size:.8rem}.crm-wiz-field label{text-transform:none;letter-spacing:0;font-size:.8rem;font-weight:650}.crm-wiz-input{border-radius:9px;border-width:1px;background:var(--input-bg);min-height:38px;padding:8px 10px}.crm-wiz-actions{margin-top:12px;border-radius:12px;box-shadow:none;padding:10px 12px;background:var(--surface);backdrop-filter:none}.crm-wiz-btn-primary{box-shadow:none}.crm-wiz-btn-primary:hover{transform:none;box-shadow:none}.crm-wiz-locked{margin:0 0 12px}
+@media(max-width:640px){.crm-pro-create{padding:4px 4px 24px}.crm-wiz-summary{grid-template-columns:1fr}.crm-wiz-summary span{white-space:normal}.crm-wiz-steps{overflow-x:auto;gap:8px}.crm-wiz-step{min-width:92px}.crm-wiz-card{padding:14px}.crm-wiz-actions{position:static}.crm-wiz-label{font-size:.68rem}}
+
+/* Customer type toggle + pinned create panel */
+.crm-type-toggle-inline{display:inline-flex;gap:4px;padding:4px;border:1px solid var(--border);border-radius:10px;background:var(--bg);margin:0 0 14px}.crm-type-toggle-inline button{display:inline-flex;align-items:center;gap:6px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-weight:700;font-size:.82rem;padding:7px 12px;cursor:pointer}.crm-type-toggle-inline button.active{background:var(--surface);color:var(--accent);box-shadow:0 1px 3px rgba(15,23,42,.08)}
+.crm-pro-create{position:sticky;top:12px;align-self:flex-start;max-height:calc(100dvh - 24px);overflow:auto;scrollbar-width:thin}
+@media(max-width:900px){.crm-pro-create{position:static;max-height:none;overflow:visible}}
+
+/* Customer create: left aligned, not centered */
+.crm-pro-create{margin-left:0!important;margin-right:auto!important;max-width:760px;width:min(760px,100%)}
+
+/* Customer create: more space before Continue button */
+.crm-wiz-actions{margin-top:22px!important;padding-top:14px!important}
+.crm-wiz-actions>div:last-child{margin-left:auto;padding-left:24px}
+
+/* Customer create: action bar independent from form card */
+.crm-wiz-actions{margin-top:34px!important;border-radius:14px!important;border:1px solid var(--border)!important;background:var(--surface)!important;box-shadow:0 6px 18px rgba(15,23,42,.08)!important;width:max-content;min-width:360px;margin-left:0!important;margin-right:auto!important}
+.crm-wiz-card{margin-bottom:0!important}
+@media(max-width:640px){.crm-wiz-actions{width:100%;min-width:0}}
+
+/* Customer type toggle beside title */
+.crm-wiz-card-title--with-toggle{justify-content:space-between;align-items:center;gap:12px}.crm-wiz-card-title--with-toggle .crm-type-toggle-inline{margin:0;flex-shrink:0}
+@media(max-width:640px){.crm-wiz-card-title--with-toggle{align-items:flex-start;flex-direction:column}.crm-wiz-card-title--with-toggle .crm-type-toggle-inline{width:100%;display:grid;grid-template-columns:1fr 1fr}.crm-wiz-card-title--with-toggle .crm-type-toggle-inline button{justify-content:center}}
+
+/* Pin customer type toggle to card top-right */
+.crm-wiz-card-title--with-toggle{position:relative;padding-right:260px}.crm-wiz-card-title--with-toggle .crm-type-toggle-inline{position:absolute;top:0;right:0}
+@media(max-width:640px){.crm-wiz-card-title--with-toggle{padding-right:0}.crm-wiz-card-title--with-toggle .crm-type-toggle-inline{position:static}}
+
+/* Customer action bar same width as form card */
+.crm-wiz-actions{width:100%!important;min-width:0!important;box-sizing:border-box!important}
+
+/* Force action bar fill same available width */
+.crm-pro-create .crm-wiz-actions{display:flex!important;width:100%!important;max-width:none!important;min-width:100%!important;align-self:stretch!important}
+.crm-pro-create .crm-wiz-actions>div:first-child{min-width:0;flex:1}
+.crm-pro-create .crm-wiz-actions>div:last-child{margin-left:auto!important;padding-left:0!important}

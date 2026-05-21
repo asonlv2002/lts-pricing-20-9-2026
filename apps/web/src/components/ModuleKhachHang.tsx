@@ -1,679 +1,375 @@
 ﻿"use client";
-import React, { useEffect, useState, useMemo } from 'react';
-import {
-  Users, UserCircle, Search, Plus, UserPlus, ChevronDown,
-  ChevronRight, Building2, Phone, Mail, MapPin, X, Check, AlertCircle,
-  Shield, Briefcase, User, RefreshCw, Hash
-} from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AlertCircle, ArrowLeft, Briefcase, Building2, ChevronDown, Download, Eye, FileText, Filter, Hash, Lock, Mail, MapPin, MoreHorizontal, Package, Pencil, Phone, Plus, Save, Search, Shield, Unlock, User, Users, X } from 'lucide-react';
+import seedCustomers from '../data/customers.json';
+import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 
-// ════════════════════════════════════════════════════════════
-// TYPES
-// ════════════════════════════════════════════════════════════
+type CustomerStatus = 'active' | 'inactive';
+type CustomerType = 'company' | 'individual';
+type Role = 'admin' | 'sale' | 'purchase' | string;
+
 interface Customer {
   id: string;
-  type: 'company' | 'individual';
-  // Thông tin công ty (chỉ dùng khi type === 'company')
-  company: string;
-  taxCode: string;
-  companyAddress: string;
-  companyEmail: string;
-  companyPhone: string;
-  // Người liên hệ (luôn có)
-  name: string;        // tên người liên hệ (hoặc tên cá nhân)
-  phone: string;
-  email: string;
-  // Phân công
-  sellerId: string | null;
+  customerType?: CustomerType;
+  customerCode: string;
+  companyName: string;
+  taxCode?: string;
+  contactName?: string;
+  phone?: string;
+  email?: string;
+  address?: string;
+  region?: string;
+  customerGroup?: string;
+  sellerId?: string | null;
+  sellerName?: string;
+  status: CustomerStatus;
+  isLocked: boolean;
+  notes?: string;
   createdAt: string;
+  updatedAt: string;
 }
 
-interface Seller {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
+interface CustomerFilters {
+  keyword: string;
+  sellerId: string;
+  customerGroup: string;
+  status: 'all' | CustomerStatus | 'locked';
+  region: string;
+  createdFrom: string;
+  createdTo: string;
 }
 
-// ════════════════════════════════════════════════════════════
-// MOCK DATA (sẽ thay bằng API sau)
-// ════════════════════════════════════════════════════════════
-const INITIAL_SELLERS: Seller[] = [
-  { id: 'S1', name: 'Nguyen Minh An', email: 'an.nguyen@lts.vn', phone: '0901 234 567' },
-  { id: 'S2', name: 'Tran Gia Bao',   email: 'bao.tran@lts.vn', phone: '0912 345 678' },
-  { id: 'S3', name: 'Le Thu Ha',      email: 'ha.le@lts.vn',    phone: '0987 654 321' },
+const LS_CUSTOMERS = 'lts_customers';
+const SELLERS = [
+  { id: 'S1', name: 'Nguyen Van An' },
+  { id: 'S2', name: 'Tran Gia Bao' },
+  { id: 'S3', name: 'Le Thu Ha' },
+];
+const emptyFilters: CustomerFilters = { keyword: '', sellerId: '', customerGroup: '', status: 'all', region: '', createdFrom: '', createdTo: '' };
+const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', status: 'active', isLocked: false, notes: '', createdAt: '', updatedAt: '' };
+
+const FIELD_LABELS: Record<string, string> = {
+  customerType: 'Loại khách hàng', customerCode: 'Mã khách hàng', companyName: 'Tên công ty', taxCode: 'Mã số thuế',
+  contactName: 'Người liên hệ', phone: 'Số điện thoại', email: 'Email', address: 'Địa chỉ',
+  region: 'Khu vực', customerGroup: 'Nhóm khách hàng', notes: 'Ghi chú',
+};
+const statusClass = (c: Customer) => c.isLocked ? 'crm-status--locked' : c.status === 'active' ? 'crm-status--active' : 'crm-status--inactive';
+const getCustomerType = (c: Customer): CustomerType => c.customerType ?? 'company';
+const isIndividual = (c: Customer) => getCustomerType(c) === 'individual';
+const displayName = (c: Customer) => isIndividual(c) ? (c.contactName || c.companyName || 'Khách cá nhân') : (c.companyName || c.contactName || 'Khách doanh nghiệp');
+const typeLabel = (c: Customer) => isIndividual(c) ? 'Cá nhân' : 'Doanh nghiệp';
+
+const todayIso = () => new Date().toISOString();
+const fmtDate = (v?: string) => v ? new Date(v).toLocaleDateString('vi-VN') : '-';
+const statusLabel = (c: Customer) => c.isLocked ? 'Đã khóa' : c.status === 'active' ? 'Đang sử dụng' : 'Ngừng sử dụng';
+const normalize = (v?: string | null) => (v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const canEdit = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || (role === 'sale' && c.sellerId === sellerId && !c.isLocked);
+const canLock = (role: Role) => role === 'admin';
+
+function loadLocalCustomers(): Customer[] {
+  if (typeof window === 'undefined') return seedCustomers as Customer[];
+  try {
+    const raw = window.localStorage.getItem(LS_CUSTOMERS);
+    return raw ? JSON.parse(raw) : seedCustomers as Customer[];
+  } catch { return seedCustomers as Customer[]; }
+}
+function saveLocalCustomers(customers: Customer[]) {
+  try { window.localStorage.setItem(LS_CUSTOMERS, JSON.stringify(customers)); } catch { /* local only */ }
+}
+function exportCsv(rows: Customer[]) {
+  const headers = ['Loai KH','Ma KH','Ten khach hang','MST','Nguoi lien he','SDT','Email','Dia chi','Khu vuc','Nhom','Seller','Trang thai','Khoa','Ngay tao','Ghi chu'];
+  const body = rows.map(c => [typeLabel(c),c.customerCode,displayName(c),c.taxCode,c.contactName,c.phone,c.email,c.address,c.region,c.customerGroup,c.sellerName,statusLabel(c),c.isLocked ? 'Co' : 'Khong',fmtDate(c.createdAt),c.notes]);
+  const csv = [headers, ...body].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `danh-sach-khach-hang-${new Date().toISOString().slice(0,10)}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+const WIZ_STEPS = [
+  { label: 'Thông tin', icon: <Building2 size={14}/> },
+  { label: 'Liên hệ', icon: <User size={14}/> },
+  { label: 'Phân công', icon: <Briefcase size={14}/> },
 ];
 
-const INITIAL_CUSTOMERS: Customer[] = [
-  { id: 'C01', type: 'company', company: 'Cong ty TNHH Gao Viet Xanh', taxCode: '0312456789', companyAddress: 'Long An', companyEmail: 'sales@gaovietxanh.vn', companyPhone: '0272 388 8899', name: 'Pham Van Tuan', phone: '0909 111 222', email: 'tuan@gaovietxanh.vn', sellerId: 'S1', createdAt: '2026-03-01' },
-  { id: 'C02', type: 'company', company: 'Cong ty CP Ca Phe Cao Nguyen', taxCode: '0319988776', companyAddress: 'Dak Lak', companyEmail: 'contact@caphecaonguyen.vn', companyPhone: '0262 377 8899', name: 'Hoang Thi Mai', phone: '0918 222 333', email: 'mai@caphecaonguyen.vn', sellerId: 'S1', createdAt: '2026-03-02' },
-  { id: 'C03', type: 'company', company: 'Orion Food Vina', taxCode: '3600123456', companyAddress: 'Binh Duong', companyEmail: 'packaging@orionvina.vn', companyPhone: '0274 333 4444', name: 'Nguyen Duc Huy', phone: '0933 444 555', email: 'huy@orionvina.vn', sellerId: 'S1', createdAt: '2026-03-03' },
-  { id: 'C04', type: 'company', company: 'Cong ty TNHH Tra Sua Moc', taxCode: '0315678901', companyAddress: 'TP. Ho Chi Minh', companyEmail: 'mua.hang@trasuamoc.vn', companyPhone: '028 7777 8888', name: 'Do Thi Lan', phone: '0902 555 666', email: 'lan@trasuamoc.vn', sellerId: 'S1', createdAt: '2026-03-04' },
-  { id: 'C05', type: 'company', company: 'Hat Dieu Binh Phuoc Premium', taxCode: '3800123456', companyAddress: 'Binh Phuoc', companyEmail: 'info@hatdieupremium.vn', companyPhone: '0271 666 7777', name: 'Bui Minh Quan', phone: '0944 777 888', email: 'quan@hatdieupremium.vn', sellerId: 'S2', createdAt: '2026-03-05' },
-  { id: 'C06', type: 'company', company: 'Cong ty CP Thuy San Mekong', taxCode: '1800987654', companyAddress: 'Can Tho', companyEmail: 'purchase@mekongseafood.vn', companyPhone: '0292 555 6666', name: 'Tran Hoai Nam', phone: '0966 888 999', email: 'nam@mekongseafood.vn', sellerId: 'S2', createdAt: '2026-03-06' },
-  { id: 'C07', type: 'company', company: 'Masan Consumer', taxCode: '0302012345', companyAddress: 'TP. Ho Chi Minh', companyEmail: 'packaging@masan.vn', companyPhone: '028 5555 6666', name: 'Le Quoc Bao', phone: '0977 111 333', email: 'bao@masan.vn', sellerId: 'S2', createdAt: '2026-03-07' },
-  { id: 'C08', type: 'company', company: 'Cong ty TNHH Hoa My Pham An Phat', taxCode: '0311122334', companyAddress: 'Dong Nai', companyEmail: 'info@anphatcare.vn', companyPhone: '0251 444 5555', name: 'Vu Hong Anh', phone: '0988 222 444', email: 'anh@anphatcare.vn', sellerId: 'S2', createdAt: '2026-03-08' },
-  { id: 'C09', type: 'company', company: 'Vinamilk', taxCode: '0300588569', companyAddress: 'TP. Ho Chi Minh', companyEmail: 'supply@vinamilk.com.vn', companyPhone: '028 5415 5555', name: 'Nguyen Thanh Son', phone: '0903 333 555', email: 'son@vinamilk.com.vn', sellerId: 'S3', createdAt: '2026-03-09' },
-  { id: 'C10', type: 'company', company: 'Acecook Viet Nam', taxCode: '0300808687', companyAddress: 'TP. Ho Chi Minh', companyEmail: 'packaging@acecookvietnam.vn', companyPhone: '028 3815 5555', name: 'Pham Minh Khoa', phone: '0914 444 666', email: 'khoa@acecookvietnam.vn', sellerId: 'S3', createdAt: '2026-03-10' },
-  { id: 'C11', type: 'company', company: 'Kinh Do Mondelez', taxCode: '0302705302', companyAddress: 'Binh Duong', companyEmail: 'procurement@mondelez.vn', companyPhone: '0274 888 9999', name: 'Cao Thi Ngoc', phone: '0925 555 777', email: 'ngoc@mondelez.vn', sellerId: 'S3', createdAt: '2026-03-11' },
-  { id: 'C12', type: 'company', company: 'TH True Water', taxCode: '2901234567', companyAddress: 'Nghe An', companyEmail: 'supply@thtruewater.vn', companyPhone: '0238 777 8888', name: 'Dang Viet Hung', phone: '0936 666 888', email: 'hung@thtruewater.vn', sellerId: 'S3', createdAt: '2026-03-12' },
-];
-
-// ????????????????????????????????????????????????????????????
-// HELPERS
-// ????????????????????????????????????????????????????????????
-const AVATAR_COLORS = [
-  '#4f46e5','#0891b2','#059669','#d97706','#db2777','#7c3aed','#dc2626','#0284c7'
-];
-const avatarColor = (str: string) => AVATAR_COLORS[str.charCodeAt(0) % AVATAR_COLORS.length];
-const initials = (name: string) => name.split(' ').slice(-2).map(w => w[0]).join('').toUpperCase();
-
-// ════════════════════════════════════════════════════════════
-// SUB-COMPONENTS
-// ════════════════════════════════════════════════════════════
-
-/** Avatar circle */
-function Avatar({ name, size = 36 }: { name: string; size?: number }) {
-  const color = avatarColor(name);
-  return (
-    <div style={{
-      width: size, height: size, borderRadius: '50%',
-      background: color, color: '#fff', display: 'flex',
-      alignItems: 'center', justifyContent: 'center',
-      fontSize: size * 0.36, fontWeight: 700, flexShrink: 0,
-      letterSpacing: '-0.5px',
-    }}>
-      {initials(name)}
-    </div>
-  );
+function makeInitialCustomer(customer: Customer | undefined, role: Role, currentSellerId?: string): Customer {
+  if (customer) return { customerType: 'company', ...customer };
+  const now = Date.now();
+  return {
+    ...blankCustomer,
+    customerType: 'company',
+    id: `C${now}`,
+    customerCode: `KH${String(now).slice(-5)}`,
+    sellerId: role === 'sale' ? currentSellerId : null,
+    status: 'active',
+    isLocked: false,
+    createdAt: todayIso(),
+    updatedAt: todayIso(),
+  };
 }
 
-/** Customer card (compact row) */
-function CustomerRow({
-  customer,
-  sellers,
-  onAssign,
-  onUnassign,
-  isAdmin,
-}: {
-  customer: Customer;
-  sellers: Seller[];
-  onAssign?: (customerId: string, sellerId: string) => void;
-  onUnassign?: (customerId: string) => void;
-  isAdmin: boolean;
-}) {
-  const [assignOpen, setAssignOpen] = useState(false);
-  const seller = sellers.find(s => s.id === customer.sellerId);
-
-  const displayName = customer.type === 'company' ? customer.company : customer.name;
-  const subName = customer.type === 'company' ? customer.name : '';
-
-  return (
-    <div className="crm-customer-row">
-      <Avatar name={customer.name} />
-      <div className="crm-customer-main">
-        <div className="crm-customer-name">{displayName}</div>
-        {subName && (
-          <div className="crm-customer-company">
-            <User size={11} /> {subName}
-          </div>
-        )}
-        {customer.type === 'company' && customer.taxCode && (
-          <div className="crm-customer-company" style={{ opacity: 0.7 }}>
-            <Hash size={11} /> {customer.taxCode}
-          </div>
-        )}
-        {customer.type === 'individual' && (
-          <div className="crm-customer-company" style={{ color: 'var(--accent)', opacity: 0.8 }}>
-            <User size={11} /> Cá nhân
-          </div>
-        )}
-      </div>
-      <div className="crm-customer-contact">
-        <span><Phone size={11} /> {customer.phone}</span>
-        <span><Mail size={11} /> {customer.email}</span>
-      </div>
-      <div className="crm-customer-location">
-        <MapPin size={11} /> {customer.type === 'company' ? customer.companyAddress : 'Cá nhân'}
-      </div>
-
-      {isAdmin && (
-        <div className="crm-customer-seller-badge">
-          {seller ? (
-            <span className="crm-badge crm-badge-seller">
-              <Briefcase size={10} />
-              {seller.name}
-              <span style={{ opacity: 0.6, fontSize: '0.7em', marginLeft: 3 }}>({seller.id})</span>
-            </span>
-          ) : (
-            <span className="crm-badge crm-badge-unassigned">
-              <AlertCircle size={10} />
-              Chưa phân
-            </span>
-          )}
-        </div>
-      )}
-
-      {isAdmin && (
-        <div className="crm-customer-actions" style={{ position: 'relative' }}>
-          {customer.sellerId ? (
-            <button
-              className="crm-btn-icon crm-btn-danger"
-              title="Thu hồi khỏi Seller"
-              onClick={() => onUnassign?.(customer.id)}
-            >
-              <UserPlus size={14} />
-            </button>
-          ) : null}
-
-          <div style={{ position: 'relative' }}>
-            <button
-              className="crm-btn-icon crm-btn-accent"
-              title={customer.sellerId ? 'Đổi nhân viên đảm nhận' : 'Giao cho nhân viên'}
-              onClick={() => setAssignOpen(!assignOpen)}
-            >
-              <RefreshCw size={14} />
-            </button>
-            {assignOpen && (
-              <div className="crm-dropdown">
-                <div className="crm-dropdown-title">Nhân viên đảm nhận</div>
-                {sellers.map(s => (
-                  <button
-                    key={s.id}
-                    className={`crm-dropdown-item ${customer.sellerId === s.id ? 'crm-dropdown-item--active' : ''}`}
-                    onClick={() => { onAssign?.(customer.id, s.id); setAssignOpen(false); }}
-                  >
-                    <Avatar name={s.name} size={24} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600 }}>{s.name}</div>
-                      <div style={{ fontSize: '0.72em', opacity: 0.6 }}>{s.id}</div>
-                    </div>
-                    {customer.sellerId === s.id && <Check size={13} style={{ marginLeft: 'auto', color: '#4f46e5' }} />}
-                  </button>
-                ))}
-                {customer.sellerId && (
-                  <>
-                    <div className="crm-dropdown-divider" />
-                    <button
-                      className="crm-dropdown-item crm-dropdown-item--danger"
-                      onClick={() => { onUnassign?.(customer.id); setAssignOpen(false); }}
-                    >
-                      <X size={14} /> Thu hồi (bỏ phân công)
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Seller card with expandable customer list */
-function SellerCard({
-  seller,
-  customers,
-  allCustomers,
-  sellers,
-  onAssign,
-  onUnassign,
-}: {
-  seller: Seller;
-  customers: Customer[];
-  allCustomers: Customer[];
-  sellers: Seller[];
-  onAssign: (customerId: string, sellerId: string) => void;
-  onUnassign: (customerId: string) => void;
-}) {
-  const [expanded, setExpanded] = useState(true);
-  const unassigned = allCustomers.filter(c => !c.sellerId);
-
-  return (
-    <div className="crm-seller-card">
-      {/* Seller header */}
-      <div className="crm-seller-header" onClick={() => setExpanded(!expanded)}>
-        <Avatar name={seller.name} size={40} />
-        <div className="crm-seller-info">
-          <div className="crm-seller-name">
-            {seller.name}
-            <span style={{ fontSize: '0.75em', fontWeight: 400, opacity: 0.55, marginLeft: 6 }}>({seller.id})</span>
-          </div>
-          <div className="crm-seller-meta">
-            <Mail size={11} /> {seller.email}
-            <span style={{ margin: '0 6px' }}>·</span>
-            <Phone size={11} /> {seller.phone}
-          </div>
-        </div>
-        <div className="crm-seller-stats">
-          <div className="crm-stat-bubble">{customers.length} KH</div>
-        </div>
-        <div className="crm-seller-chevron">
-          {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </div>
-      </div>
-
-      {/* Customer list */}
-      {expanded && (
-        <div className="crm-seller-body">
-          {customers.length === 0 ? (
-            <div className="crm-empty-sub">Chưa có khách hàng nào được phân công.</div>
-          ) : (
-            customers.map(c => (
-              <CustomerRow
-                key={c.id}
-                customer={c}
-                sellers={sellers}
-                onAssign={onAssign}
-                onUnassign={onUnassign}
-                isAdmin={true}
-              />
-            ))
-          )}
-
-          {/* Quick-assign unassigned customers */}
-          {unassigned.length > 0 && (
-            <div className="crm-quick-assign">
-              <span className="crm-quick-assign-label">Thêm khách hàng chưa phân:</span>
-              {unassigned.map(c => (
-                <button
-                  key={c.id}
-                  className="crm-quick-assign-btn"
-                  onClick={() => onAssign(c.id, seller.id)}
-                  title={c.type === 'company' ? c.company : c.name}
-                >
-                  <Plus size={11} /> {c.type === 'company' ? c.company : c.name}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════
-
-// ADD CUSTOMER VIEW
-// ????????????????????????????????????????????????????????????
-function AddCustomerForm({
-  sellers,
-  onAdd,
-  onClose,
-  isAdmin,
-  defaultSellerId,
-}: {
-  sellers: Seller[];
-  onAdd: (c: Omit<Customer, 'id' | 'createdAt'>) => void;
-  onClose: () => void;
-  isAdmin: boolean;
-  defaultSellerId?: string;
-}) {
-  const [type, setType] = useState<'company' | 'individual'>('company');
-  const [form, setForm] = useState({
-    company: '',
-    taxCode: '',
-    companyAddress: '',
-    companyEmail: '',
-    companyPhone: '',
-    name: '',
-    phone: '',
-    email: '',
-    sellerId: isAdmin ? null as string | null : (defaultSellerId || null),
-  });
+function CustomerForm({ customer, role, currentSellerId, onSave, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; onSave: (c: Customer) => void; onCancel: () => void }) {
+  const isNew = !customer;
+  const [step, setStep] = useState(0);
+  const [form, setForm] = useState<Customer>(makeInitialCustomer(customer, role, currentSellerId));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const seller = SELLERS.find(s => s.id === form.sellerId);
+  const isLockedEdit = !isNew && !!customer?.isLocked;
 
-  const set = (key: string, val: string | null) => {
-    setForm(f => ({ ...f, [key]: val }));
-    setErrors(e => ({ ...e, [key]: '' }));
+  const set = (key: keyof Customer, value: string | boolean | null) => {
+    setForm(f => {
+      if (key === 'customerType') {
+        const nextType = value as CustomerType;
+        return { ...f, customerType: nextType, companyName: nextType === 'individual' ? (f.companyName || f.contactName || '') : f.companyName, contactName: nextType === 'company' ? f.contactName : (f.contactName || f.companyName || '') };
+      }
+      return { ...f, [key]: value };
+    });
+    setErrors(e => ({ ...e, [String(key)]: '' }));
   };
 
-  const validate = () => {
+  const stepFields: Record<number, (keyof Customer)[]> = {
+    0: ['customerCode', 'companyName', 'taxCode', 'customerGroup', 'region', 'address'],
+    1: ['contactName', 'phone', 'email'],
+    2: ['sellerId', 'status', 'notes'],
+  };
+
+  const validateStep = (s: number) => {
     const e: Record<string, string> = {};
-    if (type === 'company' && !form.company.trim()) e.company = 'Vui lòng nhập tên công ty';
-    if (!form.name.trim())  e.name  = 'Vui lòng nhập tên người liên hệ';
-    if (!form.phone.trim()) e.phone = 'Vui lòng nhập số điện thoại';
+    for (const f of (stepFields[s] ?? [])) {
+      const v = form[f] as string | null | undefined;
+      if (f === 'customerCode' && !String(v ?? '').trim()) e.customerCode = 'Nhập mã khách hàng.';
+      if (s === 0 && isIndividual(form) && !form.contactName?.trim()) e.contactName = 'Nhập họ tên khách hàng.';
+      if (f === 'companyName' && !isIndividual(form) && !String(v ?? '').trim()) e.companyName = 'Nhập tên công ty.';
+      if (f === 'contactName' && !isIndividual(form) && !String(v ?? '').trim()) e.contactName = 'Nhập người liên hệ.';
+      if (f === 'phone' && !String(v ?? '').trim()) e.phone = 'Nhập số điện thoại.';
+      if (f === 'email' && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) e.email = 'Email chưa đúng định dạng.';
+    }
     setErrors(e);
     return Object.keys(e).length === 0;
   };
 
-  const handleSubmit = () => {
-    if (!validate()) return;
-    onAdd({
-      type,
-      company: type === 'company' ? form.company : '',
-      taxCode: type === 'company' ? form.taxCode : '',
-      companyAddress: type === 'company' ? form.companyAddress : '',
-      companyEmail: type === 'company' ? form.companyEmail : '',
-      companyPhone: type === 'company' ? form.companyPhone : '',
-      name: form.name,
-      phone: form.phone,
-      email: form.email,
-      sellerId: form.sellerId,
-    });
-    onClose();
+  const validateAll = () => {
+    const e: Record<string, string> = {};
+    if (!form.customerCode.trim()) e.customerCode = 'Nhập mã khách hàng.';
+    if (!isIndividual(form) && !form.companyName.trim()) e.companyName = 'Nhập tên công ty.';
+    if (!form.contactName?.trim()) e.contactName = isIndividual(form) ? 'Nhập họ tên khách hàng.' : 'Nhập người liên hệ.';
+    if (!form.phone?.trim()) e.phone = 'Nhập số điện thoại.';
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Email chưa đúng định dạng.';
+    setErrors(e);
+    return Object.keys(e).length === 0;
   };
 
-  const InputField = ({
-    label, fieldKey, placeholder, icon, required = false, type: inputType = 'text'
-  }: {
-    label: string; fieldKey: string; placeholder: string; icon: React.ReactNode;
-    required?: boolean; type?: string;
-  }) => (
-    <div className="crm-modal-field">
-      <label className="crm-modal-label">
-        {icon} {label} {required && <span style={{ color: '#dc2626' }}>*</span>}
-      </label>
-      <input
-        className={`crm-modal-input ${errors[fieldKey] ? 'crm-modal-input--error' : ''}`}
-        type={inputType}
-        placeholder={placeholder}
-        value={(form as any)[fieldKey] || ''}
-        onChange={e => set(fieldKey, e.target.value)}
-      />
-      {errors[fieldKey] && <div className="crm-field-error">{errors[fieldKey]}</div>}
-    </div>
-  );
-  return (
-    <div className="crm-create-page">
-      <div className="crm-create-layout">
-        <main className="crm-create-form-card">
-          <div className="crm-create-section crm-create-section--type">
-            <div className="crm-create-section-head">
-              <div><h3>Loại khách hàng</h3><p>Chọn đúng loại để hiển thị trường phù hợp.</p></div>
-            </div>
-            <div className="crm-type-toggle crm-type-toggle--cards">
-              <button className={`crm-type-card ${type === 'company' ? 'active' : ''}`} onClick={() => setType('company')}>
-                <Building2 size={18} />
-                <span><b>Công ty</b><small>Doanh nghiệp / tổ chức</small></span>
-              </button>
-              <button className={`crm-type-card ${type === 'individual' ? 'active' : ''}`} onClick={() => setType('individual')}>
-                <User size={18} />
-                <span><b>Cá nhân</b><small>Khách hàng lẻ</small></span>
-              </button>
-            </div>
-          </div>
+  const next = () => { if (validateStep(step)) setStep(s => s + 1); };
+  const back = () => setStep(s => s - 1);
+  const submit = () => {
+    if (!validateAll()) { setStep(0); return; }
+    onSave({ ...form, sellerName: seller?.name ?? form.sellerName ?? '', updatedAt: todayIso() });
+  };
 
-          {type === 'company' && (
-            <section className="crm-create-section">
-              <div className="crm-create-section-head"><div><h3>Thông tin công ty</h3><p>Dữ liệu dùng cho báo giá, hợp đồng và xuất hóa đơn.</p></div></div>
-              <div className="crm-modal-grid crm-create-grid">
-                <InputField label="Tên công ty"   fieldKey="company"        placeholder="Tên công ty / doanh nghiệp" icon={<Building2 size={13} />} required />
-                <InputField label="Mã số thuế"    fieldKey="taxCode"        placeholder="0312345678"                  icon={<Hash      size={13} />} />
-                <InputField label="Địa chỉ"       fieldKey="companyAddress" placeholder="Tỉnh / Thành phố"           icon={<MapPin    size={13} />} />
-                <InputField label="Email công ty" fieldKey="companyEmail"   placeholder="info@company.com"           icon={<Mail      size={13} />} />
-                <InputField label="SĐT công ty"   fieldKey="companyPhone"   placeholder="028 xxxx xxxx"              icon={<Phone     size={13} />} />
-              </div>
-            </section>
-          )}
-
-          <section className="crm-create-section">
-            <div className="crm-create-section-head"><div><h3>{type === 'company' ? 'Người liên hệ' : 'Thông tin cá nhân'}</h3><p>Thông tin chính để đội sales liên hệ và chăm sóc.</p></div></div>
-            <div className="crm-modal-grid crm-create-grid">
-              <InputField label={type === 'company' ? 'Tên người liên hệ' : 'Họ và tên'} fieldKey="name"  placeholder="Họ và tên đầy đủ" icon={<UserCircle size={13} />} required />
-              <InputField label="SĐT liên hệ"   fieldKey="phone" placeholder="0xxx xxx xxx"  icon={<Phone size={13} />} required />
-              <InputField label="Email liên hệ" fieldKey="email" placeholder="email@gmail.com" icon={<Mail size={13} />} />
-            </div>
-          </section>
-
-          {isAdmin && (
-            <section className="crm-create-section">
-              <div className="crm-create-section-head"><div><h3>Nhân viên đảm nhận</h3><p>Có thể để trống và phân công sau.</p></div></div>
-              <div className="crm-modal-field crm-create-seller-field">
-                <label className="crm-modal-label"><UserCircle size={13} /> Tên nhân viên + mã nhân viên</label>
-                <select className="crm-modal-input" value={form.sellerId || ''} onChange={e => set('sellerId', e.target.value || null)}>
-                  <option value="">Chưa phân công</option>
-                  {sellers.map(s => (<option key={s.id} value={s.id}>{s.name} ({s.id})</option>))}
-                </select>
-              </div>
-            </section>
-          )}
-
-          <div className="crm-create-actions">
-            <button className="crm-btn crm-btn-ghost" onClick={onClose}>Hủy</button>
-            <button className="crm-btn crm-btn-primary crm-create-submit" onClick={handleSubmit}><Plus size={15} /> Thêm Khách Hàng</button>
-          </div>
-        </main>
+  const Field = ({ k, icon, required, type = 'text', helper }: { k: keyof Customer; icon: React.ReactNode; required?: boolean; type?: string; helper?: string }) => {
+    const err = errors[String(k)];
+    const isSelect = k === 'sellerId' || k === 'status';
+    const disabled = isLockedEdit && k !== 'notes';
+    return (
+      <div className="crm-wiz-field">
+        <label htmlFor={`wiz-${String(k)}`}>{icon}{FIELD_LABELS[String(k)] ?? String(k)} {required && <span className="req">*</span>}</label>
+        {isSelect ? (
+          <select id={`wiz-${String(k)}`} className={`crm-wiz-input${err ? ' crm-wiz-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value || null)} disabled={k === 'status' && role !== 'admin' || disabled}>
+            {k === 'sellerId' && <option value="">Chưa phân công</option>}
+            {k === 'sellerId' && SELLERS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            {k === 'status' && <><option value="active">Đang sử dụng</option><option value="inactive">Ngừng sử dụng</option></>}
+          </select>
+        ) : k === 'notes' ? (
+          <textarea id={`wiz-${String(k)}`} className={`crm-wiz-input${err ? ' crm-wiz-input--error' : ''}`} rows={3} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value)} placeholder="VD: Điều khoản, thói quen đặt hàng, lưu ý công nợ..." disabled={disabled} />
+        ) : (
+          <input id={`wiz-${String(k)}`} type={type} className={`crm-wiz-input${err ? ' crm-wiz-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value)} disabled={disabled} aria-invalid={!!err} />
+        )}
+        {err ? (
+          <span className="crm-wiz-error" role="alert"><AlertCircle size={11}/>{err}</span>
+        ) : helper ? (
+          <span className="crm-wiz-hint">{helper}</span>
+        ) : null}
       </div>
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════════════════════
-// MAIN MODULE
-// ════════════════════════════════════════════════════════════
-interface CustomerModuleProps {
-  role: string;
-  /** Seller ID của user đang đăng nhập (khi role = 'sale') */
-  currentSellerId?: string;
-  menuDangChon?: string;
-}
-
-export default function CustomerModule({ role, currentSellerId = 'S1', menuDangChon }: CustomerModuleProps) {
-  const isAdmin = role === 'admin';
-
-  const [customers, setCustomers] = useState<Customer[]>(INITIAL_CUSTOMERS);
-  const [sellers] = useState<Seller[]>(INITIAL_SELLERS);
-  const [search, setSearch] = useState('');
-  const [adminTab, setAdminTab] = useState<'all' | 'by_seller'>('all');
-  const [customerTab, setCustomerTab] = useState<'list' | 'create'>(menuDangChon === 'customers.create' ? 'create' : 'list');
-  const [dismissedCreateTab, setDismissedCreateTab] = useState(false);
-
-  useEffect(() => {
-    if (menuDangChon === 'customers.create') { setDismissedCreateTab(false); setCustomerTab('create'); }
-    if (menuDangChon === 'customers.seller_assignment') setAdminTab('by_seller');
-    if (menuDangChon === 'customers.list' || menuDangChon === 'overview.new_customers') { setAdminTab('all'); setCustomerTab('list'); }
-  }, [menuDangChon]);
-
-  const showCreateView = customerTab === 'create' || (menuDangChon === 'customers.create' && !dismissedCreateTab);
-  const closeCreateView = () => { setCustomerTab('list'); setDismissedCreateTab(true); };
-
-  // ── Derived data ──
-  const filteredCustomers = useMemo(() => {
-    const base = isAdmin ? customers : customers.filter(c => c.sellerId === currentSellerId);
-    if (!search.trim()) return base;
-    const q = search.toLowerCase();
-    return base.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      c.company.toLowerCase().includes(q) ||
-      c.phone.includes(q) ||
-      c.companyAddress.toLowerCase().includes(q) ||
-      c.taxCode.includes(q)
     );
-  }, [customers, search, isAdmin, currentSellerId]);
-
-  const customersBySeller = useMemo(() =>
-    sellers.map(s => ({
-      seller: s,
-      customers: customers.filter(c => c.sellerId === s.id),
-    })),
-    [sellers, customers]
-  );
-
-  const unassigned = useMemo(() => customers.filter(c => !c.sellerId), [customers]);
-
-  // ── Actions ──
-  const handleAssign = (customerId: string, sellerId: string) => {
-    setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, sellerId } : c));
   };
 
-  const handleUnassign = (customerId: string) => {
-    setCustomers(prev => prev.map(c => c.id === customerId ? { ...c, sellerId: null } : c));
-  };
-
-  const handleAddCustomer = (data: Omit<Customer, 'id' | 'createdAt'>) => {
-    const newId = 'C' + String(customers.length + 1).padStart(2, '0');
-    // Sale tự thêm: tự động gán cho chính mình
-    const finalData = isAdmin ? data : { ...data, sellerId: currentSellerId };
-    setCustomers(prev => [...prev, {
-      ...finalData,
-      id: newId,
-      createdAt: new Date().toISOString().slice(0, 10),
-    }]);
-  };
-
-  // ════════════════════ RENDER ════════════════════
   return (
-    <div className="crm-root">
-      {showCreateView ? (
-        <AddCustomerForm
-          sellers={sellers}
-          onAdd={handleAddCustomer}
-          onClose={closeCreateView}
-          isAdmin={isAdmin}
-          defaultSellerId={currentSellerId}
-        />
-      ) : (
-      <>
-      <div className="crm-toolbar">
-        <div className="crm-search-box">
-          <Search size={15} className="crm-search-icon" />
-          <input
-            className="crm-search-input"
-            placeholder="Tìm tên, công ty, số điện thoại, MST..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          {search && (
-            <button className="crm-search-clear" onClick={() => setSearch('')}>
-              <X size={13} />
+    <div className="crm-pro-create">
+      {/* Summary strip */}
+      <div className="crm-wiz-summary">
+        <span><Hash size={11}/>{form.customerCode || '—'}</span>
+        <span>{isIndividual(form) ? <User size={11}/> : <Building2 size={11}/>} {displayName(form) || '—'}</span>
+        <span><User size={11}/>{form.contactName || '—'}</span>
+        <span className={`crm-status-pill ${statusClass(form)}`}>{statusLabel(form)}</span>
+      </div>
+
+      {/* Locked banner */}
+      {isLockedEdit && (
+        <div className="crm-wiz-locked"><Lock size={14}/> Khách hàng đang bị khóa. Chỉ admin mở khóa mới sửa được dữ liệu quan trọng.</div>
+      )}
+
+      {/* Step indicator */}
+      <div className="crm-wiz-steps">
+        {WIZ_STEPS.map((s, i) => (
+          <div key={i} className={`crm-wiz-step${i < step ? ' done' : i === step ? ' active' : ''}`}>
+            <div className="crm-wiz-dot">{i < step ? <span style={{ fontWeight: 800 }}>✓</span> : s.icon}</div>
+            <span className="crm-wiz-label">{s.label}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Step 0: Công ty */}
+      {step === 0 && (
+        <div className="crm-wiz-card" key="step-0">
+          <div className="crm-wiz-card-title crm-wiz-card-title--with-toggle"><div style={{display:'flex',alignItems:'center',gap:8}}>{isIndividual(form) ? <User size={18} style={{ color: 'var(--accent)' }}/> : <Building2 size={18} style={{ color: 'var(--accent)' }}/>} 
+            <div>
+              <h3>{isIndividual(form) ? 'Thông tin cá nhân' : 'Thông tin doanh nghiệp'}</h3>
+              <p>{isIndividual(form) ? 'Họ tên, khu vực và nhóm khách hàng' : 'Mã số, tên và khu vực giao dịch'}</p>
+            </div></div><div className="crm-type-toggle-inline" role="tablist" aria-label="Loại khách hàng"><button type="button" className={form.customerType !== 'individual' ? 'active' : ''} onClick={() => set('customerType', 'company')}><Building2 size={14}/>Doanh nghiệp</button>
+            <button type="button" className={form.customerType === 'individual' ? 'active' : ''} onClick={() => set('customerType', 'individual')}><User size={14}/>Cá nhân</button></div></div>
+          <div className="crm-wiz-grid">
+            <Field k="customerCode" icon={<Hash size={12}/>} required helper="VD: KH001, KH2026-001" />
+            {isIndividual(form)
+              ? <Field k="contactName" icon={<User size={12}/>} required helper="Họ tên khách hàng cá nhân" />
+              : <Field k="companyName" icon={<Building2 size={12}/>} required helper="Tên pháp lý hoặc tên giao dịch" />}
+            {!isIndividual(form) && <Field k="taxCode" icon={<Hash size={12}/>} helper="Mã số thuế (dùng khi xuất hóa đơn)" />}
+            <Field k="customerGroup" icon={<Users size={12}/>} helper="VD: Key account, FMCG, Khách lẻ" />
+            <Field k="region" icon={<MapPin size={12}/>} helper="Tỉnh/thành hoặc khu vực" />
+            <Field k="address" icon={<MapPin size={12}/>} helper="Địa chỉ giao dịch/giao hàng" />
+          </div>
+        </div>
+      )}
+
+      {/* Step 1: Liên hệ */}
+      {step === 1 && (
+        <div className="crm-wiz-card" key="step-1">
+          <div className="crm-wiz-card-title">
+            <User size={18} style={{ color: 'var(--accent)' }}/>
+            <div>
+              <h3>{isIndividual(form) ? 'Thông tin liên hệ' : 'Người liên hệ chính'}</h3>
+              <p>{isIndividual(form) ? 'Số điện thoại và email của khách hàng' : 'Người nhận báo giá và trao đổi đơn hàng'}</p>
+            </div>
+          </div>
+          <div className="crm-wiz-grid">
+            {!isIndividual(form) && <Field k="contactName" icon={<User size={12}/>} required helper="Họ tên người liên hệ" />}
+            <Field k="phone" icon={<Phone size={12}/>} required type="tel" helper="Số điện thoại liên hệ" />
+            <Field k="email" icon={<Mail size={12}/>} type="email" helper="Email (không bắt buộc)" />
+          </div>
+        </div>
+      )}
+
+      {/* Step 2: Phân công */}
+      {step === 2 && (
+        <div className="crm-wiz-card" key="step-2">
+          <div className="crm-wiz-card-title">
+            <Briefcase size={18} style={{ color: 'var(--accent)' }}/>
+            <div>
+              <h3>Phân công &amp; trạng thái</h3>
+              <p>Sale phụ trách và trạng thái sử dụng</p>
+            </div>
+          </div>
+          <div className="crm-wiz-grid">
+            {role === 'admin' && <Field k="sellerId" icon={<Briefcase size={12}/>} helper="Sale được phân công sẽ thấy KH này" />}
+            <Field k="status" icon={<Shield size={12}/>} />
+            <Field k="notes" icon={<FileText size={12}/>} helper="Điều khoản, thói quen đặt hàng, công nợ..." />
+          </div>
+        </div>
+      )}
+
+      {/* Action bar */}
+      <div className="crm-wiz-actions">
+        <div>{step > 0 && <button className="crm-btn crm-wiz-btn-ghost" onClick={back}><ArrowLeft size={14}/> Quay lại</button>}</div>
+        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          {step < 2 ? (
+            <button className="crm-btn crm-wiz-btn-primary" onClick={next}>
+              Tiếp tục <ChevronDown size={14} style={{ transform: 'rotate(-90deg)' }}/>
+            </button>
+          ) : (
+            <button className="crm-btn crm-wiz-btn-primary" onClick={submit}>
+              <Save size={14}/>{isNew ? 'Tạo khách hàng' : 'Lưu thay đổi'}
             </button>
           )}
         </div>
-
-        <div className="crm-toolbar-right">
-          {/* Stats (admin only) */}
-          {isAdmin && (
-            <div className="crm-stats-bar">
-              <div className="crm-stat"><span className="crm-stat-num">{customers.length}</span><span className="crm-stat-label">Tổng KH</span></div>
-              <div className="crm-stat-divider" />
-              <div className="crm-stat"><span className="crm-stat-num">{sellers.length}</span><span className="crm-stat-label">Nhân viên</span></div>
-              <div className="crm-stat-divider" />
-              <div className="crm-stat crm-stat--warn"><span className="crm-stat-num">{unassigned.length}</span><span className="crm-stat-label">Chưa phân</span></div>
-            </div>
-          )}
-
-          {/* Cả admin và sale đều có nút thêm khách */}
-          <button className="crm-btn crm-btn-primary" onClick={() => { setCustomerTab('create'); setDismissedCreateTab(false); }}>
-            <Plus size={15} /> Thêm Khách Hàng
-          </button>
-        </div>
       </div>
-
-      {/* ── ADMIN TABS ── */}
-      {isAdmin && (
-        <div className="crm-admin-tabs">
-          <button
-            className={`crm-admin-tab ${adminTab === 'all' ? 'active' : ''}`}
-            onClick={() => setAdminTab('all')}
-          >
-            <Users size={15} /> Tất cả Khách hàng
-            <span className="crm-tab-badge">{filteredCustomers.length}</span>
-          </button>
-          <button
-            className={`crm-admin-tab ${adminTab === 'by_seller' ? 'active' : ''}`}
-            onClick={() => setAdminTab('by_seller')}
-          >
-            <Briefcase size={15} /> Theo Nhân viên
-          </button>
-        </div>
-      )}
-
-      {/* ─────────────────────────────────────────────
-          VIEW: ALL CUSTOMERS (flat list)
-      ───────────────────────────────────────────── */}
-      {(adminTab === 'all' || !isAdmin) && (
-        <div className="crm-list">
-          {/* Role badge for seller view */}
-          {!isAdmin && (
-            <div className="crm-seller-view-banner">
-              <Shield size={14} />
-              Góc nhìn Nhân viên · Hiển thị {filteredCustomers.length} khách hàng phụ trách của bạn
-            </div>
-          )}
-
-          {filteredCustomers.length === 0 ? (
-            <div className="crm-empty">
-              <Users size={40} />
-              <p>{search ? 'Không tìm thấy khách hàng phù hợp.' : 'Chưa có khách hàng nào.'}</p>
-            </div>
-          ) : (
-            <div className="crm-customer-list">
-              {/* Header row */}
-              <div className="crm-list-header">
-                <span style={{ width: 36 }} />
-                <span style={{ flex: 1 }}>Khách hàng</span>
-                <span className="crm-col-contact">Người liên hệ</span>
-                <span className="crm-col-location">Khu vực</span>
-                {isAdmin && <span className="crm-col-seller">Nhân viên đảm nhận</span>}
-                {isAdmin && <span className="crm-col-actions" />}
-              </div>
-
-              {filteredCustomers.map(c => (
-                <CustomerRow
-                  key={c.id}
-                  customer={c}
-                  sellers={sellers}
-                  onAssign={handleAssign}
-                  onUnassign={handleUnassign}
-                  isAdmin={isAdmin}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ─────────────────────────────────────────────
-          VIEW: BY SELLER (accordion)
-      ───────────────────────────────────────────── */}
-      {isAdmin && adminTab === 'by_seller' && (
-        <div className="crm-list crm-list--sellers">
-          {customersBySeller.map(({ seller, customers: sellerCusts }) => (
-            <SellerCard
-              key={seller.id}
-              seller={seller}
-              customers={sellerCusts}
-              allCustomers={customers}
-              sellers={sellers}
-              onAssign={handleAssign}
-              onUnassign={handleUnassign}
-            />
-          ))}
-
-          {/* Unassigned pool */}
-          {unassigned.length > 0 && (
-            <div className="crm-seller-card crm-seller-card--unassigned">
-              <div className="crm-seller-header" style={{ cursor: 'default' }}>
-                <div className="crm-unassigned-icon"><AlertCircle size={20} /></div>
-                <div className="crm-seller-info">
-                  <div className="crm-seller-name" style={{ color: '#d97706' }}>Chưa phân công</div>
-                  <div className="crm-seller-meta">Các khách hàng chưa có nhân viên phụ trách</div>
-                </div>
-                <div className="crm-seller-stats">
-                  <div className="crm-stat-bubble crm-stat-bubble--warn">{unassigned.length} KH</div>
-                </div>
-              </div>
-              <div className="crm-seller-body">
-                {unassigned.map(c => (
-                  <CustomerRow
-                    key={c.id}
-                    customer={c}
-                    sellers={sellers}
-                    onAssign={handleAssign}
-                    onUnassign={handleUnassign}
-                    isAdmin={true}
-                  />
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      </>
-      )}
     </div>
   );
 }
+
+function CustomerDetail({ customer, onClose }: { customer: Customer; onClose: () => void }) {
+  const history = dungCuaHangTinhGia(s => s.history);
+  const related = history.filter(h => normalize(h.customer).includes(normalize(displayName(customer))) || normalize(h.input?.customer).includes(normalize(displayName(customer))));
+  const products = Array.from(new Map(related.map(h => [`${h.productName}-${h.structure}`, h])).values());
+  return <div className="crm-modal-backdrop" onClick={onClose}><div className="crm-create-form-card" style={{maxWidth:980, margin:'40px auto'}} onClick={e => e.stopPropagation()}>
+    <div className="crm-create-section-head"><div style={{display:'flex',gap:14,alignItems:'center'}}><div className="crm-avatar-lg"><Briefcase size={22}/></div><div><h3>{displayName(customer)}</h3><p>{customer.customerCode} · {typeLabel(customer)} · <span className={`crm-status-pill ${statusClass(customer)}`}>{statusLabel(customer)}</span> · Seller: {customer.sellerName || customer.sellerId || 'Chưa phân'}</p></div></div><button className="crm-btn crm-btn-ghost" aria-label="Đóng hồ sơ khách hàng" onClick={onClose}><X size={15}/> Đóng</button></div>
+    <div className="crm-admin-tabs"><button className="crm-admin-tab active"><Users size={15}/> Thông tin</button><button className="crm-admin-tab"><FileText size={15}/> Báo giá ({related.length})</button><button className="crm-admin-tab"><Package size={15}/> Sản phẩm ({products.length})</button></div>
+    <div className="crm-modal-grid crm-create-grid">{[['Loại khách hàng',typeLabel(customer)],['MST',customer.taxCode],['Người liên hệ',customer.contactName],['SĐT',customer.phone],['Email',customer.email],['Địa chỉ',customer.address],['Khu vực',customer.region],['Nhóm',customer.customerGroup],['Ghi chú',customer.notes]].map(([k,v]) => <div className="crm-modal-field" key={k}><label className="crm-modal-label">{k}</label><div className="crm-modal-input" style={{height:'auto',minHeight:38}}>{v || '-'}</div></div>)}</div>
+    <h4><FileText size={16}/> Báo giá liên quan ({related.length})</h4>{related.slice(0,8).map(h => <div className="crm-customer-row" key={h.id}><FileText size={18}/><div className="crm-customer-main"><b>{h.productName}</b><small>{fmtDate(h.date)} · {Math.round(h.chotGia ?? h.finalPrice).toLocaleString('vi-VN')} đ</small></div></div>)}
+    <h4><Package size={16}/> Sản phẩm liên quan ({products.length})</h4>{products.slice(0,8).map(h => <div className="crm-customer-row" key={h.id}><Package size={18}/><div className="crm-customer-main"><b>{h.productName}</b><small>{h.structure} · SL {h.quantity?.toLocaleString('vi-VN')}</small></div></div>)}
+  </div></div>;
+}
+
+export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDangChon }: { role: Role; currentSellerId?: string; menuDangChon?: string }) {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [filters, setFilters] = useState<CustomerFilters>(emptyFilters);
+  const [editing, setEditing] = useState<Customer | null | undefined>(undefined);
+  const [detail, setDetail] = useState<Customer | null>(null);
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [confirm, setConfirm] = useState<{ title: string; desc: string; action: () => void } | null>(null);
+  useEffect(() => setCustomers(loadLocalCustomers()), []);
+  useEffect(() => { if (customers.length) saveLocalCustomers(customers); }, [customers]);
+  useEffect(() => { if (menuDangChon === 'customers.create') setEditing(null); }, [menuDangChon]);
+
+  const options = useMemo(() => ({
+    sellers: SELLERS,
+    groups: Array.from(new Set(customers.map(c => c.customerGroup).filter(Boolean))) as string[],
+    regions: Array.from(new Set(customers.map(c => c.region).filter(Boolean))) as string[],
+  }), [customers]);
+  const visible = useMemo(() => customers.filter(c => role === 'admin' || role === 'purchase' || c.sellerId === currentSellerId), [customers, role, currentSellerId]);
+  const filtered = useMemo(() => visible.filter(c => {
+    const q = normalize(filters.keyword);
+    const hay = normalize([displayName(c),c.companyName,c.customerCode,c.contactName,c.phone,c.email,c.taxCode,typeLabel(c)].join(' '));
+    if (q && !hay.includes(q)) return false;
+    if (filters.sellerId && c.sellerId !== filters.sellerId) return false;
+    if (filters.customerGroup && c.customerGroup !== filters.customerGroup) return false;
+    if (filters.region && c.region !== filters.region) return false;
+    if (filters.status === 'locked' && !c.isLocked) return false;
+    if (filters.status !== 'all' && filters.status !== 'locked' && c.status !== filters.status) return false;
+    if (filters.createdFrom && c.createdAt.slice(0,10) < filters.createdFrom) return false;
+    if (filters.createdTo && c.createdAt.slice(0,10) > filters.createdTo) return false;
+    return true;
+  }), [visible, filters]);
+
+  const upsert = (c: Customer) => setCustomers(prev => prev.some(x => x.id === c.id) ? prev.map(x => x.id === c.id ? c : x) : [c, ...prev]);
+  const patch = (id: string, partial: Partial<Customer>) => setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...partial, updatedAt: todayIso() } : c));
+  if (editing !== undefined) return <CustomerForm customer={editing ?? undefined} role={role} currentSellerId={currentSellerId} onSave={c => { upsert(c); setEditing(undefined); }} onCancel={() => setEditing(undefined)} />;
+
+  return <div className="crm-root">
+    {detail && <CustomerDetail customer={detail} onClose={() => setDetail(null)} />}
+    {confirm && <div className="crm-modal-backdrop" onClick={() => setConfirm(null)}><div className="crm-create-form-card" style={{maxWidth:460, margin:'70px auto'}} onClick={e => e.stopPropagation()}><h3>{confirm.title}</h3><p style={{color:'var(--muted)'}}>{confirm.desc}</p><div className="crm-create-actions"><button className="crm-btn crm-btn-ghost" onClick={() => setConfirm(null)}>Hủy</button><button className="crm-btn crm-btn-danger" onClick={() => { confirm.action(); setConfirm(null); }}>Xác nhận</button></div></div></div>}
+    <div className="crm-toolbar">
+      <div className="crm-search-box"><Search size={15} className="crm-search-icon"/><input className="crm-search-input" aria-label="Tìm kiếm khách hàng" placeholder="Tìm tên công ty, mã KH, liên hệ, SĐT, email, MST..." value={filters.keyword} onChange={e => setFilters(f => ({...f, keyword:e.target.value}))}/>{filters.keyword && <button aria-label="Xóa tìm kiếm" className="crm-search-clear" onClick={() => setFilters(f => ({...f, keyword:''}))}><X size={13}/></button>}</div>
+      <div className="crm-toolbar-right"><button className="crm-btn crm-btn-outline" onClick={() => setFilterOpen(v => !v)}><Filter size={15}/> Bộ lọc <ChevronDown size={14}/></button><button className="crm-btn crm-btn-outline" disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}><Download size={15}/> Xuất danh sách</button>{role !== 'purchase' && <button className="crm-btn crm-btn-primary" onClick={() => setEditing(null)}><Plus size={15}/> Thêm khách hàng</button>}</div>
+    </div>
+    {filterOpen && <div className="crm-filter-panel">
+      <div className="crm-modal-field"><label className="crm-modal-label">Seller phụ trách</label><select className="crm-modal-input" value={filters.sellerId} onChange={e => setFilters(f => ({...f, sellerId:e.target.value}))}><option value="">Tất cả Seller</option>{options.sellers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}</select></div>
+      <div className="crm-modal-field"><label className="crm-modal-label">Nhóm khách hàng</label><select className="crm-modal-input" value={filters.customerGroup} onChange={e => setFilters(f => ({...f, customerGroup:e.target.value}))}><option value="">Tất cả nhóm</option>{options.groups.map(g => <option key={g} value={g}>{g}</option>)}</select></div>
+      <div className="crm-modal-field"><label className="crm-modal-label">Trạng thái</label><select className="crm-modal-input" value={filters.status} onChange={e => setFilters(f => ({...f, status:e.target.value as CustomerFilters['status']}))}><option value="all">Tất cả trạng thái</option><option value="active">Đang sử dụng</option><option value="inactive">Ngừng sử dụng</option><option value="locked">Đã khóa</option></select></div>
+      <div className="crm-modal-field"><label className="crm-modal-label">Khu vực</label><select className="crm-modal-input" value={filters.region} onChange={e => setFilters(f => ({...f, region:e.target.value}))}><option value="">Tất cả khu vực</option>{options.regions.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
+      <div className="crm-modal-field"><label className="crm-modal-label">Tạo từ ngày</label><input className="crm-modal-input" type="date" value={filters.createdFrom} onChange={e => setFilters(f => ({...f, createdFrom:e.target.value}))}/></div>
+      <div className="crm-modal-field"><label className="crm-modal-label">Đến ngày</label><input className="crm-modal-input" type="date" value={filters.createdTo} onChange={e => setFilters(f => ({...f, createdTo:e.target.value}))}/></div>
+      <button className="crm-btn crm-btn-ghost" onClick={() => setFilters(emptyFilters)}>Xóa bộ lọc</button>
+    </div>}
+    <div className="crm-stats-bar"><div className="crm-stat"><span className="crm-stat-num">{filtered.length}</span><span className="crm-stat-label">Đang hiển thị</span></div><div className="crm-stat-divider"/><div className="crm-stat"><span className="crm-stat-num">{visible.length}</span><span className="crm-stat-label">Theo quyền</span></div><div className="crm-stat-divider"/><div className="crm-stat crm-stat--warn"><span className="crm-stat-num">{visible.filter(c=>c.isLocked).length}</span><span className="crm-stat-label">Đã khóa</span></div></div>
+    <div className="crm-customer-list"><div className="crm-list-header"><span style={{flex:1}}>Khách hàng</span><span className="crm-col-contact">Liên hệ</span><span className="crm-col-location">Khu vực/Nhóm</span><span className="crm-col-seller">Seller</span><span className="crm-col-actions">Thao tác</span></div>{filtered.map(c => <div className="crm-customer-row" key={c.id}>
+      <div className="crm-customer-main"><div className="crm-customer-name">{displayName(c)}</div><div className="crm-customer-company"><Hash size={11}/> {c.customerCode} · {typeLabel(c)}{!isIndividual(c) ? ` · MST ${c.taxCode || '-'}` : ''}</div><div className={`crm-status-pill ${statusClass(c)}`}>{statusLabel(c)}</div></div>
+      <div className="crm-customer-contact"><span><Users size={11}/> {c.contactName || '-'}</span><span><Phone size={11}/> {c.phone || '-'}</span><span><Mail size={11}/> {c.email || '-'}</span></div>
+      <div className="crm-customer-location"><MapPin size={11}/> {c.region || c.address || '-'}<br/>{c.customerGroup || '-'}</div>
+      <div className="crm-customer-seller-badge"><span className="crm-badge crm-badge-seller"><Briefcase size={10}/> {c.sellerName || c.sellerId || 'Chưa phân'}</span></div>
+      <div className="crm-customer-actions"><button className="crm-btn-icon" aria-label="Xem chi tiết khách hàng" title="Xem chi tiết" onClick={() => setDetail(c)}><Eye size={14}/></button>{canEdit(role,c,currentSellerId) && <button className="crm-btn-icon crm-btn-accent" aria-label="Chỉnh sửa khách hàng" title="Chỉnh sửa" onClick={() => setEditing(c)}><Pencil size={14}/></button>}{role === 'admin' && <button className="crm-btn-icon" aria-label="Chuyển trạng thái khách hàng" title="Chuyển trạng thái" onClick={() => setConfirm({title:'Chuyển trạng thái khách hàng?', desc:`${displayName(c)} sẽ chuyển sang ${c.status === 'active' ? 'ngừng sử dụng' : 'đang sử dụng'}.`, action:() => patch(c.id,{status:c.status === 'active' ? 'inactive' : 'active'})})}><AlertCircle size={14}/></button>}{canLock(role) && <button className="crm-btn-icon crm-btn-danger" aria-label="Khóa hoặc mở khóa khách hàng" title="Khóa/mở khóa" onClick={() => setConfirm({title:c.isLocked ? 'Mở khóa khách hàng?' : 'Khóa khách hàng?', desc:c.isLocked ? `${displayName(c)} sẽ được phép chỉnh sửa/tạo báo giá lại.` : `${displayName(c)} sẽ không được tạo báo giá mới hoặc sửa dữ liệu quan trọng.`, action:() => patch(c.id,{isLocked:!c.isLocked})})}>{c.isLocked ? <Unlock size={14}/> : <Lock size={14}/>}</button>}<MoreHorizontal size={14} style={{opacity:.35}}/></div>
+    </div>)}</div>{filtered.length === 0 && <div className="crm-empty"><Shield size={36}/><p>Không có khách hàng phù hợp bộ lọc hoặc quyền được phân.</p><button className="crm-btn crm-btn-outline" onClick={() => setFilters(emptyFilters)}>Xóa bộ lọc</button></div>}
+  </div>;
+}
+
+
+

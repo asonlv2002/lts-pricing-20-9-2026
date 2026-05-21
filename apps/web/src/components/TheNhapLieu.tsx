@@ -332,7 +332,7 @@ export default function TheNhapLieu() {
         </div>
         {cacLop.length > 0 && (
           <div style={{ fontSize: '0.75rem', marginTop: '6px', color: 'var(--text-secondary)' }}>
-            Tổng: <strong>{tongMic}</strong> mic (vật liệu {tongMicVatLieu} + keo {micKeo})
+            Tổng: <strong>{tongMic}</strong> mic
             {mucTieu > 0 && <span> — Mục tiêu: {mucTieu} mic (±5)</span>}
           </div>
         )}
@@ -518,59 +518,6 @@ export default function TheNhapLieu() {
             </select>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Độ dày mục tiêu (mic)</label>
-            <ONhapSoDinhDang className="form-input" value={input.targetThickness || 0}
-              placeholder="VD: 150" onChange={(val: number) => capNhatDauVao({ targetThickness: val })} />
-          </div>
-
-          <XemTruocCauTruc />
-
-          {/* Nút tối ưu độ dày */}
-          {hienCauTruc && (input.targetThickness ?? 0) > 0 && (
-            <div style={{ marginTop: '12px', marginBottom: '8px' }}>
-              <button
-                className="btn btn-primary"
-                onClick={async () => {
-                  const mucTieu = input.targetThickness;
-                  if (!mucTieu || mucTieu <= 0) return;
-
-                  try {
-                    const result = optimizeCurrentThickness();
-                    if (result && result.result) {
-                      const ghiDeMoi = { ...(input as any).micOverrides };
-                      const capNhatLop: Record<string, string> = {};
-                      result.result.ketQua.forEach((kq: any) => {
-                        const layerId = kq.layerId;
-                        const doDayDaChinh = kq.adjustedThickness;
-                        const vatLieuDangChon = materials.find((m: any) => m.id === (input as any)[layerId]);
-                        const vatLieuDuocChon = materials.find((m: any) => m.id === (kq.materialId || vatLieuDangChon?.id));
-                        if (kq.materialId && kq.materialId !== vatLieuDangChon?.id) {
-                          capNhatLop[layerId] = kq.materialId;
-                        }
-                        if (vatLieuDuocChon && doDayDaChinh !== vatLieuDuocChon.thickness) {
-                          ghiDeMoi[layerId] = doDayDaChinh;
-                        } else {
-                          delete ghiDeMoi[layerId];
-                        }
-                      });
-                      capNhatDauVao({ ...capNhatLop, micOverrides: ghiDeMoi });
-
-                      const datYeuCau = (result.result as any).datYeuCau;
-                      const tongThucTe = (result.result as any).tongThucTe;
-                      alert(datYeuCau
-                        ? `Đã tối ưu: ${tongThucTe} mic (thỏa [${mucTieu - 5}, ${mucTieu + 5}])`
-                        : ((result.result as any).canhBao || 'Không đạt yêu cầu'));
-                    }
-                  } catch (e: any) {
-                    alert('Lỗi tối ưu: ' + e.message);
-                  }
-                }}
-              >
-                🔧 Tính độ dày
-              </button>
-            </div>
-          )}
 
           {hienThiChonLop('Lớp 1', 'layer1Id', false)}
           {!(input as any).layer2AltId ? (
@@ -694,6 +641,60 @@ export default function TheNhapLieu() {
           {hienThiChonLop('Lớp 4', 'layer4Id', !input.layer3Id)}
           {hienThiChonLop('Lớp 5', 'layer5Id', !input.layer4Id)}
 
+          <div className="form-group">
+            <label className="form-label">Độ dày mục tiêu (mic)</label>
+            <ONhapSoDinhDang className="form-input" value={input.targetThickness || 0}
+              placeholder="VD: 150" onChange={(val: number) => capNhatDauVao({ targetThickness: val })} />
+          </div>
+
+          <XemTruocCauTruc />
+
+          {/* Nút tối ưu độ dày */}
+          {hienCauTruc && (input.targetThickness ?? 0) > 0 && (
+            <div style={{ marginTop: '12px', marginBottom: '8px' }}>
+              <button
+                className="btn btn-primary"
+                onClick={async () => {
+                  const mucTieu = input.targetThickness;
+                  if (!mucTieu || mucTieu <= 0) return;
+
+                  try {
+                    const result = optimizeCurrentThickness();
+                    if (result && result.result) {
+                      const ghiDeMoi = { ...(input as any).micOverrides };
+                      const capNhatLop: Record<string, string> = {};
+                      result.result.ketQua.forEach((kq: any) => {
+                        const layerId = kq.layerId;
+                        const doDayDaChinh = kq.adjustedThickness;
+                        const vatLieuDangChon = materials.find((m: any) => m.id === (input as any)[layerId]);
+                        const vatLieuDuocChon = materials.find((m: any) => m.id === (kq.materialId || vatLieuDangChon?.id));
+                        if (kq.materialId && kq.materialId !== vatLieuDangChon?.id) {
+                          capNhatLop[layerId] = kq.materialId;
+                        }
+                        if (vatLieuDuocChon && doDayDaChinh !== vatLieuDuocChon.thickness) {
+                          ghiDeMoi[layerId] = doDayDaChinh;
+                        } else {
+                          delete ghiDeMoi[layerId];
+                        }
+                      });
+                      capNhatDauVao({ ...capNhatLop, micOverrides: ghiDeMoi });
+
+                      const datYeuCau = (result.result as any).datYeuCau;
+                      const tongThucTe = (result.result as any).tongThucTe;
+                      alert(datYeuCau
+                        ? `Đã tối ưu: ${tongThucTe} mic (thỏa [${mucTieu - 5}, ${mucTieu + 5}])`
+                        : ((result.result as any).canhBao || 'Không đạt yêu cầu'));
+                    }
+                  } catch (e: any) {
+                    alert('Lỗi tối ưu: ' + e.message);
+                  }
+                }}
+              >
+                🔧 Tính độ dày
+              </button>
+            </div>
+          )}
+
           <div className="advanced-toggle" onClick={() => datMoRongNangCao(!advancedOpen)}>
             <span>⚙️ Tùy chỉnh nâng cao</span>
             <span className={`advanced-arrow ${advancedOpen ? 'open' : ''}`}>▸</span>
@@ -799,28 +800,26 @@ export default function TheNhapLieu() {
               </div>
             ) : (
               <>
-                <div className="form-group">
-                  <label className="form-label">Loại thùng</label>
-                  <div className="form-row" style={{ alignItems: 'flex-end', gap: '10px' }}>
-                    <div style={{ flex: '1 1 0', minWidth: 0 }}>
-                      <select
-                        className="form-select"
-                        value={input.boxOptionKey ?? ''}
-                        onChange={e => xuLyDoiLoaiThung(e.target.value)}
-                      >
-                        <option value="">Chọn loại thùng</option>
-                        {(constants.boxOptions ?? []).map(option => (
-                          <option key={option.key} value={option.key}>
-                            {option.label} / {option.price.toLocaleString('vi-VN')} đ
-                          </option>
-                        ))}
-                        <option value="custom">Tự nhập</option>
-                      </select>
-                    </div>
-                    <div style={{ flex: '0 0 120px' }}>
-                      <label className="form-label" style={{ fontSize: '0.68rem' }}>SL túi/thùng</label>
-                      <ONhapSoDinhDang className="form-input" value={input.bagsPerBox || 0} onChange={(val: number) => xuLyGhiDeThung('bagsPerBox', val)} />
-                    </div>
+                <div className="form-row" style={{ alignItems: 'flex-start', gap: '10px' }}>
+                  <div className="form-group" style={{ flex: '1 1 0', minWidth: 0 }}>
+                    <label className="form-label">Loại thùng</label>
+                    <select
+                      className="form-select"
+                      value={input.boxOptionKey ?? ''}
+                      onChange={e => xuLyDoiLoaiThung(e.target.value)}
+                    >
+                      <option value="">Chọn loại thùng</option>
+                      {(constants.boxOptions ?? []).map(option => (
+                        <option key={option.key} value={option.key}>
+                          {option.label} / {option.price.toLocaleString('vi-VN')} đ
+                        </option>
+                      ))}
+                      <option value="custom">Tự nhập</option>
+                    </select>
+                  </div>
+                  <div className="form-group" style={{ flex: '0 0 120px' }}>
+                    <label className="form-label">SL túi/thùng</label>
+                    <ONhapSoDinhDang className="form-input" value={input.bagsPerBox || 0} onChange={(val: number) => xuLyGhiDeThung('bagsPerBox', val)} />
                   </div>
                 </div>
                 {input.boxOptionKey === 'custom' && (
@@ -857,7 +856,7 @@ export default function TheNhapLieu() {
                 ))}
               </div>
               <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '6px' }}>
-                Lãi suất cấu hình tại Bảng Định Mức
+                Lãi suất: {((constants.interestBase || 0) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}% + {((constants.interestSpread || 0) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}% = {(((constants.interestBase || 0) + (constants.interestSpread || 0)) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%/năm
               </div>
             </div>
 
