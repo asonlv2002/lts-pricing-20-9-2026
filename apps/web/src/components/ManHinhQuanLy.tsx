@@ -229,7 +229,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
           <thead>
             <tr>
               <th>Công đoạn</th><th>Vật liệu</th>
-              <th className="num">Kho vao (m)</th><th className="num">Kho ra (m)</th><th className="num">Thanh pham (m)</th>
+              <th className="num">Kho vao (m)</th><th className="num">Thanh pham (m)</th>
               <th className="num">Phi hao</th><th className="num">Đầu vào VL</th>
               <th className="num">CPSX (đ/m²)</th><th className="num">Thành tiền CPSX</th>
               <th className="num">CP vật liệu (đ/m²)</th><th className="num">Thành tiền CPVL</th>
@@ -255,7 +255,6 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                       <td data-label="Công đoạn">{row.stage}</td>
                       <td data-label="Vật liệu">{detail.name}</td>
                       <td className="num" data-label="Kho vao (m)">{dinhDangSo(detail.width, 3)}</td>
-                      <td className="num" data-label="Kho ra (m)">{dinhDangSo(row.outputWidth ?? row.width, 3)}</td>
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
                         giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
@@ -278,7 +277,6 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                   <td data-label="Vật liệu">{row.mat}</td>
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={row.srcWidth}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
-                  <td className="num" data-label="Kho ra (m)">{dinhDangSo(row.outputWidth ?? row.width, 3)}</td>
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
@@ -299,13 +297,13 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
               )];
             })}
             <tr className="total-row">
-              <td colSpan={8}>TỔNG</td>
+              <td colSpan={7}>TỔNG</td>
               <td className="num">{dinhDangSo(tongCPSX, 0)}</td>
               <td className="num"></td>
               <td className="num">{dinhDangSo(tongCPVL, 0)}</td>
             </tr>
             <tr className="total-row" style={{ fontSize: '1.05em' }}>
-              <td colSpan={8}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
+              <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
               <td colSpan={3} className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>
                 {dinhDangSo(tongCPSX + tongCPVL, 0)} đ
               </td>
@@ -781,7 +779,7 @@ export default function ManHinhQuanLy() {
                 <thead>
                   <tr>
                     <th>Công đoạn</th><th>Vật liệu</th>
-                    <th className="num">Kho vao (m)</th><th className="num">Kho ra (m)</th><th className="num">Thanh pham (m)</th><th className="num">Phi hao</th><th className="num">Dau vao VL</th>
+                    <th className="num">Kho vao (m)</th><th className="num">Thanh pham (m)</th><th className="num">Phi hao</th><th className="num">Dau vao VL</th>
                     <th className="num">CPSX (đ/m²)</th><th className="num">Thành tiền CPSX</th>
                     <th className="num">CP vật liệu (đ/m²)</th><th className="num">Thành tiền CPVL</th>
                   </tr>
@@ -789,7 +787,6 @@ export default function ManHinhQuanLy() {
                 <tbody>
                   {cacDongSanXuat.map((row, idx) => {
                     const dWidth = row.width;
-                    const dOutputWidth = row.outputWidth ?? row.width;
                     const dMeters = row.meters;
                     const dWaste = row.waste;
                     const inputVL = dMeters + dWaste;
@@ -804,7 +801,6 @@ export default function ManHinhQuanLy() {
                             {detailIdx === 0 && <td data-label="Công đoạn" rowSpan={rowSpan}>{row.stage}</td>}
                             <td data-label="Vật liệu">{detail.name}</td>
                             <td className="num" data-label="Kho vao (m)">{dinhDangSo(detail.width, 3)}</td>
-                            <td className="num" data-label="Kho ra (m)">{dinhDangSo(dOutputWidth, 3)}</td>
                             <td className="num" data-label="Thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
                             <td className="num" data-label="Phi hao">{dinhDangSo(dWaste, 0)}</td>
                             <td className="num highlight" data-label="Đầu vào VL">{dinhDangSo(inputVL, 0)}</td>
@@ -822,7 +818,6 @@ export default function ManHinhQuanLy() {
                         <td data-label="Công đoạn">{row.stage}</td>
                         <td data-label="Vật liệu">{row.mat}</td>
                         <td className="num" data-label="Kho vao (m)">{dinhDangSo(dWidth, 3)}</td>
-                        <td className="num" data-label="Kho ra (m)">{dinhDangSo(dOutputWidth, 3)}</td>
                         <td className="num" data-label="Thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
                         <td className="num" data-label="Phi hao">{dinhDangSo(dWaste, 0)}</td>
                         <td className="num highlight" data-label="Đầu vào VL">{dinhDangSo(inputVL, 0)}</td>
@@ -834,13 +829,13 @@ export default function ManHinhQuanLy() {
                     );
                   })}
                   <tr className="total-row">
-                    <td colSpan={8}>TỔNG</td>
+                    <td colSpan={7}>TỔNG</td>
                     <td className="num">{dinhDangSo(tongCPSX, 0)}</td>
                     <td className="num"></td>
                     <td className="num">{dinhDangSo(tongCPVL, 0)}</td>
                   </tr>
                   <tr className="total-row" style={{fontSize: '1.05em'}}>
-                    <td colSpan={8}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
+                    <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
                     <td colSpan={3} className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{dinhDangSo(tongCong, 0)} đ</td>
                   </tr>
                 </tbody>

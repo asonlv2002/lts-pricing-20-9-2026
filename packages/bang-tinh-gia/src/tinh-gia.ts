@@ -1036,7 +1036,43 @@ export function tinhGia(
 
 
 
+  const metGhepTheoLop = new Map<number, number>();
+
+
+
+
+
   let metCanThiet = metCat + hatHaoCat;
+
+
+
+
+
+  [...chuoiGhep].reverse().forEach(({ soLop }) => {
+
+
+
+    metGhepTheoLop.set(soLop, metCanThiet);
+
+
+
+    const hHGhepA = hangSo.hatHaoGhepA || 3000;
+
+
+
+    const hHGhepB = hangSo.hatHaoGhepB || 20;
+
+
+
+    const hHGhepC = hangSo.hatHaoGhepC || 100;
+
+
+
+    metCanThiet = metCanThiet + (metCanThiet / hHGhepA * hHGhepB + hHGhepC);
+
+
+
+  });
 
 
 
@@ -1051,7 +1087,7 @@ export function tinhGia(
     const kho = khoCat;
 
 
-    const met = metCanThiet;
+    const met = metGhepTheoLop.get(soLop) ?? metCanThiet;
 
 
     const hHGhepA = hangSo.hatHaoGhepA || 3000;
