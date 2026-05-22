@@ -34,9 +34,9 @@ const fallbackBoxOptions: BoxOption[] = [
 ];
 
 const fallbackHandleOptions: HandleOption[] = [
-  { key: 'large', label: 'Quai l?n', price: rawConstants.handlePrice ?? 0, weight: rawConstants.handleWeight ?? 0 },
-  { key: 'small', label: 'Quai nh?', price: rawConstants.handlePrice ?? 0, weight: rawConstants.handleWeight ?? 0 },
-  { key: 'color', label: 'Quai m?u', price: rawConstants.handlePrice ?? 0, weight: rawConstants.handleWeight ?? 0 },
+  { key: 'large', label: 'Quai lớn', price: rawConstants.handlePrice ?? 0, weight: rawConstants.handleWeight ?? 0 },
+  { key: 'small', label: 'Quai nhỏ', price: rawConstants.handlePrice ?? 0, weight: rawConstants.handleWeight ?? 0 },
+  { key: 'color', label: 'Quai màu', price: rawConstants.handlePrice ?? 0, weight: rawConstants.handleWeight ?? 0 },
 ];
 
 export const INITIAL_CONSTANTS: AppConstants = {

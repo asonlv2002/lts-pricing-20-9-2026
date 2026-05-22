@@ -1,89 +1,57 @@
 ﻿import type { VatLieu } from '@lts/kieu-du-lieu';
 export interface KetQuaToiUuDoDay {
 
+  layerId: string;          // layer id (idLop1, idLop2...)
 
-  layerId: string;          // id lá»›p (idLop1, idLop2...)
+  materialId?: string;      // selected material id after optimization
 
+  originalMaterialId?: string; // original material id
 
-  materialId?: string;      // mÃ£ váº­t liá»‡u Ä‘Æ°á»£c chá»n sau tá»‘i Æ°u
+  adjustedThickness: number;  // adjusted thickness (mic)
 
+  originalThickness: number;  // original thickness (mic)
 
-  originalMaterialId?: string; // mÃ£ váº­t liá»‡u ban Ä‘áº§u
-
-
-  adjustedThickness: number;  // Ä‘á»™ dÃ y sau Ä‘iá»u chá»‰nh (mic)
-
-
-  originalThickness: number;  // Ä‘á»™ dÃ y gá»‘c (mic)
-
-
-  isLLDPE: boolean;          // cÃ³ pháº£i LLDPE khÃ´ng
-
+  isLLDPE: boolean;          // whether this is LLDPE
 
 }
 
-
-
-
-
 type VatLieuDangChonToiUu = {
 
+  id: string;                 // layer key: layer1Id, idLop1...
 
-  id: string;                 // key lá»›p: layer1Id, idLop1...
-
-
-  materialId?: string;        // mÃ£ váº­t liá»‡u tháº­t trong danh má»¥c
-
+  materialId?: string;        // material id in catalog
 
   doDay: number;
 
-
   laLLDPE?: boolean;
-
 
 };
 
-
-
-
-
 export function toiUuDoDay(
 
-
-  mucTieu: number,                      // Ä‘á»™ dÃ y má»¥c tiÃªu (mic)
-
+  mucTieu: number,                      // target thickness (mic)
 
   vatLieuDangChon: VatLieuDangChonToiUu[],
 
-
-  danhSachVatLieu: VatLieu[],          // toÃ n bá»™ danh sÃ¡ch váº­t liá»‡u
-
+  danhSachVatLieu: VatLieu[],          // full material catalog
 
 ): {
 
-
   ketQua: KetQuaToiUuDoDay[];
-
 
   tongDoDayVatLieu: number;
 
-
   tongDoDayKeo: number;
 
+  tongThucTe: number;                    // material + glue
 
-  tongThucTe: number;                    // vat liá»‡u + keo
-
-
-  datYeuCau: boolean;                   // cÃ³ náº±m trong [mucTieu-5, mucTieu+5]?
-
+  datYeuCau: boolean;                   // within [mucTieu-5, mucTieu+5]?
 
   canhBao?: string;
 
-
 } {
 
-
-  const soLopGhep = vatLieuDangChon.length - 1; // lá»›p 1 lÃ  in, cÃ²n láº¡i lÃ  ghÃ©p
+  const soLopGhep = vatLieuDangChon.length - 1; // layer 1 is print, remaining layers are lamination
 
 
   const keoPerLop = 3;
@@ -670,7 +638,7 @@ export function toiUuDoDay(
 
   const canhBao = !datYeuCau
 
-    ? `KhÃƒÂ´ng tÃƒÂ¬m Ã„â€˜Ã†Â°Ã¡Â»Â£c tÃ¡Â»â€¢ hÃ¡Â»Â£p Ã„â€˜Ã¡Â»â„¢ dÃƒÂ y thÃ¡Â»Âa mÃƒÂ£n ${minChapNhan}-${maxChapNhan} mic sau dung sai NVL (danh Ã„â€˜Ã¡Â»â€¹nh: ${tongThucTe} mic, thÃ¡Â»Â±c tÃ¡ÂºÂ¿: ${khoangDoDay.thapNhat}-${khoangDoDay.caoNhat} mic). Vui lÃƒÂ²ng chÃ¡Â»Ân vÃ¡ÂºÂ­t liÃ¡Â»â€¡u khÃƒÂ¡c.`
+    ? `Không tìm được tổ hợp độ dày thỏa mãn ${minChapNhan}-${maxChapNhan} mic sau dung sai NVL (danh định: ${tongThucTe} mic, thực tế: ${khoangDoDay.thapNhat}-${khoangDoDay.caoNhat} mic). Vui lòng chọn vật liệu khác.`
 
     : undefined;
 

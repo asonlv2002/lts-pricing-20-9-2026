@@ -8,6 +8,7 @@ import ModuleLichSuDB from '../ModuleLichSuDB';
 import TrangCauHinh from '../TrangCauHinh';
 import ModuleQuanLyNguoiDung from '../ModuleQuanLyNguoiDung';
 import ModuleLenhSanXuat from '../ModuleLenhSanXuat';
+import ModuleNhatKy from '../ModuleNhatKy';
 import {
   Calculator, FileText, Users, Settings, Menu, Factory,
   Database, Briefcase, X, ChevronRight, Plus,
@@ -24,7 +25,7 @@ const BAN_DO_ROLE_NHAN_VIEN: Record<string, { id: string; name: string }> = {
 // ============================================================
 // MODULE DEFINITION
 // ============================================================
-type MaModule = 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders';
+type MaModule = 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders' | 'audit_log';
 
 interface MucMenu {
   key: string;
@@ -131,7 +132,7 @@ const CAC_NHOM_MENU: NhomMenu[] = [
       { key: 'system.permissions', id: 'users', label: 'Phân quyền tính năng', vaiTros: ['admin'] },
       { key: 'system.company_settings', id: 'settings', label: 'Cài đặt công ty', vaiTros: ['admin'] },
       { key: 'system.quote_templates', id: 'settings', label: 'Mẫu báo giá', vaiTros: ['admin'] },
-      { key: 'system.audit_log', id: 'settings', label: 'Nhật ký hệ thống', vaiTros: ['admin'] },
+      { key: 'system.audit_log', id: 'audit_log', label: 'Nhật ký hệ thống', vaiTros: ['admin'] },
     ],
   },
 ];
@@ -152,6 +153,7 @@ const TIEU_DE_MODULE: Record<MaModule, string> = {
   sellers:           'Seller / nhân sự kinh doanh',
   users:             'Người dùng',
   settings:          'Cài đặt hệ thống',
+  audit_log:         'Nhật ký thao tác',
 };
 
 // ============================================================
@@ -554,6 +556,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {moduleDangMo === 'users'             && <ModuleQuanLyNguoiDung menuDangChon={menuDangChon} />}
           {moduleDangMo === 'settings'          && <div className="crm-root"><div className="crm-empty"><p>Module này chưa có màn hình chi tiết.</p><p style={{fontSize:'0.85rem',color:'var(--muted)'}}>Mục đang chọn: {CAC_MUC_MENU.find(i => i.key === menuDangChon)?.label ?? menuDangChon}</p></div></div>}
           {moduleDangMo === 'production_orders' && <ModuleLenhSanXuat />}
+          {moduleDangMo === 'audit_log'         && <ModuleNhatKy />}
           {/* Fallback: TypeScript đảm bảo MaModule luôn có case ở trên — nếu không có sẽ bắt lỗi compile */}
         </div>
       </div>

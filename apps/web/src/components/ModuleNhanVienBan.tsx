@@ -254,7 +254,7 @@ export default function ModuleNhanVienBan() {
           <div className="crm-stats-bar">
             <div className="crm-stat">
               <span className="crm-stat-num">{danhSachNhanVien.length}</span>
-              <span className="crm-stat-label">Tổng nh?n vi?n</span>
+              <span className="crm-stat-label">T?ng nh?n vi?n</span>
             </div>
             <div className="crm-stat-divider" />
             <div className="crm-stat">

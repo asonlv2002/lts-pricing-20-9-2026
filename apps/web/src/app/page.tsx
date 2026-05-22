@@ -200,6 +200,33 @@ export default function TrangChinh() {
         if (Array.isArray(parsed)) dungCuaHangTinhGia.setState({ productionOrders: parsed });
       }
 
+      // Audit log
+      const rawAudit = window.localStorage.getItem('lts_audit_log');
+      if (rawAudit) {
+        try {
+          const parsed = JSON.parse(rawAudit);
+          if (Array.isArray(parsed)) dungCuaHangTinhGia.setState({ auditLog: parsed });
+        } catch {}
+      }
+
+      // Versions
+      const rawVersions = window.localStorage.getItem('lts_versions');
+      if (rawVersions) {
+        try {
+          const parsed = JSON.parse(rawVersions);
+          if (Array.isArray(parsed)) dungCuaHangTinhGia.setState({ versions: parsed });
+        } catch {}
+      }
+
+      // Quote code counter
+      const rawCounter = window.localStorage.getItem('lts_quote_counter');
+      if (rawCounter) {
+        try {
+          const parsed = JSON.parse(rawCounter);
+          if (parsed && parsed.prefix) dungCuaHangTinhGia.setState({ quoteCodeConfig: parsed });
+        } catch {}
+      }
+
       // Cấu hình vật liệu & hằng số
       const cfgRaw = window.localStorage.getItem('lts_material_config');
       if (cfgRaw) {

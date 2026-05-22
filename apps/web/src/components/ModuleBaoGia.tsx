@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import {
   FileText, Search, Clock, Building2, Calendar,
   Send, ShieldCheck, PackageCheck, Eye, Users, ChevronDown, ChevronRight,
+  XCircle, TimerOff, Copy, Lock, Unlock, Ban, FileDown, Layers, ClipboardEdit, UserPlus,
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhBaoGia, xuLyDongGhiDe } from '../lib/manager-calculation';
@@ -23,6 +24,8 @@ const ICON_BUOC: Record<QuoteStatus, React.ReactNode> = {
   pending_approval: <Clock size={13} />,
   approved:         <ShieldCheck size={13} />,
   completed:        <PackageCheck size={13} />,
+  cancelled:        <XCircle size={13} />,
+  expired:          <TimerOff size={13} />,
 };
 
 function layTrangThai(muc: HistoryItem): QuoteStatus {
@@ -357,6 +360,8 @@ function QuotationCard({ muc, onClick, statusControl }: {
       <div className="quote-footer" style={{ justifyContent: 'center', color: 'var(--muted)', fontSize: '0.75rem', gap: 4 }}>
         <Eye size={12} />
         Nhấn để mở bảng tính giá
+        {muc.locked && <span style={{ marginLeft: 8, color: 'var(--orange)' }}><Lock size={11} /> Đã khóa</span>}
+        {muc.quoteCode && <span style={{ marginLeft: 8 }}>{muc.quoteCode}</span>}
       </div>
     </div>
   );
@@ -368,7 +373,7 @@ function QuotationCard({ muc, onClick, statusControl }: {
 function StatsBar({ mucs, isAdmin }: { mucs: HistoryItem[]; isAdmin: boolean }) {
   const buocs = isAdmin ? CAC_BUOC_ADMIN : CAC_BUOC_QUY_TRINH;
   const counts = useMemo(() => {
-    const c: Record<QuoteStatus, number> = { drafted: 0, sent: 0, pending_approval: 0, approved: 0, completed: 0 };
+    const c: Record<QuoteStatus, number> = { drafted: 0, sent: 0, pending_approval: 0, approved: 0, completed: 0, cancelled: 0, expired: 0 };
     mucs.forEach(h => { c[layTrangThai(h)]++; });
     return c;
   }, [mucs]);
@@ -561,10 +566,17 @@ function SaleView({ mucs, search, chiTimKhachHang = false, onOpen, onStatusUpdat
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
 export default function QuotationModule({ role, menuDangChon }: { role: string; hienTaiSellerId?: string; menuDangChon?: string }) {
-  const { history, loadHistoryItem: taiLichSu, setActiveModule: datPhan, updateQuoteStatus: capNhatTrangThaiDon, currentSellerId: hienTaiSellerId } = dungCuaHangTinhGia();
+  const {
+    history, loadHistoryItem: taiLichSu, setActiveModule: datPhan,
+    updateQuoteStatus: capNhatTrangThaiDon, currentSellerId: hienTaiSellerId,
+    saoChepBangTinh, khoaBaoGia, moKhoaBaoGia, huyBaoGia, kiemTraHetHan,
+  } = dungCuaHangTinhGia();
   const [search, setSearch] = useState('');
   const [tuNgay, setTuNgay] = useState('');
   const [denNgay, setDenNgay] = useState('');
+  const [confirmHuy, setConfirmHuy] = useState<string | null>(null);
+
+  React.useEffect(() => { kiemTraHetHan(); }, []);
 
   const isAdmin = role === 'admin';
   const laLichSuBaoGiaTheoKhach = menuDangChon === 'customers.quote_history';
@@ -584,6 +596,11 @@ export default function QuotationModule({ role, menuDangChon }: { role: string; 
   const statsItems = isAdmin ? myItems.filter(daGuiAdmin) : myItems;
 
   const handleOpen = (id: string) => {
+    const item = history.find(h => h.id === id);
+    if (item?.locked && !isAdmin) {
+      alert('Báo giá đã bị khóa. Liên hệ Admin để mở khóa.');
+      return;
+    }
     taiLichSu(id);
     datPhan('calculator');
   };

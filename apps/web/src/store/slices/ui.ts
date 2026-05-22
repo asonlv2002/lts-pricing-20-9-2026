@@ -3,7 +3,7 @@ import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 
 export interface UISlice {
   activeView: 'manager' | 'tech' | 'history' | 'config' | 'bento';
-  activeModule: 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders';
+  activeModule: 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders' | 'audit_log';
   layoutType: 'default' | 'stacked' | 'wide' | 'bento';
   density: 'compact' | 'comfortable' | 'spacious';
   theme: 'light' | 'dark';

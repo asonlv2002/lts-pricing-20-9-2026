@@ -154,8 +154,8 @@ export interface CalculateInput {
   multiStructureLayers?: Record<string, string[]>;
 }
 
-// ── Quote Status (luồng báo giá 5 bước) ──────────────────────────────────────
-export type QuoteStatus = 'drafted' | 'sent' | 'pending_approval' | 'approved' | 'completed';
+// ── Quote Status (luồng báo giá 7 bước) ──────────────────────────────────────
+export type QuoteStatus = 'drafted' | 'sent' | 'pending_approval' | 'approved' | 'completed' | 'cancelled' | 'expired';
 
 export const QUOTE_STATUS_CONFIG: Record<QuoteStatus, {
   label: string;
@@ -170,6 +170,8 @@ export const QUOTE_STATUS_CONFIG: Record<QuoteStatus, {
   pending_approval: { label: 'Chờ duyệt',   shortLabel: 'Chờ duyệt', color: '#d97706', bg: 'rgba(217,119,6,0.1)',   step: 3, description: 'Đang chờ phê duyệt nội bộ' },
   approved:         { label: 'Đã duyệt',    shortLabel: 'Đã duyệt',  color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)',  step: 4, description: 'Admin đã duyệt báo giá' },
   completed:        { label: 'Hoàn thành',  shortLabel: 'Xong',      color: '#059669', bg: 'rgba(5,150,105,0.1)',   step: 5, description: 'Khách hàng đã chốt' },
+  cancelled:        { label: 'Đã hủy',      shortLabel: 'Hủy',       color: '#dc2626', bg: 'rgba(220,38,38,0.1)',   step: -1, description: 'Báo giá đã bị hủy' },
+  expired:          { label: 'Hết hạn',     shortLabel: 'Hết hạn',   color: '#9ca3af', bg: 'rgba(156,163,175,0.1)', step: -2, description: 'Báo giá đã hết hiệu lực' },
 };
 
 // ── Override Tables (Bảng 2 & 3 — Sale nhập / Admin nhập) ────────────────────
@@ -190,6 +192,63 @@ export interface OverrideFields {
 }
 export type OverrideTable = Partial<Record<OverrideRowKey, Partial<OverrideFields>>>;
 
+// ── Audit Log ─────────────────────────────────────────────────────────────────
+export type AuditAction =
+  | 'create' | 'update' | 'delete'
+  | 'lock' | 'unlock'
+  | 'status_change' | 'override_change'
+  | 'assign' | 'version_restore' | 'duplicate';
+
+export interface AuditEntry {
+  id: string;
+  timestamp: string;
+  userId: string;
+  userName: string;
+  action: AuditAction;
+  targetType: 'history' | 'quote';
+  targetId: string;
+  targetName?: string;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  note?: string;
+}
+
+// ── Versioning ────────────────────────────────────────────────────────────────
+export interface VersionSnapshot {
+  id: string;
+  historyItemId: string;
+  timestamp: string;
+  userId: string;
+  userName: string;
+  label?: string;
+  data: HistoryItem;
+}
+
+// ── Quote Code ────────────────────────────────────────────────────────────────
+export interface QuoteCodeConfig {
+  prefix: string;
+  currentMonth: string;
+  counter: number;
+}
+
+// ── VAT & Điều khoản báo giá ─────────────────────────────────────────────────
+export interface QuoteTerms {
+  vatRate: number;
+  vatCustom?: number;
+  validityDays: number;
+  paymentTerms: string;
+  deliveryTime: string;
+  notes: string;
+}
+
+// ── Multi-tier (nhiều mốc số lượng) ──────────────────────────────────────────
+export interface QuoteTier {
+  historyItemId: string;
+  quantity: number;
+  finalPrice: number;
+  chotGia?: number;
+}
+
 // ── History ───────────────────────────────────────────────────────────────────
 export interface HistoryItem {
   id: string;
@@ -201,10 +260,17 @@ export interface HistoryItem {
   finalPrice: number;
   chotGia?: number;
   quoteStatus?: QuoteStatus;
-  sellerId?: string;       // id của sale đã tạo báo giá này
-  sellerName?: string;     // tên hiển thị (lưu cùng để không cần join)
-  saleOverrides?: OverrideTable;   // Bảng (2) — Sale chỉnh sửa
-  adminOverrides?: OverrideTable;  // Bảng (3) — Admin chỉnh sửa
+  quoteCode?: string;
+  sellerId?: string;
+  sellerName?: string;
+  saleOverrides?: OverrideTable;
+  adminOverrides?: OverrideTable;
+  locked?: boolean;
+  lockedBy?: string;
+  lockedAt?: string;
+  terms?: QuoteTerms;
+  tiers?: QuoteTier[];
+  validUntil?: string;
   input: CalculateInput;
 }
 

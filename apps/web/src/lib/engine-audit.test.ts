@@ -189,12 +189,12 @@ section('2. CHI PHÍ VẬN CHUYỂN (Shipping) — ĐÃ SỬA');
 
 
 // ════════════════════════════════════════════════════════════════════════════
-section('3. LÃI VAY (Interest) — ĐÃ SỬA');
+section('3. L?I VAY (Interest) ? ?? S?A');
 // ════════════════════════════════════════════════════════════════════════════
 
 /*
   C?ng th?c M?I:
-    interestPerUnit = (interestBase + interestSpread) / 365 ? paymentDays ? costPerUnit
+    interestPerUnit = (interestBase + interestSpread) / 365 * paymentDays * costPerUnit
 */
 
 {
@@ -203,21 +203,21 @@ section('3. LÃI VAY (Interest) — ĐÃ SỬA');
   const r30 = calculate(input30, mats, cons, prof)!;
 
   const expected30 = laiNam / 365 * 30 * r30.costPerUnit;
-  assertApprox('3.1 30 ng?y: interestPerUnit = l?i n?m/365 ? 30 ? cost', r30.interestPerUnit, expected30, 0.1);
+  assertApprox('3.1 30 ngÃ y: interestPerUnit = lÃ£i nÄm/365 * 30 * cost', r30.interestPerUnit, expected30, 0.1);
 
   const input45 = { ...input30, paymentDays: 45 };
   const r45 = calculate(input45, mats, cons, prof)!;
   const expected45 = laiNam / 365 * 45 * r45.costPerUnit;
-  assertApprox('3.2 45 ng?y: interestPerUnit = l?i n?m/365 ? 45 ? cost', r45.interestPerUnit, expected45, 0.1);
-  assertApprox('3.3 45 ng?y / 30 ng?y = 1.5?', r45.interestPerUnit / r30.interestPerUnit, 1.5, 0.1);
+  assertApprox('3.2 45 ngÃ y: interestPerUnit = lÃ£i nÄm/365 * 45 * cost', r45.interestPerUnit, expected45, 0.1);
+  assertApprox('3.3 45 ngÃ y / 30 ngÃ y = 1.5?', r45.interestPerUnit / r30.interestPerUnit, 1.5, 0.1);
 
   const input90 = { ...input30, paymentDays: 90 };
   const r90 = calculate(input90, mats, cons, prof)!;
-  assertApprox('3.4 90 ng?y / 30 ng?y = 3?', r90.interestPerUnit / r30.interestPerUnit, 3.0, 0.1);
+  assertApprox('3.4 90 ngÃ y / 30 ngÃ y = 3?', r90.interestPerUnit / r30.interestPerUnit, 3.0, 0.1);
 
   const input14 = { ...input30, paymentDays: 14 };
   const r14 = calculate(input14, mats, cons, prof)!;
-  assertApprox('3.5 14 ng?y / 30 ng?y = 14/30', r14.interestPerUnit / r30.interestPerUnit, 14 / 30, 0.1);
+  assertApprox('3.5 14 ngÃ y / 30 ngÃ y = 14/30', r14.interestPerUnit / r30.interestPerUnit, 14 / 30, 0.1);
 }
 
 

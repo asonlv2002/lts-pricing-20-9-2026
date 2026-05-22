@@ -5959,3 +5959,30 @@ body {
   .crm-dashboard .crm-customer-row { border-radius: 16px; margin: 10px; border: 1px solid var(--border); }
   .crm-dashboard .crm-customer-list { background: transparent; border: 0; box-shadow: none; }
 }
+
+/* ═══════════ AUDIT LOG MODULE ═══════════ */
+.audit-table { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.audit-header { display: grid; grid-template-columns: 150px 140px 130px 1fr 1fr; background: var(--surface2); padding: 10px 14px; font-size: 0.75rem; font-weight: 600; color: var(--muted); text-transform: uppercase; border-bottom: 1px solid var(--border); }
+.audit-row { display: grid; grid-template-columns: 150px 140px 130px 1fr 1fr; padding: 10px 14px; font-size: 0.8rem; border-bottom: 1px solid var(--border); align-items: center; }
+.audit-row:last-child { border-bottom: 0; }
+.audit-row:hover { background: var(--surface2); }
+.audit-cell { display: flex; align-items: center; gap: 5px; overflow: hidden; text-overflow: ellipsis; }
+.audit-cell--time { color: var(--muted); font-size: 0.75rem; }
+.audit-cell--detail { font-size: 0.75rem; color: var(--muted); }
+.audit-pagination { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 0; }
+
+/* ═══════════ MODAL (shared) ═══════════ */
+.modal-backdrop { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,0.4); display: flex; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(2px); }
+.modal-content { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow-lg); width: 100%; display: flex; flex-direction: column; overflow: hidden; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; border-bottom: 1px solid var(--border); }
+.modal-body { padding: 20px; overflow-y: auto; }
+.modal-footer { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 14px 20px; border-top: 1px solid var(--border); }
+.btn-icon { background: none; border: none; cursor: pointer; padding: 4px; border-radius: 6px; color: var(--muted); }
+.btn-icon:hover { background: var(--surface2); color: var(--text); }
+
+/* ═══════════ ADVANCED FILTER ═══════════ */
+.boloc-root { display: flex; flex-direction: column; gap: 8px; }
+.boloc-main-row { display: flex; align-items: center; gap: 8px; }
+.boloc-panel { padding: 12px 14px; background: var(--surface2); border-radius: 10px; border: 1px solid var(--border); }
+.boloc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
+.boloc-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 0.65rem; font-weight: 700; margin-left: 4px; padding: 0 4px; }
