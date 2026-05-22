@@ -124,7 +124,7 @@ function boDauTiengViet(chuoi: string): string {
   return chuoi.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\u0111/g, 'd').replace(/\u0110/g, 'D');
 }
 
-function layCotLoiNhuanTuDong(input: CalculateInput, materials: Material[]): number {
+export function layCotLoiNhuanTuDong(input: CalculateInput, materials: Material[]): number {
   const laMangIn = input.productType === 'mang' && input.filmType === 'mangIn';
   const cacLopVatLy = (laMangIn
     ? [input.layer1Id]
@@ -145,7 +145,7 @@ function layCotLoiNhuanTuDong(input: CalculateInput, materials: Material[]): num
   return (laNhieuLopCanCotPhai || laTuiDacBiet || coVatLieuDacBiet) ? 2 : 1;
 }
 
-function dongBoCotLoiNhuan(input: CalculateInput, materials: Material[]): CalculateInput {
+export function dongBoCotLoiNhuan(input: CalculateInput, materials: Material[]): CalculateInput {
   const profitColumn = layCotLoiNhuanTuDong(input, materials);
   return input.profitColumn === profitColumn ? input : { ...input, profitColumn };
 }
