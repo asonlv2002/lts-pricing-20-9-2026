@@ -6,9 +6,10 @@ import { createOverrideSlice, OverrideSlice } from './slices/overrides';
 import { createProductionOrderSlice, ProductionOrderSlice } from './slices/production-orders';
 import { createAuditSlice, AuditSlice } from './slices/audit';
 import { createVersioningSlice, VersioningSlice } from './slices/versioning';
+import { createConfigVersioningSlice, ConfigVersioningSlice } from './slices/configVersioning';
 import { createQuoteCodeSlice, QuoteCodeSlice } from './slices/quote-code';
 
-export type CuaHangTinhGia = UISlice & CalculationSlice & HistorySlice & OverrideSlice & ProductionOrderSlice & AuditSlice & VersioningSlice & QuoteCodeSlice;
+export type CuaHangTinhGia = UISlice & CalculationSlice & HistorySlice & OverrideSlice & ProductionOrderSlice & AuditSlice & VersioningSlice & ConfigVersioningSlice & QuoteCodeSlice;
 
 export const dungCuaHangTinhGia = create<CuaHangTinhGia>((...a) => ({
   ...createUISlice(...a),
@@ -18,6 +19,7 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((...a) => ({
   ...createProductionOrderSlice(...a),
   ...createAuditSlice(...a),
   ...createVersioningSlice(...a),
+  ...createConfigVersioningSlice(...a),
   ...createQuoteCodeSlice(...a),
 }));
 

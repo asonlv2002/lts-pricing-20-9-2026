@@ -87,7 +87,7 @@ function ThanhKeoPanel({ onKeo }: { onKeo: (delta: number) => void }) {
 export default function TrangChinh() {
   const {
     activeView: gocNhinHienTai, layoutType: kieuBoTriCuc, density: matDoHienThi, theme: chuDe, advancedOpen: moRongNangCao,
-    materials: danhSachVatLieu, constants: hangSo, profitTable: bangLoiNhuan, result: ketQua,
+    materials: danhSachVatLieu, constants: hangSo, profitTable: bangLoiNhuan, smallWidthPrices: bangGiaKhoNho, result: ketQua,
     setActiveView: datGocNhin,
   } = dungCuaHangTinhGia();
 
@@ -218,6 +218,15 @@ export default function TrangChinh() {
         } catch {}
       }
 
+      // Phiên bản bảng định mức
+      const rawConfigSnapshots = window.localStorage.getItem('lts_config_snapshots');
+      if (rawConfigSnapshots) {
+        try {
+          const parsed = JSON.parse(rawConfigSnapshots);
+          if (Array.isArray(parsed)) dungCuaHangTinhGia.setState({ configSnapshots: parsed });
+        } catch {}
+      }
+
       // Quote code counter
       const rawCounter = window.localStorage.getItem('lts_quote_counter');
       if (rawCounter) {
@@ -290,6 +299,7 @@ export default function TrangChinh() {
   useEffect(() => {
     window.localStorage.setItem('lts_material_config', JSON.stringify({
       materials: danhSachVatLieu.map((m: Material) => ({ id: m.id, thickness: m.thickness, pricePerKg: m.pricePerKg, inkPricePerColor: m.inkPricePerColor })),
+      smallWidthPrices: bangGiaKhoNho.map(p => ({ id: p.id, materialId: p.materialId, widthThresholdMm: p.widthThresholdMm, thickness: p.thickness, pricePerKg: p.pricePerKg })),
       cpsx: {
         ghepCPSX: hangSo.ghepCPSX, laborCost: hangSo.laborCost,
         cutBase: hangSo.cutBase, cutThreshold1: hangSo.cutThreshold1, cutThreshold2: hangSo.cutThreshold2,
@@ -308,7 +318,7 @@ export default function TrangChinh() {
       printWaste: { colorSetup: hangSo.colorSetup, A: hangSo.printWasteA, B: hangSo.printWasteB, C: hangSo.printWasteC, D: hangSo.printWasteD },
       profitTable: bangLoiNhuan.map((r: ProfitRow) => ({ col1: r.col1, col2: r.col2 })),
     }));
-  }, [danhSachVatLieu, hangSo, bangLoiNhuan]);
+  }, [danhSachVatLieu, bangGiaKhoNho, hangSo, bangLoiNhuan]);
 
   const gridStyle: React.CSSProperties = (!laMobile && doRongTrai != null)
     ? { gridTemplateColumns: `${doRongTrai}px 4px 1fr` }

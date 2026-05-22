@@ -23,6 +23,7 @@ export interface CalculationSlice {
   setMaterialParam: (id: string, partial: Partial<Material>) => void;
   setConstantParam: (key: keyof AppConstants, val: any) => void;
   setSmallWidthPriceParam: (id: string, partial: Partial<SmallWidthMaterialPrice>) => void;
+  replaceFullConfig: (config: Pick<CalculationSlice, 'materials' | 'constants' | 'profitTable' | 'smallWidthPrices'>) => void;
   recalculate: () => void;
   calculateForInput: (input: CalculateInput) => CalculateResult | null;
   calculateForQuantity: (quantity: number) => CalculateResult | null;
@@ -171,6 +172,22 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
       const constants = { ...state.constants, [key]: val };
       luuConfigVaoLS(state.materials, constants, state.profitTable, state.smallWidthPrices);
       return { constants, result: tinhBaoGia(dongBoCotLoiNhuan(state.input, state.materials), state.materials, constants, state.profitTable, state.smallWidthPrices) };
+    });
+  },
+
+  replaceFullConfig: (config) => {
+    set((state) => {
+      const input = dongBoCotLoiNhuan(state.input, config.materials);
+      luuConfigVaoLS(config.materials, config.constants, config.profitTable, config.smallWidthPrices);
+      return {
+        materials: config.materials,
+        constants: config.constants,
+        profitTable: config.profitTable,
+        smallWidthPrices: config.smallWidthPrices,
+        input,
+        dauVao: input,
+        result: tinhBaoGia(input, config.materials, config.constants, config.profitTable, config.smallWidthPrices),
+      };
     });
   },
 

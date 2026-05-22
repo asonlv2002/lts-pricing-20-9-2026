@@ -34,9 +34,25 @@ const layNhomCauHinh = (menuDangChon?: string): NhomCauHinh => {
   }
 };
 export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }) {
-  const { materials: vatLieu, constants: hangSo, profitTable: bangLoiNhuan, smallWidthPrices: bangGiaKhoNho, setMaterialParam: capNhatVatLieu, setConstantParam: capNhatHangSo, setSmallWidthPriceParam: capNhatGiaKhoNho } = dungCuaHangTinhGia();
+  const {
+    materials: vatLieu,
+    constants: hangSo,
+    profitTable: bangLoiNhuan,
+    smallWidthPrices: bangGiaKhoNho,
+    configSnapshots: phienBanDinhMuc,
+    selectedConfigSnapshotId: phienBanDinhMucDangChon,
+    setMaterialParam: capNhatVatLieu,
+    setConstantParam: capNhatHangSo,
+    setSmallWidthPriceParam: capNhatGiaKhoNho,
+    taoPhienBanDinhMuc,
+    xoaPhienBanDinhMuc,
+    apDungPhienBanDinhMuc,
+  } = dungCuaHangTinhGia();
   const [nhomKhachHang, datNhomKhachHang] = React.useState('other');
   const [hienBangKhoNho, datHienBangKhoNho] = React.useState(false);
+  const [tenPhienBanDinhMuc, datTenPhienBanDinhMuc] = React.useState('');
+  const [kieuHieuLucDinhMuc, datKieuHieuLucDinhMuc] = React.useState<'month' | 'date'>('month');
+  const [mocHieuLucDinhMuc, datMocHieuLucDinhMuc] = React.useState(() => new Date().toISOString().slice(0, 7));
   const nhomCauHinh = layNhomCauHinh(menuDangChon);
   const hienVatTu = nhomCauHinh === 'materials';
   const hienHaoHut = nhomCauHinh === 'waste';
@@ -139,10 +155,107 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     cuaHang.recalculate();
     luuBangLoiNhuanTre();
   };
+  const xuLyDoiKieuHieuLuc = (kieu: 'month' | 'date') => {
+    datKieuHieuLucDinhMuc(kieu);
+    datMocHieuLucDinhMuc(new Date().toISOString().slice(0, kieu === 'month' ? 7 : 10));
+  };
+  const xuLyLuuPhienBanDinhMuc = () => {
+    if (!mocHieuLucDinhMuc) return;
+    taoPhienBanDinhMuc({
+      name: tenPhienBanDinhMuc,
+      effectiveMode: kieuHieuLucDinhMuc,
+      effectiveFrom: mocHieuLucDinhMuc,
+    });
+    datTenPhienBanDinhMuc('');
+  };
+  const xuLyApDungPhienBanDinhMuc = (id: string) => {
+    if (!confirm('Áp dụng phiên bản này sẽ thay thế bảng định mức hiện tại. Tiếp tục?')) return;
+    apDungPhienBanDinhMuc(id);
+  };
+  const xuLyXoaPhienBanDinhMuc = (id: string) => {
+    if (!confirm('Xóa phiên bản bảng định mức này?')) return;
+    xoaPhienBanDinhMuc(id);
+  };
   return (
     <div className="config-page" id="configPage" style={{display: 'block'}}>
       <div className="config-page-inner">
         <div className="config-content">
+
+          {hienVatTu && (
+          <div className="card config-card" id="sect-config-versions" style={{scrollMarginTop: '80px'}}>
+            <div className="config-section-title"><span>Phiên bản bảng định mức</span></div>
+            <div className="config-cpsx-grid" style={{marginBottom: '16px'}}>
+              <div className="config-cpsx-item">
+                <label>Tên phiên bản</label>
+                <input
+                  className="form-input"
+                  value={tenPhienBanDinhMuc}
+                  placeholder="VD: Định mức tháng 05/2026"
+                  onChange={e => datTenPhienBanDinhMuc(e.target.value)}
+                />
+              </div>
+              <div className="config-cpsx-item">
+                <label>Kiểu hiệu lực</label>
+                <select
+                  className="form-input"
+                  value={kieuHieuLucDinhMuc}
+                  onChange={e => xuLyDoiKieuHieuLuc(e.target.value as 'month' | 'date')}
+                >
+                  <option value="month">Theo tháng</option>
+                  <option value="date">Theo ngày</option>
+                </select>
+              </div>
+              <div className="config-cpsx-item">
+                <label>Hiệu lực từ</label>
+                <input
+                  className="form-input"
+                  type={kieuHieuLucDinhMuc === 'month' ? 'month' : 'date'}
+                  value={mocHieuLucDinhMuc}
+                  onChange={e => datMocHieuLucDinhMuc(e.target.value)}
+                />
+              </div>
+              <div className="config-cpsx-item" style={{justifyContent: 'flex-end'}}>
+                <button className="btn btn-primary" onClick={xuLyLuuPhienBanDinhMuc} disabled={!mocHieuLucDinhMuc}>
+                  Lưu bảng hiện tại thành phiên bản
+                </button>
+              </div>
+            </div>
+            <div className="config-table-wrap">
+              <table className="config-table">
+                <thead>
+                  <tr>
+                    <th>Tên phiên bản</th>
+                    <th>Hiệu lực</th>
+                    <th>Ngày tạo</th>
+                    <th>Trạng thái</th>
+                    <th>Thao tác</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {phienBanDinhMuc.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{textAlign: 'center', color: 'var(--dim)'}}>Chưa có phiên bản bảng định mức.</td>
+                    </tr>
+                  ) : phienBanDinhMuc.map(snapshot => (
+                    <tr key={snapshot.id}>
+                      <td style={{fontWeight: 600}}>{snapshot.name || 'Không tên'}</td>
+                      <td>{snapshot.effectiveMode === 'month' ? 'Tháng' : 'Ngày'} {snapshot.effectiveFrom}</td>
+                      <td>{new Date(snapshot.createdAt).toLocaleString('vi-VN')}</td>
+                      <td>{phienBanDinhMucDangChon === snapshot.id ? 'Đang áp dụng' : 'Đã lưu'}</td>
+                      <td>
+                        <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                          <button className="btn btn-sm btn-outline" onClick={() => xuLyApDungPhienBanDinhMuc(snapshot.id)}>Áp dụng</button>
+                          <button className="btn btn-sm btn-outline" onClick={() => xuLyXoaPhienBanDinhMuc(snapshot.id)}>Xóa</button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="config-note">Phiên bản lưu toàn bộ vật liệu, giá khổ nhỏ, hằng số sản xuất và bảng lợi nhuận tại thời điểm bấm lưu.</p>
+          </div>
+          )}
 
           {hienVatTu && (
           <>

@@ -213,6 +213,19 @@ export interface AuditEntry {
   note?: string;
 }
 
+export interface ConfigSnapshot {
+  id: string;
+  name?: string;
+  effectiveMode: 'date' | 'month';
+  effectiveFrom: string;
+  createdAt: string;
+  updatedAt: string;
+  materials: Material[];
+  smallWidthPrices: SmallWidthMaterialPrice[];
+  constants: AppConstants;
+  profitTable: ProfitRow[];
+}
+
 // ── Versioning ────────────────────────────────────────────────────────────────
 export interface VersionSnapshot {
   id: string;
