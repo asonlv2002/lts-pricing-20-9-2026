@@ -1751,6 +1751,94 @@ body {
   color: #e2e8f0;
 }
 
+.lts-sidebar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px;
+}
+
+.lts-sidebar-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #4f46e5;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.lts-sidebar-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.lts-sidebar-user-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lts-sidebar-user-acc {
+  font-size: 0.7rem;
+  color: #64748b;
+}
+
+.lts-sidebar-logout {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.06);
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.lts-sidebar-logout:hover {
+  background: rgba(220,38,38,0.15);
+  color: #ef4444;
+}
+
+.lts-fab-user {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.lts-fab-user-info {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.lts-fab-logout {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 6px;
+  background: rgba(220,38,38,0.1);
+  color: #ef4444;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
 /* ─── MAIN AREA ─── */
 .lts-shell-main {
   flex: 1;
@@ -4273,14 +4361,18 @@ body {
 .lts-login-btn:active:not(:disabled) { transform: translateY(0); }
 .lts-login-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 
-.lts-login-spinner {
-  width: 18px;
-  height: 18px;
-  border: 2.5px solid rgba(255,255,255,0.35);
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: lts-spin 0.7s linear infinite;
-  display: inline-block;
+.lts-login-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--muted);
+  font-size: 14px;
+  min-height: 68px;
+}
+
+.lts-login-loading__text {
+  line-height: 1.4;
 }
 
 .lts-login-hint {

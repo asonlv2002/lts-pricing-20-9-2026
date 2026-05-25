@@ -1,26 +1,23 @@
-﻿"use client";
+"use client";
 import React, { useState, useEffect } from 'react';
 import { dungCuaHangTinhGia } from '../../store/CuaHangTinhGia';
+import DangNhapModal from '../auth/DangNhapModal';
 import ModuleKhachHang from '../ModuleKhachHang';
 import ModuleNhanVienBan from '../ModuleNhanVienBan';
 import ModuleBaoGia from '../ModuleBaoGia';
 import ModuleLichSuDB from '../ModuleLichSuDB';
 import TrangCauHinh from '../TrangCauHinh';
-import ModuleQuanLyNguoiDung from '../ModuleQuanLyNguoiDung';
+import ModulePhanQuyen from '../ModulePhanQuyen';
 import ModuleLenhSanXuat from '../ModuleLenhSanXuat';
 import ModuleNhatKy from '../ModuleNhatKy';
+import { coTheXemNhomMenu, coTheXemMucMenu } from '../../lib/permissions';
+import type { PolicyCode } from '../../lib/api/service-lts';
 import {
   Calculator, FileText, Users, Settings, Menu, Factory,
   Database, Briefcase, X, ChevronRight, Plus,
   UserCog, ClipboardList, LayoutDashboard, Package, Shield,
+  LogOut,
 } from 'lucide-react';
-
-// Map vaiTro → sellerId/sellerName tạm thời (sau này thay bằng auth thực)
-const BAN_DO_ROLE_NHAN_VIEN: Record<string, { id: string; name: string }> = {
-  admin:    { id: 'admin', name: 'Quản trị viên' },
-  sale:     { id: 'S1',   name: 'Nguyễn Văn An' },
-  purchase: { id: 'P1',   name: 'Thu mua' },
-};
 
 // ============================================================
 // MODULE DEFINITION
@@ -126,10 +123,10 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     icon: <Shield size={18} />,
     vaiTros: ['admin'],
     mucCon: [
-      { key: 'system.users', id: 'users', label: 'Người dùng', vaiTros: ['admin'] },
+      { key: 'system.users', id: 'users', label: 'Tài khoản & quyền', vaiTros: ['admin'] },
       { key: 'system.sellers', id: 'sellers', label: 'Seller / nhân sự kinh doanh', vaiTros: ['admin'] },
-      { key: 'system.roles', id: 'users', label: 'Nhóm quyền', vaiTros: ['admin'] },
-      { key: 'system.permissions', id: 'users', label: 'Phân quyền tính năng', vaiTros: ['admin'] },
+      { key: 'system.roles', id: 'users', label: 'Vai trò', vaiTros: ['admin'] },
+      { key: 'system.permissions', id: 'users', label: 'Bảng phân quyền', vaiTros: ['admin'] },
       { key: 'system.company_settings', id: 'settings', label: 'Cài đặt công ty', vaiTros: ['admin'] },
       { key: 'system.quote_templates', id: 'settings', label: 'Mẫu báo giá', vaiTros: ['admin'] },
       { key: 'system.audit_log', id: 'audit_log', label: 'Nhật ký hệ thống', vaiTros: ['admin'] },
@@ -164,21 +161,15 @@ interface ThuocTinhThanhBen {
   menuDangChon: string;
   datMenuDangChon: (key: string) => void;
   datModuleDangMo: (id: MaModule) => void;
-  vaiTro: string;
-  datVaiTro: (r: string) => void;
   dangMo: boolean;
   datDangMo: (v: boolean) => void;
   laMobile: boolean;
+  policies: PolicyCode[];
 }
 
-function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, vaiTro, datVaiTro, dangMo, datDangMo, laMobile }: ThuocTinhThanhBen) {
+function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, dangMo, datDangMo, laMobile, policies }: ThuocTinhThanhBen) {
   const [nhomDangMo, datNhomDangMo] = useState(() => timNhomTheoMenu(menuDangChon));
-  const nhomHienThi = CAC_NHOM_MENU
-    .map(nhom => ({
-      ...nhom,
-      mucCon: nhom.mucCon.filter(item => item.vaiTros.includes(vaiTro)),
-    }))
-    .filter(nhom => nhom.vaiTros.includes(vaiTro) && nhom.mucCon.length > 0);
+  const nhomHienThi = CAC_NHOM_MENU.filter(nhom => coTheXemNhomMenu(policies, nhom.id));
 
   useEffect(() => {
     datNhomDangMo(timNhomTheoMenu(menuDangChon));
@@ -258,21 +249,34 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
           })}
         </nav>
 
-        {/* Role switcher */}
+        {/* User info + logout */}
         <div className="lts-sidebar-footer">
           {(dangMo || laMobile) && (
-            <div className="lts-vaiTro-label">Góc nhìn / Phân quyền</div>
+            <div className="lts-vaiTro-label">Phiên làm việc</div>
           )}
-          <select
-            value={vaiTro}
-            onChange={(e) => datVaiTro(e.target.value)}
-            className="lts-vaiTro-select"
-            title="Chọn vai trò"
-          >
-            <option value="admin">👑 Quản trị (Admin)</option>
-            <option value="sale">💼 Kinh doanh (Sale)</option>
-            <option value="purchase">🛒 Thu mua</option>
-          </select>
+          <div className="lts-sidebar-user">
+            <div className="lts-sidebar-user-avatar">
+              {(dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || 'U').slice(0, 2).toUpperCase()}
+            </div>
+            {(dangMo || laMobile) && (
+              <div className="lts-sidebar-user-info">
+                <div className="lts-sidebar-user-name">
+                  {dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || 'Unknown'}
+                </div>
+                <div className="lts-sidebar-user-acc">
+                  @{dungCuaHangTinhGia.getState().nguoiDungHienTai?.account || '—'}
+                </div>
+              </div>
+            )}
+            <button
+              className="lts-sidebar-logout"
+              onClick={() => dungCuaHangTinhGia.getState().logout()}
+              title="Đăng xuất"
+            >
+              <LogOut size={14} />
+              {(dangMo || laMobile) && <span>Đăng xuất</span>}
+            </button>
+          </div>
         </div>
       </aside>
     </>
@@ -282,16 +286,15 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
 // ============================================================
 // MOBILE FLOATING MENU
 // ============================================================
-function MenuNoiMobile({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, vaiTro, datVaiTro }: {
+function MenuNoiMobile({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, policies }: {
   moduleDangMo: MaModule;
   menuDangChon: string;
   datMenuDangChon: (key: string) => void;
   datModuleDangMo: (id: MaModule) => void;
-  vaiTro: string;
-  datVaiTro: (r: string) => void;
+  policies: PolicyCode[];
 }) {
   const [dangMo, datDangMo] = useState(false);
-  const menuHienThi = CAC_NHOM_MENU.flatMap(nhom => nhom.mucCon).filter(item => item.vaiTros.includes(vaiTro));
+  const menuHienThi = CAC_NHOM_MENU.flatMap(nhom => nhom.mucCon).filter(item => coTheXemMucMenu(policies, item.key));
   const activeItem = menuHienThi.find(i => i.key === menuDangChon) || menuHienThi.find(i => i.id === moduleDangMo) || menuHienThi[0] || CAC_MUC_MENU[0];
 
   return (
@@ -307,7 +310,7 @@ function MenuNoiMobile({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleD
             </div>
 
             <div className="lts-fab-list">
-              {CAC_NHOM_MENU.map(nhom => ({ ...nhom, mucCon: nhom.mucCon.filter(item => item.vaiTros.includes(vaiTro)) })).filter(nhom => nhom.vaiTros.includes(vaiTro) && nhom.mucCon.length > 0).flatMap(nhom => nhom.mucCon).map(item => {
+              {CAC_NHOM_MENU.filter(nhom => coTheXemNhomMenu(policies, nhom.id)).flatMap(nhom => nhom.mucCon).map(item => {
                 const isActive = item.key === menuDangChon;
                 return (
                   <button
@@ -322,17 +325,16 @@ function MenuNoiMobile({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleD
               })}
             </div>
 
-            <div className="lts-fab-vaiTro">
-              <div className="lts-vaiTro-label">Chọn quyền xem:</div>
-              <select
-                value={vaiTro}
-                onChange={e => { datVaiTro(e.target.value); datDangMo(false); }}
-                className="lts-vaiTro-select"
+            <div className="lts-fab-user">
+              <div className="lts-fab-user-info">
+                <span>{dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || '—'}</span>
+              </div>
+              <button
+                className="lts-fab-logout"
+                onClick={() => { dungCuaHangTinhGia.getState().logout(); datDangMo(false); }}
               >
-                <option value="admin">👑 Quản trị (Admin)</option>
-                <option value="sale">💼 Kinh doanh (Sale)</option>
-                <option value="purchase">🛒 Thu mua</option>
-              </select>
+                <LogOut size={14} /> Thoát
+              </button>
             </div>
           </div>
         )}
@@ -417,27 +419,39 @@ function DauTrangTren({ moduleDangMo, onExport, onMenuToggle, laMobile }: DauTra
 // APP SHELL
 // ============================================================
 export default function AppShell({ children }: { children: React.ReactNode }) {
-  const [vaiTro, datVaiTro] = useState('admin');
   const [thanhBenDangMo, datThanhBenDangMo] = useState(true);
   const [laMobile, datLaMobile] = useState(false);
   const [menuDangChon, datMenuDangChon] = useState('pricing.create_calculation');
 
+  const nguoiDung = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
+  const isAuthenticated = dungCuaHangTinhGia(s => s.isAuthenticated);
+  const sessionChecked = dungCuaHangTinhGia(s => s.sessionChecked);
+  const kiemTraVaKhoiPhucPhien = dungCuaHangTinhGia(s => s.kiemTraVaKhoiPhucPhien);
+  const idNhanVienHienTai = dungCuaHangTinhGia(s => s.currentSellerId);
+  const vaiTroHienTai = dungCuaHangTinhGia(s => s.role);
+
   const { result: ketQua, activeModule: moduleDangMo, setActiveModule: datModuleDangMo, setCurrentSeller: datNhanVienHienTai, setRole: datVaiTroStore } = dungCuaHangTinhGia();
 
-  // Sync vaiTro → sellerId/sellerName + store.vaiTro mỗi khi đổi vaiTro
-  const xuLyDatVaiTro = (r: string) => {
-    datVaiTro(r);
-    const nhanVien = BAN_DO_ROLE_NHAN_VIEN[r] ?? { id: r, name: r };
-    datNhanVienHienTai(nhanVien.id, nhanVien.name);
-    datVaiTroStore(r);
-  };
+  const policies = nguoiDung?.policies ?? [];
 
-  // Sync initial vaiTro on mount
+  // Restore session on mount
   useEffect(() => {
-    const nhanVien = BAN_DO_ROLE_NHAN_VIEN[vaiTro] ?? { id: vaiTro, name: vaiTro };
-    datNhanVienHienTai(nhanVien.id, nhanVien.name);
-    datVaiTroStore(vaiTro);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!sessionChecked) {
+      kiemTraVaKhoiPhucPhien();
+    }
+  }, [sessionChecked, kiemTraVaKhoiPhucPhien]);
+
+  // Sync user info to UISlice when authenticated
+  useEffect(() => {
+    if (isAuthenticated && nguoiDung) {
+      datNhanVienHienTai(nguoiDung.id, nguoiDung.fullName);
+      datVaiTroStore(
+        policies.includes('ACCOUNT_CREATE') ? 'admin'
+        : policies.length > 0 ? 'sale'
+        : 'purchase'
+      );
+    }
+  }, [isAuthenticated, nguoiDung?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Detect mobile on mount and resize
   useEffect(() => {
@@ -467,6 +481,24 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     if (laMobile) html.classList.add('in-crm-page');
   }, [moduleDangMo, laMobile]);
+
+  // Show loading while checking session
+  if (!sessionChecked) {
+    return (
+      <div className="lts-login-root">
+        <div className="lts-login-card">
+          <div className="lts-login-spinner">
+            <span>Đang kiểm tra phiên làm việc...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Auth gate
+  if (!isAuthenticated) {
+    return <DangNhapModal />;
+  }
 
   // Export handler
   const xuLyXuat = () => {
@@ -511,8 +543,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     URL.revokeObjectURL(duongDan);
   };
 
-  const idNhanVienHienTai = dungCuaHangTinhGia(s => s.currentSellerId);
-
   return (
     <div className={`lts-shell ${laMobile ? 'lts-shell--mobile' : ''}`}>
       {!laMobile ? (
@@ -521,11 +551,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           menuDangChon={menuDangChon}
           datMenuDangChon={datMenuDangChon}
           datModuleDangMo={datModuleDangMo}
-          vaiTro={vaiTro}
-          datVaiTro={xuLyDatVaiTro}
           dangMo={thanhBenDangMo}
           datDangMo={datThanhBenDangMo}
           laMobile={false}
+          policies={policies}
         />
       ) : (
         <MenuNoiMobile
@@ -533,8 +562,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           menuDangChon={menuDangChon}
           datMenuDangChon={datMenuDangChon}
           datModuleDangMo={datModuleDangMo}
-          vaiTro={vaiTro}
-          datVaiTro={xuLyDatVaiTro}
+          policies={policies}
         />
       )}
 
@@ -548,12 +576,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
         <div className="lts-shell-content lts-shell-content--scroll">
           {moduleDangMo === 'calculator'        && children}
-          {moduleDangMo === 'quotations'        && <ModuleBaoGia role={vaiTro} menuDangChon={menuDangChon} />}
+          {moduleDangMo === 'quotations'        && <ModuleBaoGia role={vaiTroHienTai} menuDangChon={menuDangChon} />}
           {moduleDangMo === 'history_db'        && <ModuleLichSuDB khiDieuHuong={datModuleDangMo} menuDangChon={menuDangChon} />}
-          {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTro} currentSellerId={idNhanVienHienTai} menuDangChon={menuDangChon} />}
+          {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTroHienTai} currentSellerId={idNhanVienHienTai} menuDangChon={menuDangChon} />}
           {moduleDangMo === 'sellers'           && <ModuleNhanVienBan />}
           {moduleDangMo === 'master_data'       && <TrangCauHinh menuDangChon={menuDangChon} />}
-          {moduleDangMo === 'users'             && <ModuleQuanLyNguoiDung menuDangChon={menuDangChon} />}
+          {moduleDangMo === 'users'             && <ModulePhanQuyen menuDangChon={menuDangChon} />}
           {moduleDangMo === 'settings'          && <div className="crm-root"><div className="crm-empty"><p>Module này chưa có màn hình chi tiết.</p><p style={{fontSize:'0.85rem',color:'var(--muted)'}}>Mục đang chọn: {CAC_MUC_MENU.find(i => i.key === menuDangChon)?.label ?? menuDangChon}</p></div></div>}
           {moduleDangMo === 'production_orders' && <ModuleLenhSanXuat />}
           {moduleDangMo === 'audit_log'         && <ModuleNhatKy />}
