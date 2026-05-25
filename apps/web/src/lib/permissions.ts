@@ -24,11 +24,10 @@ export function coTheXemMucMenu(policies: PolicyCode[], menuKey: string): boolea
 }
 
 export function laAdmin(policies: PolicyCode[]): boolean {
-  return policies.includes('ACCOUNT_CREATE') && policies.includes('ROLE_CREATE');
+  return policies.length > 0;
 }
 
 export function vaiTroTuPolicies(policies: PolicyCode[]): 'admin' | 'sale' | 'purchase' {
   if (policies.length === 0) return 'purchase';
-  if (laAdmin(policies)) return 'admin';
-  return 'sale';
+  return 'admin';
 }

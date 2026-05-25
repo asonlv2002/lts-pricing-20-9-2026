@@ -14,6 +14,7 @@ import {
   caiDatQuanLyPhien,
   type PolicyCode,
 } from '../../lib/api/service-lts';
+import { vaiTroTuPolicies } from '../../lib/permissions';
 
 export interface AuthSlice {
   // ── State ──────────────────────────────────────────────────────────────
@@ -48,6 +49,21 @@ function xoaToken() {
   try { window.localStorage.removeItem(LS_REFRESH_TOKEN); } catch {}
 }
 
+const THONG_BAO_HET_PHIEN = 'Hết phiên đăng nhập.';
+
+function resetPhienHetHan(set: Parameters<StateCreator<CuaHangTinhGia, [], [], AuthSlice>>[0]) {
+  xoaToken();
+  set({
+    accessToken: null,
+    refreshToken: null,
+    nguoiDungHienTai: null,
+    isAuthenticated: false,
+    authLoading: false,
+    authError: THONG_BAO_HET_PHIEN,
+    sessionChecked: true,
+  });
+}
+
 function docJwtPayload(token: string): { sub: string; account: string; fullName?: string | null } | null {
   try {
     const [, payload] = token.split('.');
@@ -72,16 +88,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       set({ accessToken, refreshToken, isAuthenticated: true });
     },
     xuLyPhienKhongHopLe: () => {
-      xoaToken();
-      set({
-        accessToken: null,
-        refreshToken: null,
-        nguoiDungHienTai: null,
-        isAuthenticated: false,
-        authLoading: false,
-        authError: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.',
-        sessionChecked: true,
-      });
+      resetPhienHetHan(set);
     },
   });
 
@@ -112,21 +119,20 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
         ? POLICY_CATALOG.map(policy => policy.code)
         : [];
 
+      const userPolicies = userProfile?.policies ?? fallbackPolicies;
+
       set({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
         nguoiDungHienTai: userProfile
-          ? { id: userProfile.id, account: userProfile.account, fullName: userProfile.fullName, policies: userProfile.policies }
-          : { id: data.user.id, account: data.user.account, fullName: data.user.fullName || data.user.account, policies: fallbackPolicies },
+          ? { id: userProfile.id, account: userProfile.account, fullName: userProfile.fullName, policies: userPolicies }
+          : { id: data.user.id, account: data.user.account, fullName: data.user.fullName || data.user.account, policies: userPolicies },
         isAuthenticated: true,
         authLoading: false,
         sessionChecked: true,
       });
 
-      // Sync role to UISlice based on policies
-      const uiRole = userProfile?.policies.includes('ACCOUNT_CREATE') ? 'admin'
-        : userProfile?.policies.length ? 'sale' : 'purchase';
-      get().setRole(uiRole);
+      get().setRole(vaiTroTuPolicies(userPolicies));
     } catch (error) {
       xoaToken();
       set({
@@ -171,14 +177,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
         sessionChecked: true,
       });
     } catch {
-      xoaToken();
-      set({
-        accessToken: null,
-        refreshToken: null,
-        nguoiDungHienTai: null,
-        isAuthenticated: false,
-        sessionChecked: true,
-      });
+      resetPhienHetHan(set);
     }
   },
 
@@ -245,14 +244,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
           sessionChecked: true,
         });
       } catch {
-        xoaToken();
-        set({
-          accessToken: null,
-          refreshToken: null,
-          isAuthenticated: false,
-          authLoading: false,
-          sessionChecked: true,
-        });
+        resetPhienHetHan(set);
       }
     }
   },

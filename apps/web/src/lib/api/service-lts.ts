@@ -110,12 +110,36 @@ export function caiDatQuanLyPhien(config: {
   xuLyPhienKhongHopLe = config.xuLyPhienKhongHopLe;
 }
 
+function dichLoiServer(message: string, status: number): string {
+  const text = message.trim();
+  const lower = text.toLowerCase();
+
+  if (lower.includes('invalid refresh token')) return 'Hết phiên đăng nhập.';
+  if (lower.includes('invalid credentials') || lower.includes('unauthorized')) return 'Tài khoản hoặc mật khẩu không đúng.';
+  if (lower.includes('forbidden')) return 'Bạn không có quyền thực hiện thao tác này.';
+  if (lower.includes('not found')) return 'Không tìm thấy dữ liệu yêu cầu.';
+  if (lower.includes('already exists') || lower.includes('duplicate')) return 'Dữ liệu này đã tồn tại.';
+  if (lower.includes('validation') || lower.includes('bad request')) return 'Dữ liệu nhập chưa hợp lệ.';
+  if (lower.includes('network') || lower.includes('fetch failed')) return 'Không kết nối được tới máy chủ.';
+
+  if (/^[\x00-\x7F]*$/.test(text)) {
+    if (status === 400) return 'Dữ liệu gửi lên chưa hợp lệ.';
+    if (status === 401) return 'Hết phiên đăng nhập.';
+    if (status === 403) return 'Bạn không có quyền thực hiện thao tác này.';
+    if (status === 404) return 'Không tìm thấy dữ liệu yêu cầu.';
+    if (status === 409) return 'Dữ liệu này đã tồn tại hoặc bị xung đột.';
+    if (status >= 500) return 'Máy chủ đang gặp lỗi, vui lòng thử lại sau.';
+  }
+
+  return text;
+}
+
 function layLoiTuResponse(status: number, body: unknown): string {
-  const defaultMessage = `Service-lts returned ${status}`;
+  const defaultMessage = `Máy chủ trả về lỗi ${status}.`;
   if (!body || typeof body !== 'object') return defaultMessage;
   const message = (body as { message?: unknown }).message;
-  if (Array.isArray(message)) return message.join(', ');
-  if (typeof message === 'string') return message;
+  if (Array.isArray(message)) return message.map(item => dichLoiServer(String(item), status)).join(', ');
+  if (typeof message === 'string') return dichLoiServer(message, status);
   return defaultMessage;
 }
 
@@ -166,15 +190,24 @@ async function lamMoiTokenTuHeThong(): Promise<TokenPair> {
 // ── Generic fetch ────────────────────────────────────────────────────────
 async function goiService<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   const firstToken = token ?? layTokenHienTai?.()?.accessToken;
-  let res = await goiRaw(path, options, firstToken);
+  let res: Response;
+  try {
+    res = await goiRaw(path, options, firstToken);
+  } catch {
+    throw new Error('Không kết nối được tới máy chủ.');
+  }
 
   if (res.status === 401 && path !== '/auth/login' && path !== '/auth/refresh') {
     try {
       const tokens = await lamMoiTokenTuHeThong();
-      res = await goiRaw(path, options, tokens.accessToken);
+      try {
+        res = await goiRaw(path, options, tokens.accessToken);
+      } catch {
+        throw new Error('Không kết nối được tới máy chủ.');
+      }
     } catch {
       xuLyPhienKhongHopLe?.();
-      throw new Error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.');
+      throw new Error('Hết phiên đăng nhập.');
     }
   }
 

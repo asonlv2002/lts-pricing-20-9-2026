@@ -10,7 +10,7 @@ import TrangCauHinh from '../TrangCauHinh';
 import ModulePhanQuyen from '../ModulePhanQuyen';
 import ModuleLenhSanXuat from '../ModuleLenhSanXuat';
 import ModuleNhatKy from '../ModuleNhatKy';
-import { coTheXemNhomMenu, coTheXemMucMenu } from '../../lib/permissions';
+import { coTheXemNhomMenu, coTheXemMucMenu, vaiTroTuPolicies } from '../../lib/permissions';
 import type { PolicyCode } from '../../lib/api/service-lts';
 import {
   Calculator, FileText, Users, Settings, Menu, Factory,
@@ -445,11 +445,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isAuthenticated && nguoiDung) {
       datNhanVienHienTai(nguoiDung.id, nguoiDung.fullName);
-      datVaiTroStore(
-        policies.includes('ACCOUNT_CREATE') ? 'admin'
-        : policies.length > 0 ? 'sale'
-        : 'purchase'
-      );
+      datVaiTroStore(vaiTroTuPolicies(policies));
     }
   }, [isAuthenticated, nguoiDung?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
