@@ -854,7 +854,7 @@ export default function TheNhapLieu() {
               </label>
             </div>
 
-            <div className="advanced-sub-title">📦 Đóng gói & Vận chuyển</div>
+            <div className="advanced-sub-title">📦 Phụ phí</div>
             {input.productType === 'mang' ? (
               <div className="form-group">
                 <label className="form-label">Đóng gói (đ/cuộn)</label>
@@ -895,6 +895,7 @@ export default function TheNhapLieu() {
                 </div>
               </>
             )}
+            <div className="advanced-sub-title">🚚 Vận chuyển</div>
             <div className="form-row">
               <div className="form-group">
                 <label className="form-label">Vận chuyển (đ/km)</label>

@@ -525,13 +525,13 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <div className="config-section-title"><span>Lãi Vay Công Nợ</span></div>
             <div className="config-cpsx-grid">
               <div className="config-cpsx-item">
-                <label>Mức (lãi cơ sở % / nĐƒm)</label>
+                <label>Mức (lãi cơ sở % / năm)</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <input type="number" className="form-input" style={{ width: '100px' }}
                     value={parseFloat(((hangSo.interestBase - 0.10) * 100).toFixed(4))}
                     step="0.1" min="0"
                     onChange={e => capNhatHangSo('interestBase', (parseFloat(e.target.value) || 0) / 100)} />
-                  <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>%/nĐƒm</span>
+                  <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>%/năm</span>
                 </div>
               </div>
               <div className="config-cpsx-item">
@@ -541,12 +541,12 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                     value={parseFloat(((hangSo.interestSpread - 0.03) * 100).toFixed(4))}
                     step="0.1" min="0"
                     onChange={e => capNhatHangSo('interestSpread', (parseFloat(e.target.value) || 0) / 100)} />
-                  <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>%/nĐƒm</span>
+                  <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>%/năm</span>
                 </div>
               </div>
             </div>
             <div className="config-note" style={{marginTop:'12px'}}>
-              <div>Tổng lãi = Mức + Thêm = <strong>{(tongLaiNam * 100).toFixed(2)}%/nĐƒm</strong>.</div>
+              <div>Tổng lãi = Mức + Thêm = <strong>{(tongLaiNam * 100).toFixed(2)}%/năm</strong>.</div>
               <div style={{marginTop:'10px', border:'1px solid var(--border)', borderRadius:'10px', overflow:'hidden', background:'var(--surface)'}}>
                 <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', borderBottom:'1px solid var(--border)', fontWeight:700, color:'var(--muted)', fontSize:'0.78rem'}}>
                   <div style={{padding:'8px 10px', textAlign:'center'}}>Ngày công nợ</div>
@@ -779,7 +779,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                     <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={hangSo.zipperWeight} step="0.1" min="0" onChange={e => capNhatHangSo('zipperWeight', parseFloat(e.target.value)||0)} /> Gr/m</td>
                   </tr>
                   <tr>
-                    <td>BĐƒng keo</td>
+                    <td>Băng keo</td>
                     <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={hangSo.tapePrice} onChange={e => capNhatHangSo('tapePrice', parseFloat(e.target.value)||0)} /> đ/m</td>
                     <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={hangSo.tapeWeight} step="0.1" min="0" onChange={e => capNhatHangSo('tapeWeight', parseFloat(e.target.value)||0)} /> Gr/m</td>
                   </tr>

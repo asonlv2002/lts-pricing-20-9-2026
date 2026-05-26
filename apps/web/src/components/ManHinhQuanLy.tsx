@@ -415,7 +415,7 @@ export default function ManHinhQuanLy() {
   breakdownItems.push(
     [laMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSo(r.boxPerUnit, 1) + ' đ'],
     ['Chi phí Vận chuyển', dinhDangSo(r.shippingPerUnit, 1) + ' đ'],
-    [`Lai vay von (${dinhDangPhanTram((r.interestBase ?? 0) + (r.interestSpread ?? 0))}/nam x ${r.paymentDays ?? dauVaoKq.paymentDays ?? 30} ngay / 365)`, dinhDangSo(r.interestPerUnit, 1) + ' VND'],
+    [`Lai vay (${r.paymentDays ?? dauVaoKq.paymentDays ?? 30} ngay)`, dinhDangSo(r.interestPerUnit, 1) + ' đ'],
     ['Hoa hồng kinh doanh', dinhDangSo(effCommissionPerUnit, 1) + ' đ']
   );
   if (dauVaoKq.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
