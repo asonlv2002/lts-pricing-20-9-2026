@@ -29,6 +29,7 @@ import {
   thuHoiQuyenService,
   luuNhomQuyenService,
   xoaNhomQuyenService,
+  layNhomQuyenService,
   chuyenTaiKhoanApi,
 } from '../lib/api/service-lts';
 
@@ -180,6 +181,7 @@ function InspectorTaiKhoan({
   onToggleActive,
   onToggleProtected,
   templates,
+  coQuyenPhanQuyen,
 }: {
   user?: TaiKhoan;
   onTogglePolicy: (code: PolicyCode) => void;
@@ -187,6 +189,7 @@ function InspectorTaiKhoan({
   onToggleActive: () => void;
   onToggleProtected: () => void;
   templates: NhomQuyen[];
+  coQuyenPhanQuyen: boolean;
 }) {
   const [tab, setTab] = useState<'policy' | 'template'>('policy');
   const [tuKhoa, setTuKhoa] = useState('');
@@ -269,7 +272,22 @@ function InspectorTaiKhoan({
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Banner tài khoản dừng hoạt động */}
+      {!user.isActive && (
+        <div className="pq-banner pq-banner--inactive">
+          Tài khoản này đã dừng hoạt động. Không thể thực hiện thao tác phân quyền.
+        </div>
+      )}
+
+      {/* Banner thiếu quyền phân quyền */}
+      {user.isActive && !coQuyenPhanQuyen && (
+        <div className="pq-banner pq-banner--warn">
+          Bạn cần có cả quyền <b>Cấp quyền cho user</b> và <b>Thu hồi quyền user</b> để thao tác phân quyền.
+        </div>
+      )}
+
+      {/* Tabs — chỉ hiển thị khi tài khoản active và có đủ quyền */}
+      {user.isActive && coQuyenPhanQuyen && (
       <div className="pq-inspector__tabs">
         <button className={`pq-tab ${tab === 'policy' ? 'pq-tab--active' : ''}`} onClick={() => setTab('policy')}>
           <ListChecks size={14} /> Quyền chi tiết
@@ -278,9 +296,10 @@ function InspectorTaiKhoan({
           <Sparkles size={14} /> Áp template
         </button>
       </div>
+      )}
 
       {/* Body */}
-      {tab === 'policy' && (
+      {user.isActive && coQuyenPhanQuyen && tab === 'policy' && (
         <div className="pq-inspector__body">
           <div className="pq-search">
             <Search size={14} />
@@ -334,7 +353,7 @@ function InspectorTaiKhoan({
         </div>
       )}
 
-      {tab === 'template' && (
+      {user.isActive && coQuyenPhanQuyen && tab === 'template' && (
         <div className="pq-inspector__body">
           <p className="pq-hint">
             Áp template sẽ <b>thêm</b> các policy chưa có trong template vào tài khoản. Không tự động bỏ quyền hiện có.
@@ -627,7 +646,12 @@ function viewTuMenu(menuDangChon?: string): ViewKey {
 export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: string }) {
   const view = viewTuMenu(menuDangChon);
 
-  const accessToken = dungCuaHangTinhGia(s => s.accessToken);
+  const accessToken        = dungCuaHangTinhGia(s => s.accessToken);
+  const nguoiDungHienTai   = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
+  const coQuyenPhanQuyen   = !!(
+    nguoiDungHienTai?.policies.includes('USER_POLICY_GRANT') &&
+    nguoiDungHienTai?.policies.includes('USER_POLICY_REVOKE')
+  );
 
   const [users, setUsers]     = useState<TaiKhoan[]>(TAI_KHOAN_MAU);
   const [roles, setRoles]      = useState<NhomQuyen[]>(NHOM_QUYEN_MAU);
@@ -658,12 +682,32 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     }
   };
 
-  // Tải dữ liệu từ service-lts khi có access token
+  // Tải lần đầu khi có access token
   useEffect(() => {
     if (accessToken) {
       void napTaiKhoan();
+      void napNhomQuyen();
     }
   }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const napNhomQuyen = async () => {
+    if (!accessToken) return;
+    try {
+      const data = await layNhomQuyenService(accessToken);
+      setRoles(data);
+    } catch {
+      // giữ nguyên dữ liệu cũ nếu lỗi
+    }
+  };
+
+  // Debounce 700ms: gọi API khi người dùng ngừng gõ
+  useEffect(() => {
+    if (!accessToken) return;
+    const timer = setTimeout(() => {
+      void napTaiKhoan(tuKhoa.trim() || undefined);
+    }, 700);
+    return () => clearTimeout(timer);
+  }, [tuKhoa]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const luuUserTuApi = (user: TaiKhoanApi) => {
     const mapped = chuyenTaiKhoanApi(user);
@@ -741,7 +785,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
         description: role.description,
         policyCodes: role.policies,
       });
-      setRoles(prev => prev.some(r => r.code === role.code) ? prev.map(r => r.code === role.code ? role : r) : [role, ...prev]);
+      await napNhomQuyen();
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không lưu được nhóm quyền.');
     } finally {
@@ -755,7 +799,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     setLoiApi(null);
     try {
       await xoaNhomQuyenService(accessToken, role.code);
-      setRoles(prev => prev.filter(r => r.code !== role.code));
+      await napNhomQuyen();
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không xóa được nhóm quyền.');
     } finally {
@@ -764,15 +808,13 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   };
 
   const usersLoc = useMemo(() => {
-    const k = tuKhoa.trim().toLowerCase();
     return users.filter(u => {
       if (locTrangThai === 'active'    && !u.isActive)    return false;
       if (locTrangThai === 'inactive'  &&  u.isActive)    return false;
       if (locTrangThai === 'protected' && !u.isProtected) return false;
-      if (!k) return true;
-      return u.account.toLowerCase().includes(k) || u.fullName.toLowerCase().includes(k);
+      return true;
     });
-  }, [users, tuKhoa, locTrangThai]);
+  }, [users, locTrangThai]);
 
   const capNhatQuyenTaiKhoan = (userId: string, policies: PolicyCode[]) => {
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, policies } : u));
@@ -780,6 +822,10 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
 
   const togglePolicy = async (code: PolicyCode) => {
     if (!userDangChon || !accessToken) return;
+    if (!userDangChon.isActive) {
+      setLoiApi('Tài khoản này đã dừng hoạt động.');
+      return;
+    }
     const userId = userDangChon.id;
     const policiesCu = userDangChon.policies;
     const has = policiesCu.includes(code);
@@ -801,6 +847,10 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
 
   const applyTemplate = async (tpl: NhomQuyen) => {
     if (!userDangChon || !accessToken) return;
+    if (!userDangChon.isActive) {
+      setLoiApi('Tài khoản này đã dừng hoạt động.');
+      return;
+    }
     const userId = userDangChon.id;
     const policiesCu = userDangChon.policies;
     const canCap = tpl.policies.filter(code => !policiesCu.includes(code));
@@ -1027,6 +1077,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
                 onToggleActive={xuLyToggleActive}
                 onToggleProtected={xuLyToggleProtected}
                 templates={roles}
+                coQuyenPhanQuyen={coQuyenPhanQuyen}
               />
             </div>
           )}

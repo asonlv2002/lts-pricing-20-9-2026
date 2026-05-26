@@ -64,7 +64,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   const hienCongThuc = nhomCauHinh === 'formulas';
   const anCotCPSX = hienHaoHut && !hienSanXuat && !hienCongThuc;
   const anCotPhiHao = hienSanXuat && !hienHaoHut && !hienCongThuc;
-  const tongLaiNam = (hangSo.interestBase - 0.10) + (hangSo.interestSpread - 0.03);
+  const tongLaiNam = hangSo.interestBase + hangSo.interestSpread;
   const mocNgayLaiVay = [14, 30, 45, 90];
   const dinhDangTyLeLaiNgay = (days: number) => ((tongLaiNam / 365) * days * 100).toFixed(3);
   const chenhLech = nhomKhachHang === 'svlg' ? -0.03 : 0;
@@ -528,7 +528,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                 <label>Mức (lãi cơ sở % / năm)</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <input type="number" className="form-input" style={{ width: '100px' }}
-                    value={parseFloat(((hangSo.interestBase - 0.10) * 100).toFixed(4))}
+                    value={parseFloat((hangSo.interestBase * 100).toFixed(4))}
                     step="0.1" min="0"
                     onChange={e => capNhatHangSo('interestBase', (parseFloat(e.target.value) || 0) / 100)} />
                   <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>%/năm</span>
@@ -538,7 +538,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                 <label>Thêm (lãi tình huống % / năm)</label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <input type="number" className="form-input" style={{ width: '100px' }}
-                    value={parseFloat(((hangSo.interestSpread - 0.03) * 100).toFixed(4))}
+                    value={parseFloat((hangSo.interestSpread * 100).toFixed(4))}
                     step="0.1" min="0"
                     onChange={e => capNhatHangSo('interestSpread', (parseFloat(e.target.value) || 0) / 100)} />
                   <span style={{ color: 'var(--muted)', fontSize: '0.85rem' }}>%/năm</span>
@@ -797,8 +797,8 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           </div>
           )}
           {/* NHOM 6: DONG GOI THUNG */}
-          {hienGiaCongNgoai && <div className="config-group-header" id="sect-config-donggoi" style={{scrollMarginTop: '80px'}}>📦 Đóng gói thùng</div>}
-          {hienGiaCongNgoai && (
+          {hienPhuPhi && <div className="config-group-header" id="sect-config-donggoi" style={{scrollMarginTop: '80px'}}>📦 Đóng gói thùng</div>}
+          {hienPhuPhi && (
           <div className="card config-card">
             <div className="config-section-title"><span>📦 Định mức loại thùng</span></div>
             <div className="config-table-wrap">

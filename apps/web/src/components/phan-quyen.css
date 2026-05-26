@@ -1395,3 +1395,22 @@
   .pq-account-form__grid,
   .pq-role-form__grid { grid-template-columns: 1fr; }
 }
+
+/* ── Banner thông báo trạng thái ─────────────────────────────────────────── */
+.pq-banner {
+  margin: 12px 0;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.pq-banner--inactive {
+  background: rgba(239,68,68,0.08);
+  border: 1px solid rgba(239,68,68,0.25);
+  color: #b91c1c;
+}
+.pq-banner--warn {
+  background: rgba(245,158,11,0.08);
+  border: 1px solid rgba(245,158,11,0.25);
+  color: #92400e;
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-const SERVICE_LTS_URL = process.env.SERVICE_LTS_URL ?? 'http://localhost:3000';
+const SERVICE_LTS_URL = process.env.SERVICE_LTS_URL ?? 'http://localhost:3001';
 
 type RouteContext = {
   params: Promise<{ path: string[] }>;

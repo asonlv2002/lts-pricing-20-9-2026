@@ -285,15 +285,72 @@ export async function thuHoiQuyenService(token: string, userId: string, policyCo
 }
 
 // ── Roles ─────────────────────────────────────────────────────────────────
-export async function luuNhomQuyenService(token: string, input: { code: string; name: string; description: string; policyCodes: PolicyCode[] }): Promise<unknown> {
-  return goiService<unknown>('/auth/roles', {
+// GET /auth/roles trả về policies đã được flatten (roleListSelect)
+export interface NhomQuyenApi {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  granterId: string | null;
+  granter: { id: string; account: string; fullName: string | null } | null;
+  policies: Array<{ id: string; code: string; name: string; description: string; createdAt: string; updatedAt: string }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// PUT /auth/roles và DELETE /auth/roles/:code trả về rolePolicies chưa flatten (publicRoleSelect)
+interface NhomQuyenUpsertApi {
+  id: string;
+  code: string;
+  name: string;
+  description: string | null;
+  granterId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  rolePolicies: Array<{ policy: { id: string; code: string; name: string; description: string } }>;
+}
+
+function chuyenNhomQuyenUpsertApi(role: NhomQuyenUpsertApi): NhomQuyen {
+  return {
+    code: role.code,
+    name: role.name,
+    description: role.description ?? '',
+    policies: role.rolePolicies
+      .map(rp => rp.policy.code)
+      .filter((code): code is PolicyCode => POLICY_CATALOG.some(p => p.code === code)),
+    updatedAt: role.updatedAt,
+  };
+}
+
+export function chuyenNhomQuyenApi(role: NhomQuyenApi): NhomQuyen {
+  return {
+    code: role.code,
+    name: role.name,
+    description: role.description,
+    policies: role.policies
+      .map(p => p.code)
+      .filter((code): code is PolicyCode => POLICY_CATALOG.some(p => p.code === code)),
+    granterName: role.granter?.fullName ?? role.granter?.account,
+    updatedAt: role.updatedAt,
+  };
+}
+
+export async function layNhomQuyenService(token: string, name?: string): Promise<NhomQuyen[]> {
+  const query = name ? `?name=${encodeURIComponent(name)}` : '';
+  const data = await goiService<NhomQuyenApi[]>(`/auth/roles${query}`, {}, token);
+  return (Array.isArray(data) ? data : []).map(chuyenNhomQuyenApi);
+}
+
+export async function luuNhomQuyenService(token: string, input: { code: string; name: string; description: string; policyCodes: PolicyCode[] }): Promise<NhomQuyen> {
+  const data = await goiService<NhomQuyenUpsertApi>('/auth/roles', {
     method: 'PUT',
     body: JSON.stringify(input),
   }, token);
+  return chuyenNhomQuyenUpsertApi(data);
 }
 
-export async function xoaNhomQuyenService(token: string, code: string): Promise<unknown> {
-  return goiService<unknown>(`/auth/roles/${encodeURIComponent(code)}`, { method: 'DELETE' }, token);
+export async function xoaNhomQuyenService(token: string, code: string): Promise<void> {
+  await goiService<unknown>(`/auth/roles/${encodeURIComponent(code)}`, { method: 'DELETE' }, token);
 }
 
 // ── Transform ────────────────────────────────────────────────────────────
