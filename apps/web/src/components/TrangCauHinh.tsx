@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES } from '../lib/data';

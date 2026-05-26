@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';

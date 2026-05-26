@@ -1,4 +1,4 @@
-﻿import { tinhGiaWeb, traLoiNhuanTheoBang, toiUuDoDayTheoVatLieu } from './engine';
+import { tinhGiaWeb, traLoiNhuanTheoBang, toiUuDoDayTheoVatLieu } from './engine';
 import type { AppConstants, CalculateInput, CalculateResult, Material, OverrideRowKey, OverrideTable, ProfitRow, SmallWidthMaterialPrice } from './types';
 
 export { toiUuDoDayTheoVatLieu, toiUuDoDayTheoVatLieu as optimizeThickness };
