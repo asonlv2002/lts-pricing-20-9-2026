@@ -16,7 +16,6 @@ export default function DangNhapModal() {
   const [showPassword, setShowPassword] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
   const [dangXuLy, setDangXuLy] = useState(false);
-  const [dangKiemTraAccount, setDangKiemTraAccount] = useState(false);
   const [accountBiTamDung, setAccountBiTamDung] = useState(false);
 
   useEffect(() => {
@@ -26,13 +25,9 @@ export default function DangNhapModal() {
   useEffect(() => {
     const name = account.trim();
     setAccountBiTamDung(false);
-    if (!name) {
-      setDangKiemTraAccount(false);
-      return;
-    }
+    if (!name) return;
 
     const timer = setTimeout(async () => {
-      setDangKiemTraAccount(true);
       try {
         const res = await fetch(`/api/service-lts/auth/accounts?name=${encodeURIComponent(name)}`);
         if (!res.ok) return;
@@ -40,17 +35,9 @@ export default function DangNhapModal() {
         const row = Array.isArray(data)
           ? data.find((u: { account?: string; isActive?: boolean }) => u.account === name)
           : null;
-        if (row && row.isActive === false) {
-          setAccountBiTamDung(true);
-          setLocError('Tài khoản đã bị tạm dừng.');
-        } else {
-          setAccountBiTamDung(false);
-          setLocError(curr => curr === 'Tài khoản đã bị tạm dừng.' ? null : curr);
-        }
+        if (row && row.isActive === false) setAccountBiTamDung(true);
       } catch {
-        // silent: network/auth precheck fail → no block
-      } finally {
-        setDangKiemTraAccount(false);
+        // silent precheck
       }
     }, 700);
 
@@ -59,11 +46,11 @@ export default function DangNhapModal() {
 
   const xuLyDangNhap = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLocError(null);
     if (accountBiTamDung) {
       setLocError('Tài khoản đã bị tạm dừng.');
       return;
     }
-    setLocError(null);
     setDangXuLy(true);
     try {
       await login(account.trim(), password);
@@ -131,10 +118,6 @@ export default function DangNhapModal() {
                 </div>
               </label>
 
-              {dangKiemTraAccount && (
-                <div className="lts-login-error">Đang kiểm tra trạng thái tài khoản...</div>
-              )}
-
               {error && (
                 <div className="lts-login-error">
                   {error}
@@ -144,7 +127,7 @@ export default function DangNhapModal() {
               <button
                 type="submit"
                 className="lts-login-btn"
-                disabled={dangXuLy || dangKiemTraAccount || accountBiTamDung || !account.trim() || !password}
+                disabled={dangXuLy || !account.trim() || !password}
               >
                 {dangXuLy ? (
                   <><Loader2 size={16} className="um-spin" /> Đang đăng nhập...</>
