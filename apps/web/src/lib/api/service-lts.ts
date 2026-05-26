@@ -5,6 +5,9 @@
 
 // ── Constants ────────────────────────────────────────────────────────────
 export const SERVICE_LTS_URL = '/api/service-lts';
+// Direct backend URL (browser → NestJS, không qua proxy Next.js).
+// Hiện chỉ /auth/login và /auth/refresh dùng URL này.
+export const SERVICE_LTS_DIRECT_URL = process.env.NEXT_PUBLIC_SERVICE_LTS_URL ?? '';
 export const LS_ACCESS_TOKEN = 'lts_service_access_token';
 export const LS_REFRESH_TOKEN = 'lts_service_refresh_token';
 
@@ -143,13 +146,14 @@ function layLoiTuResponse(status: number, body: unknown): string {
   return defaultMessage;
 }
 
-async function goiRaw(path: string, options: RequestInit = {}, token?: string): Promise<Response> {
+async function goiRaw(path: string, options: RequestInit = {}, token?: string, direct = false): Promise<Response> {
   const headers = new Headers(options.headers);
   if (options.body && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json');
   }
   if (token) headers.set('Authorization', `Bearer ${token}`);
-  return fetch(`${SERVICE_LTS_URL}${path}`, { ...options, headers });
+  const baseUrl = direct ? SERVICE_LTS_DIRECT_URL : SERVICE_LTS_URL;
+  return fetch(`${baseUrl}${path}`, { ...options, headers });
 }
 
 async function docJson(response: Response): Promise<unknown> {
@@ -188,11 +192,11 @@ async function lamMoiTokenTuHeThong(): Promise<TokenPair> {
 }
 
 // ── Generic fetch ────────────────────────────────────────────────────────
-async function goiService<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
+async function goiService<T>(path: string, options: RequestInit = {}, token?: string, direct = false): Promise<T> {
   const firstToken = token ?? layTokenHienTai?.()?.accessToken;
   let res: Response;
   try {
-    res = await goiRaw(path, options, firstToken);
+    res = await goiRaw(path, options, firstToken, direct);
   } catch {
     throw new Error('Không kết nối được tới máy chủ.');
   }
@@ -201,7 +205,7 @@ async function goiService<T>(path: string, options: RequestInit = {}, token?: st
     try {
       const tokens = await lamMoiTokenTuHeThong();
       try {
-        res = await goiRaw(path, options, tokens.accessToken);
+        res = await goiRaw(path, options, tokens.accessToken, direct);
       } catch {
         throw new Error('Không kết nối được tới máy chủ.');
       }
@@ -221,18 +225,20 @@ async function goiService<T>(path: string, options: RequestInit = {}, token?: st
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────────
+// Login & refresh đi THẲNG tới NestJS (không qua proxy Next.js) để backend
+// thấy IP thật của client. Yêu cầu backend bật CORS cho domain frontend.
 export async function dangNhapService(account: string, password: string): Promise<DangNhapApi> {
   return goiService<DangNhapApi>('/auth/login', {
     method: 'POST',
     body: JSON.stringify({ account, password }),
-  });
+  }, undefined, true);
 }
 
 export async function lamMoiTokenService(refreshToken: string): Promise<DangNhapApi> {
   return goiService<DangNhapApi>('/auth/refresh', {
     method: 'POST',
     body: JSON.stringify({ refreshToken }),
-  });
+  }, undefined, true);
 }
 
 // ── Accounts ─────────────────────────────────────────────────────────────
