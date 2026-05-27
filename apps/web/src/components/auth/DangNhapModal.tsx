@@ -1,8 +1,9 @@
-﻿'use client';
+'use client';
 
 import React, { useState, useEffect } from 'react';
 import { dungCuaHangTinhGia } from '../../store/CuaHangTinhGia';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { SERVICE_LTS_DIRECT_URL } from '../../lib/api/service-lts';
 
 export default function DangNhapModal() {
   const login = dungCuaHangTinhGia(s => s.login);
@@ -26,10 +27,11 @@ export default function DangNhapModal() {
     const name = account.trim();
     setAccountBiTamDung(false);
     if (!name) return;
+    if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') return;
 
     const timer = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/service-lts/auth/accounts?name=${encodeURIComponent(name)}`);
+        const res = await fetch(`${SERVICE_LTS_DIRECT_URL}/auth/accounts?name=${encodeURIComponent(name)}`);
         if (!res.ok) return;
         const data = await res.json();
         const row = Array.isArray(data)

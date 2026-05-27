@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from 'react';
 import { dungCuaHangTinhGia } from '../../store/CuaHangTinhGia';
+import { OFFLINE_ACCOUNTS } from '../../store/slices/auth';
 import DangNhapModal from '../auth/DangNhapModal';
 import ModuleKhachHang from '../ModuleKhachHang';
 import ModuleNhanVienBan from '../ModuleNhanVienBan';
@@ -16,7 +17,7 @@ import {
   Calculator, FileText, Users, Settings, Menu, Factory,
   Database, Briefcase, X, ChevronRight, Plus,
   UserCog, ClipboardList, LayoutDashboard, Package, Shield,
-  LogOut,
+  LogOut, RefreshCw,
 } from 'lucide-react';
 
 // ============================================================
@@ -136,6 +137,78 @@ const CAC_NHOM_MENU: NhomMenu[] = [
 
 const CAC_MUC_MENU: MucMenu[] = CAC_NHOM_MENU.flatMap(nhom => nhom.mucCon);
 
+const IS_OFFLINE = process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true';
+
+const OFFLINE_ROLE_LABELS: Record<'admin' | 'sale' | 'purchase', string> = {
+  admin: 'Admin',
+  sale: 'Sale',
+  purchase: 'Purchase',
+};
+
+// ============================================================
+// OFFLINE ROLE SWITCHER
+// ============================================================
+function DoiVaiTroOffline({ compact }: { compact?: boolean }) {
+  const nguoiDung = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
+  const doiTaiKhoan = dungCuaHangTinhGia(s => s.doiTaiKhoanOffline);
+  const [dangMo, datDangMo] = useState(false);
+
+  const vaiTroHienTai = (Object.keys(OFFLINE_ACCOUNTS) as Array<'admin' | 'sale' | 'purchase'>).find(
+    role => OFFLINE_ACCOUNTS[role].id === nguoiDung?.id
+  ) ?? 'admin';
+
+  if (!IS_OFFLINE) return null;
+
+  return (
+    <div className="lts-offline-switcher" style={{ position: 'relative' }}>
+      <button
+        className="lts-offline-switcher-btn"
+        onClick={() => datDangMo(!dangMo)}
+        title="Đổi tài khoản test"
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6,
+          padding: '5px 10px', borderRadius: 6,
+          background: 'var(--surface-2, #f0f0f0)', border: '1px solid var(--border, #ddd)',
+          cursor: 'pointer', fontSize: '0.8rem', width: '100%',
+        }}
+      >
+        <RefreshCw size={13} />
+        {!compact && <span style={{ flex: 1, textAlign: 'left' }}>{nguoiDung?.fullName}</span>}
+        {compact && <span style={{ flex: 1, textAlign: 'left' }}>{OFFLINE_ROLE_LABELS[vaiTroHienTai]}</span>}
+      </button>
+
+      {dangMo && (
+        <div
+          className="lts-offline-switcher-dropdown"
+          style={{
+            position: 'absolute', bottom: '100%', left: 0, right: 0,
+            marginBottom: 4, background: 'var(--surface, #fff)',
+            border: '1px solid var(--border, #ddd)', borderRadius: 8,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.12)', zIndex: 100,
+            overflow: 'hidden',
+          }}
+        >
+          {(Object.keys(OFFLINE_ACCOUNTS) as Array<'admin' | 'sale' | 'purchase'>).map(role => (
+            <button
+              key={role}
+              onClick={() => { doiTaiKhoan(role); datDangMo(false); }}
+              style={{
+                display: 'block', width: '100%', padding: '8px 12px',
+                border: 'none', background: vaiTroHienTai === role ? 'var(--primary-light, #e8f0fe)' : 'transparent',
+                cursor: 'pointer', textAlign: 'left', fontSize: '0.8rem',
+                fontWeight: vaiTroHienTai === role ? 600 : 400,
+              }}
+            >
+              {OFFLINE_ROLE_LABELS[role]}
+              {vaiTroHienTai === role && ' ✓'}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 const timNhomTheoMenu = (menuKey: string) => (
   CAC_NHOM_MENU.find(nhom => nhom.mucCon.some(item => item.key === menuKey))?.id ?? CAC_NHOM_MENU[0].id
 );
@@ -251,32 +324,38 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
 
         {/* User info + logout */}
         <div className="lts-sidebar-footer">
-          {(dangMo || laMobile) && (
-            <div className="lts-vaiTro-label">Phiên làm việc</div>
-          )}
-          <div className="lts-sidebar-user">
-            <div className="lts-sidebar-user-avatar">
-              {(dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || 'U').slice(0, 2).toUpperCase()}
-            </div>
-            {(dangMo || laMobile) && (
-              <div className="lts-sidebar-user-info">
-                <div className="lts-sidebar-user-name">
-                  {dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || 'Unknown'}
+          {IS_OFFLINE ? (
+            <DoiVaiTroOffline compact={!dangMo && !laMobile} />
+          ) : (
+            <>
+              {(dangMo || laMobile) && (
+                <div className="lts-vaiTro-label">Phiên làm việc</div>
+              )}
+              <div className="lts-sidebar-user">
+                <div className="lts-sidebar-user-avatar">
+                  {(dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || 'U').slice(0, 2).toUpperCase()}
                 </div>
-                <div className="lts-sidebar-user-acc">
-                  @{dungCuaHangTinhGia.getState().nguoiDungHienTai?.account || '—'}
-                </div>
+                {(dangMo || laMobile) && (
+                  <div className="lts-sidebar-user-info">
+                    <div className="lts-sidebar-user-name">
+                      {dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || 'Unknown'}
+                    </div>
+                    <div className="lts-sidebar-user-acc">
+                      @{dungCuaHangTinhGia.getState().nguoiDungHienTai?.account || '—'}
+                    </div>
+                  </div>
+                )}
+                <button
+                  className="lts-sidebar-logout"
+                  onClick={() => dungCuaHangTinhGia.getState().logout()}
+                  title="Đăng xuất"
+                >
+                  <LogOut size={14} />
+                  {(dangMo || laMobile) && <span>Đăng xuất</span>}
+                </button>
               </div>
-            )}
-            <button
-              className="lts-sidebar-logout"
-              onClick={() => dungCuaHangTinhGia.getState().logout()}
-              title="Đăng xuất"
-            >
-              <LogOut size={14} />
-              {(dangMo || laMobile) && <span>Đăng xuất</span>}
-            </button>
-          </div>
+            </>
+          )}
         </div>
       </aside>
     </>
@@ -326,15 +405,21 @@ function MenuNoiMobile({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleD
             </div>
 
             <div className="lts-fab-user">
-              <div className="lts-fab-user-info">
-                <span>{dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || '—'}</span>
-              </div>
-              <button
-                className="lts-fab-logout"
-                onClick={() => { dungCuaHangTinhGia.getState().logout(); datDangMo(false); }}
-              >
-                <LogOut size={14} /> Thoát
-              </button>
+              {IS_OFFLINE ? (
+                <DoiVaiTroOffline />
+              ) : (
+                <>
+                  <div className="lts-fab-user-info">
+                    <span>{dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || '—'}</span>
+                  </div>
+                  <button
+                    className="lts-fab-logout"
+                    onClick={() => { dungCuaHangTinhGia.getState().logout(); datDangMo(false); }}
+                  >
+                    <LogOut size={14} /> Thoát
+                  </button>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -460,6 +545,33 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     window.addEventListener('resize', kiemTraMobile);
     return () => window.removeEventListener('resize', kiemTraMobile);
   }, []);
+
+  useEffect(() => {
+    const key = '__lts_chunk_reload_once__';
+    const xuLyLoiChunk = (error: unknown) => {
+      const msg = error instanceof Error ? error.message : String(error ?? '');
+      const laLoiChunk = /ChunkLoadError|Loading chunk [\d]+ failed|Failed to fetch dynamically imported module/i.test(msg);
+      if (!laLoiChunk) return;
+      if (window.sessionStorage.getItem(key) === '1') return;
+      window.sessionStorage.setItem(key, '1');
+      window.location.reload();
+    };
+
+    const onError = (event: ErrorEvent) => xuLyLoiChunk(event.error ?? event.message);
+    const onUnhandled = (event: PromiseRejectionEvent) => xuLyLoiChunk(event.reason);
+
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onUnhandled);
+
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onUnhandled);
+    };
+  }, []);
+
+  useEffect(() => {
+    window.sessionStorage.removeItem('__lts_chunk_reload_once__');
+  }, [isAuthenticated]);
 
   // Sync html classes for overflow control
   useEffect(() => {

@@ -796,6 +796,131 @@
   color: var(--muted);
 }
 
+/* ── ROLE DASHBOARD TABLE ───────────────────────────────────────────────── */
+.pq-role-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pq-rd-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.pq-rd-header h2 {
+  margin: 0;
+  font-size: 40px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.pq-rd-header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+}
+.pq-rd-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+.pq-rd-stat {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.pq-rd-stat b {
+  font-size: 38px;
+  line-height: 1;
+  color: var(--accent);
+}
+.pq-rd-stat span {
+  color: var(--muted);
+  font-size: 13px;
+}
+.pq-rd-toolbar {
+  display: grid;
+  grid-template-columns: 1fr 180px 180px;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.pq-rd-toolbar select {
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface2);
+  color: var(--text);
+  padding: 0 10px;
+  font: inherit;
+}
+.pq-rd-table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: auto;
+  background: var(--surface);
+}
+.pq-rd-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+}
+.pq-rd-table th,
+.pq-rd-table td {
+  padding: 12px 10px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+  text-align: left;
+}
+.pq-rd-table th {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  background: var(--surface2);
+}
+.pq-rd-role-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+}
+.pq-rd-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.pq-rd-tag--system { color: var(--accent); background: rgba(79,70,229,0.11); }
+.pq-rd-tag--custom { color: #0f766e; background: rgba(13,148,136,0.12); }
+.pq-rd-featured { display: flex; flex-wrap: wrap; gap: 4px; }
+.pq-rd-actions { display: inline-flex; gap: 6px; }
+.pq-rd-empty { text-align: center; color: var(--muted); }
+.pq-rd-pagination {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-end;
+}
+.pq-rd-pagination span {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  background: var(--surface);
+}
+
 /* ── ROLE GRID ──────────────────────────────────────────────────────────── */
 .pq-role-grid {
   display: grid;

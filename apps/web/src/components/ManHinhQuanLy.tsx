@@ -415,7 +415,7 @@ export default function ManHinhQuanLy() {
   breakdownItems.push(
     [laMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSo(r.boxPerUnit, 1) + ' đ'],
     ['Chi phí Vận chuyển', dinhDangSo(r.shippingPerUnit, 1) + ' đ'],
-    [`Lai vay (${r.paymentDays ?? dauVaoKq.paymentDays ?? 30} ngay)`, dinhDangSo(r.interestPerUnit, 1) + ' đ'],
+    [`Lãi vay ${r.paymentDays ?? dauVaoKq.paymentDays ?? 30} ngày`, dinhDangSo(r.interestPerUnit, 1) + ' đ'],
     ['Hoa hồng kinh doanh', dinhDangSo(effCommissionPerUnit, 1) + ' đ']
   );
   if (dauVaoKq.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
@@ -472,6 +472,16 @@ export default function ManHinhQuanLy() {
     if (!layerMat) return 0;
     const density = layerMat.matDoHienThi ?? layerMat.density ?? 0;
     return meters * width * layerMat.thickness * density / 1000;
+  };
+  const calcKgForLayer = (layerData: any, meters: number) => {
+    if (!layerData) return 0;
+    if (layerData.chiTietVatLieu?.length && layerData.materials?.length) {
+      return layerData.chiTietVatLieu.reduce((sum: number, item: any) => {
+        const mat = layerData.materials.find((m: any) => m.id === item.vatLieuId);
+        return sum + calcKg(mat, meters, item.kho);
+      }, 0);
+    }
+    return calcKg(layerData.material, meters, layerData.width || 0);
   };
   const renderMaterialBreakdown = (layerData: any) => {
     if (!layerData?.materials || !layerData?.chiTietVatLieu) return null;
@@ -543,7 +553,7 @@ export default function ManHinhQuanLy() {
     if (laMang) {
       isCurrent = levelVal === Math.ceil(dauVaoKq.quantity / filmRollAreaTP);
     } else if (isKgBase) {
-      const currentKg = calcKg(selectedMat, totalSelectedMeters, selectedData.width);
+      const currentKg = calcKgForLayer(selectedData, totalSelectedMeters);
       isCurrent = (Math.ceil(currentKg / 100) * 100) === levelVal;
     } else {
       isCurrent = levelVal === Math.ceil(totalSelectedMeters / rollLen);
@@ -555,7 +565,7 @@ export default function ManHinhQuanLy() {
       estQty,
       res,
       isCurrent,
-      selectedKg: calcKg(selectedMat, availableMeters, selectedData.width),
+      selectedKg: calcKgForLayer(selectedData, availableMeters),
     };
   }).filter(Boolean) : [];
 
@@ -943,7 +953,7 @@ export default function ManHinhQuanLy() {
                           const layerData = getLayerData(res, col);
                           const layerMetersTotal = layerData ? (layerData.meters + layerData.waste) : 0;
                           const layerMetersPerImage = dauVaoKq.numImages > 1 ? layerMetersTotal / dauVaoKq.numImages : layerMetersTotal;
-                          const kgTotal = calcKg(layerData?.material, layerMetersTotal, layerData?.width || 0);
+                          const kgTotal = calcKgForLayer(layerData, layerMetersTotal);
                           return (
                             <td key={ci} data-label={col.name}>
                               {dauVaoKq.numImages > 1 ? (
@@ -1058,7 +1068,7 @@ export default function ManHinhQuanLy() {
                             const layerData = getLayerData(row.res, col);
                             const layerMetersTotal = layerData ? (layerData.meters + layerData.waste) : 0;
                             const layerMetersPerImage = dauVaoKq.numImages > 1 ? layerMetersTotal / dauVaoKq.numImages : layerMetersTotal;
-                            const kgTotal = calcKg(layerData?.material, layerMetersTotal, layerData?.width || 0);
+                            const kgTotal = calcKgForLayer(layerData, layerMetersTotal);
                             return (
                               <td data-label={col.name} key={i}>
                                 {dauVaoKq.numImages > 1 ? (

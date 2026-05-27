@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════════════════
 // Auth Slice — service-lts authentication & session management
 // ═══════════════════════════════════════════════════════════════════════════
 import type { StateCreator } from 'zustand';
@@ -37,7 +37,30 @@ export interface AuthSlice {
   lamMoiPhien: () => Promise<void>;
   kiemTraVaKhoiPhucPhien: () => Promise<void>;
   datAuthError: (error: string | null) => void;
+  doiTaiKhoanOffline: (role: 'admin' | 'sale' | 'purchase') => void;
 }
+
+// Offline test accounts per role
+export const OFFLINE_ACCOUNTS: Record<'admin' | 'sale' | 'purchase', { id: string; account: string; fullName: string; policies: PolicyCode[] }> = {
+  admin: {
+    id: 'offline-admin',
+    account: 'admin',
+    fullName: 'Admin (Test)',
+    policies: POLICY_CATALOG.map(p => p.code),
+  },
+  sale: {
+    id: 'offline-sale',
+    account: 'sale',
+    fullName: 'Sale (Test)',
+    policies: [],
+  },
+  purchase: {
+    id: 'offline-purchase',
+    account: 'purchase',
+    fullName: 'Purchase (Test)',
+    policies: ['ACCOUNT_READ'] as PolicyCode[],
+  },
+};
 
 function luuToken(accessToken: string, refreshToken: string) {
   try { window.localStorage.setItem(LS_ACCESS_TOKEN, accessToken); } catch {}
@@ -50,6 +73,7 @@ function xoaToken() {
 }
 
 const THONG_BAO_HET_PHIEN = 'Hết phiên đăng nhập.';
+let dangKiemTraPhien: Promise<void> | null = null;
 
 function resetPhienHetHan(set: Parameters<StateCreator<CuaHangTinhGia, [], [], AuthSlice>>[0]) {
   xoaToken();
@@ -182,8 +206,27 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
   },
 
   kiemTraVaKhoiPhucPhien: async () => {
-    if (get().sessionChecked) return;
-    set({ authLoading: true });
+    const state = get();
+    if (state.sessionChecked) return;
+
+    if (dangKiemTraPhien) return dangKiemTraPhien;
+
+    dangKiemTraPhien = (async () => {
+      if (get().sessionChecked) return;
+
+      if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') {
+        const acc = OFFLINE_ACCOUNTS.admin;
+        set({
+          isAuthenticated: true,
+          sessionChecked: true,
+          nguoiDungHienTai: { id: acc.id, account: acc.account, fullName: acc.fullName, policies: acc.policies },
+          authLoading: false,
+        });
+        get().setRole(vaiTroTuPolicies(acc.policies));
+        return;
+      }
+
+      set({ authLoading: true });
 
     let savedAccess: string | null = null;
     let savedRefresh: string | null = null;
@@ -202,6 +245,9 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       });
       return;
     }
+
+    // Hydrate tokens before validation so the 401 auto-refresh path can use the saved refresh token.
+    set({ accessToken: savedAccess, refreshToken: savedRefresh });
 
     // Validate the saved token by making a request
     try {
@@ -225,30 +271,62 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
         authLoading: false,
         sessionChecked: true,
       });
+
+      get().setRole(vaiTroTuPolicies(userProfile?.policies ?? fallbackPolicies));
     } catch {
       // Token might be expired, try refresh
       try {
         const data = await lamMoiTokenService(savedRefresh);
         luuToken(data.accessToken, data.refreshToken);
+
+        // Fetch full user profile with policies after refresh
+        let userProfile: ReturnType<typeof chuyenTaiKhoanApi> | null = null;
+        try {
+          const accounts = await layTaiKhoanService(data.accessToken);
+          const self = accounts.find(a => a.id === data.user.id);
+          if (self) userProfile = chuyenTaiKhoanApi(self);
+        } catch {}
+
+        const fallbackPolicies = data.user.account === 'admin'
+          ? POLICY_CATALOG.map(policy => policy.code)
+          : [];
+
+        const userPolicies = userProfile?.policies ?? fallbackPolicies;
+
         set({
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,
-          nguoiDungHienTai: {
-            id: data.user.id,
-            account: data.user.account,
-            fullName: data.user.fullName || data.user.account,
-            policies: data.user.account === 'admin' ? POLICY_CATALOG.map(policy => policy.code) : [],
-          },
+          nguoiDungHienTai: userProfile
+            ? { id: userProfile.id, account: userProfile.account, fullName: userProfile.fullName, policies: userPolicies }
+            : { id: data.user.id, account: data.user.account, fullName: data.user.fullName || data.user.account, policies: userPolicies },
           isAuthenticated: true,
           authLoading: false,
           sessionChecked: true,
         });
+
+        get().setRole(vaiTroTuPolicies(userPolicies));
       } catch {
         resetPhienHetHan(set);
       }
     }
+      })().finally(() => {
+        dangKiemTraPhien = null;
+      });
+
+    return dangKiemTraPhien;
   },
 
   datAuthError: (error) => set({ authError: error }),
+
+  doiTaiKhoanOffline: (role) => {
+    if (process.env.NEXT_PUBLIC_OFFLINE_MODE !== 'true') return;
+    const acc = OFFLINE_ACCOUNTS[role];
+    set({
+      nguoiDungHienTai: { id: acc.id, account: acc.account, fullName: acc.fullName, policies: acc.policies },
+      isAuthenticated: true,
+    });
+    get().setRole(vaiTroTuPolicies(acc.policies));
+  },
 });
 };
+
