@@ -37,7 +37,30 @@ export interface AuthSlice {
   lamMoiPhien: () => Promise<void>;
   kiemTraVaKhoiPhucPhien: () => Promise<void>;
   datAuthError: (error: string | null) => void;
+  doiTaiKhoanOffline: (role: 'admin' | 'sale' | 'purchase') => void;
 }
+
+// Offline test accounts per role
+export const OFFLINE_ACCOUNTS: Record<'admin' | 'sale' | 'purchase', { id: string; account: string; fullName: string; policies: PolicyCode[] }> = {
+  admin: {
+    id: 'offline-admin',
+    account: 'admin',
+    fullName: 'Admin (Test)',
+    policies: POLICY_CATALOG.map(p => p.code),
+  },
+  sale: {
+    id: 'offline-sale',
+    account: 'sale',
+    fullName: 'Sale (Test)',
+    policies: [],
+  },
+  purchase: {
+    id: 'offline-purchase',
+    account: 'purchase',
+    fullName: 'Purchase (Test)',
+    policies: ['ACCOUNT_READ'] as PolicyCode[],
+  },
+};
 
 function luuToken(accessToken: string, refreshToken: string) {
   try { window.localStorage.setItem(LS_ACCESS_TOKEN, accessToken); } catch {}
@@ -192,18 +215,14 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       if (get().sessionChecked) return;
 
       if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') {
+        const acc = OFFLINE_ACCOUNTS.admin;
         set({
           isAuthenticated: true,
           sessionChecked: true,
-          nguoiDungHienTai: {
-            id: 'offline',
-            account: 'offline',
-            fullName: 'Offline Mode',
-            policies: POLICY_CATALOG.map(p => p.code),
-          },
+          nguoiDungHienTai: { id: acc.id, account: acc.account, fullName: acc.fullName, policies: acc.policies },
           authLoading: false,
         });
-        get().setRole(vaiTroTuPolicies(POLICY_CATALOG.map(p => p.code)));
+        get().setRole(vaiTroTuPolicies(acc.policies));
         return;
       }
 
@@ -298,6 +317,16 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
   },
 
   datAuthError: (error) => set({ authError: error }),
+
+  doiTaiKhoanOffline: (role) => {
+    if (process.env.NEXT_PUBLIC_OFFLINE_MODE !== 'true') return;
+    const acc = OFFLINE_ACCOUNTS[role];
+    set({
+      nguoiDungHienTai: { id: acc.id, account: acc.account, fullName: acc.fullName, policies: acc.policies },
+      isAuthenticated: true,
+    });
+    get().setRole(vaiTroTuPolicies(acc.policies));
+  },
 });
 };
 
