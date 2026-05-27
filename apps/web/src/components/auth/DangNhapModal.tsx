@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import React, { useState, useEffect } from 'react';
 import { dungCuaHangTinhGia } from '../../store/CuaHangTinhGia';
@@ -16,16 +16,41 @@ export default function DangNhapModal() {
   const [showPassword, setShowPassword] = useState(false);
   const [locError, setLocError] = useState<string | null>(null);
   const [dangXuLy, setDangXuLy] = useState(false);
+  const [accountBiTamDung, setAccountBiTamDung] = useState(false);
 
   useEffect(() => {
-    if (!sessionChecked) {
-      kiemTraVaKhoiPhucPhien();
-    }
+    if (!sessionChecked) kiemTraVaKhoiPhucPhien();
   }, [sessionChecked, kiemTraVaKhoiPhucPhien]);
+
+  useEffect(() => {
+    const name = account.trim();
+    setAccountBiTamDung(false);
+    if (!name) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`/api/service-lts/auth/accounts?name=${encodeURIComponent(name)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const row = Array.isArray(data)
+          ? data.find((u: { account?: string; isActive?: boolean }) => u.account === name)
+          : null;
+        if (row && row.isActive === false) setAccountBiTamDung(true);
+      } catch {
+        // silent precheck
+      }
+    }, 700);
+
+    return () => clearTimeout(timer);
+  }, [account]);
 
   const xuLyDangNhap = async (e: React.FormEvent) => {
     e.preventDefault();
     setLocError(null);
+    if (accountBiTamDung) {
+      setLocError('Tài khoản đã bị tạm dừng.');
+      return;
+    }
     setDangXuLy(true);
     try {
       await login(account.trim(), password);
