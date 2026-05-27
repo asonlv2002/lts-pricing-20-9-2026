@@ -194,14 +194,6 @@ function InspectorTaiKhoan({
   const [tab, setTab] = useState<'policy' | 'template'>('policy');
   const [tuKhoa, setTuKhoa] = useState('');
 
-  if (!user) {
-    return (
-      <aside className="pq-inspector pq-inspector--empty">
-        <div className="pq-empty">Chưa có tài khoản để hiển thị. Hãy bấm “Thêm” để tạo tài khoản mới.</div>
-      </aside>
-    );
-  }
-
   const danhSachLoc = useMemo(() => {
     const k = tuKhoa.trim().toLowerCase();
     if (!k) return POLICY_CATALOG;
@@ -217,6 +209,14 @@ function InspectorTaiKhoan({
     danhSachLoc.forEach(p => { (map[p.nhom] ||= []).push(p); });
     return map;
   }, [danhSachLoc]);
+
+  if (!user) {
+    return (
+      <aside className="pq-inspector pq-inspector--empty">
+        <div className="pq-empty">Chưa có tài khoản để hiển thị. Hãy bấm “Thêm” để tạo tài khoản mới.</div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="pq-inspector">

@@ -1,4 +1,4 @@
-// ═══════════════════════════════════════════════════════════════════════════
+﻿// ═══════════════════════════════════════════════════════════════════════════
 // Auth Slice — service-lts authentication & session management
 // ═══════════════════════════════════════════════════════════════════════════
 import type { StateCreator } from 'zustand';
@@ -50,6 +50,7 @@ function xoaToken() {
 }
 
 const THONG_BAO_HET_PHIEN = 'Hết phiên đăng nhập.';
+let dangKiemTraPhien: Promise<void> | null = null;
 
 function resetPhienHetHan(set: Parameters<StateCreator<CuaHangTinhGia, [], [], AuthSlice>>[0]) {
   xoaToken();
@@ -182,8 +183,14 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
   },
 
   kiemTraVaKhoiPhucPhien: async () => {
-    if (get().sessionChecked) return;
-    set({ authLoading: true });
+    const state = get();
+    if (state.sessionChecked) return;
+
+    if (dangKiemTraPhien) return dangKiemTraPhien;
+
+    dangKiemTraPhien = (async () => {
+      if (get().sessionChecked) return;
+      set({ authLoading: true });
 
     let savedAccess: string | null = null;
     let savedRefresh: string | null = null;
@@ -202,6 +209,9 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       });
       return;
     }
+
+    // Hydrate tokens before validation so the 401 auto-refresh path can use the saved refresh token.
+    set({ accessToken: savedAccess, refreshToken: savedRefresh });
 
     // Validate the saved token by making a request
     try {
@@ -225,30 +235,52 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
         authLoading: false,
         sessionChecked: true,
       });
+
+      get().setRole(vaiTroTuPolicies(userProfile?.policies ?? fallbackPolicies));
     } catch {
       // Token might be expired, try refresh
       try {
         const data = await lamMoiTokenService(savedRefresh);
         luuToken(data.accessToken, data.refreshToken);
+
+        // Fetch full user profile with policies after refresh
+        let userProfile: ReturnType<typeof chuyenTaiKhoanApi> | null = null;
+        try {
+          const accounts = await layTaiKhoanService(data.accessToken);
+          const self = accounts.find(a => a.id === data.user.id);
+          if (self) userProfile = chuyenTaiKhoanApi(self);
+        } catch {}
+
+        const fallbackPolicies = data.user.account === 'admin'
+          ? POLICY_CATALOG.map(policy => policy.code)
+          : [];
+
+        const userPolicies = userProfile?.policies ?? fallbackPolicies;
+
         set({
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,
-          nguoiDungHienTai: {
-            id: data.user.id,
-            account: data.user.account,
-            fullName: data.user.fullName || data.user.account,
-            policies: data.user.account === 'admin' ? POLICY_CATALOG.map(policy => policy.code) : [],
-          },
+          nguoiDungHienTai: userProfile
+            ? { id: userProfile.id, account: userProfile.account, fullName: userProfile.fullName, policies: userPolicies }
+            : { id: data.user.id, account: data.user.account, fullName: data.user.fullName || data.user.account, policies: userPolicies },
           isAuthenticated: true,
           authLoading: false,
           sessionChecked: true,
         });
+
+        get().setRole(vaiTroTuPolicies(userPolicies));
       } catch {
         resetPhienHetHan(set);
       }
     }
+      })().finally(() => {
+        dangKiemTraPhien = null;
+      });
+
+    return dangKiemTraPhien;
   },
 
   datAuthError: (error) => set({ authError: error }),
 });
 };
+

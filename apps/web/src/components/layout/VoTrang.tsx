@@ -461,6 +461,33 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener('resize', kiemTraMobile);
   }, []);
 
+  useEffect(() => {
+    const key = '__lts_chunk_reload_once__';
+    const xuLyLoiChunk = (error: unknown) => {
+      const msg = error instanceof Error ? error.message : String(error ?? '');
+      const laLoiChunk = /ChunkLoadError|Loading chunk [\d]+ failed|Failed to fetch dynamically imported module/i.test(msg);
+      if (!laLoiChunk) return;
+      if (window.sessionStorage.getItem(key) === '1') return;
+      window.sessionStorage.setItem(key, '1');
+      window.location.reload();
+    };
+
+    const onError = (event: ErrorEvent) => xuLyLoiChunk(event.error ?? event.message);
+    const onUnhandled = (event: PromiseRejectionEvent) => xuLyLoiChunk(event.reason);
+
+    window.addEventListener('error', onError);
+    window.addEventListener('unhandledrejection', onUnhandled);
+
+    return () => {
+      window.removeEventListener('error', onError);
+      window.removeEventListener('unhandledrejection', onUnhandled);
+    };
+  }, []);
+
+  useEffect(() => {
+    window.sessionStorage.removeItem('__lts_chunk_reload_once__');
+  }, [isAuthenticated]);
+
   // Sync html classes for overflow control
   useEffect(() => {
     const html = document.documentElement;
