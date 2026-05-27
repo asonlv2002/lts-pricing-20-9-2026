@@ -653,9 +653,9 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     nguoiDungHienTai?.policies.includes('USER_POLICY_REVOKE')
   );
 
-  const [users, setUsers]     = useState<TaiKhoan[]>(TAI_KHOAN_MAU);
+  const [users, setUsers]     = useState<TaiKhoan[]>([]);
   const [roles, setRoles]      = useState<NhomQuyen[]>(NHOM_QUYEN_MAU);
-  const [chonId, setChonId]   = useState<string>(TAI_KHOAN_MAU[1].id);
+  const [chonId, setChonId]   = useState<string>('');
   const [tuKhoa, setTuKhoa]   = useState('');
   const [locTrangThai, setLocTrangThai] = useState<'all' | 'active' | 'inactive' | 'protected'>('all');
   const [tabNguoiDung, setTabNguoiDung] = useState<'list' | 'create'>('list');
@@ -672,9 +672,12 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     setLoiApi(null);
     try {
       const data = await layTaiKhoanService(accessToken, name);
-      const mapped = (Array.isArray(data) ? data : []).map(chuyenTaiKhoanApi);
+      const mapped = (Array.isArray(data) ? data : [])
+        .filter(user => !Boolean(user.isSystem ?? user.is_system))
+        .map(chuyenTaiKhoanApi);
       setUsers(mapped);
       if (mapped.length && !mapped.some(u => u.id === chonId)) setChonId(mapped[0].id);
+      if (!mapped.length) setChonId('');
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không tải được dữ liệu từ service-lts.');
     } finally {
@@ -710,6 +713,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   }, [tuKhoa]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const luuUserTuApi = (user: TaiKhoanApi) => {
+    if (Boolean(user.isSystem ?? user.is_system)) return;
     const mapped = chuyenTaiKhoanApi(user);
     setUsers(prev => prev.some(u => u.id === mapped.id) ? prev.map(u => u.id === mapped.id ? mapped : u) : [mapped, ...prev]);
     setChonId(mapped.id);

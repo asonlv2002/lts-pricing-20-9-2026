@@ -44,6 +44,7 @@ export interface TaiKhoanApi {
   isActive: boolean;
   isProtected: boolean;
   isSystem?: boolean;
+  is_system?: boolean;
   createdAt: string;
   updatedAt?: string;
   policies: Array<{
@@ -72,6 +73,7 @@ export interface TaiKhoan {
   fullName: string;
   isActive: boolean;
   isProtected: boolean;
+  isSystem?: boolean;
   policies: PolicyCode[];
   createdAt: string;
   lastLogin?: string;
@@ -357,6 +359,7 @@ export function chuyenTaiKhoanApi(user: TaiKhoanApi): TaiKhoan {
     fullName: user.fullName || user.account,
     isActive: user.isActive,
     isProtected: user.isProtected,
+    isSystem: Boolean(user.isSystem ?? user.is_system),
     policies: (Array.isArray(user.policies) ? user.policies : [])
       .map(p => p.code)
       .filter((code): code is PolicyCode => POLICY_CATALOG.some(policy => policy.code === code)),
