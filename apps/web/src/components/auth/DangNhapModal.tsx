@@ -27,6 +27,7 @@ export default function DangNhapModal() {
     const name = account.trim();
     setAccountBiTamDung(false);
     if (!name) return;
+    if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') return;
 
     const timer = setTimeout(async () => {
       try {

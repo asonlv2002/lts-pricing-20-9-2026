@@ -576,7 +576,7 @@ export default function QuotationModule({ role, menuDangChon }: { role: string; 
   const [denNgay, setDenNgay] = useState('');
   const [confirmHuy, setConfirmHuy] = useState<string | null>(null);
 
-  React.useEffect(() => { kiemTraHetHan(); }, []);
+  React.useEffect(() => { kiemTraHetHan(); }, [kiemTraHetHan]);
 
   const isAdmin = role === 'admin';
   const laLichSuBaoGiaTheoKhach = menuDangChon === 'customers.quote_history';

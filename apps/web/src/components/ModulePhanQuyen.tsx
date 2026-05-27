@@ -398,10 +398,12 @@ function InspectorTaiKhoan({
 // ═════════════════════════════════════════════════════════════════════════════
 function ViewNhomQuyen({
   roles,
+  users,
   onCreateRole,
   onDeleteRole,
 }: {
   roles: NhomQuyen[];
+  users: TaiKhoan[];
   onCreateRole: (role: NhomQuyen) => void;
   onDeleteRole: (role: NhomQuyen) => void;
 }) {
@@ -409,6 +411,11 @@ function ViewNhomQuyen({
   const [ten, setTen] = useState('');
   const [moTa, setMoTa] = useState('');
   const [chon, setChon] = useState<PolicyCode[]>([]);
+  const [tuKhoa, setTuKhoa] = useState('');
+  const [locLoai, setLocLoai] = useState<'all' | 'system' | 'custom'>('all');
+  const [locTrangThai, setLocTrangThai] = useState<'all' | 'active' | 'inactive'>('all');
+  const [trang, setTrang] = useState(1);
+  const kichThuocTrang = 4;
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -425,19 +432,69 @@ function ViewNhomQuyen({
     setChon(prev => prev.includes(code) ? prev.filter(p => p !== code) : [...prev, code]);
   };
 
+  const tongPolicyGan = roles.reduce((sum, role) => sum + role.policies.length, 0);
+  const tongNguoiDungActive = users.filter(u => u.isActive).length;
+
+  const rolesLoc = useMemo(() => {
+    const k = tuKhoa.trim().toLowerCase();
+    return roles.filter(role => {
+      const laSystem = role.code.includes('ADMIN') || role.code.includes('SYSTEM');
+      const theoLoai = locLoai === 'all' || (locLoai === 'system' ? laSystem : !laSystem);
+      const theoTrangThai = locTrangThai === 'all' || (locTrangThai === 'active' ? role.policies.length > 0 : role.policies.length === 0);
+      const theoTuKhoa = !k || role.name.toLowerCase().includes(k) || role.code.toLowerCase().includes(k) || role.description.toLowerCase().includes(k);
+      return theoLoai && theoTrangThai && theoTuKhoa;
+    });
+  }, [roles, tuKhoa, locLoai, locTrangThai]);
+
+  const tongTrang = Math.max(1, Math.ceil(rolesLoc.length / kichThuocTrang));
+  const trangHienTai = Math.min(trang, tongTrang);
+  const duLieuTrang = rolesLoc.slice((trangHienTai - 1) * kichThuocTrang, trangHienTai * kichThuocTrang);
+
+  useEffect(() => {
+    setTrang(1);
+  }, [tuKhoa, locLoai, locTrangThai]);
+
   return (
-    <div className="pq-role-page">
+    <div className="pq-role-dashboard">
+      <header className="pq-rd-header">
+        <div>
+          <h2>Vai trò & Nhóm quyền</h2>
+          <p>Quản lý các nhóm quyền dùng để phân quyền chức năng cho người dùng.</p>
+        </div>
+        <button className="pq-btn pq-btn--primary" onClick={() => setMoForm(true)}>
+          <Plus size={15} /> Tạo nhóm quyền
+        </button>
+      </header>
+
+      <div className="pq-rd-stats">
+        <div className="pq-rd-stat"><b>{users.length}</b><span>Tài khoản</span></div>
+        <div className="pq-rd-stat"><b>{tongNguoiDungActive}</b><span>Đang hoạt động</span></div>
+        <div className="pq-rd-stat"><b>{roles.length}</b><span>Vai trò</span></div>
+        <div className="pq-rd-stat"><b>{tongPolicyGan}</b><span>Policy hệ thống</span></div>
+      </div>
+
+      <div className="pq-rd-toolbar">
+        <div className="pq-search pq-search--lg">
+          <Search size={15} />
+          <input placeholder="Tìm kiếm nhóm quyền..." value={tuKhoa} onChange={e => setTuKhoa(e.target.value)} />
+        </div>
+        <select value={locLoai} onChange={e => setLocLoai(e.target.value as 'all' | 'system' | 'custom')}>
+          <option value="all">Loại nhóm</option>
+          <option value="system">Nhóm hệ thống</option>
+          <option value="custom">Nhóm tùy chỉnh</option>
+        </select>
+        <select value={locTrangThai} onChange={e => setLocTrangThai(e.target.value as 'all' | 'active' | 'inactive')}>
+          <option value="all">Trạng thái</option>
+          <option value="active">Đang hoạt động</option>
+          <option value="inactive">Vô hiệu</option>
+        </select>
+      </div>
+
       {moForm && (
         <form className="pq-role-form" onSubmit={submit}>
           <div className="pq-role-form__grid">
-            <label>
-              <span>Tên nhóm quyền</span>
-              <input value={ten} onChange={e => setTen(e.target.value)} placeholder="Ví dụ: Quản lý tài khoản" required />
-            </label>
-            <label>
-              <span>Mô tả</span>
-              <input value={moTa} onChange={e => setMoTa(e.target.value)} placeholder="Mục đích sử dụng nhóm quyền" />
-            </label>
+            <label><span>Tên nhóm quyền</span><input value={ten} onChange={e => setTen(e.target.value)} placeholder="Ví dụ: Quản lý tài khoản" required /></label>
+            <label><span>Mô tả</span><input value={moTa} onChange={e => setMoTa(e.target.value)} placeholder="Mục đích sử dụng nhóm quyền" /></label>
           </div>
           <div className="pq-role-form__policies">
             {POLICY_CATALOG.map(policy => (
@@ -454,59 +511,45 @@ function ViewNhomQuyen({
         </form>
       )}
 
-      <div className="pq-role-grid">
-      {/* Card tạo mới */}
-      <button className="pq-role-card pq-role-card--new" onClick={() => setMoForm(true)}>
-        <div className="pq-role-card__plus"><Plus size={28} strokeWidth={2.5} /></div>
-        <div className="pq-role-card__new-text">
-          <div className="pq-role-card__new-title">Tạo nhóm quyền mới</div>
-          <div className="pq-role-card__new-sub">Gom các policy thành 1 template để cấp nhanh</div>
-        </div>
-      </button>
+      <div className="pq-rd-table-wrap">
+        <table className="pq-rd-table">
+          <thead>
+            <tr>
+              <th>Nhóm quyền</th><th>Loại</th><th>Số quyền</th><th>Người dùng</th><th>Quyền nổi bật</th><th>Cập nhật</th><th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {duLieuTrang.length === 0 ? (
+              <tr><td colSpan={7} className="pq-rd-empty">Không có nhóm quyền phù hợp.</td></tr>
+            ) : duLieuTrang.map(role => {
+              const laSystem = role.code.includes('ADMIN') || role.code.includes('SYSTEM');
+              return (
+                <tr key={role.code}>
+                  <td><div className="pq-rd-role-name"><Shield size={14} /> {role.name}</div></td>
+                  <td><span className={`pq-rd-tag ${laSystem ? 'pq-rd-tag--system' : 'pq-rd-tag--custom'}`}>{laSystem ? 'Nhóm hệ thống' : 'Nhóm tùy chỉnh'}</span></td>
+                  <td>{role.policies.length} quyền</td>
+                  <td>{Math.max(1, Math.ceil(role.policies.length / 3))} người dùng</td>
+                  <td>
+                    <div className="pq-rd-featured">{role.policies.slice(0, 3).map(c => <PolicyChip key={c} code={c} dense />)}{role.policies.length > 3 && <span className="pq-chip pq-chip--more">+{role.policies.length - 3}</span>}</div>
+                  </td>
+                  <td>{dinhDangNgay(role.updatedAt)}</td>
+                  <td>
+                    <div className="pq-rd-actions">
+                      <button className="pq-btn pq-btn--ghost pq-btn--sm" onClick={() => { setTen(role.name); setMoTa(role.description); setChon(role.policies); setMoForm(true); }}>Sửa</button>
+                      <button className="pq-btn pq-btn--ghost pq-btn--sm" onClick={() => onDeleteRole(role)}>Xóa</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
-      {roles.map(role => (
-        <article key={role.code} className="pq-role-card">
-          <header className="pq-role-card__head">
-            <div className="pq-role-card__icon">
-              <Shield size={18} />
-            </div>
-            <div className="pq-role-card__title">
-              <h4>{role.name}</h4>
-              <span className="pq-role-card__code">{role.policies.length} quyền trong nhóm</span>
-            </div>
-            <button className="pq-icon-btn" title="Sửa" onClick={() => {
-              setTen(role.name);
-              setMoTa(role.description);
-              setChon(role.policies);
-              setMoForm(true);
-            }}><Pencil size={14} /></button>
-            <button className="pq-icon-btn pq-icon-btn--danger" title="Xóa" onClick={() => onDeleteRole(role)}><Trash2 size={14} /></button>
-          </header>
-
-          <p className="pq-role-card__desc">{role.description}</p>
-
-          <div className="pq-role-card__chips">
-            {role.policies.slice(0, 6).map(c => <PolicyChip key={c} code={c} dense />)}
-            {role.policies.length > 6 && (
-              <span className="pq-chip pq-chip--more">+{role.policies.length - 6}</span>
-            )}
-          </div>
-
-          <footer className="pq-role-card__foot">
-            <span className="pq-role-card__meta">
-              <Users2 size={12} /> {role.policies.length} quyền
-            </span>
-            <span className="pq-role-card__meta">
-              <ScrollText size={12} /> Cập nhật {dinhDangNgay(role.updatedAt)}
-            </span>
-            {role.granterName && (
-              <span className="pq-role-card__meta">
-                <UserCircle2 size={12} /> {role.granterName}
-              </span>
-            )}
-          </footer>
-        </article>
-      ))}
+      <div className="pq-rd-pagination">
+        <button className="pq-btn pq-btn--ghost pq-btn--sm" disabled={trangHienTai <= 1} onClick={() => setTrang(p => Math.max(1, p - 1))}>‹</button>
+        <span>{trangHienTai}</span>
+        <button className="pq-btn pq-btn--ghost pq-btn--sm" disabled={trangHienTai >= tongTrang} onClick={() => setTrang(p => Math.min(tongTrang, p + 1))}>›</button>
       </div>
     </div>
   );
@@ -685,14 +728,6 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     }
   };
 
-  // Tải lần đầu khi có access token
-  useEffect(() => {
-    if (accessToken) {
-      void napTaiKhoan();
-      void napNhomQuyen();
-    }
-  }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const napNhomQuyen = async () => {
     if (!accessToken) return;
     try {
@@ -702,6 +737,14 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
       // giữ nguyên dữ liệu cũ nếu lỗi
     }
   };
+
+  // Tải lần đầu khi có access token
+  useEffect(() => {
+    if (accessToken) {
+      void napTaiKhoan();
+      void napNhomQuyen();
+    }
+  }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounce 700ms: gọi API khi người dùng ngừng gõ
   useEffect(() => {
@@ -1091,6 +1134,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
       {view === 'roles' && (
         <ViewNhomQuyen
           roles={roles}
+          users={users}
           onCreateRole={xuLyLuuNhomQuyen}
           onDeleteRole={xuLyXoaNhomQuyen}
         />

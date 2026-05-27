@@ -4,7 +4,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 
 // ── Constants ────────────────────────────────────────────────────────────
-export const SERVICE_LTS_DIRECT_URL = process.env.NEXT_PUBLIC_SERVICE_LTS_URL ?? 'https://lts-dev.zealstudiojsc.com';
+export const SERVICE_LTS_DIRECT_URL = process.env.NEXT_PUBLIC_SERVICE_LTS_URL ?? 'localhost:3001';
 export const LS_ACCESS_TOKEN = 'lts_service_access_token';
 export const LS_REFRESH_TOKEN = 'lts_service_refresh_token';
 
@@ -191,6 +191,11 @@ async function lamMoiTokenTuHeThong(): Promise<TokenPair> {
 
 // ── Generic fetch ────────────────────────────────────────────────────────
 async function goiService<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
+  if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') {
+    const { mockPhanQuyen } = await import('./mock-phan-quyen');
+    return mockPhanQuyen<T>(path, options);
+  }
+
   const firstToken = token ?? layTokenHienTai?.()?.accessToken;
   let res: Response;
   try {

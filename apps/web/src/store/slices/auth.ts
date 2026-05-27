@@ -190,6 +190,23 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
 
     dangKiemTraPhien = (async () => {
       if (get().sessionChecked) return;
+
+      if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') {
+        set({
+          isAuthenticated: true,
+          sessionChecked: true,
+          nguoiDungHienTai: {
+            id: 'offline',
+            account: 'offline',
+            fullName: 'Offline Mode',
+            policies: POLICY_CATALOG.map(p => p.code),
+          },
+          authLoading: false,
+        });
+        get().setRole(vaiTroTuPolicies(POLICY_CATALOG.map(p => p.code)));
+        return;
+      }
+
       set({ authLoading: true });
 
     let savedAccess: string | null = null;
