@@ -1,4 +1,4 @@
-// ── User / Auth ───────────────────────────────────────────────────────────────
+﻿// ── User / Auth ───────────────────────────────────────────────────────────────
 export interface AppUser {
   id: string;           // e.g. "U001"
   username: string;     // login username
@@ -155,7 +155,7 @@ export interface CalculateInput {
 }
 
 // ── Quote Status (luồng báo giá 7 bước) ──────────────────────────────────────
-export type QuoteStatus = 'drafted' | 'sent' | 'pending_approval' | 'approved' | 'completed' | 'cancelled' | 'expired';
+export type QuoteStatus = 'drafted' | 'pending_approval' | 'approved' | 'sent' | 'rejected' | 'cancelled' | 'completed' | 'expired';
 
 export const QUOTE_STATUS_CONFIG: Record<QuoteStatus, {
   label: string;
@@ -165,15 +165,15 @@ export const QUOTE_STATUS_CONFIG: Record<QuoteStatus, {
   step: number;
   description: string;
 }> = {
-  drafted:          { label: 'Đã lập',      shortLabel: 'Đã lập',    color: '#6b7280', bg: 'rgba(107,114,128,0.1)', step: 1, description: 'Báo giá đã được lập' },
-  sent:             { label: 'Đã gửi',      shortLabel: 'Đã gửi',    color: '#3b82f6', bg: 'rgba(59,130,246,0.1)',  step: 2, description: 'Đã gửi cho khách hàng' },
-  pending_approval: { label: 'Chờ duyệt',   shortLabel: 'Chờ duyệt', color: '#d97706', bg: 'rgba(217,119,6,0.1)',   step: 3, description: 'Đang chờ phê duyệt nội bộ' },
-  approved:         { label: 'Đã duyệt',    shortLabel: 'Đã duyệt',  color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)',  step: 4, description: 'Admin đã duyệt báo giá' },
-  completed:        { label: 'Hoàn thành',  shortLabel: 'Xong',      color: '#059669', bg: 'rgba(5,150,105,0.1)',   step: 5, description: 'Khách hàng đã chốt' },
-  cancelled:        { label: 'Đã hủy',      shortLabel: 'Hủy',       color: '#dc2626', bg: 'rgba(220,38,38,0.1)',   step: -1, description: 'Báo giá đã bị hủy' },
-  expired:          { label: 'Hết hạn',     shortLabel: 'Hết hạn',   color: '#9ca3af', bg: 'rgba(156,163,175,0.1)', step: -2, description: 'Báo giá đã hết hiệu lực' },
+  drafted:          { label: 'Đang nháp',        shortLabel: 'Nháp',       color: '#6b7280', bg: 'rgba(107,114,128,0.1)', step: 1, description: 'Báo giá đang được soạn' },
+  pending_approval: { label: 'Chờ duyệt',        shortLabel: 'Chờ duyệt',  color: '#d97706', bg: 'rgba(217,119,6,0.1)',   step: 2, description: 'Đang chờ phê duyệt nội bộ' },
+  approved:         { label: 'Đã duyệt',         shortLabel: 'Đã duyệt',   color: '#2563eb', bg: 'rgba(37,99,235,0.1)',   step: 3, description: 'Admin đã duyệt báo giá' },
+  sent:             { label: 'Đã gửi khách',     shortLabel: 'Đã gửi',     color: '#4f46e5', bg: 'rgba(79,70,229,0.1)',   step: 4, description: 'Đã gửi báo giá cho khách hàng' },
+  rejected:         { label: 'Bị từ chối',       shortLabel: 'Từ chối',    color: '#dc2626', bg: 'rgba(220,38,38,0.1)',   step: -1, description: 'Báo giá bị từ chối hoặc trả về' },
+  cancelled:        { label: 'Đã hủy',           shortLabel: 'Hủy',        color: '#9ca3af', bg: 'rgba(156,163,175,0.1)', step: -2, description: 'Báo giá đã bị hủy' },
+  completed:        { label: 'Đã chốt đơn SX',   shortLabel: 'Chốt SX',    color: '#059669', bg: 'rgba(5,150,105,0.1)',   step: 5, description: 'Khách hàng đã chốt đơn sản xuất' },
+  expired:          { label: 'Hết hạn',          shortLabel: 'Hết hạn',    color: '#9ca3af', bg: 'rgba(156,163,175,0.1)', step: -3, description: 'Báo giá đã hết hiệu lực' },
 };
-
 // ── Override Tables (Bảng 2 & 3 — Sale nhập / Admin nhập) ────────────────────
 export type OverrideRowKey = 'print' | 'lam-2' | 'lam-3' | 'lam-4' | 'lam-5' | 'cut';
 
@@ -197,7 +197,8 @@ export type AuditAction =
   | 'create' | 'update' | 'delete'
   | 'lock' | 'unlock'
   | 'status_change' | 'override_change'
-  | 'assign' | 'version_restore' | 'duplicate';
+  | 'assign' | 'version_restore' | 'duplicate'
+  | 'send_approval' | 'approve' | 'reject' | 'send_customer' | 'create_lsx' | 'restore';
 
 export interface AuditEntry {
   id: string;
@@ -205,12 +206,14 @@ export interface AuditEntry {
   userId: string;
   userName: string;
   action: AuditAction;
-  targetType: 'history' | 'quote';
+  targetType: 'history' | 'quote' | 'customer' | 'order' | 'config' | 'permission';
   targetId: string;
   targetName?: string;
   before?: Record<string, unknown>;
   after?: Record<string, unknown>;
   note?: string;
+  ipAddress?: string;
+  device?: string;
 }
 
 export interface ConfigSnapshot {
@@ -474,3 +477,6 @@ export interface ProductionOrder {
     totalArea: number;          // Tổng diện tích đơn hàng (m²)
   };
 }
+
+
+

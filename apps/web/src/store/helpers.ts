@@ -10,6 +10,7 @@ export const LS_AUDIT    = 'lts_audit_log';
 export const LS_VERSIONS = 'lts_versions';
 export const LS_CONFIG_SNAPSHOTS = 'lts_config_snapshots';
 export const LS_QUOTE_COUNTER = 'lts_quote_counter';
+export const LS_CUSTOMERS = 'lts_customers';
 
 export function luuLocalStorage(key: string, giaTri: unknown) {
   try { window.localStorage.setItem(key, JSON.stringify(giaTri)); } catch { /* quota */ }
@@ -53,3 +54,78 @@ export const dauVaoMacDinh: CalculateInput = {
 };
 
 export const dauVaoKhoiTao = dongBoCotLoiNhuan(dauVaoMacDinh, INITIAL_MATERIALS);
+
+// ── Auto-add customer ──────────────────────────────────────────────────────────
+const SELLERS = [
+  { id: 'S1', name: 'Nguyen Van An' },
+  { id: 'S2', name: 'Tran Gia Bao' },
+  { id: 'S3', name: 'Le Thu Ha' },
+];
+
+interface CustomerQuick {
+  id: string;
+  customerCode: string;
+  companyName: string;
+  sellerId?: string | null;
+  sellerName?: string;
+  status: string;
+  isLocked: boolean;
+  createdAt: string;
+  updatedAt: string;
+  [key: string]: unknown;
+}
+
+function loadCustomers(): CustomerQuick[] {
+  try {
+    const raw = window.localStorage.getItem(LS_CUSTOMERS);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
+/**
+ * Auto-create a customer record when saving history with a customer name
+ * not yet in the customer list. Assigns the sale user automatically.
+ * Returns true if a new customer was created.
+ */
+export function autoAddCustomerIfNeeded(customerName: string, sellerId?: string, sellerName?: string): boolean {
+  if (!customerName || customerName === 'N/A') return false;
+  const customers = loadCustomers();
+  const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+  const exists = customers.some(c => norm(c.companyName) === norm(customerName));
+  if (exists) return false;
+
+  const now = new Date();
+  const id = `C${now.getTime()}`;
+  const code = `KH${String(now.getTime()).slice(-5)}`;
+  const seller = SELLERS.find(s => s.id === sellerId);
+  const newCustomer: CustomerQuick = {
+    id,
+    customerCode: code,
+    companyName: customerName,
+    taxCode: '',
+    contactName: '',
+    phone: '',
+    email: '',
+    invoiceAddress: '',
+    address: '',
+    region: '',
+    customerGroup: '',
+    sellerId: sellerId || null,
+    sellerName: seller?.name || sellerName || '',
+    secondarySellerId: null,
+    secondarySellerName: '',
+    contactTitle: '',
+    contactNotes: '',
+    assignmentHistory: [],
+    assignmentNote: '',
+    status: 'active',
+    crmStatus: 'lead',
+    isLocked: false,
+    notes: '',
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+  };
+  const updated = [newCustomer as CustomerQuick, ...customers];
+  luuLocalStorage(LS_CUSTOMERS, updated);
+  return true;
+}

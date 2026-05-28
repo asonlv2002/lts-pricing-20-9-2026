@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
@@ -117,7 +117,7 @@ const ONhapSoThapPhan = ({ value, onChange, placeholder, min, step, className, d
 };
 
 export default function TheNhapLieu() {
-  const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness, currentSellerId, role } = dungCuaHangTinhGia();
+  const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness, currentSellerId, currentSellerName, role, setActiveModule: datPhanHe } = dungCuaHangTinhGia();
   const [nhomTheoLop, datNhomTheoLop] = React.useState<Record<string, string>>({});
   const [dangFocusKhachHang, datDangFocusKhachHang] = React.useState(false);
 
@@ -412,6 +412,9 @@ export default function TheNhapLieu() {
 
   return (
     <div className="card input-form-card" style={{ position: 'sticky', top: '64px' }}>
+      <div role="status" aria-live="polite" style={{ position:'fixed', left:12, right:12, bottom:12, zIndex:45, display:'none' }} className="mobile-price-summary">
+        Nhập thông tin để xem giá tự động. Debounce 300ms được xử lý ở tầng store/engine.
+      </div>
       <div className="auto-calc-badge"><div className="pulse-dot"></div> Tự động tính khi thay đổi</div>
       <div className="card-title"><span className="icon">📝</span> Thông tin đơn hàng</div>
 
@@ -427,6 +430,11 @@ export default function TheNhapLieu() {
             onChange={e => capNhatDauVao({ customer: e.target.value })}
             autoComplete="off"
           />
+          {dangFocusKhachHang && input.customer.trim() && goiYKhachHang.length === 0 && (
+            <div style={{ position:'absolute', zIndex:30, left:0, right:0, top:'100%', marginTop:4, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:10, boxShadow:'0 14px 34px rgba(15,23,42,.18)' }}>
+              <button type="button" className="btn btn-sm btn-outline" onMouseDown={e => e.preventDefault()} onClick={() => { try { localStorage.setItem('lts_customer_quick_name', input.customer); } catch {}; datPhanHe('customers'); }}>+ Tạo khách hàng mới</button>
+            </div>
+          )}
           {goiYKhachHang.length > 0 && (
             <div style={{
               position: 'absolute', zIndex: 30, left: 0, right: 0, top: '100%', marginTop: 4,
@@ -979,4 +987,8 @@ export default function TheNhapLieu() {
     </div>
   );
 }
+
+
+
+
 
