@@ -94,8 +94,8 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
     const snapshot = state.configSnapshots.find(item => item.id === id);
     if (!snapshot) return;
 
-    const scope = snapshot.scope;
-    const keys = SCOPE_CONSTANT_KEYS[scope];
+    const scope = snapshot.scope ?? 'materials';
+    const keys = SCOPE_CONSTANT_KEYS[scope] ?? [];
 
     if (scope === 'materials') {
       state.replaceFullConfig({

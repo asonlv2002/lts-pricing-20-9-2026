@@ -1,4 +1,4 @@
-import { tinhGiaWeb, traLoiNhuanTheoBang, toiUuDoDayTheoVatLieu } from './engine';
+﻿import { tinhGiaWeb, traLoiNhuanTheoBang, toiUuDoDayTheoVatLieu } from './engine';
 import type { AppConstants, CalculateInput, CalculateResult, Material, OverrideRowKey, OverrideTable, ProfitRow, SmallWidthMaterialPrice } from './types';
 
 export { toiUuDoDayTheoVatLieu, toiUuDoDayTheoVatLieu as optimizeThickness };
@@ -15,7 +15,7 @@ export interface UniRow {
   matPrice: number | null;
   costMat: number | null;
   outputWidth?: number;
-  materialDetails?: Array<{ name: string; width: number; matPrice: number; costMat: number }>;
+  materialDetails?: Array<{ materialId?: string; name: string; width: number; matPrice: number; costMat: number }>;
 }
 
 export interface ResolvedOverrideRow extends UniRow {
@@ -72,6 +72,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
     totalCPSX += lam.costCPSX;
     totalCPVL += lam.costMat;
     const materialDetails = lam.chiTietVatLieu?.map((item: any) => ({
+      materialId: item.vatLieuId,
       name: item.ten,
       width: item.kho,
       matPrice: item.donGia ?? 0,
@@ -144,6 +145,8 @@ export function xuLyDongGhiDe(
     const detailOverrides = { ...(src.detailOverrides ?? {}), ...(cur.detailOverrides ?? {}) };
     const materialDetails = row.materialDetails?.map((detail, index) => ({
       ...detail,
+      materialId: detailOverrides[index]?.materialId ?? detail.materialId,
+      name: detailOverrides[index]?.materialName ?? detail.name,
       width: detailOverrides[index]?.width ?? detail.width,
       matPrice: detailOverrides[index]?.matPrice ?? detail.matPrice,
     }));
@@ -202,3 +205,6 @@ export const buildProductionRows = lapDongSanXuat;
 export const resolveOverrideRows = xuLyDongGhiDe;
 export const calculateEffectivePricing = tinhGiaHieuLuc;
 export const calculateMoqResult = tinhKetQuaMoq;
+
+
+

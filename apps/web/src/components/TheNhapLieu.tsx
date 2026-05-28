@@ -237,8 +237,8 @@ export default function TheNhapLieu() {
     const nhomHienTai = nhomTheoLop[khoaLop] || (vatLieu?.group && vatLieu.group !== 'LLDPE' ? `GROUP_${vatLieu.group}` : '');
     const giaTriChinh = nhomHienTai || maVatLieu || '';
 
-    const luaChonLe = materials.filter(m => !m.group || m.group === 'LLDPE');
-    const tenCacNhom = Array.from(new Set(materials.filter(m => m.group && m.group !== 'LLDPE').map(m => m.group as string)));
+    const luaChonLe = materials.filter(m => !m.group || m.group === 'LLDPE' || m.id.startsWith('custom-') || m.group === 'custom');
+    const tenCacNhom = Array.from(new Set(materials.filter(m => m.group && m.group !== 'LLDPE' && m.group !== 'custom' && !m.id.startsWith('custom-')).map(m => m.group as string)));
 
     return (
       <div className="form-group">
@@ -774,7 +774,14 @@ export default function TheNhapLieu() {
             <div className="form-row-3">
               <div className="form-group">
                 <label className="form-label">Phủ mực (%)</label>
-                <ONhapSoThapPhan className="form-input" value={input.coverageRatio === 1 ? 0 : Math.round(input.coverageRatio * 100)} placeholder="100" min="0" max="100" onChange={(val: number) => capNhatDauVao({ coverageRatio: (val === 0 ? 1 : val / 100) })} />
+                <select
+                  className="form-input"
+                  value={input.coverageRatio === 0.5 ? '50' : '100'}
+                  onChange={e => capNhatDauVao({ coverageRatio: e.target.value === '50' ? 0.5 : 1 })}
+                >
+                  <option value="100">100%</option>
+                  <option value="50">50%</option>
+                </select>
               </div>
             </div>
 

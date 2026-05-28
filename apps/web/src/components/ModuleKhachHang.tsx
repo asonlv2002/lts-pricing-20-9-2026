@@ -195,9 +195,11 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
   const [duplicateWarnings, setDuplicateWarnings] = useState<string[]>([]);
   const seller = SELLERS.find(s => s.id === form.sellerId);
   const isLockedEdit = !isNew && !!customer?.isLocked;
+  const [dirty, setDirty] = useState(false);
 
   const set = (key: keyof Customer, value: string | boolean | null) => {
     setForm(f => {
+      setDirty(true);
       if (key === 'customerType') {
         const nextType = value as CustomerType;
         return { ...f, customerType: nextType, companyName: nextType === 'individual' ? (f.companyName || f.contactName || '') : f.companyName, contactName: nextType === 'company' ? f.contactName : (f.contactName || f.companyName || '') };
@@ -270,7 +272,18 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
     onSave({ ...form, sellerName: seller?.name ?? form.sellerName ?? '', updatedAt: todayIso() });
   };
 
+  const close = () => {
+    if (dirty && !confirm('Bạn có thay đổi chưa lưu. Đóng mà không lưu?')) return;
+    onCancel();
+  };
+
   const progress = ((step + 1) / WIZ_STEPS.length) * 100;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [dirty]);
 
   const Field = ({ k, icon, required, type = 'text', helper }: { k: keyof Customer; icon: React.ReactNode; required?: boolean; type?: string; helper?: string }) => {
     const err = errors[String(k)];
@@ -304,6 +317,15 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
 
   return (
     <div className="crm2-wizard-wrap">
+      <div className="crm2-wizard-header">
+        <div>
+          <div className="crm2-wizard-kicker">Chỉnh sửa khách hàng</div>
+          <h2 className="crm2-wizard-title">{isNew ? 'Thêm khách hàng mới' : 'Cập nhật thông tin khách hàng'}</h2>
+        </div>
+        <button type="button" className="crm2-btn-icon crm2-wizard-close" aria-label="Đóng" onClick={close}>
+          <X size={18} />
+        </button>
+      </div>
       {/* Progress bar */}
       <div className="crm2-wizard-progress">
         <div className="crm2-wizard-progress-bar" style={{ width: `${progress}%` }} />
@@ -411,7 +433,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
           {step > 0 && <button className="crm2-btn crm2-btn--ghost" onClick={back}><ArrowLeft size={14}/> Quay lại</button>}
           <button className="crm2-btn crm2-btn--ghost" onClick={saveDraft}>Lưu nháp</button>
           {!customer && <button className="crm2-btn crm2-btn--ghost" onClick={loadDraft}>Tải nháp</button>}
-          <button className="crm2-btn crm2-btn--ghost" onClick={onCancel}>Hủy</button>
+          <button className="crm2-btn crm2-btn--ghost" onClick={close}>Hủy</button>
         </div>
         <div>
           {step < 2 ? (
@@ -1154,8 +1176,8 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     setAssigning(null);
   };
 
-  // If editing mode, show wizard
-  if (editing !== undefined) {
+  // If editing mode for NEW customer (no detail panel), show wizard fullscreen
+  if (editing !== undefined && !detail) {
     return (
       <div className="crm2-root">
         <StyleInjector />
@@ -1184,10 +1206,24 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
           customer={detail}
           role={role}
           currentSellerId={currentSellerId}
-          onClose={() => setDetail(null)}
-          onEdit={() => { setEditing(detail); setDetail(null); }}
+          onClose={() => { setDetail(null); setEditing(undefined); }}
+          onEdit={() => setEditing(detail)}
           onNavigate={handleNavigate}
         />
+      )}
+
+      {/* Edit panel — trượt nối tiếp từ mép phải của detail panel */}
+      {detail && editing !== undefined && (
+        <div className="crm2-edit-panel crm2-edit-panel--open">
+          <CustomerForm
+            customer={editing ?? undefined}
+            role={role}
+            currentSellerId={currentSellerId}
+            customers={customers}
+            onSave={c => { upsert(c); setDetail(c); setEditing(undefined); }}
+            onCancel={() => setEditing(undefined)}
+          />
+        </div>
       )}
 
       {/* Confirm dialog */}
@@ -1667,6 +1703,36 @@ const CRM2_STYLES = `
   transition: opacity 0.25s;
 }
 .crm2-overlay--open { opacity: 1; pointer-events: auto; }
+/* Edit panel — trượt nối tiếp từ mép phải của detail panel */
+.crm2-edit-panel {
+  position: fixed; top: 0; right: 480px; bottom: 0;
+  width: 640px; max-width: calc(100vw - 480px);
+  background: var(--card, #fff); z-index: 102;
+  display: flex; flex-direction: column;
+  box-shadow: -12px 0 40px rgba(0,0,0,0.14);
+  overflow-y: auto;
+  border-left: 1px solid var(--border, #e5e7eb);
+}
+.crm2-edit-panel--open { animation: crm2-edit-slide-in 0.28s cubic-bezier(0.4,0,0.2,1) both; }
+@keyframes crm2-edit-slide-in {
+  from { transform: translateX(100%); opacity: 0.96; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.crm2-edit-panel .crm2-wizard-wrap {
+  max-width: 100%;
+  padding: 0 24px 24px;
+}
+.crm2-wizard-header {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  padding: 20px 24px 16px;
+  background: var(--card, #fff);
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+.crm2-wizard-kicker { font-size: 12px; font-weight: 600; color: var(--accent, #0891b2); text-transform: uppercase; letter-spacing: .04em; }
+.crm2-wizard-title { margin: 4px 0 0; font-size: 20px; line-height: 1.25; font-weight: 700; color: var(--foreground, #111); }
+.crm2-wizard-close { width: 40px; height: 40px; border-radius: 10px; flex-shrink: 0; }
+
 .crm2-slide-panel {
   position: fixed; top: 0; right: 0; bottom: 0;
   width: 480px; max-width: 100vw;
@@ -1899,6 +1965,7 @@ const CRM2_STYLES = `
   .crm2-root { padding: 16px; }
   .crm2-card-grid { grid-template-columns: 1fr; }
   .crm2-slide-panel { width: 100vw; }
+  .crm2-edit-panel { right: 0; width: 100vw; max-width: 100vw; z-index: 103; }
   .crm2-info-grid { grid-template-columns: 1fr; }
   .crm2-header { flex-direction: column; }
 }

@@ -1212,7 +1212,7 @@ body {
 
 /* Config Full Page */
 .config-page { margin: 0 auto; padding: 24px 16px; position: relative; }
-.config-page-inner { display: flex; flex-direction: column; gap: 20px; position: relative; max-width: 1200px; margin: 0 auto; justify-content: center; }
+.config-page-inner { display: flex; flex-direction: column; gap: 28px; position: relative; max-width: 1200px; margin: 0 auto; justify-content: center; }
 .config-content { max-width: 960px; margin: 0 auto; width: 100%; }
 
 /* removed config toc custom classes */
@@ -1230,6 +1230,10 @@ body {
 }
 .config-card {
   padding: 20px 24px;
+}
+
+.config-card + .config-card {
+  margin-top: 12px;
 }
 
 .config-section-title {

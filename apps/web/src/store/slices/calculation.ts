@@ -21,6 +21,8 @@ export interface CalculationSlice {
   resetInput: () => void;
   setCurrentChotGia: (giaTri: number) => void;
   setMaterialParam: (id: string, partial: Partial<Material>) => void;
+  addMaterial: (m: Material) => void;
+  removeMaterial: (id: string) => void;
   setConstantParam: (key: keyof AppConstants, val: any) => void;
   setSmallWidthPriceParam: (id: string, partial: Partial<SmallWidthMaterialPrice>) => void;
   replaceFullConfig: (config: Pick<CalculationSlice, 'materials' | 'constants' | 'profitTable' | 'smallWidthPrices'>) => void;
@@ -149,6 +151,24 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
         : state.smallWidthPrices;
       luuConfigVaoLS(materials, state.constants, state.profitTable, bangGiaKhoNho);
       return { materials, smallWidthPrices: bangGiaKhoNho, input: dongBoCotLoiNhuan(state.input, materials), dauVao: dongBoCotLoiNhuan(state.input, materials), result: tinhBaoGia(dongBoCotLoiNhuan(state.input, materials), materials, state.constants, state.profitTable, bangGiaKhoNho) };
+    });
+  },
+
+  addMaterial: (m) => {
+    set((state) => {
+      const pricePerM2 = m.pricePerKg * m.thickness * m.density / 1000;
+      const materials = [...state.materials, { ...m, group: undefined, pricePerM2 }];
+      luuConfigVaoLS(materials, state.constants, state.profitTable, state.smallWidthPrices);
+      return { materials, result: tinhBaoGia(dongBoCotLoiNhuan(state.input, materials), materials, state.constants, state.profitTable, state.smallWidthPrices) };
+    });
+  },
+
+  removeMaterial: (id) => {
+    set((state) => {
+      const materials = state.materials.filter(m => m.id !== id);
+      const smallWidthPrices = state.smallWidthPrices.filter(p => p.materialId !== id);
+      luuConfigVaoLS(materials, state.constants, state.profitTable, smallWidthPrices);
+      return { materials, smallWidthPrices, result: tinhBaoGia(dongBoCotLoiNhuan(state.input, materials), materials, state.constants, state.profitTable, smallWidthPrices) };
     });
   },
 

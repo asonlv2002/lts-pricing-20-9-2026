@@ -1,4 +1,4 @@
-"use client";
+  "use client";
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Search, Database, RotateCcw, Trash2, ClipboardList, Download, Copy,

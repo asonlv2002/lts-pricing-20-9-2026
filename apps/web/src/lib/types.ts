@@ -1,4 +1,4 @@
-// ── User / Auth ───────────────────────────────────────────────────────────────
+﻿// ── User / Auth ───────────────────────────────────────────────────────────────
 export interface AppUser {
   id: string;           // e.g. "U001"
   username: string;     // login username
@@ -188,7 +188,7 @@ export interface OverrideFields {
   costCPSX?: number;
   matPrice?: number;
   costMat?: number;
-  detailOverrides?: Record<number, { width?: number; matPrice?: number }>;
+  detailOverrides?: Record<number, { width?: number; matPrice?: number; materialId?: string; materialName?: string }>;
 }
 export type OverrideTable = Partial<Record<OverrideRowKey, Partial<OverrideFields>>>;
 
@@ -487,6 +487,7 @@ export interface ProductionOrder {
     totalArea: number;          // Tổng diện tích đơn hàng (m²)
   };
 }
+
 
 
 

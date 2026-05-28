@@ -108,13 +108,11 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     vaiTros: ['admin', 'purchase'],
     mucCon: [
       { key: 'config.materials', id: 'master_data', label: 'Vật tư / nguyên vật liệu', vaiTros: ['admin', 'purchase'] },
-      { key: 'config.waste_norms', id: 'master_data', label: 'Bảng định mức hao hụt', vaiTros: ['admin', 'purchase'] },
       { key: 'config.production_costs', id: 'master_data', label: 'Chi phí sản xuất', vaiTros: ['admin', 'purchase'] },
       { key: 'config.outsource_costs', id: 'master_data', label: 'Chi phí gia công ngoài', vaiTros: ['admin', 'purchase'] },
       { key: 'config.profit_margin', id: 'master_data', label: 'Biên lợi nhuận', vaiTros: ['admin', 'purchase'] },
       { key: 'config.surcharges', id: 'master_data', label: 'Phụ phí', vaiTros: ['admin', 'purchase'] },
       { key: 'config.interest', id: 'master_data', label: 'Lãi vay công nợ', vaiTros: ['admin', 'purchase'] },
-      { key: 'config.formulas', id: 'master_data', label: 'Tham số / công thức tính giá', vaiTros: ['admin', 'purchase'] },
     ],
   },
   {

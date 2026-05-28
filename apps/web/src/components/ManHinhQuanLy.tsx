@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhGiaHieuLuc, xuLyDongGhiDe, type UniRow } from '../lib/manager-calculation';
-import type { OverrideRowKey, OverrideFields, OverrideTable } from '../lib/types';
+import type { Material, OverrideRowKey, OverrideFields, OverrideTable } from '../lib/types';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
 // Mỗi lần render với resetKey mới → luôn bắt đầu ở trạng thái ĐÓNG
@@ -115,13 +115,13 @@ function datGhiDeChiTiet(
   ghiDeHienTai: OverrideTable,
   khoaDong: OverrideRowKey,
   chiTietIndex: number,
-  truong: 'width' | 'matPrice',
-  giaTri: number | undefined,
+  truong: 'width' | 'matPrice' | 'materialId' | 'materialName',
+  giaTri: number | string | undefined,
 ) {
   const hienTai = ghiDeHienTai[khoaDong]?.detailOverrides ?? {};
   const dongHienTai = { ...(hienTai[chiTietIndex] ?? {}) };
   if (giaTri === undefined) delete dongHienTai[truong];
-  else dongHienTai[truong] = giaTri;
+  else (dongHienTai as Record<string, number | string>)[truong] = giaTri;
   const tiepTheo = { ...hienTai };
   if (Object.keys(dongHienTai).length) tiepTheo[chiTietIndex] = dongHienTai;
   else delete tiepTheo[chiTietIndex];
@@ -168,6 +168,40 @@ function OChiTietCoTheGhiDe({ khoaDong, chiTietIndex, truong, giaTriGoc, giaTriG
   );
 }
 
+function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, duocSua, khiDat, ghiDeHienTai, materials }: {
+  khoaDong: OverrideRowKey;
+  chiTietIndex: number;
+  giaTriGoc: { id?: string; name: string; matPrice: number };
+  giaTriGhiDe: { materialId?: string; materialName?: string; matPrice?: number } | undefined;
+  duocSua: boolean;
+  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
+  ghiDeHienTai: OverrideTable;
+  materials: Material[];
+}) {
+  const tenHienThi = giaTriGhiDe?.materialName ?? giaTriGoc.name;
+  const idHienThi = giaTriGhiDe?.materialId ?? giaTriGoc.id ?? '';
+  if (!duocSua) return <td data-label="Vật liệu">{tenHienThi}</td>;
+  return (
+    <td className="override-cell" data-label="Vật liệu">
+      <select className="override-input" value={idHienThi} onChange={e => {
+        const mat = materials.find(m => m.id === e.target.value);
+        if (!mat || mat.id === giaTriGoc.id) {
+          datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialId', undefined);
+          datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialName', undefined);
+          datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'matPrice', undefined);
+          return;
+        }
+        const giaM2 = mat.pricePerM2 ?? (mat.pricePerKg * mat.thickness * mat.density / 1000);
+        datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialId', mat.id);
+        datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialName', mat.name);
+        datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'matPrice', giaM2);
+      }}>
+        <option value={giaTriGoc.id ?? ''}>{giaTriGoc.name}</option>
+        {materials.filter(m => m.id !== giaTriGoc.id).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+      </select>
+    </td>
+  );
+}
 function OChuCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat }: {
   khoaDong: OverrideRowKey;
   truong: keyof OverrideFields;
@@ -202,7 +236,7 @@ function OChuCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khi
 }
 
 // ── Override Table Section ────────────────────────────────────────────────────
-function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, duocSua, khiDat, khiLuu, khiLuuMoi, loadedHistoryId }: {
+function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, duocSua, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, materials }: {
   title: string;
   lopMau: 'sale' | 'admin';
   cacDongSanXuat: UniRow[];
@@ -213,6 +247,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
   khiLuu: (id: string) => void;
   khiLuuMoi: () => void; // gọi khi chưa có loadedHistoryId — tự lưu lichSu rồi persist
   loadedHistoryId: string | null;
+  materials: Material[];
 }) {
   const { rows: cacDongDaXuLy, totalCPSX: tongCPSX, totalCPVL: tongCPVL } = xuLyDongGhiDe(cacDongSanXuat, ghiDeNguon, ghiDeHienTai);
 
@@ -253,7 +288,9 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                   return (
                     <tr key={`${row.rowKey}-${detailIdx}`} className="detail-group-row">
                       <td data-label="Công đoạn">{row.stage}</td>
-                      <td data-label="Vật liệu">{detail.name}</td>
+                      <OChonVatLieuChiTiet khoaDong={row.rowKey} chiTietIndex={detailIdx}
+                        giaTriGoc={{ id: chiTietGoc?.materialId, name: chiTietGoc?.name ?? detail.name, matPrice: chiTietGoc?.matPrice ?? detail.matPrice }}
+                        giaTriGhiDe={ghiDeHienTaiChiTiet} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} />
                       <td className="num" data-label="Kho vao (m)">{dinhDangSo(detail.width, 3)}</td>
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
                         giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
@@ -264,7 +301,8 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
                         giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(detailCostCPSX, 0)}</td>
-                      <td className="num" data-label="CP vật liệu (đ/m²)">{dinhDangSo(detail.matPrice, 1)}</td>
+                      <OChiTietCoTheGhiDe khoaDong={row.rowKey} chiTietIndex={detailIdx} truong="matPrice" giaTriGoc={chiTietGoc?.matPrice ?? detail.matPrice}
+                        giaTriGhiDe={ghiDeHienTaiChiTiet?.matPrice} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} soLe={1} />
                       <td className="num" data-label="Thành tiền CPVL">{dinhDangSo(detailCostMat, 0)}</td>
                     </tr>
                   );
@@ -327,7 +365,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
 
 export default function ManHinhQuanLy() {
   const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, setChotGiaForLatest: datGiaChotChoMoiNhat, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, setActiveModule: datPhan,
-    role, loadedHistoryId: loadedHistoryId, history: lichSu,
+    role, loadedHistoryId: loadedHistoryId, history: lichSu, materials,
     saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin, showSaleOverrides: hienGhiDeSale, showAdminOverrides: hienGhiDeAdmin,
     setSaleOverride: datGhiDeSale, setAdminOverride: datGhiDeAdmin, setShowSaleOverrides: datHienGhiDeSale, setShowAdminOverrides: datHienGhiDeAdmin, persistOverrides: luuGhiDe, calculateForInput,
   } = dungCuaHangTinhGia();
@@ -925,6 +963,7 @@ export default function ManHinhQuanLy() {
                     khiLuu={luuGhiDe}
                     khiLuuMoi={handleSaveNew}
                     loadedHistoryId={loadedHistoryId}
+                    materials={materials}
                   />
                 )}
 
@@ -940,6 +979,7 @@ export default function ManHinhQuanLy() {
                     khiLuu={luuGhiDe}
                     khiLuuMoi={handleSaveNew}
                     loadedHistoryId={loadedHistoryId}
+                    materials={materials}
                   />
                 )}
               </>
@@ -978,21 +1018,15 @@ export default function ManHinhQuanLy() {
                         {matCols.map((col, ci) => {
                           const layerData = getLayerData(res, col);
                           const layerMetersTotal = layerData ? (layerData.meters + layerData.waste) : 0;
-                          const layerMetersPerImage = dauVaoKq.numImages > 1 ? layerMetersTotal / dauVaoKq.numImages : layerMetersTotal;
                           const kgTotal = calcKgForLayer(layerData, layerMetersTotal);
                           return (
                             <td key={ci} data-label={col.name}>
-                              {!layerData?.chiTietVatLieu?.length && (dauVaoKq.numImages > 1 ? (
-                                <>
-                                  {dinhDangSo(layerMetersPerImage, 0)} m/con<br/>
-                                  <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>total {dinhDangSo(layerMetersTotal, 0)} m / {dinhDangSo(kgTotal, 1)} kg</span>
-                                </>
-                              ) : (
+                              {!layerData?.chiTietVatLieu?.length && (
                                 <>
                                   {dinhDangSo(layerMetersTotal, 0)} m<br/>
                                   <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(kgTotal, 1)} kg)</span>
                                 </>
-                              ))}
+                              )}
                               {renderMaterialBreakdown(layerData, layerMetersTotal)}
                             </td>
                           );
@@ -1093,22 +1127,14 @@ export default function ManHinhQuanLy() {
                           {otherLayers.map((col: any, i: number) => {
                             const layerData = getLayerData(row.res, col);
                             const layerMetersTotal = layerData ? (layerData.meters + layerData.waste) : 0;
-                            const layerMetersPerImage = dauVaoKq.numImages > 1 ? layerMetersTotal / dauVaoKq.numImages : layerMetersTotal;
                             const kgTotal = calcKgForLayer(layerData, layerMetersTotal);
                             return (
                               <td data-label={col.name} key={i}>
                                 {!layerData?.chiTietVatLieu?.length && (
-                                  dauVaoKq.numImages > 1 ? (
-                                    <>
-                                      {dinhDangSo(layerMetersPerImage, 0)} m/con<br />
-                                      <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>total {dinhDangSo(layerMetersTotal, 0)} m / {dinhDangSo(kgTotal, 1)} kg</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      {dinhDangSo(layerMetersTotal, 0)} m<br />
-                                      <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(kgTotal, 1)} kg)</span>
-                                    </>
-                                  )
+                                  <>
+                                    {dinhDangSo(layerMetersTotal, 0)} m<br />
+                                    <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(kgTotal, 1)} kg)</span>
+                                  </>
                                 )}
                                 {renderMaterialBreakdown(layerData, layerMetersTotal)}
                               </td>
@@ -1138,12 +1164,10 @@ export default function ManHinhQuanLy() {
               ))}
             </ul>
           </TheThuGon>
-
         </div> {/* End manager-content */}
 
       </div> {/* End manager-layout */}
     </div>
   );
 }
-
 

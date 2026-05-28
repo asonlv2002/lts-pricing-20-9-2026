@@ -35,17 +35,11 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
   const dangChonId = phienBanDangChon[scope] ?? null;
 
   const [ten, datTen] = React.useState('');
-  const [kieuHieuLuc, datKieuHieuLuc] = React.useState<'month' | 'date'>('month');
   const [mocHieuLuc, datMocHieuLuc] = React.useState(() => new Date().toISOString().slice(0, 7));
-
-  const doiKieuHieuLuc = (kieu: 'month' | 'date') => {
-    datKieuHieuLuc(kieu);
-    datMocHieuLuc(new Date().toISOString().slice(0, kieu === 'month' ? 7 : 10));
-  };
 
   const xuLyLuu = () => {
     if (!mocHieuLuc) return;
-    taoPhienBanDinhMuc({ scope, name: ten, effectiveMode: kieuHieuLuc, effectiveFrom: mocHieuLuc });
+    taoPhienBanDinhMuc({ scope, name: ten, effectiveMode: 'month', effectiveFrom: mocHieuLuc });
     datTen('');
   };
 
@@ -72,21 +66,13 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
             onChange={e => datTen(e.target.value)} />
         </div>
         <div className="config-cpsx-item">
-          <label>Kiểu hiệu lực</label>
-          <select className="form-input" value={kieuHieuLuc}
-            onChange={e => doiKieuHieuLuc(e.target.value as 'month' | 'date')}>
-            <option value="month">Theo tháng</option>
-            <option value="date">Theo ngày</option>
-          </select>
-        </div>
-        <div className="config-cpsx-item">
           <label>Hiệu lực từ</label>
-          <input className="form-input" type={kieuHieuLuc === 'month' ? 'month' : 'date'}
+          <input className="form-input" type="month"
             value={mocHieuLuc} onChange={e => datMocHieuLuc(e.target.value)} />
         </div>
         <div className="config-cpsx-item" style={{justifyContent: 'flex-end'}}>
           <button className="btn btn-primary" onClick={xuLyLuu} disabled={!mocHieuLuc}>
-            Lưu thành phiên bản
+            Lưu
           </button>
         </div>
       </div>
@@ -161,6 +147,8 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     setMaterialParam: capNhatVatLieu,
     setConstantParam: capNhatHangSo,
     setSmallWidthPriceParam: capNhatGiaKhoNho,
+    addMaterial: themVatLieu,
+    removeMaterial: xoaVatLieu,
   } = dungCuaHangTinhGia();
   const [nhomKhachHang, datNhomKhachHang] = React.useState('other');
   const [hienBangKhoNho, datHienBangKhoNho] = React.useState(false);
@@ -173,8 +161,10 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   const hienPhuPhi = nhomCauHinh === 'surcharges';
   const hienLaiVay = nhomCauHinh === 'interest';
   const hienCongThuc = nhomCauHinh === 'formulas';
+  // anCotCPSX: ẩn cột CPSX khi chỉ xem hao hụt riêng lẻ
+  // anCotPhiHao: không dùng nữa (CPSX luôn hiện cả hai cột)
   const anCotCPSX = hienHaoHut && !hienSanXuat && !hienCongThuc;
-  const anCotPhiHao = hienSanXuat && !hienHaoHut && !hienCongThuc;
+  const anCotPhiHao = false;
   const tongLaiNam = hangSo.interestBase + hangSo.interestSpread;
   const mocNgayLaiVay = [14, 30, 45, 90];
   const dinhDangTyLeLaiNgay = (days: number) => ((tongLaiNam / 365) * days * 100).toFixed(3);
@@ -313,20 +303,57 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                         <th>Độ dày (mic)</th>
                         <th>Giá (VNĐ/kg)</th>
                         <th>Giá (VNĐ/m²)</th>
+                        <th></th>
                       </tr>
                     </thead>
                     <tbody>
-                      {vatLieu.map((m, idx) => (
-                        <tr key={m.id}>
-                          <td style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
-                          <td style={{fontWeight:600}}>{m.name} <span style={{fontSize:'0.75rem', color:'var(--dim)'}}>{m.id}</span></td>
-                          <td>{m.density}</td>
-                          <td><input type="number" className="config-inline-input" value={m.thickness} onChange={(e) => capNhatVatLieu(m.id, { thickness: parseFloat(e.target.value)||0 })} style={{width:'80px', textAlign:'right'}} /></td>
-                          <td><input type="number" className="config-inline-input" value={m.pricePerKg} onChange={(e) => capNhatVatLieu(m.id, { pricePerKg: parseFloat(e.target.value)||0 })} style={{width:'100px', textAlign:'right', fontWeight:700}} /></td>
-                          <td style={{fontWeight:700, color:'var(--accent)'}}>{m.pricePerM2?.toLocaleString('vi-VN', {maximumFractionDigits:0})} đ</td>
-                        </tr>
-                      ))}
+                      {vatLieu.map((m, idx) => {
+                        const laCustom = m.id.startsWith('custom-');
+                        return (
+                          <tr key={m.id}>
+                            <td style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
+                            <td style={{fontWeight:600}}>
+                              {laCustom
+                                ? <input type="text" className="config-inline-input" value={m.name}
+                                    onChange={e => capNhatVatLieu(m.id, { name: e.target.value })}
+                                    style={{width:'120px', fontWeight:600}} />
+                                : m.name}
+                            </td>
+                            <td>
+                              {laCustom
+                                ? <input type="number" className="config-inline-input" value={m.density}
+                                    onChange={e => capNhatVatLieu(m.id, { density: parseFloat(e.target.value)||0 })}
+                                    style={{width:'70px', textAlign:'right'}} />
+                                : m.density}
+                            </td>
+                            <td><input type="number" className="config-inline-input" value={m.thickness} onChange={(e) => capNhatVatLieu(m.id, { thickness: parseFloat(e.target.value)||0 })} style={{width:'80px', textAlign:'right'}} /></td>
+                            <td><input type="number" className="config-inline-input" value={m.pricePerKg} onChange={(e) => capNhatVatLieu(m.id, { pricePerKg: parseFloat(e.target.value)||0 })} style={{width:'100px', textAlign:'right', fontWeight:700}} /></td>
+                            <td style={{fontWeight:700, color:'var(--accent)'}}>{m.pricePerM2?.toLocaleString('vi-VN', {maximumFractionDigits:0})} đ</td>
+                            <td style={{textAlign:'center'}}>
+                              {laCustom && (
+                                <button className="btn btn-sm" title="Xóa màng này"
+                                  style={{color:'var(--danger,#e53e3e)', background:'transparent', border:'none', cursor:'pointer', fontSize:'1rem', padding:'2px 6px'}}
+                                  onClick={() => { if (confirm(`Xóa màng "${m.name}"?`)) xoaVatLieu(m.id); }}>
+                                  ✕
+                                </button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
+                    <tfoot>
+                      <tr>
+                        <td colSpan={7} style={{paddingTop:'10px'}}>
+                          <button className="btn btn-sm btn-outline" onClick={() => {
+                            const id = `custom-${Date.now()}`;
+                            themVatLieu({ id, name: 'Màng mới', density: 0.92, thickness: 15, pricePerKg: 0, isPETorPA: false, rollLength: 5000, inkPricePerColor: 120 });
+                          }}>
+                            + Thêm màng
+                          </button>
+                        </td>
+                      </tr>
+                    </tfoot>
                   </table>
                 </div>
                 <p className="config-note">Chỉnh <strong>độ dày</strong> và <strong>giá VNĐ/kg</strong> - giá VNĐ/m² tự động tính lại. Thay đổi sẽ áp dụng ngay cho lần tính giá tiếp theo.</p>
@@ -378,7 +405,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           {hienPhuPhi && <KhoiPhienBan scope="surcharges" />}
           {hienCongThuc && <KhoiPhienBan scope="production" />}
           {hienCongThuc && <KhoiPhienBan scope="waste" />}
-          {(hienSanXuat || hienHaoHut || hienPhuPhi || hienCongThuc) && <div className="config-group-header" id="sect-config-in" style={{scrollMarginTop: '80px'}}>🖨️ CPSX Khâu in</div>}
+          {(hienSanXuat || hienHaoHut || hienCongThuc) && <div className="config-group-header" id="sect-config-in" style={{scrollMarginTop: '80px'}}>🖨️ CPSX Khâu in</div>}
           {/* 1.6 Đơn giá trục in */}
           {hienSanXuat && (
           <div className="card config-card">
@@ -447,7 +474,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           </div>
           )}
           {/* 1.3 Công Thức Tính Phi Hao In */}
-          {hienHaoHut && (
+          {(hienHaoHut || hienSanXuat) && (
           <div className="card config-card">
             <div className="config-section-title"><span>📉 Công Thức Tính Phi Hao In</span></div>
             <div className="config-table-wrap">
@@ -511,7 +538,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           </div>
           )}
           {/* 1.3 Phụ phí nhũ / phủ mờ */}
-          {hienPhuPhi && (
+          {hienSanXuat && (
           <div className="card config-card">
             <div className="config-section-title"><span>✨ Phụ Phí Nhũ / Phủ Mờ</span></div>
             <div className="config-cpsx-grid">
@@ -867,4 +894,3 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     </div>
   );
 }
-

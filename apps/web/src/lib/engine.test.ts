@@ -1,4 +1,4 @@
-/**
+﻿/**
  * engine.test.ts — Test cases cho engine.ts
  * Chạy: npx tsx src/lib/engine.test.ts
  */
@@ -338,9 +338,10 @@ section('12. numColors=0 — hàng CPSX IN vẫn hiện, nhưng phi hao=0 và CP
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-section('13. Bảng MOQ — layerMeters phải chia numImages');
-// ════════════════════════════════════════════════════════════════════════════
-// Lỗi vừa sửa: MOQ table hiển thị meters+waste toàn khổ thay vì per-image
+// =============================================================================
+section('13. Bảng MOQ — layerMeters hiển thị tổng, không chia numImages');
+// =============================================================================
+// Theo yêu cầu hiện tại: MOQ và Số lượng theo cuộn màng dùng tổng mét cả khổ, không chia theo con hình.
 
 {
   const ni = 2;
@@ -348,19 +349,13 @@ section('13. Bảng MOQ — layerMeters phải chia numImages');
   if (rMoq) {
     const printLayer = rMoq.layers.print;
     const metersTotal = printLayer.meters + printLayer.waste;
-    const metersPerImage = metersTotal / ni;
+    const displayedMeters = metersTotal;
 
-    assert('MOQ: metersTotal > metersPerImage khi numImages=2', metersTotal > metersPerImage);
-    assertApprox('MOQ: metersPerImage = metersTotal / numImages', metersPerImage, metersTotal / ni, 0.01);
-
-    // Đảm bảo giá trị per-image = 50% tổng (khi numImages=2)
-    assertApprox('MOQ: per-image bằng 50% tổng khi numImages=2',
-      metersPerImage, metersTotal / 2, 0.01
-    );
+    assert('MOQ: displayedMeters giữ nguyên tổng mét khi numImages=2', displayedMeters === metersTotal);
+    assert('MOQ: displayedMeters không bị chia theo numImages', displayedMeters !== metersTotal / ni);
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════
 section('14. Stat card Khổ Thành Phẩm vs Khổ Màng NL');
 // ════════════════════════════════════════════════════════════════════════════
 // Lỗi vừa sửa: 2 stat card hiện cùng giá trị (đều = spreadWidth×numImages+0.02)
