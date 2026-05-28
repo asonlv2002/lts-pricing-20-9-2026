@@ -3,7 +3,7 @@ import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import { HistoryItem, QuoteStatus, QuoteTerms } from '../../lib/types';
 import { tinhBaoGia } from '../../lib/manager-calculation';
 import { dongBoCotLoiNhuan } from '../../lib/engine';
-import { luuLocalStorage, LS_HISTORY } from '../helpers';
+import { luuLocalStorage, LS_HISTORY, autoAddCustomerIfNeeded } from '../helpers';
 
 export interface HistorySlice {
   history: HistoryItem[];
@@ -54,6 +54,9 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       };
       const history = [item, ...state.history].slice(0, 200);
       luuLocalStorage(LS_HISTORY, history);
+
+      // Auto-create customer if not yet in the customer list
+      autoAddCustomerIfNeeded(item.customer, state.currentSellerId, state.currentSellerName);
 
       setTimeout(() => {
         get().ghiNhatKy({

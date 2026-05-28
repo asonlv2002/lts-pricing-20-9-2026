@@ -1,19 +1,23 @@
-"use client";
+﻿"use client";
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle, ArrowLeft, Briefcase, Building2, ChevronDown, ChevronRight,
   Copy, Download, Eye, FileText, Grid3X3, Hash, LayoutList, Lock,
   Mail, MapPin, Package, Pencil, Phone, Plus, Save, Search,
-  Shield, Unlock, User, Users, X
+  Shield, Unlock, User, Users, X, ClipboardList, RotateCcw, Check
 } from 'lucide-react';
 import seedCustomers from '../data/customers.json';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import type { AuditEntry } from '../lib/types';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type CustomerStatus = 'active' | 'inactive';
+// 5-state CRM status per spec
+type CrmStatus = 'lead' | 'negotiating' | 'active' | 'paused' | 'inactive';
 type CustomerType = 'company' | 'individual';
 type Role = 'admin' | 'sale' | 'purchase' | string;
 type ViewMode = 'grid' | 'table';
+type MainTab = 'list' | 'audit';
 
 interface Customer {
   id: string;
@@ -24,7 +28,8 @@ interface Customer {
   contactName?: string;
   phone?: string;
   email?: string;
-  address?: string;
+  invoiceAddress?: string;  // Địa chỉ xuất hóa đơn
+  address?: string;         // Địa chỉ giao hàng
   region?: string;
   customerGroup?: string;
   sellerId?: string | null;
@@ -36,6 +41,7 @@ interface Customer {
   assignmentHistory?: string[];
   assignmentNote?: string;
   status: CustomerStatus;
+  crmStatus?: CrmStatus;    // 5-state CRM status
   isLocked: boolean;
   notes?: string;
   createdAt: string;
@@ -61,12 +67,39 @@ const SELLERS = [
   { id: 'S3', name: 'Lê Thu Hà' },
 ];
 const emptyFilters: CustomerFilters = { keyword: '', sellerId: '', customerGroup: '', status: 'all', region: '', createdFrom: '', createdTo: '' };
-const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', secondarySellerId: null, secondarySellerName: '', status: 'active', isLocked: false, notes: '', contactTitle: '', contactNotes: '', assignmentHistory: [], assignmentNote: '', createdAt: '', updatedAt: '' };
+const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', invoiceAddress: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', secondarySellerId: null, secondarySellerName: '', status: 'active', crmStatus: 'lead', isLocked: false, notes: '', contactTitle: '', contactNotes: '', assignmentHistory: [], assignmentNote: '', createdAt: '', updatedAt: '' };
+
+// 5-state CRM status config per spec
+const CRM_STATUS_CONFIG: Record<CrmStatus, { label: string; dot: string; bg: string; text: string }> = {
+  lead:        { label: 'Mới (Lead)',          dot: '●', bg: '#eff6ff', text: '#1d4ed8' },
+  negotiating: { label: 'Đang tương tác',      dot: '●', bg: '#fffbeb', text: '#b45309' },
+  active:      { label: 'Đang hoạt động',      dot: '●', bg: '#f0fdf4', text: '#166534' },
+  paused:      { label: 'Tạm ngưng',           dot: '●', bg: '#f3f4f6', text: '#4b5563' },
+  inactive:    { label: 'Ngừng hợp tác',       dot: '●', bg: '#e5e7eb', text: '#6b7280' },
+};
+
+// 12 required fields for completeness tracking
+const REQUIRED_FIELDS: { key: keyof Customer; label: string }[] = [
+  { key: 'companyName',    label: 'Tên công ty / khách hàng' },
+  { key: 'taxCode',        label: 'Mã số thuế' },
+  { key: 'invoiceAddress', label: 'Địa chỉ xuất hóa đơn' },
+  { key: 'contactName',    label: 'Người liên hệ' },
+  { key: 'phone',          label: 'Số điện thoại' },
+  { key: 'email',          label: 'Email' },
+  { key: 'contactTitle',   label: 'Chức vụ người liên hệ' },
+  { key: 'address',        label: 'Địa chỉ giao hàng' },
+  { key: 'customerCode',   label: 'Mã khách hàng' },
+  { key: 'sellerId',       label: 'Sale phụ trách' },
+  { key: 'crmStatus',      label: 'Trạng thái CRM' },
+  { key: 'notes',          label: 'Ghi chú' },
+];
 
 const FIELD_LABELS: Record<string, string> = {
   customerType: 'Loại khách hàng', customerCode: 'Mã khách hàng', companyName: 'Tên công ty', taxCode: 'Mã số thuế',
-  contactName: 'Người liên hệ', phone: 'Số điện thoại', email: 'Email', address: 'Địa chỉ',
+  contactName: 'Người liên hệ', phone: 'Số điện thoại', email: 'Email', address: 'Địa chỉ giao hàng',
+  invoiceAddress: 'Địa chỉ xuất hóa đơn',
   region: 'Khu vực', customerGroup: 'Nhóm khách hàng', sellerId: 'Sale phụ trách', secondarySellerId: 'Sale phụ', notes: 'Ghi chú', contactTitle: 'Chức vụ', contactNotes: 'Ghi chú liên hệ', assignmentNote: 'Ghi chú phân công',
+  crmStatus: 'Trạng thái CRM',
 };
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -77,9 +110,27 @@ const typeLabel = (c: Customer) => isIndividual(c) ? 'Cá nhân' : 'Doanh nghi�
 const todayIso = () => new Date().toISOString();
 const fmtDate = (v?: string) => v ? new Date(v).toLocaleDateString('vi-VN') : '-';
 const statusLabel = (c: Customer) => c.isLocked ? 'Đã khóa' : c.status === 'active' ? 'Đang sử dụng' : 'Ngừng sử dụng';
-const normalize = (v?: string | null) => (v ?? '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+const normalize = (v?: string | null) => (v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const canEdit = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || (role === 'sale' && c.sellerId === sellerId && !c.isLocked);
 const canLock = (role: Role) => role === 'admin';
+
+// Completeness: count filled required fields
+function getCompleteness(c: Customer): { filled: number; total: number; missing: string[] } {
+  const missing: string[] = [];
+  for (const f of REQUIRED_FIELDS) {
+    const v = c[f.key];
+    const empty = v === null || v === undefined || String(v).trim() === '';
+    if (empty) missing.push(f.label);
+  }
+  return { filled: REQUIRED_FIELDS.length - missing.length, total: REQUIRED_FIELDS.length, missing };
+}
+
+// Derive CRM status from history data (auto-progression logic)
+function getCrmStatus(c: Customer, relatedQuotes: { quoteStatus?: string; chotGia?: number }[] = []): CrmStatus {
+  if (relatedQuotes.some(h => h.quoteStatus === 'completed' || !!h.chotGia)) return 'active';
+  if (relatedQuotes.some(h => h.quoteStatus === 'sent' || h.quoteStatus === 'approved' || h.quoteStatus === 'pending_approval')) return 'negotiating';
+  return c.crmStatus ?? 'lead';
+}
 
 // Avatar color palette
 const AVATAR_COLORS = ['#0891b2','#7c3aed','#db2777','#ea580c','#059669','#4f46e5','#0d9488','#b91c1c','#7c2d12','#1d4ed8'];
@@ -157,9 +208,9 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
   };
 
   const stepFields: Record<number, (keyof Customer)[]> = {
-    0: ['customerCode', 'companyName', 'taxCode', 'customerGroup', 'region', 'address'],
+    0: ['customerCode', 'companyName', 'taxCode', 'customerGroup', 'region', 'address', 'invoiceAddress'],
     1: ['contactName', 'contactTitle', 'phone', 'email', 'contactNotes'],
-    2: ['sellerId', 'secondarySellerId', 'assignmentNote', 'notes'],
+    2: ['sellerId', 'secondarySellerId', 'crmStatus', 'assignmentNote', 'notes'],
   };
 
   const validateStep = (s: number) => {
@@ -223,7 +274,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
 
   const Field = ({ k, icon, required, type = 'text', helper }: { k: keyof Customer; icon: React.ReactNode; required?: boolean; type?: string; helper?: string }) => {
     const err = errors[String(k)];
-    const isSelect = k === 'sellerId' || k === 'secondarySellerId' || k === 'status';
+    const isSelect = k === 'sellerId' || k === 'secondarySellerId' || k === 'status' || k === 'crmStatus';
     const disabled = isLockedEdit && k !== 'notes' && k !== 'assignmentNote';
     return (
       <div className="crm2-field">
@@ -235,6 +286,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
             {(k === 'sellerId' || k === 'secondarySellerId') && <option value="">{k === 'sellerId' ? 'Chưa phân công' : 'Không có sale phụ'}</option>}
             {(k === 'sellerId' || k === 'secondarySellerId') && SELLERS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
             {k === 'status' && <><option value="active">Đang sử dụng</option><option value="inactive">Ngừng sử dụng</option></>}
+            {k === 'crmStatus' && (Object.entries(CRM_STATUS_CONFIG) as [CrmStatus, typeof CRM_STATUS_CONFIG[CrmStatus]][]).map(([v, cfg]) => <option key={v} value={v}>{cfg.label}</option>)}
           </select>
         ) : (k === 'notes' || k === 'assignmentNote') ? (
           <textarea id={`wiz-${String(k)}`} className={`crm2-input crm2-textarea${err ? ' crm2-input--error' : ''}`} rows={3} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value)} placeholder={k === 'assignmentNote' ? 'VD: Lý do phân công, chuyển phụ trách hoặc thu hồi...' : 'VD: Điều khoản, thói quen đặt hàng, công nợ...'} disabled={disabled} />
@@ -302,6 +354,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
             <Field k="customerGroup" icon={<Users size={12}/>} helper="VD: Key account, FMCG, Khách lẻ" />
             <Field k="region" icon={<MapPin size={12}/>} helper="Tỉnh/thành hoặc khu vực" />
             <Field k="address" icon={<MapPin size={12}/>} helper="Địa chỉ giao dịch/giao hàng" />
+            <Field k="invoiceAddress" icon={<FileText size={12}/>} helper="Địa chỉ xuất hóa đơn (nếu khác địa chỉ giao hàng)" />
           </div>
         </div>
       )}
@@ -339,6 +392,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
           <div className="crm2-wizard-grid">
             {role === 'admin' && <Field k="sellerId" icon={<Briefcase size={12}/>} helper="Sale chính được phân công sẽ thấy KH này" />}
             {role === 'admin' && <Field k="secondarySellerId" icon={<Users size={12}/>} helper="Sale phụ cùng theo dõi/hỗ trợ" />}
+            <Field k="crmStatus" icon={<Shield size={12}/>} helper="Trạng thái quan hệ khách hàng" />
             <Field k="assignmentNote" icon={<FileText size={12}/>} helper="Lý do phân công/chuyển phụ trách/thu hồi" />
             <Field k="notes" icon={<FileText size={12}/>} helper="Điều khoản, thói quen đặt hàng, công nợ..." />
           </div>
@@ -376,30 +430,45 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
 }
 
 // ── Slide-in Detail Panel ────────────────────────────────────────────────────
-function CustomerDetailPanel({ customer, onClose }: { customer: Customer; onClose: () => void }) {
+function CustomerDetailPanel({ customer, role, currentSellerId, onClose, onEdit, onNavigate }: {
+  customer: Customer; role: Role; currentSellerId?: string;
+  onClose: () => void; onEdit: () => void;
+  onNavigate: (module: string, filter: string) => void;
+}) {
   const [activeTab, setActiveTab] = useState<'info' | 'quotes' | 'products'>('info');
+  const [txDropOpen, setTxDropOpen] = useState(false);
   const history = dungCuaHangTinhGia(s => s.history);
   const loadHistoryItem = dungCuaHangTinhGia(s => s.loadHistoryItem);
   const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
+  const auditLog = dungCuaHangTinhGia(s => s.auditLog);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  const related = history.filter(h =>
-    normalize(h.customer).includes(normalize(displayName(customer))) ||
-    normalize(h.input?.customer).includes(normalize(displayName(customer)))
-  );
+  const { filled, total, missing } = getCompleteness(customer);
+  const related = history.filter(h => normalize(h.customer).includes(normalize(displayName(customer))) || normalize(h.input?.customer).includes(normalize(displayName(customer))));
+  const crmStatus = getCrmStatus(customer, related);
+  const crmCfg = CRM_STATUS_CONFIG[crmStatus];
+  const pct = Math.round((filled / total) * 100);
+
   const products = Array.from(
     new Map(related.map(h => [`${h.productName}-${h.structure}`, h])).values()
   );
+
+  // Customer-specific audit entries
+  const customerAudit = auditLog?.filter(e =>
+    (e.targetName && normalize(e.targetName).includes(normalize(displayName(customer)))) ||
+    (e.targetId && e.targetId === customer.id)
+  ) ?? [];
 
   const infoFields: [string, string | undefined | null][] = [
     ['Loại khách hàng', typeLabel(customer)],
     ['Mã khách hàng', customer.customerCode],
     ['Mã số thuế', customer.taxCode],
+    ['Địa chỉ xuất HĐ', customer.invoiceAddress],
+    ['Địa chỉ giao hàng', customer.address],
     ['Người liên hệ', customer.contactName],
     ['Chức vụ', customer.contactTitle],
     ['Số điện thoại', customer.phone],
     ['Email', customer.email],
-    ['Địa chỉ', customer.address],
     ['Khu vực', customer.region],
     ['Nhóm khách hàng', customer.customerGroup],
     ['Sale phụ', customer.secondarySellerName || customer.secondarySellerId],
@@ -413,7 +482,7 @@ function CustomerDetailPanel({ customer, onClose }: { customer: Customer; onClos
   return (
     <>
       <div className="crm2-overlay crm2-overlay--open" onClick={onClose} />
-      <div className="crm2-slide-panel crm2-slide-panel--open" ref={panelRef}>
+      <div className="crm2-slide-panel crm2-slide-panel--open" ref={panelRef} role="dialog" aria-modal="true" aria-label={`Chi tiết khách hàng ${displayName(customer)}`}>
         {/* Panel header */}
         <div className="crm2-panel-header">
           <div className="crm2-panel-avatar" style={{ background: getAvatarColor(customer.id) }}>
@@ -426,11 +495,47 @@ function CustomerDetailPanel({ customer, onClose }: { customer: Customer; onClos
               <span className="crm2-dot">·</span>
               <span>{typeLabel(customer)}</span>
               <span className="crm2-dot">·</span>
-              <span className={`crm2-status-badge crm2-status-badge--${customer.isLocked ? 'locked' : customer.status}`}>{statusLabel(customer)}</span>
+              <span className="crm2-crm-badge" style={{ background: crmCfg.bg, color: crmCfg.text, fontSize: 11 }}>
+                {crmCfg.dot} {crmCfg.label}
+              </span>
+            </div>
+            <div className="crm2-panel-progress">
+              <div className="crm2-card-progress-bar" style={{ flex: 1 }}>
+                <div className="crm2-card-progress-fill" style={{ width: `${pct}%`, background: pct === 100 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#ef4444' }} role="progressbar" aria-valuenow={filled} aria-valuemax={total} />
+              </div>
+              <span style={{ fontSize: 11, color: 'var(--muted,#6b7280)', whiteSpace: 'nowrap' }}>{filled}/{total}</span>
             </div>
             <span className="crm2-panel-seller"><Briefcase size={11}/> {customer.sellerName || customer.sellerId || 'Chưa phân'}</span>
           </div>
           <button className="crm2-btn-icon crm2-btn-icon--close" aria-label="Đóng" onClick={onClose}><X size={18}/></button>
+        </div>
+
+        {/* Action bar */}
+        <div className="crm2-panel-actions">
+          {canEdit(role, customer, currentSellerId) && (
+            <button className="crm2-btn crm2-btn--ghost" style={{ fontSize: 12, padding: '6px 10px' }} onClick={onEdit}>
+              <Pencil size={13}/> Chỉnh sửa
+            </button>
+          )}
+          {/* Hồ sơ giao dịch dropdown */}
+          <div className="crm2-dropdown-wrap" style={{ position: 'relative' }}>
+            <button className="crm2-btn crm2-btn--ghost" style={{ fontSize: 12, padding: '6px 10px' }} onClick={() => setTxDropOpen(v => !v)}>
+              <ClipboardList size={13}/> Hồ sơ giao dịch <ChevronDown size={12}/>
+            </button>
+            {txDropOpen && (
+              <div className="crm2-dropdown-menu" style={{ minWidth: 200 }} onClick={() => setTxDropOpen(false)}>
+                <button onClick={() => onNavigate('history_db', displayName(customer))}>
+                  <FileText size={13}/> Bảng báo giá
+                </button>
+                <button onClick={() => onNavigate('production_orders', displayName(customer))}>
+                  <Package size={13}/> Lệnh sản xuất
+                </button>
+                <button onClick={() => onNavigate('history_db', displayName(customer))}>
+                  <ClipboardList size={13}/> Sản phẩm liên quan
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Tabs */}
@@ -449,23 +554,30 @@ function CustomerDetailPanel({ customer, onClose }: { customer: Customer; onClos
         {/* Tab content */}
         <div className="crm2-panel-body">
           {activeTab === 'info' && (
-            <div className="crm2-info-grid">
-              {infoFields.map(([label, value]) => (
-                <div className="crm2-info-item" key={label}>
-                  <span className="crm2-info-label">{label}</span>
-                  <span className="crm2-info-value">{value || <span style={{ opacity: 0.4 }}>—</span>}</span>
-                </div>
-              ))}
-              {(customer.assignmentHistory?.length ?? 0) > 0 && (
-                <div className="crm2-info-item crm2-info-item--full">
-                  <span className="crm2-info-label">Lịch sử phân công</span>
-                  <div className="crm2-info-history">
-                    {customer.assignmentHistory!.map((entry, i) => (
-                      <div key={i} className="crm2-info-history-item">{entry}</div>
-                    ))}
-                  </div>
+            <div>
+              {missing.length > 0 && (
+                <div className="crm2-alert crm2-alert--orange" style={{ marginBottom: 16 }}>
+                  <AlertCircle size={14}/> Thiếu {missing.length} trường: {missing.slice(0, 3).join(', ')}{missing.length > 3 ? ` và ${missing.length - 3} trường khác` : ''}
                 </div>
               )}
+              <div className="crm2-info-grid">
+                {infoFields.map(([label, value]) => (
+                  <div className="crm2-info-item" key={label}>
+                    <span className="crm2-info-label">{label}</span>
+                    <span className="crm2-info-value">{value || <span style={{ opacity: 0.4 }}>—</span>}</span>
+                  </div>
+                ))}
+                {(customer.assignmentHistory?.length ?? 0) > 0 && (
+                  <div className="crm2-info-item crm2-info-item--full">
+                    <span className="crm2-info-label">Lịch sử phân công</span>
+                    <div className="crm2-info-history">
+                      {customer.assignmentHistory!.map((entry, i) => (
+                        <div key={i} className="crm2-info-history-item">{entry}</div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -576,15 +688,22 @@ function AssignSellerDialog({ customer, onSave, onClose }: { customer: Customer;
 }
 
 // ── Customer Card ────────────────────────────────────────────────────────────
-function CustomerCard({ customer, role, currentSellerId, onView, onEdit, onToggleLock, onAssign }: {
-  customer: Customer; role: Role; currentSellerId?: string;
+function CustomerCard({ customer, role, currentSellerId, relatedQuotes = [], onView, onEdit, onToggleLock, onAssign }: {
+  customer: Customer; role: Role; currentSellerId?: string; relatedQuotes?: { quoteStatus?: string; chotGia?: number }[];
   onView: () => void; onEdit: () => void;
   onToggleLock: () => void; onAssign: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
+  const { filled, total, missing } = getCompleteness(customer);
+  const crmStatus = getCrmStatus(customer, relatedQuotes);
+  const crmCfg = CRM_STATUS_CONFIG[crmStatus];
+  const pct = Math.round((filled / total) * 100);
+  const hasWarning = missing.length > 0;
+
   return (
-    <div
+    <article
       className="crm2-card"
+      aria-label={`Khách hàng ${displayName(customer)}`}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onClick={onView}
@@ -594,19 +713,35 @@ function CustomerCard({ customer, role, currentSellerId, onView, onEdit, onToggl
           {getInitials(customer)}
         </div>
         <div className="crm2-card-identity">
-          <span className="crm2-card-name">{displayName(customer)}</span>
+          <span className="crm2-card-name">
+            {hasWarning && <span className="crm2-missing-dot" aria-label={`Thiếu ${missing.length} trường thông tin bắt buộc`} title={`Thiếu: ${missing.slice(0,3).join(', ')}${missing.length > 3 ? '...' : ''}`}>!</span>}
+            {displayName(customer)}
+          </span>
           <span className="crm2-card-code">{customer.customerCode}</span>
         </div>
-        <span className={`crm2-status-badge crm2-status-badge--${customer.isLocked ? 'locked' : customer.status}`}>
-          {statusLabel(customer)}
+        <span className="crm2-crm-badge" style={{ background: crmCfg.bg, color: crmCfg.text }}>
+          {crmCfg.dot} {crmCfg.label}
         </span>
       </div>
       <div className="crm2-card-info">
         {customer.phone && <span className="crm2-card-info-row"><Phone size={12}/>{customer.phone}</span>}
         {customer.email && <span className="crm2-card-info-row crm2-card-info-row--truncate"><Mail size={12}/>{customer.email}</span>}
         {customer.region && <span className="crm2-card-info-row"><MapPin size={12}/>{customer.region}</span>}
-        {customer.sellerName && <span className="crm2-card-info-row"><Briefcase size={12}/>{customer.sellerName}</span>}
+        {customer.sellerName
+          ? <span className="crm2-card-info-row"><Briefcase size={12}/>{customer.sellerName}</span>
+          : role === 'admin' && <span className="crm2-card-info-row crm2-card-info-row--warn"><Briefcase size={12}/>Chưa phân công <button className="crm2-assign-inline" onClick={e => { e.stopPropagation(); onAssign(); }}>+</button></span>
+        }
       </div>
+      {/* Completeness bar */}
+      <div className="crm2-card-progress">
+        <div className="crm2-card-progress-bar">
+          <div className="crm2-card-progress-fill" style={{ width: `${pct}%`, background: pct === 100 ? '#22c55e' : pct >= 70 ? '#f59e0b' : '#ef4444' }} role="progressbar" aria-valuenow={filled} aria-valuemax={total} aria-label={`Hoàn thiện ${filled}/${total} trường`} />
+        </div>
+        <span className="crm2-card-progress-label">{filled}/{total}</span>
+      </div>
+      {hasWarning && (
+        <div className="crm2-card-missing">Thiếu: {missing.slice(0, 2).join(', ')}{missing.length > 2 ? ` +${missing.length - 2}` : ''}</div>
+      )}
       {/* Quick actions on hover */}
       <div className={`crm2-card-actions${hovered ? ' crm2-card-actions--visible' : ''}`}>
         <button className="crm2-btn-icon" title="Xem chi tiết" onClick={e => { e.stopPropagation(); onView(); }}><Eye size={14}/></button>
@@ -614,6 +749,296 @@ function CustomerCard({ customer, role, currentSellerId, onView, onEdit, onToggl
         {role === 'admin' && <button className="crm2-btn-icon" title="Phân công Seller" onClick={e => { e.stopPropagation(); onAssign(); }}><Briefcase size={14}/></button>}
         {canLock(role) && <button className="crm2-btn-icon" title={customer.isLocked ? 'Mở khóa' : 'Khóa'} onClick={e => { e.stopPropagation(); onToggleLock(); }}>{customer.isLocked ? <Unlock size={14}/> : <Lock size={14}/>}</button>}
       </div>
+    </article>
+  );
+}
+
+// ── Customer Audit Tab ───────────────────────────────────────────────────────
+type AuditTimeRange = 'today' | '7days' | '30days' | 'month' | 'custom';
+
+const CUSTOMER_AUDIT_ACTIONS: { value: string; label: string }[] = [
+  { value: 'create', label: 'Tạo mới (Tạo hồ sơ)' },
+  { value: 'update', label: 'Chỉnh sửa thông tin' },
+  { value: 'status_change', label: 'Thay đổi trạng thái KH' },
+];
+
+const CUSTOMER_DATA_FIELDS: { value: string; label: string }[] = [
+  { key: 'companyName', label: 'Tên khách hàng / Tên công ty' },
+  { key: 'taxCode', label: 'Mã số thuế (MST)' },
+  { key: 'invoiceAddress', label: 'Địa chỉ xuất hóa đơn' },
+  { key: 'contactName', label: 'Người liên hệ trực tiếp' },
+  { key: 'phone', label: 'Số điện thoại liên hệ' },
+  { key: 'email', label: 'Email chính' },
+  { key: 'contactTitle', label: 'Chức vụ người liên hệ' },
+  { key: 'address', label: 'Địa chỉ giao hàng' },
+  { key: 'customerCode', label: 'Mã khách hàng' },
+  { key: 'sellerId', label: 'Nhân viên Sale phụ trách' },
+  { key: 'crmStatus', label: 'Tag trạng thái' },
+  { key: 'notes', label: 'Ghi chú (Note)' },
+].map(f => ({ value: f.key, label: f.label }));
+
+function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry[]; customers: Customer[]; users?: { id: string; name: string }[] }) {
+  // 4 filters per spec
+  const [filterAction, setFilterAction] = useState<Set<string>>(new Set());
+  const [filterUser, setFilterUser] = useState('');
+  const [filterField, setFilterField] = useState<Set<string>>(new Set());
+  const [timeRange, setTimeRange] = useState<AuditTimeRange>('7days');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [search, setSearch] = useState('');
+
+  const allUsers = useMemo(() => {
+    const seen = new Map<string, string>();
+    for (const e of auditLog) {
+      if (!seen.has(e.userId)) seen.set(e.userId, e.userName);
+    }
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+  }, [auditLog]);
+
+  const filtered = useMemo(() => {
+    // Time range
+    const now = new Date();
+    const end = new Date(now); end.setHours(23,59,59,999);
+    const start = new Date(now);
+    if (timeRange === 'today') start.setHours(0,0,0,0);
+    else if (timeRange === '7days') { start.setDate(start.getDate() - 6); start.setHours(0,0,0,0); }
+    else if (timeRange === '30days') { start.setDate(start.getDate() - 29); start.setHours(0,0,0,0); }
+    else if (timeRange === 'month') { start.setDate(1); start.setHours(0,0,0,0); }
+    else if (timeRange === 'custom') {
+      const s = customFrom ? new Date(customFrom) : new Date(0);
+      const e2 = customTo ? new Date(customTo) : end;
+      s.setHours(0,0,0,0); e2.setHours(23,59,59,999);
+      return filterEntries(s, e2);
+    }
+
+    return filterEntries(start, end);
+  }, [auditLog, filterAction, filterUser, filterField, timeRange, customFrom, customTo, search]);
+
+  function filterEntries(start: Date, end: Date) {
+    let entries = [...auditLog]
+      .filter(e => {
+        const t = new Date(e.timestamp);
+        return t >= start && t <= end;
+      })
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+
+    if (filterAction.size > 0) entries = entries.filter(e => filterAction.has(e.action));
+    if (filterUser) entries = entries.filter(e => e.userId === filterUser);
+
+    // Filter by data field changed (check before/after keys)
+    if (filterField.size > 0) {
+      entries = entries.filter(e => {
+        if (!e.before && !e.after) return false;
+        const changedKeys = new Set([...Object.keys(e.before || {}), ...Object.keys(e.after || {})]);
+        for (const f of filterField) {
+          if (changedKeys.has(f)) return true;
+        }
+        return false;
+      });
+    }
+
+    if (search.trim()) {
+      const q = normalize(search);
+      entries = entries.filter(e =>
+        normalize(e.action).includes(q) ||
+        normalize(e.userName).includes(q) ||
+        normalize(e.targetName ?? '').includes(q) ||
+        normalize(e.note ?? '').includes(q)
+      );
+    }
+    return entries;
+  }
+
+  const grouped = useMemo(() => {
+    const map = new Map<string, AuditEntry[]>();
+    for (const e of filtered) {
+      const day = e.timestamp.slice(0, 10);
+      if (!map.has(day)) map.set(day, []);
+      map.get(day)!.push(e);
+    }
+    return Array.from(map.entries());
+  }, [filtered]);
+
+  const ACTION_LABELS: Record<string, string> = {
+    create: 'Tạo mới', update: 'Cập nhật', delete: 'Xóa', lock: 'Khóa', unlock: 'Mở khóa',
+    assign: 'Phân công', export: 'Xuất dữ liệu', view: 'Xem', approve: 'Duyệt', reject: 'Từ chối',
+    status_change: 'Đổi trạng thái',
+  };
+  const ACTION_COLORS: Record<string, string> = {
+    create: '#22c55e', update: '#0891b2', delete: '#ef4444', lock: '#f59e0b', unlock: '#10b981',
+    assign: '#8b5cf6', export: '#6b7280', view: '#9ca3af', approve: '#22c55e', reject: '#ef4444',
+    status_change: '#4f46e5',
+  };
+
+  const toggleAction = (a: string) => {
+    setFilterAction(prev => {
+      const next = new Set(prev);
+      if (next.has(a)) next.delete(a); else next.add(a);
+      return next;
+    });
+  };
+
+  const toggleField = (f: string) => {
+    setFilterField(prev => {
+      const next = new Set(prev);
+      if (next.has(f)) next.delete(f); else next.add(f);
+      return next;
+    });
+  };
+
+  const activeChips: Array<{ label: string; clear: () => void }> = [];
+  if (timeRange !== '7days') activeChips.push({ label: { today: 'Hôm nay', '7days': '7 ngày', '30days': '30 ngày', month: 'Tháng này', custom: 'Tùy chỉnh' }[timeRange], clear: () => setTimeRange('7days') });
+  if (filterUser) {
+    const u = allUsers.find(u => u.id === filterUser);
+    activeChips.push({ label: u?.name || filterUser, clear: () => setFilterUser('') });
+  }
+  filterAction.forEach(a => activeChips.push({ label: ACTION_LABELS[a] ?? a, clear: () => toggleAction(a) }));
+  filterField.forEach(f => {
+    const field = CUSTOMER_DATA_FIELDS.find(x => x.value === f);
+    activeChips.push({ label: field?.label ?? f, clear: () => toggleField(f) });
+  });
+
+  return (
+    <div style={{ padding: '0 0 24px' }}>
+      {/* Filter bar */}
+      <div style={{ background: 'var(--card,#fff)', border: '1px solid var(--border,#e5e7eb)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          {/* Time range */}
+          <select className="crm2-input" value={timeRange} onChange={e => setTimeRange(e.target.value as AuditTimeRange)} style={{ width: 130, fontSize: 13 }}>
+            <option value="today">Hôm nay</option>
+            <option value="7days">7 ngày qua</option>
+            <option value="30days">30 ngày qua</option>
+            <option value="month">Tháng này</option>
+            <option value="custom">Tùy chỉnh</option>
+          </select>
+
+          {/* Action filter */}
+          <div style={{ position: 'relative' }}>
+            <select className="crm2-input" value={filterUser} onChange={e => setFilterUser(e.target.value)} style={{ width: 160, fontSize: 13 }}>
+              <option value="">Người thực hiện</option>
+              {allUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+            </select>
+          </div>
+
+          {/* Search */}
+          <div className="crm2-search-bar" style={{ flex: 1, minWidth: 180, marginBottom: 0 }}>
+            <Search size={15} className="crm2-search-icon" />
+            <input className="crm2-search-input" placeholder="Tìm theo hành động, người dùng, ghi chú..." value={search} onChange={e => setSearch(e.target.value)} />
+            {search && <button className="crm2-btn-icon crm2-search-clear" onClick={() => setSearch('')}><X size={13}/></button>}
+          </div>
+        </div>
+
+        {/* Custom date range */}
+        {timeRange === 'custom' && (
+          <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: 'var(--muted,#6b7280)' }}>Từ:</span>
+            <input type="date" className="crm2-input" value={customFrom} onChange={e => setCustomFrom(e.target.value)} style={{ width: 140, fontSize: 13 }} />
+            <span style={{ fontSize: 12, color: 'var(--muted,#6b7280)' }}>Đến:</span>
+            <input type="date" className="crm2-input" value={customTo} onChange={e => setCustomTo(e.target.value)} style={{ width: 140, fontSize: 13 }} />
+          </div>
+        )}
+
+        {/* Advanced: Action type + Data field */}
+        <div style={{ marginTop: 12 }}>
+          {/* Action type checkboxes */}
+          <div style={{ marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted,#6b7280)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 }}>Hành động</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {CUSTOMER_AUDIT_ACTIONS.map(a => (
+                <label key={a.value} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, cursor: 'pointer', padding: '4px 8px', borderRadius: 6, border: `1px solid ${filterAction.has(a.value) ? 'var(--accent,#0891b2)' : 'var(--border,#e5e7eb)'}`, background: filterAction.has(a.value) ? 'color-mix(in srgb, var(--accent,#0891b2) 8%, transparent)' : 'transparent' }}>
+                  <input type="checkbox" checked={filterAction.has(a.value)} onChange={() => toggleAction(a.value)} />
+                  {a.label}
+                </label>
+              ))}
+            </div>
+          </div>
+
+          {/* Data field checkboxes */}
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted,#6b7280)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.3 }}>Trường thay đổi</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {CUSTOMER_DATA_FIELDS.map(f => (
+                <label key={f.value} style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 11.5, cursor: 'pointer', padding: '3px 6px', borderRadius: 4, border: `1px solid ${filterField.has(f.value) ? 'var(--accent,#0891b2)' : 'var(--border,#e5e7eb)'}`, background: filterField.has(f.value) ? 'color-mix(in srgb, var(--accent,#0891b2) 8%, transparent)' : 'transparent' }}>
+                  <input type="checkbox" checked={filterField.has(f.value)} onChange={() => toggleField(f.value)} />
+                  {f.label}
+                </label>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Active filter chips */}
+        {activeChips.length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10, alignItems: 'center' }}>
+            <span style={{ fontSize: 11, color: 'var(--muted,#6b7280)' }}>Đang lọc:</span>
+            {activeChips.map((c, i) => (
+              <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'color-mix(in srgb, var(--accent,#0891b2) 12%, transparent)', color: 'var(--accent,#0891b2)', borderRadius: 10, padding: '2px 8px', fontSize: 11, fontWeight: 500 }}>
+                {c.label}
+                <button onClick={c.clear} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, display: 'flex', color: 'inherit' }}><X size={10}/></button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Count */}
+      <div style={{ fontSize: 11, color: 'var(--muted,#6b7280)', marginBottom: 12 }}>{filtered.length} bản ghi</div>
+
+      {/* Read-only notice */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: '8px 12px', marginBottom: 16, fontSize: 11.5, color: '#0369a1' }}>
+        <Lock size={13} />
+        Nhật ký thao tác không thể chỉnh sửa hoặc xóa bởi bất kỳ ai, kể cả quản trị viên.
+      </div>
+
+      {grouped.length === 0 ? (
+        <div className="crm2-empty-state crm2-empty-state--large">
+          <ClipboardList size={48} strokeWidth={1} />
+          <p>Chưa có nhật ký thao tác</p>
+          <span>Các thao tác trên khách hàng sẽ được ghi lại tại đây</span>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {grouped.map(([day, entries]) => (
+            <div key={day}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--muted,#6b7280)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid var(--border,#e5e7eb)' }}>
+                {new Date(day).toLocaleDateString('vi-VN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+                <span style={{ marginLeft: 8, fontWeight: 400 }}>({entries.length} thao tác)</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                {entries.map(e => {
+                  const color = ACTION_COLORS[e.action] ?? '#9ca3af';
+                  const label = ACTION_LABELS[e.action] ?? e.action;
+                  return (
+                    <div key={e.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderRadius: 8, background: 'var(--card,#fff)', border: '1px solid var(--border,#f3f4f6)' }}>
+                      <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, marginTop: 5, flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 12, fontWeight: 600, color, background: `${color}18`, padding: '2px 7px', borderRadius: 10 }}>{label}</span>
+                          {e.targetName && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground,#111)' }}>{e.targetName}</span>}
+                          <span style={{ fontSize: 12, color: 'var(--muted,#6b7280)', marginLeft: 'auto' }}>{new Date(e.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--muted,#6b7280)', marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <span><User size={11} style={{ display: 'inline', verticalAlign: 'middle' }}/> {e.userName}</span>
+                          {e.note && <span>· {e.note}</span>}
+                        </div>
+                        {/* Show changed fields */}
+                        {(e.before || e.after) && (
+                          <div style={{ marginTop: 4, fontSize: 11, color: 'var(--muted,#6b7280)' }}>
+                            {Array.from(new Set([...Object.keys(e.before || {}), ...Object.keys(e.after || {})])).filter(k => (e.before?.[k]) !== (e.after?.[k])).map(k => {
+                              const fieldLabel = CUSTOMER_DATA_FIELDS.find(f => f.value === k)?.label ?? k;
+                              return <span key={k} style={{ display: 'inline-block', background: '#f3f4f6', padding: '1px 5px', borderRadius: 4, marginRight: 4, marginBottom: 2 }}>{fieldLabel}: <del style={{ color: '#dc2626' }}>{String(e.before?.[k] ?? '—')}</del> → <ins style={{ color: '#059669', textDecoration: 'none' }}>{String(e.after?.[k] ?? '—')}</ins></span>;
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -625,10 +1050,20 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const [editing, setEditing] = useState<Customer | null | undefined>(undefined);
   const [detail, setDetail] = useState<Customer | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [mainTab, setMainTab] = useState<MainTab>('list');
   const [confirm, setConfirm] = useState<{ title: string; desc: string; action: () => void } | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<Customer | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+  const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
+  const auditLog = dungCuaHangTinhGia(s => s.auditLog);
+
+  const handleNavigate = (module: string, filter: string) => {
+    setDetail(null);
+    // Pass customer name as pre-fill filter to target module
+    try { localStorage.setItem('lts_navigate_filter', JSON.stringify({ module, customerName: filter, ts: Date.now() })); } catch {}
+    setActiveModule(module as Parameters<typeof setActiveModule>[0]);
+  };
 
   useEffect(() => setCustomers(loadLocalCustomers()), []);
   useEffect(() => { if (customers.length) saveLocalCustomers(customers); }, [customers]);
@@ -640,6 +1075,17 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     }
     else setEditing(undefined);
   }, [menuDangChon]);
+
+  // Check for quick-add customer from pricing module
+  useEffect(() => {
+    try {
+      const quickName = localStorage.getItem('lts_customer_quick_name');
+      if (quickName) {
+        localStorage.removeItem('lts_customer_quick_name');
+        setEditing({ ...blankCustomer, id: `C${Date.now()}`, customerCode: `KH${String(Date.now()).slice(-5)}`, companyName: quickName, sellerId: role === 'sale' ? currentSellerId : null, sellerName: role === 'sale' ? SELLERS.find(s => s.id === currentSellerId)?.name ?? '' : '', status: 'active', crmStatus: 'lead', createdAt: todayIso(), updatedAt: todayIso() });
+      }
+    } catch {}
+  }, []);
 
   // Ctrl+K shortcut for search
   useEffect(() => {
@@ -733,7 +1179,16 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     <div className="crm2-root">
       <StyleInjector />
       {/* Slide-in detail panel */}
-      {detail && <CustomerDetailPanel customer={detail} onClose={() => setDetail(null)} />}
+      {detail && (
+        <CustomerDetailPanel
+          customer={detail}
+          role={role}
+          currentSellerId={currentSellerId}
+          onClose={() => setDetail(null)}
+          onEdit={() => { setEditing(detail); setDetail(null); }}
+          onNavigate={handleNavigate}
+        />
+      )}
 
       {/* Confirm dialog */}
       {confirm && (
@@ -780,6 +1235,26 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
         </div>
       </header>
 
+      {/* Main tabs: Danh sách KH / Nhật ký thao tác */}
+      <div className="crm2-main-tabs">
+        <button
+          className={`crm2-main-tab${mainTab === 'list' ? ' crm2-main-tab--active' : ''}`}
+          onClick={() => setMainTab('list')}
+        >
+          <Users size={14}/> Danh sách khách hàng
+        </button>
+        <button
+          className={`crm2-main-tab${mainTab === 'audit' ? ' crm2-main-tab--active' : ''}`}
+          onClick={() => setMainTab('audit')}
+        >
+          <ClipboardList size={14}/> Nhật ký thao tác
+        </button>
+      </div>
+
+      {mainTab === 'audit' ? (
+        <CustomerAuditTab auditLog={auditLog?.filter(e => e.targetType === 'customer') ?? []} customers={customers} />
+      ) : (
+        <>
       {/* Search bar */}
       <div className="crm2-search-bar">
         <Search size={16} className="crm2-search-icon"/>
@@ -898,18 +1373,25 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                 <th>Liên hệ</th>
                 <th>Khu vực</th>
                 <th>Seller</th>
+                <th>CRM</th>
                 <th>Trạng thái</th>
                 <th>Thao tác</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map(c => (
+              {filtered.map(c => {
+                const { missing } = getCompleteness(c);
+                const crmCfg = CRM_STATUS_CONFIG[getCrmStatus(c)];
+                return (
                 <tr key={c.id} className="crm2-table-row" onClick={() => setDetail(c)}>
                   <td>
                     <div className="crm2-table-customer">
                       <div className="crm2-table-avatar" style={{ background: getAvatarColor(c.id) }}>{getInitials(c)}</div>
                       <div>
-                        <span className="crm2-table-name">{displayName(c)}</span>
+                        <span className="crm2-table-name">
+                          {missing.length > 0 && <span className="crm2-missing-dot" title={`Thiếu: ${missing.slice(0,3).join(', ')}${missing.length > 3 ? '...' : ''}`}>!</span>}
+                          {displayName(c)}
+                        </span>
                         <span className="crm2-table-code">{c.customerCode} · {typeLabel(c)}</span>
                       </div>
                     </div>
@@ -922,6 +1404,11 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                   </td>
                   <td>{c.region || '-'}</td>
                   <td><span className="crm2-table-seller">{c.sellerName || 'Chưa phân'}</span></td>
+                  <td>
+                    <span className="crm2-crm-badge" style={{ background: crmCfg.bg, color: crmCfg.text, fontSize: 11 }}>
+                      {crmCfg.dot} {crmCfg.label}
+                    </span>
+                  </td>
                   <td>
                     <span className={`crm2-status-badge crm2-status-badge--${c.isLocked ? 'locked' : c.status}`}>
                       {statusLabel(c)}
@@ -944,10 +1431,13 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
+      )}
+        </>
       )}
     </div>
   );
@@ -1412,6 +1902,94 @@ const CRM2_STYLES = `
   .crm2-info-grid { grid-template-columns: 1fr; }
   .crm2-header { flex-direction: column; }
 }
+
+/* CRM badge */
+.crm2-crm-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 10px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Missing dot indicator */
+.crm2-missing-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #ef4444; color: #fff;
+  font-size: 10px; font-weight: 700;
+  margin-right: 5px; flex-shrink: 0;
+  vertical-align: middle;
+}
+
+/* Card completeness bar */
+.crm2-card-progress {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 10px;
+}
+.crm2-card-progress-bar {
+  flex: 1; height: 4px; border-radius: 2px;
+  background: var(--border, #e5e7eb); overflow: hidden;
+}
+.crm2-card-progress-fill {
+  height: 100%; border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.crm2-card-progress-label {
+  font-size: 11px; color: var(--muted, #9ca3af); white-space: nowrap;
+}
+
+/* Card missing fields hint */
+.crm2-card-missing {
+  font-size: 11px; color: #ef4444; margin-top: 4px;
+  padding: 3px 6px; background: #fef2f2; border-radius: 4px;
+}
+
+/* Card info row warn */
+.crm2-card-info-row--warn {
+  color: #f59e0b !important;
+}
+
+/* Inline assign button */
+.crm2-assign-inline {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #f59e0b; color: #fff;
+  font-size: 13px; font-weight: 700; border: none; cursor: pointer;
+  line-height: 1; padding: 0; margin-left: 4px;
+  transition: background 0.15s;
+}
+.crm2-assign-inline:hover { background: #d97706; }
+
+/* Panel action bar */
+.crm2-panel-actions {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 20px; border-bottom: 1px solid var(--border, #e5e7eb);
+  flex-wrap: wrap;
+}
+
+/* Panel progress bar */
+.crm2-panel-progress {
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 6px;
+}
+
+/* Main tabs */
+.crm2-main-tabs {
+  display: flex; gap: 2px; margin-bottom: 20px;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+}
+.crm2-main-tab {
+  display: flex; align-items: center; gap: 6px;
+  padding: 10px 16px; border: none; background: transparent;
+  font-size: 13px; font-weight: 500; cursor: pointer;
+  color: var(--muted, #6b7280); border-bottom: 2px solid transparent;
+  transition: all 0.15s; margin-bottom: -1px;
+}
+.crm2-main-tab:hover { color: var(--foreground, #374151); }
+.crm2-main-tab--active {
+  color: var(--accent, #0891b2);
+  border-bottom-color: var(--accent, #0891b2);
+}
 `;
 
 // Inject styles once
@@ -1427,3 +2005,13 @@ function StyleInjector() {
   }, []);
   return null;
 }
+
+
+
+
+
+
+
+
+
+

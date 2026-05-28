@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React, { useState } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhGiaHieuLuc, xuLyDongGhiDe, type UniRow } from '../lib/manager-calculation';
@@ -483,12 +483,38 @@ export default function ManHinhQuanLy() {
     }
     return calcKg(layerData.material, meters, layerData.width || 0);
   };
-  const renderMaterialBreakdown = (layerData: any) => {
+  const renderMaterialBreakdown = (layerData: any, totalMeters?: number) => {
     if (!layerData?.materials || !layerData?.chiTietVatLieu) return null;
-    return <div style={{ marginTop: '4px', fontSize: '0.68rem', color: 'var(--muted)', lineHeight: 1.35 }}>
-      {layerData.chiTietVatLieu.map((item: any, idx: number) => (
-        <div key={idx}>{item.viTri ? `${item.viTri}. ` : ''}{item.vaiTro === 'front' ? 'TRƯỚC' : item.vaiTro === 'back_bottom' ? 'ĐÁY+SAU' : ''} {item.ten}: {dinhDangSo(item.kho, 3)}m</div>
-      ))}
+    const met = totalMeters ?? (layerData.meters + layerData.waste);
+    // Deduplicate: gộp các entries cùng vatLieuId, cộng kho, lấy soLan từ entry đầu tiên
+    const deduped = (layerData.chiTietVatLieu as any[]).reduce((acc: any[], item: any) => {
+      const existing = acc.find((x: any) => x.vatLieuId === item.vatLieuId);
+      if (existing) {
+        existing.kho += item.kho;
+      } else {
+        acc.push({ ...item });
+      }
+      return acc;
+    }, []);
+    return <div style={{ marginTop: '4px', fontSize: '0.68rem', color: 'var(--muted)', lineHeight: 1.5 }}>
+      {deduped.map((item: any, idx: number) => {
+        const soLan: number = item.soLan ?? 1;
+        const kgTotal = (() => {
+          const mat = layerData.materials?.find((m: any) => m.id === item.vatLieuId);
+          if (!mat) return 0;
+          const density = mat.matDoHienThi ?? mat.density ?? 0;
+          return met * item.kho * mat.thickness * density / 1000;
+        })();
+        return (
+          <div key={idx}>
+            <span style={{ fontWeight: 600, color: 'var(--foreground)' }}>{item.ten}:</span>{' '}
+            {soLan > 1
+              ? <>{dinhDangSo(met, 0)}m × {soLan} = {dinhDangSo(met * soLan, 0)}m</>
+              : <>{dinhDangSo(met, 0)}m</>
+            }{' '}| {dinhDangSo(kgTotal, 1)} kg
+          </div>
+        );
+      })}
     </div>;
   };
 
@@ -956,7 +982,7 @@ export default function ManHinhQuanLy() {
                           const kgTotal = calcKgForLayer(layerData, layerMetersTotal);
                           return (
                             <td key={ci} data-label={col.name}>
-                              {dauVaoKq.numImages > 1 ? (
+                              {!layerData?.chiTietVatLieu?.length && (dauVaoKq.numImages > 1 ? (
                                 <>
                                   {dinhDangSo(layerMetersPerImage, 0)} m/con<br/>
                                   <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>total {dinhDangSo(layerMetersTotal, 0)} m / {dinhDangSo(kgTotal, 1)} kg</span>
@@ -966,8 +992,8 @@ export default function ManHinhQuanLy() {
                                   {dinhDangSo(layerMetersTotal, 0)} m<br/>
                                   <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(kgTotal, 1)} kg)</span>
                                 </>
-                              )}
-                              {renderMaterialBreakdown(layerData)}
+                              ))}
+                              {renderMaterialBreakdown(layerData, layerMetersTotal)}
                             </td>
                           );
                         })}
@@ -1027,7 +1053,7 @@ export default function ManHinhQuanLy() {
                         ) : (
                           <th>SL {nhanDonVi}</th>
                         )}
-                        {otherLayers.map((c, i) => <th key={i}>{c.name}{dauVaoKq.numImages > 1 ? <><br/><span style={{fontSize:'0.7rem', fontWeight:400, color:'var(--muted)'}}>(m/con + total)</span></> : null}</th>)}
+                        {otherLayers.map((c, i) => <th key={i}>{c.name}</th>)}
                         <th>Giá đề xuất</th>
                         <th>Tổng DT</th>
                       </tr>
@@ -1071,18 +1097,20 @@ export default function ManHinhQuanLy() {
                             const kgTotal = calcKgForLayer(layerData, layerMetersTotal);
                             return (
                               <td data-label={col.name} key={i}>
-                                {dauVaoKq.numImages > 1 ? (
-                                  <>
-                                    {dinhDangSo(layerMetersPerImage, 0)} m/con<br />
-                                    <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>total {dinhDangSo(layerMetersTotal, 0)} m / {dinhDangSo(kgTotal, 1)} kg</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    {dinhDangSo(layerMetersTotal, 0)} m<br />
-                                    <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(kgTotal, 1)} kg)</span>
-                                  </>
+                                {!layerData?.chiTietVatLieu?.length && (
+                                  dauVaoKq.numImages > 1 ? (
+                                    <>
+                                      {dinhDangSo(layerMetersPerImage, 0)} m/con<br />
+                                      <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>total {dinhDangSo(layerMetersTotal, 0)} m / {dinhDangSo(kgTotal, 1)} kg</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      {dinhDangSo(layerMetersTotal, 0)} m<br />
+                                      <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>({dinhDangSo(kgTotal, 1)} kg)</span>
+                                    </>
+                                  )
                                 )}
-                                {renderMaterialBreakdown(layerData)}
+                                {renderMaterialBreakdown(layerData, layerMetersTotal)}
                               </td>
                             );
                           })}
@@ -1117,3 +1145,5 @@ export default function ManHinhQuanLy() {
     </div>
   );
 }
+
+

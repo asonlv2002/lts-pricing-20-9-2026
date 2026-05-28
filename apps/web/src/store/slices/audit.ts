@@ -1,4 +1,4 @@
-import type { StateCreator } from 'zustand';
+﻿import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import type { AuditEntry, AuditAction } from '../../lib/types';
 import { luuLocalStorage, LS_AUDIT } from '../helpers';
@@ -39,19 +39,23 @@ export const createAuditSlice: StateCreator<CuaHangTinhGia, [], [], AuditSlice> 
       ? get().auditLog.filter(e => e.targetId === targetId)
       : get().auditLog;
 
-    const headers = ['Thời gian', 'Người thực hiện', 'Hành động', 'Loại', 'Mục tiêu', 'Ghi chú'];
+    const headers = ['Thời gian', 'Người thực hiện', 'Hành động', 'Loại', 'Mục tiêu', 'IP', 'Thiết bị', 'Ghi chú'];
     const ACTION_LABELS: Record<AuditAction, string> = {
       create: 'Tạo mới', update: 'Cập nhật', delete: 'Xóa',
       lock: 'Khóa', unlock: 'Mở khóa',
       status_change: 'Đổi trạng thái', override_change: 'Thay đổi override',
       assign: 'Phân công', version_restore: 'Khôi phục phiên bản', duplicate: 'Sao chép',
+      send_approval: 'Gửi duyệt', approve: 'Duyệt', reject: 'Từ chối / Trả về',
+      send_customer: 'Gửi khách hàng', create_lsx: 'Tạo LSX', restore: 'Khôi phục',
     };
     const rows = entries.map(e => [
       new Date(e.timestamp).toLocaleString('vi-VN'),
       e.userName,
       ACTION_LABELS[e.action] || e.action,
-      e.targetType === 'history' ? 'Bảng tính' : 'Báo giá',
+      ({ history: 'Bảng tính', quote: 'Báo giá', customer: 'Khách hàng', order: 'Lệnh sản xuất', config: 'Cấu hình', permission: 'Phân quyền' } as Record<string, string>)[e.targetType] || e.targetType,
       e.targetName || e.targetId,
+      e.ipAddress || '',
+      e.device || '',
       e.note || '',
     ]);
     const csv = [headers, ...rows]
@@ -68,3 +72,6 @@ export const createAuditSlice: StateCreator<CuaHangTinhGia, [], [], AuditSlice> 
 
   taiAuditLog: (data) => set({ auditLog: data }),
 });
+
+
+

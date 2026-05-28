@@ -11,6 +11,7 @@ export interface ChiTietVatLieuGhep {
   viTri?: number;
   viTriBatDau?: number;
   viTriKetThuc?: number;
+  soLan?: number;
 }
 
 export interface KetQuaLopGhep {
@@ -114,6 +115,20 @@ export function tinhCongDoanGhep(params: {
           viTri: idx + 1,
         }));
 
+        // Đếm số dải vật lý: mỗi lần bị ngắt bởi vật liệu khác = +1 dải
+        const demDaiVatLy = (vatLieuId: string): number => {
+          let count = 0;
+          let dangTrong = false;
+          for (const p of chiTietTho) {
+            if (p.vatLieuId === vatLieuId) {
+              if (!dangTrong) { count++; dangTrong = true; }
+            } else {
+              dangTrong = false;
+            }
+          }
+          return count;
+        };
+
         chiTietVatLieu = chiTietTho.reduce((ds: ChiTietVatLieuGhep[], item) => {
           const truoc = ds[ds.length - 1];
           if (truoc && truoc.vatLieuId === item.vatLieuId) {
@@ -125,7 +140,7 @@ export function tinhCongDoanGhep(params: {
             truoc.viTriKetThuc = item.viTri;
             return ds;
           }
-          ds.push({ ...item, viTriBatDau: item.viTri, viTriKetThuc: item.viTri });
+          ds.push({ ...item, viTriBatDau: item.viTri, viTriKetThuc: item.viTri, soLan: demDaiVatLy(item.vatLieuId) });
           return ds;
         }, []);
       } else {
@@ -138,8 +153,8 @@ export function tinhCongDoanGhep(params: {
         const donGiaLopChinh = layGiaVatLieuTheoKho(lop, khoLopChinh, bangGiaKhoNho);
         const donGiaLopPhu = layGiaVatLieuTheoKho(lopPhu, khoLopPhu, bangGiaKhoNho);
         chiTietVatLieu = [
-          { vatLieuId: lop.id, ten: lop.ten, kho: khoLopChinh, donGia: donGiaLopChinh, chiPhiVL: donGiaLopChinh * (hatHao + met) * khoLopChinh },
-          { vatLieuId: lopPhu.id, ten: lopPhu.ten, kho: khoLopPhu, donGia: donGiaLopPhu, chiPhiVL: donGiaLopPhu * (hatHao + met) * khoLopPhu },
+          { vatLieuId: lop.id, ten: lop.ten, kho: khoLopChinh, donGia: donGiaLopChinh, chiPhiVL: donGiaLopChinh * (hatHao + met) * khoLopChinh, soLan: 1 },
+          { vatLieuId: lopPhu.id, ten: lopPhu.ten, kho: khoLopPhu, donGia: donGiaLopPhu, chiPhiVL: donGiaLopPhu * (hatHao + met) * khoLopPhu, soLan: 1 },
         ];
       }
       chiPhiVL = chiTietVatLieu!.reduce((sum, item) => sum + item.chiPhiVL, 0);
