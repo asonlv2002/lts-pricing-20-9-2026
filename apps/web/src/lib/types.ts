@@ -216,8 +216,18 @@ export interface AuditEntry {
   device?: string;
 }
 
+export type ConfigScope =
+  | 'materials'    // Vật tư: materials + smallWidthPrices
+  | 'production'   // Chi phí SX: laborCost, ghep, cat, trục, mực
+  | 'profit'       // Biên lợi nhuận: profitTable
+  | 'surcharges'   // Phụ phí: phụ kiện, thùng
+  | 'interest'     // Lãi vay: interestBase, interestSpread
+  | 'waste'        // Hao hụt: printWaste, ghepWaste, cutWaste
+  | 'outsource';   // Gia công ngoài (dự phòng)
+
 export interface ConfigSnapshot {
   id: string;
+  scope: ConfigScope;
   name?: string;
   effectiveMode: 'date' | 'month';
   effectiveFrom: string;

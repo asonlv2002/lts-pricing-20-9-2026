@@ -1,8 +1,9 @@
 "use client";
 import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import type { ConfigScope } from '../lib/types';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES } from '../lib/data';
-// Debounced persist profit table - tranh goi API moi keystroke
+
 let boDemLuuBangLoiNhuan: ReturnType<typeof setTimeout>;
 const luuBangLoiNhuanTre = () => {
   clearTimeout(boDemLuuBangLoiNhuan);
@@ -10,49 +11,159 @@ const luuBangLoiNhuanTre = () => {
     dungCuaHangTinhGia.getState().recalculate();
   }, 800);
 };
+
+const SCOPE_LABEL: Record<ConfigScope, string> = {
+  materials:  'vật liệu & giá khổ nhỏ',
+  production: 'chi phí sản xuất',
+  profit:     'bảng lợi nhuận',
+  surcharges: 'phụ phí & phụ kiện',
+  interest:   'lãi vay công nợ',
+  waste:      'tham số hao hụt',
+  outsource:  'gia công ngoài',
+};
+
+function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
+  const {
+    configSnapshots: tatCaPhienBan,
+    selectedConfigSnapshotId: phienBanDangChon,
+    taoPhienBanDinhMuc,
+    xoaPhienBanDinhMuc,
+    apDungPhienBanDinhMuc,
+  } = dungCuaHangTinhGia();
+
+  const phienBan = tatCaPhienBan.filter(s => (s.scope ?? 'materials') === scope);
+  const dangChonId = phienBanDangChon[scope] ?? null;
+
+  const [ten, datTen] = React.useState('');
+  const [kieuHieuLuc, datKieuHieuLuc] = React.useState<'month' | 'date'>('month');
+  const [mocHieuLuc, datMocHieuLuc] = React.useState(() => new Date().toISOString().slice(0, 7));
+
+  const doiKieuHieuLuc = (kieu: 'month' | 'date') => {
+    datKieuHieuLuc(kieu);
+    datMocHieuLuc(new Date().toISOString().slice(0, kieu === 'month' ? 7 : 10));
+  };
+
+  const xuLyLuu = () => {
+    if (!mocHieuLuc) return;
+    taoPhienBanDinhMuc({ scope, name: ten, effectiveMode: kieuHieuLuc, effectiveFrom: mocHieuLuc });
+    datTen('');
+  };
+
+  const xuLyApDung = (id: string) => {
+    const s = tatCaPhienBan.find(x => x.id === id);
+    const tenPb = s?.name || 'Không tên';
+    const hieuLuc = s ? `${s.effectiveMode === 'month' ? 'Tháng' : 'Ngày'} ${s.effectiveFrom}` : '';
+    if (!confirm(`Áp dụng phiên bản "${tenPb}" (${hieuLuc})?\n\nDữ liệu ${SCOPE_LABEL[scope]} hiện tại sẽ bị thay thế.`)) return;
+    apDungPhienBanDinhMuc(id);
+  };
+
+  const xuLyXoa = (id: string) => {
+    if (!confirm('Xóa phiên bản này?')) return;
+    xoaPhienBanDinhMuc(id);
+  };
+
+  return (
+    <div className="card config-card" id={`sect-config-versions-${scope}`} style={{scrollMarginTop: '80px'}}>
+      <div className="config-section-title"><span>Phiên bản — {SCOPE_LABEL[scope]}</span></div>
+      <div className="config-cpsx-grid" style={{marginBottom: '16px'}}>
+        <div className="config-cpsx-item">
+          <label>Tên phiên bản</label>
+          <input className="form-input" value={ten} placeholder="VD: Tháng 05/2026"
+            onChange={e => datTen(e.target.value)} />
+        </div>
+        <div className="config-cpsx-item">
+          <label>Kiểu hiệu lực</label>
+          <select className="form-input" value={kieuHieuLuc}
+            onChange={e => doiKieuHieuLuc(e.target.value as 'month' | 'date')}>
+            <option value="month">Theo tháng</option>
+            <option value="date">Theo ngày</option>
+          </select>
+        </div>
+        <div className="config-cpsx-item">
+          <label>Hiệu lực từ</label>
+          <input className="form-input" type={kieuHieuLuc === 'month' ? 'month' : 'date'}
+            value={mocHieuLuc} onChange={e => datMocHieuLuc(e.target.value)} />
+        </div>
+        <div className="config-cpsx-item" style={{justifyContent: 'flex-end'}}>
+          <button className="btn btn-primary" onClick={xuLyLuu} disabled={!mocHieuLuc}>
+            Lưu thành phiên bản
+          </button>
+        </div>
+      </div>
+      <div className="config-table-wrap">
+        <table className="config-table">
+          <thead>
+            <tr>
+              <th>Tên phiên bản</th>
+              <th>Hiệu lực</th>
+              <th>Ngày tạo</th>
+              <th>Trạng thái</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody>
+            {phienBan.length === 0 ? (
+              <tr>
+                <td colSpan={5} style={{textAlign: 'center', color: 'var(--dim)'}}>Chưa có phiên bản nào.</td>
+              </tr>
+            ) : phienBan.map(snapshot => {
+              const dangApDung = dangChonId === snapshot.id;
+              return (
+                <tr key={snapshot.id} style={dangApDung ? {background: 'var(--accent-subtle, rgba(59,130,246,0.07))'} : undefined}>
+                  <td style={{fontWeight: 600}}>{snapshot.name || 'Không tên'}</td>
+                  <td>{snapshot.effectiveMode === 'month' ? 'Tháng' : 'Ngày'} {snapshot.effectiveFrom}</td>
+                  <td>{new Date(snapshot.createdAt).toLocaleString('vi-VN')}</td>
+                  <td>
+                    {dangApDung
+                      ? <span style={{color: 'var(--accent)', fontWeight: 700, fontSize: '0.82rem'}}>✓ Đang áp dụng</span>
+                      : <span style={{color: 'var(--muted)', fontSize: '0.82rem'}}>Đã lưu</span>}
+                  </td>
+                  <td>
+                    <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                      {!dangApDung && (
+                        <button className="btn btn-sm btn-primary" onClick={() => xuLyApDung(snapshot.id)}>Áp dụng</button>
+                      )}
+                      <button className="btn btn-sm btn-outline" onClick={() => xuLyXoa(snapshot.id)}>Xóa</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="config-note">Phiên bản lưu {SCOPE_LABEL[scope]} tại thời điểm bấm lưu.</p>
+    </div>
+  );
+}
+
 type NhomCauHinh = 'materials' | 'waste' | 'production' | 'outsource' | 'profit' | 'surcharges' | 'interest' | 'formulas';
 const layNhomCauHinh = (menuDangChon?: string): NhomCauHinh => {
   switch (menuDangChon) {
-    case 'config.materials':
-      return 'materials';
-    case 'config.waste_norms':
-      return 'waste';
-    case 'config.production_costs':
-      return 'production';
-    case 'config.outsource_costs':
-      return 'outsource';
-    case 'config.profit_margin':
-      return 'profit';
-    case 'config.surcharges':
-      return 'surcharges';
-    case 'config.interest':
-      return 'interest';
-    case 'config.formulas':
-      return 'formulas';
-    default:
-      return 'materials';
+    case 'config.materials':      return 'materials';
+    case 'config.waste_norms':    return 'waste';
+    case 'config.production_costs': return 'production';
+    case 'config.outsource_costs':  return 'outsource';
+    case 'config.profit_margin':  return 'profit';
+    case 'config.surcharges':     return 'surcharges';
+    case 'config.interest':       return 'interest';
+    case 'config.formulas':       return 'formulas';
+    default:                      return 'materials';
   }
 };
+
 export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }) {
   const {
     materials: vatLieu,
     constants: hangSo,
     profitTable: bangLoiNhuan,
     smallWidthPrices: bangGiaKhoNho,
-    configSnapshots: phienBanDinhMuc,
-    selectedConfigSnapshotId: phienBanDinhMucDangChon,
     setMaterialParam: capNhatVatLieu,
     setConstantParam: capNhatHangSo,
     setSmallWidthPriceParam: capNhatGiaKhoNho,
-    taoPhienBanDinhMuc,
-    xoaPhienBanDinhMuc,
-    apDungPhienBanDinhMuc,
   } = dungCuaHangTinhGia();
   const [nhomKhachHang, datNhomKhachHang] = React.useState('other');
   const [hienBangKhoNho, datHienBangKhoNho] = React.useState(false);
-  const [tenPhienBanDinhMuc, datTenPhienBanDinhMuc] = React.useState('');
-  const [kieuHieuLucDinhMuc, datKieuHieuLucDinhMuc] = React.useState<'month' | 'date'>('month');
-  const [mocHieuLucDinhMuc, datMocHieuLucDinhMuc] = React.useState(() => new Date().toISOString().slice(0, 7));
   const nhomCauHinh = layNhomCauHinh(menuDangChon);
   const hienVatTu = nhomCauHinh === 'materials';
   const hienHaoHut = nhomCauHinh === 'waste';
@@ -155,110 +266,14 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     cuaHang.recalculate();
     luuBangLoiNhuanTre();
   };
-  const xuLyDoiKieuHieuLuc = (kieu: 'month' | 'date') => {
-    datKieuHieuLucDinhMuc(kieu);
-    datMocHieuLucDinhMuc(new Date().toISOString().slice(0, kieu === 'month' ? 7 : 10));
-  };
-  const xuLyLuuPhienBanDinhMuc = () => {
-    if (!mocHieuLucDinhMuc) return;
-    taoPhienBanDinhMuc({
-      name: tenPhienBanDinhMuc,
-      effectiveMode: kieuHieuLucDinhMuc,
-      effectiveFrom: mocHieuLucDinhMuc,
-    });
-    datTenPhienBanDinhMuc('');
-  };
-  const xuLyApDungPhienBanDinhMuc = (id: string) => {
-    if (!confirm('Áp dụng phiên bản này sẽ thay thế bảng định mức hiện tại. Tiếp tục?')) return;
-    apDungPhienBanDinhMuc(id);
-  };
-  const xuLyXoaPhienBanDinhMuc = (id: string) => {
-    if (!confirm('Xóa phiên bản bảng định mức này?')) return;
-    xoaPhienBanDinhMuc(id);
-  };
   return (
     <div className="config-page" id="configPage" style={{display: 'block'}}>
       <div className="config-page-inner">
         <div className="config-content">
 
           {hienVatTu && (
-          <div className="card config-card" id="sect-config-versions" style={{scrollMarginTop: '80px'}}>
-            <div className="config-section-title"><span>Phiên bản bảng định mức</span></div>
-            <div className="config-cpsx-grid" style={{marginBottom: '16px'}}>
-              <div className="config-cpsx-item">
-                <label>Tên phiên bản</label>
-                <input
-                  className="form-input"
-                  value={tenPhienBanDinhMuc}
-                  placeholder="VD: Định mức tháng 05/2026"
-                  onChange={e => datTenPhienBanDinhMuc(e.target.value)}
-                />
-              </div>
-              <div className="config-cpsx-item">
-                <label>Kiểu hiệu lực</label>
-                <select
-                  className="form-input"
-                  value={kieuHieuLucDinhMuc}
-                  onChange={e => xuLyDoiKieuHieuLuc(e.target.value as 'month' | 'date')}
-                >
-                  <option value="month">Theo tháng</option>
-                  <option value="date">Theo ngày</option>
-                </select>
-              </div>
-              <div className="config-cpsx-item">
-                <label>Hiệu lực từ</label>
-                <input
-                  className="form-input"
-                  type={kieuHieuLucDinhMuc === 'month' ? 'month' : 'date'}
-                  value={mocHieuLucDinhMuc}
-                  onChange={e => datMocHieuLucDinhMuc(e.target.value)}
-                />
-              </div>
-              <div className="config-cpsx-item" style={{justifyContent: 'flex-end'}}>
-                <button className="btn btn-primary" onClick={xuLyLuuPhienBanDinhMuc} disabled={!mocHieuLucDinhMuc}>
-                  Lưu bảng hiện tại thành phiên bản
-                </button>
-              </div>
-            </div>
-            <div className="config-table-wrap">
-              <table className="config-table">
-                <thead>
-                  <tr>
-                    <th>Tên phiên bản</th>
-                    <th>Hiệu lực</th>
-                    <th>Ngày tạo</th>
-                    <th>Trạng thái</th>
-                    <th>Thao tác</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {phienBanDinhMuc.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} style={{textAlign: 'center', color: 'var(--dim)'}}>Chưa có phiên bản bảng định mức.</td>
-                    </tr>
-                  ) : phienBanDinhMuc.map(snapshot => (
-                    <tr key={snapshot.id}>
-                      <td style={{fontWeight: 600}}>{snapshot.name || 'Không tên'}</td>
-                      <td>{snapshot.effectiveMode === 'month' ? 'Tháng' : 'Ngày'} {snapshot.effectiveFrom}</td>
-                      <td>{new Date(snapshot.createdAt).toLocaleString('vi-VN')}</td>
-                      <td>{phienBanDinhMucDangChon === snapshot.id ? 'Đang áp dụng' : 'Đã lưu'}</td>
-                      <td>
-                        <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
-                          <button className="btn btn-sm btn-outline" onClick={() => xuLyApDungPhienBanDinhMuc(snapshot.id)}>Áp dụng</button>
-                          <button className="btn btn-sm btn-outline" onClick={() => xuLyXoaPhienBanDinhMuc(snapshot.id)}>Xóa</button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="config-note">Phiên bản lưu toàn bộ vật liệu, giá khổ nhỏ, hằng số sản xuất và bảng lợi nhuận tại thời điểm bấm lưu.</p>
-          </div>
-          )}
-
-          {hienVatTu && (
           <>
+          <KhoiPhienBan scope="materials" />
           {/* 1. B?ng gi? nvl */}
           <div className="card config-card" id="sect-config-nvl" style={{scrollMarginTop: '80px'}}>
             <div className="config-section-title">
@@ -358,6 +373,11 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           </>
           )}
           {/* NHOM 1: CHI PHI KHAU IN */}
+          {hienSanXuat && <KhoiPhienBan scope="production" />}
+          {hienHaoHut && <KhoiPhienBan scope="waste" />}
+          {hienPhuPhi && <KhoiPhienBan scope="surcharges" />}
+          {hienCongThuc && <KhoiPhienBan scope="production" />}
+          {hienCongThuc && <KhoiPhienBan scope="waste" />}
           {(hienSanXuat || hienHaoHut || hienPhuPhi || hienCongThuc) && <div className="config-group-header" id="sect-config-in" style={{scrollMarginTop: '80px'}}>🖨️ CPSX Khâu in</div>}
           {/* 1.6 Đơn giá trục in */}
           {hienSanXuat && (
@@ -520,6 +540,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note">Khoản CPSX cố định cộng vào đơn giá in: CPSX in = giá mực/màu x số màu + CPSX khâu in (+ phụ phí nếu có).</p>
           </div>
           )}
+          {hienLaiVay && <KhoiPhienBan scope="interest" />}
           {hienLaiVay && (
           <div className="card config-card">
             <div className="config-section-title"><span>Lãi Vay Công Nợ</span></div>
@@ -674,6 +695,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <p className="config-note">💡 CPSX Cắt = Cắt cơ bản × Hệ số. Ngưỡng dựa trên diện tích túi (m²).</p>
           </div>
           )}
+          {hienLoiNhuan && <KhoiPhienBan scope="profit" />}
           {/* NHOM 4: BANG LOI NHUAN */}
           {hienLoiNhuan && <div className="config-group-header" id="sect-config-loinhuan" style={{scrollMarginTop: '80px'}}>💰 Bảng Lợi Nhuận</div>}
           {hienLoiNhuan && (
