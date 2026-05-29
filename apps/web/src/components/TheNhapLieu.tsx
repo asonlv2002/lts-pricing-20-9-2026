@@ -2,7 +2,7 @@
 import React from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import customersSeed from '../data/customers.json';
+import { autoAddCustomerIfNeeded, loadCustomers } from '../store/helpers';
 
 type KhachHangGoiY = {
   id: string;
@@ -120,16 +120,31 @@ export default function TheNhapLieu() {
   const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness, currentSellerId, currentSellerName, role, setActiveModule: datPhanHe } = dungCuaHangTinhGia();
   const [nhomTheoLop, datNhomTheoLop] = React.useState<Record<string, string>>({});
   const [dangFocusKhachHang, datDangFocusKhachHang] = React.useState(false);
+  const [danhSachKhachHang, datDanhSachKhachHang] = React.useState<KhachHangGoiY[]>(() => loadCustomers() as KhachHangGoiY[]);
+
+  const lamMoiDanhSachKhachHang = React.useCallback(() => {
+    datDanhSachKhachHang(loadCustomers() as KhachHangGoiY[]);
+  }, []);
+
+  React.useEffect(() => {
+    lamMoiDanhSachKhachHang();
+  }, [lamMoiDanhSachKhachHang]);
 
   const goiYKhachHang = React.useMemo(() => {
     const tuKhoa = boDau(input.customer.trim());
     if (!dangFocusKhachHang || tuKhoa.length < 1) return [];
 
-    return (customersSeed as KhachHangGoiY[])
-      .filter(kh => (role === 'admin' || kh.sellerId === currentSellerId) && kh.status !== 'inactive' && !kh.isLocked)
+    return danhSachKhachHang
+      .filter(kh => (role === 'admin' || !kh.sellerId || kh.sellerId === currentSellerId) && kh.status !== 'inactive' && !kh.isLocked)
       .filter(kh => boDau(`${kh.companyName} ${kh.customerCode} ${kh.contactName ?? ''} ${kh.phone ?? ''}`).includes(tuKhoa))
       .slice(0, 6);
-  }, [currentSellerId, dangFocusKhachHang, input.customer, role]);
+  }, [currentSellerId, danhSachKhachHang, dangFocusKhachHang, input.customer, role]);
+
+  const xuLyRoiONhapKhachHang = () => {
+    const daThem = autoAddCustomerIfNeeded(input.customer, currentSellerId, currentSellerName);
+    if (daThem) lamMoiDanhSachKhachHang();
+    setTimeout(() => datDangFocusKhachHang(false), 120);
+  };
 
   const xuLyLoaiSanPham = (val: string) => {
     capNhatDauVao({ productType: val, bagType: '', filmType: '' });
@@ -426,13 +441,13 @@ export default function TheNhapLieu() {
             placeholder="Tên khách hàng"
             value={input.customer}
             onFocus={() => datDangFocusKhachHang(true)}
-            onBlur={() => setTimeout(() => datDangFocusKhachHang(false), 120)}
+            onBlur={xuLyRoiONhapKhachHang}
             onChange={e => capNhatDauVao({ customer: e.target.value })}
             autoComplete="off"
           />
           {dangFocusKhachHang && input.customer.trim() && goiYKhachHang.length === 0 && (
-            <div style={{ position:'absolute', zIndex:30, left:0, right:0, top:'100%', marginTop:4, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:10, boxShadow:'0 14px 34px rgba(15,23,42,.18)' }}>
-              <button type="button" className="btn btn-sm btn-outline" onMouseDown={e => e.preventDefault()} onClick={() => { try { localStorage.setItem('lts_customer_quick_name', input.customer); } catch {}; datPhanHe('customers'); }}>+ Tạo khách hàng mới</button>
+            <div style={{ position:'absolute', zIndex:30, left:0, right:0, top:'100%', marginTop:4, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'8px 12px', boxShadow:'0 14px 34px rgba(15,23,42,.18)', fontSize:'0.78rem', color:'var(--muted)' }}>
+              ✓ Khách hàng mới — sẽ tự động thêm vào danh sách khi bạn nhập xong
             </div>
           )}
           {goiYKhachHang.length > 0 && (
@@ -994,8 +1009,3 @@ export default function TheNhapLieu() {
     </div>
   );
 }
-
-
-
-
-

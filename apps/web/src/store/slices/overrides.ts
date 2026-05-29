@@ -59,6 +59,7 @@ export const createOverrideSlice: StateCreator<CuaHangTinhGia, [], [], OverrideS
 
   persistOverrides: (idLichSu) => {
     const { saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin, history } = get();
+    const old = history.find(h => h.id === idLichSu);
     const ghiDeSaleDaLuu  = Object.keys(ghiDeSale).length  > 0 ? ghiDeSale  : undefined;
     const ghiDeAdminDaLuu = Object.keys(ghiDeAdmin).length > 0 ? ghiDeAdmin : undefined;
     const lichSuDaCapNhat = history.map(h =>
@@ -66,5 +67,18 @@ export const createOverrideSlice: StateCreator<CuaHangTinhGia, [], [], OverrideS
     );
     set({ history: lichSuDaCapNhat });
     luuLocalStorage(LS_HISTORY, lichSuDaCapNhat);
+    setTimeout(() => {
+      const state = get();
+      state.ghiNhatKy({
+        userId: state.currentSellerId,
+        userName: state.currentSellerName,
+        action: 'override_change',
+        targetType: old?.isQuote ? 'quote' : 'history',
+        targetId: idLichSu,
+        targetName: old?.productName,
+        before: { saleOverrides: old?.saleOverrides, adminOverrides: old?.adminOverrides },
+        after: { saleOverrides: ghiDeSaleDaLuu, adminOverrides: ghiDeAdminDaLuu },
+      });
+    }, 0);
   },
 });

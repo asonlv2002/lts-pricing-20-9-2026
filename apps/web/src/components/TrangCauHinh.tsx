@@ -152,6 +152,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   } = dungCuaHangTinhGia();
   const [nhomKhachHang, datNhomKhachHang] = React.useState('other');
   const [hienBangKhoNho, datHienBangKhoNho] = React.useState(false);
+  const customMaterialSeq = React.useRef(0);
   const nhomCauHinh = layNhomCauHinh(menuDangChon);
   const hienVatTu = nhomCauHinh === 'materials';
   const hienHaoHut = nhomCauHinh === 'waste';
@@ -346,7 +347,8 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                       <tr>
                         <td colSpan={7} style={{paddingTop:'10px'}}>
                           <button className="btn btn-sm btn-outline" onClick={() => {
-                            const id = `custom-${Date.now()}`;
+                            customMaterialSeq.current += 1;
+                            const id = `custom-${vatLieu.length}-${customMaterialSeq.current}`;
                             themVatLieu({ id, name: 'Màng mới', density: 0.92, thickness: 15, pricePerKg: 0, isPETorPA: false, rollLength: 5000, inkPricePerColor: 120 });
                           }}>
                             + Thêm màng

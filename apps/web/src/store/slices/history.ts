@@ -1,6 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
-import { HistoryItem, QuoteStatus, QuoteTerms } from '../../lib/types';
+import { HistoryItem, QuoteProductLine, QuoteStatus, QuoteTerms } from '../../lib/types';
 import { tinhBaoGia } from '../../lib/manager-calculation';
 import { dongBoCotLoiNhuan } from '../../lib/engine';
 import { luuLocalStorage, LS_HISTORY, autoAddCustomerIfNeeded } from '../helpers';
@@ -24,6 +24,26 @@ export interface HistorySlice {
   capNhatDieuKhoan: (id: string, terms: QuoteTerms) => void;
   phanCongBaoGia: (quoteId: string, sellerId: string, sellerName: string) => void;
   ganTiersBaoGia: (quoteId: string, tiers: { historyItemId: string; quantity: number; finalPrice: number; chotGia?: number }[]) => void;
+  taoBaoGiaMoi: (payload: {
+    customer: string;
+    products: QuoteProductLine[];
+    terms: QuoteTerms;
+    sendForApproval: boolean;
+  }) => string | null;
+  patchHistoryItem: (id: string, patch: Partial<Pick<HistoryItem, 'customer' | 'productName' | 'chotGia' | 'quoteStatus'>>) => void;
+}
+
+function tinhNgayHieuLuc(terms?: QuoteTerms): string | undefined {
+  if (!terms || terms.validityDays <= 0) return undefined;
+  return new Date(Date.now() + terms.validityDays * 86400000).toISOString();
+}
+
+function actionTheoTrangThai(status: QuoteStatus) {
+  if (status === 'pending_approval') return 'send_approval' as const;
+  if (status === 'approved') return 'approve' as const;
+  if (status === 'rejected') return 'reject' as const;
+  if (status === 'sent') return 'send_customer' as const;
+  return 'status_change' as const;
 }
 
 export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySlice> = (set, get) => ({
@@ -34,7 +54,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     set((state) => {
       if (!state.result) return state;
       const now = new Date();
-      const quoteCode = state.taoMaBaoGia();
       const item: HistoryItem = {
         id: String(now.getTime()),
         date: now.toLocaleDateString('vi-VN'),
@@ -44,8 +63,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         quantity: state.input.quantity,
         finalPrice: state.result.finalPrice,
         chotGia: state.currentChotGia || undefined,
-        quoteStatus: 'drafted',
-        quoteCode,
+        isQuote: false,
         sellerId: state.currentSellerId,
         sellerName: state.currentSellerName,
         saleOverrides: Object.keys(state.saleOverrides).length > 0 ? state.saleOverrides : undefined,
@@ -120,8 +138,22 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     set((state) => {
       if (!state.history.length) return state;
       const history = [...state.history];
-      history[0] = { ...history[0], chotGia: giaTri };
+      const old = history[0];
+      history[0] = { ...old, chotGia: giaTri };
       luuLocalStorage(LS_HISTORY, history);
+      setTimeout(() => {
+        get().ghiNhatKy({
+          userId: state.currentSellerId,
+          userName: state.currentSellerName,
+          action: 'update',
+          targetType: old.isQuote ? 'quote' : 'history',
+          targetId: old.id,
+          targetName: old.productName,
+          before: { chotGia: old.chotGia },
+          after: { chotGia: giaTri },
+          note: 'Cập nhật giá chốt',
+        });
+      }, 0);
       return { history };
     });
   },
@@ -138,7 +170,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
           get().ghiNhatKy({
             userId: state.currentSellerId,
             userName: state.currentSellerName,
-            action: 'status_change',
+            action: actionTheoTrangThai(status),
             targetType: 'quote',
             targetId: id,
             targetName: old.productName,
@@ -160,13 +192,15 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       if (!item) return state;
 
       const now = new Date();
-      const quoteCode = state.taoMaBaoGia();
       const clone: HistoryItem = {
         ...structuredClone(item),
         id: String(now.getTime()),
         date: now.toLocaleDateString('vi-VN'),
-        quoteStatus: 'drafted',
-        quoteCode,
+        quoteStatus: undefined,
+        quoteCode: undefined,
+        isQuote: false,
+        quoteProducts: undefined,
+        tiers: undefined,
         locked: false,
         lockedBy: undefined,
         lockedAt: undefined,
@@ -286,9 +320,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
 
   capNhatDieuKhoan: (id, terms) => {
     set((state) => {
-      const validUntil = terms.validityDays > 0
-        ? new Date(Date.now() + terms.validityDays * 86400000).toISOString()
-        : undefined;
+      const validUntil = tinhNgayHieuLuc(terms);
       const history = state.history.map(h => h.id === id ? { ...h, terms, validUntil } : h);
       luuLocalStorage(LS_HISTORY, history);
 
@@ -336,8 +368,102 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
 
   ganTiersBaoGia: (quoteId, tiers) => {
     set((state) => {
+      const old = state.history.find(h => h.id === quoteId);
       const history = state.history.map(h => h.id === quoteId ? { ...h, tiers } : h);
       luuLocalStorage(LS_HISTORY, history);
+      setTimeout(() => {
+        get().ghiNhatKy({
+          userId: state.currentSellerId,
+          userName: state.currentSellerName,
+          action: 'update',
+          targetType: 'quote',
+          targetId: quoteId,
+          targetName: old?.productName,
+          before: { tiers: old?.tiers },
+          after: { tiers },
+          note: 'Cập nhật mức số lượng báo giá',
+        });
+      }, 0);
+      return { history };
+    });
+  },
+
+  taoBaoGiaMoi: ({ customer, products, terms, sendForApproval }) => {
+    if (products.length === 0) return null;
+    const state = get();
+    const now = new Date();
+    const quoteCode = state.taoMaBaoGia();
+    const first = products[0];
+    const status: QuoteStatus = sendForApproval ? 'pending_approval' : 'drafted';
+    const item: HistoryItem = {
+      id: String(now.getTime()),
+      date: now.toLocaleDateString('vi-VN'),
+      customer,
+      productName: products.length === 1 ? first.productName : `Báo giá ${products.length} sản phẩm`,
+      structure: products.length === 1 ? first.structure : products.map(p => p.structure).join(' + '),
+      quantity: products.reduce((sum, p) => sum + (p.quantity || 0), 0),
+      finalPrice: first.finalPrice,
+      chotGia: first.chotGia,
+      quoteStatus: status,
+      quoteCode,
+      isQuote: true,
+      quoteProducts: products,
+      terms,
+      validUntil: tinhNgayHieuLuc(terms),
+      sellerId: state.currentSellerId,
+      sellerName: state.currentSellerName,
+      input: { ...first.input },
+    };
+    const history = [item, ...state.history].slice(0, 200);
+    luuLocalStorage(LS_HISTORY, history);
+    set({ history, loadedHistoryId: item.id });
+
+    setTimeout(() => {
+      get().ghiNhatKy({
+        userId: state.currentSellerId,
+        userName: state.currentSellerName,
+        action: 'create',
+        targetType: 'quote',
+        targetId: item.id,
+        targetName: item.quoteCode,
+        after: { quoteStatus: status, products: products.length, terms },
+        note: sendForApproval ? 'Tạo báo giá mới và gửi duyệt' : 'Tạo báo giá nháp',
+      });
+      if (sendForApproval) {
+        get().ghiNhatKy({
+          userId: state.currentSellerId,
+          userName: state.currentSellerName,
+          action: 'send_approval',
+          targetType: 'quote',
+          targetId: item.id,
+          targetName: item.quoteCode,
+          before: { quoteStatus: 'drafted' },
+          after: { quoteStatus: status },
+        });
+      }
+    }, 0);
+
+    return item.id;
+  },
+
+  patchHistoryItem: (id, patch) => {
+    set((state) => {
+      const old = state.history.find(h => h.id === id);
+      if (!old) return state;
+      const history = state.history.map(h => h.id === id ? { ...h, ...patch } : h);
+      luuLocalStorage(LS_HISTORY, history);
+      setTimeout(() => {
+        get().ghiNhatKy({
+          userId: state.currentSellerId,
+          userName: state.currentSellerName,
+          action: 'update',
+          targetType: old.isQuote ? 'quote' : 'history',
+          targetId: id,
+          targetName: patch.productName ?? old.productName,
+          before: Object.fromEntries(Object.keys(patch).map(k => [k, (old as unknown as Record<string, unknown>)[k]])),
+          after: patch as Record<string, unknown>,
+        });
+      }, 0);
       return { history };
     });
   },

@@ -545,7 +545,7 @@ export default function ManHinhQuanLy() {
         })();
         return (
           <div key={idx}>
-            <span style={{ fontWeight: 600, color: 'var(--foreground)' }}>{item.ten}:</span>{' '}
+            <span style={{ fontWeight: 600, color: 'var(--text, #1e293b)' }}>{item.ten}:</span>{' '}
             {soLan > 1
               ? <>{dinhDangSo(met, 0)}m × {soLan} = {dinhDangSo(met * soLan, 0)}m</>
               : <>{dinhDangSo(met, 0)}m</>

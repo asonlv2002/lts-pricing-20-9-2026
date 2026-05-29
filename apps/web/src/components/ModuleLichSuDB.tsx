@@ -34,9 +34,10 @@ function namTrongKhoangNgay(item: HistoryItem, tuNgay: string, denNgay: string):
 type SortKey = 'date' | 'customer' | 'productName' | 'finalPrice' | 'quoteStatus';
 type SortDir = 'asc' | 'desc';
 type ToggleMode = 'pricing' | 'quote';
-type TimeRange = '3days' | '7days' | '30days' | 'custom';
+type TimeRange = '3days' | '7days' | '30days' | 'all' | 'custom';
 
 const TIME_RANGE_LABELS: Record<TimeRange, string> = {
+  all: 'Tất cả',
   '3days': '3 ngày gần nhất',
   '7days': '7 ngày gần nhất',
   '30days': '30 ngày gần nhất',
@@ -57,6 +58,10 @@ function getPricingStatus(h: HistoryItem): string {
   if (h.quoteCode) return 'used';
   if (h.chotGia && h.chotGia > 0) return 'chot';
   return 'draft';
+}
+
+function laBanGhiBaoGia(h: HistoryItem): boolean {
+  return !!(h.isQuote || h.quoteProducts?.length || (h.quoteCode && h.tiers?.length));
 }
 
 const PRICING_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
@@ -126,26 +131,111 @@ function SortHeader({ label, sortKey, current, dir, onSort }: {
 
 // ─── DetailPanel ─────────────────────────────────────────────────────────────
 
+type EditDraft = {
+  customer: string;
+  productName: string;
+  chotGia: string;
+  quoteStatus: string;
+};
+
 function DetailPanel({
-  item, mode, onClose, onLoad, onLSX, onNavigate
+  item, mode, onClose, onLoad, onLSX, onNavigate, onPatch
 }: {
   item: HistoryItem; mode: ToggleMode;
   onClose: () => void;
   onLoad: (id: string) => void;
   onLSX: (item: HistoryItem) => void;
   onNavigate?: (module: 'calculator') => void;
+  onPatch: (id: string, patch: Partial<Pick<HistoryItem, 'customer' | 'productName' | 'chotGia' | 'quoteStatus'>>) => void;
 }) {
   const status = mode === 'pricing' ? getPricingStatus(item) : (item.quoteStatus ?? 'drafted');
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<EditDraft>({
+    customer: item.customer,
+    productName: item.productName,
+    chotGia: item.chotGia ? String(item.chotGia) : '',
+    quoteStatus: item.quoteStatus ?? 'drafted',
+  });
+  const [confirmClose, setConfirmClose] = useState(false);
+  const [confirmSave, setConfirmSave] = useState(false);
+  const [closeAfterSave, setCloseAfterSave] = useState(false);
+
+  const isDirty = editing && (
+    draft.customer !== item.customer ||
+    draft.productName !== item.productName ||
+    draft.chotGia !== (item.chotGia ? String(item.chotGia) : '') ||
+    draft.quoteStatus !== (item.quoteStatus ?? 'drafted')
+  );
+
+  function buildPatch() {
+    const patch: Partial<Pick<HistoryItem, 'customer' | 'productName' | 'chotGia' | 'quoteStatus'>> = {};
+    if (draft.customer !== item.customer) patch.customer = draft.customer;
+    if (draft.productName !== item.productName) patch.productName = draft.productName;
+    const parsedGia = draft.chotGia ? Number(draft.chotGia.replace(/\D/g, '')) : 0;
+    if (parsedGia !== (item.chotGia ?? 0)) patch.chotGia = parsedGia || undefined;
+    if (draft.quoteStatus !== (item.quoteStatus ?? 'drafted')) patch.quoteStatus = draft.quoteStatus as QuoteStatus;
+    return patch;
+  }
+
+  function savePatch(shouldClose = false) {
+    const patch = buildPatch();
+    if (Object.keys(patch).length > 0) onPatch(item.id, patch);
+    setEditing(false);
+    setConfirmSave(false);
+    setConfirmClose(false);
+    if (shouldClose) onClose();
+  }
+
+  function handleClose() {
+    if (isDirty) { setConfirmClose(true); return; }
+    onClose();
+  }
+
+  function handleSave() {
+    if (!isDirty) { setEditing(false); return; }
+    setCloseAfterSave(false);
+    setConfirmSave(true);
+  }
 
   return (
     <>
       {/* Backdrop */}
       <div
-        onClick={onClose}
-        style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 40,
-        }}
+        onClick={handleClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 40 }}
       />
+
+      {/* Unsaved-changes confirmation */}
+      {confirmClose && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--surface, #ffffff)', border: '1px solid var(--border)', borderRadius: 12, padding: '24px 28px', maxWidth: 360, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ fontSize: '2rem', marginBottom: 8 }}>⚠️</div>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 8 }}>Chưa lưu thay đổi</div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: 20 }}>
+              Bạn có thay đổi chưa được lưu. Đóng sẽ mất các thay đổi này.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button className="btn btn-outline" onClick={() => setConfirmClose(false)}>Tiếp tục chỉnh sửa</button>
+              <button className="btn btn-primary" onClick={() => savePatch(true)}>Lưu & đóng</button>
+              <button className="btn btn-danger" onClick={onClose}>Đóng không lưu</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmSave && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--surface, #ffffff)', border: '1px solid var(--border)', borderRadius: 12, padding: '22px 26px', maxWidth: 360, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 8 }}>Xác nhận lưu thay đổi?</div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: 18 }}>Thao tác này sẽ cập nhật bản ghi và ghi nhật ký thao tác.</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button className="btn btn-outline" onClick={() => setConfirmSave(false)}>Hủy</button>
+              <button className="btn btn-primary" onClick={() => savePatch(closeAfterSave)}>Lưu</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Panel */}
       <div
         role="dialog"
@@ -153,7 +243,7 @@ function DetailPanel({
         aria-label={mode === 'pricing' ? `Bảng tính giá ${item.id}` : `Báo giá ${item.quoteCode || item.id}`}
         style={{
           position: 'fixed', top: 0, right: 0, bottom: 0,
-          width: 'min(60%, 640px)', background: 'var(--background)',
+          width: 'min(60%, 640px)', background: 'var(--surface, #ffffff)',
           borderLeft: '1px solid var(--border)', zIndex: 50,
           display: 'flex', flexDirection: 'column', overflow: 'hidden',
           boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
@@ -168,14 +258,26 @@ function DetailPanel({
           <div>
             <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: 2 }}>
               {mode === 'pricing' ? 'BẢNG TÍNH GIÁ' : 'BÁO GIÁ'}
+              {isDirty && <span style={{ color: '#d97706', marginLeft: 6 }}>● Chưa lưu</span>}
             </div>
             <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>
               {mode === 'pricing' ? item.id : (item.quoteCode || item.id)}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
-            <X size={18} />
-          </button>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {!editing && (
+              <button
+                className="btn btn-sm btn-outline"
+                onClick={() => setEditing(true)}
+                style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem' }}
+              >
+                ✏️ Chỉnh sửa
+              </button>
+            )}
+            <button onClick={handleClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+              <X size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Body */}
@@ -186,34 +288,135 @@ function DetailPanel({
             <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>{item.date}</span>
           </div>
 
-          {/* Info sections */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <InfoSection title="Thông tin chung">
-              <InfoRow label="Khách hàng" value={item.customer || '—'} />
-              <InfoRow label="Sản phẩm" value={item.productName || '—'} />
-              <InfoRow label="Cấu trúc" value={item.structure || '—'} mono />
-              <InfoRow label="Số lượng" value={`${dinhDangSo(item.quantity)} cái`} />
-              {item.sellerName && <InfoRow label="Sale" value={item.sellerName} />}
-            </InfoSection>
-
-            <InfoSection title="Kết quả tính giá">
-              <InfoRow label="Giá thành" value={`${dinhDangSo(item.finalPrice)} ₫`} bold />
-              {item.chotGia && item.chotGia > 0 && (
-                <InfoRow label="Giá chốt" value={`${dinhDangSo(item.chotGia)} ₫`} bold color="var(--green, #059669)" />
+          {editing ? (
+            /* ── Edit form ── */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Khách hàng</label>
+                <input
+                  className="form-input"
+                  value={draft.customer}
+                  onChange={e => setDraft(d => ({ ...d, customer: e.target.value }))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Tên sản phẩm</label>
+                <input
+                  className="form-input"
+                  value={draft.productName}
+                  onChange={e => setDraft(d => ({ ...d, productName: e.target.value }))}
+                  style={{ width: '100%' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Giá chốt (₫)</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  inputMode="numeric"
+                  value={draft.chotGia}
+                  onChange={e => setDraft(d => ({ ...d, chotGia: e.target.value.replace(/[^\d]/g, '') }))}
+                  placeholder="Để trống nếu chưa chốt"
+                  style={{ width: '100%' }}
+                />
+                {draft.chotGia && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 3 }}>
+                    = {dinhDangSo(Number(draft.chotGia))} ₫
+                  </div>
+                )}
+              </div>
+              {mode === 'quote' && (
+                <div>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Trạng thái báo giá</label>
+                  <select
+                    className="form-input"
+                    value={draft.quoteStatus}
+                    onChange={e => setDraft(d => ({ ...d, quoteStatus: e.target.value }))}
+                    style={{ width: '100%' }}
+                  >
+                    {QUOTE_STATUS_OPTIONS.map(s => (
+                      <option key={s} value={s}>{QUOTE_STATUS_CONFIG[s].label}</option>
+                    ))}
+                  </select>
+                </div>
               )}
-            </InfoSection>
-
-            {mode === 'quote' && item.tiers && item.tiers.length > 0 && (
-              <InfoSection title="Bảng giá báo">
-                {item.tiers.map((tier, i) => (
-                  <InfoRow key={i}
-                    label={`${dinhDangSo(tier.quantity)} cái`}
-                    value={`${dinhDangSo(tier.chotGia ?? tier.finalPrice ?? 0)} ₫`}
-                  />
-                ))}
+              {/* Read-only fields */}
+              <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ padding: '8px 12px', background: 'var(--surface)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+                  Thông tin không thể chỉnh sửa
+                </div>
+                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <InfoRow label="Cấu trúc" value={item.structure || '—'} mono />
+                  <InfoRow label="Số lượng" value={`${dinhDangSo(item.quantity)} cái`} />
+                  <InfoRow label="Giá thành" value={`${dinhDangSo(item.finalPrice)} ₫`} bold />
+                  {item.sellerName && <InfoRow label="Sale" value={item.sellerName} />}
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* ── View mode ── */
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <InfoSection title="Thông tin chung">
+                <InfoRow label="Khách hàng" value={item.customer || '—'} />
+                <InfoRow label="Sản phẩm" value={item.productName || '—'} />
+                <InfoRow label="Cấu trúc" value={item.structure || '—'} mono />
+                <InfoRow label="Số lượng" value={`${dinhDangSo(item.quantity)} cái`} />
+                {item.sellerName && <InfoRow label="Sale" value={item.sellerName} />}
               </InfoSection>
-            )}
-          </div>
+
+              <InfoSection title="Kết quả tính giá">
+                <InfoRow label="Giá thành" value={`${dinhDangSo(item.finalPrice)} ₫`} bold />
+                {item.chotGia && item.chotGia > 0 && (
+                  <InfoRow label="Giá chốt" value={`${dinhDangSo(item.chotGia)} ₫`} bold color="var(--green, #059669)" />
+                )}
+              </InfoSection>
+
+              {mode === 'quote' && item.quoteProducts && item.quoteProducts.length > 0 && (
+                <InfoSection title="Sản phẩm trong báo giá">
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: 'left', padding: '4px 6px', color: 'var(--muted)' }}>Sản phẩm</th>
+                          <th style={{ textAlign: 'left', padding: '4px 6px', color: 'var(--muted)' }}>Mức SL / giá báo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {item.quoteProducts.map(p => (
+                          <tr key={p.sourceHistoryItemId}>
+                            <td style={{ padding: '6px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }}>
+                              <b>{p.productName}</b>
+                              <div style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>{p.structure}</div>
+                            </td>
+                            <td style={{ padding: '6px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }}>
+                              {p.tiers.map((tier, i) => (
+                                <div key={i} style={{ marginBottom: 2 }}>
+                                  {dinhDangSo(tier.quantity)}: <b>{dinhDangSo(tier.chotGia ?? tier.finalPrice)} ₫</b>
+                                  <span style={{ color: 'var(--muted)', marginLeft: 6 }}>({dinhDangSo(tier.finalPrice)} ₫ giá chốt)</span>
+                                </div>
+                              ))}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </InfoSection>
+              )}
+
+              {mode === 'quote' && item.tiers && item.tiers.length > 0 && (
+                <InfoSection title="Bảng giá báo">
+                  {item.tiers.map((tier, i) => (
+                    <InfoRow key={i}
+                      label={`${dinhDangSo(tier.quantity)} cái`}
+                      value={`${dinhDangSo(tier.chotGia ?? tier.finalPrice ?? 0)} ₫`}
+                    />
+                  ))}
+                </InfoSection>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer actions */}
@@ -222,15 +425,39 @@ function DetailPanel({
           display: 'flex', gap: 8, flexWrap: 'wrap',
           background: 'var(--surface)',
         }}>
-          <button className="btn btn-sm btn-outline" onClick={() => { onLoad(item.id); onNavigate?.('calculator'); onClose(); }}
-            style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-            <RotateCcw size={13} /> Tải lại
-          </button>
-          {item.chotGia && item.chotGia > 0 && (
-            <button className="btn btn-sm btn-outline" onClick={() => { onLSX(item); onClose(); }}
-              style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--accent)', borderColor: 'var(--accent)' }}>
-              <ClipboardList size={13} /> Tạo LSX
-            </button>
+          {editing ? (
+            <>
+              <button className="btn btn-sm btn-primary" onClick={handleSave}
+                style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                💾 Lưu
+              </button>
+              <button className="btn btn-sm btn-outline" onClick={() => {
+                setDraft({
+                  customer: item.customer,
+                  productName: item.productName,
+                  chotGia: item.chotGia ? String(item.chotGia) : '',
+                  quoteStatus: item.quoteStatus ?? 'drafted',
+                });
+                setEditing(false);
+              }}>
+                Huỷ
+              </button>
+            </>
+          ) : (
+            <>
+              {!item.isQuote && (
+                <button className="btn btn-sm btn-outline" onClick={() => { onLoad(item.id); onNavigate?.('calculator'); onClose(); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <RotateCcw size={13} /> Tải lại
+                </button>
+              )}
+              {!item.isQuote && item.chotGia && item.chotGia > 0 && (
+                <button className="btn btn-sm btn-outline" onClick={() => { onLSX(item); onClose(); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--accent)', borderColor: 'var(--accent)' }}>
+                  <ClipboardList size={13} /> Tạo LSX
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -255,7 +482,7 @@ function InfoRow({ label, value, mono, bold, color }: { label: string; value: st
   return (
     <div style={{ display: 'flex', gap: 8, fontSize: '0.82rem' }}>
       <span style={{ color: 'var(--muted)', minWidth: 110, flexShrink: 0 }}>{label}:</span>
-      <span style={{ fontFamily: mono ? "'Courier New', monospace" : undefined, fontWeight: bold ? 600 : undefined, color: color || 'var(--foreground)' }}>
+      <span style={{ fontFamily: mono ? "'Courier New', monospace" : undefined, fontWeight: bold ? 600 : undefined, color: color || 'var(--text, #1e293b)' }}>
         {value}
       </span>
     </div>
@@ -266,14 +493,14 @@ function InfoRow({ label, value, mono, bold, color }: { label: string; value: st
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
 export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieuHuong?: (module: 'calculator') => void; menuDangChon?: string }) {
-  const { history: lichSu, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu } = dungCuaHangTinhGia();
+  const { history: lichSu, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu, patchHistoryItem } = dungCuaHangTinhGia();
 
   // Toggle
   const [mode, setMode] = useState<ToggleMode>('pricing');
 
   // Filters
   const [tuKhoa, datTuKhoa] = useState('');
-  const [timeRange, setTimeRange] = useState<TimeRange>('7days');
+  const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [tuNgay, datTuNgay] = useState('');
   const [denNgay, datDenNgay] = useState('');
   const [filterStatuses, setFilterStatuses] = useState<Set<string>>(new Set());
@@ -283,6 +510,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   const [filterMaterial, setFilterMaterial] = useState('');
   const [filterBagType, setFilterBagType] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [pendingTargetId, setPendingTargetId] = useState<string | null>(null);
 
   // Check for navigation filter from customer module
   useEffect(() => {
@@ -293,6 +521,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
         localStorage.removeItem('lts_navigate_filter');
         if (nav.customerName) setFilterCustomer(nav.customerName);
         if (nav.module === 'quote') setMode('quote');
+        if (nav.targetId) setPendingTargetId(nav.targetId);
       }
     } catch {}
   }, []);
@@ -307,6 +536,15 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
 
   // Detail panel
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+
+  useEffect(() => {
+    if (!pendingTargetId) return;
+    const found = lichSu.find(h => h.id === pendingTargetId);
+    if (!found) return;
+    setSelectedItem(found);
+    setMode(laBanGhiBaoGia(found) ? 'quote' : 'pricing');
+    setPendingTargetId(null);
+  }, [pendingTargetId, lichSu]);
 
   // LSX modal
   const [mucLsx, datMucLsx] = useState<HistoryItem | null>(null);
@@ -329,6 +567,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
     const now = new Date();
     const end = new Date(now); end.setHours(23, 59, 59, 999);
     const start = new Date(now);
+    if (timeRange === 'all') { return [new Date(0), end]; }
     if (timeRange === '3days') { start.setDate(start.getDate() - 2); start.setHours(0, 0, 0, 0); }
     else if (timeRange === '7days') { start.setDate(start.getDate() - 6); start.setHours(0, 0, 0, 0); }
     else if (timeRange === '30days') { start.setDate(start.getDate() - 29); start.setHours(0, 0, 0, 0); }
@@ -339,11 +578,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   }, [timeRange, tuNgay, denNgay]);
 
   const filtered = useMemo(() => {
-    let list = lichSu.filter(h => {
-      // Mode filter: pricing = no quoteCode or has chotGia; quote = has quoteCode or quoteStatus
-      if (mode === 'quote') return !!(h.quoteCode || h.quoteStatus);
-      return true; // pricing shows all
-    });
+    let list = lichSu.filter(h => mode === 'quote' ? laBanGhiBaoGia(h) : !laBanGhiBaoGia(h));
 
     // Time range
     list = list.filter(h => {
@@ -370,11 +605,11 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
         (h.quoteCode || '').toLowerCase().includes(q)
       );
     }
-    if (filterCustomer) activeChips.push({ label: 'KH: ' + filterCustomer, clear: () => setFilterCustomer('') });
+    if (filterCustomer) list = list.filter(h => h.customer.toLowerCase().includes(filterCustomer.toLowerCase()));
     if (filterProduct.trim()) list = list.filter(h => h.productName.toLowerCase().includes(filterProduct.toLowerCase()));
-    if (filterSeller) activeChips.push({ label: 'Sale: ' + filterSeller, clear: () => setFilterSeller('') });
-    if (filterMaterial) activeChips.push({ label: 'VL: ' + filterMaterial, clear: () => setFilterMaterial('') });
-    if (filterBagType) activeChips.push({ label: 'QC: ' + filterBagType, clear: () => setFilterBagType('') });
+    if (filterSeller) list = list.filter(h => (h.sellerName || h.sellerId || '').toLowerCase().includes(filterSeller.toLowerCase()));
+    if (filterMaterial) list = list.filter(h => h.structure.toLowerCase().includes(filterMaterial.toLowerCase()));
+    if (filterBagType) list = list.filter(h => (h.input?.bagType || h.input?.productType || '').toLowerCase().includes(filterBagType.toLowerCase()));
 
     // Sort
     list = [...list].sort((a, b) => {
@@ -412,13 +647,13 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   }, []);
 
   const clearAll = () => {
-    datTuKhoa(''); setTimeRange('7days'); datTuNgay(''); datDenNgay('');
+    datTuKhoa(''); setTimeRange('all'); datTuNgay(''); datDenNgay('');
     setFilterStatuses(new Set()); setFilterCustomer(''); setFilterProduct(''); setFilterSeller(''); setFilterMaterial(''); setFilterBagType(''); setPage(0);
   };
 
   // Active chips
   const activeChips: Array<{ label: string; clear: () => void }> = [];
-  if (timeRange !== '7days') activeChips.push({ label: TIME_RANGE_LABELS[timeRange], clear: () => setTimeRange('7days') });
+  if (timeRange !== 'all') activeChips.push({ label: TIME_RANGE_LABELS[timeRange], clear: () => setTimeRange('all') });
   filterStatuses.forEach(s => {
     const cfg = mode === 'pricing' ? PRICING_STATUS_CONFIG[s] : QUOTE_STATUS_CONFIG[s as QuoteStatus];
     activeChips.push({ label: cfg?.label ?? s, clear: () => toggleStatus(s) });
@@ -461,6 +696,10 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
           onLoad={taiLichSu}
           onLSX={datMucLsx}
           onNavigate={khiDieuHuong}
+          onPatch={(id, patch) => {
+            patchHistoryItem(id, patch);
+            setSelectedItem(prev => prev ? { ...prev, ...patch } : prev);
+          }}
         />
       )}
 
@@ -477,8 +716,8 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
                 style={{
                   padding: '5px 14px', borderRadius: 6, border: 'none', cursor: 'pointer',
                   fontSize: '0.82rem', fontWeight: 600, transition: 'all 0.15s',
-                  background: mode === m ? 'var(--background)' : 'transparent',
-                  color: mode === m ? 'var(--foreground)' : 'var(--muted)',
+                  background: mode === m ? 'var(--surface, #ffffff)' : 'transparent',
+                  color: mode === m ? 'var(--text, #1e293b)' : 'var(--muted)',
                   boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                 }}
               >
@@ -540,15 +779,36 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
 
         {/* Advanced: status filter */}
         {showAdvanced && (
-          <div style={{ marginTop: 12 }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 6, fontWeight: 500 }}>Trạng thái</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
-              {statusOptions.map(opt => (
-                <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', cursor: 'pointer' }}>
-                  <input type="checkbox" checked={filterStatuses.has(opt.value)} onChange={() => toggleStatus(opt.value)} />
-                  {opt.label}
-                </label>
-              ))}
+          <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 6, fontWeight: 500 }}>Trạng thái</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
+                {statusOptions.map(opt => (
+                  <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={filterStatuses.has(opt.value)} onChange={() => toggleStatus(opt.value)} />
+                    {opt.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
+              <select className="form-input" value={filterCustomer} onChange={e => { setFilterCustomer(e.target.value); setPage(0); }}>
+                <option value="">Tất cả khách hàng</option>
+                {customerOptions.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <input className="form-input" placeholder="Lọc sản phẩm" value={filterProduct} onChange={e => { setFilterProduct(e.target.value); setPage(0); }} />
+              <select className="form-input" value={filterSeller} onChange={e => { setFilterSeller(e.target.value); setPage(0); }}>
+                <option value="">Tất cả sale</option>
+                {sellerOptions.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select className="form-input" value={filterMaterial} onChange={e => { setFilterMaterial(e.target.value); setPage(0); }}>
+                <option value="">Tất cả vật liệu</option>
+                {materialOptions.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select className="form-input" value={filterBagType} onChange={e => { setFilterBagType(e.target.value); setPage(0); }}>
+                <option value="">Tất cả quy cách</option>
+                {bagTypeOptions.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
             </div>
           </div>
         )}
@@ -618,7 +878,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
                       </td>
                       {mode === 'pricing' && <td>{h.productName}</td>}
                       <td>{h.customer}</td>
-                      {mode === 'quote' && <td style={{ textAlign: 'center' }}>{h.tiers?.length ?? 1}</td>}
+                      {mode === 'quote' && <td style={{ textAlign: 'center' }}>{h.quoteProducts?.length ?? (h.tiers?.length ? 1 : 0)}</td>}
                       <td>{h.date}</td>
                       <td><StatusBadge status={status} mode={mode} /></td>
                       {mode === 'pricing' && <td className="num" style={{ fontWeight: 600 }}>{dinhDangSo(h.finalPrice)} ₫</td>}
@@ -628,11 +888,15 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
                           <Eye size={13} />
                         </button>
                         {' '}
-                        <button className="btn btn-sm btn-outline" title="Tải lại" onClick={() => { taiLichSu(h.id); khiDieuHuong?.('calculator'); }}>
-                          <RotateCcw size={13} />
-                        </button>
-                        {' '}
-                        {h.chotGia && h.chotGia > 0 && (
+                        {!h.isQuote && (
+                          <>
+                            <button className="btn btn-sm btn-outline" title="Tải lại" onClick={() => { taiLichSu(h.id); khiDieuHuong?.('calculator'); }}>
+                              <RotateCcw size={13} />
+                            </button>
+                            {' '}
+                          </>
+                        )}
+                        {!h.isQuote && h.chotGia && h.chotGia > 0 && (
                           <>
                             <button className="btn btn-sm btn-outline" title="Tạo LSX" onClick={() => datMucLsx(h)}
                               style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}>
@@ -675,9 +939,3 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
     </div>
   );
 }
-
-
-
-
-
-

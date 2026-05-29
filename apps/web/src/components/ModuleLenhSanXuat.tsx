@@ -87,6 +87,23 @@ export default function ModuleLenhSanXuat() {
   const [dangTai, datDangTai] = useState(false);
 
   // LSX đã được load từ localStorage trong page.tsx khi khởi động
+  useEffect(() => {
+    try {
+      const rawFocus = localStorage.getItem('lts_order_focus');
+      if (rawFocus) {
+        const focus = JSON.parse(rawFocus);
+        localStorage.removeItem('lts_order_focus');
+        datTuKhoa(focus.targetId || focus.targetName || '');
+        return;
+      }
+      const rawNav = localStorage.getItem('lts_navigate_filter');
+      if (!rawNav) return;
+      const nav = JSON.parse(rawNav);
+      if (nav.module !== 'production_orders') return;
+      localStorage.removeItem('lts_navigate_filter');
+      datTuKhoa(nav.customerName || '');
+    } catch {}
+  }, []);
 
   const daLoc = useMemo(() => {
     let danhSach = [...lenhSanXuat];

@@ -1,10 +1,10 @@
-﻿"use client";
+"use client";
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle, ArrowLeft, Briefcase, Building2, ChevronDown, ChevronRight,
   Copy, Download, Eye, FileText, Grid3X3, Hash, LayoutList, Lock,
   Mail, MapPin, Package, Pencil, Phone, Plus, Save, Search,
-  Shield, Unlock, User, Users, X, ClipboardList, RotateCcw, Check
+  Shield, Unlock, User, Users, X, ClipboardList, RotateCcw, Check, Settings
 } from 'lucide-react';
 import seedCustomers from '../data/customers.json';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
@@ -61,6 +61,25 @@ interface CustomerFilters {
 // ── Constants ────────────────────────────────────────────────────────────────
 const LS_CUSTOMERS = 'lts_customers';
 const LS_CUSTOMER_DRAFT = 'lts_customer_draft';
+const LS_CRM_THRESHOLDS = 'lts_crm_thresholds';
+
+interface CrmThresholds {
+  pausedMonths: number;   // Tạm ngưng: không hoạt động >= N tháng (mặc định 6)
+  inactiveMonths: number; // Ngừng hợp tác: không hoạt động >= N tháng (mặc định 12)
+}
+
+const DEFAULT_CRM_THRESHOLDS: CrmThresholds = { pausedMonths: 6, inactiveMonths: 12 };
+
+function loadCrmThresholds(): CrmThresholds {
+  try {
+    const raw = typeof window !== 'undefined' ? window.localStorage.getItem(LS_CRM_THRESHOLDS) : null;
+    if (raw) return { ...DEFAULT_CRM_THRESHOLDS, ...JSON.parse(raw) };
+  } catch { /* ignore */ }
+  return DEFAULT_CRM_THRESHOLDS;
+}
+function saveCrmThresholds(t: CrmThresholds) {
+  try { window.localStorage.setItem(LS_CRM_THRESHOLDS, JSON.stringify(t)); } catch { /* ignore */ }
+}
 const SELLERS = [
   { id: 'S1', name: 'Nguyễn Văn An' },
   { id: 'S2', name: 'Trần Gia Bảo' },
@@ -102,6 +121,26 @@ const FIELD_LABELS: Record<string, string> = {
   crmStatus: 'Trạng thái CRM',
 };
 
+const CUSTOMER_AUDIT_KEYS: (keyof Customer)[] = [
+  'companyName', 'taxCode', 'invoiceAddress', 'contactName', 'phone', 'email',
+  'contactTitle', 'address', 'customerCode', 'sellerId', 'secondarySellerId',
+  'crmStatus', 'status', 'isLocked', 'notes', 'assignmentNote', 'contactNotes',
+];
+
+function diffCustomer(oldC: Customer | undefined, newC: Customer) {
+  const before: Record<string, unknown> = {};
+  const after: Record<string, unknown> = {};
+  for (const key of CUSTOMER_AUDIT_KEYS) {
+    const oldVal = oldC?.[key];
+    const newVal = newC[key];
+    if (!oldC || oldVal !== newVal) {
+      before[String(key)] = oldVal ?? '';
+      after[String(key)] = newVal ?? '';
+    }
+  }
+  return { before, after };
+}
+
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const getCustomerType = (c: Customer): CustomerType => c.customerType ?? 'company';
 const isIndividual = (c: Customer) => getCustomerType(c) === 'individual';
@@ -111,7 +150,9 @@ const todayIso = () => new Date().toISOString();
 const fmtDate = (v?: string) => v ? new Date(v).toLocaleDateString('vi-VN') : '-';
 const statusLabel = (c: Customer) => c.isLocked ? 'Đã khóa' : c.status === 'active' ? 'Đang sử dụng' : 'Ngừng sử dụng';
 const normalize = (v?: string | null) => (v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-const canEdit = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || (role === 'sale' && c.sellerId === sellerId && !c.isLocked);
+const isAssignedSeller = (c: Customer, sellerId?: string) => !!sellerId && (c.sellerId === sellerId || c.secondarySellerId === sellerId);
+const canEdit = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || (role === 'sale' && isAssignedSeller(c, sellerId) && !c.isLocked);
+const canViewContact = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || role === 'purchase' || isAssignedSeller(c, sellerId);
 const canLock = (role: Role) => role === 'admin';
 
 // Completeness: count filled required fields
@@ -126,9 +167,35 @@ function getCompleteness(c: Customer): { filled: number; total: number; missing:
 }
 
 // Derive CRM status from history data (auto-progression logic)
-function getCrmStatus(c: Customer, relatedQuotes: { quoteStatus?: string; chotGia?: number }[] = []): CrmStatus {
-  if (relatedQuotes.some(h => h.quoteStatus === 'completed' || !!h.chotGia)) return 'active';
+function getCrmStatus(
+  c: Customer,
+  relatedQuotes: { quoteStatus?: string; chotGia?: number; date?: string }[] = [],
+  thresholds?: CrmThresholds,
+): CrmStatus {
+  const t = thresholds ?? loadCrmThresholds();
+  // Active: đã chốt ít nhất 1 đơn
+  if (relatedQuotes.some(h => h.quoteStatus === 'completed' || !!h.chotGia)) {
+    // Kiểm tra thời gian không hoạt động (tính từ ngày giao dịch gần nhất)
+    const lastDate = relatedQuotes
+      .map(h => h.date ? new Date(h.date.split('/').reverse().join('-')).getTime() : 0)
+      .filter(Boolean)
+      .sort((a, b) => b - a)[0];
+    if (lastDate) {
+      const monthsInactive = (Date.now() - lastDate) / (1000 * 60 * 60 * 24 * 30);
+      if (monthsInactive >= t.inactiveMonths) return 'inactive';
+      if (monthsInactive >= t.pausedMonths) return 'paused';
+    }
+    return 'active';
+  }
+  // Negotiating: đã gửi báo giá
   if (relatedQuotes.some(h => h.quoteStatus === 'sent' || h.quoteStatus === 'approved' || h.quoteStatus === 'pending_approval')) return 'negotiating';
+  // Paused / Inactive dựa trên ngày tạo KH nếu chưa có giao dịch
+  const createdMs = c.createdAt ? new Date(c.createdAt).getTime() : 0;
+  if (createdMs) {
+    const monthsSinceCreated = (Date.now() - createdMs) / (1000 * 60 * 60 * 24 * 30);
+    if (monthsSinceCreated >= t.inactiveMonths) return 'inactive';
+    if (monthsSinceCreated >= t.pausedMonths) return 'paused';
+  }
   return c.crmStatus ?? 'lead';
 }
 
@@ -455,9 +522,9 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
 function CustomerDetailPanel({ customer, role, currentSellerId, onClose, onEdit, onNavigate }: {
   customer: Customer; role: Role; currentSellerId?: string;
   onClose: () => void; onEdit: () => void;
-  onNavigate: (module: string, filter: string) => void;
+  onNavigate: (module: string, filter: string, quoteMode?: boolean) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<'info' | 'quotes' | 'products'>('info');
+  const [activeTab, setActiveTab] = useState<'info'>('info');
   const [txDropOpen, setTxDropOpen] = useState(false);
   const history = dungCuaHangTinhGia(s => s.history);
   const loadHistoryItem = dungCuaHangTinhGia(s => s.loadHistoryItem);
@@ -470,10 +537,8 @@ function CustomerDetailPanel({ customer, role, currentSellerId, onClose, onEdit,
   const crmStatus = getCrmStatus(customer, related);
   const crmCfg = CRM_STATUS_CONFIG[crmStatus];
   const pct = Math.round((filled / total) * 100);
-
-  const products = Array.from(
-    new Map(related.map(h => [`${h.productName}-${h.structure}`, h])).values()
-  );
+  const duocXemLienHe = canViewContact(role, customer, currentSellerId);
+  const giaTriAn = 'Ẩn do chưa được phân công';
 
   // Customer-specific audit entries
   const customerAudit = auditLog?.filter(e =>
@@ -487,9 +552,9 @@ function CustomerDetailPanel({ customer, role, currentSellerId, onClose, onEdit,
     ['Mã số thuế', customer.taxCode],
     ['Địa chỉ xuất HĐ', customer.invoiceAddress],
     ['Địa chỉ giao hàng', customer.address],
-    ['Người liên hệ', customer.contactName],
+    ['Người liên hệ', duocXemLienHe ? customer.contactName : giaTriAn],
     ['Chức vụ', customer.contactTitle],
-    ['Số điện thoại', customer.phone],
+    ['Số điện thoại', duocXemLienHe ? customer.phone : giaTriAn],
     ['Email', customer.email],
     ['Khu vực', customer.region],
     ['Nhóm khách hàng', customer.customerGroup],
@@ -546,13 +611,13 @@ function CustomerDetailPanel({ customer, role, currentSellerId, onClose, onEdit,
             </button>
             {txDropOpen && (
               <div className="crm2-dropdown-menu" style={{ minWidth: 200 }} onClick={() => setTxDropOpen(false)}>
-                <button onClick={() => onNavigate('history_db', displayName(customer))}>
+                <button onClick={() => onNavigate('history_db', displayName(customer), true)}>
                   <FileText size={13}/> Bảng báo giá
                 </button>
                 <button onClick={() => onNavigate('production_orders', displayName(customer))}>
                   <Package size={13}/> Lệnh sản xuất
                 </button>
-                <button onClick={() => onNavigate('history_db', displayName(customer))}>
+                <button onClick={() => onNavigate('history_db', displayName(customer), false)}>
                   <ClipboardList size={13}/> Sản phẩm liên quan
                 </button>
               </div>
@@ -564,12 +629,6 @@ function CustomerDetailPanel({ customer, role, currentSellerId, onClose, onEdit,
         <div className="crm2-panel-tabs">
           <button className={`crm2-panel-tab${activeTab === 'info' ? ' crm2-panel-tab--active' : ''}`} onClick={() => setActiveTab('info')}>
             <Users size={14}/> Thông tin
-          </button>
-          <button className={`crm2-panel-tab${activeTab === 'quotes' ? ' crm2-panel-tab--active' : ''}`} onClick={() => setActiveTab('quotes')}>
-            <FileText size={14}/> Báo giá ({related.length})
-          </button>
-          <button className={`crm2-panel-tab${activeTab === 'products' ? ' crm2-panel-tab--active' : ''}`} onClick={() => setActiveTab('products')}>
-            <Package size={14}/> Sản phẩm ({products.length})
           </button>
         </div>
 
@@ -603,65 +662,6 @@ function CustomerDetailPanel({ customer, role, currentSellerId, onClose, onEdit,
             </div>
           )}
 
-          {activeTab === 'quotes' && (
-            <div className="crm2-panel-list">
-              {related.length === 0 ? (
-                <div className="crm2-empty-state">
-                  <FileText size={40} strokeWidth={1} />
-                  <p>Chưa có báo giá liên quan</p>
-                  <span>Báo giá sẽ hiển thị khi khách hàng có đơn trong lịch sử tính giá</span>
-                </div>
-              ) : (
-                related.slice(0, 20).map(h => (
-                  <div className="crm2-panel-list-item" key={h.id}>
-                    <div className="crm2-panel-list-icon"><FileText size={16}/></div>
-                    <div className="crm2-panel-list-content">
-                      <b>{h.productName}</b>
-                      <small>{fmtDate(h.date)} · {Math.round(h.chotGia ?? h.finalPrice).toLocaleString('vi-VN')} đ {h.quoteStatus ? `· ${h.quoteStatus}` : ''}</small>
-                    </div>
-                    <div className="crm2-panel-list-actions">
-                      <button className="crm2-btn-icon" title="Mở bảng tính" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}>
-                        <Eye size={14}/>
-                      </button>
-                      <button className="crm2-btn-icon" title="Sao chép" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}>
-                        <Copy size={14}/>
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {activeTab === 'products' && (
-            <div className="crm2-panel-list">
-              {products.length === 0 ? (
-                <div className="crm2-empty-state">
-                  <Package size={40} strokeWidth={1} />
-                  <p>Chưa có sản phẩm liên quan</p>
-                  <span>Sản phẩm sẽ hiển thị khi khách hàng có báo giá đã lưu</span>
-                </div>
-              ) : (
-                products.slice(0, 20).map(h => (
-                  <div className="crm2-panel-list-item" key={h.id}>
-                    <div className="crm2-panel-list-icon"><Package size={16}/></div>
-                    <div className="crm2-panel-list-content">
-                      <b>{h.productName}</b>
-                      <small>{h.structure} · SL {h.quantity?.toLocaleString('vi-VN')}</small>
-                    </div>
-                    <div className="crm2-panel-list-actions">
-                      <button className="crm2-btn-icon" title="Mở bảng tính" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}>
-                        <Eye size={14}/>
-                      </button>
-                      <button className="crm2-btn-icon" title="Sao chép" onClick={() => { loadHistoryItem(h.id); setActiveModule('calculator'); }}>
-                        <Copy size={14}/>
-                      </button>
-                    </div>
-                  </div>
-                ))
-              )}
-            </div>
-          )}
         </div>
       </div>
     </>
@@ -721,6 +721,7 @@ function CustomerCard({ customer, role, currentSellerId, relatedQuotes = [], onV
   const crmCfg = CRM_STATUS_CONFIG[crmStatus];
   const pct = Math.round((filled / total) * 100);
   const hasWarning = missing.length > 0;
+  const duocXemLienHe = canViewContact(role, customer, currentSellerId);
 
   return (
     <article
@@ -746,7 +747,7 @@ function CustomerCard({ customer, role, currentSellerId, relatedQuotes = [], onV
         </span>
       </div>
       <div className="crm2-card-info">
-        {customer.phone && <span className="crm2-card-info-row"><Phone size={12}/>{customer.phone}</span>}
+        {customer.phone && <span className="crm2-card-info-row"><Phone size={12}/>{duocXemLienHe ? customer.phone : 'Ẩn SĐT'}</span>}
         {customer.email && <span className="crm2-card-info-row crm2-card-info-row--truncate"><Mail size={12}/>{customer.email}</span>}
         {customer.region && <span className="crm2-card-info-row"><MapPin size={12}/>{customer.region}</span>}
         {customer.sellerName
@@ -1079,23 +1080,27 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const searchRef = useRef<HTMLInputElement>(null);
   const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
   const auditLog = dungCuaHangTinhGia(s => s.auditLog);
+  const ghiNhatKy = dungCuaHangTinhGia(s => s.ghiNhatKy);
+  const [crmThresholds, setCrmThresholds] = useState<CrmThresholds>(() => loadCrmThresholds());
+  const [showThresholdSettings, setShowThresholdSettings] = useState(false);
 
-  const handleNavigate = (module: string, filter: string) => {
+  const handleNavigate = (module: string, filter: string, quoteMode?: boolean) => {
     setDetail(null);
     // Pass customer name as pre-fill filter to target module
-    try { localStorage.setItem('lts_navigate_filter', JSON.stringify({ module, customerName: filter, ts: Date.now() })); } catch {}
+    try { localStorage.setItem('lts_navigate_filter', JSON.stringify({ module: quoteMode ? 'quote' : module, customerName: filter, ts: Date.now() })); } catch {}
     setActiveModule(module as Parameters<typeof setActiveModule>[0]);
   };
 
   useEffect(() => setCustomers(loadLocalCustomers()), []);
   useEffect(() => { if (customers.length) saveLocalCustomers(customers); }, [customers]);
   useEffect(() => {
-    if (menuDangChon === 'customers.create') setEditing(null);
-    else if (menuDangChon === 'customers.seller_assignment') {
+    if (menuDangChon === 'customers.audit_log') {
+      setMainTab('audit');
       setEditing(undefined);
-      setFilters(f => ({ ...f, status: 'unassigned' }));
+    } else {
+      setMainTab('list');
+      setEditing(undefined);
     }
-    else setEditing(undefined);
   }, [menuDangChon]);
 
   // Check for quick-add customer from pricing module
@@ -1127,7 +1132,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     regions: Array.from(new Set(customers.map(c => c.region).filter(Boolean))) as string[],
   }), [customers]);
 
-  const visible = useMemo(() => customers.filter(c => role === 'admin' || role === 'purchase' || c.sellerId === currentSellerId || c.secondarySellerId === currentSellerId), [customers, role, currentSellerId]);
+  const visible = useMemo(() => customers, [customers]);
 
   const filtered = useMemo(() => visible.filter(c => {
     const q = normalize(filters.keyword);
@@ -1143,18 +1148,73 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     if (filters.createdFrom && created && created < filters.createdFrom) return false;
     if (filters.createdTo && created && created > filters.createdTo) return false;
     return true;
-  }), [visible, filters]);
+  }).sort((a, b) => displayName(a).localeCompare(displayName(b), 'vi')), [visible, filters]);
 
-  const upsert = (c: Customer) => setCustomers(prev => {
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('lts_customer_focus');
+      if (!raw || customers.length === 0) return;
+      const focus = JSON.parse(raw);
+      localStorage.removeItem('lts_customer_focus');
+      const found = customers.find(c => c.id === focus.targetId || normalize(displayName(c)).includes(normalize(focus.targetName)));
+      if (found) setDetail(found);
+    } catch {}
+  }, [customers]);
+
+  const upsert = (c: Customer) => {
     const seller = SELLERS.find(s => s.id === c.sellerId);
     const secondary = SELLERS.find(s => s.id === c.secondarySellerId);
-    const old = prev.find(x => x.id === c.id);
-    const changedSeller = old && (old.sellerId !== c.sellerId || old.secondarySellerId !== c.secondarySellerId);
-    const historyLine = changedSeller ? `${new Date().toLocaleString('vi-VN')}: chính ${old?.sellerName || old?.sellerId || 'Chưa phân'} → ${seller?.name || c.sellerId || 'Chưa phân'}; phụ ${old?.secondarySellerName || old?.secondarySellerId || 'Không có'} → ${secondary?.name || c.secondarySellerId || 'Không có'}${c.assignmentNote ? ` (${c.assignmentNote})` : ''}` : undefined;
-    const saved = { ...c, sellerName: seller?.name ?? c.sellerName ?? '', secondarySellerName: secondary?.name ?? c.secondarySellerName ?? '', assignmentHistory: historyLine ? [...(old?.assignmentHistory ?? []), historyLine] : (c.assignmentHistory ?? []) };
-    return prev.some(x => x.id === c.id) ? prev.map(x => x.id === c.id ? saved : x) : [saved, ...prev];
+    setCustomers(prev => {
+      const old = prev.find(x => x.id === c.id);
+      const changedSeller = old && (old.sellerId !== c.sellerId || old.secondarySellerId !== c.secondarySellerId);
+      const historyLine = changedSeller ? `${new Date().toLocaleString('vi-VN')}: chính ${old?.sellerName || old?.sellerId || 'Chưa phân'} → ${seller?.name || c.sellerId || 'Chưa phân'}; phụ ${old?.secondarySellerName || old?.secondarySellerId || 'Không có'} → ${secondary?.name || c.secondarySellerId || 'Không có'}${c.assignmentNote ? ` (${c.assignmentNote})` : ''}` : undefined;
+      const saved = { ...c, sellerName: seller?.name ?? c.sellerName ?? '', secondarySellerName: secondary?.name ?? c.secondarySellerName ?? '', assignmentHistory: historyLine ? [...(old?.assignmentHistory ?? []), historyLine] : (c.assignmentHistory ?? []) };
+      const isNew = !prev.some(x => x.id === c.id);
+      const next = isNew ? [saved, ...prev] : prev.map(x => x.id === c.id ? saved : x);
+      const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? currentSellerId;
+      const diff = diffCustomer(old, saved);
+      setTimeout(() => {
+        ghiNhatKy({
+          userId: currentSellerId,
+          userName: actorName,
+          action: isNew ? 'create' : 'update',
+          targetType: 'customer',
+          targetId: c.id,
+          targetName: c.companyName || c.contactName || c.customerCode,
+          before: isNew ? undefined : diff.before,
+          after: diff.after,
+        });
+      }, 0);
+      return next;
+    });
+  };
+  const patch = (id: string, partial: Partial<Customer>) => setCustomers(prev => {
+    const old = prev.find(c => c.id === id);
+    const next = prev.map(c => c.id === id ? { ...c, ...partial, updatedAt: todayIso() } : c);
+    if (old) {
+      const saved = next.find(c => c.id === id)!;
+      const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? currentSellerId;
+      const action = partial.isLocked !== undefined && partial.isLocked !== old.isLocked
+        ? (partial.isLocked ? 'lock' : 'unlock')
+        : partial.status !== undefined && partial.status !== old.status
+          ? 'status_change'
+          : 'update';
+      const diff = diffCustomer(old, saved);
+      setTimeout(() => {
+        ghiNhatKy({
+          userId: currentSellerId,
+          userName: actorName,
+          action,
+          targetType: 'customer',
+          targetId: id,
+          targetName: old.companyName || old.contactName || old.customerCode,
+          before: diff.before,
+          after: diff.after,
+        });
+      }, 0);
+    }
+    return next;
   });
-  const patch = (id: string, partial: Partial<Customer>) => setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...partial, updatedAt: todayIso() } : c));
 
   const assignSeller = (customerId: string, sellerId: string | null, secondarySellerId: string | null, note: string) => {
     const seller = SELLERS.find(s => s.id === sellerId);
@@ -1173,18 +1233,23 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
         updatedAt: todayIso(),
       };
     }));
+    const target = customers.find(c => c.id === customerId);
+    const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? currentSellerId;
+    setTimeout(() => {
+      ghiNhatKy({
+        userId: currentSellerId,
+        userName: actorName,
+        action: 'assign',
+        targetType: 'customer',
+        targetId: customerId,
+        targetName: target?.companyName || target?.contactName || target?.customerCode,
+        before: { sellerId: target?.sellerId, sellerName: target?.sellerName, secondarySellerId: target?.secondarySellerId, secondarySellerName: target?.secondarySellerName },
+        after: { sellerId, sellerName: seller?.name, secondarySellerId, secondarySellerName: secondary?.name },
+        note: note || undefined,
+      });
+    }, 0);
     setAssigning(null);
   };
-
-  // If editing mode for NEW customer (no detail panel), show wizard fullscreen
-  if (editing !== undefined && !detail) {
-    return (
-      <div className="crm2-root">
-        <StyleInjector />
-        <CustomerForm customer={editing ?? undefined} role={role} currentSellerId={currentSellerId} customers={customers} onSave={c => { upsert(c); setEditing(undefined); }} onCancel={() => setEditing(undefined)} />
-      </div>
-    );
-  }
 
   const activeCount = visible.filter(c => c.status === 'active' && !c.isLocked).length;
   const lockedCount = visible.filter(c => c.isLocked).length;
@@ -1212,18 +1277,21 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
         />
       )}
 
-      {/* Edit panel — trượt nối tiếp từ mép phải của detail panel */}
-      {detail && editing !== undefined && (
-        <div className="crm2-edit-panel crm2-edit-panel--open">
-          <CustomerForm
-            customer={editing ?? undefined}
-            role={role}
-            currentSellerId={currentSellerId}
-            customers={customers}
-            onSave={c => { upsert(c); setDetail(c); setEditing(undefined); }}
-            onCancel={() => setEditing(undefined)}
-          />
-        </div>
+      {/* Edit/Create panel — slide-in từ phải */}
+      {editing !== undefined && (
+        <>
+          <div className="crm2-overlay crm2-overlay--open" onClick={() => setEditing(undefined)} />
+          <div className="crm2-edit-panel crm2-edit-panel--open">
+            <CustomerForm
+              customer={editing ?? undefined}
+              role={role}
+              currentSellerId={currentSellerId}
+              customers={customers}
+              onSave={c => { upsert(c); if (detail) setDetail(c); setEditing(undefined); }}
+              onCancel={() => setEditing(undefined)}
+            />
+          </div>
+        </>
       )}
 
       {/* Confirm dialog */}
@@ -1308,6 +1376,13 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
             <X size={14}/>
           </button>
         )}
+        <button
+          className="crm2-btn crm2-btn--primary"
+          style={{ marginLeft: 8, padding: '6px 14px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
+          onClick={() => setEditing(null)}
+        >
+          <Plus size={14}/> Thêm KH
+        </button>
       </div>
 
       {/* Filter chips + view toggle + dropdown filters */}
@@ -1368,6 +1443,98 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
             <button className={`crm2-view-btn${viewMode === 'grid' ? ' crm2-view-btn--active' : ''}`} onClick={() => setViewMode('grid')} title="Dạng lưới"><Grid3X3 size={16}/></button>
             <button className={`crm2-view-btn${viewMode === 'table' ? ' crm2-view-btn--active' : ''}`} onClick={() => setViewMode('table')} title="Dạng bảng"><LayoutList size={16}/></button>
           </div>
+          {/* CRM threshold settings */}
+          <div style={{ position: 'relative' }}>
+            <button
+              className={`crm2-btn crm2-btn--ghost${showThresholdSettings ? ' crm2-btn--active' : ''}`}
+              style={{ fontSize: 12, padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 5 }}
+              onClick={() => setShowThresholdSettings(v => !v)}
+              title="Cài đặt mốc thời gian CRM"
+            >
+              <Settings size={13}/> Mốc CRM
+            </button>
+            {showThresholdSettings && (
+              <div
+                style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: 6,
+                  background: 'var(--surface, #ffffff)', border: '1px solid var(--border)',
+                  borderRadius: 10, padding: '14px 16px', zIndex: 200,
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 280,
+                }}
+                onClick={e => e.stopPropagation()}
+              >
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 12, color: 'var(--text, #1e293b)' }}>
+                  Mốc thời gian tự động CRM
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
+                      Tạm ngưng — không hoạt động từ (tháng)
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="number" min={1} max={60}
+                        className="form-input"
+                        style={{ width: 80 }}
+                        value={crmThresholds.pausedMonths}
+                        onChange={e => {
+                          const v = Math.max(1, Math.min(60, Number(e.target.value) || 1));
+                          const next = { ...crmThresholds, pausedMonths: v };
+                          setCrmThresholds(next);
+                          saveCrmThresholds(next);
+                        }}
+                      />
+                      <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>tháng (mặc định: 6)</span>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
+                      Ngừng hợp tác — không hoạt động từ (tháng)
+                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input
+                        type="number" min={1} max={120}
+                        className="form-input"
+                        style={{ width: 80 }}
+                        value={crmThresholds.inactiveMonths}
+                        onChange={e => {
+                          const v = Math.max(1, Math.min(120, Number(e.target.value) || 1));
+                          const next = { ...crmThresholds, inactiveMonths: v };
+                          setCrmThresholds(next);
+                          saveCrmThresholds(next);
+                        }}
+                      />
+                      <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>tháng (mặc định: 12)</span>
+                    </div>
+                  </div>
+                  {crmThresholds.pausedMonths >= crmThresholds.inactiveMonths && (
+                    <div style={{ fontSize: '0.75rem', color: '#d97706', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '6px 10px' }}>
+                      Mốc Tạm ngưng phải nhỏ hơn mốc Ngừng hợp tác.
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                    <button
+                      className="crm2-btn crm2-btn--ghost"
+                      style={{ fontSize: 12 }}
+                      onClick={() => {
+                        setCrmThresholds(DEFAULT_CRM_THRESHOLDS);
+                        saveCrmThresholds(DEFAULT_CRM_THRESHOLDS);
+                      }}
+                    >
+                      Đặt lại mặc định
+                    </button>
+                    <button
+                      className="crm2-btn crm2-btn--primary"
+                      style={{ fontSize: 12 }}
+                      onClick={() => setShowThresholdSettings(false)}
+                    >
+                      Xong
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1418,6 +1585,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
               {filtered.map(c => {
                 const { missing } = getCompleteness(c);
                 const crmCfg = CRM_STATUS_CONFIG[getCrmStatus(c)];
+                const duocXemLienHe = canViewContact(role, c, currentSellerId);
                 return (
                 <tr key={c.id} className="crm2-table-row" onClick={() => setDetail(c)}>
                   <td>
@@ -1434,8 +1602,8 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                   </td>
                   <td>
                     <div className="crm2-table-contact">
-                      <span>{c.contactName || '-'}</span>
-                      <span>{c.phone || '-'}</span>
+                      <span>{duocXemLienHe ? (c.contactName || '-') : 'Ẩn liên hệ'}</span>
+                      <span>{duocXemLienHe ? (c.phone || '-') : 'Ẩn SĐT'}</span>
                     </div>
                   </td>
                   <td>{c.region || '-'}</td>
@@ -1705,8 +1873,8 @@ const CRM2_STYLES = `
 .crm2-overlay--open { opacity: 1; pointer-events: auto; }
 /* Edit panel — trượt nối tiếp từ mép phải của detail panel */
 .crm2-edit-panel {
-  position: fixed; top: 0; right: 480px; bottom: 0;
-  width: 640px; max-width: calc(100vw - 480px);
+  position: fixed; top: 0; right: 0; bottom: 0;
+  width: 640px; max-width: 90vw;
   background: var(--card, #fff); z-index: 102;
   display: flex; flex-direction: column;
   box-shadow: -12px 0 40px rgba(0,0,0,0.14);
@@ -2072,13 +2240,5 @@ function StyleInjector() {
   }, []);
   return null;
 }
-
-
-
-
-
-
-
-
 
 

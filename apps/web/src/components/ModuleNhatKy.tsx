@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Search, Download, Clock, User, FileText, ChevronDown, ChevronUp,
-  Plus, Pencil, Trash2, Send, Check, X, Mail, Lock, RotateCcw, Factory, Filter, XCircle
+  Plus, Pencil, Trash2, Send, Check, X, Mail, Lock, RotateCcw, Factory, Filter, XCircle, Eye
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { AuditAction, AuditEntry } from '../lib/types';
@@ -49,11 +49,16 @@ const ACTION_CONFIG: Record<AuditAction, { icon: React.ReactNode; color: string;
 
 const TARGET_TYPE_LABELS: Record<string, string> = {
   history: 'Bảng tính giá',
-  quote: 'Báo giá',
-  customer: 'Khách hàng',
-  order: 'Lệnh sản xuất',
-  config: 'Cấu hình',
+  quote: 'Báo giá thương mại',
+  customer: 'Hồ sơ Khách hàng',
+  order: 'Đơn hàng & Lệnh sản xuất (LSX)',
+  config: 'Cấu hình tính giá (Vật tư, Hao hụt...)',
+  permission: 'Phân quyền hệ thống',
 };
+
+// Grouped action types for filter UI
+const DATA_CHANGE_ACTIONS: AuditAction[] = ['create', 'update', 'delete'];
+const STATUS_CHANGE_ACTIONS: AuditAction[] = ['send_approval', 'approve', 'reject', 'send_customer', 'lock', 'restore', 'create_lsx'];
 
 const BATCH_SIZE = 20;
 
@@ -142,7 +147,7 @@ function DiffView({ before, after }: { before?: Record<string, unknown>; after?:
 
 // ─── TimelineEntry ────────────────────────────────────────────────────────────
 
-function TimelineEntry({ entry }: { entry: AuditEntry }) {
+function TimelineEntry({ entry, onOpen }: { entry: AuditEntry; onOpen: (entry: AuditEntry) => void }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = ACTION_CONFIG[entry.action];
   const hasDiff = !!(entry.before || entry.after || entry.note);
@@ -168,7 +173,7 @@ function TimelineEntry({ entry }: { entry: AuditEntry }) {
           <span style={{ fontSize: '0.75rem', color: 'var(--muted)', fontVariantNumeric: 'tabular-nums' }}>
             {formatTime(entry.timestamp)}
           </span>
-          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--foreground)' }}>
+          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text, #1e293b)' }}>
             {entry.userName}
           </span>
           <span style={{
@@ -183,7 +188,7 @@ function TimelineEntry({ entry }: { entry: AuditEntry }) {
           background: 'var(--surface)', border: '1px solid var(--border)',
           borderRadius: 8, padding: '10px 12px',
         }}>
-          <div style={{ fontSize: '0.82rem', color: 'var(--foreground)' }}>
+          <div style={{ fontSize: '0.82rem', color: 'var(--text, #1e293b)' }}>
             <span style={{ color: 'var(--muted)' }}>
               {TARGET_TYPE_LABELS[entry.targetType] || entry.targetType}:
             </span>{' '}
@@ -209,6 +214,17 @@ function TimelineEntry({ entry }: { entry: AuditEntry }) {
               {expanded ? 'Ẩn chi tiết' : 'Xem chi tiết thay đổi'}
             </button>
           )}
+
+          <button
+            onClick={() => onOpen(entry)}
+            style={{
+              marginTop: 8, fontSize: '0.75rem', color: 'var(--accent)',
+              background: 'none', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 4, padding: 0,
+            }}
+          >
+            <Eye size={12} /> Mở dữ liệu liên quan
+          </button>
 
           {expanded && <DiffView before={entry.before} after={entry.after} />}
         </div>
@@ -241,7 +257,7 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ModuleNhatKy() {
-  const { auditLog, xuatNhatKyCsv } = dungCuaHangTinhGia();
+  const { auditLog, xuatNhatKyCsv, setActiveModule, loadHistoryItem, history } = dungCuaHangTinhGia();
 
   // Filters
   const [search, setSearch] = useState('');
@@ -250,13 +266,16 @@ export default function ModuleNhatKy() {
   const [customTo, setCustomTo] = useState('');
   const [filterActions, setFilterActions] = useState<Set<AuditAction>>(new Set());
   const [filterUser, setFilterUser] = useState('');
+  const [userSearchText, setUserSearchText] = useState('');
+  const [showUserSuggestions, setShowUserSuggestions] = useState(false);
   const [filterModule, setFilterModule] = useState<Set<string>>(new Set());
-  const [filterIp, setFilterIp] = useState('');
+  const [targetSearch, setTargetSearch] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [visibleCount, setVisibleCount] = useState(BATCH_SIZE);
   const loaderRef = useRef<HTMLDivElement>(null);
+  const userInputRef = useRef<HTMLInputElement>(null);
 
-  // Unique users for filter
+  // Unique users for filter (autocomplete)
   const allUsers = useMemo(() => {
     const seen = new Set<string>();
     return auditLog.filter(e => {
@@ -266,12 +285,13 @@ export default function ModuleNhatKy() {
     }).map(e => ({ id: e.userId, name: e.userName }));
   }, [auditLog]);
 
-  // Unique modules
-  const allModules = useMemo(() => {
-    const seen = new Set<string>();
-    auditLog.forEach(e => seen.add(e.targetType));
-    return Array.from(seen);
-  }, [auditLog]);
+  // Filtered user suggestions for autocomplete
+  const userSuggestions = useMemo(() => {
+    if (!userSearchText.trim()) return allUsers;
+    const q = userSearchText.toLowerCase();
+    return allUsers.filter(u => u.name.toLowerCase().includes(q) || u.id.toLowerCase().includes(q));
+  }, [allUsers, userSearchText]);
+
 
   const filtered = useMemo(() => {
     const [start, end] = getTimeRangeBounds(timeRange, customFrom, customTo);
@@ -282,21 +302,26 @@ export default function ModuleNhatKy() {
     if (filterActions.size > 0) list = list.filter(e => filterActions.has(e.action));
     if (filterUser) list = list.filter(e => e.userId === filterUser);
     if (filterModule.size > 0) list = list.filter(e => filterModule.has(e.targetType));
-    if (filterIp.trim()) {
-      const q = filterIp.toLowerCase();
-      list = list.filter(e => (e.ipAddress || '').toLowerCase().includes(q) || (e.device || '').toLowerCase().includes(q));
+    if (targetSearch.trim()) {
+      const q = targetSearch.toLowerCase();
+      list = list.filter(e =>
+        (e.targetId || '').toLowerCase().includes(q) ||
+        (e.targetName || '').toLowerCase().includes(q) ||
+        (e.note || '').toLowerCase().includes(q)
+      );
     }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(e =>
         e.userName.toLowerCase().includes(q) ||
         (e.targetName || '').toLowerCase().includes(q) ||
+        (e.targetId || '').toLowerCase().includes(q) ||
         (e.note || '').toLowerCase().includes(q)
       );
     }
     // Sort newest first
     return [...list].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-  }, [auditLog, search, timeRange, customFrom, customTo, filterActions, filterUser, filterModule, filterIp]);
+  }, [auditLog, search, timeRange, customFrom, customTo, filterActions, filterUser, filterModule, targetSearch]);
 
   const visible = filtered.slice(0, visibleCount);
   const grouped = groupByDate(visible);
@@ -339,20 +364,53 @@ export default function ModuleNhatKy() {
     setCustomTo('');
     setFilterActions(new Set());
     setFilterUser('');
+    setUserSearchText('');
     setFilterModule(new Set());
-    setFilterIp('');
+    setTargetSearch('');
     setVisibleCount(BATCH_SIZE);
+  };
+
+  const openRelated = (entry: AuditEntry) => {
+    if (entry.targetType === 'history' || entry.targetType === 'quote') {
+      const item = history.find(h => h.id === entry.targetId);
+      if (item && !item.isQuote) {
+        loadHistoryItem(entry.targetId);
+        setActiveModule('calculator');
+        return;
+      }
+      try {
+        localStorage.setItem('lts_navigate_filter', JSON.stringify({ module: 'quote', targetId: entry.targetId, ts: Date.now() }));
+      } catch {}
+      setActiveModule('history_db');
+      return;
+    }
+    if (entry.targetType === 'customer') {
+      try {
+        localStorage.setItem('lts_customer_focus', JSON.stringify({ targetId: entry.targetId, targetName: entry.targetName, ts: Date.now() }));
+      } catch {}
+      setActiveModule('customers');
+      return;
+    }
+    if (entry.targetType === 'order') {
+      try {
+        localStorage.setItem('lts_order_focus', JSON.stringify({ targetId: entry.targetId, targetName: entry.targetName, ts: Date.now() }));
+      } catch {}
+      setActiveModule('production_orders');
+      return;
+    }
+    if (entry.targetType === 'config') setActiveModule('master_data');
+    if (entry.targetType === 'permission') setActiveModule('users');
   };
 
   const activeChips: Array<{ label: string; clear: () => void }> = [];
   if (timeRange !== '7days') activeChips.push({ label: TIME_RANGE_LABELS[timeRange], clear: () => setTimeRange('7days') });
   if (filterUser) {
     const u = allUsers.find(u => u.id === filterUser);
-    activeChips.push({ label: u?.name || filterUser, clear: () => setFilterUser('') });
+    activeChips.push({ label: u?.name || filterUser, clear: () => { setFilterUser(''); setUserSearchText(''); } });
   }
   filterActions.forEach(a => activeChips.push({ label: ACTION_LABELS[a], clear: () => toggleAction(a) }));
   filterModule.forEach(m => activeChips.push({ label: TARGET_TYPE_LABELS[m] || m, clear: () => toggleModule(m) }));
-  if (filterIp) activeChips.push({ label: `IP: ${filterIp}`, clear: () => setFilterIp('') });
+  if (targetSearch) activeChips.push({ label: `Mục tiêu: ${targetSearch}`, clear: () => setTargetSearch('') });
 
   return (
     <div className="crm-root">
@@ -376,7 +434,7 @@ export default function ModuleNhatKy() {
             <Search size={14} className="crm-search-icon" />
             <input
               className="crm-search-input"
-              placeholder="Tìm mã BG, KH, tên SP..."
+              placeholder="Tìm theo tên người dùng, mã BG, KH, tên SP..."
               value={search}
               onChange={e => { setSearch(e.target.value); setVisibleCount(BATCH_SIZE); }}
             />
@@ -420,40 +478,75 @@ export default function ModuleNhatKy() {
 
         {/* Advanced filters */}
         {showAdvanced && (
-          <div style={{ marginTop: 12, display: 'flex', gap: 16, flexWrap: 'wrap' }}>
-            {/* User filter */}
-            <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 4, fontWeight: 500 }}>Người thực hiện</div>
-              <select className="form-input" value={filterUser}
-                onChange={e => { setFilterUser(e.target.value); setVisibleCount(BATCH_SIZE); }}
-                style={{ width: 180 }}>
-                <option value="">Tất cả</option>
-                {allUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-              </select>
-            </div>
-
-            {/* Module filter */}
-            {allModules.length > 0 && (
-              <div>
-                <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 4, fontWeight: 500 }}>Phân mục dữ liệu</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {allModules.map(m => (
-                    <label key={m} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', cursor: 'pointer' }}>
-                      <input type="checkbox" checked={filterModule.has(m)}
-                        onChange={() => toggleModule(m)} />
-                      {TARGET_TYPE_LABELS[m] || m}
-                    </label>
+          <div style={{ marginTop: 12, display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
+            {/* Tài khoản thực hiện - Autocomplete */}
+            <div style={{ position: 'relative' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 4, fontWeight: 500 }}>Tài khoản thực hiện</div>
+              <input
+                ref={userInputRef}
+                className="form-input"
+                placeholder="Gõ tên hoặc mã nhân viên..."
+                value={userSearchText}
+                onChange={e => { setUserSearchText(e.target.value); setShowUserSuggestions(true); }}
+                onFocus={() => setShowUserSuggestions(true)}
+                onBlur={() => setTimeout(() => setShowUserSuggestions(false), 200)}
+                style={{ width: '100%' }}
+              />
+              {filterUser && (
+                <button
+                  onClick={() => { setFilterUser(''); setUserSearchText(''); setVisibleCount(BATCH_SIZE); }}
+                  style={{ position: 'absolute', right: 8, top: 24, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}
+                >
+                  <X size={12} />
+                </button>
+              )}
+              {showUserSuggestions && userSuggestions.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 20,
+                  background: 'var(--surface, #fff)', border: '1px solid var(--border)',
+                  borderRadius: 6, maxHeight: 160, overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                }}>
+                  {userSuggestions.map(u => (
+                    <div key={u.id}
+                      onMouseDown={() => { setFilterUser(u.id); setUserSearchText(u.name); setShowUserSuggestions(false); setVisibleCount(BATCH_SIZE); }}
+                      style={{ padding: '6px 10px', fontSize: '0.8rem', cursor: 'pointer', background: filterUser === u.id ? 'var(--primary-light, #dbeafe)' : undefined }}
+                    >
+                      {u.name} <span style={{ color: 'var(--muted)', fontSize: '0.72rem' }}>({u.id})</span>
+                    </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Action type filter */}
+            {/* Phân mục dữ liệu - Multi-select */}
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 4, fontWeight: 500 }}>Phân mục dữ liệu</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {Object.entries(TARGET_TYPE_LABELS).map(([key, label]) => (
+                  <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.78rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={filterModule.has(key)} onChange={() => toggleModule(key)} />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Loại hành động - Grouped checkboxes */}
             <div>
               <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 4, fontWeight: 500 }}>Loại hành động</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 16px' }}>
-                {(Object.keys(ACTION_LABELS) as AuditAction[]).map(a => (
-                  <label key={a} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', cursor: 'pointer' }}>
+              <div style={{ fontSize: '0.7rem', color: 'var(--muted)', marginBottom: 4, fontStyle: 'italic' }}>1. Thay đổi dữ liệu:</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginBottom: 8, paddingLeft: 4 }}>
+                {DATA_CHANGE_ACTIONS.map(a => (
+                  <label key={a} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.78rem', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={filterActions.has(a)} onChange={() => toggleAction(a)} />
+                    {ACTION_LABELS[a]}
+                  </label>
+                ))}
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--muted)', marginBottom: 4, fontStyle: 'italic' }}>2. Thay đổi trạng thái:</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 4 }}>
+                {STATUS_CHANGE_ACTIONS.map(a => (
+                  <label key={a} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.78rem', cursor: 'pointer' }}>
                     <input type="checkbox" checked={filterActions.has(a)} onChange={() => toggleAction(a)} />
                     {ACTION_LABELS[a]}
                   </label>
@@ -461,16 +554,19 @@ export default function ModuleNhatKy() {
               </div>
             </div>
 
-            {/* IP / Device filter */}
+            {/* Đối tượng mục tiêu - Text search */}
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 4, fontWeight: 500 }}>IP / Thiết bị</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 4, fontWeight: 500 }}>Đối tượng mục tiêu</div>
               <input
                 className="form-input"
-                placeholder="VD: 192.168.1, Windows, iPhone..."
-                value={filterIp}
-                onChange={e => { setFilterIp(e.target.value); setVisibleCount(BATCH_SIZE); }}
-                style={{ width: 220 }}
+                placeholder="Mã BG, mã KH, tên SP, số LSX..."
+                value={targetSearch}
+                onChange={e => { setTargetSearch(e.target.value); setVisibleCount(BATCH_SIZE); }}
+                style={{ width: '100%' }}
               />
+              <div style={{ fontSize: '0.68rem', color: 'var(--muted)', marginTop: 3 }}>
+                Tìm theo mã định danh dữ liệu cụ thể
+              </div>
             </div>
           </div>
         )}
@@ -531,7 +627,7 @@ export default function ModuleNhatKy() {
               </div>
 
               <ol style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                {items.map(entry => <TimelineEntry key={entry.id} entry={entry} />)}
+                {items.map(entry => <TimelineEntry key={entry.id} entry={entry} onOpen={openRelated} />)}
               </ol>
             </li>
           ))}
@@ -564,7 +660,3 @@ const TIME_RANGE_LABELS: Record<TimeRange, string> = {
   month: 'Tháng này',
   custom: 'Tùy chỉnh',
 };
-
-
-
-

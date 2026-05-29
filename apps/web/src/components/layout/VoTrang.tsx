@@ -67,10 +67,9 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     vaiTros: ['admin', 'sale'],
     mucCon: [
       { key: 'pricing.create_calculation', id: 'calculator', label: 'Tạo bảng tính giá', vaiTros: ['admin', 'sale'] },
-      { key: 'pricing.calculation_list', id: 'history_db', label: 'Danh sách bảng tính giá', vaiTros: ['admin', 'sale'] },
-      { key: 'pricing.calculation_history', id: 'history_db', label: 'Lịch sử tính giá', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.create_quote', id: 'quotations', label: 'Tạo bảng báo giá', vaiTros: ['admin', 'sale'] },
-      { key: 'pricing.quote_list', id: 'quotations', label: 'Danh sách báo giá', vaiTros: ['admin', 'sale'] },
+      { key: 'pricing.history', id: 'history_db', label: 'Lịch sử tính giá và báo giá', vaiTros: ['admin', 'sale'] },
+      { key: 'pricing.audit_log', id: 'audit_log', label: 'Nhật ký thao tác', vaiTros: ['admin', 'sale'] },
     ],
   },
   {
@@ -81,10 +80,7 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     vaiTros: ['admin', 'sale'],
     mucCon: [
       { key: 'customers.list', id: 'customers', label: 'Danh sách khách hàng', vaiTros: ['admin', 'sale'] },
-      { key: 'customers.create', id: 'customers', label: 'Thêm khách hàng', vaiTros: ['admin', 'sale'] },
-      { key: 'customers.seller_assignment', id: 'customers', label: 'Phân công Seller phụ trách', vaiTros: ['admin'] },
-      { key: 'customers.quote_history', id: 'quotations', label: 'Lịch sử báo giá theo khách hàng', vaiTros: ['admin', 'sale'] },
-      { key: 'customers.product_history', id: 'history_db', label: 'Lịch sử sản phẩm theo khách hàng', vaiTros: ['admin', 'sale'] },
+      { key: 'customers.audit_log', id: 'customers', label: 'Nhật ký thao tác', vaiTros: ['admin', 'sale'] },
     ],
   },
   {
@@ -571,6 +567,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     window.sessionStorage.removeItem('__lts_chunk_reload_once__');
   }, [isAuthenticated]);
 
+  // Sync menuDangChon when moduleDangMo changes programmatically
+  useEffect(() => {
+    // Kiểm tra xem menuDangChon hiện tại có thuộc module đang mở không
+    const mucHienTai = CAC_MUC_MENU.find(m => m.key === menuDangChon);
+    if (mucHienTai && mucHienTai.id === moduleDangMo) return; // đã đồng bộ
+
+    // Tìm mục menu đầu tiên thuộc module đang mở
+    const mucMoi = CAC_MUC_MENU.find(m => m.id === moduleDangMo);
+    if (mucMoi) datMenuDangChon(mucMoi.key);
+  }, [moduleDangMo]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Sync html classes for overflow control
   useEffect(() => {
     const html = document.documentElement;
@@ -697,4 +704,3 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-

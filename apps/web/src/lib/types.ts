@@ -275,6 +275,17 @@ export interface QuoteTier {
   chotGia?: number;
 }
 
+export interface QuoteProductLine {
+  sourceHistoryItemId: string;
+  productName: string;
+  structure: string;
+  quantity: number;
+  finalPrice: number;
+  chotGia?: number;
+  input: CalculateInput;
+  tiers: QuoteTier[];
+}
+
 // ── History ───────────────────────────────────────────────────────────────────
 export interface HistoryItem {
   id: string;
@@ -287,6 +298,7 @@ export interface HistoryItem {
   chotGia?: number;
   quoteStatus?: QuoteStatus;
   quoteCode?: string;
+  isQuote?: boolean;
   sellerId?: string;
   sellerName?: string;
   saleOverrides?: OverrideTable;
@@ -296,6 +308,7 @@ export interface HistoryItem {
   lockedAt?: string;
   terms?: QuoteTerms;
   tiers?: QuoteTier[];
+  quoteProducts?: QuoteProductLine[];
   validUntil?: string;
   input: CalculateInput;
 }
@@ -487,7 +500,6 @@ export interface ProductionOrder {
     totalArea: number;          // Tổng diện tích đơn hàng (m²)
   };
 }
-
 
 
 

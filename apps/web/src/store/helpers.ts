@@ -1,6 +1,7 @@
 import { CalculateInput, Material, AppConstants, ProfitRow, SmallWidthMaterialPrice } from '../lib/types';
 import { INITIAL_MATERIALS } from '../lib/data';
 import { dongBoCotLoiNhuan } from '../lib/engine';
+import customersSeed from '../data/customers.json';
 
 export const LS_HISTORY  = 'lts_history';
 export const LS_CONFIG   = 'lts_material_config';
@@ -56,16 +57,11 @@ export const dauVaoMacDinh: CalculateInput = {
 export const dauVaoKhoiTao = dongBoCotLoiNhuan(dauVaoMacDinh, INITIAL_MATERIALS);
 
 // ── Auto-add customer ──────────────────────────────────────────────────────────
-const SELLERS = [
-  { id: 'S1', name: 'Nguyen Van An' },
-  { id: 'S2', name: 'Tran Gia Bao' },
-  { id: 'S3', name: 'Le Thu Ha' },
-];
-
-interface CustomerQuick {
+export interface CustomerQuick {
   id: string;
   customerCode: string;
   companyName: string;
+  contactName?: string;
   sellerId?: string | null;
   sellerName?: string;
   status: string;
@@ -75,32 +71,52 @@ interface CustomerQuick {
   [key: string]: unknown;
 }
 
-function loadCustomers(): CustomerQuick[] {
-  try {
-    const raw = window.localStorage.getItem(LS_CUSTOMERS);
-    return raw ? JSON.parse(raw) : [];
-  } catch { return []; }
+const chuanHoaTenKhach = (s: string) => s
+  .normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '')
+  .replace(/đ/g, 'd')
+  .replace(/Đ/g, 'D')
+  .toLowerCase()
+  .replace(/\s+/g, ' ')
+  .trim();
+
+export function loadCustomers(): CustomerQuick[] {
+  const localCustomers = (() => {
+    if (typeof window === 'undefined') return [] as CustomerQuick[];
+    try {
+      const raw = window.localStorage.getItem(LS_CUSTOMERS);
+      return raw ? JSON.parse(raw) as CustomerQuick[] : [];
+    } catch { return [] as CustomerQuick[]; }
+  })();
+
+  const seen = new Set<string>();
+  return [...localCustomers, ...(customersSeed as CustomerQuick[])]
+    .filter(c => {
+      const key = chuanHoaTenKhach(String(c.companyName || c.contactName || c.customerCode || c.id || ''));
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 /**
- * Auto-create a customer record when saving history with a customer name
- * not yet in the customer list. Assigns the sale user automatically.
+ * Auto-create a minimal customer record when the entered name is not in the customer list.
  * Returns true if a new customer was created.
  */
 export function autoAddCustomerIfNeeded(customerName: string, sellerId?: string, sellerName?: string): boolean {
+  customerName = customerName.trim();
   if (!customerName || customerName === 'N/A') return false;
   const customers = loadCustomers();
   const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
-  const exists = customers.some(c => norm(c.companyName) === norm(customerName));
+  const tenDaChuanHoa = chuanHoaTenKhach(customerName) || norm(customerName);
+  const exists = customers.some(c => chuanHoaTenKhach(String(c.companyName || c.contactName || '')) === tenDaChuanHoa);
   if (exists) return false;
 
   const now = new Date();
   const id = `C${now.getTime()}`;
-  const code = `KH${String(now.getTime()).slice(-5)}`;
-  const seller = SELLERS.find(s => s.id === sellerId);
   const newCustomer: CustomerQuick = {
     id,
-    customerCode: code,
+    customerCode: '',
     companyName: customerName,
     taxCode: '',
     contactName: '',
@@ -111,7 +127,7 @@ export function autoAddCustomerIfNeeded(customerName: string, sellerId?: string,
     region: '',
     customerGroup: '',
     sellerId: sellerId || null,
-    sellerName: seller?.name || sellerName || '',
+    sellerName: sellerName || '',
     secondarySellerId: null,
     secondarySellerName: '',
     contactTitle: '',
@@ -125,7 +141,7 @@ export function autoAddCustomerIfNeeded(customerName: string, sellerId?: string,
     createdAt: now.toISOString(),
     updatedAt: now.toISOString(),
   };
-  const updated = [newCustomer as CustomerQuick, ...customers];
+  const updated = [newCustomer, ...customers];
   luuLocalStorage(LS_CUSTOMERS, updated);
   return true;
 }

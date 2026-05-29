@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhBaoGia, xuLyDongGhiDe } from '../lib/manager-calculation';
-import type { HistoryItem, QuoteStatus, OverrideTable, QuoteTerms, QuoteTier } from '../lib/types';
+import type { AppConstants, HistoryItem, Material, ProfitRow, QuoteProductLine, QuoteStatus, OverrideTable, QuoteTerms, QuoteTier, SmallWidthMaterialPrice } from '../lib/types';
 import { QUOTE_STATUS_CONFIG } from '../lib/types';
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
@@ -57,6 +57,7 @@ interface WizardState {
   customer: Customer | null;
   products: WizardProduct[];
   terms: {
+    vatRate: number;
     validityDays: number;
     paymentTerms: string;
     deliveryTime: string;
@@ -182,6 +183,10 @@ function layTrangThai(muc: HistoryItem): QuoteStatus {
 function daGuiAdmin(muc: HistoryItem): boolean {
   const s = layTrangThai(muc);
   return s === 'pending_approval' || s === 'approved' || s === 'completed';
+}
+
+function laBanGhiBaoGia(muc: HistoryItem): boolean {
+  return !!(muc.isQuote || muc.quoteProducts?.length || (muc.quoteCode && muc.tiers?.length));
 }
 
 function dinhDangSo(n: number) { return n.toLocaleString('vi-VN'); }
@@ -804,12 +809,16 @@ function BuocChonKhachHang({
 // WIZARD — STEP 2: CHỌN SẢN PHẨM & NHẬP SỐ LƯỢNG
 // ════════════════════════════════════════════════════════════
 function BuocChonSanPham({
-  customer, history, products, onProductsChange,
+  customer, history, products, onProductsChange, materials, constants, profitTable, smallWidthPrices,
 }: {
   customer: Customer;
   history: HistoryItem[];
   products: WizardProduct[];
   onProductsChange: (p: WizardProduct[]) => void;
+  materials: Material[];
+  constants: AppConstants;
+  profitTable: ProfitRow[];
+  smallWidthPrices: SmallWidthMaterialPrice[];
 }) {
   const [searchSP, setSearchSP] = useState('');
   const [showSearch, setShowSearch] = useState(false);
@@ -820,9 +829,9 @@ function BuocChonSanPham({
     const khName = tenKhachHang(customer).toLowerCase();
     const khCode = (customer.customerCode || '').toLowerCase();
     const q = searchSP.toLowerCase();
-    return history.filter(h =>
+    return history.filter(h => !h.isQuote).filter(h =>
       h.customer.toLowerCase().includes(khName) ||
-      h.customer.toLowerCase().includes(khCode)
+      (!!khCode && h.customer.toLowerCase().includes(khCode))
     ).filter(h =>
       !q || h.productName.toLowerCase().includes(q) || h.structure.toLowerCase().includes(q)
     ).slice(0, 20);
@@ -852,6 +861,16 @@ function BuocChonSanPham({
     onProductsChange(updated);
   };
 
+  const tinhGiaTheoSoLuong = (item: HistoryItem, quantity: number): number => {
+    if (quantity <= 0) return 0;
+    try {
+      const result = tinhBaoGia({ ...item.input, quantity }, materials, constants, profitTable, smallWidthPrices);
+      return result?.finalPrice ?? item.finalPrice;
+    } catch {
+      return item.finalPrice;
+    }
+  };
+
   const removeTier = (pIdx: number, tIdx: number) => {
     onProductsChange(products.map((p, i) =>
       i !== pIdx ? p : { ...p, tiers: p.tiers.filter((_, j) => j !== tIdx) }
@@ -860,7 +879,15 @@ function BuocChonSanPham({
 
   const updateTier = (pIdx: number, tIdx: number, field: 'quantity' | 'baoGia', val: number) => {
     onProductsChange(products.map((p, i) =>
-      i !== pIdx ? p : { ...p, tiers: p.tiers.map((t, j) => j === tIdx ? { ...t, [field]: val } : t) }
+      i !== pIdx ? p : { ...p, tiers: p.tiers.map((t, j) => {
+        if (j !== tIdx) return t;
+        if (field === 'quantity') {
+          const finalPrice = tinhGiaTheoSoLuong(p.historyItem, val);
+          const userEdited = t.baoGia > 0 && t.baoGia !== t.finalPrice;
+          return { ...t, quantity: val, finalPrice, baoGia: userEdited ? t.baoGia : finalPrice };
+        }
+        return { ...t, baoGia: val };
+      }) }
     ));
   };
 
@@ -1134,13 +1161,13 @@ function BuocXacNhan({
 // ════════════════════════════════════════════════════════════
 function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
   const store = dungCuaHangTinhGia() as any;
-  const { history, currentSellerName, ganTiersBaoGia } = store;
+  const { history, currentSellerName, materials, constants, profitTable, smallWidthPrices, taoBaoGiaMoi } = store;
 
   const [state, setState] = useState<WizardState>({
     step: 1,
     customer: null,
     products: [],
-    terms: { validityDays: 30, paymentTerms: 'Thanh toán 30 ngày', deliveryTime: '7-10 ngày làm việc', notes: '' },
+    terms: { vatRate: 10, validityDays: 30, paymentTerms: 'Thanh toán 30 ngày', deliveryTime: '7-10 ngày làm việc', notes: '' },
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -1160,12 +1187,15 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
     }
   };
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback((sendForApproval: boolean) => {
     setError('');
     if (state.products.length === 0) { setError('Chưa có sản phẩm nào'); return; }
     setSaving(true);
     try {
       state.products.forEach(prod => {
+        if (prod.tiers.every(t => t.quantity <= 0)) throw new Error('invalid tiers');
+      });
+      const products: QuoteProductLine[] = state.products.map(prod => {
         const tiers: QuoteTier[] = prod.tiers
           .filter(t => t.quantity > 0)
           .map(t => ({
@@ -1174,107 +1204,454 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
             finalPrice: t.finalPrice,
             chotGia: t.baoGia,
           }));
-        ganTiersBaoGia(prod.historyItem.id, tiers);
+        return {
+          sourceHistoryItemId: prod.historyItem.id,
+          productName: prod.historyItem.productName,
+          structure: prod.historyItem.structure,
+          quantity: tiers[0]?.quantity ?? prod.historyItem.quantity,
+          finalPrice: tiers[0]?.finalPrice ?? prod.historyItem.finalPrice,
+          chotGia: tiers[0]?.chotGia,
+          input: { ...prod.historyItem.input },
+          tiers,
+        };
+      });
+      taoBaoGiaMoi({
+        customer: state.customer ? tenKhachHang(state.customer) : '',
+        products,
+        terms: state.terms,
+        sendForApproval,
       });
       onClose();
     } catch {
       setError('Có lỗi khi lưu báo giá. Vui lòng thử lại.');
       setSaving(false);
     }
-  }, [state.products, ganTiersBaoGia, onClose]);
+  }, [state.products, state.customer, state.terms, taoBaoGiaMoi, onClose]);
 
   const STEP_LABELS = ['Chọn khách hàng', 'Chọn sản phẩm', 'Xác nhận'];
 
   return (
-    <div className="wiz-overlay" role="dialog" aria-modal="true" aria-label="Tạo báo giá mới">
+    <div className="crm-root" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <style>{WIZARD_STYLES}</style>
-      <div className="wiz-modal">
-        <div className="wiz-header">
-          <span className="wiz-title">Tạo báo giá mới</span>
-          <button className="wiz-close" onClick={onClose} aria-label="Đóng"><X size={16} /></button>
-        </div>
 
-        <div className="wiz-steps" role="list">
-          {STEP_LABELS.map((label, i) => {
-            const stepNum = (i + 1) as 1 | 2 | 3;
-            const isDone = state.step > stepNum;
-            const isActive = state.step === stepNum;
-            return (
-              <React.Fragment key={stepNum}>
-                {i > 0 && <div className="wiz-step-sep" />}
-                <div className="wiz-step" role="listitem">
-                  <div
-                    className={`wiz-step-num ${isDone ? 'wiz-step-num--done' : isActive ? 'wiz-step-num--active' : 'wiz-step-num--pending'}`}
-                    aria-current={isActive ? 'step' : undefined}
-                  >
-                    {isDone ? <Check size={13} /> : stepNum}
-                  </div>
-                  <span className={`wiz-step-label ${isActive ? 'wiz-step-label--active' : ''}`}>{label}</span>
+      {/* Header */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '16px 24px', borderBottom: '1px solid var(--border)',
+        background: 'var(--surface)',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button className="wiz-btn wiz-btn--ghost" onClick={onClose} style={{ padding: '6px 10px' }}>
+            <ArrowLeft size={16} /> Quay lại
+          </button>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text, #1e293b)', margin: 0 }}>Tạo báo giá mới</h2>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {state.step === 3 && (
+            <>
+              <button className="wiz-btn wiz-btn--secondary" onClick={() => handleSave(false)} disabled={saving}>
+                Lưu nháp
+              </button>
+              <button className="wiz-btn wiz-btn--primary" onClick={() => handleSave(true)} disabled={saving}>
+                <CheckCircle2 size={14} /> Lưu & Gửi duyệt
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Steps indicator */}
+      <div className="wiz-steps" role="list" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface2, #f8f9fb)' }}>
+        {STEP_LABELS.map((label, i) => {
+          const stepNum = (i + 1) as 1 | 2 | 3;
+          const isDone = state.step > stepNum;
+          const isActive = state.step === stepNum;
+          return (
+            <React.Fragment key={stepNum}>
+              {i > 0 && <div className="wiz-step-sep" />}
+              <div className="wiz-step" role="listitem">
+                <div
+                  className={`wiz-step-num ${isDone ? 'wiz-step-num--done' : isActive ? 'wiz-step-num--active' : 'wiz-step-num--pending'}`}
+                  aria-current={isActive ? 'step' : undefined}
+                >
+                  {isDone ? <Check size={13} /> : stepNum}
                 </div>
-              </React.Fragment>
-            );
-          })}
-        </div>
+                <span className={`wiz-step-label ${isActive ? 'wiz-step-label--active' : ''}`}>{label}</span>
+              </div>
+            </React.Fragment>
+          );
+        })}
+      </div>
 
-        <div className="wiz-body">
-          {error && (
-            <div className="wiz-error" role="alert">
-              <AlertTriangle size={14} /> {error}
-            </div>
-          )}
-          {state.step === 1 && (
-            <BuocChonKhachHang
-              selected={state.customer}
-              onSelect={c => setState(prev => ({ ...prev, customer: c }))}
-            />
-          )}
-          {state.step === 2 && state.customer && (
-            <BuocChonSanPham
-              customer={state.customer}
-              history={history}
-              products={state.products}
-              onProductsChange={p => setState(prev => ({ ...prev, products: p }))}
-            />
-          )}
-          {state.step === 3 && state.customer && (
-            <BuocXacNhan
-              customer={state.customer}
-              products={state.products}
-              terms={state.terms}
-              onTermsChange={t => setState(prev => ({ ...prev, terms: t }))}
-              currentSellerName={currentSellerName || ''}
-            />
+      {/* Body */}
+      <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
+        {error && (
+          <div className="wiz-error" role="alert">
+            <AlertTriangle size={14} /> {error}
+          </div>
+        )}
+        {state.step === 1 && (
+          <BuocChonKhachHang
+            selected={state.customer}
+            onSelect={c => setState(prev => ({ ...prev, customer: c }))}
+          />
+        )}
+        {state.step === 2 && state.customer && (
+          <BuocChonSanPham
+            customer={state.customer}
+            history={history}
+            products={state.products}
+            onProductsChange={p => setState(prev => ({ ...prev, products: p }))}
+            materials={materials}
+            constants={constants}
+            profitTable={profitTable}
+            smallWidthPrices={smallWidthPrices}
+          />
+        )}
+        {state.step === 3 && state.customer && (
+          <BuocXacNhan
+            customer={state.customer}
+            products={state.products}
+            terms={state.terms}
+            onTermsChange={t => setState(prev => ({ ...prev, terms: t }))}
+            currentSellerName={currentSellerName || ''}
+          />
+        )}
+      </div>
+
+      {/* Footer navigation */}
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '14px 24px', borderTop: '1px solid var(--border)',
+        background: 'var(--surface)',
+      }}>
+        <div>
+          {state.step > 1 && (
+            <button className="wiz-btn wiz-btn--secondary" onClick={() => setStep((state.step - 1) as 1 | 2 | 3)}>
+              <ArrowLeft size={14} /> Quay lại
+            </button>
           )}
         </div>
-
-        <div className="wiz-footer">
-          <div>
-            {state.step > 1 && (
-              <button className="wiz-btn wiz-btn--secondary" onClick={() => setStep((state.step - 1) as 1 | 2 | 3)}>
-                <ArrowLeft size={14} /> Quay lại
-              </button>
-            )}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="wiz-btn wiz-btn--ghost" onClick={onClose}>Hủy</button>
-            {state.step < 3 ? (
-              <button className="wiz-btn wiz-btn--primary" onClick={handleNext}>
-                Tiếp theo <ArrowRight size={14} />
-              </button>
-            ) : (
-              <>
-                <button className="wiz-btn wiz-btn--secondary" onClick={handleSave} disabled={saving}>
-                  Lưu nháp
-                </button>
-                <button className="wiz-btn wiz-btn--primary" onClick={handleSave} disabled={saving}>
-                  <CheckCircle2 size={14} /> Lưu & Gửi duyệt
-                </button>
-              </>
-            )}
-          </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {state.step < 3 && (
+            <button className="wiz-btn wiz-btn--primary" onClick={handleNext}>
+              Tiếp theo <ArrowRight size={14} />
+            </button>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════
+// QUOTE DETAIL PANEL — slide-in xem/sửa báo giá
+// ════════════════════════════════════════════════════════════
+type QuoteEditDraft = {
+  customer: string;
+  productName: string;
+  chotGia: string;
+  quoteStatus: string;
+};
+
+function QuoteDetailPanel({
+  item, isAdmin, onClose, onLoadCalc, onPatch,
+}: {
+  item: HistoryItem;
+  isAdmin: boolean;
+  onClose: () => void;
+  onLoadCalc: (id: string) => void;
+  onPatch: (id: string, patch: Partial<Pick<HistoryItem, 'customer' | 'productName' | 'chotGia' | 'quoteStatus'>>) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<QuoteEditDraft>({
+    customer: item.customer,
+    productName: item.productName,
+    chotGia: item.chotGia ? String(item.chotGia) : '',
+    quoteStatus: item.quoteStatus ?? 'drafted',
+  });
+  const [confirmClose, setConfirmClose] = useState(false);
+  const [confirmSave, setConfirmSave] = useState(false);
+
+  const isDirty = editing && (
+    draft.customer !== item.customer ||
+    draft.productName !== item.productName ||
+    draft.chotGia !== (item.chotGia ? String(item.chotGia) : '') ||
+    draft.quoteStatus !== (item.quoteStatus ?? 'drafted')
+  );
+
+  function buildPatch() {
+    const patch: Partial<Pick<HistoryItem, 'customer' | 'productName' | 'chotGia' | 'quoteStatus'>> = {};
+    if (draft.customer !== item.customer) patch.customer = draft.customer;
+    if (draft.productName !== item.productName) patch.productName = draft.productName;
+    const parsedGia = draft.chotGia ? Number(draft.chotGia.replace(/\D/g, '')) : 0;
+    if (parsedGia !== (item.chotGia ?? 0)) patch.chotGia = parsedGia || undefined;
+    if (draft.quoteStatus !== (item.quoteStatus ?? 'drafted')) patch.quoteStatus = draft.quoteStatus as QuoteStatus;
+    return patch;
+  }
+
+  function savePatch(shouldClose = false) {
+    const patch = buildPatch();
+    if (Object.keys(patch).length > 0) onPatch(item.id, patch);
+    setEditing(false);
+    setConfirmSave(false);
+    setConfirmClose(false);
+    if (shouldClose) onClose();
+  }
+
+  function handleClose() {
+    if (isDirty) { setConfirmClose(true); return; }
+    onClose();
+  }
+
+  function handleSave() {
+    if (!isDirty) { setEditing(false); return; }
+    setConfirmSave(true);
+  }
+
+  const status = layTrangThai(item);
+  const cauHinh = QUOTE_STATUS_CONFIG[status];
+  const shownPrice = item.chotGia && item.chotGia > 0 ? item.chotGia : item.finalPrice;
+
+  return (
+    <>
+      <style>{WIZARD_STYLES}</style>
+      {/* Backdrop */}
+      <div onClick={handleClose}
+        style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 40 }} />
+
+      {/* Confirm close dialog */}
+      {confirmClose && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--surface, #fff)', border: '1px solid var(--border)', borderRadius: 12, padding: '24px 28px', maxWidth: 360, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ fontSize: '2rem', marginBottom: 8 }}>⚠️</div>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 8 }}>Chưa lưu thay đổi</div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: 20 }}>
+              Bạn có thay đổi chưa được lưu. Đóng sẽ mất các thay đổi này.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button className="wiz-btn wiz-btn--secondary" onClick={() => setConfirmClose(false)}>Tiếp tục chỉnh sửa</button>
+              <button className="wiz-btn wiz-btn--primary" onClick={() => savePatch(true)}>Lưu & đóng</button>
+              <button className="wiz-btn wiz-btn--danger" onClick={onClose}>Đóng không lưu</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm save dialog */}
+      {confirmSave && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--surface, #fff)', border: '1px solid var(--border)', borderRadius: 12, padding: '22px 26px', maxWidth: 360, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 8 }}>Xác nhận lưu thay đổi?</div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: 18 }}>Thao tác này sẽ cập nhật báo giá và ghi nhật ký thao tác.</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button className="wiz-btn wiz-btn--secondary" onClick={() => setConfirmSave(false)}>Hủy</button>
+              <button className="wiz-btn wiz-btn--primary" onClick={() => savePatch(false)}>Lưu</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Panel */}
+      <div role="dialog" aria-modal="true" aria-label={`Báo giá ${item.quoteCode || item.id}`}
+        style={{
+          position: 'fixed', top: 0, right: 0, bottom: 0,
+          width: 'min(60%, 640px)', background: 'var(--surface, #ffffff)',
+          borderLeft: '1px solid var(--border)', zIndex: 50,
+          display: 'flex', flexDirection: 'column', overflow: 'hidden',
+          boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
+        }}>
+        {/* Header */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '14px 16px', borderBottom: '1px solid var(--border)',
+          background: 'var(--surface2, #f8f9fb)',
+        }}>
+          <div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: 2 }}>
+              BÁO GIÁ
+              {isDirty && <span style={{ color: '#d97706', marginLeft: 6 }}>● Chưa lưu</span>}
+            </div>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text, #1e293b)' }}>
+              {item.quoteCode || item.id}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {!editing && (
+              <button className="wiz-btn wiz-btn--secondary"
+                style={{ padding: '5px 12px', fontSize: '0.78rem' }}
+                onClick={() => setEditing(true)}>
+                ✏️ Chỉnh sửa
+              </button>
+            )}
+            <button onClick={handleClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+              <X size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+          {/* Status badge */}
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 10, fontSize: '0.78rem', fontWeight: 600, color: cauHinh.color, background: cauHinh.bg }}>
+              ● {cauHinh.label}
+            </span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>{item.date}</span>
+          </div>
+
+          {editing ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Khách hàng</label>
+                <input className="wiz-search-input" value={draft.customer}
+                  onChange={e => setDraft(d => ({ ...d, customer: e.target.value }))}
+                  style={{ paddingLeft: 12 }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Tên sản phẩm</label>
+                <input className="wiz-search-input" value={draft.productName}
+                  onChange={e => setDraft(d => ({ ...d, productName: e.target.value }))}
+                  style={{ paddingLeft: 12 }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Giá chốt (₫)</label>
+                <input className="wiz-search-input" type="text" inputMode="numeric"
+                  value={draft.chotGia}
+                  onChange={e => setDraft(d => ({ ...d, chotGia: e.target.value.replace(/[^\d]/g, '') }))}
+                  placeholder="Để trống nếu chưa chốt"
+                  style={{ paddingLeft: 12 }} />
+                {draft.chotGia && (
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 3 }}>
+                    = {dinhDangSo(Number(draft.chotGia))} ₫
+                  </div>
+                )}
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>Trạng thái</label>
+                <select className="wiz-search-input" value={draft.quoteStatus}
+                  onChange={e => setDraft(d => ({ ...d, quoteStatus: e.target.value }))}
+                  style={{ paddingLeft: 12 }}>
+                  {CAC_BUOC_QUY_TRINH.map(s => (
+                    <option key={s} value={s}>{QUOTE_STATUS_CONFIG[s].label}</option>
+                  ))}
+                </select>
+              </div>
+              {/* Read-only info */}
+              <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', marginTop: 8 }}>
+                <div style={{ padding: '8px 12px', background: 'var(--surface2, #f8f9fb)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
+                  Thông tin không thể chỉnh sửa
+                </div>
+                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.82rem' }}>
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Cấu trúc:</span><span style={{ fontFamily: "'Courier New', monospace" }}>{item.structure || '—'}</span></div>
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Số lượng:</span><span>{dinhDangSo(item.quantity)} cái</span></div>
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Giá đề xuất:</span><span style={{ fontWeight: 600 }}>{dinhDangSo(item.finalPrice)} ₫</span></div>
+                  {item.sellerName && <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Sale:</span><span>{item.sellerName}</span></div>}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {/* General info */}
+              <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ padding: '8px 12px', background: 'var(--surface2, #f8f9fb)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>Thông tin chung</div>
+                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.82rem' }}>
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Khách hàng:</span><span style={{ fontWeight: 500 }}>{item.customer || '—'}</span></div>
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Sản phẩm:</span><span>{item.productName || '—'}</span></div>
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Cấu trúc:</span><span style={{ fontFamily: "'Courier New', monospace" }}>{item.structure || '—'}</span></div>
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Số lượng:</span><span>{dinhDangSo(item.quantity)} cái</span></div>
+                  {item.sellerName && <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Sale:</span><span>{item.sellerName}</span></div>}
+                </div>
+              </div>
+
+              {/* Pricing info */}
+              <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                <div style={{ padding: '8px 12px', background: 'var(--surface2, #f8f9fb)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>Kết quả tính giá</div>
+                <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.82rem' }}>
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Giá đề xuất:</span><span style={{ fontWeight: 600 }}>{dinhDangSo(item.finalPrice)} ₫</span></div>
+                  {item.chotGia && item.chotGia > 0 && (
+                    <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Giá chốt:</span><span style={{ fontWeight: 600, color: 'var(--green, #059669)' }}>{dinhDangSo(item.chotGia)} ₫</span></div>
+                  )}
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Tổng giá trị:</span><span style={{ fontWeight: 600 }}>{dinhDangSo(Math.round(shownPrice * item.quantity))} VNĐ</span></div>
+                </div>
+              </div>
+
+              {/* Multi-product tiers */}
+              {item.quoteProducts && item.quoteProducts.length > 0 && (
+                <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                  <div style={{ padding: '8px 12px', background: 'var(--surface2, #f8f9fb)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>Sản phẩm trong báo giá</div>
+                  <div style={{ padding: '10px 12px', overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: 'left', padding: '4px 6px', color: 'var(--muted)' }}>Sản phẩm</th>
+                          <th style={{ textAlign: 'left', padding: '4px 6px', color: 'var(--muted)' }}>Mức SL / giá báo</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {item.quoteProducts.map(p => (
+                          <tr key={p.sourceHistoryItemId}>
+                            <td style={{ padding: '6px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }}>
+                              <b>{p.productName}</b>
+                              <div style={{ color: 'var(--muted)', fontSize: '0.75rem' }}>{p.structure}</div>
+                            </td>
+                            <td style={{ padding: '6px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }}>
+                              {p.tiers.map((tier, i) => (
+                                <div key={i} style={{ marginBottom: 2 }}>
+                                  {dinhDangSo(tier.quantity)}: <b>{dinhDangSo(tier.chotGia ?? tier.finalPrice ?? 0)} ₫</b>
+                                  <span style={{ color: 'var(--muted)', marginLeft: 6, fontSize: '0.75rem' }}>({dinhDangSo(tier.finalPrice)} ₫ giá chốt)</span>
+                                </div>
+                              ))}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Single-product tiers */}
+              {!item.quoteProducts?.length && item.tiers && item.tiers.length > 0 && (
+                <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                  <div style={{ padding: '8px 12px', background: 'var(--surface2, #f8f9fb)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>Bảng giá báo</div>
+                  <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.82rem' }}>
+                    {item.tiers.map((tier, i) => (
+                      <div key={i} style={{ display: 'flex', gap: 8 }}>
+                        <span style={{ color: 'var(--muted)', minWidth: 100 }}>{dinhDangSo(tier.quantity)} cái:</span>
+                        <span style={{ fontWeight: 600 }}>{dinhDangSo(tier.chotGia ?? tier.finalPrice ?? 0)} ₫</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '12px 16px', borderTop: '1px solid var(--border)',
+          display: 'flex', gap: 8, flexWrap: 'wrap',
+          background: 'var(--surface2, #f8f9fb)',
+        }}>
+          {editing ? (
+            <>
+              <button className="wiz-btn wiz-btn--primary" onClick={handleSave}>💾 Lưu</button>
+              <button className="wiz-btn wiz-btn--secondary" onClick={() => {
+                setDraft({ customer: item.customer, productName: item.productName, chotGia: item.chotGia ? String(item.chotGia) : '', quoteStatus: item.quoteStatus ?? 'drafted' });
+                setEditing(false);
+              }}>Huỷ</button>
+            </>
+          ) : (
+            <button className="wiz-btn wiz-btn--secondary" onClick={() => { onLoadCalc(item.id); onClose(); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Eye size={13} /> Mở bảng tính giá
+            </button>
+          )}
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -1286,20 +1663,26 @@ export default function QuotationModule({ role, menuDangChon }: { role: string; 
     history, loadHistoryItem: taiLichSu, setActiveModule: datPhan,
     updateQuoteStatus: capNhatTrangThaiDon, currentSellerId: hienTaiSellerId,
     saoChepBangTinh, khoaBaoGia, moKhoaBaoGia, huyBaoGia, kiemTraHetHan,
+    patchHistoryItem,
   } = dungCuaHangTinhGia();
   const [search, setSearch] = useState('');
   const [tuNgay, setTuNgay] = useState('');
   const [denNgay, setDenNgay] = useState('');
   const [confirmHuy, setConfirmHuy] = useState<string | null>(null);
   const [showWizard, setShowWizard] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
 
   React.useEffect(() => { kiemTraHetHan(); }, [kiemTraHetHan]);
+  React.useEffect(() => {
+    if (menuDangChon === 'pricing.create_quote') setShowWizard(true);
+  }, [menuDangChon]);
 
   const isAdmin = role === 'admin';
   const laLichSuBaoGiaTheoKhach = menuDangChon === 'customers.quote_history';
 
   const myItems = useMemo(() => {
     let items = isAdmin ? history : history.filter(h => h.sellerId === hienTaiSellerId);
+    items = items.filter(laBanGhiBaoGia);
     if (menuDangChon === 'overview.quotes_pending') items = items.filter(h => layTrangThai(h) === 'pending_approval');
     if (menuDangChon === 'orders.confirmed') items = items.filter(h => layTrangThai(h) === 'completed' || !!h.chotGia);
     if (menuDangChon === 'pricing.create_quote') items = items.filter(h => layTrangThai(h) === 'drafted');
@@ -1314,13 +1697,17 @@ export default function QuotationModule({ role, menuDangChon }: { role: string; 
 
   const handleOpen = (id: string) => {
     const item = history.find(h => h.id === id);
-    if (item?.locked && !isAdmin) {
+    if (!item) return;
+    if (item.locked && !isAdmin) {
       alert('Báo giá đã bị khóa. Liên hệ Admin để mở khóa.');
       return;
     }
-    taiLichSu(id);
-    datPhan('calculator');
+    setSelectedItem(item);
   };
+
+  if (showWizard) {
+    return <TaoBaoGiaWizard onClose={() => setShowWizard(false)} />;
+  }
 
   return (
     <div className="crm-root quote-root">
@@ -1335,7 +1722,7 @@ export default function QuotationModule({ role, menuDangChon }: { role: string; 
           />
           {search && <button className="crm-search-clear" onClick={() => setSearch('')}>✕</button>}
         </div>
-        {!laLichSuBaoGiaTheoKhach && !isAdmin && (
+        {!laLichSuBaoGiaTheoKhach && (
           <button
             className="wiz-btn wiz-btn--primary"
             style={{ flexShrink: 0 }}
@@ -1380,14 +1767,18 @@ export default function QuotationModule({ role, menuDangChon }: { role: string; 
         )}
       </div>
 
-      {showWizard && (
-        <TaoBaoGiaWizard onClose={() => setShowWizard(false)} />
+      {selectedItem && (
+        <QuoteDetailPanel
+          item={selectedItem}
+          isAdmin={isAdmin}
+          onClose={() => setSelectedItem(null)}
+          onLoadCalc={(id) => { taiLichSu(id); datPhan('calculator'); }}
+          onPatch={(id, patch) => {
+            patchHistoryItem(id, patch);
+            setSelectedItem(prev => prev ? { ...prev, ...patch } : prev);
+          }}
+        />
       )}
     </div>
   );
 }
-
-
-
-
-
