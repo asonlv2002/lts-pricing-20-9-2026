@@ -269,6 +269,14 @@ export default function TrangChinh() {
               if (!saved) return m;
               return { ...m, thickness: saved.thickness, pricePerKg: saved.pricePerKg, inkPricePerColor: saved.inkPricePerColor, pricePerM2: saved.pricePerKg * saved.thickness * m.density / 1000 };
             });
+            // Restore custom materials
+            const customMats = cfg.materials!.filter(x => x.id.startsWith('custom-'));
+            for (const cm of customMats) {
+              if (!vatLieuMoi.find(m => m.id === cm.id)) {
+                const density = (cm as any).density ?? 1.0;
+                vatLieuMoi = [...vatLieuMoi, { id: cm.id, name: (cm as any).name ?? 'Custom', group: (cm as any).group, density, thickness: cm.thickness, pricePerKg: cm.pricePerKg, isPETorPA: false, rollLength: 5000, inkPricePerColor: cm.inkPricePerColor, pricePerM2: cm.pricePerKg * cm.thickness * density / 1000 }];
+              }
+            }
           }
           let giaKhoNhoMoi = s.smallWidthPrices;
           if (cfg.smallWidthPrices?.length) {
@@ -312,7 +320,7 @@ export default function TrangChinh() {
   // ── Lưu config cache ────────────────────────────────────────────────────────
   useEffect(() => {
     window.localStorage.setItem('lts_material_config', JSON.stringify({
-      materials: danhSachVatLieu.map((m: Material) => ({ id: m.id, thickness: m.thickness, pricePerKg: m.pricePerKg, inkPricePerColor: m.inkPricePerColor })),
+      materials: danhSachVatLieu.map((m: Material) => ({ id: m.id, name: m.id.startsWith('custom-') ? m.name : undefined, group: m.group, density: m.id.startsWith('custom-') ? m.density : undefined, thickness: m.thickness, pricePerKg: m.pricePerKg, inkPricePerColor: m.inkPricePerColor })),
       smallWidthPrices: bangGiaKhoNho.map(p => ({ id: p.id, materialId: p.materialId, widthThresholdMm: p.widthThresholdMm, thickness: p.thickness, pricePerKg: p.pricePerKg })),
       cpsx: {
         ghepCPSX: hangSo.ghepCPSX, laborCost: hangSo.laborCost,
@@ -322,7 +330,10 @@ export default function TrangChinh() {
         nhuPrice: hangSo.nhuPrice, moPrice: hangSo.moPrice,
         zipperPrice: hangSo.zipperPrice, zipperWeight: hangSo.zipperWeight,
         tapePrice: hangSo.tapePrice, tapeWeight: hangSo.tapeWeight,
-        handlePrice: hangSo.handlePrice, handleWeight: hangSo.handleWeight,
+        handlePrice: hangSo.handlePrice, handleWeight: hangSo.handleWeight, handleOptions: hangSo.handleOptions,
+        customCylTypes: hangSo.customCylTypes,
+        customPaymentDays: hangSo.customPaymentDays,
+        customAccessories: hangSo.customAccessories,
       },
       packaging: {
         boxOptions: hangSo.boxOptions,

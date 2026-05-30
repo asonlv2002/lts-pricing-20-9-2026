@@ -30,6 +30,9 @@ export function luuConfigVaoLS(materials: Material[], constants: AppConstants, p
       zipperPrice: constants.zipperPrice, zipperWeight: constants.zipperWeight,
       tapePrice: constants.tapePrice, tapeWeight: constants.tapeWeight,
       handlePrice: constants.handlePrice, handleWeight: constants.handleWeight, handleOptions: constants.handleOptions,
+      customCylTypes: constants.customCylTypes,
+      customPaymentDays: constants.customPaymentDays,
+      customAccessories: constants.customAccessories,
     },
     packaging: {
       boxOptions: constants.boxOptions,

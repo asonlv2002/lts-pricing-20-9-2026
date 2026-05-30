@@ -118,7 +118,7 @@ export interface DauVaoTinhGia {
   coBangKeo: boolean;
   coQuaiXach: boolean;
   ngayThanhToan: number;
-  loaiTruc: 'A' | 'B' | 'custom'; // loại trục: A, B, hoặc tự nhập
+  loaiTruc: string; // loại trục: 'A', 'B', custom key, hoặc 'custom' (tự nhập)
   baoTruc: boolean;               // true = phân bổ chi phí trục vào đơn giá
   // laiSuatThanhToan đã bỏ — lãi suất lấy từ HangSo (laiSuatCoBan + laiSuatThem)
   cotLoiNhuan: number;

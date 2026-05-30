@@ -39,8 +39,8 @@ export interface ProfitRow {
   col2: number;
 }
 
-export type BoxOptionKey = 'large' | 'medium' | 'small';
-export type HandleOptionKey = 'large' | 'small' | 'color';
+export type BoxOptionKey = string;
+export type HandleOptionKey = string;
 
 export interface BoxOption {
   key: BoxOptionKey;
@@ -54,6 +54,20 @@ export interface HandleOption {
   label: string;
   price: number;
   weight: number;
+}
+
+export interface CylType {
+  key: string;
+  label: string;
+  price: number;
+}
+
+export interface CustomAccessory {
+  key: string;
+  label: string;
+  price: number;
+  weight: number;
+  unit: 'per_piece' | 'per_meter'; // đ/cái hoặc đ/m
 }
 
 export interface AppConstants {
@@ -96,6 +110,9 @@ export interface AppConstants {
   printWasteB: number;
   printWasteC: number;
   printWasteD: number;
+  customCylTypes?: CylType[];
+  customPaymentDays?: number[];
+  customAccessories?: CustomAccessory[];
 }
 
 export interface CalculateInput {
@@ -146,7 +163,7 @@ export interface CalculateInput {
   cylLength: number;
   cylCircum: number;
   cylUnitPrice: number;
-  cylType: 'A' | 'B' | 'custom'; // loại trục: A (7.3tr), B (6.5tr), hoặc tự nhập
+  cylType: string; // loại trục: 'A', 'B', custom key, hoặc 'custom' (tự nhập)
   cylIncluded: boolean;           // true = bao trục (phân bổ vào đơn giá), false = tách riêng
   targetThickness?: number;
   autoOptimizeThickness?: boolean; // tự động tối ưu độ dày (ưu tiên thấp nhất thỏa ±5 mic)

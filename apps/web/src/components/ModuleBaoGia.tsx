@@ -4,7 +4,7 @@ import {
   FileText, Search, Clock, Building2, Calendar,
   Send, ShieldCheck, PackageCheck, Eye, Users, ChevronDown, ChevronRight,
   XCircle, TimerOff, Copy, Lock, Unlock, Ban, FileDown, Layers, ClipboardEdit, UserPlus,
-  Plus, Trash2, AlertTriangle, CheckCircle2, ArrowLeft, ArrowRight, X, Check,
+  Plus, Trash2, AlertTriangle, CheckCircle2, X, Check,
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhBaoGia, xuLyDongGhiDe } from '../lib/manager-calculation';
@@ -53,7 +53,6 @@ interface WizardProduct {
 }
 
 interface WizardState {
-  step: 1 | 2 | 3;
   customer: Customer | null;
   products: WizardProduct[];
   terms: {
@@ -153,6 +152,13 @@ const WIZARD_STYLES = `
 .wiz-terms-textarea:focus { border-color: var(--accent, #0891b2); }
 .wiz-error { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px; font-size: 0.82rem; color: #dc2626; margin-bottom: 12px; }
 .wiz-empty { text-align: center; padding: 32px 16px; color: var(--muted, #9ca3af); font-size: 0.88rem; }
+.sp-sticky-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid var(--border, #e5e7eb); background: var(--surface, #fff); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.sp-section { border: 1px solid var(--border, #e5e7eb); border-radius: 10px; padding: 20px 24px; margin-bottom: 20px; position: relative; transition: border-color 0.2s, opacity 0.2s; }
+.sp-section-title { font-size: 0.92rem; font-weight: 700; margin: 0 0 16px; color: var(--foreground, #111); display: flex; align-items: center; gap: 8px; }
+.sp-section-num { width: 24px; height: 24px; border-radius: 50%; background: var(--accent, #0891b2); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; flex-shrink: 0; }
+.sp-section--disabled { opacity: 0.4; pointer-events: none; user-select: none; }
+.sp-disabled-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.88rem; color: var(--muted, #6b7280); font-weight: 500; z-index: 2; background: rgba(255,255,255,0.5); border-radius: 10px; }
+.sp-section--error { border-color: #fca5a5; box-shadow: 0 0 0 2px rgba(252,165,165,0.3); }
 `;
 
 // ════════════════════════════════════════════════════════════
@@ -1164,37 +1170,49 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
   const { history, currentSellerName, materials, constants, profitTable, smallWidthPrices, taoBaoGiaMoi } = store;
 
   const [state, setState] = useState<WizardState>({
-    step: 1,
     customer: null,
     products: [],
     terms: { vatRate: 10, validityDays: 30, paymentTerms: 'Thanh toán 30 ngày', deliveryTime: '7-10 ngày làm việc', notes: '' },
   });
   const [error, setError] = useState('');
+  const [errorSection, setErrorSection] = useState<1 | 2 | 3 | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const setStep = (s: 1 | 2 | 3) => setState(prev => ({ ...prev, step: s }));
+  const section2Ref = useRef<HTMLDivElement>(null);
+  const section1Ref = useRef<HTMLDivElement>(null);
 
-  const handleNext = () => {
-    setError('');
-    if (state.step === 1) {
-      if (!state.customer) { setError('Vui lòng chọn khách hàng'); return; }
-      setStep(2);
-    } else if (state.step === 2) {
-      if (state.products.length === 0) { setError('Vui lòng thêm ít nhất 1 sản phẩm'); return; }
-      const missing = state.products.find(p => p.tiers.length === 0 || p.tiers.every(t => t.quantity <= 0));
-      if (missing) { setError(`Sản phẩm "${missing.historyItem.productName}" chưa có mức số lượng hợp lệ`); return; }
-      setStep(3);
-    }
+  const handleCustomerSelect = (c: Customer) => {
+    setState(prev => ({ ...prev, customer: c }));
+    // Auto-scroll to section 2 after selecting customer
+    setTimeout(() => {
+      section2Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 150);
   };
 
   const handleSave = useCallback((sendForApproval: boolean) => {
     setError('');
-    if (state.products.length === 0) { setError('Chưa có sản phẩm nào'); return; }
+    setErrorSection(null);
+    if (!state.customer) {
+      setError('Vui lòng chọn khách hàng');
+      setErrorSection(1);
+      section1Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    if (state.products.length === 0) {
+      setError('Vui lòng thêm ít nhất 1 sản phẩm');
+      setErrorSection(2);
+      section2Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
+    const missing = state.products.find(p => p.tiers.length === 0 || p.tiers.every(t => t.quantity <= 0));
+    if (missing) {
+      setError(`Sản phẩm "${missing.historyItem.productName}" chưa có mức số lượng hợp lệ`);
+      setErrorSection(2);
+      section2Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      return;
+    }
     setSaving(true);
     try {
-      state.products.forEach(prod => {
-        if (prod.tiers.every(t => t.quantity <= 0)) throw new Error('invalid tiers');
-      });
       const products: QuoteProductLine[] = state.products.map(prod => {
         const tiers: QuoteTier[] = prod.tiers
           .filter(t => t.quantity > 0)
@@ -1228,115 +1246,89 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
     }
   }, [state.products, state.customer, state.terms, taoBaoGiaMoi, onClose]);
 
-  const STEP_LABELS = ['Chọn khách hàng', 'Chọn sản phẩm', 'Xác nhận'];
+  const canSaveDraft = !!state.customer;
+  const canSubmit = !!state.customer && state.products.length > 0;
 
   return (
     <div className="crm-root" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <style>{WIZARD_STYLES}</style>
 
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '16px 24px', borderBottom: '1px solid var(--border)',
-        background: 'var(--surface)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button className="wiz-btn wiz-btn--ghost" onClick={onClose} style={{ padding: '6px 10px' }}>
-            <ArrowLeft size={16} /> Quay lại
+      {/* Sticky Header */}
+      <div className="sp-sticky-header">
+        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text, #1e293b)', margin: 0 }}>Tạo báo giá mới</h2>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="wiz-btn wiz-btn--secondary" onClick={() => handleSave(false)} disabled={saving || !canSaveDraft}>
+            Lưu nháp
           </button>
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text, #1e293b)', margin: 0 }}>Tạo báo giá mới</h2>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {state.step === 3 && (
-            <>
-              <button className="wiz-btn wiz-btn--secondary" onClick={() => handleSave(false)} disabled={saving}>
-                Lưu nháp
-              </button>
-              <button className="wiz-btn wiz-btn--primary" onClick={() => handleSave(true)} disabled={saving}>
-                <CheckCircle2 size={14} /> Lưu & Gửi duyệt
-              </button>
-            </>
-          )}
+          <button className="wiz-btn wiz-btn--primary" onClick={() => handleSave(true)} disabled={saving || !canSubmit}>
+            <CheckCircle2 size={14} /> Lưu & Gửi duyệt
+          </button>
+          <button className="wiz-btn wiz-btn--ghost" onClick={onClose} style={{ padding: '6px 8px' }} aria-label="Đóng">
+            <X size={18} />
+          </button>
         </div>
       </div>
 
-      {/* Steps indicator */}
-      <div className="wiz-steps" role="list" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface2, #f8f9fb)' }}>
-        {STEP_LABELS.map((label, i) => {
-          const stepNum = (i + 1) as 1 | 2 | 3;
-          const isDone = state.step > stepNum;
-          const isActive = state.step === stepNum;
-          return (
-            <React.Fragment key={stepNum}>
-              {i > 0 && <div className="wiz-step-sep" />}
-              <div className="wiz-step" role="listitem">
-                <div
-                  className={`wiz-step-num ${isDone ? 'wiz-step-num--done' : isActive ? 'wiz-step-num--active' : 'wiz-step-num--pending'}`}
-                  aria-current={isActive ? 'step' : undefined}
-                >
-                  {isDone ? <Check size={13} /> : stepNum}
-                </div>
-                <span className={`wiz-step-label ${isActive ? 'wiz-step-label--active' : ''}`}>{label}</span>
-              </div>
-            </React.Fragment>
-          );
-        })}
-      </div>
-
-      {/* Body */}
+      {/* Scrollable content */}
       <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
         {error && (
           <div className="wiz-error" role="alert">
             <AlertTriangle size={14} /> {error}
           </div>
         )}
-        {state.step === 1 && (
+
+        {/* Section 1: Khách hàng */}
+        <div ref={section1Ref} className={`sp-section${errorSection === 1 ? ' sp-section--error' : ''}`}>
+          <h3 className="sp-section-title">
+            <span className="sp-section-num">1</span>
+            Khách hàng
+          </h3>
           <BuocChonKhachHang
             selected={state.customer}
-            onSelect={c => setState(prev => ({ ...prev, customer: c }))}
+            onSelect={handleCustomerSelect}
           />
-        )}
-        {state.step === 2 && state.customer && (
-          <BuocChonSanPham
-            customer={state.customer}
-            history={history}
-            products={state.products}
-            onProductsChange={p => setState(prev => ({ ...prev, products: p }))}
-            materials={materials}
-            constants={constants}
-            profitTable={profitTable}
-            smallWidthPrices={smallWidthPrices}
-          />
-        )}
-        {state.step === 3 && state.customer && (
-          <BuocXacNhan
-            customer={state.customer}
-            products={state.products}
-            terms={state.terms}
-            onTermsChange={t => setState(prev => ({ ...prev, terms: t }))}
-            currentSellerName={currentSellerName || ''}
-          />
-        )}
-      </div>
+        </div>
 
-      {/* Footer navigation */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '14px 24px', borderTop: '1px solid var(--border)',
-        background: 'var(--surface)',
-      }}>
-        <div>
-          {state.step > 1 && (
-            <button className="wiz-btn wiz-btn--secondary" onClick={() => setStep((state.step - 1) as 1 | 2 | 3)}>
-              <ArrowLeft size={14} /> Quay lại
-            </button>
+        {/* Section 2: Sản phẩm & Giá */}
+        <div ref={section2Ref} className={`sp-section${!state.customer ? ' sp-section--disabled' : ''}${errorSection === 2 ? ' sp-section--error' : ''}`}>
+          {!state.customer && (
+            <div className="sp-disabled-overlay">Chọn khách hàng để tiếp tục</div>
+          )}
+          <h3 className="sp-section-title">
+            <span className="sp-section-num">2</span>
+            Sản phẩm & Giá
+          </h3>
+          {state.customer && (
+            <BuocChonSanPham
+              customer={state.customer}
+              history={history}
+              products={state.products}
+              onProductsChange={p => setState(prev => ({ ...prev, products: p }))}
+              materials={materials}
+              constants={constants}
+              profitTable={profitTable}
+              smallWidthPrices={smallWidthPrices}
+            />
           )}
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {state.step < 3 && (
-            <button className="wiz-btn wiz-btn--primary" onClick={handleNext}>
-              Tiếp theo <ArrowRight size={14} />
-            </button>
+
+        {/* Section 3: Điều khoản & Xác nhận */}
+        <div className={`sp-section${!state.customer ? ' sp-section--disabled' : ''}${errorSection === 3 ? ' sp-section--error' : ''}`}>
+          {!state.customer && (
+            <div className="sp-disabled-overlay">Chọn khách hàng để tiếp tục</div>
+          )}
+          <h3 className="sp-section-title">
+            <span className="sp-section-num">3</span>
+            Điều khoản & Xác nhận
+          </h3>
+          {state.customer && (
+            <BuocXacNhan
+              customer={state.customer}
+              products={state.products}
+              terms={state.terms}
+              onTermsChange={t => setState(prev => ({ ...prev, terms: t }))}
+              currentSellerName={currentSellerName || ''}
+            />
           )}
         </div>
       </div>

@@ -120,6 +120,10 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
       if ('cylType' in partial) {
         if (dauVaoMoi.cylType === 'A') dauVaoMoi.cylUnitPrice = state.constants.cylPriceA ?? state.constants.cylinderPricePerUnit;
         else if (dauVaoMoi.cylType === 'B') dauVaoMoi.cylUnitPrice = state.constants.cylPriceB ?? 6500000;
+        else {
+          const customCyl = (state.constants.customCylTypes ?? []).find(c => c.key === dauVaoMoi.cylType);
+          if (customCyl) dauVaoMoi.cylUnitPrice = customCyl.price;
+        }
       }
 
       return { dauVao: dauVaoMoi, input: dauVaoMoi, result: tinhBaoGia(dauVaoMoi, state.materials, state.constants, state.profitTable, state.smallWidthPrices), isDirty: true };

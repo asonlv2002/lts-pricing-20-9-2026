@@ -167,7 +167,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   const anCotCPSX = hienHaoHut && !hienSanXuat && !hienCongThuc;
   const anCotPhiHao = false;
   const tongLaiNam = hangSo.interestBase + hangSo.interestSpread;
-  const mocNgayLaiVay = [14, 30, 45, 75, 90];
+  const mocNgayLaiVay = [14, 30, 45, 75, 90, ...(hangSo.customPaymentDays ?? [])].sort((a, b) => a - b);
   const dinhDangTyLeLaiNgay = (days: number) => ((tongLaiNam / 365) * days * 100).toFixed(3);
   const chenhLech = nhomKhachHang === 'svlg' ? -0.03 : 0;
   const bangGiaKhoNhoMotDong = vatLieu
@@ -224,13 +224,13 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     const caiDatMoi = { ...hangSo.colorSetup, [soMau]: giaTri };
     capNhatHangSo('colorSetup' as any, caiDatMoi as any);
   };
-  const xuLyDoiLoaiThung = (khoa: string, truong: 'price' | 'weight', giaTri: number) => {
+  const xuLyDoiLoaiThung = (khoa: string, truong: 'price' | 'weight' | 'label', giaTri: number | string) => {
     const cacLoaiThung = (hangSo.boxOptions ?? []).map(option =>
       option.key === khoa ? { ...option, [truong]: giaTri } : option
     );
     capNhatHangSo('boxOptions' as any, cacLoaiThung as any);
   };
-  const xuLyDoiLoaiQuai = (khoa: string, truong: 'price' | 'weight', giaTri: number) => {
+  const xuLyDoiLoaiQuai = (khoa: string, truong: 'price' | 'weight' | 'label', giaTri: number | string) => {
     const cacLoaiQuai = (hangSo.handleOptions ?? []).map(option =>
       option.key === khoa ? { ...option, [truong]: giaTri } : option
     );
@@ -345,13 +345,27 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                     </tbody>
                     <tfoot>
                       <tr>
-                        <td colSpan={7} style={{paddingTop:'10px'}}>
+                        <td colSpan={7} style={{paddingTop:'10px', display:'flex', gap:'8px', flexWrap:'wrap'}}>
                           <button className="btn btn-sm btn-outline" onClick={() => {
                             customMaterialSeq.current += 1;
                             const id = `custom-${vatLieu.length}-${customMaterialSeq.current}`;
-                            themVatLieu({ id, name: 'Màng mới', density: 0.92, thickness: 15, pricePerKg: 0, isPETorPA: false, rollLength: 5000, inkPricePerColor: 120 });
+                            themVatLieu({ id, name: 'Màng mới', group: 'mang', density: 0.92, thickness: 15, pricePerKg: 0, isPETorPA: false, rollLength: 5000, inkPricePerColor: 120 });
                           }}>
                             + Thêm màng
+                          </button>
+                          <button className="btn btn-sm btn-outline" onClick={() => {
+                            customMaterialSeq.current += 1;
+                            const id = `custom-${vatLieu.length}-${customMaterialSeq.current}`;
+                            themVatLieu({ id, name: 'Giấy mới', group: 'giay', density: 1.1, thickness: 80, pricePerKg: 0, isPETorPA: false, rollLength: 3000, inkPricePerColor: 120 });
+                          }}>
+                            + Thêm giấy
+                          </button>
+                          <button className="btn btn-sm btn-outline" onClick={() => {
+                            customMaterialSeq.current += 1;
+                            const id = `custom-${vatLieu.length}-${customMaterialSeq.current}`;
+                            themVatLieu({ id, name: 'Vật liệu mới', group: 'khac', density: 1.0, thickness: 20, pricePerKg: 0, isPETorPA: false, rollLength: 5000, inkPricePerColor: 120 });
+                          }}>
+                            + Thêm vật liệu khác
                           </button>
                         </td>
                       </tr>
@@ -408,42 +422,6 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           {hienCongThuc && <KhoiPhienBan scope="production" />}
           {hienCongThuc && <KhoiPhienBan scope="waste" />}
           {(hienSanXuat || hienHaoHut || hienCongThuc) && <div className="config-group-header" id="sect-config-in" style={{scrollMarginTop: '80px'}}>🖨️ CPSX Khâu in</div>}
-          {/* 1.6 Đơn giá trục in */}
-          {hienSanXuat && (
-          <div className="card config-card">
-            <div className="config-section-title"><span>🖨️ Đơn Giá Trục In</span></div>
-            <div className="cylinder-price-panel">
-              <div className="cylinder-price-head">
-                <div>Loại trục</div>
-                <div>Giá trục</div>
-              </div>
-              <div className="cylinder-price-row">
-                <div><span className="cylinder-type-badge">Trục A</span></div>
-                <div className="cylinder-price-input">
-                  <input type="number" className="form-input"
-                    value={hangSo.cylPriceA ?? 7300000}
-                    step="100000" min="0"
-                    onChange={e => capNhatHangSo('cylPriceA', parseFloat(e.target.value) || 0)} />
-                  <span>đ/m²</span>
-                </div>
-              </div>
-              <div className="cylinder-price-row">
-                <div><span className="cylinder-type-badge cylinder-type-badge--b">Trục B</span></div>
-                <div className="cylinder-price-input">
-                  <input type="number" className="form-input"
-                    value={hangSo.cylPriceB ?? 6500000}
-                    step="100000" min="0"
-                    onChange={e => capNhatHangSo('cylPriceB', parseFloat(e.target.value) || 0)} />
-                  <span>đ/m²</span>
-                </div>
-              </div>
-              <div className="cylinder-price-row cylinder-price-row--muted">
-                <div><span className="cylinder-type-badge cylinder-type-badge--custom">Trục khác</span></div>
-                <div className="cylinder-custom-note">Nhập trong form tính giá khi chọn <strong>Trục khác</strong>.</div>
-              </div>
-            </div>
-          </div>
-          )}
           {/* 1.2 Bảng giá màu in */}
           {hienSanXuat && (
           <div className="card config-card">
@@ -603,11 +581,28 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                   <div style={{padding:'8px 10px', textAlign:'center'}}>Tỷ lệ lãi</div>
                 </div>
                 {mocNgayLaiVay.map(days => (
-                  <div key={days} style={{display:'grid', gridTemplateColumns:'1fr 1fr', borderTop:'1px solid var(--border)'}}>
+                  <div key={days} style={{display:'grid', gridTemplateColumns:'1fr 1fr auto', borderTop:'1px solid var(--border)'}}>
                     <div style={{padding:'10px', textAlign:'center', fontWeight:600}}>{days} ngày</div>
                     <div style={{padding:'10px', textAlign:'center', fontSize:'1.05rem', fontWeight:800, color:'var(--accent)'}}>{dinhDangTyLeLaiNgay(days)}%</div>
+                    <div style={{padding:'6px 8px', display:'flex', alignItems:'center'}}>
+                      {(hangSo.customPaymentDays ?? []).includes(days) && (
+                        <button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer', fontSize:'0.9rem', padding:'2px 6px'}}
+                          onClick={() => capNhatHangSo('customPaymentDays', (hangSo.customPaymentDays ?? []).filter(d => d !== days))}>✕</button>
+                      )}
+                    </div>
                   </div>
                 ))}
+                <div style={{padding:'10px', textAlign:'center', borderTop:'1px solid var(--border)'}}>
+                  <button className="btn btn-sm btn-outline" onClick={() => {
+                    const val = prompt('Nhập số ngày công nợ mới:');
+                    if (!val) return;
+                    const num = parseInt(val, 10);
+                    if (isNaN(num) || num <= 0) return;
+                    const existing = [14, 30, 45, 75, 90, ...(hangSo.customPaymentDays ?? [])];
+                    if (existing.includes(num)) return;
+                    capNhatHangSo('customPaymentDays', [...(hangSo.customPaymentDays ?? []), num]);
+                  }}>+ Thêm mốc ngày</button>
+                </div>
               </div>
             </div>
           </div>
@@ -810,6 +805,62 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           </div>
           )}
           {/* NHOM 5: GIA PHU KIEN */}
+          {hienPhuPhi && (
+          <div className="card config-card">
+            <div className="config-section-title"><span>🖨️ Đơn Giá Trục In</span></div>
+            <div className="cylinder-price-panel">
+              <div className="cylinder-price-head">
+                <div>Loại trục</div>
+                <div>Giá trục</div>
+              </div>
+              <div className="cylinder-price-row">
+                <div><span className="cylinder-type-badge">Trục A</span></div>
+                <div className="cylinder-price-input">
+                  <input type="number" className="form-input"
+                    value={hangSo.cylPriceA ?? 7300000}
+                    step="100000" min="0"
+                    onChange={e => capNhatHangSo('cylPriceA', parseFloat(e.target.value) || 0)} />
+                  <span>đ/m²</span>
+                </div>
+              </div>
+              <div className="cylinder-price-row">
+                <div><span className="cylinder-type-badge cylinder-type-badge--b">Trục B</span></div>
+                <div className="cylinder-price-input">
+                  <input type="number" className="form-input"
+                    value={hangSo.cylPriceB ?? 6500000}
+                    step="100000" min="0"
+                    onChange={e => capNhatHangSo('cylPriceB', parseFloat(e.target.value) || 0)} />
+                  <span>đ/m²</span>
+                </div>
+              </div>
+              <div className="cylinder-price-row cylinder-price-row--muted">
+                <div><span className="cylinder-type-badge cylinder-type-badge--custom">Trục khác</span></div>
+                <div className="cylinder-custom-note">Nhập trong form tính giá khi chọn <strong>Trục khác</strong>.</div>
+              </div>
+              {(hangSo.customCylTypes ?? []).map((cyl, idx) => (
+                <div className="cylinder-price-row" key={cyl.key}>
+                  <div><input type="text" className="config-inline-input" value={cyl.label} style={{width:'100px', fontWeight:600}}
+                    onChange={e => { const arr = [...(hangSo.customCylTypes ?? [])]; arr[idx] = {...cyl, label: e.target.value}; capNhatHangSo('customCylTypes', arr); }} /></div>
+                  <div className="cylinder-price-input">
+                    <input type="number" className="form-input" value={cyl.price} step="100000" min="0"
+                      onChange={e => { const arr = [...(hangSo.customCylTypes ?? [])]; arr[idx] = {...cyl, price: parseFloat(e.target.value)||0}; capNhatHangSo('customCylTypes', arr); }} />
+                    <span>đ/m²</span>
+                    <button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer', fontSize:'1rem', padding:'2px 6px'}}
+                      onClick={() => { const arr = (hangSo.customCylTypes ?? []).filter((_,i) => i !== idx); capNhatHangSo('customCylTypes', arr); }}>✕</button>
+                  </div>
+                </div>
+              ))}
+              <div style={{marginTop: 8}}>
+                <button className="btn btn-sm btn-outline" onClick={() => {
+                  const arr = [...(hangSo.customCylTypes ?? [])];
+                  const key = `cyl-${Date.now()}`;
+                  arr.push({ key, label: `Trục ${String.fromCharCode(67 + arr.length)}`, price: 6000000 });
+                  capNhatHangSo('customCylTypes', arr);
+                }}>+ Thêm loại trục</button>
+              </div>
+            </div>
+          </div>
+          )}
           {hienPhuPhi && <div className="config-group-header" id="sect-config-phukien" style={{scrollMarginTop: '80px'}}>🎀 Giá Phụ Kiện</div>}
           {hienPhuPhi && (
           <div className="card config-card">
@@ -836,12 +887,59 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                   </tr>
                   {(hangSo.handleOptions ?? []).map(option => (
                     <tr key={option.key}>
-                      <td>{option.label}</td>
+                      <td>
+                        {option.key.startsWith('custom-')
+                          ? <input type="text" className="config-inline-input" value={option.label} style={{width:'100px', fontWeight:600}} onChange={e => xuLyDoiLoaiQuai(option.key, 'label', e.target.value)} />
+                          : option.label}
+                      </td>
                       <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={option.price} onChange={e => xuLyDoiLoaiQuai(option.key, 'price', parseFloat(e.target.value)||0)} /> đ/cái</td>
-                      <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={option.weight} step="0.1" min="0" onChange={e => xuLyDoiLoaiQuai(option.key, 'weight', parseFloat(e.target.value)||0)} /> Gr/cái</td>
+                      <td>
+                        <input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={option.weight} step="0.1" min="0" onChange={e => xuLyDoiLoaiQuai(option.key, 'weight', parseFloat(e.target.value)||0)} /> Gr/cái
+                        {option.key.startsWith('custom-') && <button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer', marginLeft:4}} onClick={() => {
+                          const arr = (hangSo.handleOptions ?? []).filter(o => o.key !== option.key);
+                          capNhatHangSo('handleOptions', arr);
+                        }}>✕</button>}
+                      </td>
+                    </tr>
+                  ))}
+                  {(hangSo.customAccessories ?? []).map((acc, idx) => (
+                    <tr key={acc.key}>
+                      <td><input type="text" className="config-inline-input" value={acc.label} style={{width:'100px', fontWeight:600}} onChange={e => {
+                        const arr = [...(hangSo.customAccessories ?? [])]; arr[idx] = {...acc, label: e.target.value}; capNhatHangSo('customAccessories', arr);
+                      }} /></td>
+                      <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={acc.price} onChange={e => {
+                        const arr = [...(hangSo.customAccessories ?? [])]; arr[idx] = {...acc, price: parseFloat(e.target.value)||0}; capNhatHangSo('customAccessories', arr);
+                      }} /> {acc.unit === 'per_meter' ? 'đ/m' : 'đ/cái'}</td>
+                      <td>
+                        <input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={acc.weight} step="0.1" min="0" onChange={e => {
+                          const arr = [...(hangSo.customAccessories ?? [])]; arr[idx] = {...acc, weight: parseFloat(e.target.value)||0}; capNhatHangSo('customAccessories', arr);
+                        }} /> {acc.unit === 'per_meter' ? 'Gr/m' : 'Gr/cái'}
+                        <button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer', marginLeft:4}} onClick={() => {
+                          const arr = (hangSo.customAccessories ?? []).filter((_,i) => i !== idx); capNhatHangSo('customAccessories', arr);
+                        }}>✕</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr><td colSpan={3} style={{paddingTop:10, display:'flex', gap:8, flexWrap:'wrap'}}>
+                    <button className="btn btn-sm btn-outline" onClick={() => {
+                      const arr = [...(hangSo.handleOptions ?? [])];
+                      arr.push({ key: `custom-${Date.now()}`, label: 'Quai mới', price: 0, weight: 0 });
+                      capNhatHangSo('handleOptions', arr);
+                    }}>+ Thêm loại quai</button>
+                    <button className="btn btn-sm btn-outline" onClick={() => {
+                      const arr = [...(hangSo.customAccessories ?? [])];
+                      arr.push({ key: `acc-${Date.now()}`, label: 'Phụ kiện mới', price: 0, weight: 0, unit: 'per_piece' });
+                      capNhatHangSo('customAccessories', arr);
+                    }}>+ Thêm phụ kiện (đ/cái)</button>
+                    <button className="btn btn-sm btn-outline" onClick={() => {
+                      const arr = [...(hangSo.customAccessories ?? [])];
+                      arr.push({ key: `acc-${Date.now()}`, label: 'Phụ kiện mới', price: 0, weight: 0, unit: 'per_meter' });
+                      capNhatHangSo('customAccessories', arr);
+                    }}>+ Thêm phụ kiện (đ/m)</button>
+                  </td></tr>
+                </tfoot>
               </table>
             </div>
             <p className="config-note">Đơn giá thay đổi tùy thời điểm, tự động áp dụng khi chốt giá cho đơn hàng.</p>
@@ -864,7 +962,11 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                 <tbody>
                   {(hangSo.boxOptions ?? []).map(option => (
                     <tr key={option.key}>
-                      <td style={{fontWeight:700}}>{option.label}</td>
+                      <td style={{fontWeight:700}}>
+                        {option.key.startsWith('custom-')
+                          ? <input type="text" className="config-inline-input" value={option.label} style={{width:'120px', fontWeight:700}} onChange={e => xuLyDoiLoaiThung(option.key, 'label', e.target.value)} />
+                          : option.label}
+                      </td>
                       <td>
                         <input
                           type="number"
@@ -882,10 +984,23 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                           onChange={e => xuLyDoiLoaiThung(option.key, 'price', parseFloat(e.target.value) || 0)}
                           style={{width:'120px', textAlign:'right', fontWeight:700}}
                         />
+                        {option.key.startsWith('custom-') && <button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer', marginLeft:4}} onClick={() => {
+                          const arr = (hangSo.boxOptions ?? []).filter(o => o.key !== option.key);
+                          capNhatHangSo('boxOptions', arr);
+                        }}>✕</button>}
                       </td>
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr><td colSpan={3} style={{paddingTop:10}}>
+                    <button className="btn btn-sm btn-outline" onClick={() => {
+                      const arr = [...(hangSo.boxOptions ?? [])];
+                      arr.push({ key: `custom-${Date.now()}`, label: 'Thùng mới', price: 0, weight: 0 });
+                      capNhatHangSo('boxOptions', arr);
+                    }}>+ Thêm loại thùng</button>
+                  </td></tr>
+                </tfoot>
               </table>
             </div>
             <p className="config-note">Khi nhập đơn túi, chọn loại thùng để tự điền giá thùng. Số túi/thùng do người dùng nhập theo kích thước thực tế của đơn.</p>

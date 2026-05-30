@@ -525,7 +525,6 @@ function CustomerDetailPanel({ customer, role, currentSellerId, onClose, onEdit,
   onNavigate: (module: string, filter: string, quoteMode?: boolean) => void;
 }) {
   const [activeTab, setActiveTab] = useState<'info'>('info');
-  const [txDropOpen, setTxDropOpen] = useState(false);
   const history = dungCuaHangTinhGia(s => s.history);
   const loadHistoryItem = dungCuaHangTinhGia(s => s.loadHistoryItem);
   const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
@@ -604,25 +603,6 @@ function CustomerDetailPanel({ customer, role, currentSellerId, onClose, onEdit,
               <Pencil size={13}/> Chỉnh sửa
             </button>
           )}
-          {/* Hồ sơ giao dịch dropdown */}
-          <div className="crm2-dropdown-wrap" style={{ position: 'relative' }}>
-            <button className="crm2-btn crm2-btn--ghost" style={{ fontSize: 12, padding: '6px 10px' }} onClick={() => setTxDropOpen(v => !v)}>
-              <ClipboardList size={13}/> Hồ sơ giao dịch <ChevronDown size={12}/>
-            </button>
-            {txDropOpen && (
-              <div className="crm2-dropdown-menu" style={{ minWidth: 200 }} onClick={() => setTxDropOpen(false)}>
-                <button onClick={() => onNavigate('history_db', displayName(customer), true)}>
-                  <FileText size={13}/> Bảng báo giá
-                </button>
-                <button onClick={() => onNavigate('production_orders', displayName(customer))}>
-                  <Package size={13}/> Lệnh sản xuất
-                </button>
-                <button onClick={() => onNavigate('history_db', displayName(customer), false)}>
-                  <ClipboardList size={13}/> Sản phẩm liên quan
-                </button>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Tabs */}
@@ -710,10 +690,12 @@ function AssignSellerDialog({ customer, onSave, onClose }: { customer: Customer;
 }
 
 // ── Customer Card ────────────────────────────────────────────────────────────
-function CustomerCard({ customer, role, currentSellerId, relatedQuotes = [], onView, onEdit, onToggleLock, onAssign }: {
+function CustomerCard({ customer, role, currentSellerId, relatedQuotes = [], onView, onEdit, onToggleLock, onAssign, txCardOpen, setTxCardOpen, onNavigate }: {
   customer: Customer; role: Role; currentSellerId?: string; relatedQuotes?: { quoteStatus?: string; chotGia?: number }[];
   onView: () => void; onEdit: () => void;
   onToggleLock: () => void; onAssign: () => void;
+  txCardOpen: string | null; setTxCardOpen: (id: string | null) => void;
+  onNavigate: (module: string, filter: string, quoteMode?: boolean) => void;
 }) {
   const [hovered, setHovered] = useState(false);
   const { filled, total, missing } = getCompleteness(customer);
@@ -771,6 +753,24 @@ function CustomerCard({ customer, role, currentSellerId, relatedQuotes = [], onV
         {canEdit(role, customer, currentSellerId) && <button className="crm2-btn-icon" title="Chỉnh sửa" onClick={e => { e.stopPropagation(); onEdit(); }}><Pencil size={14}/></button>}
         {role === 'admin' && <button className="crm2-btn-icon" title="Phân công nhân viên" onClick={e => { e.stopPropagation(); onAssign(); }}><Briefcase size={14}/></button>}
         {canLock(role) && <button className="crm2-btn-icon" title={customer.isLocked ? 'Mở khóa' : 'Khóa'} onClick={e => { e.stopPropagation(); onToggleLock(); }}>{customer.isLocked ? <Unlock size={14}/> : <Lock size={14}/>}</button>}
+        <div style={{ position: 'relative', display: 'inline-block' }} onMouseDown={e => e.stopPropagation()}>
+          <button className="crm2-btn-icon" title="Hồ sơ giao dịch" onClick={e => { e.stopPropagation(); setTxCardOpen(txCardOpen === customer.id ? null : customer.id); }}>
+            <ClipboardList size={14}/>
+          </button>
+          {txCardOpen === customer.id && (
+            <div className="crm2-dropdown-menu" style={{ position: 'absolute', top: '100%', left: 0, minWidth: 200, zIndex: 20 }}>
+              <button onClick={e => { e.stopPropagation(); onNavigate('history_db', displayName(customer), true); setTxCardOpen(null); }}>
+                <FileText size={13}/> Bảng báo giá
+              </button>
+              <button onClick={e => { e.stopPropagation(); onNavigate('production_orders', displayName(customer)); setTxCardOpen(null); }}>
+                <Package size={13}/> Lệnh sản xuất
+              </button>
+              <button onClick={e => { e.stopPropagation(); onNavigate('history_db', displayName(customer)); setTxCardOpen(null); }}>
+                <ClipboardList size={13}/> Sản phẩm liên quan
+              </button>
+            </div>
+          )}
+        </div>
       </div>
     </article>
   );
@@ -1083,6 +1083,15 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const ghiNhatKy = dungCuaHangTinhGia(s => s.ghiNhatKy);
   const [crmThresholds, setCrmThresholds] = useState<CrmThresholds>(() => loadCrmThresholds());
   const [showThresholdSettings, setShowThresholdSettings] = useState(false);
+  const [txCardOpen, setTxCardOpen] = useState<string | null>(null);
+
+  // Close transaction dropdown on click outside
+  useEffect(() => {
+    if (!txCardOpen) return;
+    const handler = () => setTxCardOpen(null);
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [txCardOpen]);
 
   const handleNavigate = (module: string, filter: string, quoteMode?: boolean) => {
     setDetail(null);
@@ -1563,6 +1572,9 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                 action: () => patch(c.id, { isLocked: !c.isLocked })
               })}
               onAssign={() => setAssigning(c)}
+              txCardOpen={txCardOpen}
+              setTxCardOpen={setTxCardOpen}
+              onNavigate={handleNavigate}
             />
           ))}
         </div>
@@ -1632,6 +1644,24 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                           {c.isLocked ? <Unlock size={14}/> : <Lock size={14}/>}
                         </button>
                       )}
+                      <div style={{ position: 'relative', display: 'inline-block' }} onMouseDown={e => e.stopPropagation()}>
+                        <button className="crm2-btn-icon" title="Hồ sơ giao dịch" onClick={() => setTxCardOpen(txCardOpen === c.id ? null : c.id)}>
+                          <ClipboardList size={14}/>
+                        </button>
+                        {txCardOpen === c.id && (
+                          <div className="crm2-dropdown-menu" style={{ position: 'absolute', top: '100%', left: 0, minWidth: 200, zIndex: 20 }}>
+                            <button onClick={() => { handleNavigate('history_db', displayName(c), true); setTxCardOpen(null); }}>
+                              <FileText size={13}/> Bảng báo giá
+                            </button>
+                            <button onClick={() => { handleNavigate('production_orders', displayName(c)); setTxCardOpen(null); }}>
+                              <Package size={13}/> Lệnh sản xuất
+                            </button>
+                            <button onClick={() => { handleNavigate('history_db', displayName(c)); setTxCardOpen(null); }}>
+                              <ClipboardList size={13}/> Sản phẩm liên quan
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </td>
                 </tr>

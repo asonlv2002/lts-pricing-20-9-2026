@@ -851,9 +851,12 @@ export default function TheNhapLieu() {
               <div className="form-group">
                 <label className="form-label">Loại trục</label>
                 <select className="form-select" value={input.cylType ?? 'A'}
-                  onChange={e => capNhatDauVao({ cylType: e.target.value as 'A' | 'B' | 'custom' })}>
+                  onChange={e => capNhatDauVao({ cylType: e.target.value })}>
                   <option value="A">Trục A</option>
                   <option value="B">Trục B</option>
+                  {(constants.customCylTypes ?? []).map(cyl => (
+                    <option key={cyl.key} value={cyl.key}>{cyl.label}</option>
+                  ))}
                   <option value="custom">Trục khác</option>
                 </select>
               </div>
@@ -944,7 +947,7 @@ export default function TheNhapLieu() {
             <div className="form-group" style={{ marginBottom: '14px' }}>
               <label className="form-label">Thời hạn thanh toán</label>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {[14, 30, 45, 75, 90].map(days => (
+                {[14, 30, 45, 75, 90, ...(constants.customPaymentDays ?? [])].sort((a, b) => a - b).map(days => (
                   <label key={days} className="form-check" style={{ marginBottom: 0, padding: '6px 12px', border: `1px solid ${soNgayThanhToanHienTai === days ? 'var(--primary)' : 'var(--border)'}`, borderRadius: '6px', cursor: 'pointer', background: soNgayThanhToanHienTai === days ? 'var(--primary-light, #eff6ff)' : 'transparent' }}>
                     <input type="radio" style={{ marginRight: '6px' }} checked={soNgayThanhToanHienTai === days} onChange={() => capNhatDauVao({ paymentDays: days })} />
                     {days} ngày

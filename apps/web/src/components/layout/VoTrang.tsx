@@ -680,12 +680,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
 
       <div className="lts-shell-main">
-        <DauTrangTren
-          moduleDangMo={moduleDangMo}
-          onExport={xuLyXuat}
-          onMenuToggle={() => datThanhBenDangMo(v => !v)}
-          laMobile={laMobile}
-        />
+        {moduleDangMo !== 'quotations' && (
+          <DauTrangTren
+            moduleDangMo={moduleDangMo}
+            onExport={xuLyXuat}
+            onMenuToggle={() => datThanhBenDangMo(v => !v)}
+            laMobile={laMobile}
+          />
+        )}
 
         <div className="lts-shell-content lts-shell-content--scroll">
           {moduleDangMo === 'calculator'        && children}
