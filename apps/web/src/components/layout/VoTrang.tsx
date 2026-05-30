@@ -119,7 +119,7 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     vaiTros: ['admin'],
     mucCon: [
       { key: 'system.users', id: 'users', label: 'Tài khoản & quyền', vaiTros: ['admin'] },
-      { key: 'system.sellers', id: 'sellers', label: 'Seller / nhân sự kinh doanh', vaiTros: ['admin'] },
+      { key: 'system.sellers', id: 'sellers', label: 'Nhân viên kinh doanh', vaiTros: ['admin'] },
       { key: 'system.roles', id: 'users', label: 'Vai trò', vaiTros: ['admin'] },
       { key: 'system.permissions', id: 'users', label: 'Bảng phân quyền', vaiTros: ['admin'] },
       { key: 'system.company_settings', id: 'settings', label: 'Cài đặt công ty', vaiTros: ['admin'] },
@@ -214,7 +214,7 @@ const TIEU_DE_MODULE: Record<MaModule, string> = {
   master_data:       'Cấu hình tính giá',
   production_orders: 'Lệnh sản xuất',
   customers:         'Khách hàng',
-  sellers:           'Seller / nhân sự kinh doanh',
+  sellers:           'Nhân viên kinh doanh',
   users:             'Người dùng',
   settings:          'Cài đặt hệ thống',
   audit_log:         'Nhật ký thao tác',
@@ -697,7 +697,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {moduleDangMo === 'users'             && <ModulePhanQuyen menuDangChon={menuDangChon} />}
           {moduleDangMo === 'settings'          && <div className="crm-root"><div className="crm-empty"><p>Module này chưa có màn hình chi tiết.</p><p style={{fontSize:'0.85rem',color:'var(--muted)'}}>Mục đang chọn: {CAC_MUC_MENU.find(i => i.key === menuDangChon)?.label ?? menuDangChon}</p></div></div>}
           {moduleDangMo === 'production_orders' && <ModuleLenhSanXuat />}
-          {moduleDangMo === 'audit_log'         && <ModuleNhatKy />}
+          {moduleDangMo === 'audit_log'         && <ModuleNhatKy menuDangChon={menuDangChon} />}
           {/* Fallback: TypeScript đảm bảo MaModule luôn có case ở trên — nếu không có sẽ bắt lỗi compile */}
         </div>
       </div>

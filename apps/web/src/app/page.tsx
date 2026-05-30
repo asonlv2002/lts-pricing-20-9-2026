@@ -177,6 +177,20 @@ export default function TrangChinh() {
         const parsed = JSON.parse(rawLichSu);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const patched = parsed.map((h: any) => ({ ...h, quoteStatus: h.quoteStatus ?? 'drafted' }));
+          // Nếu chưa có record báo giá nào, merge thêm từ seed
+          const hasQuote = patched.some((h: any) => h.isQuote || h.quoteProducts?.length);
+          if (!hasQuote) {
+            fetch('/seed-history.json')
+              .then(r => r.ok ? r.json() : [])
+              .then((seed: any[]) => {
+                const quoteRecords = seed.filter((h: any) => h.isQuote || h.quoteProducts?.length);
+                if (quoteRecords.length > 0) {
+                  const merged = [...patched, ...quoteRecords];
+                  dungCuaHangTinhGia.setState({ history: merged });
+                  try { window.localStorage.setItem('lts_history', JSON.stringify(merged)); } catch {}
+                }
+              }).catch(() => {});
+          }
           dungCuaHangTinhGia.setState({ history: patched });
         }
       } else {

@@ -202,6 +202,43 @@ function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, d
     </td>
   );
 }
+
+function OChonVatLieuDong({ khoaDong, giaTriGocId, giaTriGocTen, giaTriGocGia, ghiDeHienTai, duocSua, khiDat, materials }: {
+  khoaDong: OverrideRowKey;
+  giaTriGocId?: string;
+  giaTriGocTen: string;
+  giaTriGocGia: number;
+  ghiDeHienTai: OverrideTable;
+  duocSua: boolean;
+  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
+  materials: Material[];
+}) {
+  const cur = ghiDeHienTai[khoaDong];
+  const tenHienThi = cur?.mat ?? giaTriGocTen;
+  const idHienThi = cur?.materialId ?? giaTriGocId ?? '';
+  if (!duocSua || !giaTriGocId) return <td data-label="Vật liệu">{tenHienThi}</td>;
+  return (
+    <td className="override-cell" data-label="Vật liệu">
+      <select className="override-input" value={idHienThi} onChange={e => {
+        const mat = materials.find(m => m.id === e.target.value);
+        if (!mat || mat.id === giaTriGocId) {
+          khiDat(khoaDong, 'materialId', undefined);
+          khiDat(khoaDong, 'mat', undefined);
+          khiDat(khoaDong, 'matPrice', undefined);
+          return;
+        }
+        const giaM2 = mat.pricePerM2 ?? (mat.pricePerKg * mat.thickness * mat.density / 1000);
+        khiDat(khoaDong, 'materialId', mat.id);
+        khiDat(khoaDong, 'mat', mat.name);
+        khiDat(khoaDong, 'matPrice', giaM2);
+      }}>
+        <option value={giaTriGocId}>{giaTriGocTen}</option>
+        {materials.filter(m => m.id !== giaTriGocId).map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+      </select>
+    </td>
+  );
+}
+
 function OChuCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat }: {
   khoaDong: OverrideRowKey;
   truong: keyof OverrideFields;
@@ -309,10 +346,12 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                 });
               }
 
-              return [(
+              return [(() => {
+                const dongGoc = cacDongSanXuat.find(dong => dong.rowKey === row.rowKey);
+                return (
                 <tr key={row.rowKey}>
                   <td data-label="Công đoạn">{row.stage}</td>
-                  <td data-label="Vật liệu">{row.mat}</td>
+                  <OChonVatLieuDong khoaDong={row.rowKey} giaTriGocId={dongGoc?.materialId} giaTriGocTen={dongGoc?.mat ?? row.mat} giaTriGocGia={dongGoc?.matPrice ?? 0} ghiDeHienTai={ghiDeHienTai} duocSua={duocSua} khiDat={khiDat} materials={materials} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={row.srcWidth}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
@@ -332,7 +371,8 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                   )}
                   <td className="num" data-label="Thành tiền CPVL">{row.costMat != null ? dinhDangSo(row.costMat, 0) : '—'}</td>
                 </tr>
-              )];
+                );
+              })()];
             })}
             <tr className="total-row">
               <td colSpan={7}>TỔNG</td>

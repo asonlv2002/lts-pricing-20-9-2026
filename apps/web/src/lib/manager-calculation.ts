@@ -7,6 +7,7 @@ export interface UniRow {
   rowKey: OverrideRowKey;
   stage: string;
   mat: string;
+  materialId?: string;
   width: number;
   meters: number;
   waste: number;
@@ -58,6 +59,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
     rowKey: 'print',
     stage: 'CPSX IN',
     mat: r.layers.print?.material?.name ?? '',
+    materialId: r.layers.print?.material?.id,
     width: r.printNLWidth,
     meters: r.printMeters,
     waste: r.printWaste,
@@ -85,6 +87,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
       rowKey: `lam-${lam.layerNum}` as OverrideRowKey,
       stage: `GHÉP (Lớp ${lam.layerNum})`,
       mat: materialDetails?.length ? '' : (lam.material?.name ?? ''),
+      materialId: materialDetails?.length ? undefined : (lam.material?.id),
       width: lam.width,
       meters: lam.meters,
       waste: lam.waste,
@@ -161,7 +164,8 @@ export function xuLyDongGhiDe(
     const costMat = rawCostMat;
     const srcCostCPSX = src.costCPSX ?? row.costCPSX;
     const srcCostMat = src.costMat ?? row.costMat;
-    rows.push({ ...row, stage, mat, width, meters, waste, inputVL, cpsx, matPrice, costCPSX, costMat, materialDetails, srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice, srcCpsx, srcCostCPSX, srcCostMat });
+    const materialId = cur.materialId ?? src.materialId ?? row.materialId;
+    rows.push({ ...row, stage, mat, materialId, width, meters, waste, inputVL, cpsx, matPrice, costCPSX, costMat, materialDetails, srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice, srcCpsx, srcCostCPSX, srcCostMat });
   });
   const totalCPSX = rows.reduce((sum, row) => sum + row.costCPSX, 0);
   const totalCPVL = rows.reduce((sum, row) => sum + (row.costMat ?? 0), 0);

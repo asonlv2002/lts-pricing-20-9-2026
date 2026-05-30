@@ -584,7 +584,10 @@ export default function TheNhapLieu() {
             </div>
             <div className="form-group">
               <label className="form-label">Số hình trên khổ</label>
-              <ONhapSoThapPhan className="form-input" value={input.numImages || 0} step="1" min="1" onChange={(val: number) => capNhatDauVao({ numImages: val })} />
+              <input type="text" className="form-input" value={input.numImages === 0 ? '' : input.numImages} inputMode="numeric"
+                onKeyDown={e => { if (e.key === '.' || e.key === ',' || e.key === 'e') e.preventDefault(); }}
+                onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); if (raw === '') { capNhatDauVao({ numImages: 0 }); return; } const v = parseInt(raw, 10); capNhatDauVao({ numImages: Math.max(1, v) }); }}
+                onBlur={() => { if (!input.numImages) capNhatDauVao({ numImages: 1 }); }} />
             </div>
           </div>
 
@@ -941,7 +944,7 @@ export default function TheNhapLieu() {
             <div className="form-group" style={{ marginBottom: '14px' }}>
               <label className="form-label">Thời hạn thanh toán</label>
               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {[14, 30, 45, 90].map(days => (
+                {[14, 30, 45, 75, 90].map(days => (
                   <label key={days} className="form-check" style={{ marginBottom: 0, padding: '6px 12px', border: `1px solid ${soNgayThanhToanHienTai === days ? 'var(--primary)' : 'var(--border)'}`, borderRadius: '6px', cursor: 'pointer', background: soNgayThanhToanHienTai === days ? 'var(--primary-light, #eff6ff)' : 'transparent' }}>
                     <input type="radio" style={{ marginRight: '6px' }} checked={soNgayThanhToanHienTai === days} onChange={() => capNhatDauVao({ paymentDays: days })} />
                     {days} ngày

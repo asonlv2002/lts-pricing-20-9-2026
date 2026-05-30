@@ -220,7 +220,7 @@ function saveLocalCustomers(customers: Customer[]) {
   try { window.localStorage.setItem(LS_CUSTOMERS, JSON.stringify(customers)); } catch { /* local only */ }
 }
 function exportCsv(rows: Customer[]) {
-  const headers = ['Loai KH','Ma KH','Ten khach hang','MST','Nguoi lien he','SDT','Email','Dia chi','Khu vuc','Nhom','Seller','Trang thai','Khoa','Ngay tao','Ghi chu'];
+  const headers = ['Loai KH','Ma KH','Ten khach hang','MST','Nguoi lien he','SDT','Email','Dia chi','Khu vuc','Nhom','Nhan vien','Trang thai','Khoa','Ngay tao','Ghi chu'];
   const body = rows.map(c => [typeLabel(c),c.customerCode,displayName(c),c.taxCode,c.contactName,c.phone,c.email,c.address,c.region,c.customerGroup,c.sellerName,statusLabel(c),c.isLocked ? 'Co' : 'Khong',fmtDate(c.createdAt),c.notes]);
   const csv = [headers, ...body].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
@@ -676,8 +676,8 @@ function AssignSellerDialog({ customer, onSave, onClose }: { customer: Customer;
   return (
     <div className="crm2-overlay crm2-overlay--open" onClick={onClose}>
       <div className="crm2-confirm-dialog" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
-        <h3>Phân công Seller — {displayName(customer)}</h3>
-        <p style={{ marginBottom: 16 }}>{customer.customerCode} · Seller hiện tại: {customer.sellerName || 'Chưa phân'}</p>
+        <h3>Phân công nhân viên — {displayName(customer)}</h3>
+        <p style={{ marginBottom: 16 }}>{customer.customerCode} · Nhân viên hiện tại: {customer.sellerName || 'Chưa phân'}</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div className="crm2-field">
             <label className="crm2-field-label"><Briefcase size={12}/><span>Sale phụ trách chính</span></label>
@@ -769,7 +769,7 @@ function CustomerCard({ customer, role, currentSellerId, relatedQuotes = [], onV
       <div className={`crm2-card-actions${hovered ? ' crm2-card-actions--visible' : ''}`}>
         <button className="crm2-btn-icon" title="Xem chi tiết" onClick={e => { e.stopPropagation(); onView(); }}><Eye size={14}/></button>
         {canEdit(role, customer, currentSellerId) && <button className="crm2-btn-icon" title="Chỉnh sửa" onClick={e => { e.stopPropagation(); onEdit(); }}><Pencil size={14}/></button>}
-        {role === 'admin' && <button className="crm2-btn-icon" title="Phân công Seller" onClick={e => { e.stopPropagation(); onAssign(); }}><Briefcase size={14}/></button>}
+        {role === 'admin' && <button className="crm2-btn-icon" title="Phân công nhân viên" onClick={e => { e.stopPropagation(); onAssign(); }}><Briefcase size={14}/></button>}
         {canLock(role) && <button className="crm2-btn-icon" title={customer.isLocked ? 'Mở khóa' : 'Khóa'} onClick={e => { e.stopPropagation(); onToggleLock(); }}>{customer.isLocked ? <Unlock size={14}/> : <Lock size={14}/>}</button>}
       </div>
     </article>
@@ -1401,12 +1401,12 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
           {/* Seller dropdown */}
           <div className="crm2-dropdown-wrap">
             <button className={`crm2-chip${filters.sellerId ? ' crm2-chip--active' : ''}`} onClick={() => setDropdownOpen(d => d === 'seller' ? null : 'seller')}>
-              <Briefcase size={12}/> {filters.sellerId ? SELLERS.find(s => s.id === filters.sellerId)?.name : 'Seller'} <ChevronDown size={12}/>
+              <Briefcase size={12}/> {filters.sellerId ? SELLERS.find(s => s.id === filters.sellerId)?.name : 'Nhân viên'} <ChevronDown size={12}/>
             </button>
             {dropdownOpen === 'seller' && (
               <div className="crm2-dropdown-menu">
-                <button onClick={() => { setFilters(f => ({...f, sellerId: ''})); setDropdownOpen(null); }}>Tất cả Seller</button>
-                {options.sellers.map(s => <button key={s.id} onClick={() => { setFilters(f => ({...f, sellerId: s.id})); setDropdownOpen(null); }}>{s.name}</button>)}
+                <button onClick={() => { setFilters(f => ({...f, sellerId: ''})); setDropdownOpen(null); }}>Tất cả nhân viên</button>
+                {options.sellers.length ? options.sellers.map(s => <button key={s.id} onClick={() => { setFilters(f => ({...f, sellerId: s.id})); setDropdownOpen(null); }}>{s.name}</button>) : <span style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>Chưa có dữ liệu</span>}
               </div>
             )}
           </div>
@@ -1419,7 +1419,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
             {dropdownOpen === 'group' && (
               <div className="crm2-dropdown-menu">
                 <button onClick={() => { setFilters(f => ({...f, customerGroup: ''})); setDropdownOpen(null); }}>Tất cả nhóm</button>
-                {options.groups.map(g => <button key={g} onClick={() => { setFilters(f => ({...f, customerGroup: g})); setDropdownOpen(null); }}>{g}</button>)}
+                {options.groups.length ? options.groups.map(g => <button key={g} onClick={() => { setFilters(f => ({...f, customerGroup: g})); setDropdownOpen(null); }}>{g}</button>) : <span style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>Chưa có dữ liệu</span>}
               </div>
             )}
           </div>
@@ -1432,7 +1432,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
             {dropdownOpen === 'region' && (
               <div className="crm2-dropdown-menu">
                 <button onClick={() => { setFilters(f => ({...f, region: ''})); setDropdownOpen(null); }}>Tất cả khu vực</button>
-                {options.regions.map(r => <button key={r} onClick={() => { setFilters(f => ({...f, region: r})); setDropdownOpen(null); }}>{r}</button>)}
+                {options.regions.length ? options.regions.map(r => <button key={r} onClick={() => { setFilters(f => ({...f, region: r})); setDropdownOpen(null); }}>{r}</button>) : <span style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>Chưa có dữ liệu</span>}
               </div>
             )}
           </div>
@@ -1575,7 +1575,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                 <th>Khách hàng</th>
                 <th>Liên hệ</th>
                 <th>Khu vực</th>
-                <th>Seller</th>
+                <th>Nhân viên</th>
                 <th>CRM</th>
                 <th>Trạng thái</th>
                 <th>Thao tác</th>
@@ -1718,10 +1718,8 @@ const CRM2_STYLES = `
 }
 .crm2-chips {
   display: flex; align-items: center; gap: 6px;
-  overflow-x: auto; padding-bottom: 2px;
-  scrollbar-width: none;
+  flex-wrap: wrap; padding-bottom: 2px;
 }
-.crm2-chips::-webkit-scrollbar { display: none; }
 .crm2-chip {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 6px 12px; border-radius: 20px; font-size: 13px;

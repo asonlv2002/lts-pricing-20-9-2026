@@ -492,7 +492,7 @@ function InfoRow({ label, value, mono, bold, color }: { label: string; value: st
 // ════════════════════════════════════════════════════════════
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
-export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieuHuong?: (module: 'calculator') => void; menuDangChon?: string }) {
+export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieuHuong?: (module: 'calculator' | 'quotations') => void; menuDangChon?: string }) {
   const { history: lichSu, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu, patchHistoryItem } = dungCuaHangTinhGia();
 
   // Toggle
@@ -844,7 +844,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
             <p style={{ fontSize: '0.82rem', color: 'var(--muted)', marginTop: 4 }}>Thử thay đổi bộ lọc hoặc tạo bảng tính giá mới.</p>
             <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
               <button className="btn btn-sm btn-outline" onClick={clearAll}>Xóa bộ lọc</button>
-              {khiDieuHuong && <button className="btn btn-sm btn-primary" onClick={() => khiDieuHuong('calculator')}>Tạo mới</button>}
+              {khiDieuHuong && <button className="btn btn-sm btn-primary" onClick={() => khiDieuHuong(mode === 'quote' ? 'quotations' : 'calculator')}>{mode === 'quote' ? 'Tạo báo giá' : 'Tạo mới'}</button>}
             </div>
           </div>
         ) : (

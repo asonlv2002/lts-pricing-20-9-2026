@@ -1716,7 +1716,7 @@ export default function QuotationModule({ role, menuDangChon }: { role: string; 
           <Search size={15} className="crm-search-icon" />
           <input
             className="crm-search-input"
-            placeholder={laLichSuBaoGiaTheoKhach ? 'Nhập tên công ty/khách hàng, ví dụ: AAA...' : isAdmin ? 'Tìm theo seller, khách hàng, sản phẩm...' : 'Tìm khách hàng, sản phẩm, chất liệu...'}
+            placeholder={laLichSuBaoGiaTheoKhach ? 'Nhập tên công ty/khách hàng, ví dụ: AAA...' : isAdmin ? 'Tìm theo nhân viên, khách hàng, sản phẩm...' : 'Tìm khách hàng, sản phẩm, chất liệu...'}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />

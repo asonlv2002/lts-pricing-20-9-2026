@@ -917,6 +917,7 @@ class _InputFormState extends State<_InputForm> {
                   (14, '14 ngày'),
                   (30, '30 ngày'),
                   (45, '45 ngày'),
+                  (75, '75 ngày'),
                   (90, '90 ngày')
                 ],
                 selected: (i['paymentDays'] as num?)?.toInt() ?? 30,

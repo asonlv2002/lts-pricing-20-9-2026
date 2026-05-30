@@ -86,7 +86,7 @@ pnpm lint             # ESLint
 interestPerUnit = (interestBase + interestSpread) / 12 × (paymentDays / 30) × costPerUnit
 ```
 - `interestBase` + `interestSpread`: trong constants (% / năm, dạng thập phân)
-- `paymentDays`: 14 / 30 / 45 / 90
+- `paymentDays`: 14 / 30 / 45 / 75 / 90
 
 ### Trục in
 

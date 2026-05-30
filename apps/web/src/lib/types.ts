@@ -180,6 +180,7 @@ export type OverrideRowKey = 'print' | 'lam-2' | 'lam-3' | 'lam-4' | 'lam-5' | '
 export interface OverrideFields {
   stage?: string;
   mat?: string;
+  materialId?: string;
   width?: number;
   meters?: number;
   waste?: number;

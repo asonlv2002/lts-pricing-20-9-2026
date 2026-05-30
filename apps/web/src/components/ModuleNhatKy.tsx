@@ -111,10 +111,28 @@ function getTimeRangeBounds(range: TimeRange, customFrom?: string, customTo?: st
 
 // ─── DiffView ────────────────────────────────────────────────────────────────
 
+const FIELD_LABELS: Record<string, string> = {
+  isLocked: 'Khóa', companyName: 'Tên công ty', contactName: 'Người liên hệ',
+  phone: 'Điện thoại', email: 'Email', address: 'Địa chỉ', region: 'Khu vực',
+  customerGroup: 'Nhóm KH', sellerId: 'Nhân viên', secondarySellerId: 'Nhân viên phụ',
+  status: 'Trạng thái', crmStatus: 'Trạng thái CRM', notes: 'Ghi chú',
+  taxCode: 'Mã số thuế', invoiceAddress: 'Địa chỉ hóa đơn',
+  customerCode: 'Mã KH', contactTitle: 'Chức danh', assignmentNote: 'Ghi chú phân công',
+  contactNotes: 'Ghi chú liên hệ',
+};
+
+const HIDDEN_DIFF_KEYS = new Set(['isLocked']);
+
+function formatDiffValue(val: unknown): string {
+  if (val === true) return 'Có';
+  if (val === false) return 'Không';
+  if (val === null || val === undefined || val === '') return '(trống)';
+  return String(val);
+}
+
 function DiffView({ before, after }: { before?: Record<string, unknown>; after?: Record<string, unknown> }) {
   if (!before && !after) return null;
-  const keys = Array.from(new Set([...Object.keys(before || {}), ...Object.keys(after || {})]));
-  if (keys.length === 0) return null;
+  const keys = Array.from(new Set([...Object.keys(before || {}), ...Object.keys(after || {})])).filter(k => !HIDDEN_DIFF_KEYS.has(k));  if (keys.length === 0) return null;
   return (
     <div style={{ marginTop: 8 }}>
       {keys.map(k => {
@@ -123,18 +141,18 @@ function DiffView({ before, after }: { before?: Record<string, unknown>; after?:
         if (oldVal === newVal) return null;
         return (
           <div key={k} style={{ marginBottom: 6, fontSize: '0.78rem' }}>
-            <div style={{ color: 'var(--muted)', marginBottom: 2, fontWeight: 500 }}>{k}</div>
+            <div style={{ color: 'var(--muted)', marginBottom: 2, fontWeight: 500 }}>{FIELD_LABELS[k] || k}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {oldVal !== undefined && (
                 <div style={{ color: '#dc2626', background: '#fee2e2', padding: '2px 6px', borderRadius: 4 }}
-                  aria-label={`Giá trị cũ: ${String(oldVal)}`}>
-                  − {String(oldVal)}
+                  aria-label={`Giá trị cũ: ${formatDiffValue(oldVal)}`}>
+                  − {formatDiffValue(oldVal)}
                 </div>
               )}
               {newVal !== undefined && (
                 <div style={{ color: '#059669', background: '#d1fae5', padding: '2px 6px', borderRadius: 4 }}
-                  aria-label={`Giá trị mới: ${String(newVal)}`}>
-                  + {String(newVal)}
+                  aria-label={`Giá trị mới: ${formatDiffValue(newVal)}`}>
+                  + {formatDiffValue(newVal)}
                 </div>
               )}
             </div>
@@ -256,8 +274,19 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function ModuleNhatKy() {
-  const { auditLog, xuatNhatKyCsv, setActiveModule, loadHistoryItem, history } = dungCuaHangTinhGia();
+export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }) {
+  const { auditLog: fullAuditLog, xuatNhatKyCsv, setActiveModule, loadHistoryItem, history } = dungCuaHangTinhGia();
+
+  // Filter audit log based on which menu section opened this module
+  const auditLog = useMemo(() => {
+    if (menuDangChon === 'pricing.audit_log') {
+      return fullAuditLog.filter(e => e.targetType === 'history' || e.targetType === 'quote');
+    }
+    if (menuDangChon === 'system.audit_log') {
+      return fullAuditLog;
+    }
+    return fullAuditLog;
+  }, [fullAuditLog, menuDangChon]);
 
   // Filters
   const [search, setSearch] = useState('');

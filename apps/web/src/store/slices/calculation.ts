@@ -53,6 +53,10 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
     set((state) => {
       const dauVaoMoi = { ...state.input, ...partial };
 
+      if ('numImages' in partial && dauVaoMoi.numImages) {
+        dauVaoMoi.numImages = Math.max(1, Math.round(dauVaoMoi.numImages));
+      }
+
       if ('spreadWidth' in partial || 'numImages' in partial) {
         const khoTrai = dauVaoMoi.spreadWidth || 0;
         const soHinh = dauVaoMoi.numImages || 1;

@@ -167,7 +167,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   const anCotCPSX = hienHaoHut && !hienSanXuat && !hienCongThuc;
   const anCotPhiHao = false;
   const tongLaiNam = hangSo.interestBase + hangSo.interestSpread;
-  const mocNgayLaiVay = [14, 30, 45, 90];
+  const mocNgayLaiVay = [14, 30, 45, 75, 90];
   const dinhDangTyLeLaiNgay = (days: number) => ((tongLaiNam / 365) * days * 100).toFixed(3);
   const chenhLech = nhomKhachHang === 'svlg' ? -0.03 : 0;
   const bangGiaKhoNhoMotDong = vatLieu

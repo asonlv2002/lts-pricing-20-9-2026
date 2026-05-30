@@ -677,5 +677,200 @@
       "filmQuantityUnit": "m2",
       "filmInputQuantity": 240000
     }
+  },
+  {
+    "id": "1774100000001",
+    "date": "22/3/2026",
+    "customer": "Cong ty TNHH Gao Viet Xanh",
+    "productName": "BG - Tui gao ST25 5kg (combo)",
+    "structure": "PET 12//MPET 12//LLDPE (gạo) 120",
+    "quantity": 60000,
+    "finalPrice": 2817.4,
+    "chotGia": 2900,
+    "quoteStatus": "approved",
+    "isQuote": true,
+    "quoteCode": "BG-2026-001",
+    "sellerId": "S1",
+    "sellerName": "Nguyen Minh An",
+    "validUntil": "22/4/2026",
+    "quoteProducts": [
+      {
+        "sourceHistoryItemId": "1773968400000",
+        "productName": "Tui gao ST25 5kg",
+        "structure": "PET 12//MPET 12//LLDPE (gạo) 120",
+        "quantity": 60000,
+        "finalPrice": 2817.4,
+        "chotGia": 2900,
+        "input": {
+          "productType": "tui", "bagType": "3bien", "filmType": "",
+          "filmRollLength": 6000, "quantity": 60000, "numColors": 6,
+          "numImages": 1, "layer1Id": "PET", "layer2Id": "MPET",
+          "layer3Id": "LLDPE_GAO", "layer4Id": null, "layer5Id": null,
+          "spreadWidth": 0.34, "cutStep": 0.48, "metallicSurcharge": 0,
+          "coverageRatio": 1, "handleWeight": 0, "zipperWeight": 0,
+          "tapeWeight": 0, "hasZipper": false, "hasTape": false,
+          "hasHandle": false, "paymentDays": 30, "profitColumn": 2,
+          "commissionRate": 0, "commissionFixedVND": 0,
+          "commissionUnit": "percent", "commissionInputValue": 0,
+          "bagsPerBox": 100, "boxPrice": 42000, "shippingPerKm": 2500,
+          "shippingKm": 45, "cylLength": 0.7, "cylCircum": 0.48,
+          "cylUnitPrice": 7300000, "cylType": "A", "cylIncluded": false,
+          "micOverrides": {"layer3Id": 120},
+          "customer": "Cong ty TNHH Gao Viet Xanh",
+          "productName": "Tui gao ST25 5kg"
+        },
+        "tiers": [
+          {"historyItemId": "1773968400000", "quantity": 60000, "finalPrice": 2817.4, "chotGia": 2900},
+          {"historyItemId": "1773968400000", "quantity": 100000, "finalPrice": 2650, "chotGia": 2720}
+        ]
+      }
+    ],
+    "input": {
+      "productType": "tui", "bagType": "3bien", "filmType": "",
+      "filmRollLength": 6000, "quantity": 60000, "numColors": 6,
+      "numImages": 1, "layer1Id": "PET", "layer2Id": "MPET",
+      "layer3Id": "LLDPE_GAO", "layer4Id": null, "layer5Id": null,
+      "spreadWidth": 0.34, "cutStep": 0.48, "metallicSurcharge": 0,
+      "coverageRatio": 1, "handleWeight": 0, "zipperWeight": 0,
+      "tapeWeight": 0, "hasZipper": false, "hasTape": false,
+      "hasHandle": false, "paymentDays": 30, "profitColumn": 2,
+      "commissionRate": 0, "commissionFixedVND": 0,
+      "commissionUnit": "percent", "commissionInputValue": 0,
+      "bagsPerBox": 100, "boxPrice": 42000, "shippingPerKm": 2500,
+      "shippingKm": 45, "cylLength": 0.7, "cylCircum": 0.48,
+      "cylUnitPrice": 7300000, "cylType": "A", "cylIncluded": false,
+      "micOverrides": {"layer3Id": 120},
+      "customer": "Cong ty TNHH Gao Viet Xanh",
+      "productName": "BG - Tui gao ST25 5kg (combo)"
+    }
+  },
+  {
+    "id": "1774100000002",
+    "date": "23/3/2026",
+    "customer": "Cong ty CP Ca Phe Cao Nguyen",
+    "productName": "BG - Tui zip ca phe 500g",
+    "structure": "PET 12//MPET 12//LLDPE thường 90",
+    "quantity": 35000,
+    "finalPrice": 1161.4,
+    "chotGia": 1200,
+    "quoteStatus": "sent",
+    "isQuote": true,
+    "quoteCode": "BG-2026-002",
+    "sellerId": "S1",
+    "sellerName": "Nguyen Minh An",
+    "validUntil": "23/4/2026",
+    "quoteProducts": [
+      {
+        "sourceHistoryItemId": "1773990000000",
+        "productName": "Tui zip ca phe rang xay 500g",
+        "structure": "PET 12//MPET 12//LLDPE thường 90",
+        "quantity": 35000,
+        "finalPrice": 1161.4,
+        "chotGia": 1200,
+        "input": {
+          "productType": "tui", "bagType": "dayDung", "filmType": "",
+          "filmRollLength": 6000, "quantity": 35000, "numColors": 5,
+          "numImages": 1, "layer1Id": "PET", "layer2Id": "MPET",
+          "layer3Id": "LLDPE", "layer4Id": null, "layer5Id": null,
+          "spreadWidth": 0.22, "cutStep": 0.32, "metallicSurcharge": 0,
+          "coverageRatio": 1, "handleWeight": 0, "zipperWeight": 3.2,
+          "tapeWeight": 0, "hasZipper": true, "hasTape": false,
+          "hasHandle": false, "paymentDays": 45, "profitColumn": 2,
+          "commissionRate": 0.02, "commissionFixedVND": 0,
+          "commissionUnit": "percent", "commissionInputValue": 2,
+          "bagsPerBox": 0, "boxPrice": 0, "shippingPerKm": 0,
+          "shippingKm": 0, "cylLength": 0.7, "cylCircum": 0.64,
+          "cylUnitPrice": 7300000, "cylType": "A", "cylIncluded": false,
+          "micOverrides": {"layer3Id": 90},
+          "customer": "Cong ty CP Ca Phe Cao Nguyen",
+          "productName": "Tui zip ca phe rang xay 500g"
+        },
+        "tiers": [
+          {"historyItemId": "1773990000000", "quantity": 35000, "finalPrice": 1161.4, "chotGia": 1200}
+        ]
+      }
+    ],
+    "input": {
+      "productType": "tui", "bagType": "dayDung", "filmType": "",
+      "filmRollLength": 6000, "quantity": 35000, "numColors": 5,
+      "numImages": 1, "layer1Id": "PET", "layer2Id": "MPET",
+      "layer3Id": "LLDPE", "layer4Id": null, "layer5Id": null,
+      "spreadWidth": 0.22, "cutStep": 0.32, "metallicSurcharge": 0,
+      "coverageRatio": 1, "handleWeight": 0, "zipperWeight": 3.2,
+      "tapeWeight": 0, "hasZipper": true, "hasTape": false,
+      "hasHandle": false, "paymentDays": 45, "profitColumn": 2,
+      "commissionRate": 0.02, "commissionFixedVND": 0,
+      "commissionUnit": "percent", "commissionInputValue": 2,
+      "bagsPerBox": 0, "boxPrice": 0, "shippingPerKm": 0,
+      "shippingKm": 0, "cylLength": 0.7, "cylCircum": 0.64,
+      "cylUnitPrice": 7300000, "cylType": "A", "cylIncluded": false,
+      "micOverrides": {"layer3Id": 90},
+      "customer": "Cong ty CP Ca Phe Cao Nguyen",
+      "productName": "BG - Tui zip ca phe 500g"
+    }
+  },
+  {
+    "id": "1774100000003",
+    "date": "24/3/2026",
+    "customer": "Orion Food Vina",
+    "productName": "BG - Bao bi snack khoai tay",
+    "structure": "BOPP 20//MPET 12//LLDPE thường 55",
+    "quantity": 450000,
+    "finalPrice": 311.8,
+    "quoteStatus": "pending_approval",
+    "isQuote": true,
+    "quoteCode": "BG-2026-003",
+    "sellerId": "S2",
+    "sellerName": "Tran Gia Bao",
+    "validUntil": "24/4/2026",
+    "quoteProducts": [
+      {
+        "sourceHistoryItemId": "1774011600000",
+        "productName": "Bao bi snack khoai tay 35g",
+        "structure": "BOPP 20//MPET 12//LLDPE thường 55",
+        "quantity": 450000,
+        "finalPrice": 311.8,
+        "input": {
+          "productType": "tui", "bagType": "3bien", "filmType": "",
+          "filmRollLength": 6000, "quantity": 450000, "numColors": 7,
+          "numImages": 3, "layer1Id": "BOPP20", "layer2Id": "MPET",
+          "layer3Id": "LLDPE", "layer4Id": null, "layer5Id": null,
+          "spreadWidth": 0.18, "cutStep": 0.16, "metallicSurcharge": 0,
+          "coverageRatio": 1, "handleWeight": 0, "zipperWeight": 0,
+          "tapeWeight": 0, "hasZipper": false, "hasTape": false,
+          "hasHandle": false, "paymentDays": 30, "profitColumn": 1,
+          "commissionRate": 0, "commissionFixedVND": 0,
+          "commissionUnit": "percent", "commissionInputValue": 0,
+          "bagsPerBox": 0, "boxPrice": 0, "shippingPerKm": 0,
+          "shippingKm": 0, "cylLength": 0.7, "cylCircum": 0.48,
+          "cylUnitPrice": 7300000, "cylType": "A", "cylIncluded": false,
+          "micOverrides": {"layer3Id": 55},
+          "customer": "Orion Food Vina",
+          "productName": "Bao bi snack khoai tay 35g"
+        },
+        "tiers": [
+          {"historyItemId": "1774011600000", "quantity": 450000, "finalPrice": 311.8},
+          {"historyItemId": "1774011600000", "quantity": 800000, "finalPrice": 285}
+        ]
+      }
+    ],
+    "input": {
+      "productType": "tui", "bagType": "3bien", "filmType": "",
+      "filmRollLength": 6000, "quantity": 450000, "numColors": 7,
+      "numImages": 3, "layer1Id": "BOPP20", "layer2Id": "MPET",
+      "layer3Id": "LLDPE", "layer4Id": null, "layer5Id": null,
+      "spreadWidth": 0.18, "cutStep": 0.16, "metallicSurcharge": 0,
+      "coverageRatio": 1, "handleWeight": 0, "zipperWeight": 0,
+      "tapeWeight": 0, "hasZipper": false, "hasTape": false,
+      "hasHandle": false, "paymentDays": 30, "profitColumn": 1,
+      "commissionRate": 0, "commissionFixedVND": 0,
+      "commissionUnit": "percent", "commissionInputValue": 0,
+      "bagsPerBox": 0, "boxPrice": 0, "shippingPerKm": 0,
+      "shippingKm": 0, "cylLength": 0.7, "cylCircum": 0.48,
+      "cylUnitPrice": 7300000, "cylType": "A", "cylIncluded": false,
+      "micOverrides": {"layer3Id": 55},
+      "customer": "Orion Food Vina",
+      "productName": "BG - Bao bi snack khoai tay"
+    }
   }
 ]
