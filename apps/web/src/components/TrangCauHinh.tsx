@@ -1011,7 +1011,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr><td colSpan={3} style={{paddingTop:10}}>
+                  <tr><td colSpan={3} style={{paddingTop:10, textAlign:'left'}}>
                     <button className="btn btn-sm btn-outline" onClick={() => {
                       const arr = [...(hangSo.boxOptions ?? [])];
                       arr.push({ key: `custom-${Date.now()}`, label: 'Thùng mới', price: 0, weight: 0 });
