@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertCircle, ArrowLeft, Briefcase, Building2, ChevronDown, ChevronRight,
-  Copy, Download, Eye, FileText, Grid3X3, Hash, LayoutList, Lock,
+  Copy, Download, Eye, FileText, Hash, Lock,
   Mail, MapPin, Package, Pencil, Phone, Plus, Save, Search,
   Shield, Unlock, User, Users, X, ClipboardList, RotateCcw, Check, Settings
 } from 'lucide-react';
@@ -16,7 +16,6 @@ type CustomerStatus = 'active' | 'inactive';
 type CrmStatus = 'lead' | 'negotiating' | 'active' | 'paused' | 'inactive';
 type CustomerType = 'company' | 'individual';
 type Role = 'admin' | 'sale' | 'purchase' | string;
-type ViewMode = 'grid' | 'table';
 type MainTab = 'list' | 'audit';
 
 interface Customer {
@@ -253,6 +252,49 @@ function makeInitialCustomer(customer: Customer | undefined, role: Role, current
   };
 }
 
+interface CustomerFieldProps {
+  k: keyof Customer;
+  icon: React.ReactNode;
+  form: Customer;
+  errors: Record<string, string>;
+  role: Role;
+  disabled?: boolean;
+  required?: boolean;
+  type?: string;
+  helper?: string;
+  onSet: (key: keyof Customer, value: string | boolean | null) => void;
+}
+
+function CustomerField({ k, icon, form, errors, role, disabled, required, type = 'text', helper, onSet }: CustomerFieldProps) {
+  const err = errors[String(k)];
+  const isSelect = k === 'sellerId' || k === 'secondarySellerId' || k === 'status' || k === 'crmStatus';
+
+  return (
+    <div className="crm2-field">
+      <label htmlFor={`wiz-${String(k)}`} className="crm2-field-label">
+        {icon}<span>{FIELD_LABELS[String(k)] ?? String(k)}</span> {required && <span className="crm2-req">*</span>}
+      </label>
+      {isSelect ? (
+        <select id={`wiz-${String(k)}`} className={`crm2-input${err ? ' crm2-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => onSet(k, e.target.value || null)} disabled={(k === 'status' && role !== 'admin') || disabled}>
+          {(k === 'sellerId' || k === 'secondarySellerId') && <option value="">{k === 'sellerId' ? 'Chưa phân công' : 'Không có sale phụ'}</option>}
+          {(k === 'sellerId' || k === 'secondarySellerId') && SELLERS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          {k === 'status' && <><option value="active">Đang sử dụng</option><option value="inactive">Ngừng sử dụng</option></>}
+          {k === 'crmStatus' && (Object.entries(CRM_STATUS_CONFIG) as [CrmStatus, typeof CRM_STATUS_CONFIG[CrmStatus]][]).map(([v, cfg]) => <option key={v} value={v}>{cfg.label}</option>)}
+        </select>
+      ) : (k === 'notes' || k === 'assignmentNote') ? (
+        <textarea id={`wiz-${String(k)}`} className={`crm2-input crm2-textarea${err ? ' crm2-input--error' : ''}`} rows={3} value={String(form[k] ?? '')} onChange={e => onSet(k, e.target.value)} placeholder={k === 'assignmentNote' ? 'VD: Lý do phân công, chuyển phụ trách hoặc thu hồi...' : 'VD: Điều khoản, thói quen đặt hàng, công nợ...'} disabled={disabled} />
+      ) : (
+        <input id={`wiz-${String(k)}`} type={type} className={`crm2-input${err ? ' crm2-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => onSet(k, e.target.value)} disabled={disabled} aria-invalid={!!err} />
+      )}
+      {err ? (
+        <span className="crm2-field-error" role="alert"><AlertCircle size={11}/>{err}</span>
+      ) : helper ? (
+        <span className="crm2-field-hint">{helper}</span>
+      ) : null}
+    </div>
+  );
+}
+
 // ── CustomerForm (Wizard) ────────────────────────────────────────────────────
 function CustomerForm({ customer, role, currentSellerId, customers = [], onSave, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; customers?: Customer[]; onSave: (c: Customer) => void; onCancel: () => void }) {
   const isNew = !customer;
@@ -352,35 +394,9 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
     return () => window.removeEventListener('keydown', onKey);
   }, [dirty]);
 
-  const Field = ({ k, icon, required, type = 'text', helper }: { k: keyof Customer; icon: React.ReactNode; required?: boolean; type?: string; helper?: string }) => {
-    const err = errors[String(k)];
-    const isSelect = k === 'sellerId' || k === 'secondarySellerId' || k === 'status' || k === 'crmStatus';
-    const disabled = isLockedEdit && k !== 'notes' && k !== 'assignmentNote';
-    return (
-      <div className="crm2-field">
-        <label htmlFor={`wiz-${String(k)}`} className="crm2-field-label">
-          {icon}<span>{FIELD_LABELS[String(k)] ?? String(k)}</span> {required && <span className="crm2-req">*</span>}
-        </label>
-        {isSelect ? (
-          <select id={`wiz-${String(k)}`} className={`crm2-input${err ? ' crm2-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value || null)} disabled={k === 'status' && role !== 'admin' || disabled}>
-            {(k === 'sellerId' || k === 'secondarySellerId') && <option value="">{k === 'sellerId' ? 'Chưa phân công' : 'Không có sale phụ'}</option>}
-            {(k === 'sellerId' || k === 'secondarySellerId') && SELLERS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            {k === 'status' && <><option value="active">Đang sử dụng</option><option value="inactive">Ngừng sử dụng</option></>}
-            {k === 'crmStatus' && (Object.entries(CRM_STATUS_CONFIG) as [CrmStatus, typeof CRM_STATUS_CONFIG[CrmStatus]][]).map(([v, cfg]) => <option key={v} value={v}>{cfg.label}</option>)}
-          </select>
-        ) : (k === 'notes' || k === 'assignmentNote') ? (
-          <textarea id={`wiz-${String(k)}`} className={`crm2-input crm2-textarea${err ? ' crm2-input--error' : ''}`} rows={3} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value)} placeholder={k === 'assignmentNote' ? 'VD: Lý do phân công, chuyển phụ trách hoặc thu hồi...' : 'VD: Điều khoản, thói quen đặt hàng, công nợ...'} disabled={disabled} />
-        ) : (
-          <input id={`wiz-${String(k)}`} type={type} className={`crm2-input${err ? ' crm2-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => set(k, e.target.value)} disabled={disabled} aria-invalid={!!err} />
-        )}
-        {err ? (
-          <span className="crm2-field-error" role="alert"><AlertCircle size={11}/>{err}</span>
-        ) : helper ? (
-          <span className="crm2-field-hint">{helper}</span>
-        ) : null}
-      </div>
-    );
-  };
+  const renderField = (props: { k: keyof Customer; icon: React.ReactNode; required?: boolean; type?: string; helper?: string }) => (
+    <CustomerField {...props} form={form} errors={errors} role={role} disabled={isLockedEdit && props.k !== 'notes' && props.k !== 'assignmentNote'} onSet={set} />
+  );
 
   return (
     <div className="crm2-wizard-wrap">
@@ -435,15 +451,15 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
             </div>
           </div>
           <div className="crm2-wizard-grid">
-            <Field k="customerCode" icon={<Hash size={12}/>} required helper="VD: KH001, KH2026-001" />
+            {renderField({ k: 'customerCode', icon: <Hash size={12}/>, required: true, helper: 'VD: KH001, KH2026-001' })}
             {isIndividual(form)
-              ? <Field k="contactName" icon={<User size={12}/>} required helper="Họ tên khách hàng cá nhân" />
-              : <Field k="companyName" icon={<Building2 size={12}/>} required helper="Tên pháp lý hoặc tên giao dịch" />}
-            {!isIndividual(form) && <Field k="taxCode" icon={<Hash size={12}/>} helper="Mã số thuế (dùng khi xuất hóa đơn)" />}
-            <Field k="customerGroup" icon={<Users size={12}/>} helper="VD: Key account, FMCG, Khách lẻ" />
-            <Field k="region" icon={<MapPin size={12}/>} helper="Tỉnh/thành hoặc khu vực" />
-            <Field k="address" icon={<MapPin size={12}/>} helper="Địa chỉ giao dịch/giao hàng" />
-            <Field k="invoiceAddress" icon={<FileText size={12}/>} helper="Địa chỉ xuất hóa đơn (nếu khác địa chỉ giao hàng)" />
+              ? renderField({ k: 'contactName', icon: <User size={12}/>, required: true, helper: 'Họ tên khách hàng cá nhân' })
+              : renderField({ k: 'companyName', icon: <Building2 size={12}/>, required: true, helper: 'Tên pháp lý hoặc tên giao dịch' })}
+            {!isIndividual(form) && renderField({ k: 'taxCode', icon: <Hash size={12}/>, helper: 'Mã số thuế (dùng khi xuất hóa đơn)' })}
+            {renderField({ k: 'customerGroup', icon: <Users size={12}/>, helper: 'VD: Key account, FMCG, Khách lẻ' })}
+            {renderField({ k: 'region', icon: <MapPin size={12}/>, helper: 'Tỉnh/thành hoặc khu vực' })}
+            {renderField({ k: 'address', icon: <MapPin size={12}/>, helper: 'Địa chỉ giao dịch/giao hàng' })}
+            {renderField({ k: 'invoiceAddress', icon: <FileText size={12}/>, helper: 'Địa chỉ xuất hóa đơn (nếu khác địa chỉ giao hàng)' })}
           </div>
         </div>
       )}
@@ -459,11 +475,11 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
             </div>
           </div>
           <div className="crm2-wizard-grid">
-            {!isIndividual(form) && <Field k="contactName" icon={<User size={12}/>} required helper="Họ tên người liên hệ" />}
-            <Field k="phone" icon={<Phone size={12}/>} required type="tel" helper="Số điện thoại liên hệ" />
-            {!isIndividual(form) && <Field k="contactTitle" icon={<Briefcase size={12}/>} helper="VD: Trưởng phòng mua hàng" />}
-            <Field k="email" icon={<Mail size={12}/>} type="email" helper="Email (không bắt buộc)" />
-            <Field k="contactNotes" icon={<FileText size={12}/>} helper="Ghi chú riêng cho liên hệ" />
+            {!isIndividual(form) && renderField({ k: 'contactName', icon: <User size={12}/>, required: true, helper: 'Họ tên người liên hệ' })}
+            {renderField({ k: 'phone', icon: <Phone size={12}/>, required: true, type: 'tel', helper: 'Số điện thoại liên hệ' })}
+            {!isIndividual(form) && renderField({ k: 'contactTitle', icon: <Briefcase size={12}/>, helper: 'VD: Trưởng phòng mua hàng' })}
+            {renderField({ k: 'email', icon: <Mail size={12}/>, type: 'email', helper: 'Email (không bắt buộc)' })}
+            {renderField({ k: 'contactNotes', icon: <FileText size={12}/>, helper: 'Ghi chú riêng cho liên hệ' })}
           </div>
         </div>
       )}
@@ -479,11 +495,11 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
             </div>
           </div>
           <div className="crm2-wizard-grid">
-            {role === 'admin' && <Field k="sellerId" icon={<Briefcase size={12}/>} helper="Sale chính được phân công sẽ thấy KH này" />}
-            {role === 'admin' && <Field k="secondarySellerId" icon={<Users size={12}/>} helper="Sale phụ cùng theo dõi/hỗ trợ" />}
-            <Field k="crmStatus" icon={<Shield size={12}/>} helper="Trạng thái quan hệ khách hàng" />
-            <Field k="assignmentNote" icon={<FileText size={12}/>} helper="Lý do phân công/chuyển phụ trách/thu hồi" />
-            <Field k="notes" icon={<FileText size={12}/>} helper="Điều khoản, thói quen đặt hàng, công nợ..." />
+            {role === 'admin' && renderField({ k: 'sellerId', icon: <Briefcase size={12}/>, helper: 'Sale chính được phân công sẽ thấy KH này' })}
+            {role === 'admin' && renderField({ k: 'secondarySellerId', icon: <Users size={12}/>, helper: 'Sale phụ cùng theo dõi/hỗ trợ' })}
+            {renderField({ k: 'crmStatus', icon: <Shield size={12}/>, helper: 'Trạng thái quan hệ khách hàng' })}
+            {renderField({ k: 'assignmentNote', icon: <FileText size={12}/>, helper: 'Lý do phân công/chuyển phụ trách/thu hồi' })}
+            {renderField({ k: 'notes', icon: <FileText size={12}/>, helper: 'Điều khoản, thói quen đặt hàng, công nợ...' })}
           </div>
         </div>
       )}
@@ -758,7 +774,7 @@ function CustomerCard({ customer, role, currentSellerId, relatedQuotes = [], onV
             <ClipboardList size={14}/>
           </button>
           {txCardOpen === customer.id && (
-            <div className="crm2-dropdown-menu" style={{ position: 'absolute', top: '100%', left: 0, minWidth: 200, zIndex: 20 }}>
+            <div className="crm2-dropdown-menu" style={{ position: 'absolute', top: 0, right: 'calc(100% + 8px)', left: 'auto', minWidth: 200, zIndex: 20 }}>
               <button onClick={e => { e.stopPropagation(); onNavigate('history_db', displayName(customer), true); setTxCardOpen(null); }}>
                 <FileText size={13}/> Bảng báo giá
               </button>
@@ -1072,7 +1088,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const [filters, setFilters] = useState<CustomerFilters>(emptyFilters);
   const [editing, setEditing] = useState<Customer | null | undefined>(undefined);
   const [detail, setDetail] = useState<Customer | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [mainTab, setMainTab] = useState<MainTab>('list');
   const [confirm, setConfirm] = useState<{ title: string; desc: string; action: () => void } | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
@@ -1084,7 +1099,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const [crmThresholds, setCrmThresholds] = useState<CrmThresholds>(() => loadCrmThresholds());
   const [showThresholdSettings, setShowThresholdSettings] = useState(false);
   const [txCardOpen, setTxCardOpen] = useState<string | null>(null);
-
   // Close transaction dropdown on click outside
   useEffect(() => {
     if (!txCardOpen) return;
@@ -1394,7 +1408,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
         </button>
       </div>
 
-      {/* Filter chips + view toggle + dropdown filters */}
+      {/* Filter chips + dropdown filters */}
       <div className="crm2-toolbar">
         <div className="crm2-chips">
           {statusChips.map(chip => (
@@ -1448,10 +1462,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
         </div>
 
         <div className="crm2-toolbar-right">
-          <div className="crm2-view-toggle">
-            <button className={`crm2-view-btn${viewMode === 'grid' ? ' crm2-view-btn--active' : ''}`} onClick={() => setViewMode('grid')} title="Dạng lưới"><Grid3X3 size={16}/></button>
-            <button className={`crm2-view-btn${viewMode === 'table' ? ' crm2-view-btn--active' : ''}`} onClick={() => setViewMode('table')} title="Dạng bảng"><LayoutList size={16}/></button>
-          </div>
           {/* CRM threshold settings */}
           <div style={{ position: 'relative' }}>
             <button
@@ -1555,31 +1565,9 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
           <span>Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm</span>
           <button className="crm2-btn crm2-btn--ghost" onClick={() => setFilters(emptyFilters)}>Xóa bộ lọc</button>
         </div>
-      ) : viewMode === 'grid' ? (
-        /* Card Grid View */
-        <div className="crm2-card-grid">
-          {filtered.map(c => (
-            <CustomerCard
-              key={c.id}
-              customer={c}
-              role={role}
-              currentSellerId={currentSellerId}
-              onView={() => setDetail(c)}
-              onEdit={() => setEditing(c)}
-              onToggleLock={() => setConfirm({
-                title: c.isLocked ? 'Mở khóa khách hàng?' : 'Khóa khách hàng?',
-                desc: c.isLocked ? `${displayName(c)} sẽ được phép chỉnh sửa/tạo báo giá lại.` : `${displayName(c)} sẽ không được tạo báo giá mới hoặc sửa dữ liệu quan trọng.`,
-                action: () => patch(c.id, { isLocked: !c.isLocked })
-              })}
-              onAssign={() => setAssigning(c)}
-              txCardOpen={txCardOpen}
-              setTxCardOpen={setTxCardOpen}
-              onNavigate={handleNavigate}
-            />
-          ))}
-        </div>
       ) : (
         /* Table View */
+        <div className="crm2-table-shell">
         <div className="crm2-table-wrap">
           <table className="crm2-table">
             <thead>
@@ -1649,7 +1637,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                           <ClipboardList size={14}/>
                         </button>
                         {txCardOpen === c.id && (
-                          <div className="crm2-dropdown-menu" style={{ position: 'absolute', top: '100%', left: 0, minWidth: 200, zIndex: 20 }}>
+                          <div className="crm2-dropdown-menu" style={{ position: 'absolute', top: 0, right: 'calc(100% + 8px)', left: 'auto', minWidth: 200, zIndex: 20 }}>
                             <button onClick={() => { handleNavigate('history_db', displayName(c), true); setTxCardOpen(null); }}>
                               <FileText size={13}/> Bảng báo giá
                             </button>
@@ -1670,6 +1658,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
             </tbody>
           </table>
         </div>
+        </div>
       )}
         </>
       )}
@@ -1685,11 +1674,12 @@ const CRM2_STYLES = `
   --muted-bg: var(--surface2);
   position: relative;
   padding: 24px;
+  min-width: 1120px;
   max-width: none;
   margin: 0;
   font-family: inherit;
   height: 100%;
-  overflow-y: auto;
+  overflow: auto;
 }
 .crm2-header {
   display: flex;
@@ -1866,11 +1856,14 @@ const CRM2_STYLES = `
 .crm2-status-badge--locked { background: #fee2e2; color: #991b1b; }
 
 /* Table */
+.crm2-table-shell { width: 100%; overflow: visible; }
 .crm2-table-wrap {
-  overflow-x: auto; border: 1px solid var(--border, #e5e7eb);
+  overflow: visible;
+  max-width: 100%; width: 100%;
+  border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px; background: var(--card, #fff);
 }
-.crm2-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.crm2-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 13px; }
 .crm2-table th {
   text-align: left; padding: 12px 14px; font-weight: 600;
   color: var(--muted, #6b7280); font-size: 12px; text-transform: uppercase;
@@ -2268,5 +2261,3 @@ function StyleInjector() {
   }, []);
   return null;
 }
-
-

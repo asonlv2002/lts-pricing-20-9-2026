@@ -531,9 +531,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // Detect mobile on mount and resize
   useEffect(() => {
     const kiemTraMobile = () => {
-      const laManHinhMobile = window.innerWidth < 768;
+      const chieuRong = window.innerWidth;
+      const laManHinhMobile = chieuRong < 768;
       datLaMobile(laManHinhMobile);
       if (laManHinhMobile) datThanhBenDangMo(false);
+      else if (chieuRong < 1280) datThanhBenDangMo(false);
     };
     kiemTraMobile();
     window.addEventListener('resize', kiemTraMobile);

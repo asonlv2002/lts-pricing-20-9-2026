@@ -40,7 +40,7 @@ export function luuConfigVaoLS(materials: Material[], constants: AppConstants, p
       bagsPerBoxDefault: constants.bagsPerBoxDefault,
     },
     printWaste: { colorSetup: constants.colorSetup, A: constants.printWasteA, B: constants.printWasteB, C: constants.printWasteC, D: constants.printWasteD },
-    profitTable: profitTable.map(r => ({ col1: r.col1, col2: r.col2 })),
+    profitTable: profitTable.map(r => ({ threshold: r.threshold, col1: r.col1, col2: r.col2 })),
   });
 }
 

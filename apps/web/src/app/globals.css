@@ -174,7 +174,103 @@ body {
 .container { width: 100%; padding: 20px; position: relative; z-index: 1; }
 
 /* Layout: side-by-side (default) */
-.main-grid { display: grid; grid-template-columns: 345px 1fr; gap: 20px; align-items: start; }
+.main-grid { display: grid; grid-template-columns: 380px 1fr; gap: 20px; align-items: start; }
+
+.main-grid--input-collapsed {
+  grid-template-columns: 36px 1fr !important;
+  gap: 14px;
+}
+
+.main-grid--input-collapsed > #inputCard {
+  display: none !important;
+}
+
+.input-panel-rail {
+  align-self: start;
+  position: sticky;
+  top: 0;
+  height: min(360px, calc(100vh - 60px - 40px));
+  min-height: 180px;
+  width: 36px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface) 92%, var(--accent) 8%);
+  color: var(--muted);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  transition: color 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.input-panel-rail:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  box-shadow: var(--shadow-md);
+  background: color-mix(in srgb, var(--surface) 84%, var(--accent) 16%);
+}
+
+.input-panel-rail-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  line-height: 1;
+  font-weight: 800;
+  box-shadow: var(--shadow-sm);
+}
+
+.input-panel-rail-text {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.input-panel-collapse-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 20;
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--muted);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.05rem;
+  font-weight: 800;
+  line-height: 1;
+  transition: color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.input-form-card {
+  padding-right: 56px;
+}
+
+.input-panel-collapse-btn:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--border));
+  background: var(--surface2);
+}
 
 @media (min-width: 801px) {
   html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page) body,
@@ -230,7 +326,7 @@ body {
 [data-layout="stacked"] #inputCard { position: static !important; }
 
 /* Layout: wide — input smaller */
-[data-layout="wide"] .main-grid { grid-template-columns: 299px 1fr; }
+[data-layout="wide"] .main-grid { grid-template-columns: 329px 1fr; }
 
 /* ═══════════ BENTO LAYOUT ═══════════ */
 [data-layout="bento"] .main-grid { grid-template-columns: 1fr; }
@@ -1175,7 +1271,7 @@ body {
 [data-density="spacious"] .data-table td, [data-density="spacious"] .data-table th { padding: 12px 14px; }
 
 /* ═══════════ RESPONSIVE ═══════════ */
-@media (max-width: 1100px) {
+@media (max-width: 767px) {
   .main-grid { grid-template-columns: 1fr; }
   #inputCard { position: static !important; }
   .header { flex-wrap: wrap; padding: 10px 14px; gap: 8px; }
@@ -2952,7 +3048,97 @@ body {
 .lts-shell-content:has(.quote-root),
 .lts-shell-content--scroll {
   overflow-y: auto !important;
-  overflow-x: hidden !important;
+  overflow-x: auto !important;
+}
+
+/* Desktop nhỏ/laptop nhỏ: giữ layout nghiệp vụ đủ rộng và cho kéo ngang
+   trong vùng nội dung, không kéo ngang toàn bộ trang. */
+@media (min-width: 768px) and (max-width: 1279px) {
+  .lts-shell-content,
+  .lts-shell-content:has(.crm-root),
+  .lts-shell-content:has(.quote-root),
+  .lts-shell-content--scroll {
+    overflow-x: auto !important;
+  }
+
+  .lts-shell-content > .container,
+  .lts-shell-content > .crm-root,
+  .lts-shell-content > .quote-root,
+  .lts-shell-content > .config-page,
+  .lts-shell-content > .config-page-inner {
+    min-width: 1120px;
+  }
+
+  .lts-shell-content .main-grid {
+    min-width: 1080px;
+  }
+
+  .container.mobile-calc-container {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .container.mobile-calc-container .main-grid {
+    min-width: 1080px;
+  }
+
+  .container.mobile-calc-container .main-grid--input-collapsed {
+    min-width: 860px;
+  }
+
+  .container.mobile-calc-container .grid-col-input,
+  .container.mobile-calc-container .grid-col-result {
+    display: block !important;
+  }
+
+  .container.mobile-calc-container .mobile-calc-nav {
+    display: none !important;
+  }
+}
+
+/* Calculator desktop/tablet: input và kết quả scroll dọc độc lập.
+   Parent chỉ giữ vai trò viewport, tránh kéo dọc cả 2 panel cùng lúc. */
+@media (min-width: 768px) {
+  .container.mobile-calc-container .grid-col-input,
+  .container.mobile-calc-container .grid-col-result {
+    display: block !important;
+    min-height: 0;
+    position: relative !important;
+  }
+
+  html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page):not(.in-crm-page)
+  .lts-shell-content:has(.mobile-calc-container) {
+    overflow-y: hidden !important;
+  }
+
+  html:not([data-layout="stacked"]):not([data-layout="bento"])
+  .lts-shell-content:has(.mobile-calc-container) .main-grid > #inputCard,
+  html:not([data-layout="stacked"]):not([data-layout="bento"])
+  .lts-shell-content:has(.mobile-calc-container) .main-grid > #resultArea {
+    height: calc(100vh - 60px - 40px);
+    min-height: 0;
+    overflow-y: auto !important;
+    overscroll-behavior: contain;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1279px) {
+  html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page):not(.in-crm-page)
+  .lts-shell-content:has(.mobile-calc-container) {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+  }
+
+  .container.mobile-calc-container {
+    overflow-x: visible;
+  }
+}
+
+@media (max-width: 767px) {
+  .lts-shell-content:has(.mobile-calc-container) {
+    overflow-y: auto !important;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -3413,7 +3599,7 @@ body {
   display: none;
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 767px) {
   /* Hide columns when they are not the active tab */
   .grid-col-input:not(.active),
   .grid-col-result:not(.active) {
@@ -4668,7 +4854,7 @@ body {
 /* Desktop: layout bình thường, không cần mobile nav */
 .mobile-calc-nav { display: none; }
 .grid-col-input,
-.grid-col-result { display: contents; }
+.grid-col-result { display: block; min-height: 0; }
 
 /* Mobile: ẩn/hiện pane theo active tab */
 @media (max-width: 767px) {

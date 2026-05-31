@@ -152,6 +152,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   } = dungCuaHangTinhGia();
   const [nhomKhachHang, datNhomKhachHang] = React.useState('other');
   const [hienBangKhoNho, datHienBangKhoNho] = React.useState(false);
+  const [ngayCongNoMoi, datNgayCongNoMoi] = React.useState('');
   const customMaterialSeq = React.useRef(0);
   const nhomCauHinh = layNhomCauHinh(menuDangChon);
   const hienVatTu = nhomCauHinh === 'materials';
@@ -169,6 +170,16 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   const tongLaiNam = hangSo.interestBase + hangSo.interestSpread;
   const mocNgayLaiVay = [14, 30, 45, 75, 90, ...(hangSo.customPaymentDays ?? [])].sort((a, b) => a - b);
   const dinhDangTyLeLaiNgay = (days: number) => ((tongLaiNam / 365) * days * 100).toFixed(3);
+  const soNgayCongNoMoi = Number(ngayCongNoMoi);
+  const hopLeNgayCongNoMoi = Number.isInteger(soNgayCongNoMoi) && soNgayCongNoMoi > 0 && !mocNgayLaiVay.includes(soNgayCongNoMoi);
+  const capNhatNgayCongNoMoi = (value: string) => {
+    if (/^\d*$/.test(value)) datNgayCongNoMoi(value);
+  };
+  const themNgayCongNo = () => {
+    if (!hopLeNgayCongNoMoi) return;
+    capNhatHangSo('customPaymentDays', [...(hangSo.customPaymentDays ?? []), soNgayCongNoMoi]);
+    datNgayCongNoMoi('');
+  };
   const chenhLech = nhomKhachHang === 'svlg' ? -0.03 : 0;
   const bangGiaKhoNhoMotDong = vatLieu
     .map(m => bangGiaKhoNho.find(p => p.materialId === m.id))
@@ -242,6 +253,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     }
   };
   const dinhDangVnd = (n: number) => n.toLocaleString('vi-VN');
+  const docSoVnd = (value: string) => Number(value.replace(/\D/g, '')) || 0;
   const layBienLoiNhuan = (i: number, nguong: number) => {
     const from = i === 0 ? 0 : (bangLoiNhuan[i - 1]?.threshold ?? 0);
     return { from, to: nguong };
@@ -253,6 +265,22 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     const max = i < bangMoi.length - 1 ? (bangMoi[i + 1]?.threshold ?? Number.MAX_SAFE_INTEGER) - 1 : Number.MAX_SAFE_INTEGER;
     const nguong = Math.max(min, Math.min(max, Math.round(value || 0)));
     bangMoi[i] = { ...bangMoi[i], threshold: nguong };
+    dungCuaHangTinhGia.setState({ profitTable: bangMoi });
+    cuaHang.recalculate();
+    luuBangLoiNhuanTre();
+  };
+  const themMocLoiNhuan = () => {
+    const cuaHang = dungCuaHangTinhGia.getState();
+    const dongCuoi = cuaHang.profitTable[cuaHang.profitTable.length - 1];
+    const mocMoi = (dongCuoi?.threshold ?? 0) + 10000000;
+    const bangMoi = [
+      ...cuaHang.profitTable,
+      {
+        threshold: mocMoi,
+        col1: dongCuoi?.col1 ?? 0,
+        col2: dongCuoi?.col2 ?? 0,
+      },
+    ];
     dungCuaHangTinhGia.setState({ profitTable: bangMoi });
     cuaHang.recalculate();
     luuBangLoiNhuanTre();
@@ -349,20 +377,6 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                           <button className="btn btn-sm btn-outline" onClick={() => {
                             customMaterialSeq.current += 1;
                             const id = `custom-${vatLieu.length}-${customMaterialSeq.current}`;
-                            themVatLieu({ id, name: 'Màng mới', group: 'mang', density: 0.92, thickness: 15, pricePerKg: 0, isPETorPA: false, rollLength: 5000, inkPricePerColor: 120 });
-                          }}>
-                            + Thêm màng
-                          </button>
-                          <button className="btn btn-sm btn-outline" onClick={() => {
-                            customMaterialSeq.current += 1;
-                            const id = `custom-${vatLieu.length}-${customMaterialSeq.current}`;
-                            themVatLieu({ id, name: 'Giấy mới', group: 'giay', density: 1.1, thickness: 80, pricePerKg: 0, isPETorPA: false, rollLength: 3000, inkPricePerColor: 120 });
-                          }}>
-                            + Thêm giấy
-                          </button>
-                          <button className="btn btn-sm btn-outline" onClick={() => {
-                            customMaterialSeq.current += 1;
-                            const id = `custom-${vatLieu.length}-${customMaterialSeq.current}`;
                             themVatLieu({ id, name: 'Vật liệu mới', group: 'khac', density: 1.0, thickness: 20, pricePerKg: 0, isPETorPA: false, rollLength: 5000, inkPricePerColor: 120 });
                           }}>
                             + Thêm vật liệu khác
@@ -450,7 +464,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                 </tbody>
               </table>
             </div>
-            <p className="config-note">Giá mực in tính trên mỗi màu in. PET/PA mặc định 135đ, các loại khác 120đ.</p>
+            <p className="config-note">Giá mực in tính trên mỗi màu in. Danh sách loại màng lấy từ bảng Giá Nguyên Vật Liệu; muốn thêm/xóa loại màng, hãy thao tác tại bảng đó. PET/PA mặc định 135đ, các loại khác 120đ.</p>
           </div>
           )}
           {/* 1.3 Công Thức Tính Phi Hao In */}
@@ -576,32 +590,46 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             <div className="config-note" style={{marginTop:'12px'}}>
               <div>Tổng lãi = Mức + Thêm = <strong>{(tongLaiNam * 100).toFixed(2)}%/năm</strong>.</div>
               <div style={{marginTop:'10px', border:'1px solid var(--border)', borderRadius:'10px', overflow:'hidden', background:'var(--surface)'}}>
-                <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', borderBottom:'1px solid var(--border)', fontWeight:700, color:'var(--muted)', fontSize:'0.78rem'}}>
+                <div style={{display:'grid', gridTemplateColumns:'72px 1fr 1fr', borderBottom:'1px solid var(--border)', fontWeight:700, color:'var(--muted)', fontSize:'0.78rem'}}>
+                  <div style={{padding:'8px 10px'}}></div>
                   <div style={{padding:'8px 10px', textAlign:'center'}}>Ngày công nợ</div>
                   <div style={{padding:'8px 10px', textAlign:'center'}}>Tỷ lệ lãi</div>
                 </div>
                 {mocNgayLaiVay.map(days => (
-                  <div key={days} style={{display:'grid', gridTemplateColumns:'1fr 1fr auto', borderTop:'1px solid var(--border)'}}>
-                    <div style={{padding:'10px', textAlign:'center', fontWeight:600}}>{days} ngày</div>
-                    <div style={{padding:'10px', textAlign:'center', fontSize:'1.05rem', fontWeight:800, color:'var(--accent)'}}>{dinhDangTyLeLaiNgay(days)}%</div>
-                    <div style={{padding:'6px 8px', display:'flex', alignItems:'center'}}>
+                  <div key={days} style={{display:'grid', gridTemplateColumns:'72px 1fr 1fr', borderTop:'1px solid var(--border)'}}>
+                    <div style={{padding:'6px 8px', display:'flex', alignItems:'center', justifyContent:'center'}}>
                       {(hangSo.customPaymentDays ?? []).includes(days) && (
                         <button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer', fontSize:'0.9rem', padding:'2px 6px'}}
                           onClick={() => capNhatHangSo('customPaymentDays', (hangSo.customPaymentDays ?? []).filter(d => d !== days))}>✕</button>
                       )}
                     </div>
+                    <div style={{padding:'10px', textAlign:'center', fontWeight:600}}>{days} ngày</div>
+                    <div style={{padding:'10px', textAlign:'center', fontSize:'1.05rem', fontWeight:800, color:'var(--accent)'}}>{dinhDangTyLeLaiNgay(days)}%</div>
                   </div>
                 ))}
-                <div style={{padding:'10px', textAlign:'center', borderTop:'1px solid var(--border)'}}>
-                  <button className="btn btn-sm btn-outline" onClick={() => {
-                    const val = prompt('Nhập số ngày công nợ mới:');
-                    if (!val) return;
-                    const num = parseInt(val, 10);
-                    if (isNaN(num) || num <= 0) return;
-                    const existing = [14, 30, 45, 75, 90, ...(hangSo.customPaymentDays ?? [])];
-                    if (existing.includes(num)) return;
-                    capNhatHangSo('customPaymentDays', [...(hangSo.customPaymentDays ?? []), num]);
-                  }}>+ Thêm mốc ngày</button>
+                <div style={{display:'grid', gridTemplateColumns:'72px 1fr 1fr', borderTop:'1px solid var(--border)'}}>
+                  <div style={{padding:'6px 8px', display:'flex', alignItems:'center', justifyContent:'flex-start'}}>
+                    <button className="btn btn-sm btn-outline" disabled={!hopLeNgayCongNoMoi} onClick={themNgayCongNo}>+ Thêm</button>
+                  </div>
+                  <div style={{padding:'8px 10px', display:'flex', justifyContent:'center', alignItems:'center'}}>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      className="form-input"
+                      placeholder="Số ngày"
+                      value={ngayCongNoMoi}
+                      onChange={e => capNhatNgayCongNoMoi(e.target.value)}
+                      onKeyDown={e => {
+                        if (['.', ',', '-', '+', 'e', 'E'].includes(e.key)) e.preventDefault();
+                        if (e.key === 'Enter') themNgayCongNo();
+                      }}
+                      style={{width:'110px', textAlign:'center'}}
+                    />
+                  </div>
+                  <div style={{padding:'10px', textAlign:'center', fontSize:'1.05rem', fontWeight:800, color:'var(--accent)'}}>
+                    {hopLeNgayCongNoMoi ? `${dinhDangTyLeLaiNgay(soNgayCongNoMoi)}%` : '--'}
+                  </div>
                 </div>
               </div>
             </div>
@@ -755,9 +783,9 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                               <span style={{fontWeight: 700}}>{dinhDangVnd(bounds.from)}</span>
                             </td>
                             <td>
-                              <input className="config-inline-input" type="number" step="1000000"
-                                value={row.threshold}
-                                onChange={(e) => capNhatNguongLoiNhuan(i, parseFloat(e.target.value) || 0)}
+                              <input className="config-inline-input" type="text" inputMode="numeric"
+                                value={dinhDangVnd(row.threshold)}
+                                onChange={(e) => capNhatNguongLoiNhuan(i, docSoVnd(e.target.value))}
                                 style={{width:'130px', textAlign:'right', fontWeight:700}}
                               />
                               <div style={{fontSize:'0.72rem', color:'var(--muted)', marginTop:'2px'}}>&lt; {dinhDangVnd(row.threshold)}</div>
@@ -799,6 +827,15 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={4} style={{paddingTop:'10px', textAlign:'left'}}>
+                      <button className="btn btn-sm btn-outline" onClick={themMocLoiNhuan}>
+                        + Thêm mốc lợi nhuận
+                      </button>
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
             <p className="config-note">Tỉ lệ lợi nhuận tự động tính từ giá vốn. Các con số này có thể chỉnh sửa và tự động lưu.</p>
@@ -921,25 +958,6 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                     </tr>
                   ))}
                 </tbody>
-                <tfoot>
-                  <tr><td colSpan={3} style={{paddingTop:10, display:'flex', gap:8, flexWrap:'wrap'}}>
-                    <button className="btn btn-sm btn-outline" onClick={() => {
-                      const arr = [...(hangSo.handleOptions ?? [])];
-                      arr.push({ key: `custom-${Date.now()}`, label: 'Quai mới', price: 0, weight: 0 });
-                      capNhatHangSo('handleOptions', arr);
-                    }}>+ Thêm loại quai</button>
-                    <button className="btn btn-sm btn-outline" onClick={() => {
-                      const arr = [...(hangSo.customAccessories ?? [])];
-                      arr.push({ key: `acc-${Date.now()}`, label: 'Phụ kiện mới', price: 0, weight: 0, unit: 'per_piece' });
-                      capNhatHangSo('customAccessories', arr);
-                    }}>+ Thêm phụ kiện (đ/cái)</button>
-                    <button className="btn btn-sm btn-outline" onClick={() => {
-                      const arr = [...(hangSo.customAccessories ?? [])];
-                      arr.push({ key: `acc-${Date.now()}`, label: 'Phụ kiện mới', price: 0, weight: 0, unit: 'per_meter' });
-                      capNhatHangSo('customAccessories', arr);
-                    }}>+ Thêm phụ kiện (đ/m)</button>
-                  </td></tr>
-                </tfoot>
               </table>
             </div>
             <p className="config-note">Đơn giá thay đổi tùy thời điểm, tự động áp dụng khi chốt giá cho đơn hàng.</p>

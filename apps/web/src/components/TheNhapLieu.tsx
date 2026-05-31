@@ -116,7 +116,7 @@ const ONhapSoThapPhan = ({ value, onChange, placeholder, min, step, className, d
   );
 };
 
-export default function TheNhapLieu() {
+export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () => void }) {
   const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness, currentSellerId, currentSellerName, role, setActiveModule: datPhanHe } = dungCuaHangTinhGia();
   const [nhomTheoLop, datNhomTheoLop] = React.useState<Record<string, string>>({});
   const [dangFocusKhachHang, datDangFocusKhachHang] = React.useState(false);
@@ -427,6 +427,17 @@ export default function TheNhapLieu() {
 
   return (
     <div className="card input-form-card" style={{ position: 'sticky', top: '64px' }}>
+      {onCollapseInput && (
+        <button
+          type="button"
+          className="input-panel-collapse-btn"
+          onClick={onCollapseInput}
+          title="Ẩn phần nhập liệu"
+          aria-label="Ẩn phần nhập liệu"
+        >
+          ‹
+        </button>
+      )}
       <div role="status" aria-live="polite" style={{ position:'fixed', left:12, right:12, bottom:12, zIndex:45, display:'none' }} className="mobile-price-summary">
         Nhập thông tin để xem giá tự động. Debounce 300ms được xử lý ở tầng store/engine.
       </div>

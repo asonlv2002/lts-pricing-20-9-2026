@@ -94,6 +94,8 @@ export default function TrangChinh() {
   const [tabMobile, datTabMobile] = useState<'input' | 'result'>('input');
   const [doRongTrai, datDoRongTrai] = useState<number | null>(null);
   const [laMobile, datLaMobile] = useState(false);
+  const [anPanelNhap, datAnPanelNhap] = useState(false);
+  const coTheAnPanelNhap = !laMobile && kieuBoTriCuc !== 'stacked' && kieuBoTriCuc !== 'bento';
 
   // ── Phát hiện mobile ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -136,7 +138,7 @@ export default function TrangChinh() {
 
   const xuLyKeoPanel = useCallback((delta: number) => {
     datDoRongTrai(prev => {
-      const hienTai = prev ?? 300;
+      const hienTai = prev ?? 380;
       return Math.max(200, Math.min(600, hienTai + delta));
     });
   }, []);
@@ -259,7 +261,7 @@ export default function TrangChinh() {
           cpsx?: Record<string, any>;
           printWaste?: { colorSetup?: Record<number, number>; A?: number; B?: number; C?: number; D?: number };
           packaging?: { boxOptions?: BoxOption[]; boxPriceDefault?: number; bagsPerBoxDefault?: number };
-          profitTable?: Array<{ col1: number; col2: number }>;
+          profitTable?: Array<{ threshold?: number; col1: number; col2: number }>;
         };
         dungCuaHangTinhGia.setState(s => {
           let vatLieuMoi = s.materials;
@@ -302,8 +304,12 @@ export default function TrangChinh() {
             if (cfg.printWaste.D != null) hangSoMoi.printWasteD = cfg.printWaste.D;
           }
           let loiNhuanMoi = s.profitTable;
-          if (cfg.profitTable?.length === s.profitTable.length) {
-            loiNhuanMoi = s.profitTable.map((row, i) => ({ ...row, col1: cfg.profitTable![i].col1, col2: cfg.profitTable![i].col2 }));
+          if (cfg.profitTable?.length) {
+            loiNhuanMoi = cfg.profitTable.map((row, i) => ({
+              threshold: row.threshold ?? s.profitTable[i]?.threshold ?? 0,
+              col1: row.col1,
+              col2: row.col2,
+            }));
           }
           return { ...s, materials: vatLieuMoi, smallWidthPrices: giaKhoNhoMoi, constants: hangSoMoi, profitTable: loiNhuanMoi };
         });
@@ -341,11 +347,11 @@ export default function TrangChinh() {
         bagsPerBoxDefault: hangSo.bagsPerBoxDefault,
       },
       printWaste: { colorSetup: hangSo.colorSetup, A: hangSo.printWasteA, B: hangSo.printWasteB, C: hangSo.printWasteC, D: hangSo.printWasteD },
-      profitTable: bangLoiNhuan.map((r: ProfitRow) => ({ col1: r.col1, col2: r.col2 })),
+      profitTable: bangLoiNhuan.map((r: ProfitRow) => ({ threshold: r.threshold, col1: r.col1, col2: r.col2 })),
     }));
   }, [danhSachVatLieu, bangGiaKhoNho, hangSo, bangLoiNhuan]);
 
-  const gridStyle: React.CSSProperties = (!laMobile && doRongTrai != null)
+  const gridStyle: React.CSSProperties = (coTheAnPanelNhap && doRongTrai != null && !anPanelNhap)
     ? { gridTemplateColumns: `${doRongTrai}px 4px 1fr` }
     : {};
 
@@ -365,7 +371,20 @@ export default function TrangChinh() {
         onTouchStart={laMobile ? onTouchStart : undefined}
         onTouchEnd={laMobile ? onTouchEnd : undefined}
       >
-        <div className="main-grid" style={gridStyle}>
+        <div className={`main-grid ${coTheAnPanelNhap && anPanelNhap ? 'main-grid--input-collapsed' : ''}`} style={gridStyle}>
+
+          {coTheAnPanelNhap && anPanelNhap && (
+            <button
+              type="button"
+              className="input-panel-rail"
+              onClick={() => datAnPanelNhap(false)}
+              title="Mở phần nhập liệu"
+              aria-label="Mở phần nhập liệu"
+            >
+              <span className="input-panel-rail-icon">›</span>
+              <span className="input-panel-rail-text">Nhập liệu</span>
+            </button>
+          )}
 
           {/* Panel trái: nhập liệu */}
           <div
@@ -375,11 +394,11 @@ export default function TrangChinh() {
             {laMobile && tabMobile === 'input' && ketQua && (
               <ThanhGiaMini onNhan={() => datTabMobile('result')} />
             )}
-            <TheNhapLieu />
+            <TheNhapLieu onCollapseInput={coTheAnPanelNhap ? () => datAnPanelNhap(true) : undefined} />
           </div>
 
           {/* Thanh kéo desktop */}
-          {!laMobile && kieuBoTriCuc !== 'stacked' && kieuBoTriCuc !== 'bento' && (
+          {coTheAnPanelNhap && !anPanelNhap && (
             <ThanhKeoPanel onKeo={xuLyKeoPanel} />
           )}
 
