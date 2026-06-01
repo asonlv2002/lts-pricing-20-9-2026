@@ -286,6 +286,19 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
       capNhatHangSo('handleWeight', macDinh.weight as any);
     }
   };
+  const themPhuKien = () => {
+    const danhSach = hangSo.customAccessories ?? [];
+    capNhatHangSo('customAccessories' as any, [
+      ...danhSach,
+      {
+        key: `accessory-${Date.now()}`,
+        label: `Phụ kiện ${danhSach.length + 1}`,
+        price: 0,
+        weight: 0,
+        unit: 'per_piece',
+      },
+    ] as any);
+  };
   const cacPhuPhiInMacDinh = [
     { key: 'nhu', label: 'Nhũ', price: hangSo.nhuPrice, priceKey: 'nhuPrice' as const },
     { key: 'mo', label: 'Phủ mờ', price: hangSo.moPrice, priceKey: 'moPrice' as const },
@@ -990,6 +1003,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                   <tr>
                     <th>Phụ kiện</th>
                     <th>Đơn giá</th>
+                    <th>Đơn vị</th>
                     <th>Trọng lượng</th>
                   </tr>
                 </thead>
@@ -997,11 +1011,13 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                   <tr>
                     <td>Zipper</td>
                     <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={hangSo.zipperPrice} onChange={e => capNhatHangSo('zipperPrice', parseFloat(e.target.value)||0)} /> đ/m</td>
+                    <td>đ/m</td>
                     <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={hangSo.zipperWeight} step="0.1" min="0" onChange={e => capNhatHangSo('zipperWeight', parseFloat(e.target.value)||0)} /> Gr/m</td>
                   </tr>
                   <tr>
                     <td>Băng keo</td>
                     <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={hangSo.tapePrice} onChange={e => capNhatHangSo('tapePrice', parseFloat(e.target.value)||0)} /> đ/m</td>
+                    <td>đ/m</td>
                     <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={hangSo.tapeWeight} step="0.1" min="0" onChange={e => capNhatHangSo('tapeWeight', parseFloat(e.target.value)||0)} /> Gr/m</td>
                   </tr>
                   {(hangSo.handleOptions ?? []).map(option => (
@@ -1012,6 +1028,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                           : option.label}
                       </td>
                       <td><input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={option.price} onChange={e => xuLyDoiLoaiQuai(option.key, 'price', parseFloat(e.target.value)||0)} /> đ/cái</td>
+                      <td>đ/cái</td>
                       <td>
                         <input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={option.weight} step="0.1" min="0" onChange={e => xuLyDoiLoaiQuai(option.key, 'weight', parseFloat(e.target.value)||0)} /> Gr/cái
                         {option.key.startsWith('custom-') && <button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer', marginLeft:4}} onClick={() => {
@@ -1030,6 +1047,14 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                         const arr = [...(hangSo.customAccessories ?? [])]; arr[idx] = {...acc, price: parseFloat(e.target.value)||0}; capNhatHangSo('customAccessories', arr);
                       }} /> {acc.unit === 'per_meter' ? 'đ/m' : 'đ/cái'}</td>
                       <td>
+                        <select className="form-select" style={{width:'96px'}} value={acc.unit} onChange={e => {
+                          const arr = [...(hangSo.customAccessories ?? [])]; arr[idx] = {...acc, unit: e.target.value as 'per_piece' | 'per_meter'}; capNhatHangSo('customAccessories', arr);
+                        }}>
+                          <option value="per_piece">đ/cái</option>
+                          <option value="per_meter">đ/m</option>
+                        </select>
+                      </td>
+                      <td>
                         <input type="number" className="config-inline-input" style={{width:'80px',textAlign:'right',fontWeight:700, background:'transparent'}} value={acc.weight} step="0.1" min="0" onChange={e => {
                           const arr = [...(hangSo.customAccessories ?? [])]; arr[idx] = {...acc, weight: parseFloat(e.target.value)||0}; capNhatHangSo('customAccessories', arr);
                         }} /> {acc.unit === 'per_meter' ? 'Gr/m' : 'Gr/cái'}
@@ -1041,6 +1066,9 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div style={{marginTop: 10, textAlign: 'left'}}>
+              <button className="btn btn-sm btn-outline" onClick={themPhuKien}>+ Thêm phụ kiện</button>
             </div>
             <p className="config-note">Đơn giá thay đổi tùy thời điểm, tự động áp dụng khi chốt giá cho đơn hàng.</p>
           </div>
