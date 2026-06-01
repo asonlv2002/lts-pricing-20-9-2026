@@ -5781,19 +5781,19 @@ body {
   /* Default layout: input | 4px resizer | result */
   html:not([data-layout="stacked"]):not([data-layout="bento"]) .main-grid {
     display: grid;
-    grid-template-columns: 276px 4px 1fr;
+    grid-template-columns: 380px 4px 1fr;
     gap: 0;
     column-gap: 0;
   }
 
   /* Gap between resizer and result panel */
   .grid-col-result {
-    padding-left: 20px;
+    padding-left: 12px;
   }
 
   /* Wide layout */
   html[data-layout="wide"] .main-grid {
-    grid-template-columns: 239px 4px 1fr;
+    grid-template-columns: 360px 4px 1fr;
   }
 
   #resultArea .table-responsive {
