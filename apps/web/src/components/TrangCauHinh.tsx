@@ -218,7 +218,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
       'zipperPrice', 'zipperWeight', 'tapePrice', 'tapeWeight', 'handlePrice', 'handleWeight',
       'boxPriceDefault', 'bagsPerBoxDefault', 'boxOptions', 'handleOptions',
       'printWasteA', 'printWasteB', 'printWasteC', 'printWasteD',
-      'cylPriceA', 'cylPriceB', 'interestBase', 'interestSpread'
+      'cylPriceA', 'cylPriceB', 'interestBase', 'interestSpread', 'customPrintSurcharges'
     ];
     cacKhoaDatLai.forEach(key => {
       capNhatHangSo(key, INITIAL_CONSTANTS[key] as number);
@@ -285,6 +285,27 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
       capNhatHangSo('handlePrice', macDinh.price as any);
       capNhatHangSo('handleWeight', macDinh.weight as any);
     }
+  };
+  const cacPhuPhiInMacDinh = [
+    { key: 'nhu', label: 'Nhũ', price: hangSo.nhuPrice, priceKey: 'nhuPrice' as const },
+    { key: 'mo', label: 'Phủ mờ', price: hangSo.moPrice, priceKey: 'moPrice' as const },
+  ];
+  const xuLyDoiPhuPhiIn = (khoa: string, truong: 'price' | 'label', giaTri: number | string) => {
+    const danhSach = (hangSo.customPrintSurcharges ?? []).map(option =>
+      option.key === khoa ? { ...option, [truong]: giaTri } : option
+    );
+    capNhatHangSo('customPrintSurcharges' as any, danhSach as any);
+  };
+  const themPhuPhiIn = () => {
+    const danhSach = hangSo.customPrintSurcharges ?? [];
+    const index = danhSach.length + 1;
+    capNhatHangSo('customPrintSurcharges' as any, [
+      ...danhSach,
+      { key: `print_surcharge_${Date.now()}`, label: `Phụ phí ${index}`, price: 0 },
+    ] as any);
+  };
+  const xoaPhuPhiIn = (khoa: string) => {
+    capNhatHangSo('customPrintSurcharges' as any, (hangSo.customPrintSurcharges ?? []).filter(option => option.key !== khoa) as any);
   };
   const dinhDangVnd = (n: number) => n.toLocaleString('vi-VN');
   const docSoVnd = (value: string) => Number(value.replace(/\D/g, '')) || 0;
@@ -574,17 +595,43 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           {hienSanXuat && (
           <div className="card config-card">
             <div className="config-section-title"><span>✨ Chi Phí Nhũ / Phủ Mờ</span></div>
-            <div className="config-cpsx-grid">
-              <div className="config-cpsx-item">
-                <label>Giá nhũ (đ)</label>
-                <input type="number" className="form-input" value={hangSo.nhuPrice} onChange={e => capNhatHangSo('nhuPrice', parseFloat(e.target.value)||0)} />
-              </div>
-              <div className="config-cpsx-item">
-                <label>Giá phủ mờ (đ)</label>
-                <input type="number" className="form-input" value={hangSo.moPrice} onChange={e => capNhatHangSo('moPrice', parseFloat(e.target.value)||0)} />
-              </div>
+            <div className="config-table-wrap" style={{marginTop:'12px'}}>
+              <table className="config-table">
+                <thead>
+                  <tr>
+                    <th>Tên phụ phí</th>
+                    <th>Giá (đ)</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cacPhuPhiInMacDinh.map(option => (
+                    <tr key={option.key}>
+                      <td style={{fontWeight:700}}>{option.label}</td>
+                      <td>
+                        <input className="config-inline-input" type="number" value={option.price} onChange={e => capNhatHangSo(option.priceKey, parseFloat(e.target.value) || 0)} />
+                      </td>
+                      <td style={{color:'var(--muted)', fontSize:'0.8rem'}}>Mặc định</td>
+                    </tr>
+                  ))}
+                  {(hangSo.customPrintSurcharges ?? []).map(option => (
+                    <tr key={option.key}>
+                      <td>
+                        <input className="config-inline-input" type="text" value={option.label} onChange={e => xuLyDoiPhuPhiIn(option.key, 'label', e.target.value)} />
+                      </td>
+                      <td>
+                        <input className="config-inline-input" type="number" value={option.price} onChange={e => xuLyDoiPhuPhiIn(option.key, 'price', parseFloat(e.target.value) || 0)} />
+                      </td>
+                      <td>
+                        <button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer'}} onClick={() => xoaPhuPhiIn(option.key)}>✕</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <p className="config-note">💡 Khi tích Nhũ hoặc Phủ mờ ở form nhập liệu, giá trị tương ứng sẽ được cộng vào CPSX in.</p>
+            <button className="btn btn-sm btn-outline" style={{marginTop:'10px'}} onClick={themPhuPhiIn}>+ Thêm</button>
+            <p className="config-note">💡 Khi tích Nhũ, Phủ mờ hoặc phụ phí thêm ở form nhập liệu, giá trị tương ứng sẽ được cộng vào CPSX in.</p>
           </div>
           )}
           {/* 1.4 CPSX khâu in */}

@@ -38,6 +38,22 @@ export interface CalculationSlice {
   toiUuDoDayHienTai: () => ReturnType<typeof toiUuDoDayTheoVatLieu>;
 }
 
+const tinhPhuPhiIn = (input: CalculateInput, constants: AppConstants) => {
+  const phuPhiInDaChon = new Set(input.selectedPrintSurchargeKeys ?? []);
+  const tongPhuPhiInThem = (constants.customPrintSurcharges ?? []).reduce(
+    (tong, option) => tong + (phuPhiInDaChon.has(option.key) ? option.price : 0),
+    0
+  );
+  return ((input as any).hasNhu ? constants.nhuPrice : 0)
+    + ((input as any).hasMo ? constants.moPrice : 0)
+    + tongPhuPhiInThem;
+};
+
+const dongBoPhuPhiIn = (input: CalculateInput, constants: AppConstants): CalculateInput => ({
+  ...input,
+  metallicSurcharge: tinhPhuPhiIn(input, constants),
+});
+
 export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], CalculationSlice> = (set, get) => ({
   dauVao: dauVaoKhoiTao,
   input: dauVaoKhoiTao,
@@ -105,8 +121,7 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
 
       Object.assign(dauVaoMoi, dongBoCotLoiNhuan(dauVaoMoi, state.materials));
 
-      dauVaoMoi.metallicSurcharge = ((dauVaoMoi as any).hasNhu ? state.constants.nhuPrice : 0)
-        + ((dauVaoMoi as any).hasMo ? state.constants.moPrice : 0);
+      dauVaoMoi.metallicSurcharge = tinhPhuPhiIn(dauVaoMoi, state.constants);
 
       const luaChonQuai = state.constants.handleOptions?.find(o => o.key === dauVaoMoi.handleOptionKey);
       if (dauVaoMoi.hasHandle && luaChonQuai) {
@@ -198,14 +213,15 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
   setConstantParam: (key, val) => {
     set((state) => {
       const constants = { ...state.constants, [key]: val };
+      const input = dongBoPhuPhiIn(state.input, constants);
       luuConfigVaoLS(state.materials, constants, state.profitTable, state.smallWidthPrices);
-      return { constants, result: tinhBaoGia(dongBoCotLoiNhuan(state.input, state.materials), state.materials, constants, state.profitTable, state.smallWidthPrices) };
+      return { constants, input, dauVao: input, result: tinhBaoGia(dongBoCotLoiNhuan(input, state.materials), state.materials, constants, state.profitTable, state.smallWidthPrices) };
     });
   },
 
   replaceFullConfig: (config) => {
     set((state) => {
-      const input = dongBoCotLoiNhuan(state.input, config.materials);
+      const input = dongBoCotLoiNhuan(dongBoPhuPhiIn(state.input, config.constants), config.materials);
       luuConfigVaoLS(config.materials, config.constants, config.profitTable, config.smallWidthPrices);
       return {
         materials: config.materials,
@@ -220,7 +236,10 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
   },
 
   recalculate: () => {
-    set((state) => ({ input: dongBoCotLoiNhuan(state.input, state.materials), dauVao: dongBoCotLoiNhuan(state.input, state.materials), result: tinhBaoGia(dongBoCotLoiNhuan(state.input, state.materials), state.materials, state.constants, state.profitTable, state.smallWidthPrices) }));
+    set((state) => {
+      const input = dongBoCotLoiNhuan(dongBoPhuPhiIn(state.input, state.constants), state.materials);
+      return { input, dauVao: input, result: tinhBaoGia(input, state.materials, state.constants, state.profitTable, state.smallWidthPrices) };
+    });
   },
 
   calculateForInput: (input) => {

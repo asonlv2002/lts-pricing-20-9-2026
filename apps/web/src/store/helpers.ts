@@ -34,6 +34,7 @@ export function luuConfigVaoLS(materials: Material[], constants: AppConstants, p
       customCylTypes: constants.customCylTypes,
       customPaymentDays: constants.customPaymentDays,
       customAccessories: constants.customAccessories,
+      customPrintSurcharges: constants.customPrintSurcharges,
     },
     packaging: {
       boxOptions: constants.boxOptions,
@@ -50,6 +51,7 @@ export const dauVaoMacDinh: CalculateInput = {
   filmQuantityUnit: 'm2', filmInputQuantity: 0, filmRollLength: 6000, quantity: 0, numColors: null, numImages: 0,
   layer1Id: null, layer2Id: null, layer2AltId: null, layer2Lengths: undefined, layer2FrontPart: 'main', layer2PairingMode: 'bottom_to_bottom', layer3Id: null, layer4Id: null, layer5Id: null,
   spreadWidth: 0, cutStep: 0, metallicSurcharge: 0, coverageRatio: 1,
+  selectedPrintSurchargeKeys: [],
   handleWeight: 0, zipperWeight: 0, tapeWeight: 0,
   hasZipper: false, hasTape: false, hasHandle: false, handleOptionKey: null,
   paymentDays: 30, profitColumn: 1,

@@ -150,6 +150,31 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
     capNhatDauVao({ productType: val, bagType: '', filmType: '' });
   };
 
+  const xuLyDoiPhuPhiIn = (key: string, checked: boolean) => {
+    if (key === 'nhu') {
+      capNhatDauVao({ hasNhu: checked } as any);
+      return;
+    }
+    if (key === 'mo') {
+      capNhatDauVao({ hasMo: checked } as any);
+      return;
+    }
+    const daChon = input.selectedPrintSurchargeKeys ?? [];
+    capNhatDauVao({
+      selectedPrintSurchargeKeys: checked
+        ? [...new Set([...daChon, key])]
+        : daChon.filter(k => k !== key),
+    });
+  };
+  const cacPhuPhiIn = [
+    { key: 'nhu', label: 'Nhũ', price: constants.nhuPrice, checked: Boolean((input as any).hasNhu) },
+    { key: 'mo', label: 'Phủ mờ', price: constants.moPrice, checked: Boolean((input as any).hasMo) },
+    ...(constants.customPrintSurcharges ?? []).map(option => ({
+      ...option,
+      checked: (input.selectedPrintSurchargeKeys ?? []).includes(option.key),
+    })),
+  ];
+
   const xuLyDoiLop = (khoaLop: string, val: string) => {
     const phanCapNhat: any = { [khoaLop]: val || null };
     if (khoaLop === 'layer2Id' && !val) {
@@ -815,12 +840,17 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             </div>
 
             <div className="form-row-3" style={{ marginTop: '10px' }}>
-              <div className="form-group">
-                <label className="form-check"><input type="checkbox" checked={(input as any).hasNhu || false} onChange={e => capNhatDauVao({ hasNhu: e.target.checked } as any)} /> Nhũ</label>
-              </div>
-              <div className="form-group">
-                <label className="form-check"><input type="checkbox" checked={(input as any).hasMo || false} onChange={e => capNhatDauVao({ hasMo: e.target.checked } as any)} /> Phủ mờ</label>
-              </div>
+              {cacPhuPhiIn.map(option => (
+                <div className="form-group" key={option.key}>
+                  <label className="form-check">
+                    <input
+                      type="checkbox"
+                      checked={option.checked}
+                      onChange={e => xuLyDoiPhuPhiIn(option.key, e.target.checked)}
+                    /> {option.label} ({option.price.toLocaleString('vi-VN')}đ)
+                  </label>
+                </div>
+              ))}
             </div>
 
             {input.productType !== 'mang' && (

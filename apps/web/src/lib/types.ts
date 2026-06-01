@@ -76,6 +76,12 @@ export interface CustomAccessory {
   unit: 'per_piece' | 'per_meter'; // đ/cái hoặc đ/m
 }
 
+export interface PrintSurchargeOption {
+  key: string;
+  label: string;
+  price: number;
+}
+
 export interface AppConstants {
   zipperPrice: number;
   zipperWeight: number;
@@ -120,6 +126,7 @@ export interface AppConstants {
   customCylTypes?: CylType[];
   customPaymentDays?: number[];
   customAccessories?: CustomAccessory[];
+  customPrintSurcharges?: PrintSurchargeOption[];
 }
 
 export interface CalculateInput {
@@ -146,6 +153,7 @@ export interface CalculateInput {
   spreadWidth: number;
   cutStep: number;
   metallicSurcharge: number;
+  selectedPrintSurchargeKeys?: string[];
   coverageRatio: number;
   handleWeight: number;
   zipperWeight: number;
@@ -525,5 +533,4 @@ export interface ProductionOrder {
     totalArea: number;          // Tổng diện tích đơn hàng (m²)
   };
 }
-
 
