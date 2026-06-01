@@ -67,6 +67,11 @@ export const HANG_SO_MAC_DINH: HangSo = {
   heSoCat1:              raw.cutMult1,
   heSoCat2:              raw.cutMult2,
   heSoCat3:              raw.cutMult3,
+  quyTacCat: (raw.cutRules ?? []).map((rule: any) => ({
+    nhan: rule.label,
+    nguong: rule.threshold,
+    heSo: rule.multiplier,
+  })),
   giaNhu:                raw.nhuPrice,
   giaMo:                 raw.moPrice,
   chiPhiCaiDatMau: Object.fromEntries(

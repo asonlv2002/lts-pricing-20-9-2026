@@ -108,6 +108,7 @@ function doiSangHangSo(c: AppConstants, input?: CalculateInput): HangSo {
     cpCatCoBan: c.cutBase,
     nguongCat1: c.cutThreshold1, nguongCat2: c.cutThreshold2,
     heSoCat1: c.cutMult1, heSoCat2: c.cutMult2, heSoCat3: c.cutMult3,
+    quyTacCat: c.cutRules?.map(rule => ({ nhan: rule.label, nguong: rule.threshold, heSo: rule.multiplier })),
     giaNhu: c.nhuPrice, giaMo: c.moPrice,
     chiPhiCaiDatMau: c.colorSetup,
     hatHaoInA: c.printWasteA, hatHaoInB: c.printWasteB,

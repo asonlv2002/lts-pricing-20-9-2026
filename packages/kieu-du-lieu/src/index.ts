@@ -38,6 +38,12 @@ export interface GiaVatLieuKhoNho {
   giaMoiM2: number;
 }
 
+export interface QuyTacCat {
+  nhan: string;
+  nguong: number | null;
+  heSo: number;
+}
+
 // ── Hằng số hệ thống ─────────────────────────────────────────────────────────
 export interface HangSo {
   giaKhoa: number;
@@ -71,6 +77,7 @@ export interface HangSo {
   heSoCat1: number;
   heSoCat2: number;
   heSoCat3: number;
+  quyTacCat?: QuyTacCat[];
   giaNhu: number;
   giaMo: number;
   chiPhiCaiDatMau: Record<number, number>;

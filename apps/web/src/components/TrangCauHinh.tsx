@@ -214,7 +214,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     // Reset constants
     const cacKhoaDatLai: (keyof typeof INITIAL_CONSTANTS)[] = [
       'laborCost', 'nhuPrice', 'moPrice', 'ghepCPSX', 'ghepWasteA', 'ghepWasteB', 'ghepWasteC', 'cutBase', 'cutWasteA', 'cutWasteB', 'cutWasteC',
-      'cutThreshold1', 'cutThreshold2', 'cutMult1', 'cutMult2', 'cutMult3',
+      'cutThreshold1', 'cutThreshold2', 'cutMult1', 'cutMult2', 'cutMult3', 'cutRules',
       'zipperPrice', 'zipperWeight', 'tapePrice', 'tapeWeight', 'handlePrice', 'handleWeight',
       'boxPriceDefault', 'bagsPerBoxDefault', 'boxOptions', 'handleOptions',
       'printWasteA', 'printWasteB', 'printWasteC', 'printWasteD',
@@ -234,6 +234,40 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   const xuLyDoiCaiDatMau = (soMau: number, giaTri: number) => {
     const caiDatMoi = { ...hangSo.colorSetup, [soMau]: giaTri };
     capNhatHangSo('colorSetup' as any, caiDatMoi as any);
+  };
+  const cacMocMauIn = Object.keys(hangSo.colorSetup ?? {}).map(Number).filter(Number.isFinite).sort((a, b) => b - a);
+  const themMocMauIn = () => {
+    const soMauMoi = Math.max(0, ...cacMocMauIn) + 1;
+    xuLyDoiCaiDatMau(soMauMoi, soMauMoi * 200 + 200);
+  };
+  const xoaMocMauIn = (soMau: number) => {
+    const caiDatMoi = { ...hangSo.colorSetup };
+    delete caiDatMoi[soMau];
+    capNhatHangSo('colorSetup' as any, caiDatMoi as any);
+  };
+  const quyTacCat = (hangSo.cutRules?.length ? hangSo.cutRules : [
+    { label: 'Nhỏ', threshold: hangSo.cutThreshold1, multiplier: hangSo.cutMult1 },
+    { label: 'Trung bình', threshold: hangSo.cutThreshold2, multiplier: hangSo.cutMult2 },
+    { label: 'Lớn', threshold: null, multiplier: hangSo.cutMult3 },
+  ]);
+  const capNhatQuyTacCat = (index: number, patch: Partial<(typeof quyTacCat)[number]>) => {
+    const danhSach = quyTacCat.map((rule, i) => i === index ? { ...rule, ...patch } : rule);
+    capNhatHangSo('cutRules' as any, danhSach as any);
+  };
+  const themQuyTacCat = () => {
+    const dongCuoi = quyTacCat[quyTacCat.length - 1];
+    const danhSach = [
+      ...quyTacCat.slice(0, -1),
+      { label: `Mức ${quyTacCat.length}`, threshold: dongCuoi?.threshold ?? hangSo.cutThreshold2, multiplier: dongCuoi?.multiplier ?? hangSo.cutMult3 },
+      { label: dongCuoi?.label ?? 'Lớn', threshold: null, multiplier: dongCuoi?.multiplier ?? hangSo.cutMult3 },
+    ];
+    capNhatHangSo('cutRules' as any, danhSach as any);
+  };
+  const xoaQuyTacCat = (index: number) => {
+    if (quyTacCat.length <= 1) return;
+    const danhSach = quyTacCat.filter((_, i) => i !== index);
+    const dongCuoi = danhSach[danhSach.length - 1];
+    capNhatHangSo('cutRules' as any, danhSach.map((rule, i) => i === danhSach.length - 1 ? { ...rule, threshold: null, label: dongCuoi?.label || 'Lớn' } : rule) as any);
   };
   const xuLyDoiLoaiThung = (khoa: string, truong: 'price' | 'weight' | 'label', giaTri: number | string) => {
     const cacLoaiThung = (hangSo.boxOptions ?? []).map(option =>
@@ -497,7 +531,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                   </tr>
                 </thead>
                 <tbody>
-                  {[8,7,6,5,4,3,2,1].map(i => (
+                  {cacMocMauIn.map(i => (
                     <tr key={i}>
                       <td>{i} màu</td>
                       <td>
@@ -521,6 +555,10 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                           <input type="number" className="config-inline-input" style={{width:'75px'}}
                             value={hangSo.printWasteD}
                             onChange={(e) => capNhatHangSo('printWasteD', parseFloat(e.target.value) || 400)} />
+                          {i > 8 && (
+                            <button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer'}}
+                              onClick={() => xoaMocMauIn(i)}>✕</button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -528,6 +566,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                 </tbody>
               </table>
             </div>
+            <button className="btn btn-sm btn-outline" style={{marginTop:'10px'}} onClick={themMocMauIn}>+ Thêm</button>
             <p className="config-note">💡 A, B, C, D là các tham số dùng chung cho mọi số màu in.</p>
           </div>
           )}
@@ -720,30 +759,26 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                     <th>Ngưỡng (m²)</th>
                     <th>Hệ số</th>
                     <th>CPSX Cắt thực tế</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>Nhỏ</td>
-                    <td><input type="number" className="config-inline-input" value={hangSo.cutThreshold1} step="0.01" onChange={e => capNhatHangSo('cutThreshold1', parseFloat(e.target.value)||0)} /></td>
-                    <td><input type="number" className="config-inline-input" value={hangSo.cutMult1} step="0.1" onChange={e => capNhatHangSo('cutMult1', parseFloat(e.target.value)||0)} /></td>
-                    <td className="cut-preview">{(hangSo.cutBase * hangSo.cutMult1).toLocaleString('vi-VN', {maximumFractionDigits:0})}</td>
-                  </tr>
-                  <tr>
-                    <td>Trung bình</td>
-                    <td><input type="number" className="config-inline-input" value={hangSo.cutThreshold2} step="0.01" onChange={e => capNhatHangSo('cutThreshold2', parseFloat(e.target.value)||0)} /></td>
-                    <td><input type="number" className="config-inline-input" value={hangSo.cutMult2} step="0.1" onChange={e => capNhatHangSo('cutMult2', parseFloat(e.target.value)||0)} /></td>
-                    <td className="cut-preview">{(hangSo.cutBase * hangSo.cutMult2).toLocaleString('vi-VN', {maximumFractionDigits:0})}</td>
-                  </tr>
-                  <tr>
-                    <td>Lớn</td>
-                    <td>-</td>
-                    <td><input type="number" className="config-inline-input" value={hangSo.cutMult3} step="0.1" onChange={e => capNhatHangSo('cutMult3', parseFloat(e.target.value)||0)} /></td>
-                    <td className="cut-preview">{(hangSo.cutBase * hangSo.cutMult3).toLocaleString('vi-VN', {maximumFractionDigits:0})}</td>
-                  </tr>
+                  {quyTacCat.map((rule, index) => {
+                    const laDongCuoi = index === quyTacCat.length - 1;
+                    return (
+                      <tr key={index}>
+                        <td><input type="text" className="config-inline-input" value={rule.label} onChange={e => capNhatQuyTacCat(index, { label: e.target.value })} /></td>
+                        <td>{laDongCuoi ? '-' : <input type="number" className="config-inline-input" value={rule.threshold ?? 0} step="0.01" onChange={e => capNhatQuyTacCat(index, { threshold: parseFloat(e.target.value)||0 })} />}</td>
+                        <td><input type="number" className="config-inline-input" value={rule.multiplier} step="0.1" onChange={e => capNhatQuyTacCat(index, { multiplier: parseFloat(e.target.value)||0 })} /></td>
+                        <td className="cut-preview">{(hangSo.cutBase * rule.multiplier).toLocaleString('vi-VN', {maximumFractionDigits:0})}</td>
+                        <td><button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer'}} onClick={() => xoaQuyTacCat(index)}>✕</button></td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
+            <button className="btn btn-sm btn-outline" style={{marginTop:'10px', display: anCotCPSX ? 'none' : undefined}} onClick={themQuyTacCat}>+ Thêm</button>
             <p className="config-note">💡 CPSX Cắt = Cắt cơ bản × Hệ số. Ngưỡng dựa trên diện tích túi (m²).</p>
           </div>
           )}

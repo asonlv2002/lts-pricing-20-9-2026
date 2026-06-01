@@ -25,6 +25,7 @@ export function luuConfigVaoLS(materials: Material[], constants: AppConstants, p
       ghepCPSX: constants.ghepCPSX, laborCost: constants.laborCost,
       cutBase: constants.cutBase, cutThreshold1: constants.cutThreshold1, cutThreshold2: constants.cutThreshold2,
       cutMult1: constants.cutMult1, cutMult2: constants.cutMult2, cutMult3: constants.cutMult3,
+      cutRules: constants.cutRules,
       cylinderPricePerUnit: constants.cylinderPricePerUnit,
       nhuPrice: constants.nhuPrice, moPrice: constants.moPrice,
       zipperPrice: constants.zipperPrice, zipperWeight: constants.zipperWeight,

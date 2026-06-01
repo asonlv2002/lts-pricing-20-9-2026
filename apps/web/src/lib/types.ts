@@ -56,6 +56,12 @@ export interface HandleOption {
   weight: number;
 }
 
+export interface CutRule {
+  label: string;
+  threshold: number | null;
+  multiplier: number;
+}
+
 export interface CylType {
   key: string;
   label: string;
@@ -103,6 +109,7 @@ export interface AppConstants {
   cutMult1: number;
   cutMult2: number;
   cutMult3: number;
+  cutRules?: CutRule[];
   nhuPrice: number;
   moPrice: number;
   colorSetup: Record<number, number>;
@@ -518,6 +525,5 @@ export interface ProductionOrder {
     totalArea: number;          // Tổng diện tích đơn hàng (m²)
   };
 }
-
 
 

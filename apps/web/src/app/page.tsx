@@ -332,6 +332,7 @@ export default function TrangChinh() {
         ghepCPSX: hangSo.ghepCPSX, laborCost: hangSo.laborCost,
         cutBase: hangSo.cutBase, cutThreshold1: hangSo.cutThreshold1, cutThreshold2: hangSo.cutThreshold2,
         cutMult1: hangSo.cutMult1, cutMult2: hangSo.cutMult2, cutMult3: hangSo.cutMult3,
+        cutRules: hangSo.cutRules,
         cylinderPricePerUnit: hangSo.cylinderPricePerUnit,
         nhuPrice: hangSo.nhuPrice, moPrice: hangSo.moPrice,
         zipperPrice: hangSo.zipperPrice, zipperWeight: hangSo.zipperWeight,

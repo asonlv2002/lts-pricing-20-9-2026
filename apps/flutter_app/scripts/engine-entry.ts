@@ -35,6 +35,7 @@ interface AppConstants {
   laborCost: number; cutBase: number;
   cutThreshold1: number; cutThreshold2: number;
   cutMult1: number; cutMult2: number; cutMult3: number;
+  cutRules?: { label: string; threshold: number | null; multiplier: number }[];
   nhuPrice: number; moPrice: number;
   colorSetup: Record<number, number>;
   printWasteA: number; printWasteB: number; printWasteC: number; printWasteD: number;
@@ -95,6 +96,7 @@ function toHangSo(c: AppConstants): HangSo {
     chiPhiNhanCong: c.laborCost, cpCatCoBan: c.cutBase,
     nguongCat1: c.cutThreshold1, nguongCat2: c.cutThreshold2,
     heSoCat1: c.cutMult1, heSoCat2: c.cutMult2, heSoCat3: c.cutMult3,
+    quyTacCat: c.cutRules?.map(rule => ({ nhan: rule.label, nguong: rule.threshold, heSo: rule.multiplier })),
     giaNhu: c.nhuPrice, giaMo: c.moPrice,
     chiPhiCaiDatMau: c.colorSetup,
     hatHaoInA: c.printWasteA, hatHaoInB: c.printWasteB,

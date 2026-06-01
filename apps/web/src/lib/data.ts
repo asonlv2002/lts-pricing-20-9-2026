@@ -32,6 +32,11 @@ export const PROFIT_DEFAULT = profitJson.profitDefault;
 
 // ── App constants ─────────────────────────────────────────────────────────────
 const rawConstants = constantsJson as typeof constantsJson & { boxOptions?: BoxOption[]; handleOptions?: HandleOption[] };
+const fallbackCutRules = [
+  { label: 'Nhỏ', threshold: rawConstants.cutThreshold1 ?? 0.07, multiplier: rawConstants.cutMult1 ?? 1.4 },
+  { label: 'Trung bình', threshold: rawConstants.cutThreshold2 ?? 0.2, multiplier: rawConstants.cutMult2 ?? 1.2 },
+  { label: 'Lớn', threshold: null, multiplier: rawConstants.cutMult3 ?? 0.8 },
+];
 const fallbackBoxOptions: BoxOption[] = [
   { key: 'large', label: 'Thùng lớn', price: rawConstants.boxPriceDefault ?? 0, weight: 0 },
   { key: 'medium', label: 'Thùng trung bình', price: rawConstants.boxPriceDefault ?? 0, weight: 0 },
@@ -48,6 +53,7 @@ export const INITIAL_CONSTANTS: AppConstants = {
   ...rawConstants,
   boxOptions: rawConstants.boxOptions?.length ? rawConstants.boxOptions : fallbackBoxOptions,
   handleOptions: rawConstants.handleOptions?.length ? rawConstants.handleOptions : fallbackHandleOptions,
+  cutRules: rawConstants.cutRules?.length ? rawConstants.cutRules : fallbackCutRules,
   // JSON stores colorSetup keys as strings → convert back to number keys
   colorSetup: Object.fromEntries(
     Object.entries(rawConstants.colorSetup).map(([k, v]) => [Number(k), v])
