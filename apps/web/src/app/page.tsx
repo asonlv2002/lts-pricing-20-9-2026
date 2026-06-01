@@ -353,7 +353,10 @@ export default function TrangChinh() {
   }, [danhSachVatLieu, bangGiaKhoNho, hangSo, bangLoiNhuan]);
 
   const gridStyle: React.CSSProperties = (coTheAnPanelNhap && doRongTrai != null && !anPanelNhap)
-    ? { gridTemplateColumns: `${doRongTrai}px 4px 1fr` }
+    ? {
+        gridTemplateColumns: `${doRongTrai}px 4px minmax(760px, 1fr)`,
+        width: `max(100%, ${doRongTrai + 4 + 760}px)`,
+      }
     : {};
 
   return (

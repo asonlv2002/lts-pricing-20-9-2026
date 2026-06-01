@@ -3080,11 +3080,11 @@ body {
   }
 
   .container.mobile-calc-container .main-grid {
-    min-width: 1080px;
+    min-width: 1144px;
   }
 
   .container.mobile-calc-container .main-grid--input-collapsed {
-    min-width: 860px;
+    min-width: 796px;
   }
 
   .container.mobile-calc-container .grid-col-input,
@@ -3109,6 +3109,7 @@ body {
 
   html:not([data-layout="stacked"]):not([data-layout="bento"]):not(.in-config-page):not(.in-crm-page)
   .lts-shell-content:has(.mobile-calc-container) {
+    overflow-x: auto !important;
     overflow-y: hidden !important;
   }
 
@@ -5781,9 +5782,39 @@ body {
   /* Default layout: input | 4px resizer | result */
   html:not([data-layout="stacked"]):not([data-layout="bento"]) .main-grid {
     display: grid;
-    grid-template-columns: 380px 4px 1fr;
+    grid-template-columns: 380px 4px minmax(760px, 1fr);
     gap: 0;
     column-gap: 0;
+  }
+
+  .container.mobile-calc-container,
+  .container.mobile-calc-container .main-grid,
+  .container.mobile-calc-container #resultArea,
+  .container.mobile-calc-container .grid-col-result {
+    min-width: 0;
+  }
+
+  .container.mobile-calc-container {
+    width: 100%;
+    max-width: none;
+    overflow-x: visible;
+  }
+
+  .container.mobile-calc-container .main-grid,
+  .container.mobile-calc-container #resultArea,
+  .container.mobile-calc-container .grid-col-result {
+    width: 100%;
+  }
+
+  .container.mobile-calc-container .main-grid {
+    width: max(100%, 1144px);
+    min-width: 1144px;
+  }
+
+  .container.mobile-calc-container .main-grid--input-collapsed {
+    width: max(100%, 796px);
+    min-width: 796px;
+    grid-template-columns: 36px minmax(760px, 1fr) !important;
   }
 
   /* Gap between resizer and result panel */
@@ -5793,11 +5824,11 @@ body {
 
   /* Wide layout */
   html[data-layout="wide"] .main-grid {
-    grid-template-columns: 360px 4px 1fr;
+    grid-template-columns: 360px 4px minmax(760px, 1fr);
   }
 
   #resultArea .table-responsive {
-    overflow-x: hidden;
+    overflow-x: auto;
   }
 
   #resultArea .data-table,
