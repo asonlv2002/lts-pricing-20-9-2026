@@ -328,7 +328,8 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                       <OChonVatLieuChiTiet khoaDong={row.rowKey} chiTietIndex={detailIdx}
                         giaTriGoc={{ id: chiTietGoc?.materialId, name: chiTietGoc?.name ?? detail.name, matPrice: chiTietGoc?.matPrice ?? detail.matPrice }}
                         giaTriGhiDe={ghiDeHienTaiChiTiet} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} />
-                      <td className="num" data-label="Kho vao (m)">{dinhDangSo(detail.width, 3)}</td>
+                      <OChiTietCoTheGhiDe khoaDong={row.rowKey} chiTietIndex={detailIdx} truong="width" giaTriGoc={chiTietGoc?.width ?? detail.width}
+                        giaTriGhiDe={ghiDeHienTaiChiTiet?.width} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} soLe={3} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
                         giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
@@ -1210,4 +1211,3 @@ export default function ManHinhQuanLy() {
     </div>
   );
 }
-

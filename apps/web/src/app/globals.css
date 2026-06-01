@@ -1470,7 +1470,7 @@ body {
 .manager-toc .toc-link { transition: all 0.2s; }
 .manager-toc .toc-link:hover { opacity: 0.8; background: var(--surface2) !important; color: var(--accent) !important; padding-left: 16px !important; }
 
-.manager-content { padding-right: 180px; }
+.manager-content { padding-right: 0; }
 
 @media (max-width: 1200px) {
   .manager-toc {
@@ -5781,7 +5781,7 @@ body {
   /* Default layout: input | 4px resizer | result */
   html:not([data-layout="stacked"]):not([data-layout="bento"]) .main-grid {
     display: grid;
-    grid-template-columns: 345px 4px 1fr;
+    grid-template-columns: 276px 4px 1fr;
     gap: 0;
     column-gap: 0;
   }
@@ -5793,7 +5793,24 @@ body {
 
   /* Wide layout */
   html[data-layout="wide"] .main-grid {
-    grid-template-columns: 299px 4px 1fr;
+    grid-template-columns: 239px 4px 1fr;
+  }
+
+  #resultArea .table-responsive {
+    overflow-x: hidden;
+  }
+
+  #resultArea .data-table,
+  #resultArea .moq-table {
+    width: 100%;
+    table-layout: auto;
+  }
+
+  #resultArea .data-table th,
+  #resultArea .data-table td,
+  #resultArea .moq-table th,
+  #resultArea .moq-table td {
+    white-space: normal;
   }
 }
 

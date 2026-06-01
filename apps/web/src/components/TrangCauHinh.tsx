@@ -534,7 +534,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           {/* 1.3 Phụ phí nhũ / phủ mờ */}
           {hienSanXuat && (
           <div className="card config-card">
-            <div className="config-section-title"><span>✨ Phụ Phí Nhũ / Phủ Mờ</span></div>
+            <div className="config-section-title"><span>✨ Chi Phí Nhũ / Phủ Mờ</span></div>
             <div className="config-cpsx-grid">
               <div className="config-cpsx-item">
                 <label>Giá nhũ (đ)</label>
