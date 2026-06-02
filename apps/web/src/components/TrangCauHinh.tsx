@@ -1257,35 +1257,47 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           {hienPhuPhi && (
           <div className="card config-card">
             <div className="config-section-title"><span>🚚 Vận chuyển (Dành cho Màng in)</span></div>
-            <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'14px'}}>Công thức vận chuyển Màng in</div>
-            <div style={{display:'flex', flexDirection:'column', gap:'14px'}}>
-              <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}>
-                <span>Nếu m² đơn hàng &lt;</span>
-                <input type="text" inputMode="numeric" className="config-inline-input" style={{width:'92px', fontWeight:700, textAlign:'center'}}
-                  value={dinhDangVnd(hangSo.printFilmShippingThresholdM2 ?? 25000)}
-                  onChange={e => capNhatHangSoSo('printFilmShippingThresholdM2', docSoVnd(e.target.value), 25000)} />
-                <span>:</span>
+            <div style={{display:'flex', alignItems:'stretch', gap:'0'}}>
+              <div style={{padding:'12px 20px 12px 0', minWidth:'220px', borderRight:'2px solid var(--border)'}}>
+                <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'12px'}}>Vận chuyển Màng in</div>
+                <div style={{display:'flex', flexDirection:'column', gap:'10px'}}>
+                  <div>
+                    <div style={{fontSize:'0.75rem', color:'var(--muted)', marginBottom:'4px'}}>Ngưỡng đơn hàng</div>
+                    <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
+                      <input type="text" inputMode="numeric" className="config-inline-input" style={{width:'92px', fontWeight:700, textAlign:'center'}}
+                        value={dinhDangVnd(hangSo.printFilmShippingThresholdM2 ?? 25000)}
+                        onChange={e => capNhatHangSoSo('printFilmShippingThresholdM2', docSoVnd(e.target.value), 25000)} />
+                      <span style={{fontSize:'0.82rem', color:'var(--muted)'}}>m²</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:'0.75rem', color:'var(--muted)', marginBottom:'4px'}}>Chi phí vận chuyển</div>
+                    <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
+                      <input type="text" inputMode="numeric" className="config-inline-input" style={{width:'105px', fontWeight:700, textAlign:'center'}}
+                        value={dinhDangVnd(hangSo.printFilmShippingBaseCost ?? 500000)}
+                        onChange={e => capNhatHangSoSo('printFilmShippingBaseCost', docSoVnd(e.target.value), 500000)} />
+                      <span style={{fontSize:'0.82rem', color:'var(--muted)'}}>đ</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{fontSize:'0.75rem', color:'var(--muted)', marginBottom:'4px'}}>Mốc đơn lớn</div>
+                    <div style={{display:'flex', alignItems:'center', gap:'6px'}}>
+                      <input type="text" inputMode="numeric" className="config-inline-input" style={{width:'92px', fontWeight:700, textAlign:'center'}}
+                        value={dinhDangVnd(hangSo.printFilmShippingLargeOrderM2 ?? 30000)}
+                        onChange={e => capNhatHangSoSo('printFilmShippingLargeOrderM2', docSoVnd(e.target.value), 30000)} />
+                      <span style={{fontSize:'0.82rem', color:'var(--muted)'}}>m²</span>
+                    </div>
+                  </div>
+                </div>
               </div>
-              <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', paddingLeft:'16px'}}>
-                <span>Vận chuyển/m² =</span>
-                <input type="text" inputMode="numeric" className="config-inline-input" style={{width:'105px', fontWeight:700, textAlign:'center'}}
-                  value={dinhDangVnd(hangSo.printFilmShippingBaseCost ?? 500000)}
-                  onChange={e => capNhatHangSoSo('printFilmShippingBaseCost', docSoVnd(e.target.value), 500000)} />
-                <span>/ m² đơn hàng</span>
-              </div>
-              <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}>
-                <span>Nếu m² đơn hàng ≥</span>
-                <strong>{dinhDangVnd(hangSo.printFilmShippingThresholdM2 ?? 25000)}</strong>
-                <span>:</span>
-              </div>
-              <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', paddingLeft:'16px'}}>
-                <span>Vận chuyển/m² = (m² đơn hàng /</span>
-                <input type="text" inputMode="numeric" className="config-inline-input" style={{width:'92px', fontWeight:700, textAlign:'center'}}
-                  value={dinhDangVnd(hangSo.printFilmShippingLargeOrderM2 ?? 30000)}
-                  onChange={e => capNhatHangSoSo('printFilmShippingLargeOrderM2', docSoVnd(e.target.value), 30000)} />
-                <span>×</span>
-                <strong>{dinhDangVnd(hangSo.printFilmShippingBaseCost ?? 500000)}</strong>
-                <span>) / m² đơn hàng</span>
+              <div style={{padding:'12px 0 12px 20px', flex:1}}>
+                <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'12px'}}>Công thức</div>
+                <div style={{fontSize:'0.9rem', lineHeight:1.8}}>
+                  <div>&lt; <strong>{dinhDangVnd(hangSo.printFilmShippingThresholdM2 ?? 25000)}</strong>: <strong>{dinhDangVnd(hangSo.printFilmShippingBaseCost ?? 500000)}</strong> / m² đơn hàng</div>
+                  <div style={{marginTop:'8px'}}>≥ <strong>{dinhDangVnd(hangSo.printFilmShippingThresholdM2 ?? 25000)}</strong>:</div>
+                  <div style={{paddingLeft:'12px'}}>(m² đơn hàng / <strong>{dinhDangVnd(hangSo.printFilmShippingLargeOrderM2 ?? 30000)}</strong> × <strong>{dinhDangVnd(hangSo.printFilmShippingBaseCost ?? 500000)}</strong>)</div>
+                  <div style={{paddingLeft:'12px'}}>/ m² đơn hàng</div>
+                </div>
               </div>
             </div>
             <p className="config-note">💡 Chỉ áp dụng cho Màng in chỉ có công đoạn in. Công thức này thay công thức vận chuyển thường khi đúng điều kiện.</p>

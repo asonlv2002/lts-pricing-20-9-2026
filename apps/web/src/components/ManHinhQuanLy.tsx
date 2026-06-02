@@ -450,6 +450,7 @@ export default function ManHinhQuanLy() {
   const laMang = dauVaoKq.productType === 'mang';
 
   const { uniRows: cacDongSanXuat, totalCPSX: tongCPSX, totalCPVL: tongCPVL, grandTotal: tongCong } = lapDongSanXuat(r, hangSo);
+  const cpTheoThoiGianIn = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
   const { effTotalProdCost: tongChiPhiSXHieuLuc, effProfitRate: tyLeLoiNhuanHieuLuc, effProfitAmount: tienLoiNhuanHieuLuc, effRevenue: doanhThuHieuLuc, effCostPerUnit: giaVonDonViHieuLuc } = tinhGiaHieuLuc({
     result: r,
     uniRows: cacDongSanXuat,
@@ -966,6 +967,12 @@ export default function ManHinhQuanLy() {
                       </tr>
                     );
                   })}
+                  {laMangIn && cpTheoThoiGianIn > 0 && (
+                    <tr className="total-row">
+                      <td colSpan={9}>CP theo thời gian in</td>
+                      <td className="num">{dinhDangSo(cpTheoThoiGianIn, 0)} đ</td>
+                    </tr>
+                  )}
                   <tr className="total-row">
                     <td colSpan={7}>TỔNG</td>
                     <td className="num">{dinhDangSo(tongCPSX, 0)}</td>

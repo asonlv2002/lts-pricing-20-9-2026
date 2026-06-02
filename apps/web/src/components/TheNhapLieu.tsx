@@ -522,6 +522,14 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
         </div>
       </div>
 
+      <div className="form-group">
+        <label className="form-label">Nhóm khách</label>
+        <select className="form-select" value={input.printFilmCustomerGroup ?? 'normal'} onChange={e => capNhatDauVao({ printFilmCustomerGroup: e.target.value as 'normal' | 'large' })}>
+          <option value="normal">Khách thường</option>
+          <option value="large">Khách lớn</option>
+        </select>
+      </div>
+
       <div className="form-row">
         <div className="form-group">
           <label className="form-label">Loại sản phẩm</label>
@@ -570,15 +578,6 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
               <option value="mangIn">Màng in</option>
               <option value="mangGhep">Màng ghép</option>
               <option value="mangDongGoi">Màng đóng gói tự động</option>
-            </select>
-          </div>
-        )}
-        {input.productType === 'mang' && input.filmType === 'mangIn' && (
-          <div className="form-group">
-            <label className="form-label">Nhóm khách</label>
-            <select className="form-select" value={input.printFilmCustomerGroup ?? 'normal'} onChange={e => capNhatDauVao({ printFilmCustomerGroup: e.target.value as 'normal' | 'large' })}>
-              <option value="normal">Khách thường</option>
-              <option value="large">Khách lớn</option>
             </select>
           </div>
         )}

@@ -14,6 +14,16 @@ export function traLoiNhuan(tongChiPhi: number, cotLoiNhuan: number, bangLoiNhua
   return giaTriLN;
 }
 
+export function dieuChinhTyLeLoiNhuanTheoNhomKhach(
+  tyLeLoiNhuan: number,
+  nhomKhach?: 'normal' | 'large',
+): number {
+  // Khách lớn đang được cấu hình bằng cách xem bảng lợi nhuận với mức hiển thị thấp hơn 3 điểm %.
+  // Runtime cần dùng cùng cơ chế để kết quả tính giá khớp với màn cấu hình hiện tại.
+  if (nhomKhach === 'large') return Math.max(0, tyLeLoiNhuan - 0.03);
+  return tyLeLoiNhuan;
+}
+
 const boDauTiengViet = (chuoi: string) => chuoi.normalize('NFD')
   .replace(/[\u0300-\u036f]/g, '')
   .replace(/\u0111/g, 'd')
