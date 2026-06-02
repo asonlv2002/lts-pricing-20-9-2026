@@ -42,8 +42,20 @@ export const HANG_SO_MAC_DINH: HangSo = {
   khoiLuongBangKeo:      raw.tapeWeight,
   giaQuaiXach:           raw.handlePrice,
   khoiLuongQuaiXach:     raw.handleWeight,
+  loaiQuai: (raw.handleOptions ?? []).map((option: any) => ({
+    key: option.key,
+    label: option.label,
+    price: option.price,
+    weight: option.weight,
+  })),
   giaThuungMacDinh:      raw.boxPriceDefault,
   soTuiPerThuungMacDinh: raw.bagsPerBoxDefault,
+  loaiThuung: (raw.boxOptions ?? []).map((option: any) => ({
+    key: option.key,
+    label: option.label,
+    price: option.price,
+    weight: option.weight,
+  })),
   laiSuatMacDinh:        raw.interestBase ?? raw.interestRate,  // backward-compat
   laiSuatCoBan:          raw.interestBase  ?? 0.10,
   laiSuatThem:           raw.interestSpread ?? 0.03,

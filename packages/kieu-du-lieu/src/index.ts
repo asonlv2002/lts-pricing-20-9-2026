@@ -44,6 +44,20 @@ export interface QuyTacCat {
   heSo: number;
 }
 
+export interface LoaiThuung {
+  key: string;
+  label: string;
+  price: number;
+  weight?: number;
+}
+
+export interface LoaiQuai {
+  key: string;
+  label: string;
+  price: number;
+  weight: number;
+}
+
 export interface TyLeLoiNhuanMangIn {
   nhomKhach: 'normal' | 'large';
   soMauTu: number;
@@ -59,8 +73,10 @@ export interface HangSo {
   khoiLuongBangKeo: number;
   giaQuaiXach: number;
   khoiLuongQuaiXach: number;
+  loaiQuai?: LoaiQuai[];
   giaThuungMacDinh: number;
   soTuiPerThuungMacDinh: number;
+  loaiThuung?: LoaiThuung[];
   laiSuatMacDinh: number;       // giữ để backward-compat, dùng laiSuatCoBan + laiSuatThem thay thế
   laiSuatCoBan: number;         // lãi suất cơ sở (% / năm, thập phân, vd 0.10 = 10%)
   laiSuatThem: number;          // lãi suất thêm / tình huống (% / năm)

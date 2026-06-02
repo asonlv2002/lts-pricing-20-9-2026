@@ -5,8 +5,48 @@
   "tapeWeight": 0,
   "handlePrice": 650,
   "handleWeight": 0,
+  "handleOptions": [
+    {
+      "key": "large",
+      "label": "Quai lớn",
+      "price": 900,
+      "weight": 0
+    },
+    {
+      "key": "small",
+      "label": "Quai nhỏ",
+      "price": 650,
+      "weight": 0
+    },
+    {
+      "key": "color",
+      "label": "Quai màu",
+      "price": 1200,
+      "weight": 0
+    }
+  ],
   "boxPriceDefault": 18000,
   "bagsPerBoxDefault": 1000,
+  "boxOptions": [
+    {
+      "key": "large",
+      "label": "Thùng lớn",
+      "price": 18000,
+      "weight": 0
+    },
+    {
+      "key": "medium",
+      "label": "Thùng trung bình",
+      "price": 15000,
+      "weight": 0
+    },
+    {
+      "key": "small",
+      "label": "Thùng nhỏ",
+      "price": 12000,
+      "weight": 0
+    }
+  ],
   "interestBase": 0.10,
   "interestSpread": 0.03,
   "paymentDays": 30,

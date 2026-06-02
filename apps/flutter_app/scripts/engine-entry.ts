@@ -82,6 +82,12 @@ function toHangSo(c: AppConstants): HangSo {
     giaBangKeo: c.tapePrice, khoiLuongBangKeo: c.tapeWeight,
     giaQuaiXach: c.handlePrice, khoiLuongQuaiXach: c.handleWeight,
     giaThuungMacDinh: c.boxPriceDefault, soTuiPerThuungMacDinh: c.bagsPerBoxDefault,
+    loaiThuung: (c.boxOptions ?? []).map(option => ({
+      key: option.key,
+      label: option.label,
+      price: option.price,
+      weight: option.weight,
+    })),
     laiSuatMacDinh: c.interestBase ?? 0.10,
     laiSuatCoBan: c.interestBase ?? 0.10,
     laiSuatThem: c.interestSpread ?? 0.03,
