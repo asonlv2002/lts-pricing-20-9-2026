@@ -421,6 +421,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   const hienCauTruc =
     (input.productType === 'tui' && !!input.bagType) ||
     (input.productType === 'mang' && !!input.filmType);
+  const laMangIn = input.productType === 'mang' && input.filmType === 'mangIn';
 
   const xuLySaoChep = async () => {
     if (!result) {
@@ -569,6 +570,15 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
               <option value="mangIn">Màng in</option>
               <option value="mangGhep">Màng ghép</option>
               <option value="mangDongGoi">Màng đóng gói tự động</option>
+            </select>
+          </div>
+        )}
+        {input.productType === 'mang' && input.filmType === 'mangIn' && (
+          <div className="form-group">
+            <label className="form-label">Nhóm khách</label>
+            <select className="form-select" value={input.printFilmCustomerGroup ?? 'normal'} onChange={e => capNhatDauVao({ printFilmCustomerGroup: e.target.value as 'normal' | 'large' })}>
+              <option value="normal">Khách thường</option>
+              <option value="large">Khách lớn</option>
             </select>
           </div>
         )}
@@ -831,11 +841,13 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                 <select
                   className="form-input"
                   value={input.coverageRatio === 0.5 ? '50' : '100'}
-                  onChange={e => capNhatDauVao({ coverageRatio: e.target.value === '50' ? 0.5 : 1 })}
+                  onChange={e => capNhatDauVao({ coverageRatio: laMangIn ? 1 : (e.target.value === '50' ? 0.5 : 1) })}
+                  disabled={laMangIn}
                 >
                   <option value="100">100%</option>
-                  <option value="50">50%</option>
+                  {!laMangIn && <option value="50">50%</option>}
                 </select>
+                {laMangIn && <div style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '4px' }}>Màng in mặc định tính 100%.</div>}
               </div>
             </div>
 

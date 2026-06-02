@@ -98,6 +98,8 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
       }
 
       if (dauVaoMoi.productType === 'mang' && dauVaoMoi.filmType === 'mangIn') {
+        dauVaoMoi.coverageRatio = 1;
+        dauVaoMoi.printFilmCustomerGroup = dauVaoMoi.printFilmCustomerGroup ?? 'normal';
         dauVaoMoi.layer2Id = null;
         dauVaoMoi.layer2AltId = null;
         dauVaoMoi.layer2Lengths = undefined;

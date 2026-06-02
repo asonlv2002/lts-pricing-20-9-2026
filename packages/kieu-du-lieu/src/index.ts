@@ -44,6 +44,13 @@ export interface QuyTacCat {
   heSo: number;
 }
 
+export interface TyLeLoiNhuanMangIn {
+  nhomKhach: 'normal' | 'large';
+  soMauTu: number;
+  soMauDen: number;
+  tyLe: number;
+}
+
 // ── Hằng số hệ thống ─────────────────────────────────────────────────────────
 export interface HangSo {
   giaKhoa: number;
@@ -85,6 +92,18 @@ export interface HangSo {
   hatHaoInB: number;
   hatHaoInC: number;
   hatHaoInD: number;
+  giaMucMangInBOPP?: number;
+  giaMucMangInKhac?: number;
+  phutSetupMangInMoiMau?: number;
+  mauSoGioSetupMangIn?: number;
+  nguongMetMangIn?: number;
+  tocDoMangInNgan?: number;
+  chiPhiGioMangIn?: number;
+  nguongVanChuyenMangInM2?: number;
+  chiPhiVanChuyenMangIn?: number;
+  mocVanChuyenMangInM2?: number;
+  laiSuatMangIn?: number;
+  tyLeLoiNhuanMangIn?: TyLeLoiNhuanMangIn[];
 }
 
 // ── Bảng lợi nhuận ───────────────────────────────────────────────────────────
@@ -105,6 +124,7 @@ export interface DauVaoTinhGia {
   soLuong: number;
   soMau: number | null;
   soHinh: number;
+  nhomKhachMangIn?: 'normal' | 'large';
   idLop1?: string | null;
   idLop2?: string | null;
   idLop2Phu?: string | null;
@@ -241,6 +261,11 @@ export interface KetQuaTinhGia {
   chiPhiSXIn: number;
   chiPhiVatLieuIn: number;
   tongChiPhiIn: number;
+  cpMangIn?: number;
+  gioSetupMangIn?: number;
+  gioSanXuatMangIn?: number;
+  tongGioMangIn?: number;
+  chiPhiGioMangIn?: number;
   tongChiPhiSX: number;
   tongChiPhiGhep: number;
   tyLeLoiNhuan: number;

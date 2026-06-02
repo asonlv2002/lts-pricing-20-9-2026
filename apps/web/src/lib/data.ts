@@ -1,4 +1,4 @@
-import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption } from './types';
+import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate } from './types';
 // Single source of truth: /data ở root repo (dùng chung cho web + Flutter)
 import materialsJson  from '@data/materials.json';
 import constantsJson  from '@data/constants.json';
@@ -49,12 +49,20 @@ const fallbackHandleOptions: HandleOption[] = [
   { key: 'color', label: 'Quai màu', price: rawConstants.handlePrice ?? 0, weight: rawConstants.handleWeight ?? 0 },
 ];
 
+const rawPrintFilmProfitRates = (rawConstants.printFilmProfitRates ?? []) as Array<{ customerGroup: string; colorFrom: number; colorTo: number; rate: number }>;
+const printFilmProfitRates: PrintFilmProfitRate[] = rawPrintFilmProfitRates
+  .flatMap(row => {
+    if (row.customerGroup !== 'normal' && row.customerGroup !== 'large') return [];
+    return [{ customerGroup: row.customerGroup, colorFrom: row.colorFrom, colorTo: row.colorTo, rate: row.rate }];
+  });
+
 export const INITIAL_CONSTANTS: AppConstants = {
   ...rawConstants,
   boxOptions: rawConstants.boxOptions?.length ? rawConstants.boxOptions : fallbackBoxOptions,
   handleOptions: rawConstants.handleOptions?.length ? rawConstants.handleOptions : fallbackHandleOptions,
   cutRules: rawConstants.cutRules?.length ? rawConstants.cutRules : fallbackCutRules,
   customPrintSurcharges: rawConstants.customPrintSurcharges ?? [],
+  printFilmProfitRates,
   // JSON stores colorSetup keys as strings → convert back to number keys
   colorSetup: Object.fromEntries(
     Object.entries(rawConstants.colorSetup).map(([k, v]) => [Number(k), v])

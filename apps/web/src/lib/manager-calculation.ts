@@ -16,6 +16,11 @@ export interface UniRow {
   matPrice: number | null;
   costMat: number | null;
   outputWidth?: number;
+  printFilmCost?: number;
+  printFilmSetupHours?: number;
+  printFilmProductionHours?: number;
+  printFilmTotalHours?: number;
+  printFilmLaborCostPerHour?: number;
   materialDetails?: Array<{ materialId?: string; name: string; width: number; matPrice: number; costMat: number }>;
 }
 
@@ -49,6 +54,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
 } {
   const r = result;
   const isMang = r.input.productType === 'mang';
+  const isMangIn = r.input.productType === 'mang' && r.input.filmType === 'mangIn';
   const uniRows: UniRow[] = [];
   let totalCPSX = 0;
   let totalCPVL = 0;
@@ -68,6 +74,11 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
     matPrice: r.layers.print?.matPrice ?? r.layers.print?.material?.pricePerM2 ?? 0,
     costMat: r.printCostMaterial,
     outputWidth: r.printNLWidth,
+    printFilmCost: isMangIn ? (r.printFilmCost ?? 0) : 0,
+    printFilmSetupHours: isMangIn ? (r.printFilmSetupHours ?? 0) : 0,
+    printFilmProductionHours: isMangIn ? (r.printFilmProductionHours ?? 0) : 0,
+    printFilmTotalHours: isMangIn ? (r.printFilmTotalHours ?? 0) : 0,
+    printFilmLaborCostPerHour: isMangIn ? (r.printFilmLaborCostPerHour ?? 0) : 0,
   });
 
   r.layers.laminations?.slice().sort((a: any, b: any) => a.layerNum - b.layerNum).forEach((lam: any) => {
@@ -117,7 +128,8 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
     });
   }
 
-  return { uniRows, totalCPSX, totalCPVL, grandTotal: totalCPSX + totalCPVL };
+  const printFilmCost = uniRows.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
+  return { uniRows, totalCPSX, totalCPVL, grandTotal: totalCPSX + totalCPVL + printFilmCost };
 }
 
 export function xuLyDongGhiDe(
@@ -169,7 +181,8 @@ export function xuLyDongGhiDe(
   });
   const totalCPSX = rows.reduce((sum, row) => sum + row.costCPSX, 0);
   const totalCPVL = rows.reduce((sum, row) => sum + (row.costMat ?? 0), 0);
-  return { rows, totalCPSX, totalCPVL, grandTotal: totalCPSX + totalCPVL };
+  const printFilmCost = uniRows.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
+  return { rows, totalCPSX, totalCPVL, grandTotal: totalCPSX + totalCPVL + printFilmCost };
 }
 
 export function tinhGiaHieuLuc(params: {
@@ -209,6 +222,3 @@ export const buildProductionRows = lapDongSanXuat;
 export const resolveOverrideRows = xuLyDongGhiDe;
 export const calculateEffectivePricing = tinhGiaHieuLuc;
 export const calculateMoqResult = tinhKetQuaMoq;
-
-
-

@@ -151,7 +151,9 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     removeMaterial: xoaVatLieu,
   } = dungCuaHangTinhGia();
   const [nhomKhachHang, datNhomKhachHang] = React.useState('other');
+  const [nhomKhachMangInDangXem, datNhomKhachMangInDangXem] = React.useState<'normal' | 'large'>('normal');
   const [hienBangKhoNho, datHienBangKhoNho] = React.useState(false);
+  const [bangGiaMauInDangXem, datBangGiaMauInDangXem] = React.useState<'normal' | 'printFilm'>('normal');
   const [ngayCongNoMoi, datNgayCongNoMoi] = React.useState('');
   const customMaterialSeq = React.useRef(0);
   const nhomCauHinh = layNhomCauHinh(menuDangChon);
@@ -239,11 +241,32 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   const themMocMauIn = () => {
     const soMauMoi = Math.max(0, ...cacMocMauIn) + 1;
     xuLyDoiCaiDatMau(soMauMoi, soMauMoi * 200 + 200);
+    const tyLeHienTai = hangSo.printFilmProfitRates ?? [];
+    const themDongChoNhom = (customerGroup: 'normal' | 'large') => {
+      const dongNhom = tyLeHienTai.filter(row => row.customerGroup === customerGroup).sort((a, b) => b.colorTo - a.colorTo);
+      const dongCuoi = dongNhom[0];
+      return { customerGroup, colorFrom: soMauMoi, colorTo: soMauMoi, rate: dongCuoi?.rate ?? (customerGroup === 'normal' ? 0.11 : 0.05) };
+    };
+    capNhatHangSo('printFilmProfitRates' as any, [...tyLeHienTai, themDongChoNhom('normal'), themDongChoNhom('large')] as any);
   };
   const xoaMocMauIn = (soMau: number) => {
     const caiDatMoi = { ...hangSo.colorSetup };
     delete caiDatMoi[soMau];
     capNhatHangSo('colorSetup' as any, caiDatMoi as any);
+  };
+  const capNhatHangSoSo = (key: keyof typeof hangSo, value: number, fallback: number) => {
+    capNhatHangSo(key, (Number.isFinite(value) && value > 0 ? value : fallback) as any);
+  };
+  const tyLeLoiNhuanMangIn = (hangSo.printFilmProfitRates ?? []).filter(row => row.customerGroup === nhomKhachMangInDangXem).sort((a, b) => a.colorFrom - b.colorFrom);
+  const capNhatTyLeLoiNhuanMangIn = (index: number, patch: Partial<(typeof tyLeLoiNhuanMangIn)[number]>) => {
+    const dongDangSua = tyLeLoiNhuanMangIn[index];
+    if (!dongDangSua) return;
+    const danhSach = (hangSo.printFilmProfitRates ?? []).map(row =>
+      row.customerGroup === dongDangSua.customerGroup && row.colorFrom === dongDangSua.colorFrom && row.colorTo === dongDangSua.colorTo
+        ? { ...row, ...patch }
+        : row
+    );
+    capNhatHangSo('printFilmProfitRates' as any, danhSach as any);
   };
   const quyTacCat = (hangSo.cutRules?.length ? hangSo.cutRules : [
     { label: 'Nhỏ', threshold: hangSo.cutThreshold1, multiplier: hangSo.cutMult1 },
@@ -508,17 +531,26 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           {hienSanXuat && (
           <div className="card config-card">
             <div className="config-section-title"><span>🎨 Giá Màu In Theo Loại Màng</span></div>
+            <div className="config-cpsx-grid" style={{ marginBottom: '12px' }}>
+              <div className="config-cpsx-item">
+                <label>Loại bảng giá</label>
+                <select className="form-select" value={bangGiaMauInDangXem} onChange={e => datBangGiaMauInDangXem(e.target.value as 'normal' | 'printFilm')}>
+                  <option value="normal">Bình thường</option>
+                  <option value="printFilm">Dành riêng màng in</option>
+                </select>
+              </div>
+            </div>
             <div className="config-table-wrap">
               <table className="config-table" id="inkPriceTable">
                 <thead>
                   <tr>
                     <th>STT</th>
-                    <th>Màng</th>
-                    <th>Giá mực/màu (đ)</th>
+                    <th>{bangGiaMauInDangXem === 'printFilm' ? 'Loại màng' : 'Màng'}</th>
+                    <th>Giá mực/màu (đ/m²/màu)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {vatLieuDuyNhat.map((m, idx) => (
+                  {bangGiaMauInDangXem === 'normal' ? vatLieuDuyNhat.map((m, idx) => (
                     <tr key={m.id}>
                       <td>{idx + 1}</td>
                       <td className="mat-name">{m.name}</td>
@@ -528,11 +560,26 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                           style={{width:'80px', textAlign:'right', fontWeight:700}} />
                       </td>
                     </tr>
+                  )) : [
+                    { label: 'BOPP', key: 'printFilmInkPriceBopp' as const, value: hangSo.printFilmInkPriceBopp ?? 150, fallback: 150 },
+                    { label: 'KHÁC', key: 'printFilmInkPriceOther' as const, value: hangSo.printFilmInkPriceOther ?? 200, fallback: 200 },
+                  ].map((row, idx) => (
+                    <tr key={row.key}>
+                      <td>{idx + 1}</td>
+                      <td className="mat-name">{row.label}</td>
+                      <td>
+                        <input type="number" className="config-inline-input" value={row.value}
+                          onChange={(e) => capNhatHangSoSo(row.key, parseFloat(e.target.value), row.fallback)}
+                          style={{width:'80px', textAlign:'right', fontWeight:700}} />
+                      </td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <p className="config-note">Giá mực in tính trên mỗi màu in. Danh sách loại màng lấy từ bảng Giá Nguyên Vật Liệu; muốn thêm/xóa loại màng, hãy thao tác tại bảng đó. PET/PA mặc định 135đ, các loại khác 120đ.</p>
+            <p className="config-note">{bangGiaMauInDangXem === 'printFilm'
+              ? 'Bảng dành riêng màng in chỉ áp dụng cho sản phẩm Màng in chỉ có công đoạn in. Chỉ vật liệu BOPP dùng giá BOPP; còn lại dùng KHÁC. Tỉ lệ mực in luôn tính 100%.'
+              : 'Giá mực in tính trên mỗi màu in. Danh sách loại màng lấy từ bảng Giá Nguyên Vật Liệu; muốn thêm/xóa loại màng, hãy thao tác tại bảng đó.'}</p>
           </div>
           )}
           {/* 1.3 Công Thức Tính Phi Hao In */}
@@ -651,13 +698,38 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           {hienSanXuat && (
           <div className="card config-card">
             <div className="config-section-title"><span>🖨️ CPSX Khâu in</span></div>
-            <div className="config-cpsx-grid">
-              <div className="config-cpsx-item">
-                <label>CPSX khâu in (đ/m²)</label>
-                <input type="number" className="form-input" value={hangSo.laborCost} onChange={e => capNhatHangSo('laborCost', parseFloat(e.target.value)||0)} />
+            <div style={{display:'flex', alignItems:'stretch', gap:'0'}}>
+              <div style={{padding:'12px 20px 12px 0', minWidth:'220px', borderRight:'2px solid var(--border)'}}>
+                <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>CPSX in thường</div>
+                <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', marginBottom:'8px'}}>CPSX khâu in (đ/m²)</div>
+                <input type="number" className="form-input" value={hangSo.laborCost} onChange={e => capNhatHangSo('laborCost', parseFloat(e.target.value)||0)} style={{width:'120px', fontWeight:700}} />
+                <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'8px'}}>Không áp dụng cho Màng in</div>
+              </div>
+              <div style={{padding:'12px 0 12px 20px', flex:1}}>
+                <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>CP Màng in</div>
+                <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'10px'}}>
+                  <span style={{fontSize:'0.82rem', color:'var(--muted)', fontWeight:600}}>Chi phí nhân công/giờ</span>
+                  <input type="text" inputMode="numeric" className="config-inline-input" value={dinhDangVnd(hangSo.printFilmLaborCostPerHour ?? 1200000)}
+                    onChange={e => capNhatHangSoSo('printFilmLaborCostPerHour', docSoVnd(e.target.value), 1200000)}
+                    style={{width:'120px', fontWeight:700, textAlign:'right'}} />
+                  <span style={{fontSize:'0.82rem', color:'var(--muted)'}}>đ/giờ</span>
+                </div>
+                <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'8px'}}>
+                  <span>Setup = Số màu ×</span>
+                  <input type="number" className="config-inline-input" style={{width:'58px', fontWeight:700, textAlign:'center'}} value={hangSo.printFilmSetupMinutesPerColor ?? 20} onChange={e => capNhatHangSoSo('printFilmSetupMinutesPerColor', parseFloat(e.target.value), 20)} />
+                  <span>/</span>
+                  <input type="number" className="config-inline-input" style={{width:'58px', fontWeight:700, textAlign:'center'}} value={hangSo.printFilmSetupHourDivisor ?? 60} onChange={e => capNhatHangSoSo('printFilmSetupHourDivisor', parseFloat(e.target.value), 60)} />
+                </div>
+                <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'8px'}}>
+                  <span>SX &lt;</span>
+                  <input type="text" inputMode="numeric" className="config-inline-input" style={{width:'78px', fontWeight:700, textAlign:'center'}} value={dinhDangVnd(hangSo.printFilmLengthThreshold ?? 40000)} onChange={e => capNhatHangSoSo('printFilmLengthThreshold', docSoVnd(e.target.value), 40000)} />
+                  <span>: mét /</span>
+                  <input type="text" inputMode="numeric" className="config-inline-input" style={{width:'78px', fontWeight:700, textAlign:'center'}} value={dinhDangVnd(hangSo.printFilmShortRunSpeed ?? 7500)} onChange={e => capNhatHangSoSo('printFilmShortRunSpeed', docSoVnd(e.target.value), 7500)} />
+                </div>
+                <div style={{fontSize:'0.86rem', color:'var(--muted)'}}>SX ≥ {dinhDangVnd(hangSo.printFilmLengthThreshold ?? 40000)}: mét / {dinhDangVnd(hangSo.printFilmShortRunSpeed ?? 7500)} + mét / {dinhDangVnd(hangSo.printFilmLengthThreshold ?? 40000)}</div>
               </div>
             </div>
-            <p className="config-note">Khoản CPSX cố định cộng vào đơn giá in: CPSX in = giá mực/màu x số màu + CPSX khâu in (+ phụ phí nếu có).</p>
+            <p className="config-note">💡 Với Màng in: CPSX đ/m² chỉ là mực/dung môi + phụ phí in; chi phí chạy máy nằm ở CP Màng in.</p>
           </div>
           )}
           {hienLaiVay && <KhoiPhienBan scope="interest" />}
@@ -732,6 +804,19 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                 </div>
               </div>
             </div>
+          </div>
+          )}
+          {hienLaiVay && (
+          <div className="card config-card">
+            <div className="config-section-title"><span>Lãy vay dành riêng cho màn in</span></div>
+            <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}>
+              <input type="number" className="config-inline-input" style={{width:'70px', textAlign:'right', fontWeight:700}}
+                value={parseFloat(((hangSo.printFilmInterestRate ?? 0.01) * 100).toFixed(4))}
+                step="0.1" min="0"
+                onChange={e => capNhatHangSo('printFilmInterestRate', ((parseFloat(e.target.value) || 0) / 100) as any)} />
+              <span>%</span>
+            </div>
+            <p className="config-note">💡 Chỉ áp dụng cho Màng in chỉ có công đoạn in.</p>
           </div>
           )}
           {/* NHOM 2: CHI PHI KHAU GHEP */}
@@ -852,8 +937,8 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
               <div style={{display:'flex', alignItems:'center', gap: '8px'}}>
                 <span style={{fontSize:'0.85rem', fontWeight:'normal', color:'var(--muted)'}}>Nhóm Khách hàng:</span>
                 <select className="form-select" value={nhomKhachHang} onChange={e => datNhomKhachHang(e.target.value)} style={{width: 'auto', padding: '4px 24px 4px 10px', fontWeight: 'normal', fontSize: '0.85rem'}}>
-                  <option value="svlg">Sen Việt và Lương Gia</option>
-                  <option value="other">Khác</option>
+                  <option value="svlg">Khách lớn</option>
+                  <option value="other">Khách thường</option>
                 </select>
               </div>
             </div>
@@ -934,6 +1019,41 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
               </table>
             </div>
             <p className="config-note">Tỉ lệ lợi nhuận tự động tính từ giá vốn. Các con số này có thể chỉnh sửa và tự động lưu.</p>
+          </div>
+          )}
+          {hienLoiNhuan && (
+          <div className="card config-card">
+            <div className="config-section-title" style={{alignItems: 'center'}}>
+              <span>📊 Tỷ lệ lợi nhuận theo Màng In</span>
+              <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
+                <span style={{fontSize:'0.85rem', fontWeight:'normal', color:'var(--muted)'}}>Nhóm khách:</span>
+                <select className="form-select" value={nhomKhachMangInDangXem} onChange={e => datNhomKhachMangInDangXem(e.target.value as 'normal' | 'large')} style={{width:'auto', padding:'4px 24px 4px 10px', fontWeight:'normal', fontSize:'0.85rem'}}>
+                  <option value="normal">Khách thường</option>
+                  <option value="large">Khách lớn</option>
+                </select>
+              </div>
+            </div>
+            <div className="config-table-wrap">
+              <table className="config-table">
+                <thead>
+                  <tr>
+                    <th>Số màu từ</th>
+                    <th>Số màu đến</th>
+                    <th>Tỷ lệ lợi nhuận</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tyLeLoiNhuanMangIn.map((row, idx) => (
+                    <tr key={`${row.customerGroup}-${row.colorFrom}-${row.colorTo}`}>
+                      <td><input className="config-inline-input" type="number" value={row.colorFrom} min="0" onChange={e => capNhatTyLeLoiNhuanMangIn(idx, { colorFrom: parseInt(e.target.value, 10) || 0 })} style={{width:'70px', textAlign:'right', fontWeight:700}} /></td>
+                      <td><input className="config-inline-input" type="number" value={row.colorTo} min="0" onChange={e => capNhatTyLeLoiNhuanMangIn(idx, { colorTo: parseInt(e.target.value, 10) || 0 })} style={{width:'70px', textAlign:'right', fontWeight:700}} /></td>
+                      <td><input className="config-inline-input" type="number" step="0.5" value={+((row.rate ?? 0) * 100).toFixed(2)} onChange={e => capNhatTyLeLoiNhuanMangIn(idx, { rate: (parseFloat(e.target.value) || 0) / 100 })} style={{width:'70px', textAlign:'right', fontWeight:700}} /> %</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="config-note">💡 Chỉ áp dụng cho Màng in chỉ có công đoạn in. Tỷ lệ lợi nhuận được chọn theo Nhóm khách + Số màu in.</p>
           </div>
           )}
           {/* NHOM 5: GIA PHU KIEN */}
@@ -1132,6 +1252,43 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
               </table>
             </div>
             <p className="config-note">Khi nhập đơn túi, chọn loại thùng để tự điền giá thùng. Số túi/thùng do người dùng nhập theo kích thước thực tế của đơn.</p>
+          </div>
+          )}
+          {hienPhuPhi && (
+          <div className="card config-card">
+            <div className="config-section-title"><span>🚚 Vận chuyển (Dành cho Màng in)</span></div>
+            <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'14px'}}>Công thức vận chuyển Màng in</div>
+            <div style={{display:'flex', flexDirection:'column', gap:'14px'}}>
+              <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}>
+                <span>Nếu m² đơn hàng &lt;</span>
+                <input type="text" inputMode="numeric" className="config-inline-input" style={{width:'92px', fontWeight:700, textAlign:'center'}}
+                  value={dinhDangVnd(hangSo.printFilmShippingThresholdM2 ?? 25000)}
+                  onChange={e => capNhatHangSoSo('printFilmShippingThresholdM2', docSoVnd(e.target.value), 25000)} />
+                <span>:</span>
+              </div>
+              <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', paddingLeft:'16px'}}>
+                <span>Vận chuyển/m² =</span>
+                <input type="text" inputMode="numeric" className="config-inline-input" style={{width:'105px', fontWeight:700, textAlign:'center'}}
+                  value={dinhDangVnd(hangSo.printFilmShippingBaseCost ?? 500000)}
+                  onChange={e => capNhatHangSoSo('printFilmShippingBaseCost', docSoVnd(e.target.value), 500000)} />
+                <span>/ m² đơn hàng</span>
+              </div>
+              <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap'}}>
+                <span>Nếu m² đơn hàng ≥</span>
+                <strong>{dinhDangVnd(hangSo.printFilmShippingThresholdM2 ?? 25000)}</strong>
+                <span>:</span>
+              </div>
+              <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', paddingLeft:'16px'}}>
+                <span>Vận chuyển/m² = (m² đơn hàng /</span>
+                <input type="text" inputMode="numeric" className="config-inline-input" style={{width:'92px', fontWeight:700, textAlign:'center'}}
+                  value={dinhDangVnd(hangSo.printFilmShippingLargeOrderM2 ?? 30000)}
+                  onChange={e => capNhatHangSoSo('printFilmShippingLargeOrderM2', docSoVnd(e.target.value), 30000)} />
+                <span>×</span>
+                <strong>{dinhDangVnd(hangSo.printFilmShippingBaseCost ?? 500000)}</strong>
+                <span>) / m² đơn hàng</span>
+              </div>
+            </div>
+            <p className="config-note">💡 Chỉ áp dụng cho Màng in chỉ có công đoạn in. Công thức này thay công thức vận chuyển thường khi đúng điều kiện.</p>
           </div>
           )}
         </div>

@@ -109,6 +109,9 @@ export function tinhGia(
 
 
   const laMang = dauVao.loaiSanPham === 'mang';
+  const laMangInChiCoCongDoanIn = laMang
+    && dauVao.loaiMang === 'mangIn'
+    && !lop2 && !lop2Phu && !lop3 && !lop4 && !lop5;
 
 
 
@@ -116,9 +119,11 @@ export function tinhGia(
 
   const { dienTichTui, tongDienTich, khoCatIn, chieuDaiMang, khoCat, metCat } = tinhKichThuoc({ soLuong, khoTrai, buocCat, soHinh, laMang });
 
-  const hatHaoCat = tinhHaoHutCat(metCat, hangSo);
+  const hatHaoCat = laMangInChiCoCongDoanIn ? 0 : tinhHaoHutCat(metCat, hangSo);
 
-  const { danhSachGhep, tongHatHaoGhep, tongChiPhiGhep } = tinhCongDoanGhep({
+  const { danhSachGhep, tongHatHaoGhep, tongChiPhiGhep } = laMangInChiCoCongDoanIn
+    ? { danhSachGhep: [], tongHatHaoGhep: 0, tongChiPhiGhep: 0 }
+    : tinhCongDoanGhep({
     lop2, lop2Phu, lop3, lop4, lop5,
     khoCat, metCat, hatHaoCat, khoTrai, soHinh, hangSo,
     chieuDaiLop2: dauVao.chieuDaiLop2,
@@ -139,14 +144,21 @@ export function tinhGia(
 
 
 
-  const { hatHaoIn, cpSXIn, chiPhiSXIn, donGiaVatLieuIn, chiPhiVatLieuIn, tongChiPhiIn } = tinhCongDoanIn({ lop1, soMau: soMau!, metIn, khoNLIn, hangSo, tyLePhuMucMuc, phiKimLoai, bangGiaKhoNho: dauVao.bangGiaKhoNho });
+  const { hatHaoIn, cpSXIn, chiPhiSXIn, donGiaVatLieuIn, chiPhiVatLieuIn, tongChiPhiIn, cpMangIn, gioSetupMangIn, gioSanXuatMangIn, tongGioMangIn, chiPhiGioMangIn } = tinhCongDoanIn({ lop1, soMau: soMau!, metIn, khoNLIn, hangSo, tyLePhuMucMuc, phiKimLoai, bangGiaKhoNho: dauVao.bangGiaKhoNho, laMangInChiCoCongDoanIn });
 
   const { cpSXCat, chiPhiSXCat, tongChiPhiCat } = tinhCongDoanCat({ laMang, dienTichTui, metCat, hatHaoCat, khoCat, hangSo });
 
   const tongChiPhiSX = tongChiPhiIn + tongChiPhiGhep + tongChiPhiCat;
 
   const cotLoiNhuanApDung = chonCotLoiNhuanApDung({ dauVao, lop1, lop2, lop2Phu, lop3, lop4, lop5, coKhoa });
-  const tyLeLoiNhuan = traLoiNhuan(tongChiPhiSX, cotLoiNhuanApDung, bangLoiNhuan);
+  const dongLoiNhuanMangIn = laMangInChiCoCongDoanIn
+    ? (hangSo.tyLeLoiNhuanMangIn ?? []).find(row =>
+      row.nhomKhach === (dauVao.nhomKhachMangIn ?? 'normal')
+      && (soMau ?? 0) >= row.soMauTu
+      && (soMau ?? 0) <= row.soMauDen
+    )
+    : undefined;
+  const tyLeLoiNhuan = dongLoiNhuanMangIn?.tyLe ?? traLoiNhuan(tongChiPhiSX, cotLoiNhuanApDung, bangLoiNhuan);
 
 
   const soTienLoiNhuan = tyLeLoiNhuan * tongChiPhiSX;
@@ -180,9 +192,24 @@ export function tinhGia(
 
 
 
-  const { cuocVanChuyenThucTePerKm, soKmThucTe, tyLeCuocVanChuyen, tongCuocVanChuyen, cuocVanChuyenPerDonVi } = tinhVanChuyen({ soLuong, cuocVanChuyenPerKm, soKmVanChuyen });
+  const { cuocVanChuyenThucTePerKm, soKmThucTe, tyLeCuocVanChuyen, tongCuocVanChuyen, cuocVanChuyenPerDonVi } = tinhVanChuyen({
+    soLuong,
+    cuocVanChuyenPerKm,
+    soKmVanChuyen,
+    vanChuyenMangIn: laMangInChiCoCongDoanIn ? {
+      nguongM2: hangSo.nguongVanChuyenMangInM2 ?? 25000,
+      chiPhiMoc: hangSo.chiPhiVanChuyenMangIn ?? 500000,
+      mocM2: hangSo.mocVanChuyenMangInM2 ?? 30000,
+    } : undefined,
+  });
 
-  const { ngayThanhToanThucTe, laiSuatCoBan, laiSuatThem, laiSuatPerDonVi } = tinhLaiVay({ chiPhiDonVi, ngayThanhToan: dauVao.ngayThanhToan, laiSuatCoBan: hangSo.laiSuatCoBan, laiSuatThem: hangSo.laiSuatThem });
+  const { ngayThanhToanThucTe, laiSuatCoBan, laiSuatThem, laiSuatPerDonVi } = tinhLaiVay({
+    chiPhiDonVi,
+    ngayThanhToan: dauVao.ngayThanhToan,
+    laiSuatCoBan: hangSo.laiSuatCoBan,
+    laiSuatThem: hangSo.laiSuatThem,
+    laiSuatMangIn: laMangInChiCoCongDoanIn ? (hangSo.laiSuatMangIn ?? 0.01) : undefined,
+  });
 
   const { hoaHongPerDonVi } = tinhHoaHong({ chiPhiDonVi, tyLeHoaHong, donViHoaHong: dauVao.donViHoaHong, hoaHongCoDinhVND: dauVao.hoaHongCoDinhVND });
 
@@ -215,6 +242,7 @@ export function tinhGia(
 
 
     khoNLIn, metIn, hatHaoIn, cpSXIn, chiPhiSXIn, chiPhiVatLieuIn, tongChiPhiIn,
+    cpMangIn, gioSetupMangIn, gioSanXuatMangIn, tongGioMangIn, chiPhiGioMangIn,
 
 
     tongChiPhiSX, tongChiPhiGhep, tyLeLoiNhuan, soTienLoiNhuan, doanhThu, chiPhiDonVi,

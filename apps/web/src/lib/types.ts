@@ -62,6 +62,13 @@ export interface CutRule {
   multiplier: number;
 }
 
+export interface PrintFilmProfitRate {
+  customerGroup: 'normal' | 'large';
+  colorFrom: number;
+  colorTo: number;
+  rate: number;
+}
+
 export interface CylType {
   key: string;
   label: string;
@@ -123,6 +130,18 @@ export interface AppConstants {
   printWasteB: number;
   printWasteC: number;
   printWasteD: number;
+  printFilmInkPriceBopp?: number;
+  printFilmInkPriceOther?: number;
+  printFilmSetupMinutesPerColor?: number;
+  printFilmSetupHourDivisor?: number;
+  printFilmLengthThreshold?: number;
+  printFilmShortRunSpeed?: number;
+  printFilmLaborCostPerHour?: number;
+  printFilmShippingThresholdM2?: number;
+  printFilmShippingBaseCost?: number;
+  printFilmShippingLargeOrderM2?: number;
+  printFilmInterestRate?: number;
+  printFilmProfitRates?: PrintFilmProfitRate[];
   customCylTypes?: CylType[];
   customPaymentDays?: number[];
   customAccessories?: CustomAccessory[];
@@ -141,6 +160,7 @@ export interface CalculateInput {
   quantity: number;
   numColors: number | null;
   numImages: number;
+  printFilmCustomerGroup?: 'normal' | 'large';
   layer1Id?: string | null;
   layer2Id?: string | null;
   layer2AltId?: string | null;
@@ -368,6 +388,11 @@ export interface CalculateResult {
   printCostCPSX: number;
   printCostMaterial: number;
   printTotalCost: number;
+  printFilmCost?: number;
+  printFilmSetupHours?: number;
+  printFilmProductionHours?: number;
+  printFilmTotalHours?: number;
+  printFilmLaborCostPerHour?: number;
   totalProductionCost: number;
   totalLamCost: number;
   profitRate: number;
@@ -533,4 +558,3 @@ export interface ProductionOrder {
     totalArea: number;          // Tổng diện tích đơn hàng (m²)
   };
 }
-

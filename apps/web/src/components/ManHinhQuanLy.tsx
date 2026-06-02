@@ -287,6 +287,24 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
   materials: Material[];
 }) {
   const { rows: cacDongDaXuLy, totalCPSX: tongCPSX, totalCPVL: tongCPVL } = xuLyDongGhiDe(cacDongSanXuat, ghiDeNguon, ghiDeHienTai);
+  const cpMangIn = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
+  const dongCpMangIn = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0);
+  const coCpMangIn = cpMangIn > 0;
+  const renderOCPMangIn = (rowIndex: number) => {
+    if (!coCpMangIn) return null;
+    return (
+      <td className="num" data-label="CP Màng in" rowSpan={Math.max(cacDongDaXuLy.length, 1)} style={{verticalAlign: 'middle', fontWeight: 800, color: 'var(--accent)'}}>
+        <div>{dinhDangSo(cpMangIn, 0)}</div>
+        {dongCpMangIn && (
+          <div style={{fontSize: '0.72rem', color: 'var(--muted)', fontWeight: 500, marginTop: 4, lineHeight: 1.35}}>
+            <div>Setup: {dinhDangSo(dongCpMangIn.printFilmSetupHours ?? 0, 2)} giờ</div>
+            <div>SX: {dinhDangSo(dongCpMangIn.printFilmProductionHours ?? 0, 2)} giờ</div>
+            <div>Tổng: {dinhDangSo(dongCpMangIn.printFilmTotalHours ?? 0, 2)} × {dinhDangSo(dongCpMangIn.printFilmLaborCostPerHour ?? 0, 0)}</div>
+          </div>
+        )}
+      </td>
+    );
+  };
 
   return (
     <div className={`override-section override-section--${lopMau}`}>
@@ -305,10 +323,11 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
               <th className="num">Phi hao</th><th className="num">Đầu vào VL</th>
               <th className="num">CPSX (đ/m²)</th><th className="num">Thành tiền CPSX</th>
               <th className="num">CP vật liệu (đ/m²)</th><th className="num">Thành tiền CPVL</th>
+              {coCpMangIn && <th className="num">CP Màng in</th>}
             </tr>
           </thead>
           <tbody>
-            {cacDongDaXuLy.flatMap((row) => {
+            {cacDongDaXuLy.flatMap((row, rowIndex) => {
               if (row.materialDetails?.length) {
                 const totalDetailWidth = row.materialDetails.reduce((sum, detail) => sum + detail.width, 0) || row.width || 1;
                 const rawDetailCosts = row.materialDetails.map(detail => detail.matPrice * row.inputVL * detail.width);
@@ -342,6 +361,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                       <OChiTietCoTheGhiDe khoaDong={row.rowKey} chiTietIndex={detailIdx} truong="matPrice" giaTriGoc={chiTietGoc?.matPrice ?? detail.matPrice}
                         giaTriGhiDe={ghiDeHienTaiChiTiet?.matPrice} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} soLe={1} />
                       <td className="num" data-label="Thành tiền CPVL">{dinhDangSo(detailCostMat, 0)}</td>
+                      {rowIndex === 0 && detailIdx === 0 && renderOCPMangIn(rowIndex)}
                     </tr>
                   );
                 });
@@ -371,6 +391,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                     <td className="num" data-label="CP vật liệu">—</td>
                   )}
                   <td className="num" data-label="Thành tiền CPVL">{row.costMat != null ? dinhDangSo(row.costMat, 0) : '—'}</td>
+                  {rowIndex === 0 && renderOCPMangIn(rowIndex)}
                 </tr>
                 );
               })()];
@@ -380,11 +401,12 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
               <td className="num">{dinhDangSo(tongCPSX, 0)}</td>
               <td className="num"></td>
               <td className="num">{dinhDangSo(tongCPVL, 0)}</td>
+              {coCpMangIn && <td className="num">{dinhDangSo(cpMangIn, 0)}</td>}
             </tr>
             <tr className="total-row" style={{ fontSize: '1.05em' }}>
               <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
-              <td colSpan={3} className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>
-                {dinhDangSo(tongCPSX + tongCPVL, 0)} đ
+              <td colSpan={coCpMangIn ? 4 : 3} className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>
+                {dinhDangSo(tongCPSX + tongCPVL + cpMangIn, 0)} đ
               </td>
             </tr>
           </tbody>
@@ -477,6 +499,7 @@ export default function ManHinhQuanLy() {
   const cylPerUnit = r.cylinderCostPerUnit;
   const numTr = dauVaoKq.numColors || 0;
   const cylTotal = r.cylinderCost;
+  const laMangIn = dauVaoKq.productType === 'mang' && dauVaoKq.filmType === 'mangIn';
 
   // Commission phải tính lại từ giaVonDonViHieuLuc (sau override), không dùng r.commissionPerUnit (engine gốc)
   // Vì: commissionPerUnit = commissionRate × costPerUnit → costPerUnit thay đổi thì commission thay đổi theo
@@ -494,7 +517,7 @@ export default function ManHinhQuanLy() {
   breakdownItems.push(
     [laMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSo(r.boxPerUnit, 1) + ' đ'],
     ['Chi phí Vận chuyển', dinhDangSo(r.shippingPerUnit, 1) + ' đ'],
-    [`Lãi vay ${r.paymentDays ?? dauVaoKq.paymentDays ?? 30} ngày`, dinhDangSo(r.interestPerUnit, 1) + ' đ'],
+    [laMangIn ? `Lãi vay Màng in ${dinhDangPhanTram(r.interestBase || 0)}` : `Lãi vay ${r.paymentDays ?? dauVaoKq.paymentDays ?? 30} ngày`, dinhDangSo(r.interestPerUnit, 1) + ' đ'],
     ['Hoa hồng kinh doanh', dinhDangSo(effCommissionPerUnit, 1) + ' đ']
   );
   if (dauVaoKq.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
