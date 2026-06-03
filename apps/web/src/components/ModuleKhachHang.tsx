@@ -9,6 +9,7 @@ import {
 import seedCustomers from '../data/customers.json';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { AuditEntry } from '../lib/types';
+import { getAuditChangedFields, getAuditSummary } from '../lib/customer-audit-format';
 import {
   chuyenCustomerApiSangUi,
   chuyenCustomerManagersApiSangUi,
@@ -16,7 +17,10 @@ import {
   chuyenCustomerUiSangThongTinApi,
   kiemTraMaKhachHang,
   kiemTraThongTinKhachHang,
+  layLuaChonNguoiPhuTrach,
+  sapXepPhienBanKhachHang,
   tomTatNguoiPhuTrach,
+  type CustomerVersionApi,
   type CustomerManagerUi,
 } from '../lib/customer-api';
 import {
@@ -53,6 +57,7 @@ interface Customer {
   secondarySellerId?: string | null;
   secondarySellerName?: string;
   managers?: CustomerManagerUi[];
+  versions?: CustomerVersionApi[];
   contactTitle?: string;
   contactNotes?: string;
   assignmentHistory?: string[];
@@ -579,7 +584,7 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
   onClose: () => void; onEdit: () => void;
   onNavigate: (module: string, filter: string, quoteMode?: boolean) => void;
 }) {
-  const [activeTab, setActiveTab] = useState<'info'>('info');
+  const [activeTab, setActiveTab] = useState<'info' | 'versions'>('info');
   const history = dungCuaHangTinhGia(s => s.history);
   const loadHistoryItem = dungCuaHangTinhGia(s => s.loadHistoryItem);
   const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
@@ -594,6 +599,7 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
   const duocXemLienHe = canViewContact(role, customer, currentSellerId);
   const giaTriAn = 'Ẩn do chưa được phân công';
   const summary = managerSummary(customer);
+  const versions = sapXepPhienBanKhachHang(customer.versions ?? []);
 
   // Customer-specific audit entries
   const customerAudit = auditLog?.filter(e =>
@@ -665,6 +671,9 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
           <button className={`crm2-panel-tab${activeTab === 'info' ? ' crm2-panel-tab--active' : ''}`} onClick={() => setActiveTab('info')}>
             <Users size={14}/> Thông tin
           </button>
+          <button className={`crm2-panel-tab${activeTab === 'versions' ? ' crm2-panel-tab--active' : ''}`} onClick={() => setActiveTab('versions')}>
+            <FileText size={14}/> Lịch sử phiên bản
+          </button>
         </div>
 
         {/* Tab content */}
@@ -707,6 +716,35 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
                   </div>
                 )}
               </div>
+            </div>
+          )}
+
+          {activeTab === 'versions' && (
+            <div className="crm2-version-history">
+              {versions.length === 0 ? (
+                <div className="crm2-manager-empty">
+                  <FileText size={22}/>
+                  <b>Chưa có lịch sử phiên bản</b>
+                  <span>Khách hàng này mới được tạo mã, chưa lưu thông tin chi tiết.</span>
+                </div>
+              ) : versions.map(version => (
+                <div className="crm2-version-card" key={version.version}>
+                  <div className="crm2-version-card-head">
+                    <b>v{version.version}</b>
+                    <span>{fmtDate(version.createdAt)}</span>
+                    <span className={`crm2-status-badge crm2-status-badge--${version.status === 'inactive' ? 'inactive' : 'active'}`}>{version.status === 'inactive' ? 'Ngừng sử dụng' : 'Đang sử dụng'}</span>
+                  </div>
+                  <div className="crm2-version-title">{version.organizationName}</div>
+                  <div className="crm2-version-grid">
+                    <span><User size={11}/> {version.contactName}</span>
+                    <span><Phone size={11}/> {version.phoneNumber}</span>
+                    <span><Mail size={11}/> {version.email}</span>
+                    <span><MapPin size={11}/> {version.address}</span>
+                  </div>
+                  {version.taxCode && <div className="crm2-version-note">MST: {version.taxCode}</div>}
+                  {version.changeNote && <div className="crm2-version-note">Ghi chú: {version.changeNote}</div>}
+                </div>
+              ))}
             </div>
           )}
 
@@ -898,6 +936,7 @@ function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry
   const [filterAction, setFilterAction] = useState<Set<string>>(new Set());
   const [filterUser, setFilterUser] = useState('');
   const [filterField, setFilterField] = useState<Set<string>>(new Set());
+  const [expandedAuditIds, setExpandedAuditIds] = useState<Set<string>>(new Set());
   const [timeRange, setTimeRange] = useState<AuditTimeRange>('7days');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
@@ -998,6 +1037,14 @@ function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry
     setFilterField(prev => {
       const next = new Set(prev);
       if (next.has(f)) next.delete(f); else next.add(f);
+      return next;
+    });
+  };
+
+  const toggleExpandedAudit = (id: string) => {
+    setExpandedAuditIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
@@ -1123,27 +1170,56 @@ function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {entries.map(e => {
                   const color = ACTION_COLORS[e.action] ?? '#9ca3af';
-                  const label = ACTION_LABELS[e.action] ?? e.action;
+                  const summary = getAuditSummary(e);
+                  const changedFields = getAuditChangedFields(e);
+                  const isExpanded = expandedAuditIds.has(e.id);
                   return (
-                    <div key={e.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, padding: '10px 12px', borderRadius: 8, background: 'var(--card,#fff)', border: '1px solid var(--border,#f3f4f6)' }}>
+                    <div key={e.id} className="crm2-audit-card">
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: color, marginTop: 5, flexShrink: 0 }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 12, fontWeight: 600, color, background: `${color}18`, padding: '2px 7px', borderRadius: 10 }}>{label}</span>
-                          {e.targetName && <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground,#111)' }}>{e.targetName}</span>}
+                          <span style={{ fontSize: 12, fontWeight: 600, color, background: `${color}18`, padding: '2px 7px', borderRadius: 10 }}>{summary.actionLabel}</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground,#111)' }}>{summary.targetName}</span>
                           <span style={{ fontSize: 12, color: 'var(--muted,#6b7280)', marginLeft: 'auto' }}>{new Date(e.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--muted,#6b7280)', marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <span><User size={11} style={{ display: 'inline', verticalAlign: 'middle' }}/> {e.userName}</span>
+                          <span><User size={11} style={{ display: 'inline', verticalAlign: 'middle' }}/> {summary.actorName}</span>
                           {e.note && <span>· {e.note}</span>}
                         </div>
-                        {/* Show changed fields */}
-                        {(e.before || e.after) && (
-                          <div style={{ marginTop: 4, fontSize: 11, color: 'var(--muted,#6b7280)' }}>
-                            {Array.from(new Set([...Object.keys(e.before || {}), ...Object.keys(e.after || {})])).filter(k => (e.before?.[k]) !== (e.after?.[k])).map(k => {
-                              const fieldLabel = CUSTOMER_DATA_FIELDS.find(f => f.value === k)?.label ?? k;
-                              return <span key={k} style={{ display: 'inline-block', background: '#f3f4f6', padding: '1px 5px', borderRadius: 4, marginRight: 4, marginBottom: 2 }}>{fieldLabel}: <del style={{ color: '#dc2626' }}>{formatAuditValue(k, e.before?.[k])}</del> → <ins style={{ color: '#059669', textDecoration: 'none' }}>{formatAuditValue(k, e.after?.[k])}</ins></span>;
-                            })}
+                        <div className="crm2-audit-summary-text">{summary.description}</div>
+                        {summary.compactFields.length > 0 && (
+                          <div className="crm2-audit-compact-fields">
+                            {summary.compactFields.map(field => <span key={field}>{field}</span>)}
+                          </div>
+                        )}
+                        {changedFields.length > 0 && (
+                          <button type="button" className="crm2-audit-expand" onClick={() => toggleExpandedAudit(e.id)}>
+                            {changedFields.length} thay đổi · {isExpanded ? 'Thu gọn' : 'Xem chi tiết'}
+                          </button>
+                        )}
+                        {isExpanded && changedFields.length > 0 && (
+                          <div className="crm2-audit-detail">
+                            <table className="crm2-audit-detail-table">
+                              <thead><tr><th>Trường</th><th>Trước</th><th>Sau</th></tr></thead>
+                              <tbody>
+                                {changedFields.map(field => (
+                                  <tr key={field.key}>
+                                    <td>{field.label}</td>
+                                    <td>{field.before}</td>
+                                    <td>{field.after}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                            <div className="crm2-audit-detail-list">
+                              {changedFields.map(field => (
+                                <div className="crm2-audit-detail-item" key={field.key}>
+                                  <b>{field.label}</b>
+                                  <span>Trước: {field.before}</span>
+                                  <span>Sau: {field.after}</span>
+                                </div>
+                              ))}
+                            </div>
                           </div>
                         )}
                       </div>
@@ -1239,8 +1315,20 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     setCustomers(loadLocalCustomers());
     if (!isAuthenticated || !accessToken) return;
     layKhachHangService(accessToken)
-      .then(data => {
-        if (!cancelled) setCustomers((Array.isArray(data) ? data : []).map(chuyenCustomerApiSangUi) as Customer[]);
+      .then(async data => {
+        const customersUi = (Array.isArray(data) ? data : []).map(chuyenCustomerApiSangUi) as Customer[];
+        const customersWithManagers = await Promise.all(customersUi.map(async customer => {
+          try {
+            return {
+              ...customer,
+              managers: chuyenCustomerManagersApiSangUi(await layNguoiPhuTrachKhachHangService(customer.customerCode, accessToken)),
+            };
+          } catch (error) {
+            console.warn(`Không tải được người phụ trách của ${customer.customerCode}:`, error);
+            return customer;
+          }
+        }));
+        if (!cancelled) setCustomers(customersWithManagers);
       })
       .catch(error => {
         console.warn('Không tải được danh sách khách hàng:', error);
@@ -1276,7 +1364,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   }, []);
 
   const options = useMemo(() => ({
-    sellers: SELLERS,
+    managers: layLuaChonNguoiPhuTrach(customers),
     groups: Array.from(new Set(customers.map(c => c.customerGroup).filter(Boolean))) as string[],
   }), [customers]);
 
@@ -1286,10 +1374,10 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     const q = normalize(filters.keyword);
     const hay = normalize([displayName(c),c.companyName,c.customerCode,c.contactName,c.phone,c.email,c.taxCode,typeLabel(c)].join(' '));
     if (q && !hay.includes(q)) return false;
-    if (filters.sellerId && c.sellerId !== filters.sellerId && c.secondarySellerId !== filters.sellerId) return false;
+    if (filters.sellerId && !(c.managers ?? []).some(manager => manager.userId === filters.sellerId)) return false;
     if (filters.customerGroup && c.customerGroup !== filters.customerGroup) return false;
     if (filters.status === 'locked' && !c.isLocked) return false;
-    if (filters.status === 'unassigned' && c.sellerId) return false;
+    if (filters.status === 'unassigned' && (c.managers?.length ?? 0) > 0) return false;
     if (filters.status !== 'all' && filters.status !== 'locked' && filters.status !== 'unassigned' && c.status !== filters.status) return false;
     const created = (c.createdAt || '').slice(0,10);
     if (filters.createdFrom && created && created < filters.createdFrom) return false;
@@ -1443,7 +1531,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     { key: 'active', label: 'Đang dùng', count: activeCount },
     { key: 'inactive', label: 'Ngừng', count: visible.filter(c => c.status === 'inactive').length },
     { key: 'locked', label: 'Đã khóa', count: lockedCount },
-    { key: 'unassigned', label: 'Chưa phân', count: visible.filter(c => !c.sellerId).length },
+    { key: 'unassigned', label: 'Chưa phân', count: visible.filter(c => (c.managers?.length ?? 0) === 0).length },
   ];
 
   return (
@@ -1592,15 +1680,15 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
             </button>
           ))}
 
-          {/* Seller dropdown */}
+          {/* Manager dropdown */}
           <div className="crm2-dropdown-wrap">
             <button className={`crm2-chip${filters.sellerId ? ' crm2-chip--active' : ''}`} onClick={() => setDropdownOpen(d => d === 'seller' ? null : 'seller')}>
-              <Briefcase size={12}/> {filters.sellerId ? SELLERS.find(s => s.id === filters.sellerId)?.name : 'Nhân viên'} <ChevronDown size={12}/>
+              <Briefcase size={12}/> {filters.sellerId ? options.managers.find(s => s.id === filters.sellerId)?.name : 'Người phụ trách'} <ChevronDown size={12}/>
             </button>
             {dropdownOpen === 'seller' && (
               <div className="crm2-dropdown-menu">
-                <button onClick={() => { setFilters(f => ({...f, sellerId: ''})); setDropdownOpen(null); }}>Tất cả nhân viên</button>
-                {options.sellers.length ? options.sellers.map(s => <button key={s.id} onClick={() => { setFilters(f => ({...f, sellerId: s.id})); setDropdownOpen(null); }}>{s.name}</button>) : <span style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>Chưa có dữ liệu</span>}
+                <button onClick={() => { setFilters(f => ({...f, sellerId: ''})); setDropdownOpen(null); }}>Tất cả người phụ trách</button>
+                {options.managers.length ? options.managers.map(s => <button key={s.id} onClick={() => { setFilters(f => ({...f, sellerId: s.id})); setDropdownOpen(null); }}>{s.name}</button>) : <span style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>Chưa có dữ liệu</span>}
               </div>
             )}
           </div>
@@ -1989,6 +2077,44 @@ const CRM2_STYLES = `
 .crm2-manager-empty b { color: var(--foreground, #111); }
 .crm2-manager-empty span { font-size: 12px; }
 
+/* Customer version history */
+.crm2-version-history { display: flex; flex-direction: column; gap: 12px; }
+.crm2-version-card {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  background: var(--card, #fff);
+  padding: 14px;
+}
+.crm2-version-card-head {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 8px; font-size: 12px; color: var(--muted, #6b7280);
+}
+.crm2-version-card-head b { color: var(--accent, #0891b2); font-size: 13px; }
+.crm2-version-title { font-weight: 700; color: var(--foreground, #111); margin-bottom: 8px; }
+.crm2-version-grid { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.crm2-version-grid span { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--muted, #6b7280); }
+.crm2-version-note { margin-top: 8px; font-size: 12px; color: var(--foreground, #374151); background: var(--muted-bg, #f3f4f6); border-radius: 8px; padding: 7px 9px; }
+
+/* Audit log */
+.crm2-audit-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 12px 14px; border-radius: 10px;
+  background: var(--card,#fff); border: 1px solid var(--border,#f3f4f6);
+}
+.crm2-audit-summary-text { margin-top: 6px; font-size: 12.5px; color: var(--foreground,#374151); font-weight: 600; }
+.crm2-audit-compact-fields { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+.crm2-audit-compact-fields span { font-size: 11.5px; color: var(--muted,#6b7280); background: var(--muted-bg,#f3f4f6); border-radius: 999px; padding: 3px 8px; }
+.crm2-audit-expand { margin-top: 8px; border: 0; background: transparent; color: var(--accent,#0891b2); font-size: 12px; font-weight: 700; cursor: pointer; padding: 0; }
+.crm2-audit-detail { margin-top: 10px; }
+.crm2-audit-detail-table { width: 100%; border-collapse: collapse; font-size: 12px; border: 1px solid var(--border,#e5e7eb); border-radius: 8px; overflow: hidden; }
+.crm2-audit-detail-table th { background: var(--muted-bg,#f3f4f6); color: var(--muted,#6b7280); text-align: left; padding: 8px; font-weight: 700; }
+.crm2-audit-detail-table td { padding: 8px; border-top: 1px solid var(--border,#e5e7eb); vertical-align: top; color: var(--foreground,#374151); }
+.crm2-audit-detail-table td:first-child { font-weight: 700; width: 28%; }
+.crm2-audit-detail-list { display: none; flex-direction: column; gap: 8px; }
+.crm2-audit-detail-item { border: 1px solid var(--border,#e5e7eb); border-radius: 8px; padding: 9px; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.crm2-audit-detail-item b { color: var(--foreground,#111); }
+.crm2-audit-detail-item span { color: var(--muted,#6b7280); }
+
 /* View toggle */
 .crm2-toolbar-right { display: flex; align-items: center; gap: 8px; }
 .crm2-view-toggle {
@@ -2368,6 +2494,8 @@ const CRM2_STYLES = `
   .crm2-edit-panel { right: 0; width: 100vw; max-width: 100vw; z-index: 103; }
   .crm2-info-grid { grid-template-columns: 1fr; }
   .crm2-header { flex-direction: column; }
+  .crm2-audit-detail-table { display: none; }
+  .crm2-audit-detail-list { display: flex; }
 }
 
 /* CRM badge */

@@ -41,6 +41,11 @@ export interface CustomerManagerPayload {
   canWrite: boolean;
 }
 
+export interface CustomerManagerOption {
+  id: string;
+  name: string;
+}
+
 export interface TaiKhoanPhanCong {
   id: string;
   account: string;
@@ -83,6 +88,7 @@ export interface CustomerUi {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  versions?: CustomerVersionApi[];
 }
 
 export function chuyenCustomerManagersApiSangUi(managers: CustomerManagerApi[] = []): CustomerManagerUi[] {
@@ -129,6 +135,26 @@ export function tomTatNguoiPhuTrach(managers: CustomerManagerUi[] = []): { prima
     primary: `${managers.length} người phụ trách`,
     secondary: `${writableName} · ${writableLabel}`,
   };
+}
+
+export function layLuaChonNguoiPhuTrach(customers: Pick<CustomerUi, 'managers'>[] = []): CustomerManagerOption[] {
+  const options = new Map<string, CustomerManagerOption>();
+
+  for (const customer of customers) {
+    for (const manager of customer.managers ?? []) {
+      if (!manager.userId || options.has(manager.userId)) continue;
+      options.set(manager.userId, {
+        id: manager.userId,
+        name: manager.fullName || manager.account || manager.userId,
+      });
+    }
+  }
+
+  return [...options.values()].sort((left, right) => left.name.localeCompare(right.name, 'vi'));
+}
+
+export function sapXepPhienBanKhachHang(versions: CustomerVersionApi[] = []): CustomerVersionApi[] {
+  return [...versions].sort((left, right) => right.version - left.version);
 }
 
 export function kiemTraMaKhachHang(value: string): { hopLe: boolean; maKhachHang: string; loi?: string } {
@@ -184,6 +210,7 @@ export function chuyenCustomerApiSangUi(customer: CustomerApi): CustomerUi {
     notes: latest ? latest.changeNote ?? '' : 'Khách hàng này mới được tạo mã. Vui lòng bổ sung thông tin liên hệ và địa chỉ.',
     createdAt: customer.createdAt,
     updatedAt: latest?.createdAt ?? customer.createdAt,
+    versions: customer.versions ?? [],
   };
 }
 

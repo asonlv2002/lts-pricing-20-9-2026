@@ -8,7 +8,9 @@ import {
   chuyenCustomerApiSangUi,
   chuyenCustomerManagersSangPayload,
   chuyenCustomerUiSangThongTinApi,
+  layLuaChonNguoiPhuTrach,
   locTaiKhoanActive,
+  sapXepPhienBanKhachHang,
   tomTatNguoiPhuTrach,
   kiemTraMaKhachHang,
   kiemTraThongTinKhachHang,
@@ -72,6 +74,8 @@ assert('maps codeName to customerCode', mapped.customerCode === 'ACME_01');
 assert('maps organizationName to companyName', mapped.companyName === 'Acme Manufacturing Co.');
 assert('maps phoneNumber to phone', mapped.phone === '0901234567');
 assert('uses latest version createdAt as updatedAt', mapped.updatedAt === '2026-06-02T00:00:00.000Z');
+assert('keeps customer versions for history tab', mapped.versions?.length === 1, String(mapped.versions?.length));
+assert('keeps newest version first for history tab', mapped.versions?.[0]?.version === 2, String(mapped.versions?.[0]?.version));
 
 const customerWithoutVersion = chuyenCustomerApiSangUi({
   codeName: 'EMPTY_01',
@@ -150,6 +154,25 @@ assert('summarizes one writable manager', tomTatNguoiPhuTrach([{ userId: '1', fu
 assert('marks writable manager in summary', tomTatNguoiPhuTrach([{ userId: '1', fullName: 'Nguyen Van An', canWrite: true }]).secondary === 'Được sửa');
 assert('summarizes multiple managers with writable lead', tomTatNguoiPhuTrach(managersUi).primary === '2 người phụ trách');
 assert('uses writable lead in multiple manager summary', tomTatNguoiPhuTrach(managersUi).secondary === 'Nguyen Van An · Được sửa');
+
+const managerOptions = layLuaChonNguoiPhuTrach([
+  { ...validCustomer, managers: managersUi },
+  { ...validCustomer, id: 'BETA_01', customerCode: 'BETA_01', managers: [{ userId: 'user-1', account: 'nguyen.an', fullName: 'Nguyen Van An', canWrite: true }] },
+  { ...validCustomer, id: 'NO_MANAGER', customerCode: 'NO_MANAGER', managers: [] },
+]);
+assert('builds unique manager filter options', managerOptions.length === 2, JSON.stringify(managerOptions));
+assert('sorts manager filter options by Vietnamese display name', managerOptions[0]?.name === 'Nguyen Van An', JSON.stringify(managerOptions));
+assert('keeps manager option id as user id', managerOptions[0]?.id === 'user-1', JSON.stringify(managerOptions));
+
+console.log('\n== Customer version history ==');
+
+const sortedVersions = sapXepPhienBanKhachHang([
+  { version: 1, organizationName: 'Old', contactName: 'A', phoneNumber: '1', email: 'old@example.com', address: 'Old address', status: 'active', createdAt: '2026-06-01T00:00:00.000Z' },
+  { version: 3, organizationName: 'Newest', contactName: 'C', phoneNumber: '3', email: 'new@example.com', address: 'New address', status: 'active', changeNote: 'Newest note', createdAt: '2026-06-03T00:00:00.000Z' },
+  { version: 2, organizationName: 'Middle', contactName: 'B', phoneNumber: '2', email: 'middle@example.com', address: 'Middle address', status: 'inactive', createdAt: '2026-06-02T00:00:00.000Z' },
+]);
+assert('sorts versions newest first', sortedVersions.map(v => v.version).join(',') === '3,2,1', sortedVersions.map(v => v.version).join(','));
+assert('preserves version change note', sortedVersions[0]?.changeNote === 'Newest note', sortedVersions[0]?.changeNote ?? '');
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);
 if (failed > 0) process.exit(1);
