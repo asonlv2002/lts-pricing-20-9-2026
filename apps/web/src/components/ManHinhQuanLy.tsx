@@ -976,15 +976,11 @@ export default function ManHinhQuanLy() {
                       <td className="num">{dinhDangSo(cpTheoThoiGianIn, 0)} đ</td>
                     </tr>
                   )}
-                  <tr className="total-row">
-                    <td colSpan={7}>TỔNG</td>
-                    <td className="num">{dinhDangSo(tongCPSX, 0)}</td>
-                    <td className="num"></td>
-                    <td className="num">{dinhDangSo(tongCPVL, 0)}</td>
-                  </tr>
                   <tr className="total-row" style={{fontSize: '1.05em'}}>
                     <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
-                    <td colSpan={3} className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{dinhDangSo(tongCong, 0)} đ</td>
+                    <td className="num">{dinhDangSo(tongCPSX, 0)}</td>
+                    <td className="num"></td>
+                    <td className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{dinhDangSo(tongCong, 0)} đ</td>
                   </tr>
                 </tbody>
               </table>

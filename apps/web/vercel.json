@@ -6,11 +6,15 @@
     "sin1"
   ],
   "env": {
-    "NEXT_PUBLIC_OFFLINE_MODE": "true"
+    "SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com",
+    "NEXT_PUBLIC_SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com",
+    "NEXT_PUBLIC_OFFLINE_MODE": "false"
   },
   "build": {
     "env": {
-      "NEXT_PUBLIC_OFFLINE_MODE": "true"
+      "SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com",
+      "NEXT_PUBLIC_SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com",
+      "NEXT_PUBLIC_OFFLINE_MODE": "false"
     }
   }
 }
