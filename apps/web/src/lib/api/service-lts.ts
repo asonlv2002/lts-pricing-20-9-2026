@@ -248,6 +248,13 @@ export async function lamMoiTokenService(refreshToken: string): Promise<DangNhap
   });
 }
 
+export async function doiMatKhauService(token: string, currentPassword: string, newPassword: string): Promise<DangNhapApi> {
+  return goiService<DangNhapApi>('/auth/me/password', {
+    method: 'PATCH',
+    body: JSON.stringify({ currentPassword, newPassword }),
+  }, token);
+}
+
 // ── Accounts ─────────────────────────────────────────────────────────────
 export async function layTaiKhoanService(token: string, name?: string): Promise<TaiKhoanApi[]> {
   const query = name?.trim() ? `?name=${encodeURIComponent(name.trim())}` : '';
@@ -262,11 +269,17 @@ export async function taoTaiKhoanService(token: string, input: { account: string
 }
 
 export async function kichHoatTaiKhoanService(token: string, userId: string): Promise<TaiKhoanApi> {
-  return goiService<TaiKhoanApi>(`/auth/accounts/${userId}/activate`, { method: 'PATCH' }, token);
+  return goiService<TaiKhoanApi>(`/auth/accounts/${userId}/activate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive: true }),
+  }, token);
 }
 
 export async function voHieuTaiKhoanService(token: string, userId: string): Promise<TaiKhoanApi> {
-  return goiService<TaiKhoanApi>(`/auth/accounts/${userId}/deactivate`, { method: 'PATCH' }, token);
+  return goiService<TaiKhoanApi>(`/auth/accounts/${userId}/activate`, {
+    method: 'PATCH',
+    body: JSON.stringify({ isActive: false }),
+  }, token);
 }
 
 export async function capNhatBaoVeService(token: string, userId: string, isProtected: boolean): Promise<TaiKhoanApi> {
@@ -278,14 +291,14 @@ export async function capNhatBaoVeService(token: string, userId: string, isProte
 
 // ── User policies ─────────────────────────────────────────────────────────
 export async function capQuyenService(token: string, userId: string, policyCodes: PolicyCode[]): Promise<TaiKhoanApi> {
-  return goiService<TaiKhoanApi>(`/auth/accounts/${userId}/policies`, {
+  return goiService<TaiKhoanApi>(`/policies/accounts/${userId}`, {
     method: 'POST',
     body: JSON.stringify({ policyCodes }),
   }, token);
 }
 
 export async function thuHoiQuyenService(token: string, userId: string, policyCodes: PolicyCode[]): Promise<TaiKhoanApi> {
-  return goiService<TaiKhoanApi>(`/auth/accounts/${userId}/policies`, {
+  return goiService<TaiKhoanApi>(`/policies/accounts/${userId}`, {
     method: 'DELETE',
     body: JSON.stringify({ policyCodes }),
   }, token);

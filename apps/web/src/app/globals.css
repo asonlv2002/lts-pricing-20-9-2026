@@ -1942,6 +1942,13 @@ body {
   font-weight: 500;
 }
 
+.lts-fab-logout--pw {
+  background: rgba(99,102,241,0.1);
+  color: #6366f1;
+  margin-left: 6px;
+  padding: 6px 10px;
+}
+
 /* ─── MAIN AREA ─── */
 .lts-shell-main {
   flex: 1;
@@ -6319,3 +6326,100 @@ body {
 .boloc-panel { padding: 12px 14px; background: var(--surface2); border-radius: 10px; border: 1px solid var(--border); }
 .boloc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
 .boloc-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; border-radius: 8px; background: var(--accent); color: #fff; font-size: 0.65rem; font-weight: 700; margin-left: 4px; padding: 0 4px; }
+
+/* ═══════════════════════════════════════════════════════════════
+   CHANGE PASSWORD MODAL (.lts-modal-*, .lts-field-*, .lts-btn-*)
+═══════════════════════════════════════════════════════════════ */
+
+.lts-modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+  animation: lts-fade-in 0.2s ease-out;
+}
+@keyframes lts-fade-in { from { opacity: 0 } to { opacity: 1 } }
+
+.lts-modal-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-lg);
+  width: 420px; max-width: 92vw;
+  animation: lts-scale-in 0.2s ease-out;
+}
+@keyframes lts-scale-in { from { opacity: 0; transform: scale(0.96) translateY(8px) } to { opacity: 1; transform: scale(1) translateY(0) } }
+
+.lts-modal-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 22px 24px 0;
+}
+.lts-modal-head h3 { margin: 0; font-size: 17px; font-weight: 700; color: var(--text); letter-spacing: -0.01em; }
+.lts-modal-sub { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.lts-modal-head-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  background: rgba(79, 70, 229, 0.10);
+  color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.lts-modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+.lts-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 0 24px 22px; }
+
+.lts-modal-error {
+  padding: 10px 14px; border-radius: 10px;
+  background: rgba(220, 38, 38, 0.08);
+  border: 1px solid rgba(220, 38, 38, 0.22);
+  color: var(--red); font-size: 13px; font-weight: 600;
+}
+
+.lts-modal-success { text-align: center; padding: 24px 20px; }
+.lts-modal-success-icon {
+  width: 52px; height: 52px; border-radius: 50%;
+  background: var(--green); color: #fff;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 24px; font-weight: 700; margin-bottom: 12px;
+}
+.lts-modal-success h3 { margin: 0 0 4px; font-size: 17px; color: var(--text); }
+.lts-modal-success p { margin: 0 0 18px; font-size: 13px; color: var(--muted); }
+
+/* ── Fields ──────────────────────────────── */
+.lts-field { display: flex; flex-direction: column; gap: 5px; }
+.lts-field-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.lts-field-wrap { position: relative; }
+.lts-field-input {
+  width: 100%; height: 42px;
+  border: 1px solid var(--border); border-radius: 11px;
+  background: var(--input-bg); color: var(--text);
+  padding: 0 40px 0 12px; font: inherit; font-size: 14px;
+  outline: none; transition: border-color 0.15s, box-shadow 0.15s;
+}
+.lts-field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(79,70,229,0.12); background: var(--surface); }
+.lts-field-input:disabled { opacity: 0.55; cursor: not-allowed; }
+.lts-field-eye {
+  position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+  border: none; background: none; color: var(--dim); cursor: pointer;
+  padding: 4px; display: flex;
+}
+.lts-field-eye:hover { color: var(--muted); }
+.lts-field-hint { font-size: 11px; color: var(--dim); }
+
+/* ── Shared buttons ──────────────────────── */
+.lts-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 11px;
+  font: inherit; font-size: 13.5px; font-weight: 600;
+  cursor: pointer; transition: all 0.15s;
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+}
+.lts-btn:hover { border-color: var(--accent); color: var(--accent); }
+.lts-btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
+.lts-btn--primary { background: var(--accent); color: #fff; border-color: transparent; box-shadow: 0 2px 8px rgba(79,70,229,0.3); }
+.lts-btn--primary:hover { filter: brightness(1.1); color: #fff; }
+.lts-btn--ghost { background: transparent; border-color: var(--border); color: var(--muted); }
+.lts-btn--ghost:hover { color: var(--accent); border-color: var(--accent); background: rgba(79,70,229,0.04); }
+
+.lts-sidebar-logout--pw {
+  margin-right: 4px;
+}

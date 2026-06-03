@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { dungCuaHangTinhGia } from '../../store/CuaHangTinhGia';
 import { OFFLINE_ACCOUNTS } from '../../store/slices/auth';
 import DangNhapModal from '../auth/DangNhapModal';
+import DoiMatKhauModal from '../auth/DoiMatKhauModal';
 import ModuleKhachHang from '../ModuleKhachHang';
 import ModuleNhanVienBan from '../ModuleNhanVienBan';
 import ModuleBaoGia from '../ModuleBaoGia';
@@ -17,7 +18,7 @@ import {
   Calculator, FileText, Users, Settings, Menu, Factory,
   Database, Briefcase, X, ChevronRight, Plus,
   UserCog, ClipboardList, LayoutDashboard, Package, Shield,
-  LogOut, RefreshCw,
+  LogOut, RefreshCw, KeyRound,
 } from 'lucide-react';
 
 // ============================================================
@@ -232,9 +233,10 @@ interface ThuocTinhThanhBen {
   datDangMo: (v: boolean) => void;
   laMobile: boolean;
   policies: PolicyCode[];
+  datHienDoiMatKhau: () => void;
 }
 
-function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, dangMo, datDangMo, laMobile, policies }: ThuocTinhThanhBen) {
+function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, dangMo, datDangMo, laMobile, policies, datHienDoiMatKhau }: ThuocTinhThanhBen) {
   const [nhomDangMo, datNhomDangMo] = useState(() => timNhomTheoMenu(menuDangChon));
   const nhomHienThi = CAC_NHOM_MENU.filter(nhom => coTheXemNhomMenu(policies, nhom.id));
 
@@ -340,6 +342,13 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
                   </div>
                 )}
                 <button
+                  className="lts-sidebar-logout lts-sidebar-logout--pw"
+                  onClick={datHienDoiMatKhau}
+                  title="Đổi mật khẩu"
+                >
+                  <KeyRound size={14} />
+                </button>
+                <button
                   className="lts-sidebar-logout"
                   onClick={() => dungCuaHangTinhGia.getState().logout()}
                   title="Đăng xuất"
@@ -359,12 +368,13 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
 // ============================================================
 // MOBILE FLOATING MENU
 // ============================================================
-function MenuNoiMobile({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, policies }: {
+function MenuNoiMobile({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, policies, datHienDoiMatKhau }: {
   moduleDangMo: MaModule;
   menuDangChon: string;
   datMenuDangChon: (key: string) => void;
   datModuleDangMo: (id: MaModule) => void;
   policies: PolicyCode[];
+  datHienDoiMatKhau: () => void;
 }) {
   const [dangMo, datDangMo] = useState(false);
   const menuHienThi = CAC_NHOM_MENU.flatMap(nhom => nhom.mucCon).filter(item => coTheXemMucMenu(policies, item.key));
@@ -411,6 +421,13 @@ function MenuNoiMobile({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleD
                     onClick={() => { dungCuaHangTinhGia.getState().logout(); datDangMo(false); }}
                   >
                     <LogOut size={14} /> Thoát
+                  </button>
+                  <button
+                    className="lts-fab-logout lts-fab-logout--pw"
+                    onClick={() => { datHienDoiMatKhau(); datDangMo(false); }}
+                    title="Đổi mật khẩu"
+                  >
+                    <KeyRound size={14} />
                   </button>
                 </>
               )}
@@ -501,6 +518,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [thanhBenDangMo, datThanhBenDangMo] = useState(true);
   const [laMobile, datLaMobile] = useState(false);
   const [menuDangChon, datMenuDangChon] = useState('pricing.create_calculation');
+  const [hienDoiMatKhau, datHienDoiMatKhau] = useState(false);
 
   const nguoiDung = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
   const isAuthenticated = dungCuaHangTinhGia(s => s.isAuthenticated);
@@ -670,6 +688,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           datDangMo={datThanhBenDangMo}
           laMobile={false}
           policies={policies}
+          datHienDoiMatKhau={() => datHienDoiMatKhau(true)}
         />
       ) : (
         <MenuNoiMobile
@@ -678,6 +697,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           datMenuDangChon={datMenuDangChon}
           datModuleDangMo={datModuleDangMo}
           policies={policies}
+          datHienDoiMatKhau={() => datHienDoiMatKhau(true)}
         />
       )}
 
@@ -705,6 +725,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {/* Fallback: TypeScript đảm bảo MaModule luôn có case ở trên — nếu không có sẽ bắt lỗi compile */}
         </div>
       </div>
+      {hienDoiMatKhau && <DoiMatKhauModal dong={() => datHienDoiMatKhau(false)} />}
     </div>
   );
 }

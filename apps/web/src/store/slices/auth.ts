@@ -7,6 +7,7 @@ import {
   dangNhapService,
   lamMoiTokenService,
   layTaiKhoanService,
+  doiMatKhauService,
   chuyenTaiKhoanApi,
   LS_ACCESS_TOKEN,
   LS_REFRESH_TOKEN,
@@ -38,6 +39,7 @@ export interface AuthSlice {
   kiemTraVaKhoiPhucPhien: () => Promise<void>;
   datAuthError: (error: string | null) => void;
   doiTaiKhoanOffline: (role: 'admin' | 'sale' | 'purchase') => void;
+  doiMatKhau: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 // Offline test accounts per role
@@ -326,6 +328,19 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       isAuthenticated: true,
     });
     get().setRole(vaiTroTuPolicies(acc.policies));
+  },
+
+  doiMatKhau: async (currentPassword, newPassword) => {
+    const token = get().accessToken;
+    if (!token) throw new Error('Chưa đăng nhập.');
+    const data = await doiMatKhauService(token, currentPassword, newPassword);
+    // Server returns new token pair — update session
+    luuToken(data.accessToken, data.refreshToken);
+    set({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      isAuthenticated: true,
+    });
   },
 });
 };
