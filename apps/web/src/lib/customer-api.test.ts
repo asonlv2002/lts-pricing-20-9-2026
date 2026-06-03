@@ -4,11 +4,16 @@
  */
 
 import {
+  chuyenCustomerManagersApiSangUi,
   chuyenCustomerApiSangUi,
+  chuyenCustomerManagersSangPayload,
   chuyenCustomerUiSangThongTinApi,
+  locTaiKhoanActive,
+  tomTatNguoiPhuTrach,
   kiemTraMaKhachHang,
   kiemTraThongTinKhachHang,
   type CustomerApi,
+  type CustomerManagerApi,
   type CustomerUi,
 } from './customer-api';
 
@@ -112,6 +117,39 @@ const updatePayload = chuyenCustomerUiSangThongTinApi(validCustomer);
 assert('maps update companyName to organizationName', updatePayload.organizationName === 'Cong ty ABC');
 assert('maps update phone to phoneNumber', updatePayload.phoneNumber === '0901234567');
 assert('does not include customerCode in update payload', !('customerCode' in updatePayload));
+
+console.log('\n== Customer manager mapping ==');
+
+const managersApi: CustomerManagerApi[] = [
+  { id: 'user-2', fullName: 'Tran Huong Mai', canWrite: false },
+  { userId: 'user-1', account: 'nguyen.an', fullName: 'Nguyen Van An', canWrite: true },
+];
+const managersUi = chuyenCustomerManagersApiSangUi(managersApi);
+assert('maps manager id fallback to userId', managersUi[0]?.userId === 'user-2');
+assert('keeps manager account when provided', managersUi[1]?.account === 'nguyen.an');
+assert('keeps manager canWrite flag', managersUi[1]?.canWrite === true);
+
+const managerPayload = chuyenCustomerManagersSangPayload([
+  { userId: ' user-1 ', account: 'nguyen.an', fullName: 'Nguyen Van An', canWrite: true },
+  { userId: 'user-2', account: 'mai.nv', fullName: 'Tran Huong Mai', canWrite: false },
+  { userId: 'user-1', account: 'nguyen.an', fullName: 'Nguyen Van An', canWrite: false },
+  { userId: '', fullName: null, canWrite: true },
+]);
+assert('trims and deduplicates manager payload', managerPayload.length === 2, JSON.stringify(managerPayload));
+assert('uses first manager canWrite when duplicate appears', managerPayload[0]?.canWrite === true);
+assert('maps manager payload key to managerId', managerPayload[0]?.managerId === 'user-1');
+
+const activeAccounts = locTaiKhoanActive([
+  { id: '1', account: 'active', fullName: 'Active User', isActive: true, isProtected: false, policies: [], createdAt: '2026-06-01' },
+  { id: '2', account: 'inactive', fullName: 'Inactive User', isActive: false, isProtected: false, policies: [], createdAt: '2026-06-01' },
+]);
+assert('filters active accounts for assignment search', activeAccounts.length === 1 && activeAccounts[0]?.account === 'active');
+
+assert('summarizes empty manager list', tomTatNguoiPhuTrach([]).primary === 'Chưa phân công');
+assert('summarizes one writable manager', tomTatNguoiPhuTrach([{ userId: '1', fullName: 'Nguyen Van An', canWrite: true }]).primary === 'Nguyen Van An');
+assert('marks writable manager in summary', tomTatNguoiPhuTrach([{ userId: '1', fullName: 'Nguyen Van An', canWrite: true }]).secondary === 'Được sửa');
+assert('summarizes multiple managers with writable lead', tomTatNguoiPhuTrach(managersUi).primary === '2 người phụ trách');
+assert('uses writable lead in multiple manager summary', tomTatNguoiPhuTrach(managersUi).secondary === 'Nguyen Van An · Được sửa');
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);
 if (failed > 0) process.exit(1);

@@ -382,6 +382,21 @@ export interface KhachHangApi {
   versions: KhachHangApiVersion[];
 }
 
+export interface KhachHangManagerApi {
+  id?: string;
+  userId?: string;
+  managerId?: string;
+  account?: string;
+  fullName: string | null;
+  canWrite: boolean;
+  createdAt?: string;
+}
+
+export interface LuuKhachHangManagerInput {
+  managerId: string;
+  canWrite: boolean;
+}
+
 export interface CapNhatKhachHangInput {
   organizationName: string;
   taxCode?: string;
@@ -408,6 +423,21 @@ export async function luuThongTinKhachHangService(codeName: string, input: CapNh
   return goiService<KhachHangApi>(`/customers/${encodeURIComponent(codeName)}`, {
     method: 'PATCH',
     body: JSON.stringify(input),
+  }, token);
+}
+
+export async function layNguoiPhuTrachKhachHangService(codeName: string, token?: string): Promise<KhachHangManagerApi[]> {
+  return goiService<KhachHangManagerApi[]>(`/customers/${encodeURIComponent(codeName)}/managers`, {}, token);
+}
+
+export async function luuNguoiPhuTrachKhachHangService(
+  codeName: string,
+  managers: LuuKhachHangManagerInput[],
+  token?: string,
+): Promise<{ codeName: string; managers: KhachHangManagerApi[] }> {
+  return goiService<{ codeName: string; managers: KhachHangManagerApi[] }>(`/customers/${encodeURIComponent(codeName)}/managers`, {
+    method: 'PUT',
+    body: JSON.stringify({ managers }),
   }, token);
 }
 

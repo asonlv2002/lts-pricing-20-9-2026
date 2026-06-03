@@ -9,8 +9,24 @@ import {
 import seedCustomers from '../data/customers.json';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { AuditEntry } from '../lib/types';
-import { chuyenCustomerApiSangUi, chuyenCustomerUiSangThongTinApi, kiemTraMaKhachHang, kiemTraThongTinKhachHang } from '../lib/customer-api';
-import { layKhachHangService, luuThongTinKhachHangService, taoMaKhachHangService } from '../lib/api/service-lts';
+import {
+  chuyenCustomerApiSangUi,
+  chuyenCustomerManagersApiSangUi,
+  chuyenCustomerManagersSangPayload,
+  chuyenCustomerUiSangThongTinApi,
+  kiemTraMaKhachHang,
+  kiemTraThongTinKhachHang,
+  tomTatNguoiPhuTrach,
+  type CustomerManagerUi,
+} from '../lib/customer-api';
+import {
+  layKhachHangService,
+  layNguoiPhuTrachKhachHangService,
+  luuNguoiPhuTrachKhachHangService,
+  luuThongTinKhachHangService,
+  taoMaKhachHangService,
+} from '../lib/api/service-lts';
+import { CustomerManagersPicker } from './customer/CustomerManagersPicker';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type CustomerStatus = 'active' | 'inactive';
@@ -36,6 +52,7 @@ interface Customer {
   sellerName?: string;
   secondarySellerId?: string | null;
   secondarySellerName?: string;
+  managers?: CustomerManagerUi[];
   contactTitle?: string;
   contactNotes?: string;
   assignmentHistory?: string[];
@@ -85,7 +102,7 @@ const SELLERS = [
   { id: 'S3', name: 'Lê Thu Hà' },
 ];
 const emptyFilters: CustomerFilters = { keyword: '', sellerId: '', customerGroup: '', status: 'all', createdFrom: '', createdTo: '' };
-const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', invoiceAddress: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', secondarySellerId: null, secondarySellerName: '', status: 'active', crmStatus: 'lead', isLocked: false, notes: '', contactTitle: '', contactNotes: '', assignmentHistory: [], assignmentNote: '', createdAt: '', updatedAt: '' };
+const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', invoiceAddress: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', secondarySellerId: null, secondarySellerName: '', managers: [], status: 'active', crmStatus: 'lead', isLocked: false, notes: '', contactTitle: '', contactNotes: '', assignmentHistory: [], assignmentNote: '', createdAt: '', updatedAt: '' };
 
 // 5-state CRM status config per spec
 const CRM_STATUS_CONFIG: Record<CrmStatus, { label: string; dot: string; bg: string; text: string }> = {
@@ -153,6 +170,13 @@ const isAssignedSeller = (c: Customer, sellerId?: string) => !!sellerId && (c.se
 const canEdit = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || (role === 'sale' && isAssignedSeller(c, sellerId) && !c.isLocked);
 const canViewContact = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || role === 'purchase' || isAssignedSeller(c, sellerId);
 const canLock = (role: Role) => role === 'admin';
+const hasWritableManager = (c: Customer, userId?: string) => !!userId && (c.managers ?? []).some(manager => manager.userId === userId && manager.canWrite);
+const canUpdateCustomerRecord = (hasUpdateAll: boolean, c: Customer, userId?: string) => hasUpdateAll || hasWritableManager(c, userId);
+const managerSummary = (c: Customer) => {
+  if (c.managers && c.managers.length > 0) return tomTatNguoiPhuTrach(c.managers);
+  if (c.sellerName || c.sellerId) return { primary: c.sellerName || c.sellerId || 'Chưa phân công', secondary: '' };
+  return tomTatNguoiPhuTrach([]);
+};
 
 // Completeness: count filled required fields
 function getCompleteness(c: Customer): { filled: number; total: number; missing: string[] } {
@@ -296,7 +320,7 @@ function CustomerField({ k, icon, form, errors, role, disabled, required, type =
 }
 
 // ── CustomerForm (Wizard) ────────────────────────────────────────────────────
-function CustomerForm({ customer, role, currentSellerId, customers = [], saving = false, onSave, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; customers?: Customer[]; saving?: boolean; onSave: (c: Customer) => void; onCancel: () => void }) {
+function CustomerForm({ customer, role, currentSellerId, customers = [], token, canManageManagers = false, saving = false, onSave, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; customers?: Customer[]; token?: string; canManageManagers?: boolean; saving?: boolean; onSave: (c: Customer) => void; onCancel: () => void }) {
   const isNew = !customer;
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<Customer>(makeInitialCustomer(customer, role, currentSellerId));
@@ -321,7 +345,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], saving 
   const stepFields: Record<number, (keyof Customer)[]> = {
     0: ['customerCode', 'companyName', 'taxCode', 'customerGroup', 'address', 'invoiceAddress'],
     1: ['contactName', 'contactTitle', 'phone', 'email', 'contactNotes'],
-    2: ['sellerId', 'secondarySellerId', 'crmStatus', 'assignmentNote', 'notes'],
+    2: ['crmStatus', 'assignmentNote', 'notes'],
   };
 
   const validateStep = (s: number) => {
@@ -379,6 +403,11 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], saving 
   const back = () => setStep(s => s - 1);
   const submit = () => {
     if (!validateAll()) { setStep(0); return; }
+    if (canManageManagers && (form.managers ?? []).length === 0) {
+      setErrors(e => ({ ...e, managers: 'Cần ít nhất 1 người phụ trách trước khi lưu.' }));
+      setStep(2);
+      return;
+    }
     onSave({ ...form, customerCode: kiemTraMaKhachHang(form.customerCode).maKhachHang, sellerName: seller?.name ?? form.sellerName ?? '', updatedAt: todayIso() });
   };
 
@@ -488,15 +517,24 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], saving 
       {step === 2 && (
         <div className="crm2-wizard-card" key="step-2">
           <div className="crm2-wizard-card-header">
-            <div className="crm2-wizard-card-icon"><Briefcase size={20}/></div>
+            <div className="crm2-wizard-card-icon"><Users size={20}/></div>
             <div>
-              <h3>Phân công phụ trách</h3>
-              <p>Sale chính, sale phụ và ghi chú phân công</p>
+              <h3>Phân công người phụ trách</h3>
+              <p>Chọn nhiều tài khoản active, mỗi người có quyền sửa riêng</p>
             </div>
           </div>
+          <CustomerManagersPicker
+            token={token}
+            value={form.managers ?? []}
+            disabled={!canManageManagers}
+            onChange={managers => {
+              setDirty(true);
+              setForm(f => ({ ...f, managers }));
+              setErrors(e => ({ ...e, managers: '' }));
+            }}
+          />
+          {errors.managers && <span className="crm2-field-error" role="alert"><AlertCircle size={11}/>{errors.managers}</span>}
           <div className="crm2-wizard-grid">
-            {role === 'admin' && renderField({ k: 'sellerId', icon: <Briefcase size={12}/>, helper: 'Sale chính được phân công sẽ thấy KH này' })}
-            {role === 'admin' && renderField({ k: 'secondarySellerId', icon: <Users size={12}/>, helper: 'Sale phụ cùng theo dõi/hỗ trợ' })}
             {renderField({ k: 'crmStatus', icon: <Shield size={12}/>, helper: 'Trạng thái quan hệ khách hàng' })}
             {renderField({ k: 'assignmentNote', icon: <FileText size={12}/>, helper: 'Lý do phân công/chuyển phụ trách/thu hồi' })}
             {renderField({ k: 'notes', icon: <FileText size={12}/>, helper: 'Điều khoản, thói quen đặt hàng, công nợ...' })}
@@ -555,6 +593,7 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
   const pct = Math.round((filled / total) * 100);
   const duocXemLienHe = canViewContact(role, customer, currentSellerId);
   const giaTriAn = 'Ẩn do chưa được phân công';
+  const summary = managerSummary(customer);
 
   // Customer-specific audit entries
   const customerAudit = auditLog?.filter(e =>
@@ -573,7 +612,7 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
     ['Số điện thoại', duocXemLienHe ? customer.phone : giaTriAn],
     ['Email', customer.email],
     ['Nhóm khách hàng', customer.customerGroup],
-    ['Sale phụ', customer.secondarySellerName || customer.secondarySellerId],
+    ['Người phụ trách', summary.primary],
     ['Ghi chú liên hệ', customer.contactNotes],
     ['Ghi chú phân công', customer.assignmentNote],
     ['Ghi chú', customer.notes],
@@ -607,7 +646,7 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
               </div>
               <span style={{ fontSize: 11, color: 'var(--muted,#6b7280)', whiteSpace: 'nowrap' }}>{filled}/{total}</span>
             </div>
-            <span className="crm2-panel-seller"><Briefcase size={11}/> {customer.sellerName || customer.sellerId || 'Chưa phân'}</span>
+            <span className="crm2-panel-seller"><Users size={11}/> {summary.primary}{summary.secondary ? ` · ${summary.secondary}` : ''}</span>
           </div>
           <button className="crm2-btn-icon crm2-btn-icon--close" aria-label="Đóng" onClick={onClose}><X size={18}/></button>
         </div>
@@ -638,6 +677,19 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
                 </div>
               )}
               <div className="crm2-info-grid">
+                {(customer.managers?.length ?? 0) > 0 && (
+                  <div className="crm2-info-item crm2-info-item--full">
+                    <span className="crm2-info-label">Người phụ trách</span>
+                    <div className="crm2-manager-list crm2-manager-list--compact">
+                      {customer.managers!.map(manager => (
+                        <div className="crm2-manager-row" key={manager.userId}>
+                          <span className="crm2-manager-main"><b>{manager.fullName || manager.account || manager.userId}</b>{manager.account && <small>@{manager.account}</small>}</span>
+                          <span className={`crm2-manager-badge${manager.canWrite ? ' crm2-manager-badge--write' : ''}`}>{manager.canWrite ? 'Được sửa' : 'Chỉ xem'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {infoFields.map(([label, value]) => (
                   <div className="crm2-info-item" key={label}>
                     <span className="crm2-info-label">{label}</span>
@@ -664,40 +716,34 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
   );
 }
 
-// ── Assign Seller Dialog ────────────────────────────────────────────────────
-function AssignSellerDialog({ customer, onSave, onClose }: { customer: Customer; onSave: (sellerId: string | null, secondarySellerId: string | null, note: string) => void; onClose: () => void }) {
-  const [sellerId, setSellerId] = useState(customer.sellerId ?? '');
-  const [secondarySellerId, setSecondarySellerId] = useState(customer.secondarySellerId ?? '');
+// ── Assign Managers Dialog ──────────────────────────────────────────────────
+function AssignSellerDialog({ customer, token, saving = false, onSave, onClose }: { customer: Customer; token?: string; saving?: boolean; onSave: (managers: CustomerManagerUi[], note: string) => void; onClose: () => void }) {
+  const [managers, setManagers] = useState<CustomerManagerUi[]>(customer.managers ?? []);
   const [note, setNote] = useState('');
+  const [error, setError] = useState('');
   return (
     <div className="crm2-overlay crm2-overlay--open" onClick={onClose}>
-      <div className="crm2-confirm-dialog" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
-        <h3>Phân công nhân viên — {displayName(customer)}</h3>
-        <p style={{ marginBottom: 16 }}>{customer.customerCode} · Nhân viên hiện tại: {customer.sellerName || 'Chưa phân'}</p>
+      <div className="crm2-confirm-dialog" style={{ maxWidth: 720 }} onClick={e => e.stopPropagation()}>
+        <h3>Phân công người phụ trách — {displayName(customer)}</h3>
+        <p style={{ marginBottom: 16 }}>{customer.customerCode} · Chọn nhiều tài khoản active, mỗi người có quyền sửa riêng.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div className="crm2-field">
-            <label className="crm2-field-label"><Briefcase size={12}/><span>Sale phụ trách chính</span></label>
-            <select className="crm2-input" value={sellerId} onChange={e => setSellerId(e.target.value)}>
-              <option value="">Chưa phân công</option>
-              {SELLERS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
-          <div className="crm2-field">
-            <label className="crm2-field-label"><Users size={12}/><span>Sale phụ</span></label>
-            <select className="crm2-input" value={secondarySellerId} onChange={e => setSecondarySellerId(e.target.value)}>
-              <option value="">Không có</option>
-              {SELLERS.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-            </select>
-          </div>
+          <CustomerManagersPicker token={token} value={managers} onChange={next => { setManagers(next); setError(''); }} />
           <div className="crm2-field">
             <label className="crm2-field-label"><FileText size={12}/><span>Ghi chú phân công</span></label>
             <textarea className="crm2-input crm2-textarea" rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="Lý do phân công, chuyển phụ trách..." />
           </div>
+          {error && <span className="crm2-field-error" role="alert"><AlertCircle size={11}/>{error}</span>}
         </div>
         <div className="crm2-confirm-actions" style={{ marginTop: 16 }}>
           <button className="crm2-btn crm2-btn--ghost" onClick={onClose}>Hủy</button>
-          <button className="crm2-btn crm2-btn--primary" onClick={() => onSave(sellerId || null, secondarySellerId || null, note)}>
-            <Save size={14}/> Lưu phân công
+          <button className="crm2-btn crm2-btn--primary" disabled={saving} onClick={() => {
+            if (managers.length === 0) {
+              setError('Cần ít nhất 1 người phụ trách trước khi lưu.');
+              return;
+            }
+            onSave(managers, note);
+          }}>
+            <Save size={14}/>{saving ? 'Đang lưu...' : 'Lưu phân công'}
           </button>
         </div>
       </div>
@@ -721,6 +767,7 @@ function CustomerCard({ customer, role, currentSellerId, canUpdateCustomer, rela
   const pct = Math.round((filled / total) * 100);
   const hasWarning = missing.length > 0;
   const duocXemLienHe = canViewContact(role, customer, currentSellerId);
+  const summary = managerSummary(customer);
 
   return (
     <article
@@ -748,10 +795,8 @@ function CustomerCard({ customer, role, currentSellerId, canUpdateCustomer, rela
       <div className="crm2-card-info">
         {customer.phone && <span className="crm2-card-info-row"><Phone size={12}/>{duocXemLienHe ? customer.phone : 'Ẩn SĐT'}</span>}
         {customer.email && <span className="crm2-card-info-row crm2-card-info-row--truncate"><Mail size={12}/>{customer.email}</span>}
-        {customer.sellerName
-          ? <span className="crm2-card-info-row"><Briefcase size={12}/>{customer.sellerName}</span>
-          : role === 'admin' && <span className="crm2-card-info-row crm2-card-info-row--warn"><Briefcase size={12}/>Chưa phân công <button className="crm2-assign-inline" onClick={e => { e.stopPropagation(); onAssign(); }}>+</button></span>
-        }
+        <span className="crm2-card-info-row"><Users size={12}/>{summary.primary}{summary.secondary ? ` · ${summary.secondary}` : ''}</span>
+        {summary.primary === 'Chưa phân công' && role === 'admin' && <span className="crm2-card-info-row crm2-card-info-row--warn"><Briefcase size={12}/>Chưa phân công <button className="crm2-assign-inline" onClick={e => { e.stopPropagation(); onAssign(); }}>+</button></span>}
       </div>
       {/* Completeness bar */}
       <div className="crm2-card-progress">
@@ -1135,6 +1180,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const [showThresholdSettings, setShowThresholdSettings] = useState(false);
   const [txCardOpen, setTxCardOpen] = useState<string | null>(null);
   const [dangLuuKhachHang, setDangLuuKhachHang] = useState(false);
+  const [dangLuuPhanCong, setDangLuuPhanCong] = useState(false);
   const accessToken = dungCuaHangTinhGia(s => s.accessToken);
   const isAuthenticated = dungCuaHangTinhGia(s => s.isAuthenticated);
   const nguoiDungHienTai = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
@@ -1153,6 +1199,39 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     // Pass customer name as pre-fill filter to target module
     try { localStorage.setItem('lts_navigate_filter', JSON.stringify({ module: quoteMode ? 'quote' : module, customerName: filter, ts: Date.now() })); } catch {}
     setActiveModule(module as Parameters<typeof setActiveModule>[0]);
+  };
+
+  const updateCustomerLocal = (customer: Customer) => {
+    setCustomers(prev => prev.map(c => c.id === customer.id ? customer : c));
+    setDetail(d => d?.id === customer.id ? customer : d);
+    setEditing(e => e && e.id === customer.id ? customer : e);
+    return customer;
+  };
+
+  const ensureManagers = async (customer: Customer): Promise<Customer> => {
+    if (customer.managers) return customer;
+    if (!isAuthenticated || !accessToken) return customer;
+    const managers = chuyenCustomerManagersApiSangUi(await layNguoiPhuTrachKhachHangService(customer.customerCode, accessToken));
+    return updateCustomerLocal({ ...customer, managers });
+  };
+
+  const openDetail = async (customer: Customer) => {
+    setDetail(customer);
+    try { await ensureManagers(customer); } catch (error) { console.warn('Không tải được người phụ trách:', error); }
+  };
+
+  const openEdit = async (customer: Customer | null) => {
+    if (!customer) {
+      setEditing(null);
+      return;
+    }
+    setEditing(customer);
+    try { setEditing(await ensureManagers(customer)); } catch (error) { console.warn('Không tải được người phụ trách:', error); }
+  };
+
+  const openAssign = async (customer: Customer) => {
+    setAssigning(customer);
+    try { setAssigning(await ensureManagers(customer)); } catch (error) { console.warn('Không tải được người phụ trách:', error); }
   };
 
   useEffect(() => {
@@ -1264,6 +1343,11 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     if (!checkCode.hopLe) throw new Error(checkCode.loi ?? 'Mã khách hàng chưa hợp lệ.');
 
     const codeName = checkCode.maKhachHang;
+    const managersPayload = chuyenCustomerManagersSangPayload(c.managers ?? []);
+    if (coQuyenSuaKhachHang && managersPayload.length === 0) {
+      throw new Error('Cần ít nhất 1 người phụ trách trước khi lưu khách hàng.');
+    }
+
     if (!old) {
       try {
         await taoMaKhachHangService(codeName, accessToken);
@@ -1276,7 +1360,10 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
 
     try {
       const savedApi = await luuThongTinKhachHangService(codeName, chuyenCustomerUiSangThongTinApi(c), accessToken);
-      const saved = { ...c, ...chuyenCustomerApiSangUi(savedApi), sellerId: c.sellerId, sellerName: c.sellerName, secondarySellerId: c.secondarySellerId, secondarySellerName: c.secondarySellerName, customerGroup: c.customerGroup, customerType: c.customerType, contactTitle: c.contactTitle, contactNotes: c.contactNotes, assignmentNote: c.assignmentNote, assignmentHistory: c.assignmentHistory, crmStatus: c.crmStatus } as Customer;
+      const managers = coQuyenSuaKhachHang
+        ? chuyenCustomerManagersApiSangUi((await luuNguoiPhuTrachKhachHangService(codeName, managersPayload, accessToken)).managers)
+        : c.managers;
+      const saved = { ...c, ...chuyenCustomerApiSangUi(savedApi), managers, sellerId: c.sellerId, sellerName: c.sellerName, secondarySellerId: c.secondarySellerId, secondarySellerName: c.secondarySellerName, customerGroup: c.customerGroup, customerType: c.customerType, contactTitle: c.contactTitle, contactNotes: c.contactNotes, assignmentNote: c.assignmentNote, assignmentHistory: c.assignmentHistory, crmStatus: c.crmStatus } as Customer;
       upsertLocal(saved);
       return saved;
     } catch (error) {
@@ -1312,34 +1399,36 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     });
   };
 
-  const assignSeller = (customerId: string, sellerId: string | null, secondarySellerId: string | null, note: string) => {
-    const seller = SELLERS.find(s => s.id === sellerId);
-    const secondary = SELLERS.find(s => s.id === secondarySellerId);
-    setCustomers(prev => prev.map(c => {
-      if (c.id !== customerId) return c;
-      const historyLine = `${new Date().toLocaleString('vi-VN')}: chính ${c.sellerName || c.sellerId || 'Chưa phân'} → ${seller?.name || 'Chưa phân'}; phụ ${c.secondarySellerName || c.secondarySellerId || 'Không có'} → ${secondary?.name || 'Không có'}${note ? ` (${note})` : ''}`;
-      return {
-        ...c,
-        sellerId: sellerId,
-        sellerName: seller?.name ?? '',
-        secondarySellerId: secondarySellerId,
-        secondarySellerName: secondary?.name ?? '',
-        assignmentNote: note || c.assignmentNote,
-        assignmentHistory: [...(c.assignmentHistory ?? []), historyLine],
-        updatedAt: todayIso(),
-      };
-    }));
-    const target = customers.find(c => c.id === customerId);
-    const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? currentSellerId;
+  const assignSeller = async (customer: Customer, managers: CustomerManagerUi[], note: string) => {
+    const payload = chuyenCustomerManagersSangPayload(managers);
+    if (payload.length === 0) throw new Error('Cần ít nhất 1 người phụ trách trước khi lưu phân công.');
+
+    let savedManagers = managers;
+    if (isAuthenticated && accessToken) {
+      const saved = await luuNguoiPhuTrachKhachHangService(customer.customerCode, payload, accessToken);
+      savedManagers = chuyenCustomerManagersApiSangUi(saved.managers);
+    }
+
+    const historyLine = `${new Date().toLocaleString('vi-VN')}: phân công ${savedManagers.length} người phụ trách${note ? ` (${note})` : ''}`;
+    const next = {
+      ...customer,
+      managers: savedManagers,
+      assignmentNote: note || customer.assignmentNote,
+      assignmentHistory: [...(customer.assignmentHistory ?? []), historyLine],
+      updatedAt: todayIso(),
+    };
+    updateCustomerLocal(next);
+
+    const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? nguoiDungHienTai?.fullName ?? currentSellerId;
     ghiNhatKy({
-      userId: currentSellerId,
+      userId: nguoiDungHienTai?.id ?? currentSellerId,
       userName: actorName,
       action: 'assign',
       targetType: 'customer',
-      targetId: customerId,
-      targetName: target?.companyName || target?.contactName || target?.customerCode,
-      before: { sellerId: target?.sellerId, sellerName: target?.sellerName, secondarySellerId: target?.secondarySellerId, secondarySellerName: target?.secondarySellerName },
-      after: { sellerId, sellerName: seller?.name, secondarySellerId, secondarySellerName: secondary?.name },
+      targetId: customer.id,
+      targetName: customer.companyName || customer.contactName || customer.customerCode,
+      before: { managers: customer.managers ?? [] },
+      after: { managers: savedManagers },
       note: note || undefined,
     });
     setAssigning(null);
@@ -1366,9 +1455,9 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
           customer={detail}
           role={role}
           currentSellerId={currentSellerId}
-          canUpdateCustomer={coQuyenSuaKhachHang}
+          canUpdateCustomer={canUpdateCustomerRecord(coQuyenSuaKhachHang, detail, nguoiDungHienTai?.id)}
           onClose={() => { setDetail(null); setEditing(undefined); }}
-          onEdit={() => setEditing(detail)}
+          onEdit={() => openEdit(detail)}
           onNavigate={handleNavigate}
         />
       )}
@@ -1383,6 +1472,8 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
               role={role}
               currentSellerId={currentSellerId}
               customers={customers}
+              token={accessToken ?? undefined}
+              canManageManagers={coQuyenSuaKhachHang}
               saving={dangLuuKhachHang}
               onSave={async c => {
                 setDangLuuKhachHang(true);
@@ -1420,7 +1511,18 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
       {assigning && (
         <AssignSellerDialog
           customer={assigning}
-          onSave={(sid, ssid, note) => assignSeller(assigning.id, sid, ssid, note)}
+          token={accessToken ?? undefined}
+          saving={dangLuuPhanCong}
+          onSave={async (managers, note) => {
+            setDangLuuPhanCong(true);
+            try {
+              await assignSeller(assigning, managers, note);
+            } catch (error) {
+              alert(error instanceof Error ? error.message : 'Không lưu được phân công.');
+            } finally {
+              setDangLuuPhanCong(false);
+            }
+          }}
           onClose={() => setAssigning(null)}
         />
       )}
@@ -1445,7 +1547,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                 <Download size={15}/> Xuất CSV
               </button>
               {coQuyenTaoKhachHang && (
-                <button className="crm2-btn crm2-btn--primary" onClick={() => setEditing(null)}>
+                <button className="crm2-btn crm2-btn--primary" onClick={() => openEdit(null)}>
                   <Plus size={15}/> Thêm mới
                 </button>
               )}
@@ -1641,8 +1743,10 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                 const { missing } = getCompleteness(c);
                 const crmCfg = CRM_STATUS_CONFIG[getCrmStatus(c)];
                 const duocXemLienHe = canViewContact(role, c, currentSellerId);
+                const summary = managerSummary(c);
+                const canUpdateThisCustomer = canUpdateCustomerRecord(coQuyenSuaKhachHang, c, nguoiDungHienTai?.id);
                 return (
-                <tr key={c.id} className="crm2-table-row" onClick={() => setDetail(c)}>
+                <tr key={c.id} className="crm2-table-row" onClick={() => openDetail(c)}>
                   <td>
                     <div className="crm2-table-customer">
                       <div className="crm2-table-avatar" style={{ background: getAvatarColor(c.id) }}>{getInitials(c)}</div>
@@ -1661,7 +1765,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                       <span>{duocXemLienHe ? (c.phone || '-') : 'Ẩn SĐT'}</span>
                     </div>
                   </td>
-                  <td><span className="crm2-table-seller">{c.sellerName || 'Chưa phân'}</span></td>
+                  <td><span className="crm2-table-seller">{summary.primary}{summary.secondary ? ` · ${summary.secondary}` : ''}</span></td>
                   <td>
                     <span className="crm2-crm-badge" style={{ background: crmCfg.bg, color: crmCfg.text, fontSize: 11 }}>
                       {crmCfg.dot} {crmCfg.label}
@@ -1674,9 +1778,9 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                   </td>
                   <td>
                     <div className="crm2-table-actions" onClick={e => e.stopPropagation()}>
-                      <button className="crm2-btn-icon" title="Xem" onClick={() => setDetail(c)}><Eye size={14}/></button>
-                      {coQuyenSuaKhachHang && <button className="crm2-btn-icon" title="Sửa" onClick={() => setEditing(c)}><Pencil size={14}/></button>}
-                      {role === 'admin' && <button className="crm2-btn-icon" title="Phân công" onClick={() => setAssigning(c)}><Briefcase size={14}/></button>}
+                      <button className="crm2-btn-icon" title="Xem" onClick={() => openDetail(c)}><Eye size={14}/></button>
+                      {canUpdateThisCustomer && <button className="crm2-btn-icon" title="Sửa" onClick={() => openEdit(c)}><Pencil size={14}/></button>}
+                      {coQuyenSuaKhachHang && <button className="crm2-btn-icon" title="Phân công" onClick={() => openAssign(c)}><Briefcase size={14}/></button>}
                       {canLock(role) && (
                         <button className="crm2-btn-icon" title={c.isLocked ? 'Mở khóa' : 'Khóa'} onClick={() => setConfirm({
                           title: c.isLocked ? 'Mở khóa?' : 'Khóa?',
@@ -1831,6 +1935,59 @@ const CRM2_STYLES = `
   color: var(--foreground, #374151);
 }
 .crm2-dropdown-menu button:hover { background: var(--muted-bg, #f3f4f6); }
+
+/* Managers picker */
+.crm2-managers-picker { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+.crm2-manager-section-title,
+.crm2-manager-selected-head {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12px; color: var(--muted, #6b7280); font-weight: 700;
+}
+.crm2-manager-suggestions,
+.crm2-manager-list {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 10px; background: var(--card, #fff);
+  overflow: hidden;
+}
+.crm2-manager-list--compact { margin-top: 4px; }
+.crm2-manager-suggestion,
+.crm2-manager-row {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; padding: 10px 12px;
+  border: 0; border-bottom: 1px solid var(--border, #e5e7eb);
+  background: transparent; color: var(--foreground, #111); text-align: left;
+}
+.crm2-manager-suggestion:last-child,
+.crm2-manager-row:last-child { border-bottom: 0; }
+.crm2-manager-suggestion { cursor: pointer; }
+.crm2-manager-suggestion:hover { background: color-mix(in srgb, var(--accent, #0891b2) 7%, transparent); }
+.crm2-manager-avatar {
+  width: 30px; height: 30px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center;
+  flex: 0 0 auto; background: #e0f2fe; color: #0369a1;
+  font-size: 11px; font-weight: 800; letter-spacing: .02em;
+}
+.crm2-manager-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.crm2-manager-main b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crm2-manager-main small { font-size: 11px; color: var(--muted, #6b7280); }
+.crm2-manager-add { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 700; color: var(--accent, #0891b2); }
+.crm2-manager-write { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted, #6b7280); white-space: nowrap; }
+.crm2-manager-write input { accent-color: var(--accent, #0891b2); }
+.crm2-manager-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 3px 8px; border-radius: 999px;
+  background: #f3f4f6; color: #4b5563;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+.crm2-manager-badge--write { background: #dcfce7; color: #166534; }
+.crm2-manager-empty {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  min-height: 118px; gap: 6px; text-align: center;
+  border: 1px dashed var(--border, #d1d5db); border-radius: 10px;
+  color: var(--muted, #6b7280); background: color-mix(in srgb, var(--muted-bg, #f3f4f6) 55%, transparent);
+}
+.crm2-manager-empty b { color: var(--foreground, #111); }
+.crm2-manager-empty span { font-size: 12px; }
 
 /* View toggle */
 .crm2-toolbar-right { display: flex; align-items: center; gap: 8px; }

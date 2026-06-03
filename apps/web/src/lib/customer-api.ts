@@ -20,6 +20,34 @@ export interface CustomerVersionApi {
   createdAt: string;
 }
 
+export interface CustomerManagerApi {
+  id?: string;
+  userId?: string;
+  managerId?: string;
+  account?: string;
+  fullName: string | null;
+  canWrite: boolean;
+}
+
+export interface CustomerManagerUi {
+  userId: string;
+  account?: string;
+  fullName: string | null;
+  canWrite: boolean;
+}
+
+export interface CustomerManagerPayload {
+  managerId: string;
+  canWrite: boolean;
+}
+
+export interface TaiKhoanPhanCong {
+  id: string;
+  account: string;
+  fullName: string | null;
+  isActive: boolean;
+}
+
 export interface CustomerApi {
   codeName: string;
   createdBy?: string | null;
@@ -44,6 +72,7 @@ export interface CustomerUi {
   sellerName?: string;
   secondarySellerId?: string | null;
   secondarySellerName?: string;
+  managers?: CustomerManagerUi[];
   contactTitle?: string;
   contactNotes?: string;
   assignmentHistory?: string[];
@@ -54,6 +83,52 @@ export interface CustomerUi {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export function chuyenCustomerManagersApiSangUi(managers: CustomerManagerApi[] = []): CustomerManagerUi[] {
+  return managers
+    .map((manager) => ({
+      userId: (manager.userId || manager.id || manager.managerId || '').trim(),
+      account: manager.account,
+      fullName: manager.fullName,
+      canWrite: manager.canWrite === true,
+    }))
+    .filter((manager) => manager.userId.length > 0);
+}
+
+export function chuyenCustomerManagersSangPayload(managers: CustomerManagerUi[] = []): CustomerManagerPayload[] {
+  const seen = new Set<string>();
+  const payload: CustomerManagerPayload[] = [];
+
+  for (const manager of managers) {
+    const managerId = manager.userId.trim();
+    if (!managerId || seen.has(managerId)) continue;
+    seen.add(managerId);
+    payload.push({ managerId, canWrite: manager.canWrite === true });
+  }
+
+  return payload;
+}
+
+export function locTaiKhoanActive<T extends TaiKhoanPhanCong>(accounts: T[] = []): T[] {
+  return accounts.filter((account) => account.isActive === true);
+}
+
+export function tomTatNguoiPhuTrach(managers: CustomerManagerUi[] = []): { primary: string; secondary: string } {
+  if (managers.length === 0) return { primary: 'Chưa phân công', secondary: '' };
+
+  const writable = managers.find((manager) => manager.canWrite) ?? managers[0];
+  const writableLabel = writable.canWrite ? 'Được sửa' : 'Chỉ xem';
+  const writableName = writable.fullName || writable.account || writable.userId;
+
+  if (managers.length === 1) {
+    return { primary: writableName, secondary: writableLabel };
+  }
+
+  return {
+    primary: `${managers.length} người phụ trách`,
+    secondary: `${writableName} · ${writableLabel}`,
+  };
 }
 
 export function kiemTraMaKhachHang(value: string): { hopLe: boolean; maKhachHang: string; loi?: string } {
