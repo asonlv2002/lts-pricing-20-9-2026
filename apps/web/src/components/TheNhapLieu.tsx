@@ -3,6 +3,7 @@ import React from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { autoAddCustomerIfNeeded, loadCustomers } from '../store/helpers';
+import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
 
 type KhachHangGoiY = {
   id: string;
@@ -421,7 +422,8 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   const hienCauTruc =
     (input.productType === 'tui' && !!input.bagType) ||
     (input.productType === 'mang' && !!input.filmType);
-  const laMangIn = input.productType === 'mang' && input.filmType === 'mangIn';
+  const laMangIn = isPrintFilm(input);
+  const hienThiGia = getPricingDisplayMeta(input);
 
   const xuLySaoChep = async () => {
     if (!result) {
@@ -983,33 +985,57 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                 </div>
               </>
             )}
-            <div className="advanced-sub-title">🚚 Vận chuyển</div>
-            <div className="form-row">
-              <div className="form-group">
-                <label className="form-label">Vận chuyển (đ/km)</label>
-                <ONhapSoDinhDang className="form-input" value={input.shippingPerKm || 0} onChange={(val: number) => capNhatDauVao({ shippingPerKm: val })} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Khoảng cách (km)</label>
-                <ONhapSoThapPhan className="form-input" value={input.shippingKm || 0} onChange={(val: number) => capNhatDauVao({ shippingKm: val })} />
-              </div>
-            </div>
+            {laMangIn ? (
+              <>
+                <div className="advanced-sub-title">🚚 Vận chuyển</div>
+                <div className="form-group" style={{ marginBottom: '14px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--surface2)' }}>
+                  {result ? (
+                    <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>{Math.round(result.shippingTotal).toLocaleString('vi-VN')} đ · {result.shippingPerUnit.toLocaleString('vi-VN', { maximumFractionDigits: 1 })} đ/m²</div>
+                  ) : (
+                    <div style={{ color: 'var(--muted)', fontSize: '0.84rem' }}>Chưa đủ dữ liệu để tính</div>
+                  )}
+                </div>
 
-            <div className="advanced-sub-title">⏳ Thanh toán</div>
-            <div className="form-group" style={{ marginBottom: '14px' }}>
-              <label className="form-label">Thời hạn thanh toán</label>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {[14, 30, 45, 75, 90, ...(constants.customPaymentDays ?? [])].sort((a, b) => a - b).map(days => (
-                  <label key={days} className="form-check" style={{ marginBottom: 0, padding: '6px 12px', border: `1px solid ${soNgayThanhToanHienTai === days ? 'var(--primary)' : 'var(--border)'}`, borderRadius: '6px', cursor: 'pointer', background: soNgayThanhToanHienTai === days ? 'var(--primary-light, #eff6ff)' : 'transparent' }}>
-                    <input type="radio" style={{ marginRight: '6px' }} checked={soNgayThanhToanHienTai === days} onChange={() => capNhatDauVao({ paymentDays: days })} />
-                    {days} ngày
-                  </label>
-                ))}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '6px' }}>
-                Lãi suất: {((constants.interestBase || 0) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}% + {((constants.interestSpread || 0) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}% = {(((constants.interestBase || 0) + (constants.interestSpread || 0)) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%/năm
-              </div>
-            </div>
+                <div className="advanced-sub-title">⏳ {hienThiGia.paymentInputLabel}</div>
+                <div className="form-group" style={{ marginBottom: '14px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: '8px', background: 'var(--surface2)' }}>
+                  {result ? (
+                    <div style={{ fontSize: '0.84rem', fontWeight: 700 }}>{hienThiGia.formatPrintFilmPayment(result.interestBase || 0)}</div>
+                  ) : (
+                    <div style={{ color: 'var(--muted)', fontSize: '0.84rem' }}>Chưa đủ dữ liệu để tính</div>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="advanced-sub-title">🚚 Vận chuyển</div>
+                <div className="form-row">
+                  <div className="form-group">
+                    <label className="form-label">Vận chuyển (đ/km)</label>
+                    <ONhapSoDinhDang className="form-input" value={input.shippingPerKm || 0} onChange={(val: number) => capNhatDauVao({ shippingPerKm: val })} />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Khoảng cách (km)</label>
+                    <ONhapSoThapPhan className="form-input" value={input.shippingKm || 0} onChange={(val: number) => capNhatDauVao({ shippingKm: val })} />
+                  </div>
+                </div>
+
+                <div className="advanced-sub-title">⏳ Thanh toán</div>
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label className="form-label">Thời hạn thanh toán</label>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    {[14, 30, 45, 75, 90, ...(constants.customPaymentDays ?? [])].sort((a, b) => a - b).map(days => (
+                      <label key={days} className="form-check" style={{ marginBottom: 0, padding: '6px 12px', border: `1px solid ${soNgayThanhToanHienTai === days ? 'var(--primary)' : 'var(--border)'}`, borderRadius: '6px', cursor: 'pointer', background: soNgayThanhToanHienTai === days ? 'var(--primary-light, #eff6ff)' : 'transparent' }}>
+                        <input type="radio" style={{ marginRight: '6px' }} checked={soNgayThanhToanHienTai === days} onChange={() => capNhatDauVao({ paymentDays: days })} />
+                        {days} ngày
+                      </label>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '6px' }}>
+                    Lãi suất: {((constants.interestBase || 0) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}% + {((constants.interestSpread || 0) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}% = {(((constants.interestBase || 0) + (constants.interestSpread || 0)) * 100).toLocaleString('vi-VN', { maximumFractionDigits: 2 })}%/năm
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="advanced-sub-title">💵 Hoa hồng</div>
             <div className="form-group">

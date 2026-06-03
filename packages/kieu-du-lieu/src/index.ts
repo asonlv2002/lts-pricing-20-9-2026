@@ -127,6 +127,8 @@ export interface DongLoiNhuan {
   nguong: number;
   cot1: number;
   cot2: number;
+  cot1KhachLon: number;
+  cot2KhachLon: number;
 }
 
 // ── Đầu vào tính giá ─────────────────────────────────────────────────────────

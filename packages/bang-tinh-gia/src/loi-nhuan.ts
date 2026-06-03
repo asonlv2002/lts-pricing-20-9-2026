@@ -2,8 +2,10 @@
 import type { DongLoiNhuan } from '@lts/hang-so';
 import { LOI_NHUAN_MAC_DINH_KHI_KHONG_KHOP } from '@lts/hang-so';
 
-export function traLoiNhuan(tongChiPhi: number, cotLoiNhuan: number, bangLoiNhuan: DongLoiNhuan[]): number {
-  const cot = cotLoiNhuan === 1 ? 'cot1' : 'cot2';
+export function traLoiNhuan(tongChiPhi: number, cotLoiNhuan: number, bangLoiNhuan: DongLoiNhuan[], nhomKhach: 'normal' | 'large' = 'normal'): number {
+  const cot = nhomKhach === 'large'
+    ? (cotLoiNhuan === 1 ? 'cot1KhachLon' : 'cot2KhachLon')
+    : (cotLoiNhuan === 1 ? 'cot1' : 'cot2');
   let giaTriLN = LOI_NHUAN_MAC_DINH_KHI_KHONG_KHOP[cot as keyof typeof LOI_NHUAN_MAC_DINH_KHI_KHONG_KHOP];
   for (const dong of bangLoiNhuan) {
     if (tongChiPhi < dong.nguong) {
@@ -12,16 +14,6 @@ export function traLoiNhuan(tongChiPhi: number, cotLoiNhuan: number, bangLoiNhua
     }
   }
   return giaTriLN;
-}
-
-export function dieuChinhTyLeLoiNhuanTheoNhomKhach(
-  tyLeLoiNhuan: number,
-  nhomKhach?: 'normal' | 'large',
-): number {
-  // Khách lớn đang được cấu hình bằng cách xem bảng lợi nhuận với mức hiển thị thấp hơn 3 điểm %.
-  // Runtime cần dùng cùng cơ chế để kết quả tính giá khớp với màn cấu hình hiện tại.
-  if (nhomKhach === 'large') return Math.max(0, tyLeLoiNhuan - 0.03);
-  return tyLeLoiNhuan;
 }
 
 const boDauTiengViet = (chuoi: string) => chuoi.normalize('NFD')

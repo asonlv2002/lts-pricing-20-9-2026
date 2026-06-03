@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhBaoGia, xuLyDongGhiDe } from '../lib/manager-calculation';
+import { getPricingDisplayMeta } from '../lib/pricing-display';
 import type { AppConstants, HistoryItem, Material, ProfitRow, QuoteProductLine, QuoteStatus, OverrideTable, QuoteTerms, QuoteTier, SmallWidthMaterialPrice } from '../lib/types';
 import { QUOTE_STATUS_CONFIG } from '../lib/types';
 
@@ -380,6 +381,7 @@ function QuotationCard({ muc, onClick, statusControl }: {
   const sizeStr   = spreadMm && cutMm ? `${spreadMm} × ${cutMm} mm` : '—';
   const numColors = muc.input.numColors ?? 0;
   const shownPrice = muc.chotGia && muc.chotGia > 0 ? muc.chotGia : muc.finalPrice;
+  const hienThiGia = getPricingDisplayMeta(muc.input);
   const diff      = muc.chotGia && muc.chotGia > 0 ? muc.chotGia - muc.finalPrice : 0;
   const diffPct   = diff !== 0 && muc.finalPrice > 0 ? (diff / muc.finalPrice) * 100 : 0;
   const saleCount = demGhiDe(muc.saleOverrides);
@@ -430,7 +432,7 @@ function QuotationCard({ muc, onClick, statusControl }: {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr' }}>
               <span style={{ color: 'var(--muted)', fontSize: '0.76rem' }}>Số lượng:</span>
-              <span><strong style={{ color: 'var(--accent)' }}>{dinhDangSo(muc.quantity)}</strong> túi</span>
+              <span><strong style={{ color: 'var(--accent)' }}>{dinhDangSo(muc.quantity)}</strong> {hienThiGia.quantityUnit}</span>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '90px 1fr' }}>
               <span style={{ color: 'var(--muted)', fontSize: '0.76rem' }}>Màu in:</span>
@@ -450,12 +452,12 @@ function QuotationCard({ muc, onClick, statusControl }: {
           paddingTop: '10px', marginTop: '6px', marginBottom: '10px', fontSize: '0.82rem',
         }}>
           <div>
-            <div style={{ color: 'var(--dim)', fontSize: '0.7rem', textTransform: 'uppercase' }}>Giá đề xuất / túi</div>
+            <div style={{ color: 'var(--dim)', fontSize: '0.7rem', textTransform: 'uppercase' }}>{hienThiGia.priceTitle}</div>
             <div style={{ fontWeight: 700, color: 'var(--text)' }}>{dinhDangSo(muc.finalPrice)} đ</div>
           </div>
           {muc.chotGia && muc.chotGia > 0 ? (
             <div style={{ textAlign: 'right' }}>
-              <div style={{ color: 'var(--dim)', fontSize: '0.7rem', textTransform: 'uppercase' }}>Giá chốt / túi</div>
+              <div style={{ color: 'var(--dim)', fontSize: '0.7rem', textTransform: 'uppercase' }}>{hienThiGia.closedPriceTitle}</div>
               <div style={{ fontWeight: 700, color: 'var(--green)' }}>
                 {dinhDangSo(muc.chotGia)} đ
                 <span style={{ fontSize: '0.72rem', marginLeft: 4, color: diff >= 0 ? 'var(--green)' : 'var(--red)' }}>
@@ -1027,6 +1029,7 @@ function BuocChonSanPham({
                 </div>
               ) : candidateSPs.map(item => {
                 const alreadyAdded = addedIds.has(item.id);
+                const hienThiGia = getPricingDisplayMeta(item.input);
                 return (
                   <div
                     key={item.id}
@@ -1040,7 +1043,7 @@ function BuocChonSanPham({
                     <div>
                       <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{item.productName}</div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--muted, #6b7280)' }}>
-                        {item.structure} · {dinhDangSo(item.quantity)} cái · {dinhDangSo(item.finalPrice)} ₫
+                        {item.structure} · {dinhDangSo(item.quantity)} {hienThiGia.quantityUnitForHistory} · {dinhDangSo(item.finalPrice)} ₫/{hienThiGia.unit}
                         {alreadyAdded && <span style={{ marginLeft: 6, color: 'var(--accent, #0891b2)' }}>✓ Đã thêm</span>}
                       </div>
                     </div>
@@ -1404,6 +1407,7 @@ function QuoteDetailPanel({
   const status = layTrangThai(item);
   const cauHinh = QUOTE_STATUS_CONFIG[status];
   const shownPrice = item.chotGia && item.chotGia > 0 ? item.chotGia : item.finalPrice;
+  const hienThiGia = getPricingDisplayMeta(item.input);
 
   return (
     <>
@@ -1536,8 +1540,8 @@ function QuoteDetailPanel({
                 </div>
                 <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.82rem' }}>
                   <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Cấu trúc:</span><span style={{ fontFamily: "'Courier New', monospace" }}>{item.structure || '—'}</span></div>
-                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Số lượng:</span><span>{dinhDangSo(item.quantity)} cái</span></div>
-                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Giá đề xuất:</span><span style={{ fontWeight: 600 }}>{dinhDangSo(item.finalPrice)} ₫</span></div>
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Số lượng:</span><span>{dinhDangSo(item.quantity)} {hienThiGia.quantityUnitForHistory}</span></div>
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>{hienThiGia.priceTitle}:</span><span style={{ fontWeight: 600 }}>{dinhDangSo(item.finalPrice)} ₫</span></div>
                   {item.sellerName && <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Sale:</span><span>{item.sellerName}</span></div>}
                 </div>
               </div>
@@ -1551,7 +1555,7 @@ function QuoteDetailPanel({
                   <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Khách hàng:</span><span style={{ fontWeight: 500 }}>{item.customer || '—'}</span></div>
                   <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Sản phẩm:</span><span>{item.productName || '—'}</span></div>
                   <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Cấu trúc:</span><span style={{ fontFamily: "'Courier New', monospace" }}>{item.structure || '—'}</span></div>
-                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Số lượng:</span><span>{dinhDangSo(item.quantity)} cái</span></div>
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Số lượng:</span><span>{dinhDangSo(item.quantity)} {hienThiGia.quantityUnitForHistory}</span></div>
                   {item.sellerName && <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Sale:</span><span>{item.sellerName}</span></div>}
                 </div>
               </div>
@@ -1560,9 +1564,9 @@ function QuoteDetailPanel({
               <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                 <div style={{ padding: '8px 12px', background: 'var(--surface2, #f8f9fb)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>Kết quả tính giá</div>
                 <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.82rem' }}>
-                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Giá đề xuất:</span><span style={{ fontWeight: 600 }}>{dinhDangSo(item.finalPrice)} ₫</span></div>
+                  <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>{hienThiGia.priceTitle}:</span><span style={{ fontWeight: 600 }}>{dinhDangSo(item.finalPrice)} ₫</span></div>
                   {item.chotGia && item.chotGia > 0 && (
-                    <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Giá chốt:</span><span style={{ fontWeight: 600, color: 'var(--green, #059669)' }}>{dinhDangSo(item.chotGia)} ₫</span></div>
+                    <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>{hienThiGia.closedPriceTitle}:</span><span style={{ fontWeight: 600, color: 'var(--green, #059669)' }}>{dinhDangSo(item.chotGia)} ₫</span></div>
                   )}
                   <div style={{ display: 'flex', gap: 8 }}><span style={{ color: 'var(--muted)', minWidth: 100 }}>Tổng giá trị:</span><span style={{ fontWeight: 600 }}>{dinhDangSo(Math.round(shownPrice * item.quantity))} VNĐ</span></div>
                 </div>
@@ -1590,8 +1594,8 @@ function QuoteDetailPanel({
                             <td style={{ padding: '6px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }}>
                               {p.tiers.map((tier, i) => (
                                 <div key={i} style={{ marginBottom: 2 }}>
-                                  {dinhDangSo(tier.quantity)}: <b>{dinhDangSo(tier.chotGia ?? tier.finalPrice ?? 0)} ₫</b>
-                                  <span style={{ color: 'var(--muted)', marginLeft: 6, fontSize: '0.75rem' }}>({dinhDangSo(tier.finalPrice)} ₫ giá chốt)</span>
+                                  {dinhDangSo(tier.quantity)} {hienThiGia.quantityUnit}: <b>{dinhDangSo(tier.chotGia ?? tier.finalPrice ?? 0)} ₫/{hienThiGia.unit}</b>
+                                  <span style={{ color: 'var(--muted)', marginLeft: 6, fontSize: '0.75rem' }}>({dinhDangSo(tier.finalPrice)} ₫/{hienThiGia.unit} đề xuất)</span>
                                 </div>
                               ))}
                             </td>
@@ -1610,8 +1614,8 @@ function QuoteDetailPanel({
                   <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 4, fontSize: '0.82rem' }}>
                     {item.tiers.map((tier, i) => (
                       <div key={i} style={{ display: 'flex', gap: 8 }}>
-                        <span style={{ color: 'var(--muted)', minWidth: 100 }}>{dinhDangSo(tier.quantity)} cái:</span>
-                        <span style={{ fontWeight: 600 }}>{dinhDangSo(tier.chotGia ?? tier.finalPrice ?? 0)} ₫</span>
+                        <span style={{ color: 'var(--muted)', minWidth: 100 }}>{dinhDangSo(tier.quantity)} {hienThiGia.quantityUnit}:</span>
+                        <span style={{ fontWeight: 600 }}>{dinhDangSo(tier.chotGia ?? tier.finalPrice ?? 0)} ₫/{hienThiGia.unit}</span>
                       </div>
                     ))}
                   </div>

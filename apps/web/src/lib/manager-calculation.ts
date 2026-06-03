@@ -191,14 +191,28 @@ export function tinhGiaHieuLuc(params: {
   saleOverrides: OverrideTable;
   adminOverrides: OverrideTable;
   profitTable: ProfitRow[];
+  constants: AppConstants;
 }) {
-  const { result, uniRows, saleOverrides, adminOverrides, profitTable } = params;
+  const { result, uniRows, saleOverrides, adminOverrides, profitTable, constants } = params;
   const activeOverrideOv = Object.keys(adminOverrides).length > 0 ? adminOverrides : Object.keys(saleOverrides).length > 0 ? saleOverrides : {};
   const sourceForActive = Object.keys(adminOverrides).length > 0 ? saleOverrides : {};
   const hasAnyOverride = Object.keys(activeOverrideOv).length > 0;
   const totals = hasAnyOverride ? xuLyDongGhiDe(uniRows, sourceForActive, activeOverrideOv) : null;
   const effTotalProdCost = totals?.grandTotal ?? result.totalProductionCost;
-  const effProfitRate = traLoiNhuanTheoBang(effTotalProdCost, result.input.profitColumn, profitTable);
+  const isPrintFilmOnly = result.input.productType === 'mang'
+    && result.input.filmType === 'mangIn'
+    && !result.input.layer2Id
+    && !result.input.layer2AltId
+    && !result.input.layer3Id
+    && !result.input.layer4Id
+    && !result.input.layer5Id;
+  const effProfitRate = isPrintFilmOnly
+    ? (constants.printFilmProfitRates ?? []).find(row =>
+      row.customerGroup === (result.input.printFilmCustomerGroup ?? 'normal')
+      && (result.input.numColors ?? 0) >= row.colorFrom
+      && (result.input.numColors ?? 0) <= row.colorTo
+    )?.rate ?? result.profitRate
+    : traLoiNhuanTheoBang(effTotalProdCost, result.input.profitColumn, profitTable, result.input.printFilmCustomerGroup ?? 'normal');
   const effProfitAmount = effProfitRate * effTotalProdCost;
   const effRevenue = effTotalProdCost + effProfitAmount;
   const effCostPerUnit = result.input.quantity > 0 ? effRevenue / result.input.quantity : 0;

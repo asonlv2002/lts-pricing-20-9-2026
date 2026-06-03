@@ -26,11 +26,13 @@ export const VAT_LIEU_MAC_DINH: VatLieu[] = (
 
 export const BANG_LOI_NHUAN_MAC_DINH: DongLoiNhuan[] = (
   duLieuLoiNhuan.rows as any[]
-).map((d: any) => ({ nguong: d.threshold, cot1: d.col1, cot2: d.col2 }));
+).map((d: any) => ({ nguong: d.threshold, cot1: d.col1, cot2: d.col2, cot1KhachLon: d.largeCol1, cot2KhachLon: d.largeCol2 }));
 
-export const LOI_NHUAN_MAC_DINH_KHI_KHONG_KHOP: { cot1: number; cot2: number } = {
+export const LOI_NHUAN_MAC_DINH_KHI_KHONG_KHOP: { cot1: number; cot2: number; cot1KhachLon: number; cot2KhachLon: number } = {
   cot1: (duLieuLoiNhuan.profitDefault as any).col1,
   cot2: (duLieuLoiNhuan.profitDefault as any).col2,
+  cot1KhachLon: (duLieuLoiNhuan.profitDefault as any).largeCol1,
+  cot2KhachLon: (duLieuLoiNhuan.profitDefault as any).largeCol2,
 };
 
 const raw = duLieuHangSo as any;

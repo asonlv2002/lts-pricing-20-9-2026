@@ -6,6 +6,7 @@ import {
   FileText, ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import { getPricingDisplayMeta } from '../lib/pricing-display';
 import type { HistoryItem, QuoteStatus } from '../lib/types';
 import { QUOTE_STATUS_CONFIG } from '../lib/types';
 import LSXFormModal from './ModalDonLSX';
@@ -159,6 +160,7 @@ function DetailPanel({
   const [confirmClose, setConfirmClose] = useState(false);
   const [confirmSave, setConfirmSave] = useState(false);
   const [closeAfterSave, setCloseAfterSave] = useState(false);
+  const hienThiGia = getPricingDisplayMeta(item.input);
 
   const isDirty = editing && (
     draft.customer !== item.customer ||
@@ -348,8 +350,8 @@ function DetailPanel({
                 </div>
                 <div style={{ padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <InfoRow label="Cấu trúc" value={item.structure || '—'} mono />
-                  <InfoRow label="Số lượng" value={`${dinhDangSo(item.quantity)} cái`} />
-                  <InfoRow label="Giá thành" value={`${dinhDangSo(item.finalPrice)} ₫`} bold />
+                  <InfoRow label="Số lượng" value={`${dinhDangSo(item.quantity)} ${hienThiGia.quantityUnitForHistory}`} />
+                  <InfoRow label={hienThiGia.priceTitle} value={`${dinhDangSo(item.finalPrice)} ₫`} bold />
                   {item.sellerName && <InfoRow label="Sale" value={item.sellerName} />}
                 </div>
               </div>
@@ -361,12 +363,12 @@ function DetailPanel({
                 <InfoRow label="Khách hàng" value={item.customer || '—'} />
                 <InfoRow label="Sản phẩm" value={item.productName || '—'} />
                 <InfoRow label="Cấu trúc" value={item.structure || '—'} mono />
-                <InfoRow label="Số lượng" value={`${dinhDangSo(item.quantity)} cái`} />
+                <InfoRow label="Số lượng" value={`${dinhDangSo(item.quantity)} ${hienThiGia.quantityUnitForHistory}`} />
                 {item.sellerName && <InfoRow label="Sale" value={item.sellerName} />}
               </InfoSection>
 
               <InfoSection title="Kết quả tính giá">
-                <InfoRow label="Giá thành" value={`${dinhDangSo(item.finalPrice)} ₫`} bold />
+                <InfoRow label={hienThiGia.priceTitle} value={`${dinhDangSo(item.finalPrice)} ₫`} bold />
                 {item.chotGia && item.chotGia > 0 && (
                   <InfoRow label="Giá chốt" value={`${dinhDangSo(item.chotGia)} ₫`} bold color="var(--green, #059669)" />
                 )}
@@ -393,7 +395,7 @@ function DetailPanel({
                               {p.tiers.map((tier, i) => (
                                 <div key={i} style={{ marginBottom: 2 }}>
                                   {dinhDangSo(tier.quantity)}: <b>{dinhDangSo(tier.chotGia ?? tier.finalPrice)} ₫</b>
-                                  <span style={{ color: 'var(--muted)', marginLeft: 6 }}>({dinhDangSo(tier.finalPrice)} ₫ giá chốt)</span>
+                                  <span style={{ color: 'var(--muted)', marginLeft: 6 }}>({dinhDangSo(tier.finalPrice)} ₫/{hienThiGia.unit} đề xuất)</span>
                                 </div>
                               ))}
                             </td>
@@ -409,8 +411,8 @@ function DetailPanel({
                 <InfoSection title="Bảng giá báo">
                   {item.tiers.map((tier, i) => (
                     <InfoRow key={i}
-                      label={`${dinhDangSo(tier.quantity)} cái`}
-                      value={`${dinhDangSo(tier.chotGia ?? tier.finalPrice ?? 0)} ₫`}
+                      label={`${dinhDangSo(tier.quantity)} ${hienThiGia.quantityUnit}`}
+                      value={`${dinhDangSo(tier.chotGia ?? tier.finalPrice ?? 0)} ₫/${hienThiGia.unit}`}
                     />
                   ))}
                 </InfoSection>

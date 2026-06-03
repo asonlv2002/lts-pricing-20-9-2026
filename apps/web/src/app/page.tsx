@@ -261,7 +261,7 @@ export default function TrangChinh() {
           cpsx?: Record<string, any>;
           printWaste?: { colorSetup?: Record<number, number>; A?: number; B?: number; C?: number; D?: number };
           packaging?: { boxOptions?: BoxOption[]; boxPriceDefault?: number; bagsPerBoxDefault?: number };
-          profitTable?: Array<{ threshold?: number; col1: number; col2: number }>;
+          profitTable?: Array<{ threshold?: number; col1: number; col2: number; largeCol1: number; largeCol2: number }>;
         };
         dungCuaHangTinhGia.setState(s => {
           let vatLieuMoi = s.materials;
@@ -309,6 +309,8 @@ export default function TrangChinh() {
               threshold: row.threshold ?? s.profitTable[i]?.threshold ?? 0,
               col1: row.col1,
               col2: row.col2,
+              largeCol1: row.largeCol1,
+              largeCol2: row.largeCol2,
             }));
           }
           return { ...s, materials: vatLieuMoi, smallWidthPrices: giaKhoNhoMoi, constants: hangSoMoi, profitTable: loiNhuanMoi };
@@ -348,7 +350,7 @@ export default function TrangChinh() {
         bagsPerBoxDefault: hangSo.bagsPerBoxDefault,
       },
       printWaste: { colorSetup: hangSo.colorSetup, A: hangSo.printWasteA, B: hangSo.printWasteB, C: hangSo.printWasteC, D: hangSo.printWasteD },
-      profitTable: bangLoiNhuan.map((r: ProfitRow) => ({ threshold: r.threshold, col1: r.col1, col2: r.col2 })),
+      profitTable: bangLoiNhuan.map((r: ProfitRow) => ({ threshold: r.threshold, col1: r.col1, col2: r.col2, largeCol1: r.largeCol1, largeCol2: r.largeCol2 })),
     }));
   }, [danhSachVatLieu, bangGiaKhoNho, hangSo, bangLoiNhuan]);
 

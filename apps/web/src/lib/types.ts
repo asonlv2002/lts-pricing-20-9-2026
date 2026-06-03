@@ -37,6 +37,8 @@ export interface ProfitRow {
   threshold: number;
   col1: number;
   col2: number;
+  largeCol1: number;
+  largeCol2: number;
 }
 
 export type BoxOptionKey = string;

@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { Calendar, User, Package, Layers, Hash, RotateCcw, Trash2 } from 'lucide-react';
 
 function dinhDangSo(n: number, decimals = 0): string {
@@ -38,13 +39,14 @@ export default function XemLichSu() {
               <div className="hist-cell hist-cell--main">Khách hàng / Sản phẩm</div>
               <div className="hist-cell hist-cell--structure">Cấu trúc</div>
               <div className="hist-cell hist-cell--qty">Số lượng</div>
-              <div className="hist-cell hist-cell--prices">Giá (đ/túi)</div>
+              <div className="hist-cell hist-cell--prices">Giá</div>
               <div className="hist-cell hist-cell--actions">Thao tác</div>
             </div>
 
             {/* Rows */}
             {lichSu.map((muc) => {
               const coGiaChot = muc.chotGia && muc.chotGia > 0;
+              const hienThiGia = getPricingDisplayMeta(muc.input);
               const chenhLech = coGiaChot ? muc.chotGia! - muc.finalPrice : 0;
               const phanTramChenh = coGiaChot && muc.finalPrice > 0 ? (chenhLech / muc.finalPrice) * 100 : 0;
 
@@ -77,19 +79,19 @@ export default function XemLichSu() {
                   {/* Quantity */}
                   <div className="hist-cell hist-cell--qty">
                     <Hash size={13} className="hist-cell-icon" />
-                    <span>{dinhDangSo(muc.quantity)}</span>
+                    <span>{dinhDangSo(muc.quantity)} {hienThiGia.quantityUnitForHistory}</span>
                   </div>
 
                   {/* Prices */}
                   <div className="hist-cell hist-cell--prices">
                     <div className="hist-price-row">
                       <span className="hist-price-label">Đề xuất:</span>
-                      <span className="hist-price-val hist-price-val--suggested">{dinhDangSo(muc.finalPrice)} đ</span>
+                      <span className="hist-price-val hist-price-val--suggested">{dinhDangSo(muc.finalPrice)} đ/{hienThiGia.unit}</span>
                     </div>
                     {coGiaChot ? (
                       <div className="hist-price-row">
                         <span className="hist-price-label">Chốt:</span>
-                        <span className="hist-price-val hist-price-val--final">{dinhDangSo(muc.chotGia!)} đ</span>
+                        <span className="hist-price-val hist-price-val--final">{dinhDangSo(muc.chotGia!)} đ/{hienThiGia.unit}</span>
                         <span
                           className="hist-price-chenhLech"
                           style={{ color: chenhLech >= 0 ? 'var(--green)' : 'var(--red)' }}

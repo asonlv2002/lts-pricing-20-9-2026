@@ -8,8 +8,10 @@ import { CalculateInput, CalculateResult, Material, AppConstants, ProfitRow, Sma
 import { PROFIT_DEFAULT } from './data';
 
 // ── Tra lợi nhuận (giữ alias cũ cho các module chưa đổi) ──────────────────────
-export function traLoiNhuanTheoBang(tongChiPhi: number, cot: number, bangLoiNhuan: ProfitRow[]): number {
-  const tenCot = cot === 1 ? 'col1' : 'col2';
+export function traLoiNhuanTheoBang(tongChiPhi: number, cot: number, bangLoiNhuan: ProfitRow[], nhomKhach: 'normal' | 'large' = 'normal'): number {
+  const tenCot = nhomKhach === 'large'
+    ? (cot === 1 ? 'largeCol1' : 'largeCol2')
+    : (cot === 1 ? 'col1' : 'col2');
   let giaTri = PROFIT_DEFAULT[tenCot as keyof typeof PROFIT_DEFAULT];
   for (const dong of bangLoiNhuan) {
     if (tongChiPhi < dong.threshold) {
@@ -147,7 +149,13 @@ function doiSangHangSo(c: AppConstants, input?: CalculateInput): HangSo {
 
 // ── ProfitRow EN → DongLoiNhuan VN ──────────────────────────────────────────
 function doiSangDongLoiNhuan(rows: ProfitRow[]): DongLoiNhuan[] {
-  return rows.map(r => ({ nguong: r.threshold, cot1: r.col1, cot2: r.col2 }));
+  return rows.map(r => ({
+    nguong: r.threshold,
+    cot1: r.col1,
+    cot2: r.col2,
+    cot1KhachLon: r.largeCol1,
+    cot2KhachLon: r.largeCol2,
+  }));
 }
 
 function boDauTiengViet(chuoi: string): string {

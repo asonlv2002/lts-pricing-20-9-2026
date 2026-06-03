@@ -5,7 +5,7 @@ import type { DauVaoTinhGia, KetQuaTinhGia, VatLieu, HangSo, ChiTietLop, ChiTiet
 import type { DongLoiNhuan } from '@lts/hang-so';
 import { layVatLieu, nhanBanVatLieu } from './vat-lieu';
 import { tinhCongDoanGhep } from './cong-doan-ghep';
-import { traLoiNhuan, chonCotLoiNhuanApDung, dieuChinhTyLeLoiNhuanTheoNhomKhach } from './loi-nhuan';
+import { traLoiNhuan, chonCotLoiNhuanApDung } from './loi-nhuan';
 import { tinhKichThuoc } from './kich-thuoc';
 import { tinhHaoHutCat } from './hao-hut';
 import { tinhCongDoanIn } from './cong-doan-in';
@@ -158,8 +158,8 @@ export function tinhGia(
       && (soMau ?? 0) <= row.soMauDen
     )
     : undefined;
-  const tyLeLoiNhuanMacDinh = traLoiNhuan(tongChiPhiSX, cotLoiNhuanApDung, bangLoiNhuan);
-  const tyLeLoiNhuan = dongLoiNhuanMangIn?.tyLe ?? dieuChinhTyLeLoiNhuanTheoNhomKhach(tyLeLoiNhuanMacDinh, dauVao.nhomKhachMangIn);
+  const tyLeLoiNhuanMacDinh = traLoiNhuan(tongChiPhiSX, cotLoiNhuanApDung, bangLoiNhuan, dauVao.nhomKhachMangIn ?? 'normal');
+  const tyLeLoiNhuan = dongLoiNhuanMangIn?.tyLe ?? tyLeLoiNhuanMacDinh;
 
 
   const soTienLoiNhuan = tyLeLoiNhuan * tongChiPhiSX;
@@ -298,7 +298,6 @@ export function tinhGia(
 
 
 }
-
 
 
 

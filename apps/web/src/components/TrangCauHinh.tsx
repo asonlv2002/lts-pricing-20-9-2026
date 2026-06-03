@@ -3,6 +3,7 @@ import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { ConfigScope } from '../lib/types';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES } from '../lib/data';
+import { commitProfitThresholdDraft, removeLastAddedProfitRow } from '../lib/profit-table-editor';
 
 let boDemLuuBangLoiNhuan: ReturnType<typeof setTimeout>;
 const luuBangLoiNhuanTre = () => {
@@ -155,6 +156,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   const [hienBangKhoNho, datHienBangKhoNho] = React.useState(false);
   const [bangGiaMauInDangXem, datBangGiaMauInDangXem] = React.useState<'normal' | 'printFilm'>('normal');
   const [ngayCongNoMoi, datNgayCongNoMoi] = React.useState('');
+  const [nguongLoiNhuanDangSua, datNguongLoiNhuanDangSua] = React.useState<Record<number, string>>({});
   const customMaterialSeq = React.useRef(0);
   const nhomCauHinh = layNhomCauHinh(menuDangChon);
   const hienVatTu = nhomCauHinh === 'materials';
@@ -182,7 +184,9 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     capNhatHangSo('customPaymentDays', [...(hangSo.customPaymentDays ?? []), soNgayCongNoMoi]);
     datNgayCongNoMoi('');
   };
-  const chenhLech = nhomKhachHang === 'svlg' ? -0.03 : 0;
+  const cotLoiNhuanTheoNhom = nhomKhachHang === 'svlg'
+    ? { col1: 'largeCol1' as const, col2: 'largeCol2' as const }
+    : { col1: 'col1' as const, col2: 'col2' as const };
   const bangGiaKhoNhoMotDong = vatLieu
     .map(m => bangGiaKhoNho.find(p => p.materialId === m.id))
     .filter((p): p is NonNullable<typeof p> => Boolean(p));
@@ -349,14 +353,14 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     const from = i === 0 ? 0 : (bangLoiNhuan[i - 1]?.threshold ?? 0);
     return { from, to: nguong };
   };
-  const capNhatNguongLoiNhuan = (i: number, value: number) => {
+  const luuNguongLoiNhuanDangSua = (i: number) => {
+    const draft = nguongLoiNhuanDangSua[i];
+    if (draft == null) return;
     const cuaHang = dungCuaHangTinhGia.getState();
-    const bangMoi = [...cuaHang.profitTable];
-    const min = i === 0 ? 1 : (bangMoi[i - 1]?.threshold ?? 0) + 1;
-    const max = i < bangMoi.length - 1 ? (bangMoi[i + 1]?.threshold ?? Number.MAX_SAFE_INTEGER) - 1 : Number.MAX_SAFE_INTEGER;
-    const nguong = Math.max(min, Math.min(max, Math.round(value || 0)));
-    bangMoi[i] = { ...bangMoi[i], threshold: nguong };
-    dungCuaHangTinhGia.setState({ profitTable: bangMoi });
+    const ketQua = commitProfitThresholdDraft(cuaHang.profitTable, i, draft);
+    datNguongLoiNhuanDangSua(({ [i]: _boQua, ...conLai }) => conLai);
+    if (!ketQua.changed) return;
+    dungCuaHangTinhGia.setState({ profitTable: ketQua.rows });
     cuaHang.recalculate();
     luuBangLoiNhuanTre();
   };
@@ -370,9 +374,20 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
         threshold: mocMoi,
         col1: dongCuoi?.col1 ?? 0,
         col2: dongCuoi?.col2 ?? 0,
+        largeCol1: dongCuoi?.largeCol1 ?? 0,
+        largeCol2: dongCuoi?.largeCol2 ?? 0,
       },
     ];
     dungCuaHangTinhGia.setState({ profitTable: bangMoi });
+    cuaHang.recalculate();
+    luuBangLoiNhuanTre();
+  };
+  const xoaMocLoiNhuanCuoi = () => {
+    const cuaHang = dungCuaHangTinhGia.getState();
+    const bangMoi = removeLastAddedProfitRow(cuaHang.profitTable, INITIAL_PROFIT_TABLE.length);
+    if (bangMoi === cuaHang.profitTable) return;
+    dungCuaHangTinhGia.setState({ profitTable: bangMoi });
+    datNguongLoiNhuanDangSua({});
     cuaHang.recalculate();
     luuBangLoiNhuanTre();
   };
@@ -950,6 +965,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                     <th>Đến</th>
                     <th>Con lai (mang in, mang ghep 2 lop, tui 1-2 lop cut seal...)</th>
                     <th>Tui/mang &gt;= 3 lop; tui day dung/zipper; co MPET/AL/giay</th>
+                    <th></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -964,8 +980,13 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                             </td>
                             <td>
                               <input className="config-inline-input" type="text" inputMode="numeric"
-                                value={dinhDangVnd(row.threshold)}
-                                onChange={(e) => capNhatNguongLoiNhuan(i, docSoVnd(e.target.value))}
+                                value={nguongLoiNhuanDangSua[i] ?? dinhDangVnd(row.threshold)}
+                                onChange={(e) => datNguongLoiNhuanDangSua(prev => ({ ...prev, [i]: e.target.value }))}
+                                onBlur={() => luuNguongLoiNhuanDangSua(i)}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') e.currentTarget.blur();
+                                  if (e.key === 'Escape') datNguongLoiNhuanDangSua(({ [i]: _boQua, ...conLai }) => conLai);
+                                }}
                                 style={{width:'130px', textAlign:'right', fontWeight:700}}
                               />
                               <div style={{fontSize:'0.72rem', color:'var(--muted)', marginTop:'2px'}}>&lt; {dinhDangVnd(row.threshold)}</div>
@@ -975,13 +996,12 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                       })()}
                       <td>
                         <input className="config-inline-input" type="number" step="0.5"
-                          value={+((row.col1 + chenhLech) * 100).toFixed(2)}
+                          value={+(((row[cotLoiNhuanTheoNhom.col1] ?? 0) * 100).toFixed(2))}
                           onChange={(e) => {
                             const val = parseFloat(e.target.value) || 0;
-                            // Store back: subtract chenhLech
                             const cuaHang = dungCuaHangTinhGia.getState();
                             const bangMoi = [...cuaHang.profitTable];
-                            bangMoi[i] = { ...bangMoi[i], col1: (val / 100) - chenhLech };
+                            bangMoi[i] = { ...bangMoi[i], [cotLoiNhuanTheoNhom.col1]: val / 100 };
                             dungCuaHangTinhGia.setState({ profitTable: bangMoi });
                             cuaHang.recalculate();
                             luuBangLoiNhuanTre();
@@ -991,12 +1011,12 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                       </td>
                       <td>
                         <input className="config-inline-input" type="number" step="0.5"
-                          value={+((row.col2 + chenhLech) * 100).toFixed(2)}
+                          value={+(((row[cotLoiNhuanTheoNhom.col2] ?? 0) * 100).toFixed(2))}
                           onChange={(e) => {
                             const val = parseFloat(e.target.value) || 0;
                             const cuaHang = dungCuaHangTinhGia.getState();
                             const bangMoi = [...cuaHang.profitTable];
-                            bangMoi[i] = { ...bangMoi[i], col2: (val / 100) - chenhLech };
+                            bangMoi[i] = { ...bangMoi[i], [cotLoiNhuanTheoNhom.col2]: val / 100 };
                             dungCuaHangTinhGia.setState({ profitTable: bangMoi });
                             cuaHang.recalculate();
                             luuBangLoiNhuanTre();
@@ -1004,12 +1024,21 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                           style={{width:'70px', textAlign:'right'}}
                         /> %
                       </td>
+                      <td style={{textAlign:'center'}}>
+                        {i === bangLoiNhuan.length - 1 && bangLoiNhuan.length > INITIAL_PROFIT_TABLE.length && (
+                          <button className="btn btn-sm" title="Xóa mốc lợi nhuận cuối cùng"
+                            style={{color:'var(--danger,#e53e3e)', background:'transparent', border:'none', cursor:'pointer', fontSize:'1rem', padding:'2px 6px'}}
+                            onClick={xoaMocLoiNhuanCuoi}>
+                            ✕
+                          </button>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={4} style={{paddingTop:'10px', textAlign:'left'}}>
+                    <td colSpan={5} style={{paddingTop:'10px', textAlign:'left'}}>
                       <button className="btn btn-sm btn-outline" onClick={themMocLoiNhuan}>
                         + Thêm mốc lợi nhuận
                       </button>
@@ -1024,7 +1053,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           {hienLoiNhuan && (
           <div className="card config-card">
             <div className="config-section-title" style={{alignItems: 'center'}}>
-              <span>📊 Tỷ lệ lợi nhuận theo Màng In</span>
+              <span>📊 Tỷ lệ lợi nhuận theo số màu in (Dành riêng cho màng in)</span>
               <div style={{display:'flex', alignItems:'center', gap:'8px'}}>
                 <span style={{fontSize:'0.85rem', fontWeight:'normal', color:'var(--muted)'}}>Nhóm khách:</span>
                 <select className="form-select" value={nhomKhachMangInDangXem} onChange={e => datNhomKhachMangInDangXem(e.target.value as 'normal' | 'large')} style={{width:'auto', padding:'4px 24px 4px 10px', fontWeight:'normal', fontSize:'0.85rem'}}>

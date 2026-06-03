@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhGiaHieuLuc, xuLyDongGhiDe, type UniRow } from '../lib/manager-calculation';
+import { getPricingDisplayMeta } from '../lib/pricing-display';
 import type { Material, OverrideRowKey, OverrideFields, OverrideTable } from '../lib/types';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
@@ -447,7 +448,8 @@ export default function ManHinhQuanLy() {
   }
   const r = ketQua;
   const dauVaoKq = r.input;
-  const laMang = dauVaoKq.productType === 'mang';
+  const hienThiGia = getPricingDisplayMeta(dauVaoKq);
+  const laMang = hienThiGia.isFilm;
 
   const { uniRows: cacDongSanXuat, totalCPSX: tongCPSX, totalCPVL: tongCPVL, grandTotal: tongCong } = lapDongSanXuat(r, hangSo);
   const cpTheoThoiGianIn = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
@@ -457,13 +459,14 @@ export default function ManHinhQuanLy() {
     saleOverrides: ghiDeSale,
     adminOverrides: ghiDeAdmin,
     profitTable: bangLoiNhuan,
+    constants: hangSo,
   });
 
   // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
   // (dùng giaVonDonViHieuLuc tạm, effFinalPriceWithComm sẽ được tính ở phần breakdown bên dưới)
   const khoaKetQua = `${giaVonDonViHieuLuc}|${dauVaoKq.quantity}|${r.totalThickness}|${dauVaoKq.spreadWidth}|${dauVaoKq.cutStep}`;
   const chieuDaiCuonMang = (dauVaoKq as any).chieuDaiCuonMang || (dauVaoKq as any).filmRollLength || 6000;
-  const nhanDonVi = laMang ? 'm²' : 'túi'; // đơn vị hiển thị
+  const nhanDonVi = hienThiGia.unit; // đơn vị hiển thị
   const dienTichMoiCuonMang = laMang ? (dauVaoKq.spreadWidth || 0) * chieuDaiCuonMang : 0;
   const soLuongCuonMang = laMang && dienTichMoiCuonMang > 0 ? dauVaoKq.quantity / dienTichMoiCuonMang : 0;
 
@@ -500,7 +503,7 @@ export default function ManHinhQuanLy() {
   const cylPerUnit = r.cylinderCostPerUnit;
   const numTr = dauVaoKq.numColors || 0;
   const cylTotal = r.cylinderCost;
-  const laMangIn = dauVaoKq.productType === 'mang' && dauVaoKq.filmType === 'mangIn';
+  const laMangIn = hienThiGia.isPrintFilm;
 
   // Commission phải tính lại từ giaVonDonViHieuLuc (sau override), không dùng r.commissionPerUnit (engine gốc)
   // Vì: commissionPerUnit = commissionRate × costPerUnit → costPerUnit thay đổi thì commission thay đổi theo
@@ -510,15 +513,15 @@ export default function ManHinhQuanLy() {
 
   // ── Breakdown items ──
   const breakdownItems: [string, string][] = [
-    [`Giá ban đầu (Vốn + ${dinhDangPhanTram(tyLeLoiNhuanHieuLuc)} LN)`, dinhDangSo(giaVonDonViHieuLuc, 1) + ' đ'],
+    [`${hienThiGia.initialPriceLabel} (Vốn + ${dinhDangPhanTram(tyLeLoiNhuanHieuLuc)} LN)`, dinhDangSo(giaVonDonViHieuLuc, 1) + ' đ'],
   ];
   if (dauVaoKq.hasZipper) breakdownItems.push(['Chi phí Zipper', dinhDangSo(r.zipperPerUnit, 1) + ' đ']);
   if (dauVaoKq.hasTape) breakdownItems.push(['Chi phí Băng keo', dinhDangSo(r.tapePerUnit, 1) + ' đ']);
   if (dauVaoKq.hasHandle) breakdownItems.push(['Chi phí Quai', dinhDangSo(r.handlePerUnit, 1) + ' đ']);
   breakdownItems.push(
     [laMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSo(r.boxPerUnit, 1) + ' đ'],
-    ['Chi phí Vận chuyển', dinhDangSo(r.shippingPerUnit, 1) + ' đ'],
-    [laMangIn ? `Lãi vay Màng in ${dinhDangPhanTram(r.interestBase || 0)}` : `Lãi vay ${r.paymentDays ?? dauVaoKq.paymentDays ?? 30} ngày`, dinhDangSo(r.interestPerUnit, 1) + ' đ'],
+    [hienThiGia.shippingLabel, laMangIn ? `${dinhDangSo(r.shippingTotal, 0)} đ · ${dinhDangSo(r.shippingPerUnit, 1)} đ/${nhanDonVi}` : dinhDangSo(r.shippingPerUnit, 1) + ' đ'],
+    [hienThiGia.interestLabel(r.interestBase || 0, r.paymentDays ?? dauVaoKq.paymentDays ?? 30), dinhDangSo(r.interestPerUnit, 1) + ` đ${laMangIn ? `/${nhanDonVi}` : ''}`],
     ['Hoa hồng kinh doanh', dinhDangSo(effCommissionPerUnit, 1) + ' đ']
   );
   if (dauVaoKq.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
@@ -850,7 +853,7 @@ export default function ManHinhQuanLy() {
 
             <div className="stat-grid" id="s-stats">
               <div className="stat-card green" style={{position: 'relative'}}>
-                <div className="stat-label">Lợi Nhuận</div>
+                <div className="stat-label">{hienThiGia.profitLabel}</div>
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
                   {dinhDangSo(hasChotGia ? loiNhuanCongTyChot : tienLoiNhuanHieuLuc)}đ <span style={{fontSize: '0.85rem'}}>({dinhDangPhanTram(hasChotGia ? pctLoiNhuanCongTyChot : tyLeLoiNhuanHieuLuc)})</span>
                 </div>
@@ -863,7 +866,7 @@ export default function ManHinhQuanLy() {
                 <div className="stat-value">{dinhDangSo(hasChotGia ? doanhThuChot : doanhThuHieuLuc)} đ</div>
               </div>
               <div className="stat-card orange">
-                <div className="stat-label">{hasChotGia ? `Giá Chốt/${laMang ? 'm²' : 'Túi'}` : `Giá Bán/${laMang ? 'm²' : 'Túi'}`}</div>
+                <div className="stat-label">{hasChotGia ? hienThiGia.closedPriceTitle : hienThiGia.salePriceTitle}</div>
                 <div className="stat-value">{dinhDangSo(shownPrice, 0)} đ</div>
               </div>
               <div className="stat-card pink">

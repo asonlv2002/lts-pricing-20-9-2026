@@ -1,93 +1,129 @@
 {
   "profitDefault": {
     "col1": 0.04,
-    "col2": 0.1
+    "col2": 0.1,
+    "largeCol1": 0.04,
+    "largeCol2": 0.1
   },
   "rows": [
     {
       "threshold": 10000000,
       "col1": 0.5,
-      "col2": 0.8
+      "col2": 0.8,
+      "largeCol1": 0.5,
+      "largeCol2": 0.8
     },
     {
       "threshold": 20000000,
       "col1": 0.22,
-      "col2": 0.42
+      "col2": 0.42,
+      "largeCol1": 0.22,
+      "largeCol2": 0.42
     },
     {
       "threshold": 30000000,
       "col1": 0.17,
-      "col2": 0.27
+      "col2": 0.27,
+      "largeCol1": 0.17,
+      "largeCol2": 0.27
     },
     {
       "threshold": 40000000,
       "col1": 0.11,
-      "col2": 0.2
+      "col2": 0.2,
+      "largeCol1": 0.11,
+      "largeCol2": 0.2
     },
     {
       "threshold": 60000000,
       "col1": 0.08,
-      "col2": 0.19
+      "col2": 0.19,
+      "largeCol1": 0.08,
+      "largeCol2": 0.19
     },
     {
       "threshold": 80000000,
       "col1": 0.08,
-      "col2": 0.18
+      "col2": 0.18,
+      "largeCol1": 0.08,
+      "largeCol2": 0.18
     },
     {
       "threshold": 100000000,
       "col1": 0.075,
-      "col2": 0.17
+      "col2": 0.17,
+      "largeCol1": 0.075,
+      "largeCol2": 0.17
     },
     {
       "threshold": 150000000,
       "col1": 0.07,
-      "col2": 0.16
+      "col2": 0.16,
+      "largeCol1": 0.07,
+      "largeCol2": 0.16
     },
     {
       "threshold": 200000000,
       "col1": 0.07,
-      "col2": 0.16
+      "col2": 0.16,
+      "largeCol1": 0.07,
+      "largeCol2": 0.16
     },
     {
       "threshold": 300000000,
       "col1": 0.06,
-      "col2": 0.15
+      "col2": 0.15,
+      "largeCol1": 0.06,
+      "largeCol2": 0.15
     },
     {
       "threshold": 400000000,
       "col1": 0.05,
-      "col2": 0.15
+      "col2": 0.15,
+      "largeCol1": 0.05,
+      "largeCol2": 0.15
     },
     {
       "threshold": 500000000,
       "col1": 0.05,
-      "col2": 0.15
+      "col2": 0.15,
+      "largeCol1": 0.05,
+      "largeCol2": 0.15
     },
     {
       "threshold": 600000000,
       "col1": 0.04,
-      "col2": 0.14
+      "col2": 0.14,
+      "largeCol1": 0.04,
+      "largeCol2": 0.14
     },
     {
       "threshold": 700000000,
       "col1": 0.04,
-      "col2": 0.13
+      "col2": 0.13,
+      "largeCol1": 0.04,
+      "largeCol2": 0.13
     },
     {
       "threshold": 800000000,
       "col1": 0.04,
-      "col2": 0.12
+      "col2": 0.12,
+      "largeCol1": 0.04,
+      "largeCol2": 0.12
     },
     {
       "threshold": 900000000,
       "col1": 0.04,
-      "col2": 0.12
+      "col2": 0.12,
+      "largeCol1": 0.04,
+      "largeCol2": 0.12
     },
     {
       "threshold": 1000000000,
       "col1": 0.04,
-      "col2": 0.11
+      "col2": 0.11,
+      "largeCol1": 0.04,
+      "largeCol2": 0.11
     }
   ]
 }

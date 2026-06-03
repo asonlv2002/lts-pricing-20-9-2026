@@ -4,6 +4,7 @@
  */
 
 import { calculate } from './engine';
+import { lapDongSanXuat, tinhGiaHieuLuc } from './manager-calculation';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE } from './data';
 import type { CalculateInput } from './types';
 
@@ -417,6 +418,108 @@ section('15. Phi hao tính toán engine — đảm bảo công thức đúng');
     const expectedPrintWaste = cSetup + (pm / pA * pB) + (pm > pC ? (pm - pC) / pC * pD : 0);
     assertApprox('printWaste = cSetup + meters/pA×pB + ...', rPhi.printWaste, expectedPrintWaste, 0.1);
     assert('printWaste > 0 khi numColors=4', rPhi.printWaste > 0);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('16. Lợi nhuận theo nhóm khách — không dùng công thức -3%');
+// ════════════════════════════════════════════════════════════════════════════
+
+{
+  const profitTableTheoNhom = prof.map((row, index) => ({
+    ...row,
+    largeCol1: index === 0 ? 0.31 : 0.23,
+    largeCol2: index === 0 ? 0.41 : 0.33,
+  })) as any;
+
+  const inputKhachThuong: CalculateInput = {
+    ...baseTuiInput,
+    quantity: 10,
+    spreadWidth: 0.05,
+    cutStep: 0.05,
+    numColors: 0,
+    printFilmCustomerGroup: 'normal',
+  };
+  const inputKhachLon: CalculateInput = {
+    ...inputKhachThuong,
+    printFilmCustomerGroup: 'large',
+  };
+  const rThuong = calculate(inputKhachThuong, mats, cons, profitTableTheoNhom);
+  const rLon = calculate(inputKhachLon, mats, cons, profitTableTheoNhom);
+
+  if (rThuong && rLon) {
+    assertApprox('Túi khách thường dùng col1 của bảng giá vốn', rThuong.profitRate, profitTableTheoNhom[0].col1, 0.01);
+    assertApprox('Túi khách lớn dùng largeCol1, không phải col1 - 3%', rLon.profitRate, profitTableTheoNhom[0].largeCol1, 0.01);
+    assert('Tỉ lệ khách lớn không bằng khách thường - 3%', Math.abs(rLon.profitRate - Math.max(0, rThuong.profitRate - 0.03)) > 0.001);
+  }
+}
+
+{
+  const profitTableTheoNhom = prof.map((row, index) => ({
+    ...row,
+    largeCol1: index === 0 ? 0.31 : 0.23,
+    largeCol2: index === 0 ? 0.41 : 0.33,
+  })) as any;
+
+  const inputMangGhepKhachLon: CalculateInput = {
+    ...baseMangInput,
+    filmType: 'mangGhep',
+    quantity: 10,
+    spreadWidth: 0.05,
+    cutStep: 0.05,
+    numColors: 0,
+    layer2Id: mats.find(m => m.id !== baseMangInput.layer1Id)?.id ?? mats[1]?.id ?? null,
+    printFilmCustomerGroup: 'large',
+  };
+  const rMangGhep = calculate(inputMangGhepKhachLon, mats, cons, profitTableTheoNhom);
+  if (rMangGhep) {
+    assertApprox('Màng ghép khách lớn dùng largeCol1 của bảng giá vốn', rMangGhep.profitRate, profitTableTheoNhom[0].largeCol1, 0.01);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('17. Màn kết quả giữ lợi nhuận riêng của Màng in');
+// ════════════════════════════════════════════════════════════════════════════
+
+{
+  const profitTableGiaVon = prof.map(row => ({
+    ...row,
+    col1: 0.31,
+    col2: 0.41,
+    largeCol1: 0.23,
+    largeCol2: 0.33,
+  }));
+  const constantsMangIn = {
+    ...cons,
+    printFilmProfitRates: [
+      { customerGroup: 'large' as const, colorFrom: 7, colorTo: 8, rate: 0.05 },
+      { customerGroup: 'normal' as const, colorFrom: 7, colorTo: 8, rate: 0.11 },
+    ],
+  };
+  const inputMangInKhachLon8Mau: CalculateInput = {
+    ...baseMangInput,
+    quantity: 100000,
+    numColors: 8,
+    printFilmCustomerGroup: 'large',
+    layer2Id: null,
+    layer2AltId: null,
+    layer3Id: null,
+    layer4Id: null,
+    layer5Id: null,
+  } as any;
+  const rMangIn = calculate(inputMangInKhachLon8Mau, mats, constantsMangIn, profitTableGiaVon);
+  if (rMangIn) {
+    const rows = lapDongSanXuat(rMangIn, constantsMangIn).uniRows;
+    const effective = tinhGiaHieuLuc({
+      result: rMangIn,
+      uniRows: rows,
+      saleOverrides: {},
+      adminOverrides: {},
+      profitTable: profitTableGiaVon,
+      constants: constantsMangIn,
+    } as any);
+    assertApprox('Engine gốc Màng in khách lớn 8 màu dùng bảng Màng in', rMangIn.profitRate, 0.05, 0.01);
+    assertApprox('Màn kết quả Màng in giữ bảng Màng in, không dùng bảng giá vốn', effective.effProfitRate, 0.05, 0.01);
   }
 }
 

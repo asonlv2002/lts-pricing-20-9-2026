@@ -1,6 +1,7 @@
 "use client";
 import React from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import { getPricingDisplayMeta } from '../lib/pricing-display';
 
 export default function DauTrang() {
   const { activeView: manHinhDangMo, setActiveView: datGocNhin, layoutType: kieuBoCuc, result: ketQua, history: lichSu, currentChotGia: giaChotHienTai } = dungCuaHangTinhGia();
@@ -27,32 +28,33 @@ export default function DauTrang() {
     const giaChot = giaChotHienTai > 0 ? giaChotHienTai : null;
     const dinhDangSo = (n: number, d = 1) => n.toLocaleString('vi-VN', { maximumFractionDigits: d });
     const dinhDangPhanTram = (n: number) => parseFloat((n * 100).toFixed(2)) + '%';
+    const hienThiGia = getPricingDisplayMeta(kq.input);
     const noiDungXuat = [
-      'BÁO GIÁ TÚI BAO BÌ - CTY CP LAI TRƯỜNG SƠN',
+      hienThiGia.exportTitle,
       '═'.repeat(50),
       `Ngày: ${new Date().toLocaleDateString('vi-VN')}`,
       `Khách hàng: ${kq.input.customer || 'N/A'}`,
       `Sản phẩm: ${kq.input.productName || 'N/A'}`,
       `Cấu trúc: ${kq.structureText}`,
-      `Số lượng: ${kq.input.quantity.toLocaleString('vi-VN')} túi`,
+      `Số lượng: ${kq.input.quantity.toLocaleString('vi-VN')} ${hienThiGia.quantityUnit}`,
       `Kích thước: ${+(kq.input.spreadWidth * 1000).toFixed(0)} × ${+(kq.input.cutStep * 1000).toFixed(0)} mm²`,
       `Độ dày: ${kq.totalThickness} mic`,
-      `Trọng lượng: ${dinhDangSo(kq.tareWeight, 2)} gr/cái`,
+      hienThiGia.isFilm ? '' : `Trọng lượng: ${dinhDangSo(kq.tareWeight, 2)} gr/cái`,
       '',
-      'CHI TIẾT GIÁ BÁN / TÚI',
+      hienThiGia.detailTitle,
       '─'.repeat(40),
       `Giá vốn + LN:  ${dinhDangSo(kq.costPerUnit)} đ`,
       `Zipper:         ${dinhDangSo(kq.zipperPerUnit)} đ`,
       `Thùng giấy:     ${dinhDangSo(kq.boxPerUnit)} đ`,
-      `Vận chuyển:     ${dinhDangSo(kq.shippingPerUnit)} đ`,
-      `Lãi vay:        ${dinhDangSo(kq.interestPerUnit)} đ`,
+      `${hienThiGia.shippingLabel}:     ${hienThiGia.isPrintFilm ? `${dinhDangSo(kq.shippingTotal, 0)} đ · ${dinhDangSo(kq.shippingPerUnit)} đ/${hienThiGia.unit}` : `${dinhDangSo(kq.shippingPerUnit)} đ`}`,
+      `${hienThiGia.interestLabel(kq.interestBase || 0, kq.paymentDays)}:        ${dinhDangSo(kq.interestPerUnit)} đ${hienThiGia.isPrintFilm ? `/${hienThiGia.unit}` : ''}`,
       `Hoa hồng:       ${dinhDangSo(kq.commissionPerUnit)} đ`,
       '─'.repeat(40),
-      `GIÁ ĐỀ XUẤT:   ${Math.round(kq.finalPrice).toLocaleString('vi-VN')} đ/túi (chưa VAT)`,
-      giaChot ? `GIÁ CHỐT:       ${Math.round(giaChot).toLocaleString('vi-VN')} đ/túi` : '',
+      `GIÁ ĐỀ XUẤT:   ${Math.round(kq.finalPrice).toLocaleString('vi-VN')} đ/${hienThiGia.unit} (chưa VAT)`,
+      giaChot ? `GIÁ CHỐT:       ${Math.round(giaChot).toLocaleString('vi-VN')} đ/${hienThiGia.unit}` : '',
       '',
       `Tỉ lệ LN: ${dinhDangPhanTram(kq.profitRate)}`,
-      `Doanh thu túi: ${kq.revenue.toLocaleString('vi-VN')} đ`,
+      `Doanh thu: ${kq.revenue.toLocaleString('vi-VN')} đ`,
       `Giá trục in: ${kq.cylinderCost.toLocaleString('vi-VN')} đ (riêng)`,
     ].filter(Boolean).join('\n');
     const tepBlob = new Blob(['\ufeff' + noiDungXuat], { type: 'text/plain;charset=utf-8' });
