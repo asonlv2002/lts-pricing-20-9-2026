@@ -16,7 +16,6 @@ type CustomerStatus = 'active' | 'inactive';
 type CrmStatus = 'lead' | 'negotiating' | 'active' | 'paused' | 'inactive';
 type CustomerType = 'company' | 'individual';
 type Role = 'admin' | 'sale' | 'purchase' | string;
-type MainTab = 'list' | 'audit';
 
 interface Customer {
   id: string;
@@ -52,7 +51,6 @@ interface CustomerFilters {
   sellerId: string;
   customerGroup: string;
   status: 'all' | CustomerStatus | 'locked' | 'unassigned';
-  region: string;
   createdFrom: string;
   createdTo: string;
 }
@@ -84,7 +82,7 @@ const SELLERS = [
   { id: 'S2', name: 'Trần Gia Bảo' },
   { id: 'S3', name: 'Lê Thu Hà' },
 ];
-const emptyFilters: CustomerFilters = { keyword: '', sellerId: '', customerGroup: '', status: 'all', region: '', createdFrom: '', createdTo: '' };
+const emptyFilters: CustomerFilters = { keyword: '', sellerId: '', customerGroup: '', status: 'all', createdFrom: '', createdTo: '' };
 const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', invoiceAddress: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', secondarySellerId: null, secondarySellerName: '', status: 'active', crmStatus: 'lead', isLocked: false, notes: '', contactTitle: '', contactNotes: '', assignmentHistory: [], assignmentNote: '', createdAt: '', updatedAt: '' };
 
 // 5-state CRM status config per spec
@@ -116,7 +114,7 @@ const FIELD_LABELS: Record<string, string> = {
   customerType: 'Loại khách hàng', customerCode: 'Mã khách hàng', companyName: 'Tên công ty', taxCode: 'Mã số thuế',
   contactName: 'Người liên hệ', phone: 'Số điện thoại', email: 'Email', address: 'Địa chỉ giao hàng',
   invoiceAddress: 'Địa chỉ xuất hóa đơn',
-  region: 'Khu vực', customerGroup: 'Nhóm khách hàng', sellerId: 'Sale phụ trách', secondarySellerId: 'Sale phụ', notes: 'Ghi chú', contactTitle: 'Chức vụ', contactNotes: 'Ghi chú liên hệ', assignmentNote: 'Ghi chú phân công',
+  customerGroup: 'Nhóm khách hàng', sellerId: 'Sale phụ trách', secondarySellerId: 'Sale phụ', notes: 'Ghi chú', contactTitle: 'Chức vụ', contactNotes: 'Ghi chú liên hệ', assignmentNote: 'Ghi chú phân công',
   crmStatus: 'Trạng thái CRM',
 };
 
@@ -219,8 +217,8 @@ function saveLocalCustomers(customers: Customer[]) {
   try { window.localStorage.setItem(LS_CUSTOMERS, JSON.stringify(customers)); } catch { /* local only */ }
 }
 function exportCsv(rows: Customer[]) {
-  const headers = ['Loai KH','Ma KH','Ten khach hang','MST','Nguoi lien he','SDT','Email','Dia chi','Khu vuc','Nhom','Nhan vien','Trang thai','Khoa','Ngay tao','Ghi chu'];
-  const body = rows.map(c => [typeLabel(c),c.customerCode,displayName(c),c.taxCode,c.contactName,c.phone,c.email,c.address,c.region,c.customerGroup,c.sellerName,statusLabel(c),c.isLocked ? 'Co' : 'Khong',fmtDate(c.createdAt),c.notes]);
+  const headers = ['Loai KH','Ma KH','Ten khach hang','MST','Nguoi lien he','SDT','Email','Dia chi','Nhom','Nhan vien','Trang thai','Khoa','Ngay tao','Ghi chu'];
+  const body = rows.map(c => [typeLabel(c),c.customerCode,displayName(c),c.taxCode,c.contactName,c.phone,c.email,c.address,c.customerGroup,c.sellerName,statusLabel(c),c.isLocked ? 'Co' : 'Khong',fmtDate(c.createdAt),c.notes]);
   const csv = [headers, ...body].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
   const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -319,7 +317,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
   };
 
   const stepFields: Record<number, (keyof Customer)[]> = {
-    0: ['customerCode', 'companyName', 'taxCode', 'customerGroup', 'region', 'address', 'invoiceAddress'],
+    0: ['customerCode', 'companyName', 'taxCode', 'customerGroup', 'address', 'invoiceAddress'],
     1: ['contactName', 'contactTitle', 'phone', 'email', 'contactNotes'],
     2: ['sellerId', 'secondarySellerId', 'crmStatus', 'assignmentNote', 'notes'],
   };
@@ -443,7 +441,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
             <div className="crm2-wizard-card-icon">{isIndividual(form) ? <User size={20}/> : <Building2 size={20}/>}</div>
             <div>
               <h3>{isIndividual(form) ? 'Thông tin cá nhân' : 'Thông tin doanh nghiệp'}</h3>
-              <p>{isIndividual(form) ? 'Họ tên, khu vực và nhóm khách hàng' : 'Mã số, tên và khu vực giao dịch'}</p>
+              <p>{isIndividual(form) ? 'Họ tên và nhóm khách hàng' : 'Mã số, tên và thông tin giao dịch'}</p>
             </div>
             <div className="crm2-type-toggle" role="tablist" aria-label="Loại khách hàng">
               <button type="button" className={form.customerType !== 'individual' ? 'crm2-type-toggle-btn crm2-type-toggle-btn--active' : 'crm2-type-toggle-btn'} onClick={() => set('customerType', 'company')}><Building2 size={13}/>DN</button>
@@ -457,7 +455,6 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
               : renderField({ k: 'companyName', icon: <Building2 size={12}/>, required: true, helper: 'Tên pháp lý hoặc tên giao dịch' })}
             {!isIndividual(form) && renderField({ k: 'taxCode', icon: <Hash size={12}/>, helper: 'Mã số thuế (dùng khi xuất hóa đơn)' })}
             {renderField({ k: 'customerGroup', icon: <Users size={12}/>, helper: 'VD: Key account, FMCG, Khách lẻ' })}
-            {renderField({ k: 'region', icon: <MapPin size={12}/>, helper: 'Tỉnh/thành hoặc khu vực' })}
             {renderField({ k: 'address', icon: <MapPin size={12}/>, helper: 'Địa chỉ giao dịch/giao hàng' })}
             {renderField({ k: 'invoiceAddress', icon: <FileText size={12}/>, helper: 'Địa chỉ xuất hóa đơn (nếu khác địa chỉ giao hàng)' })}
           </div>
@@ -571,7 +568,6 @@ function CustomerDetailPanel({ customer, role, currentSellerId, onClose, onEdit,
     ['Chức vụ', customer.contactTitle],
     ['Số điện thoại', duocXemLienHe ? customer.phone : giaTriAn],
     ['Email', customer.email],
-    ['Khu vực', customer.region],
     ['Nhóm khách hàng', customer.customerGroup],
     ['Sale phụ', customer.secondarySellerName || customer.secondarySellerId],
     ['Ghi chú liên hệ', customer.contactNotes],
@@ -747,7 +743,6 @@ function CustomerCard({ customer, role, currentSellerId, relatedQuotes = [], onV
       <div className="crm2-card-info">
         {customer.phone && <span className="crm2-card-info-row"><Phone size={12}/>{duocXemLienHe ? customer.phone : 'Ẩn SĐT'}</span>}
         {customer.email && <span className="crm2-card-info-row crm2-card-info-row--truncate"><Mail size={12}/>{customer.email}</span>}
-        {customer.region && <span className="crm2-card-info-row"><MapPin size={12}/>{customer.region}</span>}
         {customer.sellerName
           ? <span className="crm2-card-info-row"><Briefcase size={12}/>{customer.sellerName}</span>
           : role === 'admin' && <span className="crm2-card-info-row crm2-card-info-row--warn"><Briefcase size={12}/>Chưa phân công <button className="crm2-assign-inline" onClick={e => { e.stopPropagation(); onAssign(); }}>+</button></span>
@@ -813,8 +808,40 @@ const CUSTOMER_DATA_FIELDS: { value: string; label: string }[] = [
   { key: 'customerCode', label: 'Mã khách hàng' },
   { key: 'sellerId', label: 'Nhân viên Sale phụ trách' },
   { key: 'crmStatus', label: 'Tag trạng thái' },
+  { key: 'isLocked', label: 'Trạng thái khóa' },
   { key: 'notes', label: 'Ghi chú (Note)' },
 ].map(f => ({ value: f.key, label: f.label }));
+
+function formatAuditValue(fieldKey: string, value: unknown) {
+  if (value === null || value === undefined || value === '') return '—';
+  if (fieldKey === 'isLocked') return value ? 'Đã khóa' : 'Chưa khóa';
+  if (typeof value === 'boolean') return value ? 'Có' : 'Không';
+  return String(value);
+}
+
+function auditDuplicateKey(entry: AuditEntry) {
+  return [
+    entry.timestamp.slice(0, 16),
+    entry.userId,
+    entry.action,
+    entry.targetType,
+    entry.targetId,
+    entry.targetName ?? '',
+    entry.note ?? '',
+    JSON.stringify(entry.before ?? {}),
+    JSON.stringify(entry.after ?? {}),
+  ].join('|');
+}
+
+function dedupeAuditEntries(entries: AuditEntry[]) {
+  const seen = new Set<string>();
+  return entries.filter(entry => {
+    const key = auditDuplicateKey(entry);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
 
 function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry[]; customers: Customer[]; users?: { id: string; name: string }[] }) {
   // 4 filters per spec
@@ -854,7 +881,7 @@ function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry
   }, [auditLog, filterAction, filterUser, filterField, timeRange, customFrom, customTo, search]);
 
   function filterEntries(start: Date, end: Date) {
-    let entries = [...auditLog]
+    let entries = dedupeAuditEntries(auditLog)
       .filter(e => {
         const t = new Date(e.timestamp);
         return t >= start && t <= end;
@@ -1065,7 +1092,7 @@ function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry
                           <div style={{ marginTop: 4, fontSize: 11, color: 'var(--muted,#6b7280)' }}>
                             {Array.from(new Set([...Object.keys(e.before || {}), ...Object.keys(e.after || {})])).filter(k => (e.before?.[k]) !== (e.after?.[k])).map(k => {
                               const fieldLabel = CUSTOMER_DATA_FIELDS.find(f => f.value === k)?.label ?? k;
-                              return <span key={k} style={{ display: 'inline-block', background: '#f3f4f6', padding: '1px 5px', borderRadius: 4, marginRight: 4, marginBottom: 2 }}>{fieldLabel}: <del style={{ color: '#dc2626' }}>{String(e.before?.[k] ?? '—')}</del> → <ins style={{ color: '#059669', textDecoration: 'none' }}>{String(e.after?.[k] ?? '—')}</ins></span>;
+                              return <span key={k} style={{ display: 'inline-block', background: '#f3f4f6', padding: '1px 5px', borderRadius: 4, marginRight: 4, marginBottom: 2 }}>{fieldLabel}: <del style={{ color: '#dc2626' }}>{formatAuditValue(k, e.before?.[k])}</del> → <ins style={{ color: '#059669', textDecoration: 'none' }}>{formatAuditValue(k, e.after?.[k])}</ins></span>;
                             })}
                           </div>
                         )}
@@ -1082,19 +1109,22 @@ function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry
   );
 }
 
+function CustomerAuditView({ customers }: { customers: Customer[] }) {
+  const auditLog = dungCuaHangTinhGia(s => s.auditLog);
+  return <CustomerAuditTab auditLog={auditLog?.filter(e => e.targetType === 'customer') ?? []} customers={customers} />;
+}
+
 // ── Main Component ───────────────────────────────────────────────────────────
 export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDangChon }: { role: Role; currentSellerId?: string; menuDangChon?: string }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [filters, setFilters] = useState<CustomerFilters>(emptyFilters);
   const [editing, setEditing] = useState<Customer | null | undefined>(undefined);
   const [detail, setDetail] = useState<Customer | null>(null);
-  const [mainTab, setMainTab] = useState<MainTab>('list');
   const [confirm, setConfirm] = useState<{ title: string; desc: string; action: () => void } | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<Customer | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
-  const auditLog = dungCuaHangTinhGia(s => s.auditLog);
   const ghiNhatKy = dungCuaHangTinhGia(s => s.ghiNhatKy);
   const [crmThresholds, setCrmThresholds] = useState<CrmThresholds>(() => loadCrmThresholds());
   const [showThresholdSettings, setShowThresholdSettings] = useState(false);
@@ -1117,13 +1147,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   useEffect(() => setCustomers(loadLocalCustomers()), []);
   useEffect(() => { if (customers.length) saveLocalCustomers(customers); }, [customers]);
   useEffect(() => {
-    if (menuDangChon === 'customers.audit_log') {
-      setMainTab('audit');
-      setEditing(undefined);
-    } else {
-      setMainTab('list');
-      setEditing(undefined);
-    }
+    setEditing(undefined);
   }, [menuDangChon]);
 
   // Check for quick-add customer from pricing module
@@ -1152,7 +1176,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const options = useMemo(() => ({
     sellers: SELLERS,
     groups: Array.from(new Set(customers.map(c => c.customerGroup).filter(Boolean))) as string[],
-    regions: Array.from(new Set(customers.map(c => c.region).filter(Boolean))) as string[],
   }), [customers]);
 
   const visible = useMemo(() => customers, [customers]);
@@ -1163,7 +1186,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     if (q && !hay.includes(q)) return false;
     if (filters.sellerId && c.sellerId !== filters.sellerId && c.secondarySellerId !== filters.sellerId) return false;
     if (filters.customerGroup && c.customerGroup !== filters.customerGroup) return false;
-    if (filters.region && c.region !== filters.region) return false;
     if (filters.status === 'locked' && !c.isLocked) return false;
     if (filters.status === 'unassigned' && c.sellerId) return false;
     if (filters.status !== 'all' && filters.status !== 'locked' && filters.status !== 'unassigned' && c.status !== filters.status) return false;
@@ -1187,57 +1209,50 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const upsert = (c: Customer) => {
     const seller = SELLERS.find(s => s.id === c.sellerId);
     const secondary = SELLERS.find(s => s.id === c.secondarySellerId);
-    setCustomers(prev => {
-      const old = prev.find(x => x.id === c.id);
-      const changedSeller = old && (old.sellerId !== c.sellerId || old.secondarySellerId !== c.secondarySellerId);
-      const historyLine = changedSeller ? `${new Date().toLocaleString('vi-VN')}: chính ${old?.sellerName || old?.sellerId || 'Chưa phân'} → ${seller?.name || c.sellerId || 'Chưa phân'}; phụ ${old?.secondarySellerName || old?.secondarySellerId || 'Không có'} → ${secondary?.name || c.secondarySellerId || 'Không có'}${c.assignmentNote ? ` (${c.assignmentNote})` : ''}` : undefined;
-      const saved = { ...c, sellerName: seller?.name ?? c.sellerName ?? '', secondarySellerName: secondary?.name ?? c.secondarySellerName ?? '', assignmentHistory: historyLine ? [...(old?.assignmentHistory ?? []), historyLine] : (c.assignmentHistory ?? []) };
-      const isNew = !prev.some(x => x.id === c.id);
-      const next = isNew ? [saved, ...prev] : prev.map(x => x.id === c.id ? saved : x);
-      const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? currentSellerId;
-      const diff = diffCustomer(old, saved);
-      setTimeout(() => {
-        ghiNhatKy({
-          userId: currentSellerId,
-          userName: actorName,
-          action: isNew ? 'create' : 'update',
-          targetType: 'customer',
-          targetId: c.id,
-          targetName: c.companyName || c.contactName || c.customerCode,
-          before: isNew ? undefined : diff.before,
-          after: diff.after,
-        });
-      }, 0);
-      return next;
+    const old = customers.find(x => x.id === c.id);
+    const changedSeller = old && (old.sellerId !== c.sellerId || old.secondarySellerId !== c.secondarySellerId);
+    const historyLine = changedSeller ? `${new Date().toLocaleString('vi-VN')}: chính ${old?.sellerName || old?.sellerId || 'Chưa phân'} → ${seller?.name || c.sellerId || 'Chưa phân'}; phụ ${old?.secondarySellerName || old?.secondarySellerId || 'Không có'} → ${secondary?.name || c.secondarySellerId || 'Không có'}${c.assignmentNote ? ` (${c.assignmentNote})` : ''}` : undefined;
+    const saved = { ...c, sellerName: seller?.name ?? c.sellerName ?? '', secondarySellerName: secondary?.name ?? c.secondarySellerName ?? '', assignmentHistory: historyLine ? [...(old?.assignmentHistory ?? []), historyLine] : (c.assignmentHistory ?? []) };
+    const isNew = !old;
+    const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? currentSellerId;
+    const diff = diffCustomer(old, saved);
+
+    setCustomers(prev => isNew ? [saved, ...prev] : prev.map(x => x.id === c.id ? saved : x));
+    ghiNhatKy({
+      userId: currentSellerId,
+      userName: actorName,
+      action: isNew ? 'create' : 'update',
+      targetType: 'customer',
+      targetId: c.id,
+      targetName: c.companyName || c.contactName || c.customerCode,
+      before: isNew ? undefined : diff.before,
+      after: diff.after,
     });
   };
-  const patch = (id: string, partial: Partial<Customer>) => setCustomers(prev => {
-    const old = prev.find(c => c.id === id);
-    const next = prev.map(c => c.id === id ? { ...c, ...partial, updatedAt: todayIso() } : c);
-    if (old) {
-      const saved = next.find(c => c.id === id)!;
-      const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? currentSellerId;
-      const action = partial.isLocked !== undefined && partial.isLocked !== old.isLocked
-        ? (partial.isLocked ? 'lock' : 'unlock')
-        : partial.status !== undefined && partial.status !== old.status
-          ? 'status_change'
-          : 'update';
-      const diff = diffCustomer(old, saved);
-      setTimeout(() => {
-        ghiNhatKy({
-          userId: currentSellerId,
-          userName: actorName,
-          action,
-          targetType: 'customer',
-          targetId: id,
-          targetName: old.companyName || old.contactName || old.customerCode,
-          before: diff.before,
-          after: diff.after,
-        });
-      }, 0);
-    }
-    return next;
-  });
+  const patch = (id: string, partial: Partial<Customer>) => {
+    const old = customers.find(c => c.id === id);
+    if (!old) return;
+    const saved = { ...old, ...partial, updatedAt: todayIso() };
+    const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? currentSellerId;
+    const action = partial.isLocked !== undefined && partial.isLocked !== old.isLocked
+      ? (partial.isLocked ? 'lock' : 'unlock')
+      : partial.status !== undefined && partial.status !== old.status
+        ? 'status_change'
+        : 'update';
+    const diff = diffCustomer(old, saved);
+
+    setCustomers(prev => prev.map(c => c.id === id ? saved : c));
+    ghiNhatKy({
+      userId: currentSellerId,
+      userName: actorName,
+      action,
+      targetType: 'customer',
+      targetId: id,
+      targetName: old.companyName || old.contactName || old.customerCode,
+      before: diff.before,
+      after: diff.after,
+    });
+  };
 
   const assignSeller = (customerId: string, sellerId: string | null, secondarySellerId: string | null, note: string) => {
     const seller = SELLERS.find(s => s.id === sellerId);
@@ -1258,24 +1273,23 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     }));
     const target = customers.find(c => c.id === customerId);
     const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? currentSellerId;
-    setTimeout(() => {
-      ghiNhatKy({
-        userId: currentSellerId,
-        userName: actorName,
-        action: 'assign',
-        targetType: 'customer',
-        targetId: customerId,
-        targetName: target?.companyName || target?.contactName || target?.customerCode,
-        before: { sellerId: target?.sellerId, sellerName: target?.sellerName, secondarySellerId: target?.secondarySellerId, secondarySellerName: target?.secondarySellerName },
-        after: { sellerId, sellerName: seller?.name, secondarySellerId, secondarySellerName: secondary?.name },
-        note: note || undefined,
-      });
-    }, 0);
+    ghiNhatKy({
+      userId: currentSellerId,
+      userName: actorName,
+      action: 'assign',
+      targetType: 'customer',
+      targetId: customerId,
+      targetName: target?.companyName || target?.contactName || target?.customerCode,
+      before: { sellerId: target?.sellerId, sellerName: target?.sellerName, secondarySellerId: target?.secondarySellerId, secondarySellerName: target?.secondarySellerName },
+      after: { sellerId, sellerName: seller?.name, secondarySellerId, secondarySellerName: secondary?.name },
+      note: note || undefined,
+    });
     setAssigning(null);
   };
 
   const activeCount = visible.filter(c => c.status === 'active' && !c.isLocked).length;
   const lockedCount = visible.filter(c => c.isLocked).length;
+  const showingAuditLog = menuDangChon === 'customers.audit_log';
 
   const statusChips: { key: CustomerFilters['status']; label: string; count?: number }[] = [
     { key: 'all', label: 'Tất cả', count: visible.length },
@@ -1348,38 +1362,29 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
             <ChevronRight size={12}/>
             <span className="crm2-breadcrumb-current">Khách hàng</span>
           </div>
-          <h1 className="crm2-title">Khách hàng <span className="crm2-title-count">({filtered.length})</span></h1>
+          <h1 className="crm2-title">
+            {showingAuditLog ? 'Nhật ký thao tác' : 'Khách hàng'}
+            {!showingAuditLog && <span className="crm2-title-count"> ({filtered.length})</span>}
+          </h1>
         </div>
         <div className="crm2-header-right">
-          <button className="crm2-btn crm2-btn--ghost" disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}>
-            <Download size={15}/> Xuất CSV
-          </button>
-          {role !== 'purchase' && (
-            <button className="crm2-btn crm2-btn--primary" onClick={() => setEditing(null)}>
-              <Plus size={15}/> Thêm mới
-            </button>
+          {!showingAuditLog && (
+            <>
+              <button className="crm2-btn crm2-btn--ghost" disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}>
+                <Download size={15}/> Xuất CSV
+              </button>
+              {role !== 'purchase' && (
+                <button className="crm2-btn crm2-btn--primary" onClick={() => setEditing(null)}>
+                  <Plus size={15}/> Thêm mới
+                </button>
+              )}
+            </>
           )}
         </div>
       </header>
 
-      {/* Main tabs: Danh sách KH / Nhật ký thao tác */}
-      <div className="crm2-main-tabs">
-        <button
-          className={`crm2-main-tab${mainTab === 'list' ? ' crm2-main-tab--active' : ''}`}
-          onClick={() => setMainTab('list')}
-        >
-          <Users size={14}/> Danh sách khách hàng
-        </button>
-        <button
-          className={`crm2-main-tab${mainTab === 'audit' ? ' crm2-main-tab--active' : ''}`}
-          onClick={() => setMainTab('audit')}
-        >
-          <ClipboardList size={14}/> Nhật ký thao tác
-        </button>
-      </div>
-
-      {mainTab === 'audit' ? (
-        <CustomerAuditTab auditLog={auditLog?.filter(e => e.targetType === 'customer') ?? []} customers={customers} />
+      {showingAuditLog ? (
+        <CustomerAuditView customers={customers} />
       ) : (
         <>
       {/* Search bar */}
@@ -1399,13 +1404,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
             <X size={14}/>
           </button>
         )}
-        <button
-          className="crm2-btn crm2-btn--primary"
-          style={{ marginLeft: 8, padding: '6px 14px', fontSize: '0.82rem', whiteSpace: 'nowrap' }}
-          onClick={() => setEditing(null)}
-        >
-          <Plus size={14}/> Thêm KH
-        </button>
       </div>
 
       {/* Filter chips + dropdown filters */}
@@ -1443,19 +1441,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
               <div className="crm2-dropdown-menu">
                 <button onClick={() => { setFilters(f => ({...f, customerGroup: ''})); setDropdownOpen(null); }}>Tất cả nhóm</button>
                 {options.groups.length ? options.groups.map(g => <button key={g} onClick={() => { setFilters(f => ({...f, customerGroup: g})); setDropdownOpen(null); }}>{g}</button>) : <span style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>Chưa có dữ liệu</span>}
-              </div>
-            )}
-          </div>
-
-          {/* Region dropdown */}
-          <div className="crm2-dropdown-wrap">
-            <button className={`crm2-chip${filters.region ? ' crm2-chip--active' : ''}`} onClick={() => setDropdownOpen(d => d === 'region' ? null : 'region')}>
-              <MapPin size={12}/> {filters.region || 'Khu vực'} <ChevronDown size={12}/>
-            </button>
-            {dropdownOpen === 'region' && (
-              <div className="crm2-dropdown-menu">
-                <button onClick={() => { setFilters(f => ({...f, region: ''})); setDropdownOpen(null); }}>Tất cả khu vực</button>
-                {options.regions.length ? options.regions.map(r => <button key={r} onClick={() => { setFilters(f => ({...f, region: r})); setDropdownOpen(null); }}>{r}</button>) : <span style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>Chưa có dữ liệu</span>}
               </div>
             )}
           </div>
@@ -1574,7 +1559,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
               <tr>
                 <th>Khách hàng</th>
                 <th>Liên hệ</th>
-                <th>Khu vực</th>
                 <th>Nhân viên</th>
                 <th>CRM</th>
                 <th>Trạng thái</th>
@@ -1606,7 +1590,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                       <span>{duocXemLienHe ? (c.phone || '-') : 'Ẩn SĐT'}</span>
                     </div>
                   </td>
-                  <td>{c.region || '-'}</td>
                   <td><span className="crm2-table-seller">{c.sellerName || 'Chưa phân'}</span></td>
                   <td>
                     <span className="crm2-crm-badge" style={{ background: crmCfg.bg, color: crmCfg.text, fontSize: 11 }}>
