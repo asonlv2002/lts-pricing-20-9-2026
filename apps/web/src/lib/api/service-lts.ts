@@ -12,7 +12,8 @@ export const LS_REFRESH_TOKEN = 'lts_service_refresh_token';
 export type PolicyCode =
   | 'ACCOUNT_READ' | 'ACCOUNT_CREATE' | 'ACCOUNT_ACTIVATE' | 'ACCOUNT_DEACTIVATE'
   | 'ACCOUNT_PROTECT' | 'ROLE_CREATE' | 'ROLE_UPDATE' | 'ROLE_DELETE'
-  | 'ROLE_READ' | 'USER_POLICY_GRANT' | 'USER_POLICY_REVOKE';
+  | 'ROLE_READ' | 'CUSTOMER_CREATE' | 'CUSTOMER_UPDATE_ALL' | 'CUSTOMER_READ_ALL'
+  | 'USER_POLICY_GRANT' | 'USER_POLICY_REVOKE';
 
 export interface Policy {
   code: PolicyCode;
@@ -32,6 +33,9 @@ export const POLICY_CATALOG: Policy[] = [
   { code: 'ROLE_CREATE',        ten: 'Tạo nhóm quyền',        moTa: 'Cho phép tạo template nhóm quyền mới.',                 nhom: 'Nhóm quyền', rui_ro: 'trung' },
   { code: 'ROLE_UPDATE',        ten: 'Sửa nhóm quyền',        moTa: 'Cho phép cập nhật template nhóm quyền.',                nhom: 'Nhóm quyền', rui_ro: 'trung' },
   { code: 'ROLE_DELETE',        ten: 'Xóa nhóm quyền',        moTa: 'Cho phép xóa template nhóm quyền.',                     nhom: 'Nhóm quyền', rui_ro: 'cao'   },
+  { code: 'CUSTOMER_CREATE',    ten: 'Tạo khách hàng',        moTa: 'Cho phép tạo hồ sơ khách hàng mới.',                    nhom: 'Cấp phát', rui_ro: 'trung' },
+  { code: 'CUSTOMER_UPDATE_ALL',ten: 'Sửa mọi khách hàng',    moTa: 'Cho phép cập nhật mọi hồ sơ khách hàng.',               nhom: 'Cấp phát', rui_ro: 'cao'   },
+  { code: 'CUSTOMER_READ_ALL',  ten: 'Xem mọi khách hàng',    moTa: 'Cho phép xem toàn bộ danh sách khách hàng.',            nhom: 'Cấp phát', rui_ro: 'trung' },
   { code: 'USER_POLICY_GRANT',  ten: 'Cấp quyền cho user',    moTa: 'Cho phép cấp policy trực tiếp cho tài khoản.',          nhom: 'Cấp phát', rui_ro: 'cao'   },
   { code: 'USER_POLICY_REVOKE', ten: 'Thu hồi quyền user',    moTa: 'Cho phép thu hồi policy trực tiếp khỏi tài khoản.',     nhom: 'Cấp phát', rui_ro: 'cao'   },
 ];
@@ -354,6 +358,57 @@ export async function luuNhomQuyenService(token: string, input: { code: string; 
 
 export async function xoaNhomQuyenService(token: string, code: string): Promise<void> {
   await goiService<unknown>(`/auth/roles/${encodeURIComponent(code)}`, { method: 'DELETE' }, token);
+}
+
+// ── Customers ─────────────────────────────────────────────────────────────
+export interface KhachHangApiVersion {
+  version: number;
+  organizationName: string;
+  taxCode?: string | null;
+  contactName: string;
+  phoneNumber: string;
+  email: string;
+  address: string;
+  status: string;
+  changeNote?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+}
+
+export interface KhachHangApi {
+  codeName: string;
+  createdBy?: string | null;
+  createdAt: string;
+  versions: KhachHangApiVersion[];
+}
+
+export interface CapNhatKhachHangInput {
+  organizationName: string;
+  taxCode?: string;
+  contactName: string;
+  phoneNumber: string;
+  email: string;
+  address: string;
+  status?: string;
+  changeNote?: string;
+}
+
+export async function layKhachHangService(token?: string): Promise<KhachHangApi[]> {
+  return goiService<KhachHangApi[]>('/customers', {}, token);
+}
+
+export async function taoMaKhachHangService(codeName: string, token?: string): Promise<KhachHangApi> {
+  return goiService<KhachHangApi>('/customers', {
+    method: 'POST',
+    body: JSON.stringify({ codeName }),
+  }, token);
+}
+
+export async function luuThongTinKhachHangService(codeName: string, input: CapNhatKhachHangInput, token?: string): Promise<KhachHangApi> {
+  return goiService<KhachHangApi>(`/customers/${encodeURIComponent(codeName)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  }, token);
 }
 
 // ── Transform ────────────────────────────────────────────────────────────

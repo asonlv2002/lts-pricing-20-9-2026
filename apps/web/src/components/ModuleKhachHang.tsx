@@ -9,6 +9,8 @@ import {
 import seedCustomers from '../data/customers.json';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { AuditEntry } from '../lib/types';
+import { chuyenCustomerApiSangUi, chuyenCustomerUiSangThongTinApi, kiemTraMaKhachHang, kiemTraThongTinKhachHang } from '../lib/customer-api';
+import { layKhachHangService, luuThongTinKhachHangService, taoMaKhachHangService } from '../lib/api/service-lts';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type CustomerStatus = 'active' | 'inactive';
@@ -294,7 +296,7 @@ function CustomerField({ k, icon, form, errors, role, disabled, required, type =
 }
 
 // ── CustomerForm (Wizard) ────────────────────────────────────────────────────
-function CustomerForm({ customer, role, currentSellerId, customers = [], onSave, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; customers?: Customer[]; onSave: (c: Customer) => void; onCancel: () => void }) {
+function CustomerForm({ customer, role, currentSellerId, customers = [], saving = false, onSave, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; customers?: Customer[]; saving?: boolean; onSave: (c: Customer) => void; onCancel: () => void }) {
   const isNew = !customer;
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<Customer>(makeInitialCustomer(customer, role, currentSellerId));
@@ -326,7 +328,10 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
     const e: Record<string, string> = {};
     for (const f of (stepFields[s] ?? [])) {
       const v = form[f] as string | null | undefined;
-      if (f === 'customerCode' && !String(v ?? '').trim()) e.customerCode = 'Nhập mã khách hàng.';
+      if (f === 'customerCode') {
+        const check = kiemTraMaKhachHang(String(v ?? ''));
+        if (!check.hopLe) e.customerCode = check.loi ?? 'Nhập mã khách hàng.';
+      }
       if (s === 0 && isIndividual(form) && !form.contactName?.trim()) e.contactName = 'Nhập họ tên khách hàng.';
       if (f === 'companyName' && !isIndividual(form) && !String(v ?? '').trim()) e.companyName = 'Nhập tên công ty.';
       if (f === 'contactName' && !isIndividual(form) && !String(v ?? '').trim()) e.contactName = 'Nhập người liên hệ.';
@@ -339,11 +344,9 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
 
   const validateAll = () => {
     const e: Record<string, string> = {};
-    if (!form.customerCode.trim()) e.customerCode = 'Nhập mã khách hàng.';
-    if (!isIndividual(form) && !form.companyName.trim()) e.companyName = 'Nhập tên công ty.';
-    if (!form.contactName?.trim()) e.contactName = isIndividual(form) ? 'Nhập họ tên khách hàng.' : 'Nhập người liên hệ.';
-    if (!form.phone?.trim()) e.phone = 'Nhập số điện thoại.';
-    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) e.email = 'Email chưa đúng định dạng.';
+    const checkCode = kiemTraMaKhachHang(form.customerCode);
+    if (!checkCode.hopLe) e.customerCode = checkCode.loi ?? 'Nhập mã khách hàng.';
+    Object.assign(e, kiemTraThongTinKhachHang(form).errors);
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -376,7 +379,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
   const back = () => setStep(s => s - 1);
   const submit = () => {
     if (!validateAll()) { setStep(0); return; }
-    onSave({ ...form, sellerName: seller?.name ?? form.sellerName ?? '', updatedAt: todayIso() });
+    onSave({ ...form, customerCode: kiemTraMaKhachHang(form.customerCode).maKhachHang, sellerName: seller?.name ?? form.sellerName ?? '', updatedAt: todayIso() });
   };
 
   const close = () => {
@@ -393,7 +396,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
   }, [dirty]);
 
   const renderField = (props: { k: keyof Customer; icon: React.ReactNode; required?: boolean; type?: string; helper?: string }) => (
-    <CustomerField {...props} form={form} errors={errors} role={role} disabled={isLockedEdit && props.k !== 'notes' && props.k !== 'assignmentNote'} onSet={set} />
+    <CustomerField {...props} form={form} errors={errors} role={role} disabled={(!isNew && props.k === 'customerCode') || (isLockedEdit && props.k !== 'notes' && props.k !== 'assignmentNote')} onSet={set} />
   );
 
   return (
@@ -449,7 +452,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
             </div>
           </div>
           <div className="crm2-wizard-grid">
-            {renderField({ k: 'customerCode', icon: <Hash size={12}/>, required: true, helper: 'VD: KH001, KH2026-001' })}
+            {renderField({ k: 'customerCode', icon: <Hash size={12}/>, required: true, helper: isNew ? 'VD: KH001, KH2026-001' : 'Mã khách hàng không thay đổi sau khi đã tạo hồ sơ' })}
             {isIndividual(form)
               ? renderField({ k: 'contactName', icon: <User size={12}/>, required: true, helper: 'Họ tên khách hàng cá nhân' })
               : renderField({ k: 'companyName', icon: <Building2 size={12}/>, required: true, helper: 'Tên pháp lý hoặc tên giao dịch' })}
@@ -475,7 +478,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
             {!isIndividual(form) && renderField({ k: 'contactName', icon: <User size={12}/>, required: true, helper: 'Họ tên người liên hệ' })}
             {renderField({ k: 'phone', icon: <Phone size={12}/>, required: true, type: 'tel', helper: 'Số điện thoại liên hệ' })}
             {!isIndividual(form) && renderField({ k: 'contactTitle', icon: <Briefcase size={12}/>, helper: 'VD: Trưởng phòng mua hàng' })}
-            {renderField({ k: 'email', icon: <Mail size={12}/>, type: 'email', helper: 'Email (không bắt buộc)' })}
+            {renderField({ k: 'email', icon: <Mail size={12}/>, required: true, type: 'email', helper: 'Email nhận thông tin và báo giá' })}
             {renderField({ k: 'contactNotes', icon: <FileText size={12}/>, helper: 'Ghi chú riêng cho liên hệ' })}
           </div>
         </div>
@@ -521,8 +524,8 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
               Tiếp tục <ChevronRight size={14}/>
             </button>
           ) : (
-            <button className="crm2-btn crm2-btn--primary" onClick={submit}>
-              <Save size={14}/>{isNew ? 'Tạo khách hàng' : 'Lưu thay đổi'}
+            <button className="crm2-btn crm2-btn--primary" onClick={submit} disabled={saving}>
+              <Save size={14}/>{saving ? 'Đang lưu...' : isNew ? 'Tạo khách hàng' : 'Lưu thay đổi'}
             </button>
           )}
         </div>
@@ -532,8 +535,9 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], onSave,
 }
 
 // ── Slide-in Detail Panel ────────────────────────────────────────────────────
-function CustomerDetailPanel({ customer, role, currentSellerId, onClose, onEdit, onNavigate }: {
+function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustomer, onClose, onEdit, onNavigate }: {
   customer: Customer; role: Role; currentSellerId?: string;
+  canUpdateCustomer: boolean;
   onClose: () => void; onEdit: () => void;
   onNavigate: (module: string, filter: string, quoteMode?: boolean) => void;
 }) {
@@ -610,7 +614,7 @@ function CustomerDetailPanel({ customer, role, currentSellerId, onClose, onEdit,
 
         {/* Action bar */}
         <div className="crm2-panel-actions">
-          {canEdit(role, customer, currentSellerId) && (
+          {canUpdateCustomer && (
             <button className="crm2-btn crm2-btn--ghost" style={{ fontSize: 12, padding: '6px 10px' }} onClick={onEdit}>
               <Pencil size={13}/> Chỉnh sửa
             </button>
@@ -702,8 +706,9 @@ function AssignSellerDialog({ customer, onSave, onClose }: { customer: Customer;
 }
 
 // ── Customer Card ────────────────────────────────────────────────────────────
-function CustomerCard({ customer, role, currentSellerId, relatedQuotes = [], onView, onEdit, onToggleLock, onAssign, txCardOpen, setTxCardOpen, onNavigate }: {
+function CustomerCard({ customer, role, currentSellerId, canUpdateCustomer, relatedQuotes = [], onView, onEdit, onToggleLock, onAssign, txCardOpen, setTxCardOpen, onNavigate }: {
   customer: Customer; role: Role; currentSellerId?: string; relatedQuotes?: { quoteStatus?: string; chotGia?: number }[];
+  canUpdateCustomer: boolean;
   onView: () => void; onEdit: () => void;
   onToggleLock: () => void; onAssign: () => void;
   txCardOpen: string | null; setTxCardOpen: (id: string | null) => void;
@@ -761,7 +766,7 @@ function CustomerCard({ customer, role, currentSellerId, relatedQuotes = [], onV
       {/* Quick actions on hover */}
       <div className={`crm2-card-actions${hovered ? ' crm2-card-actions--visible' : ''}`}>
         <button className="crm2-btn-icon" title="Xem chi tiết" onClick={e => { e.stopPropagation(); onView(); }}><Eye size={14}/></button>
-        {canEdit(role, customer, currentSellerId) && <button className="crm2-btn-icon" title="Chỉnh sửa" onClick={e => { e.stopPropagation(); onEdit(); }}><Pencil size={14}/></button>}
+        {canUpdateCustomer && <button className="crm2-btn-icon" title="Chỉnh sửa" onClick={e => { e.stopPropagation(); onEdit(); }}><Pencil size={14}/></button>}
         {role === 'admin' && <button className="crm2-btn-icon" title="Phân công nhân viên" onClick={e => { e.stopPropagation(); onAssign(); }}><Briefcase size={14}/></button>}
         {canLock(role) && <button className="crm2-btn-icon" title={customer.isLocked ? 'Mở khóa' : 'Khóa'} onClick={e => { e.stopPropagation(); onToggleLock(); }}>{customer.isLocked ? <Unlock size={14}/> : <Lock size={14}/>}</button>}
         <div style={{ position: 'relative', display: 'inline-block' }} onMouseDown={e => e.stopPropagation()}>
@@ -1129,6 +1134,12 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const [crmThresholds, setCrmThresholds] = useState<CrmThresholds>(() => loadCrmThresholds());
   const [showThresholdSettings, setShowThresholdSettings] = useState(false);
   const [txCardOpen, setTxCardOpen] = useState<string | null>(null);
+  const [dangLuuKhachHang, setDangLuuKhachHang] = useState(false);
+  const accessToken = dungCuaHangTinhGia(s => s.accessToken);
+  const isAuthenticated = dungCuaHangTinhGia(s => s.isAuthenticated);
+  const nguoiDungHienTai = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
+  const coQuyenTaoKhachHang = !!nguoiDungHienTai?.policies.includes('CUSTOMER_CREATE');
+  const coQuyenSuaKhachHang = !!nguoiDungHienTai?.policies.includes('CUSTOMER_UPDATE_ALL');
   // Close transaction dropdown on click outside
   useEffect(() => {
     if (!txCardOpen) return;
@@ -1144,7 +1155,19 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     setActiveModule(module as Parameters<typeof setActiveModule>[0]);
   };
 
-  useEffect(() => setCustomers(loadLocalCustomers()), []);
+  useEffect(() => {
+    let cancelled = false;
+    setCustomers(loadLocalCustomers());
+    if (!isAuthenticated || !accessToken) return;
+    layKhachHangService(accessToken)
+      .then(data => {
+        if (!cancelled) setCustomers((Array.isArray(data) ? data : []).map(chuyenCustomerApiSangUi) as Customer[]);
+      })
+      .catch(error => {
+        console.warn('Không tải được danh sách khách hàng:', error);
+      });
+    return () => { cancelled = true; };
+  }, [accessToken, isAuthenticated]);
   useEffect(() => { if (customers.length) saveLocalCustomers(customers); }, [customers]);
   useEffect(() => {
     setEditing(undefined);
@@ -1206,7 +1229,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     } catch {}
   }, [customers]);
 
-  const upsert = (c: Customer) => {
+  const upsertLocal = (c: Customer) => {
     const seller = SELLERS.find(s => s.id === c.sellerId);
     const secondary = SELLERS.find(s => s.id === c.secondarySellerId);
     const old = customers.find(x => x.id === c.id);
@@ -1228,6 +1251,41 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
       before: isNew ? undefined : diff.before,
       after: diff.after,
     });
+  };
+
+  const upsert = async (c: Customer) => {
+    const old = customers.find(x => x.id === c.id);
+    if (!isAuthenticated || !accessToken) {
+      upsertLocal(c);
+      return c;
+    }
+
+    const checkCode = kiemTraMaKhachHang(c.customerCode);
+    if (!checkCode.hopLe) throw new Error(checkCode.loi ?? 'Mã khách hàng chưa hợp lệ.');
+
+    const codeName = checkCode.maKhachHang;
+    if (!old) {
+      try {
+        await taoMaKhachHangService(codeName, accessToken);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Không tạo được khách hàng.';
+        if (!message.includes('đã tồn tại') && !message.includes('xung đột')) throw error;
+        throw new Error('Mã khách hàng này đã được sử dụng. Vui lòng chọn mã khác.');
+      }
+    }
+
+    try {
+      const savedApi = await luuThongTinKhachHangService(codeName, chuyenCustomerUiSangThongTinApi(c), accessToken);
+      const saved = { ...c, ...chuyenCustomerApiSangUi(savedApi), sellerId: c.sellerId, sellerName: c.sellerName, secondarySellerId: c.secondarySellerId, secondarySellerName: c.secondarySellerName, customerGroup: c.customerGroup, customerType: c.customerType, contactTitle: c.contactTitle, contactNotes: c.contactNotes, assignmentNote: c.assignmentNote, assignmentHistory: c.assignmentHistory, crmStatus: c.crmStatus } as Customer;
+      upsertLocal(saved);
+      return saved;
+    } catch (error) {
+      if (!old) {
+        const createdShell = { ...c, id: codeName, customerCode: codeName, notes: c.notes || 'Đã tạo mã khách hàng, nhưng chưa lưu được thông tin chi tiết. Vui lòng kiểm tra lại thông tin và bấm lưu lại.' };
+        upsertLocal(createdShell);
+      }
+      throw error;
+    }
   };
   const patch = (id: string, partial: Partial<Customer>) => {
     const old = customers.find(c => c.id === id);
@@ -1308,6 +1366,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
           customer={detail}
           role={role}
           currentSellerId={currentSellerId}
+          canUpdateCustomer={coQuyenSuaKhachHang}
           onClose={() => { setDetail(null); setEditing(undefined); }}
           onEdit={() => setEditing(detail)}
           onNavigate={handleNavigate}
@@ -1324,7 +1383,19 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
               role={role}
               currentSellerId={currentSellerId}
               customers={customers}
-              onSave={c => { upsert(c); if (detail) setDetail(c); setEditing(undefined); }}
+              saving={dangLuuKhachHang}
+              onSave={async c => {
+                setDangLuuKhachHang(true);
+                try {
+                  const saved = await upsert(c);
+                  if (detail) setDetail(saved);
+                  setEditing(undefined);
+                } catch (error) {
+                  alert(error instanceof Error ? error.message : 'Không lưu được thông tin khách hàng.');
+                } finally {
+                  setDangLuuKhachHang(false);
+                }
+              }}
               onCancel={() => setEditing(undefined)}
             />
           </div>
@@ -1373,7 +1444,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
               <button className="crm2-btn crm2-btn--ghost" disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}>
                 <Download size={15}/> Xuất CSV
               </button>
-              {role !== 'purchase' && (
+              {coQuyenTaoKhachHang && (
                 <button className="crm2-btn crm2-btn--primary" onClick={() => setEditing(null)}>
                   <Plus size={15}/> Thêm mới
                 </button>
@@ -1604,7 +1675,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                   <td>
                     <div className="crm2-table-actions" onClick={e => e.stopPropagation()}>
                       <button className="crm2-btn-icon" title="Xem" onClick={() => setDetail(c)}><Eye size={14}/></button>
-                      {canEdit(role, c, currentSellerId) && <button className="crm2-btn-icon" title="Sửa" onClick={() => setEditing(c)}><Pencil size={14}/></button>}
+                      {coQuyenSuaKhachHang && <button className="crm2-btn-icon" title="Sửa" onClick={() => setEditing(c)}><Pencil size={14}/></button>}
                       {role === 'admin' && <button className="crm2-btn-icon" title="Phân công" onClick={() => setAssigning(c)}><Briefcase size={14}/></button>}
                       {canLock(role) && (
                         <button className="crm2-btn-icon" title={c.isLocked ? 'Mở khóa' : 'Khóa'} onClick={() => setConfirm({
