@@ -1820,6 +1820,10 @@ body {
   flex-shrink: 0;
 }
 
+.lts-sidebar--collapsed .lts-sidebar-footer {
+  padding: 10px 8px 14px;
+}
+
 .lts-role-label {
   font-size: 0.65rem;
   font-weight: 700;
@@ -1861,6 +1865,13 @@ body {
   padding: 4px;
 }
 
+.lts-sidebar--collapsed .lts-sidebar-user {
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 0;
+}
+
 .lts-sidebar-user-avatar {
   width: 32px;
   height: 32px;
@@ -1873,6 +1884,11 @@ body {
   font-size: 0.75rem;
   font-weight: 700;
   flex-shrink: 0;
+}
+
+.lts-sidebar--collapsed .lts-sidebar-user-avatar {
+  width: 36px;
+  height: 36px;
 }
 
 .lts-sidebar-user-info {
@@ -1907,6 +1923,18 @@ body {
   font-size: 0.75rem;
   white-space: nowrap;
   transition: background 0.15s, color 0.15s;
+}
+
+.lts-sidebar--collapsed .lts-sidebar-logout {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  justify-content: center;
+  border-radius: 12px;
+}
+
+.lts-sidebar--collapsed .lts-sidebar-logout span {
+  display: none;
 }
 
 .lts-sidebar-logout:hover {

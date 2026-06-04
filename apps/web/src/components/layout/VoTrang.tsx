@@ -346,6 +346,7 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
                   className="lts-sidebar-logout lts-sidebar-logout--pw"
                   onClick={datHienDoiMatKhau}
                   title="Đổi mật khẩu"
+                  aria-label="Đổi mật khẩu"
                 >
                   <KeyRound size={14} />
                 </button>
@@ -353,6 +354,7 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
                   className="lts-sidebar-logout"
                   onClick={() => dungCuaHangTinhGia.getState().logout()}
                   title="Đăng xuất"
+                  aria-label="Đăng xuất"
                 >
                   <LogOut size={14} />
                   {(dangMo || laMobile) && <span>Đăng xuất</span>}
