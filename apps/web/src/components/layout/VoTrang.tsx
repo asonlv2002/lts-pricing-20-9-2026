@@ -217,7 +217,7 @@ const TIEU_DE_MODULE: Record<MaModule, string> = {
   production_orders: 'Lệnh sản xuất',
   customers:         'Khách hàng',
   sellers:           'Nhân viên kinh doanh',
-  users:             'Người dùng',
+  users:             'Tài khoản & quyền',
   settings:          'Cài đặt hệ thống',
   audit_log:         'Nhật ký thao tác',
 };

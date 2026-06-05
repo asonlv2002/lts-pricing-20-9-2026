@@ -8,8 +8,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   Search, Plus, Shield, Lock,
-  ChevronRight, Check, X, Trash2, Pencil, UserCircle2, Users2,
-  ScrollText, Sparkles, FileKey2, ListChecks, Filter,
+  ChevronRight, Check, X, Trash2, Pencil, UserCircle2,
+  ScrollText, Sparkles, FileKey2, ListChecks, Filter, Info,
 } from 'lucide-react';
 import './phan-quyen.css';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
@@ -25,6 +25,7 @@ import {
   kichHoatTaiKhoanService,
   voHieuTaiKhoanService,
   capNhatBaoVeService,
+  datLaiMatKhauTaiKhoanService,
   capQuyenService,
   thuHoiQuyenService,
   luuNhomQuyenService,
@@ -116,6 +117,21 @@ function mauRuiRo(ruiRo: Policy['rui_ro']): string {
   return 'An toàn';
 }
 
+function tacDongTheoRuiRo(ruiRo: Policy['rui_ro']): { title: string; desc: string } {
+  if (ruiRo === 'cao') return {
+    title: 'Quyền nhạy cảm',
+    desc: 'Chỉ cấp cho admin được ủy quyền. Quyền này có thể tác động trực tiếp đến dữ liệu hoặc tài khoản người dùng khác.',
+  };
+  if (ruiRo === 'trung') return {
+    title: 'Quyền thao tác',
+    desc: 'Quyền này thay đổi dữ liệu hệ thống. Cần cấp đúng vai trò và kiểm tra định kỳ.',
+  };
+  return {
+    title: 'Quyền đọc/xem',
+    desc: 'Quyền này chủ yếu dùng để xem dữ liệu, ít rủi ro hơn các quyền tạo, sửa hoặc xóa.',
+  };
+}
+
 // ═════════════════════════════════════════════════════════════════════════════
 // 4. POLICY CHIP — hiển thị tên tiếng Việt, code backend chỉ giữ trong tooltip
 // ═════════════════════════════════════════════════════════════════════════════
@@ -176,23 +192,36 @@ function HangTaiKhoan({ user, daChon, onClick }: { user: TaiKhoan; daChon: boole
 // ═════════════════════════════════════════════════════════════════════════════
 function InspectorTaiKhoan({
   user,
-  onTogglePolicy,
+  draftPolicies,
+  onToggleDraftPolicy,
+  onSavePolicyChanges,
+  onCancelPolicyChanges,
   onApplyTemplate,
   onToggleActive,
   onToggleProtected,
+  onResetPassword,
   templates,
   coQuyenPhanQuyen,
+  coQuyenDatLaiMatKhau,
+  dangLuuQuyen,
 }: {
   user?: TaiKhoan;
-  onTogglePolicy: (code: PolicyCode) => void;
+  draftPolicies: PolicyCode[];
+  onToggleDraftPolicy: (code: PolicyCode) => void;
+  onSavePolicyChanges: () => void;
+  onCancelPolicyChanges: () => void;
   onApplyTemplate: (template: NhomQuyen) => void;
   onToggleActive: () => void;
   onToggleProtected: () => void;
+  onResetPassword: () => void;
   templates: NhomQuyen[];
   coQuyenPhanQuyen: boolean;
+  coQuyenDatLaiMatKhau: boolean;
+  dangLuuQuyen: boolean;
 }) {
   const [tab, setTab] = useState<'policy' | 'template'>('policy');
   const [tuKhoa, setTuKhoa] = useState('');
+  const [policyDangXem, setPolicyDangXem] = useState<Policy | null>(null);
 
   const danhSachLoc = useMemo(() => {
     const k = tuKhoa.trim().toLowerCase();
@@ -217,6 +246,12 @@ function InspectorTaiKhoan({
       </aside>
     );
   }
+
+  const savedPolicySet = new Set(user.policies);
+  const draftPolicySet = new Set(draftPolicies);
+  const soQuyenThem = draftPolicies.filter(code => !savedPolicySet.has(code)).length;
+  const soQuyenThuHoi = user.policies.filter(code => !draftPolicySet.has(code)).length;
+  const coThayDoiQuyen = soQuyenThem + soQuyenThuHoi > 0;
 
   return (
     <aside className="pq-inspector">
@@ -249,18 +284,19 @@ function InspectorTaiKhoan({
           <button className="pq-btn pq-btn--ghost" title={user.isProtected ? 'Tắt bảo vệ tài khoản' : 'Bật bảo vệ tài khoản'} onClick={onToggleProtected}>
             <Lock size={14} /> {user.isProtected ? 'Bỏ bảo vệ' : 'Bảo vệ'}
           </button>
+          {coQuyenDatLaiMatKhau && (
+            <button className="pq-btn pq-btn--ghost" title="Đặt lại mật khẩu tài khoản" onClick={onResetPassword}>
+              <Lock size={14} /> Đặt lại MK
+            </button>
+          )}
         </div>
       </div>
 
       {/* Stats */}
       <div className="pq-stats">
         <div className="pq-stat">
-          <div className="pq-stat__num">{user.policies.length}</div>
+          <div className="pq-stat__num">{user.policies.length}/{POLICY_CATALOG.length}</div>
           <div className="pq-stat__lbl">Quyền đã cấp</div>
-        </div>
-        <div className="pq-stat">
-          <div className="pq-stat__num">{POLICY_CATALOG.length - user.policies.length}</div>
-          <div className="pq-stat__lbl">Còn trống</div>
         </div>
         <div className="pq-stat">
           <div className="pq-stat__num">{dinhDangNgay(user.createdAt)}</div>
@@ -323,15 +359,16 @@ function InspectorTaiKhoan({
                   {ds.filter(p => user.policies.includes(p.code)).length}/{ds.length}
                 </span>
               </div>
-              <div className="pq-policy-list">
+              <div className="pq-policy-list pq-policy-list--compact">
                 {ds.map(policy => {
-                  const granted = user.policies.includes(policy.code);
+                  const granted = draftPolicySet.has(policy.code);
+                  const changed = granted !== savedPolicySet.has(policy.code);
                   return (
-                    <label key={policy.code} className={`pq-policy ${granted ? 'pq-policy--on' : ''}`}>
+                    <label key={policy.code} className={`pq-policy pq-policy--compact ${granted ? 'pq-policy--on' : ''} ${changed ? 'pq-policy--changed' : ''}`}>
                       <input
                         type="checkbox"
                         checked={granted}
-                        onChange={() => onTogglePolicy(policy.code)}
+                        onChange={() => onToggleDraftPolicy(policy.code)}
                       />
                       <span className="pq-policy__check"><Check size={12} strokeWidth={3.5} /></span>
                       <div className="pq-policy__body">
@@ -340,9 +377,10 @@ function InspectorTaiKhoan({
                           <span className={`pq-risk pq-risk--${policy.rui_ro}`}>
                             {mauRuiRo(policy.rui_ro)}
                           </span>
+                          <button type="button" className="pq-policy__info" aria-label={`Xem chi tiết ${policy.ten}`} onClick={e => { e.preventDefault(); setPolicyDangXem(policy); }}>
+                            <Info size={13} />
+                          </button>
                         </div>
-                        <div className="pq-policy__name">{policy.ten}</div>
-                        <div className="pq-policy__desc">{policy.moTa}</div>
                       </div>
                     </label>
                   );
@@ -350,6 +388,16 @@ function InspectorTaiKhoan({
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {user.isActive && coQuyenPhanQuyen && tab === 'policy' && (
+        <div className="pq-policy-savebar">
+          <span>{coThayDoiQuyen ? `${soQuyenThem + soQuyenThuHoi} thay đổi chưa lưu` : 'Quyền đang đồng bộ'}</span>
+          <div>
+            <button className="pq-btn pq-btn--ghost pq-btn--sm" disabled={!coThayDoiQuyen || dangLuuQuyen} onClick={onCancelPolicyChanges}>Hủy thay đổi</button>
+            <button className="pq-btn pq-btn--primary pq-btn--sm" disabled={!coThayDoiQuyen || dangLuuQuyen} onClick={onSavePolicyChanges}>{dangLuuQuyen ? 'Đang lưu...' : 'Lưu thay đổi'}</button>
+          </div>
         </div>
       )}
 
@@ -387,6 +435,31 @@ function InspectorTaiKhoan({
               </div>
             );
           })}
+        </div>
+      )}
+
+      {policyDangXem && (
+        <div className="pq-modal-backdrop" onClick={() => setPolicyDangXem(null)}>
+          <div className={`pq-modal pq-policy-detail pq-policy-detail--${policyDangXem.rui_ro}`} onClick={e => e.stopPropagation()}>
+            <div className="pq-policy-detail__hero">
+              <div>
+                <span className="pq-policy-detail__risk">{mauRuiRo(policyDangXem.rui_ro)}</span>
+                <h3>{policyDangXem.ten}</h3>
+                <p>{policyDangXem.moTa}</p>
+              </div>
+              <button className="pq-policy-detail__close" onClick={() => setPolicyDangXem(null)} aria-label="Đóng"><X size={16} /></button>
+            </div>
+            <div className="pq-policy-detail__body">
+              <div className="pq-policy-detail__impact">
+                <b>{tacDongTheoRuiRo(policyDangXem.rui_ro).title}</b>
+                <span>{tacDongTheoRuiRo(policyDangXem.rui_ro).desc}</span>
+              </div>
+              <div className="pq-policy-detail__meta">
+                <span>Nhóm quyền</span>
+                <b>{policyDangXem.nhom}</b>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </aside>
@@ -695,19 +768,28 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     nguoiDungHienTai?.policies.includes('USER_POLICY_GRANT') &&
     nguoiDungHienTai?.policies.includes('USER_POLICY_REVOKE')
   );
+  const coQuyenDatLaiMatKhau = !!nguoiDungHienTai?.policies.includes('ACCOUNT_PASSWORD_UPDATE_ALL');
 
   const [users, setUsers]     = useState<TaiKhoan[]>([]);
   const [roles, setRoles]      = useState<NhomQuyen[]>(NHOM_QUYEN_MAU);
   const [chonId, setChonId]   = useState<string>('');
   const [tuKhoa, setTuKhoa]   = useState('');
   const [locTrangThai, setLocTrangThai] = useState<'all' | 'active' | 'inactive' | 'protected'>('all');
-  const [tabNguoiDung, setTabNguoiDung] = useState<'list' | 'create'>('list');
   const [dangTai, setDangTai] = useState(false);
+  const [dangLuuQuyen, setDangLuuQuyen] = useState(false);
   const [loiApi, setLoiApi] = useState<string | null>(null);
   const [moFormTaoTaiKhoan, setMoFormTaoTaiKhoan] = useState(false);
   const [taiKhoanMoi, setTaiKhoanMoi] = useState({ account: '', fullName: '', password: '' });
+  const [draftPolicies, setDraftPolicies] = useState<PolicyCode[]>([]);
+  const [resetPasswordUser, setResetPasswordUser] = useState<TaiKhoan | null>(null);
+  const [matKhauDatLai, setMatKhauDatLai] = useState({ password: '', confirm: '' });
+  const [dangDatLaiMatKhau, setDangDatLaiMatKhau] = useState(false);
 
   const userDangChon = users.find(u => u.id === chonId) ?? users[0];
+
+  useEffect(() => {
+    setDraftPolicies(userDangChon?.policies ?? []);
+  }, [userDangChon?.id, userDangChon?.policies]);
 
   const napTaiKhoan = async (name?: string) => {
     if (!accessToken) return;
@@ -780,7 +862,6 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
       luuUserTuApi(created);
       setTaiKhoanMoi({ account: '', fullName: '', password: '' });
       setMoFormTaoTaiKhoan(false);
-      setTabNguoiDung('list');
       await napTaiKhoan();
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không tạo được tài khoản.');
@@ -862,54 +943,95 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
       return true;
     });
   }, [users, locTrangThai]);
+  const statusChips = [
+    { key: 'all', label: 'Tất cả', count: users.length },
+    { key: 'active', label: 'Đang hoạt động', count: users.filter(u => u.isActive).length },
+    { key: 'inactive', label: 'Đã vô hiệu', count: users.filter(u => !u.isActive).length },
+    { key: 'protected', label: 'Được bảo vệ', count: users.filter(u => u.isProtected).length },
+  ] as const;
 
   const capNhatQuyenTaiKhoan = (userId: string, policies: PolicyCode[]) => {
     setUsers(prev => prev.map(u => u.id === userId ? { ...u, policies } : u));
   };
 
-  const togglePolicy = async (code: PolicyCode) => {
+  const toggleDraftPolicy = (code: PolicyCode) => {
+    if (!userDangChon) return;
+    if (!userDangChon.isActive) {
+      setLoiApi('Tài khoản này đã dừng hoạt động.');
+      return;
+    }
+    setDraftPolicies(prev => prev.includes(code) ? prev.filter(p => p !== code) : [...prev, code]);
+    setLoiApi(null);
+  };
+
+  const huyThayDoiQuyen = () => {
+    setDraftPolicies(userDangChon?.policies ?? []);
+    setLoiApi(null);
+  };
+
+  const luuThayDoiQuyen = async () => {
     if (!userDangChon || !accessToken) return;
     if (!userDangChon.isActive) {
       setLoiApi('Tài khoản này đã dừng hoạt động.');
       return;
     }
     const userId = userDangChon.id;
-    const policiesCu = userDangChon.policies;
-    const has = policiesCu.includes(code);
-    const policiesMoi = has ? policiesCu.filter(p => p !== code) : [...policiesCu, code];
+    const saved = new Set(userDangChon.policies);
+    const draft = new Set(draftPolicies);
+    const canCap = draftPolicies.filter(code => !saved.has(code));
+    const canThuHoi = userDangChon.policies.filter(code => !draft.has(code));
+    if (!canCap.length && !canThuHoi.length) return;
 
-    capNhatQuyenTaiKhoan(userId, policiesMoi);
+    setDangLuuQuyen(true);
     setLoiApi(null);
     try {
-      if (has) {
-        await thuHoiQuyenService(accessToken, userId, [code]);
-      } else {
-        await capQuyenService(accessToken, userId, [code]);
-      }
+      if (canCap.length) await capQuyenService(accessToken, userId, canCap);
+      if (canThuHoi.length) await thuHoiQuyenService(accessToken, userId, canThuHoi);
+      capNhatQuyenTaiKhoan(userId, draftPolicies);
+      await napTaiKhoan(tuKhoa.trim() || undefined);
     } catch (error) {
-      capNhatQuyenTaiKhoan(userId, policiesCu);
-      setLoiApi(error instanceof Error ? error.message : 'Không cập nhật được quyền.');
+      setLoiApi(error instanceof Error ? error.message : 'Không lưu được thay đổi quyền.');
+    } finally {
+      setDangLuuQuyen(false);
     }
   };
 
-  const applyTemplate = async (tpl: NhomQuyen) => {
-    if (!userDangChon || !accessToken) return;
+  const applyTemplate = (tpl: NhomQuyen) => {
+    if (!userDangChon) return;
     if (!userDangChon.isActive) {
       setLoiApi('Tài khoản này đã dừng hoạt động.');
       return;
     }
-    const userId = userDangChon.id;
-    const policiesCu = userDangChon.policies;
-    const canCap = tpl.policies.filter(code => !policiesCu.includes(code));
-    if (!canCap.length) return;
+    setDraftPolicies(prev => Array.from(new Set([...prev, ...tpl.policies])));
+    setLoiApi(null);
+  };
 
-    capNhatQuyenTaiKhoan(userId, [...policiesCu, ...canCap]);
+  const xuLyDatLaiMatKhau = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resetPasswordUser || !accessToken) return;
+    if (!matKhauDatLai.password || !matKhauDatLai.confirm) {
+      setLoiApi('Vui lòng nhập đầy đủ mật khẩu mới.');
+      return;
+    }
+    if (matKhauDatLai.password.length < 6) {
+      setLoiApi('Mật khẩu mới phải có ít nhất 6 ký tự.');
+      return;
+    }
+    if (matKhauDatLai.password !== matKhauDatLai.confirm) {
+      setLoiApi('Mật khẩu xác nhận không khớp.');
+      return;
+    }
+    setDangDatLaiMatKhau(true);
     setLoiApi(null);
     try {
-      await capQuyenService(accessToken, userId, canCap);
+      const updated = await datLaiMatKhauTaiKhoanService(accessToken, resetPasswordUser.id, matKhauDatLai.password);
+      luuUserTuApi(updated);
+      setResetPasswordUser(null);
+      setMatKhauDatLai({ password: '', confirm: '' });
     } catch (error) {
-      capNhatQuyenTaiKhoan(userId, policiesCu);
-      setLoiApi(error instanceof Error ? error.message : 'Không áp được nhóm quyền.');
+      setLoiApi(error instanceof Error ? error.message : 'Không đặt lại được mật khẩu.');
+    } finally {
+      setDangDatLaiMatKhau(false);
     }
   };
 
@@ -924,184 +1046,68 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
 
   return (
     <div className="pq-root">
-      {/* ── Hero / heading ─────────────────────────────────────────────── */}
-      <header className="pq-hero">
-        <div className="pq-hero__title">
-          <h1 className="pq-hero__h1">
-            {view === 'users'  ? 'Tài khoản & quyền'
-            : view === 'roles' ? 'Vai trò'
-            : 'Bảng phân quyền'}
-          </h1>
-        </div>
+      {view !== 'users' && (
+        <header className="pq-crm-header">
+          <div className="pq-crm-header-left">
+            <div className="pq-crm-breadcrumb">
+              <span>Hệ thống</span>
+              <ChevronRight size={12}/>
+              <span className="pq-crm-breadcrumb-current">{view === 'roles' ? 'Vai trò' : 'Bảng phân quyền'}</span>
+            </div>
+            <h1 className="pq-crm-title">{view === 'roles' ? 'Vai trò' : 'Bảng phân quyền'}</h1>
+          </div>
+        </header>
+      )}
 
-        <div className="pq-hero__stats">
-          <div className="pq-stat-pill"><span className="pq-stat-pill__num">{tongQuan.tongUser}</span><span>Tài khoản</span></div>
-          <div className="pq-stat-pill"><span className="pq-stat-pill__num pq-stat-pill__num--green">{tongQuan.activeUser}</span><span>Đang hoạt động</span></div>
-          <div className="pq-stat-pill"><span className="pq-stat-pill__num pq-stat-pill__num--orange">{tongQuan.protectUser}</span><span>Được bảo vệ</span></div>
-          <div className="pq-stat-pill"><span className="pq-stat-pill__num pq-stat-pill__num--accent">{tongQuan.tongRole}</span><span>Vai trò</span></div>
-          <div className="pq-stat-pill"><span className="pq-stat-pill__num pq-stat-pill__num--cyan">{tongQuan.tongPolicy}</span><span>Policy hệ thống</span></div>
-        </div>
-      </header>
+      {view === 'users' && (
+        <>
+          <div className="pq-crm-stats">
+            <span><b>{tongQuan.tongUser}</b> Tài khoản</span>
+            <span><b>{tongQuan.activeUser}</b> Đang hoạt động</span>
+            <span><b>{tongQuan.protectUser}</b> Được bảo vệ</span>
+            <span><b>{tongQuan.tongRole}</b> Vai trò</span>
+            <span><b>{tongQuan.tongPolicy}</b> Policy hệ thống</span>
+          </div>
+
+          <div className="pq-crm-search-bar">
+            <Search size={16} className="pq-crm-search-icon"/>
+            <input
+              className="pq-crm-search-input"
+              placeholder="Tìm tài khoản hoặc họ tên..."
+              value={tuKhoa}
+              onChange={e => setTuKhoa(e.target.value)}
+            />
+            <kbd className="pq-crm-search-kbd">Ctrl+K</kbd>
+            {tuKhoa && <button className="pq-btn-icon pq-crm-search-clear" aria-label="Xóa" onClick={() => setTuKhoa('')}><X size={14}/></button>}
+          </div>
+
+          <div className="pq-crm-toolbar">
+            <div className="pq-crm-chips">
+              {statusChips.map(chip => (
+                <button
+                  key={chip.key}
+                  className={locTrangThai === chip.key ? 'pq-crm-chip pq-crm-chip--active' : 'pq-crm-chip'}
+                  onClick={() => setLocTrangThai(chip.key)}
+                >
+                  {chip.label} <span className="pq-crm-chip-count">{chip.count}</span>
+                </button>
+              ))}
+            </div>
+            <button className="pq-btn pq-btn--primary" onClick={() => setMoFormTaoTaiKhoan(true)}>
+              <Plus size={15}/> Thêm mới
+            </button>
+          </div>
+        </>
+      )}
 
       {loiApi && <div className="pq-api-error">{loiApi}</div>}
 
       {/* ── Body ──────────────────────────────────────────────────────────── */}
       {view === 'users' && (
         <>
-          <div className="pq-user-tabs">
-            <button
-              className={`pq-user-tab ${tabNguoiDung === 'list' ? 'pq-user-tab--on' : ''}`}
-              onClick={() => setTabNguoiDung('list')}
-            >
-              <Users2 size={15} /> Danh sách tài khoản
-            </button>
-            <button
-              className={`pq-user-tab ${tabNguoiDung === 'create' ? 'pq-user-tab--on' : ''}`}
-              onClick={() => setTabNguoiDung('create')}
-            >
-              <Plus size={15} /> Tạo tài khoản
-            </button>
-          </div>
-
-          {tabNguoiDung === 'create' ? (
-            <section className="pq-create-page">
-              <div className="pq-create-card">
-                <div className="pq-create-card__head">
-                  <div className="pq-create-card__icon"><UserCircle2 size={22} /></div>
-                  <div>
-                    <h3>Tạo tài khoản mới</h3>
-                    <p>Admin tạo account cho người dùng khác trên service-lts qua API <b>POST /auth/accounts</b>.</p>
-                  </div>
-                </div>
-                <form className="pq-account-form pq-account-form--standalone" onSubmit={xuLyTaoTaiKhoan}>
-                  <div className="pq-account-form__grid">
-                    <label>
-                      <span>Tài khoản đăng nhập</span>
-                      <input
-                        value={taiKhoanMoi.account}
-                        onChange={e => setTaiKhoanMoi(prev => ({ ...prev, account: e.target.value }))}
-                        placeholder="Ví dụ: nguyenvana"
-                        required
-                      />
-                    </label>
-                    <label>
-                      <span>Họ tên người dùng</span>
-                      <input
-                        value={taiKhoanMoi.fullName}
-                        onChange={e => setTaiKhoanMoi(prev => ({ ...prev, fullName: e.target.value }))}
-                        placeholder="Nguyễn Văn A"
-                        required
-                      />
-                    </label>
-                    <label>
-                      <span>Mật khẩu tạm</span>
-                      <input
-                        type="password"
-                        value={taiKhoanMoi.password}
-                        onChange={e => setTaiKhoanMoi(prev => ({ ...prev, password: e.target.value }))}
-                        placeholder="Nhập mật khẩu ban đầu"
-                        required
-                      />
-                    </label>
-                  </div>
-                  <div className="pq-account-form__actions">
-                    <button type="button" className="pq-btn pq-btn--ghost" onClick={() => setTaiKhoanMoi({ account: '', fullName: '', password: '' })}>
-                      Xóa form
-                    </button>
-                    <button type="submit" className="pq-btn pq-btn--primary" disabled={dangTai}>
-                      {dangTai ? 'Đang tạo…' : 'Tạo tài khoản'}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </section>
-          ) : (
-            <div className="pq-split">
+          <div className="pq-split">
               {/* Cột danh sách user */}
               <section className="pq-list">
-                <div className="pq-list__toolbar">
-              <div className="pq-search pq-search--lg">
-                <Search size={15} />
-                <input
-                  placeholder="Tìm tài khoản hoặc họ tên…"
-                  value={tuKhoa}
-                  onChange={e => setTuKhoa(e.target.value)}
-                />
-                {tuKhoa && (
-                  <button className="pq-search__clear" onClick={() => setTuKhoa('')}>
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-              <button
-                className="pq-btn pq-btn--primary pq-btn--sm"
-                onClick={() => setTabNguoiDung('create')}
-              >
-                <Plus size={14} /> Thêm
-              </button>
-            </div>
-
-            {moFormTaoTaiKhoan && (
-              <form className="pq-account-form" onSubmit={xuLyTaoTaiKhoan}>
-                <div className="pq-account-form__grid">
-                  <label>
-                    <span>Tài khoản</span>
-                    <input
-                      value={taiKhoanMoi.account}
-                      onChange={e => setTaiKhoanMoi(prev => ({ ...prev, account: e.target.value }))}
-                      placeholder="Ví dụ: nguyenvana"
-                      required
-                    />
-                  </label>
-                  <label>
-                    <span>Họ tên</span>
-                    <input
-                      value={taiKhoanMoi.fullName}
-                      onChange={e => setTaiKhoanMoi(prev => ({ ...prev, fullName: e.target.value }))}
-                      placeholder="Nguyễn Văn A"
-                      required
-                    />
-                  </label>
-                  <label>
-                    <span>Mật khẩu tạm</span>
-                    <input
-                      type="password"
-                      value={taiKhoanMoi.password}
-                      onChange={e => setTaiKhoanMoi(prev => ({ ...prev, password: e.target.value }))}
-                      placeholder="Nhập mật khẩu ban đầu"
-                      required
-                    />
-                  </label>
-                </div>
-                <div className="pq-account-form__actions">
-                  <button type="button" className="pq-btn pq-btn--ghost" onClick={() => setMoFormTaoTaiKhoan(false)}>
-                    Hủy
-                  </button>
-                  <button type="submit" className="pq-btn pq-btn--primary" disabled={dangTai}>
-                    {dangTai ? 'Đang tạo…' : 'Tạo tài khoản'}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            <div className="pq-filter-row">
-              <Filter size={12} />
-              {([
-                ['all',       'Tất cả'],
-                ['active',    'Đang hoạt động'],
-                ['inactive',  'Đã vô hiệu'],
-                ['protected', 'Được bảo vệ'],
-              ] as const).map(([key, label]) => (
-                <button
-                  key={key}
-                  className={`pq-filter ${locTrangThai === key ? 'pq-filter--on' : ''}`}
-                  onClick={() => setLocTrangThai(key)}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-
             <div className="pq-list__items">
               {usersLoc.length === 0 ? (
                 <div className="pq-empty">Không có tài khoản phù hợp.</div>
@@ -1119,15 +1125,20 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
           {/* Inspector phải */}
               <InspectorTaiKhoan
                 user={userDangChon}
-                onTogglePolicy={togglePolicy}
+                draftPolicies={draftPolicies}
+                onToggleDraftPolicy={toggleDraftPolicy}
+                onSavePolicyChanges={luuThayDoiQuyen}
+                onCancelPolicyChanges={huyThayDoiQuyen}
                 onApplyTemplate={applyTemplate}
                 onToggleActive={xuLyToggleActive}
                 onToggleProtected={xuLyToggleProtected}
+                onResetPassword={() => { if (userDangChon) setResetPasswordUser(userDangChon); }}
                 templates={roles}
                 coQuyenPhanQuyen={coQuyenPhanQuyen}
+                coQuyenDatLaiMatKhau={coQuyenDatLaiMatKhau}
+                dangLuuQuyen={dangLuuQuyen}
               />
             </div>
-          )}
         </>
       )}
 
@@ -1141,6 +1152,56 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
       )}
 
       {view === 'matrix' && <ViewMaTran users={users} roles={roles} />}
+
+      {moFormTaoTaiKhoan && (
+        <div className="pq-modal-backdrop" onClick={() => setMoFormTaoTaiKhoan(false)}>
+          <form className="pq-modal" onSubmit={xuLyTaoTaiKhoan} onClick={e => e.stopPropagation()}>
+            <div className="pq-modal__head">
+              <h3>Tạo tài khoản mới</h3>
+              <button type="button" className="pq-btn pq-btn--ghost pq-btn--sm" onClick={() => setMoFormTaoTaiKhoan(false)}><X size={13} /> Đóng</button>
+            </div>
+            <div className="pq-modal__body">
+              <label className="pq-modal__field">
+                <b>Tài khoản đăng nhập</b>
+                <input value={taiKhoanMoi.account} onChange={e => setTaiKhoanMoi(prev => ({ ...prev, account: e.target.value }))} placeholder="Ví dụ: nguyenvana" autoFocus required />
+              </label>
+              <label className="pq-modal__field">
+                <b>Họ tên người dùng</b>
+                <input value={taiKhoanMoi.fullName} onChange={e => setTaiKhoanMoi(prev => ({ ...prev, fullName: e.target.value }))} placeholder="Nguyễn Văn A" required />
+              </label>
+              <label className="pq-modal__field">
+                <b>Mật khẩu tạm</b>
+                <input type="password" value={taiKhoanMoi.password} onChange={e => setTaiKhoanMoi(prev => ({ ...prev, password: e.target.value }))} placeholder="Nhập mật khẩu ban đầu" required />
+              </label>
+            </div>
+            <div className="pq-modal__foot">
+              <button type="button" className="pq-btn pq-btn--ghost" onClick={() => setMoFormTaoTaiKhoan(false)}>Hủy</button>
+              <button type="submit" className="pq-btn pq-btn--primary" disabled={dangTai}>{dangTai ? 'Đang tạo...' : 'Tạo tài khoản'}</button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {resetPasswordUser && (
+        <div className="pq-modal-backdrop" onClick={() => { setResetPasswordUser(null); setMatKhauDatLai({ password: '', confirm: '' }); }}>
+          <form className="pq-modal" onSubmit={xuLyDatLaiMatKhau} onClick={e => e.stopPropagation()}>
+            <div className="pq-modal__head">
+              <h3>Đặt lại mật khẩu</h3>
+              <button type="button" className="pq-btn pq-btn--ghost pq-btn--sm" onClick={() => { setResetPasswordUser(null); setMatKhauDatLai({ password: '', confirm: '' }); }}><X size={13} /> Đóng</button>
+            </div>
+            <div className="pq-modal__body">
+              <div><b>Tài khoản</b><span className="pq-mono">@{resetPasswordUser.account}</span></div>
+              <div><b>Họ tên</b><span>{resetPasswordUser.fullName}</span></div>
+              <label className="pq-modal__field"><b>Mật khẩu mới</b><input type="password" value={matKhauDatLai.password} onChange={e => setMatKhauDatLai(prev => ({ ...prev, password: e.target.value }))} autoFocus /></label>
+              <label className="pq-modal__field"><b>Xác nhận mật khẩu mới</b><input type="password" value={matKhauDatLai.confirm} onChange={e => setMatKhauDatLai(prev => ({ ...prev, confirm: e.target.value }))} /></label>
+            </div>
+            <div className="pq-modal__foot">
+              <button type="button" className="pq-btn pq-btn--ghost" onClick={() => { setResetPasswordUser(null); setMatKhauDatLai({ password: '', confirm: '' }); }}>Hủy</button>
+              <button type="submit" className="pq-btn pq-btn--primary" disabled={dangDatLaiMatKhau}>{dangDatLaiMatKhau ? 'Đang cập nhật...' : 'Cập nhật'}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

@@ -978,7 +978,7 @@ export default function ManHinhQuanLy() {
                   )}
                   <tr className="total-row" style={{fontSize: '1.05em'}}>
                     <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
-                    <td className="num">{dinhDangSo(tongCPSX, 0)}</td>
+                    <td className="num">{laMangIn ? '' : dinhDangSo(tongCPSX, 0)}</td>
                     <td className="num"></td>
                     <td className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{dinhDangSo(tongCong, 0)} đ</td>
                   </tr>

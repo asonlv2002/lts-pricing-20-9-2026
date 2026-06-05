@@ -174,6 +174,19 @@ export async function mockPhanQuyen<T>(path: string, options: RequestInit = {}):
     return newUser as unknown as T;
   }
 
+  // ── PATCH /auth/:userId/password ───────────────────────────────────────
+  const passwordMatch = path.match(/^\/auth\/([^/]+)\/password$/);
+  if (passwordMatch && method === 'PATCH') {
+    const body = layBody(options);
+    if (!body.newPassword) throw new Error('Dữ liệu gửi lên chưa hợp lệ.');
+    const accounts = layAccounts();
+    const user = accounts.find(a => a.id === passwordMatch[1]);
+    if (!user) throw new Error('Không tìm thấy dữ liệu yêu cầu.');
+    user.updatedAt = new Date().toISOString();
+    luuAccounts(accounts);
+    return user as unknown as T;
+  }
+
   // ── PATCH /auth/accounts/:id/activate ───────────────────────────────────
   const activateMatch = path.match(/^\/auth\/accounts\/([^/]+)\/activate$/);
   if (activateMatch && method === 'PATCH') {

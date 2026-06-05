@@ -182,6 +182,14 @@ const managerSummary = (c: Customer) => {
   if (c.sellerName || c.sellerId) return { primary: c.sellerName || c.sellerId || 'Chưa phân công', secondary: '' };
   return tomTatNguoiPhuTrach([]);
 };
+const managerNamesForTable = (c: Customer) => {
+  const managerNames = (c.managers ?? [])
+    .map(manager => manager.fullName || manager.account || manager.userId)
+    .filter(Boolean);
+  if (managerNames.length > 0) return managerNames;
+  if (c.sellerName || c.sellerId) return [c.sellerName || c.sellerId || ''];
+  return ['Chưa phân công'];
+};
 
 // Completeness: count filled required fields
 function getCompleteness(c: Customer): { filled: number; total: number; missing: string[] } {
@@ -1372,7 +1380,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
 
   const filtered = useMemo(() => visible.filter(c => {
     const q = normalize(filters.keyword);
-    const hay = normalize([displayName(c),c.companyName,c.customerCode,c.contactName,c.phone,c.email,c.taxCode,typeLabel(c)].join(' '));
+    const hay = normalize([displayName(c),c.companyName,c.customerCode,c.contactName,c.phone,c.email,c.taxCode,typeLabel(c),managerNamesForTable(c).join(' ')].join(' '));
     if (q && !hay.includes(q)) return false;
     if (filters.sellerId && !(c.managers ?? []).some(manager => manager.userId === filters.sellerId)) return false;
     if (filters.customerGroup && c.customerGroup !== filters.customerGroup) return false;
@@ -1821,7 +1829,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                 <th>Khách hàng</th>
                 <th>Liên hệ</th>
                 <th>Nhân viên</th>
-                <th>CRM</th>
                 <th>Trạng thái</th>
                 <th>Thao tác</th>
               </tr>
@@ -1831,7 +1838,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                 const { missing } = getCompleteness(c);
                 const crmCfg = CRM_STATUS_CONFIG[getCrmStatus(c)];
                 const duocXemLienHe = canViewContact(role, c, currentSellerId);
-                const summary = managerSummary(c);
+                const managerNames = managerNamesForTable(c);
                 const canUpdateThisCustomer = canUpdateCustomerRecord(coQuyenSuaKhachHang, c, nguoiDungHienTai?.id);
                 return (
                 <tr key={c.id} className="crm2-table-row" onClick={() => openDetail(c)}>
@@ -1853,15 +1860,14 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                       <span>{duocXemLienHe ? (c.phone || '-') : 'Ẩn SĐT'}</span>
                     </div>
                   </td>
-                  <td><span className="crm2-table-seller">{summary.primary}{summary.secondary ? ` · ${summary.secondary}` : ''}</span></td>
+                  <td>
+                    <div className="crm2-table-managers">
+                      {managerNames.map((name, index) => <span key={`${c.id}-manager-${index}`}>{name}</span>)}
+                    </div>
+                  </td>
                   <td>
                     <span className="crm2-crm-badge" style={{ background: crmCfg.bg, color: crmCfg.text, fontSize: 11 }}>
                       {crmCfg.dot} {crmCfg.label}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`crm2-status-badge crm2-status-badge--${c.isLocked ? 'locked' : c.status}`}>
-                      {statusLabel(c)}
                     </span>
                   </td>
                   <td>
@@ -2220,6 +2226,7 @@ const CRM2_STYLES = `
 .crm2-table-code { display: block; font-size: 12px; color: var(--muted, #6b7280); }
 .crm2-table-contact { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted, #6b7280); }
 .crm2-table-seller { font-size: 12px; }
+.crm2-table-managers { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--foreground, #111); line-height: 1.35; }
 .crm2-table-actions { display: flex; gap: 4px; }
 
 /* Slide panel */

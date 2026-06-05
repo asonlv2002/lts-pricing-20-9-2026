@@ -11,7 +11,7 @@ export const LS_REFRESH_TOKEN = 'lts_service_refresh_token';
 // ── Policy catalog ───────────────────────────────────────────────────────
 export type PolicyCode =
   | 'ACCOUNT_READ' | 'ACCOUNT_CREATE' | 'ACCOUNT_ACTIVATE' | 'ACCOUNT_DEACTIVATE'
-  | 'ACCOUNT_PROTECT' | 'ROLE_CREATE' | 'ROLE_UPDATE' | 'ROLE_DELETE'
+  | 'ACCOUNT_PROTECT' | 'ACCOUNT_PASSWORD_UPDATE_ALL' | 'ROLE_CREATE' | 'ROLE_UPDATE' | 'ROLE_DELETE'
   | 'ROLE_READ' | 'CUSTOMER_CREATE' | 'CUSTOMER_UPDATE_ALL' | 'CUSTOMER_READ_ALL'
   | 'USER_POLICY_GRANT' | 'USER_POLICY_REVOKE';
 
@@ -29,6 +29,7 @@ export const POLICY_CATALOG: Policy[] = [
   { code: 'ACCOUNT_ACTIVATE',   ten: 'Kích hoạt tài khoản',   moTa: 'Cho phép kích hoạt tài khoản đang vô hiệu.',            nhom: 'Tài khoản', rui_ro: 'trung' },
   { code: 'ACCOUNT_DEACTIVATE', ten: 'Vô hiệu tài khoản',     moTa: 'Cho phép vô hiệu tài khoản đang hoạt động.',            nhom: 'Tài khoản', rui_ro: 'cao'   },
   { code: 'ACCOUNT_PROTECT',    ten: 'Bảo vệ tài khoản',      moTa: 'Cho phép cập nhật cờ bảo vệ (protected) cho tài khoản.', nhom: 'Tài khoản', rui_ro: 'cao'   },
+  { code: 'ACCOUNT_PASSWORD_UPDATE_ALL', ten: 'Đặt lại mật khẩu tài khoản', moTa: 'Cho phép cập nhật mật khẩu cho tài khoản khác.', nhom: 'Tài khoản', rui_ro: 'cao' },
   { code: 'ROLE_READ',          ten: 'Xem nhóm quyền',        moTa: 'Cho phép đọc các template nhóm quyền.',                 nhom: 'Nhóm quyền', rui_ro: 'thap'  },
   { code: 'ROLE_CREATE',        ten: 'Tạo nhóm quyền',        moTa: 'Cho phép tạo template nhóm quyền mới.',                 nhom: 'Nhóm quyền', rui_ro: 'trung' },
   { code: 'ROLE_UPDATE',        ten: 'Sửa nhóm quyền',        moTa: 'Cho phép cập nhật template nhóm quyền.',                nhom: 'Nhóm quyền', rui_ro: 'trung' },
@@ -252,6 +253,13 @@ export async function doiMatKhauService(token: string, currentPassword: string, 
   return goiService<DangNhapApi>('/auth/me/password', {
     method: 'PATCH',
     body: JSON.stringify({ currentPassword, newPassword }),
+  }, token);
+}
+
+export async function datLaiMatKhauTaiKhoanService(token: string, userId: string, newPassword: string): Promise<TaiKhoanApi> {
+  return goiService<TaiKhoanApi>(`/auth/${encodeURIComponent(userId)}/password`, {
+    method: 'PATCH',
+    body: JSON.stringify({ newPassword }),
   }, token);
 }
 
