@@ -14,6 +14,7 @@ import ModulePhanQuyen from '../ModulePhanQuyen';
 import ModuleLenhSanXuat from '../ModuleLenhSanXuat';
 import ModuleNhatKy from '../ModuleNhatKy';
 import { coTheXemNhomMenu, coTheXemMucMenu, vaiTroTuPolicies } from '../../lib/permissions';
+import { tinhThoiGianChoLamMoiPhien, tokenCanLamMoiNgay } from '../../lib/auth-session';
 import type { PolicyCode } from '../../lib/api/service-lts';
 import {
   Calculator, FileText, Users, Settings, Menu, Factory,
@@ -526,6 +527,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const nguoiDung = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
   const isAuthenticated = dungCuaHangTinhGia(s => s.isAuthenticated);
   const sessionChecked = dungCuaHangTinhGia(s => s.sessionChecked);
+  const accessToken = dungCuaHangTinhGia(s => s.accessToken);
+  const lamMoiPhien = dungCuaHangTinhGia(s => s.lamMoiPhien);
   const kiemTraVaKhoiPhucPhien = dungCuaHangTinhGia(s => s.kiemTraVaKhoiPhucPhien);
   const idNhanVienHienTai = dungCuaHangTinhGia(s => s.currentSellerId);
   const vaiTroHienTai = dungCuaHangTinhGia(s => s.role);
@@ -540,6 +543,36 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       kiemTraVaKhoiPhucPhien();
     }
   }, [sessionChecked, kiemTraVaKhoiPhucPhien]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken) return;
+
+    let cancelled = false;
+
+    const refresh = () => {
+      if (cancelled) return;
+      lamMoiPhien().catch(error => console.warn('Không làm mới được phiên đăng nhập:', error));
+    };
+
+    const timer = setTimeout(refresh, tinhThoiGianChoLamMoiPhien(accessToken));
+
+    const refreshIfNeeded = () => {
+      if (document.visibilityState === 'hidden') return;
+      if (tokenCanLamMoiNgay(accessToken)) refresh();
+    };
+
+    document.addEventListener('visibilitychange', refreshIfNeeded);
+    window.addEventListener('focus', refreshIfNeeded);
+    window.addEventListener('pageshow', refreshIfNeeded);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      document.removeEventListener('visibilitychange', refreshIfNeeded);
+      window.removeEventListener('focus', refreshIfNeeded);
+      window.removeEventListener('pageshow', refreshIfNeeded);
+    };
+  }, [accessToken, isAuthenticated, lamMoiPhien]);
 
   // Sync user info to UISlice when authenticated
   useEffect(() => {
