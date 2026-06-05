@@ -15,6 +15,7 @@ import {
   tomTatNguoiPhuTrach,
   kiemTraMaKhachHang,
   kiemTraThongTinKhachHang,
+  taoKhachHangNhanhChoBaoGia,
   type CustomerApi,
   type CustomerManagerApi,
   type CustomerUi,
@@ -47,6 +48,29 @@ assert(
   kiemTraMaKhachHang('acme_01').loi === 'Mã khách hàng chỉ dùng chữ in hoa, số và dấu gạch dưới. Ví dụ hợp lệ: KH001, ACME_01',
   kiemTraMaKhachHang('acme_01').loi,
 );
+
+console.log('\n== Quick calculator customer creation ==');
+
+const quickCustomer = taoKhachHangNhanhChoBaoGia(' Cong ty Minh Anh ', ' KH_MINH_ANH ');
+assert('creates quick customer using trimmed code as id', quickCustomer.id === 'KH_MINH_ANH', quickCustomer.id);
+assert('creates quick customer using trimmed name', quickCustomer.companyName === 'Cong ty Minh Anh', quickCustomer.companyName);
+assert('creates active lead customer for calculator flow', quickCustomer.status === 'active' && quickCustomer.crmStatus === 'lead');
+assert('keeps quick customer unlocked for later CRM completion', quickCustomer.isLocked === false);
+assert('marks quick customer as incomplete for later details', quickCustomer.notes === 'Tạo nhanh từ bảng tính giá. Vui lòng bổ sung thông tin khách hàng.');
+
+try {
+  taoKhachHangNhanhChoBaoGia('Cong ty Minh Anh', 'kh_minh_anh');
+  assert('rejects invalid quick customer code', false, 'did not throw');
+} catch (error) {
+  assert('rejects invalid quick customer code', error instanceof Error && error.message.includes('Mã khách hàng chỉ dùng chữ in hoa'));
+}
+
+try {
+  taoKhachHangNhanhChoBaoGia('', 'KH_MINH_ANH');
+  assert('rejects missing quick customer name', false, 'did not throw');
+} catch (error) {
+  assert('rejects missing quick customer name', error instanceof Error && error.message === 'Vui lòng nhập tên khách hàng.');
+}
 
 console.log('\n== Customer API mapping ==');
 

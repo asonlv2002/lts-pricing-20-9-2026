@@ -2,7 +2,9 @@
 import React from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import { autoAddCustomerIfNeeded, loadCustomers } from '../store/helpers';
+import { LS_CUSTOMERS, loadCustomers, luuLocalStorage } from '../store/helpers';
+import { taoKhachHangNhanhChoBaoGia } from '../lib/customer-api';
+import { taoMaKhachHangService } from '../lib/api/service-lts';
 import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
 
 type KhachHangGoiY = {
@@ -118,10 +120,14 @@ const ONhapSoThapPhan = ({ value, onChange, placeholder, min, step, className, d
 };
 
 export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () => void }) {
-  const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness, currentSellerId, currentSellerName, role, setActiveModule: datPhanHe } = dungCuaHangTinhGia();
+  const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness, currentSellerId, currentSellerName, role, setActiveModule: datPhanHe, accessToken, isAuthenticated } = dungCuaHangTinhGia();
   const [nhomTheoLop, datNhomTheoLop] = React.useState<Record<string, string>>({});
   const [dangFocusKhachHang, datDangFocusKhachHang] = React.useState(false);
   const [danhSachKhachHang, datDanhSachKhachHang] = React.useState<KhachHangGoiY[]>(() => loadCustomers() as KhachHangGoiY[]);
+  const [maKhachHangMoi, datMaKhachHangMoi] = React.useState('');
+  const [loiTaoKhachHang, datLoiTaoKhachHang] = React.useState('');
+  const [dangTaoKhachHang, datDangTaoKhachHang] = React.useState(false);
+  const quickCustomerRef = React.useRef<HTMLDivElement | null>(null);
 
   const lamMoiDanhSachKhachHang = React.useCallback(() => {
     datDanhSachKhachHang(loadCustomers() as KhachHangGoiY[]);
@@ -142,9 +148,50 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   }, [currentSellerId, danhSachKhachHang, dangFocusKhachHang, input.customer, role]);
 
   const xuLyRoiONhapKhachHang = () => {
-    const daThem = autoAddCustomerIfNeeded(input.customer, currentSellerId, currentSellerName);
-    if (daThem) lamMoiDanhSachKhachHang();
-    setTimeout(() => datDangFocusKhachHang(false), 120);
+    setTimeout(() => {
+      const activeElement = document.activeElement;
+      if (activeElement && quickCustomerRef.current?.contains(activeElement)) return;
+      datDangFocusKhachHang(false);
+    }, 120);
+  };
+
+  const taoNhanhKhachHang = async () => {
+    datLoiTaoKhachHang('');
+    let khachHangMoi: KhachHangGoiY;
+    try {
+      khachHangMoi = {
+        ...taoKhachHangNhanhChoBaoGia(input.customer, maKhachHangMoi),
+        sellerId: currentSellerId || null,
+        sellerName: currentSellerName || '',
+      } as KhachHangGoiY;
+    } catch (error) {
+      datLoiTaoKhachHang(error instanceof Error ? error.message : 'Thông tin khách hàng chưa hợp lệ.');
+      return;
+    }
+
+    const daTonTai = danhSachKhachHang.some(kh => kh.customerCode === khachHangMoi.customerCode || kh.id === khachHangMoi.id);
+    if (daTonTai) {
+      datLoiTaoKhachHang('Mã khách hàng này đã tồn tại. Vui lòng chọn mã khác.');
+      return;
+    }
+
+    datDangTaoKhachHang(true);
+    try {
+      if (isAuthenticated && accessToken) {
+        await taoMaKhachHangService(khachHangMoi.customerCode, accessToken);
+      }
+      const danhSachMoi = [khachHangMoi, ...danhSachKhachHang];
+      luuLocalStorage(LS_CUSTOMERS, danhSachMoi);
+      datDanhSachKhachHang(danhSachMoi);
+      capNhatDauVao({ customer: khachHangMoi.companyName });
+      datMaKhachHangMoi('');
+      datDangFocusKhachHang(false);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Không tạo được khách hàng.';
+      datLoiTaoKhachHang(message.includes('đã tồn tại') || message.includes('xung đột') ? 'Mã khách hàng này đã được sử dụng. Vui lòng chọn mã khác.' : message);
+    } finally {
+      datDangTaoKhachHang(false);
+    }
   };
 
   const xuLyLoaiSanPham = (val: string) => {
@@ -485,8 +532,43 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             autoComplete="off"
           />
           {dangFocusKhachHang && input.customer.trim() && goiYKhachHang.length === 0 && (
-            <div style={{ position:'absolute', zIndex:30, left:0, right:0, top:'100%', marginTop:4, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'8px 12px', boxShadow:'0 14px 34px rgba(15,23,42,.18)', fontSize:'0.78rem', color:'var(--muted)' }}>
-              ✓ Khách hàng mới — sẽ tự động thêm vào danh sách khi bạn nhập xong
+            <div
+              ref={quickCustomerRef}
+              style={{ position:'absolute', zIndex:30, left:0, top:'100%', marginTop:4, width:'min(200%, calc(100vw - 32px))', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'8px 10px', boxShadow:'0 14px 34px rgba(15,23,42,.18)', display:'flex', flexDirection:'column', gap:6 }}
+            >
+              <div style={{ fontSize:'.78rem', color:'var(--muted)' }}>
+                Khách mới: <span style={{ color:'var(--text)', fontWeight:700 }}>{input.customer.trim()}</span>
+              </div>
+              <label style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                <span style={{ fontSize:'.72rem', fontWeight:700, color:'var(--muted)' }}>Mã KH</span>
+                <input
+                  className="form-input"
+                  style={{ height:32, fontSize:'.82rem', width:'100%' }}
+                  placeholder="KH001"
+                  value={maKhachHangMoi}
+                  onFocus={() => datDangFocusKhachHang(true)}
+                  onChange={e => {
+                    datMaKhachHangMoi(e.target.value.toUpperCase());
+                    datLoiTaoKhachHang('');
+                  }}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void taoNhanhKhachHang();
+                    }
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ height:32, padding:'0 14px', whiteSpace:'nowrap', width:'100%' }}
+                disabled={dangTaoKhachHang}
+                onClick={() => void taoNhanhKhachHang()}
+              >
+                {dangTaoKhachHang ? 'Đang tạo...' : 'Tạo mới'}
+              </button>
+              {loiTaoKhachHang && <div style={{ color:'#dc2626', fontSize:'.74rem', marginTop:7 }}>{loiTaoKhachHang}</div>}
             </div>
           )}
           {goiYKhachHang.length > 0 && (

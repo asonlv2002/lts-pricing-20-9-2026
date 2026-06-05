@@ -195,6 +195,45 @@ export function kiemTraThongTinKhachHang(customer: CustomerUi): { hopLe: boolean
   return { hopLe: Object.keys(errors).length === 0, errors };
 }
 
+export function taoKhachHangNhanhChoBaoGia(customerName: string, customerCode: string, now = new Date().toISOString()): CustomerUi {
+  const companyName = customerName.trim();
+  if (!companyName) throw new Error('Vui lòng nhập tên khách hàng.');
+
+  const checkCode = kiemTraMaKhachHang(customerCode);
+  if (!checkCode.hopLe) throw new Error(checkCode.loi ?? 'Mã khách hàng chưa hợp lệ.');
+
+  return {
+    id: checkCode.maKhachHang,
+    customerType: 'company',
+    customerCode: checkCode.maKhachHang,
+    companyName,
+    taxCode: '',
+    contactName: '',
+    phone: '',
+    email: '',
+    invoiceAddress: '',
+    address: '',
+    region: '',
+    customerGroup: '',
+    sellerId: null,
+    sellerName: '',
+    secondarySellerId: null,
+    secondarySellerName: '',
+    managers: [],
+    contactTitle: '',
+    contactNotes: '',
+    assignmentHistory: [],
+    assignmentNote: '',
+    status: 'active',
+    crmStatus: 'lead',
+    isLocked: false,
+    notes: 'Tạo nhanh từ bảng tính giá. Vui lòng bổ sung thông tin khách hàng.',
+    createdAt: now,
+    updatedAt: now,
+    versions: [],
+  };
+}
+
 export function chuyenCustomerApiSangUi(customer: CustomerApi): CustomerUi {
   const versions = sapXepPhienBanKhachHang(customer.versions ?? []);
   const latest = versions[0];
