@@ -429,6 +429,28 @@ export interface CapNhatKhachHangInput {
   changeNote?: string;
 }
 
+export interface CustomerRealtimeEventApi {
+  id: string;
+  key: 'customer.created' | 'customer.updated' | 'customer.managers_replaced' | string;
+  resource: 'customer' | string;
+  action: string;
+  resourceId: string;
+  occurredAt: string;
+  payload?: {
+    customer?: {
+      codeName: string;
+      latestVersion?: KhachHangApiVersion | null;
+      managers?: KhachHangManagerApi[];
+    };
+  };
+}
+
+export interface CustomerRealtimeMessageApi {
+  id?: string;
+  type: string;
+  data: CustomerRealtimeEventApi | { occurredAt: string };
+}
+
 export async function layKhachHangService(token?: string): Promise<KhachHangApi[]> {
   return goiService<KhachHangApi[]>('/customers', {}, token);
 }
@@ -460,6 +482,71 @@ export async function luuNguoiPhuTrachKhachHangService(
     method: 'PUT',
     body: JSON.stringify({ managers }),
   }, token);
+}
+
+function tachSseBlocks(buffer: string): { blocks: string[]; rest: string } {
+  const normalized = buffer.replace(/\r\n/g, '\n');
+  const parts = normalized.split('\n\n');
+  const rest = parts.pop() ?? '';
+  return { blocks: parts, rest };
+}
+
+function parseSseBlock(block: string): CustomerRealtimeMessageApi | null {
+  const dataLines: string[] = [];
+  let id: string | undefined;
+  let type = 'message';
+
+  for (const line of block.split('\n')) {
+    if (!line || line.startsWith(':')) continue;
+    const separatorIndex = line.indexOf(':');
+    const field = separatorIndex >= 0 ? line.slice(0, separatorIndex) : line;
+    const value = separatorIndex >= 0 ? line.slice(separatorIndex + 1).replace(/^ /, '') : '';
+    if (field === 'id') id = value;
+    if (field === 'event') type = value;
+    if (field === 'data') dataLines.push(value);
+  }
+
+  if (!dataLines.length) return null;
+  const data = JSON.parse(dataLines.join('\n')) as CustomerRealtimeMessageApi['data'];
+  const eventType = 'key' in data ? data.key : type;
+  return { id, type: eventType, data };
+}
+
+export async function ketNoiSuKienKhachHangService(
+  token: string,
+  onMessage: (message: CustomerRealtimeMessageApi) => void,
+  signal: AbortSignal,
+): Promise<void> {
+  if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') return;
+
+  const response = await fetch(`${SERVICE_LTS_DIRECT_URL}/events/customers`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'text/event-stream',
+    },
+    signal,
+  });
+
+  if (!response.ok) throw new Error(`Không kết nối được sự kiện khách hàng (${response.status}).`);
+  if (!response.body) throw new Error('Máy chủ không trả về luồng sự kiện khách hàng.');
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (!signal.aborted) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const { blocks, rest } = tachSseBlocks(buffer);
+    buffer = rest;
+
+    for (const block of blocks) {
+      const message = parseSseBlock(block);
+      if (message) onMessage(message);
+    }
+  }
 }
 
 // ── Transform ────────────────────────────────────────────────────────────

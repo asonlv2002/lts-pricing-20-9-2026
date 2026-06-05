@@ -15,6 +15,7 @@ import {
   chuyenCustomerManagersApiSangUi,
   chuyenCustomerManagersSangPayload,
   chuyenCustomerUiSangThongTinApi,
+  gopCustomerTheoSuKienRealtime,
   kiemTraMaKhachHang,
   kiemTraThongTinKhachHang,
   layLuaChonNguoiPhuTrach,
@@ -26,6 +27,7 @@ import {
 import {
   layKhachHangService,
   layNguoiPhuTrachKhachHangService,
+  ketNoiSuKienKhachHangService,
   luuNguoiPhuTrachKhachHangService,
   luuThongTinKhachHangService,
   taoMaKhachHangService,
@@ -1292,6 +1294,38 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     return customer;
   };
 
+  const refreshCustomersFromServer = async (token: string) => {
+    const data = await layKhachHangService(token);
+    const customersUi = (Array.isArray(data) ? data : []).map(chuyenCustomerApiSangUi) as Customer[];
+    const customersWithManagers = await Promise.all(customersUi.map(async customer => {
+      try {
+        return {
+          ...customer,
+          managers: chuyenCustomerManagersApiSangUi(await layNguoiPhuTrachKhachHangService(customer.customerCode, token)),
+        };
+      } catch (error) {
+        console.warn(`Không tải được người phụ trách của ${customer.customerCode}:`, error);
+        return customer;
+      }
+    }));
+    setCustomers(customersWithManagers);
+    setDetail(current => current ? customersWithManagers.find(customer => customer.id === current.id) ?? current : current);
+    setEditing(current => current ? customersWithManagers.find(customer => customer.id === current.id) ?? current : current);
+    setAssigning(current => current ? customersWithManagers.find(customer => customer.id === current.id) ?? current : current);
+  };
+
+  const mergeCustomerRealtime = (payload: Parameters<typeof gopCustomerTheoSuKienRealtime>[1]) => {
+    const merge = (current: Customer | undefined) => gopCustomerTheoSuKienRealtime(current, payload) as Customer;
+    setCustomers(prev => {
+      const index = prev.findIndex(customer => customer.id === payload.codeName || customer.customerCode === payload.codeName);
+      if (index < 0) return [merge(undefined), ...prev];
+      return prev.map((customer, customerIndex) => customerIndex === index ? merge(customer) : customer);
+    });
+    setDetail(current => current && (current.id === payload.codeName || current.customerCode === payload.codeName) ? merge(current) : current);
+    setEditing(current => current && (current.id === payload.codeName || current.customerCode === payload.codeName) ? merge(current) : current);
+    setAssigning(current => current && (current.id === payload.codeName || current.customerCode === payload.codeName) ? merge(current) : current);
+  };
+
   const ensureManagers = async (customer: Customer): Promise<Customer> => {
     if (customer.managers) return customer;
     if (!isAuthenticated || !accessToken) return customer;
@@ -1322,26 +1356,49 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     let cancelled = false;
     setCustomers(loadLocalCustomers());
     if (!isAuthenticated || !accessToken) return;
-    layKhachHangService(accessToken)
-      .then(async data => {
-        const customersUi = (Array.isArray(data) ? data : []).map(chuyenCustomerApiSangUi) as Customer[];
-        const customersWithManagers = await Promise.all(customersUi.map(async customer => {
-          try {
-            return {
-              ...customer,
-              managers: chuyenCustomerManagersApiSangUi(await layNguoiPhuTrachKhachHangService(customer.customerCode, accessToken)),
-            };
-          } catch (error) {
-            console.warn(`Không tải được người phụ trách của ${customer.customerCode}:`, error);
-            return customer;
-          }
-        }));
-        if (!cancelled) setCustomers(customersWithManagers);
-      })
+    refreshCustomersFromServer(accessToken)
       .catch(error => {
-        console.warn('Không tải được danh sách khách hàng:', error);
+        if (!cancelled) console.warn('Không tải được danh sách khách hàng:', error);
       });
     return () => { cancelled = true; };
+  }, [accessToken, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !accessToken || process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') return;
+
+    const controller = new AbortController();
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const connect = () => {
+      ketNoiSuKienKhachHangService(accessToken, message => {
+        if (message.type === 'heartbeat') return;
+        const event = message.data;
+        if (!('resource' in event) || event.resource !== 'customer') return;
+
+        const customer = event.payload?.customer;
+        if (!customer?.codeName) {
+          refreshCustomersFromServer(accessToken).catch(error => console.warn('Không đồng bộ được khách hàng từ sự kiện:', error));
+          return;
+        }
+
+        mergeCustomerRealtime({
+          codeName: customer.codeName,
+          latestVersion: customer.latestVersion,
+          managers: customer.managers,
+        });
+      }, controller.signal).catch(error => {
+        if (controller.signal.aborted) return;
+        console.warn('Mất kết nối sự kiện khách hàng:', error);
+        retryTimer = setTimeout(connect, 3000);
+      });
+    };
+
+    connect();
+
+    return () => {
+      controller.abort();
+      if (retryTimer) clearTimeout(retryTimer);
+    };
   }, [accessToken, isAuthenticated]);
   useEffect(() => { if (customers.length) saveLocalCustomers(customers); }, [customers]);
   useEffect(() => {

@@ -7,6 +7,7 @@ import {
   chuyenCustomerManagersApiSangUi,
   chuyenCustomerApiSangUi,
   chuyenCustomerManagersSangPayload,
+  gopCustomerTheoSuKienRealtime,
   chuyenCustomerUiSangThongTinApi,
   layLuaChonNguoiPhuTrach,
   locTaiKhoanActive,
@@ -77,6 +78,19 @@ assert('uses latest version createdAt as updatedAt', mapped.updatedAt === '2026-
 assert('keeps customer versions for history tab', mapped.versions?.length === 1, String(mapped.versions?.length));
 assert('keeps newest version first for history tab', mapped.versions?.[0]?.version === 2, String(mapped.versions?.[0]?.version));
 
+const customerWithUnsortedVersions = chuyenCustomerApiSangUi({
+  codeName: 'ACME_02',
+  createdBy: 'user-1',
+  createdAt: '2026-06-01T00:00:00.000Z',
+  versions: [
+    { version: 1, organizationName: 'Old Co.', contactName: 'Old', phoneNumber: '1', email: 'old@example.com', address: 'Old address', status: 'active', createdAt: '2026-06-01T00:00:00.000Z' },
+    { version: 3, organizationName: 'Newest Co.', contactName: 'Newest', phoneNumber: '3', email: 'new@example.com', address: 'New address', status: 'inactive', createdAt: '2026-06-03T00:00:00.000Z' },
+    { version: 2, organizationName: 'Middle Co.', contactName: 'Middle', phoneNumber: '2', email: 'middle@example.com', address: 'Middle address', status: 'active', createdAt: '2026-06-02T00:00:00.000Z' },
+  ],
+});
+assert('maps unsorted API versions using the highest version number', customerWithUnsortedVersions.companyName === 'Newest Co.', customerWithUnsortedVersions.companyName);
+assert('stores customer versions newest first after mapping', customerWithUnsortedVersions.versions?.map(v => v.version).join(',') === '3,2,1', customerWithUnsortedVersions.versions?.map(v => v.version).join(','));
+
 const customerWithoutVersion = chuyenCustomerApiSangUi({
   codeName: 'EMPTY_01',
   createdBy: null,
@@ -87,6 +101,29 @@ const customerWithoutVersion = chuyenCustomerApiSangUi({
 assert('keeps customer without version visible by code', customerWithoutVersion.customerCode === 'EMPTY_01');
 assert('uses business fallback for customer without details', customerWithoutVersion.companyName === 'Chưa có thông tin chi tiết');
 assert('keeps customer without version active', customerWithoutVersion.status === 'active');
+
+const currentCustomer = chuyenCustomerApiSangUi({
+  codeName: 'MERGE_01',
+  createdAt: '2026-06-01T00:00:00.000Z',
+  versions: [
+    { version: 3, organizationName: 'Current Newest', contactName: 'Current', phoneNumber: '3', email: 'current@example.com', address: 'Current address', status: 'active', createdAt: '2026-06-03T00:00:00.000Z' },
+  ],
+});
+const staleMerge = gopCustomerTheoSuKienRealtime(currentCustomer, {
+  codeName: 'MERGE_01',
+  latestVersion: { version: 2, organizationName: 'Stale', contactName: 'Stale', phoneNumber: '2', email: 'stale@example.com', address: 'Stale address', status: 'inactive', createdAt: '2026-06-02T00:00:00.000Z' },
+  managers: [{ userId: 'user-2', account: 'staff_02', fullName: 'Staff 02', canWrite: false }],
+});
+assert('does not let stale realtime customer versions overwrite current latest version', staleMerge.companyName === 'Current Newest', staleMerge.companyName);
+assert('still merges realtime managers when version is stale', staleMerge.managers?.[0]?.userId === 'user-2', JSON.stringify(staleMerge.managers));
+
+const freshMerge = gopCustomerTheoSuKienRealtime(currentCustomer, {
+  codeName: 'MERGE_01',
+  latestVersion: { version: 4, organizationName: 'Fresh Newest', contactName: 'Fresh', phoneNumber: '4', email: 'fresh@example.com', address: 'Fresh address', status: 'active', createdAt: '2026-06-04T00:00:00.000Z' },
+  managers: [],
+});
+assert('merges newer realtime customer versions into UI customer', freshMerge.companyName === 'Fresh Newest', freshMerge.companyName);
+assert('stores newer realtime version first', freshMerge.versions?.[0]?.version === 4, String(freshMerge.versions?.[0]?.version));
 
 console.log('\n== Customer detail validation ==');
 

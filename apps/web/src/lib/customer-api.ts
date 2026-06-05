@@ -60,6 +60,12 @@ export interface CustomerApi {
   versions: CustomerVersionApi[];
 }
 
+export interface CustomerRealtimePayload {
+  codeName: string;
+  latestVersion?: CustomerVersionApi | null;
+  managers?: CustomerManagerApi[];
+}
+
 export interface CustomerUi {
   id: string;
   customerType?: 'company' | 'individual';
@@ -157,6 +163,20 @@ export function sapXepPhienBanKhachHang(versions: CustomerVersionApi[] = []): Cu
   return [...versions].sort((left, right) => right.version - left.version);
 }
 
+function gopPhienBanMoiNhat(
+  currentVersions: CustomerVersionApi[] = [],
+  latestVersion?: CustomerVersionApi | null,
+): CustomerVersionApi[] {
+  const versions = sapXepPhienBanKhachHang(currentVersions);
+  if (!latestVersion) return versions;
+
+  const currentLatest = versions[0];
+  if (currentLatest && latestVersion.version < currentLatest.version) return versions;
+
+  const withoutIncoming = versions.filter((version) => version.version !== latestVersion.version);
+  return sapXepPhienBanKhachHang([latestVersion, ...withoutIncoming]);
+}
+
 export function kiemTraMaKhachHang(value: string): { hopLe: boolean; maKhachHang: string; loi?: string } {
   const maKhachHang = value.trim();
   if (!maKhachHang) return { hopLe: false, maKhachHang, loi: THONG_BAO_MA_KHACH_HANG_BAT_BUOC };
@@ -181,7 +201,8 @@ export function kiemTraThongTinKhachHang(customer: CustomerUi): { hopLe: boolean
 }
 
 export function chuyenCustomerApiSangUi(customer: CustomerApi): CustomerUi {
-  const latest = customer.versions?.[0];
+  const versions = sapXepPhienBanKhachHang(customer.versions ?? []);
+  const latest = versions[0];
   const status = latest?.status === 'inactive' ? 'inactive' : 'active';
   return {
     id: customer.codeName,
@@ -210,7 +231,38 @@ export function chuyenCustomerApiSangUi(customer: CustomerApi): CustomerUi {
     notes: latest ? latest.changeNote ?? '' : 'Khách hàng này mới được tạo mã. Vui lòng bổ sung thông tin liên hệ và địa chỉ.',
     createdAt: customer.createdAt,
     updatedAt: latest?.createdAt ?? customer.createdAt,
-    versions: customer.versions ?? [],
+    versions,
+  };
+}
+
+export function gopCustomerTheoSuKienRealtime(
+  current: CustomerUi | undefined,
+  payload: CustomerRealtimePayload,
+): CustomerUi {
+  const versions = gopPhienBanMoiNhat(current?.versions, payload.latestVersion);
+  const base = chuyenCustomerApiSangUi({
+    codeName: payload.codeName,
+    createdAt: current?.createdAt ?? payload.latestVersion?.createdAt ?? new Date().toISOString(),
+    versions,
+  });
+
+  return {
+    ...base,
+    ...current,
+    id: payload.codeName,
+    customerCode: payload.codeName,
+    companyName: base.companyName,
+    taxCode: base.taxCode,
+    contactName: base.contactName,
+    phone: base.phone,
+    email: base.email,
+    invoiceAddress: base.invoiceAddress,
+    address: base.address,
+    status: base.status,
+    notes: base.notes,
+    updatedAt: base.updatedAt,
+    versions,
+    managers: payload.managers ? chuyenCustomerManagersApiSangUi(payload.managers) : current?.managers,
   };
 }
 
