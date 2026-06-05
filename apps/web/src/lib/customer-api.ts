@@ -26,19 +26,16 @@ export interface CustomerManagerApi {
   managerId?: string;
   account?: string;
   fullName: string | null;
-  canWrite: boolean;
 }
 
 export interface CustomerManagerUi {
   userId: string;
   account?: string;
   fullName: string | null;
-  canWrite: boolean;
 }
 
 export interface CustomerManagerPayload {
   managerId: string;
-  canWrite: boolean;
 }
 
 export interface CustomerManagerOption {
@@ -103,7 +100,6 @@ export function chuyenCustomerManagersApiSangUi(managers: CustomerManagerApi[] =
       userId: (manager.userId || manager.id || manager.managerId || '').trim(),
       account: manager.account,
       fullName: manager.fullName,
-      canWrite: manager.canWrite === true,
     }))
     .filter((manager) => manager.userId.length > 0);
 }
@@ -116,7 +112,7 @@ export function chuyenCustomerManagersSangPayload(managers: CustomerManagerUi[] 
     const managerId = manager.userId.trim();
     if (!managerId || seen.has(managerId)) continue;
     seen.add(managerId);
-    payload.push({ managerId, canWrite: manager.canWrite === true });
+    payload.push({ managerId });
   }
 
   return payload;
@@ -129,17 +125,16 @@ export function locTaiKhoanActive<T extends TaiKhoanPhanCong>(accounts: T[] = []
 export function tomTatNguoiPhuTrach(managers: CustomerManagerUi[] = []): { primary: string; secondary: string } {
   if (managers.length === 0) return { primary: 'Chưa phân công', secondary: '' };
 
-  const writable = managers.find((manager) => manager.canWrite) ?? managers[0];
-  const writableLabel = writable.canWrite ? 'Được sửa' : 'Chỉ xem';
-  const writableName = writable.fullName || writable.account || writable.userId;
+  const firstManager = managers[0];
+  const firstManagerName = firstManager.fullName || firstManager.account || firstManager.userId;
 
   if (managers.length === 1) {
-    return { primary: writableName, secondary: writableLabel };
+    return { primary: firstManagerName, secondary: 'Người phụ trách' };
   }
 
   return {
     primary: `${managers.length} người phụ trách`,
-    secondary: `${writableName} · ${writableLabel}`,
+    secondary: firstManagerName,
   };
 }
 

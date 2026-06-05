@@ -17,6 +17,15 @@ export type AuditSummary = {
   changeCount: number;
 };
 
+export type AuditActorContext = {
+  currentUser?: {
+    id: string;
+    fullName?: string | null;
+    account?: string | null;
+  } | null;
+  users?: Array<{ id: string; name?: string | null; fullName?: string | null; account?: string | null }>;
+};
+
 const FIELD_LABELS: Record<string, string> = {
   companyName: 'Tên khách hàng',
   taxCode: 'Mã số thuế',
@@ -81,6 +90,27 @@ export function getAuditFieldLabel(fieldKey: string): string | undefined {
   return FIELD_LABELS[fieldKey];
 }
 
+export function resolveAuditActorName(
+  entry: Pick<AuditEntry, 'userId' | 'userName'>,
+  context: AuditActorContext = {},
+): string {
+  const storedName = cleanAuditText(entry.userName || '').trim();
+  const storedLooksLikeId = !storedName || storedName === entry.userId;
+  if (!storedLooksLikeId) return storedName;
+
+  const currentUser = context.currentUser;
+  if (currentUser?.id === entry.userId) {
+    return cleanAuditText(currentUser.fullName || currentUser.account || entry.userId);
+  }
+
+  const matchedUser = context.users?.find((user) => user.id === entry.userId);
+  if (matchedUser) {
+    return cleanAuditText(matchedUser.name || matchedUser.fullName || matchedUser.account || entry.userId);
+  }
+
+  return storedName || entry.userId;
+}
+
 function isEmpty(value: unknown): boolean {
   return value === null || value === undefined || value === '';
 }
@@ -95,10 +125,10 @@ export function formatManagersAuditValue(value: unknown): string {
   const names = value
     .map((manager) => {
       if (!manager || typeof manager !== 'object') return '';
-      const data = manager as { fullName?: unknown; account?: unknown; userId?: unknown; canWrite?: unknown };
+      const data = manager as { fullName?: unknown; account?: unknown; userId?: unknown };
       const name = String(data.fullName || data.account || data.userId || '').trim();
       if (!name) return '';
-      return `${cleanAuditText(name)} (${data.canWrite === true ? 'Được sửa' : 'Chỉ xem'})`;
+      return cleanAuditText(name);
     })
     .filter(Boolean);
 
@@ -142,10 +172,10 @@ export function getAuditChangedFields(entry: AuditEntry): AuditChangedField[] {
     .filter((field): field is AuditChangedField => Boolean(field));
 }
 
-export function getAuditSummary(entry: AuditEntry): AuditSummary {
+export function getAuditSummary(entry: AuditEntry, context: AuditActorContext = {}): AuditSummary {
   const fields = getAuditChangedFields(entry);
   const actionLabel = getAuditActionLabel(entry.action);
-  const actorName = cleanAuditText(entry.userName || entry.userId);
+  const actorName = resolveAuditActorName(entry, context);
   const targetName = cleanAuditText(entry.targetName || entry.targetId);
 
   if (entry.action === 'assign') {

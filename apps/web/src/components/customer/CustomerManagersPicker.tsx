@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Check, Search, UserPlus, X } from 'lucide-react';
+import { AlertCircle, Search, UserPlus, X } from 'lucide-react';
 import { layTaiKhoanService, type TaiKhoanApi } from '../../lib/api/service-lts';
 import { locTaiKhoanActive, type CustomerManagerUi } from '../../lib/customer-api';
 
@@ -54,14 +54,8 @@ export function CustomerManagersPicker({ token, value, disabled = false, onChang
         userId: account.id,
         account: account.account,
         fullName: account.fullName || account.account,
-        canWrite: false,
       },
     ]);
-  };
-
-  const toggleCanWrite = (userId: string) => {
-    if (disabled) return;
-    onChange(value.map(manager => manager.userId === userId ? { ...manager, canWrite: !manager.canWrite } : manager));
   };
 
   const removeManager = (userId: string) => {
@@ -120,13 +114,7 @@ export function CustomerManagersPicker({ token, value, disabled = false, onChang
               <div className="crm2-manager-row" key={manager.userId}>
                 <span className="crm2-manager-avatar">{initials(name)}</span>
                 <span className="crm2-manager-main"><b>{name}</b>{manager.account && <small>@{manager.account}</small>}</span>
-                <label className="crm2-manager-write">
-                  <input type="checkbox" checked={manager.canWrite} disabled={disabled} onChange={() => toggleCanWrite(manager.userId)} />
-                  <span>Cho phép sửa</span>
-                </label>
-                <span className={`crm2-manager-badge${manager.canWrite ? ' crm2-manager-badge--write' : ''}`}>
-                  {manager.canWrite ? <Check size={11}/> : null}{manager.canWrite ? 'Được sửa' : 'Chỉ xem'}
-                </span>
+                <span className="crm2-manager-badge">Người phụ trách</span>
                 {!disabled && <button type="button" className="crm2-btn-icon" aria-label="Xóa người phụ trách" onClick={() => removeManager(manager.userId)}><X size={14}/></button>}
               </div>
             );

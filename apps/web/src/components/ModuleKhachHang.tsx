@@ -10,6 +10,7 @@ import seedCustomers from '../data/customers.json';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { AuditEntry } from '../lib/types';
 import { getAuditChangedFields, getAuditSummary } from '../lib/customer-audit-format';
+import { resolveAuditActorName } from '../lib/customer-audit-format';
 import {
   chuyenCustomerApiSangUi,
   chuyenCustomerManagersApiSangUi,
@@ -177,8 +178,8 @@ const isAssignedSeller = (c: Customer, sellerId?: string) => !!sellerId && (c.se
 const canEdit = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || (role === 'sale' && isAssignedSeller(c, sellerId) && !c.isLocked);
 const canViewContact = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || role === 'purchase' || isAssignedSeller(c, sellerId);
 const canLock = (role: Role) => role === 'admin';
-const hasWritableManager = (c: Customer, userId?: string) => !!userId && (c.managers ?? []).some(manager => manager.userId === userId && manager.canWrite);
-const canUpdateCustomerRecord = (hasUpdateAll: boolean, c: Customer, userId?: string) => hasUpdateAll || hasWritableManager(c, userId);
+const isCustomerManager = (c: Customer, userId?: string) => !!userId && (c.managers ?? []).some(manager => manager.userId === userId);
+const canUpdateCustomerRecord = (c: Customer, userId?: string) => isCustomerManager(c, userId);
 const managerSummary = (c: Customer) => {
   if (c.managers && c.managers.length > 0) return tomTatNguoiPhuTrach(c.managers);
   if (c.sellerName || c.sellerId) return { primary: c.sellerName || c.sellerId || 'Chưa phân công', secondary: '' };
@@ -418,11 +419,6 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
   const back = () => setStep(s => s - 1);
   const submit = () => {
     if (!validateAll()) { setStep(0); return; }
-    if (canManageManagers && (form.managers ?? []).length === 0) {
-      setErrors(e => ({ ...e, managers: 'Cần ít nhất 1 người phụ trách trước khi lưu.' }));
-      setStep(2);
-      return;
-    }
     onSave({ ...form, customerCode: kiemTraMaKhachHang(form.customerCode).maKhachHang, sellerName: seller?.name ?? form.sellerName ?? '', updatedAt: todayIso() });
   };
 
@@ -535,7 +531,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
             <div className="crm2-wizard-card-icon"><Users size={20}/></div>
             <div>
               <h3>Phân công người phụ trách</h3>
-              <p>Chọn nhiều tài khoản active, mỗi người có quyền sửa riêng</p>
+              <p>Chọn nhiều tài khoản active làm người phụ trách khách hàng</p>
             </div>
           </div>
           <CustomerManagersPicker
@@ -703,7 +699,7 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
                       {customer.managers!.map(manager => (
                         <div className="crm2-manager-row" key={manager.userId}>
                           <span className="crm2-manager-main"><b>{manager.fullName || manager.account || manager.userId}</b>{manager.account && <small>@{manager.account}</small>}</span>
-                          <span className={`crm2-manager-badge${manager.canWrite ? ' crm2-manager-badge--write' : ''}`}>{manager.canWrite ? 'Được sửa' : 'Chỉ xem'}</span>
+                          <span className="crm2-manager-badge">Người phụ trách</span>
                         </div>
                       ))}
                     </div>
@@ -773,7 +769,7 @@ function AssignSellerDialog({ customer, token, saving = false, onSave, onClose }
     <div className="crm2-overlay crm2-overlay--open" onClick={onClose}>
       <div className="crm2-confirm-dialog" style={{ maxWidth: 720 }} onClick={e => e.stopPropagation()}>
         <h3>Phân công người phụ trách — {displayName(customer)}</h3>
-        <p style={{ marginBottom: 16 }}>{customer.customerCode} · Chọn nhiều tài khoản active, mỗi người có quyền sửa riêng.</p>
+        <p style={{ marginBottom: 16 }}>{customer.customerCode} · Chọn nhiều tài khoản active làm người phụ trách.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <CustomerManagersPicker token={token} value={managers} onChange={next => { setManagers(next); setError(''); }} />
           <div className="crm2-field">
@@ -941,7 +937,7 @@ function dedupeAuditEntries(entries: AuditEntry[]) {
   });
 }
 
-function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry[]; customers: Customer[]; users?: { id: string; name: string }[] }) {
+function CustomerAuditTab({ auditLog, customers, users, currentUser }: { auditLog: AuditEntry[]; customers: Customer[]; users?: { id: string; name: string }[]; currentUser?: { id: string; fullName?: string | null; account?: string | null } | null }) {
   // 4 filters per spec
   const [filterAction, setFilterAction] = useState<Set<string>>(new Set());
   const [filterUser, setFilterUser] = useState('');
@@ -955,10 +951,10 @@ function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry
   const allUsers = useMemo(() => {
     const seen = new Map<string, string>();
     for (const e of auditLog) {
-      if (!seen.has(e.userId)) seen.set(e.userId, e.userName);
+      if (!seen.has(e.userId)) seen.set(e.userId, resolveAuditActorName(e, { currentUser, users }));
     }
     return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
-  }, [auditLog]);
+  }, [auditLog, currentUser, users]);
 
   const filtered = useMemo(() => {
     // Time range
@@ -977,7 +973,7 @@ function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry
     }
 
     return filterEntries(start, end);
-  }, [auditLog, filterAction, filterUser, filterField, timeRange, customFrom, customTo, search]);
+  }, [auditLog, filterAction, filterUser, filterField, timeRange, customFrom, customTo, search, currentUser, users]);
 
   function filterEntries(start: Date, end: Date) {
     let entries = dedupeAuditEntries(auditLog)
@@ -1006,7 +1002,7 @@ function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry
       const q = normalize(search);
       entries = entries.filter(e =>
         normalize(e.action).includes(q) ||
-        normalize(e.userName).includes(q) ||
+        normalize(resolveAuditActorName(e, { currentUser, users })).includes(q) ||
         normalize(e.targetName ?? '').includes(q) ||
         normalize(e.note ?? '').includes(q)
       );
@@ -1180,7 +1176,7 @@ function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry
               <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {entries.map(e => {
                   const color = ACTION_COLORS[e.action] ?? '#9ca3af';
-                  const summary = getAuditSummary(e);
+                  const summary = getAuditSummary(e, { currentUser, users });
                   const changedFields = getAuditChangedFields(e);
                   const isExpanded = expandedAuditIds.has(e.id);
                   return (
@@ -1247,7 +1243,8 @@ function CustomerAuditTab({ auditLog, customers, users }: { auditLog: AuditEntry
 
 function CustomerAuditView({ customers }: { customers: Customer[] }) {
   const auditLog = dungCuaHangTinhGia(s => s.auditLog);
-  return <CustomerAuditTab auditLog={auditLog?.filter(e => e.targetType === 'customer') ?? []} customers={customers} />;
+  const currentUser = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
+  return <CustomerAuditTab auditLog={auditLog?.filter(e => e.targetType === 'customer') ?? []} customers={customers} currentUser={currentUser} />;
 }
 
 // ── Main Component ───────────────────────────────────────────────────────────
@@ -1271,7 +1268,11 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const isAuthenticated = dungCuaHangTinhGia(s => s.isAuthenticated);
   const nguoiDungHienTai = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
   const coQuyenTaoKhachHang = !!nguoiDungHienTai?.policies.includes('CUSTOMER_CREATE');
-  const coQuyenSuaKhachHang = !!nguoiDungHienTai?.policies.includes('CUSTOMER_UPDATE_ALL');
+
+  const getAuditActor = () => ({
+    userId: nguoiDungHienTai?.id ?? currentSellerId,
+    userName: nguoiDungHienTai?.fullName || nguoiDungHienTai?.account || SELLERS.find(s => s.id === currentSellerId)?.name || currentSellerId,
+  });
   // Close transaction dropdown on click outside
   useEffect(() => {
     if (!txCardOpen) return;
@@ -1469,13 +1470,13 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     const historyLine = changedSeller ? `${new Date().toLocaleString('vi-VN')}: chính ${old?.sellerName || old?.sellerId || 'Chưa phân'} → ${seller?.name || c.sellerId || 'Chưa phân'}; phụ ${old?.secondarySellerName || old?.secondarySellerId || 'Không có'} → ${secondary?.name || c.secondarySellerId || 'Không có'}${c.assignmentNote ? ` (${c.assignmentNote})` : ''}` : undefined;
     const saved = { ...c, sellerName: seller?.name ?? c.sellerName ?? '', secondarySellerName: secondary?.name ?? c.secondarySellerName ?? '', assignmentHistory: historyLine ? [...(old?.assignmentHistory ?? []), historyLine] : (c.assignmentHistory ?? []) };
     const isNew = !old;
-    const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? currentSellerId;
+    const actor = getAuditActor();
     const diff = diffCustomer(old, saved);
 
     setCustomers(prev => isNew ? [saved, ...prev] : prev.map(x => x.id === c.id ? saved : x));
     ghiNhatKy({
-      userId: currentSellerId,
-      userName: actorName,
+      userId: actor.userId,
+      userName: actor.userName,
       action: isNew ? 'create' : 'update',
       targetType: 'customer',
       targetId: c.id,
@@ -1497,9 +1498,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
 
     const codeName = checkCode.maKhachHang;
     const managersPayload = chuyenCustomerManagersSangPayload(c.managers ?? []);
-    if (coQuyenSuaKhachHang && managersPayload.length === 0) {
-      throw new Error('Cần ít nhất 1 người phụ trách trước khi lưu khách hàng.');
-    }
 
     if (!old) {
       try {
@@ -1513,7 +1511,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
 
     try {
       const savedApi = await luuThongTinKhachHangService(codeName, chuyenCustomerUiSangThongTinApi(c), accessToken);
-      const managers = coQuyenSuaKhachHang
+      const managers = managersPayload.length > 0
         ? chuyenCustomerManagersApiSangUi((await luuNguoiPhuTrachKhachHangService(codeName, managersPayload, accessToken)).managers)
         : c.managers;
       const saved = { ...c, ...chuyenCustomerApiSangUi(savedApi), managers, sellerId: c.sellerId, sellerName: c.sellerName, secondarySellerId: c.secondarySellerId, secondarySellerName: c.secondarySellerName, customerGroup: c.customerGroup, customerType: c.customerType, contactTitle: c.contactTitle, contactNotes: c.contactNotes, assignmentNote: c.assignmentNote, assignmentHistory: c.assignmentHistory, crmStatus: c.crmStatus } as Customer;
@@ -1531,7 +1529,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     const old = customers.find(c => c.id === id);
     if (!old) return;
     const saved = { ...old, ...partial, updatedAt: todayIso() };
-    const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? currentSellerId;
+    const actor = getAuditActor();
     const action = partial.isLocked !== undefined && partial.isLocked !== old.isLocked
       ? (partial.isLocked ? 'lock' : 'unlock')
       : partial.status !== undefined && partial.status !== old.status
@@ -1541,8 +1539,8 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
 
     setCustomers(prev => prev.map(c => c.id === id ? saved : c));
     ghiNhatKy({
-      userId: currentSellerId,
-      userName: actorName,
+      userId: actor.userId,
+      userName: actor.userName,
       action,
       targetType: 'customer',
       targetId: id,
@@ -1572,10 +1570,10 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     };
     updateCustomerLocal(next);
 
-    const actorName = SELLERS.find(s => s.id === currentSellerId)?.name ?? nguoiDungHienTai?.fullName ?? currentSellerId;
+    const actor = getAuditActor();
     ghiNhatKy({
-      userId: nguoiDungHienTai?.id ?? currentSellerId,
-      userName: actorName,
+      userId: actor.userId,
+      userName: actor.userName,
       action: 'assign',
       targetType: 'customer',
       targetId: customer.id,
@@ -1608,7 +1606,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
           customer={detail}
           role={role}
           currentSellerId={currentSellerId}
-          canUpdateCustomer={canUpdateCustomerRecord(coQuyenSuaKhachHang, detail, nguoiDungHienTai?.id)}
+          canUpdateCustomer={canUpdateCustomerRecord(detail, nguoiDungHienTai?.id)}
           onClose={() => { setDetail(null); setEditing(undefined); }}
           onEdit={() => openEdit(detail)}
           onNavigate={handleNavigate}
@@ -1626,7 +1624,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
               currentSellerId={currentSellerId}
               customers={customers}
               token={accessToken ?? undefined}
-              canManageManagers={coQuyenSuaKhachHang}
+              canManageManagers={editing ? canUpdateCustomerRecord(editing, nguoiDungHienTai?.id) : true}
               saving={dangLuuKhachHang}
               onSave={async c => {
                 setDangLuuKhachHang(true);
@@ -1896,7 +1894,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                 const crmCfg = CRM_STATUS_CONFIG[getCrmStatus(c)];
                 const duocXemLienHe = canViewContact(role, c, currentSellerId);
                 const managerNames = managerNamesForTable(c);
-                const canUpdateThisCustomer = canUpdateCustomerRecord(coQuyenSuaKhachHang, c, nguoiDungHienTai?.id);
+                const canUpdateThisCustomer = canUpdateCustomerRecord(c, nguoiDungHienTai?.id);
                 return (
                 <tr key={c.id} className="crm2-table-row" onClick={() => openDetail(c)}>
                   <td>
@@ -1931,7 +1929,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                     <div className="crm2-table-actions" onClick={e => e.stopPropagation()}>
                       <button className="crm2-btn-icon" title="Xem" onClick={() => openDetail(c)}><Eye size={14}/></button>
                       {canUpdateThisCustomer && <button className="crm2-btn-icon" title="Sửa" onClick={() => openEdit(c)}><Pencil size={14}/></button>}
-                      {coQuyenSuaKhachHang && <button className="crm2-btn-icon" title="Phân công" onClick={() => openAssign(c)}><Briefcase size={14}/></button>}
+                      {canUpdateThisCustomer && <button className="crm2-btn-icon" title="Phân công" onClick={() => openAssign(c)}><Briefcase size={14}/></button>}
                       {canLock(role) && (
                         <button className="crm2-btn-icon" title={c.isLocked ? 'Mở khóa' : 'Khóa'} onClick={() => setConfirm({
                           title: c.isLocked ? 'Mở khóa?' : 'Khóa?',

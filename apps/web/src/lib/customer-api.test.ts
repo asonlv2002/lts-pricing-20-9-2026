@@ -19,6 +19,7 @@ import {
   type CustomerManagerApi,
   type CustomerUi,
 } from './customer-api';
+import { POLICY_CATALOG } from './api/service-lts';
 
 let passed = 0;
 let failed = 0;
@@ -112,7 +113,7 @@ const currentCustomer = chuyenCustomerApiSangUi({
 const staleMerge = gopCustomerTheoSuKienRealtime(currentCustomer, {
   codeName: 'MERGE_01',
   latestVersion: { version: 2, organizationName: 'Stale', contactName: 'Stale', phoneNumber: '2', email: 'stale@example.com', address: 'Stale address', status: 'inactive', createdAt: '2026-06-02T00:00:00.000Z' },
-  managers: [{ userId: 'user-2', account: 'staff_02', fullName: 'Staff 02', canWrite: false }],
+  managers: [{ userId: 'user-2', account: 'staff_02', fullName: 'Staff 02' }],
 });
 assert('does not let stale realtime customer versions overwrite current latest version', staleMerge.companyName === 'Current Newest', staleMerge.companyName);
 assert('still merges realtime managers when version is stale', staleMerge.managers?.[0]?.userId === 'user-2', JSON.stringify(staleMerge.managers));
@@ -161,24 +162,28 @@ assert('does not include customerCode in update payload', !('customerCode' in up
 
 console.log('\n== Customer manager mapping ==');
 
+const policyCodes = POLICY_CATALOG.map(policy => policy.code);
+assert('removes broad customer update policy from frontend catalog', !policyCodes.includes('CUSTOMER_UPDATE_ALL' as never));
+assert('removes broad customer read policy from frontend catalog', !policyCodes.includes('CUSTOMER_READ_ALL' as never));
+
 const managersApi: CustomerManagerApi[] = [
-  { id: 'user-2', fullName: 'Tran Huong Mai', canWrite: false },
-  { userId: 'user-1', account: 'nguyen.an', fullName: 'Nguyen Van An', canWrite: true },
+  { id: 'user-2', fullName: 'Tran Huong Mai' },
+  { userId: 'user-1', account: 'nguyen.an', fullName: 'Nguyen Van An' },
 ];
 const managersUi = chuyenCustomerManagersApiSangUi(managersApi);
 assert('maps manager id fallback to userId', managersUi[0]?.userId === 'user-2');
 assert('keeps manager account when provided', managersUi[1]?.account === 'nguyen.an');
-assert('keeps manager canWrite flag', managersUi[1]?.canWrite === true);
+assert('does not expose manager canWrite in UI model', !('canWrite' in managersUi[1]!), JSON.stringify(managersUi[1]));
 
 const managerPayload = chuyenCustomerManagersSangPayload([
-  { userId: ' user-1 ', account: 'nguyen.an', fullName: 'Nguyen Van An', canWrite: true },
-  { userId: 'user-2', account: 'mai.nv', fullName: 'Tran Huong Mai', canWrite: false },
-  { userId: 'user-1', account: 'nguyen.an', fullName: 'Nguyen Van An', canWrite: false },
-  { userId: '', fullName: null, canWrite: true },
+  { userId: ' user-1 ', account: 'nguyen.an', fullName: 'Nguyen Van An' },
+  { userId: 'user-2', account: 'mai.nv', fullName: 'Tran Huong Mai' },
+  { userId: 'user-1', account: 'nguyen.an', fullName: 'Nguyen Van An' },
+  { userId: '', fullName: null },
 ]);
 assert('trims and deduplicates manager payload', managerPayload.length === 2, JSON.stringify(managerPayload));
-assert('uses first manager canWrite when duplicate appears', managerPayload[0]?.canWrite === true);
 assert('maps manager payload key to managerId', managerPayload[0]?.managerId === 'user-1');
+assert('does not send manager canWrite in payload', !('canWrite' in managerPayload[0]!), JSON.stringify(managerPayload[0]));
 
 const activeAccounts = locTaiKhoanActive([
   { id: '1', account: 'active', fullName: 'Active User', isActive: true, isProtected: false, policies: [], createdAt: '2026-06-01' },
@@ -187,14 +192,14 @@ const activeAccounts = locTaiKhoanActive([
 assert('filters active accounts for assignment search', activeAccounts.length === 1 && activeAccounts[0]?.account === 'active');
 
 assert('summarizes empty manager list', tomTatNguoiPhuTrach([]).primary === 'Chưa phân công');
-assert('summarizes one writable manager', tomTatNguoiPhuTrach([{ userId: '1', fullName: 'Nguyen Van An', canWrite: true }]).primary === 'Nguyen Van An');
-assert('marks writable manager in summary', tomTatNguoiPhuTrach([{ userId: '1', fullName: 'Nguyen Van An', canWrite: true }]).secondary === 'Được sửa');
-assert('summarizes multiple managers with writable lead', tomTatNguoiPhuTrach(managersUi).primary === '2 người phụ trách');
-assert('uses writable lead in multiple manager summary', tomTatNguoiPhuTrach(managersUi).secondary === 'Nguyen Van An · Được sửa');
+assert('summarizes one manager without write/read badge', tomTatNguoiPhuTrach([{ userId: '1', fullName: 'Nguyen Van An' }]).primary === 'Nguyen Van An');
+assert('does not show write/read badge in manager summary', tomTatNguoiPhuTrach([{ userId: '1', fullName: 'Nguyen Van An' }]).secondary === 'Người phụ trách');
+assert('summarizes multiple managers without writable lead', tomTatNguoiPhuTrach(managersUi).primary === '2 người phụ trách');
+assert('uses first manager as multiple manager summary detail', tomTatNguoiPhuTrach(managersUi).secondary === 'Tran Huong Mai', tomTatNguoiPhuTrach(managersUi).secondary);
 
 const managerOptions = layLuaChonNguoiPhuTrach([
   { ...validCustomer, managers: managersUi },
-  { ...validCustomer, id: 'BETA_01', customerCode: 'BETA_01', managers: [{ userId: 'user-1', account: 'nguyen.an', fullName: 'Nguyen Van An', canWrite: true }] },
+  { ...validCustomer, id: 'BETA_01', customerCode: 'BETA_01', managers: [{ userId: 'user-1', account: 'nguyen.an', fullName: 'Nguyen Van An' }] },
   { ...validCustomer, id: 'NO_MANAGER', customerCode: 'NO_MANAGER', managers: [] },
 ]);
 assert('builds unique manager filter options', managerOptions.length === 2, JSON.stringify(managerOptions));
