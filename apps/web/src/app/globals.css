@@ -80,18 +80,12 @@ body {
   background: var(--grad);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  cursor: default;
   user-select: none;
   white-space: nowrap;
-  width: 100%;
   cursor: pointer;
   font-family: inherit;
   text-align: left;
   transition: background 0.18s ease, color 0.18s ease;
-}
-
-.lts-nav-group-title:hover {
-  background: rgba(255,255,255,0.05);
 }
 
 .logo span { font-weight: 400; opacity: 0.7; }
@@ -963,8 +957,11 @@ body {
   background: var(--grad);
   color: white;
   box-shadow: 0 3px 12px rgba(79,70,229,0.3);
-  width: 100%;
   justify-content: center;
+}
+#inputCard .btn-primary,
+.input-form-card .btn-primary {
+  width: 100%;
 }
 .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 5px 16px rgba(79,70,229,0.4); }
 .btn-primary:active { transform: translateY(0); }
@@ -4297,72 +4294,6 @@ body {
     min-width: 640px;
   }
 
-  /* ════ CARD LAYOUT FOR TABLES ON MOBILE ════ */
-  .data-table, .data-table tbody, .data-table tr, .data-table td,
-  .moq-table, .moq-table tbody, .moq-table tr, .moq-table td {
-    display: block;
-    width: 100%;
-  }
-
-  .data-table thead, .moq-table thead {
-    display: none; /* Hide standard headers */
-  }
-
-  .data-table tr, .moq-table tr.total-row {
-    margin-bottom: 24px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    overflow: hidden;
-    background: var(--surface);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-  }
-
-  .moq-table tr:not(:first-child) {
-    margin-bottom: 24px;
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    background: var(--surface);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.03);
-  }
-
-  .moq-table tr:first-child th {
-    display: none; /* Hide the inline th row used in moq-roll-table */
-  }
-
-  .data-table td, .moq-table td {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    text-align: right !important;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--border);
-    border-right: none;
-    font-size: 0.85rem;
-  }
-
-  .data-table td:last-child, .moq-table td:last-child {
-    border-bottom: none;
-  }
-
-  .data-table td::before, .moq-table td::before {
-    content: attr(data-label);
-    font-weight: 600;
-    text-transform: uppercase;
-    color: var(--muted);
-    font-size: 0.75rem;
-    text-align: left;
-    margin-right: 14px;
-    flex-shrink: 0;
-  }
-  
-  .data-table .total-row td, .moq-table .moq-highlight td {
-    background: rgba(79,70,229,0.04);
-  }
-  .moq-table .moq-highlight {
-    border-color: var(--accent) !important;
-    border-width: 2px !important;
-  }
-
   .crm-list {
     padding: 10px 12px 20px;
   }
@@ -4412,10 +4343,6 @@ body {
     -webkit-overflow-scrolling: touch;
   }
 
-  /* Bottom navigation for mobile (future use) */
-  .lts-mobile-nav {
-    display: flex;
-  }
 }
 
 /* ── Mobile bottom navigation bar (alternative to drawer, opt-in later) ── */
@@ -4430,6 +4357,13 @@ body {
   border-top: 1px solid var(--border);
   z-index: 300;
   box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+}
+
+.lts-shell--mobile .lts-mobile-nav,
+.lts-shell--mobile .lts-fab-container,
+.lts-shell--mobile .lts-fab-backdrop,
+.lts-shell--mobile .lts-fab-popup {
+  display: none !important;
 }
 
 /* Touch-friendly tap targets (mobile) */
@@ -5520,8 +5454,8 @@ body {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   DATA TABLE — MOBILE "CARD" REFLOW
-   Bảng rộng nhiều cột sẽ chuyển thành dạng label:value
+   DATA TABLE — WEB MOBILE HORIZONTAL SCROLL
+   Giữ layout bảng để dễ so sánh số liệu, giống bản web mobile cũ.
 ═══════════════════════════════════════════════════════════════ */
 @media (max-width: 600px) {
   /* Wrap inside scroll container; không force card reflow (giữ scroll ngang) */
@@ -5552,6 +5486,26 @@ body {
   /* MOQ table */
   .moq-table { min-width: 440px; font-size: 0.72rem; }
   .moq-table th, .moq-table td { padding: 8px 7px; }
+
+  #resultArea .data-table {
+    min-width: 560px;
+  }
+
+  #resultArea .moq-table {
+    min-width: 520px;
+  }
+
+  #resultArea .data-table th,
+  #resultArea .data-table td,
+  #resultArea .moq-table th,
+  #resultArea .moq-table td {
+    white-space: nowrap;
+  }
+
+  #resultArea .data-table td[data-label="Vật liệu"],
+  #resultArea .moq-table td span {
+    white-space: normal;
+  }
 
   /* Config table */
   .config-table { min-width: 420px; }
@@ -5858,8 +5812,9 @@ body {
   /* Prevent text from being cut off */
   body { -webkit-text-size-adjust: 100%; }
 
-  /* Larger tap targets */
-  button, a, select, input[type="checkbox"], input[type="radio"] {
+  /* Larger tap targets without inflating unrelated links or icon-only controls. */
+  .lts-shell--mobile button,
+  .lts-shell--mobile select {
     min-height: 36px;
   }
 
@@ -6158,13 +6113,6 @@ body {
   #resultArea .moq-table {
     width: 100%;
     table-layout: auto;
-  }
-
-  #resultArea .data-table th,
-  #resultArea .data-table td,
-  #resultArea .moq-table th,
-  #resultArea .moq-table td {
-    white-space: normal;
   }
 }
 
