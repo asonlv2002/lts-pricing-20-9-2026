@@ -232,7 +232,7 @@ export default function ModuleLenhSanXuat() {
             <ClipboardList size={40} style={{ color: 'var(--text-muted)', marginBottom: '12px' }} />
             <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>
               {lenhSanXuat.length === 0
-                ? 'Chưa có lệnh sản xuất nào. Tạo từ mục "Lịch sử tính giá" với đơn đã duyệt.'
+                ? 'Chưa có lệnh sản xuất nào. Hãy tạo LSX từ báo giá đã chốt ở mục "Tạo LSX".'
                 : 'Không tìm thấy kết quả phù hợp.'}
             </p>
           </div>

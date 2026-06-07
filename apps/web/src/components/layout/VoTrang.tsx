@@ -216,7 +216,7 @@ const TIEU_DE_MODULE: Record<MaModule, string> = {
   calculator:        'Tạo bảng tính giá',
   quotations:        'Danh sách báo giá',
   create_lsx:        'Tạo LSX',
-  history_db:        'Lịch sử tính giá',
+  history_db:        'Lịch sử',
   master_data:       'Cấu hình tính giá',
   production_orders: 'Lệnh sản xuất',
   customers:         'Khách hàng',

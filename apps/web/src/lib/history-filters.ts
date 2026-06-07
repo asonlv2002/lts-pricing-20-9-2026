@@ -1,6 +1,6 @@
-import type { HistoryItem, QuoteStatus } from './types';
+import type { HistoryItem, LSXStatus, ProductionOrder, QuoteStatus } from './types';
 
-export type HistoryFilterMode = 'pricing' | 'quote';
+export type HistoryFilterMode = 'pricing' | 'quote' | 'lsx';
 export type HistoryTimeRange = '3days' | '7days' | '30days' | 'all' | 'custom';
 export type PricingWorkflowStatus = 'draft' | 'saved' | 'used' | 'locked';
 
@@ -14,6 +14,7 @@ export interface HistoryFilterState {
   sellerIds: string[];
   pricingStatuses: PricingWorkflowStatus[];
   quoteStatuses: QuoteStatus[];
+  lsxStatuses?: LSXStatus[];
   materialIds: string[];
   productShape: string;
   unitPriceMin: string;
@@ -104,6 +105,12 @@ function parseVnDateMs(value?: string): number {
   return new Date(year, month - 1, day).getTime();
 }
 
+function parseIsoDateMs(value?: string): number {
+  if (!value) return 0;
+  const ms = new Date(value).getTime();
+  return Number.isFinite(ms) ? ms : 0;
+}
+
 function dateRangeBounds(filters: HistoryFilterState): [number, number] {
   const now = filters.now ?? new Date();
   const end = new Date(now);
@@ -134,6 +141,18 @@ function itemCustomerSearchText(item: HistoryItem, customers: HistoryFilterCusto
   return [
     item.customer,
     item.input?.customer,
+    ...related.flatMap(customer => [customer.id, customer.customerCode, customer.companyName, customer.taxCode, customer.contactName]),
+  ].map(normalizeHistoryText).join(' ');
+}
+
+function orderCustomerSearchText(order: ProductionOrder, customers: HistoryFilterCustomer[]): string {
+  const orderCustomer = normalizeHistoryText(order.snapshot.customer);
+  const related = customers.filter(customer => {
+    const names = [customer.companyName, customer.contactName].map(normalizeHistoryText);
+    return names.some(name => name && (orderCustomer.includes(name) || name.includes(orderCustomer)));
+  });
+  return [
+    order.snapshot.customer,
     ...related.flatMap(customer => [customer.id, customer.customerCode, customer.companyName, customer.taxCode, customer.contactName]),
   ].map(normalizeHistoryText).join(' ');
 }
@@ -237,6 +256,43 @@ export function filterHistoryItems(
 
     if (!matchesRange(getHistoryItemUnitPrices(item), filters.unitPriceMin, filters.unitPriceMax)) return false;
     if (!matchesRange(itemProfitRates(item), filters.profitRateMin, filters.profitRateMax, value => value * 100)) return false;
+
+    return true;
+  });
+}
+
+export function filterProductionOrders(
+  orders: ProductionOrder[],
+  filters: HistoryFilterState,
+  customers: HistoryFilterCustomer[] = [],
+): ProductionOrder[] {
+  const [fromMs, toMs] = dateRangeBounds(filters);
+  const customerQuery = normalizeHistoryText(filters.customerQuery);
+  const productQuery = normalizeHistoryText(filters.productQuery);
+  const productShape = normalizeHistoryText(filters.productShape);
+  const statuses = filters.lsxStatuses ?? (filters.quoteStatuses as unknown as LSXStatus[]);
+
+  return orders.filter(order => {
+    const ms = parseIsoDateMs(order.createdAt);
+    if (ms && (ms < fromMs || ms > toMs)) return false;
+
+    if (customerQuery && !orderCustomerSearchText(order, customers).includes(customerQuery)) return false;
+
+    if (productQuery) {
+      const productText = [order.snapshot.customer, order.snapshot.productName, order.snapshot.structure, order.manual.lsxNumber, order.id]
+        .map(normalizeHistoryText)
+        .join(' ');
+      if (!productText.includes(productQuery)) return false;
+    }
+
+    if (statuses.length > 0 && !statuses.includes(order.status)) return false;
+
+    if (productShape) {
+      const shapes = [order.snapshot.productType, order.snapshot.bagType].map(normalizeHistoryText).join(' ');
+      if (!shapes.includes(productShape)) return false;
+    }
+
+    if (!matchesRange([order.snapshot.chotGia], filters.unitPriceMin, filters.unitPriceMax)) return false;
 
     return true;
   });

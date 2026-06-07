@@ -84,7 +84,7 @@ export default function ModuleTaoLenhSanXuat() {
           <PackageCheck size={20} style={{ color: '#059669' }} />
           <div>
             <div style={{ fontWeight: 800, color: 'var(--text)' }}>Tạo LSX từ báo giá đã chốt</div>
-            <div style={{ fontSize: '0.82rem', color: 'var(--muted)' }}>Chỉ hiển thị báo giá có trạng thái “Đã chốt đơn sản xuất”. Chọn từng dòng sản phẩm hoặc mức số lượng để mở form LSX mẫu.</div>
+            <div style={{ fontSize: '0.82rem', color: 'var(--muted)' }}>Màn này dùng để tạo LSX từ báo giá đã chốt đơn sản xuất. Để xem hoặc chỉnh sửa LSX đã tạo, vào Lịch sử &gt; LSX.</div>
           </div>
         </div>
       </div>

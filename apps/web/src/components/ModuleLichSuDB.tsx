@@ -7,12 +7,12 @@ import {
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
-import type { HistoryItem, QuoteStatus } from '../lib/types';
-import { QUOTE_STATUS_CONFIG } from '../lib/types';
-import LSXFormModal from './ModalDonLSX';
+import type { HistoryItem, LSXStatus, ProductionOrder, QuoteStatus } from '../lib/types';
+import { LSX_STATUS_CONFIG, QUOTE_STATUS_CONFIG } from '../lib/types';
 import { loadCustomers } from '../store/helpers';
 import {
   DEFAULT_HISTORY_FILTERS,
+  filterProductionOrders,
   filterHistoryItems,
   getPricingWorkflowStatus,
   isQuoteHistoryItem,
@@ -42,7 +42,7 @@ function namTrongKhoangNgay(item: HistoryItem, tuNgay: string, denNgay: string):
 
 type SortKey = 'date' | 'customer' | 'productName' | 'finalPrice' | 'quoteStatus';
 type SortDir = 'asc' | 'desc';
-type ToggleMode = 'pricing' | 'quote';
+type ToggleMode = 'pricing' | 'quote' | 'lsx';
 type TimeRange = '3days' | '7days' | '30days' | 'all' | 'custom';
 
 const TIME_RANGE_LABELS: Record<TimeRange, string> = {
@@ -61,6 +61,7 @@ const PRICING_STATUS_OPTIONS = [
 ];
 
 const QUOTE_STATUS_OPTIONS: QuoteStatus[] = ['drafted', 'pending_approval', 'approved', 'sent', 'rejected', 'cancelled', 'completed'];
+const LSX_STATUS_OPTIONS: LSXStatus[] = ['created', 'in_production', 'completed', 'cancelled'];
 
 function getPricingStatus(h: HistoryItem): string {
   return getPricingWorkflowStatus(h);
@@ -145,12 +146,11 @@ type EditDraft = {
 };
 
 function DetailPanel({
-  item, mode, onClose, onLoad, onLSX, onNavigate, onPatch
+  item, mode, onClose, onLoad, onNavigate, onPatch
 }: {
   item: HistoryItem; mode: ToggleMode;
   onClose: () => void;
   onLoad: (id: string) => void;
-  onLSX: (item: HistoryItem) => void;
   onNavigate?: (module: 'calculator') => void;
   onPatch: (id: string, patch: Partial<Pick<HistoryItem, 'customer' | 'productName' | 'chotGia' | 'quoteStatus'>>) => void;
 }) {
@@ -490,11 +490,170 @@ function InfoRow({ label, value, mono, bold, color }: { label: string; value: st
   );
 }
 
+type LsxEditDraft = {
+  lsxNumber: string;
+  issuedDate: string;
+  deliveryDate: string;
+  preparedBy: string;
+  approvedBy: string;
+  notes: string;
+  status: LSXStatus;
+};
+
+function LsxDetailPanel({
+  order, onClose, onPatch,
+}: {
+  order: ProductionOrder;
+  onClose: () => void;
+  onPatch: (id: string, patch: { status?: LSXStatus; manual?: Partial<ProductionOrder['manual']> }) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<LsxEditDraft>({
+    lsxNumber: order.manual.lsxNumber,
+    issuedDate: order.manual.issuedDate,
+    deliveryDate: order.manual.deliveryDate,
+    preparedBy: order.manual.preparedBy,
+    approvedBy: order.manual.approvedBy,
+    notes: order.manual.notes,
+    status: order.status,
+  });
+  const [confirmClose, setConfirmClose] = useState(false);
+  const [confirmSave, setConfirmSave] = useState(false);
+  const [closeAfterSave, setCloseAfterSave] = useState(false);
+
+  const isDirty = editing && (
+    draft.lsxNumber !== order.manual.lsxNumber ||
+    draft.issuedDate !== order.manual.issuedDate ||
+    draft.deliveryDate !== order.manual.deliveryDate ||
+    draft.preparedBy !== order.manual.preparedBy ||
+    draft.approvedBy !== order.manual.approvedBy ||
+    draft.notes !== order.manual.notes ||
+    draft.status !== order.status
+  );
+
+  function buildPatch() {
+    const manual: Partial<ProductionOrder['manual']> = {};
+    if (draft.lsxNumber !== order.manual.lsxNumber) manual.lsxNumber = draft.lsxNumber;
+    if (draft.issuedDate !== order.manual.issuedDate) manual.issuedDate = draft.issuedDate;
+    if (draft.deliveryDate !== order.manual.deliveryDate) manual.deliveryDate = draft.deliveryDate;
+    if (draft.preparedBy !== order.manual.preparedBy) manual.preparedBy = draft.preparedBy;
+    if (draft.approvedBy !== order.manual.approvedBy) manual.approvedBy = draft.approvedBy;
+    if (draft.notes !== order.manual.notes) manual.notes = draft.notes;
+    return {
+      ...(draft.status !== order.status ? { status: draft.status } : {}),
+      ...(Object.keys(manual).length > 0 ? { manual } : {}),
+    };
+  }
+
+  function savePatch(shouldClose = false) {
+    const patch = buildPatch();
+    if (Object.keys(patch).length > 0) onPatch(order.id, patch);
+    setEditing(false);
+    setConfirmSave(false);
+    setConfirmClose(false);
+    if (shouldClose) onClose();
+  }
+
+  function handleClose() {
+    if (isDirty) { setConfirmClose(true); return; }
+    onClose();
+  }
+
+  function handleSave() {
+    if (!isDirty) { setEditing(false); return; }
+    setCloseAfterSave(false);
+    setConfirmSave(true);
+  }
+
+  return (
+    <>
+      <div onClick={handleClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.3)', zIndex: 40 }} />
+      {confirmClose && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--surface, #ffffff)', border: '1px solid var(--border)', borderRadius: 12, padding: '24px 28px', maxWidth: 360, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 8 }}>Chưa lưu thay đổi</div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: 20 }}>Bạn có thay đổi chưa được lưu. Đóng sẽ mất các thay đổi này.</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button className="btn btn-outline" onClick={() => setConfirmClose(false)}>Tiếp tục chỉnh sửa</button>
+              <button className="btn btn-primary" onClick={() => savePatch(true)}>Lưu & đóng</button>
+              <button className="btn btn-danger" onClick={onClose}>Đóng không lưu</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmSave && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 70, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: 'var(--surface, #ffffff)', border: '1px solid var(--border)', borderRadius: 12, padding: '22px 26px', maxWidth: 360, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 8 }}>Xác nhận lưu thay đổi LSX?</div>
+            <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: 18 }}>Thao tác này sẽ cập nhật lệnh sản xuất và ghi nhật ký thao tác.</p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button className="btn btn-outline" onClick={() => setConfirmSave(false)}>Hủy</button>
+              <button className="btn btn-primary" onClick={() => savePatch(closeAfterSave)}>Lưu</button>
+            </div>
+          </div>
+        </div>
+      )}
+      <div role="dialog" aria-modal="true" aria-label={`LSX ${order.manual.lsxNumber || order.id}`} style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(60%, 640px)', background: 'var(--surface, #ffffff)', borderLeft: '1px solid var(--border)', zIndex: 50, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '-4px 0 24px rgba(0,0,0,0.12)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+          <div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--muted)', marginBottom: 2 }}>LSX{isDirty && <span style={{ color: '#d97706', marginLeft: 6 }}>● Chưa lưu</span>}</div>
+            <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{order.manual.lsxNumber || order.id}</div>
+          </div>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            {!editing && <button className="btn btn-sm btn-outline" onClick={() => setEditing(true)}>✏️ Chỉnh sửa</button>}
+            <button onClick={handleClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}><X size={18} /></button>
+          </div>
+        </div>
+        <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+          {editing ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <input className="form-input" value={draft.lsxNumber} onChange={e => setDraft(d => ({ ...d, lsxNumber: e.target.value }))} placeholder="Số LSX" />
+              <select className="form-input" value={draft.status} onChange={e => setDraft(d => ({ ...d, status: e.target.value as LSXStatus }))}>{LSX_STATUS_OPTIONS.map(s => <option key={s} value={s}>{LSX_STATUS_CONFIG[s].label}</option>)}</select>
+              <input className="form-input" value={draft.issuedDate} onChange={e => setDraft(d => ({ ...d, issuedDate: e.target.value }))} placeholder="Ngày xuống LSX" />
+              <input className="form-input" value={draft.deliveryDate} onChange={e => setDraft(d => ({ ...d, deliveryDate: e.target.value }))} placeholder="Ngày giao hàng" />
+              <input className="form-input" value={draft.preparedBy} onChange={e => setDraft(d => ({ ...d, preparedBy: e.target.value }))} placeholder="Người lập" />
+              <input className="form-input" value={draft.approvedBy} onChange={e => setDraft(d => ({ ...d, approvedBy: e.target.value }))} placeholder="Người duyệt" />
+              <textarea className="form-input" value={draft.notes} onChange={e => setDraft(d => ({ ...d, notes: e.target.value }))} placeholder="Ghi chú" rows={4} />
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <InfoSection title="Thông tin LSX">
+                <InfoRow label="Trạng thái" value={LSX_STATUS_CONFIG[order.status].label} bold color={LSX_STATUS_CONFIG[order.status].color} />
+                <InfoRow label="Ngày tạo" value={new Date(order.createdAt).toLocaleDateString('vi-VN')} />
+                <InfoRow label="Ngày xuống" value={order.manual.issuedDate || '—'} />
+                <InfoRow label="Ngày giao" value={order.manual.deliveryDate || '—'} />
+                <InfoRow label="Người lập" value={order.manual.preparedBy || '—'} />
+                <InfoRow label="Người duyệt" value={order.manual.approvedBy || '—'} />
+              </InfoSection>
+              <InfoSection title="Sản phẩm">
+                <InfoRow label="Khách hàng" value={order.snapshot.customer || '—'} />
+                <InfoRow label="Sản phẩm" value={order.snapshot.productName || '—'} />
+                <InfoRow label="Cấu trúc" value={order.snapshot.structure || '—'} mono />
+                <InfoRow label="Số lượng" value={`${dinhDangSo(order.snapshot.quantity)} ${order.snapshot.productType === 'mang' ? 'm²' : 'cái'}`} />
+                <InfoRow label="Giá chốt" value={`${dinhDangSo(order.snapshot.chotGia)} ₫`} bold />
+              </InfoSection>
+              <InfoSection title="Ghi chú">
+                <InfoRow label="Nội dung" value={order.manual.notes || '—'} />
+              </InfoSection>
+            </div>
+          )}
+        </div>
+        <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap', background: 'var(--surface)' }}>
+          {editing && <>
+            <button className="btn btn-sm btn-primary" onClick={handleSave}>💾 Lưu</button>
+            <button className="btn btn-sm btn-outline" onClick={() => { setDraft({ lsxNumber: order.manual.lsxNumber, issuedDate: order.manual.issuedDate, deliveryDate: order.manual.deliveryDate, preparedBy: order.manual.preparedBy, approvedBy: order.manual.approvedBy, notes: order.manual.notes, status: order.status }); setEditing(false); }}>Huỷ</button>
+          </>}
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ════════════════════════════════════════════════════════════
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
 export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieuHuong?: (module: 'calculator' | 'quotations') => void; menuDangChon?: string }) {
-  const { history: lichSu, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu, patchHistoryItem, materials, role } = dungCuaHangTinhGia();
+  const { history: lichSu, productionOrders, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu, patchHistoryItem, capNhatLSX, materials, role } = dungCuaHangTinhGia();
 
   // Toggle
   const [mode, setMode] = useState<ToggleMode>('pricing');
@@ -541,6 +700,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
 
   // Detail panel
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<ProductionOrder | null>(null);
 
   useEffect(() => {
     if (!pendingTargetId) return;
@@ -550,9 +710,6 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
     setMode(laBanGhiBaoGia(found) ? 'quote' : 'pricing');
     setPendingTargetId(null);
   }, [pendingTargetId, lichSu]);
-
-  // LSX modal
-  const [mucLsx, datMucLsx] = useState<HistoryItem | null>(null);
 
   // Lock state
   const [sanPhamKhoa, datSanPhamKhoa] = useState<Record<string, boolean>>(() => {
@@ -570,6 +727,26 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   const customerRecords = useMemo(() => loadCustomers(), []);
 
   const filtered = useMemo(() => {
+    if (mode === 'lsx') return filterProductionOrders(productionOrders, {
+      ...DEFAULT_HISTORY_FILTERS,
+      mode,
+      timeRange,
+      fromDate: tuNgay,
+      toDate: denNgay,
+      customerQuery: filterCustomer,
+      productQuery: filterProduct || tuKhoa,
+      sellerIds: filterSeller ? [filterSeller] : [],
+      pricingStatuses: [],
+      quoteStatuses: [],
+      lsxStatuses: Array.from(filterStatuses) as LSXStatus[],
+      materialIds: filterMaterial ? [filterMaterial] : [],
+      productShape: filterBagType,
+      unitPriceMin,
+      unitPriceMax,
+      profitRateMin,
+      profitRateMax,
+    }, customerRecords);
+
     let list = filterHistoryItems(lichSu, {
       ...DEFAULT_HISTORY_FILTERS,
       mode,
@@ -612,7 +789,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
     });
 
     return list;
-  }, [lichSu, mode, timeRange, tuNgay, denNgay, tuKhoa, filterStatuses, filterCustomer, filterProduct, filterSeller, filterMaterial, filterBagType, unitPriceMin, unitPriceMax, profitRateMin, profitRateMax, customerRecords, sortKey, sortDir]);
+  }, [lichSu, productionOrders, mode, timeRange, tuNgay, denNgay, tuKhoa, filterStatuses, filterCustomer, filterProduct, filterSeller, filterMaterial, filterBagType, unitPriceMin, unitPriceMax, profitRateMin, profitRateMax, customerRecords, sortKey, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const pageItems = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -644,7 +821,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   const activeChips: Array<{ label: string; clear: () => void }> = [];
   if (timeRange !== 'all') activeChips.push({ label: TIME_RANGE_LABELS[timeRange], clear: () => setTimeRange('all') });
   filterStatuses.forEach(s => {
-    const cfg = mode === 'pricing' ? PRICING_STATUS_CONFIG[s] : QUOTE_STATUS_CONFIG[s as QuoteStatus];
+    const cfg = mode === 'pricing' ? PRICING_STATUS_CONFIG[s] : mode === 'quote' ? QUOTE_STATUS_CONFIG[s as QuoteStatus] : LSX_STATUS_CONFIG[s as LSXStatus];
     activeChips.push({ label: cfg?.label ?? s, clear: () => toggleStatus(s) });
   });
   if (filterCustomer) activeChips.push({ label: 'KH: ' + filterCustomer, clear: () => setFilterCustomer('') });
@@ -655,7 +832,11 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   if (unitPriceMin || unitPriceMax) activeChips.push({ label: `Đơn giá: ${unitPriceMin || '0'}-${unitPriceMax || '∞'}`, clear: () => { setUnitPriceMin(''); setUnitPriceMax(''); } });
   if (profitRateMin || profitRateMax) activeChips.push({ label: `LN: ${profitRateMin || '0'}%-${profitRateMax || '∞'}%`, clear: () => { setProfitRateMin(''); setProfitRateMax(''); } });
 
-  const statusOptions = mode === 'pricing' ? PRICING_STATUS_OPTIONS : QUOTE_STATUS_OPTIONS.map(s => ({ value: s, label: QUOTE_STATUS_CONFIG[s].label }));
+  const statusOptions = mode === 'pricing'
+    ? PRICING_STATUS_OPTIONS
+    : mode === 'quote'
+      ? QUOTE_STATUS_OPTIONS.map(s => ({ value: s, label: QUOTE_STATUS_CONFIG[s].label }))
+      : LSX_STATUS_OPTIONS.map(s => ({ value: s, label: LSX_STATUS_CONFIG[s].label }));
   const customerOptions = Array.from(new Set([
     ...customerRecords.flatMap(c => [c.customerCode, c.companyName, c.taxCode].filter(Boolean) as string[]),
     ...lichSu.map(h => h.customer).filter(Boolean),
@@ -668,12 +849,11 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   const bagTypeOptions = Array.from(new Set(lichSu.map(h => h.input?.bagType || h.input?.productType || '').filter(Boolean))).sort();
 
   const xuatCsv = () => {
-    const headers = ['Ngay', 'Khach hang', 'San pham', 'Cau truc', 'So luong', 'Gia de xuat', 'Trang thai'];
-    const csv = [headers, ...filtered.map(h => [
-      h.date, h.customer, h.productName, h.structure, h.quantity,
-      Math.round(h.finalPrice),
-      mode === 'pricing' ? PRICING_STATUS_CONFIG[getPricingStatus(h)]?.label : QUOTE_STATUS_CONFIG[h.quoteStatus ?? 'drafted']?.label,
-    ])].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+    const headers = ['Ngay', 'Khach hang', 'San pham', 'Cau truc', 'So luong', 'Gia', 'Trang thai'];
+    const rows = mode === 'lsx'
+      ? (filtered as ProductionOrder[]).map(o => [new Date(o.createdAt).toLocaleDateString('vi-VN'), o.snapshot.customer, o.snapshot.productName, o.snapshot.structure, o.snapshot.quantity, Math.round(o.snapshot.chotGia), LSX_STATUS_CONFIG[o.status].label])
+      : (filtered as HistoryItem[]).map(h => [h.date, h.customer, h.productName, h.structure, h.quantity, Math.round(h.finalPrice), mode === 'pricing' ? PRICING_STATUS_CONFIG[getPricingStatus(h)]?.label : QUOTE_STATUS_CONFIG[h.quoteStatus ?? 'drafted']?.label]);
+    const csv = [headers, ...rows].map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a'); a.href = url;
@@ -683,19 +863,27 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
 
   return (
     <div className="crm-root hist-root">
-      {mucLsx && <LSXFormModal historyItem={mucLsx} onClose={() => datMucLsx(null)} />}
-
       {selectedItem && (
         <DetailPanel
           item={selectedItem}
           mode={mode}
           onClose={() => setSelectedItem(null)}
           onLoad={taiLichSu}
-          onLSX={datMucLsx}
           onNavigate={khiDieuHuong}
           onPatch={(id, patch) => {
             patchHistoryItem(id, patch);
             setSelectedItem(prev => prev ? { ...prev, ...patch } : prev);
+          }}
+        />
+      )}
+
+      {selectedOrder && (
+        <LsxDetailPanel
+          order={selectedOrder}
+          onClose={() => setSelectedOrder(null)}
+          onPatch={(id, patch) => {
+            capNhatLSX(id, patch);
+            setSelectedOrder(prev => prev ? { ...prev, ...patch, manual: { ...prev.manual, ...(patch.manual ?? {}) } } : prev);
           }}
         />
       )}
@@ -706,7 +894,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Segmented toggle */}
           <div style={{ display: 'flex', background: 'var(--border)', borderRadius: 8, padding: 2, gap: 2 }}>
-            {(['pricing', 'quote'] as ToggleMode[]).map(m => (
+            {(['pricing', 'quote', 'lsx'] as ToggleMode[]).map(m => (
               <button
                 key={m}
                 onClick={() => { setMode(m); setPage(0); setFilterStatuses(new Set()); }}
@@ -718,7 +906,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
                   boxShadow: mode === m ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
                 }}
               >
-                {m === 'pricing' ? '● Tính giá' : '○ Báo giá'}
+                  {m === 'pricing' ? '● Tính giá' : m === 'quote' ? '○ Báo giá' : '□ LSX'}
               </button>
             ))}
           </div>
@@ -865,10 +1053,10 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
 
       {/* ── Table ── */}
       <div className="crm-danhSach hist-danhSach-container">
-        {lichSu.length === 0 ? (
+        {(mode !== 'lsx' && lichSu.length === 0) || (mode === 'lsx' && productionOrders.length === 0) ? (
           <div className="crm-empty">
             <Database size={40} />
-            <p>Chưa có lịch sử tính giá nào.</p>
+            <p>{mode === 'lsx' ? 'Chưa có LSX nào.' : 'Chưa có lịch sử tính giá nào.'}</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="crm-empty" role="status">
@@ -886,18 +1074,31 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
               <thead>
                 <tr>
                   <SortHeader label="Mã" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} />
-                  {mode === 'pricing' && <SortHeader label="Sản phẩm" sortKey="productName" current={sortKey} dir={sortDir} onSort={handleSort} />}
+                  {(mode === 'pricing' || mode === 'lsx') && <SortHeader label="Sản phẩm" sortKey="productName" current={sortKey} dir={sortDir} onSort={handleSort} />}
                   <SortHeader label="Khách hàng" sortKey="customer" current={sortKey} dir={sortDir} onSort={handleSort} />
                   {mode === 'quote' && <th>Số SP</th>}
                   <SortHeader label="Ngày tạo" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} />
                   <SortHeader label="Trạng thái" sortKey="quoteStatus" current={sortKey} dir={sortDir} onSort={handleSort} />
-                  {mode === 'pricing' && <SortHeader label="Giá đề xuất" sortKey="finalPrice" current={sortKey} dir={sortDir} onSort={handleSort} />}
-                  <th>Sale</th>
+                  {(mode === 'pricing' || mode === 'lsx') && <SortHeader label={mode === 'lsx' ? 'Giá chốt' : 'Giá đề xuất'} sortKey="finalPrice" current={sortKey} dir={sortDir} onSort={handleSort} />}
+                  <th>{mode === 'lsx' ? 'Số LSX' : 'Sale'}</th>
                   <th>Thao tác</th>
                 </tr>
               </thead>
               <tbody>
-                {pageItems.map(h => {
+                {mode === 'lsx' ? (pageItems as ProductionOrder[]).map(o => (
+                  <tr key={o.id} onClick={() => setSelectedOrder(o)} style={{ cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface)')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                    <td style={{ fontFamily: "'Courier New', monospace", fontSize: '0.78rem' }}>{o.id}</td>
+                    <td>{o.snapshot.productName}</td>
+                    <td>{o.snapshot.customer}</td>
+                    <td>{new Date(o.createdAt).toLocaleDateString('vi-VN')}</td>
+                    <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600, color: LSX_STATUS_CONFIG[o.status].color, background: LSX_STATUS_CONFIG[o.status].bg }}>● {LSX_STATUS_CONFIG[o.status].label}</span></td>
+                    <td className="num" style={{ fontWeight: 600 }}>{dinhDangSo(o.snapshot.chotGia)} ₫</td>
+                    <td>{o.manual.lsxNumber || '—'}</td>
+                    <td onClick={e => e.stopPropagation()} style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      <button className="btn btn-sm btn-outline" title="Xem chi tiết" onClick={() => setSelectedOrder(o)}><Eye size={13} /></button>
+                    </td>
+                  </tr>
+                )) : (pageItems as HistoryItem[]).map(h => {
                   const status = mode === 'pricing' ? getPricingStatus(h) : (h.quoteStatus ?? 'drafted');
                   const lockKey = h.productName + '-' + h.structure;
                   const locked = !!sanPhamKhoa[lockKey];

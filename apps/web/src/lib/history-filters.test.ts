@@ -3,9 +3,10 @@
  * Chay: npx tsx src/lib/history-filters.test.ts
  */
 
-import type { HistoryItem } from './types';
+import type { HistoryItem, ProductionOrder } from './types';
 import {
   DEFAULT_HISTORY_FILTERS,
+  filterProductionOrders,
   filterHistoryItems,
   getHistoryItemUnitPrices,
   getPricingWorkflowStatus,
@@ -88,6 +89,51 @@ const customers = [
   { id: 'KH002', customerCode: 'KH002', companyName: 'Acecook Viet Nam', taxCode: '0300000001' },
 ];
 
+function makeProductionOrder(patch: Partial<ProductionOrder>): ProductionOrder {
+  return {
+    id: 'LSX-20260607-001',
+    quoteId: 'quote-completed',
+    createdAt: '2026-06-07T08:00:00.000Z',
+    status: 'created',
+    manual: {
+      lsxNumber: 'LSX-001',
+      issuedDate: '07/06/2026',
+      preparedBy: 'Nguyen Minh An',
+      approvedBy: 'Tran Van B',
+      deliveryDate: '20/06/2026',
+      notes: 'Can giao som',
+      msp: '', tenSP: '', maMucNhu: '', quyCachNote: '', quyCachCuon: '', chieuRaCuonSP: '', soLuongDHNote: '',
+      printFilmName: '', printWastePercent: 0, printProductQty: 0, numCylinders: 0, cylDiameter: 0, cylWidth: 0, rollOutWidth: 0, materialQtySupplied: 0, printNotes: '', cylInfo: '', printDirection: '', printMST: '', printProductUnit: '',
+      divideWidth: 0, rollLength: 0, divideRollOutWidth: 0, divideDeliveryReq: '', divideNotes: '',
+      laminateFilm1: '', laminateFilm1Width: 0, lamWaste: 0, lamProductQty: 0, lamBTP: 0, laminateFilm2: '', laminateNotes: '', lamMaterialSupplyQty: '', lamProductUnit: '', lamBTPNote: '',
+      packagingInfo: '', packagingNotes: '', deliveryNotes: '',
+      sealEdge: '', foldBottom: '', tearNotch: '', hanTruoc: 0, hanSau: 0, hanBien: 0, hanDau: 0, xepHong: 0, holePunchInfo: '', ventHoleInfo: '', bagWasteMeters: 0, bagLuuY: '', useSemicircularMold: false, useDualCutter: false, bagMachineWaste: 0, bagDeliveryReq: '', bagMachineNotes: '',
+    },
+    snapshot: {
+      customer: 'Cong ty Gao Viet Xanh',
+      productName: 'Tui gao ST25',
+      productType: 'tui',
+      structure: 'PET 12//MPET 12//LLDPE 120',
+      quantity: 10000,
+      spreadWidth: 0.32,
+      cutStep: 0.48,
+      numColors: 4,
+      bagType: '3bien',
+      cylLength: 0.7,
+      cylCircum: 0.48,
+      filmRollLength: 6000,
+      layer1Name: 'PET',
+      layer2Name: 'MPET',
+      layer3Name: 'LLDPE',
+      layer4Name: '',
+      layer5Name: '',
+      chotGia: 25000,
+      totalArea: 1536,
+    },
+    ...patch,
+  };
+}
+
 console.log('\n== History filter defaults ==');
 assert('defaults to pricing mode', DEFAULT_HISTORY_FILTERS.mode === 'pricing');
 assert('defaults to 7 days', DEFAULT_HISTORY_FILTERS.timeRange === '7days');
@@ -160,6 +206,23 @@ const profitFiltered = filterHistoryItems(items, {
   profitRateMax: '20',
 }, customers);
 assert('profit filter drops records without profitRate', !profitFiltered.some(i => i.id === 'old-no-profit'));
+
+console.log('\n== Production order filtering ==');
+const orders = [
+  makeProductionOrder({ id: 'lsx-match', status: 'in_production' }),
+  makeProductionOrder({ id: 'lsx-wrong-status', status: 'completed' }),
+  makeProductionOrder({ id: 'lsx-wrong-date', createdAt: '2020-01-01T08:00:00.000Z', status: 'in_production' }),
+  makeProductionOrder({ id: 'lsx-wrong-product-type', status: 'in_production', snapshot: { ...makeProductionOrder({}).snapshot, productType: 'mang' } }),
+];
+const filteredOrders = filterProductionOrders(orders, {
+  ...DEFAULT_HISTORY_FILTERS,
+  mode: 'lsx',
+  now: new Date('2026-06-07T12:00:00.000Z'),
+  customerQuery: 'KH001',
+  lsxStatuses: ['in_production'],
+  productShape: 'tui',
+}, customers);
+assert('filters LSX by customer code, date, status and product type together', filteredOrders.map(o => o.id).join(',') === 'lsx-match', filteredOrders.map(o => o.id).join(','));
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);
 if (failed > 0) process.exit(1);

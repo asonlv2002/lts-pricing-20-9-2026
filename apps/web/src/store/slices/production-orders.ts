@@ -7,7 +7,7 @@ export interface ProductionOrderSlice {
   productionOrders: ProductionOrder[];
 
   themLSX: (lenh: ProductionOrder) => void;
-  capNhatLSX: (id: string, patch: Partial<Pick<ProductionOrder, 'status' | 'manual'>>) => void;
+  capNhatLSX: (id: string, patch: { status?: ProductionOrder['status']; manual?: Partial<ProductionOrder['manual']> }) => void;
   xoaLSX: (id: string) => void;
 }
 
@@ -36,7 +36,7 @@ export const createProductionOrderSlice: StateCreator<CuaHangTinhGia, [], [], Pr
   capNhatLSX: (id, banVa) => {
     set((state) => {
       const old = state.productionOrders.find(o => o.id === id);
-      const lenhSanXuat = state.productionOrders.map(o => o.id === id ? { ...o, ...banVa } : o);
+      const lenhSanXuat = state.productionOrders.map(o => o.id === id ? { ...o, ...banVa, manual: { ...o.manual, ...(banVa.manual ?? {}) } } : o);
       luuLocalStorage(LS_LSX, lenhSanXuat);
       if (old) {
         setTimeout(() => {
