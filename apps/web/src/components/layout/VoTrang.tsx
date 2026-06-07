@@ -19,7 +19,9 @@ import { tinhThoiGianChoLamMoiPhien, tokenCanLamMoiNgay } from '../../lib/auth-s
 import type { PolicyCode } from '../../lib/api/service-lts';
 import {
   Calculator, Users, Menu, Factory,
-  X, ChevronRight, Plus,
+  X, ChevronRight, Plus, FileText, History, ClipboardList, Bell, UserCircle,
+  BarChart3, Clock3, TrendingUp, PackageCheck, Settings2, Wrench, Percent,
+  Coins, UserPlus, BriefcaseBusiness, ListChecks, KeyRound as KeyRoundIcon,
   LayoutDashboard, Shield,
   LogOut, RefreshCw, KeyRound,
 } from 'lucide-react';
@@ -123,6 +125,44 @@ const CAC_NHOM_MENU: NhomMenu[] = [
 ];
 
 const CAC_MUC_MENU: MucMenu[] = CAC_NHOM_MENU.flatMap(nhom => nhom.mucCon);
+const MOBILE_HUB_PREFIX = 'mobile.hub.';
+
+const MOBILE_TAB_FALLBACK: Record<string, string> = {
+  overview: `${MOBILE_HUB_PREFIX}overview`,
+  pricing_quote: `${MOBILE_HUB_PREFIX}pricing_quote`,
+  customers: `${MOBILE_HUB_PREFIX}customers`,
+  pricing_config: `${MOBILE_HUB_PREFIX}pricing_config`,
+  system: `${MOBILE_HUB_PREFIX}system`,
+};
+
+type MobileHubId = typeof CAC_NHOM_MENU[number]['id'];
+
+type MobileHubAction =
+  | { type: 'module'; key: string; module: MaModule }
+  | { type: 'changePassword' }
+  | { type: 'logout' };
+
+interface MobileHubCardConfig {
+  title: string;
+  subtitle: string;
+  tone: 'violet' | 'sky' | 'emerald' | 'orange' | 'slate' | 'rose';
+  icon: React.ReactNode;
+  action: MobileHubAction;
+}
+
+interface MobileHubConfig {
+  id: MobileHubId;
+  title: string;
+  label: string;
+  cards: MobileHubCardConfig[];
+}
+
+const laMobileHubKey = (key: string) => key.startsWith(MOBILE_HUB_PREFIX);
+
+const layMobileHubId = (key: string): MobileHubId => {
+  if (laMobileHubKey(key)) return key.slice(MOBILE_HUB_PREFIX.length) as MobileHubId;
+  return timNhomTheoMenu(key) as MobileHubId;
+};
 
 const IS_OFFLINE = process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true';
 
@@ -212,6 +252,73 @@ const TIEU_DE_MODULE: Record<MaModule, string> = {
   users:             'Tài khoản & quyền',
   settings:          'Cài đặt hệ thống',
   audit_log:         'Nhật ký thao tác',
+};
+
+const MOBILE_HUBS: Record<string, MobileHubConfig> = {
+  overview: {
+    id: 'overview',
+    title: 'Tổng quan',
+    label: 'Tổng quan',
+    cards: [
+      { title: 'Số báo giá đã tạo', subtitle: 'Xem nhanh các báo giá trong hệ thống.', tone: 'violet', icon: <BarChart3 size={30} />, action: { type: 'module', key: 'overview.quotes_created', module: 'quotations' } },
+      { title: 'Báo giá chờ duyệt', subtitle: 'Theo dõi báo giá cần xử lý tiếp.', tone: 'orange', icon: <Clock3 size={30} />, action: { type: 'module', key: 'overview.quotes_pending', module: 'quotations' } },
+      { title: 'Khách hàng mới', subtitle: 'Xem danh sách khách hàng mới phát sinh.', tone: 'sky', icon: <UserPlus size={30} />, action: { type: 'module', key: 'overview.new_customers', module: 'customers' } },
+      { title: 'Sản phẩm đã tính giá gần đây', subtitle: 'Mở lại các bảng tính giá đã lưu.', tone: 'emerald', icon: <History size={30} />, action: { type: 'module', key: 'overview.recent_products', module: 'history_db' } },
+      { title: 'Doanh thu dự kiến', subtitle: 'Kiểm tra các báo giá có giá trị doanh thu.', tone: 'rose', icon: <TrendingUp size={30} />, action: { type: 'module', key: 'overview.expected_revenue', module: 'quotations' } },
+      { title: 'Hoạt động gần đây', subtitle: 'Xem các thao tác mới nhất trong hệ thống.', tone: 'slate', icon: <ClipboardList size={30} />, action: { type: 'module', key: 'overview.recent_activity', module: 'history_db' } },
+    ],
+  },
+  pricing_quote: {
+    id: 'pricing_quote',
+    title: 'Tính giá & Báo giá',
+    label: 'Tính giá',
+    cards: [
+      { title: 'Tạo bảng tính giá', subtitle: 'Tạo mới bảng tính giá nhanh chóng.', tone: 'violet', icon: <FileText size={30} />, action: { type: 'module', key: 'pricing.create_calculation', module: 'calculator' } },
+      { title: 'Tạo bảng báo giá', subtitle: 'Tạo bảng báo giá gửi khách hàng.', tone: 'sky', icon: <FileText size={30} />, action: { type: 'module', key: 'pricing.create_quote', module: 'quotations' } },
+      { title: 'Tạo lệnh sản xuất', subtitle: 'Chuyển thông tin báo giá sang LSX.', tone: 'emerald', icon: <PackageCheck size={30} />, action: { type: 'module', key: 'pricing.create_lsx', module: 'create_lsx' } },
+      { title: 'Danh sách lệnh sản xuất', subtitle: 'Theo dõi các LSX đã tạo.', tone: 'slate', icon: <ListChecks size={30} />, action: { type: 'module', key: 'pricing.lsx_list', module: 'lsx_list' } },
+      { title: 'Lịch sử tính giá & báo giá', subtitle: 'Xem lại các bảng tính và báo giá đã tạo.', tone: 'emerald', icon: <History size={30} />, action: { type: 'module', key: 'pricing.history', module: 'history_db' } },
+      { title: 'Nhật ký thao tác', subtitle: 'Theo dõi các thao tác trong hệ thống.', tone: 'orange', icon: <ClipboardList size={30} />, action: { type: 'module', key: 'pricing.audit_log', module: 'audit_log' } },
+    ],
+  },
+  customers: {
+    id: 'customers',
+    title: 'Khách hàng',
+    label: 'Khách hàng',
+    cards: [
+      { title: 'Danh sách khách hàng', subtitle: 'Quản lý hồ sơ, liên hệ và phân công.', tone: 'sky', icon: <Users size={30} />, action: { type: 'module', key: 'customers.list', module: 'customers' } },
+      { title: 'Nhật ký thao tác', subtitle: 'Theo dõi thay đổi liên quan đến khách hàng.', tone: 'orange', icon: <ClipboardList size={30} />, action: { type: 'module', key: 'customers.audit_log', module: 'customers' } },
+    ],
+  },
+  pricing_config: {
+    id: 'pricing_config',
+    title: 'Cấu hình',
+    label: 'Cấu hình',
+    cards: [
+      { title: 'Vật tư / nguyên vật liệu', subtitle: 'Cập nhật danh mục vật liệu đầu vào.', tone: 'emerald', icon: <PackageCheck size={30} />, action: { type: 'module', key: 'config.materials', module: 'master_data' } },
+      { title: 'Chi phí sản xuất', subtitle: 'Thiết lập các chi phí theo công đoạn.', tone: 'violet', icon: <Factory size={30} />, action: { type: 'module', key: 'config.production_costs', module: 'master_data' } },
+      { title: 'Chi phí gia công ngoài', subtitle: 'Quản lý đơn giá thuê ngoài.', tone: 'sky', icon: <Wrench size={30} />, action: { type: 'module', key: 'config.outsource_costs', module: 'master_data' } },
+      { title: 'Biên lợi nhuận', subtitle: 'Cấu hình bảng lợi nhuận áp dụng.', tone: 'rose', icon: <Percent size={30} />, action: { type: 'module', key: 'config.profit_margin', module: 'master_data' } },
+      { title: 'Phụ phí', subtitle: 'Thiết lập phụ phí và khoản cộng thêm.', tone: 'orange', icon: <Settings2 size={30} />, action: { type: 'module', key: 'config.surcharges', module: 'master_data' } },
+      { title: 'Lãi vay công nợ', subtitle: 'Cấu hình lãi vay theo thời hạn thanh toán.', tone: 'slate', icon: <Coins size={30} />, action: { type: 'module', key: 'config.interest', module: 'master_data' } },
+    ],
+  },
+  system: {
+    id: 'system',
+    title: 'Tài khoản',
+    label: 'Tài khoản',
+    cards: [
+      { title: 'Tài khoản & quyền', subtitle: 'Quản lý người dùng và quyền truy cập.', tone: 'violet', icon: <Shield size={30} />, action: { type: 'module', key: 'system.users', module: 'users' } },
+      { title: 'Nhân viên kinh doanh', subtitle: 'Quản lý danh sách nhân viên bán hàng.', tone: 'sky', icon: <BriefcaseBusiness size={30} />, action: { type: 'module', key: 'system.sellers', module: 'sellers' } },
+      { title: 'Vai trò', subtitle: 'Thiết lập nhóm vai trò trong hệ thống.', tone: 'emerald', icon: <Users size={30} />, action: { type: 'module', key: 'system.roles', module: 'users' } },
+      { title: 'Bảng phân quyền', subtitle: 'Kiểm tra ma trận quyền theo chức năng.', tone: 'orange', icon: <ListChecks size={30} />, action: { type: 'module', key: 'system.permissions', module: 'users' } },
+      { title: 'Cài đặt công ty', subtitle: 'Cấu hình thông tin doanh nghiệp.', tone: 'slate', icon: <Settings2 size={30} />, action: { type: 'module', key: 'system.company_settings', module: 'settings' } },
+      { title: 'Mẫu báo giá', subtitle: 'Quản lý mẫu biểu báo giá xuất cho khách.', tone: 'rose', icon: <FileText size={30} />, action: { type: 'module', key: 'system.quote_templates', module: 'settings' } },
+      { title: 'Nhật ký hệ thống', subtitle: 'Theo dõi hoạt động quản trị.', tone: 'orange', icon: <ClipboardList size={30} />, action: { type: 'module', key: 'system.audit_log', module: 'audit_log' } },
+      { title: 'Đổi mật khẩu', subtitle: 'Cập nhật mật khẩu phiên làm việc hiện tại.', tone: 'violet', icon: <KeyRoundIcon size={30} />, action: { type: 'changePassword' } },
+      { title: 'Đăng xuất', subtitle: 'Kết thúc phiên làm việc trên thiết bị này.', tone: 'slate', icon: <LogOut size={30} />, action: { type: 'logout' } },
+    ],
+  },
 };
 
 // ============================================================
@@ -439,6 +546,91 @@ function MenuNoiMobile({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleD
   );
 }
 
+function MobileHubScreen({ hub, onAction }: {
+  hub: MobileHubConfig;
+  onAction: (action: MobileHubAction) => void;
+}) {
+  return (
+    <section className="lts-mobile-hub" aria-label={hub.title}>
+      <header className="lts-mobile-hub-header">
+        <div className="lts-mobile-statusbar">
+          <span>9:41</span>
+          <span className="lts-mobile-statusbar-icons">••• ))) ▰</span>
+        </div>
+        <div className="lts-mobile-hub-nav">
+          <button className="lts-mobile-header-link" type="button" aria-label="Quay lại">
+            Quay lại
+          </button>
+          <h1>{hub.title}</h1>
+          <button className="lts-mobile-notify" type="button">
+            <Bell size={14} />
+            <span>Thông báo</span>
+          </button>
+        </div>
+      </header>
+
+      <div className="lts-mobile-hub-content">
+        {hub.cards.map(card => (
+          <button
+            key={card.title}
+            type="button"
+            className="lts-mobile-action-card"
+            onClick={() => onAction(card.action)}
+          >
+            <span className={`lts-mobile-icon-box lts-mobile-icon-box--${card.tone}`}>
+              {card.icon}
+            </span>
+            <span className="lts-mobile-card-copy">
+              <strong>{card.title}</strong>
+              <small>{card.subtitle}</small>
+            </span>
+            <ChevronRight className="lts-mobile-card-chevron" size={24} />
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function MobileBottomTabs({ menuDangChon, datMenuDangChon, datModuleDangMo, policies }: {
+  menuDangChon: string;
+  datMenuDangChon: (key: string) => void;
+  datModuleDangMo: (id: MaModule) => void;
+  policies: PolicyCode[];
+}) {
+  const nhomHienThi = CAC_NHOM_MENU.filter(nhom => coTheXemNhomMenu(policies, nhom.id));
+  const nhomDangChon = layMobileHubId(menuDangChon);
+
+  const chonNhom = (nhom: NhomMenu) => {
+    const keyMacDinh = MOBILE_TAB_FALLBACK[nhom.id] ?? nhom.mucCon[0]?.key;
+    if (!keyMacDinh) return;
+    datMenuDangChon(keyMacDinh);
+    if (laMobileHubKey(keyMacDinh)) return;
+
+    const muc = CAC_MUC_MENU.find(item => item.key === keyMacDinh);
+    if (muc) datModuleDangMo(muc.id);
+  };
+
+  return (
+    <nav className="lts-mobile-tabbar" aria-label="Điều hướng chính">
+      {nhomHienThi.map(nhom => {
+        const active = nhom.id === nhomDangChon;
+        return (
+          <button
+            key={nhom.id}
+            type="button"
+            className={`lts-mobile-tab ${active ? 'active' : ''}`}
+            onClick={() => chonNhom(nhom)}
+          >
+            <span className="lts-mobile-tab-icon">{nhom.id === 'system' ? <UserCircle size={23} /> : nhom.icon}</span>
+            <span>{MOBILE_HUBS[nhom.id]?.label ?? nhom.label}</span>
+          </button>
+        );
+      })}
+    </nav>
+  );
+}
+
 // ============================================================
 // TOP HEADER
 // ============================================================
@@ -514,6 +706,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [laMobile, datLaMobile] = useState(false);
   const [menuDangChon, datMenuDangChon] = useState('pricing.create_calculation');
   const [hienDoiMatKhau, datHienDoiMatKhau] = useState(false);
+  const [daKhoiTaoHubMobile, datDaKhoiTaoHubMobile] = useState(false);
 
   const nguoiDung = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
   const isAuthenticated = dungCuaHangTinhGia(s => s.isAuthenticated);
@@ -614,8 +807,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     window.sessionStorage.removeItem('__lts_chunk_reload_once__');
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    if (!laMobile || daKhoiTaoHubMobile) return;
+    datMenuDangChon(MOBILE_TAB_FALLBACK.pricing_quote);
+    datDaKhoiTaoHubMobile(true);
+  }, [laMobile, daKhoiTaoHubMobile]);
+
   // Sync menuDangChon when moduleDangMo changes programmatically
   useEffect(() => {
+    if (laMobile && laMobileHubKey(menuDangChon)) return;
     // Kiểm tra xem menuDangChon hiện tại có thuộc module đang mở không
     const mucHienTai = CAC_MUC_MENU.find(m => m.key === menuDangChon);
     if (mucHienTai && mucHienTai.id === moduleDangMo) return; // đã đồng bộ
@@ -623,7 +823,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     // Tìm mục menu đầu tiên thuộc module đang mở
     const mucMoi = CAC_MUC_MENU.find(m => m.id === moduleDangMo);
     if (mucMoi) datMenuDangChon(mucMoi.key);
-  }, [moduleDangMo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [moduleDangMo, laMobile, menuDangChon]);
 
   // Sync html classes for overflow control
   useEffect(() => {
@@ -704,9 +904,31 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     URL.revokeObjectURL(duongDan);
   };
 
+  const xuLyMobileHubAction = (action: MobileHubAction) => {
+    if (action.type === 'changePassword') {
+      datHienDoiMatKhau(true);
+      return;
+    }
+    if (action.type === 'logout') {
+      dungCuaHangTinhGia.getState().logout();
+      return;
+    }
+    datMenuDangChon(action.key);
+    datModuleDangMo(action.module);
+  };
+
+  const quayLaiHubMobile = () => {
+    const hubId = layMobileHubId(menuDangChon);
+    datMenuDangChon(MOBILE_TAB_FALLBACK[hubId] ?? MOBILE_TAB_FALLBACK.pricing_quote);
+  };
+
+  const hubMobileDangMo = laMobile && laMobileHubKey(menuDangChon)
+    ? MOBILE_HUBS[layMobileHubId(menuDangChon)]
+    : undefined;
+
   return (
     <div className={`lts-shell ${laMobile ? 'lts-shell--mobile' : ''}`}>
-      {!laMobile ? (
+      {!laMobile && (
         <ThanhBen
           moduleDangMo={moduleDangMo}
           menuDangChon={menuDangChon}
@@ -718,19 +940,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           policies={policies}
           datHienDoiMatKhau={() => datHienDoiMatKhau(true)}
         />
-      ) : (
-        <MenuNoiMobile
-          moduleDangMo={moduleDangMo}
-          menuDangChon={menuDangChon}
-          datMenuDangChon={datMenuDangChon}
-          datModuleDangMo={datModuleDangMo}
-          policies={policies}
-          datHienDoiMatKhau={() => datHienDoiMatKhau(true)}
-        />
       )}
 
       <div className="lts-shell-main">
-        {moduleDangMo !== 'quotations' && (
+        {!laMobile && moduleDangMo !== 'quotations' && (
           <DauTrangTren
             moduleDangMo={moduleDangMo}
             onExport={xuLyXuat}
@@ -740,20 +953,43 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         )}
 
         <div className="lts-shell-content lts-shell-content--scroll">
-          {moduleDangMo === 'calculator'        && children}
-          {moduleDangMo === 'quotations'        && <ModuleBaoGia role={vaiTroHienTai} menuDangChon={menuDangChon} />}
-          {moduleDangMo === 'create_lsx'        && <ModuleTaoLenhSanXuat />}
-          {moduleDangMo === 'lsx_list'          && <ModuleDanhSachLSX />}
-          {moduleDangMo === 'history_db'        && <ModuleLichSuDB khiDieuHuong={datModuleDangMo} menuDangChon={menuDangChon} />}
-          {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTroHienTai} currentSellerId={idNhanVienHienTai} menuDangChon={menuDangChon} />}
-          {moduleDangMo === 'sellers'           && <ModuleNhanVienBan />}
-          {moduleDangMo === 'master_data'       && <TrangCauHinh menuDangChon={menuDangChon} />}
-          {moduleDangMo === 'users'             && <ModulePhanQuyen menuDangChon={menuDangChon} />}
-          {moduleDangMo === 'settings'          && <div className="crm-root"><div className="crm-empty"><p>Module này chưa có màn hình chi tiết.</p><p style={{fontSize:'0.85rem',color:'var(--muted)'}}>Mục đang chọn: {CAC_MUC_MENU.find(i => i.key === menuDangChon)?.label ?? menuDangChon}</p></div></div>}
-          {moduleDangMo === 'audit_log'         && <ModuleNhatKy menuDangChon={menuDangChon} />}
+          {hubMobileDangMo ? (
+            <MobileHubScreen hub={hubMobileDangMo} onAction={xuLyMobileHubAction} />
+          ) : (
+            <>
+              {laMobile && (
+                <header className="lts-mobile-module-header">
+                  <button type="button" className="lts-mobile-module-back" onClick={quayLaiHubMobile}>
+                    Quay lại
+                  </button>
+                  <h1>{MOBILE_HUBS[layMobileHubId(menuDangChon)]?.title ?? TIEU_DE_MODULE[moduleDangMo]}</h1>
+                  <span />
+                </header>
+              )}
+              {moduleDangMo === 'calculator'        && children}
+              {moduleDangMo === 'quotations'        && <ModuleBaoGia role={vaiTroHienTai} menuDangChon={menuDangChon} />}
+              {moduleDangMo === 'create_lsx'        && <ModuleTaoLenhSanXuat />}
+              {moduleDangMo === 'lsx_list'          && <ModuleDanhSachLSX />}
+              {moduleDangMo === 'history_db'        && <ModuleLichSuDB khiDieuHuong={datModuleDangMo} menuDangChon={menuDangChon} />}
+              {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTroHienTai} currentSellerId={idNhanVienHienTai} menuDangChon={menuDangChon} />}
+              {moduleDangMo === 'sellers'           && <ModuleNhanVienBan />}
+              {moduleDangMo === 'master_data'       && <TrangCauHinh menuDangChon={menuDangChon} />}
+              {moduleDangMo === 'users'             && <ModulePhanQuyen menuDangChon={menuDangChon} />}
+              {moduleDangMo === 'settings'          && <div className="crm-root"><div className="crm-empty"><p>Module này chưa có màn hình chi tiết.</p><p style={{fontSize:'0.85rem',color:'var(--muted)'}}>Mục đang chọn: {CAC_MUC_MENU.find(i => i.key === menuDangChon)?.label ?? menuDangChon}</p></div></div>}
+              {moduleDangMo === 'audit_log'         && <ModuleNhatKy menuDangChon={menuDangChon} />}
+            </>
+          )}
           {/* Fallback: TypeScript đảm bảo MaModule luôn có case ở trên — nếu không có sẽ bắt lỗi compile */}
         </div>
       </div>
+      {laMobile && (
+        <MobileBottomTabs
+          menuDangChon={menuDangChon}
+          datMenuDangChon={datMenuDangChon}
+          datModuleDangMo={datModuleDangMo}
+          policies={policies}
+        />
+      )}
       {hienDoiMatKhau && <DoiMatKhauModal dong={() => datHienDoiMatKhau(false)} />}
     </div>
   );
