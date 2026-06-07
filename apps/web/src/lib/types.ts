@@ -328,6 +328,7 @@ export interface QuoteTier {
   quantity: number;
   finalPrice: number;
   chotGia?: number;
+  profitRate?: number;
 }
 
 export interface QuoteProductLine {
@@ -337,6 +338,7 @@ export interface QuoteProductLine {
   quantity: number;
   finalPrice: number;
   chotGia?: number;
+  profitRate?: number;
   input: CalculateInput;
   tiers: QuoteTier[];
 }
@@ -351,6 +353,7 @@ export interface HistoryItem {
   quantity: number;
   finalPrice: number;
   chotGia?: number;
+  profitRate?: number;
   quoteStatus?: QuoteStatus;
   quoteCode?: string;
   isQuote?: boolean;

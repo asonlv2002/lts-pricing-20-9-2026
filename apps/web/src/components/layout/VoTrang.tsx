@@ -12,6 +12,7 @@ import ModuleLichSuDB from '../ModuleLichSuDB';
 import TrangCauHinh from '../TrangCauHinh';
 import ModulePhanQuyen from '../ModulePhanQuyen';
 import ModuleLenhSanXuat from '../ModuleLenhSanXuat';
+import ModuleTaoLenhSanXuat from '../ModuleTaoLenhSanXuat';
 import ModuleNhatKy from '../ModuleNhatKy';
 import { coTheXemNhomMenu, coTheXemMucMenu, vaiTroTuPolicies } from '../../lib/permissions';
 import { tinhThoiGianChoLamMoiPhien, tokenCanLamMoiNgay } from '../../lib/auth-session';
@@ -26,7 +27,7 @@ import {
 // ============================================================
 // MODULE DEFINITION
 // ============================================================
-type MaModule = 'calculator' | 'quotations' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders' | 'audit_log';
+type MaModule = 'calculator' | 'quotations' | 'create_lsx' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders' | 'audit_log';
 
 interface MucMenu {
   key: string;
@@ -71,6 +72,7 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     mucCon: [
       { key: 'pricing.create_calculation', id: 'calculator', label: 'Tạo bảng tính giá', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.create_quote', id: 'quotations', label: 'Tạo bảng báo giá', vaiTros: ['admin', 'sale'] },
+      { key: 'pricing.create_lsx', id: 'create_lsx', label: 'Tạo LSX', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.history', id: 'history_db', label: 'Lịch sử tính giá và báo giá', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.audit_log', id: 'audit_log', label: 'Nhật ký thao tác', vaiTros: ['admin', 'sale'] },
     ],
@@ -213,6 +215,7 @@ const timNhomTheoMenu = (menuKey: string) => (
 const TIEU_DE_MODULE: Record<MaModule, string> = {
   calculator:        'Tạo bảng tính giá',
   quotations:        'Danh sách báo giá',
+  create_lsx:        'Tạo LSX',
   history_db:        'Lịch sử tính giá',
   master_data:       'Cấu hình tính giá',
   production_orders: 'Lệnh sản xuất',
@@ -751,6 +754,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <div className="lts-shell-content lts-shell-content--scroll">
           {moduleDangMo === 'calculator'        && children}
           {moduleDangMo === 'quotations'        && <ModuleBaoGia role={vaiTroHienTai} menuDangChon={menuDangChon} />}
+          {moduleDangMo === 'create_lsx'        && <ModuleTaoLenhSanXuat />}
           {moduleDangMo === 'history_db'        && <ModuleLichSuDB khiDieuHuong={datModuleDangMo} menuDangChon={menuDangChon} />}
           {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTroHienTai} currentSellerId={idNhanVienHienTai} menuDangChon={menuDangChon} />}
           {moduleDangMo === 'sellers'           && <ModuleNhanVienBan />}

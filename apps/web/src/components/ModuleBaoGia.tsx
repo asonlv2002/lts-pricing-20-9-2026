@@ -1224,6 +1224,7 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
             quantity: t.quantity,
             finalPrice: t.finalPrice,
             chotGia: t.baoGia,
+            profitRate: prod.historyItem.profitRate,
           }));
         return {
           sourceHistoryItemId: prod.historyItem.id,
@@ -1232,6 +1233,7 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
           quantity: tiers[0]?.quantity ?? prod.historyItem.quantity,
           finalPrice: tiers[0]?.finalPrice ?? prod.historyItem.finalPrice,
           chotGia: tiers[0]?.chotGia,
+          profitRate: prod.historyItem.profitRate,
           input: { ...prod.historyItem.input },
           tiers,
         };
@@ -1339,7 +1341,6 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ════════════════════════════════════════════════════════════
 // QUOTE DETAIL PANEL — slide-in xem/sửa báo giá
 // ════════════════════════════════════════════════════════════
 type QuoteEditDraft = {

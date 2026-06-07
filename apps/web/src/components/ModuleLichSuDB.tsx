@@ -10,6 +10,14 @@ import { getPricingDisplayMeta } from '../lib/pricing-display';
 import type { HistoryItem, QuoteStatus } from '../lib/types';
 import { QUOTE_STATUS_CONFIG } from '../lib/types';
 import LSXFormModal from './ModalDonLSX';
+import { loadCustomers } from '../store/helpers';
+import {
+  DEFAULT_HISTORY_FILTERS,
+  filterHistoryItems,
+  getPricingWorkflowStatus,
+  isQuoteHistoryItem,
+  type PricingWorkflowStatus,
+} from '../lib/history-filters';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -46,28 +54,25 @@ const TIME_RANGE_LABELS: Record<TimeRange, string> = {
 };
 
 const PRICING_STATUS_OPTIONS = [
-  { value: 'draft', label: 'Đang nháp' },
-  { value: 'chot', label: 'Đã chốt chi phí' },
+  { value: 'draft', label: 'Nháp' },
+  { value: 'saved', label: 'Đã lưu' },
   { value: 'used', label: 'Đã dùng tạo báo giá' },
   { value: 'locked', label: 'Đã khóa' },
 ];
 
-const QUOTE_STATUS_OPTIONS: QuoteStatus[] = ['drafted', 'sent', 'pending_approval', 'approved', 'completed', 'cancelled', 'expired'];
+const QUOTE_STATUS_OPTIONS: QuoteStatus[] = ['drafted', 'pending_approval', 'approved', 'sent', 'rejected', 'cancelled', 'completed'];
 
 function getPricingStatus(h: HistoryItem): string {
-  if (h.locked) return 'locked';
-  if (h.quoteCode) return 'used';
-  if (h.chotGia && h.chotGia > 0) return 'chot';
-  return 'draft';
+  return getPricingWorkflowStatus(h);
 }
 
 function laBanGhiBaoGia(h: HistoryItem): boolean {
-  return !!(h.isQuote || h.quoteProducts?.length || (h.quoteCode && h.tiers?.length));
+  return isQuoteHistoryItem(h);
 }
 
 const PRICING_STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  draft:   { label: 'Đang nháp',           color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
-  chot:    { label: 'Đã chốt chi phí',     color: '#059669', bg: 'rgba(5,150,105,0.1)' },
+  draft:   { label: 'Nháp',                color: '#6b7280', bg: 'rgba(107,114,128,0.1)' },
+  saved:   { label: 'Đã lưu',              color: '#2563eb', bg: 'rgba(37,99,235,0.1)' },
   used:    { label: 'Đã dùng tạo báo giá', color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
   locked:  { label: 'Đã khóa',             color: '#374151', bg: 'rgba(55,65,81,0.1)' },
 };
@@ -453,12 +458,6 @@ function DetailPanel({
                   <RotateCcw size={13} /> Tải lại
                 </button>
               )}
-              {!item.isQuote && item.chotGia && item.chotGia > 0 && (
-                <button className="btn btn-sm btn-outline" onClick={() => { onLSX(item); onClose(); }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--accent)', borderColor: 'var(--accent)' }}>
-                  <ClipboardList size={13} /> Tạo LSX
-                </button>
-              )}
             </>
           )}
         </div>
@@ -495,14 +494,14 @@ function InfoRow({ label, value, mono, bold, color }: { label: string; value: st
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
 export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieuHuong?: (module: 'calculator' | 'quotations') => void; menuDangChon?: string }) {
-  const { history: lichSu, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu, patchHistoryItem } = dungCuaHangTinhGia();
+  const { history: lichSu, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu, patchHistoryItem, materials, role } = dungCuaHangTinhGia();
 
   // Toggle
   const [mode, setMode] = useState<ToggleMode>('pricing');
 
   // Filters
   const [tuKhoa, datTuKhoa] = useState('');
-  const [timeRange, setTimeRange] = useState<TimeRange>('all');
+  const [timeRange, setTimeRange] = useState<TimeRange>('7days');
   const [tuNgay, datTuNgay] = useState('');
   const [denNgay, datDenNgay] = useState('');
   const [filterStatuses, setFilterStatuses] = useState<Set<string>>(new Set());
@@ -511,6 +510,10 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   const [filterSeller, setFilterSeller] = useState('');
   const [filterMaterial, setFilterMaterial] = useState('');
   const [filterBagType, setFilterBagType] = useState('');
+  const [unitPriceMin, setUnitPriceMin] = useState('');
+  const [unitPriceMax, setUnitPriceMax] = useState('');
+  const [profitRateMin, setProfitRateMin] = useState('');
+  const [profitRateMax, setProfitRateMax] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [pendingTargetId, setPendingTargetId] = useState<string | null>(null);
 
@@ -564,41 +567,29 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
     return next;
   });
 
-  // Time range bounds
-  const [startDate, endDate] = useMemo(() => {
-    const now = new Date();
-    const end = new Date(now); end.setHours(23, 59, 59, 999);
-    const start = new Date(now);
-    if (timeRange === 'all') { return [new Date(0), end]; }
-    if (timeRange === '3days') { start.setDate(start.getDate() - 2); start.setHours(0, 0, 0, 0); }
-    else if (timeRange === '7days') { start.setDate(start.getDate() - 6); start.setHours(0, 0, 0, 0); }
-    else if (timeRange === '30days') { start.setDate(start.getDate() - 29); start.setHours(0, 0, 0, 0); }
-    else if (timeRange === 'custom') {
-      return [tuNgay ? new Date(tuNgay) : new Date(0), denNgay ? new Date(denNgay) : end];
-    }
-    return [start, end];
-  }, [timeRange, tuNgay, denNgay]);
+  const customerRecords = useMemo(() => loadCustomers(), []);
 
   const filtered = useMemo(() => {
-    let list = lichSu.filter(h => mode === 'quote' ? laBanGhiBaoGia(h) : !laBanGhiBaoGia(h));
+    let list = filterHistoryItems(lichSu, {
+      ...DEFAULT_HISTORY_FILTERS,
+      mode,
+      timeRange,
+      fromDate: tuNgay,
+      toDate: denNgay,
+      customerQuery: filterCustomer || tuKhoa,
+      productQuery: filterProduct,
+      sellerIds: filterSeller ? [filterSeller] : [],
+      pricingStatuses: mode === 'pricing' ? Array.from(filterStatuses) as PricingWorkflowStatus[] : [],
+      quoteStatuses: mode === 'quote' ? Array.from(filterStatuses) as QuoteStatus[] : [],
+      materialIds: filterMaterial ? [filterMaterial] : [],
+      productShape: filterBagType,
+      unitPriceMin,
+      unitPriceMax,
+      profitRateMin,
+      profitRateMax,
+    }, customerRecords);
 
-    // Time range
-    list = list.filter(h => {
-      const ms = doiNgayVnSangMs(h.date);
-      if (!ms) return true;
-      return ms >= startDate.getTime() && ms <= endDate.getTime();
-    });
-
-    // Status filter
-    if (filterStatuses.size > 0) {
-      list = list.filter(h => {
-        const s = mode === 'pricing' ? getPricingStatus(h) : (h.quoteStatus ?? 'drafted');
-        return filterStatuses.has(s);
-      });
-    }
-
-    // Text search
-    if (tuKhoa.trim()) {
+    if (tuKhoa.trim() && filterCustomer) {
       const q = tuKhoa.toLowerCase();
       list = list.filter(h =>
         h.customer.toLowerCase().includes(q) ||
@@ -607,11 +598,6 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
         (h.quoteCode || '').toLowerCase().includes(q)
       );
     }
-    if (filterCustomer) list = list.filter(h => h.customer.toLowerCase().includes(filterCustomer.toLowerCase()));
-    if (filterProduct.trim()) list = list.filter(h => h.productName.toLowerCase().includes(filterProduct.toLowerCase()));
-    if (filterSeller) list = list.filter(h => (h.sellerName || h.sellerId || '').toLowerCase().includes(filterSeller.toLowerCase()));
-    if (filterMaterial) list = list.filter(h => h.structure.toLowerCase().includes(filterMaterial.toLowerCase()));
-    if (filterBagType) list = list.filter(h => (h.input?.bagType || h.input?.productType || '').toLowerCase().includes(filterBagType.toLowerCase()));
 
     // Sort
     list = [...list].sort((a, b) => {
@@ -626,7 +612,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
     });
 
     return list;
-  }, [lichSu, mode, tuKhoa, filterStatuses, filterCustomer, filterProduct, filterSeller, filterMaterial, filterBagType, startDate, endDate, sortKey, sortDir]);
+  }, [lichSu, mode, timeRange, tuNgay, denNgay, tuKhoa, filterStatuses, filterCustomer, filterProduct, filterSeller, filterMaterial, filterBagType, unitPriceMin, unitPriceMax, profitRateMin, profitRateMax, customerRecords, sortKey, sortDir]);
 
   const totalPages = Math.ceil(filtered.length / pageSize);
   const pageItems = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -649,8 +635,9 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   }, []);
 
   const clearAll = () => {
-    datTuKhoa(''); setTimeRange('all'); datTuNgay(''); datDenNgay('');
-    setFilterStatuses(new Set()); setFilterCustomer(''); setFilterProduct(''); setFilterSeller(''); setFilterMaterial(''); setFilterBagType(''); setPage(0);
+    datTuKhoa(''); setTimeRange('7days'); datTuNgay(''); datDenNgay('');
+    setFilterStatuses(new Set()); setFilterCustomer(''); setFilterProduct(''); setFilterSeller(''); setFilterMaterial(''); setFilterBagType('');
+    setUnitPriceMin(''); setUnitPriceMax(''); setProfitRateMin(''); setProfitRateMax(''); setPage(0);
   };
 
   // Active chips
@@ -665,11 +652,19 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   if (filterSeller) activeChips.push({ label: 'Sale: ' + filterSeller, clear: () => setFilterSeller('') });
   if (filterMaterial) activeChips.push({ label: 'VL: ' + filterMaterial, clear: () => setFilterMaterial('') });
   if (filterBagType) activeChips.push({ label: 'QC: ' + filterBagType, clear: () => setFilterBagType('') });
+  if (unitPriceMin || unitPriceMax) activeChips.push({ label: `Đơn giá: ${unitPriceMin || '0'}-${unitPriceMax || '∞'}`, clear: () => { setUnitPriceMin(''); setUnitPriceMax(''); } });
+  if (profitRateMin || profitRateMax) activeChips.push({ label: `LN: ${profitRateMin || '0'}%-${profitRateMax || '∞'}%`, clear: () => { setProfitRateMin(''); setProfitRateMax(''); } });
 
   const statusOptions = mode === 'pricing' ? PRICING_STATUS_OPTIONS : QUOTE_STATUS_OPTIONS.map(s => ({ value: s, label: QUOTE_STATUS_CONFIG[s].label }));
-  const customerOptions = Array.from(new Set(lichSu.map(h => h.customer).filter(Boolean))).sort();
+  const customerOptions = Array.from(new Set([
+    ...customerRecords.flatMap(c => [c.customerCode, c.companyName, c.taxCode].filter(Boolean) as string[]),
+    ...lichSu.map(h => h.customer).filter(Boolean),
+  ])).sort();
   const sellerOptions = Array.from(new Set(lichSu.map(h => h.sellerName || h.sellerId || '').filter(Boolean))).sort();
-  const materialOptions = Array.from(new Set(lichSu.flatMap(h => (h.structure.match(/[A-Z]{2,5}/g) || [])).filter(Boolean))).sort();
+  const materialOptions = Array.from(new Set([
+    ...materials.map(m => m.id),
+    ...lichSu.flatMap(h => (h.structure.match(/[A-Z]{2,8}/g) || [])).filter(Boolean),
+  ])).sort();
   const bagTypeOptions = Array.from(new Set(lichSu.map(h => h.input?.bagType || h.input?.productType || '').filter(Boolean))).sort();
 
   const xuatCsv = () => {
@@ -767,6 +762,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
           <button className="btn btn-sm btn-outline" onClick={xuatCsv} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
             <Download size={13} /> Xuất CSV
           </button>
+          <button className="btn btn-sm btn-outline" onClick={clearAll}>Xóa bộ lọc</button>
         </div>
 
         {/* Custom date range */}
@@ -779,38 +775,73 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
           </div>
         )}
 
-        {/* Advanced: status filter */}
+        {/* Advanced: compact ERP filter groups */}
         {showAdvanced && (
-          <div style={{ marginTop: 12, display: 'grid', gap: 12 }}>
-            <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 6, fontWeight: 500 }}>Trạng thái</div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px' }}>
-                {statusOptions.map(opt => (
-                  <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', cursor: 'pointer' }}>
-                    <input type="checkbox" checked={filterStatuses.has(opt.value)} onChange={() => toggleStatus(opt.value)} />
-                    {opt.label}
-                  </label>
-                ))}
+          <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 10 }}>
+            <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, background: 'var(--surface2, #f8fafc)' }}>
+              <div style={{ fontSize: '0.74rem', color: 'var(--muted)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.04em' }}>Đối tượng</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <input className="form-input" list="hist-customers" placeholder="Khách hàng: mã KH, tên công ty, MST" value={filterCustomer} onChange={e => { setFilterCustomer(e.target.value); setPage(0); }} />
+                <datalist id="hist-customers">{customerOptions.map(v => <option key={v} value={v} />)}</datalist>
+                <input className="form-input" list="hist-products" placeholder="Sản phẩm" value={filterProduct} onChange={e => { setFilterProduct(e.target.value); setPage(0); }} />
+                <datalist id="hist-products">{Array.from(new Set(lichSu.flatMap(h => [h.productName, ...(h.quoteProducts ?? []).map(p => p.productName)]).filter(Boolean))).sort().map(v => <option key={v} value={v} />)}</datalist>
+                {role === 'admin' && (
+                  <select className="form-input" value={filterSeller} onChange={e => { setFilterSeller(e.target.value); setPage(0); }}>
+                    <option value="">Tất cả sale phụ trách</option>
+                    {sellerOptions.map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                )}
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
-              <select className="form-input" value={filterCustomer} onChange={e => { setFilterCustomer(e.target.value); setPage(0); }}>
-                <option value="">Tất cả khách hàng</option>
-                {customerOptions.map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
-              <input className="form-input" placeholder="Lọc sản phẩm" value={filterProduct} onChange={e => { setFilterProduct(e.target.value); setPage(0); }} />
-              <select className="form-input" value={filterSeller} onChange={e => { setFilterSeller(e.target.value); setPage(0); }}>
-                <option value="">Tất cả sale</option>
-                {sellerOptions.map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
-              <select className="form-input" value={filterMaterial} onChange={e => { setFilterMaterial(e.target.value); setPage(0); }}>
-                <option value="">Tất cả vật liệu</option>
-                {materialOptions.map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
-              <select className="form-input" value={filterBagType} onChange={e => { setFilterBagType(e.target.value); setPage(0); }}>
-                <option value="">Tất cả quy cách</option>
-                {bagTypeOptions.map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
+
+            <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, background: 'var(--surface2, #f8fafc)' }}>
+              <div style={{ fontSize: '0.74rem', color: 'var(--muted)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.04em' }}>Thời gian & trạng thái</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <select className="form-input" value={timeRange} onChange={e => { setTimeRange(e.target.value as TimeRange); setPage(0); }}>
+                  {Object.entries(TIME_RANGE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <input type="date" className="form-input" value={tuNgay} onChange={e => { datTuNgay(e.target.value); setTimeRange('custom'); }} title="Từ ngày" />
+                  <input type="date" className="form-input" value={denNgay} onChange={e => { datDenNgay(e.target.value); setTimeRange('custom'); }} title="Đến ngày" />
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 12px' }}>
+                  {statusOptions.map(opt => (
+                    <label key={opt.value} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.76rem', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={filterStatuses.has(opt.value)} onChange={() => toggleStatus(opt.value)} />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, background: 'var(--surface2, #f8fafc)' }}>
+              <div style={{ fontSize: '0.74rem', color: 'var(--muted)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.04em' }}>Sản phẩm & vật liệu</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <select className="form-input" value={filterMaterial} onChange={e => { setFilterMaterial(e.target.value); setPage(0); }}>
+                  <option value="">Tất cả vật liệu</option>
+                  {materialOptions.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+                <select className="form-input" value={filterBagType} onChange={e => { setFilterBagType(e.target.value); setPage(0); }}>
+                  <option value="">Tất cả kiểu dáng / quy cách</option>
+                  {bagTypeOptions.map(v => <option key={v} value={v}>{v}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ border: '1px solid var(--border)', borderRadius: 8, padding: 10, background: 'var(--surface2, #f8fafc)' }}>
+              <div style={{ fontSize: '0.74rem', color: 'var(--muted)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '.04em' }}>Tài chính</div>
+              <div style={{ display: 'grid', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <input className="form-input" inputMode="numeric" placeholder="Đơn giá từ" value={unitPriceMin} onChange={e => { setUnitPriceMin(e.target.value); setPage(0); }} />
+                  <input className="form-input" inputMode="numeric" placeholder="Đơn giá đến" value={unitPriceMax} onChange={e => { setUnitPriceMax(e.target.value); setPage(0); }} />
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <input className="form-input" inputMode="decimal" placeholder="LN từ %" value={profitRateMin} onChange={e => { setProfitRateMin(e.target.value); setPage(0); }} />
+                  <input className="form-input" inputMode="decimal" placeholder="LN đến %" value={profitRateMax} onChange={e => { setProfitRateMax(e.target.value); setPage(0); }} />
+                </div>
+                <div style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>Lọc lợi nhuận chỉ áp dụng cho bản ghi có dữ liệu LN.</div>
+              </div>
             </div>
           </div>
         )}
@@ -894,15 +925,6 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
                           <>
                             <button className="btn btn-sm btn-outline" title="Tải lại" onClick={() => { taiLichSu(h.id); khiDieuHuong?.('calculator'); }}>
                               <RotateCcw size={13} />
-                            </button>
-                            {' '}
-                          </>
-                        )}
-                        {!h.isQuote && h.chotGia && h.chotGia > 0 && (
-                          <>
-                            <button className="btn btn-sm btn-outline" title="Tạo LSX" onClick={() => datMucLsx(h)}
-                              style={{ color: 'var(--accent)', borderColor: 'var(--accent)' }}>
-                              <ClipboardList size={13} />
                             </button>
                             {' '}
                           </>
