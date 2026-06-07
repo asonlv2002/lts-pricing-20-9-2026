@@ -150,6 +150,9 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     setSmallWidthPriceParam: capNhatGiaKhoNho,
     addMaterial: themVatLieu,
     removeMaterial: xoaVatLieu,
+    ghiNhatKy,
+    currentSellerId,
+    currentSellerName,
   } = dungCuaHangTinhGia();
   const [nhomKhachHang, datNhomKhachHang] = React.useState('other');
   const [nhomKhachMangInDangXem, datNhomKhachMangInDangXem] = React.useState<'normal' | 'large'>('normal');
@@ -179,9 +182,18 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   const capNhatNgayCongNoMoi = (value: string) => {
     if (/^\d*$/.test(value)) datNgayCongNoMoi(value);
   };
+  const ghiNhatKyCauHinh = (params: { action: 'create' | 'update' | 'delete' | 'restore'; targetId: string; targetName: string; before?: Record<string, unknown>; after?: Record<string, unknown>; note?: string }) => {
+    ghiNhatKy({
+      userId: currentSellerId,
+      userName: currentSellerName,
+      targetType: 'config',
+      ...params,
+    });
+  };
   const themNgayCongNo = () => {
     if (!hopLeNgayCongNoMoi) return;
     capNhatHangSo('customPaymentDays', [...(hangSo.customPaymentDays ?? []), soNgayCongNoMoi]);
+    ghiNhatKyCauHinh({ action: 'create', targetId: 'interest.customPaymentDays', targetName: 'Ngày công nợ', after: { days: soNgayCongNoMoi }, note: 'Thêm ngày công nợ' });
     datNgayCongNoMoi('');
   };
   const cotLoiNhuanTheoNhom = nhomKhachHang === 'svlg'
@@ -236,6 +248,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
         capNhatHangSo('colorSetup', { ...INITIAL_CONSTANTS.colorSetup } as any);
       }
     });
+    ghiNhatKyCauHinh({ action: 'restore', targetId: 'config.defaults', targetName: 'Cấu hình mặc định', note: 'Reset cấu hình về mặc định' });
   };
   const xuLyDoiCaiDatMau = (soMau: number, giaTri: number) => {
     const caiDatMoi = { ...hangSo.colorSetup, [soMau]: giaTri };
@@ -252,11 +265,13 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
       return { customerGroup, colorFrom: soMauMoi, colorTo: soMauMoi, rate: dongCuoi?.rate ?? (customerGroup === 'normal' ? 0.11 : 0.05) };
     };
     capNhatHangSo('printFilmProfitRates' as any, [...tyLeHienTai, themDongChoNhom('normal'), themDongChoNhom('large')] as any);
+    ghiNhatKyCauHinh({ action: 'create', targetId: `colorSetup.${soMauMoi}`, targetName: `Mốc màu in ${soMauMoi}`, after: { numColors: soMauMoi }, note: 'Thêm mốc màu in' });
   };
   const xoaMocMauIn = (soMau: number) => {
     const caiDatMoi = { ...hangSo.colorSetup };
     delete caiDatMoi[soMau];
     capNhatHangSo('colorSetup' as any, caiDatMoi as any);
+    ghiNhatKyCauHinh({ action: 'delete', targetId: `colorSetup.${soMau}`, targetName: `Mốc màu in ${soMau}`, before: { numColors: soMau, value: hangSo.colorSetup?.[soMau] }, note: 'Xóa mốc màu in' });
   };
   const capNhatHangSoSo = (key: keyof typeof hangSo, value: number, fallback: number) => {
     capNhatHangSo(key, (Number.isFinite(value) && value > 0 ? value : fallback) as any);
@@ -289,12 +304,14 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
       { label: dongCuoi?.label ?? 'Lớn', threshold: null, multiplier: dongCuoi?.multiplier ?? hangSo.cutMult3 },
     ];
     capNhatHangSo('cutRules' as any, danhSach as any);
+    ghiNhatKyCauHinh({ action: 'create', targetId: 'cutRules', targetName: 'Quy tắc cắt', after: { count: danhSach.length }, note: 'Thêm quy tắc cắt' });
   };
   const xoaQuyTacCat = (index: number) => {
     if (quyTacCat.length <= 1) return;
     const danhSach = quyTacCat.filter((_, i) => i !== index);
     const dongCuoi = danhSach[danhSach.length - 1];
     capNhatHangSo('cutRules' as any, danhSach.map((rule, i) => i === danhSach.length - 1 ? { ...rule, threshold: null, label: dongCuoi?.label || 'Lớn' } : rule) as any);
+    ghiNhatKyCauHinh({ action: 'delete', targetId: `cutRules.${index}`, targetName: 'Quy tắc cắt', before: { index }, note: 'Xóa quy tắc cắt' });
   };
   const xuLyDoiLoaiThung = (khoa: string, truong: 'price' | 'weight' | 'label', giaTri: number | string) => {
     const cacLoaiThung = (hangSo.boxOptions ?? []).map(option =>
@@ -315,16 +332,18 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   };
   const themPhuKien = () => {
     const danhSach = hangSo.customAccessories ?? [];
+    const key = `accessory-${Date.now()}`;
     capNhatHangSo('customAccessories' as any, [
       ...danhSach,
       {
-        key: `accessory-${Date.now()}`,
+        key,
         label: `Phụ kiện ${danhSach.length + 1}`,
         price: 0,
         weight: 0,
         unit: 'per_piece',
       },
     ] as any);
+    ghiNhatKyCauHinh({ action: 'create', targetId: key, targetName: `Phụ kiện ${danhSach.length + 1}`, after: { key }, note: 'Thêm phụ kiện' });
   };
   const cacPhuPhiInMacDinh = [
     { key: 'nhu', label: 'Nhũ', price: hangSo.nhuPrice, priceKey: 'nhuPrice' as const },
@@ -339,13 +358,17 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   const themPhuPhiIn = () => {
     const danhSach = hangSo.customPrintSurcharges ?? [];
     const index = danhSach.length + 1;
+    const key = `print_surcharge_${Date.now()}`;
     capNhatHangSo('customPrintSurcharges' as any, [
       ...danhSach,
-      { key: `print_surcharge_${Date.now()}`, label: `Phụ phí ${index}`, price: 0 },
+      { key, label: `Phụ phí ${index}`, price: 0 },
     ] as any);
+    ghiNhatKyCauHinh({ action: 'create', targetId: key, targetName: `Phụ phí ${index}`, after: { key, price: 0 }, note: 'Thêm phụ phí in' });
   };
   const xoaPhuPhiIn = (khoa: string) => {
+    const old = (hangSo.customPrintSurcharges ?? []).find(option => option.key === khoa);
     capNhatHangSo('customPrintSurcharges' as any, (hangSo.customPrintSurcharges ?? []).filter(option => option.key !== khoa) as any);
+    ghiNhatKyCauHinh({ action: 'delete', targetId: khoa, targetName: old?.label || 'Phụ phí in', before: old as unknown as Record<string, unknown>, note: 'Xóa phụ phí in' });
   };
   const dinhDangVnd = (n: number) => n.toLocaleString('vi-VN');
   const docSoVnd = (value: string) => Number(value.replace(/\D/g, '')) || 0;
@@ -381,6 +404,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     dungCuaHangTinhGia.setState({ profitTable: bangMoi });
     cuaHang.recalculate();
     luuBangLoiNhuanTre();
+    ghiNhatKyCauHinh({ action: 'create', targetId: `profit.${mocMoi}`, targetName: 'Mốc lợi nhuận', after: { threshold: mocMoi }, note: 'Thêm mốc lợi nhuận' });
   };
   const xoaMocLoiNhuanCuoi = () => {
     const cuaHang = dungCuaHangTinhGia.getState();
@@ -390,6 +414,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     datNguongLoiNhuanDangSua({});
     cuaHang.recalculate();
     luuBangLoiNhuanTre();
+    ghiNhatKyCauHinh({ action: 'delete', targetId: 'profit.last', targetName: 'Mốc lợi nhuận cuối', note: 'Xóa mốc lợi nhuận cuối' });
   };
   return (
     <div className="config-page" id="configPage" style={{display: 'block'}}>
@@ -468,7 +493,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                               {laCustom && (
                                 <button className="btn btn-sm" title="Xóa màng này"
                                   style={{color:'var(--danger,#e53e3e)', background:'transparent', border:'none', cursor:'pointer', fontSize:'1rem', padding:'2px 6px'}}
-                                  onClick={() => { if (confirm(`Xóa màng "${m.name}"?`)) xoaVatLieu(m.id); }}>
+                                  onClick={() => { if (confirm(`Xóa màng "${m.name}"?`)) { xoaVatLieu(m.id); ghiNhatKyCauHinh({ action: 'delete', targetId: m.id, targetName: m.name, before: { materialId: m.id, materialName: m.name }, note: 'Xóa vật liệu custom' }); } }}>
                                   ✕
                                 </button>
                               )}
@@ -484,6 +509,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                             customMaterialSeq.current += 1;
                             const id = `custom-${vatLieu.length}-${customMaterialSeq.current}`;
                             themVatLieu({ id, name: 'Vật liệu mới', group: 'khac', density: 1.0, thickness: 20, pricePerKg: 0, isPETorPA: false, rollLength: 5000, inkPricePerColor: 120 });
+                            ghiNhatKyCauHinh({ action: 'create', targetId: id, targetName: 'Vật liệu mới', after: { materialId: id, materialName: 'Vật liệu mới' }, note: 'Thêm vật liệu custom' });
                           }}>
                             + Thêm vật liệu khác
                           </button>
@@ -786,7 +812,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                     <div style={{padding:'6px 8px', display:'flex', alignItems:'center', justifyContent:'center'}}>
                       {(hangSo.customPaymentDays ?? []).includes(days) && (
                         <button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer', fontSize:'0.9rem', padding:'2px 6px'}}
-                          onClick={() => capNhatHangSo('customPaymentDays', (hangSo.customPaymentDays ?? []).filter(d => d !== days))}>✕</button>
+                          onClick={() => { capNhatHangSo('customPaymentDays', (hangSo.customPaymentDays ?? []).filter(d => d !== days)); ghiNhatKyCauHinh({ action: 'delete', targetId: `interest.customPaymentDays.${days}`, targetName: 'Ngày công nợ', before: { days }, note: 'Xóa ngày công nợ' }); }}>✕</button>
                       )}
                     </div>
                     <div style={{padding:'10px', textAlign:'center', fontWeight:600}}>{days} ngày</div>

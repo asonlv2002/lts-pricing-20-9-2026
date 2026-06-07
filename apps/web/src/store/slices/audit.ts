@@ -41,8 +41,8 @@ export const createAuditSlice: StateCreator<CuaHangTinhGia, [], [], AuditSlice> 
 
     const headers = ['Thời gian', 'Người thực hiện', 'Hành động', 'Loại', 'Mục tiêu', 'IP', 'Thiết bị', 'Ghi chú'];
     const ACTION_LABELS: Record<AuditAction, string> = {
-      create: 'Tạo mới', update: 'Cập nhật', delete: 'Xóa',
-      lock: 'Khóa', unlock: 'Mở khóa',
+      create: 'Tạo mới', update: 'Chỉnh sửa', delete: 'Xóa (Ẩn)',
+      lock: 'Khóa dữ liệu', unlock: 'Mở khóa dữ liệu',
       status_change: 'Đổi trạng thái', override_change: 'Thay đổi override',
       assign: 'Phân công', version_restore: 'Khôi phục phiên bản', duplicate: 'Sao chép',
       send_approval: 'Gửi duyệt', approve: 'Duyệt', reject: 'Từ chối / Trả về',
@@ -72,6 +72,5 @@ export const createAuditSlice: StateCreator<CuaHangTinhGia, [], [], AuditSlice> 
 
   taiAuditLog: (data) => set({ auditLog: data }),
 });
-
 
 

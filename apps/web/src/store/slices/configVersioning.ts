@@ -23,6 +23,16 @@ const SCOPE_EMPTY: Record<ConfigScope, string | null> = {
   surcharges: null, interest: null, waste: null, outsource: null,
 };
 
+const SCOPE_LABEL: Record<ConfigScope, string> = {
+  materials: 'Vật liệu & giá khổ nhỏ',
+  production: 'Chi phí sản xuất',
+  profit: 'Bảng lợi nhuận',
+  surcharges: 'Phụ phí & phụ kiện',
+  interest: 'Lãi vay công nợ',
+  waste: 'Tham số hao hụt',
+  outsource: 'Gia công ngoài',
+};
+
 // Các key của AppConstants thuộc từng scope
 const SCOPE_CONSTANT_KEYS: Record<ConfigScope, (keyof AppConstants)[]> = {
   materials: [],
@@ -75,9 +85,21 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
         selectedConfigSnapshotId: { ...s.selectedConfigSnapshotId, [scope]: snapshot.id },
       };
     });
+    state.ghiNhatKy({
+      userId: state.currentSellerId,
+      userName: state.currentSellerName,
+      action: 'create',
+      targetType: 'config',
+      targetId: snapshot.id,
+      targetName: snapshot.name || SCOPE_LABEL[scope],
+      after: { scope, name: snapshot.name, effectiveMode, effectiveFrom },
+      note: 'Tạo phiên bản định mức',
+    });
   },
 
   xoaPhienBanDinhMuc: (id) => {
+    const state = get();
+    const old = state.configSnapshots.find(snapshot => snapshot.id === id);
     set((s) => {
       const configSnapshots = s.configSnapshots.filter(snapshot => snapshot.id !== id);
       luuLocalStorage(LS_CONFIG_SNAPSHOTS, configSnapshots);
@@ -87,6 +109,18 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
       }
       return { configSnapshots, selectedConfigSnapshotId: selected };
     });
+    if (old) {
+      state.ghiNhatKy({
+        userId: state.currentSellerId,
+        userName: state.currentSellerName,
+        action: 'delete',
+        targetType: 'config',
+        targetId: id,
+        targetName: old.name || SCOPE_LABEL[old.scope],
+        before: { scope: old.scope, name: old.name, effectiveMode: old.effectiveMode, effectiveFrom: old.effectiveFrom },
+        note: 'Xóa phiên bản định mức',
+      });
+    }
   },
 
   apDungPhienBanDinhMuc: (id) => {
@@ -127,6 +161,16 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
     set((s) => ({
       selectedConfigSnapshotId: { ...s.selectedConfigSnapshotId, [scope]: id },
     }));
+    state.ghiNhatKy({
+      userId: state.currentSellerId,
+      userName: state.currentSellerName,
+      action: 'version_restore',
+      targetType: 'config',
+      targetId: id,
+      targetName: snapshot.name || SCOPE_LABEL[scope],
+      after: { scope, name: snapshot.name, effectiveMode: snapshot.effectiveMode, effectiveFrom: snapshot.effectiveFrom },
+      note: 'Áp dụng phiên bản định mức',
+    });
   },
 
   timPhienBanDinhMucTheoNgay: (scope, date) => {

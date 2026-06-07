@@ -11,10 +11,10 @@ import type { AuditAction, AuditEntry } from '../lib/types';
 
 const ACTION_LABELS: Record<AuditAction, string> = {
   create: 'Tạo mới',
-  update: 'Cập nhật',
-  delete: 'Xóa',
-  lock: 'Khóa',
-  unlock: 'Mở khóa',
+  update: 'Chỉnh sửa',
+  delete: 'Xóa (Ẩn)',
+  lock: 'Khóa dữ liệu',
+  unlock: 'Mở khóa dữ liệu',
   status_change: 'Đổi trạng thái',
   override_change: 'Thay đổi override',
   assign: 'Phân công',
@@ -58,7 +58,7 @@ const TARGET_TYPE_LABELS: Record<string, string> = {
 
 // Grouped action types for filter UI
 const DATA_CHANGE_ACTIONS: AuditAction[] = ['create', 'update', 'delete'];
-const STATUS_CHANGE_ACTIONS: AuditAction[] = ['send_approval', 'approve', 'reject', 'send_customer', 'lock', 'restore', 'create_lsx'];
+const STATUS_CHANGE_ACTIONS: AuditAction[] = ['status_change', 'send_approval', 'approve', 'reject', 'send_customer', 'lock', 'unlock', 'restore', 'create_lsx'];
 
 const BATCH_SIZE = 20;
 
@@ -119,6 +119,14 @@ const FIELD_LABELS: Record<string, string> = {
   taxCode: 'Mã số thuế', invoiceAddress: 'Địa chỉ hóa đơn',
   customerCode: 'Mã KH', contactTitle: 'Chức danh', assignmentNote: 'Ghi chú phân công',
   contactNotes: 'Ghi chú liên hệ',
+  lsxNumber: 'Số LSX', issuedDate: 'Ngày xuống LSX', deliveryDate: 'Ngày giao hàng',
+  preparedBy: 'Người lập', approvedBy: 'Người duyệt', quoteId: 'Mã báo giá gốc',
+  scope: 'Phạm vi cấu hình', name: 'Tên phiên bản', effectiveMode: 'Kiểu hiệu lực', effectiveFrom: 'Hiệu lực từ',
+  materialId: 'Mã vật tư', materialName: 'Tên vật tư', pricePerKg: 'Giá/kg', thickness: 'Độ dày',
+  roleCode: 'Mã nhóm quyền', roleName: 'Tên nhóm quyền', account: 'Tài khoản', fullName: 'Họ tên',
+  isActive: 'Trạng thái tài khoản', isProtected: 'Bảo vệ tài khoản', policies: 'Danh sách quyền',
+  policiesAdded: 'Quyền được cấp', policiesRemoved: 'Quyền bị thu hồi', days: 'Số ngày',
+  threshold: 'Ngưỡng', numColors: 'Số màu', value: 'Giá trị', key: 'Mã', count: 'Số lượng',
 };
 
 const HIDDEN_DIFF_KEYS = new Set(['isLocked']);
@@ -280,7 +288,7 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
   // Filter audit log based on which menu section opened this module
   const auditLog = useMemo(() => {
     if (menuDangChon === 'pricing.audit_log') {
-      return fullAuditLog.filter(e => e.targetType === 'history' || e.targetType === 'quote');
+      return fullAuditLog.filter(e => e.targetType === 'history' || e.targetType === 'quote' || e.targetType === 'order');
     }
     if (menuDangChon === 'system.audit_log') {
       return fullAuditLog;
@@ -290,7 +298,7 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
 
   // Filters
   const [search, setSearch] = useState('');
-  const [timeRange, setTimeRange] = useState<TimeRange>('7days');
+  const [timeRange, setTimeRange] = useState<TimeRange>('today');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [filterActions, setFilterActions] = useState<Set<AuditAction>>(new Set());
@@ -336,7 +344,9 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
       list = list.filter(e =>
         (e.targetId || '').toLowerCase().includes(q) ||
         (e.targetName || '').toLowerCase().includes(q) ||
-        (e.note || '').toLowerCase().includes(q)
+        (e.note || '').toLowerCase().includes(q) ||
+        JSON.stringify(e.before ?? {}).toLowerCase().includes(q) ||
+        JSON.stringify(e.after ?? {}).toLowerCase().includes(q)
       );
     }
     if (search.trim()) {
@@ -345,7 +355,9 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
         e.userName.toLowerCase().includes(q) ||
         (e.targetName || '').toLowerCase().includes(q) ||
         (e.targetId || '').toLowerCase().includes(q) ||
-        (e.note || '').toLowerCase().includes(q)
+        (e.note || '').toLowerCase().includes(q) ||
+        JSON.stringify(e.before ?? {}).toLowerCase().includes(q) ||
+        JSON.stringify(e.after ?? {}).toLowerCase().includes(q)
       );
     }
     // Sort newest first
@@ -388,7 +400,7 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
 
   const clearAll = () => {
     setSearch('');
-    setTimeRange('7days');
+    setTimeRange('today');
     setCustomFrom('');
     setCustomTo('');
     setFilterActions(new Set());
@@ -422,9 +434,9 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
     }
     if (entry.targetType === 'order') {
       try {
-        localStorage.setItem('lts_order_focus', JSON.stringify({ targetId: entry.targetId, targetName: entry.targetName, ts: Date.now() }));
+        localStorage.setItem('lts_navigate_filter', JSON.stringify({ module: 'lsx', targetId: entry.targetId, targetName: entry.targetName, ts: Date.now() }));
       } catch {}
-      setActiveModule('production_orders');
+      setActiveModule('history_db');
       return;
     }
     if (entry.targetType === 'config') setActiveModule('master_data');
@@ -432,7 +444,7 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
   };
 
   const activeChips: Array<{ label: string; clear: () => void }> = [];
-  if (timeRange !== '7days') activeChips.push({ label: TIME_RANGE_LABELS[timeRange], clear: () => setTimeRange('7days') });
+  if (timeRange !== 'today') activeChips.push({ label: TIME_RANGE_LABELS[timeRange], clear: () => setTimeRange('today') });
   if (filterUser) {
     const u = allUsers.find(u => u.id === filterUser);
     activeChips.push({ label: u?.name || filterUser, clear: () => { setFilterUser(''); setUserSearchText(''); } });
@@ -496,10 +508,10 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
         {/* Custom date range */}
         {timeRange === 'custom' && (
           <div style={{ display: 'flex', gap: 8, marginTop: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Từ:</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Từ thời điểm:</span>
             <input type="datetime-local" className="form-input" value={customFrom}
               onChange={e => setCustomFrom(e.target.value)} style={{ width: 180 }} />
-            <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Đến:</span>
+            <span style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Đến thời điểm:</span>
             <input type="datetime-local" className="form-input" value={customTo}
               onChange={e => setCustomTo(e.target.value)} style={{ width: 180 }} />
           </div>

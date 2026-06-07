@@ -685,6 +685,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
         localStorage.removeItem('lts_navigate_filter');
         if (nav.customerName) setFilterCustomer(nav.customerName);
         if (nav.module === 'quote') setMode('quote');
+        if (nav.module === 'lsx') setMode('lsx');
         if (nav.targetId) setPendingTargetId(nav.targetId);
       }
     } catch {}
@@ -704,12 +705,19 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
 
   useEffect(() => {
     if (!pendingTargetId) return;
+    if (mode === 'lsx') {
+      const foundOrder = productionOrders.find(o => o.id === pendingTargetId);
+      if (!foundOrder) return;
+      setSelectedOrder(foundOrder);
+      setPendingTargetId(null);
+      return;
+    }
     const found = lichSu.find(h => h.id === pendingTargetId);
     if (!found) return;
     setSelectedItem(found);
     setMode(laBanGhiBaoGia(found) ? 'quote' : 'pricing');
     setPendingTargetId(null);
-  }, [pendingTargetId, lichSu]);
+  }, [pendingTargetId, lichSu, productionOrders, mode]);
 
   // Lock state
   const [sanPhamKhoa, datSanPhamKhoa] = useState<Record<string, boolean>>(() => {

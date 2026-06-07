@@ -333,6 +333,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
   doiMatKhau: async (currentPassword, newPassword) => {
     const token = get().accessToken;
     if (!token) throw new Error('Chưa đăng nhập.');
+    const user = get().nguoiDungHienTai;
     const data = await doiMatKhauService(token, currentPassword, newPassword);
     // Server returns new token pair — update session
     luuToken(data.accessToken, data.refreshToken);
@@ -341,7 +342,17 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       refreshToken: data.refreshToken,
       isAuthenticated: true,
     });
+    if (user) {
+      get().ghiNhatKy({
+        userId: user.id,
+        userName: user.fullName || user.account,
+        action: 'update',
+        targetType: 'permission',
+        targetId: user.id,
+        targetName: user.fullName || user.account,
+        note: 'Đổi mật khẩu cá nhân',
+      });
+    }
   },
 });
 };
-

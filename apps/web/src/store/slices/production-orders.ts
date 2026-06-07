@@ -1,13 +1,49 @@
 import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
-import { ProductionOrder } from '../../lib/types';
+import { AuditAction, ProductionOrder } from '../../lib/types';
 import { luuLocalStorage, LS_LSX } from '../helpers';
+
+type LsxPatch = { status?: ProductionOrder['status']; manual?: Partial<ProductionOrder['manual']> };
+
+const AUDITABLE_MANUAL_FIELDS: Array<keyof ProductionOrder['manual']> = [
+  'lsxNumber',
+  'issuedDate',
+  'deliveryDate',
+  'preparedBy',
+  'approvedBy',
+  'notes',
+];
+
+export function buildLsxAuditChange(old: ProductionOrder, patch: LsxPatch): { action: AuditAction; before: Record<string, unknown>; after: Record<string, unknown> } {
+  const before: Record<string, unknown> = {};
+  const after: Record<string, unknown> = {};
+
+  if (patch.status !== undefined && patch.status !== old.status) {
+    before.status = old.status;
+    after.status = patch.status;
+  }
+
+  for (const field of AUDITABLE_MANUAL_FIELDS) {
+    if (!patch.manual || !(field in patch.manual)) continue;
+    const nextValue = patch.manual[field];
+    const oldValue = old.manual[field];
+    if (nextValue === oldValue) continue;
+    before[field] = oldValue;
+    after[field] = nextValue;
+  }
+
+  return {
+    action: patch.status !== undefined ? 'status_change' : 'update',
+    before,
+    after,
+  };
+}
 
 export interface ProductionOrderSlice {
   productionOrders: ProductionOrder[];
 
   themLSX: (lenh: ProductionOrder) => void;
-  capNhatLSX: (id: string, patch: { status?: ProductionOrder['status']; manual?: Partial<ProductionOrder['manual']> }) => void;
+  capNhatLSX: (id: string, patch: LsxPatch) => void;
   xoaLSX: (id: string) => void;
 }
 
@@ -40,15 +76,16 @@ export const createProductionOrderSlice: StateCreator<CuaHangTinhGia, [], [], Pr
       luuLocalStorage(LS_LSX, lenhSanXuat);
       if (old) {
         setTimeout(() => {
+          const auditChange = buildLsxAuditChange(old, banVa);
           get().ghiNhatKy({
             userId: state.currentSellerId,
             userName: state.currentSellerName,
-            action: 'update',
+            action: auditChange.action,
             targetType: 'order',
             targetId: id,
             targetName: old.snapshot.productName,
-            before: Object.fromEntries(Object.keys(banVa).map(k => [k, (old as unknown as Record<string, unknown>)[k]])),
-            after: banVa as Record<string, unknown>,
+            before: auditChange.before,
+            after: auditChange.after,
           });
         }, 0);
       }

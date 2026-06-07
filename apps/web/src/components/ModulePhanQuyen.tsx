@@ -764,6 +764,9 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
 
   const accessToken        = dungCuaHangTinhGia(s => s.accessToken);
   const nguoiDungHienTai   = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
+  const currentSellerId    = dungCuaHangTinhGia(s => s.currentSellerId);
+  const currentSellerName  = dungCuaHangTinhGia(s => s.currentSellerName);
+  const ghiNhatKy          = dungCuaHangTinhGia(s => s.ghiNhatKy);
   const coQuyenPhanQuyen   = !!(
     nguoiDungHienTai?.policies.includes('USER_POLICY_GRANT') &&
     nguoiDungHienTai?.policies.includes('USER_POLICY_REVOKE')
@@ -844,6 +847,15 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     setChonId(mapped.id);
   };
 
+  const ghiNhatKyPhanQuyen = (params: { action: 'create' | 'update' | 'delete' | 'status_change' | 'lock' | 'unlock' | 'assign'; targetId: string; targetName?: string; before?: Record<string, unknown>; after?: Record<string, unknown>; note?: string }) => {
+    ghiNhatKy({
+      userId: currentSellerId,
+      userName: currentSellerName,
+      targetType: 'permission',
+      ...params,
+    });
+  };
+
   const xuLyTaoTaiKhoan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!taiKhoanMoi.account.trim() || !taiKhoanMoi.fullName.trim() || !taiKhoanMoi.password) return;
@@ -860,6 +872,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
         password: taiKhoanMoi.password,
       });
       luuUserTuApi(created);
+      ghiNhatKyPhanQuyen({ action: 'create', targetId: created.id, targetName: created.fullName || created.account, after: { account: created.account, fullName: created.fullName, isActive: created.isActive }, note: 'Tạo tài khoản' });
       setTaiKhoanMoi({ account: '', fullName: '', password: '' });
       setMoFormTaoTaiKhoan(false);
       await napTaiKhoan();
@@ -879,6 +892,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
         ? await voHieuTaiKhoanService(accessToken, userDangChon.id)
         : await kichHoatTaiKhoanService(accessToken, userDangChon.id);
       luuUserTuApi(updated);
+      ghiNhatKyPhanQuyen({ action: 'status_change', targetId: userDangChon.id, targetName: userDangChon.fullName || userDangChon.account, before: { isActive: userDangChon.isActive }, after: { isActive: !userDangChon.isActive }, note: userDangChon.isActive ? 'Vô hiệu tài khoản' : 'Kích hoạt tài khoản' });
       await napTaiKhoan();
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không cập nhật được trạng thái tài khoản.');
@@ -894,6 +908,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     try {
       const updated = await capNhatBaoVeService(accessToken, userDangChon.id, !userDangChon.isProtected);
       luuUserTuApi(updated);
+      ghiNhatKyPhanQuyen({ action: userDangChon.isProtected ? 'unlock' : 'lock', targetId: userDangChon.id, targetName: userDangChon.fullName || userDangChon.account, before: { isProtected: userDangChon.isProtected }, after: { isProtected: !userDangChon.isProtected }, note: userDangChon.isProtected ? 'Bỏ bảo vệ tài khoản' : 'Bảo vệ tài khoản' });
       await napTaiKhoan();
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không cập nhật được bảo vệ tài khoản.');
@@ -904,6 +919,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
 
   const xuLyLuuNhomQuyen = async (role: NhomQuyen) => {
     if (!accessToken) return;
+    const existed = roles.some(item => item.code === role.code);
     setDangTai(true);
     setLoiApi(null);
     try {
@@ -913,6 +929,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
         description: role.description,
         policyCodes: role.policies,
       });
+      ghiNhatKyPhanQuyen({ action: existed ? 'update' : 'create', targetId: role.code, targetName: role.name, after: { roleCode: role.code, roleName: role.name, policies: role.policies }, note: existed ? 'Cập nhật nhóm quyền' : 'Tạo nhóm quyền' });
       await napNhomQuyen();
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không lưu được nhóm quyền.');
@@ -927,6 +944,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     setLoiApi(null);
     try {
       await xoaNhomQuyenService(accessToken, role.code);
+      ghiNhatKyPhanQuyen({ action: 'delete', targetId: role.code, targetName: role.name, before: { roleCode: role.code, roleName: role.name, policies: role.policies }, note: 'Xóa nhóm quyền' });
       await napNhomQuyen();
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không xóa được nhóm quyền.');
@@ -988,6 +1006,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
       if (canCap.length) await capQuyenService(accessToken, userId, canCap);
       if (canThuHoi.length) await thuHoiQuyenService(accessToken, userId, canThuHoi);
       capNhatQuyenTaiKhoan(userId, draftPolicies);
+      ghiNhatKyPhanQuyen({ action: 'assign', targetId: userId, targetName: userDangChon.fullName || userDangChon.account, before: { policies: userDangChon.policies }, after: { policies: draftPolicies, policiesAdded: canCap, policiesRemoved: canThuHoi }, note: 'Cập nhật quyền tài khoản' });
       await napTaiKhoan(tuKhoa.trim() || undefined);
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không lưu được thay đổi quyền.');
@@ -1026,6 +1045,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     try {
       const updated = await datLaiMatKhauTaiKhoanService(accessToken, resetPasswordUser.id, matKhauDatLai.password);
       luuUserTuApi(updated);
+      ghiNhatKyPhanQuyen({ action: 'update', targetId: resetPasswordUser.id, targetName: resetPasswordUser.fullName || resetPasswordUser.account, note: 'Đặt lại mật khẩu tài khoản' });
       setResetPasswordUser(null);
       setMatKhauDatLai({ password: '', confirm: '' });
     } catch (error) {
