@@ -867,8 +867,8 @@ function CustomerCard({ customer, role, currentSellerId, canUpdateCustomer, rela
               <button onClick={e => { e.stopPropagation(); onNavigate('history_db', displayName(customer), true); setTxCardOpen(null); }}>
                 <FileText size={13}/> Bảng báo giá
               </button>
-              <button onClick={e => { e.stopPropagation(); onNavigate('production_orders', displayName(customer)); setTxCardOpen(null); }}>
-                <Package size={13}/> Lệnh sản xuất
+              <button onClick={e => { e.stopPropagation(); onNavigate('lsx_list', displayName(customer)); setTxCardOpen(null); }}>
+                <Package size={13}/> Danh sách LSX
               </button>
               <button onClick={e => { e.stopPropagation(); onNavigate('history_db', displayName(customer)); setTxCardOpen(null); }}>
                 <ClipboardList size={13}/> Sản phẩm liên quan
@@ -1948,8 +1948,8 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                             <button onClick={() => { handleNavigate('history_db', displayName(c), true); setTxCardOpen(null); }}>
                               <FileText size={13}/> Bảng báo giá
                             </button>
-                            <button onClick={() => { handleNavigate('production_orders', displayName(c)); setTxCardOpen(null); }}>
-                              <Package size={13}/> Lệnh sản xuất
+                            <button onClick={() => { handleNavigate('lsx_list', displayName(c)); setTxCardOpen(null); }}>
+                              <Package size={13}/> Danh sách LSX
                             </button>
                             <button onClick={() => { handleNavigate('history_db', displayName(c)); setTxCardOpen(null); }}>
                               <ClipboardList size={13}/> Sản phẩm liên quan

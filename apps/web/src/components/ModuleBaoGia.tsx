@@ -1681,7 +1681,6 @@ export default function QuotationModule({ role, menuDangChon }: { role: string; 
     let items = isAdmin ? history : history.filter(h => h.sellerId === hienTaiSellerId);
     items = items.filter(laBanGhiBaoGia);
     if (menuDangChon === 'overview.quotes_pending') items = items.filter(h => layTrangThai(h) === 'pending_approval');
-    if (menuDangChon === 'orders.confirmed') items = items.filter(h => layTrangThai(h) === 'completed' || !!h.chotGia);
     if (menuDangChon === 'pricing.create_quote') items = items.filter(h => layTrangThai(h) === 'drafted');
     if (laLichSuBaoGiaTheoKhach) {
       items = items.filter(h => daGuiAdmin(h) && namTrongKhoangNgay(h, tuNgay, denNgay));

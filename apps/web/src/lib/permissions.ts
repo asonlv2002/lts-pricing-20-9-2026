@@ -7,7 +7,6 @@ const NHOM_MENU_POLICIES: Record<string, PolicyCode[]> = {
   overview: [],
   pricing_quote: [],
   customers: [],
-  products_orders: [],
   pricing_config: ['ACCOUNT_READ'],
   system: ['ACCOUNT_READ', 'ROLE_READ'],
 };

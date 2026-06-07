@@ -11,7 +11,6 @@ import ModuleBaoGia from '../ModuleBaoGia';
 import ModuleLichSuDB from '../ModuleLichSuDB';
 import TrangCauHinh from '../TrangCauHinh';
 import ModulePhanQuyen from '../ModulePhanQuyen';
-import ModuleLenhSanXuat from '../ModuleLenhSanXuat';
 import ModuleTaoLenhSanXuat from '../ModuleTaoLenhSanXuat';
 import ModuleDanhSachLSX from '../ModuleDanhSachLSX';
 import ModuleNhatKy from '../ModuleNhatKy';
@@ -19,16 +18,16 @@ import { coTheXemNhomMenu, coTheXemMucMenu, vaiTroTuPolicies } from '../../lib/p
 import { tinhThoiGianChoLamMoiPhien, tokenCanLamMoiNgay } from '../../lib/auth-session';
 import type { PolicyCode } from '../../lib/api/service-lts';
 import {
-  Calculator, FileText, Users, Settings, Menu, Factory,
-  Database, Briefcase, X, ChevronRight, Plus,
-  UserCog, ClipboardList, LayoutDashboard, Package, Shield,
+  Calculator, Users, Menu, Factory,
+  X, ChevronRight, Plus,
+  LayoutDashboard, Shield,
   LogOut, RefreshCw, KeyRound,
 } from 'lucide-react';
 
 // ============================================================
 // MODULE DEFINITION
 // ============================================================
-type MaModule = 'calculator' | 'quotations' | 'create_lsx' | 'lsx_list' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'production_orders' | 'audit_log';
+type MaModule = 'calculator' | 'quotations' | 'create_lsx' | 'lsx_list' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'audit_log';
 
 interface MucMenu {
   key: string;
@@ -91,21 +90,8 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     ],
   },
   {
-    id: 'products_orders',
-    soThuTu: 4,
-    label: 'Sản phẩm & Đơn hàng',
-    icon: <Package size={18} />,
-    vaiTros: ['admin', 'sale', 'purchase'],
-    mucCon: [
-      { key: 'products.list', id: 'history_db', label: 'Danh sách sản phẩm', vaiTros: ['admin', 'sale'] },
-      { key: 'products.calculated', id: 'history_db', label: 'Sản phẩm đã tính giá', vaiTros: ['admin', 'sale'] },
-      { key: 'orders.confirmed', id: 'quotations', label: 'Đơn hàng đã chốt', vaiTros: ['admin', 'sale'] },
-      { key: 'orders.production_orders', id: 'production_orders', label: 'Lệnh sản xuất', vaiTros: ['admin', 'purchase'] },
-    ],
-  },
-  {
     id: 'pricing_config',
-    soThuTu: 5,
+    soThuTu: 4,
     label: 'Cấu hình tính giá',
     icon: <Factory size={18} />,
     vaiTros: ['admin', 'purchase'],
@@ -120,7 +106,7 @@ const CAC_NHOM_MENU: NhomMenu[] = [
   },
   {
     id: 'system',
-    soThuTu: 6,
+    soThuTu: 5,
     label: 'Quản trị hệ thống',
     icon: <Shield size={18} />,
     vaiTros: ['admin'],
@@ -221,7 +207,6 @@ const TIEU_DE_MODULE: Record<MaModule, string> = {
   lsx_list:          'Danh sách LSX',
   history_db:        'Lịch sử',
   master_data:       'Cấu hình tính giá',
-  production_orders: 'Lệnh sản xuất',
   customers:         'Khách hàng',
   sellers:           'Nhân viên kinh doanh',
   users:             'Tài khoản & quyền',
@@ -765,7 +750,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {moduleDangMo === 'master_data'       && <TrangCauHinh menuDangChon={menuDangChon} />}
           {moduleDangMo === 'users'             && <ModulePhanQuyen menuDangChon={menuDangChon} />}
           {moduleDangMo === 'settings'          && <div className="crm-root"><div className="crm-empty"><p>Module này chưa có màn hình chi tiết.</p><p style={{fontSize:'0.85rem',color:'var(--muted)'}}>Mục đang chọn: {CAC_MUC_MENU.find(i => i.key === menuDangChon)?.label ?? menuDangChon}</p></div></div>}
-          {moduleDangMo === 'production_orders' && <ModuleLenhSanXuat />}
           {moduleDangMo === 'audit_log'         && <ModuleNhatKy menuDangChon={menuDangChon} />}
           {/* Fallback: TypeScript đảm bảo MaModule luôn có case ở trên — nếu không có sẽ bắt lỗi compile */}
         </div>
