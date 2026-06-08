@@ -33,6 +33,7 @@ import {
   layNhomQuyenService,
   chuyenTaiKhoanApi,
 } from '../lib/api/service-lts';
+import { normalizeDisplayText } from '../lib/text-codec';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SAMPLE DATA  — chỉ dùng làm placeholder khi đang tải dữ liệu từ service-lts
@@ -160,14 +161,15 @@ function PolicyChip({ code, onRemove, dense = false }: { code: PolicyCode; onRem
 // 5. USER ROW
 // ═════════════════════════════════════════════════════════════════════════════
 function HangTaiKhoan({ user, daChon, onClick }: { user: TaiKhoan; daChon: boolean; onClick: () => void }) {
+  const displayName = normalizeDisplayText(user.fullName);
   return (
     <button className={`pq-row ${daChon ? 'pq-row--active' : ''}`} onClick={onClick}>
-      <div className="pq-row__avatar" style={{ background: layMauAvatar(user.fullName) }}>
-        {layChuCaiDau(user.fullName)}
+      <div className="pq-row__avatar" style={{ background: layMauAvatar(displayName) }}>
+        {layChuCaiDau(displayName)}
       </div>
       <div className="pq-row__main">
         <div className="pq-row__name">
-          {user.fullName}
+          {displayName}
           {user.isProtected && (
             <span className="pq-row__lock" title="Tài khoản được bảo vệ">
               <Lock size={11} />
@@ -252,17 +254,18 @@ function InspectorTaiKhoan({
   const soQuyenThem = draftPolicies.filter(code => !savedPolicySet.has(code)).length;
   const soQuyenThuHoi = user.policies.filter(code => !draftPolicySet.has(code)).length;
   const coThayDoiQuyen = soQuyenThem + soQuyenThuHoi > 0;
+  const displayName = normalizeDisplayText(user.fullName);
 
   return (
     <aside className="pq-inspector">
       {/* Header */}
       <div className="pq-inspector__head">
-        <div className="pq-inspector__avatar" style={{ background: layMauAvatar(user.fullName) }}>
-          {layChuCaiDau(user.fullName)}
+        <div className="pq-inspector__avatar" style={{ background: layMauAvatar(displayName) }}>
+          {layChuCaiDau(displayName)}
         </div>
         <div className="pq-inspector__title">
           <div className="pq-inspector__name">
-            {user.fullName}
+            {displayName}
             {user.isProtected && (
               <span className="pq-badge pq-badge--lock">
                 <Lock size={11} /> Bảo vệ
@@ -636,7 +639,7 @@ function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: NhomQuyen[] })
   const dong = moiTruong === 'user'
     ? users.map(u => ({
         id: u.id,
-        ten: u.fullName,
+        ten: normalizeDisplayText(u.fullName),
         phu: `@${u.account}`,
         avatar: layChuCaiDau(u.fullName),
         avatarColor: layMauAvatar(u.fullName),
@@ -850,7 +853,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   const ghiNhatKyPhanQuyen = (params: { action: 'create' | 'update' | 'delete' | 'status_change' | 'lock' | 'unlock' | 'assign'; targetId: string; targetName?: string; before?: Record<string, unknown>; after?: Record<string, unknown>; note?: string }) => {
     ghiNhatKy({
       userId: currentSellerId,
-      userName: currentSellerName,
+      userName: normalizeDisplayText(currentSellerName),
       targetType: 'permission',
       ...params,
     });
@@ -872,7 +875,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
         password: taiKhoanMoi.password,
       });
       luuUserTuApi(created);
-      ghiNhatKyPhanQuyen({ action: 'create', targetId: created.id, targetName: created.fullName || created.account, after: { account: created.account, fullName: created.fullName, isActive: created.isActive }, note: 'Tạo tài khoản' });
+      ghiNhatKyPhanQuyen({ action: 'create', targetId: created.id, targetName: normalizeDisplayText(created.fullName || created.account), after: { account: created.account, fullName: normalizeDisplayText(created.fullName || created.account), isActive: created.isActive }, note: 'Tạo tài khoản' });
       setTaiKhoanMoi({ account: '', fullName: '', password: '' });
       setMoFormTaoTaiKhoan(false);
       await napTaiKhoan();
@@ -892,7 +895,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
         ? await voHieuTaiKhoanService(accessToken, userDangChon.id)
         : await kichHoatTaiKhoanService(accessToken, userDangChon.id);
       luuUserTuApi(updated);
-      ghiNhatKyPhanQuyen({ action: 'status_change', targetId: userDangChon.id, targetName: userDangChon.fullName || userDangChon.account, before: { isActive: userDangChon.isActive }, after: { isActive: !userDangChon.isActive }, note: userDangChon.isActive ? 'Vô hiệu tài khoản' : 'Kích hoạt tài khoản' });
+      ghiNhatKyPhanQuyen({ action: 'status_change', targetId: userDangChon.id, targetName: normalizeDisplayText(userDangChon.fullName || userDangChon.account), before: { isActive: userDangChon.isActive }, after: { isActive: !userDangChon.isActive }, note: userDangChon.isActive ? 'Vô hiệu tài khoản' : 'Kích hoạt tài khoản' });
       await napTaiKhoan();
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không cập nhật được trạng thái tài khoản.');
@@ -908,7 +911,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     try {
       const updated = await capNhatBaoVeService(accessToken, userDangChon.id, !userDangChon.isProtected);
       luuUserTuApi(updated);
-      ghiNhatKyPhanQuyen({ action: userDangChon.isProtected ? 'unlock' : 'lock', targetId: userDangChon.id, targetName: userDangChon.fullName || userDangChon.account, before: { isProtected: userDangChon.isProtected }, after: { isProtected: !userDangChon.isProtected }, note: userDangChon.isProtected ? 'Bỏ bảo vệ tài khoản' : 'Bảo vệ tài khoản' });
+      ghiNhatKyPhanQuyen({ action: userDangChon.isProtected ? 'unlock' : 'lock', targetId: userDangChon.id, targetName: normalizeDisplayText(userDangChon.fullName || userDangChon.account), before: { isProtected: userDangChon.isProtected }, after: { isProtected: !userDangChon.isProtected }, note: userDangChon.isProtected ? 'Bỏ bảo vệ tài khoản' : 'Bảo vệ tài khoản' });
       await napTaiKhoan();
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không cập nhật được bảo vệ tài khoản.');
@@ -1006,7 +1009,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
       if (canCap.length) await capQuyenService(accessToken, userId, canCap);
       if (canThuHoi.length) await thuHoiQuyenService(accessToken, userId, canThuHoi);
       capNhatQuyenTaiKhoan(userId, draftPolicies);
-      ghiNhatKyPhanQuyen({ action: 'assign', targetId: userId, targetName: userDangChon.fullName || userDangChon.account, before: { policies: userDangChon.policies }, after: { policies: draftPolicies, policiesAdded: canCap, policiesRemoved: canThuHoi }, note: 'Cập nhật quyền tài khoản' });
+      ghiNhatKyPhanQuyen({ action: 'assign', targetId: userId, targetName: normalizeDisplayText(userDangChon.fullName || userDangChon.account), before: { policies: userDangChon.policies }, after: { policies: draftPolicies, policiesAdded: canCap, policiesRemoved: canThuHoi }, note: 'Cập nhật quyền tài khoản' });
       await napTaiKhoan(tuKhoa.trim() || undefined);
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không lưu được thay đổi quyền.');
@@ -1045,7 +1048,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     try {
       const updated = await datLaiMatKhauTaiKhoanService(accessToken, resetPasswordUser.id, matKhauDatLai.password);
       luuUserTuApi(updated);
-      ghiNhatKyPhanQuyen({ action: 'update', targetId: resetPasswordUser.id, targetName: resetPasswordUser.fullName || resetPasswordUser.account, note: 'Đặt lại mật khẩu tài khoản' });
+      ghiNhatKyPhanQuyen({ action: 'update', targetId: resetPasswordUser.id, targetName: normalizeDisplayText(resetPasswordUser.fullName || resetPasswordUser.account), note: 'Đặt lại mật khẩu tài khoản' });
       setResetPasswordUser(null);
       setMatKhauDatLai({ password: '', confirm: '' });
     } catch (error) {
@@ -1211,7 +1214,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
             </div>
             <div className="pq-modal__body">
               <div><b>Tài khoản</b><span className="pq-mono">@{resetPasswordUser.account}</span></div>
-              <div><b>Họ tên</b><span>{resetPasswordUser.fullName}</span></div>
+              <div><b>Họ tên</b><span>{normalizeDisplayText(resetPasswordUser.fullName)}</span></div>
               <label className="pq-modal__field"><b>Mật khẩu mới</b><input type="password" value={matKhauDatLai.password} onChange={e => setMatKhauDatLai(prev => ({ ...prev, password: e.target.value }))} autoFocus /></label>
               <label className="pq-modal__field"><b>Xác nhận mật khẩu mới</b><input type="password" value={matKhauDatLai.confirm} onChange={e => setMatKhauDatLai(prev => ({ ...prev, confirm: e.target.value }))} /></label>
             </div>

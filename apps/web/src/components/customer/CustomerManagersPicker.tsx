@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { AlertCircle, Search, UserPlus, X } from 'lucide-react';
 import { layTaiKhoanService, type TaiKhoanApi } from '../../lib/api/service-lts';
 import { locTaiKhoanActive, type CustomerManagerUi } from '../../lib/customer-api';
+import { normalizeDisplayText } from '../../lib/text-codec';
 
 interface CustomerManagersPickerProps {
   token?: string;
@@ -19,7 +20,7 @@ function initials(name: string) {
 }
 
 function accountName(account: TaiKhoanApi | CustomerManagerUi) {
-  return account.fullName || account.account || ('userId' in account ? account.userId : account.id);
+  return normalizeDisplayText(account.fullName || account.account || ('userId' in account ? account.userId : account.id));
 }
 
 export function CustomerManagersPicker({ token, value, disabled = false, onChange }: CustomerManagersPickerProps) {
@@ -53,7 +54,7 @@ export function CustomerManagersPicker({ token, value, disabled = false, onChang
       {
         userId: account.id,
         account: account.account,
-        fullName: account.fullName || account.account,
+        fullName: normalizeDisplayText(account.fullName || account.account),
       },
     ]);
   };

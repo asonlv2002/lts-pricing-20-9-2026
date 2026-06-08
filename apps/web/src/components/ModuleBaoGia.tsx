@@ -7,6 +7,7 @@ import {
   Plus, Trash2, AlertTriangle, CheckCircle2, X, Check,
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import { normalizeDisplayText } from '../lib/text-codec';
 import { lapDongSanXuat, tinhBaoGia, xuLyDongGhiDe } from '../lib/manager-calculation';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import type { AppConstants, HistoryItem, Material, ProfitRow, QuoteProductLine, QuoteStatus, OverrideTable, QuoteTerms, QuoteTier, SmallWidthMaterialPrice } from '../lib/types';
@@ -1263,7 +1264,7 @@ function BuocXacNhan({
         </div>
         <div className="wiz-confirm-row">
           <span className="wiz-confirm-label">Người tạo:</span>
-          <span className="wiz-confirm-value">{currentSellerName || '—'}</span>
+          <span className="wiz-confirm-value">{normalizeDisplayText(currentSellerName || '—')}</span>
         </div>
       </div>
 

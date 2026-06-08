@@ -11,6 +11,7 @@ import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { AuditEntry } from '../lib/types';
 import { getAuditChangedFields, getAuditSummary } from '../lib/customer-audit-format';
 import { resolveAuditActorName } from '../lib/customer-audit-format';
+import { normalizeDisplayText } from '../lib/text-codec';
 import {
   chuyenCustomerApiSangUi,
   chuyenDanhSachCustomerApiSangUi,
@@ -188,7 +189,7 @@ const managerSummary = (c: Customer) => {
 };
 const managerNamesForTable = (c: Customer) => {
   const managerNames = (c.managers ?? [])
-    .map(manager => manager.fullName || manager.account || manager.userId)
+    .map(manager => normalizeDisplayText(manager.fullName || manager.account || manager.userId))
     .filter(Boolean);
   if (managerNames.length > 0) return managerNames;
   if (c.sellerName || c.sellerId) return [c.sellerName || c.sellerId || ''];
@@ -699,7 +700,7 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
                     <div className="crm2-manager-list crm2-manager-list--compact">
                       {customer.managers!.map(manager => (
                         <div className="crm2-manager-row" key={manager.userId}>
-                          <span className="crm2-manager-main"><b>{manager.fullName || manager.account || manager.userId}</b>{manager.account && <small>@{manager.account}</small>}</span>
+                          <span className="crm2-manager-main"><b>{normalizeDisplayText(manager.fullName || manager.account || manager.userId)}</b>{manager.account && <small>@{manager.account}</small>}</span>
                           <span className="crm2-manager-badge">Người phụ trách</span>
                         </div>
                       ))}
@@ -1272,7 +1273,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
 
   const getAuditActor = () => ({
     userId: nguoiDungHienTai?.id ?? currentSellerId,
-    userName: nguoiDungHienTai?.fullName || nguoiDungHienTai?.account || SELLERS.find(s => s.id === currentSellerId)?.name || currentSellerId,
+      userName: normalizeDisplayText(nguoiDungHienTai?.fullName || nguoiDungHienTai?.account || SELLERS.find(s => s.id === currentSellerId)?.name || currentSellerId),
   });
   // Close transaction dropdown on click outside
   useEffect(() => {
