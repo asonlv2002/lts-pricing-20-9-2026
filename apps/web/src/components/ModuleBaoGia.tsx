@@ -41,6 +41,18 @@ function tenKhachHang(c: Customer): string {
   return c.companyName || c.contactName || c.customerCode || c.id;
 }
 
+function tieuDeKhachHang(c: Customer): string {
+  return c.companyName || c.contactName || c.customerCode || 'Khách hàng chưa đặt tên';
+}
+
+function metaKhachHang(c: Customer): string[] {
+  const lines: string[] = [];
+  if (c.customerCode) lines.push(`Mã: ${c.customerCode}`);
+  lines.push(`MST: ${c.taxCode || 'chưa có'}`);
+  lines.push(c.sellerName ? `Sale: ${c.sellerName}` : `SĐT: ${c.phone || 'chưa có'}`);
+  return lines;
+}
+
 // ── Wizard types ──────────────────────────────────────────────────────────────
 interface TierRow {
   quantity: number;
@@ -106,6 +118,16 @@ const WIZARD_STYLES = `
 .wiz-customer-name { font-size: 0.9rem; font-weight: 600; color: var(--foreground, #111); }
 .wiz-customer-meta { font-size: 0.76rem; color: var(--muted, #6b7280); margin-top: 1px; }
 .wiz-customer-check { margin-left: auto; color: var(--accent, #0891b2); flex-shrink: 0; }
+.wiz-customer-summary { border: 1.5px solid var(--border, #e5e7eb); border-radius: 12px; padding: 16px; background: var(--background, #fff); margin-bottom: 14px; }
+.wiz-customer-summary--selected { border-color: var(--accent, #0891b2); background: rgba(8,145,178,0.05); }
+.wiz-customer-summary-main { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.wiz-customer-picker-trigger { width: 100%; justify-content: center; min-height: 44px; }
+.wiz-customer-sheet-backdrop { position: fixed; inset: 0; z-index: 1100; background: rgba(15,23,42,0.45); display: flex; align-items: flex-end; justify-content: center; }
+.wiz-customer-sheet { width: 100%; max-width: 520px; max-height: 82dvh; border-radius: 24px 24px 0 0; background: var(--background, #fff); box-shadow: 0 -18px 44px rgba(15,23,42,0.22); display: flex; flex-direction: column; overflow: hidden; }
+.wiz-customer-sheet-handle { width: 42px; height: 4px; border-radius: 999px; background: var(--border, #e5e7eb); margin: 10px auto 4px; }
+.wiz-customer-sheet-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 18px 12px; border-bottom: 1px solid var(--border, #e5e7eb); }
+.wiz-customer-sheet-title { font-size: 1rem; font-weight: 800; color: var(--foreground, #111); }
+.wiz-customer-sheet-body { padding: 14px 18px 18px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
 .wiz-recent-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
 .wiz-chip { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 0.78rem; font-weight: 500; border: 1px solid var(--border, #e5e7eb); background: var(--surface, #f9fafb); color: var(--foreground, #111); cursor: pointer; transition: all 0.15s; }
 .wiz-chip:hover { border-color: var(--accent, #0891b2); color: var(--accent, #0891b2); }
@@ -160,6 +182,45 @@ const WIZARD_STYLES = `
 .sp-section--disabled { opacity: 0.4; pointer-events: none; user-select: none; }
 .sp-disabled-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 0.88rem; color: var(--muted, #6b7280); font-weight: 500; z-index: 2; background: rgba(255,255,255,0.5); border-radius: 10px; }
 .sp-section--error { border-color: #fca5a5; box-shadow: 0 0 0 2px rgba(252,165,165,0.3); }
+.quote-wizard-title { font-size: 1.1rem; font-weight: 700; color: var(--text, #1e293b); margin: 0; }
+.quote-wizard-subtitle { display: none; }
+.quote-wizard-mobile-action { display: none; }
+@media (max-width: 768px) {
+  .quote-wizard-root { height: auto !important; min-height: 100%; background: #f4f7fb; }
+  .quote-wizard-header { position: sticky; top: 0; z-index: 40; min-height: 64px; padding: calc(8px + env(safe-area-inset-top)) 16px 10px; background: #ffffff; border-bottom: 1px solid rgba(15,23,42,0.08); box-shadow: 0 1px 0 rgba(15,23,42,0.03); }
+  .quote-wizard-header-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+  .quote-wizard-title-stack { display: flex; flex-direction: column; min-width: 0; }
+  .quote-wizard-title { margin: 0; color: #111827; font-size: 16px; line-height: 1.25; font-weight: 800; }
+  .quote-wizard-subtitle { display: block; color: #64748b; font-size: 12px; line-height: 1.35; font-weight: 600; }
+  .quote-wizard-header-actions { display: flex; align-items: center; gap: 8px; }
+  .quote-wizard-header-actions .wiz-btn--secondary,
+  .quote-wizard-header-actions .wiz-btn--primary { display: none; }
+  .quote-wizard-close { width: 44px; height: 44px; padding: 0 !important; border-radius: 999px; background: #f8fafc; }
+  .quote-wizard-content { flex: none !important; overflow: visible !important; padding: 14px 14px calc(156px + env(safe-area-inset-bottom)) !important; }
+  .sp-section { margin-bottom: 14px; padding: 16px 14px; border-radius: 18px; background: #ffffff; box-shadow: 0 4px 14px rgba(15,23,42,0.045); }
+  .sp-section-title { margin-bottom: 14px; font-size: 15px; }
+  .sp-section-num { width: 28px; height: 28px; }
+  .wiz-section-title { margin-bottom: 8px; color: #64748b; font-size: 12px; }
+  .wiz-search-input { min-height: 48px; padding-left: 42px; border-radius: 14px; font-size: 16px; background: #ffffff; }
+  .wiz-search-icon { left: 14px; }
+  .wiz-recent-chips { flex-wrap: nowrap; gap: 8px; margin: 0 -14px 16px; padding: 0 14px 2px; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .wiz-recent-chips::-webkit-scrollbar { display: none; }
+  .wiz-chip { min-height: 44px; padding: 8px 12px; border-radius: 14px; white-space: nowrap; }
+  .wiz-customer-list { max-height: none; overflow: visible; gap: 10px; }
+  .wiz-customer-card { min-height: 72px; align-items: flex-start; padding: 12px; border-width: 1px; border-radius: 16px; box-shadow: 0 2px 8px rgba(15,23,42,0.04); }
+  .wiz-customer-icon { width: 40px; height: 40px; border-radius: 12px; }
+  .wiz-customer-name { font-size: 15px; line-height: 1.25; }
+  .wiz-customer-meta { display: flex; flex-wrap: wrap; gap: 4px 8px; margin-top: 4px; font-size: 12px; line-height: 1.35; }
+  .wiz-customer-meta span { margin-left: 0 !important; }
+  .quote-wizard-mobile-action { position: fixed; left: 0; right: 0; bottom: calc(72px + env(safe-area-inset-bottom)); z-index: 70; display: flex; gap: 10px; padding: 10px 14px; background: rgba(255,255,255,0.96); border-top: 1px solid rgba(15,23,42,0.08); box-shadow: 0 -8px 24px rgba(15,23,42,0.08); backdrop-filter: blur(12px); }
+  .quote-wizard-mobile-action .wiz-btn { min-height: 46px; justify-content: center; border-radius: 14px; font-size: 14px; }
+  .quote-wizard-mobile-action .wiz-btn--primary { flex: 1; background: #4f46e5; }
+  .quote-wizard-mobile-action .wiz-btn--secondary { width: 104px; }
+  .wiz-customer-summary { padding: 14px; border-radius: 18px; box-shadow: 0 2px 8px rgba(15,23,42,0.04); }
+  .wiz-customer-picker-trigger { border-radius: 14px; }
+  .wiz-customer-sheet { max-height: 82dvh; }
+  .wiz-customer-sheet-body .wiz-customer-list { max-height: none; overflow: visible; }
+}
 `;
 
 // ════════════════════════════════════════════════════════════
@@ -731,10 +792,20 @@ function BuocChonKhachHang({
   onSelect: (c: Customer) => void;
 }) {
   const [search, setSearch] = useState('');
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [isMobilePicker, setIsMobilePicker] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
 
   useEffect(() => {
     setCustomers(docKhachHang());
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 768px)');
+    const update = () => setIsMobilePicker(media.matches);
+    update();
+    media.addEventListener('change', update);
+    return () => media.removeEventListener('change', update);
   }, []);
 
   const filtered = useMemo(() => {
@@ -743,7 +814,8 @@ function BuocChonKhachHang({
     return customers.filter(c =>
       tenKhachHang(c).toLowerCase().includes(q) ||
       (c.customerCode || '').toLowerCase().includes(q) ||
-      (c.taxCode || '').toLowerCase().includes(q)
+      (c.taxCode || '').toLowerCase().includes(q) ||
+      (c.phone || '').toLowerCase().includes(q)
     ).slice(0, 8);
   }, [customers, search]);
 
@@ -752,63 +824,162 @@ function BuocChonKhachHang({
     [customers]
   );
 
+  const handleSelect = (customer: Customer) => {
+    onSelect(customer);
+    setSheetOpen(false);
+  };
+
+  const renderCustomerList = (handlePick: (customer: Customer) => void) => (
+    <div className="wiz-customer-list">
+      {filtered.length === 0 ? (
+        <div className="wiz-empty">Không tìm thấy khách hàng phù hợp.</div>
+      ) : filtered.map(c => {
+        const isSelected = selected?.id === c.id;
+        return (
+          <button
+            key={c.id}
+            className={`wiz-customer-card ${isSelected ? 'wiz-customer-card--selected' : ''}`}
+            onClick={() => handlePick(c)}
+            aria-pressed={isSelected}
+          >
+            <div className="wiz-customer-icon">
+              <Building2 size={16} />
+            </div>
+            <div style={{ flex: 1, textAlign: 'left' }}>
+              <div className="wiz-customer-name">{tieuDeKhachHang(c)}</div>
+              <div className="wiz-customer-meta">
+                {metaKhachHang(c).map(line => (
+                  <span key={line}>{line}</span>
+                ))}
+              </div>
+            </div>
+            {isSelected && <Check size={16} className="wiz-customer-check" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  if (!isMobilePicker) {
+    return (
+      <div>
+        <p className="wiz-section-title">Tìm khách hàng</p>
+        <div className="wiz-search-box">
+          <Search size={14} className="wiz-search-icon" />
+          <input
+            className="wiz-search-input"
+            placeholder="Tìm theo tên, mã KH, MST..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            autoFocus
+            aria-label="Tìm khách hàng"
+          />
+        </div>
+
+        {!search && recent.length > 0 && (
+          <div style={{ marginBottom: 14 }}>
+            <p className="wiz-section-title" style={{ marginBottom: 6 }}>Gần đây</p>
+            <div className="wiz-recent-chips">
+              {recent.map(c => (
+                <button key={c.id} className="wiz-chip" onClick={() => onSelect(c)}>
+                  <Building2 size={11} />
+                  {tieuDeKhachHang(c)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {renderCustomerList(onSelect)}
+      </div>
+    );
+  }
+
   return (
     <div>
-      <p className="wiz-section-title">Tìm khách hàng</p>
-      <div className="wiz-search-box">
-        <Search size={14} className="wiz-search-icon" />
-        <input
-          className="wiz-search-input"
-          placeholder="Tìm theo tên, mã KH, MST..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          autoFocus
-          aria-label="Tìm khách hàng"
-        />
+      <p className="wiz-section-title">Khách hàng</p>
+      <div className={`wiz-customer-summary${selected ? ' wiz-customer-summary--selected' : ''}`}>
+        <div className="wiz-customer-summary-main">
+          <div className="wiz-customer-icon">
+            {selected ? <Check size={16} /> : <Building2 size={16} />}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div className="wiz-customer-name">
+              {selected ? tieuDeKhachHang(selected) : 'Chưa chọn khách hàng'}
+            </div>
+            <div className="wiz-customer-meta">
+              {selected ? metaKhachHang(selected).map(line => (
+                <span key={line}>{line}</span>
+              )) : <span>Chọn khách hàng để tạo báo giá.</span>}
+            </div>
+          </div>
+        </div>
+        <button
+          className="wiz-btn wiz-btn--primary wiz-customer-picker-trigger"
+          type="button"
+          onClick={() => setSheetOpen(true)}
+        >
+          {selected ? 'Đổi khách hàng' : 'Chọn khách hàng'}
+        </button>
       </div>
 
-      {!search && recent.length > 0 && (
+      {recent.length > 0 && (
         <div style={{ marginBottom: 14 }}>
           <p className="wiz-section-title" style={{ marginBottom: 6 }}>Gần đây</p>
           <div className="wiz-recent-chips">
             {recent.map(c => (
-              <button key={c.id} className="wiz-chip" onClick={() => onSelect(c)}>
+              <button key={c.id} className="wiz-chip" onClick={() => handleSelect(c)}>
                 <Building2 size={11} />
-                {tenKhachHang(c)}
+                {tieuDeKhachHang(c)}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      <div className="wiz-customer-list">
-        {filtered.length === 0 ? (
-          <div className="wiz-empty">Không tìm thấy khách hàng phù hợp.</div>
-        ) : filtered.map(c => {
-          const isSelected = selected?.id === c.id;
-          return (
-            <button
-              key={c.id}
-              className={`wiz-customer-card ${isSelected ? 'wiz-customer-card--selected' : ''}`}
-              onClick={() => onSelect(c)}
-              aria-pressed={isSelected}
-            >
-              <div className="wiz-customer-icon">
-                <Building2 size={16} />
+      {sheetOpen && (
+        <div className="wiz-customer-sheet-backdrop" role="dialog" aria-modal="true" aria-label="Chọn khách hàng">
+          <div className="wiz-customer-sheet">
+            <div className="wiz-customer-sheet-handle" />
+            <div className="wiz-customer-sheet-header">
+              <div className="wiz-customer-sheet-title">Chọn khách hàng</div>
+              <button className="wiz-btn wiz-btn--ghost quote-wizard-close" type="button" onClick={() => setSheetOpen(false)} aria-label="Đóng chọn khách hàng">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="wiz-customer-sheet-body">
+              <div className="wiz-search-box">
+                <Search size={14} className="wiz-search-icon" />
+                <input
+                  className="wiz-search-input"
+                  placeholder="Tên, mã KH, MST, SĐT..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  autoFocus
+                  aria-label="Tìm khách hàng"
+                />
               </div>
-              <div style={{ flex: 1, textAlign: 'left' }}>
-                <div className="wiz-customer-name">{tenKhachHang(c)}</div>
-                <div className="wiz-customer-meta">
-                  {c.customerCode && <span>Mã: {c.customerCode}</span>}
-                  {c.taxCode && <span style={{ marginLeft: 8 }}>MST: {c.taxCode}</span>}
-                  {c.sellerName && <span style={{ marginLeft: 8 }}>Sale: {c.sellerName}</span>}
+
+              {!search && recent.length > 0 && (
+                <div style={{ marginBottom: 14 }}>
+                  <p className="wiz-section-title" style={{ marginBottom: 6 }}>Gần đây</p>
+                  <div className="wiz-recent-chips">
+                    {recent.map(c => (
+                      <button key={c.id} className="wiz-chip" onClick={() => handleSelect(c)}>
+                        <Building2 size={11} />
+                        {tieuDeKhachHang(c)}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-              {isSelected && <Check size={16} className="wiz-customer-check" />}
-            </button>
-          );
-        })}
-      </div>
+              )}
+
+              <p className="wiz-section-title">Kết quả</p>
+              {renderCustomerList(handleSelect)}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -1255,27 +1426,32 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
   const canSubmit = !!state.customer && state.products.length > 0;
 
   return (
-    <div className="crm-root" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+    <div className="crm-root quote-wizard-root" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <style>{WIZARD_STYLES}</style>
 
       {/* Sticky Header */}
-      <div className="sp-sticky-header">
-        <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: 'var(--text, #1e293b)', margin: 0 }}>Tạo báo giá mới</h2>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <div className="sp-sticky-header quote-wizard-header">
+        <div className="quote-wizard-header-title">
+          <div className="quote-wizard-title-stack">
+            <h2 className="quote-wizard-title">Tạo báo giá mới</h2>
+            <div className="quote-wizard-subtitle">Bước 1/3: Chọn khách hàng</div>
+          </div>
+        </div>
+        <div className="quote-wizard-header-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button className="wiz-btn wiz-btn--secondary" onClick={() => handleSave(false)} disabled={saving || !canSaveDraft}>
             Lưu nháp
           </button>
           <button className="wiz-btn wiz-btn--primary" onClick={() => handleSave(true)} disabled={saving || !canSubmit}>
             <CheckCircle2 size={14} /> Lưu & Gửi duyệt
           </button>
-          <button className="wiz-btn wiz-btn--ghost" onClick={onClose} style={{ padding: '6px 8px' }} aria-label="Đóng">
+          <button className="wiz-btn wiz-btn--ghost quote-wizard-close" onClick={onClose} style={{ padding: '6px 8px' }} aria-label="Đóng">
             <X size={18} />
           </button>
         </div>
       </div>
 
       {/* Scrollable content */}
-      <div style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
+      <div className="quote-wizard-content" style={{ flex: 1, overflow: 'auto', padding: '24px' }}>
         {error && (
           <div className="wiz-error" role="alert">
             <AlertTriangle size={14} /> {error}
@@ -1336,6 +1512,15 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
             />
           )}
         </div>
+      </div>
+
+      <div className="quote-wizard-mobile-action">
+        <button className="wiz-btn wiz-btn--secondary" onClick={() => handleSave(false)} disabled={saving || !canSaveDraft}>
+          Lưu nháp
+        </button>
+        <button className="wiz-btn wiz-btn--primary" onClick={() => handleSave(true)} disabled={saving || !canSubmit}>
+          <CheckCircle2 size={14} /> Lưu & Gửi duyệt
+        </button>
       </div>
     </div>
   );
