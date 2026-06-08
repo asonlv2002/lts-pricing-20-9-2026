@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Clock, RotateCcw, Eye, X } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { VersionSnapshot } from '../lib/types';
+import { normalizeDisplayText } from '../lib/text-codec';
 
 function dinhDangSo(n: number) { return n.toLocaleString('vi-VN'); }
 
@@ -51,7 +52,7 @@ export default function PanelPhienBan({ historyItemId, onClose }: Props) {
                         {v.label || `Phiên bản ${versions.length - idx}`}
                       </div>
                       <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 2 }}>
-                        {new Date(v.timestamp).toLocaleString('vi-VN')} · {v.userName}
+                        {new Date(v.timestamp).toLocaleString('vi-VN')} · {normalizeDisplayText(v.userName)}
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>

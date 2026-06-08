@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { AuditAction, AuditEntry } from '../lib/types';
+import { normalizeDisplayText } from '../lib/text-codec';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -72,6 +73,10 @@ function formatDate(iso: string) {
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
+}
+
+function displayAuditText(value?: string | null) {
+  return normalizeDisplayText(value || '');
 }
 
 function groupByDate(entries: AuditEntry[]): Array<{ date: string; items: AuditEntry[] }> {
@@ -200,7 +205,7 @@ function TimelineEntry({ entry, onOpen }: { entry: AuditEntry; onOpen: (entry: A
             {formatTime(entry.timestamp)}
           </span>
           <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text, #1e293b)' }}>
-            {entry.userName}
+            {displayAuditText(entry.userName)}
           </span>
           <span style={{
             fontSize: '0.72rem', fontWeight: 600, padding: '1px 7px', borderRadius: 10,
@@ -218,12 +223,12 @@ function TimelineEntry({ entry, onOpen }: { entry: AuditEntry; onOpen: (entry: A
             <span style={{ color: 'var(--muted)' }}>
               {TARGET_TYPE_LABELS[entry.targetType] || entry.targetType}:
             </span>{' '}
-            <span style={{ fontWeight: 500 }}>{entry.targetName || entry.targetId}</span>
+            <span style={{ fontWeight: 500 }}>{displayAuditText(entry.targetName || entry.targetId)}</span>
           </div>
 
           {entry.note && (
             <div style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 4 }}>
-              {entry.note}
+              {displayAuditText(entry.note)}
             </div>
           )}
 
@@ -319,7 +324,7 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
       if (seen.has(e.userId)) return false;
       seen.add(e.userId);
       return true;
-    }).map(e => ({ id: e.userId, name: e.userName }));
+    }).map(e => ({ id: e.userId, name: displayAuditText(e.userName) }));
   }, [auditLog]);
 
   // Filtered user suggestions for autocomplete
@@ -343,8 +348,8 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
       const q = targetSearch.toLowerCase();
       list = list.filter(e =>
         (e.targetId || '').toLowerCase().includes(q) ||
-        (e.targetName || '').toLowerCase().includes(q) ||
-        (e.note || '').toLowerCase().includes(q) ||
+        displayAuditText(e.targetName || '').toLowerCase().includes(q) ||
+        displayAuditText(e.note || '').toLowerCase().includes(q) ||
         JSON.stringify(e.before ?? {}).toLowerCase().includes(q) ||
         JSON.stringify(e.after ?? {}).toLowerCase().includes(q)
       );
@@ -352,10 +357,10 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
     if (search.trim()) {
       const q = search.toLowerCase();
       list = list.filter(e =>
-        e.userName.toLowerCase().includes(q) ||
-        (e.targetName || '').toLowerCase().includes(q) ||
+        displayAuditText(e.userName).toLowerCase().includes(q) ||
+        displayAuditText(e.targetName || '').toLowerCase().includes(q) ||
         (e.targetId || '').toLowerCase().includes(q) ||
-        (e.note || '').toLowerCase().includes(q) ||
+        displayAuditText(e.note || '').toLowerCase().includes(q) ||
         JSON.stringify(e.before ?? {}).toLowerCase().includes(q) ||
         JSON.stringify(e.after ?? {}).toLowerCase().includes(q)
       );

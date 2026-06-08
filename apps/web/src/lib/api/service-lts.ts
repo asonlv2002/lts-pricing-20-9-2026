@@ -3,6 +3,8 @@
 // Browser gọi trực tiếp Service-LTS, không qua proxy Next.js
 // ═════════════════════════════════════════════════════════════════════════════
 
+import { normalizeDisplayText } from '../text-codec';
+
 // ── Constants ────────────────────────────────────────────────────────────
 export const SERVICE_LTS_DIRECT_URL = process.env.NEXT_PUBLIC_SERVICE_LTS_URL ?? 'localhost:3001';
 export const LS_ACCESS_TOKEN = 'lts_service_access_token';
@@ -370,7 +372,7 @@ export function chuyenNhomQuyenApi(role: NhomQuyenApi): NhomQuyen {
     policies: role.policies
       .map(p => p.code)
       .filter((code): code is PolicyCode => POLICY_CATALOG.some(p => p.code === code)),
-    granterName: role.granter?.fullName ?? role.granter?.account,
+    granterName: normalizeDisplayText(role.granter?.fullName ?? role.granter?.account ?? ''),
     updatedAt: role.updatedAt,
   };
 }
@@ -478,7 +480,7 @@ export function chuyenTaiKhoanApi(user: TaiKhoanApi): TaiKhoan {
   return {
     id: user.id,
     account: user.account,
-    fullName: user.fullName || user.account,
+    fullName: normalizeDisplayText(user.fullName || user.account),
     isActive: user.isActive,
     isProtected: user.isProtected,
     isSystem: Boolean(user.isSystem ?? user.is_system),

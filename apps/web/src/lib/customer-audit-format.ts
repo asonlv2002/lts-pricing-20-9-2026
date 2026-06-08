@@ -1,4 +1,5 @@
 import type { AuditEntry } from './types';
+import { normalizeDisplayText } from './text-codec';
 
 export type AuditChangedField = {
   key: string;
@@ -73,13 +74,7 @@ const STATUS_LABELS: Record<string, string> = {
 const IMPORTANT_CREATE_FIELDS = ['customerCode', 'companyName', 'contactName', 'phone', 'email'];
 
 export function cleanAuditText(value: string): string {
-  return value
-    .replace(/TrÆ°á»ng/g, 'Trường')
-    .replace(/SÆ¡n/g, 'Sơn')
-    .replace(/VÃµ/g, 'Võ')
-    .replace(/Huá»³nh/g, 'Huỳnh')
-    .replace(/Æ°/g, 'ư')
-    .replace(/Æ¡/g, 'ơ');
+  return normalizeDisplayText(value);
 }
 
 export function getAuditActionLabel(action: string): string {

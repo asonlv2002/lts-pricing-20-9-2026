@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { dungCuaHangTinhGia } from '../../store/CuaHangTinhGia';
 import { getPricingDisplayMeta } from '../../lib/pricing-display';
+import { normalizeDisplayText } from '../../lib/text-codec';
 import { OFFLINE_ACCOUNTS } from '../../store/slices/auth';
 import DangNhapModal from '../auth/DangNhapModal';
 import DoiMatKhauModal from '../auth/DoiMatKhauModal';
@@ -200,7 +201,7 @@ function DoiVaiTroOffline({ compact }: { compact?: boolean }) {
         }}
       >
         <RefreshCw size={13} />
-        {!compact && <span style={{ flex: 1, textAlign: 'left' }}>{nguoiDung?.fullName}</span>}
+        {!compact && <span style={{ flex: 1, textAlign: 'left' }}>{normalizeDisplayText(nguoiDung?.fullName || '')}</span>}
         {compact && <span style={{ flex: 1, textAlign: 'left' }}>{OFFLINE_ROLE_LABELS[vaiTroHienTai]}</span>}
       </button>
 
@@ -429,12 +430,12 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
               )}
               <div className="lts-sidebar-user">
                 <div className="lts-sidebar-user-avatar">
-                  {(dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || 'U').slice(0, 2).toUpperCase()}
+                  {normalizeDisplayText(dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || 'U').slice(0, 2).toUpperCase()}
                 </div>
                 {(dangMo || laMobile) && (
                   <div className="lts-sidebar-user-info">
                     <div className="lts-sidebar-user-name">
-                      {dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || 'Unknown'}
+                      {normalizeDisplayText(dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || 'Unknown')}
                     </div>
                     <div className="lts-sidebar-user-acc">
                       @{dungCuaHangTinhGia.getState().nguoiDungHienTai?.account || '—'}
@@ -516,7 +517,7 @@ function MenuNoiMobile({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleD
               ) : (
                 <>
                   <div className="lts-fab-user-info">
-                    <span>{dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || '—'}</span>
+                    <span>{normalizeDisplayText(dungCuaHangTinhGia.getState().nguoiDungHienTai?.fullName || '—')}</span>
                   </div>
                   <button
                     className="lts-fab-logout"

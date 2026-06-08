@@ -18,6 +18,7 @@ import {
 } from '../../lib/api/service-lts';
 import { laLoiRefreshHetPhien } from '../../lib/auth-session';
 import { vaiTroTuPolicies } from '../../lib/permissions';
+import { decodeBase64UrlUtf8, normalizeDisplayText } from '../../lib/text-codec';
 
 export interface AuthSlice {
   // ── State ──────────────────────────────────────────────────────────────
@@ -96,12 +97,14 @@ function docJwtPayload(token: string): { sub: string; account: string; fullName?
   try {
     const [, payload] = token.split('.');
     if (!payload) return null;
-    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
-    const padded = normalized.padEnd(normalized.length + (4 - normalized.length % 4) % 4, '=');
-    return JSON.parse(window.atob(padded));
+    return JSON.parse(decodeBase64UrlUtf8(payload));
   } catch {
     return null;
   }
+}
+
+function normalizeUserDisplayName(value?: string | null, fallback?: string): string {
+  return normalizeDisplayText(value || fallback || '');
 }
 
 export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = (set, get) => {
@@ -152,9 +155,9 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       set({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
-        nguoiDungHienTai: userProfile
-          ? { id: userProfile.id, account: userProfile.account, fullName: userProfile.fullName, policies: userPolicies }
-          : { id: data.user.id, account: data.user.account, fullName: data.user.fullName || data.user.account, policies: userPolicies },
+          nguoiDungHienTai: userProfile
+          ? { id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userPolicies }
+          : { id: data.user.id, account: data.user.account, fullName: normalizeUserDisplayName(data.user.fullName, data.user.account), policies: userPolicies },
         isAuthenticated: true,
         authLoading: false,
         sessionChecked: true,
@@ -271,9 +274,9 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
         accessToken: savedAccess,
         refreshToken: savedRefresh,
         nguoiDungHienTai: userProfile
-          ? { id: userProfile.id, account: userProfile.account, fullName: userProfile.fullName, policies: userProfile.policies }
+          ? { id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userProfile.policies }
           : payload
-            ? { id: payload.sub, account: payload.account, fullName: payload.fullName || payload.account, policies: fallbackPolicies }
+            ? { id: payload.sub, account: payload.account, fullName: normalizeUserDisplayName(payload.fullName, payload.account), policies: fallbackPolicies }
             : null,
         isAuthenticated: true,
         authLoading: false,
@@ -305,8 +308,8 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,
           nguoiDungHienTai: userProfile
-            ? { id: userProfile.id, account: userProfile.account, fullName: userProfile.fullName, policies: userPolicies }
-            : { id: data.user.id, account: data.user.account, fullName: data.user.fullName || data.user.account, policies: userPolicies },
+            ? { id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userPolicies }
+            : { id: data.user.id, account: data.user.account, fullName: normalizeUserDisplayName(data.user.fullName, data.user.account), policies: userPolicies },
           isAuthenticated: true,
           authLoading: false,
           sessionChecked: true,
