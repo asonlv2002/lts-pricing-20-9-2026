@@ -3,7 +3,7 @@
  * Chay: npx tsx src/lib/auth-session.test.ts
  */
 
-import { tinhThoiGianChoLamMoiPhien } from './auth-session';
+import { laLoiRefreshHetPhien, tinhThoiGianChoLamMoiPhien } from './auth-session';
 
 let passed = 0;
 let failed = 0;
@@ -43,6 +43,23 @@ assert(
   'uses fallback interval when token expiration cannot be decoded',
   tinhThoiGianChoLamMoiPhien('not-a-jwt', nowMs) === 14 * 60 * 1000,
   String(tinhThoiGianChoLamMoiPhien('not-a-jwt', nowMs)),
+);
+
+console.log('\n== Auth refresh failure classification ==');
+
+assert(
+  'treats 401 refresh failure as expired session',
+  laLoiRefreshHetPhien({ status: 401 }) === true,
+);
+
+assert(
+  'does not treat temporary server failure as expired session',
+  laLoiRefreshHetPhien({ status: 500 }) === false,
+);
+
+assert(
+  'does not treat network failure as expired session',
+  laLoiRefreshHetPhien(new Error('Không kết nối được tới máy chủ.')) === false,
 );
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);

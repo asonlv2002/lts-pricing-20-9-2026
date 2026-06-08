@@ -32,3 +32,8 @@ export function tokenCanLamMoiNgay(token: string, nowMs = Date.now()): boolean {
   if (!expiresAt) return false;
   return expiresAt - nowMs <= AUTH_REFRESH_MARGIN_MS;
 }
+
+export function laLoiRefreshHetPhien(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return false;
+  return (error as { status?: unknown }).status === 401;
+}

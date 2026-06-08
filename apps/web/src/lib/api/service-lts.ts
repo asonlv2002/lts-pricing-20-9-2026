@@ -105,6 +105,13 @@ let luuTokenMoi: TokenSaver | null = null;
 let xuLyPhienKhongHopLe: SessionInvalidHandler | null = null;
 let dangRefreshPromise: Promise<TokenPair> | null = null;
 
+export class LoiServiceLts extends Error {
+  constructor(message: string, readonly status?: number) {
+    super(message);
+    this.name = 'LoiServiceLts';
+  }
+}
+
 export function caiDatQuanLyPhien(config: {
   layTokenHienTai: TokenProvider;
   luuTokenMoi: TokenSaver;
@@ -192,6 +199,10 @@ async function lamMoiTokenTuHeThong(): Promise<TokenPair> {
   }
 }
 
+export async function lamMoiTokenQuaQuanLyPhien(): Promise<TokenPair> {
+  return lamMoiTokenTuHeThong();
+}
+
 // ── Generic fetch ────────────────────────────────────────────────────────
 async function goiService<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') {
@@ -204,7 +215,7 @@ async function goiService<T>(path: string, options: RequestInit = {}, token?: st
   try {
     res = await goiRaw(path, options, firstToken);
   } catch {
-    throw new Error('Không kết nối được tới máy chủ.');
+    throw new LoiServiceLts('Không kết nối được tới máy chủ.');
   }
 
   if (res.status === 401 && path !== '/auth/login' && path !== '/auth/refresh') {
@@ -213,17 +224,20 @@ async function goiService<T>(path: string, options: RequestInit = {}, token?: st
       try {
         res = await goiRaw(path, options, tokens.accessToken);
       } catch {
-        throw new Error('Không kết nối được tới máy chủ.');
+        throw new LoiServiceLts('Không kết nối được tới máy chủ.');
       }
-    } catch {
-      xuLyPhienKhongHopLe?.();
-      throw new Error('Hết phiên đăng nhập.');
+    } catch (error) {
+      if (error instanceof LoiServiceLts && error.status === 401) {
+        xuLyPhienKhongHopLe?.();
+        throw new LoiServiceLts('Hết phiên đăng nhập.', 401);
+      }
+      throw error;
     }
   }
 
   if (!res.ok) {
     const body = await docJson(res);
-    throw new Error(layLoiTuResponse(res.status, body));
+    throw new LoiServiceLts(layLoiTuResponse(res.status, body), res.status);
   }
 
   const body = await docJson(res);
@@ -399,6 +413,7 @@ export interface KhachHangApi {
   createdBy?: string | null;
   createdAt: string;
   versions: KhachHangApiVersion[];
+  managers?: KhachHangManagerApi[];
 }
 
 export interface KhachHangManagerApi {
@@ -423,28 +438,6 @@ export interface CapNhatKhachHangInput {
   address: string;
   status?: string;
   changeNote?: string;
-}
-
-export interface CustomerRealtimeEventApi {
-  id: string;
-  key: 'customer.created' | 'customer.updated' | 'customer.managers_replaced' | string;
-  resource: 'customer' | string;
-  action: string;
-  resourceId: string;
-  occurredAt: string;
-  payload?: {
-    customer?: {
-      codeName: string;
-      latestVersion?: KhachHangApiVersion | null;
-      managers?: KhachHangManagerApi[];
-    };
-  };
-}
-
-export interface CustomerRealtimeMessageApi {
-  id?: string;
-  type: string;
-  data: CustomerRealtimeEventApi | { occurredAt: string };
 }
 
 export async function layKhachHangService(token?: string): Promise<KhachHangApi[]> {
@@ -478,71 +471,6 @@ export async function luuNguoiPhuTrachKhachHangService(
     method: 'PUT',
     body: JSON.stringify({ managers }),
   }, token);
-}
-
-function tachSseBlocks(buffer: string): { blocks: string[]; rest: string } {
-  const normalized = buffer.replace(/\r\n/g, '\n');
-  const parts = normalized.split('\n\n');
-  const rest = parts.pop() ?? '';
-  return { blocks: parts, rest };
-}
-
-function parseSseBlock(block: string): CustomerRealtimeMessageApi | null {
-  const dataLines: string[] = [];
-  let id: string | undefined;
-  let type = 'message';
-
-  for (const line of block.split('\n')) {
-    if (!line || line.startsWith(':')) continue;
-    const separatorIndex = line.indexOf(':');
-    const field = separatorIndex >= 0 ? line.slice(0, separatorIndex) : line;
-    const value = separatorIndex >= 0 ? line.slice(separatorIndex + 1).replace(/^ /, '') : '';
-    if (field === 'id') id = value;
-    if (field === 'event') type = value;
-    if (field === 'data') dataLines.push(value);
-  }
-
-  if (!dataLines.length) return null;
-  const data = JSON.parse(dataLines.join('\n')) as CustomerRealtimeMessageApi['data'];
-  const eventType = 'key' in data ? data.key : type;
-  return { id, type: eventType, data };
-}
-
-export async function ketNoiSuKienKhachHangService(
-  token: string,
-  onMessage: (message: CustomerRealtimeMessageApi) => void,
-  signal: AbortSignal,
-): Promise<void> {
-  if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') return;
-
-  const response = await fetch(`${SERVICE_LTS_DIRECT_URL}/events/customers`, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      Accept: 'text/event-stream',
-    },
-    signal,
-  });
-
-  if (!response.ok) throw new Error(`Không kết nối được sự kiện khách hàng (${response.status}).`);
-  if (!response.body) throw new Error('Máy chủ không trả về luồng sự kiện khách hàng.');
-
-  const reader = response.body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = '';
-
-  while (!signal.aborted) {
-    const { value, done } = await reader.read();
-    if (done) break;
-
-    buffer += decoder.decode(value, { stream: true });
-    const { blocks, rest } = tachSseBlocks(buffer);
-    buffer = rest;
-
-    for (const block of blocks) {
-      const message = parseSseBlock(block);
-      if (message) onMessage(message);
-    }
-  }
 }
 
 // ── Transform ────────────────────────────────────────────────────────────

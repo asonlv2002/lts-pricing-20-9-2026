@@ -6,6 +6,7 @@ import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import {
   dangNhapService,
   lamMoiTokenService,
+  lamMoiTokenQuaQuanLyPhien,
   layTaiKhoanService,
   doiMatKhauService,
   chuyenTaiKhoanApi,
@@ -15,6 +16,7 @@ import {
   caiDatQuanLyPhien,
   type PolicyCode,
 } from '../../lib/api/service-lts';
+import { laLoiRefreshHetPhien } from '../../lib/auth-session';
 import { vaiTroTuPolicies } from '../../lib/permissions';
 
 export interface AuthSlice {
@@ -194,7 +196,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       return;
     }
     try {
-      const data = await lamMoiTokenService(currentRefresh);
+      const data = await lamMoiTokenQuaQuanLyPhien();
       luuToken(data.accessToken, data.refreshToken);
       set({
         accessToken: data.accessToken,
@@ -202,8 +204,12 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
         isAuthenticated: true,
         sessionChecked: true,
       });
-    } catch {
-      resetPhienHetHan(set);
+    } catch (error) {
+      if (laLoiRefreshHetPhien(error)) {
+        resetPhienHetHan(set);
+      } else {
+        console.warn('Không làm mới được phiên đăng nhập, sẽ thử lại sau:', error);
+      }
     }
   },
 

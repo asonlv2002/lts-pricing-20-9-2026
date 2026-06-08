@@ -6,8 +6,8 @@
 import {
   chuyenCustomerManagersApiSangUi,
   chuyenCustomerApiSangUi,
+  chuyenDanhSachCustomerApiSangUi,
   chuyenCustomerManagersSangPayload,
-  gopCustomerTheoSuKienRealtime,
   chuyenCustomerUiSangThongTinApi,
   layLuaChonNguoiPhuTrach,
   locTaiKhoanActive,
@@ -127,28 +127,17 @@ assert('keeps customer without version visible by code', customerWithoutVersion.
 assert('uses business fallback for customer without details', customerWithoutVersion.companyName === 'Chưa có thông tin chi tiết');
 assert('keeps customer without version active', customerWithoutVersion.status === 'active');
 
-const currentCustomer = chuyenCustomerApiSangUi({
-  codeName: 'MERGE_01',
-  createdAt: '2026-06-01T00:00:00.000Z',
-  versions: [
-    { version: 3, organizationName: 'Current Newest', contactName: 'Current', phoneNumber: '3', email: 'current@example.com', address: 'Current address', status: 'active', createdAt: '2026-06-03T00:00:00.000Z' },
-  ],
-});
-const staleMerge = gopCustomerTheoSuKienRealtime(currentCustomer, {
-  codeName: 'MERGE_01',
-  latestVersion: { version: 2, organizationName: 'Stale', contactName: 'Stale', phoneNumber: '2', email: 'stale@example.com', address: 'Stale address', status: 'inactive', createdAt: '2026-06-02T00:00:00.000Z' },
-  managers: [{ userId: 'user-2', account: 'staff_02', fullName: 'Staff 02' }],
-});
-assert('does not let stale realtime customer versions overwrite current latest version', staleMerge.companyName === 'Current Newest', staleMerge.companyName);
-assert('still merges realtime managers when version is stale', staleMerge.managers?.[0]?.userId === 'user-2', JSON.stringify(staleMerge.managers));
-
-const freshMerge = gopCustomerTheoSuKienRealtime(currentCustomer, {
-  codeName: 'MERGE_01',
-  latestVersion: { version: 4, organizationName: 'Fresh Newest', contactName: 'Fresh', phoneNumber: '4', email: 'fresh@example.com', address: 'Fresh address', status: 'active', createdAt: '2026-06-04T00:00:00.000Z' },
-  managers: [],
-});
-assert('merges newer realtime customer versions into UI customer', freshMerge.companyName === 'Fresh Newest', freshMerge.companyName);
-assert('stores newer realtime version first', freshMerge.versions?.[0]?.version === 4, String(freshMerge.versions?.[0]?.version));
+const customersWithManagers = chuyenDanhSachCustomerApiSangUi([
+  {
+    codeName: 'MANAGED_01',
+    createdBy: null,
+    createdAt: '2026-06-01T00:00:00.000Z',
+    versions: [],
+    managers: [{ id: 'user-2', fullName: 'Tran Huong Mai' }],
+  },
+]);
+assert('maps customer list managers from /customers response id field', customersWithManagers[0]?.managers?.[0]?.userId === 'user-2', JSON.stringify(customersWithManagers[0]?.managers));
+assert('keeps customer list manager full name from /customers response', customersWithManagers[0]?.managers?.[0]?.fullName === 'Tran Huong Mai', JSON.stringify(customersWithManagers[0]?.managers));
 
 console.log('\n== Customer detail validation ==');
 

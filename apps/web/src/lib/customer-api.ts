@@ -55,11 +55,6 @@ export interface CustomerApi {
   createdBy?: string | null;
   createdAt: string;
   versions: CustomerVersionApi[];
-}
-
-export interface CustomerRealtimePayload {
-  codeName: string;
-  latestVersion?: CustomerVersionApi | null;
   managers?: CustomerManagerApi[];
 }
 
@@ -156,20 +151,6 @@ export function layLuaChonNguoiPhuTrach(customers: Pick<CustomerUi, 'managers'>[
 
 export function sapXepPhienBanKhachHang(versions: CustomerVersionApi[] = []): CustomerVersionApi[] {
   return [...versions].sort((left, right) => right.version - left.version);
-}
-
-function gopPhienBanMoiNhat(
-  currentVersions: CustomerVersionApi[] = [],
-  latestVersion?: CustomerVersionApi | null,
-): CustomerVersionApi[] {
-  const versions = sapXepPhienBanKhachHang(currentVersions);
-  if (!latestVersion) return versions;
-
-  const currentLatest = versions[0];
-  if (currentLatest && latestVersion.version < currentLatest.version) return versions;
-
-  const withoutIncoming = versions.filter((version) => version.version !== latestVersion.version);
-  return sapXepPhienBanKhachHang([latestVersion, ...withoutIncoming]);
 }
 
 export function kiemTraMaKhachHang(value: string): { hopLe: boolean; maKhachHang: string; loi?: string } {
@@ -269,35 +250,11 @@ export function chuyenCustomerApiSangUi(customer: CustomerApi): CustomerUi {
   };
 }
 
-export function gopCustomerTheoSuKienRealtime(
-  current: CustomerUi | undefined,
-  payload: CustomerRealtimePayload,
-): CustomerUi {
-  const versions = gopPhienBanMoiNhat(current?.versions, payload.latestVersion);
-  const base = chuyenCustomerApiSangUi({
-    codeName: payload.codeName,
-    createdAt: current?.createdAt ?? payload.latestVersion?.createdAt ?? new Date().toISOString(),
-    versions,
-  });
-
-  return {
-    ...base,
-    ...current,
-    id: payload.codeName,
-    customerCode: payload.codeName,
-    companyName: base.companyName,
-    taxCode: base.taxCode,
-    contactName: base.contactName,
-    phone: base.phone,
-    email: base.email,
-    invoiceAddress: base.invoiceAddress,
-    address: base.address,
-    status: base.status,
-    notes: base.notes,
-    updatedAt: base.updatedAt,
-    versions,
-    managers: payload.managers ? chuyenCustomerManagersApiSangUi(payload.managers) : current?.managers,
-  };
+export function chuyenDanhSachCustomerApiSangUi(customers: CustomerApi[] = []): CustomerUi[] {
+  return customers.map((customer) => ({
+    ...chuyenCustomerApiSangUi(customer),
+    managers: chuyenCustomerManagersApiSangUi(customer.managers ?? []),
+  }));
 }
 
 export function chuyenCustomerUiSangThongTinApi(customer: CustomerUi) {
