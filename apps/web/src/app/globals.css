@@ -3479,6 +3479,19 @@ body {
   overflow-x: auto !important;
 }
 
+.lts-shell-content:has(.crm2-root) {
+  scrollbar-width: none;
+}
+
+.lts-shell-content:has(.crm2-root)::-webkit-scrollbar:vertical {
+  width: 0;
+}
+
+.lts-shell-content:has(.crm2-root)::-webkit-scrollbar-thumb:vertical,
+.lts-shell-content:has(.crm2-root)::-webkit-scrollbar-track:vertical {
+  background: transparent;
+}
+
 /* Desktop nhỏ/laptop nhỏ: giữ layout nghiệp vụ đủ rộng và cho kéo ngang
    trong vùng nội dung, không kéo ngang toàn bộ trang. */
 @media (min-width: 768px) and (max-width: 1279px) {

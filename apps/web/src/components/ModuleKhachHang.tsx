@@ -1648,191 +1648,187 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
         />
       )}
 
-      {/* Compact header */}
-      <header className="crm2-header">
-        <div className="crm2-header-left">
-          <h1 className="crm2-title">
-            {showingAuditLog ? 'Nhật ký thao tác' : 'Khách hàng'}
-            {!showingAuditLog && <span className="crm2-title-count"> ({filtered.length})</span>}
-          </h1>
-        </div>
-        <div className="crm2-header-right">
-          {!showingAuditLog && (
-            <>
-              <button className="crm2-btn crm2-btn--ghost" disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}>
-                <Download size={15}/> Xuất CSV
-              </button>
-              {coQuyenTaoKhachHang && (
-                <button className="crm2-btn crm2-btn--primary" onClick={() => openEdit(null)}>
-                  <Plus size={15}/> Thêm mới
+      <div className="crm2-fixed-top">
+        <header className="crm2-header">
+          <div className="crm2-header-left">
+            <h1 className="crm2-title">
+              {showingAuditLog ? 'Nhật ký thao tác' : 'Khách hàng'}
+              {!showingAuditLog && <span className="crm2-title-count"> ({filtered.length})</span>}
+            </h1>
+          </div>
+          <div className="crm2-header-right">
+            {!showingAuditLog && (
+              <>
+                <button className="crm2-btn crm2-btn--ghost" disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}>
+                  <Download size={15}/> Xuất CSV
+                </button>
+                {coQuyenTaoKhachHang && (
+                  <button className="crm2-btn crm2-btn--primary" onClick={() => openEdit(null)}>
+                    <Plus size={15}/> Thêm mới
+                  </button>
+                )}
+              </>
+            )}
+          </div>
+        </header>
+
+        {!showingAuditLog && (
+          <>
+            <div className="crm2-search-bar">
+              <Search size={16} className="crm2-search-icon"/>
+              <input
+                ref={searchRef}
+                className="crm2-search-input"
+                aria-label="Tìm kiếm khách hàng"
+                placeholder="Tìm tên, mã KH, SĐT, email, MST..."
+                value={filters.keyword}
+                onChange={e => setFilters(f => ({...f, keyword: e.target.value}))}
+              />
+              <kbd className="crm2-search-kbd">Ctrl+K</kbd>
+              {filters.keyword && (
+                <button className="crm2-btn-icon crm2-search-clear" aria-label="Xóa" onClick={() => setFilters(f => ({...f, keyword: ''}))}>
+                  <X size={14}/>
                 </button>
               )}
-            </>
-          )}
-        </div>
-      </header>
+            </div>
 
-      {showingAuditLog ? (
-        <CustomerAuditView customers={customers} />
-      ) : (
-        <>
-      {/* Search bar */}
-      <div className="crm2-search-bar">
-        <Search size={16} className="crm2-search-icon"/>
-        <input
-          ref={searchRef}
-          className="crm2-search-input"
-          aria-label="Tìm kiếm khách hàng"
-          placeholder="Tìm tên, mã KH, SĐT, email, MST..."
-          value={filters.keyword}
-          onChange={e => setFilters(f => ({...f, keyword: e.target.value}))}
-        />
-        <kbd className="crm2-search-kbd">Ctrl+K</kbd>
-        {filters.keyword && (
-          <button className="crm2-btn-icon crm2-search-clear" aria-label="Xóa" onClick={() => setFilters(f => ({...f, keyword: ''}))}>
-            <X size={14}/>
-          </button>
+            <div className="crm2-toolbar">
+              <div className="crm2-chips">
+                {statusChips.map(chip => (
+                  <button
+                    key={chip.key}
+                    className={filters.status === chip.key ? 'crm2-chip crm2-chip--active' : 'crm2-chip'}
+                    onClick={() => setFilters(f => ({...f, status: chip.key}))}
+                  >
+                    {chip.label} {chip.count != null && <span className="crm2-chip-count">{chip.count}</span>}
+                  </button>
+                ))}
+                <div className="crm2-dropdown-wrap">
+                  <button className={`crm2-chip${filters.sellerId ? ' crm2-chip--active' : ''}`} onClick={() => setDropdownOpen(d => d === 'seller' ? null : 'seller')}>
+                    <Briefcase size={12}/> {filters.sellerId ? options.managers.find(s => s.id === filters.sellerId)?.name : 'Người phụ trách'} <ChevronDown size={12}/>
+                  </button>
+                  {dropdownOpen === 'seller' && (
+                    <div className="crm2-dropdown-menu">
+                      <button onClick={() => { setFilters(f => ({...f, sellerId: ''})); setDropdownOpen(null); }}>Tất cả người phụ trách</button>
+                      {options.managers.length ? options.managers.map(s => <button key={s.id} onClick={() => { setFilters(f => ({...f, sellerId: s.id})); setDropdownOpen(null); }}>{s.name}</button>) : <span style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>Chưa có dữ liệu</span>}
+                    </div>
+                  )}
+                </div>
+                <div className="crm2-dropdown-wrap">
+                  <button className={`crm2-chip${filters.customerGroup ? ' crm2-chip--active' : ''}`} onClick={() => setDropdownOpen(d => d === 'group' ? null : 'group')}>
+                    <Users size={12}/> {filters.customerGroup || 'Nhóm'} <ChevronDown size={12}/>
+                  </button>
+                  {dropdownOpen === 'group' && (
+                    <div className="crm2-dropdown-menu">
+                      <button onClick={() => { setFilters(f => ({...f, customerGroup: ''})); setDropdownOpen(null); }}>Tất cả nhóm</button>
+                      {options.groups.length ? options.groups.map(g => <button key={g} onClick={() => { setFilters(f => ({...f, customerGroup: g})); setDropdownOpen(null); }}>{g}</button>) : <span style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>Chưa có dữ liệu</span>}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="crm2-toolbar-right">
+                <div style={{ position: 'relative' }}>
+                  <button
+                    className={`crm2-btn crm2-btn--ghost${showThresholdSettings ? ' crm2-btn--active' : ''}`}
+                    style={{ fontSize: 12, padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 5 }}
+                    onClick={() => setShowThresholdSettings(v => !v)}
+                    title="Cài đặt mốc thời gian CRM"
+                  >
+                    <Settings size={13}/> Mốc CRM
+                  </button>
+                  {showThresholdSettings && (
+                    <div
+                      style={{
+                        position: 'absolute', top: '100%', right: 0, marginTop: 6,
+                        background: 'var(--surface, #ffffff)', border: '1px solid var(--border)',
+                        borderRadius: 10, padding: '14px 16px', zIndex: 200,
+                        boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 280,
+                      }}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 12, color: 'var(--text, #1e293b)' }}>
+                        Mốc thời gian tự động CRM
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div>
+                          <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
+                            Tạm ngưng — không hoạt động từ (tháng)
+                          </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input
+                              type="number" min={1} max={60}
+                              className="form-input"
+                              style={{ width: 80 }}
+                              value={crmThresholds.pausedMonths}
+                              onChange={e => {
+                                const v = Math.max(1, Math.min(60, Number(e.target.value) || 1));
+                                const next = { ...crmThresholds, pausedMonths: v };
+                                setCrmThresholds(next);
+                                saveCrmThresholds(next);
+                              }}
+                            />
+                            <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>tháng (mặc định: 6)</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
+                            Ngừng hợp tác — không hoạt động từ (tháng)
+                          </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input
+                              type="number" min={1} max={120}
+                              className="form-input"
+                              style={{ width: 80 }}
+                              value={crmThresholds.inactiveMonths}
+                              onChange={e => {
+                                const v = Math.max(1, Math.min(120, Number(e.target.value) || 1));
+                                const next = { ...crmThresholds, inactiveMonths: v };
+                                setCrmThresholds(next);
+                                saveCrmThresholds(next);
+                              }}
+                            />
+                            <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>tháng (mặc định: 12)</span>
+                          </div>
+                        </div>
+                        {crmThresholds.pausedMonths >= crmThresholds.inactiveMonths && (
+                          <div style={{ fontSize: '0.75rem', color: '#d97706', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '6px 10px' }}>
+                            Mốc Tạm ngưng phải nhỏ hơn mốc Ngừng hợp tác.
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                          <button
+                            className="crm2-btn crm2-btn--ghost"
+                            style={{ fontSize: 12 }}
+                            onClick={() => {
+                              setCrmThresholds(DEFAULT_CRM_THRESHOLDS);
+                              saveCrmThresholds(DEFAULT_CRM_THRESHOLDS);
+                            }}
+                          >
+                            Đặt lại mặc định
+                          </button>
+                          <button
+                            className="crm2-btn crm2-btn--primary"
+                            style={{ fontSize: 12 }}
+                            onClick={() => setShowThresholdSettings(false)}
+                          >
+                            Xong
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
 
-      {/* Filter chips + dropdown filters */}
-      <div className="crm2-toolbar">
-        <div className="crm2-chips">
-          {statusChips.map(chip => (
-            <button
-              key={chip.key}
-              className={filters.status === chip.key ? 'crm2-chip crm2-chip--active' : 'crm2-chip'}
-              onClick={() => setFilters(f => ({...f, status: chip.key}))}
-            >
-              {chip.label} {chip.count != null && <span className="crm2-chip-count">{chip.count}</span>}
-            </button>
-          ))}
-
-          {/* Manager dropdown */}
-          <div className="crm2-dropdown-wrap">
-            <button className={`crm2-chip${filters.sellerId ? ' crm2-chip--active' : ''}`} onClick={() => setDropdownOpen(d => d === 'seller' ? null : 'seller')}>
-              <Briefcase size={12}/> {filters.sellerId ? options.managers.find(s => s.id === filters.sellerId)?.name : 'Người phụ trách'} <ChevronDown size={12}/>
-            </button>
-            {dropdownOpen === 'seller' && (
-              <div className="crm2-dropdown-menu">
-                <button onClick={() => { setFilters(f => ({...f, sellerId: ''})); setDropdownOpen(null); }}>Tất cả người phụ trách</button>
-                {options.managers.length ? options.managers.map(s => <button key={s.id} onClick={() => { setFilters(f => ({...f, sellerId: s.id})); setDropdownOpen(null); }}>{s.name}</button>) : <span style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>Chưa có dữ liệu</span>}
-              </div>
-            )}
-          </div>
-
-          {/* Group dropdown */}
-          <div className="crm2-dropdown-wrap">
-            <button className={`crm2-chip${filters.customerGroup ? ' crm2-chip--active' : ''}`} onClick={() => setDropdownOpen(d => d === 'group' ? null : 'group')}>
-              <Users size={12}/> {filters.customerGroup || 'Nhóm'} <ChevronDown size={12}/>
-            </button>
-            {dropdownOpen === 'group' && (
-              <div className="crm2-dropdown-menu">
-                <button onClick={() => { setFilters(f => ({...f, customerGroup: ''})); setDropdownOpen(null); }}>Tất cả nhóm</button>
-                {options.groups.length ? options.groups.map(g => <button key={g} onClick={() => { setFilters(f => ({...f, customerGroup: g})); setDropdownOpen(null); }}>{g}</button>) : <span style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>Chưa có dữ liệu</span>}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="crm2-toolbar-right">
-          {/* CRM threshold settings */}
-          <div style={{ position: 'relative' }}>
-            <button
-              className={`crm2-btn crm2-btn--ghost${showThresholdSettings ? ' crm2-btn--active' : ''}`}
-              style={{ fontSize: 12, padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 5 }}
-              onClick={() => setShowThresholdSettings(v => !v)}
-              title="Cài đặt mốc thời gian CRM"
-            >
-              <Settings size={13}/> Mốc CRM
-            </button>
-            {showThresholdSettings && (
-              <div
-                style={{
-                  position: 'absolute', top: '100%', right: 0, marginTop: 6,
-                  background: 'var(--surface, #ffffff)', border: '1px solid var(--border)',
-                  borderRadius: 10, padding: '14px 16px', zIndex: 200,
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)', minWidth: 280,
-                }}
-                onClick={e => e.stopPropagation()}
-              >
-                <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 12, color: 'var(--text, #1e293b)' }}>
-                  Mốc thời gian tự động CRM
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
-                      Tạm ngưng — không hoạt động từ (tháng)
-                    </label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <input
-                        type="number" min={1} max={60}
-                        className="form-input"
-                        style={{ width: 80 }}
-                        value={crmThresholds.pausedMonths}
-                        onChange={e => {
-                          const v = Math.max(1, Math.min(60, Number(e.target.value) || 1));
-                          const next = { ...crmThresholds, pausedMonths: v };
-                          setCrmThresholds(next);
-                          saveCrmThresholds(next);
-                        }}
-                      />
-                      <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>tháng (mặc định: 6)</span>
-                    </div>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.78rem', color: 'var(--muted)', display: 'block', marginBottom: 4 }}>
-                      Ngừng hợp tác — không hoạt động từ (tháng)
-                    </label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <input
-                        type="number" min={1} max={120}
-                        className="form-input"
-                        style={{ width: 80 }}
-                        value={crmThresholds.inactiveMonths}
-                        onChange={e => {
-                          const v = Math.max(1, Math.min(120, Number(e.target.value) || 1));
-                          const next = { ...crmThresholds, inactiveMonths: v };
-                          setCrmThresholds(next);
-                          saveCrmThresholds(next);
-                        }}
-                      />
-                      <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>tháng (mặc định: 12)</span>
-                    </div>
-                  </div>
-                  {crmThresholds.pausedMonths >= crmThresholds.inactiveMonths && (
-                    <div style={{ fontSize: '0.75rem', color: '#d97706', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, padding: '6px 10px' }}>
-                      Mốc Tạm ngưng phải nhỏ hơn mốc Ngừng hợp tác.
-                    </div>
-                  )}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                    <button
-                      className="crm2-btn crm2-btn--ghost"
-                      style={{ fontSize: 12 }}
-                      onClick={() => {
-                        setCrmThresholds(DEFAULT_CRM_THRESHOLDS);
-                        saveCrmThresholds(DEFAULT_CRM_THRESHOLDS);
-                      }}
-                    >
-                      Đặt lại mặc định
-                    </button>
-                    <button
-                      className="crm2-btn crm2-btn--primary"
-                      style={{ fontSize: 12 }}
-                      onClick={() => setShowThresholdSettings(false)}
-                    >
-                      Xong
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Content area */}
-      {filtered.length === 0 ? (
+      <div className="crm2-scroll-area">
+      {showingAuditLog ? (
+        <CustomerAuditView customers={customers} />
+      ) : filtered.length === 0 ? (
         <div className="crm2-empty-state crm2-empty-state--large">
           <Shield size={48} strokeWidth={1} />
           <p>Không có khách hàng phù hợp</p>
@@ -1840,7 +1836,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
           <button className="crm2-btn crm2-btn--ghost" onClick={() => setFilters(emptyFilters)}>Xóa bộ lọc</button>
         </div>
       ) : (
-        /* Table View */
         <div className="crm2-table-shell">
         <div className="crm2-table-wrap">
           <table className="crm2-table">
@@ -1929,11 +1924,11 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
               })}
             </tbody>
           </table>
+          <div className="crm2-table-bottom-spacer" aria-hidden="true" />
         </div>
         </div>
       )}
-        </>
-      )}
+      </div>
     </div>
   );
 }
@@ -1952,7 +1947,21 @@ const CRM2_STYLES = `
   margin: 0;
   font-family: inherit;
   height: 100%;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.crm2-fixed-top {
+  flex: 0 0 auto;
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background: var(--bg, #f8fafc);
+}
+.crm2-scroll-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 .crm2-header {
   display: flex;
@@ -2220,15 +2229,25 @@ const CRM2_STYLES = `
 .crm2-status-badge--locked { background: #fee2e2; color: #991b1b; }
 
 /* Table */
-.crm2-table-shell { width: 100%; overflow: visible; }
+.crm2-table-shell { width: 100%; height: 100%; max-width: 100%; min-width: 0; overflow: hidden; box-sizing: border-box; }
 .crm2-table-wrap {
-  overflow-x: auto;
-  overflow-y: visible;
+  display: block;
+  min-width: 0;
+  height: 100%;
+  overflow: auto;
   -webkit-overflow-scrolling: touch;
-  max-width: 100%; width: 100%;
+  overscroll-behavior: contain;
+  scroll-padding-bottom: 32px;
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+  max-width: 100%; width: 100%; box-sizing: border-box;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px; background: var(--card, #fff);
 }
+.crm2-table-wrap::-webkit-scrollbar:vertical { width: 0; }
+.crm2-table-wrap::-webkit-scrollbar-thumb:vertical,
+.crm2-table-wrap::-webkit-scrollbar-track:vertical { background: transparent; }
+.crm2-table-bottom-spacer { height: 32px; min-height: 32px; pointer-events: none; }
 .crm2-table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: 13px; }
 .crm2-table th {
   text-align: left; padding: 12px 14px; font-weight: 600;
@@ -2518,11 +2537,15 @@ const CRM2_STYLES = `
 
 /* Responsive */
 @media (max-width: 768px) {
-  .crm2-root { padding: 10px; overflow-x: hidden; }
+  .crm2-root { padding: 10px; max-width: 100%; overflow: hidden; }
   .crm2-card-grid { grid-template-columns: 1fr; }
   .crm2-slide-panel { width: 100vw; }
   .crm2-edit-panel { right: 0; width: 100vw; max-width: 100vw; z-index: 103; }
   .crm2-info-grid { grid-template-columns: 1fr; }
+  .crm2-header,
+  .crm2-search-bar,
+  .crm2-toolbar,
+  .crm2-table-shell { max-width: 100%; overflow-x: hidden; }
   .crm2-header { flex-direction: row; align-items: center; gap: 10px; margin-bottom: 14px; }
   .crm2-header-left { min-width: 0; flex: 1; }
   .crm2-header-right { justify-content: flex-end; gap: 4px; min-width: 0; flex-wrap: wrap; }
