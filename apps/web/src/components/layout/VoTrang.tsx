@@ -553,10 +553,6 @@ function MobileHubScreen({ hub, onAction }: {
   return (
     <section className="lts-mobile-hub" aria-label={hub.title}>
       <header className="lts-mobile-hub-header">
-        <div className="lts-mobile-statusbar">
-          <span>9:41</span>
-          <span className="lts-mobile-statusbar-icons">••• ))) ▰</span>
-        </div>
         <div className="lts-mobile-hub-nav">
           <button className="lts-mobile-header-menu" type="button" aria-label="Mở menu">
             <Menu size={24} />
@@ -933,6 +929,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     ? MOBILE_HUBS[layMobileHubId(menuDangChon)]
     : undefined;
 
+  const tieuDeManHinhMobile = CAC_MUC_MENU.find(item => item.key === menuDangChon)?.label
+    ?? TIEU_DE_MODULE[moduleDangMo];
+  const tieuDeNhomMobile = MOBILE_HUBS[layMobileHubId(menuDangChon)]?.title
+    ?? TIEU_DE_MODULE[moduleDangMo];
+
   return (
     <div className={`lts-shell ${laMobile ? 'lts-shell--mobile' : ''}`}>
       {!laMobile && (
@@ -969,7 +970,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   <button type="button" className="lts-mobile-module-back" onClick={quayLaiHubMobile}>
                     Quay lại
                   </button>
-                  <h1>{MOBILE_HUBS[layMobileHubId(menuDangChon)]?.title ?? TIEU_DE_MODULE[moduleDangMo]}</h1>
+                  <div className="lts-mobile-module-title-stack">
+                    <h1>{tieuDeManHinhMobile}</h1>
+                    <p>{tieuDeNhomMobile}</p>
+                  </div>
                   <span />
                 </header>
               )}

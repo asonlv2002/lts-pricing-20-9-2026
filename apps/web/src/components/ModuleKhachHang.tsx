@@ -1651,11 +1651,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
       {/* Compact header */}
       <header className="crm2-header">
         <div className="crm2-header-left">
-          <div className="crm2-breadcrumb">
-            <span>CRM</span>
-            <ChevronRight size={12}/>
-            <span className="crm2-breadcrumb-current">Khách hàng</span>
-          </div>
           <h1 className="crm2-title">
             {showingAuditLog ? 'Nhật ký thao tác' : 'Khách hàng'}
             {!showingAuditLog && <span className="crm2-title-count"> ({filtered.length})</span>}
@@ -1951,7 +1946,8 @@ const CRM2_STYLES = `
   --muted-bg: var(--surface2);
   position: relative;
   padding: 24px;
-  min-width: 1120px;
+  min-width: 0;
+  width: 100%;
   max-width: none;
   margin: 0;
   font-family: inherit;
@@ -2226,12 +2222,14 @@ const CRM2_STYLES = `
 /* Table */
 .crm2-table-shell { width: 100%; overflow: visible; }
 .crm2-table-wrap {
-  overflow: visible;
+  overflow-x: auto;
+  overflow-y: visible;
+  -webkit-overflow-scrolling: touch;
   max-width: 100%; width: 100%;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px; background: var(--card, #fff);
 }
-.crm2-table { width: 100%; min-width: 980px; border-collapse: collapse; font-size: 13px; }
+.crm2-table { width: 100%; min-width: 820px; border-collapse: collapse; font-size: 13px; }
 .crm2-table th {
   text-align: left; padding: 12px 14px; font-weight: 600;
   color: var(--muted, #6b7280); font-size: 12px; text-transform: uppercase;
@@ -2520,12 +2518,25 @@ const CRM2_STYLES = `
 
 /* Responsive */
 @media (max-width: 768px) {
-  .crm2-root { padding: 16px; }
+  .crm2-root { padding: 10px; overflow-x: hidden; }
   .crm2-card-grid { grid-template-columns: 1fr; }
   .crm2-slide-panel { width: 100vw; }
   .crm2-edit-panel { right: 0; width: 100vw; max-width: 100vw; z-index: 103; }
   .crm2-info-grid { grid-template-columns: 1fr; }
-  .crm2-header { flex-direction: column; }
+  .crm2-header { flex-direction: row; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .crm2-header-left { min-width: 0; flex: 1; }
+  .crm2-header-right { justify-content: flex-end; gap: 4px; min-width: 0; flex-wrap: wrap; }
+  .crm2-header-right .crm2-btn { padding: 6px 8px; font-size: 11px; border-radius: 7px; }
+  .crm2-title { font-size: 18px; white-space: nowrap; }
+  .crm2-title-count { font-size: 13px; }
+  .crm2-search-bar { margin-bottom: 10px; padding: 0 8px; border-radius: 8px; }
+  .crm2-search-input { min-width: 0; padding: 8px 6px; font-size: 12px; }
+  .crm2-search-kbd { display: none; }
+  .crm2-toolbar { margin-bottom: 10px; overflow-x: hidden; gap: 8px; }
+  .crm2-chips { flex-wrap: wrap; overflow-x: visible; padding-bottom: 0; gap: 4px; min-width: 0; }
+  .crm2-chip { padding: 4px 8px; font-size: 12px; border-radius: 16px; }
+  .crm2-chip-count { font-size: 10px; padding: 0 5px; }
+  .crm2-toolbar-right { min-width: 0; flex-wrap: wrap; }
   .crm2-audit-detail-table { display: none; }
   .crm2-audit-detail-list { display: flex; }
 }

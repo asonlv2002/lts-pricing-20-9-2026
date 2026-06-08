@@ -897,7 +897,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
       )}
 
       {/* ── Toggle + Filter Bar ── */}
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
+      <div className="hist-mobile-toolbar" style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
         {/* Row 1: Toggle + time + search + buttons */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Segmented toggle */}
@@ -1055,12 +1055,12 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
       </div>
 
       {/* ── Count ── */}
-      <div style={{ fontSize: '0.78rem', color: 'var(--muted)', marginBottom: 10 }}>
+      <div className="hist-mobile-count" style={{ fontSize: '0.78rem', color: 'var(--muted)', marginBottom: 10 }}>
         {filtered.length} bản ghi
       </div>
 
       {/* ── Table ── */}
-      <div className="crm-danhSach hist-danhSach-container">
+      <div className="crm-danhSach hist-danhSach-container hist-mobile-list">
         {(mode !== 'lsx' && lichSu.length === 0) || (mode === 'lsx' && productionOrders.length === 0) ? (
           <div className="crm-empty">
             <Database size={40} />

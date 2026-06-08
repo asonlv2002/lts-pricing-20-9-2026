@@ -1990,19 +1990,35 @@ body {
 }
 
 .lts-shell--mobile .lts-shell-content {
+  flex: 1;
+  min-height: 0;
   padding: 0 0 calc(88px + env(safe-area-inset-bottom));
   background: #f4f7fb;
 }
 
+.lts-shell--mobile .lts-shell-content:has(.lts-mobile-hub) {
+  height: 100%;
+  padding-bottom: 0;
+  overflow: hidden;
+}
+
 .lts-mobile-hub {
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: #f4f7fb;
   color: #111827;
 }
 
 .lts-mobile-hub-header {
-  min-height: 140px;
-  padding: calc(10px + env(safe-area-inset-top)) 24px 22px;
+  position: sticky;
+  top: 0;
+  z-index: 80;
+  flex-shrink: 0;
+  min-height: calc(112px + env(safe-area-inset-top));
+  padding: calc(16px + env(safe-area-inset-top)) 24px 24px;
   border-radius: 0 0 22px 22px;
   background:
     radial-gradient(circle at 82% 12%, rgba(91,77,255,.22), transparent 28%),
@@ -2011,30 +2027,12 @@ body {
   box-shadow: 0 16px 34px rgba(15,23,42,.18);
 }
 
-.lts-mobile-statusbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 26px;
-  padding: 0 8px;
-  color: rgba(255,255,255,.88);
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: .01em;
-}
-
-.lts-mobile-statusbar-icons {
-  font-size: 12px;
-  letter-spacing: .06em;
-  opacity: .95;
-}
-
 .lts-mobile-hub-nav {
   display: grid;
   grid-template-columns: minmax(56px, 1fr) auto minmax(96px, 1fr);
   align-items: center;
   gap: 8px;
-  margin-top: 14px;
+  margin-top: 0;
 }
 
 .lts-mobile-hub-nav h1 {
@@ -2082,10 +2080,15 @@ body {
 }
 
 .lts-mobile-hub-content {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   display: flex;
   flex-direction: column;
   gap: 16px;
-  padding: 22px 24px 26px;
+  padding: 28px 24px calc(112px + env(safe-area-inset-bottom));
 }
 
 .lts-mobile-action-card {
@@ -2093,6 +2096,7 @@ body {
   grid-template-columns: 56px minmax(0, 1fr) 24px;
   align-items: center;
   gap: 16px;
+  flex-shrink: 0;
   min-height: 108px;
   width: 100%;
   padding: 20px;
@@ -2115,6 +2119,7 @@ body {
 .lts-mobile-icon-box {
   width: 56px;
   height: 56px;
+  flex-shrink: 0;
   border-radius: 16px;
   display: grid;
   place-items: center;
@@ -2228,9 +2233,14 @@ body {
   box-shadow: 0 12px 28px rgba(15,23,42,.16);
 }
 
-.lts-mobile-module-header h1 {
+.lts-mobile-module-title-stack {
+  min-width: 0;
+  text-align: center;
+}
+
+.lts-mobile-module-title-stack h1 {
   margin: 0;
-  max-width: 190px;
+  max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2239,6 +2249,18 @@ body {
   font-weight: 800;
   letter-spacing: -.01em;
   text-align: center;
+}
+
+.lts-mobile-module-title-stack p {
+  margin: 2px 0 0;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: rgba(255,255,255,.68);
+  font-size: 11px;
+  line-height: 1.25;
+  font-weight: 650;
 }
 
 .lts-mobile-module-back {
@@ -2262,7 +2284,89 @@ body {
   .lts-mobile-tabbar { left: 6px; right: 6px; padding-inline: 6px; }
   .lts-mobile-tab { font-size: 9px; }
   .lts-mobile-module-header { grid-template-columns: 56px minmax(0, auto) 56px; }
-  .lts-mobile-module-header h1 { max-width: 160px; }
+  .lts-mobile-module-title-stack h1,
+  .lts-mobile-module-title-stack p { max-width: 170px; }
+}
+
+@media (max-width: 768px) {
+  .lts-shell--mobile .hist-root {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: calc(100dvh - (70px + env(safe-area-inset-top)) - (88px + env(safe-area-inset-bottom)));
+    overflow: hidden;
+    font-family: var(--font-sans), 'Inter', sans-serif;
+    color: #111827;
+    background: #f4f7fb;
+  }
+
+  .lts-shell--mobile .hist-mobile-toolbar {
+    flex-shrink: 0;
+    margin: 0 !important;
+    padding: 14px 16px 12px !important;
+    border: 0 !important;
+    border-radius: 0 0 18px 18px !important;
+    background: #ffffff !important;
+    box-shadow: 0 8px 18px rgba(15,23,42,.06);
+    font-family: inherit;
+  }
+
+  .lts-shell--mobile .hist-mobile-count {
+    flex-shrink: 0;
+    margin: 10px 16px 8px !important;
+    font-family: inherit;
+    font-size: 12px !important;
+    color: #64748b !important;
+    font-weight: 600;
+  }
+
+  .lts-shell--mobile .hist-mobile-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+    font-family: inherit;
+  }
+
+  .lts-shell--mobile .hist-mobile-list .table-responsive {
+    min-height: 100%;
+    overflow: visible;
+    font-family: inherit;
+  }
+
+  .lts-shell--mobile .hist-data-table {
+    font-family: inherit;
+    min-width: 640px;
+  }
+
+  .lts-shell--mobile .hist-data-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #f4f0ff;
+    color: #4f46e5;
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 1.35;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+
+  .lts-shell--mobile .hist-data-table tbody td {
+    font-family: inherit !important;
+    font-size: 12px !important;
+    line-height: 1.45;
+    color: #0f172a;
+    font-weight: 500;
+  }
+
+  .lts-shell--mobile .hist-data-table tbody td:first-child {
+    font-family: inherit !important;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+  }
 }
 
 /* ─── MAIN AREA ─── */
@@ -2415,6 +2519,7 @@ body {
 /* ─── CONTENT AREA ─── */
 .lts-shell-content {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
 }
@@ -5546,6 +5651,25 @@ body {
   .lts-shell--mobile .lts-shell-content {
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
+  }
+
+  .lts-shell--mobile .lts-shell-content:has(.lts-mobile-hub) {
+    height: 100%;
+    padding-bottom: 0;
+    overflow: hidden !important;
+    overflow-x: hidden !important;
+    overflow-y: hidden !important;
+  }
+
+  .lts-shell--mobile .lts-shell-content:has(.lts-mobile-hub) .lts-mobile-hub {
+    height: 100%;
+  }
+
+  .lts-shell--mobile .lts-shell-content:has(.lts-mobile-hub) .lts-mobile-hub-content {
+    flex: 1 1 auto;
+    height: 0;
+    min-height: 0;
+    overflow-y: auto !important;
   }
 
   /* Tắt overflow hidden của body trên mobile */
