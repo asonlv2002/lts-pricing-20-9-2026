@@ -19,7 +19,7 @@ import { tinhThoiGianChoLamMoiPhien, tokenCanLamMoiNgay } from '../../lib/auth-s
 import type { PolicyCode } from '../../lib/api/service-lts';
 import {
   Calculator, Users, Menu, Factory,
-  X, ChevronRight, Plus, FileText, History, ClipboardList, Bell, UserCircle,
+  X, ChevronRight, Plus, FileText, History, ClipboardList, UserCircle,
   BarChart3, Clock3, TrendingUp, PackageCheck, Settings2, Wrench, Percent,
   Coins, UserPlus, BriefcaseBusiness, ListChecks, KeyRound as KeyRoundIcon,
   LayoutDashboard, Shield,
@@ -558,13 +558,13 @@ function MobileHubScreen({ hub, onAction }: {
           <span className="lts-mobile-statusbar-icons">••• ))) ▰</span>
         </div>
         <div className="lts-mobile-hub-nav">
-          <button className="lts-mobile-header-link" type="button" aria-label="Quay lại">
-            Quay lại
+          <button className="lts-mobile-header-menu" type="button" aria-label="Mở menu">
+            <Menu size={24} />
           </button>
           <h1>{hub.title}</h1>
-          <button className="lts-mobile-notify" type="button">
-            <Bell size={14} />
-            <span>Thông báo</span>
+          <button className="lts-mobile-primary-action" type="button">
+            <Plus size={16} />
+            <span>Mới</span>
           </button>
         </div>
       </header>
@@ -600,6 +600,13 @@ function MobileBottomTabs({ menuDangChon, datMenuDangChon, datModuleDangMo, poli
 }) {
   const nhomHienThi = CAC_NHOM_MENU.filter(nhom => coTheXemNhomMenu(policies, nhom.id));
   const nhomDangChon = layMobileHubId(menuDangChon);
+  const nhanMobileTheoSpec: Partial<Record<NhomMenu['id'], string>> = {
+    overview: 'Tổng quan',
+    pricing_quote: 'Tính giá',
+    crm: 'Khách hàng',
+    production: 'Đơn hàng',
+    admin: 'Thêm',
+  };
 
   const chonNhom = (nhom: NhomMenu) => {
     const keyMacDinh = MOBILE_TAB_FALLBACK[nhom.id] ?? nhom.mucCon[0]?.key;
@@ -623,7 +630,7 @@ function MobileBottomTabs({ menuDangChon, datMenuDangChon, datModuleDangMo, poli
             onClick={() => chonNhom(nhom)}
           >
             <span className="lts-mobile-tab-icon">{nhom.id === 'system' ? <UserCircle size={23} /> : nhom.icon}</span>
-            <span>{MOBILE_HUBS[nhom.id]?.label ?? nhom.label}</span>
+            <span>{nhanMobileTheoSpec[nhom.id] ?? MOBILE_HUBS[nhom.id]?.label ?? nhom.label}</span>
           </button>
         );
       })}

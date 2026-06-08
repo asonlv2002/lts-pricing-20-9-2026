@@ -2001,8 +2001,8 @@ body {
 }
 
 .lts-mobile-hub-header {
-  min-height: 132px;
-  padding: calc(10px + env(safe-area-inset-top)) 18px 20px;
+  min-height: 140px;
+  padding: calc(10px + env(safe-area-inset-top)) 24px 22px;
   border-radius: 0 0 22px 22px;
   background:
     radial-gradient(circle at 82% 12%, rgba(91,77,255,.22), transparent 28%),
@@ -2031,7 +2031,7 @@ body {
 
 .lts-mobile-hub-nav {
   display: grid;
-  grid-template-columns: minmax(64px, 1fr) auto minmax(84px, 1fr);
+  grid-template-columns: minmax(56px, 1fr) auto minmax(96px, 1fr);
   align-items: center;
   gap: 8px;
   margin-top: 14px;
@@ -2039,7 +2039,7 @@ body {
 
 .lts-mobile-hub-nav h1 {
   margin: 0;
-  font-size: 17px;
+  font-size: 18px;
   line-height: 1.2;
   font-weight: 800;
   letter-spacing: -.01em;
@@ -2047,8 +2047,8 @@ body {
   white-space: nowrap;
 }
 
-.lts-mobile-header-link,
-.lts-mobile-notify {
+.lts-mobile-header-menu,
+.lts-mobile-primary-action {
   min-height: 44px;
   border: 0;
   font: inherit;
@@ -2056,32 +2056,36 @@ body {
   cursor: pointer;
 }
 
-.lts-mobile-header-link {
+.lts-mobile-header-menu {
   justify-self: start;
-  padding: 0 4px;
-  background: transparent;
-  font-size: 12px;
-  font-weight: 700;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  padding: 0;
+  border-radius: 999px;
+  background: rgba(255,255,255,.08);
 }
 
-.lts-mobile-notify {
+.lts-mobile-primary-action {
   justify-self: end;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 0 12px;
+  justify-content: center;
+  gap: 6px;
+  min-width: 82px;
+  padding: 0 16px;
   border-radius: 999px;
   background: linear-gradient(135deg, #5b4dff 0%, #7c3aed 100%);
   box-shadow: 0 10px 22px rgba(91,77,255,.34);
-  font-size: 12px;
-  font-weight: 750;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .lts-mobile-hub-content {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 18px 24px 26px;
+  gap: 16px;
+  padding: 22px 24px 26px;
 }
 
 .lts-mobile-action-card {
@@ -2089,10 +2093,10 @@ body {
   grid-template-columns: 56px minmax(0, 1fr) 24px;
   align-items: center;
   gap: 16px;
-  min-height: 90px;
+  min-height: 108px;
   width: 100%;
-  padding: 18px 18px 18px 16px;
-  border: 1px solid rgba(15,23,42,.045);
+  padding: 20px;
+  border: 1px solid rgba(15,23,42,.04);
   border-radius: 20px;
   background: #ffffff;
   color: #111827;
@@ -2132,14 +2136,14 @@ body {
 
 .lts-mobile-card-copy strong {
   color: #111827;
-  font-size: 15px;
+  font-size: 17px;
   line-height: 1.2;
   font-weight: 800;
 }
 
 .lts-mobile-card-copy small {
   color: #6b7280;
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.45;
   font-weight: 500;
 }
@@ -2160,9 +2164,8 @@ body {
   min-height: calc(72px + env(safe-area-inset-bottom));
   padding: 8px 10px calc(8px + env(safe-area-inset-bottom));
   border-radius: 22px 22px 0 0;
-  background: rgba(255,255,255,.96);
+  background: #ffffff;
   box-shadow: 0 -12px 34px rgba(15,23,42,.12);
-  backdrop-filter: blur(18px);
 }
 
 .lts-mobile-tab {
@@ -2176,10 +2179,10 @@ body {
   border: 0;
   border-radius: 16px;
   background: transparent;
-  color: #374151;
+  color: #6b7280;
   font: inherit;
   font-size: 10px;
-  font-weight: 650;
+  font-weight: 500;
   cursor: pointer;
 }
 
@@ -2198,7 +2201,7 @@ body {
 
 .lts-mobile-tab.active {
   color: #5b4dff;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .lts-mobile-tab-icon {
@@ -2252,10 +2255,10 @@ body {
 }
 
 @media (max-width: 390px) {
+  .lts-mobile-hub-header { padding-inline: 18px; }
   .lts-mobile-hub-content { padding-inline: 16px; }
-  .lts-mobile-hub-nav { grid-template-columns: 56px minmax(0, auto) 78px; }
-  .lts-mobile-notify { padding-inline: 10px; }
-  .lts-mobile-notify svg { display: none; }
+  .lts-mobile-hub-nav { grid-template-columns: 48px minmax(0, auto) 78px; }
+  .lts-mobile-primary-action { min-width: 74px; padding-inline: 12px; }
   .lts-mobile-tabbar { left: 6px; right: 6px; padding-inline: 6px; }
   .lts-mobile-tab { font-size: 9px; }
   .lts-mobile-module-header { grid-template-columns: 56px minmax(0, auto) 56px; }
