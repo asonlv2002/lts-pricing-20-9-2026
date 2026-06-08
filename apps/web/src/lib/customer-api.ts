@@ -76,7 +76,6 @@ export interface CustomerUi {
   secondarySellerId?: string | null;
   secondarySellerName?: string;
   managers?: CustomerManagerUi[];
-  contactTitle?: string;
   contactNotes?: string;
   assignmentHistory?: string[];
   assignmentNote?: string;
@@ -201,7 +200,6 @@ export function taoKhachHangNhanhChoBaoGia(customerName: string, customerCode: s
     secondarySellerId: null,
     secondarySellerName: '',
     managers: [],
-    contactTitle: '',
     contactNotes: '',
     assignmentHistory: [],
     assignmentNote: '',
@@ -236,7 +234,6 @@ export function chuyenCustomerApiSangUi(customer: CustomerApi): CustomerUi {
     sellerName: '',
     secondarySellerId: null,
     secondarySellerName: '',
-    contactTitle: '',
     contactNotes: '',
     assignmentHistory: [],
     assignmentNote: '',

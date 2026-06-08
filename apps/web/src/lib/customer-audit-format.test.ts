@@ -52,6 +52,7 @@ assert('translates active status', formatAuditValue('status', 'active') === 'Đa
 assert('translates isLocked false', formatAuditValue('isLocked', false) === 'Chưa khóa');
 assert('does not expose unknown object as object string', formatAuditValue('unknown', { a: 1 }) !== '[object Object]');
 assert('cleans common mojibake text', cleanAuditText('Lai TrÆ°á»ng SÆ¡n') === 'Lai Trường Sơn');
+assert('does not expose deprecated contact title field label', getAuditChangedFields(entry({ before: { contactTitle: '' }, after: { contactTitle: 'Manager' } })).length === 0);
 assert(
   'resolves audit actor name from current user when stored userName is an id',
   resolveAuditActorName(

@@ -57,6 +57,7 @@ assert('creates quick customer using trimmed name', quickCustomer.companyName ==
 assert('creates active lead customer for calculator flow', quickCustomer.status === 'active' && quickCustomer.crmStatus === 'lead');
 assert('keeps quick customer unlocked for later CRM completion', quickCustomer.isLocked === false);
 assert('marks quick customer as incomplete for later details', quickCustomer.notes === 'Tạo nhanh từ bảng tính giá. Vui lòng bổ sung thông tin khách hàng.');
+assert('does not create deprecated contact title field for quick customer', !('contactTitle' in quickCustomer));
 
 try {
   taoKhachHangNhanhChoBaoGia('Cong ty Minh Anh', 'kh_minh_anh');
@@ -102,6 +103,7 @@ assert('maps phoneNumber to phone', mapped.phone === '0901234567');
 assert('uses latest version createdAt as updatedAt', mapped.updatedAt === '2026-06-02T00:00:00.000Z');
 assert('keeps customer versions for history tab', mapped.versions?.length === 1, String(mapped.versions?.length));
 assert('keeps newest version first for history tab', mapped.versions?.[0]?.version === 2, String(mapped.versions?.[0]?.version));
+assert('does not map deprecated contact title field from customer API', !('contactTitle' in mapped));
 
 const customerWithUnsortedVersions = chuyenCustomerApiSangUi({
   codeName: 'ACME_02',

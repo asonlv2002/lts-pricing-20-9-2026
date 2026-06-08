@@ -34,7 +34,6 @@ const FIELD_LABELS: Record<string, string> = {
   contactName: 'Người liên hệ',
   phone: 'Số điện thoại',
   email: 'Email',
-  contactTitle: 'Chức vụ',
   address: 'Địa chỉ giao hàng',
   customerCode: 'Mã khách hàng',
   managers: 'Người phụ trách',

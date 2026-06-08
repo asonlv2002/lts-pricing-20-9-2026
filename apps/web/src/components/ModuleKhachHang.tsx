@@ -63,7 +63,6 @@ interface Customer {
   secondarySellerName?: string;
   managers?: CustomerManagerUi[];
   versions?: CustomerVersionApi[];
-  contactTitle?: string;
   contactNotes?: string;
   assignmentHistory?: string[];
   assignmentNote?: string;
@@ -112,7 +111,7 @@ const SELLERS = [
   { id: 'S3', name: 'Lê Thu Hà' },
 ];
 const emptyFilters: CustomerFilters = { keyword: '', sellerId: '', customerGroup: '', status: 'all', createdFrom: '', createdTo: '' };
-const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', invoiceAddress: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', secondarySellerId: null, secondarySellerName: '', managers: [], status: 'active', crmStatus: 'lead', isLocked: false, notes: '', contactTitle: '', contactNotes: '', assignmentHistory: [], assignmentNote: '', createdAt: '', updatedAt: '' };
+const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', invoiceAddress: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', secondarySellerId: null, secondarySellerName: '', managers: [], status: 'active', crmStatus: 'lead', isLocked: false, notes: '', contactNotes: '', assignmentHistory: [], assignmentNote: '', createdAt: '', updatedAt: '' };
 
 // 5-state CRM status config per spec
 const CRM_STATUS_CONFIG: Record<CrmStatus, { label: string; dot: string; bg: string; text: string }> = {
@@ -131,7 +130,6 @@ const REQUIRED_FIELDS: { key: keyof Customer; label: string }[] = [
   { key: 'contactName',    label: 'Người liên hệ' },
   { key: 'phone',          label: 'Số điện thoại' },
   { key: 'email',          label: 'Email' },
-  { key: 'contactTitle',   label: 'Chức vụ người liên hệ' },
   { key: 'address',        label: 'Địa chỉ giao hàng' },
   { key: 'customerCode',   label: 'Mã khách hàng' },
   { key: 'sellerId',       label: 'Sale phụ trách' },
@@ -143,13 +141,13 @@ const FIELD_LABELS: Record<string, string> = {
   customerType: 'Loại khách hàng', customerCode: 'Mã khách hàng', companyName: 'Tên công ty', taxCode: 'Mã số thuế',
   contactName: 'Người liên hệ', phone: 'Số điện thoại', email: 'Email', address: 'Địa chỉ giao hàng',
   invoiceAddress: 'Địa chỉ xuất hóa đơn',
-  customerGroup: 'Nhóm khách hàng', sellerId: 'Sale phụ trách', secondarySellerId: 'Sale phụ', notes: 'Ghi chú', contactTitle: 'Chức vụ', contactNotes: 'Ghi chú liên hệ', assignmentNote: 'Ghi chú phân công',
+  customerGroup: 'Nhóm khách hàng', sellerId: 'Sale phụ trách', secondarySellerId: 'Sale phụ', notes: 'Ghi chú', contactNotes: 'Ghi chú liên hệ', assignmentNote: 'Ghi chú phân công',
   crmStatus: 'Trạng thái CRM',
 };
 
 const CUSTOMER_AUDIT_KEYS: (keyof Customer)[] = [
   'companyName', 'taxCode', 'invoiceAddress', 'contactName', 'phone', 'email',
-  'contactTitle', 'address', 'customerCode', 'sellerId', 'secondarySellerId',
+  'address', 'customerCode', 'sellerId', 'secondarySellerId',
   'crmStatus', 'status', 'isLocked', 'notes', 'assignmentNote', 'contactNotes',
 ];
 
@@ -362,7 +360,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
 
   const stepFields: Record<number, (keyof Customer)[]> = {
     0: ['customerCode', 'companyName', 'taxCode', 'customerGroup', 'address', 'invoiceAddress'],
-    1: ['contactName', 'contactTitle', 'phone', 'email', 'contactNotes'],
+    1: ['contactName', 'phone', 'email', 'contactNotes'],
     2: ['crmStatus', 'assignmentNote', 'notes'],
   };
 
@@ -519,7 +517,6 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
           <div className="crm2-wizard-grid">
             {!isIndividual(form) && renderField({ k: 'contactName', icon: <User size={12}/>, required: true, helper: 'Họ tên người liên hệ' })}
             {renderField({ k: 'phone', icon: <Phone size={12}/>, required: true, type: 'tel', helper: 'Số điện thoại liên hệ' })}
-            {!isIndividual(form) && renderField({ k: 'contactTitle', icon: <Briefcase size={12}/>, helper: 'VD: Trưởng phòng mua hàng' })}
             {renderField({ k: 'email', icon: <Mail size={12}/>, required: true, type: 'email', helper: 'Email nhận thông tin và báo giá' })}
             {renderField({ k: 'contactNotes', icon: <FileText size={12}/>, helper: 'Ghi chú riêng cho liên hệ' })}
           </div>
@@ -622,7 +619,6 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
     ['Địa chỉ xuất HĐ', customer.invoiceAddress],
     ['Địa chỉ giao hàng', customer.address],
     ['Người liên hệ', duocXemLienHe ? customer.contactName : giaTriAn],
-    ['Chức vụ', customer.contactTitle],
     ['Số điện thoại', duocXemLienHe ? customer.phone : giaTriAn],
     ['Email', customer.email],
     ['Nhóm khách hàng', customer.customerGroup],
@@ -899,7 +895,6 @@ const CUSTOMER_DATA_FIELDS: { value: string; label: string }[] = [
   { key: 'contactName', label: 'Người liên hệ trực tiếp' },
   { key: 'phone', label: 'Số điện thoại liên hệ' },
   { key: 'email', label: 'Email chính' },
-  { key: 'contactTitle', label: 'Chức vụ người liên hệ' },
   { key: 'address', label: 'Địa chỉ giao hàng' },
   { key: 'customerCode', label: 'Mã khách hàng' },
   { key: 'sellerId', label: 'Nhân viên Sale phụ trách' },
@@ -1477,7 +1472,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
       const managers = managersPayload.length > 0
         ? chuyenCustomerManagersApiSangUi((await luuNguoiPhuTrachKhachHangService(codeName, managersPayload, accessToken)).managers)
         : c.managers;
-      const saved = { ...c, ...chuyenCustomerApiSangUi(savedApi), managers, sellerId: c.sellerId, sellerName: c.sellerName, secondarySellerId: c.secondarySellerId, secondarySellerName: c.secondarySellerName, customerGroup: c.customerGroup, customerType: c.customerType, contactTitle: c.contactTitle, contactNotes: c.contactNotes, assignmentNote: c.assignmentNote, assignmentHistory: c.assignmentHistory, crmStatus: c.crmStatus } as Customer;
+      const saved = { ...c, ...chuyenCustomerApiSangUi(savedApi), managers, sellerId: c.sellerId, sellerName: c.sellerName, secondarySellerId: c.secondarySellerId, secondarySellerName: c.secondarySellerName, customerGroup: c.customerGroup, customerType: c.customerType, contactNotes: c.contactNotes, assignmentNote: c.assignmentNote, assignmentHistory: c.assignmentHistory, crmStatus: c.crmStatus } as Customer;
       upsertLocal(saved);
       refreshCustomersFromServer(accessToken).catch(error => {
         console.warn('Không tải lại danh sách khách hàng sau khi lưu:', error);

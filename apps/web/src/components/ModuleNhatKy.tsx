@@ -122,7 +122,7 @@ const FIELD_LABELS: Record<string, string> = {
   customerGroup: 'Nhóm KH', sellerId: 'Nhân viên', secondarySellerId: 'Nhân viên phụ',
   status: 'Trạng thái', crmStatus: 'Trạng thái CRM', notes: 'Ghi chú',
   taxCode: 'Mã số thuế', invoiceAddress: 'Địa chỉ hóa đơn',
-  customerCode: 'Mã KH', contactTitle: 'Chức danh', assignmentNote: 'Ghi chú phân công',
+  customerCode: 'Mã KH', assignmentNote: 'Ghi chú phân công',
   contactNotes: 'Ghi chú liên hệ',
   lsxNumber: 'Số LSX', issuedDate: 'Ngày xuống LSX', deliveryDate: 'Ngày giao hàng',
   preparedBy: 'Người lập', approvedBy: 'Người duyệt', quoteId: 'Mã báo giá gốc',
