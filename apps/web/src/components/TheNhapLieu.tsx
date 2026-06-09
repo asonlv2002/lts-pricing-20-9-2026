@@ -614,7 +614,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
         </select>
       </div>
 
-      <div className="form-row">
+      <div className="form-row product-type-row">
         <div className="form-group">
           <label className="form-label">Loại sản phẩm</label>
           <select className="form-select" value={input.productType} onChange={e => xuLyLoaiSanPham(e.target.value)}>
@@ -623,6 +623,14 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             <option value="mang">Màng</option>
           </select>
         </div>
+        {!input.productType && (
+          <div className="form-group">
+            <label className="form-label">Loại</label>
+            <select className="form-select" value="" disabled>
+              <option value="">Chọn loại</option>
+            </select>
+          </div>
+        )}
         {input.productType === 'tui' && (
           <div className="form-group">
             <label className="form-label">Loại túi</label>
@@ -702,7 +710,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
         <div id="structureSection">
           <div className="card-title" style={{ fontSize: '0.78rem' }}><span className="icon">🏗️</span> Cấu trúc</div>
 
-          <div className="form-row-3">
+          <div className="form-row-3 structure-input-grid">
             <div className="form-group">
               <label className="form-label">Khổ trải (m)</label>
               <ONhapSoThapPhan className="form-input" value={input.spreadWidth || 0} step="0.01" min="0.05" onChange={(val: number) => capNhatDauVao({ spreadWidth: val })} />
@@ -712,27 +720,26 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
               <ONhapSoThapPhan className="form-input" value={input.cutStep || 0} step="0.001" min="0.05" onChange={(val: number) => capNhatDauVao({ cutStep: val })} />
             </div>
             <div className="form-group">
-              <label className="form-label">Số hình trên khổ</label>
+              <label className="form-label">Số con hình</label>
               <input type="text" className="form-input" value={input.numImages === 0 ? '' : input.numImages} inputMode="numeric"
                 onKeyDown={e => { if (e.key === '.' || e.key === ',' || e.key === 'e') e.preventDefault(); }}
                 onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); if (raw === '') { capNhatDauVao({ numImages: 0 }); return; } const v = parseInt(raw, 10); capNhatDauVao({ numImages: Math.max(1, v) }); }}
                 onBlur={() => { if (!input.numImages) capNhatDauVao({ numImages: 1 }); }} />
             </div>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label">Số màu in</label>
-            <select className="form-select" value={input.numColors === null ? '' : input.numColors} onChange={e => {
-              const val = e.target.value;
-              capNhatDauVao({ numColors: val === '' ? null : parseInt(val) });
-            }}>
-              <option value="">Chọn</option>
-              <option value="0">Không in</option>
-              <option value="1">1 màu</option><option value="2">2 màu</option>
-              <option value="3">3 màu</option><option value="4">4 màu</option>
-              <option value="5">5 màu</option><option value="6">6 màu</option>
-              <option value="7">7 màu</option><option value="8">8 màu</option>
-            </select>
+            <div className="form-group structure-colors-field">
+              <label className="form-label">Số màu in</label>
+              <select className="form-select" value={input.numColors === null ? '' : input.numColors} onChange={e => {
+                const val = e.target.value;
+                capNhatDauVao({ numColors: val === '' ? null : parseInt(val) });
+              }}>
+                <option value="">Chọn</option>
+                <option value="0">Không in</option>
+                <option value="1">1 màu</option><option value="2">2 màu</option>
+                <option value="3">3 màu</option><option value="4">4 màu</option>
+                <option value="5">5 màu</option><option value="6">6 màu</option>
+                <option value="7">7 màu</option><option value="8">8 màu</option>
+              </select>
+            </div>
           </div>
 
 
@@ -969,7 +976,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             <div className="advanced-sub-title">🖨️ Trục in</div>
 
             {/* Hàng 1: Dài | Chu vi | Loại trục */}
-            <div className="form-row-3">
+            <div className={`form-row-3 cylinder-input-grid ${(input.cylType ?? 'A') === 'custom' ? 'cylinder-input-grid--custom' : ''}`}>
               <div className="form-group">
                 <label className="form-label">Dài (m)</label>
                 <ONhapSoThapPhan className="form-input" step="0.01" value={input.cylLength || 0}
@@ -984,7 +991,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                 {!!input.cylCircum && input.cylCircum < 0.4 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Dưới tối thiểu (0.4m)</div> : null}
                 {!!input.cylCircum && input.cylCircum > 0.9 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Vượt tối đa (0.9m)</div> : null}
               </div>
-              <div className="form-group">
+              <div className="form-group cylinder-type-field">
                 <label className="form-label">Loại trục</label>
                 <select className="form-select" value={input.cylType ?? 'A'}
                   onChange={e => capNhatDauVao({ cylType: e.target.value })}>
@@ -996,22 +1003,21 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                   <option value="custom">Trục khác</option>
                 </select>
               </div>
-            </div>
 
-            {/* Hàng 2 (chỉ hiện khi chọn Trục khác): Đơn giá */}
-            {(input.cylType ?? 'A') === 'custom' && (
-              <div className="form-group" style={{ marginBottom: '8px' }}>
-                <label className="form-label">Đơn giá trục khác (đ/m²)</label>
-                <ONhapSoDinhDang className="form-input" value={input.cylUnitPrice || 0}
-                  onChange={(val: number) => capNhatDauVao({ cylUnitPrice: val })} />
-              </div>
-            )}
+              {(input.cylType ?? 'A') === 'custom' && (
+                <div className="form-group cylinder-custom-price-field">
+                  <label className="form-label">Đơn giá khác (đ/m²)</label>
+                  <ONhapSoDinhDang className="form-input" value={input.cylUnitPrice || 0}
+                    onChange={(val: number) => capNhatDauVao({ cylUnitPrice: val })} />
+                </div>
+              )}
+            </div>
 
             {/* Preview + Bao trục */}
             <div className="cylinder-preview" style={{ marginBottom: '10px' }}>
-              DT: <span className="cyl-val">{((input.cylLength || 0) * (input.cylCircum || 0)).toFixed(4)} m²</span>
-              {' · '} 1 trục: <span className="cyl-val">{(((input.cylLength || 0) * (input.cylCircum || 0) * (input.cylUnitPrice || 7300000)) || 0).toLocaleString('vi-VN')} đ</span>
-              {' · '} Cả bộ ({input.numColors || 0} màu): <span className="cyl-val">{(((input.cylLength || 0) * (input.cylCircum || 0) * (input.cylUnitPrice || 7300000) * (input.numColors || 0)) || 0).toLocaleString('vi-VN')} đ</span>
+              <span className="cylinder-preview-item">DT: <span className="cyl-val">{((input.cylLength || 0) * (input.cylCircum || 0)).toFixed(4)} m²</span></span>
+              <span className="cylinder-preview-item">1 trục: <span className="cyl-val">{(((input.cylLength || 0) * (input.cylCircum || 0) * (input.cylUnitPrice || 7300000)) || 0).toLocaleString('vi-VN')} đ</span></span>
+              <span className="cylinder-preview-item">Cả bộ ({input.numColors || 0} màu): <span className="cyl-val">{(((input.cylLength || 0) * (input.cylCircum || 0) * (input.cylUnitPrice || 7300000) * (input.numColors || 0)) || 0).toLocaleString('vi-VN')} đ</span></span>
             </div>
 
             <div className="form-group" style={{ marginBottom: '14px' }}>
@@ -1090,14 +1096,20 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             ) : (
               <>
                 <div className="advanced-sub-title">🚚 Vận chuyển</div>
-                <div className="form-row">
+                <div className="form-row shipping-input-row">
                   <div className="form-group">
-                    <label className="form-label">Vận chuyển (đ/km)</label>
-                    <ONhapSoDinhDang className="form-input" value={input.shippingPerKm || 0} onChange={(val: number) => capNhatDauVao({ shippingPerKm: val })} />
+                    <label className="form-label">Vận chuyển</label>
+                    <div className="input-with-unit">
+                      <ONhapSoDinhDang className="form-input" value={input.shippingPerKm || 0} onChange={(val: number) => capNhatDauVao({ shippingPerKm: val })} />
+                      <span className="input-unit">đ/km</span>
+                    </div>
                   </div>
                   <div className="form-group">
-                    <label className="form-label">Khoảng cách (km)</label>
-                    <ONhapSoThapPhan className="form-input" value={input.shippingKm || 0} onChange={(val: number) => capNhatDauVao({ shippingKm: val })} />
+                    <label className="form-label">Khoảng cách</label>
+                    <div className="input-with-unit">
+                      <ONhapSoThapPhan className="form-input" value={input.shippingKm || 0} onChange={(val: number) => capNhatDauVao({ shippingKm: val })} />
+                      <span className="input-unit">km</span>
+                    </div>
                   </div>
                 </div>
 

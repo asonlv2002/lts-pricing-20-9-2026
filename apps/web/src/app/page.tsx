@@ -113,28 +113,11 @@ export default function TrangChinh() {
       if (laMobile) setTimeout(() => datTabMobile('result'), 350);
       if (gocNhinHienTai !== 'manager' && gocNhinHienTai !== 'config') datGocNhin('manager');
     }
-  }, [ketQua, laMobile, gocNhinHienTai, datGocNhin]);
-
-  // ── Vuốt trên mobile ────────────────────────────────────────────────────────
-  const xVuotBatDau = useRef<number | null>(null);
-  const yVuotBatDau = useRef<number | null>(null);
-
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    xVuotBatDau.current = e.touches[0].clientX;
-    yVuotBatDau.current = e.touches[0].clientY;
-  }, []);
-
-  const onTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (xVuotBatDau.current === null || yVuotBatDau.current === null) return;
-    const dx = e.changedTouches[0].clientX - xVuotBatDau.current;
-    const dy = e.changedTouches[0].clientY - yVuotBatDau.current;
-    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-      if (dx < 0) datTabMobile('result');
-      else datTabMobile('input');
+    if (!ketQua && laMobile) {
+      ketQuaTruoc.current = null;
+      datTabMobile('input');
     }
-    xVuotBatDau.current = null;
-    yVuotBatDau.current = null;
-  }, []);
+  }, [ketQua, laMobile, gocNhinHienTai, datGocNhin]);
 
   const xuLyKeoPanel = useCallback((delta: number) => {
     datDoRongTrai(prev => {
@@ -360,6 +343,8 @@ export default function TrangChinh() {
         width: `max(100%, ${doRongTrai + 4 + 760}px)`,
       }
     : {};
+  const coKetQua = Boolean(ketQua);
+  const coKetQuaMobile = laMobile && coKetQua;
 
   return (
     <>
@@ -372,11 +357,7 @@ export default function TrangChinh() {
         </div>
       )}
 
-      <div
-        className="container mobile-calc-container"
-        onTouchStart={laMobile ? onTouchStart : undefined}
-        onTouchEnd={laMobile ? onTouchEnd : undefined}
-      >
+      <div className="container mobile-calc-container">
         <div className={`main-grid ${coTheAnPanelNhap && anPanelNhap ? 'main-grid--input-collapsed' : ''}`} style={gridStyle}>
 
           {coTheAnPanelNhap && anPanelNhap && (
@@ -395,7 +376,7 @@ export default function TrangChinh() {
           {/* Panel trái: nhập liệu */}
           <div
             id="inputCard"
-            className={`grid-col-input ${tabMobile === 'input' ? 'active' : ''}`}
+            className={`grid-col-input ${!coKetQuaMobile || tabMobile === 'input' ? 'active' : ''}`}
           >
             {laMobile && tabMobile === 'input' && ketQua && (
               <ThanhGiaMini onNhan={() => datTabMobile('result')} />
@@ -411,7 +392,7 @@ export default function TrangChinh() {
           {/* Panel phải: kết quả */}
           <div
             id="resultArea"
-            className={`grid-col-result ${tabMobile === 'result' ? 'active' : ''}`}
+            className={`grid-col-result ${!laMobile || (coKetQuaMobile && tabMobile === 'result') ? 'active' : ''}`}
           >
             <ManHinhQuanLy />
             <ManHinhKyThuat />
@@ -419,21 +400,19 @@ export default function TrangChinh() {
 
         </div>
 
-        {/* Nav mobile */}
-        <nav className="mobile-calc-nav" aria-label="Điều hướng máy tính">
-          <button className={`m-tab ${tabMobile === 'input' ? 'active' : ''}`}
-            onClick={() => datTabMobile('input')} aria-pressed={tabMobile === 'input'}>
-            📋 Nhập liệu
-          </button>
-          <button className={`m-tab ${tabMobile === 'result' ? 'active' : ''}`}
-            onClick={() => datTabMobile('result')} aria-pressed={tabMobile === 'result'}>
-            💰 Kết quả
-            {ketQua && <div className="m-tab-badge" aria-hidden="true" />}
-          </button>
-        </nav>
-
-        {laMobile && (
-          <div className="swipe-hint" aria-hidden="true">← vuốt để chuyển tab →</div>
+        {/* Nav mobile chỉ xuất hiện sau khi nhập liệu hợp lệ và đã có kết quả. */}
+        {coKetQua && (
+          <nav className="mobile-calc-nav" aria-label="Điều hướng màn hình tính giá">
+            <button className={`m-tab ${tabMobile === 'input' ? 'active' : ''}`}
+              onClick={() => datTabMobile('input')} aria-pressed={tabMobile === 'input'}>
+              📋 Nhập liệu
+            </button>
+            <button className={`m-tab ${tabMobile === 'result' ? 'active' : ''}`}
+              onClick={() => datTabMobile('result')} aria-pressed={tabMobile === 'result'}>
+              💰 Kết quả
+              <div className="m-tab-badge" aria-hidden="true" />
+            </button>
+          </nav>
         )}
       </div>
     </>
