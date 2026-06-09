@@ -1,0 +1,26 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "vietapi/gpt-5.5-xhigh",
+  "small_model": "vietapi/gpt-5.5-xhigh",
+  "default_agent": "build",
+  "autoupdate": false,
+  "instructions": ["AGENTS.md", "CLAUDE.md"],
+  "agent": {
+    "build": {
+      "description": "Primary development agent for LTS Pricing with full project context",
+      "model": "vietapi/gpt-5.5-xhigh"
+    },
+    "plan": {
+      "description": "Planning agent for architecture, sequencing, and implementation plans",
+      "model": "vietapi/gpt-5.5-xhigh"
+    },
+    "explore": {
+      "description": "Fast codebase search specialist for this monorepo",
+      "model": "vietapi/gpt-5.5-xhigh"
+    },
+    "general": {
+      "description": "General-purpose subagent for bounded implementation or research tasks",
+      "model": "vietapi/gpt-5.5-xhigh"
+    }
+  }
+}
