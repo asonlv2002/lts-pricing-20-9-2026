@@ -828,12 +828,12 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           )}
           {hienLaiVay && <KhoiPhienBan scope="interest" />}
           {hienLaiVay && (
-          <div className="card config-card">
+          <div className="card config-card config-interest-card">
             <div className="config-section-title"><span>Lãi Vay Công Nợ</span></div>
-            <div className="config-cpsx-grid">
+            <div className="config-cpsx-grid config-interest-rate-grid">
               <div className="config-cpsx-item">
                 <label>Mức (lãi cơ sở % / năm)</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div className="config-interest-input-row" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <input type="number" className="form-input" style={{ width: '100px' }}
                     value={parseFloat((hangSo.interestBase * 100).toFixed(4))}
                     step="0.1" min="0"
@@ -843,7 +843,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
               </div>
               <div className="config-cpsx-item">
                 <label>Thêm (lãi tình huống % / năm)</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div className="config-interest-input-row" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                   <input type="number" className="form-input" style={{ width: '100px' }}
                     value={parseFloat((hangSo.interestSpread * 100).toFixed(4))}
                     step="0.1" min="0"
@@ -852,16 +852,16 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                 </div>
               </div>
             </div>
-            <div className="config-note" style={{marginTop:'12px'}}>
+            <div className="config-note config-interest-note" style={{marginTop:'12px'}}>
               <div>Tổng lãi = Mức + Thêm = <strong>{(tongLaiNam * 100).toFixed(2)}%/năm</strong>.</div>
-              <div style={{marginTop:'10px', border:'1px solid var(--border)', borderRadius:'10px', overflow:'hidden', background:'var(--surface)'}}>
-                <div style={{display:'grid', gridTemplateColumns:'72px 1fr 1fr', borderBottom:'1px solid var(--border)', fontWeight:700, color:'var(--muted)', fontSize:'0.78rem'}}>
+              <div className="config-interest-days-table" style={{marginTop:'10px', border:'1px solid var(--border)', borderRadius:'10px', overflow:'hidden', background:'var(--surface)'}}>
+                <div className="config-interest-days-row config-interest-days-head" style={{display:'grid', gridTemplateColumns:'72px 1fr 1fr', borderBottom:'1px solid var(--border)', fontWeight:700, color:'var(--muted)', fontSize:'0.78rem'}}>
                   <div style={{padding:'8px 10px'}}></div>
                   <div style={{padding:'8px 10px', textAlign:'center'}}>Ngày công nợ</div>
                   <div style={{padding:'8px 10px', textAlign:'center'}}>Tỷ lệ lãi</div>
                 </div>
                 {mocNgayLaiVay.map(days => (
-                  <div key={days} style={{display:'grid', gridTemplateColumns:'72px 1fr 1fr', borderTop:'1px solid var(--border)'}}>
+                  <div className="config-interest-days-row" key={days} style={{display:'grid', gridTemplateColumns:'72px 1fr 1fr', borderTop:'1px solid var(--border)'}}>
                     <div style={{padding:'6px 8px', display:'flex', alignItems:'center', justifyContent:'center'}}>
                       {(hangSo.customPaymentDays ?? []).includes(days) && (
                         <button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer', fontSize:'0.9rem', padding:'2px 6px'}}
@@ -872,7 +872,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                     <div style={{padding:'10px', textAlign:'center', fontSize:'1.05rem', fontWeight:800, color:'var(--accent)'}}>{dinhDangTyLeLaiNgay(days)}%</div>
                   </div>
                 ))}
-                <div style={{display:'grid', gridTemplateColumns:'72px 1fr 1fr', borderTop:'1px solid var(--border)'}}>
+                <div className="config-interest-days-row config-interest-days-add" style={{display:'grid', gridTemplateColumns:'72px 1fr 1fr', borderTop:'1px solid var(--border)'}}>
                   <div style={{padding:'6px 8px', display:'flex', alignItems:'center', justifyContent:'flex-start'}}>
                     <button className="btn btn-sm btn-outline" disabled={!hopLeNgayCongNoMoi} onClick={themNgayCongNo}>+ Thêm</button>
                   </div>

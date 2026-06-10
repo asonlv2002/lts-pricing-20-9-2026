@@ -7411,4 +7411,154 @@ body {
   .lts-shell--mobile .config-page .config-table td {
     border-radius: 0 !important;
   }
+
+  .lts-shell--mobile .config-page .config-interest-card {
+    padding: 10px;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-rate-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 8px;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-rate-grid .config-cpsx-item {
+    gap: 4px;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-rate-grid label {
+    margin-bottom: 3px;
+    font-size: 10px;
+    line-height: 1.15;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-input-row {
+    gap: 4px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-input-row .form-input {
+    width: 100% !important;
+    height: 36px;
+    min-height: 36px;
+    padding: 6px 8px;
+    font-size: 13px;
+    text-align: right;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-input-row span {
+    flex: 0 0 auto;
+    font-size: 11px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-note {
+    margin-top: 8px !important;
+    font-size: 12px;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-days-table {
+    margin-top: 8px !important;
+    border-radius: 8px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-days-row,
+  .lts-shell--mobile .config-page .config-interest-days-head {
+    grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr) !important;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-days-row > div {
+    padding: 7px 6px !important;
+    font-size: 12px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-days-row > div:last-child {
+    font-size: 13px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-days-add .btn {
+    min-height: 30px;
+    padding: 5px 7px;
+    font-size: 11px;
+  }
+
+  .lts-shell--mobile .config-page .config-interest-days-add .form-input {
+    width: 100% !important;
+    height: 32px;
+    min-height: 32px;
+    padding: 5px 7px;
+    font-size: 12px;
+  }
+}
+
+.lts-shell--mobile .config-page .config-interest-card {
+  padding: 10px;
+}
+
+.lts-shell--mobile .config-page .config-interest-rate-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+  gap: 8px;
+}
+
+.lts-shell--mobile .config-page .config-interest-rate-grid .config-cpsx-item {
+  gap: 4px;
+}
+
+.lts-shell--mobile .config-page .config-interest-rate-grid label {
+  margin-bottom: 3px;
+  font-size: 10px;
+  line-height: 1.15;
+}
+
+.lts-shell--mobile .config-page .config-interest-input-row {
+  gap: 4px !important;
+}
+
+.lts-shell--mobile .config-page .config-interest-input-row .form-input {
+  width: 100% !important;
+  height: 36px;
+  min-height: 36px;
+  padding: 6px 8px;
+  font-size: 13px;
+  text-align: right;
+}
+
+.lts-shell--mobile .config-page .config-interest-input-row span {
+  flex: 0 0 auto;
+  font-size: 11px !important;
+}
+
+.lts-shell--mobile .config-page .config-interest-note {
+  margin-top: 8px !important;
+  font-size: 12px;
+}
+
+.lts-shell--mobile .config-page .config-interest-days-table {
+  margin-top: 8px !important;
+  border-radius: 8px !important;
+}
+
+.lts-shell--mobile .config-page .config-interest-days-row,
+.lts-shell--mobile .config-page .config-interest-days-head {
+  grid-template-columns: 42px minmax(0, 1fr) minmax(0, 1fr) !important;
+}
+
+.lts-shell--mobile .config-page .config-interest-days-row > div {
+  padding: 7px 6px !important;
+  font-size: 12px !important;
+}
+
+.lts-shell--mobile .config-page .config-interest-days-row > div:last-child {
+  font-size: 13px !important;
+}
+
+.lts-shell--mobile .config-page .config-interest-days-add .btn {
+  min-height: 30px;
+  padding: 5px 7px;
+  font-size: 11px;
+}
+
+.lts-shell--mobile .config-page .config-interest-days-add .form-input {
+  width: 100% !important;
+  height: 32px;
+  min-height: 32px;
+  padding: 5px 7px;
+  font-size: 12px;
 }
