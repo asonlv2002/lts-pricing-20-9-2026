@@ -1512,6 +1512,11 @@ body {
   background: var(--surface2); border-left: 3px solid var(--accent);
 }
 
+.config-version-summary,
+.config-version-sheet-backdrop {
+  display: none;
+}
+
 /* CPSX Grid */
 .config-cpsx-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -1607,6 +1612,363 @@ body {
   #inputCard, .card, .history-item { padding: 12px; }
   .chot-gia-row .btn { width: 100%; margin-top: 6px; }
   .config-card { padding: 16px 14px; }
+}
+
+@media (max-width: 767px) {
+  .lts-shell--mobile .config-page {
+    padding: 12px 8px calc(172px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .lts-shell--mobile .config-page .config-card {
+    padding: 12px 8px;
+    border-radius: 16px;
+  }
+
+  .lts-shell--mobile .config-page .config-version-card {
+    position: fixed;
+    right: 8px;
+    bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+    left: 8px;
+    z-index: 120;
+    padding: 8px 9px 9px;
+    margin: 0;
+    border-radius: 15px;
+    background: color-mix(in srgb, var(--surface) 96%, transparent);
+    box-shadow: 0 -12px 34px rgba(15, 23, 42, 0.18);
+    backdrop-filter: blur(14px);
+  }
+
+  .lts-shell--mobile .config-page .config-version-title {
+    margin-bottom: 6px;
+    font-size: 12px;
+    line-height: 1.25;
+  }
+
+  .lts-shell--mobile .config-page .config-version-title span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lts-shell--mobile .config-page .config-version-form {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 104px 58px;
+    align-items: end;
+    gap: 6px;
+    margin-bottom: 6px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-version-form .config-cpsx-item {
+    min-width: 0;
+  }
+
+  .lts-shell--mobile .config-page .config-version-form label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .lts-shell--mobile .config-page .config-version-form .form-input {
+    min-height: 34px;
+    height: 34px;
+    padding: 7px 8px;
+    font-size: 12px;
+    border-radius: 10px;
+  }
+
+  .lts-shell--mobile .config-page .config-version-save {
+    grid-column: auto;
+  }
+
+  .lts-shell--mobile .config-page .config-version-save .btn {
+    width: 100%;
+    min-height: 34px;
+    padding: 7px 8px;
+    border-radius: 10px;
+    gap: 4px;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+  }
+
+  .lts-shell--mobile .config-page .config-version-save-icon {
+    flex: 0 0 auto;
+  }
+
+  .lts-shell--mobile .config-page .config-version-summary {
+    display: flex;
+    width: 100%;
+    min-height: 28px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface2);
+    color: var(--text);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .lts-shell--mobile .config-page .config-version-summary span:first-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lts-shell--mobile .config-page .config-version-summary span:last-child {
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-grid:not(.config-version-form) {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-item input,
+  .lts-shell--mobile .config-page .config-cpsx-item .form-input,
+  .lts-shell--mobile .config-page .config-cpsx-item .btn {
+    min-height: 42px;
+  }
+
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) {
+    scroll-margin-top: 88px;
+  }
+
+  .lts-shell--mobile .config-page .config-group-header {
+    padding: 8px 10px;
+    border-radius: 12px;
+  }
+
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) .config-section-title {
+    margin: -8px -8px 8px;
+    padding: 8px 10px;
+    border-radius: 12px 12px 9px 9px;
+  }
+
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) .config-table-wrap {
+    width: calc(100% + 8px);
+    max-width: none;
+    max-height: none;
+    margin-right: -4px;
+    margin-left: -4px;
+    overflow-x: auto;
+    overflow-y: visible;
+    overscroll-behavior: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 6px;
+  }
+
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) .config-table {
+    width: max-content;
+    min-width: 100%;
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .lts-shell--mobile .config-page #materialPriceTable,
+  .lts-shell--mobile .config-page #smallWidthPriceTable,
+  .lts-shell--mobile .config-page #inkPriceTable {
+    table-layout: fixed;
+  }
+
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) .config-table th,
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) .config-table td {
+    padding: 6px 5px;
+    white-space: nowrap;
+  }
+
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) .config-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) .config-table .config-col-stt {
+    width: 16px;
+    min-width: 16px;
+    max-width: 18px;
+    padding-inline: 0;
+    font-size: 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: center;
+  }
+
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) .config-table th:first-child,
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) .config-table td:first-child,
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) .config-table .config-col-stt {
+    position: static !important;
+    left: auto !important;
+    right: auto !important;
+    z-index: auto !important;
+    background: inherit !important;
+  }
+
+  .lts-shell--mobile .config-page .config-table input.cfg-input,
+  .lts-shell--mobile .config-page .config-table .form-input {
+    width: 68px;
+    min-width: 58px;
+    height: 30px;
+    min-height: 30px;
+    padding: 4px 5px;
+    border-radius: 8px;
+    font-size: 11px;
+  }
+
+  .lts-shell--mobile .config-page .config-table .btn,
+  .lts-shell--mobile .config-page .config-table button {
+    min-height: 30px;
+    padding: 5px 7px;
+    border-radius: 8px;
+    line-height: 1.1;
+  }
+
+  .lts-shell--mobile .config-page .config-version-table-wrap {
+    display: none;
+  }
+
+  .lts-shell--mobile .config-page .config-version-note {
+    display: none;
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding: 12px;
+    background: rgba(15, 23, 42, 0.42);
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet {
+    width: min(100%, 520px);
+    max-height: min(78vh, 640px);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    border-radius: 22px 22px 16px 16px;
+    background: var(--card-bg, var(--surface));
+    box-shadow: 0 -20px 50px rgba(15, 23, 42, 0.26);
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet-close {
+    width: 32px;
+    height: 32px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--surface2);
+    color: var(--text);
+    font-size: 20px;
+    line-height: 1;
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet-list {
+    max-height: calc(min(78vh, 640px) - 58px);
+    overflow: auto;
+    padding: 10px 12px calc(18px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .lts-shell--mobile .config-page .config-version-empty {
+    padding: 28px 12px;
+    color: var(--muted);
+    text-align: center;
+    font-size: 13px;
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 84px;
+    column-gap: 10px;
+    align-items: center;
+    min-height: 58px;
+    padding: 8px 9px 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface2);
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet-row + .config-version-sheet-row {
+    margin-top: 7px;
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet-info {
+    display: flex;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+    justify-content: center;
+    overflow: hidden;
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet-info strong,
+  .lts-shell--mobile .config-page .config-version-sheet-info span {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet-info strong {
+    color: var(--text);
+    font-size: 13.5px;
+    font-weight: 800;
+    line-height: 1.15;
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet-info span {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.2;
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet-actions {
+    display: grid;
+    gap: 5px;
+    justify-items: stretch;
+    margin-left: auto;
+    width: 84px;
+  }
+
+  .lts-shell--mobile .config-page .config-version-sheet-actions .btn {
+    width: 100%;
+    min-height: 28px;
+    padding: 5px 7px;
+    border-radius: 8px;
+    font-size: 11px;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 390px) {
+  .lts-shell--mobile .config-page .config-version-form {
+    grid-template-columns: minmax(0, 1fr) 100px 40px;
+  }
+
+  .lts-shell--mobile .config-page .config-version-save-text {
+    display: none;
+  }
 }
 
 /* ═══════════ COLLAPSIBLE RESULT CARDS ═══════════ */
@@ -6962,4 +7324,91 @@ body {
 
 .lts-sidebar-logout--pw {
   margin-right: 4px;
+}
+
+@media (max-width: 767px) {
+  .lts-shell--mobile .config-page .config-page-inner {
+    padding-inline: 4px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) {
+    padding-inline: 6px;
+  }
+
+  .lts-shell--mobile .config-page .config-card:not(.config-version-card) .config-table-wrap {
+    width: calc(100% + 8px);
+    max-width: none;
+    height: auto !important;
+    max-height: none !important;
+    margin-inline: -4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .lts-shell--mobile .lts-shell-content,
+  .lts-shell--mobile .config-page,
+  .lts-shell--mobile .config-page .config-table-wrap,
+  .lts-shell--mobile .config-page .config-version-sheet-list {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .lts-shell--mobile .lts-shell-content::-webkit-scrollbar,
+  .lts-shell--mobile .config-page::-webkit-scrollbar,
+  .lts-shell--mobile .config-page .config-table-wrap::-webkit-scrollbar,
+  .lts-shell--mobile .config-page .config-version-sheet-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .lts-shell--mobile .config-page #materialPriceTable {
+    width: 100%;
+    min-width: 100%;
+    table-layout: fixed;
+  }
+
+  .lts-shell--mobile .config-page #materialPriceTable .config-col-stt {
+    width: 34px !important;
+    min-width: 34px !important;
+    max-width: 36px !important;
+    padding-inline: 3px !important;
+    font-size: 10.5px;
+  }
+
+  .lts-shell--mobile .config-page #materialPriceTable .config-col-material { width: 104px; }
+  .lts-shell--mobile .config-page #materialPriceTable .config-col-density { width: 70px; }
+  .lts-shell--mobile .config-page #materialPriceTable .config-col-thickness { width: 62px; }
+  .lts-shell--mobile .config-page #materialPriceTable .config-col-price-kg { width: 82px; }
+  .lts-shell--mobile .config-page #materialPriceTable .config-col-price-m2 { width: 76px; }
+  .lts-shell--mobile .config-page #materialPriceTable .config-col-action { width: 32px; }
+
+  .lts-shell--mobile .config-page #materialPriceTable .config-inline-input {
+    width: 100% !important;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .lts-shell--mobile .config-page #materialPriceTable th {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.15;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .lts-shell--mobile .config-page #materialPriceTable td:nth-child(2) {
+    white-space: normal;
+    line-height: 1.2;
+  }
+
+  .lts-shell--mobile .config-page .config-table-wrap,
+  .lts-shell--mobile .config-page .config-table,
+  .lts-shell--mobile .config-page .config-table thead,
+  .lts-shell--mobile .config-page .config-table tbody,
+  .lts-shell--mobile .config-page .config-table tr,
+  .lts-shell--mobile .config-page .config-table th,
+  .lts-shell--mobile .config-page .config-table td {
+    border-radius: 0 !important;
+  }
 }

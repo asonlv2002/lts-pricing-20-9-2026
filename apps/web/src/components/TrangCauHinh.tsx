@@ -1,5 +1,6 @@
 "use client";
 import React from 'react';
+import { Save } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { ConfigScope } from '../lib/types';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES } from '../lib/data';
@@ -37,6 +38,7 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
 
   const [ten, datTen] = React.useState('');
   const [mocHieuLuc, datMocHieuLuc] = React.useState(() => new Date().toISOString().slice(0, 7));
+  const [moDanhSachPhienBan, datMoDanhSachPhienBan] = React.useState(false);
 
   const xuLyLuu = () => {
     if (!mocHieuLuc) return;
@@ -58,26 +60,31 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
   };
 
   return (
-    <div className="card config-card" id={`sect-config-versions-${scope}`} style={{scrollMarginTop: '80px'}}>
-      <div className="config-section-title"><span>Phiên bản — {SCOPE_LABEL[scope]}</span></div>
-      <div className="config-cpsx-grid" style={{marginBottom: '16px'}}>
-        <div className="config-cpsx-item">
+    <div className="card config-card config-version-card" id={`sect-config-versions-${scope}`} style={{scrollMarginTop: '80px'}}>
+      <div className="config-section-title config-version-title"><span>Phiên bản — {SCOPE_LABEL[scope]}</span></div>
+      <div className="config-cpsx-grid config-version-form" style={{marginBottom: '16px'}}>
+        <div className="config-cpsx-item config-version-name">
           <label>Tên phiên bản</label>
           <input className="form-input" value={ten} placeholder="VD: Tháng 05/2026"
             onChange={e => datTen(e.target.value)} />
         </div>
-        <div className="config-cpsx-item">
+        <div className="config-cpsx-item config-version-effective">
           <label>Hiệu lực từ</label>
           <input className="form-input" type="month"
             value={mocHieuLuc} onChange={e => datMocHieuLuc(e.target.value)} />
         </div>
-        <div className="config-cpsx-item" style={{justifyContent: 'flex-end'}}>
-          <button className="btn btn-primary" onClick={xuLyLuu} disabled={!mocHieuLuc}>
-            Lưu
+        <div className="config-cpsx-item config-version-save" style={{justifyContent: 'flex-end'}}>
+          <button className="btn btn-primary" onClick={xuLyLuu} disabled={!mocHieuLuc} aria-label="Lưu phiên bản">
+            <Save className="config-version-save-icon" size={15} aria-hidden="true" />
+            <span className="config-version-save-text">Lưu</span>
           </button>
         </div>
       </div>
-      <div className="config-table-wrap">
+      <button className="config-version-summary" type="button" onClick={() => datMoDanhSachPhienBan(true)}>
+        <span>Phiên bản đã lưu: {phienBan.length}</span>
+        <span>{phienBan.length > 0 ? 'Xem ›' : 'Chưa có phiên bản nào'}</span>
+      </button>
+      <div className="config-table-wrap config-version-table-wrap">
         <table className="config-table">
           <thead>
             <tr>
@@ -119,7 +126,38 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
           </tbody>
         </table>
       </div>
-      <p className="config-note">Phiên bản lưu {SCOPE_LABEL[scope]} tại thời điểm bấm lưu.</p>
+      <p className="config-note config-version-note">Phiên bản lưu {SCOPE_LABEL[scope]} tại thời điểm bấm lưu.</p>
+      {moDanhSachPhienBan && (
+        <div className="config-version-sheet-backdrop" role="presentation" onClick={() => datMoDanhSachPhienBan(false)}>
+          <div className="config-version-sheet" role="dialog" aria-modal="true" aria-label="Danh sách phiên bản" onClick={e => e.stopPropagation()}>
+            <div className="config-version-sheet-header">
+              <strong>Danh sách phiên bản</strong>
+              <button className="config-version-sheet-close" type="button" onClick={() => datMoDanhSachPhienBan(false)} aria-label="Đóng danh sách phiên bản">×</button>
+            </div>
+            <div className="config-version-sheet-list">
+              {phienBan.length === 0 ? (
+                <div className="config-version-empty">Chưa có phiên bản nào.</div>
+              ) : phienBan.map(snapshot => {
+                const dangApDung = dangChonId === snapshot.id;
+                return (
+                  <div className="config-version-sheet-row" key={snapshot.id}>
+                    <div className="config-version-sheet-info">
+                      <strong>{snapshot.name || 'Không tên'}</strong>
+                      <span>{snapshot.effectiveFrom} · {dangApDung ? 'Đang áp dụng' : 'Đã lưu'}</span>
+                    </div>
+                    <div className="config-version-sheet-actions">
+                      {!dangApDung && (
+                        <button className="btn btn-sm btn-primary" onClick={() => { xuLyApDung(snapshot.id); datMoDanhSachPhienBan(false); }}>Áp dụng</button>
+                      )}
+                      <button className="btn btn-sm btn-outline" onClick={() => xuLyXoa(snapshot.id)}>Xóa</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -455,9 +493,18 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
               <>
                 <div className="config-table-wrap">
                   <table className="config-table" id="materialPriceTable">
+                    <colgroup>
+                      <col className="config-col-stt" />
+                      <col className="config-col-material" />
+                      <col className="config-col-density" />
+                      <col className="config-col-thickness" />
+                      <col className="config-col-price-kg" />
+                      <col className="config-col-price-m2" />
+                      <col className="config-col-action" />
+                    </colgroup>
                     <thead>
                       <tr>
-                        <th>STT</th>
+                        <th className="config-col-stt">STT</th>
                         <th>Màng</th>
                         <th>Tỉ trọng (g/cm³)</th>
                         <th>Độ dày (mic)</th>
@@ -471,7 +518,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                         const laCustom = m.id.startsWith('custom-');
                         return (
                           <tr key={m.id}>
-                            <td style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
+                            <td className="config-col-stt" style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
                             <td style={{fontWeight:600}}>
                               {laCustom
                                 ? <input type="text" className="config-inline-input" value={m.name}
@@ -525,9 +572,12 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
               <>
                 <div className="config-table-wrap">
                   <table className="config-table" id="smallWidthPriceTable">
+                    <colgroup>
+                      <col className="config-col-stt" />
+                    </colgroup>
                     <thead>
                       <tr>
-                        <th>STT</th>
+                        <th className="config-col-stt">STT</th>
                         <th>Màng</th>
                         <th>Tỉ trọng (g/cm³)</th>
                         <th>Độ dày (mic)</th>
@@ -542,7 +592,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                         if (!material) return null;
                         return (
                           <tr key={p.id}>
-                            <td style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
+                            <td className="config-col-stt" style={{textAlign:'center', color:'var(--dim)'}}>{idx + 1}</td>
                             <td style={{fontWeight:600}}>{material.name}</td>
                             <td>{material.density}</td>
                             <td><input type="number" className="config-inline-input" value={p.thickness ?? material.thickness} onChange={(e) => capNhatGiaKhoNho(p.id, { thickness: parseFloat(e.target.value)||0 })} style={{width:'80px', textAlign:'right'}} /></td>
@@ -583,9 +633,12 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
             </div>
             <div className="config-table-wrap">
               <table className="config-table" id="inkPriceTable">
+                <colgroup>
+                  <col className="config-col-stt" />
+                </colgroup>
                 <thead>
                   <tr>
-                    <th>STT</th>
+                    <th className="config-col-stt">STT</th>
                     <th>{bangGiaMauInDangXem === 'printFilm' ? 'Loại màng' : 'Màng'}</th>
                     <th>Giá mực/màu (đ/m²/màu)</th>
                   </tr>
@@ -593,7 +646,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                 <tbody>
                   {bangGiaMauInDangXem === 'normal' ? vatLieuDuyNhat.map((m, idx) => (
                     <tr key={m.id}>
-                      <td>{idx + 1}</td>
+                      <td className="config-col-stt">{idx + 1}</td>
                       <td className="mat-name">{m.name}</td>
                       <td>
                         <input type="number" className="config-inline-input" value={m.inkPricePerColor}
@@ -606,7 +659,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                     { label: 'KHÁC', key: 'printFilmInkPriceOther' as const, value: hangSo.printFilmInkPriceOther ?? 200, fallback: 200 },
                   ].map((row, idx) => (
                     <tr key={row.key}>
-                      <td>{idx + 1}</td>
+                      <td className="config-col-stt">{idx + 1}</td>
                       <td className="mat-name">{row.label}</td>
                       <td>
                         <input type="number" className="config-inline-input" value={row.value}
