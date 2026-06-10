@@ -2808,9 +2808,9 @@ body {
     flex: 1;
     min-height: 0;
     overflow-y: auto;
-    overflow-x: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
-    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+    padding: 0 12px calc(18px + env(safe-area-inset-bottom));
     font-family: inherit;
   }
 
@@ -2818,11 +2818,35 @@ body {
     min-height: 100%;
     overflow: visible;
     font-family: inherit;
+    border-radius: 14px;
   }
 
   .lts-shell--mobile .hist-data-table {
     font-family: inherit;
-    min-width: 640px;
+    width: 100%;
+    min-width: 0;
+    table-layout: fixed;
+  }
+
+  .lts-shell--mobile .hist-data-table .hist-col-code { width: 68px; }
+  .lts-shell--mobile .hist-data-table .hist-col-actions { width: 42px; }
+
+  .lts-shell--mobile .hist-data-table .hist-col-date,
+  .lts-shell--mobile .hist-data-table .hist-col-status,
+  .lts-shell--mobile .hist-data-table .hist-col-price,
+  .lts-shell--mobile .hist-data-table .hist-col-sale,
+  .lts-shell--mobile .hist-data-table .hist-col-quote-count,
+  .lts-shell--mobile .hist-data-table .hist-col-customer {
+    display: none;
+  }
+
+  .lts-shell--mobile .hist-data-table .hist-col-product {
+    width: auto;
+  }
+
+  .lts-shell--mobile .hist-data-table--quote .hist-col-customer {
+    display: table-cell;
+    width: auto;
   }
 
   .lts-shell--mobile .hist-data-table thead th {
@@ -2836,7 +2860,22 @@ body {
     line-height: 1.35;
     font-weight: 800;
     letter-spacing: 0;
+    padding: 8px 5px !important;
   }
+
+  .lts-shell--mobile .hist-data-table .hist-col-product span:first-child,
+  .lts-shell--mobile .hist-data-table--quote .hist-col-customer span:first-child {
+    display: block;
+  }
+
+  .lts-shell--mobile .hist-data-table thead .hist-col-code span { font-size: 0; }
+  .lts-shell--mobile .hist-data-table thead .hist-col-code span::before { content: 'Mã'; font-size: 12px; }
+  .lts-shell--mobile .hist-data-table thead .hist-col-product span { font-size: 0; }
+  .lts-shell--mobile .hist-data-table thead .hist-col-product span::before { content: 'Thông tin'; font-size: 12px; }
+  .lts-shell--mobile .hist-data-table thead .hist-col-customer span { font-size: 0; }
+  .lts-shell--mobile .hist-data-table thead .hist-col-customer span::before { content: 'Thông tin'; font-size: 12px; }
+  .lts-shell--mobile .hist-data-table thead .hist-col-actions { font-size: 0; }
+  .lts-shell--mobile .hist-data-table thead .hist-col-actions::before { content: 'Xem'; font-size: 12px; }
 
   .lts-shell--mobile .hist-data-table tbody td {
     font-family: inherit !important;
@@ -2844,12 +2883,149 @@ body {
     line-height: 1.45;
     color: #0f172a;
     font-weight: 500;
+    padding: 9px 5px !important;
+    overflow: hidden;
   }
 
   .lts-shell--mobile .hist-data-table tbody td:first-child {
     font-family: inherit !important;
     font-variant-numeric: tabular-nums;
     letter-spacing: 0;
+    padding-left: 6px !important;
+    padding-right: 8px !important;
+    white-space: nowrap;
+  }
+
+  .lts-shell--mobile .hist-data-table .hist-code-full {
+    display: none;
+  }
+
+  .lts-shell--mobile .hist-data-table .hist-code-mobile {
+    display: inline-block;
+    max-width: 58px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: top;
+  }
+
+  .lts-shell--mobile .hist-data-table .hist-mobile-primary,
+  .lts-shell--mobile .hist-data-table .hist-mobile-secondary,
+  .lts-shell--mobile .hist-data-table .hist-mobile-price,
+  .lts-shell--mobile .hist-data-table .hist-mobile-status {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .lts-shell--mobile .hist-data-table .hist-mobile-primary {
+    color: #0f172a;
+    font-weight: 750;
+  }
+
+  .lts-shell--mobile .hist-data-table .hist-mobile-secondary,
+  .lts-shell--mobile .hist-data-table .hist-mobile-status {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 650;
+  }
+
+  .lts-shell--mobile .hist-data-table .hist-mobile-price {
+    color: #4f46e5;
+    font-weight: 800;
+    text-align: right;
+  }
+
+  .lts-shell--mobile .hist-data-table .hist-mobile-status {
+    text-align: right;
+  }
+
+  .lts-shell--mobile .hist-data-table .hist-col-actions .btn {
+    min-width: 30px;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .lts-shell--mobile .hist-data-table .hist-row-load-btn {
+    display: none;
+  }
+
+  .lts-shell--mobile .hist-detail-panel {
+    top: auto !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    max-height: 96dvh;
+    z-index: 1100 !important;
+    border-left: 0 !important;
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -18px 44px rgba(15,23,42,.24) !important;
+    animation: histSheetUp .2s ease-out;
+  }
+
+  .lts-shell--mobile:has(.hist-detail-panel) .lts-mobile-tabbar {
+    z-index: 1300;
+  }
+
+  .lts-shell--mobile .hist-detail-body {
+    padding-bottom: calc(108px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .lts-shell--mobile .hist-detail-sheet-handle {
+    display: block;
+    width: 44px;
+    height: 5px;
+    margin: 10px auto 0;
+    border-radius: 999px;
+    background: #cbd5e1;
+    flex-shrink: 0;
+  }
+
+  .lts-shell--mobile .hist-detail-header {
+    align-items: flex-start !important;
+    padding-top: 10px !important;
+    flex-shrink: 0;
+  }
+
+  .lts-shell--mobile .hist-detail-header-actions {
+    display: grid !important;
+    grid-template-columns: 34px;
+    gap: 6px !important;
+    justify-items: center;
+  }
+
+  .lts-shell--mobile .hist-detail-edit-btn,
+  .lts-shell--mobile .hist-detail-footer,
+  .lts-shell--mobile .hist-detail-desktop-load-btn {
+    display: none !important;
+  }
+
+  .lts-shell--mobile .hist-detail-close-btn,
+  .lts-shell--mobile .hist-detail-mobile-load-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    color: #475569;
+    box-shadow: 0 6px 16px rgba(15,23,42,.08);
+  }
+
+  .lts-shell--mobile .hist-detail-mobile-load-btn {
+    color: #4f46e5;
+  }
+
+  @keyframes histSheetUp {
+    from { transform: translateY(18px); opacity: .88; }
+    to { transform: translateY(0); opacity: 1; }
   }
 }
 
@@ -5029,8 +5205,19 @@ body {
   overflow: visible;
 }
 
+.hist-detail-sheet-handle,
+.hist-detail-mobile-load-btn,
+.hist-code-mobile {
+  display: none;
+}
+
 .hist-list-container {
   padding: 20px;
+}
+
+.hist-list-container .table-responsive {
+  border-radius: 14px;
+  overflow: hidden;
 }
 
 .hist-data-table {

@@ -1,8 +1,8 @@
   "use client";
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
-  Search, Database, RotateCcw, Trash2, ClipboardList, Download, Copy,
-  Lock, Unlock, Eye, Filter, X, XCircle, ChevronUp, ChevronDown,
+  Search, Database, RotateCcw, Download,
+  Eye, Filter, X, XCircle,
   FileText, ArrowUpDown, ArrowUp, ArrowDown
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
@@ -18,6 +18,7 @@ import {
   isQuoteHistoryItem,
   type PricingWorkflowStatus,
 } from '../lib/history-filters';
+import { formatMobileHistoryCode } from '../lib/history-mobile-display';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -115,13 +116,15 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
 
 // ─── SortHeader ───────────────────────────────────────────────────────────────
 
-function SortHeader({ label, sortKey, current, dir, onSort }: {
+function SortHeader({ label, sortKey, current, dir, onSort, className }: {
   label: string; sortKey: SortKey; current: SortKey; dir: SortDir;
   onSort: (k: SortKey) => void;
+  className?: string;
 }) {
   const active = current === sortKey;
   return (
     <th
+      className={className}
       onClick={() => onSort(sortKey)}
       aria-label={`Sắp xếp theo ${label}`}
       style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
@@ -245,6 +248,7 @@ function DetailPanel({
 
       {/* Panel */}
       <div
+        className="hist-detail-panel"
         role="dialog"
         aria-modal="true"
         aria-label={mode === 'pricing' ? `Bảng tính giá ${item.id}` : `Báo giá ${item.quoteCode || item.id}`}
@@ -256,8 +260,9 @@ function DetailPanel({
           boxShadow: '-4px 0 24px rgba(0,0,0,0.12)',
         }}
       >
+        <div className="hist-detail-sheet-handle" aria-hidden="true" />
         {/* Header */}
-        <div style={{
+        <div className="hist-detail-header" style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '14px 16px', borderBottom: '1px solid var(--border)',
           background: 'var(--surface)',
@@ -271,24 +276,34 @@ function DetailPanel({
               {mode === 'pricing' ? item.id : (item.quoteCode || item.id)}
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div className="hist-detail-header-actions" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {!editing && (
               <button
-                className="btn btn-sm btn-outline"
+                className="btn btn-sm btn-outline hist-detail-edit-btn"
                 onClick={() => setEditing(true)}
                 style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem' }}
               >
                 ✏️ Chỉnh sửa
               </button>
             )}
-            <button onClick={handleClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
+            <button className="hist-detail-close-btn" onClick={handleClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)' }}>
               <X size={18} />
             </button>
+            {!editing && !item.isQuote && (
+              <button
+                className="hist-detail-mobile-load-btn"
+                onClick={() => { onLoad(item.id); onNavigate?.('calculator'); onClose(); }}
+                title="Tải lại bảng tính giá"
+                aria-label="Tải lại bảng tính giá"
+              >
+                <RotateCcw size={16} />
+              </button>
+            )}
           </div>
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
+        <div className="hist-detail-body" style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
           {/* Status + date */}
           <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 16 }}>
             <StatusBadge status={status} mode={mode} />
@@ -427,7 +442,7 @@ function DetailPanel({
         </div>
 
         {/* Footer actions */}
-        <div style={{
+        <div className="hist-detail-footer" style={{
           padding: '12px 16px', borderTop: '1px solid var(--border)',
           display: 'flex', gap: 8, flexWrap: 'wrap',
           background: 'var(--surface)',
@@ -453,9 +468,9 @@ function DetailPanel({
           ) : (
             <>
               {!item.isQuote && (
-                <button className="btn btn-sm btn-outline" onClick={() => { onLoad(item.id); onNavigate?.('calculator'); onClose(); }}
+                <button className="btn btn-sm btn-outline hist-detail-desktop-load-btn" onClick={() => { onLoad(item.id); onNavigate?.('calculator'); onClose(); }}
                   style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <RotateCcw size={13} /> Tải lại
+                  <RotateCcw size={13} /> Tải lại bảng tính giá
                 </button>
               )}
             </>
@@ -653,7 +668,7 @@ function LsxDetailPanel({
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
 export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieuHuong?: (module: 'calculator' | 'quotations') => void; menuDangChon?: string }) {
-  const { history: lichSu, productionOrders, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu, patchHistoryItem, capNhatLSX, materials, role } = dungCuaHangTinhGia();
+  const { history: lichSu, productionOrders, loadHistoryItem: taiLichSu, patchHistoryItem, capNhatLSX, materials, role } = dungCuaHangTinhGia();
 
   // Toggle
   const [mode, setMode] = useState<ToggleMode>('pricing');
@@ -719,18 +734,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
     setPendingTargetId(null);
   }, [pendingTargetId, lichSu, productionOrders, mode]);
 
-  // Lock state
-  const [sanPhamKhoa, datSanPhamKhoa] = useState<Record<string, boolean>>(() => {
-    try { return JSON.parse(window.localStorage.getItem('lts_locked_products') || '{}'); } catch { return {}; }
-  });
-
   const laLichSuSanPhamTheoKhach = menuDangChon === 'customers.product_history';
-
-  const khoaSanPham = (key: string) => datSanPhamKhoa(prev => {
-    const next = { ...prev, [key]: !prev[key] };
-    try { window.localStorage.setItem('lts_locked_products', JSON.stringify(next)); } catch {}
-    return next;
-  });
 
   const customerRecords = useMemo(() => loadCustomers(), []);
 
@@ -1078,69 +1082,64 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
           </div>
         ) : (
           <div className="table-responsive">
-            <table className="data-table hist-data-table" aria-busy="false">
+            <table className={`data-table hist-data-table hist-data-table--${mode}`} aria-busy="false">
               <thead>
                 <tr>
-                  <SortHeader label="Mã" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} />
-                  {(mode === 'pricing' || mode === 'lsx') && <SortHeader label="Sản phẩm" sortKey="productName" current={sortKey} dir={sortDir} onSort={handleSort} />}
-                  <SortHeader label="Khách hàng" sortKey="customer" current={sortKey} dir={sortDir} onSort={handleSort} />
-                  {mode === 'quote' && <th>Số SP</th>}
-                  <SortHeader label="Ngày tạo" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} />
-                  <SortHeader label="Trạng thái" sortKey="quoteStatus" current={sortKey} dir={sortDir} onSort={handleSort} />
-                  {(mode === 'pricing' || mode === 'lsx') && <SortHeader label={mode === 'lsx' ? 'Giá chốt' : 'Giá đề xuất'} sortKey="finalPrice" current={sortKey} dir={sortDir} onSort={handleSort} />}
-                  <th>{mode === 'lsx' ? 'Số LSX' : 'Sale'}</th>
-                  <th>Thao tác</th>
+                  <SortHeader label="Mã" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-code" />
+                  {(mode === 'pricing' || mode === 'lsx') && <SortHeader label="Sản phẩm" sortKey="productName" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-product" />}
+                  <SortHeader label="Khách hàng" sortKey="customer" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-customer" />
+                  {mode === 'quote' && <th className="hist-col-quote-count">Số SP</th>}
+                  <SortHeader label="Ngày tạo" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-date" />
+                  <SortHeader label="Trạng thái" sortKey="quoteStatus" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-status" />
+                  {(mode === 'pricing' || mode === 'lsx') && <SortHeader label={mode === 'lsx' ? 'Giá chốt' : 'Giá đề xuất'} sortKey="finalPrice" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-price" />}
+                  <th className="hist-col-sale">{mode === 'lsx' ? 'Số LSX' : 'Sale'}</th>
+                  <th className="hist-col-actions">Thao tác</th>
                 </tr>
               </thead>
               <tbody>
                 {mode === 'lsx' ? (pageItems as ProductionOrder[]).map(o => (
                   <tr key={o.id} onClick={() => setSelectedOrder(o)} style={{ cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface)')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                    <td style={{ fontFamily: "'Courier New', monospace", fontSize: '0.78rem' }}>{o.id}</td>
-                    <td>{o.snapshot.productName}</td>
-                    <td>{o.snapshot.customer}</td>
-                    <td>{new Date(o.createdAt).toLocaleDateString('vi-VN')}</td>
-                    <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600, color: LSX_STATUS_CONFIG[o.status].color, background: LSX_STATUS_CONFIG[o.status].bg }}>● {LSX_STATUS_CONFIG[o.status].label}</span></td>
-                    <td className="num" style={{ fontWeight: 600 }}>{dinhDangSo(o.snapshot.chotGia)} ₫</td>
-                    <td>{o.manual.lsxNumber || '—'}</td>
-                    <td onClick={e => e.stopPropagation()} style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                    <td className="hist-col-code" title={o.id} style={{ fontFamily: "'Courier New', monospace", fontSize: '0.78rem' }}><span className="hist-code-full">{o.id}</span><span className="hist-code-mobile">{formatMobileHistoryCode(o.id)}</span></td>
+                    <td className="hist-col-product"><span className="hist-mobile-primary">{o.snapshot.customer}</span><span className="hist-mobile-secondary">{o.snapshot.productName} · {dinhDangSo(o.snapshot.chotGia)} ₫ · {LSX_STATUS_CONFIG[o.status].label}</span></td>
+                    <td className="hist-col-customer">{o.snapshot.customer}</td>
+                    <td className="hist-col-date">{new Date(o.createdAt).toLocaleDateString('vi-VN')}</td>
+                    <td className="hist-col-status"><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600, color: LSX_STATUS_CONFIG[o.status].color, background: LSX_STATUS_CONFIG[o.status].bg }}>● {LSX_STATUS_CONFIG[o.status].label}</span></td>
+                    <td className="num hist-col-price" style={{ fontWeight: 600 }}><span className="hist-mobile-price">{dinhDangSo(o.snapshot.chotGia)} ₫</span><span className="hist-mobile-status" style={{ color: LSX_STATUS_CONFIG[o.status].color }}>{LSX_STATUS_CONFIG[o.status].label}</span></td>
+                    <td className="hist-col-sale">{o.manual.lsxNumber || '—'}</td>
+                    <td className="hist-col-actions" onClick={e => e.stopPropagation()} style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                       <button className="btn btn-sm btn-outline" title="Xem chi tiết" onClick={() => setSelectedOrder(o)}><Eye size={13} /></button>
                     </td>
                   </tr>
                 )) : (pageItems as HistoryItem[]).map(h => {
                   const status = mode === 'pricing' ? getPricingStatus(h) : (h.quoteStatus ?? 'drafted');
-                  const lockKey = h.productName + '-' + h.structure;
-                  const locked = !!sanPhamKhoa[lockKey];
                   return (
                     <tr key={h.id} onClick={() => setSelectedItem(h)}
                       style={{ cursor: 'pointer' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface)')}
                       onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                      <td style={{ fontFamily: "'Courier New', monospace", fontSize: '0.78rem' }}>
-                        {mode === 'quote' ? (h.quoteCode || h.id) : h.id}
+                      <td className="hist-col-code" title={mode === 'quote' ? (h.quoteCode || h.id) : h.id} style={{ fontFamily: "'Courier New', monospace", fontSize: '0.78rem' }}>
+                        <span className="hist-code-full">{mode === 'quote' ? (h.quoteCode || h.id) : h.id}</span>
+                        <span className="hist-code-mobile">{formatMobileHistoryCode(mode === 'quote' ? (h.quoteCode || h.id) : h.id)}</span>
                       </td>
-                      {mode === 'pricing' && <td>{h.productName}</td>}
-                      <td>{h.customer}</td>
-                      {mode === 'quote' && <td style={{ textAlign: 'center' }}>{h.quoteProducts?.length ?? (h.tiers?.length ? 1 : 0)}</td>}
-                      <td>{h.date}</td>
-                      <td><StatusBadge status={status} mode={mode} /></td>
-                      {mode === 'pricing' && <td className="num" style={{ fontWeight: 600 }}>{dinhDangSo(h.finalPrice)} ₫</td>}
-                      <td>{h.sellerName || '—'}</td>
-                      <td onClick={e => e.stopPropagation()} style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      {mode === 'pricing' && <td className="hist-col-product"><span className="hist-mobile-primary">{h.customer}</span><span className="hist-mobile-secondary">{h.productName} · {dinhDangSo(h.finalPrice)} ₫ · {PRICING_STATUS_CONFIG[status]?.label}</span></td>}
+                      <td className="hist-col-customer"><span className="hist-mobile-primary">{h.customer}</span><span className="hist-mobile-secondary">{h.productName} · {mode === 'quote' ? QUOTE_STATUS_CONFIG[status as QuoteStatus]?.label : PRICING_STATUS_CONFIG[status]?.label}</span></td>
+                      {mode === 'quote' && <td className="hist-col-quote-count" style={{ textAlign: 'center' }}>{h.quoteProducts?.length ?? (h.tiers?.length ? 1 : 0)}</td>}
+                      <td className="hist-col-date">{h.date}</td>
+                      <td className="hist-col-status"><StatusBadge status={status} mode={mode} /></td>
+                      {mode === 'pricing' && <td className="num hist-col-price" style={{ fontWeight: 600 }}><span className="hist-mobile-price">{dinhDangSo(h.finalPrice)} ₫</span><span className="hist-mobile-status">{mode === 'pricing' ? PRICING_STATUS_CONFIG[status]?.label : QUOTE_STATUS_CONFIG[status as QuoteStatus]?.label}</span></td>}
+                      <td className="hist-col-sale">{h.sellerName || '—'}</td>
+                      <td className="hist-col-actions" onClick={e => e.stopPropagation()} style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                         <button className="btn btn-sm btn-outline" title="Xem chi tiết" onClick={() => setSelectedItem(h)}>
                           <Eye size={13} />
                         </button>
                         {' '}
                         {!h.isQuote && (
                           <>
-                            <button className="btn btn-sm btn-outline" title="Tải lại" onClick={() => { taiLichSu(h.id); khiDieuHuong?.('calculator'); }}>
+                            <button className="btn btn-sm btn-outline hist-row-load-btn" title="Tải lại" onClick={() => { taiLichSu(h.id); khiDieuHuong?.('calculator'); }}>
                               <RotateCcw size={13} />
                             </button>
-                            {' '}
                           </>
                         )}
-                        <button className="btn btn-sm btn-outline" title="Xóa" onClick={() => xoaLichSu(h.id)} style={{ color: 'var(--red)' }}>
-                          <Trash2 size={13} />
-                        </button>
                       </td>
                     </tr>
                   );
