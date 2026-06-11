@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhGiaHieuLuc, xuLyDongGhiDe, type UniRow } from '../lib/manager-calculation';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
+import { TECHNICAL_TABLE_MOBILE_LABELS as MOBILE_LABELS } from '../lib/technical-table-mobile-labels';
 import type { Material, OverrideRowKey, OverrideFields, OverrideTable } from '../lib/types';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
@@ -316,15 +317,15 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
         {!duocSua && <span className="override-readonly-badge">Chỉ xem</span>}
       </div>
       <div className="table-responsive">
-        <table className="data-table">
+        <table className="data-table technical-material-table">
           <thead>
             <tr>
-              <th>Công đoạn</th><th>Vật liệu</th>
-              <th className="num">Kho vao (m)</th><th className="num">Thanh pham (m)</th>
-              <th className="num">Phi hao</th><th className="num">Đầu vào VL</th>
-              <th className="num">CPSX (đ/m²)</th><th className="num">Thành tiền CPSX</th>
-              <th className="num">CP vật liệu (đ/m²)</th><th className="num">Thành tiền CPVL</th>
-              {coCpMangIn && <th className="num">CP Màng in</th>}
+              <th data-mobile-label={MOBILE_LABELS.stage}>Công đoạn</th><th data-mobile-label={MOBILE_LABELS.material}>Vật liệu</th>
+              <th className="num" data-mobile-label={MOBILE_LABELS.width}>Kho vao (m)</th><th className="num" data-mobile-label={MOBILE_LABELS.meters}>Thanh pham (m)</th>
+              <th className="num" data-mobile-label={MOBILE_LABELS.waste}>Phi hao</th><th className="num" data-mobile-label={MOBILE_LABELS.inputMaterial}>Đầu vào VL</th>
+              <th className="num" data-mobile-label={MOBILE_LABELS.cpsx}>CPSX (đ/m²)</th><th className="num" data-mobile-label={MOBILE_LABELS.totalCpsx}>Thành tiền CPSX</th>
+              <th className="num" data-mobile-label={MOBILE_LABELS.materialPrice}>CP vật liệu (đ/m²)</th><th className="num" data-mobile-label={MOBILE_LABELS.totalMaterial}>Thành tiền CPVL</th>
+              {coCpMangIn && <th className="num" data-mobile-label={MOBILE_LABELS.printFilm}>CP Màng in</th>}
             </tr>
           </thead>
           <tbody>

@@ -4707,6 +4707,24 @@ body {
   .lts-shell--mobile .mobile-calc-container .grid-col-result:not(.active) {
     display: none !important;
   }
+
+  .lts-shell--mobile .mobile-calc-container .technical-material-table th {
+    padding-inline: 5px;
+    font-size: 0;
+    line-height: 1.1;
+    white-space: nowrap;
+  }
+
+  .lts-shell--mobile .mobile-calc-container .technical-material-table th::before {
+    content: attr(data-mobile-label);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+  }
+
+  .lts-shell--mobile .mobile-calc-container .technical-material-table td {
+    padding-inline: 5px;
+  }
   
   .lts-shell--mobile .mobile-calc-container:has(.mobile-calc-nav) {
     padding-bottom: calc(124px + env(safe-area-inset-bottom, 0)); /* compact calculator tabs + main mobile nav */
