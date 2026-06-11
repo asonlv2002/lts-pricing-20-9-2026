@@ -695,7 +695,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const kiemTraMobile = () => {
       const chieuRong = window.innerWidth;
-      const laManHinhMobile = chieuRong < 768;
+      const laManHinhMobile = chieuRong <= 768;
       datLaMobile(laManHinhMobile);
       if (laManHinhMobile) datThanhBenDangMo(false);
       else if (chieuRong < 1280) datThanhBenDangMo(false);

@@ -3,7 +3,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Search, Database, RotateCcw, Download,
   Eye, Filter, X, XCircle,
-  FileText, ArrowUpDown, ArrowUp, ArrowDown
+  FileText, ArrowUpDown, ArrowUp, ArrowDown, Trash2
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
@@ -63,6 +63,7 @@ const PRICING_STATUS_OPTIONS = [
 
 const QUOTE_STATUS_OPTIONS: QuoteStatus[] = ['drafted', 'pending_approval', 'approved', 'sent', 'rejected', 'cancelled', 'completed'];
 const LSX_STATUS_OPTIONS: LSXStatus[] = ['created', 'in_production', 'completed', 'cancelled'];
+const QUOTE_PREFILL_STORAGE_KEY = 'lts_quote_prefill_from_history';
 
 function getPricingStatus(h: HistoryItem): string {
   return getPricingWorkflowStatus(h);
@@ -717,6 +718,9 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   // Detail panel
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<ProductionOrder | null>(null);
+  const [selectedQuoteHistoryIds, setSelectedQuoteHistoryIds] = useState<Set<string>>(new Set());
+  const [quoteDraftCustomer, setQuoteDraftCustomer] = useState<string | null>(null);
+  const [quoteDeleteTarget, setQuoteDeleteTarget] = useState<HistoryItem | null>(null);
 
   useEffect(() => {
     if (!pendingTargetId) return;
@@ -776,9 +780,13 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
       unitPriceMax,
       profitRateMin,
       profitRateMax,
-    }, customerRecords);
+	    }, customerRecords);
 
-    if (tuKhoa.trim() && filterCustomer) {
+    if (mode === 'pricing' && quoteDraftCustomer) {
+      list = list.filter(item => item.customer === quoteDraftCustomer);
+    }
+
+	    if (tuKhoa.trim() && filterCustomer) {
       const q = tuKhoa.toLowerCase();
       list = list.filter(h =>
         h.customer.toLowerCase().includes(q) ||
@@ -801,10 +809,60 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
     });
 
     return list;
-  }, [lichSu, productionOrders, mode, timeRange, tuNgay, denNgay, tuKhoa, filterStatuses, filterCustomer, filterProduct, filterSeller, filterMaterial, filterBagType, unitPriceMin, unitPriceMax, profitRateMin, profitRateMax, customerRecords, sortKey, sortDir]);
+	  }, [lichSu, productionOrders, mode, timeRange, tuNgay, denNgay, tuKhoa, filterStatuses, filterCustomer, filterProduct, filterSeller, filterMaterial, filterBagType, unitPriceMin, unitPriceMax, profitRateMin, profitRateMax, customerRecords, sortKey, sortDir, quoteDraftCustomer]);
 
-  const totalPages = Math.ceil(filtered.length / pageSize);
-  const pageItems = filtered.slice(page * pageSize, (page + 1) * pageSize);
+	  const totalPages = Math.ceil(filtered.length / pageSize);
+	  const pageItems = filtered.slice(page * pageSize, (page + 1) * pageSize);
+
+  const selectedQuoteItems = useMemo(
+    () => lichSu.filter(item => selectedQuoteHistoryIds.has(item.id)),
+    [lichSu, selectedQuoteHistoryIds],
+  );
+
+  const toggleQuoteHistoryItem = (item: HistoryItem) => {
+    if (mode !== 'pricing' || item.isQuote) return;
+    setSelectedQuoteHistoryIds(prev => {
+      const next = new Set(prev);
+      if (next.has(item.id)) {
+        next.delete(item.id);
+        if (next.size === 0) setQuoteDraftCustomer(null);
+        return next;
+      }
+      if (!quoteDraftCustomer) setQuoteDraftCustomer(item.customer);
+      if (quoteDraftCustomer && item.customer !== quoteDraftCustomer) return next;
+      next.add(item.id);
+      return next;
+    });
+    setPage(0);
+  };
+
+  const confirmQuoteDelete = () => {
+    if (!quoteDeleteTarget) return;
+    setSelectedQuoteHistoryIds(prev => {
+      const next = new Set(prev);
+      next.delete(quoteDeleteTarget.id);
+      if (next.size === 0) setQuoteDraftCustomer(null);
+      return next;
+    });
+    setQuoteDeleteTarget(null);
+  };
+
+  const clearQuoteSelection = () => {
+    setSelectedQuoteHistoryIds(new Set());
+    setQuoteDraftCustomer(null);
+    setQuoteDeleteTarget(null);
+  };
+
+  const createQuoteDraftFromSelection = () => {
+    if (selectedQuoteItems.length === 0) return;
+    localStorage.setItem(QUOTE_PREFILL_STORAGE_KEY, JSON.stringify({
+      customerName: quoteDraftCustomer ?? selectedQuoteItems[0].customer,
+      historyItemIds: selectedQuoteItems.map(item => item.id),
+      createdAt: new Date().toISOString(),
+    }));
+    clearQuoteSelection();
+    khiDieuHuong?.('quotations');
+  };
 
   const handleSort = useCallback((k: SortKey) => {
     setSortKey(prev => {
@@ -898,6 +956,19 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
             setSelectedOrder(prev => prev ? { ...prev, ...patch, manual: { ...prev.manual, ...(patch.manual ?? {}) } } : prev);
           }}
         />
+      )}
+
+      {quoteDeleteTarget && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 1450, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(15,23,42,0.32)', padding: 16 }}>
+          <div style={{ width: 'min(360px, 100%)', background: 'var(--surface, #fff)', border: '1px solid var(--border)', borderRadius: 14, padding: 18, boxShadow: '0 18px 44px rgba(15,23,42,0.24)' }}>
+            <div style={{ fontWeight: 800, marginBottom: 8 }}>Xóa sản phẩm khỏi báo giá?</div>
+            <p style={{ fontSize: '0.86rem', color: 'var(--muted)', margin: '0 0 16px' }}>Bạn có chắc chắn muốn xóa &quot;{quoteDeleteTarget.productName}&quot; khỏi danh sách tạo báo giá?</p>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <button className="btn btn-sm btn-outline" onClick={() => setQuoteDeleteTarget(null)}>Hủy</button>
+              <button className="btn btn-sm btn-danger" onClick={confirmQuoteDelete}>Xóa</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* ── Toggle + Filter Bar ── */}
@@ -1058,9 +1129,39 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
         )}
       </div>
 
+      {mode === 'pricing' && selectedQuoteItems.length > 0 && (
+        <div className="hist-quote-draft-panel" style={{ border: '1px solid var(--border)', borderRadius: 12, background: 'var(--surface)', padding: 12, marginBottom: 12, boxShadow: '0 8px 24px rgba(15,23,42,0.06)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontWeight: 800 }}>Danh sách tạo báo giá</div>
+              <div style={{ fontSize: '0.8rem', color: 'var(--muted)' }}>Khách hàng: {quoteDraftCustomer} · {selectedQuoteItems.length} sản phẩm</div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button className="btn btn-sm btn-outline" onClick={clearQuoteSelection}>Bỏ chọn tất cả</button>
+              <button className="btn btn-sm btn-primary" onClick={createQuoteDraftFromSelection}>Tạo bảng báo giá</button>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gap: 6 }}>
+            {selectedQuoteItems.map(item => {
+              const hienThiGia = getPricingDisplayMeta(item.input);
+              return (
+                <div key={item.id} className="hist-quote-draft-row" style={{ display: 'grid', gridTemplateColumns: '1fr auto auto', gap: 10, alignItems: 'center', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--surface2, #f8fafc)' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.86rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.productName}</div>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--muted)' }}>{dinhDangSo(item.quantity)} {hienThiGia.quantityUnitForHistory} · {dinhDangSo(item.finalPrice)} ₫/{hienThiGia.unit}</div>
+                  </div>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--muted)' }}>{item.date}</span>
+                  <button className="btn btn-sm btn-outline" title="Xóa khỏi danh sách" aria-label={`Xóa ${item.productName} khỏi danh sách tạo báo giá`} onClick={() => setQuoteDeleteTarget(item)}><Trash2 size={13} /></button>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Count ── */}
       <div className="hist-mobile-count" style={{ fontSize: '0.78rem', color: 'var(--muted)', marginBottom: 10 }}>
-        {filtered.length} bản ghi
+        {filtered.length} bản ghi{mode === 'pricing' && quoteDraftCustomer ? ` · Đang lọc KH: ${quoteDraftCustomer}` : ''}
       </div>
 
       {/* ── Table ── */}
@@ -1085,6 +1186,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
             <table className={`data-table hist-data-table hist-data-table--${mode}`} aria-busy="false">
               <thead>
                 <tr>
+                  {mode === 'pricing' && <th className="hist-col-select" aria-label="Chọn">✓</th>}
                   <SortHeader label="Mã" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-code" />
                   {(mode === 'pricing' || mode === 'lsx') && <SortHeader label="Sản phẩm" sortKey="productName" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-product" />}
                   <SortHeader label="Khách hàng" sortKey="customer" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-customer" />
@@ -1117,6 +1219,17 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
                       style={{ cursor: 'pointer' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface)')}
                       onMouseLeave={e => (e.currentTarget.style.background = '')}>
+                      {mode === 'pricing' && (
+                        <td className="hist-col-select" onClick={e => e.stopPropagation()} style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedQuoteHistoryIds.has(h.id)}
+                            disabled={!!quoteDraftCustomer && h.customer !== quoteDraftCustomer}
+                            onChange={() => toggleQuoteHistoryItem(h)}
+                            aria-label={`Chọn ${h.productName} để tạo báo giá`}
+                          />
+                        </td>
+                      )}
                       <td className="hist-col-code" title={mode === 'quote' ? (h.quoteCode || h.id) : h.id} style={{ fontFamily: "'Courier New', monospace", fontSize: '0.78rem' }}>
                         <span className="hist-code-full">{mode === 'quote' ? (h.quoteCode || h.id) : h.id}</span>
                         <span className="hist-code-mobile">{formatMobileHistoryCode(mode === 'quote' ? (h.quoteCode || h.id) : h.id)}</span>
@@ -1138,6 +1251,11 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
                             <button className="btn btn-sm btn-outline hist-row-load-btn" title="Tải lại" onClick={() => { taiLichSu(h.id); khiDieuHuong?.('calculator'); }}>
                               <RotateCcw size={13} />
                             </button>
+                            {mode === 'pricing' && selectedQuoteHistoryIds.has(h.id) && (
+                              <button className="btn btn-sm btn-outline hist-row-delete-quote-btn" title="Xóa khỏi danh sách tạo báo giá" aria-label={`Xóa ${h.productName} khỏi danh sách tạo báo giá`} onClick={() => setQuoteDeleteTarget(h)}>
+                                <Trash2 size={13} />
+                              </button>
+                            )}
                           </>
                         )}
                       </td>

@@ -29,6 +29,13 @@ interface Customer {
 }
 
 const LS_CUSTOMERS = 'lts_customers';
+const QUOTE_PREFILL_STORAGE_KEY = 'lts_quote_prefill_from_history';
+
+type QuotePrefillFromHistory = {
+  customerName?: string;
+  historyItemIds?: string[];
+  createdAt?: string;
+};
 
 function docKhachHang(): Customer[] {
   try {
@@ -52,6 +59,26 @@ function metaKhachHang(c: Customer): string[] {
   lines.push(`MST: ${c.taxCode || 'chưa có'}`);
   lines.push(c.sellerName ? `Sale: ${c.sellerName}` : `SĐT: ${c.phone || 'chưa có'}`);
   return lines;
+}
+
+function readQuotePrefillFromHistory(): QuotePrefillFromHistory | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(QUOTE_PREFILL_STORAGE_KEY);
+    if (!raw) return null;
+    window.localStorage.removeItem(QUOTE_PREFILL_STORAGE_KEY);
+    const parsed = JSON.parse(raw) as QuotePrefillFromHistory;
+    return Array.isArray(parsed.historyItemIds) && parsed.historyItemIds.length > 0 ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function buildWizardProductFromHistoryItem(item: HistoryItem): WizardProduct {
+  return {
+    historyItem: item,
+    tiers: [{ quantity: item.quantity, finalPrice: item.finalPrice, baoGia: item.chotGia ?? item.finalPrice }],
+  };
 }
 
 // ── Wizard types ──────────────────────────────────────────────────────────────
@@ -1356,6 +1383,21 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
   const section2Ref = useRef<HTMLDivElement>(null);
   const section1Ref = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const prefill = readQuotePrefillFromHistory();
+    if (!prefill) return;
+    const prefillProducts = (history as HistoryItem[])
+      .filter((item: HistoryItem) => prefill.historyItemIds?.includes(item.id))
+      .map((item: HistoryItem) => buildWizardProductFromHistoryItem(item));
+    const prefillCustomer = docKhachHang().find(customer => {
+      const name = tenKhachHang(customer).toLowerCase();
+      const query = (prefill.customerName ?? '').toLowerCase();
+      return !!query && (name === query || customer.customerCode.toLowerCase() === query || name.includes(query) || query.includes(name));
+    }) ?? null;
+    setState(prev => ({ ...prev, customer: prefillCustomer, products: prefillProducts }));
+    if (!prefillCustomer) setError('Không tìm thấy khách hàng từ lịch sử. Vui lòng chọn khách hàng trước khi lưu báo giá.');
+  }, [history]);
+
   const handleCustomerSelect = (c: Customer) => {
     setState(prev => ({ ...prev, customer: c }));
     // Auto-scroll to section 2 after selecting customer
@@ -1859,6 +1901,11 @@ export default function QuotationModule({ role, menuDangChon }: { role: string; 
   React.useEffect(() => {
     if (menuDangChon === 'pricing.create_quote') setShowWizard(true);
   }, [menuDangChon]);
+  React.useEffect(() => {
+    try {
+      if (window.localStorage.getItem(QUOTE_PREFILL_STORAGE_KEY)) setShowWizard(true);
+    } catch { /* local only */ }
+  }, []);
 
   const isAdmin = role === 'admin';
   const laLichSuBaoGiaTheoKhach = menuDangChon === 'customers.quote_history';

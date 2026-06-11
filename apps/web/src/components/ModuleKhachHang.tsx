@@ -1281,6 +1281,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const isAuthenticated = dungCuaHangTinhGia(s => s.isAuthenticated);
   const nguoiDungHienTai = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
   const coQuyenTaoKhachHang = !!nguoiDungHienTai?.policies.includes('CUSTOMER_CREATE');
+  const coQuyenQuanLyNguoiPhuTrach = !!nguoiDungHienTai?.policies.includes('CUSTOMER_MANAGER');
 
   const getAuditActor = () => ({
     userId: nguoiDungHienTai?.id ?? currentSellerId,
@@ -1606,7 +1607,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
               currentSellerId={currentSellerId}
               customers={customers}
               token={accessToken ?? undefined}
-              canManageManagers={editing ? canUpdateCustomerRecord(editing, nguoiDungHienTai?.id) : true}
+              canManageManagers={editing ? coQuyenQuanLyNguoiPhuTrach : true}
               saving={dangLuuKhachHang}
               onSave={async c => {
                 setDangLuuKhachHang(true);
@@ -1901,7 +1902,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                     <div className="crm2-table-actions" onClick={e => e.stopPropagation()}>
                       <button className="crm2-btn-icon" title="Xem" onClick={() => openDetail(c)}><Eye size={14}/></button>
                       {canUpdateThisCustomer && <button className="crm2-btn-icon" title="Sửa" onClick={() => openEdit(c)}><Pencil size={14}/></button>}
-                      {canUpdateThisCustomer && <button className="crm2-btn-icon" title="Phân công" onClick={() => openAssign(c)}><Briefcase size={14}/></button>}
+                      {coQuyenQuanLyNguoiPhuTrach && <button className="crm2-btn-icon" title="Phân công" onClick={() => openAssign(c)}><Briefcase size={14}/></button>}
                       {canLock(role) && (
                         <button className="crm2-btn-icon" title={c.isLocked ? 'Mở khóa' : 'Khóa'} onClick={() => setConfirm({
                           title: c.isLocked ? 'Mở khóa?' : 'Khóa?',

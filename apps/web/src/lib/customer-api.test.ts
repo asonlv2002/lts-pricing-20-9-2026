@@ -180,6 +180,9 @@ console.log('\n== Customer manager mapping ==');
 const policyCodes = POLICY_CATALOG.map(policy => policy.code);
 assert('removes broad customer update policy from frontend catalog', !policyCodes.includes('CUSTOMER_UPDATE_ALL' as never));
 assert('removes broad customer read policy from frontend catalog', !policyCodes.includes('CUSTOMER_READ_ALL' as never));
+assert('includes customer manager policy in frontend catalog', policyCodes.includes('CUSTOMER_MANAGER' as never));
+const customerManagerPolicy = POLICY_CATALOG.find(policy => policy.code === ('CUSTOMER_MANAGER' as never));
+assert('labels customer manager policy for assignment management', customerManagerPolicy?.ten === 'Quản lý người phụ trách khách hàng', customerManagerPolicy?.ten ?? 'missing');
 
 const managersApi: CustomerManagerApi[] = [
   { id: 'user-2', fullName: 'Tran Huong Mai' },

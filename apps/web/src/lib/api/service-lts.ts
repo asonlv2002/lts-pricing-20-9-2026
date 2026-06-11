@@ -14,7 +14,7 @@ export const LS_REFRESH_TOKEN = 'lts_service_refresh_token';
 export type PolicyCode =
   | 'ACCOUNT_READ' | 'ACCOUNT_CREATE' | 'ACCOUNT_ACTIVATE' | 'ACCOUNT_DEACTIVATE'
   | 'ACCOUNT_PROTECT' | 'ACCOUNT_PASSWORD_UPDATE_ALL' | 'ROLE_CREATE' | 'ROLE_UPDATE' | 'ROLE_DELETE'
-  | 'ROLE_READ' | 'CUSTOMER_CREATE'
+  | 'ROLE_READ' | 'CUSTOMER_CREATE' | 'CUSTOMER_MANAGER'
   | 'USER_POLICY_GRANT' | 'USER_POLICY_REVOKE';
 
 export interface Policy {
@@ -37,6 +37,7 @@ export const POLICY_CATALOG: Policy[] = [
   { code: 'ROLE_UPDATE',        ten: 'Sửa nhóm quyền',        moTa: 'Cho phép cập nhật template nhóm quyền.',                nhom: 'Nhóm quyền', rui_ro: 'trung' },
   { code: 'ROLE_DELETE',        ten: 'Xóa nhóm quyền',        moTa: 'Cho phép xóa template nhóm quyền.',                     nhom: 'Nhóm quyền', rui_ro: 'cao'   },
   { code: 'CUSTOMER_CREATE',    ten: 'Tạo khách hàng',        moTa: 'Cho phép tạo hồ sơ khách hàng mới.',                    nhom: 'Cấp phát', rui_ro: 'trung' },
+  { code: 'CUSTOMER_MANAGER',   ten: 'Quản lý người phụ trách khách hàng', moTa: 'Cho phép thêm hoặc xóa người phụ trách trên hồ sơ khách hàng.', nhom: 'Cấp phát', rui_ro: 'trung' },
   { code: 'USER_POLICY_GRANT',  ten: 'Cấp quyền cho user',    moTa: 'Cho phép cấp policy trực tiếp cho tài khoản.',          nhom: 'Cấp phát', rui_ro: 'cao'   },
   { code: 'USER_POLICY_REVOKE', ten: 'Thu hồi quyền user',    moTa: 'Cho phép thu hồi policy trực tiếp khỏi tài khoản.',     nhom: 'Cấp phát', rui_ro: 'cao'   },
 ];
@@ -469,9 +470,10 @@ export async function luuNguoiPhuTrachKhachHangService(
   managers: LuuKhachHangManagerInput[],
   token?: string,
 ): Promise<{ codeName: string; managers: KhachHangManagerApi[] }> {
+  const managerIds = managers.map(manager => manager.managerId);
   return goiService<{ codeName: string; managers: KhachHangManagerApi[] }>(`/customers/${encodeURIComponent(codeName)}/managers`, {
     method: 'PUT',
-    body: JSON.stringify({ managers }),
+    body: JSON.stringify({ managerIds }),
   }, token);
 }
 

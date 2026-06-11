@@ -117,6 +117,32 @@ assert(
     && !/overflow-y:\s*hidden/.test(shellCrm2Css),
 );
 
+console.log('\n== Customer mobile edit form ==');
+
+assert(
+  'mobile customer form renders all wizard cards instead of gating by current step',
+  source.includes('isMobileCustomerForm')
+    && source.includes('{(isMobileCustomerForm || step === 0) &&')
+    && source.includes('{(isMobileCustomerForm || step === 1) &&')
+    && source.includes('{(isMobileCustomerForm || step === 2) &&'),
+);
+
+assert(
+  'mobile customer form exposes a top save action that is disabled until the full form is valid',
+  source.includes('crm2-wizard-actions--top')
+    && source.includes('canSubmitCustomerForm')
+    && /disabled=\{saving \|\| \(isMobileCustomerForm && !canSubmitCustomerForm\)\}/.test(source),
+);
+
+assert(
+  'mobile customer form pins header and save actions in one sticky top block',
+  source.includes('className="crm2-wizard-sticky-top"')
+    && /\.lts-shell--mobile \.crm2-wizard-sticky-top \{[\s\S]*position:\s*sticky[\s\S]*top:\s*0[\s\S]*z-index:\s*6/.test(source)
+    && !/\.lts-shell--mobile \.crm2-wizard-header \{[\s\S]*position:\s*absolute/.test(source)
+    && !/\.lts-shell--mobile \.crm2-wizard-actions \{[\s\S]*position:\s*absolute/.test(source)
+    && !/\.lts-shell--mobile \.crm2-edit-panel \{[\s\S]*padding-top:\s*118px/.test(source),
+);
+
 if (failed > 0) {
   console.error(`\n${failed} responsive layout checks failed.`);
   process.exit(1);

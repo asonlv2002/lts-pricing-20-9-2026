@@ -2781,9 +2781,11 @@ body {
 
   .lts-shell--mobile .hist-mobile-list .table-responsive {
     min-height: 100%;
-    overflow: visible;
+    overflow-x: auto;
+    overflow-y: visible;
     font-family: inherit;
     border-radius: 14px;
+    -webkit-overflow-scrolling: touch;
   }
 
   .lts-shell--mobile .hist-data-table {
@@ -2793,8 +2795,22 @@ body {
     table-layout: fixed;
   }
 
+  .lts-shell--mobile .hist-data-table--pricing {
+    min-width: 760px;
+    table-layout: auto;
+  }
+
   .lts-shell--mobile .hist-data-table .hist-col-code { width: 68px; }
   .lts-shell--mobile .hist-data-table .hist-col-actions { width: 42px; }
+  .lts-shell--mobile .hist-data-table--pricing .hist-col-code { width: 112px; }
+  .lts-shell--mobile .hist-data-table--pricing .hist-col-select { width: 28px; }
+  .lts-shell--mobile .hist-data-table--pricing .hist-col-actions { width: 76px; }
+  .lts-shell--mobile .hist-data-table--pricing .hist-col-select input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    vertical-align: middle;
+  }
 
   .lts-shell--mobile .hist-data-table .hist-col-date,
   .lts-shell--mobile .hist-data-table .hist-col-status,
@@ -2803,6 +2819,14 @@ body {
   .lts-shell--mobile .hist-data-table .hist-col-quote-count,
   .lts-shell--mobile .hist-data-table .hist-col-customer {
     display: none;
+  }
+
+  .lts-shell--mobile .hist-data-table--pricing .hist-col-date,
+  .lts-shell--mobile .hist-data-table--pricing .hist-col-status,
+  .lts-shell--mobile .hist-data-table--pricing .hist-col-price,
+  .lts-shell--mobile .hist-data-table--pricing .hist-col-sale,
+  .lts-shell--mobile .hist-data-table--pricing .hist-col-customer {
+    display: table-cell;
   }
 
   .lts-shell--mobile .hist-data-table .hist-col-product {
@@ -2873,6 +2897,18 @@ body {
     vertical-align: top;
   }
 
+  .lts-shell--mobile .hist-data-table--pricing .hist-code-full {
+    display: inline-block;
+    max-width: 104px;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+  }
+
+  .lts-shell--mobile .hist-data-table--pricing .hist-code-mobile {
+    display: none;
+  }
+
   .lts-shell--mobile .hist-data-table .hist-mobile-primary,
   .lts-shell--mobile .hist-data-table .hist-mobile-secondary,
   .lts-shell--mobile .hist-data-table .hist-mobile-price,
@@ -2912,6 +2948,11 @@ body {
     height: 30px;
     padding: 0;
     justify-content: center;
+  }
+
+  .lts-shell--mobile .hist-data-table--pricing .hist-row-delete-quote-btn {
+    display: inline-flex;
+    margin-left: 4px;
   }
 
   .lts-shell--mobile .hist-data-table .hist-row-load-btn {
