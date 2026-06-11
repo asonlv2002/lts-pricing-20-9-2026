@@ -342,6 +342,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
   const [form, setForm] = useState<Customer>(makeInitialCustomer(customer, role, currentSellerId));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [duplicateWarnings, setDuplicateWarnings] = useState<string[]>([]);
+  const [isMobileCustomerForm, setIsMobileCustomerForm] = useState(false);
   const seller = SELLERS.find(s => s.id === form.sellerId);
   const isLockedEdit = !isNew && !!customer?.isLocked;
   const [dirty, setDirty] = useState(false);
@@ -391,6 +392,12 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
     return Object.keys(e).length === 0;
   };
 
+  const canSubmitCustomerForm = useMemo(() => {
+    const checkCode = kiemTraMaKhachHang(form.customerCode);
+    if (!checkCode.hopLe) return false;
+    return Object.keys(kiemTraThongTinKhachHang(form).errors).length === 0;
+  }, [form]);
+
   const checkDuplicates = () => {
     const norm = (v?: string | null) => normalize(v).trim();
     const warnings: string[] = [];
@@ -430,6 +437,13 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
   const progress = ((step + 1) / WIZ_STEPS.length) * 100;
 
   useEffect(() => {
+    const checkMobileCustomerForm = () => setIsMobileCustomerForm(window.innerWidth <= 768);
+    checkMobileCustomerForm();
+    window.addEventListener('resize', checkMobileCustomerForm);
+    return () => window.removeEventListener('resize', checkMobileCustomerForm);
+  }, []);
+
+  useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') close(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -441,14 +455,36 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
 
   return (
     <div className="crm2-wizard-wrap">
-      <div className="crm2-wizard-header">
-        <div>
-          <div className="crm2-wizard-kicker">Chỉnh sửa khách hàng</div>
-          <h2 className="crm2-wizard-title">{isNew ? 'Thêm khách hàng mới' : 'Cập nhật thông tin khách hàng'}</h2>
+      <div className="crm2-wizard-sticky-top">
+        <div className="crm2-wizard-header">
+          <div>
+            <div className="crm2-wizard-kicker">Chỉnh sửa khách hàng</div>
+            <h2 className="crm2-wizard-title">{isNew ? 'Thêm khách hàng mới' : 'Cập nhật thông tin khách hàng'}</h2>
+          </div>
+          <button type="button" className="crm2-btn-icon crm2-wizard-close" aria-label="Đóng" onClick={close}>
+            <X size={18} />
+          </button>
         </div>
-        <button type="button" className="crm2-btn-icon crm2-wizard-close" aria-label="Đóng" onClick={close}>
-          <X size={18} />
-        </button>
+
+        <div className="crm2-wizard-actions crm2-wizard-actions--top">
+          <div className="crm2-wizard-actions-left">
+            {!isMobileCustomerForm && step > 0 && <button className="crm2-btn crm2-btn--ghost" onClick={back}><ArrowLeft size={14}/> Quay lại</button>}
+            <button className="crm2-btn crm2-btn--ghost" onClick={saveDraft}>Lưu nháp</button>
+            {!customer && <button className="crm2-btn crm2-btn--ghost" onClick={loadDraft}>Tải nháp</button>}
+            <button className="crm2-btn crm2-btn--ghost" onClick={close}>Hủy</button>
+          </div>
+          <div>
+            {!isMobileCustomerForm && step < 2 ? (
+              <button className="crm2-btn crm2-btn--primary" onClick={next}>
+                Tiếp tục <ChevronRight size={14}/>
+              </button>
+            ) : (
+              <button className="crm2-btn crm2-btn--primary" onClick={submit} disabled={saving || (isMobileCustomerForm && !canSubmitCustomerForm)}>
+                <Save size={14}/>{saving ? 'Đang lưu...' : isNew ? 'Tạo khách hàng' : 'Lưu thay đổi'}
+              </button>
+            )}
+          </div>
+        </div>
       </div>
       {/* Progress bar */}
       <div className="crm2-wizard-progress">
@@ -478,7 +514,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
       )}
 
       {/* Step 0: Công ty */}
-      {step === 0 && (
+      {(isMobileCustomerForm || step === 0) && (
         <div className="crm2-wizard-card" key="step-0">
           <div className="crm2-wizard-card-header">
             <div className="crm2-wizard-card-icon">{isIndividual(form) ? <User size={20}/> : <Building2 size={20}/>}</div>
@@ -505,7 +541,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
       )}
 
       {/* Step 1: Liên hệ */}
-      {step === 1 && (
+      {(isMobileCustomerForm || step === 1) && (
         <div className="crm2-wizard-card" key="step-1">
           <div className="crm2-wizard-card-header">
             <div className="crm2-wizard-card-icon"><User size={20}/></div>
@@ -524,7 +560,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
       )}
 
       {/* Step 2: Phân công */}
-      {step === 2 && (
+      {(isMobileCustomerForm || step === 2) && (
         <div className="crm2-wizard-card" key="step-2">
           <div className="crm2-wizard-card-header">
             <div className="crm2-wizard-card-icon"><Users size={20}/></div>
@@ -558,26 +594,6 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
         </div>
       )}
 
-      {/* Floating action bar */}
-      <div className="crm2-wizard-actions">
-        <div className="crm2-wizard-actions-left">
-          {step > 0 && <button className="crm2-btn crm2-btn--ghost" onClick={back}><ArrowLeft size={14}/> Quay lại</button>}
-          <button className="crm2-btn crm2-btn--ghost" onClick={saveDraft}>Lưu nháp</button>
-          {!customer && <button className="crm2-btn crm2-btn--ghost" onClick={loadDraft}>Tải nháp</button>}
-          <button className="crm2-btn crm2-btn--ghost" onClick={close}>Hủy</button>
-        </div>
-        <div>
-          {step < 2 ? (
-            <button className="crm2-btn crm2-btn--primary" onClick={next}>
-              Tiếp tục <ChevronRight size={14}/>
-            </button>
-          ) : (
-            <button className="crm2-btn crm2-btn--primary" onClick={submit} disabled={saving}>
-              <Save size={14}/>{saving ? 'Đang lưu...' : isNew ? 'Tạo khách hàng' : 'Lưu thay đổi'}
-            </button>
-          )}
-        </div>
-      </div>
     </div>
   );
 }
@@ -631,9 +647,9 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
   ];
 
   return (
-    <>
-      <div className="crm2-overlay crm2-overlay--open" onClick={onClose} />
-      <div className="crm2-slide-panel crm2-slide-panel--open" ref={panelRef} role="dialog" aria-modal="true" aria-label={`Chi tiết khách hàng ${displayName(customer)}`}>
+      <>
+        <div className="crm2-overlay crm2-overlay--open" onClick={onClose} />
+        <div className="crm2-slide-panel crm2-slide-panel--open" ref={panelRef} role="dialog" aria-modal="true" aria-label={`Chi tiết khách hàng ${displayName(customer)}`}>
         {/* Panel header */}
         <div className="crm2-panel-header">
           <div className="crm2-panel-avatar" style={{ background: getAvatarColor(customer.id) }}>
@@ -2535,9 +2551,183 @@ const CRM2_STYLES = `
 @media (max-width: 768px) {
   .crm2-root { padding: 10px; max-width: 100%; overflow: hidden; }
   .crm2-card-grid { grid-template-columns: 1fr; }
-  .crm2-slide-panel { width: 100vw; }
-  .crm2-edit-panel { right: 0; width: 100vw; max-width: 100vw; z-index: 103; }
-  .crm2-info-grid { grid-template-columns: 1fr; }
+  .lts-shell--mobile .crm2-overlay { z-index: 1390; background: rgba(15,23,42,0.42); }
+  .lts-shell--mobile .crm2-slide-panel,
+  .lts-shell--mobile .crm2-edit-panel {
+    top: auto;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    max-width: 100vw;
+    height: 76dvh;
+    min-height: 76dvh;
+    max-height: 76dvh;
+    border-left: 0;
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 -18px 44px rgba(15,23,42,.24);
+    z-index: 1400;
+    overflow-y: auto;
+  }
+  .lts-shell--mobile .crm2-slide-panel { transform: translateY(100%); transition: transform 0.28s cubic-bezier(0.4,0,0.2,1); }
+  .lts-shell--mobile .crm2-slide-panel--open { transform: translateY(0); }
+  .lts-shell--mobile .crm2-edit-panel { transform: translateY(100%); animation: none; }
+  .lts-shell--mobile .crm2-edit-panel--open { transform: translateY(0); transition: transform 0.28s cubic-bezier(0.4,0,0.2,1); }
+  .lts-shell--mobile .crm2-slide-panel::before,
+  .lts-shell--mobile .crm2-edit-panel::before {
+    content: "";
+    display: block;
+    width: 44px;
+    height: 5px;
+    margin: 10px auto 0;
+    border-radius: 999px;
+    background: #cbd5e1;
+    flex-shrink: 0;
+  }
+  .lts-shell--mobile .crm2-slide-panel { display: flex; flex-direction: column; }
+  .lts-shell--mobile .crm2-panel-header { padding: 8px 16px 10px; gap: 10px; flex-shrink: 0; }
+  .lts-shell--mobile .crm2-panel-avatar { width: 44px; height: 44px; font-size: 15px; }
+  .lts-shell--mobile .crm2-panel-title h3 { font-size: 16px; line-height: 1.2; }
+  .lts-shell--mobile .crm2-panel-meta { margin-top: 3px; gap: 5px; }
+  .lts-shell--mobile .crm2-panel-seller { margin-top: 3px; }
+  .lts-shell--mobile .crm2-panel-actions { padding: 8px 16px; flex-shrink: 0; }
+  .lts-shell--mobile .crm2-panel-tabs { padding: 0 12px; flex-shrink: 0; overflow-x: auto; }
+  .lts-shell--mobile .crm2-panel-tab { min-height: 42px; padding: 9px 10px; white-space: nowrap; }
+  .lts-shell--mobile .crm2-panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .lts-shell--mobile .crm2-edit-panel {
+    display: block;
+    padding-top: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-y;
+  }
+  .lts-shell--mobile .crm2-wizard-sticky-top {
+    position: sticky;
+    top: 0;
+    z-index: 6;
+    margin: 0 -14px 8px;
+    padding-top: 4px;
+    background: var(--card, #fff);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
+  }
+  .lts-shell--mobile .crm2-edit-panel .crm2-wizard-wrap {
+    max-width: 100%;
+    min-height: max-content;
+    padding: 0 14px calc(20px + env(safe-area-inset-bottom, 0px));
+  }
+  .lts-shell--mobile .crm2-wizard-header {
+    padding: 8px 16px 10px;
+    background: var(--card, #fff);
+    border-bottom: 0;
+  }
+  .lts-shell--mobile .crm2-wizard-actions {
+    margin: 0;
+    padding: 8px 12px;
+    border-top: 0;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+    gap: 6px;
+    background: var(--card, #fff);
+  }
+  .lts-shell--mobile .crm2-wizard-actions-left {
+    display: inline-flex;
+    gap: 0;
+    flex: 1;
+    min-width: 0;
+    max-width: calc(100% - 96px);
+    overflow-x: auto;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    border-radius: 12px;
+    background: #fff;
+    scrollbar-width: none;
+  }
+  .lts-shell--mobile .crm2-wizard-actions-left::-webkit-scrollbar { display: none; }
+  .lts-shell--mobile .crm2-wizard-actions-left .crm2-btn {
+    min-height: 34px;
+    height: 34px;
+    padding: 0 10px;
+    border: 0;
+    border-right: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 0;
+    background: #fff;
+    color: #1f2937;
+    font-size: 12px;
+    font-weight: 650;
+    line-height: 1;
+  }
+  .lts-shell--mobile .crm2-wizard-actions-left .crm2-btn:last-child { border-right: 0; }
+  .lts-shell--mobile .crm2-wizard-actions > div:last-child .crm2-btn {
+    min-width: 86px;
+    min-height: 34px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1;
+  }
+  .lts-shell--mobile .crm2-wizard-actions > div:last-child .crm2-btn--primary {
+    border: 1px solid #4f46e5;
+    background: #4f46e5;
+    color: #fff;
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.18);
+  }
+  .lts-shell--mobile .crm2-wizard-actions > div:last-child .crm2-btn--primary:disabled {
+    border-color: #cbd5e1;
+    background: #e2e8f0;
+    color: #64748b;
+    box-shadow: none;
+  }
+  .lts-shell--mobile .crm2-edit-panel .crm2-wizard-progress,
+  .lts-shell--mobile .crm2-edit-panel .crm2-wizard-steps { display: none; }
+  .lts-shell--mobile .crm2-wizard-step { padding: 7px 10px; white-space: nowrap; }
+  .lts-shell--mobile .crm2-wizard-summary,
+  .lts-shell--mobile .crm2-field-hint,
+  .lts-shell--mobile .crm2-wizard-card-icon,
+  .lts-shell--mobile .crm2-wizard-card-header p { display: none; }
+  .lts-shell--mobile .crm2-edit-panel .crm2-wizard-card { padding: 10px 12px; margin-bottom: 8px; border-radius: 14px; }
+  .lts-shell--mobile .crm2-wizard-card-header { margin-bottom: 10px; }
+  .lts-shell--mobile .crm2-edit-panel .crm2-wizard-card-header { margin-bottom: 8px; }
+  .lts-shell--mobile .crm2-edit-panel .crm2-wizard-card-header h3 { font-size: 14px; line-height: 1.2; }
+  .lts-shell--mobile .crm2-edit-panel .crm2-wizard-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 10px;
+    row-gap: 10px;
+  }
+  .lts-shell--mobile .crm2-edit-panel .crm2-field:has(#wiz-address),
+  .lts-shell--mobile .crm2-edit-panel .crm2-field:has(#wiz-invoiceAddress),
+  .lts-shell--mobile .crm2-edit-panel .crm2-field:has(#wiz-contactNotes),
+  .lts-shell--mobile .crm2-edit-panel .crm2-field:has(#wiz-assignmentNote),
+  .lts-shell--mobile .crm2-edit-panel .crm2-field:has(#wiz-notes) {
+    grid-column: 1 / -1;
+  }
+  .lts-shell--mobile .crm2-edit-panel .crm2-field { gap: 3px; min-width: 0; }
+  .lts-shell--mobile .crm2-edit-panel .crm2-field-label { font-size: 11px; line-height: 1.2; }
+  .lts-shell--mobile .crm2-edit-panel .crm2-input { min-height: 42px; padding: 7px 10px; border-radius: 10px; font-size: 14px; }
+  .lts-shell--mobile .crm2-edit-panel .crm2-textarea { min-height: 64px; }
+  .lts-shell--mobile .crm2-slide-panel .crm2-info-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 14px;
+    row-gap: 12px;
+  }
+  .lts-shell--mobile .crm2-slide-panel .crm2-info-item--full,
+  .lts-shell--mobile .crm2-slide-panel .crm2-info-item:has(.crm2-manager-list),
+  .lts-shell--mobile .crm2-slide-panel .crm2-info-item:has(.crm2-info-history) {
+    grid-column: 1 / -1;
+  }
+  .lts-shell--mobile .crm2-slide-panel .crm2-info-item {
+    gap: 1px;
+    min-width: 0;
+  }
+  .lts-shell--mobile .crm2-slide-panel .crm2-info-label {
+    font-size: 10px;
+    line-height: 1.2;
+    letter-spacing: .25px;
+  }
+  .lts-shell--mobile .crm2-slide-panel .crm2-info-value {
+    font-size: 13px;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+  }
   .crm2-header,
   .crm2-search-bar,
   .crm2-toolbar,
