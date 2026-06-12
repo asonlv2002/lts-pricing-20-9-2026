@@ -2,6 +2,14 @@
 
 Primary project guidance lives in [CLAUDE.md](./CLAUDE.md). Always read and follow it.
 
+## Mandatory Rule: UI Skill Selection
+
+When choosing a UI/design skill for this project:
+
+- Use `ui-ux-pro-max` for anything related to the UI of web mobile, including "web mobile", "UI web mobile", "mobile tren web", mobile layout, mobile styling, mobile interaction states, or mobile responsiveness in `apps/web`.
+- Use `frontend-design` for other frontend UI/design work that is not specifically web mobile.
+- If a task affects both web mobile and non-mobile frontend UI, use `ui-ux-pro-max` first for the web mobile constraints, then use `frontend-design` only for the non-mobile UI parts if still needed.
+
 ## Mandatory Rule: UI Sketch Requests
 
 When the user asks to "vẽ ra", "vẽ lại", "vẽ UI", or uses any instruction where "vẽ" means sketching or illustrating a UI/layout concept:
