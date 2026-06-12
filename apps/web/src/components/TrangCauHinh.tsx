@@ -873,10 +873,10 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                   </div>
                 ))}
                 <div className="config-interest-days-row config-interest-days-add" style={{display:'grid', gridTemplateColumns:'72px 1fr 1fr', borderTop:'1px solid var(--border)'}}>
-                  <div style={{padding:'6px 8px', display:'flex', alignItems:'center', justifyContent:'flex-start'}}>
+                  <div className="config-interest-days-add-action" style={{padding:'6px 8px', display:'flex', alignItems:'center', justifyContent:'flex-start'}}>
                     <button className="btn btn-sm btn-outline" disabled={!hopLeNgayCongNoMoi} onClick={themNgayCongNo}>+ Thêm</button>
                   </div>
-                  <div style={{padding:'8px 10px', display:'flex', justifyContent:'center', alignItems:'center'}}>
+                  <div className="config-interest-days-add-input" style={{padding:'8px 10px', display:'flex', justifyContent:'center', alignItems:'center'}}>
                     <input
                       type="text"
                       inputMode="numeric"
@@ -892,7 +892,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                       style={{width:'110px', textAlign:'center'}}
                     />
                   </div>
-                  <div style={{padding:'10px', textAlign:'center', fontSize:'1.05rem', fontWeight:800, color:'var(--accent)'}}>
+                  <div className="config-interest-days-add-preview" style={{padding:'10px', textAlign:'center', fontSize:'1.05rem', fontWeight:800, color:'var(--accent)'}}>
                     {hopLeNgayCongNoMoi ? `${dinhDangTyLeLaiNgay(soNgayCongNoMoi)}%` : '--'}
                   </div>
                 </div>
