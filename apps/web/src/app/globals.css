@@ -7554,3 +7554,235 @@ body {
     content: "Tỷ lệ lãi dự kiến: ";
   }
 }
+
+@media (max-width: 767px) {
+  .lts-shell--mobile .config-page .config-cpsx-split,
+  html.in-config-page .config-page .config-cpsx-split {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-panel,
+  html.in-config-page .config-page .config-cpsx-panel {
+    min-width: 0 !important;
+    padding: 10px !important;
+    border-right: 0 !important;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-panel .form-input,
+  .lts-shell--mobile .config-page .config-cpsx-panel .config-inline-input,
+  html.in-config-page .config-page .config-cpsx-panel .form-input,
+  html.in-config-page .config-page .config-cpsx-panel .config-inline-input {
+    width: 100% !important;
+    min-height: 38px;
+    height: 38px;
+    padding: 6px 9px;
+    font-size: 13px;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-param .config-inline-input,
+  .lts-shell--mobile .config-page .config-cut-rules-table .config-inline-input,
+  html.in-config-page .config-page .config-cpsx-param .config-inline-input,
+  html.in-config-page .config-page .config-cut-rules-table .config-inline-input {
+    min-height: 34px;
+    height: 34px;
+    padding: 5px 8px;
+    font-size: 12px;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-field-row,
+  html.in-config-page .config-page .config-cpsx-field-row {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 6px !important;
+    align-items: stretch !important;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-labor-row,
+  html.in-config-page .config-page .config-cpsx-labor-row {
+    grid-template-columns: minmax(0, 1fr) auto !important;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-labor-row > span:first-child,
+  html.in-config-page .config-page .config-cpsx-labor-row > span:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-param-pair,
+  html.in-config-page .config-page .config-cpsx-param-pair {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 8px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-param-pair > span:first-child,
+  html.in-config-page .config-page .config-cpsx-param-pair > span:first-child {
+    grid-column: 1 / -1;
+    color: var(--muted);
+    font-size: 0.8rem;
+    font-weight: 700;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-param-pair > span:not(:first-child),
+  html.in-config-page .config-page .config-cpsx-param-pair > span:not(:first-child) {
+    display: none;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-setup-row::before,
+  .lts-shell--mobile .config-page .config-cpsx-short-run-row::before,
+  html.in-config-page .config-page .config-cpsx-setup-row::before,
+  html.in-config-page .config-page .config-cpsx-short-run-row::before {
+    grid-column: 1 / -1;
+    color: var(--text);
+    font-size: 0.86rem;
+    font-weight: 700;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-setup-row::before,
+  html.in-config-page .config-page .config-cpsx-setup-row::before {
+    content: "Setup: số màu x thời gian setup / 60 phút";
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-short-run-row::before,
+  html.in-config-page .config-page .config-cpsx-short-run-row::before {
+    content: "Sản xuất ngắn: ngưỡng mét và năng suất";
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-waste-grid,
+  html.in-config-page .config-page .config-cpsx-waste-grid {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+    gap: 8px !important;
+    align-items: stretch !important;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-param,
+  html.in-config-page .config-page .config-cpsx-param {
+    align-items: stretch !important;
+    min-width: 0;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-param-a,
+  html.in-config-page .config-page .config-cpsx-param-a {
+    grid-column: 1 / -1;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-param-b,
+  .lts-shell--mobile .config-page .config-cpsx-param-c,
+  html.in-config-page .config-page .config-cpsx-param-b,
+  html.in-config-page .config-page .config-cpsx-param-c {
+    padding: 8px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface2);
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-operator,
+  html.in-config-page .config-page .config-cpsx-operator {
+    display: none;
+  }
+
+  .lts-shell--mobile .config-page .config-cut-rules-wrap,
+  html.in-config-page .config-page .config-cut-rules-wrap {
+    overflow: visible !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+  }
+
+  .lts-shell--mobile .config-page .config-cut-rules-table,
+  .lts-shell--mobile .config-page .config-cut-rules-table tbody,
+  html.in-config-page .config-page .config-cut-rules-table,
+  html.in-config-page .config-page .config-cut-rules-table tbody {
+    display: block;
+    width: 100%;
+  }
+
+  .lts-shell--mobile .config-page .config-cut-rules-table thead,
+  html.in-config-page .config-page .config-cut-rules-table thead {
+    display: none;
+  }
+
+  .lts-shell--mobile .config-page .config-cut-rules-table tr,
+  html.in-config-page .config-page .config-cut-rules-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+
+  .lts-shell--mobile .config-page .config-cut-rules-table td,
+  html.in-config-page .config-page .config-cut-rules-table td {
+    display: grid;
+    gap: 4px;
+    padding: 0 !important;
+    border: 0 !important;
+    text-align: left !important;
+  }
+
+  .lts-shell--mobile .config-page .config-cut-rules-table td::before,
+  html.in-config-page .config-page .config-cut-rules-table td::before {
+    content: attr(data-label);
+    color: var(--muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .lts-shell--mobile .config-page .config-cut-rules-table td:first-child,
+  .lts-shell--mobile .config-page .config-cut-rules-table td.cut-preview,
+  html.in-config-page .config-page .config-cut-rules-table td:first-child,
+  html.in-config-page .config-page .config-cut-rules-table td.cut-preview {
+    grid-column: 1 / -1;
+  }
+
+  .lts-shell--mobile .config-page .config-cut-rules-table td:last-child,
+  html.in-config-page .config-page .config-cut-rules-table td:last-child {
+    grid-column: 1 / -1;
+    justify-content: end;
+  }
+
+  .lts-shell--mobile .config-page .config-cut-rules-table td:last-child::before,
+  html.in-config-page .config-page .config-cut-rules-table td:last-child::before {
+    content: none;
+  }
+
+  .lts-shell--mobile .config-page .config-cut-rule-delete-btn,
+  html.in-config-page .config-page .config-cut-rule-delete-btn {
+    display: inline-flex;
+    min-height: 34px;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 10px;
+    border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent) !important;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--danger) 8%, transparent) !important;
+    font-size: 0 !important;
+  }
+
+  .lts-shell--mobile .config-page .config-cut-rule-delete-btn::before,
+  html.in-config-page .config-page .config-cut-rule-delete-btn::before {
+    content: "Xóa quy tắc";
+    font-size: 12px;
+    font-weight: 700;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-cut-card > .btn,
+  html.in-config-page .config-page .config-cpsx-cut-card > .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-cut-card > .btn::after,
+  html.in-config-page .config-page .config-cpsx-cut-card > .btn::after {
+    content: " quy tắc cắt";
+  }
+}

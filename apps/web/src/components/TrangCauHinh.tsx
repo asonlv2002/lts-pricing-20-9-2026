@@ -790,31 +790,31 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           )}
           {/* 1.4 CPSX khâu in */}
           {hienSanXuat && (
-          <div className="card config-card">
+          <div className="card config-card config-cpsx-print-card">
             <div className="config-section-title"><span>🖨️ CPSX Khâu in</span></div>
-            <div style={{display:'flex', alignItems:'stretch', gap:'0'}}>
-              <div style={{padding:'12px 20px 12px 0', minWidth:'220px', borderRight:'2px solid var(--border)'}}>
+            <div className="config-cpsx-split" style={{display:'flex', alignItems:'stretch', gap:'0'}}>
+              <div className="config-cpsx-panel config-cpsx-main-panel" style={{padding:'12px 20px 12px 0', minWidth:'220px', borderRight:'2px solid var(--border)'}}>
                 <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>CPSX in thường</div>
                 <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', marginBottom:'8px'}}>CPSX khâu in (đ/m²)</div>
                 <input type="number" className="form-input" value={hangSo.laborCost} onChange={e => capNhatHangSo('laborCost', parseFloat(e.target.value)||0)} style={{width:'120px', fontWeight:700}} />
                 <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'8px'}}>Không áp dụng cho Màng in</div>
               </div>
-              <div style={{padding:'12px 0 12px 20px', flex:1}}>
+              <div className="config-cpsx-panel config-cpsx-formula-panel" style={{padding:'12px 0 12px 20px', flex:1}}>
                 <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>CP Màng in</div>
-                <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'10px'}}>
+                <div className="config-cpsx-field-row config-cpsx-labor-row" style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'10px'}}>
                   <span style={{fontSize:'0.82rem', color:'var(--muted)', fontWeight:600}}>Chi phí nhân công/giờ</span>
                   <input type="text" inputMode="numeric" className="config-inline-input" value={dinhDangVnd(hangSo.printFilmLaborCostPerHour ?? 1200000)}
                     onChange={e => capNhatHangSoSo('printFilmLaborCostPerHour', docSoVnd(e.target.value), 1200000)}
                     style={{width:'120px', fontWeight:700, textAlign:'right'}} />
                   <span style={{fontSize:'0.82rem', color:'var(--muted)'}}>đ/giờ</span>
                 </div>
-                <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'8px'}}>
+                <div className="config-cpsx-field-row config-cpsx-param-pair config-cpsx-setup-row" style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'8px'}}>
                   <span>Setup = Số màu ×</span>
                   <input type="number" className="config-inline-input" style={{width:'58px', fontWeight:700, textAlign:'center'}} value={hangSo.printFilmSetupMinutesPerColor ?? 20} onChange={e => capNhatHangSoSo('printFilmSetupMinutesPerColor', parseFloat(e.target.value), 20)} />
                   <span>/</span>
                   <input type="number" className="config-inline-input" style={{width:'58px', fontWeight:700, textAlign:'center'}} value={hangSo.printFilmSetupHourDivisor ?? 60} onChange={e => capNhatHangSoSo('printFilmSetupHourDivisor', parseFloat(e.target.value), 60)} />
                 </div>
-                <div style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'8px'}}>
+                <div className="config-cpsx-field-row config-cpsx-param-pair config-cpsx-short-run-row" style={{display:'flex', alignItems:'center', gap:'8px', flexWrap:'wrap', marginBottom:'8px'}}>
                   <span>SX &lt;</span>
                   <input type="text" inputMode="numeric" className="config-inline-input" style={{width:'78px', fontWeight:700, textAlign:'center'}} value={dinhDangVnd(hangSo.printFilmLengthThreshold ?? 40000)} onChange={e => capNhatHangSoSo('printFilmLengthThreshold', docSoVnd(e.target.value), 40000)} />
                   <span>: mét /</span>
@@ -916,32 +916,32 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           {/* NHOM 2: CHI PHI KHAU GHEP */}
           {(hienSanXuat || hienHaoHut || hienCongThuc) && <div className="config-group-header" id="sect-config-ghep" style={{scrollMarginTop: '80px'}}>🔗 CPSX Khâu Ghép</div>}
           {(hienSanXuat || hienHaoHut || hienCongThuc) && (
-          <div className="card config-card">
-            <div style={{display:'flex', alignItems:'stretch', gap:'0'}}>
+          <div className="card config-card config-cpsx-merge-card">
+            <div className="config-cpsx-split" style={{display:'flex', alignItems:'stretch', gap:'0'}}>
               {/* Cột trái: CPSX Ghép */}
-              <div style={{padding:'12px 20px 12px 0', minWidth:'180px', borderRight:'2px solid var(--border)', display: anCotCPSX ? 'none' : undefined}}>
+              <div className="config-cpsx-panel config-cpsx-main-panel" style={{padding:'12px 20px 12px 0', minWidth:'180px', borderRight:'2px solid var(--border)', display: anCotCPSX ? 'none' : undefined}}>
                 <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>CPSX ghép (đ/m²)</div>
                 <input type="number" className="form-input" value={hangSo.ghepCPSX} onChange={e => capNhatHangSo('ghepCPSX', parseFloat(e.target.value)||0)} style={{width:'130px'}} />
               </div>
               {/* Cột phải: Phi hao */}
-              <div style={{padding:'12px 0 12px 20px', flex:1, display: anCotPhiHao ? 'none' : undefined}}>
+              <div className="config-cpsx-panel config-cpsx-formula-panel" style={{padding:'12px 0 12px 20px', flex:1, display: anCotPhiHao ? 'none' : undefined}}>
                 <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>Phi hao ghép = (Chiều dài × A × B) + C</div>
-                <div style={{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap'}}>
-                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
+                <div className="config-cpsx-waste-grid" style={{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap'}}>
+                  <div className="config-cpsx-param config-cpsx-param-a" style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
                     <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>A - mẫu số</span>
                     <input type="number" className="config-inline-input" style={{width:'80px', fontWeight:700, textAlign:'center'}}
                       value={hangSo.ghepWasteA ?? 3000}
                       onChange={e => capNhatHangSo('ghepWasteA', parseFloat(e.target.value)||3000)} />
                   </div>
-                  <span style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>×</span>
-                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
+                  <span className="config-cpsx-operator" style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>×</span>
+                  <div className="config-cpsx-param config-cpsx-param-b" style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
                     <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>B - hao/A mét</span>
                     <input type="number" className="config-inline-input" style={{width:'70px', fontWeight:700, textAlign:'center'}}
                       value={hangSo.ghepWasteB ?? 20}
                       onChange={e => capNhatHangSo('ghepWasteB', parseFloat(e.target.value)||0)} />
                   </div>
-                  <span style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>+</span>
-                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
+                  <span className="config-cpsx-operator" style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>+</span>
+                  <div className="config-cpsx-param config-cpsx-param-c" style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
                     <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>C - cố định (m)</span>
                     <input type="number" className="config-inline-input" style={{width:'70px', fontWeight:700, textAlign:'center'}}
                       value={hangSo.ghepWasteC ?? 100}
@@ -956,32 +956,32 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
           {/* NHOM 3: CHI PHI KHAU CAT */}
           {(hienSanXuat || hienHaoHut || hienCongThuc) && <div className="config-group-header" id="sect-config-cat" style={{scrollMarginTop: '80px'}}>✂️ CPSX Khâu Cắt</div>}
           {(hienSanXuat || hienHaoHut || hienCongThuc) && (
-          <div className="card config-card">
-            <div style={{display:'flex', alignItems:'stretch', gap:'0'}}>
+          <div className="card config-card config-cpsx-cut-card">
+            <div className="config-cpsx-split" style={{display:'flex', alignItems:'stretch', gap:'0'}}>
               {/* Cột trái: CPSX Cắt cơ bản */}
-              <div style={{padding:'12px 20px 12px 0', minWidth:'180px', borderRight:'2px solid var(--border)', display: anCotCPSX ? 'none' : undefined}}>
+              <div className="config-cpsx-panel config-cpsx-main-panel" style={{padding:'12px 20px 12px 0', minWidth:'180px', borderRight:'2px solid var(--border)', display: anCotCPSX ? 'none' : undefined}}>
                 <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>CPSX cắt cơ bản (đ)</div>
                 <input type="number" className="form-input" value={hangSo.cutBase} onChange={e => capNhatHangSo('cutBase', parseFloat(e.target.value)||0)} style={{width:'130px'}} />
               </div>
               {/* Cột phải: Phi hao cắt */}
-              <div style={{padding:'12px 0 12px 20px', flex:1, display: anCotPhiHao ? 'none' : undefined}}>
+              <div className="config-cpsx-panel config-cpsx-formula-panel" style={{padding:'12px 0 12px 20px', flex:1, display: anCotPhiHao ? 'none' : undefined}}>
                 <div style={{fontSize:'0.78rem', fontWeight:600, color:'var(--muted)', textTransform:'uppercase', letterSpacing:'0.05em', marginBottom:'8px'}}>Phi hao cắt = (Chiều dài × A × B) + C</div>
-                <div style={{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap'}}>
-                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
+                <div className="config-cpsx-waste-grid" style={{display:'flex', alignItems:'center', gap:'10px', flexWrap:'wrap'}}>
+                  <div className="config-cpsx-param config-cpsx-param-a" style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
                     <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>A - mẫu số</span>
                     <input type="number" className="config-inline-input" style={{width:'80px', fontWeight:700, textAlign:'center'}}
                       value={hangSo.cutWasteA ?? 3000}
                       onChange={e => capNhatHangSo('cutWasteA', parseFloat(e.target.value)||3000)} />
                   </div>
-                  <span style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>×</span>
-                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
+                  <span className="config-cpsx-operator" style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>×</span>
+                  <div className="config-cpsx-param config-cpsx-param-b" style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
                     <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>B - hao/A mét</span>
                     <input type="number" className="config-inline-input" style={{width:'70px', fontWeight:700, textAlign:'center'}}
                       value={hangSo.cutWasteB ?? 20}
                       onChange={e => capNhatHangSo('cutWasteB', parseFloat(e.target.value)||0)} />
                   </div>
-                  <span style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>+</span>
-                  <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
+                  <span className="config-cpsx-operator" style={{color:'var(--muted)', fontSize:'1.1rem', marginTop:'16px'}}>+</span>
+                  <div className="config-cpsx-param config-cpsx-param-c" style={{display:'flex', flexDirection:'column', alignItems:'center', gap:'3px'}}>
                     <span style={{fontSize:'0.75rem', color:'var(--muted)'}}>C - cố định (m)</span>
                     <input type="number" className="config-inline-input" style={{width:'70px', fontWeight:700, textAlign:'center'}}
                       value={hangSo.cutWasteC ?? 100}
@@ -990,8 +990,8 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                 </div>
               </div>
             </div>
-            <div className="config-table-wrap" style={{marginTop:'12px', display: anCotCPSX ? 'none' : undefined}}>
-              <table className="config-table">
+            <div className="config-table-wrap config-cut-rules-wrap" style={{marginTop:'12px', display: anCotCPSX ? 'none' : undefined}}>
+              <table className="config-table config-cut-rules-table">
                 <thead>
                   <tr>
                     <th>Diện tích túi</th>
@@ -1006,11 +1006,11 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                     const laDongCuoi = index === quyTacCat.length - 1;
                     return (
                       <tr key={index}>
-                        <td><input type="text" className="config-inline-input" value={rule.label} onChange={e => capNhatQuyTacCat(index, { label: e.target.value })} /></td>
-                        <td>{laDongCuoi ? '-' : <input type="number" className="config-inline-input" value={rule.threshold ?? 0} step="0.01" onChange={e => capNhatQuyTacCat(index, { threshold: parseFloat(e.target.value)||0 })} />}</td>
-                        <td><input type="number" className="config-inline-input" value={rule.multiplier} step="0.1" onChange={e => capNhatQuyTacCat(index, { multiplier: parseFloat(e.target.value)||0 })} /></td>
-                        <td className="cut-preview">{(hangSo.cutBase * rule.multiplier).toLocaleString('vi-VN', {maximumFractionDigits:0})}</td>
-                        <td><button className="btn btn-sm" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer'}} onClick={() => xoaQuyTacCat(index)}>✕</button></td>
+                        <td data-label="Diện tích túi"><input type="text" className="config-inline-input" value={rule.label} onChange={e => capNhatQuyTacCat(index, { label: e.target.value })} /></td>
+                        <td data-label="Ngưỡng">{laDongCuoi ? '-' : <input type="number" className="config-inline-input" value={rule.threshold ?? 0} step="0.01" onChange={e => capNhatQuyTacCat(index, { threshold: parseFloat(e.target.value)||0 })} />}</td>
+                        <td data-label="Hệ số"><input type="number" className="config-inline-input" value={rule.multiplier} step="0.1" onChange={e => capNhatQuyTacCat(index, { multiplier: parseFloat(e.target.value)||0 })} /></td>
+                        <td data-label="CPSX thực tế" className="cut-preview">{(hangSo.cutBase * rule.multiplier).toLocaleString('vi-VN', {maximumFractionDigits:0})}</td>
+                        <td className="config-cut-rule-delete-cell"><button className="btn btn-sm config-cut-rule-delete-btn" style={{color:'var(--danger)', background:'transparent', border:'none', cursor:'pointer'}} onClick={() => xoaQuyTacCat(index)}>✕</button></td>
                       </tr>
                     );
                   })}

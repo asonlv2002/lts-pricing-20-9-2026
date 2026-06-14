@@ -4,7 +4,8 @@ import {
   AlertCircle, ArrowLeft, Briefcase, Building2, ChevronDown, ChevronRight,
   Copy, Download, Eye, FileText, Hash, Lock,
   Mail, MapPin, Package, Pencil, Phone, Plus, Save, Search,
-  Shield, Unlock, User, Users, X, ClipboardList, RotateCcw, Check, Settings
+  Shield, Unlock, User, Users, X, ClipboardList, RotateCcw, Check, Settings,
+  SlidersHorizontal
 } from 'lucide-react';
 import seedCustomers from '../data/customers.json';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
@@ -960,6 +961,38 @@ function CustomerAuditTab({ auditLog, customers, users, currentUser }: { auditLo
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [search, setSearch] = useState('');
+  const [showFilterSheet, setShowFilterSheet] = useState(false);
+
+  const activeFilterCount =
+    (timeRange !== '7days' ? 1 : 0) +
+    (filterUser ? 1 : 0) +
+    filterAction.size +
+    filterField.size;
+
+  const resetAllFilters = () => {
+    setTimeRange('7days');
+    setCustomFrom('');
+    setCustomTo('');
+    setFilterUser('');
+    setFilterAction(new Set());
+    setFilterField(new Set());
+  };
+
+  // Lock body scroll while sheet open
+  useEffect(() => {
+    if (!showFilterSheet) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [showFilterSheet]);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!showFilterSheet) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowFilterSheet(false); };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [showFilterSheet]);
 
   const allUsers = useMemo(() => {
     const seen = new Map<string, string>();
@@ -1082,8 +1115,74 @@ function CustomerAuditTab({ auditLog, customers, users, currentUser }: { auditLo
 
   return (
     <div style={{ padding: '0 0 24px' }}>
-      {/* Filter bar */}
-      <div style={{ background: 'var(--card,#fff)', border: '1px solid var(--border,#e5e7eb)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+      {/* Mobile compact filter bar (hidden on desktop) */}
+      <div className="crm2-audit-mobile-bar">
+        <div className="crm2-search-bar crm2-audit-mobile-search">
+          <Search size={16} className="crm2-search-icon" />
+          <input
+            className="crm2-search-input"
+            placeholder="Tìm theo hành động, người dùng..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+          {search && (
+            <button className="crm2-btn-icon crm2-search-clear" aria-label="Xóa" onClick={() => setSearch('')}>
+              <X size={14}/>
+            </button>
+          )}
+        </div>
+        <div className="crm2-audit-mobile-row">
+          <select
+            className="crm2-input crm2-audit-mobile-time"
+            value={timeRange}
+            onChange={e => setTimeRange(e.target.value as AuditTimeRange)}
+            aria-label="Khoảng thời gian"
+          >
+            <option value="today">Hôm nay</option>
+            <option value="7days">7 ngày qua</option>
+            <option value="30days">30 ngày qua</option>
+            <option value="month">Tháng này</option>
+            <option value="custom">Tùy chỉnh</option>
+          </select>
+          <button
+            type="button"
+            className="crm2-audit-mobile-filter-btn"
+            onClick={() => setShowFilterSheet(true)}
+            aria-label="Mở bộ lọc"
+            aria-expanded={showFilterSheet}
+          >
+            <SlidersHorizontal size={16}/>
+            <span>Bộ lọc</span>
+            {activeFilterCount > 0 && (
+              <span className="crm2-audit-mobile-badge">{activeFilterCount}</span>
+            )}
+          </button>
+        </div>
+        {timeRange === 'custom' && (
+          <div className="crm2-audit-mobile-custom-range">
+            <span>Từ:</span>
+            <input type="date" className="crm2-input" value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+            <span>Đến:</span>
+            <input type="date" className="crm2-input" value={customTo} onChange={e => setCustomTo(e.target.value)} />
+          </div>
+        )}
+        {activeChips.length > 0 && (
+          <div className="crm2-audit-mobile-chips">
+            {activeChips.map((c, i) => (
+              <span key={i} className="crm2-audit-mobile-chip">
+                {c.label}
+                <button onClick={c.clear} aria-label={`Xóa lọc ${c.label}`}><X size={11}/></button>
+              </span>
+            ))}
+            <button type="button" className="crm2-audit-mobile-clear-all" onClick={resetAllFilters}>
+              Xóa tất cả
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop filter bar */}
+      <div className="crm2-audit-desktop-filter" style={{ background: 'var(--card,#fff)', border: '1px solid var(--border,#e5e7eb)', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {/* Time range */}
           <select className="crm2-input" value={timeRange} onChange={e => setTimeRange(e.target.value as AuditTimeRange)} style={{ width: 130, fontSize: 13 }}>
@@ -1162,6 +1261,131 @@ function CustomerAuditTab({ auditLog, customers, users, currentUser }: { auditLo
           </div>
         )}
       </div>
+
+      {/* Mobile bottom sheet for advanced filter */}
+      {showFilterSheet && (
+        <div className="crm2-audit-sheet-portal" role="dialog" aria-modal="true" aria-label="Bộ lọc nhật ký">
+          <div className="crm2-audit-sheet-scrim" onClick={() => setShowFilterSheet(false)} />
+          <div className="crm2-audit-sheet">
+            <button
+              type="button"
+              className="crm2-audit-sheet-handle"
+              onClick={() => setShowFilterSheet(false)}
+              aria-label="Đóng bộ lọc"
+            >
+              <span />
+            </button>
+            <div className="crm2-audit-sheet-header">
+              <h3>Bộ lọc</h3>
+              <button
+                type="button"
+                className="crm2-audit-sheet-reset"
+                onClick={resetAllFilters}
+                disabled={activeFilterCount === 0}
+              >
+                <RotateCcw size={13}/> Đặt lại
+              </button>
+            </div>
+            <div className="crm2-audit-sheet-body">
+              <div className="crm2-audit-sheet-section">
+                <div className="crm2-audit-sheet-label">Khoảng thời gian</div>
+                <div className="crm2-audit-sheet-chips">
+                  {([
+                    ['today', 'Hôm nay'],
+                    ['7days', '7 ngày qua'],
+                    ['30days', '30 ngày qua'],
+                    ['month', 'Tháng này'],
+                    ['custom', 'Tùy chỉnh'],
+                  ] as Array<[AuditTimeRange, string]>).map(([k, label]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      className={`crm2-audit-sheet-chip${timeRange === k ? ' crm2-audit-sheet-chip--active' : ''}`}
+                      onClick={() => setTimeRange(k)}
+                    >
+                      {timeRange === k && <Check size={13}/>}
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                {timeRange === 'custom' && (
+                  <div className="crm2-audit-sheet-daterange">
+                    <label>
+                      <span>Từ</span>
+                      <input type="date" className="crm2-input" value={customFrom} onChange={e => setCustomFrom(e.target.value)} />
+                    </label>
+                    <label>
+                      <span>Đến</span>
+                      <input type="date" className="crm2-input" value={customTo} onChange={e => setCustomTo(e.target.value)} />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <div className="crm2-audit-sheet-section">
+                <div className="crm2-audit-sheet-label">Người thực hiện</div>
+                <select
+                  className="crm2-input crm2-audit-sheet-select"
+                  value={filterUser}
+                  onChange={e => setFilterUser(e.target.value)}
+                >
+                  <option value="">Tất cả</option>
+                  {allUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
+                </select>
+              </div>
+
+              <div className="crm2-audit-sheet-section">
+                <div className="crm2-audit-sheet-label">Hành động</div>
+                <div className="crm2-audit-sheet-chips">
+                  {CUSTOMER_AUDIT_ACTIONS.map(a => {
+                    const on = filterAction.has(a.value);
+                    return (
+                      <button
+                        key={a.value}
+                        type="button"
+                        className={`crm2-audit-sheet-chip${on ? ' crm2-audit-sheet-chip--active' : ''}`}
+                        onClick={() => toggleAction(a.value)}
+                      >
+                        {on && <Check size={13}/>}
+                        {a.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="crm2-audit-sheet-section">
+                <div className="crm2-audit-sheet-label">Trường thay đổi</div>
+                <div className="crm2-audit-sheet-chips">
+                  {CUSTOMER_DATA_FIELDS.map(f => {
+                    const on = filterField.has(f.value);
+                    return (
+                      <button
+                        key={f.value}
+                        type="button"
+                        className={`crm2-audit-sheet-chip${on ? ' crm2-audit-sheet-chip--active' : ''}`}
+                        onClick={() => toggleField(f.value)}
+                      >
+                        {on && <Check size={13}/>}
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="crm2-audit-sheet-footer">
+              <button
+                type="button"
+                className="crm2-audit-sheet-apply"
+                onClick={() => setShowFilterSheet(false)}
+              >
+                {activeFilterCount > 0 ? `Áp dụng (${activeFilterCount} bộ lọc)` : 'Áp dụng'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Count */}
       <div style={{ fontSize: 11, color: 'var(--muted,#6b7280)', marginBottom: 12 }}>{filtered.length} bản ghi</div>
@@ -2145,6 +2369,8 @@ const CRM2_STYLES = `
 .crm2-version-note { margin-top: 8px; font-size: 12px; color: var(--foreground, #374151); background: var(--muted-bg, #f3f4f6); border-radius: 8px; padding: 7px 9px; }
 
 /* Audit log */
+.crm2-audit-mobile-bar,
+.crm2-audit-sheet-portal { display: none; }
 .crm2-audit-card {
   display: flex; align-items: flex-start; gap: 12px;
   padding: 12px 14px; border-radius: 10px;
@@ -2749,6 +2975,227 @@ const CRM2_STYLES = `
   .crm2-toolbar-right { min-width: 0; flex-wrap: wrap; }
   .crm2-audit-detail-table { display: none; }
   .crm2-audit-detail-list { display: flex; }
+  .lts-shell--mobile .crm2-audit-desktop-filter { display: none; }
+  .lts-shell--mobile .crm2-audit-mobile-bar {
+    display: block;
+    background: var(--card,#fff);
+    border: 1px solid var(--border,#e5e7eb);
+    border-radius: 16px;
+    padding: 12px;
+    margin-bottom: 12px;
+    box-shadow: 0 10px 28px rgba(15,23,42,.06);
+  }
+  .lts-shell--mobile .crm2-audit-mobile-search {
+    min-height: 46px;
+    margin-bottom: 10px;
+    padding: 0 10px;
+    border-radius: 12px;
+  }
+  .lts-shell--mobile .crm2-audit-mobile-search .crm2-search-input {
+    min-height: 44px;
+    font-size: 14px;
+  }
+  .lts-shell--mobile .crm2-audit-mobile-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+  .lts-shell--mobile .crm2-audit-mobile-time,
+  .lts-shell--mobile .crm2-audit-mobile-filter-btn {
+    width: 100%;
+    min-height: 46px;
+    border-radius: 12px;
+    font-size: 14px;
+  }
+  .lts-shell--mobile .crm2-audit-mobile-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border: 1px solid var(--accent,#0891b2);
+    background: color-mix(in srgb, var(--accent,#0891b2) 8%, var(--card,#fff));
+    color: var(--accent,#0891b2);
+    font-weight: 700;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .lts-shell--mobile .crm2-audit-mobile-filter-btn:active { transform: scale(.98); }
+  .lts-shell--mobile .crm2-audit-mobile-badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--accent,#0891b2);
+    color: #fff;
+    font-size: 11px;
+    line-height: 1;
+  }
+  .lts-shell--mobile .crm2-audit-mobile-custom-range {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--muted,#6b7280);
+  }
+  .lts-shell--mobile .crm2-audit-mobile-custom-range .crm2-input { min-height: 42px; font-size: 14px; }
+  .lts-shell--mobile .crm2-audit-mobile-chips {
+    display: flex;
+    gap: 7px;
+    overflow-x: auto;
+    padding: 10px 1px 2px;
+    scrollbar-width: none;
+  }
+  .lts-shell--mobile .crm2-audit-mobile-chips::-webkit-scrollbar { display: none; }
+  .lts-shell--mobile .crm2-audit-mobile-chip,
+  .lts-shell--mobile .crm2-audit-mobile-clear-all {
+    min-height: 34px;
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--accent,#0891b2) 24%, transparent);
+    background: color-mix(in srgb, var(--accent,#0891b2) 10%, transparent);
+    color: var(--accent,#0891b2);
+    padding: 6px 10px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .lts-shell--mobile .crm2-audit-mobile-chip button {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    padding: 0;
+  }
+  .lts-shell--mobile .crm2-audit-mobile-clear-all {
+    border-color: var(--border,#e5e7eb);
+    background: var(--card,#fff);
+    color: var(--muted,#6b7280);
+    cursor: pointer;
+  }
+  .lts-shell--mobile .crm2-audit-sheet-portal { display: block; position: fixed; inset: 0; z-index: 1510; }
+  .lts-shell--mobile .crm2-audit-sheet-scrim { position: absolute; inset: 0; background: rgba(15,23,42,.52); animation: crm2-audit-fade-in .18s ease-out both; }
+  .lts-shell--mobile .crm2-audit-sheet {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: min(82dvh, 680px);
+    display: flex;
+    flex-direction: column;
+    background: var(--card,#fff);
+    border-radius: 24px 24px 0 0;
+    box-shadow: 0 -18px 44px rgba(15,23,42,.24);
+    animation: crm2-audit-sheet-in .28s cubic-bezier(.2,.8,.2,1) both;
+    overflow: hidden;
+  }
+  .lts-shell--mobile .crm2-audit-sheet-handle {
+    min-height: 36px;
+    border: 0;
+    background: transparent;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 0 4px;
+    cursor: pointer;
+  }
+  .lts-shell--mobile .crm2-audit-sheet-handle span { width: 44px; height: 5px; border-radius: 999px; background: #cbd5e1; }
+  .lts-shell--mobile .crm2-audit-sheet-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 18px 12px;
+    border-bottom: 1px solid var(--border,#e5e7eb);
+  }
+  .lts-shell--mobile .crm2-audit-sheet-header h3 { margin: 0; font-size: 18px; line-height: 1.25; color: var(--foreground,#111); }
+  .lts-shell--mobile .crm2-audit-sheet-reset {
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    background: transparent;
+    color: var(--accent,#0891b2);
+    font-size: 13px;
+    font-weight: 700;
+    padding: 0 4px;
+    cursor: pointer;
+  }
+  .lts-shell--mobile .crm2-audit-sheet-reset:disabled { opacity: .42; cursor: default; }
+  .lts-shell--mobile .crm2-audit-sheet-body {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px 18px 18px;
+  }
+  .lts-shell--mobile .crm2-audit-sheet-section + .crm2-audit-sheet-section { margin-top: 18px; }
+  .lts-shell--mobile .crm2-audit-sheet-label {
+    margin-bottom: 9px;
+    font-size: 12px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--muted,#6b7280);
+  }
+  .lts-shell--mobile .crm2-audit-sheet-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .lts-shell--mobile .crm2-audit-sheet-chip {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid var(--border,#e5e7eb);
+    border-radius: 12px;
+    background: var(--card,#fff);
+    color: var(--foreground,#374151);
+    padding: 9px 12px;
+    font-size: 13px;
+    font-weight: 650;
+    text-align: left;
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+  .lts-shell--mobile .crm2-audit-sheet-chip:active { transform: scale(.97); }
+  .lts-shell--mobile .crm2-audit-sheet-chip--active {
+    border-color: var(--accent,#0891b2);
+    background: color-mix(in srgb, var(--accent,#0891b2) 10%, var(--card,#fff));
+    color: var(--accent,#0891b2);
+  }
+  .lts-shell--mobile .crm2-audit-sheet-select { width: 100%; min-height: 46px; font-size: 14px; border-radius: 12px; }
+  .lts-shell--mobile .crm2-audit-sheet-daterange { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .lts-shell--mobile .crm2-audit-sheet-daterange label { display: flex; flex-direction: column; gap: 5px; font-size: 12px; color: var(--muted,#6b7280); font-weight: 700; }
+  .lts-shell--mobile .crm2-audit-sheet-daterange .crm2-input { min-height: 44px; font-size: 14px; border-radius: 12px; }
+  .lts-shell--mobile .crm2-audit-sheet-footer {
+    padding: 12px 18px calc(14px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid var(--border,#e5e7eb);
+    background: var(--card,#fff);
+  }
+  .lts-shell--mobile .crm2-audit-sheet-apply {
+    width: 100%;
+    min-height: 48px;
+    border: 0;
+    border-radius: 14px;
+    background: var(--accent,#0891b2);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 800;
+    cursor: pointer;
+    box-shadow: 0 10px 24px color-mix(in srgb, var(--accent,#0891b2) 25%, transparent);
+  }
+  .lts-shell--mobile .crm2-audit-card { border-radius: 14px; padding: 12px; }
+  @keyframes crm2-audit-fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes crm2-audit-sheet-in { from { transform: translateY(100%); } to { transform: translateY(0); } }
 }
 
 /* CRM badge */
