@@ -153,6 +153,7 @@ export interface AppConstants {
 export interface CalculateInput {
   customer: string;
   productName: string;
+  productCode?: string;
   productType: string;
   bagType: string;
   filmType: string;

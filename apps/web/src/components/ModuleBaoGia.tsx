@@ -12,6 +12,9 @@ import { lapDongSanXuat, tinhBaoGia, xuLyDongGhiDe } from '../lib/manager-calcul
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import type { AppConstants, HistoryItem, Material, ProfitRow, QuoteProductLine, QuoteStatus, OverrideTable, QuoteTerms, QuoteTier, SmallWidthMaterialPrice } from '../lib/types';
 import { QUOTE_STATUS_CONFIG } from '../lib/types';
+import { taoBaoGiaService } from '../lib/api/service-lts';
+import { kiemTraMaSanPham } from '../lib/product-api';
+import { kiemTraMaKhachHang } from '../lib/customer-api';
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
 interface Customer {
@@ -1369,7 +1372,7 @@ function BuocXacNhan({
 // ════════════════════════════════════════════════════════════
 function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
   const store = dungCuaHangTinhGia() as any;
-  const { history, currentSellerName, materials, constants, profitTable, smallWidthPrices, taoBaoGiaMoi } = store;
+  const { history, currentSellerName, materials, constants, profitTable, smallWidthPrices, taoBaoGiaMoi, accessToken, isAuthenticated } = store;
 
   const [state, setState] = useState<WizardState>({
     customer: null,
@@ -1406,7 +1409,57 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
     }, 150);
   };
 
-  const handleSave = useCallback((sendForApproval: boolean) => {
+  const hienToast = useCallback((noiDung: string, loi = false) => {
+    if (typeof document === 'undefined') return;
+    const container = document.getElementById('toastContainer');
+    if (!container) return;
+    const toast = document.createElement('div');
+    toast.className = loi ? 'toast toast-error' : 'toast';
+    toast.textContent = noiDung;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 5000);
+  }, []);
+
+  // Đẩy 1 báo giá lên server (Hướng B: chỉ sản phẩm đầu tiên).
+  // Thiếu/sai mã KH hoặc mã SP → KHÔNG đẩy, chỉ cảnh báo (local đã lưu xong).
+  const dayBaoGiaLenServer = useCallback(async (prod: WizardProduct | undefined, customer: Customer | null) => {
+    if (!prod || !customer) return;
+
+    const maKH = (customer.customerCode || '').trim();
+    const maSP = ((prod.historyItem.input as { productCode?: string }).productCode || '').trim();
+
+    if (!maKH) {
+      hienToast('Đã lưu báo giá. Chưa đẩy lên máy chủ: khách hàng chưa có mã.', true);
+      return;
+    }
+    const checkSP = kiemTraMaSanPham(maSP);
+    if (!checkSP.hopLe) {
+      hienToast(`Đã lưu báo giá. Chưa đẩy lên máy chủ: ${checkSP.loi}`, true);
+      return;
+    }
+    if (!isAuthenticated || !accessToken) {
+      hienToast('Đã lưu báo giá cục bộ. Chưa đẩy lên máy chủ: chưa đăng nhập.', true);
+      return;
+    }
+
+    try {
+      await taoBaoGiaService(
+        {
+          customerCodeName: maKH,
+          productCode: checkSP.ma,
+          quotationName: `${tenKhachHang(customer)} — ${prod.historyItem.productName || 'Báo giá'}`,
+          inputValue: prod.historyItem,
+        },
+        accessToken,
+      );
+      hienToast('Đã lưu báo giá và đồng bộ lên máy chủ.');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Không đẩy được lên máy chủ.';
+      hienToast(`Đã lưu báo giá cục bộ. Lỗi đồng bộ máy chủ: ${msg}`, true);
+    }
+  }, [accessToken, isAuthenticated, hienToast]);
+
+  const handleSave = useCallback(async (sendForApproval: boolean) => {
     setError('');
     setErrorSection(null);
     if (!state.customer) {
@@ -1452,18 +1505,24 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
           tiers,
         };
       });
+      // 1) Lưu local trước — đây là nguồn chính, luôn thành công.
       taoBaoGiaMoi({
         customer: state.customer ? tenKhachHang(state.customer) : '',
         products,
         terms: state.terms,
         sendForApproval,
       });
+
+      // 2) Đẩy bản sao lên server (song song, không chặn flow local).
+      //    Hướng B: chỉ lấy sản phẩm đầu tiên. Thiếu/sai mã → KHÔNG đẩy.
+      await dayBaoGiaLenServer(state.products[0], state.customer);
+
       onClose();
     } catch {
       setError('Có lỗi khi lưu báo giá. Vui lòng thử lại.');
       setSaving(false);
     }
-  }, [state.products, state.customer, state.terms, taoBaoGiaMoi, onClose]);
+  }, [state.products, state.customer, state.terms, taoBaoGiaMoi, onClose, dayBaoGiaLenServer]);
 
   const canSaveDraft = !!state.customer;
   const canSubmit = !!state.customer && state.products.length > 0;

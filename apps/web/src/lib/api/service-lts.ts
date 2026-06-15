@@ -477,6 +477,64 @@ export async function luuNguoiPhuTrachKhachHangService(
   }, token);
 }
 
+// ── Products ──────────────────────────────────────────────────────────────
+export interface SanPhamApi {
+  id: string;
+  productCode: string;
+  productName: string;
+  description?: string | null;
+  createdBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TaoSanPhamInput {
+  productCode: string;
+  productName: string;
+  description?: string;
+}
+
+export async function laySanPhamService(token?: string): Promise<SanPhamApi[]> {
+  return goiService<SanPhamApi[]>('/products', {}, token);
+}
+
+export async function taoSanPhamService(input: TaoSanPhamInput, token?: string): Promise<SanPhamApi> {
+  return goiService<SanPhamApi>('/products', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }, token);
+}
+
+export async function xoaSanPhamService(id: string, token?: string): Promise<void> {
+  await goiService<unknown>(`/products/${encodeURIComponent(id)}`, { method: 'DELETE' }, token);
+}
+
+// ── Quotations ────────────────────────────────────────────────────────────
+export interface TaoBaoGiaInput {
+  customerCodeName: string;
+  productCode: string;
+  quotationName: string;
+  inputValue: unknown;
+}
+
+export interface BaoGiaApi {
+  id: string;
+  customerId?: string | null;
+  productId?: string | null;
+  quotationName?: string | null;
+  inputValue?: unknown;
+  updateStatus?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function taoBaoGiaService(input: TaoBaoGiaInput, token?: string): Promise<BaoGiaApi> {
+  return goiService<BaoGiaApi>('/quotations', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }, token);
+}
+
 // ── Transform ────────────────────────────────────────────────────────────
 export function chuyenTaiKhoanApi(user: TaiKhoanApi): TaiKhoan {
   return {

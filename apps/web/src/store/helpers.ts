@@ -12,6 +12,7 @@ export const LS_VERSIONS = 'lts_versions';
 export const LS_CONFIG_SNAPSHOTS = 'lts_config_snapshots';
 export const LS_QUOTE_COUNTER = 'lts_quote_counter';
 export const LS_CUSTOMERS = 'lts_customers';
+export const LS_PRODUCTS = 'lts_products';
 
 export function luuLocalStorage(key: string, giaTri: unknown) {
   try { window.localStorage.setItem(key, JSON.stringify(giaTri)); } catch { /* quota */ }
@@ -47,7 +48,7 @@ export function luuConfigVaoLS(materials: Material[], constants: AppConstants, p
 }
 
 export const dauVaoMacDinh: CalculateInput = {
-  customer: '', productName: '', productType: '', bagType: '', filmType: '',
+  customer: '', productName: '', productCode: '', productType: '', bagType: '', filmType: '',
   printFilmCustomerGroup: 'normal',
   filmQuantityUnit: 'm2', filmInputQuantity: 0, filmRollLength: 6000, quantity: 0, numColors: null, numImages: 0,
   layer1Id: null, layer2Id: null, layer2AltId: null, layer2Lengths: undefined, layer2FrontPart: 'main', layer2PairingMode: 'bottom_to_bottom', layer3Id: null, layer4Id: null, layer5Id: null,
