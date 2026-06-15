@@ -114,6 +114,12 @@ const SELLERS = [
 const emptyFilters: CustomerFilters = { keyword: '', sellerId: '', customerGroup: '', status: 'all', createdFrom: '', createdTo: '' };
 const blankCustomer: Customer = { id: '', customerType: 'company', customerCode: '', companyName: '', taxCode: '', contactName: '', phone: '', email: '', invoiceAddress: '', address: '', region: '', customerGroup: '', sellerId: null, sellerName: '', secondarySellerId: null, secondarySellerName: '', managers: [], status: 'active', crmStatus: 'lead', isLocked: false, notes: '', contactNotes: '', assignmentHistory: [], assignmentNote: '', createdAt: '', updatedAt: '' };
 
+// Google Maps embed (chỉ xem, không cần API key / geocoding)
+const MIN_ADDR_LEN = 8;
+const buildMapsEmbedUrl = (addr: string) =>
+  `https://www.google.com/maps?q=${encodeURIComponent(addr.trim())}&output=embed`;
+const isAddressReady = (addr?: string | null) => !!addr && addr.trim().length >= MIN_ADDR_LEN;
+
 // 5-state CRM status config per spec
 const CRM_STATUS_CONFIG: Record<CrmStatus, { label: string; dot: string; bg: string; text: string }> = {
   lead:        { label: 'Mới (Lead)',          dot: '●', bg: '#eff6ff', text: '#1d4ed8' },
@@ -304,9 +310,10 @@ interface CustomerFieldProps {
   type?: string;
   helper?: string;
   onSet: (key: keyof Customer, value: string | boolean | null) => void;
+  onCommit?: (key: keyof Customer, value: string) => void;
 }
 
-function CustomerField({ k, icon, form, errors, role, disabled, required, type = 'text', helper, onSet }: CustomerFieldProps) {
+function CustomerField({ k, icon, form, errors, role, disabled, required, type = 'text', helper, onSet, onCommit }: CustomerFieldProps) {
   const err = errors[String(k)];
   const isSelect = k === 'sellerId' || k === 'secondarySellerId' || k === 'status' || k === 'crmStatus';
 
@@ -325,7 +332,7 @@ function CustomerField({ k, icon, form, errors, role, disabled, required, type =
       ) : (k === 'notes' || k === 'assignmentNote') ? (
         <textarea id={`wiz-${String(k)}`} className={`crm2-input crm2-textarea${err ? ' crm2-input--error' : ''}`} rows={3} value={String(form[k] ?? '')} onChange={e => onSet(k, e.target.value)} placeholder={k === 'assignmentNote' ? 'VD: Lý do phân công, chuyển phụ trách hoặc thu hồi...' : 'VD: Điều khoản, thói quen đặt hàng, công nợ...'} disabled={disabled} />
       ) : (
-        <input id={`wiz-${String(k)}`} type={type} className={`crm2-input${err ? ' crm2-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => onSet(k, e.target.value)} disabled={disabled} aria-invalid={!!err} />
+        <input id={`wiz-${String(k)}`} type={type} className={`crm2-input${err ? ' crm2-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => onSet(k, e.target.value)} onBlur={e => onCommit?.(k, e.target.value)} disabled={disabled} aria-invalid={!!err} />
       )}
       {err ? (
         <span className="crm2-field-error" role="alert"><AlertCircle size={11}/>{err}</span>
@@ -347,6 +354,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
   const seller = SELLERS.find(s => s.id === form.sellerId);
   const isLockedEdit = !isNew && !!customer?.isLocked;
   const [dirty, setDirty] = useState(false);
+  const [committedAddress, setCommittedAddress] = useState<string>(customer?.address ?? '');
 
   const set = (key: keyof Customer, value: string | boolean | null) => {
     setForm(f => {
@@ -451,7 +459,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
   }, [dirty]);
 
   const renderField = (props: { k: keyof Customer; icon: React.ReactNode; required?: boolean; type?: string; helper?: string }) => (
-    <CustomerField {...props} form={form} errors={errors} role={role} disabled={(!isNew && props.k === 'customerCode') || (isLockedEdit && props.k !== 'notes' && props.k !== 'assignmentNote')} onSet={set} />
+    <CustomerField {...props} form={form} errors={errors} role={role} disabled={(!isNew && props.k === 'customerCode') || (isLockedEdit && props.k !== 'notes' && props.k !== 'assignmentNote')} onSet={set} onCommit={props.k === 'address' ? (_k, v) => setCommittedAddress(v) : undefined} />
   );
 
   return (
@@ -536,6 +544,20 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
             {!isIndividual(form) && renderField({ k: 'taxCode', icon: <Hash size={12}/>, helper: 'Mã số thuế (dùng khi xuất hóa đơn)' })}
             {renderField({ k: 'customerGroup', icon: <Users size={12}/>, helper: 'VD: Key account, FMCG, Khách lẻ' })}
             {renderField({ k: 'address', icon: <MapPin size={12}/>, helper: 'Địa chỉ giao dịch/giao hàng' })}
+            {isAddressReady(committedAddress) && (
+              <div className="crm2-field crm2-info-item--full crm2-map-wrap">
+                <span className="crm2-field-label"><MapPin size={12}/><span>Bản đồ địa chỉ giao hàng</span></span>
+                <iframe
+                  title="Bản đồ địa chỉ khách hàng"
+                  src={buildMapsEmbedUrl(committedAddress)}
+                  width="100%"
+                  height="240"
+                  style={{ border: 0, borderRadius: 8 }}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+            )}
             {renderField({ k: 'invoiceAddress', icon: <FileText size={12}/>, helper: 'Địa chỉ xuất hóa đơn (nếu khác địa chỉ giao hàng)' })}
           </div>
         </div>
@@ -726,6 +748,20 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
                     <span className="crm2-info-value">{value || <span style={{ opacity: 0.4 }}>—</span>}</span>
                   </div>
                 ))}
+                {isAddressReady(customer.address) && (
+                  <div className="crm2-info-item crm2-info-item--full crm2-map-wrap">
+                    <span className="crm2-info-label">Bản đồ địa chỉ giao hàng</span>
+                    <iframe
+                      title="Bản đồ địa chỉ khách hàng"
+                      src={buildMapsEmbedUrl(customer.address!)}
+                      width="100%"
+                      height="240"
+                      style={{ border: 0, borderRadius: 8 }}
+                      loading="lazy"
+                      referrerPolicy="no-referrer-when-downgrade"
+                    />
+                  </div>
+                )}
                 {(customer.assignmentHistory?.length ?? 0) > 0 && (
                   <div className="crm2-info-item crm2-info-item--full">
                     <span className="crm2-info-label">Lịch sử phân công</span>
@@ -2596,6 +2632,8 @@ const CRM2_STYLES = `
 .crm2-info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .crm2-info-item { display: flex; flex-direction: column; gap: 2px; }
 .crm2-info-item--full { grid-column: 1 / -1; }
+.crm2-map-wrap { gap: 6px; }
+.crm2-map-wrap iframe { display: block; width: 100%; height: 240px; border: 0; border-radius: 8px; background: #f3f4f6; }
 .crm2-info-label { font-size: 11px; font-weight: 600; color: var(--muted, #6b7280); text-transform: uppercase; letter-spacing: 0.3px; }
 .crm2-info-value { font-size: 13px; color: var(--foreground, #111); }
 .crm2-info-history { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
