@@ -3,7 +3,7 @@ import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Search, Database, RotateCcw, Download,
   Eye, Filter, X, XCircle,
-  FileText, ArrowUpDown, ArrowUp, ArrowDown, Trash2
+  FileText, Trash2
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
@@ -41,8 +41,6 @@ function namTrongKhoangNgay(item: HistoryItem, tuNgay: string, denNgay: string):
   return true;
 }
 
-type SortKey = 'date' | 'customer' | 'productName' | 'finalPrice' | 'quoteStatus';
-type SortDir = 'asc' | 'desc';
 type ToggleMode = 'pricing' | 'quote' | 'lsx';
 type TimeRange = '3days' | '7days' | '30days' | 'all' | 'custom';
 
@@ -115,30 +113,7 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
   );
 }
 
-// ─── SortHeader ───────────────────────────────────────────────────────────────
-
-function SortHeader({ label, sortKey, current, dir, onSort, className }: {
-  label: string; sortKey: SortKey; current: SortKey; dir: SortDir;
-  onSort: (k: SortKey) => void;
-  className?: string;
-}) {
-  const active = current === sortKey;
-  return (
-    <th
-      className={className}
-      onClick={() => onSort(sortKey)}
-      aria-label={`Sắp xếp theo ${label}`}
-      style={{ cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}
-    >
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-        {label}
-        {active
-          ? (dir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />)
-          : <ArrowUpDown size={12} style={{ opacity: 0.3 }} />}
-      </span>
-    </th>
-  );
-}
+// ────────────────────────────────────────────────────────────────────────────
 
 // ─── DetailPanel ─────────────────────────────────────────────────────────────
 
@@ -676,7 +651,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
 
   // Filters
   const [tuKhoa, datTuKhoa] = useState('');
-  const [timeRange, setTimeRange] = useState<TimeRange>('7days');
+  const [timeRange, setTimeRange] = useState<TimeRange>('all');
   const [tuNgay, datTuNgay] = useState('');
   const [denNgay, datDenNgay] = useState('');
   const [filterStatuses, setFilterStatuses] = useState<Set<string>>(new Set());
@@ -706,10 +681,6 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
       }
     } catch {}
   }, []);
-
-  // Sort
-  const [sortKey, setSortKey] = useState<SortKey>('date');
-  const [sortDir, setSortDir] = useState<SortDir>('desc');
 
   // Pagination
   const [page, setPage] = useState(0);
@@ -796,20 +767,11 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
       );
     }
 
-    // Sort
-    list = [...list].sort((a, b) => {
-      let va: string | number = 0, vb: string | number = 0;
-      if (sortKey === 'date') { va = doiNgayVnSangMs(a.date); vb = doiNgayVnSangMs(b.date); }
-      else if (sortKey === 'customer') { va = a.customer; vb = b.customer; }
-      else if (sortKey === 'productName') { va = a.productName; vb = b.productName; }
-      else if (sortKey === 'finalPrice') { va = a.finalPrice; vb = b.finalPrice; }
-      else if (sortKey === 'quoteStatus') { va = a.quoteStatus ?? ''; vb = b.quoteStatus ?? ''; }
-      if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb as string) : (vb as string).localeCompare(va);
-      return sortDir === 'asc' ? (va as number) - (vb as number) : (vb as number) - (va as number);
-    });
+    // Sort cố định: mới nhất lên đầu
+    list = [...list].sort((a, b) => doiNgayVnSangMs(b.date) - doiNgayVnSangMs(a.date));
 
     return list;
-	  }, [lichSu, productionOrders, mode, timeRange, tuNgay, denNgay, tuKhoa, filterStatuses, filterCustomer, filterProduct, filterSeller, filterMaterial, filterBagType, unitPriceMin, unitPriceMax, profitRateMin, profitRateMax, customerRecords, sortKey, sortDir, quoteDraftCustomer]);
+	  }, [lichSu, productionOrders, mode, timeRange, tuNgay, denNgay, tuKhoa, filterStatuses, filterCustomer, filterProduct, filterSeller, filterMaterial, filterBagType, unitPriceMin, unitPriceMax, profitRateMin, profitRateMax, customerRecords, quoteDraftCustomer]);
 
 	  const totalPages = Math.ceil(filtered.length / pageSize);
 	  const pageItems = filtered.slice(page * pageSize, (page + 1) * pageSize);
@@ -864,14 +826,6 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
     khiDieuHuong?.('quotations');
   };
 
-  const handleSort = useCallback((k: SortKey) => {
-    setSortKey(prev => {
-      if (prev === k) { setSortDir(d => d === 'asc' ? 'desc' : 'asc'); return k; }
-      setSortDir('asc'); return k;
-    });
-    setPage(0);
-  }, []);
-
   const toggleStatus = useCallback((s: string) => {
     setFilterStatuses(prev => {
       const next = new Set(prev);
@@ -882,7 +836,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   }, []);
 
   const clearAll = () => {
-    datTuKhoa(''); setTimeRange('7days'); datTuNgay(''); datDenNgay('');
+    datTuKhoa(''); setTimeRange('all'); datTuNgay(''); datDenNgay('');
     setFilterStatuses(new Set()); setFilterCustomer(''); setFilterProduct(''); setFilterSeller(''); setFilterMaterial(''); setFilterBagType('');
     setUnitPriceMin(''); setUnitPriceMax(''); setProfitRateMin(''); setProfitRateMax(''); setPage(0);
   };
@@ -1187,13 +1141,13 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
               <thead>
                 <tr>
                   {mode === 'pricing' && <th className="hist-col-select" aria-label="Chọn">✓</th>}
-                  <SortHeader label="Mã" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-code" />
-                  {(mode === 'pricing' || mode === 'lsx') && <SortHeader label="Sản phẩm" sortKey="productName" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-product" />}
-                  <SortHeader label="Khách hàng" sortKey="customer" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-customer" />
+                  <th className="hist-col-code">Mã</th>
+                  {(mode === 'pricing' || mode === 'lsx') && <th className="hist-col-product">Sản phẩm</th>}
+                  <th className="hist-col-customer">Khách hàng</th>
                   {mode === 'quote' && <th className="hist-col-quote-count">Số SP</th>}
-                  <SortHeader label="Ngày tạo" sortKey="date" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-date" />
-                  <SortHeader label="Trạng thái" sortKey="quoteStatus" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-status" />
-                  {(mode === 'pricing' || mode === 'lsx') && <SortHeader label={mode === 'lsx' ? 'Giá chốt' : 'Giá đề xuất'} sortKey="finalPrice" current={sortKey} dir={sortDir} onSort={handleSort} className="hist-col-price" />}
+                  <th className="hist-col-date">Ngày tạo</th>
+                  <th className="hist-col-status">Trạng thái</th>
+                  {(mode === 'pricing' || mode === 'lsx') && <th className="hist-col-price">{mode === 'lsx' ? 'Giá chốt' : 'Giá đề xuất'}</th>}
                   <th className="hist-col-sale">{mode === 'lsx' ? 'Số LSX' : 'Sale'}</th>
                   <th className="hist-col-actions">Thao tác</th>
                 </tr>

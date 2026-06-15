@@ -136,7 +136,7 @@ function makeProductionOrder(patch: Partial<ProductionOrder>): ProductionOrder {
 
 console.log('\n== History filter defaults ==');
 assert('defaults to pricing mode', DEFAULT_HISTORY_FILTERS.mode === 'pricing');
-assert('defaults to 7 days', DEFAULT_HISTORY_FILTERS.timeRange === '7days');
+assert('defaults to all', DEFAULT_HISTORY_FILTERS.timeRange === 'all');
 
 console.log('\n== Pricing workflow status ==');
 assert('locked pricing item maps to locked', getPricingWorkflowStatus(makeItem({ locked: true })) === 'locked');
@@ -217,6 +217,7 @@ const orders = [
 const filteredOrders = filterProductionOrders(orders, {
   ...DEFAULT_HISTORY_FILTERS,
   mode: 'lsx',
+  timeRange: '7days',
   now: new Date('2026-06-07T12:00:00.000Z'),
   customerQuery: 'KH001',
   lsxStatuses: ['in_production'],

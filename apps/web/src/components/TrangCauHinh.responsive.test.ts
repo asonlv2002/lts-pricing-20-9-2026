@@ -72,9 +72,10 @@ assert(
 );
 
 assert(
-  'mobile cut rules render as cards instead of a cramped table',
-  /@media \(max-width:\s*767px\) \{[\s\S]*\.lts-shell--mobile \.config-page \.config-cut-rules-table thead,[\s\S]*html\.in-config-page \.config-page \.config-cut-rules-table thead \{[\s\S]*display:\s*none/.test(globalsCss)
-    && /\.lts-shell--mobile \.config-page \.config-cut-rules-table tr,[\s\S]*html\.in-config-page \.config-page \.config-cut-rules-table tr \{[\s\S]*display:\s*grid/.test(globalsCss),
+  'mobile cut rules stay a real table (header visible) like the Nhũ table',
+  /@media \(max-width:\s*767px\) \{[\s\S]*\.lts-shell--mobile \.config-page \.config-cut-rules-table,[\s\S]*html\.in-config-page \.config-page \.config-cut-rules-table \{[\s\S]*min-width:\s*360px/.test(globalsCss)
+    && !/\.config-cut-rules-table thead,[\s\S]*display:\s*none/.test(globalsCss)
+    && !/\.config-cut-rules-table \{[^}]*table-layout:\s*fixed/.test(globalsCss),
 );
 
 assert(
@@ -84,10 +85,32 @@ assert(
 );
 
 assert(
-  'mobile cut-rule delete action is labeled and not a floating x',
+  'mobile cut-rule delete action is an accessible icon button',
   source.includes('config-cut-rule-delete-cell')
     && source.includes('config-cut-rule-delete-btn')
-    && /\.lts-shell--mobile \.config-page \.config-cut-rule-delete-btn::before,[\s\S]*html\.in-config-page \.config-page \.config-cut-rule-delete-btn::before \{[\s\S]*content:\s*"Xóa quy tắc"/.test(globalsCss),
+    && source.includes('aria-label="Xóa quy tắc"'),
+);
+
+assert(
+  'mobile print card shows inline operators instead of ::before descriptions',
+  /@media \(max-width:\s*767px\) \{[\s\S]*\.lts-shell--mobile \.config-page \.config-cpsx-print-card \.config-cpsx-setup-row::before,[\s\S]*content:\s*none\s*!important[\s\S]*display:\s*none\s*!important/.test(globalsCss)
+    && /\.lts-shell--mobile \.config-page \.config-cpsx-print-card \.config-cpsx-param-pair > span,[\s\S]*display:\s*inline\s*!important/.test(globalsCss),
+);
+
+assert(
+  'mobile print card inputs use the shared pill style (0.88rem, input-bg)',
+  /\.lts-shell--mobile \.config-page \.config-cpsx-print-card \.config-cpsx-formula-panel \.config-inline-input,[\s\S]*font-size:\s*0\.88rem\s*!important[\s\S]*background:\s*var\(--input-bg\)\s*!important/.test(globalsCss),
+);
+
+assert(
+  'mobile waste formula (merge + cut) shares the inline flex-wrap layout',
+  /\.lts-shell--mobile \.config-page \.config-cpsx-merge-card \.config-cpsx-waste-grid,[\s\S]*\.lts-shell--mobile \.config-page \.config-cpsx-cut-card \.config-cpsx-waste-grid,[\s\S]*display:\s*flex\s*!important[\s\S]*flex-wrap:\s*wrap\s*!important/.test(globalsCss),
+);
+
+assert(
+  'mobile cut card formula inputs use the shared pill style (0.88rem)',
+  /\.lts-shell--mobile \.config-page \.config-cpsx-cut-card \.config-cpsx-param \.config-inline-input,[\s\S]*font-size:\s*0\.88rem\s*!important/.test(globalsCss)
+    && source.includes('config-cpsx-lead'),
 );
 
 if (failed > 0) {

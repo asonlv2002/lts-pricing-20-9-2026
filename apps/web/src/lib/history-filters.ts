@@ -34,7 +34,7 @@ export interface HistoryFilterCustomer {
 
 export const DEFAULT_HISTORY_FILTERS: HistoryFilterState = {
   mode: 'pricing',
-  timeRange: '7days',
+  timeRange: 'all',
   fromDate: '',
   toDate: '',
   customerQuery: '',

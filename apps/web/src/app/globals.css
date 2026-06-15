@@ -7555,6 +7555,9 @@ body {
   }
 }
 
+/* Token "Chiều dài ×" dẫn đầu công thức Phi hao — chỉ hiện trên mobile */
+.config-cpsx-lead { display: none; }
+
 @media (max-width: 767px) {
   .lts-shell--mobile .config-page .config-cpsx-split,
   html.in-config-page .config-page .config-cpsx-split {
@@ -7571,6 +7574,47 @@ body {
     border: 1px solid var(--border);
     border-radius: 14px;
     background: var(--surface);
+  }
+
+  /* Panel trái (label + 1 ô): flex ngang, label trái — ô pill phải */
+  .lts-shell--mobile .config-page .config-cpsx-main-panel,
+  html.in-config-page .config-page .config-cpsx-main-panel {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    column-gap: 10px !important;
+    row-gap: 6px !important;
+  }
+
+  /* Label divs co trái */
+  .lts-shell--mobile .config-page .config-cpsx-main-panel > div,
+  html.in-config-page .config-page .config-cpsx-main-panel > div {
+    flex: 1 1 auto;
+  }
+
+  /* Ô form-input = pill ngắn bên phải, đồng bộ card Nhũ (thêm .config-cpsx-split để thắng rule width:100% bên dưới) */
+  .lts-shell--mobile .config-page .config-cpsx-split .config-cpsx-main-panel .form-input,
+  html.in-config-page .config-page .config-cpsx-split .config-cpsx-main-panel .form-input {
+    flex: 0 0 auto !important;
+    width: 120px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    margin-left: auto;
+    padding: 6px 8px !important;
+    font-size: 0.88rem !important;
+    text-align: right;
+  }
+
+  /* Card In: tiêu đề "CPSX in thường" chiếm trọn hàng (full-width) */
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-main-panel > div:first-child,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-main-panel > div:first-child {
+    flex: 0 0 100%;
+  }
+
+  /* Card In: note "Không áp dụng cho Màng in" chiếm trọn hàng dưới cùng */
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-main-panel > div:last-child,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-main-panel > div:last-child {
+    flex: 0 0 100%;
   }
 
   .lts-shell--mobile .config-page .config-cpsx-panel .form-input,
@@ -7652,6 +7696,82 @@ body {
     content: "Sản xuất ngắn: ngưỡng mét và năng suất";
   }
 
+  /* ── Card CPSX Khâu IN: công thức inline như card Ghép, ô pill xám như card Nhũ ── */
+  /* Override scope riêng .config-cpsx-print-card (đứng sau rule global → thắng), */
+  /* rule global .config-cpsx-param-pair giữ nguyên cho card khác + test. */
+
+  /* Các dòng công thức chảy inline + wrap, không còn 1 cột dọc */
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-field-row,
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-param-pair,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-field-row,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-param-pair {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px 6px !important;
+    grid-template-columns: none !important;
+  }
+
+  /* Bỏ câu mô tả ::before, dùng lại text operator thật trong JSX */
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-setup-row::before,
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-short-run-row::before,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-setup-row::before,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-short-run-row::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  /* Hiện lại operator / nhãn inline (đè display:none của rule global) */
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-param-pair > span,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-param-pair > span {
+    display: inline !important;
+    grid-column: auto !important;
+    color: var(--muted);
+    font-size: 0.86rem;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  /* Text dẫn đầu (labor-row) chảy inline thay vì chiếm trọn hàng */
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-labor-row,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-labor-row {
+    grid-template-columns: none !important;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-labor-row > span,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-labor-row > span {
+    grid-column: auto !important;
+  }
+
+  /* Ô nhập panel phải = pill xám base như card Nhũ (giữ alignment inline của JSX) */
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-formula-panel .config-inline-input,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-formula-panel .config-inline-input {
+    flex: 0 0 auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 6px 8px !important;
+    font-size: 0.88rem !important;
+    border: 1.5px solid var(--border) !important;
+    border-radius: 8px !important;
+    background: var(--input-bg) !important;
+  }
+
+  /* Width gọn theo từng dòng (đè width:100% của rule .config-cpsx-panel) để mỗi dòng nằm 1 hàng */
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-setup-row .config-inline-input,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-setup-row .config-inline-input {
+    width: 60px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-short-run-row .config-inline-input,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-short-run-row .config-inline-input {
+    width: 84px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-cpsx-print-card .config-cpsx-labor-row .config-inline-input,
+  html.in-config-page .config-page .config-cpsx-print-card .config-cpsx-labor-row .config-inline-input {
+    width: 120px !important;
+  }
+
   .lts-shell--mobile .config-page .config-cpsx-waste-grid,
   html.in-config-page .config-page .config-cpsx-waste-grid {
     display: grid !important;
@@ -7686,93 +7806,179 @@ body {
     display: none;
   }
 
+  /* ── Card Phi hao GHÉP + CẮT: công thức inline có ô nhập, wrap theo bề ngang ── */
+  /* Style đồng bộ với card Nhũ/Phủ Mờ: ô = base .config-inline-input (pill xám) */
+  /* Grid → flex wrap, canh giữa để lead + toán tử + ô thẳng hàng */
+  .lts-shell--mobile .config-page .config-cpsx-merge-card .config-cpsx-waste-grid,
+  .lts-shell--mobile .config-page .config-cpsx-cut-card .config-cpsx-waste-grid,
+  html.in-config-page .config-page .config-cpsx-merge-card .config-cpsx-waste-grid,
+  html.in-config-page .config-page .config-cpsx-cut-card .config-cpsx-waste-grid {
+    display: flex !important;
+    flex-wrap: wrap !important;
+    align-items: center !important;
+    gap: 8px 6px !important;
+  }
+
+  /* Hiện lại token "Chiều dài ×" dẫn đầu — cỡ như toán tử desktop */
+  .lts-shell--mobile .config-page .config-cpsx-merge-card .config-cpsx-lead,
+  .lts-shell--mobile .config-page .config-cpsx-cut-card .config-cpsx-lead,
+  html.in-config-page .config-page .config-cpsx-merge-card .config-cpsx-lead,
+  html.in-config-page .config-page .config-cpsx-cut-card .config-cpsx-lead {
+    display: inline-block;
+    color: var(--muted);
+    font-size: 1.1rem;
+    font-weight: 600;
+    align-self: flex-end;
+    padding-bottom: 5px;
+  }
+
+  /* Hiện lại toán tử × và + (đè display:none + marginTop inline) */
+  .lts-shell--mobile .config-page .config-cpsx-merge-card .config-cpsx-operator,
+  .lts-shell--mobile .config-page .config-cpsx-cut-card .config-cpsx-operator,
+  html.in-config-page .config-page .config-cpsx-merge-card .config-cpsx-operator,
+  html.in-config-page .config-page .config-cpsx-cut-card .config-cpsx-operator {
+    display: inline-block !important;
+    margin-top: 0 !important;
+    align-self: flex-end;
+    padding-bottom: 5px;
+    font-size: 1.1rem;
+  }
+
+  /* Ẩn tiền tố "A - / B - / C -", chỉ giữ nhãn đơn vị */
+  .lts-shell--mobile .config-page .config-cpsx-merge-card .config-cpsx-abc,
+  .lts-shell--mobile .config-page .config-cpsx-cut-card .config-cpsx-abc,
+  html.in-config-page .config-page .config-cpsx-merge-card .config-cpsx-abc,
+  html.in-config-page .config-page .config-cpsx-cut-card .config-cpsx-abc {
+    display: none;
+  }
+
+  /* Mỗi cụm A/B/C: bỏ chiếm trọn hàng, co vừa nội dung (giữ nền trong suốt, nền pill nằm ở ô input) */
+  .lts-shell--mobile .config-page .config-cpsx-merge-card .config-cpsx-param,
+  .lts-shell--mobile .config-page .config-cpsx-merge-card .config-cpsx-param-a,
+  .lts-shell--mobile .config-page .config-cpsx-merge-card .config-cpsx-param-b,
+  .lts-shell--mobile .config-page .config-cpsx-merge-card .config-cpsx-param-c,
+  .lts-shell--mobile .config-page .config-cpsx-cut-card .config-cpsx-param,
+  .lts-shell--mobile .config-page .config-cpsx-cut-card .config-cpsx-param-a,
+  .lts-shell--mobile .config-page .config-cpsx-cut-card .config-cpsx-param-b,
+  .lts-shell--mobile .config-page .config-cpsx-cut-card .config-cpsx-param-c,
+  html.in-config-page .config-page .config-cpsx-merge-card .config-cpsx-param,
+  html.in-config-page .config-page .config-cpsx-merge-card .config-cpsx-param-a,
+  html.in-config-page .config-page .config-cpsx-merge-card .config-cpsx-param-b,
+  html.in-config-page .config-page .config-cpsx-merge-card .config-cpsx-param-c,
+  html.in-config-page .config-page .config-cpsx-cut-card .config-cpsx-param,
+  html.in-config-page .config-page .config-cpsx-cut-card .config-cpsx-param-a,
+  html.in-config-page .config-page .config-cpsx-cut-card .config-cpsx-param-b,
+  html.in-config-page .config-page .config-cpsx-cut-card .config-cpsx-param-c {
+    grid-column: auto !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    min-width: 0 !important;
+    align-items: center !important;
+    padding: 0 !important;
+    border: 0 !important;
+    background: transparent !important;
+    gap: 3px !important;
+  }
+
+  /* Nhãn đơn vị nằm trên ô — cỡ như nhãn phụ desktop */
+  .lts-shell--mobile .config-page .config-cpsx-merge-card .config-cpsx-param > span:first-child,
+  .lts-shell--mobile .config-page .config-cpsx-cut-card .config-cpsx-param > span:first-child,
+  html.in-config-page .config-page .config-cpsx-merge-card .config-cpsx-param > span:first-child,
+  html.in-config-page .config-page .config-cpsx-cut-card .config-cpsx-param > span:first-child {
+    font-size: 0.75rem !important;
+    color: var(--muted);
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  /* Ô nhập: bám base .config-inline-input (font 0.88rem, pill xám) — reset đè 34px/12px ở trên */
+  .lts-shell--mobile .config-page .config-cpsx-merge-card .config-cpsx-param .config-inline-input,
+  .lts-shell--mobile .config-page .config-cpsx-cut-card .config-cpsx-param .config-inline-input,
+  html.in-config-page .config-page .config-cpsx-merge-card .config-cpsx-param .config-inline-input,
+  html.in-config-page .config-page .config-cpsx-cut-card .config-cpsx-param .config-inline-input {
+    width: 72px !important;
+    min-width: 64px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    padding: 6px 8px !important;
+    font-size: 0.88rem !important;
+    text-align: center;
+  }
+
+  /* Bảng quy tắc cắt: giữ dạng bảng thật, mỗi quy tắc 1 hàng; cuộn ngang nếu hẹp */
   .lts-shell--mobile .config-page .config-cut-rules-wrap,
   html.in-config-page .config-page .config-cut-rules-wrap {
-    overflow: visible !important;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
     border: 0 !important;
     border-radius: 0 !important;
   }
 
   .lts-shell--mobile .config-page .config-cut-rules-table,
-  .lts-shell--mobile .config-page .config-cut-rules-table tbody,
-  html.in-config-page .config-page .config-cut-rules-table,
-  html.in-config-page .config-page .config-cut-rules-table tbody {
-    display: block;
+  html.in-config-page .config-page .config-cut-rules-table {
     width: 100%;
+    min-width: 360px;
   }
 
-  .lts-shell--mobile .config-page .config-cut-rules-table thead,
-  html.in-config-page .config-page .config-cut-rules-table thead {
-    display: none;
-  }
-
-  .lts-shell--mobile .config-page .config-cut-rules-table tr,
-  html.in-config-page .config-page .config-cut-rules-table tr {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    gap: 8px;
-    margin-bottom: 10px;
-    padding: 10px;
-    border: 1px solid var(--border);
-    border-radius: 14px;
-    background: var(--surface);
+  .lts-shell--mobile .config-page .config-cut-rules-table th,
+  html.in-config-page .config-page .config-cut-rules-table th {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.15;
+    font-size: 10.5px;
+    text-align: center;
+    vertical-align: middle;
+    padding: 6px 4px !important;
   }
 
   .lts-shell--mobile .config-page .config-cut-rules-table td,
   html.in-config-page .config-page .config-cut-rules-table td {
-    display: grid;
-    gap: 4px;
-    padding: 0 !important;
-    border: 0 !important;
-    text-align: left !important;
+    padding: 6px 4px !important;
+    text-align: center;
+    vertical-align: middle;
+    font-size: 12px;
   }
 
-  .lts-shell--mobile .config-page .config-cut-rules-table td::before,
-  html.in-config-page .config-page .config-cut-rules-table td::before {
-    content: attr(data-label);
-    color: var(--muted);
-    font-size: 0.72rem;
+  /* Ô nhập = pill base như bảng Nhũ/Phủ Mờ (không kéo căng cột) */
+  .lts-shell--mobile .config-page .config-cut-rules-table .config-inline-input,
+  html.in-config-page .config-page .config-cut-rules-table .config-inline-input {
+    width: 64px !important;
+    min-width: 0 !important;
+    padding: 6px 8px !important;
+    font-size: 0.88rem !important;
+    text-align: center;
+    box-sizing: border-box;
+  }
+
+  /* Ô tên (Diện tích túi) rộng hơn để đọc "Trung bình" */
+  .lts-shell--mobile .config-page .config-cut-rules-table td:first-child .config-inline-input,
+  html.in-config-page .config-page .config-cut-rules-table td:first-child .config-inline-input {
+    width: 100px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-cut-rules-table .cut-preview,
+  html.in-config-page .config-page .config-cut-rules-table .cut-preview {
     font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
+    color: var(--accent);
+    font-variant-numeric: tabular-nums;
   }
 
-  .lts-shell--mobile .config-page .config-cut-rules-table td:first-child,
-  .lts-shell--mobile .config-page .config-cut-rules-table td.cut-preview,
-  html.in-config-page .config-page .config-cut-rules-table td:first-child,
-  html.in-config-page .config-page .config-cut-rules-table td.cut-preview {
-    grid-column: 1 / -1;
-  }
-
-  .lts-shell--mobile .config-page .config-cut-rules-table td:last-child,
-  html.in-config-page .config-page .config-cut-rules-table td:last-child {
-    grid-column: 1 / -1;
-    justify-content: end;
-  }
-
-  .lts-shell--mobile .config-page .config-cut-rules-table td:last-child::before,
-  html.in-config-page .config-page .config-cut-rules-table td:last-child::before {
-    content: none;
+  /* Nút xóa = icon ✕ gọn trong cột hẹp */
+  .lts-shell--mobile .config-page .config-cut-rule-delete-cell,
+  html.in-config-page .config-page .config-cut-rule-delete-cell {
+    padding: 2px !important;
   }
 
   .lts-shell--mobile .config-page .config-cut-rule-delete-btn,
   html.in-config-page .config-page .config-cut-rule-delete-btn {
     display: inline-flex;
-    min-height: 34px;
     align-items: center;
     justify-content: center;
-    padding: 6px 10px;
-    border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent) !important;
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--danger) 8%, transparent) !important;
-    font-size: 0 !important;
-  }
-
-  .lts-shell--mobile .config-page .config-cut-rule-delete-btn::before,
-  html.in-config-page .config-page .config-cut-rule-delete-btn::before {
-    content: "Xóa quy tắc";
-    font-size: 12px;
-    font-weight: 700;
+    padding: 4px !important;
+    font-size: 1rem !important;
+    line-height: 1;
+    color: var(--danger);
   }
 
   .lts-shell--mobile .config-page .config-cpsx-cut-card > .btn,
