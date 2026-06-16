@@ -6,7 +6,7 @@
 import { normalizeDisplayText } from '../text-codec';
 
 // ── Constants ────────────────────────────────────────────────────────────
-export const SERVICE_LTS_DIRECT_URL = process.env.NEXT_PUBLIC_SERVICE_LTS_URL ?? 'localhost:3001';
+export const SERVICE_LTS_DIRECT_URL = process.env.NEXT_PUBLIC_SERVICE_LTS_URL ?? 'http://localhost:3001';
 export const LS_ACCESS_TOKEN = 'lts_service_access_token';
 export const LS_REFRESH_TOKEN = 'lts_service_refresh_token';
 
@@ -15,13 +15,14 @@ export type PolicyCode =
   | 'ACCOUNT_READ' | 'ACCOUNT_CREATE' | 'ACCOUNT_ACTIVATE' | 'ACCOUNT_DEACTIVATE'
   | 'ACCOUNT_PROTECT' | 'ACCOUNT_PASSWORD_UPDATE_ALL' | 'ROLE_CREATE' | 'ROLE_UPDATE' | 'ROLE_DELETE'
   | 'ROLE_READ' | 'CUSTOMER_CREATE' | 'CUSTOMER_MANAGER'
-  | 'USER_POLICY_GRANT' | 'USER_POLICY_REVOKE';
+  | 'USER_POLICY_GRANT' | 'USER_POLICY_REVOKE'
+  | 'QUOTATION_REVIEWER' | 'PRODUCT_MANAGER';
 
 export interface Policy {
   code: PolicyCode;
   ten: string;
   moTa: string;
-  nhom: 'Tài khoản' | 'Nhóm quyền' | 'Cấp phát';
+  nhom: 'Tài khoản' | 'Nhóm quyền' | 'Cấp phát' | 'Báo giá' | 'Sản phẩm';
   rui_ro: 'thap' | 'trung' | 'cao';
 }
 
@@ -40,6 +41,8 @@ export const POLICY_CATALOG: Policy[] = [
   { code: 'CUSTOMER_MANAGER',   ten: 'Quản lý người phụ trách khách hàng', moTa: 'Cho phép thêm hoặc xóa người phụ trách trên hồ sơ khách hàng.', nhom: 'Cấp phát', rui_ro: 'trung' },
   { code: 'USER_POLICY_GRANT',  ten: 'Cấp quyền cho user',    moTa: 'Cho phép cấp policy trực tiếp cho tài khoản.',          nhom: 'Cấp phát', rui_ro: 'cao'   },
   { code: 'USER_POLICY_REVOKE', ten: 'Thu hồi quyền user',    moTa: 'Cho phép thu hồi policy trực tiếp khỏi tài khoản.',     nhom: 'Cấp phát', rui_ro: 'cao'   },
+  { code: 'QUOTATION_REVIEWER', ten: 'Duyệt báo giá',         moTa: 'Cho phép xem và duyệt/từ chối các báo giá đã nộp.',     nhom: 'Báo giá',  rui_ro: 'cao'   },
+  { code: 'PRODUCT_MANAGER',    ten: 'Quản lý sản phẩm',      moTa: 'Cho phép xóa sản phẩm và quản lý danh mục sản phẩm.',   nhom: 'Sản phẩm', rui_ro: 'trung' },
 ];
 
 // ── API types ────────────────────────────────────────────────────────────
@@ -327,6 +330,53 @@ export async function thuHoiQuyenService(token: string, userId: string, policyCo
   }, token);
 }
 
+// ── Policy catalog từ server (validate) ────────────────────────────────────
+export interface PolicyServerApi {
+  code: string;
+  name: string;
+  description: string;
+}
+
+// GET /policies — danh sách policy thật từ backend.
+export async function layDanhSachPolicyService(token?: string): Promise<PolicyServerApi[]> {
+  const data = await goiService<PolicyServerApi[]>('/policies', {}, token);
+  return Array.isArray(data) ? data : [];
+}
+
+export interface KetQuaLechPolicy {
+  // Code server có nhưng catalog frontend chưa khai báo.
+  thieuTrongCatalog: string[];
+  // Code catalog khai báo nhưng server không còn cung cấp.
+  duTrongCatalog: string[];
+}
+
+// So sánh policy server với POLICY_CATALOG hardcode. Chỉ để cảnh báo lệch, không chặn UI.
+export function kiemTraLechPolicy(serverPolicies: PolicyServerApi[]): KetQuaLechPolicy {
+  const serverCodes = new Set(serverPolicies.map(p => p.code));
+  const catalogCodes = new Set<string>(POLICY_CATALOG.map(p => p.code));
+  return {
+    thieuTrongCatalog: [...serverCodes].filter(code => !catalogCodes.has(code)),
+    duTrongCatalog: [...catalogCodes].filter(code => !serverCodes.has(code)),
+  };
+}
+
+// Tải policy server và log cảnh báo nếu lệch với catalog hardcode. Trả về kết quả lệch (hoặc null nếu lỗi).
+export async function canhBaoLechPolicyService(token?: string): Promise<KetQuaLechPolicy | null> {
+  try {
+    const serverPolicies = await layDanhSachPolicyService(token);
+    const lech = kiemTraLechPolicy(serverPolicies);
+    if (lech.thieuTrongCatalog.length > 0) {
+      console.warn('[policy] Server có policy chưa khai báo trong POLICY_CATALOG:', lech.thieuTrongCatalog);
+    }
+    if (lech.duTrongCatalog.length > 0) {
+      console.warn('[policy] POLICY_CATALOG khai báo policy server không cung cấp:', lech.duTrongCatalog);
+    }
+    return lech;
+  } catch {
+    return null;
+  }
+}
+
 // ── Roles ─────────────────────────────────────────────────────────────────
 // GET /auth/roles trả về policies đã được flatten (roleListSelect)
 export interface NhomQuyenApi {
@@ -477,6 +527,21 @@ export async function luuNguoiPhuTrachKhachHangService(
   }, token);
 }
 
+// GET /customers/{codeName} — chi tiết 1 khách hàng (lazy-load thay vì tải toàn bộ list).
+export async function layChiTietKhachHangService(codeName: string, token?: string): Promise<KhachHangApi> {
+  return goiService<KhachHangApi>(`/customers/${encodeURIComponent(codeName)}`, {}, token);
+}
+
+// GET /customers/{codeName}/versions/latest — phiên bản mới nhất của khách hàng.
+export async function layPhienBanMoiNhatKhachHangService(codeName: string, token?: string): Promise<KhachHangApiVersion> {
+  return goiService<KhachHangApiVersion>(`/customers/${encodeURIComponent(codeName)}/versions/latest`, {}, token);
+}
+
+// GET /customers/{codeName}/versions/{versionId} — một phiên bản cụ thể.
+export async function layPhienBanKhachHangService(codeName: string, versionId: string, token?: string): Promise<KhachHangApiVersion> {
+  return goiService<KhachHangApiVersion>(`/customers/${encodeURIComponent(codeName)}/versions/${encodeURIComponent(versionId)}`, {}, token);
+}
+
 // ── Products ──────────────────────────────────────────────────────────────
 export interface SanPhamApi {
   id: string;
@@ -532,6 +597,87 @@ export async function taoBaoGiaService(input: TaoBaoGiaInput, token?: string): P
   return goiService<BaoGiaApi>('/quotations', {
     method: 'POST',
     body: JSON.stringify(input),
+  }, token);
+}
+
+// Trạng thái báo giá theo server thật (xem backend quotation_status.ts).
+// Enum server: draft | submitted | approved | rejected | customer approved | customer rejected
+// - 'drafted'           : báo giá nháp, chưa nộp duyệt
+// - 'submitted'         : đã nộp, đang chờ người duyệt xử lý
+// - 'approved'          : đã duyệt nội bộ
+// - 'rejected'          : bị từ chối nội bộ
+// - 'customer_approved' : khách hàng đã duyệt
+// - 'customer_rejected' : khách hàng từ chối
+// - 'unknown'           : giá trị server lạ, chưa ánh xạ được
+export type TrangThaiBaoGiaServer =
+  | 'drafted' | 'submitted' | 'approved' | 'rejected'
+  | 'customer_approved' | 'customer_rejected' | 'unknown';
+
+// Backend phơi updateStatus dạng string; hàm này quy đổi về tập trạng thái UI dùng.
+export function chuyenTrangThaiBaoGia(updateStatus?: string | null): TrangThaiBaoGiaServer {
+  const value = (updateStatus ?? '').trim().toLowerCase();
+  if (!value || value === 'draft' || value === 'drafted') return 'drafted';
+  if (value === 'submitted') return 'submitted';
+  if (value === 'approved') return 'approved';
+  if (value === 'rejected') return 'rejected';
+  if (value === 'customer approved') return 'customer_approved';
+  if (value === 'customer rejected') return 'customer_rejected';
+  return 'unknown';
+}
+
+export const NHAN_TRANG_THAI_BAO_GIA: Record<TrangThaiBaoGiaServer, string> = {
+  drafted: 'Nháp',
+  submitted: 'Chờ duyệt',
+  approved: 'Đã duyệt',
+  rejected: 'Bị từ chối',
+  customer_approved: 'Khách đã duyệt',
+  customer_rejected: 'Khách từ chối',
+  unknown: 'Không xác định',
+};
+
+export interface SuaBaoGiaInput {
+  quotationId: string;
+  quotationName: string;
+  inputValue: unknown;
+}
+
+// PATCH /quotations — tạo bản sửa (nháp mới) từ báo giá bị từ chối.
+export async function taoBanSuaBaoGiaService(input: SuaBaoGiaInput, token?: string): Promise<BaoGiaApi> {
+  return goiService<BaoGiaApi>('/quotations', {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  }, token);
+}
+
+// GET /quotations — danh sách báo giá thuộc các khách hàng đang quản lý.
+export async function layDanhSachBaoGiaService(token?: string): Promise<BaoGiaApi[]> {
+  const data = await goiService<BaoGiaApi[]>('/quotations', {}, token);
+  return Array.isArray(data) ? data : [];
+}
+
+// PATCH /quotations/status_update — nộp một báo giá nháp để chờ duyệt.
+export async function nopBaoGiaService(quotationId: string, token?: string): Promise<BaoGiaApi> {
+  return goiService<BaoGiaApi>('/quotations/status_update', {
+    method: 'PATCH',
+    body: JSON.stringify({ quotationId }),
+  }, token);
+}
+
+// GET /quotations/quotation-in-review — báo giá đã nộp đang chờ duyệt (cần QUOTATION_REVIEWER).
+export async function layBaoGiaChoDuyetService(token?: string): Promise<BaoGiaApi[]> {
+  const data = await goiService<BaoGiaApi[]>('/quotations/quotation-in-review', {}, token);
+  return Array.isArray(data) ? data : [];
+}
+
+// PATCH /quotations/review_update_status — duyệt hoặc từ chối báo giá đã nộp.
+export async function duyetBaoGiaService(
+  quotationId: string,
+  updateStatus: 'approved' | 'rejected',
+  token?: string,
+): Promise<BaoGiaApi> {
+  return goiService<BaoGiaApi>('/quotations/review_update_status', {
+    method: 'PATCH',
+    body: JSON.stringify({ quotationId, updateStatus }),
   }, token);
 }
 

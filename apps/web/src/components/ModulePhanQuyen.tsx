@@ -32,6 +32,7 @@ import {
   xoaNhomQuyenService,
   layNhomQuyenService,
   chuyenTaiKhoanApi,
+  canhBaoLechPolicyService,
 } from '../lib/api/service-lts';
 import { normalizeDisplayText } from '../lib/text-codec';
 
@@ -831,6 +832,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     if (accessToken) {
       void napTaiKhoan();
       void napNhomQuyen();
+      void canhBaoLechPolicyService(accessToken);
     }
   }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 

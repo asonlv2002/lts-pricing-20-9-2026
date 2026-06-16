@@ -809,6 +809,10 @@ export default function ManHinhQuanLy() {
                 style={{marginBottom: 0, height: '40px'}}
                 title="Lưu bảng tính này vào lịch sử báo giá"
                 onClick={() => {
+                  if (!(input.productName || '').trim()) {
+                    alert('Vui lòng nhập tên sản phẩm trước khi lưu.');
+                    return;
+                  }
                   themVaoLichSu();
                   // Hiện toast clickable 5s — click để vào lịch sử
                   const container = document.getElementById('toastContainer');

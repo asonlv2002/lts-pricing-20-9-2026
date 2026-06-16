@@ -270,12 +270,12 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   };
 
   const goiYSanPham = React.useMemo(() => {
-    const tuKhoa = boDau(((input as any).productCode || input.productName || '').trim());
+    const tuKhoa = boDau((input.productName || '').trim());
     if (!dangFocusSanPham || tuKhoa.length < 1) return [];
     return danhSachSanPham
-      .filter(sp => boDau(`${sp.productCode} ${sp.productName}`).includes(tuKhoa))
+      .filter(sp => boDau(`${sp.productName} ${sp.productCode}`).includes(tuKhoa))
       .slice(0, 6);
-  }, [dangFocusSanPham, danhSachSanPham, input]);
+  }, [dangFocusSanPham, danhSachSanPham, input.productName]);
 
   const xuLyLoaiSanPham = (val: string) => {
     capNhatDauVao({ productType: val, bagType: '', filmType: '' });
@@ -602,7 +602,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
       <div className="auto-calc-badge"><div className="pulse-dot"></div> Tự động tính khi thay đổi</div>
       <div className="card-title"><span className="icon">📝</span> Thông tin đơn hàng</div>
 
-      <div className="form-row form-row-3 customer-product-row">
+      <div className="form-row customer-product-row">
         <div className="form-group" style={{ position: 'relative' }}>
           <label className="form-label">Khách hàng</label>
           <input
@@ -683,39 +683,62 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             </div>
           )}
         </div>
-        <div className="form-group">
+        <div className="form-group" style={{ position: 'relative' }}>
           <label className="form-label">Tên hàng</label>
-          <input className="form-input" placeholder="Tên sản phẩm" value={input.productName} onChange={e => capNhatDauVao({ productName: e.target.value })} />
-        </div>
-        <div className="form-group product-code-field" style={{ position: 'relative' }}>
-          <label className="form-label">Mã sản phẩm</label>
           <input
             className="form-input"
-            placeholder="VD: TUI_GAO_5KG"
-            value={(input as any).productCode ?? ''}
+            placeholder="Tên sản phẩm"
+            value={input.productName}
             onFocus={() => datDangFocusSanPham(true)}
             onBlur={xuLyRoiONhapSanPham}
-            onChange={e => capNhatDauVao({ productCode: e.target.value.toUpperCase() } as any)}
+            onChange={e => {
+              // Gõ tay = chưa gắn mã chuẩn → xóa productCode (chỉ set lại khi chọn gợi ý / tạo mới)
+              capNhatDauVao({ productName: e.target.value, productCode: '' } as any);
+              datMaSanPhamMoi('');
+              datLoiTaoSanPham('');
+            }}
             autoComplete="off"
           />
-          {dangFocusSanPham && ((input as any).productCode || '').trim() && goiYSanPham.length === 0 && (
+          {goiYSanPham.length > 0 && (
+            <div style={{
+              position: 'absolute', zIndex: 30, left: 0, right: 0, top: '100%', marginTop: 4,
+              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10,
+              boxShadow: '0 14px 34px rgba(15,23,42,.18)', overflow: 'hidden'
+            }}>
+              {goiYSanPham.map(sp => (
+                <button
+                  key={sp.id}
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => {
+                    capNhatDauVao({ productCode: sp.productCode, productName: sp.productName } as any);
+                    datDangFocusSanPham(false);
+                  }}
+                  style={{
+                    width: '100%', border: 0, background: 'transparent', textAlign: 'left', padding: '9px 11px',
+                    cursor: 'pointer', borderBottom: '1px solid var(--border)', color: 'var(--text)'
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: '.86rem' }}>{sp.productName}</div>
+                  <div style={{ fontSize: '.74rem', color: 'var(--muted)', marginTop: 2 }}>
+                    {sp.productCode}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+          {dangFocusSanPham && input.productName.trim() && goiYSanPham.length === 0 && (
             <div
               ref={quickProductRef}
-              style={{ position:'absolute', zIndex:30, left:0, top:'100%', marginTop:4, width:'min(200%, calc(100vw - 32px))', background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'8px 10px', boxShadow:'0 14px 34px rgba(15,23,42,.18)', display:'flex', flexDirection:'column', gap:6 }}
+              style={{ position:'absolute', zIndex:30, left:0, right:0, top:'100%', marginTop:4, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'8px 10px', boxShadow:'0 14px 34px rgba(15,23,42,.18)', display:'flex', flexDirection:'column', gap:6 }}
             >
-              <div style={{ fontSize:'.78rem', color:'var(--muted)' }}>
-                Sản phẩm mới: <span style={{ color:'var(--text)', fontWeight:700 }}>{((input as any).productCode || '').trim()}</span>
-              </div>
-              <div style={{ fontSize:'.72rem', color:'var(--muted)' }}>
-                Tên SP: <span style={{ color:'var(--text)' }}>{input.productName?.trim() || '— chưa có —'}</span>
-              </div>
               <label style={{ display:'flex', flexDirection:'column', gap:4 }}>
                 <span style={{ fontSize:'.72rem', fontWeight:700, color:'var(--muted)' }}>Mã sản phẩm</span>
                 <input
                   className="form-input"
                   style={{ height:32, fontSize:'.82rem', width:'100%' }}
                   placeholder="TUI_GAO_5KG"
-                  value={maSanPhamMoi || ((input as any).productCode || '')}
+                  value={maSanPhamMoi}
                   onFocus={() => datDangFocusSanPham(true)}
                   onChange={e => {
                     datMaSanPhamMoi(e.target.value.toUpperCase());
@@ -739,34 +762,6 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                 {dangTaoSanPham ? 'Đang tạo...' : 'Tạo mới'}
               </button>
               {loiTaoSanPham && <div style={{ color:'#dc2626', fontSize:'.74rem', marginTop:7 }}>{loiTaoSanPham}</div>}
-            </div>
-          )}
-          {goiYSanPham.length > 0 && (
-            <div style={{
-              position: 'absolute', zIndex: 30, left: 0, right: 0, top: '100%', marginTop: 4,
-              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10,
-              boxShadow: '0 14px 34px rgba(15,23,42,.18)', overflow: 'hidden'
-            }}>
-              {goiYSanPham.map(sp => (
-                <button
-                  key={sp.id}
-                  type="button"
-                  onMouseDown={e => e.preventDefault()}
-                  onClick={() => {
-                    capNhatDauVao({ productCode: sp.productCode, productName: sp.productName } as any);
-                    datDangFocusSanPham(false);
-                  }}
-                  style={{
-                    width: '100%', border: 0, background: 'transparent', textAlign: 'left', padding: '9px 11px',
-                    cursor: 'pointer', borderBottom: '1px solid var(--border)', color: 'var(--text)'
-                  }}
-                >
-                  <div style={{ fontWeight: 700, fontSize: '.86rem' }}>{sp.productCode}</div>
-                  <div style={{ fontSize: '.74rem', color: 'var(--muted)', marginTop: 2 }}>
-                    {sp.productName}
-                  </div>
-                </button>
-              ))}
             </div>
           )}
         </div>
@@ -1335,6 +1330,10 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             }
             if (!result) {
               alert('Vui lòng nhập đầy đủ thông tin đơn hàng.');
+              return;
+            }
+            if (!(input.productName || '').trim()) {
+              alert('Vui lòng nhập tên sản phẩm trước khi lưu.');
               return;
             }
             themVaoLichSu();

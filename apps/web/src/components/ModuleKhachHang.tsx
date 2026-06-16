@@ -73,6 +73,7 @@ interface Customer {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  isDraft?: boolean;        // Nháp local-only, chưa đẩy lên server
 }
 
 interface CustomerFilters {
@@ -263,7 +264,29 @@ function loadLocalCustomers(): Customer[] {
   } catch { return seedCustomers as Customer[]; }
 }
 function saveLocalCustomers(customers: Customer[]) {
-  try { window.localStorage.setItem(LS_CUSTOMERS, JSON.stringify(customers)); } catch { /* local only */ }
+  // Không ghi nháp vào danh sách chính — nháp có key riêng (LS_CUSTOMER_DRAFT)
+  try { window.localStorage.setItem(LS_CUSTOMERS, JSON.stringify(customers.filter(c => !c.isDraft))); } catch { /* local only */ }
+}
+function loadCustomerDraft(): Customer | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(LS_CUSTOMER_DRAFT);
+    if (!raw) return null;
+    const draft = JSON.parse(raw) as Customer;
+    return { ...draft, isDraft: true };
+  } catch { return null; }
+}
+function saveCustomerDraft(c: Customer) {
+  try { window.localStorage.setItem(LS_CUSTOMER_DRAFT, JSON.stringify({ ...c, isDraft: true })); } catch { /* local only */ }
+}
+function clearCustomerDraft() {
+  try { window.localStorage.removeItem(LS_CUSTOMER_DRAFT); } catch { /* local only */ }
+}
+// Trộn nháp local-only vào danh sách (nháp lên đầu, dedupe theo id — nháp thắng)
+function mergeDraftIntoList(list: Customer[], draft: Customer | null): Customer[] {
+  if (!draft) return list;
+  const rest = list.filter(c => c.id !== draft.id);
+  return [draft, ...rest];
 }
 function exportCsv(rows: Customer[]) {
   const headers = ['Loai KH','Ma KH','Ten khach hang','MST','Nguoi lien he','SDT','Email','Dia chi','Nhom','Nhan vien','Trang thai','Khoa','Ngay tao','Ghi chu'];
@@ -332,7 +355,7 @@ function CustomerField({ k, icon, form, errors, role, disabled, required, type =
       ) : (k === 'notes' || k === 'assignmentNote') ? (
         <textarea id={`wiz-${String(k)}`} className={`crm2-input crm2-textarea${err ? ' crm2-input--error' : ''}`} rows={3} value={String(form[k] ?? '')} onChange={e => onSet(k, e.target.value)} placeholder={k === 'assignmentNote' ? 'VD: Lý do phân công, chuyển phụ trách hoặc thu hồi...' : 'VD: Điều khoản, thói quen đặt hàng, công nợ...'} disabled={disabled} />
       ) : (
-        <input id={`wiz-${String(k)}`} type={type} className={`crm2-input${err ? ' crm2-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => onSet(k, e.target.value)} onBlur={e => onCommit?.(k, e.target.value)} disabled={disabled} aria-invalid={!!err} />
+        <input id={`wiz-${String(k)}`} type={type} inputMode={type === 'tel' ? 'numeric' : undefined} className={`crm2-input${err ? ' crm2-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => onSet(k, e.target.value)} onBlur={e => onCommit?.(k, e.target.value)} disabled={disabled} aria-invalid={!!err} />
       )}
       {err ? (
         <span className="crm2-field-error" role="alert"><AlertCircle size={11}/>{err}</span>
@@ -344,8 +367,9 @@ function CustomerField({ k, icon, form, errors, role, disabled, required, type =
 }
 
 // ── CustomerForm (Wizard) ────────────────────────────────────────────────────
-function CustomerForm({ customer, role, currentSellerId, customers = [], token, canManageManagers = false, saving = false, onSave, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; customers?: Customer[]; token?: string; canManageManagers?: boolean; saving?: boolean; onSave: (c: Customer) => void; onCancel: () => void }) {
-  const isNew = !customer;
+function CustomerForm({ customer, role, currentSellerId, customers = [], token, canManageManagers = false, saving = false, onSave, onSaveDraft, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; customers?: Customer[]; token?: string; canManageManagers?: boolean; saving?: boolean; onSave: (c: Customer) => void; onSaveDraft: (c: Customer) => void; onCancel: () => void }) {
+  // Nháp local-only được coi như đang tạo mới (cho sửa mã KH + hiện nút Lưu nháp)
+  const isNew = !customer || !!customer?.isDraft;
   const [step, setStep] = useState(0);
   const [form, setForm] = useState<Customer>(makeInitialCustomer(customer, role, currentSellerId));
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -362,6 +386,9 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
       if (key === 'customerType') {
         const nextType = value as CustomerType;
         return { ...f, customerType: nextType, companyName: nextType === 'individual' ? (f.companyName || f.contactName || '') : f.companyName, contactName: nextType === 'company' ? f.contactName : (f.contactName || f.companyName || '') };
+      }
+      if (key === 'phone' && typeof value === 'string') {
+        return { ...f, phone: value.replace(/\D/g, '') };
       }
       return { ...f, [key]: value };
     });
@@ -385,18 +412,11 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
       if (s === 0 && isIndividual(form) && !form.contactName?.trim()) e.contactName = 'Nhập họ tên khách hàng.';
       if (f === 'companyName' && !isIndividual(form) && !String(v ?? '').trim()) e.companyName = 'Nhập tên công ty.';
       if (f === 'contactName' && !isIndividual(form) && !String(v ?? '').trim()) e.contactName = 'Nhập người liên hệ.';
+      if (s === 0 && f === 'address' && !String(v ?? '').trim()) e.address = 'Nhập địa chỉ giao hàng.';
       if (f === 'phone' && !String(v ?? '').trim()) e.phone = 'Nhập số điện thoại.';
+      if (f === 'email' && !String(v ?? '').trim()) e.email = 'Nhập email khách hàng.';
       if (f === 'email' && v && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) e.email = 'Email chưa đúng định dạng.';
     }
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const validateAll = () => {
-    const e: Record<string, string> = {};
-    const checkCode = kiemTraMaKhachHang(form.customerCode);
-    if (!checkCode.hopLe) e.customerCode = checkCode.loi ?? 'Nhập mã khách hàng.';
-    Object.assign(e, kiemTraThongTinKhachHang(form).errors);
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -406,6 +426,35 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
     if (!checkCode.hopLe) return false;
     return Object.keys(kiemTraThongTinKhachHang(form).errors).length === 0;
   }, [form]);
+
+  const isEmailValid = (v?: string | null) => !!v && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+
+  // Điều kiện đủ để bật nút "Tiếp tục" cho từng bước (desktop wizard)
+  const stepComplete = (s: number): boolean => {
+    if (s === 0) {
+      const codeOk = kiemTraMaKhachHang(form.customerCode).hopLe;
+      const nameOk = isIndividual(form)
+        ? !!form.contactName?.trim()
+        : !!form.companyName?.trim();
+      const addressOk = !!form.address?.trim();
+      return codeOk && nameOk && addressOk;
+    }
+    if (s === 1) {
+      const contactOk = isIndividual(form) ? true : !!form.contactName?.trim();
+      const phoneOk = !!form.phone?.trim();
+      const emailOk = isEmailValid(form.email);
+      return contactOk && phoneOk && emailOk;
+    }
+    return true;
+  };
+
+  // Map field lỗi -> bước chứa field đó (để nhảy đúng bước khi lưu)
+  const fieldToStep = (field: string): number => {
+    for (const [s, fields] of Object.entries(stepFields)) {
+      if ((fields as string[]).includes(field)) return Number(s);
+    }
+    return 0;
+  };
 
   const checkDuplicates = () => {
     const norm = (v?: string | null) => normalize(v).trim();
@@ -421,21 +470,29 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
 
   useEffect(() => { checkDuplicates(); }, [form.companyName, form.taxCode, form.phone, form.email]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Lưu nháp: bỏ qua validation, đẩy ra parent để hiện trong danh sách (local-only, không lên server)
   const saveDraft = () => {
-    try { window.localStorage.setItem(LS_CUSTOMER_DRAFT, JSON.stringify(form)); alert('Đã lưu nháp khách hàng.'); } catch { alert('Không lưu được nháp.'); }
-  };
-  const loadDraft = () => {
     try {
-      const raw = window.localStorage.getItem(LS_CUSTOMER_DRAFT);
-      if (raw) setForm({ ...blankCustomer, ...JSON.parse(raw), updatedAt: todayIso() });
-    } catch { /* ignore */ }
+      onSaveDraft({ ...form, isDraft: true, updatedAt: todayIso() });
+    } catch { alert('Không lưu được nháp.'); }
   };
 
   const next = () => { if (validateStep(step)) setStep(s => s + 1); };
   const back = () => setStep(s => s - 1);
   const submit = () => {
-    if (!validateAll()) { setStep(0); return; }
-    onSave({ ...form, customerCode: kiemTraMaKhachHang(form.customerCode).maKhachHang, sellerName: seller?.name ?? form.sellerName ?? '', updatedAt: todayIso() });
+    const e: Record<string, string> = {};
+    const checkCode = kiemTraMaKhachHang(form.customerCode);
+    if (!checkCode.hopLe) e.customerCode = checkCode.loi ?? 'Nhập mã khách hàng.';
+    Object.assign(e, kiemTraThongTinKhachHang(form).errors);
+    setErrors(e);
+    const errorKeys = Object.keys(e);
+    if (errorKeys.length > 0) {
+      // Nhảy về đúng bước chứa field lỗi đầu tiên (không phải luôn về bước 1)
+      const targetStep = Math.min(...errorKeys.map(fieldToStep));
+      setStep(Number.isFinite(targetStep) ? targetStep : 0);
+      return;
+    }
+    onSave({ ...form, customerCode: checkCode.maKhachHang, sellerName: seller?.name ?? form.sellerName ?? '', updatedAt: todayIso() });
   };
 
   const close = () => {
@@ -479,12 +536,11 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
           <div className="crm2-wizard-actions-left">
             {!isMobileCustomerForm && step > 0 && <button className="crm2-btn crm2-btn--ghost" onClick={back}><ArrowLeft size={14}/> Quay lại</button>}
             <button className="crm2-btn crm2-btn--ghost" onClick={saveDraft}>Lưu nháp</button>
-            {!customer && <button className="crm2-btn crm2-btn--ghost" onClick={loadDraft}>Tải nháp</button>}
             <button className="crm2-btn crm2-btn--ghost" onClick={close}>Hủy</button>
           </div>
           <div>
             {!isMobileCustomerForm && step < 2 ? (
-              <button className="crm2-btn crm2-btn--primary" onClick={next}>
+              <button className="crm2-btn crm2-btn--primary" onClick={next} disabled={!stepComplete(step)}>
                 Tiếp tục <ChevronRight size={14}/>
               </button>
             ) : (
@@ -1572,7 +1628,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const refreshCustomersFromServer = async (token: string) => {
     const data = await layKhachHangService(token);
     const customersWithManagers = chuyenDanhSachCustomerApiSangUi(Array.isArray(data) ? data : []) as Customer[];
-    setCustomers(customersWithManagers);
+    setCustomers(mergeDraftIntoList(customersWithManagers, loadCustomerDraft()));
     setDetail(current => current ? customersWithManagers.find(customer => customer.id === current.id) ?? current : current);
     setEditing(current => current ? customersWithManagers.find(customer => customer.id === current.id) ?? current : current);
     setAssigning(current => current ? customersWithManagers.find(customer => customer.id === current.id) ?? current : current);
@@ -1608,7 +1664,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     let cancelled = false;
     let refreshing = false;
 
-    setCustomers(loadLocalCustomers());
+    setCustomers(mergeDraftIntoList(loadLocalCustomers(), loadCustomerDraft()));
 
     if (!isAuthenticated || !accessToken || process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') {
       return () => {
@@ -1872,7 +1928,13 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
               onSave={async c => {
                 setDangLuuKhachHang(true);
                 try {
-                  const saved = await upsert(c);
+                  const { isDraft: _bo, ...thongTinLuu } = c;
+                  const saved = await upsert(thongTinLuu as Customer);
+                  // Lưu thật thành công → xóa nháp local (nếu trùng id)
+                  if (loadCustomerDraft()?.id === c.id) {
+                    clearCustomerDraft();
+                    setCustomers(prev => prev.map(x => x.id === c.id ? { ...x, isDraft: false } : x));
+                  }
                   if (detail) setDetail(saved);
                   setEditing(undefined);
                 } catch (error) {
@@ -1880,6 +1942,13 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                 } finally {
                   setDangLuuKhachHang(false);
                 }
+              }}
+              onSaveDraft={c => {
+                const draft = { ...c, isDraft: true };
+                saveCustomerDraft(draft);
+                setCustomers(prev => mergeDraftIntoList(prev, draft));
+                setEditing(undefined);
+                alert('Đã lưu nháp khách hàng.');
               }}
               onCancel={() => setEditing(undefined)}
             />
@@ -2129,7 +2198,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                 const managerNames = managerNamesForTable(c);
                 const canUpdateThisCustomer = canUpdateCustomerRecord(c, nguoiDungHienTai?.id);
                 return (
-                <tr key={c.id} className="crm2-table-row" onClick={() => openDetail(c)}>
+                <tr key={c.id} className="crm2-table-row" onClick={() => c.isDraft ? openEdit(c) : openDetail(c)}>
                   <td>
                     <div className="crm2-table-customer">
                       <div className="crm2-table-avatar" style={{ background: getAvatarColor(c.id) }}>{getInitials(c)}</div>
@@ -2154,12 +2223,20 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                     </div>
                   </td>
                   <td>
-                    <span className="crm2-crm-badge" style={{ background: crmCfg.bg, color: crmCfg.text, fontSize: 11 }}>
-                      {crmCfg.dot} {crmCfg.label}
-                    </span>
+                    {c.isDraft ? (
+                      <span className="crm2-draft-badge">Nháp</span>
+                    ) : (
+                      <span className="crm2-crm-badge" style={{ background: crmCfg.bg, color: crmCfg.text, fontSize: 11 }}>
+                        {crmCfg.dot} {crmCfg.label}
+                      </span>
+                    )}
                   </td>
                   <td>
                     <div className="crm2-table-actions" onClick={e => e.stopPropagation()}>
+                      {c.isDraft ? (
+                        <button className="crm2-btn-icon" title="Xem / sửa nháp" onClick={() => openEdit(c)}><Eye size={14}/></button>
+                      ) : (
+                      <>
                       <button className="crm2-btn-icon" title="Xem" onClick={() => openDetail(c)}><Eye size={14}/></button>
                       {canUpdateThisCustomer && <button className="crm2-btn-icon" title="Sửa" onClick={() => openEdit(c)}><Pencil size={14}/></button>}
                       {coQuyenQuanLyNguoiPhuTrach && <button className="crm2-btn-icon" title="Phân công" onClick={() => openAssign(c)}><Briefcase size={14}/></button>}
@@ -2190,6 +2267,8 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                           </div>
                         )}
                       </div>
+                      </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -3241,6 +3320,15 @@ const CRM2_STYLES = `
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 8px; border-radius: 10px;
   font-size: 11px; font-weight: 600; white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Nháp local-only badge */
+.crm2-draft-badge {
+  display: inline-flex; align-items: center;
+  padding: 2px 10px; border-radius: 10px;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
+  background: #fef3c7; color: #92400e; border: 1px solid #fde68a;
   flex-shrink: 0;
 }
 

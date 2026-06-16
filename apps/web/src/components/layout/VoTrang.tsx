@@ -9,6 +9,7 @@ import DoiMatKhauModal from '../auth/DoiMatKhauModal';
 import ModuleKhachHang from '../ModuleKhachHang';
 import ModuleNhanVienBan from '../ModuleNhanVienBan';
 import ModuleBaoGia from '../ModuleBaoGia';
+import ModuleDuyetBaoGia from '../ModuleDuyetBaoGia';
 import ModuleLichSuDB from '../ModuleLichSuDB';
 import TrangCauHinh from '../TrangCauHinh';
 import ModulePhanQuyen from '../ModulePhanQuyen';
@@ -76,6 +77,7 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     mucCon: [
       { key: 'pricing.create_calculation', id: 'calculator', label: 'Tạo bảng tính giá', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.create_quote', id: 'quotations', label: 'Tạo bảng báo giá', vaiTros: ['admin', 'sale'] },
+      { key: 'pricing.quote_review', id: 'quotations', label: 'Duyệt báo giá', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.create_lsx', id: 'create_lsx', label: 'Tạo LSX', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.lsx_list', id: 'lsx_list', label: 'Danh sách LSX', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.history', id: 'history_db', label: 'Lịch sử tính giá và báo giá', vaiTros: ['admin', 'sale'] },
@@ -406,7 +408,7 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
                 </button>
                 {(dangMo || laMobile) && laNhomDangMo && (
                   <div className="lts-nav-children">
-                    {nhom.mucCon.map((item, index) => (
+                    {nhom.mucCon.filter(item => coTheXemMucMenu(policies, item.key)).map((item, index) => (
                       <button
                         key={item.key}
                         onClick={() => xuLyDieuHuong(item)}
@@ -904,7 +906,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 </header>
               )}
               {moduleDangMo === 'calculator'        && children}
-              {moduleDangMo === 'quotations'        && <ModuleBaoGia role={vaiTroHienTai} menuDangChon={menuDangChon} />}
+              {moduleDangMo === 'quotations'        && (menuDangChon === 'pricing.quote_review'
+                ? <ModuleDuyetBaoGia />
+                : <ModuleBaoGia role={vaiTroHienTai} menuDangChon={menuDangChon} />)}
               {moduleDangMo === 'create_lsx'        && <ModuleTaoLenhSanXuat />}
               {moduleDangMo === 'lsx_list'          && <ModuleDanhSachLSX />}
               {moduleDangMo === 'history_db'        && <ModuleLichSuDB khiDieuHuong={datModuleDangMo} menuDangChon={menuDangChon} />}
