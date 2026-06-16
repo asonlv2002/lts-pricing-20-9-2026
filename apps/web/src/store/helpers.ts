@@ -12,7 +12,6 @@ export const LS_VERSIONS = 'lts_versions';
 export const LS_CONFIG_SNAPSHOTS = 'lts_config_snapshots';
 export const LS_QUOTE_COUNTER = 'lts_quote_counter';
 export const LS_CUSTOMERS = 'lts_customers';
-export const LS_PRODUCTS = 'lts_products';
 
 export function luuLocalStorage(key: string, giaTri: unknown) {
   try { window.localStorage.setItem(key, JSON.stringify(giaTri)); } catch { /* quota */ }

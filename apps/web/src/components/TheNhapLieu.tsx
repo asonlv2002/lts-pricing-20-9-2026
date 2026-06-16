@@ -5,12 +5,6 @@ import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { LS_CUSTOMERS, loadCustomers, luuLocalStorage } from '../store/helpers';
 import { taoKhachHangNhanhChoBaoGia } from '../lib/customer-api';
 import { taoMaKhachHangService } from '../lib/api/service-lts';
-import {
-  loadProducts,
-  taoSanPhamMoi,
-  kiemTraMaSanPham,
-  type SanPhamUi,
-} from '../lib/product-api';
 import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
 
 type KhachHangGoiY = {
@@ -135,14 +129,6 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   const [dangTaoKhachHang, datDangTaoKhachHang] = React.useState(false);
   const quickCustomerRef = React.useRef<HTMLDivElement | null>(null);
 
-  // ── Sản phẩm (giống pattern khách hàng) ──────────────────────────────────
-  const [dangFocusSanPham, datDangFocusSanPham] = React.useState(false);
-  const [danhSachSanPham, datDanhSachSanPham] = React.useState<SanPhamUi[]>(() => loadProducts());
-  const [maSanPhamMoi, datMaSanPhamMoi] = React.useState('');
-  const [loiTaoSanPham, datLoiTaoSanPham] = React.useState('');
-  const [dangTaoSanPham, datDangTaoSanPham] = React.useState(false);
-  const quickProductRef = React.useRef<HTMLDivElement | null>(null);
-
   const lamMoiDanhSachKhachHang = React.useCallback(() => {
     datDanhSachKhachHang(loadCustomers() as KhachHangGoiY[]);
   }, []);
@@ -150,14 +136,6 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   React.useEffect(() => {
     lamMoiDanhSachKhachHang();
   }, [lamMoiDanhSachKhachHang]);
-
-  const lamMoiDanhSachSanPham = React.useCallback(() => {
-    datDanhSachSanPham(loadProducts());
-  }, []);
-
-  React.useEffect(() => {
-    lamMoiDanhSachSanPham();
-  }, [lamMoiDanhSachSanPham]);
 
   const goiYKhachHang = React.useMemo(() => {
     const tuKhoa = boDau(input.customer.trim());
@@ -217,66 +195,6 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   };
 
   // ── Logic sản phẩm ──────────────────────────────────────────────────────
-  const xuLyRoiONhapSanPham = () => {
-    setTimeout(() => {
-      const activeElement = document.activeElement;
-      if (activeElement && quickProductRef.current?.contains(activeElement)) return;
-      datDangFocusSanPham(false);
-    }, 120);
-  };
-
-  const taoNhanhSanPham = async () => {
-    datLoiTaoSanPham('');
-    const tenSP = (input.productName || '').trim();
-    if (!tenSP) {
-      datLoiTaoSanPham('Vui lòng nhập tên sản phẩm trước khi tạo mã.');
-      return;
-    }
-    const check = kiemTraMaSanPham(maSanPhamMoi);
-    if (!check.hopLe) {
-      datLoiTaoSanPham(check.loi ?? 'Mã sản phẩm chưa hợp lệ.');
-      return;
-    }
-    const daTonTai = danhSachSanPham.some(sp => sp.productCode.toUpperCase() === check.ma.toUpperCase());
-    if (daTonTai) {
-      datLoiTaoSanPham('Mã sản phẩm này đã tồn tại. Vui lòng chọn mã khác.');
-      return;
-    }
-    if (!isAuthenticated || !accessToken) {
-      datLoiTaoSanPham('Bạn cần đăng nhập máy chủ để tạo sản phẩm mới.');
-      return;
-    }
-    datDangTaoSanPham(true);
-    try {
-      const created = await taoSanPhamMoi(
-        { productCode: check.ma, productName: tenSP },
-        accessToken,
-      );
-      datDanhSachSanPham(loadProducts());
-      capNhatDauVao({ productCode: created.productCode } as any);
-      datMaSanPhamMoi('');
-      datLoiTaoSanPham('');
-      datDangFocusSanPham(false);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Không tạo được sản phẩm.';
-      datLoiTaoSanPham(
-        message.includes('đã tồn tại') || message.includes('xung đột')
-          ? 'Mã sản phẩm này đã được sử dụng. Vui lòng chọn mã khác.'
-          : message,
-      );
-    } finally {
-      datDangTaoSanPham(false);
-    }
-  };
-
-  const goiYSanPham = React.useMemo(() => {
-    const tuKhoa = boDau((input.productName || '').trim());
-    if (!dangFocusSanPham || tuKhoa.length < 1) return [];
-    return danhSachSanPham
-      .filter(sp => boDau(`${sp.productName} ${sp.productCode}`).includes(tuKhoa))
-      .slice(0, 6);
-  }, [dangFocusSanPham, danhSachSanPham, input.productName]);
-
   const xuLyLoaiSanPham = (val: string) => {
     capNhatDauVao({ productType: val, bagType: '', filmType: '' });
   };
@@ -683,87 +601,15 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             </div>
           )}
         </div>
-        <div className="form-group" style={{ position: 'relative' }}>
+        <div className="form-group">
           <label className="form-label">Tên hàng</label>
           <input
             className="form-input"
             placeholder="Tên sản phẩm"
             value={input.productName}
-            onFocus={() => datDangFocusSanPham(true)}
-            onBlur={xuLyRoiONhapSanPham}
-            onChange={e => {
-              // Gõ tay = chưa gắn mã chuẩn → xóa productCode (chỉ set lại khi chọn gợi ý / tạo mới)
-              capNhatDauVao({ productName: e.target.value, productCode: '' } as any);
-              datMaSanPhamMoi('');
-              datLoiTaoSanPham('');
-            }}
+            onChange={e => capNhatDauVao({ productName: e.target.value })}
             autoComplete="off"
           />
-          {goiYSanPham.length > 0 && (
-            <div style={{
-              position: 'absolute', zIndex: 30, left: 0, right: 0, top: '100%', marginTop: 4,
-              background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10,
-              boxShadow: '0 14px 34px rgba(15,23,42,.18)', overflow: 'hidden'
-            }}>
-              {goiYSanPham.map(sp => (
-                <button
-                  key={sp.id}
-                  type="button"
-                  onMouseDown={e => e.preventDefault()}
-                  onClick={() => {
-                    capNhatDauVao({ productCode: sp.productCode, productName: sp.productName } as any);
-                    datDangFocusSanPham(false);
-                  }}
-                  style={{
-                    width: '100%', border: 0, background: 'transparent', textAlign: 'left', padding: '9px 11px',
-                    cursor: 'pointer', borderBottom: '1px solid var(--border)', color: 'var(--text)'
-                  }}
-                >
-                  <div style={{ fontWeight: 700, fontSize: '.86rem' }}>{sp.productName}</div>
-                  <div style={{ fontSize: '.74rem', color: 'var(--muted)', marginTop: 2 }}>
-                    {sp.productCode}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
-          {dangFocusSanPham && input.productName.trim() && goiYSanPham.length === 0 && (
-            <div
-              ref={quickProductRef}
-              style={{ position:'absolute', zIndex:30, left:0, right:0, top:'100%', marginTop:4, background:'var(--surface)', border:'1px solid var(--border)', borderRadius:10, padding:'8px 10px', boxShadow:'0 14px 34px rgba(15,23,42,.18)', display:'flex', flexDirection:'column', gap:6 }}
-            >
-              <label style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                <span style={{ fontSize:'.72rem', fontWeight:700, color:'var(--muted)' }}>Mã sản phẩm</span>
-                <input
-                  className="form-input"
-                  style={{ height:32, fontSize:'.82rem', width:'100%' }}
-                  placeholder="TUI_GAO_5KG"
-                  value={maSanPhamMoi}
-                  onFocus={() => datDangFocusSanPham(true)}
-                  onChange={e => {
-                    datMaSanPhamMoi(e.target.value.toUpperCase());
-                    datLoiTaoSanPham('');
-                  }}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault();
-                      void taoNhanhSanPham();
-                    }
-                  }}
-                />
-              </label>
-              <button
-                type="button"
-                className="btn btn-primary"
-                style={{ height:32, padding:'0 14px', whiteSpace:'nowrap', width:'100%' }}
-                disabled={dangTaoSanPham}
-                onClick={() => void taoNhanhSanPham()}
-              >
-                {dangTaoSanPham ? 'Đang tạo...' : 'Tạo mới'}
-              </button>
-              {loiTaoSanPham && <div style={{ color:'#dc2626', fontSize:'.74rem', marginTop:7 }}>{loiTaoSanPham}</div>}
-            </div>
-          )}
         </div>
       </div>
 

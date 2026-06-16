@@ -542,38 +542,6 @@ export async function layPhienBanKhachHangService(codeName: string, versionId: s
   return goiService<KhachHangApiVersion>(`/customers/${encodeURIComponent(codeName)}/versions/${encodeURIComponent(versionId)}`, {}, token);
 }
 
-// ── Products ──────────────────────────────────────────────────────────────
-export interface SanPhamApi {
-  id: string;
-  productCode: string;
-  productName: string;
-  description?: string | null;
-  createdBy?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface TaoSanPhamInput {
-  productCode: string;
-  productName: string;
-  description?: string;
-}
-
-export async function laySanPhamService(token?: string): Promise<SanPhamApi[]> {
-  return goiService<SanPhamApi[]>('/products', {}, token);
-}
-
-export async function taoSanPhamService(input: TaoSanPhamInput, token?: string): Promise<SanPhamApi> {
-  return goiService<SanPhamApi>('/products', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  }, token);
-}
-
-export async function xoaSanPhamService(id: string, token?: string): Promise<void> {
-  await goiService<unknown>(`/products/${encodeURIComponent(id)}`, { method: 'DELETE' }, token);
-}
-
 // ── Quotations ────────────────────────────────────────────────────────────
 export interface TaoBaoGiaInput {
   customerCodeName: string;

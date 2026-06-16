@@ -13,8 +13,22 @@ import { getPricingDisplayMeta } from '../lib/pricing-display';
 import type { AppConstants, HistoryItem, Material, ProfitRow, QuoteProductLine, QuoteStatus, OverrideTable, QuoteTerms, QuoteTier, SmallWidthMaterialPrice } from '../lib/types';
 import { QUOTE_STATUS_CONFIG } from '../lib/types';
 import { taoBaoGiaService } from '../lib/api/service-lts';
-import { kiemTraMaSanPham } from '../lib/product-api';
 import { kiemTraMaKhachHang } from '../lib/customer-api';
+
+// Mã sản phẩm: chữ in HOA, số và dấu gạch dưới. VD: TUI_GAO_5KG
+const PRODUCT_CODE_REGEX = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/;
+function kiemTraMaSanPham(value: string): { hopLe: boolean; ma: string; loi?: string } {
+  const ma = (value ?? '').trim();
+  if (!ma) return { hopLe: false, ma, loi: 'Vui lòng nhập mã sản phẩm.' };
+  if (!PRODUCT_CODE_REGEX.test(ma)) {
+    return {
+      hopLe: false,
+      ma,
+      loi: 'Mã sản phẩm chỉ dùng chữ in hoa, số và dấu gạch dưới. Ví dụ hợp lệ: TUI_GAO_5KG, MANG_PE_OPP',
+    };
+  }
+  return { hopLe: true, ma };
+}
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
 interface Customer {

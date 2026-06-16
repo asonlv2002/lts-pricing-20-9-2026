@@ -16,7 +16,6 @@ import ModulePhanQuyen from '../ModulePhanQuyen';
 import ModuleTaoLenhSanXuat from '../ModuleTaoLenhSanXuat';
 import ModuleDanhSachLSX from '../ModuleDanhSachLSX';
 import ModuleNhatKy from '../ModuleNhatKy';
-import ModuleSanPham from '../ModuleSanPham';
 import { coTheXemNhomMenu, coTheXemMucMenu, vaiTroTuPolicies } from '../../lib/permissions';
 import { tinhThoiGianChoLamMoiPhien, tokenCanLamMoiNgay } from '../../lib/auth-session';
 import type { PolicyCode } from '../../lib/api/service-lts';
@@ -26,13 +25,13 @@ import {
   BarChart3, Clock3, TrendingUp, PackageCheck, Settings2, Wrench, Percent,
   Coins, UserPlus, BriefcaseBusiness, ListChecks, KeyRound as KeyRoundIcon,
   LayoutDashboard, Shield,
-  LogOut, RefreshCw, KeyRound, Package,
+  LogOut, RefreshCw, KeyRound,
 } from 'lucide-react';
 
 // ============================================================
 // MODULE DEFINITION
 // ============================================================
-type MaModule = 'calculator' | 'quotations' | 'create_lsx' | 'lsx_list' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'audit_log' | 'products';
+type MaModule = 'calculator' | 'quotations' | 'create_lsx' | 'lsx_list' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'audit_log';
 
 interface MucMenu {
   key: string;
@@ -82,7 +81,6 @@ const CAC_NHOM_MENU: NhomMenu[] = [
       { key: 'pricing.lsx_list', id: 'lsx_list', label: 'Danh sách LSX', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.history', id: 'history_db', label: 'Lịch sử tính giá và báo giá', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.audit_log', id: 'audit_log', label: 'Nhật ký thao tác', vaiTros: ['admin', 'sale'] },
-      { key: 'pricing.products', id: 'products', label: 'Quản lý sản phẩm', vaiTros: ['admin', 'sale'] },
     ],
   },
   {
@@ -285,7 +283,6 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
       { title: 'Danh sách lệnh sản xuất', subtitle: 'Theo dõi các LSX đã tạo.', tone: 'slate', icon: <ListChecks size={30} />, action: { type: 'module', key: 'pricing.lsx_list', module: 'lsx_list' } },
       { title: 'Lịch sử tính giá & báo giá', subtitle: 'Xem lại các bảng tính và báo giá đã tạo.', tone: 'emerald', icon: <History size={30} />, action: { type: 'module', key: 'pricing.history', module: 'history_db' } },
       { title: 'Nhật ký thao tác', subtitle: 'Theo dõi các thao tác trong hệ thống.', tone: 'orange', icon: <ClipboardList size={30} />, action: { type: 'module', key: 'pricing.audit_log', module: 'audit_log' } },
-      { title: 'Quản lý sản phẩm', subtitle: 'Quản lý danh mục sản phẩm dùng cho báo giá.', tone: 'rose', icon: <PackageCheck size={30} />, action: { type: 'module', key: 'pricing.products', module: 'products' } },
     ],
   },
   customers: {
@@ -918,7 +915,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {moduleDangMo === 'users'             && <ModulePhanQuyen menuDangChon={menuDangChon} />}
               {moduleDangMo === 'settings'          && <div className="crm-root"><div className="crm-empty"><p>Module này chưa có màn hình chi tiết.</p><p style={{fontSize:'0.85rem',color:'var(--muted)'}}>Mục đang chọn: {CAC_MUC_MENU.find(i => i.key === menuDangChon)?.label ?? menuDangChon}</p></div></div>}
               {moduleDangMo === 'audit_log'         && <ModuleNhatKy menuDangChon={menuDangChon} />}
-              {moduleDangMo === 'products'          && <ModuleSanPham />}
             </>
           )}
           {/* Fallback: TypeScript đảm bảo MaModule luôn có case ở trên — nếu không có sẽ bắt lỗi compile */}
