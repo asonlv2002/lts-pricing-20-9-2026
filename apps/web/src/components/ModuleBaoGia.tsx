@@ -14,7 +14,7 @@ import type { AppConstants, HistoryItem, Material, ProfitRow, QuoteProductLine, 
 import { QUOTE_STATUS_CONFIG } from '../lib/types';
 import { taoBaoGiaService, nopBaoGiaService, taoPricingSheetService } from '../lib/api/service-lts';
 import { mapHistoryToPricingSheet } from '../lib/api/pricing-sheet-mapper';
-import { kiemTraMaKhachHang } from '../lib/customer-api';
+import { kiemTraMaKhachHang, locKhachTheoQuyen } from '../lib/customer-api';
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
 interface Customer {
@@ -25,7 +25,9 @@ interface Customer {
   contactName?: string;
   phone?: string;
   sellerId?: string | null;
+  secondarySellerId?: string | null;
   sellerName?: string;
+  managers?: { userId: string; account?: string; fullName?: string | null }[];
   status: 'active' | 'inactive';
   crmStatus?: string;
   region?: string;
@@ -826,10 +828,12 @@ function BuocChonKhachHang({
   const [sheetOpen, setSheetOpen] = useState(false);
   const [isMobilePicker, setIsMobilePicker] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const role = dungCuaHangTinhGia(s => s.role);
+  const currentSellerId = dungCuaHangTinhGia(s => s.currentSellerId);
 
   useEffect(() => {
-    setCustomers(docKhachHang());
-  }, []);
+    setCustomers(locKhachTheoQuyen(docKhachHang(), role, currentSellerId));
+  }, [role, currentSellerId]);
 
   useEffect(() => {
     const media = window.matchMedia('(max-width: 768px)');
@@ -1409,21 +1413,10 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
     }, 150);
   };
 
-  const hienToast = useCallback((noiDung: string, loi = false) => {
-    if (typeof document === 'undefined') return;
-    const container = document.getElementById('toastContainer');
-    if (!container) return;
-    const toast = document.createElement('div');
-    toast.className = loi ? 'toast toast-error' : 'toast';
-    toast.textContent = noiDung;
-    container.appendChild(toast);
-    setTimeout(() => toast.remove(), 5000);
-  }, []);
-
-  // Đẩy báo giá lên server theo schema mới:
+  // Đẩy báo giá lên server theo schema mới (chạy ngầm, không hiện toast):
   //   1) Tạo 1 pricing sheet cho mỗi sản phẩm (input + override sale/admin).
   //   2) Tạo quotation tham chiếu toàn bộ pricingSheetIds vừa tạo.
-  // Thiếu/sai mã KH → KHÔNG đẩy, chỉ cảnh báo (local đã lưu xong).
+  // Thiếu/sai mã KH hoặc chưa đăng nhập → bỏ qua im lặng (local đã lưu xong).
   const dayBaoGiaLenServer = useCallback(async (
     products: WizardProduct[],
     customer: Customer | null,
@@ -1431,22 +1424,12 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
     sendForApproval: boolean,
   ) => {
     if (!products.length || !customer) return;
+    if (!isAuthenticated || !accessToken) return;
 
     const maKH = (customer.customerCode || '').trim();
-
-    if (!maKH) {
-      hienToast('Đã lưu báo giá. Chưa đẩy lên máy chủ: khách hàng chưa có mã.', true);
-      return;
-    }
+    if (!maKH) return;
     const checkKH = kiemTraMaKhachHang(maKH);
-    if (!checkKH.hopLe) {
-      hienToast(`Đã lưu báo giá. Chưa đẩy lên máy chủ: ${checkKH.loi}`, true);
-      return;
-    }
-    if (!isAuthenticated || !accessToken) {
-      hienToast('Đã lưu báo giá cục bộ. Chưa đẩy lên máy chủ: chưa đăng nhập.', true);
-      return;
-    }
+    if (!checkKH.hopLe) return;
 
     try {
       // Bước 1: đẩy từng pricing sheet, gom id.
@@ -1458,10 +1441,7 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
         );
         if (sheet?.id) pricingSheetIds.push(sheet.id);
       }
-      if (pricingSheetIds.length === 0) {
-        hienToast('Đã lưu báo giá cục bộ. Chưa đẩy lên máy chủ: tạo pricing sheet thất bại.', true);
-        return;
-      }
+      if (pricingSheetIds.length === 0) return;
 
       // Bước 2: tạo quotation tham chiếu các pricing sheet.
       const created = await taoBaoGiaService(
@@ -1481,21 +1461,12 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
       );
 
       if (sendForApproval && created?.id) {
-        try {
-          await nopBaoGiaService(created.id, accessToken);
-          hienToast('Đã lưu và gửi duyệt báo giá lên máy chủ.');
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : 'Không gửi duyệt được.';
-          hienToast(`Đã tạo nháp trên máy chủ nhưng gửi duyệt thất bại: ${msg}`, true);
-        }
-      } else {
-        hienToast('Đã lưu báo giá và đồng bộ lên máy chủ.');
+        await nopBaoGiaService(created.id, accessToken);
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Không đẩy được lên máy chủ.';
-      hienToast(`Đã lưu báo giá cục bộ. Lỗi đồng bộ máy chủ: ${msg}`, true);
+      console.warn('Đồng bộ báo giá lên máy chủ thất bại:', e);
     }
-  }, [accessToken, isAuthenticated, hienToast]);
+  }, [accessToken, isAuthenticated]);
 
   const handleSave = useCallback(async (sendForApproval: boolean) => {
     setError('');

@@ -451,18 +451,8 @@ function timMaKhachHang(tenKhach: string): string | null {
   }
 }
 
-function hienToastQuanLy(noiDung: string, loi = false) {
-  if (typeof document === 'undefined') return;
-  const container = document.getElementById('toastContainer');
-  if (!container) return;
-  const toast = document.createElement('div');
-  toast.className = loi ? 'toast toast-error' : 'toast';
-  toast.textContent = noiDung;
-  container.appendChild(toast);
-  setTimeout(() => toast.remove(), 5000);
-}
-
-// Đẩy 1 pricing sheet lên server (không chặn flow local). Lỗi chỉ cảnh báo.
+// Đẩy 1 pricing sheet lên server (chạy ngầm, không hiện toast).
+// Bỏ qua im lặng nếu offline / chưa đăng nhập / thiếu mã khách hàng.
 async function dayPricingSheetLenServer(
   h: HistoryItem | undefined,
   isAuthenticated: boolean,
@@ -470,26 +460,15 @@ async function dayPricingSheetLenServer(
 ): Promise<void> {
   if (!h) return;
   if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') return;
-  if (!isAuthenticated || !accessToken) {
-    hienToastQuanLy('Đã lưu cục bộ. Chưa đẩy lên máy chủ: chưa đăng nhập.', true);
-    return;
-  }
+  if (!isAuthenticated || !accessToken) return;
   const maKH = timMaKhachHang(h.customer);
-  if (!maKH) {
-    hienToastQuanLy('Đã lưu cục bộ. Chưa đẩy lên máy chủ: không tìm thấy mã khách hàng.', true);
-    return;
-  }
+  if (!maKH) return;
   const checkKH = kiemTraMaKhachHang(maKH);
-  if (!checkKH.hopLe) {
-    hienToastQuanLy(`Đã lưu cục bộ. Chưa đẩy lên máy chủ: ${checkKH.loi}`, true);
-    return;
-  }
+  if (!checkKH.hopLe) return;
   try {
     await taoPricingSheetService(mapHistoryToPricingSheet(h, checkKH.maKhachHang), accessToken);
-    hienToastQuanLy('Đã đồng bộ pricing sheet lên máy chủ.');
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'Không đẩy được lên máy chủ.';
-    hienToastQuanLy(`Đã lưu cục bộ. Lỗi đồng bộ máy chủ: ${msg}`, true);
+    console.warn('Đồng bộ pricing sheet lên máy chủ thất bại:', e);
   }
 }
 

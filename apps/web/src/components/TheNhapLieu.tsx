@@ -3,7 +3,7 @@ import React from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { LS_CUSTOMERS, loadCustomers, luuLocalStorage } from '../store/helpers';
-import { taoKhachHangNhanhChoBaoGia } from '../lib/customer-api';
+import { taoKhachHangNhanhChoBaoGia, laNguoiPhuTrach } from '../lib/customer-api';
 import { taoMaKhachHangService } from '../lib/api/service-lts';
 import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
 
@@ -14,7 +14,9 @@ type KhachHangGoiY = {
   contactName?: string;
   phone?: string;
   sellerId?: string | null;
+  secondarySellerId?: string | null;
   sellerName?: string;
+  managers?: { userId: string; account?: string; fullName?: string | null }[];
   status?: string;
   isLocked?: boolean;
 };
@@ -142,7 +144,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
     if (!dangFocusKhachHang || tuKhoa.length < 1) return [];
 
     return danhSachKhachHang
-      .filter(kh => (role === 'admin' || !kh.sellerId || kh.sellerId === currentSellerId) && kh.status !== 'inactive' && !kh.isLocked)
+      .filter(kh => (role === 'admin' || role === 'purchase' || laNguoiPhuTrach(kh, currentSellerId)) && kh.status !== 'inactive' && !kh.isLocked)
       .filter(kh => boDau(`${kh.companyName} ${kh.customerCode} ${kh.contactName ?? ''} ${kh.phone ?? ''}`).includes(tuKhoa))
       .slice(0, 6);
   }, [currentSellerId, danhSachKhachHang, dangFocusKhachHang, input.customer, role]);

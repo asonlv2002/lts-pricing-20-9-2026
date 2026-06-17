@@ -10,6 +10,8 @@ import {
   chuyenCustomerManagersSangPayload,
   chuyenCustomerUiSangThongTinApi,
   layLuaChonNguoiPhuTrach,
+  laNguoiPhuTrach,
+  locKhachTheoQuyen,
   locTaiKhoanActive,
   sapXepPhienBanKhachHang,
   tomTatNguoiPhuTrach,
@@ -233,6 +235,29 @@ const sortedVersions = sapXepPhienBanKhachHang([
 ]);
 assert('sorts versions newest first', sortedVersions.map(v => v.version).join(',') === '3,2,1', sortedVersions.map(v => v.version).join(','));
 assert('preserves version change note', sortedVersions[0]?.changeNote === 'Newest note', sortedVersions[0]?.changeNote ?? '');
+
+console.log('\n== Loc khach theo nguoi phu trach ==');
+
+const khA = { managers: [{ userId: 'user-1' }], sellerId: null, secondarySellerId: null };
+const khB = { managers: [{ userId: 'user-2' }], sellerId: null, secondarySellerId: null };
+const khChuaPhanCong = { managers: [], sellerId: null, secondarySellerId: null };
+const khSellerCu = { managers: [], sellerId: 'user-1', secondarySellerId: null };
+
+assert('laNguoiPhuTrach khop managers', laNguoiPhuTrach(khA, 'user-1') === true);
+assert('laNguoiPhuTrach khong khop nguoi khac', laNguoiPhuTrach(khA, 'user-2') === false);
+assert('laNguoiPhuTrach fallback sellerId cu', laNguoiPhuTrach(khSellerCu, 'user-1') === true);
+assert('laNguoiPhuTrach userId rong -> false', laNguoiPhuTrach(khA, '') === false);
+assert('laNguoiPhuTrach khach chua phan cong -> false', laNguoiPhuTrach(khChuaPhanCong, 'user-1') === false);
+
+const dsKhach = [khA, khB, khChuaPhanCong, khSellerCu];
+assert('admin thay tat ca', locKhachTheoQuyen(dsKhach, 'admin', 'user-1').length === 4);
+assert('purchase thay tat ca', locKhachTheoQuyen(dsKhach, 'purchase', 'user-1').length === 4);
+{
+  const saleThay = locKhachTheoQuyen(dsKhach, 'sale', 'user-1');
+  assert('sale chi thay khach minh phu trach', saleThay.length === 2 && saleThay.includes(khA) && saleThay.includes(khSellerCu), JSON.stringify(saleThay.length));
+  assert('sale khong thay khach chua phan cong', !saleThay.includes(khChuaPhanCong));
+  assert('sale khong thay khach nguoi khac', !saleThay.includes(khB));
+}
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);
 if (failed > 0) process.exit(1);

@@ -132,6 +132,38 @@ export function tomTatNguoiPhuTrach(managers: CustomerManagerUi[] = []): { prima
   };
 }
 
+// ── Phân quyền xem khách hàng theo người phụ trách ──────────────────────────
+// Hình dạng tối thiểu để kiểm tra người phụ trách (không buộc đúng CustomerUi).
+export interface CoNguoiPhuTrach {
+  managers?: { userId: string }[];
+  sellerId?: string | null;
+  secondarySellerId?: string | null;
+}
+
+// userId hiện tại có phụ trách khách này không.
+// Khớp customer_managers (server); fallback sellerId/secondarySellerId (dữ liệu cũ / offline).
+export function laNguoiPhuTrach(
+  customer: CoNguoiPhuTrach,
+  userId?: string | null,
+): boolean {
+  if (!userId) return false;
+  const theoManagers = (customer.managers ?? []).some(manager => manager.userId === userId);
+  if (theoManagers) return true;
+  return customer.sellerId === userId || customer.secondarySellerId === userId;
+}
+
+// Lọc danh sách khách theo quyền xem:
+// - admin / purchase: thấy tất cả.
+// - còn lại (sale): chỉ thấy khách mình phụ trách.
+export function locKhachTheoQuyen<T extends CoNguoiPhuTrach>(
+  customers: T[],
+  role: string,
+  userId?: string | null,
+): T[] {
+  if (role === 'admin' || role === 'purchase') return customers;
+  return customers.filter(customer => laNguoiPhuTrach(customer, userId));
+}
+
 export function layLuaChonNguoiPhuTrach(customers: Pick<CustomerUi, 'managers'>[] = []): CustomerManagerOption[] {
   const options = new Map<string, CustomerManagerOption>();
 
