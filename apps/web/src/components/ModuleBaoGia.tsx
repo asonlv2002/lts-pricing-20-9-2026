@@ -12,7 +12,8 @@ import { lapDongSanXuat, tinhBaoGia, xuLyDongGhiDe } from '../lib/manager-calcul
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import type { AppConstants, HistoryItem, Material, ProfitRow, QuoteProductLine, QuoteStatus, OverrideTable, QuoteTerms, QuoteTier, SmallWidthMaterialPrice } from '../lib/types';
 import { QUOTE_STATUS_CONFIG } from '../lib/types';
-import { taoBaoGiaService, nopBaoGiaService } from '../lib/api/service-lts';
+import { taoBaoGiaService, nopBaoGiaService, taoPricingSheetService } from '../lib/api/service-lts';
+import { mapHistoryToPricingSheet } from '../lib/api/pricing-sheet-mapper';
 import { kiemTraMaKhachHang } from '../lib/customer-api';
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
@@ -1419,10 +1420,17 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
     setTimeout(() => toast.remove(), 5000);
   }, []);
 
-  // Đẩy 1 báo giá lên server (Hướng B: chỉ sản phẩm đầu tiên).
-  // Thiếu/sai mã KH hoặc mã SP → KHÔNG đẩy, chỉ cảnh báo (local đã lưu xong).
-  const dayBaoGiaLenServer = useCallback(async (prod: WizardProduct | undefined, customer: Customer | null, sendForApproval: boolean) => {
-    if (!prod || !customer) return;
+  // Đẩy báo giá lên server theo schema mới:
+  //   1) Tạo 1 pricing sheet cho mỗi sản phẩm (input + override sale/admin).
+  //   2) Tạo quotation tham chiếu toàn bộ pricingSheetIds vừa tạo.
+  // Thiếu/sai mã KH → KHÔNG đẩy, chỉ cảnh báo (local đã lưu xong).
+  const dayBaoGiaLenServer = useCallback(async (
+    products: WizardProduct[],
+    customer: Customer | null,
+    terms: WizardState['terms'],
+    sendForApproval: boolean,
+  ) => {
+    if (!products.length || !customer) return;
 
     const maKH = (customer.customerCode || '').trim();
 
@@ -1441,23 +1449,33 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
     }
 
     try {
-      const h = prod.historyItem;
+      // Bước 1: đẩy từng pricing sheet, gom id.
+      const pricingSheetIds: string[] = [];
+      for (const prod of products) {
+        const sheet = await taoPricingSheetService(
+          mapHistoryToPricingSheet(prod.historyItem, checkKH.maKhachHang),
+          accessToken,
+        );
+        if (sheet?.id) pricingSheetIds.push(sheet.id);
+      }
+      if (pricingSheetIds.length === 0) {
+        hienToast('Đã lưu báo giá cục bộ. Chưa đẩy lên máy chủ: tạo pricing sheet thất bại.', true);
+        return;
+      }
+
+      // Bước 2: tạo quotation tham chiếu các pricing sheet.
       const created = await taoBaoGiaService(
         {
           customerCodeName: checkKH.maKhachHang,
+          description: terms.notes?.trim() ? terms.notes.trim() : undefined,
           inputValue: {
-            chotGia: h.chotGia,
-            isQuote: h.isQuote,
-            customer: h.customer,
-            quantity: h.quantity,
-            sellerId: h.sellerId,
-            structure: h.structure,
-            finalPrice: h.finalPrice,
-            profitRate: h.profitRate,
-            sellerName: h.sellerName,
-            productName: h.productName,
-            quoteStatus: h.quoteStatus,
+            vatRate: terms.vatRate,
+            validityDays: terms.validityDays,
+            paymentTerms: terms.paymentTerms,
+            deliveryTime: terms.deliveryTime,
+            notes: terms.notes,
           },
+          pricingSheetIds,
         },
         accessToken,
       );
@@ -1534,8 +1552,8 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
       });
 
       // 2) Đẩy bản sao lên server (song song, không chặn flow local).
-      //    Hướng B: chỉ lấy sản phẩm đầu tiên. Thiếu/sai mã → KHÔNG đẩy.
-      await dayBaoGiaLenServer(state.products[0], state.customer, sendForApproval);
+      //    Tạo pricing sheet cho từng sản phẩm rồi gom vào quotation.
+      await dayBaoGiaLenServer(state.products, state.customer, state.terms, sendForApproval);
 
       onClose();
       onSavedNavigate?.();

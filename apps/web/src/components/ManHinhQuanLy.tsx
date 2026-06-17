@@ -4,7 +4,11 @@ import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhGiaHieuLuc, xuLyDongGhiDe, type UniRow } from '../lib/manager-calculation';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { TECHNICAL_TABLE_MOBILE_LABELS as MOBILE_LABELS } from '../lib/technical-table-mobile-labels';
-import type { Material, OverrideRowKey, OverrideFields, OverrideTable } from '../lib/types';
+import type { Material, OverrideRowKey, OverrideFields, OverrideTable, HistoryItem } from '../lib/types';
+import { kiemTraMaKhachHang } from '../lib/customer-api';
+import { taoPricingSheetService } from '../lib/api/service-lts';
+import { mapHistoryToPricingSheet } from '../lib/api/pricing-sheet-mapper';
+import { LS_CUSTOMERS } from '../store/helpers';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
 // Mỗi lần render với resetKey mới → luôn bắt đầu ở trạng thái ĐÓNG
@@ -428,11 +432,73 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
   );
 }
 
+// ── Helpers đẩy pricing sheet lên server ────────────────────────────────────
+// Tìm mã khách hàng (codeName) từ tên khách trong HistoryItem.
+function timMaKhachHang(tenKhach: string): string | null {
+  try {
+    const raw = localStorage.getItem(LS_CUSTOMERS);
+    if (!raw) return null;
+    const list = JSON.parse(raw) as Array<{ companyName?: string; contactName?: string; customerCode?: string; id?: string }>;
+    const q = (tenKhach || '').trim().toLowerCase();
+    if (!q) return null;
+    const found = list.find(c => {
+      const ten = (c.companyName || c.contactName || c.customerCode || c.id || '').toLowerCase();
+      return ten === q || (c.customerCode || '').toLowerCase() === q;
+    });
+    return found?.customerCode?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
+function hienToastQuanLy(noiDung: string, loi = false) {
+  if (typeof document === 'undefined') return;
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = loi ? 'toast toast-error' : 'toast';
+  toast.textContent = noiDung;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 5000);
+}
+
+// Đẩy 1 pricing sheet lên server (không chặn flow local). Lỗi chỉ cảnh báo.
+async function dayPricingSheetLenServer(
+  h: HistoryItem | undefined,
+  isAuthenticated: boolean,
+  accessToken: string | null,
+): Promise<void> {
+  if (!h) return;
+  if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') return;
+  if (!isAuthenticated || !accessToken) {
+    hienToastQuanLy('Đã lưu cục bộ. Chưa đẩy lên máy chủ: chưa đăng nhập.', true);
+    return;
+  }
+  const maKH = timMaKhachHang(h.customer);
+  if (!maKH) {
+    hienToastQuanLy('Đã lưu cục bộ. Chưa đẩy lên máy chủ: không tìm thấy mã khách hàng.', true);
+    return;
+  }
+  const checkKH = kiemTraMaKhachHang(maKH);
+  if (!checkKH.hopLe) {
+    hienToastQuanLy(`Đã lưu cục bộ. Chưa đẩy lên máy chủ: ${checkKH.loi}`, true);
+    return;
+  }
+  try {
+    await taoPricingSheetService(mapHistoryToPricingSheet(h, checkKH.maKhachHang), accessToken);
+    hienToastQuanLy('Đã đồng bộ pricing sheet lên máy chủ.');
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Không đẩy được lên máy chủ.';
+    hienToastQuanLy(`Đã lưu cục bộ. Lỗi đồng bộ máy chủ: ${msg}`, true);
+  }
+}
+
 export default function ManHinhQuanLy() {
   const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, setChotGiaForLatest: datGiaChotChoMoiNhat, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, setActiveModule: datPhan,
     role, loadedHistoryId: loadedHistoryId, history: lichSu, materials,
     saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin, showSaleOverrides: hienGhiDeSale, showAdminOverrides: hienGhiDeAdmin,
     setSaleOverride: datGhiDeSale, setAdminOverride: datGhiDeAdmin, setShowSaleOverrides: datHienGhiDeSale, setShowAdminOverrides: datHienGhiDeAdmin, persistOverrides: luuGhiDe, calculateForInput,
+    accessToken, isAuthenticated,
   } = dungCuaHangTinhGia();
   const [vatLieuCuonDangChon, datVatLieuCuonDangChon] = React.useState('');
 
@@ -814,6 +880,10 @@ export default function ManHinhQuanLy() {
                     return;
                   }
                   themVaoLichSu();
+                  // Đẩy bảng tính (pricing sheet) lên server sau khi lưu local.
+                  const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
+                  const h = dungCuaHangTinhGia.getState().history.find(x => x.id === newId);
+                  void dayPricingSheetLenServer(h, isAuthenticated, accessToken);
                   // Hiện toast clickable 5s — click để vào lịch sử
                   const container = document.getElementById('toastContainer');
                   if (!container) return;
@@ -1000,6 +1070,11 @@ export default function ManHinhQuanLy() {
             const canAdminEdit = role === 'admin' || role === 'sale';
             // Source for bảng Admin = sale-resolved values (engine overridden by sale)
 
+            // Lưu override cho item đã có sẵn (chỉ lưu local; đẩy server ở nút "Lưu báo giá").
+            const handleSave = (idLichSu: string) => {
+              luuGhiDe(idLichSu);
+            };
+
             // Khi chưa có loadedHistoryId: tự lưu lichSu trước rồi persist override
             const handleSaveNew = () => {
               themVaoLichSu();
@@ -1035,7 +1110,7 @@ export default function ManHinhQuanLy() {
                     ghiDeHienTai={ghiDeSale}
                     duocSua={canSaleEdit}
                     khiDat={datGhiDeSale}
-                    khiLuu={luuGhiDe}
+                    khiLuu={handleSave}
                     khiLuuMoi={handleSaveNew}
                     loadedHistoryId={loadedHistoryId}
                     materials={materials}
@@ -1051,7 +1126,7 @@ export default function ManHinhQuanLy() {
                     ghiDeHienTai={ghiDeAdmin}
                     duocSua={canAdminEdit}
                     khiDat={datGhiDeAdmin}
-                    khiLuu={luuGhiDe}
+                    khiLuu={handleSave}
                     khiLuuMoi={handleSaveNew}
                     loadedHistoryId={loadedHistoryId}
                     materials={materials}

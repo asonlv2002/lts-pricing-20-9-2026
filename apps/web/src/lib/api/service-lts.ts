@@ -542,10 +542,56 @@ export async function layPhienBanKhachHangService(codeName: string, versionId: s
   return goiService<KhachHangApiVersion>(`/customers/${encodeURIComponent(codeName)}/versions/${encodeURIComponent(versionId)}`, {}, token);
 }
 
-// ── Quotations ────────────────────────────────────────────────────────────
-export interface TaoBaoGiaInput {
+// ── Pricing Sheet ────────────────────────────────────────────────────────
+// POST /pricing-sheet — tạo pricing sheet (input + override sale + override admin).
+// Server lưu nguyên `inputValue`, `saleResult`, `masterResult` dưới dạng JSON object
+// free-form. Frontend tự tính lại kết quả khi tải về (chỉ override mới cần lưu).
+export interface TaoPricingSheetInput {
+  pricingSheetName: string;
   customerCodeName: string;
   inputValue: unknown;
+  saleResult?: unknown;
+  masterResult?: unknown;
+  quotationId?: string;
+  note?: string;
+}
+
+export interface PricingSheetApi {
+  id: string;
+  pricingSheetName: string;
+  customerCodeName: string;
+  inputValue: unknown;
+  saleResult?: unknown;
+  masterResult?: unknown;
+  quotationId?: string | null;
+  note?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export async function taoPricingSheetService(
+  input: TaoPricingSheetInput,
+  token?: string,
+): Promise<PricingSheetApi> {
+  return goiService<PricingSheetApi>('/pricing-sheet', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }, token);
+}
+
+export async function layDanhSachPricingSheetService(token?: string): Promise<PricingSheetApi[]> {
+  const data = await goiService<PricingSheetApi[]>('/pricing-sheet', {}, token);
+  return Array.isArray(data) ? data : [];
+}
+
+// ── Quotations ────────────────────────────────────────────────────────────
+// POST /quotations — tạo nháp báo giá. Schema mới đòi `pricingSheetIds` ≥ 1.
+// Frontend phải tạo pricing sheet trước, lấy id rồi gắn vào quotation này.
+export interface TaoBaoGiaInput {
+  customerCodeName: string;
+  description?: string;
+  inputValue: unknown;
+  pricingSheetIds: string[];
 }
 
 export interface BaoGiaApi {
