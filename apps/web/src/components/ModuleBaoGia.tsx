@@ -12,23 +12,8 @@ import { lapDongSanXuat, tinhBaoGia, xuLyDongGhiDe } from '../lib/manager-calcul
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import type { AppConstants, HistoryItem, Material, ProfitRow, QuoteProductLine, QuoteStatus, OverrideTable, QuoteTerms, QuoteTier, SmallWidthMaterialPrice } from '../lib/types';
 import { QUOTE_STATUS_CONFIG } from '../lib/types';
-import { taoBaoGiaService } from '../lib/api/service-lts';
+import { taoBaoGiaService, nopBaoGiaService } from '../lib/api/service-lts';
 import { kiemTraMaKhachHang } from '../lib/customer-api';
-
-// Mã sản phẩm: chữ in HOA, số và dấu gạch dưới. VD: TUI_GAO_5KG
-const PRODUCT_CODE_REGEX = /^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$/;
-function kiemTraMaSanPham(value: string): { hopLe: boolean; ma: string; loi?: string } {
-  const ma = (value ?? '').trim();
-  if (!ma) return { hopLe: false, ma, loi: 'Vui lòng nhập mã sản phẩm.' };
-  if (!PRODUCT_CODE_REGEX.test(ma)) {
-    return {
-      hopLe: false,
-      ma,
-      loi: 'Mã sản phẩm chỉ dùng chữ in hoa, số và dấu gạch dưới. Ví dụ hợp lệ: TUI_GAO_5KG, MANG_PE_OPP',
-    };
-  }
-  return { hopLe: true, ma };
-}
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
 interface Customer {
@@ -1384,7 +1369,7 @@ function BuocXacNhan({
 // ════════════════════════════════════════════════════════════
 // WIZARD CONTAINER
 // ════════════════════════════════════════════════════════════
-function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
+function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; onSavedNavigate?: () => void }) {
   const store = dungCuaHangTinhGia() as any;
   const { history, currentSellerName, materials, constants, profitTable, smallWidthPrices, taoBaoGiaMoi, accessToken, isAuthenticated } = store;
 
@@ -1436,19 +1421,18 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
 
   // Đẩy 1 báo giá lên server (Hướng B: chỉ sản phẩm đầu tiên).
   // Thiếu/sai mã KH hoặc mã SP → KHÔNG đẩy, chỉ cảnh báo (local đã lưu xong).
-  const dayBaoGiaLenServer = useCallback(async (prod: WizardProduct | undefined, customer: Customer | null) => {
+  const dayBaoGiaLenServer = useCallback(async (prod: WizardProduct | undefined, customer: Customer | null, sendForApproval: boolean) => {
     if (!prod || !customer) return;
 
     const maKH = (customer.customerCode || '').trim();
-    const maSP = ((prod.historyItem.input as { productCode?: string }).productCode || '').trim();
 
     if (!maKH) {
       hienToast('Đã lưu báo giá. Chưa đẩy lên máy chủ: khách hàng chưa có mã.', true);
       return;
     }
-    const checkSP = kiemTraMaSanPham(maSP);
-    if (!checkSP.hopLe) {
-      hienToast(`Đã lưu báo giá. Chưa đẩy lên máy chủ: ${checkSP.loi}`, true);
+    const checkKH = kiemTraMaKhachHang(maKH);
+    if (!checkKH.hopLe) {
+      hienToast(`Đã lưu báo giá. Chưa đẩy lên máy chủ: ${checkKH.loi}`, true);
       return;
     }
     if (!isAuthenticated || !accessToken) {
@@ -1457,16 +1441,38 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
     }
 
     try {
-      await taoBaoGiaService(
+      const h = prod.historyItem;
+      const created = await taoBaoGiaService(
         {
-          customerCodeName: maKH,
-          productCode: checkSP.ma,
-          quotationName: `${tenKhachHang(customer)} — ${prod.historyItem.productName || 'Báo giá'}`,
-          inputValue: prod.historyItem,
+          customerCodeName: checkKH.maKhachHang,
+          inputValue: {
+            chotGia: h.chotGia,
+            isQuote: h.isQuote,
+            customer: h.customer,
+            quantity: h.quantity,
+            sellerId: h.sellerId,
+            structure: h.structure,
+            finalPrice: h.finalPrice,
+            profitRate: h.profitRate,
+            sellerName: h.sellerName,
+            productName: h.productName,
+            quoteStatus: h.quoteStatus,
+          },
         },
         accessToken,
       );
-      hienToast('Đã lưu báo giá và đồng bộ lên máy chủ.');
+
+      if (sendForApproval && created?.id) {
+        try {
+          await nopBaoGiaService(created.id, accessToken);
+          hienToast('Đã lưu và gửi duyệt báo giá lên máy chủ.');
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : 'Không gửi duyệt được.';
+          hienToast(`Đã tạo nháp trên máy chủ nhưng gửi duyệt thất bại: ${msg}`, true);
+        }
+      } else {
+        hienToast('Đã lưu báo giá và đồng bộ lên máy chủ.');
+      }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Không đẩy được lên máy chủ.';
       hienToast(`Đã lưu báo giá cục bộ. Lỗi đồng bộ máy chủ: ${msg}`, true);
@@ -1529,14 +1535,15 @@ function TaoBaoGiaWizard({ onClose }: { onClose: () => void }) {
 
       // 2) Đẩy bản sao lên server (song song, không chặn flow local).
       //    Hướng B: chỉ lấy sản phẩm đầu tiên. Thiếu/sai mã → KHÔNG đẩy.
-      await dayBaoGiaLenServer(state.products[0], state.customer);
+      await dayBaoGiaLenServer(state.products[0], state.customer, sendForApproval);
 
       onClose();
+      onSavedNavigate?.();
     } catch {
       setError('Có lỗi khi lưu báo giá. Vui lòng thử lại.');
       setSaving(false);
     }
-  }, [state.products, state.customer, state.terms, taoBaoGiaMoi, onClose, dayBaoGiaLenServer]);
+  }, [state.products, state.customer, state.terms, taoBaoGiaMoi, onClose, onSavedNavigate, dayBaoGiaLenServer]);
 
   const canSaveDraft = !!state.customer;
   const canSubmit = !!state.customer && state.products.length > 0;
@@ -1956,7 +1963,7 @@ function QuoteDetailPanel({
 // ════════════════════════════════════════════════════════════
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
-export default function QuotationModule({ role, menuDangChon }: { role: string; hienTaiSellerId?: string; menuDangChon?: string }) {
+export default function QuotationModule({ role, menuDangChon, khiDieuHuong }: { role: string; hienTaiSellerId?: string; menuDangChon?: string; khiDieuHuong?: (menuKey: string) => void }) {
   const {
     history, loadHistoryItem: taiLichSu, setActiveModule: datPhan,
     updateQuoteStatus: capNhatTrangThaiDon, currentSellerId: hienTaiSellerId,
@@ -2008,7 +2015,12 @@ export default function QuotationModule({ role, menuDangChon }: { role: string; 
   };
 
   if (showWizard) {
-    return <TaoBaoGiaWizard onClose={() => setShowWizard(false)} />;
+    return (
+      <TaoBaoGiaWizard
+        onClose={() => setShowWizard(false)}
+        onSavedNavigate={() => khiDieuHuong?.('pricing.quote_review')}
+      />
+    );
   }
 
   return (

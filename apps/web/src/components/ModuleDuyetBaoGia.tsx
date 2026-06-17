@@ -373,7 +373,7 @@ export default function ModuleDuyetBaoGia() {
       <header className="qrev-header">
         <div className="qrev-header-left">
           <h1 className="qrev-title">
-            Duyệt báo giá
+            Danh sách báo giá
             <span className="qrev-title-count"> ({ketQua.length})</span>
           </h1>
         </div>

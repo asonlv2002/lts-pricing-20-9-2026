@@ -545,8 +545,6 @@ export async function layPhienBanKhachHangService(codeName: string, versionId: s
 // ── Quotations ────────────────────────────────────────────────────────────
 export interface TaoBaoGiaInput {
   customerCodeName: string;
-  productCode: string;
-  quotationName: string;
   inputValue: unknown;
 }
 
