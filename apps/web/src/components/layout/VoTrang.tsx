@@ -255,7 +255,6 @@ const TIEU_DE_MODULE: Record<MaModule, string> = {
   users:             'Tài khoản & quyền',
   settings:          'Cài đặt hệ thống',
   audit_log:         'Nhật ký thao tác',
-  products:          'Quản lý sản phẩm',
 };
 
 const MOBILE_HUBS: Record<string, MobileHubConfig> = {
