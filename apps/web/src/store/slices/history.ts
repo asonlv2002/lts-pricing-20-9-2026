@@ -16,6 +16,7 @@ export interface HistorySlice {
   setChotGiaForLatest: (giaTri: number) => void;
   updateQuoteStatus: (id: string, status: QuoteStatus) => void;
   themHienTaiVaoLichSu: () => void;
+  capNhatHienTaiVaoLichSu: () => void;
 
   saoChepBangTinh: (id: string) => void;
   khoaBaoGia: (id: string) => void;
@@ -227,6 +228,49 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
   },
 
   themHienTaiVaoLichSu: () => get().addCurrentToHistory(),
+
+  capNhatHienTaiVaoLichSu: () => {
+    set((state) => {
+      if (!state.loadedHistoryId || !state.result) return state;
+      const old = state.history.find(h => h.id === state.loadedHistoryId);
+      if (!old) return state;
+
+      const updated: HistoryItem = {
+        ...old,
+        date: new Date().toLocaleDateString('vi-VN'),
+        customer: state.input.customer || old.customer,
+        productName: state.input.productName || old.productName,
+        structure: state.result.structureText,
+        quantity: state.input.quantity,
+        finalPrice: state.result.finalPrice,
+        chotGia: state.currentChotGia || undefined,
+        profitRate: state.result.profitRate,
+        saleOverrides: Object.keys(state.saleOverrides).length > 0 ? state.saleOverrides : undefined,
+        adminOverrides: Object.keys(state.adminOverrides).length > 0 ? state.adminOverrides : undefined,
+        input: { ...state.input },
+        sellerId: state.currentSellerId || old.sellerId,
+        sellerName: state.currentSellerName || old.sellerName,
+      };
+      const history = state.history.map(h => h.id === old.id ? updated : h);
+      luuLocalStorage(LS_HISTORY, history);
+
+      setTimeout(() => {
+        get().ghiNhatKy({
+          userId: state.currentSellerId,
+          userName: state.currentSellerName,
+          action: 'update',
+          targetType: old.isQuote ? 'quote' : 'history',
+          targetId: old.id,
+          targetName: updated.productName,
+          before: { finalPrice: old.finalPrice, chotGia: old.chotGia, input: old.input },
+          after: { finalPrice: updated.finalPrice, chotGia: updated.chotGia, input: updated.input },
+          note: 'Cập nhật bảng tính giá',
+        });
+      }, 0);
+
+      return { history, isDirty: false };
+    });
+  },
 
   saoChepBangTinh: (id) => {
     set((state) => {

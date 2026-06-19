@@ -499,7 +499,7 @@ async function syncPricingSheetToServer(
 }
 
 export default function ManHinhQuanLy() {
-  const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, setChotGiaForLatest: datGiaChotChoMoiNhat, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, setActiveModule: datPhan,
+  const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, setChotGiaForLatest: datGiaChotChoMoiNhat, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, capNhatHienTaiVaoLichSu: capNhatVaoLichSu, setActiveModule: datPhan,
     role,   loadedHistoryId: loadedHistoryId,
   originalCustomerLoaded: originalCustomerLoaded, history: lichSu, materials,
     saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin, showSaleOverrides: hienGhiDeSale, showAdminOverrides: hienGhiDeAdmin,
@@ -885,36 +885,85 @@ const showBanner = loadedItem && !isSameCustomer;
               >
                 ✓ Lưu giá chốt
               </button>
-              <button
-                className="btn btn-sm btn-accent"
-                style={{marginBottom: 0, height: '40px'}}
-                title="Lưu bảng tính này vào lịch sử báo giá"
-                onClick={() => {
-                  if (!(input.productName || '').trim()) {
-                    alert('Vui lòng nhập tên sản phẩm trước khi lưu.');
-                    return;
-                  }
-                  themVaoLichSu();
-                  // Đẩy bảng tính (pricing sheet) lên server sau khi lưu local.
-                  const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
-                  const h = dungCuaHangTinhGia.getState().history.find(x => x.id === newId);
-                  void syncPricingSheetToServer(h, isAuthenticated, accessToken);
-                  // Hiện toast clickable 5s — click để vào lịch sử
-                  const container = document.getElementById('toastContainer');
-                  if (!container) return;
-                  const toast = document.createElement('div');
-                  toast.className = 'toast toast-clickable';
-                  toast.innerHTML = '💾 Đã lưu báo giá! <span style="text-decoration:underline;margin-left:6px;">Xem lịch sử →</span>';
-                  toast.addEventListener('click', () => {
-                    datPhan('history_db');
-                    toast.remove();
-                  });
-                  container.appendChild(toast);
-                  setTimeout(() => toast.remove(), 5000);
-                }}
-              >
-                💾 Lưu báo giá
-              </button>
+              {loadedItem ? (
+                <>
+                  <button
+                    className="btn btn-sm btn-green"
+                    style={{marginBottom: 0, height: '40px'}}
+                    title="Cập nhật bảng tính giá hiện tại"
+                    onClick={() => {
+                      if (!(input.productName || '').trim()) {
+                        alert('Vui lòng nhập tên sản phẩm trước khi lưu.');
+                        return;
+                      }
+                      capNhatVaoLichSu();
+                      const h = dungCuaHangTinhGia.getState().history.find(x => x.id === loadedHistoryId);
+                      void syncPricingSheetToServer(h, isAuthenticated, accessToken);
+                      const container = document.getElementById('toastContainer');
+                      if (!container) return;
+                      const toast = document.createElement('div');
+                      toast.className = 'toast toast-clickable';
+                      toast.innerHTML = '🔄 Đã cập nhật bảng tính giá! <span style="text-decoration:underline;margin-left:6px;">Xem lịch sử →</span>';
+                      toast.addEventListener('click', () => { datPhan('history_db'); toast.remove(); });
+                      container.appendChild(toast);
+                      setTimeout(() => toast.remove(), 5000);
+                    }}
+                  >
+                    🔄 Cập nhật
+                  </button>
+                  <button
+                    className="btn btn-sm btn-accent"
+                    style={{marginBottom: 0, height: '40px'}}
+                    title="Tạo bảng tính giá mới"
+                    onClick={() => {
+                      if (!(input.productName || '').trim()) {
+                        alert('Vui lòng nhập tên sản phẩm trước khi lưu.');
+                        return;
+                      }
+                      themVaoLichSu();
+                      const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
+                      const h = dungCuaHangTinhGia.getState().history.find(x => x.id === newId);
+                      void syncPricingSheetToServer(h, isAuthenticated, accessToken);
+                      const container = document.getElementById('toastContainer');
+                      if (!container) return;
+                      const toast = document.createElement('div');
+                      toast.className = 'toast toast-clickable';
+                      toast.innerHTML = '💾 Đã lưu báo giá mới! <span style="text-decoration:underline;margin-left:6px;">Xem lịch sử →</span>';
+                      toast.addEventListener('click', () => { datPhan('history_db'); toast.remove(); });
+                      container.appendChild(toast);
+                      setTimeout(() => toast.remove(), 5000);
+                    }}
+                  >
+                    📄 Lưu mới
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="btn btn-sm btn-accent"
+                  style={{marginBottom: 0, height: '40px'}}
+                  title="Lưu bảng tính này vào lịch sử báo giá"
+                  onClick={() => {
+                    if (!(input.productName || '').trim()) {
+                      alert('Vui lòng nhập tên sản phẩm trước khi lưu.');
+                      return;
+                    }
+                    themVaoLichSu();
+                    const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
+                    const h = dungCuaHangTinhGia.getState().history.find(x => x.id === newId);
+                    void syncPricingSheetToServer(h, isAuthenticated, accessToken);
+                    const container = document.getElementById('toastContainer');
+                    if (!container) return;
+                    const toast = document.createElement('div');
+                    toast.className = 'toast toast-clickable';
+                    toast.innerHTML = '💾 Đã lưu báo giá! <span style="text-decoration:underline;margin-left:6px;">Xem lịch sử →</span>';
+                    toast.addEventListener('click', () => { datPhan('history_db'); toast.remove(); });
+                    container.appendChild(toast);
+                    setTimeout(() => toast.remove(), 5000);
+                  }}
+                >
+                  💾 Lưu báo giá
+                </button>
+              )}
             </div>
             <div id="chotAnalysis">
               {hasChotGia ? (
@@ -1085,9 +1134,11 @@ const showBanner = loadedItem && !isSameCustomer;
             const canAdminEdit = role === 'admin' || role === 'sale';
             // Source for bảng Admin = sale-resolved values (engine overridden by sale)
 
-            // Lưu override cho item đã có sẵn (chỉ lưu local; đẩy server ở nút "Lưu báo giá").
+            // Lưu override cho item đã có sẵn — cập nhật local + sync server.
             const handleSave = (idLichSu: string) => {
               luuGhiDe(idLichSu);
+              const h = dungCuaHangTinhGia.getState().history.find(x => x.id === idLichSu);
+              void syncPricingSheetToServer(h, isAuthenticated, accessToken);
             };
 
             // Khi chưa có loadedHistoryId: tự lưu lichSu trước rồi persist override
@@ -1095,7 +1146,11 @@ const showBanner = loadedItem && !isSameCustomer;
               themVaoLichSu();
               // loadedHistoryId vừa được set bởi themVaoLichSu (sync state)
               const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
-              if (newId) luuGhiDe(newId);
+              if (newId) {
+                luuGhiDe(newId);
+                const h = dungCuaHangTinhGia.getState().history.find(x => x.id === newId);
+                void syncPricingSheetToServer(h, isAuthenticated, accessToken);
+              }
             };
             const emptyOv: OverrideTable = {};
 
