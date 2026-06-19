@@ -14,7 +14,11 @@ const NHOM_MENU_POLICIES: Record<string, PolicyCode[]> = {
 // Policy bắt buộc cho từng mục menu cụ thể (gate ở cấp item).
 // Lưu ý: "pricing.quote_review" KHÔNG gate ở menu — admin/sale đều xem được danh sách báo giá.
 // Chức năng Duyệt/Từ chối bên trong trang vẫn gate theo QUOTATION_REVIEWER (coQuyenDuyetBaoGia).
-const MUC_MENU_POLICIES: Record<string, PolicyCode[]> = {};
+const MUC_MENU_POLICIES: Record<string, PolicyCode[]> = {
+  'pricing.audit_log': ['ACTIVITY_MONITOR'],
+  'customers.audit_log': ['ACTIVITY_MONITOR'],
+  'system.audit_log': ['ACTIVITY_MONITOR'],
+};
 
 export function coTheXemNhomMenu(policies: PolicyCode[], nhomId: string): boolean {
   const requiredPolicies = NHOM_MENU_POLICIES[nhomId];

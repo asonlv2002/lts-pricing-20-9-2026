@@ -465,6 +465,7 @@ export interface KhachHangApiVersion {
 }
 
 export interface KhachHangApi {
+  id: string;
   codeName: string;
   createdBy?: string | null;
   createdAt: string;

@@ -132,15 +132,32 @@ const FIELD_LABELS: Record<string, string> = {
   isActive: 'Trạng thái tài khoản', isProtected: 'Bảo vệ tài khoản', policies: 'Danh sách quyền',
   policiesAdded: 'Quyền được cấp', policiesRemoved: 'Quyền bị thu hồi', days: 'Số ngày',
   threshold: 'Ngưỡng', numColors: 'Số màu', value: 'Giá trị', key: 'Mã', count: 'Số lượng',
+  pricingSheetName: 'Tên bảng tính giá', codeName: 'Mã khách hàng',
+  organizationName: 'Tên tổ chức', phoneNumber: 'Số điện thoại',
+  customerId: 'Khách hàng', quotationId: 'Báo giá liên quan',
+  description: 'Mô tả', updateStatus: 'Trạng thái cập nhật', note: 'Ghi chú',
+  managerIds: 'Nhân viên phụ trách',
 };
 
-const HIDDEN_DIFF_KEYS = new Set(['isLocked']);
+const HIDDEN_DIFF_KEYS = new Set([
+  'isLocked', 'customerId', 'quotationId', 'managerIds',
+  'inputValue', 'saleResult', 'masterResult', 'pricingSheetId',
+]);
+
+const STATUS_VI: Record<string, string> = {
+  draft: 'Nháp', submitted: 'Đã nộp', approved: 'Đã duyệt',
+  rejected: 'Bị từ chối', cancelled: 'Đã hủy',
+  active: 'Đang dùng', inactive: 'Ngừng',
+};
 
 function formatDiffValue(val: unknown): string {
   if (val === true) return 'Có';
   if (val === false) return 'Không';
   if (val === null || val === undefined || val === '') return '(trống)';
-  return String(val);
+  if (Array.isArray(val)) return '(danh sách)';
+  if (typeof val === 'object') return '(thông tin chi tiết)';
+  const s = String(val);
+  return STATUS_VI[s] ?? s;
 }
 
 function DiffView({ before, after }: { before?: Record<string, unknown>; after?: Record<string, unknown> }) {
@@ -205,7 +222,7 @@ function TimelineEntry({ entry, onOpen }: { entry: AuditEntry; onOpen: (entry: A
             {formatTime(entry.timestamp)}
           </span>
           <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text, #1e293b)' }}>
-            {displayAuditText(entry.userName)}
+            {entry.userName ? displayAuditText(entry.userName) : 'Người dùng không xác định'}
           </span>
           <span style={{
             fontSize: '0.72rem', fontWeight: 600, padding: '1px 7px', borderRadius: 10,
@@ -223,7 +240,7 @@ function TimelineEntry({ entry, onOpen }: { entry: AuditEntry; onOpen: (entry: A
             <span style={{ color: 'var(--muted)' }}>
               {TARGET_TYPE_LABELS[entry.targetType] || entry.targetType}:
             </span>{' '}
-            <span style={{ fontWeight: 500 }}>{displayAuditText(entry.targetName || entry.targetId)}</span>
+            <span style={{ fontWeight: 500 }}>{displayAuditText(entry.targetName || TARGET_TYPE_LABELS[entry.targetType] || 'Dữ liệu')}</span>
           </div>
 
           {entry.note && (
@@ -300,7 +317,6 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
     history,
   } = dungCuaHangTinhGia();
 
-  // Gộp log server (ưu tiên) + log local. Server log có id UUID từ BE, dedupe theo id.
   const fullAuditLog = useMemo<AuditEntry[]>(() => {
     const map = new Map<string, AuditEntry>();
     for (const e of nhatKyHeThong) map.set(e.id, e);
@@ -308,7 +324,6 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
     return Array.from(map.values());
   }, [nhatKyHeThong, localAuditLog]);
 
-  // Auto-fetch nhật ký hệ thống khi mount module hoặc khi focus window.
   useEffect(() => {
     taiNhatKyHeThong();
     const onFocus = () => taiNhatKyHeThong();
@@ -324,20 +339,12 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Sau khi thực hiện write thành công (ghi log mới phía server) thì refetch.
-  // Component cha (VoTrang) không tự refetch — ModuleNhatKy tự lắng nghe qua
-  // store actions nếu cần. Ở đây ta chỉ phụ thuộc focus window + mount.
-
-  // Filter audit log based on which menu section opened this module
   const auditLog = useMemo(() => {
     if (menuDangChon === 'pricing.audit_log') {
       return fullAuditLog.filter(e => e.targetType === 'history' || e.targetType === 'quote' || e.targetType === 'order');
     }
     if (menuDangChon === 'customers.audit_log') {
       return fullAuditLog.filter(e => e.targetType === 'customer');
-    }
-    if (menuDangChon === 'system.audit_log') {
-      return fullAuditLog;
     }
     return fullAuditLog;
   }, [fullAuditLog, menuDangChon]);
@@ -521,7 +528,7 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
             <Search size={14} className="crm-search-icon" />
             <input
               className="crm-search-input"
-              placeholder="Tìm theo tên người dùng, mã BG, KH, tên SP..."
+              placeholder="Tìm theo tên người dùng, tên khách hàng, mô tả..."
               value={search}
               onChange={e => { setSearch(e.target.value); setVisibleCount(BATCH_SIZE); }}
             />
@@ -598,7 +605,7 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
                       onMouseDown={() => { setFilterUser(u.id); setUserSearchText(u.name); setShowUserSuggestions(false); setVisibleCount(BATCH_SIZE); }}
                       style={{ padding: '6px 10px', fontSize: '0.8rem', cursor: 'pointer', background: filterUser === u.id ? 'var(--primary-light, #dbeafe)' : undefined }}
                     >
-                      {u.name} <span style={{ color: 'var(--muted)', fontSize: '0.72rem' }}>({u.id})</span>
+                      {u.name}
                     </div>
                   ))}
                 </div>
@@ -646,13 +653,13 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
               <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 4, fontWeight: 500 }}>Đối tượng mục tiêu</div>
               <input
                 className="form-input"
-                placeholder="Mã BG, mã KH, tên SP, số LSX..."
+                placeholder="Tên khách hàng, mô tả báo giá..."
                 value={targetSearch}
                 onChange={e => { setTargetSearch(e.target.value); setVisibleCount(BATCH_SIZE); }}
                 style={{ width: '100%' }}
               />
               <div style={{ fontSize: '0.68rem', color: 'var(--muted)', marginTop: 3 }}>
-                Tìm theo mã định danh dữ liệu cụ thể
+                Tìm theo tên hoặc mô tả dữ liệu
               </div>
             </div>
           </div>

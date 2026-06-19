@@ -3,13 +3,10 @@ import type { ActivityLogServerApi } from './api/service-lts';
 import { normalizeDisplayText } from './text-codec';
 
 // ── resourceType mapping ──────────────────────────────────────────────────
-// server → FE AuditEntry.targetType
 const RESOURCE_TYPE_MAP: Record<string, AuditEntry['targetType']> = {
   customer: 'customer',
   pricing_sheet: 'history',
   quotation: 'quote',
-  // Các resource khác (account/role/user_policy/customer_manager) ánh xạ vào
-  // targetType 'permission' để khớp với TARGET_TYPE_LABELS trong ModuleNhatKy.
   account: 'permission',
   role: 'permission',
   user_policy: 'permission',
@@ -21,9 +18,6 @@ export function chuyenResourceType(resourceType: string): AuditEntry['targetType
 }
 
 // ── action mapping ────────────────────────────────────────────────────────
-// Ánh xạ 25 action server → 16 AuditAction FE.
-// Bao gồm: customer/pricing_sheet/quotation + các action account/role/user_policy
-// (để tab "Tất cả" hiển thị đúng nhãn).
 const ACTION_MAP: Record<string, AuditAction> = {
   'customer.created': 'create',
   'customer.version_created': 'update',
@@ -54,9 +48,6 @@ export function chuyenAction(serverAction: string): AuditAction {
 }
 
 // ── metadata → before/after ───────────────────────────────────────────────
-// Tất cả 3 module backend (customer/pricing_sheet/quotation) đều dùng shape
-// { previousVersion, currentVersion }. FE giữ nguyên shape để DiffView hiện có
-// (trong ModuleNhatKy.tsx) dùng được luôn.
 export function trichBeforeAfter(metadata: Record<string, unknown> | null | undefined): {
   before?: Record<string, unknown>;
   after?: Record<string, unknown>;
@@ -74,8 +65,25 @@ export function trichBeforeAfter(metadata: Record<string, unknown> | null | unde
   };
 }
 
+// ── targetName từ metadata ─────────────────────────────────────────────────
+const TARGET_NAME_KEYS: Record<string, string> = {
+  customer: 'organizationName',
+  pricing_sheet: 'pricingSheetName',
+  quotation: 'description',
+  account: 'account',
+  role: 'roleName',
+};
+
+function trichTargetName(log: ActivityLogServerApi): string | undefined {
+  const raw = log.metadata?.currentVersion;
+  if (!raw || typeof raw !== 'object') return undefined;
+  const cur = raw as Record<string, unknown>;
+  const key = TARGET_NAME_KEYS[log.resourceType as keyof typeof TARGET_NAME_KEYS];
+  if (key && cur[key] != null) return String(cur[key]);
+  return undefined;
+}
+
 // ── actor resolver ────────────────────────────────────────────────────────
-// BE không embed tên user; FE tự resolve qua cache users.
 export type ActorResolver = (actorId: string | null) => { id: string; fullName: string } | null;
 
 export function taoActorResolver(
@@ -93,21 +101,28 @@ export function taoActorResolver(
   };
 }
 
+// ── target resolver ───────────────────────────────────────────────────────
+export type TargetResolver = (resourceType: string, resourceId: string | null) => string | undefined;
+
 // ── main mapper ───────────────────────────────────────────────────────────
 export function mapActivityLogServer(
   log: ActivityLogServerApi,
   resolveActor: ActorResolver,
+  resolveTarget?: TargetResolver,
 ): AuditEntry {
   const actor = resolveActor(log.actorId);
   const { before, after } = trichBeforeAfter(log.metadata);
+  const metadataName = trichTargetName(log);
+  const resolvedName = resolveTarget?.(log.resourceType, log.resourceId);
   return {
     id: log.id,
     timestamp: log.createdAt,
     userId: log.actorId ?? '',
-    userName: actor?.fullName ?? log.actorId ?? '',
+    userName: actor?.fullName ?? '',
     action: chuyenAction(log.action),
     targetType: chuyenResourceType(log.resourceType),
     targetId: log.resourceId ?? '',
+    targetName: metadataName || resolvedName,
     before,
     after,
   };
@@ -116,6 +131,7 @@ export function mapActivityLogServer(
 export function mapActivityLogsServer(
   logs: ActivityLogServerApi[],
   resolveActor: ActorResolver,
+  resolveTarget?: TargetResolver,
 ): AuditEntry[] {
-  return logs.map((log) => mapActivityLogServer(log, resolveActor));
+  return logs.map((log) => mapActivityLogServer(log, resolveActor, resolveTarget));
 }
