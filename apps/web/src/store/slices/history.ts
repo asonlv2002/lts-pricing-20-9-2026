@@ -8,6 +8,7 @@ import { luuLocalStorage, LS_HISTORY } from '../helpers';
 export interface HistorySlice {
   history: HistoryItem[];
   loadedHistoryId: string | null;
+  originalCustomerLoaded: string | null;
 
   addCurrentToHistory: () => void;
   removeHistoryItem: (id: string) => void;
@@ -46,14 +47,50 @@ function actionTheoTrangThai(status: QuoteStatus) {
   return 'status_change' as const;
 }
 
+// Tìm mã khách hàng (codeName) từ tên khách (display name) trong HistoryItem.
+// Đọc từ localStorage LS_CUSTOMERS.
+function timMaKhachHang(tenKhach: string): string | null {
+  try {
+    const raw = localStorage.getItem('lts_customers');
+    if (!raw) return null;
+    const list = JSON.parse(raw) as Array<{ companyName?: string; contactName?: string; customerCode?: string; id?: string }>;
+    const q = (tenKhach || '').trim().toLowerCase();
+    if (!q) return null;
+    const found = list.find(c => {
+      const ten = (c.companyName || c.contactName || c.customerCode || c.id || '').toLowerCase();
+      return ten === q || (c.customerCode || '').toLowerCase() === q;
+    });
+    return found?.customerCode?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySlice> = (set, get) => ({
   history: [],
   loadedHistoryId: null,
+  originalCustomerLoaded: null,
 
   addCurrentToHistory: () => {
     set((state) => {
       if (!state.result) return state;
       const now = new Date();
+
+      // Tính mã khách hàng hiện tại
+      const currentCustomerCode = timMaKhachHang(state.input.customer) || null;
+
+      // Xác định có copy pricingSheetId từ item đang load không
+      let pricingSheetIdToCopy: string | undefined;
+      if (state.loadedHistoryId) {
+        const loadedItem = state.history.find(h => h.id === state.loadedHistoryId);
+        if (loadedItem) {
+          const loadedCustomerCode = loadedItem.originalCustomer || timMaKhachHang(loadedItem.customer) || null;
+          if (loadedCustomerCode && currentCustomerCode && loadedCustomerCode === currentCustomerCode) {
+            pricingSheetIdToCopy = loadedItem.pricingSheetId;
+          }
+        }
+      }
+
       const item: HistoryItem = {
         id: String(now.getTime()),
         date: now.toLocaleDateString('vi-VN'),
@@ -70,6 +107,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         saleOverrides: Object.keys(state.saleOverrides).length > 0 ? state.saleOverrides : undefined,
         adminOverrides: Object.keys(state.adminOverrides).length > 0 ? state.adminOverrides : undefined,
         input: { ...state.input },
+        originalCustomer: currentCustomerCode ?? undefined,
+        pricingSheetId: pricingSheetIdToCopy,
       };
       const history = [item, ...state.history].slice(0, 200);
       luuLocalStorage(LS_HISTORY, history);
@@ -85,7 +124,12 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         });
       }, 0);
 
-      return { history, isDirty: false, loadedHistoryId: item.id };
+      return {
+        history,
+        isDirty: false,
+        loadedHistoryId: item.id,
+        originalCustomerLoaded: currentCustomerCode,
+      };
     });
   },
 

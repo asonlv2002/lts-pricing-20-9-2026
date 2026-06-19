@@ -16,13 +16,14 @@ export type PolicyCode =
   | 'ACCOUNT_PROTECT' | 'ACCOUNT_PASSWORD_UPDATE_ALL' | 'ROLE_CREATE' | 'ROLE_UPDATE' | 'ROLE_DELETE'
   | 'ROLE_READ' | 'CUSTOMER_CREATE' | 'CUSTOMER_MANAGER'
   | 'USER_POLICY_GRANT' | 'USER_POLICY_REVOKE'
-  | 'QUOTATION_REVIEWER' | 'PRODUCT_MANAGER';
+  | 'QUOTATION_REVIEWER' | 'PRODUCT_MANAGER' | 'PRICING_SHEET_ADVISOR'
+  | 'ACTIVITY_MONITOR';
 
 export interface Policy {
   code: PolicyCode;
   ten: string;
   moTa: string;
-  nhom: 'Tài khoản' | 'Nhóm quyền' | 'Cấp phát' | 'Báo giá' | 'Sản phẩm';
+  nhom: 'Tài khoản' | 'Nhóm quyền' | 'Cấp phát' | 'Báo giá' | 'Sản phẩm' | 'Quản trị';
   rui_ro: 'thap' | 'trung' | 'cao';
 }
 
@@ -43,6 +44,8 @@ export const POLICY_CATALOG: Policy[] = [
   { code: 'USER_POLICY_REVOKE', ten: 'Thu hồi quyền user',    moTa: 'Cho phép thu hồi policy trực tiếp khỏi tài khoản.',     nhom: 'Cấp phát', rui_ro: 'cao'   },
   { code: 'QUOTATION_REVIEWER', ten: 'Duyệt báo giá',         moTa: 'Cho phép xem và duyệt/từ chối các báo giá đã nộp.',     nhom: 'Báo giá',  rui_ro: 'cao'   },
   { code: 'PRODUCT_MANAGER',    ten: 'Quản lý sản phẩm',      moTa: 'Cho phép xóa sản phẩm và quản lý danh mục sản phẩm.',   nhom: 'Sản phẩm', rui_ro: 'trung' },
+  { code: 'PRICING_SHEET_ADVISOR', ten: 'Cố vấn bảng tính giá', moTa: 'Cho phép cập nhật kết quả cố vấn (masterResult) trên bảng tính giá.', nhom: 'Báo giá', rui_ro: 'cao' },
+  { code: 'ACTIVITY_MONITOR',     ten: 'Xem nhật ký thao tác toàn hệ thống', moTa: 'Cho phép đọc nhật ký thao tác của tất cả người dùng (không có policy này chỉ xem được log của chính mình).', nhom: 'Quản trị', rui_ro: 'trung' },
 ];
 
 // ── API types ────────────────────────────────────────────────────────────
@@ -556,6 +559,17 @@ export interface TaoPricingSheetInput {
   note?: string;
 }
 
+// PATCH /pricing-sheet/{id}/result — cập nhật inputValue và saleResult
+export interface CapNhatPricingSheetResultInput {
+  inputValue: unknown;
+  saleResult?: unknown;
+}
+
+// PATCH /pricing-sheet/{id}/advisor-result — cập nhật masterResult (cần quyền PRICING_SHEET_ADVISOR)
+export interface CapNhatPricingSheetAdvisorInput {
+  masterResult?: unknown;
+}
+
 export interface PricingSheetApi {
   id: string;
   pricingSheetName: string;
@@ -582,6 +596,30 @@ export async function taoPricingSheetService(
 export async function layDanhSachPricingSheetService(token?: string): Promise<PricingSheetApi[]> {
   const data = await goiService<PricingSheetApi[]>('/pricing-sheet', {}, token);
   return Array.isArray(data) ? data : [];
+}
+
+// PATCH /pricing-sheet/{id}/result — cập nhật inputValue và saleResult (Sale/Admin)
+export async function capNhatPricingSheetResultService(
+  id: string,
+  input: CapNhatPricingSheetResultInput,
+  token?: string,
+): Promise<PricingSheetApi> {
+  return goiService<PricingSheetApi>(`/pricing-sheet/${encodeURIComponent(id)}/result`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  }, token);
+}
+
+// PATCH /pricing-sheet/{id}/advisor-result — cập nhật masterResult (cần quyền PRICING_SHEET_ADVISOR)
+export async function capNhatPricingSheetAdvisorResultService(
+  id: string,
+  input: CapNhatPricingSheetAdvisorInput,
+  token?: string,
+): Promise<PricingSheetApi> {
+  return goiService<PricingSheetApi>(`/pricing-sheet/${encodeURIComponent(id)}/advisor-result`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  }, token);
 }
 
 // ── Quotations ────────────────────────────────────────────────────────────
@@ -667,30 +705,50 @@ export async function layDanhSachBaoGiaService(token?: string): Promise<BaoGiaAp
   return Array.isArray(data) ? data : [];
 }
 
-// PATCH /quotations/status_update — nộp một báo giá nháp để chờ duyệt.
+// PATCH /quotations/{id}/status_update — nộp một báo giá nháp để chờ duyệt.
 export async function nopBaoGiaService(quotationId: string, token?: string): Promise<BaoGiaApi> {
-  return goiService<BaoGiaApi>('/quotations/status_update', {
+  return goiService<BaoGiaApi>(`/quotations/${encodeURIComponent(quotationId)}/status_update`, {
     method: 'PATCH',
-    body: JSON.stringify({ quotationId }),
+    body: JSON.stringify({}),
   }, token);
 }
 
-// GET /quotations/quotation-in-review — báo giá đã nộp đang chờ duyệt (cần QUOTATION_REVIEWER).
+// GET /quotations/non-draft — báo giá đã nộp đang chờ duyệt (cần QUOTATION_REVIEWER).
 export async function layBaoGiaChoDuyetService(token?: string): Promise<BaoGiaApi[]> {
-  const data = await goiService<BaoGiaApi[]>('/quotations/quotation-in-review', {}, token);
+  const data = await goiService<BaoGiaApi[]>('/quotations/non-draft', {}, token);
   return Array.isArray(data) ? data : [];
 }
 
-// PATCH /quotations/review_update_status — duyệt hoặc từ chối báo giá đã nộp.
+// PATCH /quotations/{id}/review_update_status — duyệt hoặc từ chối báo giá đã nộp.
 export async function duyetBaoGiaService(
   quotationId: string,
   updateStatus: 'approved' | 'rejected',
   token?: string,
 ): Promise<BaoGiaApi> {
-  return goiService<BaoGiaApi>('/quotations/review_update_status', {
+  return goiService<BaoGiaApi>(`/quotations/${encodeURIComponent(quotationId)}/review_update_status`, {
     method: 'PATCH',
-    body: JSON.stringify({ quotationId, updateStatus }),
+    body: JSON.stringify({ updateStatus }),
   }, token);
+}
+
+// ── Activity Logs ────────────────────────────────────────────────────────
+// Server resourceType: 'customer' | 'pricing_sheet' | 'quotation' | 'account' | 'role' | 'user_policy' | 'customer_manager'
+// Server action: xem activity-log-actions.ts (backend)
+export interface ActivityLogServerApi {
+  id: string;
+  actorId: string | null;
+  action: string;
+  resourceType: string;
+  resourceId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+}
+
+// GET /activity-logs — có policy ACTIVITY_MONITOR mới trả toàn bộ log.
+// Không có policy thì backend chỉ trả log có actorId === user hiện tại.
+export async function layNhatKyHeThongService(token?: string): Promise<ActivityLogServerApi[]> {
+  const data = await goiService<ActivityLogServerApi[]>('/activity-logs', {}, token);
+  return Array.isArray(data) ? data : [];
 }
 
 // ── Transform ────────────────────────────────────────────────────────────

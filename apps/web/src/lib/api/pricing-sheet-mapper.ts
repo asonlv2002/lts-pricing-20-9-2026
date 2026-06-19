@@ -12,7 +12,7 @@
 // bắt buộc lưu. Bảng rỗng được map thành `undefined` để không gửi key thừa.
 
 import type { HistoryItem } from '../types';
-import type { TaoPricingSheetInput } from './service-lts';
+import type { TaoPricingSheetInput, CapNhatPricingSheetResultInput, CapNhatPricingSheetAdvisorInput } from './service-lts';
 
 function bangGhiDeCoGiaTri(table: HistoryItem['saleOverrides']): unknown | undefined {
   if (!table) return undefined;
@@ -31,5 +31,24 @@ export function mapHistoryToPricingSheet(
     saleResult: bangGhiDeCoGiaTri(h.saleOverrides),
     masterResult: bangGhiDeCoGiaTri(h.adminOverrides),
     note: note?.trim() ? note.trim() : undefined,
+  };
+}
+
+// Map HistoryItem → payload cho PATCH /pricing-sheet/{id}/result
+export function mapHistoryToResultPatch(
+  h: HistoryItem,
+): CapNhatPricingSheetResultInput {
+  return {
+    inputValue: h.input,
+    saleResult: bangGhiDeCoGiaTri(h.saleOverrides),
+  };
+}
+
+// Map HistoryItem → payload cho PATCH /pricing-sheet/{id}/advisor-result
+export function mapHistoryToAdvisorPatch(
+  h: HistoryItem,
+): CapNhatPricingSheetAdvisorInput {
+  return {
+    masterResult: bangGhiDeCoGiaTri(h.adminOverrides),
   };
 }

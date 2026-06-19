@@ -91,7 +91,7 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     vaiTros: ['admin', 'sale'],
     mucCon: [
       { key: 'customers.list', id: 'customers', label: 'Danh sách khách hàng', vaiTros: ['admin', 'sale'] },
-      { key: 'customers.audit_log', id: 'customers', label: 'Nhật ký thao tác', vaiTros: ['admin', 'sale'] },
+      { key: 'customers.audit_log', id: 'audit_log', label: 'Nhật ký thao tác', vaiTros: ['admin', 'sale'] },
     ],
   },
   {

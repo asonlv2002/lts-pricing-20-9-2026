@@ -369,6 +369,8 @@ export interface HistoryItem {
   tiers?: QuoteTier[];
   quoteProducts?: QuoteProductLine[];
   validUntil?: string;
+  pricingSheetId?: string;    // ID của pricing sheet trên server (nếu đã sync)
+  originalCustomer?: string;  // Mã khách hàng gốc khi load từ lịch sử (để so sánh)
   input: CalculateInput;
 }
 

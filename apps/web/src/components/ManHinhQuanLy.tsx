@@ -6,8 +6,17 @@ import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { TECHNICAL_TABLE_MOBILE_LABELS as MOBILE_LABELS } from '../lib/technical-table-mobile-labels';
 import type { Material, OverrideRowKey, OverrideFields, OverrideTable, HistoryItem } from '../lib/types';
 import { kiemTraMaKhachHang } from '../lib/customer-api';
-import { taoPricingSheetService } from '../lib/api/service-lts';
-import { mapHistoryToPricingSheet } from '../lib/api/pricing-sheet-mapper';
+import { 
+  taoPricingSheetService, 
+  capNhatPricingSheetResultService, 
+  capNhatPricingSheetAdvisorResultService 
+} from '../lib/api/service-lts';
+import { 
+  mapHistoryToPricingSheet, 
+  mapHistoryToResultPatch, 
+  mapHistoryToAdvisorPatch 
+} from '../lib/api/pricing-sheet-mapper';
+import { quyetDinhPricingSheetSync } from '../lib/pricing-sheet-sync';
 import { LS_CUSTOMERS } from '../store/helpers';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
@@ -453,20 +462,37 @@ function timMaKhachHang(tenKhach: string): string | null {
 
 // Đẩy 1 pricing sheet lên server (chạy ngầm, không hiện toast).
 // Bỏ qua im lặng nếu offline / chưa đăng nhập / thiếu mã khách hàng.
-async function dayPricingSheetLenServer(
+async function syncPricingSheetToServer(
   h: HistoryItem | undefined,
   isAuthenticated: boolean,
   accessToken: string | null,
 ): Promise<void> {
   if (!h) return;
-  if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') return;
-  if (!isAuthenticated || !accessToken) return;
-  const maKH = timMaKhachHang(h.customer);
-  if (!maKH) return;
-  const checkKH = kiemTraMaKhachHang(maKH);
-  if (!checkKH.hopLe) return;
+
+  const decision = quyetDinhPricingSheetSync(h, isAuthenticated, accessToken, h?.pricingSheetId);
+  if (decision.action === 'skip') return;
+
   try {
-    await taoPricingSheetService(mapHistoryToPricingSheet(h, checkKH.maKhachHang), accessToken);
+    if (decision.action === 'postCreate') {
+      const maKH = timMaKhachHang(h.customer);
+      if (!maKH) return;
+      const checkKH = kiemTraMaKhachHang(maKH);
+      if (!checkKH.hopLe) return;
+      const sheet = await taoPricingSheetService(mapHistoryToPricingSheet(h, checkKH.maKhachHang), accessToken ?? undefined);
+      // Lưu pricingSheetId vào history item
+      if (sheet?.id) {
+        const state = dungCuaHangTinhGia.getState();
+        const updatedHistory = state.history.map(x => x.id === h.id ? { ...x, pricingSheetId: sheet.id } : x);
+        localStorage.setItem('lts_history', JSON.stringify(updatedHistory));
+        state.history = updatedHistory;
+      }
+    } else if (decision.action === 'patch') {
+      if (!h.pricingSheetId) return;
+      await capNhatPricingSheetResultService(h.pricingSheetId, mapHistoryToResultPatch(h), accessToken ?? undefined);
+      if (decision.includeAdvisor) {
+        await capNhatPricingSheetAdvisorResultService(h.pricingSheetId, mapHistoryToAdvisorPatch(h), accessToken ?? undefined);
+      }
+    }
   } catch (e) {
     console.warn('Đồng bộ pricing sheet lên máy chủ thất bại:', e);
   }
@@ -474,11 +500,21 @@ async function dayPricingSheetLenServer(
 
 export default function ManHinhQuanLy() {
   const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, setChotGiaForLatest: datGiaChotChoMoiNhat, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, setActiveModule: datPhan,
-    role, loadedHistoryId: loadedHistoryId, history: lichSu, materials,
+    role,   loadedHistoryId: loadedHistoryId,
+  originalCustomerLoaded: originalCustomerLoaded, history: lichSu, materials,
     saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin, showSaleOverrides: hienGhiDeSale, showAdminOverrides: hienGhiDeAdmin,
     setSaleOverride: datGhiDeSale, setAdminOverride: datGhiDeAdmin, setShowSaleOverrides: datHienGhiDeSale, setShowAdminOverrides: datHienGhiDeAdmin, persistOverrides: luuGhiDe, calculateForInput,
-    accessToken, isAuthenticated,
-  } = dungCuaHangTinhGia();
+  accessToken, isAuthenticated,
+} = dungCuaHangTinhGia();
+
+// Tính toán trạng thái nút Lưu và banner
+const currentCustomerCode = timMaKhachHang(input.customer);
+const loadedItem = loadedHistoryId ? lichSu.find(h => h.id === loadedHistoryId) : null;
+const isSameCustomer = loadedItem && originalCustomerLoaded && currentCustomerCode && originalCustomerLoaded === currentCustomerCode;
+const buttonLabel = loadedItem
+  ? (isSameCustomer ? "🔄 Cập nhật" : "📄 Tạo bảng tính mới")
+  : "💾 Lưu báo giá";
+const showBanner = loadedItem && !isSameCustomer;
   const [vatLieuCuonDangChon, datVatLieuCuonDangChon] = React.useState('');
 
   if (manHinhDangMo !== 'manager') return null;
@@ -862,7 +898,7 @@ export default function ManHinhQuanLy() {
                   // Đẩy bảng tính (pricing sheet) lên server sau khi lưu local.
                   const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
                   const h = dungCuaHangTinhGia.getState().history.find(x => x.id === newId);
-                  void dayPricingSheetLenServer(h, isAuthenticated, accessToken);
+                  void syncPricingSheetToServer(h, isAuthenticated, accessToken);
                   // Hiện toast clickable 5s — click để vào lịch sử
                   const container = document.getElementById('toastContainer');
                   if (!container) return;

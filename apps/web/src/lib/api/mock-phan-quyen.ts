@@ -4,11 +4,12 @@
 // Dữ liệu lưu localStorage, seed lần đầu nếu chưa có.
 // ═════════════════════════════════════════════════════════════════════════════
 
-import { type TaiKhoanApi, type NhomQuyenApi, type PolicyCode, POLICY_CATALOG } from './service-lts';
+import { type TaiKhoanApi, type NhomQuyenApi, type PolicyCode, type ActivityLogServerApi, POLICY_CATALOG } from './service-lts';
 
 // ── localStorage keys ───────────────────────────────────────────────────────
 const LS_MOCK_ACCOUNTS = 'lts_mock_accounts';
 const LS_MOCK_ROLES = 'lts_mock_roles';
+const LS_MOCK_ACTIVITY_LOGS = 'lts_mock_activity_logs';
 
 // ── Seed data ───────────────────────────────────────────────────────────────
 const SEED_ACCOUNTS: TaiKhoanApi[] = [
@@ -114,6 +115,99 @@ function layRoles(): NhomQuyenApi[] {
     return SEED_ROLES;
   }
   try { return JSON.parse(raw) as NhomQuyenApi[]; } catch { return SEED_ROLES; }
+}
+
+// ── Activity Logs seed ─────────────────────────────────────────────────────
+const SEED_ACTIVITY_LOGS: ActivityLogServerApi[] = [
+  {
+    id: 'log-1', actorId: 'mock-2', action: 'customer.created',
+    resourceType: 'customer', resourceId: 'cust-ACME',
+    metadata: {
+      previousVersion: {},
+      currentVersion: { codeName: 'ACME_01' },
+    },
+    createdAt: '2026-06-19T08:30:00Z',
+  },
+  {
+    id: 'log-2', actorId: 'mock-2', action: 'customer.version_created',
+    resourceType: 'customer', resourceId: 'cust-ACME',
+    metadata: {
+      previousVersion: { organizationName: 'ACME Cũ' },
+      currentVersion: { organizationName: 'ACME Mới', phoneNumber: '0901234567' },
+    },
+    createdAt: '2026-06-19T10:15:00Z',
+  },
+  {
+    id: 'log-3', actorId: 'mock-3', action: 'pricing_sheet.created',
+    resourceType: 'pricing_sheet', resourceId: 'ps-001',
+    metadata: {
+      previousVersion: {},
+      currentVersion: {
+        pricingSheetName: 'ACME_01 pricing sheet',
+        customerId: 'cust-ACME',
+      },
+    },
+    createdAt: '2026-06-19T11:00:00Z',
+  },
+  {
+    id: 'log-4', actorId: 'mock-3', action: 'pricing_sheet.advisor_result_updated',
+    resourceType: 'pricing_sheet', resourceId: 'ps-001',
+    metadata: {
+      previousVersion: { masterResult: { total: 120 } },
+      currentVersion: { masterResult: { total: 125 } },
+    },
+    createdAt: '2026-06-19T14:20:00Z',
+  },
+  {
+    id: 'log-5', actorId: 'mock-3', action: 'quotation.created',
+    resourceType: 'quotation', resourceId: 'quo-001',
+    metadata: {
+      previousVersion: {},
+      currentVersion: {
+        customerId: 'cust-ACME',
+        description: 'Báo giá đợt 1',
+        updateStatus: 'draft',
+      },
+    },
+    createdAt: '2026-06-19T15:00:00Z',
+  },
+  {
+    id: 'log-6', actorId: 'mock-3', action: 'quotation.submitted',
+    resourceType: 'quotation', resourceId: 'quo-001',
+    metadata: {
+      previousVersion: { updateStatus: 'draft' },
+      currentVersion: { updateStatus: 'submitted' },
+    },
+    createdAt: '2026-06-19T15:30:00Z',
+  },
+  {
+    id: 'log-7', actorId: 'mock-1', action: 'quotation.review_status_updated',
+    resourceType: 'quotation', resourceId: 'quo-001',
+    metadata: {
+      previousVersion: { updateStatus: 'submitted' },
+      currentVersion: { updateStatus: 'approved' },
+    },
+    createdAt: '2026-06-19T16:00:00Z',
+  },
+  {
+    id: 'log-8', actorId: 'mock-1', action: 'account.created',
+    resourceType: 'account', resourceId: 'mock-3',
+    metadata: {
+      previousVersion: {},
+      currentVersion: { account: 'nguyen.an', isActive: true },
+    },
+    createdAt: '2026-06-18T09:00:00Z',
+  },
+];
+
+function layActivityLogs(): ActivityLogServerApi[] {
+  if (typeof window === 'undefined') return SEED_ACTIVITY_LOGS;
+  const raw = localStorage.getItem(LS_MOCK_ACTIVITY_LOGS);
+  if (!raw) {
+    localStorage.setItem(LS_MOCK_ACTIVITY_LOGS, JSON.stringify(SEED_ACTIVITY_LOGS));
+    return SEED_ACTIVITY_LOGS;
+  }
+  try { return JSON.parse(raw) as ActivityLogServerApi[]; } catch { return SEED_ACTIVITY_LOGS; }
 }
 
 function luuRoles(data: NhomQuyenApi[]): void {
@@ -331,6 +425,11 @@ export async function mockPhanQuyen<T>(path: string, options: RequestInit = {}):
     roles.splice(idx, 1);
     luuRoles(roles);
     return null as unknown as T;
+  }
+
+  // ── GET /activity-logs ──────────────────────────────────────────────────
+  if (path === '/activity-logs' && method === 'GET') {
+    return layActivityLogs() as unknown as T;
   }
 
   // ── Fallback ────────────────────────────────────────────────────────────

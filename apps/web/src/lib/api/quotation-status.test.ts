@@ -70,22 +70,22 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 };
 
 async function main() {
-  try {
-    await nopBaoGiaService('q1', 'token');
-    assert('nop bao gia goi status_update', capturedUrl.endsWith('/quotations/status_update'), capturedUrl);
-    assert('nop bao gia dung PATCH', capturedInit?.method === 'PATCH', String(capturedInit?.method));
-    {
-      const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
-      assert('nop bao gia gui quotationId', body?.quotationId === 'q1', JSON.stringify(body));
-    }
+   try {
+     await nopBaoGiaService('q1', 'token');
+     assert('nop bao gia goi /quotations/{id}/status_update', capturedUrl.endsWith('/quotations/q1/status_update'), capturedUrl);
+     assert('nop bao gia dung PATCH', capturedInit?.method === 'PATCH', String(capturedInit?.method));
+     {
+       const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
+       assert('nop bao gia body rong (khong co quotationId)', Object.keys(body ?? {}).length === 0, JSON.stringify(body));
+     }
 
-    await duyetBaoGiaService('q2', 'rejected', 'token');
-    assert('duyet bao gia goi review_update_status', capturedUrl.endsWith('/quotations/review_update_status'), capturedUrl);
-    {
-      const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
-      assert('duyet bao gia gui quotationId + updateStatus',
-        body?.quotationId === 'q2' && body?.updateStatus === 'rejected', JSON.stringify(body));
-    }
+     await duyetBaoGiaService('q2', 'rejected', 'token');
+     assert('duyet bao gia goi /quotations/{id}/review_update_status', capturedUrl.endsWith('/quotations/q2/review_update_status'), capturedUrl);
+     {
+       const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
+       assert('duyet bao gia chi gui updateStatus (khong co quotationId)',
+         body?.quotationId === undefined && body?.updateStatus === 'rejected', JSON.stringify(body));
+     }
 
     await taoBanSuaBaoGiaService({ quotationId: 'q3', quotationName: 'ban sua', inputValue: { a: 1 } }, 'token');
     assert('tao ban sua dung PATCH /quotations', capturedUrl.endsWith('/quotations') && capturedInit?.method === 'PATCH', `${capturedUrl} ${capturedInit?.method}`);

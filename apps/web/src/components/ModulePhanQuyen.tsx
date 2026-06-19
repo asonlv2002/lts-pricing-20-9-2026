@@ -285,9 +285,7 @@ function InspectorTaiKhoan({
           <button className="pq-btn pq-btn--ghost" title={user.isActive ? 'Vô hiệu tài khoản' : 'Kích hoạt tài khoản'} onClick={onToggleActive}>
             <UserCircle2 size={14} /> {user.isActive ? 'Vô hiệu' : 'Kích hoạt'}
           </button>
-          <button className="pq-btn pq-btn--ghost" title={user.isProtected ? 'Tắt bảo vệ tài khoản' : 'Bật bảo vệ tài khoản'} onClick={onToggleProtected}>
-            <Lock size={14} /> {user.isProtected ? 'Bỏ bảo vệ' : 'Bảo vệ'}
-          </button>
+
           {coQuyenDatLaiMatKhau && (
             <button className="pq-btn pq-btn--ghost" title="Đặt lại mật khẩu tài khoản" onClick={onResetPassword}>
               <Lock size={14} /> Đặt lại MK

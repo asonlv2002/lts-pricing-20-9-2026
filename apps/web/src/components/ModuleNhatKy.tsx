@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Search, Download, Clock, User, FileText, ChevronDown, ChevronUp,
-  Plus, Pencil, Trash2, Send, Check, X, Mail, Lock, RotateCcw, Factory, Filter, XCircle, Eye
+  Plus, Pencil, Trash2, Send, Check, X, Mail, Lock, RotateCcw, Factory, Filter, XCircle, Eye, RefreshCw
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { AuditAction, AuditEntry } from '../lib/types';
@@ -288,12 +288,53 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }) {
-  const { auditLog: fullAuditLog, xuatNhatKyCsv, setActiveModule, loadHistoryItem, history } = dungCuaHangTinhGia();
+  const {
+    auditLog: localAuditLog,
+    nhatKyHeThong,
+    dangTaiNhatKy,
+    loiNhatKy,
+    xuatNhatKyCsv,
+    taiNhatKyHeThong,
+    setActiveModule,
+    loadHistoryItem,
+    history,
+  } = dungCuaHangTinhGia();
+
+  // Gộp log server (ưu tiên) + log local. Server log có id UUID từ BE, dedupe theo id.
+  const fullAuditLog = useMemo<AuditEntry[]>(() => {
+    const map = new Map<string, AuditEntry>();
+    for (const e of nhatKyHeThong) map.set(e.id, e);
+    for (const e of localAuditLog) if (!map.has(e.id)) map.set(e.id, e);
+    return Array.from(map.values());
+  }, [nhatKyHeThong, localAuditLog]);
+
+  // Auto-fetch nhật ký hệ thống khi mount module hoặc khi focus window.
+  useEffect(() => {
+    taiNhatKyHeThong();
+    const onFocus = () => taiNhatKyHeThong();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') taiNhatKyHeThong();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Sau khi thực hiện write thành công (ghi log mới phía server) thì refetch.
+  // Component cha (VoTrang) không tự refetch — ModuleNhatKy tự lắng nghe qua
+  // store actions nếu cần. Ở đây ta chỉ phụ thuộc focus window + mount.
 
   // Filter audit log based on which menu section opened this module
   const auditLog = useMemo(() => {
     if (menuDangChon === 'pricing.audit_log') {
       return fullAuditLog.filter(e => e.targetType === 'history' || e.targetType === 'quote' || e.targetType === 'order');
+    }
+    if (menuDangChon === 'customers.audit_log') {
+      return fullAuditLog.filter(e => e.targetType === 'customer');
     }
     if (menuDangChon === 'system.audit_log') {
       return fullAuditLog;
@@ -632,9 +673,24 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
         )}
       </div>
 
-      {/* ── Count ── */}
-      <div style={{ fontSize: '0.78rem', color: 'var(--muted)', marginBottom: 12 }}>
-        {filtered.length} bản ghi
+      {/* ── Count + refresh ── */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: '0.78rem', color: 'var(--muted)' }}>
+          {filtered.length} bản ghi
+        </span>
+        <button
+          className="btn btn-sm btn-outline"
+          onClick={() => taiNhatKyHeThong(true)}
+          disabled={dangTaiNhatKy}
+          style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+          title="Tải lại nhật ký từ máy chủ"
+        >
+          <RefreshCw size={12} className={dangTaiNhatKy ? 'lts-spin' : ''} />
+          {dangTaiNhatKy ? 'Đang tải...' : 'Làm mới'}
+        </button>
+        {loiNhatKy && (
+          <span style={{ fontSize: '0.75rem', color: '#dc2626' }}>{loiNhatKy}</span>
+        )}
       </div>
 
       {/* ── Read-only notice ── */}
