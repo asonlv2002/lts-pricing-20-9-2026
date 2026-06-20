@@ -1,4 +1,4 @@
-// ═════════════════════════════════════════════════════════════════════════════
+﻿// ═════════════════════════════════════════════════════════════════════════════
 // Mapper: ConfigScope (frontend) <-> configName (backend price-config)
 // ═════════════════════════════════════════════════════════════════════════════
 //
@@ -74,7 +74,7 @@ export function trichXuatDuLieuScope(
   } else {
     const keys = SCOPE_CONSTANT_KEYS[scope];
     for (const key of keys) {
-      result[key] = structuredClone((data.constants as Record<string, unknown>)[key as string]);
+      result[key] = structuredClone((data.constants as unknown as Record<string, unknown>)[key as string]);
     }
   }
 
