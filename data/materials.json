@@ -219,5 +219,82 @@
     "isPETorPA": false,
     "rollLength": 6000,
     "inkPricePerColor": 0
+  },
+  {
+    "id": "BOPP_HS20",
+    "group": "BOPP HEAT SEAL",
+    "name": "BOPP HEAT SEAL",
+    "density": 0.91,
+    "thickness": 20,
+    "pricePerKg": 46296,
+    "isPETorPA": false,
+    "rollLength": 4000,
+    "inkPricePerColor": 120
+  },
+  {
+    "id": "BOPP_HS30",
+    "group": "BOPP HEAT SEAL",
+    "name": "BOPP HEAT SEAL",
+    "density": 0.91,
+    "thickness": 30,
+    "pricePerKg": 43519,
+    "isPETorPA": false,
+    "rollLength": 4000,
+    "inkPricePerColor": 120
+  },
+  {
+    "id": "PET_MATT12",
+    "group": "PET MATTE",
+    "name": "PET MATTE",
+    "density": 1.4,
+    "thickness": 12,
+    "pricePerKg": 37037,
+    "isPETorPA": true,
+    "rollLength": 6000,
+    "inkPricePerColor": 140
+  },
+  {
+    "id": "PET_MATT23",
+    "group": "PET MATTE",
+    "name": "PET MATTE",
+    "density": 1.4,
+    "thickness": 23,
+    "pricePerKg": 37037,
+    "isPETorPA": true,
+    "rollLength": 6000,
+    "inkPricePerColor": 140
+  },
+  {
+    "id": "AL6",
+    "name": "AL",
+    "density": 2.7,
+    "thickness": 6,
+    "pricePerKg": 50000,
+    "isPETorPA": false,
+    "rollLength": 6000,
+    "inkPricePerColor": 0
+  },
+  {
+    "id": "RCPP70",
+    "group": "RCPP",
+    "name": "RCPP",
+    "density": 0.92,
+    "thickness": 70,
+    "pricePerKg": 41667,
+    "isPETorPA": false,
+    "rollLength": 6000,
+    "inkPricePerColor": 0
+  },
+  {
+    "id": "LLDPE_GAO_HCK",
+    "group": "LLDPE",
+    "name": "LLDPE (gạo hút chân không)",
+    "density": 0.925,
+    "thickness": 105,
+    "pricePerKg": 58000,
+    "isPETorPA": false,
+    "adjustableMic": true,
+    "rollLength": 6000,
+    "inkPricePerColor": 140
   }
 ]

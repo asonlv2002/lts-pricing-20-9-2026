@@ -186,7 +186,6 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
     setMaterialParam: capNhatVatLieu,
     setConstantParam: capNhatHangSo,
     setSmallWidthPriceParam: capNhatGiaKhoNho,
-    addMaterial: themVatLieu,
     removeMaterial: xoaVatLieu,
     ghiNhatKy,
     currentSellerId,
@@ -198,7 +197,6 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
   const [bangGiaMauInDangXem, datBangGiaMauInDangXem] = React.useState<'normal' | 'printFilm'>('normal');
   const [ngayCongNoMoi, datNgayCongNoMoi] = React.useState('');
   const [nguongLoiNhuanDangSua, datNguongLoiNhuanDangSua] = React.useState<Record<number, string>>({});
-  const customMaterialSeq = React.useRef(0);
   const nhomCauHinh = layNhomCauHinh(menuDangChon);
   const hienVatTu = nhomCauHinh === 'materials';
   const hienHaoHut = nhomCauHinh === 'waste';
@@ -549,20 +547,7 @@ export default function TrangCauHinh({ menuDangChon }: { menuDangChon?: string }
                         );
                       })}
                     </tbody>
-                    <tfoot>
-                      <tr>
-                        <td colSpan={7} style={{paddingTop:'10px', display:'flex', gap:'8px', flexWrap:'wrap'}}>
-                          <button className="btn btn-sm btn-outline" onClick={() => {
-                            customMaterialSeq.current += 1;
-                            const id = `custom-${vatLieu.length}-${customMaterialSeq.current}`;
-                            themVatLieu({ id, name: 'Vật liệu mới', group: 'khac', density: 1.0, thickness: 20, pricePerKg: 0, isPETorPA: false, rollLength: 5000, inkPricePerColor: 120 });
-                            ghiNhatKyCauHinh({ action: 'create', targetId: id, targetName: 'Vật liệu mới', after: { materialId: id, materialName: 'Vật liệu mới' }, note: 'Thêm vật liệu custom' });
-                          }}>
-                            + Thêm vật liệu khác
-                          </button>
-                        </td>
-                      </tr>
-                    </tfoot>
+
                   </table>
                 </div>
                 <p className="config-note">Chỉnh <strong>độ dày</strong> và <strong>giá VNĐ/kg</strong> - giá VNĐ/m² tự động tính lại. Thay đổi sẽ áp dụng ngay cho lần tính giá tiếp theo.</p>

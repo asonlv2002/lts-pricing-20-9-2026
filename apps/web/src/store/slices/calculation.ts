@@ -183,8 +183,17 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
     set((state) => {
       const pricePerM2 = m.pricePerKg * m.thickness * m.density / 1000;
       const materials = [...state.materials, { ...m, pricePerM2 }];
-      luuConfigVaoLS(materials, state.constants, state.profitTable, state.smallWidthPrices);
-      return { materials, result: tinhBaoGia(dongBoCotLoiNhuan(state.input, materials), materials, state.constants, state.profitTable, state.smallWidthPrices) };
+      const newRow: SmallWidthMaterialPrice = {
+        id: `${m.id}_400`,
+        materialId: m.id,
+        widthThresholdMm: 400,
+        thickness: m.thickness,
+        pricePerKg: m.pricePerKg,
+        pricePerM2,
+      };
+      const smallWidthPrices = [...state.smallWidthPrices, newRow];
+      luuConfigVaoLS(materials, state.constants, state.profitTable, smallWidthPrices);
+      return { materials, smallWidthPrices, result: tinhBaoGia(dongBoCotLoiNhuan(state.input, materials), materials, state.constants, state.profitTable, smallWidthPrices) };
     });
   },
 
