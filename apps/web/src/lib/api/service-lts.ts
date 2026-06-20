@@ -1,4 +1,4 @@
-// ═════════════════════════════════════════════════════════════════════════════
+﻿// ═════════════════════════════════════════════════════════════════════════════
 // API client: Service-LTS (NestJS + Prisma backend)
 // Browser gọi trực tiếp Service-LTS, không qua proxy Next.js
 // ═════════════════════════════════════════════════════════════════════════════
@@ -17,7 +17,7 @@ export type PolicyCode =
   | 'ROLE_READ' | 'CUSTOMER_CREATE' | 'CUSTOMER_MANAGER'
   | 'USER_POLICY_GRANT' | 'USER_POLICY_REVOKE'
   | 'QUOTATION_REVIEWER' | 'PRODUCT_MANAGER' | 'PRICING_SHEET_ADVISOR'
-  | 'ACTIVITY_MONITOR';
+  | 'PRICE_CONFIG_MANAGER' | 'ACTIVITY_MONITOR';
 
 export interface Policy {
   code: PolicyCode;
@@ -45,6 +45,7 @@ export const POLICY_CATALOG: Policy[] = [
   { code: 'QUOTATION_REVIEWER', ten: 'Duyệt báo giá',         moTa: 'Cho phép xem và duyệt/từ chối các báo giá đã nộp.',     nhom: 'Báo giá',  rui_ro: 'cao'   },
   { code: 'PRODUCT_MANAGER',    ten: 'Quản lý sản phẩm',      moTa: 'Cho phép xóa sản phẩm và quản lý danh mục sản phẩm.',   nhom: 'Sản phẩm', rui_ro: 'trung' },
   { code: 'PRICING_SHEET_ADVISOR', ten: 'Cố vấn bảng tính giá', moTa: 'Cho phép cập nhật kết quả cố vấn (masterResult) trên bảng tính giá.', nhom: 'Báo giá', rui_ro: 'cao' },
+  { code: 'PRICE_CONFIG_MANAGER', ten: 'Quản lý cấu hình tính giá', moTa: 'Cho phép tạo và cập nhật phiên bản cấu hình tính giá (vật liệu, chi phí SX, lợi nhuận, ...).', nhom: 'Báo giá', rui_ro: 'cao' },
   { code: 'ACTIVITY_MONITOR',     ten: 'Xem nhật ký thao tác toàn hệ thống', moTa: 'Cho phép đọc nhật ký thao tác của tất cả người dùng (không có policy này chỉ xem được log của chính mình).', nhom: 'Quản trị', rui_ro: 'trung' },
 ];
 
@@ -564,6 +565,7 @@ export interface TaoPricingSheetInput {
 export interface CapNhatPricingSheetResultInput {
   inputValue: unknown;
   saleResult?: unknown;
+  useLatestPriceConfigs?: boolean;
 }
 
 // PATCH /pricing-sheet/{id}/advisor-result — cập nhật masterResult (cần quyền PRICING_SHEET_ADVISOR)
@@ -582,6 +584,8 @@ export interface PricingSheetApi {
   note?: string | null;
   createdAt: string;
   updatedAt: string;
+  priceConfigIds?: string[];
+  original?: { actorName: string };
 }
 
 export async function taoPricingSheetService(
@@ -623,8 +627,44 @@ export async function capNhatPricingSheetAdvisorResultService(
   }, token);
 }
 
-// ── Quotations ────────────────────────────────────────────────────────────
-// POST /quotations — tạo nháp báo giá. Schema mới đòi `pricingSheetIds` ≥ 1.
+// -- Price Config ---------------------------------------------------------------
+export interface PriceConfigApi {
+  id: string;
+  configName: string;
+  version: number;
+  inputValue: unknown;
+  createdBy: string | null;
+  createdAt: string;
+}
+
+export async function upsertPriceConfigService(
+  input: { configName: string; inputValue: unknown },
+  token?: string,
+): Promise<PriceConfigApi> {
+  return goiService<PriceConfigApi>('/price-config', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  }, token);
+}
+
+export async function layPriceConfigMoiNhatService(token?: string): Promise<PriceConfigApi[]> {
+  const data = await goiService<PriceConfigApi[]>('/price-config/latest-version', {}, token);
+  return Array.isArray(data) ? data : [];
+}
+
+export async function layLichSuPriceConfigService(
+  configName: string,
+  token?: string,
+): Promise<PriceConfigApi[]> {
+  const data = await goiService<PriceConfigApi[]>(
+    `/price-config/${encodeURIComponent(configName)}`,
+    {},
+    token,
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+// -- Quotations ----------------------------------------------------------------
 // Frontend phải tạo pricing sheet trước, lấy id rồi gắn vào quotation này.
 export interface TaoBaoGiaInput {
   customerCodeName: string;

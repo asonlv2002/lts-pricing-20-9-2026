@@ -519,7 +519,7 @@ async function syncPricingSheetToServer(
       // Lưu pricingSheetId vào history item
       if (sheet?.id) {
         const state = dungCuaHangTinhGia.getState();
-        const updatedHistory = state.history.map(x => x.id === h.id ? { ...x, pricingSheetId: sheet.id } : x);
+        const updatedHistory = state.history.map(x => x.id === h.id ? { ...x, pricingSheetId: sheet.id, priceConfigIds: sheet.priceConfigIds } : x);
         localStorage.setItem('lts_history', JSON.stringify(updatedHistory));
         state.history = updatedHistory;
       }

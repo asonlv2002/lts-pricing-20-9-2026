@@ -41,6 +41,7 @@ export function mapHistoryToResultPatch(
   return {
     inputValue: h.input,
     saleResult: bangGhiDeCoGiaTri(h.saleOverrides),
+    useLatestPriceConfigs: true,
   };
 }
 

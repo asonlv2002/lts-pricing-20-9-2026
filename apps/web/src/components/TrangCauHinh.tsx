@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 import React from 'react';
 import { Save } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
@@ -31,6 +31,9 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
     taoPhienBanDinhMuc,
     xoaPhienBanDinhMuc,
     apDungPhienBanDinhMuc,
+    taiLichSuPhienBanTuServer,
+    dangLuuPhienBan,
+    dangTaiPhienBan,
   } = dungCuaHangTinhGia();
 
   const phienBan = tatCaPhienBan.filter(s => (s.scope ?? 'materials') === scope);
@@ -40,9 +43,14 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
   const [mocHieuLuc, datMocHieuLuc] = React.useState(() => new Date().toISOString().slice(0, 7));
   const [moDanhSachPhienBan, datMoDanhSachPhienBan] = React.useState(false);
 
-  const xuLyLuu = () => {
+  // Tai lich su phien ban tu server khi component mount
+  React.useEffect(() => {
+    taiLichSuPhienBanTuServer(scope);
+  }, [scope]);
+
+  const xuLyLuu = async () => {
     if (!mocHieuLuc) return;
-    taoPhienBanDinhMuc({ scope, name: ten, effectiveMode: 'month', effectiveFrom: mocHieuLuc });
+    await taoPhienBanDinhMuc({ scope, name: ten, effectiveMode: 'month', effectiveFrom: mocHieuLuc });
     datTen('');
   };
 
@@ -74,14 +82,14 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
             value={mocHieuLuc} onChange={e => datMocHieuLuc(e.target.value)} />
         </div>
         <div className="config-cpsx-item config-version-save" style={{justifyContent: 'flex-end'}}>
-          <button className="btn btn-primary" onClick={xuLyLuu} disabled={!mocHieuLuc} aria-label="Lưu phiên bản">
+          <button className="btn btn-primary" onClick={xuLyLuu} disabled={!mocHieuLuc || dangLuuPhienBan} aria-label="Lưu phiên bản">
             <Save className="config-version-save-icon" size={15} aria-hidden="true" />
-            <span className="config-version-save-text">Lưu</span>
+            <span className="config-version-save-text">{dangLuuPhienBan ? 'Đang lưu...' : 'Lưu'}</span>
           </button>
         </div>
       </div>
       <button className="config-version-summary" type="button" onClick={() => datMoDanhSachPhienBan(true)}>
-        <span>Phiên bản đã lưu: {phienBan.length}</span>
+        <span>Phiên bản đã lưu: {dangTaiPhienBan ? 'Đang tải...' : phienBan.length}</span>
         <span>{phienBan.length > 0 ? 'Xem ›' : 'Chưa có phiên bản nào'}</span>
       </button>
       <div className="config-table-wrap config-version-table-wrap">
@@ -96,7 +104,11 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
             </tr>
           </thead>
           <tbody>
-            {phienBan.length === 0 ? (
+            {dangTaiPhienBan ? (
+              <tr>
+                <td colSpan={5} style={{textAlign: 'center', color: 'var(--dim)'}}>Đang tải phiên bản từ server...</td>
+              </tr>
+            ) : phienBan.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{textAlign: 'center', color: 'var(--dim)'}}>Chưa có phiên bản nào.</td>
               </tr>

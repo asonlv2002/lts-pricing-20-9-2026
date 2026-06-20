@@ -1,17 +1,31 @@
-import type { StateCreator } from 'zustand';
+﻿import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import type { ConfigSnapshot, ConfigScope, AppConstants } from '../../lib/types';
 import { INITIAL_CONFIG_SNAPSHOTS } from '../../lib/data';
 import { luuLocalStorage, LS_CONFIG_SNAPSHOTS } from '../helpers';
+import {
+  upsertPriceConfigService,
+  layLichSuPriceConfigService,
+  type PriceConfigApi,
+} from '../../lib/api/service-lts';
+import {
+  scopeToConfigName,
+  trichXuatDuLieuScope,
+  apDungDuLieuScope,
+  priceConfigToSnapshot,
+} from '../../lib/api/price-config-mapper';
 
 export interface ConfigVersioningSlice {
   configSnapshots: ConfigSnapshot[];
   selectedConfigSnapshotId: Record<ConfigScope, string | null>;
+  dangLuuPhienBan: boolean;
+  dangTaiPhienBan: boolean;
 
   taiPhienBanDinhMuc: (data: ConfigSnapshot[]) => void;
-  taoPhienBanDinhMuc: (params: { scope: ConfigScope; name?: string; effectiveMode: 'date' | 'month'; effectiveFrom: string }) => void;
+  taoPhienBanDinhMuc: (params: { scope: ConfigScope; name?: string; effectiveMode: 'date' | 'month'; effectiveFrom: string }) => Promise<void>;
   xoaPhienBanDinhMuc: (id: string) => void;
   apDungPhienBanDinhMuc: (id: string) => void;
+  taiLichSuPhienBanTuServer: (scope: ConfigScope) => Promise<void>;
   timPhienBanDinhMucTheoNgay: (scope: ConfigScope, date: string) => ConfigSnapshot | null;
 }
 
@@ -23,17 +37,17 @@ const SCOPE_EMPTY: Record<ConfigScope, string | null> = {
   surcharges: null, interest: null, waste: null, outsource: null,
 };
 
+// Scope labels (ASCII-safe for server logs)
 const SCOPE_LABEL: Record<ConfigScope, string> = {
-  materials: 'Vật liệu & giá khổ nhỏ',
-  production: 'Chi phí sản xuất',
-  profit: 'Bảng lợi nhuận',
-  surcharges: 'Phụ phí & phụ kiện',
-  interest: 'Lãi vay công nợ',
-  waste: 'Tham số hao hụt',
-  outsource: 'Gia công ngoài',
+  materials: 'Vat lieu & gia kho nho',
+  production: 'Chi phi san xuat',
+  profit: 'Bang loi nhuan',
+  surcharges: 'Phu phi & phu kien',
+  interest: 'Lai vay cong no',
+  waste: 'Tham so hao hut',
+  outsource: 'Gia cong ngoai',
 };
 
-// Các key của AppConstants thuộc từng scope
 const SCOPE_CONSTANT_KEYS: Record<ConfigScope, (keyof AppConstants)[]> = {
   materials: [],
   production: [
@@ -54,29 +68,86 @@ const SCOPE_CONSTANT_KEYS: Record<ConfigScope, (keyof AppConstants)[]> = {
   outsource: [],
 };
 
+function taoSnapshotLocal(
+  scope: ConfigScope,
+  name: string | undefined,
+  effectiveMode: 'date' | 'month',
+  effectiveFrom: string,
+  state: { materials: ConfigSnapshot['materials']; smallWidthPrices: ConfigSnapshot['smallWidthPrices']; constants: ConfigSnapshot['constants']; profitTable: ConfigSnapshot['profitTable'] },
+): ConfigSnapshot {
+  const now = new Date().toISOString();
+  return {
+    id: crypto.randomUUID(),
+    scope,
+    name: name?.trim() || undefined,
+    effectiveMode,
+    effectiveFrom,
+    createdAt: now,
+    updatedAt: now,
+    materials: structuredClone(state.materials),
+    smallWidthPrices: structuredClone(state.smallWidthPrices),
+    constants: structuredClone(state.constants),
+    profitTable: structuredClone(state.profitTable),
+  };
+}
+
 export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], ConfigVersioningSlice> = (set, get) => ({
   configSnapshots: INITIAL_CONFIG_SNAPSHOTS,
   selectedConfigSnapshotId: { ...SCOPE_EMPTY },
+  dangLuuPhienBan: false,
+  dangTaiPhienBan: false,
 
   taiPhienBanDinhMuc: (data) => set({ configSnapshots: sapXepTheoHieuLuc(data) }),
 
-  taoPhienBanDinhMuc: ({ scope, name, effectiveMode, effectiveFrom }) => {
+  taoPhienBanDinhMuc: async ({ scope, name, effectiveMode, effectiveFrom }) => {
     const state = get();
-    const now = new Date().toISOString();
-    const snapshot: ConfigSnapshot = {
-      id: crypto.randomUUID(),
-      scope,
-      name: name?.trim() || undefined,
-      effectiveMode,
-      effectiveFrom,
-      createdAt: now,
-      updatedAt: now,
-      materials: structuredClone(state.materials),
-      smallWidthPrices: structuredClone(state.smallWidthPrices),
-      constants: structuredClone(state.constants),
-      profitTable: structuredClone(state.profitTable),
-    };
+    const token = state.accessToken;
 
+    if (state.isAuthenticated && token) {
+      set({ dangLuuPhienBan: true });
+      try {
+        const configName = scopeToConfigName(scope);
+        const scopeData = trichXuatDuLieuScope(scope, {
+          materials: state.materials,
+          smallWidthPrices: state.smallWidthPrices,
+          constants: state.constants,
+          profitTable: state.profitTable,
+        });
+
+        const inputValue = {
+          name: name?.trim() || undefined,
+          effectiveMode,
+          effectiveFrom,
+          ...scopeData,
+        };
+
+        const priceConfig = await upsertPriceConfigService({ configName, inputValue }, token);
+
+        await get().taiLichSuPhienBanTuServer(scope);
+
+        set((s) => ({
+          dangLuuPhienBan: false,
+          selectedConfigSnapshotId: { ...s.selectedConfigSnapshotId, [scope]: priceConfig.id },
+        }));
+
+        state.ghiNhatKy({
+          userId: state.currentSellerId,
+          userName: state.currentSellerName,
+          action: 'create',
+          targetType: 'config',
+          targetId: priceConfig.id,
+          targetName: name || SCOPE_LABEL[scope],
+          after: { scope, name, effectiveMode, effectiveFrom, version: priceConfig.version },
+          note: `Tao phien ban ${configName} v${priceConfig.version}`,
+        });
+        return;
+      } catch (e) {
+        console.warn('Luu phien ban len server that bai, fallback localStorage:', e);
+        set({ dangLuuPhienBan: false });
+      }
+    }
+
+    const snapshot = taoSnapshotLocal(scope, name, effectiveMode, effectiveFrom, state);
     set((s) => {
       const configSnapshots = sapXepTheoHieuLuc([snapshot, ...s.configSnapshots]);
       luuLocalStorage(LS_CONFIG_SNAPSHOTS, configSnapshots);
@@ -93,8 +164,39 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
       targetId: snapshot.id,
       targetName: snapshot.name || SCOPE_LABEL[scope],
       after: { scope, name: snapshot.name, effectiveMode, effectiveFrom },
-      note: 'Tạo phiên bản định mức',
+      note: 'Tao phien ban dinh muc (local)',
     });
+  },
+
+  taiLichSuPhienBanTuServer: async (scope) => {
+    const state = get();
+    const token = state.accessToken;
+    if (!state.isAuthenticated || !token) return;
+
+    set({ dangTaiPhienBan: true });
+    try {
+      const configName = scopeToConfigName(scope);
+      const versions = await layLichSuPriceConfigService(configName, token);
+
+      const snapshots = versions.map((pc: PriceConfigApi) =>
+        priceConfigToSnapshot(pc, scope, {
+          materials: state.materials,
+          smallWidthPrices: state.smallWidthPrices,
+          constants: state.constants,
+          profitTable: state.profitTable,
+        }),
+      );
+
+      set((s) => {
+        const otherScopes = s.configSnapshots.filter(snap => snap.scope !== scope);
+        const merged = sapXepTheoHieuLuc([...snapshots, ...otherScopes]);
+        luuLocalStorage(LS_CONFIG_SNAPSHOTS, merged);
+        return { configSnapshots: merged, dangTaiPhienBan: false };
+      });
+    } catch (e) {
+      console.warn('Tai lich su phien ban tu server that bai:', e);
+      set({ dangTaiPhienBan: false });
+    }
   },
 
   xoaPhienBanDinhMuc: (id) => {
@@ -118,7 +220,7 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
         targetId: id,
         targetName: old.name || SCOPE_LABEL[old.scope],
         before: { scope: old.scope, name: old.name, effectiveMode: old.effectiveMode, effectiveFrom: old.effectiveFrom },
-        note: 'Xóa phiên bản định mức',
+        note: 'Xoa phien ban dinh muc (local only)',
       });
     }
   },
@@ -169,7 +271,7 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
       targetId: id,
       targetName: snapshot.name || SCOPE_LABEL[scope],
       after: { scope, name: snapshot.name, effectiveMode: snapshot.effectiveMode, effectiveFrom: snapshot.effectiveFrom },
-      note: 'Áp dụng phiên bản định mức',
+      note: 'Ap dung phien ban dinh muc',
     });
   },
 
