@@ -37,6 +37,7 @@ const FIELD_LABELS: Record<string, string> = {
   address: 'Địa chỉ giao hàng',
   customerCode: 'Mã khách hàng',
   managers: 'Người phụ trách',
+  managerNames: 'Người phụ trách',
   sellerId: 'Người phụ trách cũ',
   secondarySellerId: 'Người phụ trách phụ cũ',
   crmStatus: 'Trạng thái CRM',
@@ -45,6 +46,28 @@ const FIELD_LABELS: Record<string, string> = {
   notes: 'Ghi chú',
   assignmentNote: 'Ghi chú phân công',
   contactNotes: 'Ghi chú liên hệ',
+  finalPrice: 'Giá cuối cùng',
+  input: 'Dữ liệu đầu vào',
+  saleResult: 'Kết quả sale',
+  masterResult: 'Kết quả quản trị',
+  pricingSheetName: 'Tên bảng tính giá',
+  quoteStatus: 'Trạng thái báo giá',
+  quotationId: 'Mã báo giá',
+  quoteCode: 'Mã báo giá',
+  quoteProducts: 'Danh sách sản phẩm báo giá',
+  chotGia: 'Giá chốt',
+  terms: 'Điều khoản báo giá',
+  tiers: 'Các mốc số lượng',
+  products: 'Số sản phẩm',
+  sellerName: 'Người phụ trách',
+  productName: 'Tên sản phẩm',
+  quantity: 'Số lượng',
+  customer: 'Khách hàng',
+  customerCodeName: 'Mã khách hàng',
+  quoteId: 'Mã báo giá gốc',
+  inputValue: 'Dữ liệu đầu vào',
+  saleOverrides: 'Ghi đè sale',
+  adminOverrides: 'Ghi đè quản trị',
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -68,6 +91,36 @@ const CRM_STATUS_LABELS: Record<string, string> = {
 const STATUS_LABELS: Record<string, string> = {
   active: 'Đang sử dụng',
   inactive: 'Ngừng sử dụng',
+};
+
+const QUOTE_STATUS_LABELS: Record<string, string> = {
+  drafted: 'Đang nháp',
+  pending_approval: 'Chờ duyệt',
+  approved: 'Đã duyệt',
+  sent: 'Đã gửi khách',
+  rejected: 'Bị từ chối',
+  cancelled: 'Đã hủy',
+  completed: 'Đã chốt đơn SX',
+  expired: 'Hết hạn',
+};
+
+const UPDATE_STATUS_LABELS: Record<string, string> = {
+  draft: 'Nháp',
+  drafted: 'Nháp',
+  submitted: 'Chờ duyệt',
+  approved: 'Đã duyệt',
+  rejected: 'Bị từ chối',
+  'customer approved': 'Khách đã duyệt',
+  'customer rejected': 'Khách từ chối',
+  customer_approved: 'Khách đã duyệt',
+  customer_rejected: 'Khách từ chối',
+};
+
+const LSX_STATUS_LABELS: Record<string, string> = {
+  created: 'Mới tạo',
+  in_production: 'Đang SX',
+  completed: 'Hoàn thành',
+  cancelled: 'Đã hủy',
 };
 
 const IMPORTANT_CREATE_FIELDS = ['customerCode', 'companyName', 'contactName', 'phone', 'email'];
@@ -118,49 +171,95 @@ export function formatManagersAuditValue(value: unknown): string {
 
   const names = value
     .map((manager) => {
-      if (!manager || typeof manager !== 'object') return '';
-      const data = manager as { fullName?: unknown; account?: unknown; userId?: unknown };
-      const name = String(data.fullName || data.account || data.userId || '').trim();
-      if (!name) return '';
-      return cleanAuditText(name);
+      if (manager == null) return '';
+      if (typeof manager === 'string') return cleanAuditText(manager).trim();
+      if (typeof manager === 'object') {
+        const data = manager as { fullName?: unknown; account?: unknown; userId?: unknown };
+        const name = String(data.fullName || data.account || data.userId || '').trim();
+        if (!name) return '';
+        return cleanAuditText(name);
+      }
+      return cleanAuditText(String(manager)).trim();
     })
     .filter(Boolean);
 
   return names.length ? names.join(', ') : `${value.length} người phụ trách`;
 }
 
-export function formatAuditValue(fieldKey: string, value: unknown): string {
+function normalizeAuditValueKey(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function formatAuditArrayValue(value: unknown[]): string {
+  if (value.length === 0) return '—';
+  const names = value
+    .map((item) => {
+      if (item == null) return '';
+      if (typeof item === 'string') return cleanAuditText(item).trim();
+      if (typeof item === 'object') {
+        const data = item as { fullName?: unknown; account?: unknown; userId?: unknown; name?: unknown; roleName?: unknown };
+        const name = String(data.fullName || data.name || data.account || data.roleName || data.userId || '').trim();
+        return name ? cleanAuditText(name) : '';
+      }
+      return cleanAuditText(String(item)).trim();
+    })
+    .filter(Boolean);
+  return names.length ? names.join(', ') : `${value.length} mục`;
+}
+
+export function formatAuditDisplayValue(fieldKey: string, value: unknown): string {
   if (isEmpty(value)) return '—';
-  if (fieldKey === 'managers') return formatManagersAuditValue(value);
+  if (fieldKey === 'managers' || fieldKey === 'managerNames') return formatManagersAuditValue(value);
   if (fieldKey === 'isLocked') return value ? 'Đã khóa' : 'Chưa khóa';
   if (fieldKey === 'crmStatus' && typeof value === 'string') return CRM_STATUS_LABELS[value] ?? cleanAuditText(value);
-  if (fieldKey === 'status' && typeof value === 'string') return STATUS_LABELS[value] ?? cleanAuditText(value);
+  if (fieldKey === 'quoteStatus' && typeof value === 'string') return QUOTE_STATUS_LABELS[normalizeAuditValueKey(value)] ?? cleanAuditText(value);
+  if (fieldKey === 'updateStatus' && typeof value === 'string') return UPDATE_STATUS_LABELS[normalizeAuditValueKey(value)] ?? cleanAuditText(value);
+  if (fieldKey === 'status' && typeof value === 'string') {
+    const normalized = normalizeAuditValueKey(value);
+    return LSX_STATUS_LABELS[normalized] ?? STATUS_LABELS[normalized] ?? cleanAuditText(value);
+  }
   if (typeof value === 'boolean') return value ? 'Có' : 'Không';
   if (typeof value === 'string') return cleanAuditText(value);
-  if (Array.isArray(value)) return value.length ? `${value.length} mục` : '—';
-  if (typeof value === 'object') return 'Thông tin khác';
+  if (Array.isArray(value)) return formatAuditArrayValue(value);
+  if (typeof value === 'object') return '(thông tin chi tiết)';
   return cleanAuditText(String(value));
+}
+
+export function formatAuditValue(fieldKey: string, value: unknown): string {
+  return formatAuditDisplayValue(fieldKey, value);
 }
 
 function changedKeys(entry: AuditEntry): string[] {
   return Array.from(new Set([...Object.keys(entry.before || {}), ...Object.keys(entry.after || {})]));
 }
 
+function shouldKeepStructuredDiff(before: unknown, after: unknown): boolean {
+  if (!before || !after) return false;
+  if (typeof before !== 'object' || typeof after !== 'object') return false;
+  try {
+    return JSON.stringify(before) !== JSON.stringify(after);
+  } catch {
+    return before !== after;
+  }
+}
+
 export function getAuditChangedFields(entry: AuditEntry): AuditChangedField[] {
   return changedKeys(entry)
     .map((key) => {
+      const beforeValue = entry.before?.[key];
+      const afterValue = entry.after?.[key];
       const label = getAuditFieldLabel(key);
       if (!label) return null;
-      const before = formatAuditValue(key, entry.before?.[key]);
-      const after = formatAuditValue(key, entry.after?.[key]);
-      if (before === after) return null;
+      const before = formatAuditValue(key, beforeValue);
+      const after = formatAuditValue(key, afterValue);
+      if (before === after && !shouldKeepStructuredDiff(beforeValue, afterValue)) return null;
       if (before === '—' && after === '—') return null;
       return {
         key,
         label,
         before,
         after,
-        important: IMPORTANT_CREATE_FIELDS.includes(key) || key === 'managers',
+        important: IMPORTANT_CREATE_FIELDS.includes(key) || key === 'managers' || key === 'managerNames',
       } satisfies AuditChangedField;
     })
     .filter((field): field is AuditChangedField => Boolean(field));
@@ -173,11 +272,13 @@ export function getAuditSummary(entry: AuditEntry, context: AuditActorContext = 
   const targetName = cleanAuditText(entry.targetName || entry.targetId);
 
   if (entry.action === 'assign') {
+    const beforeManagers = entry.before?.managerNames ?? entry.before?.managers;
+    const afterManagers = entry.after?.managerNames ?? entry.after?.managers;
     return {
       actionLabel,
       actorName,
       targetName,
-      description: `Cập nhật người phụ trách: ${formatManagerCount(entry.before?.managers)} → ${formatManagerCount(entry.after?.managers)}`,
+      description: `Cập nhật người phụ trách: ${formatManagerCount(beforeManagers)} → ${formatManagerCount(afterManagers)}`,
       compactFields: [],
       changeCount: fields.length,
     };

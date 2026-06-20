@@ -66,21 +66,44 @@ export function trichBeforeAfter(metadata: Record<string, unknown> | null | unde
 }
 
 // ── targetName từ metadata ─────────────────────────────────────────────────
-const TARGET_NAME_KEYS: Record<string, string> = {
-  customer: 'organizationName',
-  pricing_sheet: 'pricingSheetName',
-  quotation: 'description',
-  account: 'account',
-  role: 'roleName',
+const TARGET_NAME_KEYS: Record<string, string[]> = {
+  customer: ['organizationName', 'codeName'],
+  pricing_sheet: ['pricingSheetName'],
+  quotation: ['description'],
+  account: ['account'],
+  role: ['roleName'],
 };
 
 function trichTargetName(log: ActivityLogServerApi): string | undefined {
   const raw = log.metadata?.currentVersion;
   if (!raw || typeof raw !== 'object') return undefined;
   const cur = raw as Record<string, unknown>;
-  const key = TARGET_NAME_KEYS[log.resourceType as keyof typeof TARGET_NAME_KEYS];
-  if (key && cur[key] != null) return String(cur[key]);
+  const keys = TARGET_NAME_KEYS[log.resourceType as keyof typeof TARGET_NAME_KEYS];
+  if (keys) {
+    for (const key of keys) {
+      if (cur[key] != null) return String(cur[key]);
+    }
+  }
   return undefined;
+}
+
+// ── original (snapshot hiển thị từ backend) ────────────────────────────────
+export function trichOriginal(metadata: Record<string, unknown> | null | undefined): {
+  actorName?: string;
+  customerName?: string;
+} {
+  if (!metadata || typeof metadata !== 'object') return {};
+  const original = metadata.original;
+  if (!original || typeof original !== 'object') return {};
+  const src = original as Record<string, unknown>;
+  const result: { actorName?: string; customerName?: string } = {};
+  if (typeof src.actorName === 'string' && src.actorName.trim()) {
+    result.actorName = normalizeDisplayText(src.actorName).trim();
+  }
+  if (typeof src.customerName === 'string' && src.customerName.trim()) {
+    result.customerName = normalizeDisplayText(src.customerName).trim();
+  }
+  return result;
 }
 
 // ── actor resolver ────────────────────────────────────────────────────────
@@ -112,17 +135,22 @@ export function mapActivityLogServer(
 ): AuditEntry {
   const actor = resolveActor(log.actorId);
   const { before, after } = trichBeforeAfter(log.metadata);
+  const original = trichOriginal(log.metadata);
   const metadataName = trichTargetName(log);
   const resolvedName = resolveTarget?.(log.resourceType, log.resourceId);
+  const isCustomerResource = log.resourceType === 'customer' || log.resourceType === 'customer_manager';
+  const targetName = isCustomerResource
+    ? (original.customerName || metadataName || resolvedName)
+    : (metadataName || resolvedName);
   return {
     id: log.id,
     timestamp: log.createdAt,
     userId: log.actorId ?? '',
-    userName: actor?.fullName ?? '',
+    userName: actor?.fullName || original.actorName || '',
     action: chuyenAction(log.action),
     targetType: chuyenResourceType(log.resourceType),
     targetId: log.resourceId ?? '',
-    targetName: metadataName || resolvedName,
+    targetName,
     before,
     after,
   };

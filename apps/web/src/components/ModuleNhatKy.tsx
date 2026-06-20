@@ -7,6 +7,7 @@ import {
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { AuditAction, AuditEntry } from '../lib/types';
 import { normalizeDisplayText } from '../lib/text-codec';
+import { formatAuditDisplayValue, getAuditFieldLabel } from '../lib/customer-audit-format';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -137,6 +138,7 @@ const FIELD_LABELS: Record<string, string> = {
   customerId: 'Khách hàng', quotationId: 'Báo giá liên quan',
   description: 'Mô tả', updateStatus: 'Trạng thái cập nhật', note: 'Ghi chú',
   managerIds: 'Nhân viên phụ trách',
+  managerNames: 'Nhân viên phụ trách',
 };
 
 const HIDDEN_DIFF_KEYS = new Set([
@@ -144,20 +146,9 @@ const HIDDEN_DIFF_KEYS = new Set([
   'inputValue', 'saleResult', 'masterResult', 'pricingSheetId',
 ]);
 
-const STATUS_VI: Record<string, string> = {
-  draft: 'Nháp', submitted: 'Đã nộp', approved: 'Đã duyệt',
-  rejected: 'Bị từ chối', cancelled: 'Đã hủy',
-  active: 'Đang dùng', inactive: 'Ngừng',
-};
-
-function formatDiffValue(val: unknown): string {
-  if (val === true) return 'Có';
-  if (val === false) return 'Không';
-  if (val === null || val === undefined || val === '') return '(trống)';
-  if (Array.isArray(val)) return '(danh sách)';
-  if (typeof val === 'object') return '(thông tin chi tiết)';
-  const s = String(val);
-  return STATUS_VI[s] ?? s;
+function formatDiffValue(fieldKey: string, val: unknown): string {
+  const formatted = formatAuditDisplayValue(fieldKey, val);
+  return formatted === '—' ? '(trống)' : formatted;
 }
 
 function DiffView({ before, after }: { before?: Record<string, unknown>; after?: Record<string, unknown> }) {
@@ -171,18 +162,18 @@ function DiffView({ before, after }: { before?: Record<string, unknown>; after?:
         if (oldVal === newVal) return null;
         return (
           <div key={k} style={{ marginBottom: 6, fontSize: '0.78rem' }}>
-            <div style={{ color: 'var(--muted)', marginBottom: 2, fontWeight: 500 }}>{FIELD_LABELS[k] || k}</div>
+            <div style={{ color: 'var(--muted)', marginBottom: 2, fontWeight: 500 }}>{getAuditFieldLabel(k) || FIELD_LABELS[k] || k}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
               {oldVal !== undefined && (
                 <div style={{ color: '#dc2626', background: '#fee2e2', padding: '2px 6px', borderRadius: 4 }}
-                  aria-label={`Giá trị cũ: ${formatDiffValue(oldVal)}`}>
-                  − {formatDiffValue(oldVal)}
+                  aria-label={`Giá trị cũ: ${formatDiffValue(k, oldVal)}`}>
+                  − {formatDiffValue(k, oldVal)}
                 </div>
               )}
               {newVal !== undefined && (
                 <div style={{ color: '#059669', background: '#d1fae5', padding: '2px 6px', borderRadius: 4 }}
-                  aria-label={`Giá trị mới: ${formatDiffValue(newVal)}`}>
-                  + {formatDiffValue(newVal)}
+                  aria-label={`Giá trị mới: ${formatDiffValue(k, newVal)}`}>
+                  + {formatDiffValue(k, newVal)}
                 </div>
               )}
             </div>

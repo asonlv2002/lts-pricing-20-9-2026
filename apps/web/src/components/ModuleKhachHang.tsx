@@ -1572,8 +1572,24 @@ function CustomerAuditTab({ auditLog, customers, users, currentUser }: { auditLo
 
 function CustomerAuditView({ customers }: { customers: Customer[] }) {
   const auditLog = dungCuaHangTinhGia(s => s.auditLog);
+  const nhatKyHeThong = dungCuaHangTinhGia(s => s.nhatKyHeThong);
+  const taiNhatKyHeThong = dungCuaHangTinhGia(s => s.taiNhatKyHeThong);
   const currentUser = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
-  return <CustomerAuditTab auditLog={auditLog?.filter(e => e.targetType === 'customer') ?? []} customers={customers} currentUser={currentUser} />;
+
+  useEffect(() => {
+    taiNhatKyHeThong();
+  }, [taiNhatKyHeThong]);
+
+  const mergedAuditLog = useMemo(() => {
+    const map = new Map<string, AuditEntry>();
+    for (const e of nhatKyHeThong) if (e.targetType === 'customer') map.set(e.id, e);
+    for (const e of (auditLog ?? [])) {
+      if (e.targetType === 'customer' && !map.has(e.id)) map.set(e.id, e);
+    }
+    return Array.from(map.values());
+  }, [auditLog, nhatKyHeThong]);
+
+  return <CustomerAuditTab auditLog={mergedAuditLog} customers={customers} currentUser={currentUser} />;
 }
 
 // ── Main Component ───────────────────────────────────────────────────────────

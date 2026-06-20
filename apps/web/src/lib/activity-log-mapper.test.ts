@@ -10,6 +10,7 @@ import {
   chuyenResourceType,
   chuyenAction,
   trichBeforeAfter,
+  trichOriginal,
   taoActorResolver,
   mapActivityLogServer,
   mapActivityLogsServer,
@@ -171,6 +172,123 @@ console.log('\n== Main mapper (mapActivityLogServer) ==');
   assert('userName empty khi actorId null', entry.userName === '');
   assert('targetType permission cho account', entry.targetType === 'permission');
   assert('action create', entry.action === 'create');
+}
+
+// ── original snapshot (metadata.original) ──────────────────────────────────
+console.log('\n== Original snapshot (trichOriginal) ==');
+{
+  const result = trichOriginal({ original: { actorName: 'Nguyễn Thùy Đoan Trang', customerName: 'KH0010' } });
+  assert('lay actorName tu original', result.actorName === 'Nguyễn Thùy Đoan Trang', result.actorName ?? '');
+  assert('lay customerName tu original', result.customerName === 'KH0010', result.customerName ?? '');
+}
+{
+  const result = trichOriginal({ original: { actorName: '  Lai Trường Sơn  ' } });
+  assert('trim actorName', result.actorName === 'Lai Trường Sơn', result.actorName ?? '');
+  assert('khong co customerName -> undefined', result.customerName === undefined);
+}
+{
+  const result = trichOriginal({ currentVersion: { codeName: 'ACME' } });
+  assert('khong co original -> empty', result.actorName === undefined && result.customerName === undefined);
+}
+{
+  const result = trichOriginal(null);
+  assert('null -> empty', result.actorName === undefined && result.customerName === undefined);
+}
+{
+  const result = trichOriginal({ original: 'khong-phai-object' as unknown });
+  assert('original khong phai object -> empty', result.actorName === undefined);
+}
+
+// ── main mapper với metadata.original ──────────────────────────────────────
+console.log('\n== Main mapper voi metadata.original ==');
+{
+  // actorId khong co trong cache, nhung original.actorName co san
+  const resolver = taoActorResolver(USERS);
+  const entry = mapActivityLogServer(
+    log({
+      id: 'log-orig-1',
+      actorId: 'system-actor-1',
+      action: 'customer.created',
+      resourceType: 'customer',
+      resourceId: 'cust-0010',
+      metadata: {
+        original: { actorName: 'Nguyễn Thùy Đoan Trang', customerName: 'KH0010' },
+        previousVersion: {},
+        currentVersion: { codeName: 'KH0010' },
+      },
+    }),
+    resolver,
+  );
+  assert('actorId khong trong cache -> userName lay tu original.actorName', entry.userName === 'Nguyễn Thùy Đoan Trang', entry.userName);
+  assert('targetName lay tu original.customerName (customer)', entry.targetName === 'KH0010', entry.targetName ?? '');
+  assert('after giu nguyen currentVersion', (entry.after as { codeName: string }).codeName === 'KH0010');
+}
+{
+  // customer_manager.replaced voi managerNames la string array
+  const resolver = taoActorResolver(USERS);
+  const entry = mapActivityLogServer(
+    log({
+      id: 'log-orig-2',
+      actorId: 'user-1',
+      action: 'customer_manager.replaced',
+      resourceType: 'customer_manager',
+      resourceId: 'cust-thu-no',
+      metadata: {
+        original: { actorName: 'Lai Trường Sơn', customerName: 'Công ty thu nợ' },
+        previousVersion: { managerNames: ['An Sales', 'Lai Trường Sơn'] },
+        currentVersion: { managerNames: ['Nguyễn Thùy Đoan Trang', 'An Sales', 'Lai Trường Sơn'] },
+      },
+    }),
+    resolver,
+  );
+  assert('action assign cho customer_manager.replaced', entry.action === 'assign');
+  assert('targetType customer cho customer_manager', entry.targetType === 'customer');
+  assert('userName lay tu resolver khi co trong cache', entry.userName === 'Lê Thị Thu', entry.userName);
+  assert('targetName lay tu original.customerName', entry.targetName === 'Công ty thu nợ', entry.targetName ?? '');
+  assert('before.managerNames la string array', JSON.stringify(entry.before?.managerNames) === JSON.stringify(['An Sales', 'Lai Trường Sơn']));
+  assert('after.managerNames la string array 3 phan tu', Array.isArray(entry.after?.managerNames) && entry.after?.managerNames.length === 3);
+}
+{
+  // resolver co actor -> userName dung resolver (khong bi de boi original)
+  const resolver = taoActorResolver(USERS);
+  const entry = mapActivityLogServer(
+    log({
+      id: 'log-orig-3',
+      actorId: 'user-2',
+      action: 'customer.created',
+      resourceType: 'customer',
+      resourceId: 'cust-x',
+      metadata: {
+        original: { actorName: 'Tên cũ' },
+        previousVersion: {},
+        currentVersion: { codeName: 'CUST_X' },
+      },
+    }),
+    resolver,
+  );
+  assert('userName uu tien resolver khi co actor', entry.userName === 'Nguyễn Văn An', entry.userName);
+  assert('targetName fallback sang codeName khi khong co original.customerName', entry.targetName === 'CUST_X', entry.targetName ?? '');
+}
+{
+  // original.actorName la fallback cho account/role (khong phai customer)
+  const resolver = taoActorResolver(USERS);
+  const entry = mapActivityLogServer(
+    log({
+      id: 'log-orig-4',
+      actorId: 'deleted-user',
+      action: 'role.upserted',
+      resourceType: 'role',
+      resourceId: 'role-1',
+      metadata: {
+        original: { actorName: 'Quản trị hệ thống' },
+        previousVersion: {},
+        currentVersion: { roleName: 'Admin' },
+      },
+    }),
+    resolver,
+  );
+  assert('actorName fallback cho role log', entry.userName === 'Quản trị hệ thống', entry.userName);
+  assert('targetName cho role dung roleName (khong dung original.customerName)', entry.targetName === 'Admin', entry.targetName ?? '');
 }
 
 // ── batch mapper ───────────────────────────────────────────────────────────
