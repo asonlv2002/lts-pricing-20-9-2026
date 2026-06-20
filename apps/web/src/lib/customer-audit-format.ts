@@ -1,4 +1,7 @@
 import type { AuditEntry } from './types';
+import type { OverrideTable } from './types';
+import { listOverrideChanges } from './override-display';
+import { POLICY_CATALOG } from './api/service-lts';
 import { normalizeDisplayText } from './text-codec';
 
 export type AuditChangedField = {
@@ -123,6 +126,10 @@ const LSX_STATUS_LABELS: Record<string, string> = {
   cancelled: 'Đã hủy',
 };
 
+const INPUT_VALUE_LABELS: Record<string, string> = {
+  manIn: 'Màng in',
+};
+
 const IMPORTANT_CREATE_FIELDS = ['customerCode', 'companyName', 'contactName', 'phone', 'email'];
 
 export function cleanAuditText(value: string): string {
@@ -207,8 +214,80 @@ function formatAuditArrayValue(value: unknown[]): string {
   return names.length ? names.join(', ') : `${value.length} mục`;
 }
 
+function formatPolicyAuditValue(value: unknown): string {
+  if (!Array.isArray(value) || value.length === 0) return '—';
+  const labels = value.map((item) => {
+    if (typeof item !== 'string') return cleanAuditText(String(item));
+    return POLICY_CATALOG.find(policy => policy.code === item)?.ten ?? cleanAuditText(item);
+  }).filter(Boolean);
+  return labels.length ? labels.join(', ') : `${value.length} quyền`;
+}
+
+function formatPricingInputAuditValue(value: unknown): string {
+  if (!value || typeof value !== 'object') return '—';
+  const input = value as Record<string, unknown>;
+  const lines: string[] = [];
+  const push = (label: string, v: unknown) => {
+    if (v === undefined || v === null || v === '') return;
+    if (typeof v === 'number') {
+      if (label.includes('Khổ') || label.includes('Bước') || label.includes('Chiều')) {
+        lines.push(`${label}: ${Math.round(v * 1000).toLocaleString('vi-VN')} mm`);
+      } else if (label === 'Số lượng') {
+        lines.push(`${label}: ${Math.round(v).toLocaleString('vi-VN')}`);
+      } else if (label === 'Số màu') {
+        lines.push(`${label}: ${Math.round(v)}`);
+      } else {
+        lines.push(`${label}: ${v.toLocaleString('vi-VN')}`);
+      }
+      return;
+    }
+    if (typeof v === 'string') {
+      lines.push(`${label}: ${INPUT_VALUE_LABELS[v] ?? cleanAuditText(v)}`);
+    }
+  };
+
+  push('Sản phẩm', input.productName);
+  push('Số lượng', input.quantity);
+  push('Khổ trải', input.spreadWidth);
+  push('Bước cắt', input.cutStep);
+  push('Số màu', input.numColors);
+  push('Lớp 1', input.layer1Id);
+  push('Lớp 2', input.layer2Id ?? input.layer2AltId);
+  push('Lớp 3', input.layer3Id);
+  push('Lớp 4', input.layer4Id);
+  push('Lớp 5', input.layer5Id);
+  push('Loại túi', input.bagType);
+  push('Loại màng', input.filmType);
+
+  return lines.length ? lines.join('\n') : '(thông tin chi tiết)';
+}
+
+function formatQuoteTermsAuditValue(value: unknown): string {
+  if (!value || typeof value !== 'object') return '—';
+  const terms = value as Record<string, unknown>;
+  const lines: string[] = [];
+  const vatRate = typeof terms.vatRate === 'number' ? terms.vatRate : typeof terms.vatCustom === 'number' ? terms.vatCustom : undefined;
+  if (vatRate != null) lines.push(`VAT: ${Math.round(vatRate * 100)}%`);
+  if (typeof terms.validityDays === 'number') lines.push(`Hiệu lực: ${terms.validityDays} ngày`);
+  if (typeof terms.paymentTerms === 'string' && terms.paymentTerms.trim()) lines.push(`Thanh toán: ${cleanAuditText(terms.paymentTerms)}`);
+  if (typeof terms.deliveryTime === 'string' && terms.deliveryTime.trim()) lines.push(`Giao hàng: ${cleanAuditText(terms.deliveryTime)}`);
+  if (typeof terms.notes === 'string' && terms.notes.trim()) lines.push(`Ghi chú: ${cleanAuditText(terms.notes)}`);
+  return lines.length ? lines.join('\n') : '(thông tin chi tiết)';
+}
+
+function formatOverrideAuditValue(value: unknown): string {
+  if (!value || typeof value !== 'object') return '—';
+  const changes = listOverrideChanges(value as OverrideTable);
+  if (!changes.length) return '—';
+  return changes.map(change => `${change.label}: ${change.value}`).join('\n');
+}
+
 export function formatAuditDisplayValue(fieldKey: string, value: unknown): string {
   if (isEmpty(value)) return '—';
+  if (fieldKey === 'saleOverrides' || fieldKey === 'adminOverrides') return formatOverrideAuditValue(value);
+  if (fieldKey === 'input') return formatPricingInputAuditValue(value);
+  if (fieldKey === 'terms') return formatQuoteTermsAuditValue(value);
+  if (fieldKey === 'policies' || fieldKey === 'policiesAdded' || fieldKey === 'policiesRemoved') return formatPolicyAuditValue(value);
   if (fieldKey === 'managers' || fieldKey === 'managerNames') return formatManagersAuditValue(value);
   if (fieldKey === 'isLocked') return value ? 'Đã khóa' : 'Chưa khóa';
   if (fieldKey === 'crmStatus' && typeof value === 'string') return CRM_STATUS_LABELS[value] ?? cleanAuditText(value);
@@ -233,16 +312,6 @@ function changedKeys(entry: AuditEntry): string[] {
   return Array.from(new Set([...Object.keys(entry.before || {}), ...Object.keys(entry.after || {})]));
 }
 
-function shouldKeepStructuredDiff(before: unknown, after: unknown): boolean {
-  if (!before || !after) return false;
-  if (typeof before !== 'object' || typeof after !== 'object') return false;
-  try {
-    return JSON.stringify(before) !== JSON.stringify(after);
-  } catch {
-    return before !== after;
-  }
-}
-
 export function getAuditChangedFields(entry: AuditEntry): AuditChangedField[] {
   return changedKeys(entry)
     .map((key) => {
@@ -252,7 +321,7 @@ export function getAuditChangedFields(entry: AuditEntry): AuditChangedField[] {
       if (!label) return null;
       const before = formatAuditValue(key, beforeValue);
       const after = formatAuditValue(key, afterValue);
-      if (before === after && !shouldKeepStructuredDiff(beforeValue, afterValue)) return null;
+      if (before === after) return null;
       if (before === '—' && after === '—') return null;
       return {
         key,

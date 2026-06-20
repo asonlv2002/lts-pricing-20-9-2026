@@ -386,6 +386,7 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
         {/* Navigation */}
         <nav className="lts-sidebar-nav lts-sidebar-nav--tree">
           {nhomHienThi.map((nhom) => {
+            const laNhomTongQuan = nhom.id === 'overview';
             const laNhomDangChon = nhom.mucCon.some(item => item.key === menuDangChon);
             const laNhomDangMo = nhomDangMo === nhom.id;
             return (
@@ -395,6 +396,7 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
                   className="lts-nav-group-title"
                   title={!dangMo && !laMobile ? nhom.label : undefined}
                   onClick={() => xuLyChonNhom(nhom.id)}
+                  disabled={laNhomTongQuan}
                 >
                   <span className="lts-nav-group-number">{nhom.soThuTu}</span>
                   <span className="lts-nav-tree-line" />
@@ -404,16 +406,20 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
                 </button>
                 {(dangMo || laMobile) && laNhomDangMo && (
                   <div className="lts-nav-children">
-                    {nhom.mucCon.filter(item => coTheXemMucMenu(policies, item.key)).map((item, index) => (
-                      <button
-                        key={item.key}
-                        onClick={() => xuLyDieuHuong(item)}
-                        className={`lts-nav-item lts-nav-item--child ${menuDangChon === item.key ? 'active' : ''}`}
-                      >
-                        <span className="lts-nav-branch" />
-                        <span className="lts-nav-label">{item.label}</span>
-                      </button>
-                    ))}
+                    {nhom.mucCon.filter(item => coTheXemMucMenu(policies, item.key)).map((item) => {
+                      const laMucTongQuan = item.key.startsWith('overview.');
+                      return (
+                        <button
+                          key={item.key}
+                          onClick={() => { if (!laMucTongQuan) xuLyDieuHuong(item); }}
+                          className={`lts-nav-item lts-nav-item--child ${menuDangChon === item.key ? 'active' : ''}`}
+                          disabled={laMucTongQuan}
+                        >
+                          <span className="lts-nav-branch" />
+                          <span className="lts-nav-label">{item.label}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -474,15 +480,17 @@ function MobileHubScreen({ hub, onAction }: {
   hub: MobileHubConfig;
   onAction: (action: MobileHubAction) => void;
 }) {
+  const laTongQuanBiKhoa = hub.id === 'overview';
+
   return (
     <section className="lts-mobile-hub" aria-label={hub.title}>
       <header className="lts-mobile-hub-header">
         <div className="lts-mobile-hub-nav">
-          <button className="lts-mobile-header-menu" type="button" aria-label="Mở menu">
+          <button className="lts-mobile-header-menu" type="button" aria-label="Mở menu" disabled={laTongQuanBiKhoa}>
             <Menu size={24} />
           </button>
           <h1>{hub.title}</h1>
-          <button className="lts-mobile-primary-action" type="button">
+          <button className="lts-mobile-primary-action" type="button" disabled={laTongQuanBiKhoa}>
             <Plus size={16} />
             <span>Mới</span>
           </button>
@@ -494,8 +502,10 @@ function MobileHubScreen({ hub, onAction }: {
           <button
             key={card.title}
             type="button"
-            className="lts-mobile-action-card"
-            onClick={() => onAction(card.action)}
+            className={`lts-mobile-action-card ${laTongQuanBiKhoa ? 'lts-mobile-action-card--locked' : ''}`}
+            onClick={() => { if (!laTongQuanBiKhoa) onAction(card.action); }}
+            disabled={laTongQuanBiKhoa}
+            aria-disabled={laTongQuanBiKhoa}
           >
             <span className={`lts-mobile-icon-box lts-mobile-icon-box--${card.tone}`}>
               {card.icon}
@@ -504,7 +514,7 @@ function MobileHubScreen({ hub, onAction }: {
               <strong>{card.title}</strong>
               <small>{card.subtitle}</small>
             </span>
-            <ChevronRight className="lts-mobile-card-chevron" size={24} />
+            {laTongQuanBiKhoa ? <span className="lts-mobile-card-lock">Chỉ xem</span> : <ChevronRight className="lts-mobile-card-chevron" size={24} />}
           </button>
         ))}
       </div>

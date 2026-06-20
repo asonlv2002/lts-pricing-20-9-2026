@@ -47,3 +47,41 @@ For web mobile pricing UI work, the safe scope is:
   }
 }
 ```
+
+## Mandatory Rule: LTS Dev Server API Access
+
+When calling the LTS dev server API (`https://lts-dev-server.zealstudiojsc.com`), ALWAYS use the PowerShell helper script at `scripts/lts-api.ps1`. Do NOT write inline `Invoke-RestMethod` calls or curl commands for this server.
+
+### Required workflow
+
+1. **Dot-source the script first** in every Bash/PowerShell call that touches the LTS API:
+   ```powershell
+   . .\scripts\lts-api.ps1
+   ```
+2. **Login to get a session** (token is session-only, lives in RAM, never persisted to disk):
+   ```powershell
+   $session = Connect-Lts -Account "<account>" -Password "<password>"
+   ```
+3. **Call endpoints via the typed helper functions**, not raw HTTP. The script exposes one function per endpoint (36 functions total). Examples:
+   - `Get-LtsCustomers -Session $session`
+   - `Get-LtsCustomer -Session $session -CodeName "ACME_01"`
+   - `Get-LtsActivityLogs -Session $session`
+   - `Get-LtsAccounts -Session $session`
+   - `Get-LtsPricingSheets -Session $session`
+   - `Get-LtsQuotations -Session $session`
+   - Full list: see `scripts/lts-api.ps1` (Auth, Policies, Customers, Pricing Sheet, Quotations, Activity Logs groups).
+4. **Token expiry**: Access tokens last ~15 minutes. Each Bash tool call is a separate PowerShell process, so `Connect-Lts` must be called again inside the same call as any API request. Do not assume a session from a previous call is still valid.
+
+### Security rules
+
+- Never `echo`, `Write-Host`, or log the password or access token.
+- Never save credentials or tokens to disk, env vars, or files. Use `Connect-Lts` inline each time.
+- `Show-LtsSession -Session $session` is the only approved way to display session info (it hides the token).
+- If the user provides credentials in chat, use them once in the Bash call; do not echo them back.
+
+### Reference
+
+- Script source: `scripts/lts-api.ps1`
+- API docs (Swagger): `https://lts-dev-server.zealstudiojsc.com/docs`
+- OpenAPI spec: `https://lts-dev-server.zealstudiojsc.com/docs-json`
+- Backup (local only, gitignored): `scripts/lts-api.ps1.bak`

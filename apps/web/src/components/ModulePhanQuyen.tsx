@@ -35,6 +35,11 @@ import {
   canhBaoLechPolicyService,
 } from '../lib/api/service-lts';
 import { normalizeDisplayText } from '../lib/text-codec';
+import {
+  ROLE_FORM_POLICY_CHOICES,
+  collapseRolePoliciesToFormChoiceIds,
+  expandRoleFormPolicyChoiceCodes,
+} from '../lib/role-policy-form';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SAMPLE DATA  — chỉ dùng làm placeholder khi đang tải dữ liệu từ service-lts
@@ -485,7 +490,7 @@ function ViewVaiTro({
   const [moForm, setMoForm] = useState(false);
   const [ten, setTen] = useState('');
   const [moTa, setMoTa] = useState('');
-  const [chon, setChon] = useState<PolicyCode[]>([]);
+  const [chon, setChon] = useState<string[]>([]);
   const [tuKhoa, setTuKhoa] = useState('');
   const [locLoai, setLocLoai] = useState<'all' | 'system' | 'custom'>('all');
   const [locTrangThai, setLocTrangThai] = useState<'all' | 'active' | 'inactive'>('all');
@@ -494,17 +499,18 @@ function ViewVaiTro({
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ten.trim() || !chon.length) return;
+    const policyCodes = expandRoleFormPolicyChoiceCodes(chon);
+    if (!ten.trim() || !policyCodes.length) return;
     const code = ten.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-    onCreateRole({ code, name: ten.trim(), description: moTa.trim() || 'Vai trò tùy chỉnh', policies: chon, updatedAt: new Date().toISOString() });
+    onCreateRole({ code, name: ten.trim(), description: moTa.trim() || 'Vai trò tùy chỉnh', policies: policyCodes, updatedAt: new Date().toISOString() });
     setTen('');
     setMoTa('');
     setChon([]);
     setMoForm(false);
   };
 
-  const togglePolicy = (code: PolicyCode) => {
-    setChon(prev => prev.includes(code) ? prev.filter(p => p !== code) : [...prev, code]);
+  const togglePolicy = (choiceId: string) => {
+    setChon(prev => prev.includes(choiceId) ? prev.filter(id => id !== choiceId) : [...prev, choiceId]);
   };
 
   const tongPolicyGan = roles.reduce((sum, role) => sum + role.policies.length, 0);
@@ -572,9 +578,9 @@ function ViewVaiTro({
             <label><span>Mô tả</span><input value={moTa} onChange={e => setMoTa(e.target.value)} placeholder="Mục đích sử dụng vai trò" /></label>
           </div>
           <div className="pq-role-form__policies">
-            {POLICY_CATALOG.map(policy => (
-              <label key={policy.code} className={`pq-role-form__policy ${chon.includes(policy.code) ? 'pq-role-form__policy--on' : ''}`}>
-                <input type="checkbox" checked={chon.includes(policy.code)} onChange={() => togglePolicy(policy.code)} />
+            {ROLE_FORM_POLICY_CHOICES.map(policy => (
+              <label key={policy.id} className={`pq-role-form__policy ${chon.includes(policy.id) ? 'pq-role-form__policy--on' : ''}`}>
+                <input type="checkbox" checked={chon.includes(policy.id)} onChange={() => togglePolicy(policy.id)} />
                 <span>{policy.ten}</span>
               </label>
             ))}
@@ -610,7 +616,7 @@ function ViewVaiTro({
                   <td>{dinhDangNgay(role.updatedAt)}</td>
                   <td>
                     <div className="pq-rd-actions">
-                      <button className="pq-btn pq-btn--ghost pq-btn--sm" onClick={() => { setTen(role.name); setMoTa(role.description); setChon(role.policies); setMoForm(true); }}>Sửa</button>
+                      <button className="pq-btn pq-btn--ghost pq-btn--sm" onClick={() => { setTen(role.name); setMoTa(role.description); setChon(collapseRolePoliciesToFormChoiceIds(role.policies)); setMoForm(true); }}>Sửa</button>
                       <button className="pq-btn pq-btn--ghost pq-btn--sm" onClick={() => onDeleteRole(role)}>Xóa</button>
                     </div>
                   </td>

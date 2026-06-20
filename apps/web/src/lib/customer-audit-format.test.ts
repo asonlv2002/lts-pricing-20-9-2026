@@ -65,6 +65,29 @@ assert('translates terms field label', getAuditFieldLabel('terms') === 'Điều 
 assert('translates tiers field label', getAuditFieldLabel('tiers') === 'Các mốc số lượng');
 assert('translates sellerName field label', getAuditFieldLabel('sellerName') === 'Người phụ trách');
 assert('does not expose unknown object as object string', formatAuditValue('unknown', { a: 1 }) !== '[object Object]');
+const overrideAuditText = formatAuditValue('saleOverrides', {
+  print: { mat: 'BOPP', matPrice: 764.4 },
+  'lam-2': { detailOverrides: { 0: { materialName: 'PET', width: 0.42 } } },
+});
+assert('formats sale override details clearly', overrideAuditText.includes('In · Vật liệu: BOPP') && overrideAuditText.includes('Ghép L2 · Dòng 1 · Khổ: 0,42'), overrideAuditText);
+assert('does not collapse sale overrides to generic detail text', overrideAuditText !== '(thông tin chi tiết)', overrideAuditText);
+const pricingInputText = formatAuditValue('input', {
+  productName: 'Túi gạo ST25',
+  quantity: 15000,
+  spreadWidth: 0.32,
+  cutStep: 0.48,
+  numColors: 4,
+  layer1Id: 'PET12',
+  layer2Id: 'MPET12',
+  filmType: 'manIn',
+});
+assert('formats pricing input object as business fields', pricingInputText.includes('Sản phẩm: Túi gạo ST25') && pricingInputText.includes('Số lượng: 15.000') && pricingInputText.includes('Khổ trải: 320 mm'), pricingInputText);
+assert('formats manIn as Vietnamese film type', pricingInputText.includes('Loại màng: Màng in'), pricingInputText);
+assert('does not collapse pricing input object', pricingInputText !== '(thông tin chi tiết)', pricingInputText);
+const termsText = formatAuditValue('terms', { vatRate: 0.08, validityDays: 15, paymentTerms: '30 ngày', deliveryTime: '7 ngày', notes: 'Giao tại kho' });
+assert('formats quote terms object clearly', termsText.includes('VAT: 8%') && termsText.includes('Hiệu lực: 15 ngày') && termsText.includes('Thanh toán: 30 ngày'), termsText);
+const policiesText = formatAuditValue('policiesAdded', ['ACTIVITY_MONITOR', 'CUSTOMER_MANAGER']);
+assert('formats policy arrays clearly', policiesText.includes('Xem nhật ký thao tác toàn hệ thống') && policiesText.includes('Quản lý người phụ trách khách hàng'), policiesText);
 assert('cleans common mojibake text', cleanAuditText('Lai TrÆ°á»ng SÆ¡n') === 'Lai Trường Sơn');
 assert('does not expose deprecated contact title field label', getAuditChangedFields(entry({ before: { contactTitle: '' }, after: { contactTitle: 'Manager' } })).length === 0);
 assert(
@@ -128,6 +151,12 @@ const assignFields = getAuditChangedFields(entry({
 }));
 assert('uses business label for managers', assignFields[0]?.label === 'Người phụ trách', assignFields[0]?.label ?? '');
 assert('formats managers in changed fields', assignFields[0]?.after.includes('Huỳnh Sơn Võ') === true, assignFields[0]?.after ?? '');
+
+const hiddenOnlyOverrideFields = getAuditChangedFields(entry({
+  before: { saleOverrides: { print: { materialId: 'MCPP25', mat: 'MCPP', matPrice: 1263.899 } } },
+  after: { saleOverrides: { print: { materialId: 'MCPP30', mat: 'MCPP', matPrice: 1263.899 } } },
+}));
+assert('hides override diffs when only hidden fields changed', hiddenOnlyOverrideFields.length === 0, hiddenOnlyOverrideFields.map(field => `${field.label}:${field.before}->${field.after}`).join(','));
 
 console.log('\n== Audit summaries ==');
 

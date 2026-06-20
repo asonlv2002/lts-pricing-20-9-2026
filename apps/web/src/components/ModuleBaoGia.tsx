@@ -15,6 +15,7 @@ import { QUOTE_STATUS_CONFIG } from '../lib/types';
 import { taoBaoGiaService, nopBaoGiaService, taoPricingSheetService } from '../lib/api/service-lts';
 import { mapHistoryToPricingSheet } from '../lib/api/pricing-sheet-mapper';
 import { kiemTraMaKhachHang, locKhachTheoQuyen } from '../lib/customer-api';
+import { countOverrideChanges, listOverrideChanges } from '../lib/override-display';
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
 interface Customer {
@@ -307,37 +308,23 @@ function namTrongKhoangNgay(item: HistoryItem, tuNgay: string, denNgay: string):
   return true;
 }
 
-// ── Override diff helpers ────────────────────────────────────────────────────
-const NHAN_DONG: Record<string, string> = {
-  print: 'In', 'lam-2': 'Ghép L2', 'lam-3': 'Ghép L3',
-  'lam-4': 'Ghép L4', 'lam-5': 'Ghép L5', cut: 'Cắt',
-};
-const NHAN_TRUONG: Record<string, string> = {
-  width: 'Khổ', meters: 'Thành phẩm', waste: 'Phi hao',
-  inputVL: 'Đầu vào VL', matPrice: 'CP vật liệu',
-};
-
 function demGhiDe(ov?: OverrideTable): number {
-  if (!ov) return 0;
-  return Object.values(ov).reduce((s, r) => s + (r ? Object.keys(r).length : 0), 0);
+  return countOverrideChanges(ov);
 }
 
 function hienThiKhacBietGhiDe(ov: OverrideTable | undefined, lopNhom: string, nhanNhom: string) {
-  if (!ov) return null;
-  const cacMuc = Object.entries(ov) as [string, Record<string, number>][];
-  if (cacMuc.length === 0) return null;
+  const cacMuc = listOverrideChanges(ov);
+  if (!cacMuc.length) return null;
   return (
     <>
       <div className={`override-diff-group-title ${lopNhom}`}>{nhanNhom}</div>
-      {cacMuc.map(([rk, cacTruong]) =>
-        Object.entries(cacTruong).map(([truong, giaTri]) => (
-          <div key={`${rk}-${truong}`} className="override-diff-item">
-            <span className="diff-label">{NHAN_DONG[rk] || rk} · {NHAN_TRUONG[truong] || truong}</span>
-            <span className="diff-arrow">→</span>
-            <span className="diff-new">{typeof giaTri === 'number' ? giaTri.toLocaleString('vi-VN') : giaTri}</span>
-          </div>
-        ))
-      )}
+      {cacMuc.map(change => (
+        <div key={change.key} className="override-diff-item">
+          <span className="diff-label">{change.label}</span>
+          <span className="diff-arrow">→</span>
+          <span className="diff-new">{change.value}</span>
+        </div>
+      ))}
     </>
   );
 }
