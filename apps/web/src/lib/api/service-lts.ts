@@ -23,7 +23,7 @@ export interface Policy {
   code: PolicyCode;
   ten: string;
   moTa: string;
-  nhom: 'Tài khoản' | 'Nhóm quyền' | 'Cấp phát' | 'Báo giá' | 'Sản phẩm' | 'Quản trị';
+  nhom: 'Tài khoản' | 'Vai trò' | 'Cấp phát' | 'Báo giá' | 'Sản phẩm' | 'Quản trị';
   rui_ro: 'thap' | 'trung' | 'cao';
 }
 
@@ -34,10 +34,10 @@ export const POLICY_CATALOG: Policy[] = [
   { code: 'ACCOUNT_DEACTIVATE', ten: 'Vô hiệu tài khoản',     moTa: 'Cho phép vô hiệu tài khoản đang hoạt động.',            nhom: 'Tài khoản', rui_ro: 'cao'   },
   { code: 'ACCOUNT_PROTECT',    ten: 'Bảo vệ tài khoản',      moTa: 'Cho phép cập nhật cờ bảo vệ (protected) cho tài khoản.', nhom: 'Tài khoản', rui_ro: 'cao'   },
   { code: 'ACCOUNT_PASSWORD_UPDATE_ALL', ten: 'Đặt lại mật khẩu tài khoản', moTa: 'Cho phép cập nhật mật khẩu cho tài khoản khác.', nhom: 'Tài khoản', rui_ro: 'cao' },
-  { code: 'ROLE_READ',          ten: 'Xem nhóm quyền',        moTa: 'Cho phép đọc các template nhóm quyền.',                 nhom: 'Nhóm quyền', rui_ro: 'thap'  },
-  { code: 'ROLE_CREATE',        ten: 'Tạo nhóm quyền',        moTa: 'Cho phép tạo template nhóm quyền mới.',                 nhom: 'Nhóm quyền', rui_ro: 'trung' },
-  { code: 'ROLE_UPDATE',        ten: 'Sửa nhóm quyền',        moTa: 'Cho phép cập nhật template nhóm quyền.',                nhom: 'Nhóm quyền', rui_ro: 'trung' },
-  { code: 'ROLE_DELETE',        ten: 'Xóa nhóm quyền',        moTa: 'Cho phép xóa template nhóm quyền.',                     nhom: 'Nhóm quyền', rui_ro: 'cao'   },
+  { code: 'ROLE_READ',          ten: 'Xem vai trò',          moTa: 'Cho phép đọc các mẫu vai trò.',                         nhom: 'Vai trò', rui_ro: 'thap'  },
+  { code: 'ROLE_CREATE',        ten: 'Tạo vai trò',          moTa: 'Cho phép tạo mẫu vai trò mới.',                         nhom: 'Vai trò', rui_ro: 'trung' },
+  { code: 'ROLE_UPDATE',        ten: 'Sửa vai trò',          moTa: 'Cho phép cập nhật mẫu vai trò.',                         nhom: 'Vai trò', rui_ro: 'trung' },
+  { code: 'ROLE_DELETE',        ten: 'Xóa vai trò',          moTa: 'Cho phép xóa mẫu vai trò.',                              nhom: 'Vai trò', rui_ro: 'cao'   },
   { code: 'CUSTOMER_CREATE',    ten: 'Tạo khách hàng',        moTa: 'Cho phép tạo hồ sơ khách hàng mới.',                    nhom: 'Cấp phát', rui_ro: 'trung' },
   { code: 'CUSTOMER_MANAGER',   ten: 'Quản lý người phụ trách khách hàng', moTa: 'Cho phép thêm hoặc xóa người phụ trách trên hồ sơ khách hàng.', nhom: 'Cấp phát', rui_ro: 'trung' },
   { code: 'USER_POLICY_GRANT',  ten: 'Cấp quyền cho user',    moTa: 'Cho phép cấp policy trực tiếp cho tài khoản.',          nhom: 'Cấp phát', rui_ro: 'cao'   },
@@ -91,7 +91,7 @@ export interface TaiKhoan {
   lastLogin?: string;
 }
 
-export interface NhomQuyen {
+export interface VaiTro {
   code: string;
   name: string;
   description: string;
@@ -382,7 +382,7 @@ export async function canhBaoLechPolicyService(token?: string): Promise<KetQuaLe
 
 // ── Roles ─────────────────────────────────────────────────────────────────
 // GET /auth/roles trả về policies đã được flatten (roleListSelect)
-export interface NhomQuyenApi {
+export interface VaiTroApi {
   id: string;
   code: string;
   name: string;
@@ -395,7 +395,7 @@ export interface NhomQuyenApi {
 }
 
 // PUT /auth/roles và DELETE /auth/roles/:code trả về rolePolicies chưa flatten (publicRoleSelect)
-interface NhomQuyenUpsertApi {
+interface VaiTroUpsertApi {
   id: string;
   code: string;
   name: string;
@@ -406,7 +406,7 @@ interface NhomQuyenUpsertApi {
   rolePolicies: Array<{ policy: { id: string; code: string; name: string; description: string } }>;
 }
 
-function chuyenNhomQuyenUpsertApi(role: NhomQuyenUpsertApi): NhomQuyen {
+function chuyenVaiTroUpsertApi(role: VaiTroUpsertApi): VaiTro {
   return {
     code: role.code,
     name: role.name,
@@ -418,7 +418,7 @@ function chuyenNhomQuyenUpsertApi(role: NhomQuyenUpsertApi): NhomQuyen {
   };
 }
 
-export function chuyenNhomQuyenApi(role: NhomQuyenApi): NhomQuyen {
+export function chuyenVaiTroApi(role: VaiTroApi): VaiTro {
   return {
     code: role.code,
     name: role.name,
@@ -431,21 +431,21 @@ export function chuyenNhomQuyenApi(role: NhomQuyenApi): NhomQuyen {
   };
 }
 
-export async function layNhomQuyenService(token: string, name?: string): Promise<NhomQuyen[]> {
+export async function layVaiTroService(token: string, name?: string): Promise<VaiTro[]> {
   const query = name ? `?name=${encodeURIComponent(name)}` : '';
-  const data = await goiService<NhomQuyenApi[]>(`/auth/roles${query}`, {}, token);
-  return (Array.isArray(data) ? data : []).map(chuyenNhomQuyenApi);
+  const data = await goiService<VaiTroApi[]>(`/auth/roles${query}`, {}, token);
+  return (Array.isArray(data) ? data : []).map(chuyenVaiTroApi);
 }
 
-export async function luuNhomQuyenService(token: string, input: { code: string; name: string; description: string; policyCodes: PolicyCode[] }): Promise<NhomQuyen> {
-  const data = await goiService<NhomQuyenUpsertApi>('/auth/roles', {
+export async function luuVaiTroService(token: string, input: { code: string; name: string; description: string; policyCodes: PolicyCode[] }): Promise<VaiTro> {
+  const data = await goiService<VaiTroUpsertApi>('/auth/roles', {
     method: 'PUT',
     body: JSON.stringify(input),
   }, token);
-  return chuyenNhomQuyenUpsertApi(data);
+  return chuyenVaiTroUpsertApi(data);
 }
 
-export async function xoaNhomQuyenService(token: string, code: string): Promise<void> {
+export async function xoaVaiTroService(token: string, code: string): Promise<void> {
   await goiService<unknown>(`/auth/roles/${encodeURIComponent(code)}`, { method: 'DELETE' }, token);
 }
 

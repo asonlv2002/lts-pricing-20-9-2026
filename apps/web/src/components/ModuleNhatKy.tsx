@@ -129,7 +129,7 @@ const FIELD_LABELS: Record<string, string> = {
   preparedBy: 'Người lập', approvedBy: 'Người duyệt', quoteId: 'Mã báo giá gốc',
   scope: 'Phạm vi cấu hình', name: 'Tên phiên bản', effectiveMode: 'Kiểu hiệu lực', effectiveFrom: 'Hiệu lực từ',
   materialId: 'Mã vật tư', materialName: 'Tên vật tư', pricePerKg: 'Giá/kg', thickness: 'Độ dày',
-  roleCode: 'Mã nhóm quyền', roleName: 'Tên nhóm quyền', account: 'Tài khoản', fullName: 'Họ tên',
+  roleCode: 'Mã vai trò', roleName: 'Tên vai trò', account: 'Tài khoản', fullName: 'Họ tên',
   isActive: 'Trạng thái tài khoản', isProtected: 'Bảo vệ tài khoản', policies: 'Danh sách quyền',
   policiesAdded: 'Quyền được cấp', policiesRemoved: 'Quyền bị thu hồi', days: 'Số ngày',
   threshold: 'Ngưỡng', numColors: 'Số màu', value: 'Giá trị', key: 'Mã', count: 'Số lượng',

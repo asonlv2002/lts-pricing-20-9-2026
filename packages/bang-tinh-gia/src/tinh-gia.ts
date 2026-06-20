@@ -18,6 +18,50 @@ import { tinhDoDayVaGSM, taoChuoiCauTruc } from './cau-truc';
 export { layVatLieu } from './vat-lieu';
 export { traLoiNhuan } from './loi-nhuan';
 export { toiUuDoDay, type KetQuaToiUuDoDay } from './toi-uu-do-day';
+
+function tinhGSMLop(lop: VatLieu): number {
+  return lop.doDay * lop.khoiLuongRieng;
+}
+
+function tinhKhoiLuongVatLieuPerDonVi(params: {
+  lop1: VatLieu;
+  lop2: VatLieu | null;
+  lop2Phu: VatLieu | null;
+  lop3: VatLieu | null;
+  lop4: VatLieu | null;
+  lop5: VatLieu | null;
+  dienTichDonVi: number;
+  buocCat: number;
+  soHinh: number;
+  laMang: boolean;
+  chieuDaiLop2?: { vl1: number; vl2: number };
+  kieuGhepLop2?: 'bottom_to_bottom' | 'front_to_front';
+}) {
+  const { lop1, lop2, lop2Phu, lop3, lop4, lop5, dienTichDonVi, buocCat, soHinh, laMang, chieuDaiLop2, kieuGhepLop2 } = params;
+  const cacLopThuong = [lop1, lop3, lop4, lop5].filter((lop): lop is VatLieu => !!lop);
+  let tong = cacLopThuong.reduce((sum, lop) => sum + tinhGSMLop(lop) * dienTichDonVi, 0);
+
+  if (!lop2) return tong;
+
+  if (!laMang && lop2Phu && chieuDaiLop2 && chieuDaiLop2.vl1 > 0 && chieuDaiLop2.vl2 > 0) {
+    const soHinhThucTe = Math.max(1, soHinh || 1);
+    const khoLopChinh = chieuDaiLop2.vl1 / 1000;
+    const khoLopPhu = chieuDaiLop2.vl2 / 1000;
+    const bienMoiMep = soHinhThucTe > 1 ? 0.01 : 0;
+    const laGhepMatTruocVoiMatTruoc = kieuGhepLop2 === 'front_to_front';
+    const soLan = soHinhThucTe > 1 ? 2 : 1;
+    const khoLopChinhThucDung = soLan * (khoLopChinh + (laGhepMatTruocVoiMatTruoc ? 0 : bienMoiMep));
+    const khoLopPhuThucDung = soLan * (khoLopPhu + (laGhepMatTruocVoiMatTruoc ? bienMoiMep : 0));
+    tong += tinhGSMLop(lop2) * khoLopChinhThucDung * buocCat / soHinhThucTe;
+    tong += tinhGSMLop(lop2Phu) * khoLopPhuThucDung * buocCat / soHinhThucTe;
+    return tong;
+  }
+
+  tong += tinhGSMLop(lop2) * dienTichDonVi;
+  if (lop2Phu) tong += tinhGSMLop(lop2Phu) * dienTichDonVi;
+  return tong;
+}
+
 export function tinhGia(
 
 
@@ -187,7 +231,13 @@ export function tinhGia(
 
 
   const khoiLuongThuungPerDonVi = !laMang && soTuiPerThuungThucTe > 0 ? khoiLuongThuung / soTuiPerThuungThucTe : 0;
-  const khoiLuongTare = tongGSM * dienTichDonVi + khoiLuongQuaiXach + khoiLuongPhuKienThemPerDonVi + khoiLuongThuungPerDonVi;
+  const khoiLuongVatLieuPerDonVi = tinhKhoiLuongVatLieuPerDonVi({
+    lop1, lop2, lop2Phu, lop3, lop4, lop5,
+    dienTichDonVi, buocCat, soHinh, laMang,
+    chieuDaiLop2: dauVao.chieuDaiLop2,
+    kieuGhepLop2: dauVao.kieuGhepLop2,
+  });
+  const khoiLuongTare = khoiLuongVatLieuPerDonVi + (coQuaiXach ? khoiLuongQuaiXach : 0) + khoiLuongPhuKienThemPerDonVi + khoiLuongThuungPerDonVi;
 
 
 
@@ -298,7 +348,6 @@ export function tinhGia(
 
 
 }
-
 
 
 

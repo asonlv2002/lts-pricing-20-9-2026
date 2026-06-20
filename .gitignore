@@ -68,3 +68,12 @@ Thumbs.db
 *.pem
 .vercel
 coverage/
+
+# ── LTS API helper (PowerShell) ───────────────────────────────────────────────
+# Script chính: scripts/lts-api.ps1 (commit). Backup/temp không commit.
+scripts/*.bak
+scripts/lts-api.ps1.bak
+
+# Credentials local (KHONG BAO GIO commit)
+scripts/.lts-credentials.local.ps1
+*.local.ps1

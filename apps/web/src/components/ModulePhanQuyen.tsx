@@ -18,7 +18,7 @@ import {
   type Policy,
   type TaiKhoanApi,
   type TaiKhoan,
-  type NhomQuyen,
+  type VaiTro,
   POLICY_CATALOG,
   layTaiKhoanService,
   taoTaiKhoanService,
@@ -28,9 +28,9 @@ import {
   datLaiMatKhauTaiKhoanService,
   capQuyenService,
   thuHoiQuyenService,
-  luuNhomQuyenService,
-  xoaNhomQuyenService,
-  layNhomQuyenService,
+  luuVaiTroService,
+  xoaVaiTroService,
+  layVaiTroService,
   chuyenTaiKhoanApi,
   canhBaoLechPolicyService,
 } from '../lib/api/service-lts';
@@ -54,7 +54,7 @@ const TAI_KHOAN_MAU: TaiKhoan[] = [
     policies: ['ACCOUNT_READ'], createdAt: '2026-02-17', lastLogin: '2026-05-22 11:00' },
 ];
 
-const NHOM_QUYEN_MAU: NhomQuyen[] = [
+const VAI_TRO_MAU: VaiTro[] = [
   {
     code: 'SUPER_ADMIN',
     name: 'Quản trị tối cao',
@@ -73,8 +73,8 @@ const NHOM_QUYEN_MAU: NhomQuyen[] = [
   },
   {
     code: 'ROLE_DESIGNER',
-    name: 'Thiết kế nhóm quyền',
-    description: 'Tạo & sửa template nhóm quyền, không gán cho user.',
+    name: 'Thiết kế vai trò',
+    description: 'Tạo & sửa mẫu vai trò, không gán cho user.',
     policies: ['ROLE_READ','ROLE_CREATE','ROLE_UPDATE'],
     granterName: 'Lê Thị Thu',
     updatedAt: '2026-04-18',
@@ -139,7 +139,7 @@ function tacDongTheoRuiRo(ruiRo: Policy['rui_ro']): { title: string; desc: strin
 // ═════════════════════════════════════════════════════════════════════════════
 function mauNhom(nhom: Policy['nhom']): string {
   if (nhom === 'Tài khoản')  return 'pq-chip--account';
-  if (nhom === 'Nhóm quyền') return 'pq-chip--role';
+  if (nhom === 'Vai trò') return 'pq-chip--role';
   return 'pq-chip--grant';
 }
 
@@ -213,11 +213,11 @@ function InspectorTaiKhoan({
   onToggleDraftPolicy: (code: PolicyCode) => void;
   onSavePolicyChanges: () => void;
   onCancelPolicyChanges: () => void;
-  onApplyTemplate: (template: NhomQuyen) => void;
+  onApplyTemplate: (template: VaiTro) => void;
   onToggleActive: () => void;
   onToggleProtected: () => void;
   onResetPassword: () => void;
-  templates: NhomQuyen[];
+  templates: VaiTro[];
   coQuyenPhanQuyen: boolean;
   coQuyenDatLaiMatKhau: boolean;
   dangLuuQuyen: boolean;
@@ -457,7 +457,7 @@ function InspectorTaiKhoan({
                 <span>{tacDongTheoRuiRo(policyDangXem.rui_ro).desc}</span>
               </div>
               <div className="pq-policy-detail__meta">
-                <span>Nhóm quyền</span>
+                <span>Vai trò</span>
                 <b>{policyDangXem.nhom}</b>
               </div>
             </div>
@@ -469,18 +469,18 @@ function InspectorTaiKhoan({
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 7. ROLE CARDS — view "Nhóm quyền"
+// 7. ROLE CARDS — view "Vai trò"
 // ═════════════════════════════════════════════════════════════════════════════
-function ViewNhomQuyen({
+function ViewVaiTro({
   roles,
   users,
   onCreateRole,
   onDeleteRole,
 }: {
-  roles: NhomQuyen[];
+  roles: VaiTro[];
   users: TaiKhoan[];
-  onCreateRole: (role: NhomQuyen) => void;
-  onDeleteRole: (role: NhomQuyen) => void;
+  onCreateRole: (role: VaiTro) => void;
+  onDeleteRole: (role: VaiTro) => void;
 }) {
   const [moForm, setMoForm] = useState(false);
   const [ten, setTen] = useState('');
@@ -496,7 +496,7 @@ function ViewNhomQuyen({
     e.preventDefault();
     if (!ten.trim() || !chon.length) return;
     const code = ten.trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-    onCreateRole({ code, name: ten.trim(), description: moTa.trim() || 'Nhóm quyền tùy chỉnh', policies: chon, updatedAt: new Date().toISOString() });
+    onCreateRole({ code, name: ten.trim(), description: moTa.trim() || 'Vai trò tùy chỉnh', policies: chon, updatedAt: new Date().toISOString() });
     setTen('');
     setMoTa('');
     setChon([]);
@@ -533,11 +533,11 @@ function ViewNhomQuyen({
     <div className="pq-role-dashboard">
       <header className="pq-rd-header">
         <div>
-          <h2>Vai trò & Nhóm quyền</h2>
-          <p>Quản lý các nhóm quyền dùng để phân quyền chức năng cho người dùng.</p>
+          <h2>Vai trò & Phân quyền</h2>
+          <p>Quản lý các vai trò dùng để phân quyền chức năng cho người dùng.</p>
         </div>
         <button className="pq-btn pq-btn--primary" onClick={() => setMoForm(true)}>
-          <Plus size={15} /> Tạo nhóm quyền
+          <Plus size={15} /> Tạo vai trò
         </button>
       </header>
 
@@ -551,7 +551,7 @@ function ViewNhomQuyen({
       <div className="pq-rd-toolbar">
         <div className="pq-search pq-search--lg">
           <Search size={15} />
-          <input placeholder="Tìm kiếm nhóm quyền..." value={tuKhoa} onChange={e => setTuKhoa(e.target.value)} />
+          <input placeholder="Tìm kiếm vai trò..." value={tuKhoa} onChange={e => setTuKhoa(e.target.value)} />
         </div>
         <select value={locLoai} onChange={e => setLocLoai(e.target.value as 'all' | 'system' | 'custom')}>
           <option value="all">Loại nhóm</option>
@@ -568,8 +568,8 @@ function ViewNhomQuyen({
       {moForm && (
         <form className="pq-role-form" onSubmit={submit}>
           <div className="pq-role-form__grid">
-            <label><span>Tên nhóm quyền</span><input value={ten} onChange={e => setTen(e.target.value)} placeholder="Ví dụ: Quản lý tài khoản" required /></label>
-            <label><span>Mô tả</span><input value={moTa} onChange={e => setMoTa(e.target.value)} placeholder="Mục đích sử dụng nhóm quyền" /></label>
+            <label><span>Tên vai trò</span><input value={ten} onChange={e => setTen(e.target.value)} placeholder="Ví dụ: Quản lý tài khoản" required /></label>
+            <label><span>Mô tả</span><input value={moTa} onChange={e => setMoTa(e.target.value)} placeholder="Mục đích sử dụng vai trò" /></label>
           </div>
           <div className="pq-role-form__policies">
             {POLICY_CATALOG.map(policy => (
@@ -581,7 +581,7 @@ function ViewNhomQuyen({
           </div>
           <div className="pq-role-form__actions">
             <button type="button" className="pq-btn pq-btn--ghost" onClick={() => setMoForm(false)}>Hủy</button>
-            <button type="submit" className="pq-btn pq-btn--primary">Lưu nhóm quyền</button>
+            <button type="submit" className="pq-btn pq-btn--primary">Lưu vai trò</button>
           </div>
         </form>
       )}
@@ -590,12 +590,12 @@ function ViewNhomQuyen({
         <table className="pq-rd-table">
           <thead>
             <tr>
-              <th>Nhóm quyền</th><th>Loại</th><th>Số quyền</th><th>Người dùng</th><th>Quyền nổi bật</th><th>Cập nhật</th><th>Thao tác</th>
+              <th>Vai trò</th><th>Loại</th><th>Số quyền</th><th>Người dùng</th><th>Quyền nổi bật</th><th>Cập nhật</th><th>Thao tác</th>
             </tr>
           </thead>
           <tbody>
             {duLieuTrang.length === 0 ? (
-              <tr><td colSpan={7} className="pq-rd-empty">Không có nhóm quyền phù hợp.</td></tr>
+              <tr><td colSpan={7} className="pq-rd-empty">Không có vai trò phù hợp.</td></tr>
             ) : duLieuTrang.map(role => {
               const laSystem = role.code.includes('ADMIN') || role.code.includes('SYSTEM');
               return (
@@ -633,7 +633,7 @@ function ViewNhomQuyen({
 // ═════════════════════════════════════════════════════════════════════════════
 // 8. PERMISSION MATRIX — view "Phân quyền tính năng"
 // ═════════════════════════════════════════════════════════════════════════════
-function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: NhomQuyen[] }) {
+function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: VaiTro[] }) {
   const [moiTruong, setMoiTruong] = useState<'user' | 'role'>('user');
   const dong = moiTruong === 'user'
     ? users.map(u => ({
@@ -671,7 +671,7 @@ function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: NhomQuyen[] })
             className={`pq-segmented__opt ${moiTruong === 'role' ? 'pq-segmented__opt--active' : ''}`}
             onClick={() => setMoiTruong('role')}
           >
-            <Shield size={14} /> Theo nhóm quyền
+            <Shield size={14} /> Theo vai trò
           </button>
         </div>
         <div className="pq-matrix-legend">
@@ -776,7 +776,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   const coQuyenDatLaiMatKhau = !!nguoiDungHienTai?.policies.includes('ACCOUNT_PASSWORD_UPDATE_ALL');
 
   const [users, setUsers]     = useState<TaiKhoan[]>([]);
-  const [roles, setRoles]      = useState<NhomQuyen[]>(NHOM_QUYEN_MAU);
+  const [roles, setRoles]      = useState<VaiTro[]>(VAI_TRO_MAU);
   const [chonId, setChonId]   = useState<string>('');
   const [tuKhoa, setTuKhoa]   = useState('');
   const [locTrangThai, setLocTrangThai] = useState<'all' | 'active' | 'inactive' | 'protected'>('all');
@@ -815,10 +815,10 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     }
   };
 
-  const napNhomQuyen = async () => {
+  const napVaiTro = async () => {
     if (!accessToken) return;
     try {
-      const data = await layNhomQuyenService(accessToken);
+      const data = await layVaiTroService(accessToken);
       setRoles(data);
     } catch {
       // giữ nguyên dữ liệu cũ nếu lỗi
@@ -829,7 +829,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   useEffect(() => {
     if (accessToken) {
       void napTaiKhoan();
-      void napNhomQuyen();
+      void napVaiTro();
       void canhBaoLechPolicyService(accessToken);
     }
   }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -920,37 +920,37 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     }
   };
 
-  const xuLyLuuNhomQuyen = async (role: NhomQuyen) => {
+  const xuLyLuuVaiTro = async (role: VaiTro) => {
     if (!accessToken) return;
     const existed = roles.some(item => item.code === role.code);
     setDangTai(true);
     setLoiApi(null);
     try {
-      await luuNhomQuyenService(accessToken, {
+      await luuVaiTroService(accessToken, {
         code: role.code,
         name: role.name,
         description: role.description,
         policyCodes: role.policies,
       });
-      ghiNhatKyPhanQuyen({ action: existed ? 'update' : 'create', targetId: role.code, targetName: role.name, after: { roleCode: role.code, roleName: role.name, policies: role.policies }, note: existed ? 'Cập nhật nhóm quyền' : 'Tạo nhóm quyền' });
-      await napNhomQuyen();
+      ghiNhatKyPhanQuyen({ action: existed ? 'update' : 'create', targetId: role.code, targetName: role.name, after: { roleCode: role.code, roleName: role.name, policies: role.policies }, note: existed ? 'Cập nhật vai trò' : 'Tạo vai trò' });
+      await napVaiTro();
     } catch (error) {
-      setLoiApi(error instanceof Error ? error.message : 'Không lưu được nhóm quyền.');
+      setLoiApi(error instanceof Error ? error.message : 'Không lưu được vai trò.');
     } finally {
       setDangTai(false);
     }
   };
 
-  const xuLyXoaNhomQuyen = async (role: NhomQuyen) => {
+  const xuLyXoaVaiTro = async (role: VaiTro) => {
     if (!accessToken) return;
     setDangTai(true);
     setLoiApi(null);
     try {
-      await xoaNhomQuyenService(accessToken, role.code);
-      ghiNhatKyPhanQuyen({ action: 'delete', targetId: role.code, targetName: role.name, before: { roleCode: role.code, roleName: role.name, policies: role.policies }, note: 'Xóa nhóm quyền' });
-      await napNhomQuyen();
+      await xoaVaiTroService(accessToken, role.code);
+      ghiNhatKyPhanQuyen({ action: 'delete', targetId: role.code, targetName: role.name, before: { roleCode: role.code, roleName: role.name, policies: role.policies }, note: 'Xóa vai trò' });
+      await napVaiTro();
     } catch (error) {
-      setLoiApi(error instanceof Error ? error.message : 'Không xóa được nhóm quyền.');
+      setLoiApi(error instanceof Error ? error.message : 'Không xóa được vai trò.');
     } finally {
       setDangTai(false);
     }
@@ -1018,7 +1018,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     }
   };
 
-  const applyTemplate = (tpl: NhomQuyen) => {
+  const applyTemplate = (tpl: VaiTro) => {
     if (!userDangChon) return;
     if (!userDangChon.isActive) {
       setLoiApi('Tài khoản này đã dừng hoạt động.');
@@ -1166,11 +1166,11 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
       )}
 
       {view === 'roles' && (
-        <ViewNhomQuyen
+        <ViewVaiTro
           roles={roles}
           users={users}
-          onCreateRole={xuLyLuuNhomQuyen}
-          onDeleteRole={xuLyXoaNhomQuyen}
+          onCreateRole={xuLyLuuVaiTro}
+          onDeleteRole={xuLyXoaVaiTro}
         />
       )}
 

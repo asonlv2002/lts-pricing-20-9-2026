@@ -1,10 +1,10 @@
 // ═════════════════════════════════════════════════════════════════════════════
 // Mock Service: Phân quyền offline
-// Mô phỏng toàn bộ CRUD tài khoản + nhóm quyền khi NEXT_PUBLIC_OFFLINE_MODE=true
+// Mô phỏng toàn bộ CRUD tài khoản + vai trò khi NEXT_PUBLIC_OFFLINE_MODE=true
 // Dữ liệu lưu localStorage, seed lần đầu nếu chưa có.
 // ═════════════════════════════════════════════════════════════════════════════
 
-import { type TaiKhoanApi, type NhomQuyenApi, type PolicyCode, type ActivityLogServerApi, POLICY_CATALOG } from './service-lts';
+import { type TaiKhoanApi, type VaiTroApi, type PolicyCode, type ActivityLogServerApi, POLICY_CATALOG } from './service-lts';
 
 // ── localStorage keys ───────────────────────────────────────────────────────
 const LS_MOCK_ACCOUNTS = 'lts_mock_accounts';
@@ -51,7 +51,7 @@ const SEED_ACCOUNTS: TaiKhoanApi[] = [
   },
 ];
 
-const SEED_ROLES: NhomQuyenApi[] = [
+const SEED_ROLES: VaiTroApi[] = [
   {
     id: 'role-1', code: 'SUPER_ADMIN', name: 'Quản trị tối cao',
     description: 'Toàn quyền hệ thống — chỉ dành cho 1–2 tài khoản gốc.',
@@ -70,8 +70,8 @@ const SEED_ROLES: NhomQuyenApi[] = [
     createdAt: '2026-03-04T00:00:00Z', updatedAt: '2026-03-04T00:00:00Z',
   },
   {
-    id: 'role-3', code: 'ROLE_DESIGNER', name: 'Thiết kế nhóm quyền',
-    description: 'Tạo & sửa template nhóm quyền, không gán cho user.',
+    id: 'role-3', code: 'ROLE_DESIGNER', name: 'Thiết kế vai trò',
+    description: 'Tạo & sửa mẫu vai trò, không gán cho user.',
     granterId: 'mock-2', granter: { id: 'mock-2', account: 'thu.lts', fullName: 'Lê Thị Thu' },
     policies: (['ROLE_READ', 'ROLE_CREATE', 'ROLE_UPDATE'] as PolicyCode[]).map(c => ({
       id: `pol-${c}`, code: c, name: POLICY_CATALOG.find(p => p.code === c)?.ten ?? c,
@@ -107,14 +107,14 @@ function luuAccounts(data: TaiKhoanApi[]): void {
   localStorage.setItem(LS_MOCK_ACCOUNTS, JSON.stringify(data));
 }
 
-function layRoles(): NhomQuyenApi[] {
+function layRoles(): VaiTroApi[] {
   if (typeof window === 'undefined') return SEED_ROLES;
   const raw = localStorage.getItem(LS_MOCK_ROLES);
   if (!raw) {
     localStorage.setItem(LS_MOCK_ROLES, JSON.stringify(SEED_ROLES));
     return SEED_ROLES;
   }
-  try { return JSON.parse(raw) as NhomQuyenApi[]; } catch { return SEED_ROLES; }
+  try { return JSON.parse(raw) as VaiTroApi[]; } catch { return SEED_ROLES; }
 }
 
 // ── Activity Logs seed ─────────────────────────────────────────────────────
@@ -210,7 +210,7 @@ function layActivityLogs(): ActivityLogServerApi[] {
   try { return JSON.parse(raw) as ActivityLogServerApi[]; } catch { return SEED_ACTIVITY_LOGS; }
 }
 
-function luuRoles(data: NhomQuyenApi[]): void {
+function luuRoles(data: VaiTroApi[]): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(LS_MOCK_ROLES, JSON.stringify(data));
 }
@@ -384,7 +384,7 @@ export async function mockPhanQuyen<T>(path: string, options: RequestInit = {}):
       }));
       existing.updatedAt = now;
       luuRoles(roles);
-      // Trả về format NhomQuyenUpsertApi (PUT response)
+      // Trả về format VaiTroUpsertApi (PUT response)
       return {
         id: existing.id, code: existing.code, name: existing.name,
         description: existing.description, granterId: existing.granterId,
@@ -393,7 +393,7 @@ export async function mockPhanQuyen<T>(path: string, options: RequestInit = {}):
       } as unknown as T;
     }
 
-    const newRole: NhomQuyenApi = {
+    const newRole: VaiTroApi = {
       id: taoId(), code, name: (body.name as string) ?? code,
       description: (body.description as string) ?? '',
       granterId: null, granter: null,

@@ -332,6 +332,61 @@ section('4. ĐẶC TẢ KỸ THUẬT NVL');
   }
 }
 
+// 4E. Tare weight — lớp 2 có 2 vật liệu phải dùng diện tích riêng
+{
+  console.log('\n  ── 4E. Trọng lượng vận chuyển: diện tích riêng lớp 2 ──');
+  const pet = mats.find(m => m.id === 'PET') ?? mats.find(m => m.name.toUpperCase().includes('PET') && !m.name.toUpperCase().includes('MPET'));
+  const mpet = mats.find(m => m.id === 'MPET') ?? mats.find(m => m.name.toUpperCase().includes('MPET'));
+
+  if (pet && mpet) {
+    const input: CalculateInput = {
+      ...baseTui,
+      quantity: 10000,
+      numImages: 2,
+      layer1Id: pet.id,
+      layer2Id: pet.id,
+      layer2AltId: mpet.id,
+      layer2Lengths: { mat1: 0.18, mat2: 0.12 },
+      layer2PairingMode: 'bottom_to_bottom',
+      spreadWidth: 0.5,
+      cutStep: 0.35,
+      hasHandle: false,
+      hasZipper: false,
+      hasTape: false,
+      boxWeight: 0,
+      bagsPerBox: 0,
+    };
+    const r = calculate(input, mats, cons, prof)!;
+    const gsmLayer1 = pet.thickness * pet.density;
+    const gsmMain = pet.thickness * pet.density;
+    const gsmAlt = mpet.thickness * mpet.density;
+    const dienTichLop1 = input.spreadWidth * input.cutStep;
+    const dienTichMain = (2 * (input.layer2Lengths!.mat1 + 0.01) * input.cutStep) / input.numImages;
+    const dienTichAlt = (2 * input.layer2Lengths!.mat2 * input.cutStep) / input.numImages;
+    const expected = gsmLayer1 * dienTichLop1 + gsmMain * dienTichMain + gsmAlt * dienTichAlt;
+    const oldFormula = r.totalGSM * r.bagArea;
+
+    console.log(`  layer1 = ${gsmLayer1.toFixed(3)} × ${dienTichLop1.toFixed(4)} = ${(gsmLayer1 * dienTichLop1).toFixed(4)} g`);
+    console.log(`  layer2 main = ${gsmMain.toFixed(3)} × ${dienTichMain.toFixed(4)} = ${(gsmMain * dienTichMain).toFixed(4)} g`);
+    console.log(`  layer2 alt = ${gsmAlt.toFixed(3)} × ${dienTichAlt.toFixed(4)} = ${(gsmAlt * dienTichAlt).toFixed(4)} g`);
+    assertApprox('4E.1 tareWeight dùng diện tích riêng PET/MPET', r.tareWeight, expected, 0.1);
+    assert('4E.2 test phân biệt công thức cũ tổng GSM × diện tích túi', Math.abs(oldFormula - expected) > 0.01);
+  }
+}
+
+// 4F. Tare weight — phụ kiện chỉ cộng khi bật
+{
+  console.log('\n  ── 4F. Trọng lượng vận chuyển: quai và zipper ──');
+  const noAccessory = calculate({ ...baseTui, hasHandle: false, hasZipper: false, handleWeight: 4, zipperWeight: 5, boxWeight: 0, bagsPerBox: 0 }, mats, cons, prof)!;
+  const withHandle = calculate({ ...baseTui, hasHandle: true, hasZipper: false, handleWeight: 4, zipperWeight: 5, boxWeight: 0, bagsPerBox: 0 }, mats, cons, prof)!;
+  const withZipper = calculate({ ...baseTui, hasHandle: false, hasZipper: true, handleWeight: 4, zipperWeight: 5, boxWeight: 0, bagsPerBox: 0 }, mats, cons, prof)!;
+  const withBoth = calculate({ ...baseTui, hasHandle: true, hasZipper: true, handleWeight: 4, zipperWeight: 5, boxWeight: 0, bagsPerBox: 0 }, mats, cons, prof)!;
+
+  assertApprox('4F.1 bật quai tăng đúng handleWeight', withHandle.tareWeight - noAccessory.tareWeight, 4, 0.1);
+  assertApprox('4F.2 bật zipper tăng đúng cutStep × zipperWeight', withZipper.tareWeight - noAccessory.tareWeight, baseTui.cutStep * 5, 0.1);
+  assertApprox('4F.3 bật quai + zipper cộng cả hai', withBoth.tareWeight - noAccessory.tareWeight, 4 + baseTui.cutStep * 5, 0.1);
+}
+
 
 // ════════════════════════════════════════════════════════════════════════════
 // KẾT QUẢ
