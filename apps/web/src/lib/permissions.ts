@@ -21,15 +21,18 @@ const MUC_MENU_POLICIES: Record<string, PolicyCode[]> = {
 };
 
 export function coTheXemNhomMenu(policies: PolicyCode[], nhomId: string): boolean {
+  if (nhomId === 'system') {
+    return policies.includes('ACTIVITY_MONITOR') || policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
+  }
   const requiredPolicies = NHOM_MENU_POLICIES[nhomId];
   if (!requiredPolicies || requiredPolicies.length === 0) return true;
   return requiredPolicies.every(p => policies.includes(p));
 }
 
 export function coTheXemMucMenu(policies: PolicyCode[], menuKey: string): boolean {
-  if (menuKey.startsWith('system.')) return policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
   const required = MUC_MENU_POLICIES[menuKey];
   if (required && required.length > 0) return required.every(p => policies.includes(p));
+  if (menuKey.startsWith('system.')) return policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
   return true;
 }
 
