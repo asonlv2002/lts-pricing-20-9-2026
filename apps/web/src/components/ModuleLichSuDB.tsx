@@ -702,7 +702,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
       setPendingTargetId(null);
       return;
     }
-    const found = lichSu.find(h => h.id === pendingTargetId);
+    const found = lichSu.find(h => h.id === pendingTargetId || h.pricingSheetId === pendingTargetId);
     if (!found) return;
     setSelectedItem(found);
     setMode(laBanGhiBaoGia(found) ? 'quote' : 'pricing');

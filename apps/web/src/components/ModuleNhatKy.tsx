@@ -459,14 +459,14 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
 
   const openRelated = (entry: AuditEntry) => {
     if (entry.targetType === 'history' || entry.targetType === 'quote') {
-      const item = history.find(h => h.id === entry.targetId);
-      if (item && !item.isQuote) {
-        loadHistoryItem(entry.targetId);
+      const item = history.find(h => h.id === entry.targetId || h.pricingSheetId === entry.targetId);
+      if (entry.targetType === 'history' && item && !item.isQuote) {
+        loadHistoryItem(item.id);
         setActiveModule('calculator');
         return;
       }
       try {
-        localStorage.setItem('lts_navigate_filter', JSON.stringify({ module: 'quote', targetId: entry.targetId, ts: Date.now() }));
+        localStorage.setItem('lts_navigate_filter', JSON.stringify({ module: entry.targetType === 'quote' || item?.isQuote ? 'quote' : 'pricing', targetId: item?.id ?? entry.targetId, ts: Date.now() }));
       } catch {}
       setActiveModule('history_db');
       return;

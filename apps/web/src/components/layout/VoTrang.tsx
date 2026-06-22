@@ -7,7 +7,6 @@ import { OFFLINE_ACCOUNTS } from '../../store/slices/auth';
 import DangNhapModal from '../auth/DangNhapModal';
 import DoiMatKhauModal from '../auth/DoiMatKhauModal';
 import ModuleKhachHang from '../ModuleKhachHang';
-import ModuleNhanVienBan from '../ModuleNhanVienBan';
 import ModuleBaoGia from '../ModuleBaoGia';
 import ModuleDuyetBaoGia from '../ModuleDuyetBaoGia';
 import ModuleLichSuDB from '../ModuleLichSuDB';
@@ -23,7 +22,7 @@ import {
   Calculator, Users, Menu, Factory,
   X, ChevronRight, Plus, FileText, History, ClipboardList, UserCircle,
   BarChart3, Clock3, TrendingUp, PackageCheck, Settings2, Wrench, Percent,
-  Coins, UserPlus, BriefcaseBusiness, ListChecks, KeyRound as KeyRoundIcon,
+  Coins, UserPlus, ListChecks, KeyRound as KeyRoundIcon,
   LayoutDashboard, Shield,
   LogOut, RefreshCw, KeyRound,
 } from 'lucide-react';
@@ -31,7 +30,7 @@ import {
 // ============================================================
 // MODULE DEFINITION
 // ============================================================
-type MaModule = 'calculator' | 'quotations' | 'create_lsx' | 'lsx_list' | 'history_db' | 'master_data' | 'customers' | 'sellers' | 'settings' | 'users' | 'audit_log';
+type MaModule = 'calculator' | 'quotations' | 'create_lsx' | 'lsx_list' | 'history_db' | 'master_data' | 'customers' | 'settings' | 'users' | 'audit_log';
 
 interface MucMenu {
   key: string;
@@ -117,7 +116,6 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     vaiTros: ['admin'],
     mucCon: [
       { key: 'system.users', id: 'users', label: 'Tài khoản & quyền', vaiTros: ['admin'] },
-      { key: 'system.sellers', id: 'sellers', label: 'Nhân viên kinh doanh', vaiTros: ['admin'] },
       { key: 'system.roles', id: 'users', label: 'Vai trò', vaiTros: ['admin'] },
       { key: 'system.permissions', id: 'users', label: 'Bảng phân quyền', vaiTros: ['admin'] },
       { key: 'system.company_settings', id: 'settings', label: 'Cài đặt công ty', vaiTros: ['admin'] },
@@ -251,7 +249,6 @@ const TIEU_DE_MODULE: Record<MaModule, string> = {
   history_db:        'Lịch sử',
   master_data:       'Cấu hình tính giá',
   customers:         'Khách hàng',
-  sellers:           'Nhân viên kinh doanh',
   users:             'Tài khoản & quyền',
   settings:          'Cài đặt hệ thống',
   audit_log:         'Nhật ký thao tác',
@@ -312,7 +309,6 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
     label: 'Tài khoản',
     cards: [
       { title: 'Tài khoản & quyền', subtitle: 'Quản lý người dùng và quyền truy cập.', tone: 'violet', icon: <Shield size={30} />, action: { type: 'module', key: 'system.users', module: 'users' } },
-      { title: 'Nhân viên kinh doanh', subtitle: 'Quản lý danh sách nhân viên bán hàng.', tone: 'sky', icon: <BriefcaseBusiness size={30} />, action: { type: 'module', key: 'system.sellers', module: 'sellers' } },
       { title: 'Vai trò', subtitle: 'Thiết lập nhóm vai trò trong hệ thống.', tone: 'emerald', icon: <Users size={30} />, action: { type: 'module', key: 'system.roles', module: 'users' } },
       { title: 'Bảng phân quyền', subtitle: 'Kiểm tra ma trận quyền theo chức năng.', tone: 'orange', icon: <ListChecks size={30} />, action: { type: 'module', key: 'system.permissions', module: 'users' } },
       { title: 'Cài đặt công ty', subtitle: 'Cấu hình thông tin doanh nghiệp.', tone: 'slate', icon: <Settings2 size={30} />, action: { type: 'module', key: 'system.company_settings', module: 'settings' } },
@@ -757,8 +753,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const mucHienTai = CAC_MUC_MENU.find(m => m.key === menuDangChon);
     if (mucHienTai && mucHienTai.id === moduleDangMo) return; // đã đồng bộ
 
-    // Tìm mục menu đầu tiên thuộc module đang mở
-    const mucMoi = CAC_MUC_MENU.find(m => m.id === moduleDangMo);
+    // Tìm mục menu đầu tiên thuộc module đang mở, ưu tiên menu nghiệp vụ thay vì thẻ tổng quan.
+    const mucMoi = CAC_MUC_MENU.find(m => m.id === moduleDangMo && !m.key.startsWith('overview.'))
+      ?? CAC_MUC_MENU.find(m => m.id === moduleDangMo);
     if (mucMoi) datMenuDangChon(mucMoi.key);
   }, [moduleDangMo, laMobile, menuDangChon]);
 
@@ -770,7 +767,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     } else {
       html.classList.remove('in-config-page');
     }
-    if (moduleDangMo === 'customers' || moduleDangMo === 'sellers' ||
+    if (moduleDangMo === 'customers' ||
         moduleDangMo === 'quotations' || moduleDangMo === 'users') {
       html.classList.add('in-crm-page');
     } else {
@@ -919,7 +916,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {moduleDangMo === 'lsx_list'          && <ModuleDanhSachLSX />}
               {moduleDangMo === 'history_db'        && <ModuleLichSuDB khiDieuHuong={datModuleDangMo} menuDangChon={menuDangChon} />}
               {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTroHienTai} currentSellerId={idNhanVienHienTai} menuDangChon={menuDangChon} />}
-              {moduleDangMo === 'sellers'           && <ModuleNhanVienBan />}
               {moduleDangMo === 'master_data'       && <TrangCauHinh menuDangChon={menuDangChon} />}
               {moduleDangMo === 'users'             && <ModulePhanQuyen menuDangChon={menuDangChon} />}
               {moduleDangMo === 'settings'          && <div className="crm-root"><div className="crm-empty"><p>Module này chưa có màn hình chi tiết.</p><p style={{fontSize:'0.85rem',color:'var(--muted)'}}>Mục đang chọn: {CAC_MUC_MENU.find(i => i.key === menuDangChon)?.label ?? menuDangChon}</p></div></div>}
