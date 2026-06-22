@@ -97,49 +97,40 @@ console.log('\n== quyetDinhPricingSheetSync ==');
   assert('undefined h -> skip', decision.action === 'skip' && !decision.includeAdvisor);
 }
 
-// 2. offline mode -> skip
-{
-  const original = process.env.NEXT_PUBLIC_OFFLINE_MODE;
-  process.env.NEXT_PUBLIC_OFFLINE_MODE = 'true';
-  const decision = quyetDinhPricingSheetSync(makeItem(), true, 'token');
-  process.env.NEXT_PUBLIC_OFFLINE_MODE = original;
-  assert('offline mode -> skip', decision.action === 'skip');
-}
-
-// 3. chưa đăng nhập -> skip
+// 2. chưa đăng nhập -> skip
 {
   const decision = quyetDinhPricingSheetSync(makeItem(), false, 'token');
   assert('not authenticated -> skip', decision.action === 'skip');
 }
 
-// 4. accessToken null -> skip
+// 3. accessToken null -> skip
 {
   const decision = quyetDinhPricingSheetSync(makeItem(), true, null);
   assert('accessToken null -> skip', decision.action === 'skip');
 }
 
-// 5. Không tìm thấy mã KH (customer rỗng) -> skip
+// 4. Không tìm thấy mã KH (customer rỗng) -> skip
 {
   const item = makeItem({ customer: '' });
   const decision = quyetDinhPricingSheetSync(item, true, 'token');
   assert('khong tim thay ma KH -> skip', decision.action === 'skip');
 }
 
-// 6. Không có pricingSheetId -> postCreate, includeAdvisor = false
+// 5. Không có pricingSheetId -> postCreate, includeAdvisor = false
 {
   const item = makeItem();
   const decision = quyetDinhPricingSheetSync(item, true, 'token', undefined);
   assert('khong co pricingSheetId -> postCreate', decision.action === 'postCreate' && !decision.includeAdvisor);
 }
 
-// 7. Có pricingSheetId, không có adminOverrides -> patch, includeAdvisor = false
+// 6. Có pricingSheetId, không có adminOverrides -> patch, includeAdvisor = false
 {
   const item = makeItem();
   const decision = quyetDinhPricingSheetSync(item, true, 'token', 'sheet-123');
   assert('co pricingSheetId, khong co adminOverrides -> patch, no advisor', decision.action === 'patch' && !decision.includeAdvisor);
 }
 
-// 8. Có pricingSheetId, có adminOverrides với data -> patch, includeAdvisor = true
+// 7. Có pricingSheetId, có adminOverrides với data -> patch, includeAdvisor = true
 {
   const item = makeItem({
     adminOverrides: { print: { matPrice: 52000 } },
@@ -148,14 +139,14 @@ console.log('\n== quyetDinhPricingSheetSync ==');
   assert('co pricingSheetId, co adminOverrides -> patch, advisor', decision.action === 'patch' && decision.includeAdvisor);
 }
 
-// 9. Có pricingSheetId, adminOverrides rỗng {} -> patch, includeAdvisor = false
+// 8. Có pricingSheetId, adminOverrides rỗng {} -> patch, includeAdvisor = false
 {
   const item = makeItem({ adminOverrides: {} });
   const decision = quyetDinhPricingSheetSync(item, true, 'token', 'sheet-123');
   assert('adminOverrides rong -> patch, no advisor', decision.action === 'patch' && !decision.includeAdvisor);
 }
 
-// 10. pricingSheetId là null -> postCreate
+// 9. pricingSheetId là null -> postCreate
 {
   const item = makeItem();
   const decision = quyetDinhPricingSheetSync(item, true, 'token', null);

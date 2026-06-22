@@ -166,6 +166,40 @@ export function locKhachTheoQuyen<T extends CoNguoiPhuTrach>(
   return customers.filter(customer => laNguoiPhuTrach(customer, userId));
 }
 
+// ── Kiểm tra quyền lưu báo giá theo khách hàng ──────────────────────────────
+// Hình dạng khách hàng cần cả tên công ty để so khớp với input.customer.
+export interface KhachHangCoTen extends CoNguoiPhuTrach {
+  companyName: string;
+}
+
+// Chuẩn hoá tên khách: bỏ dấu, viết thường, trim — phục vụ so khớp không phân
+// biệt dấu/hoa thường giữa `input.customer` và `customer.companyName`.
+function chuanHoaTenKhach(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .trim();
+}
+
+// Sale chỉ được lưu báo giá khi `tenKhach` khớp một khách hàng mình phụ trách
+// (hoặc khách vừa tạo mới — vốn đã được gán sellerId/managers của sale).
+// Admin luôn được phép.
+export function laKhachHangThuocQuyen(
+  tenKhach: string,
+  danhSach: KhachHangCoTen[],
+  role: string,
+  userId?: string | null,
+): boolean {
+  if (role === 'admin') return true;
+  const chuan = chuanHoaTenKhach(tenKhach);
+  return danhSach.some(
+    kh => laNguoiPhuTrach(kh, userId) && chuanHoaTenKhach(kh.companyName) === chuan,
+  );
+}
+
 export function layLuaChonNguoiPhuTrach(customers: Pick<CustomerUi, 'managers'>[] = []): CustomerManagerOption[] {
   const options = new Map<string, CustomerManagerOption>();
 

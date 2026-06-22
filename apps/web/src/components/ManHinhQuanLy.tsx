@@ -5,7 +5,7 @@ import { lapDongSanXuat, tinhGiaHieuLuc, xuLyDongGhiDe, type UniRow } from '../l
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { TECHNICAL_TABLE_MOBILE_LABELS as MOBILE_LABELS } from '../lib/technical-table-mobile-labels';
 import type { Material, OverrideRowKey, OverrideFields, OverrideTable, HistoryItem } from '../lib/types';
-import { kiemTraMaKhachHang } from '../lib/customer-api';
+import { kiemTraMaKhachHang, laKhachHangThuocQuyen, type KhachHangCoTen } from '../lib/customer-api';
 import { 
   taoPricingSheetService, 
   capNhatPricingSheetResultService, 
@@ -17,7 +17,7 @@ import {
   mapHistoryToAdvisorPatch 
 } from '../lib/api/pricing-sheet-mapper';
 import { quyetDinhPricingSheetSync } from '../lib/pricing-sheet-sync';
-import { LS_CUSTOMERS } from '../store/helpers';
+import { LS_CUSTOMERS, loadCustomers } from '../store/helpers';
 import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override-display';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
@@ -558,6 +558,7 @@ export default function ManHinhQuanLy() {
   const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, setChotGiaForLatest: datGiaChotChoMoiNhat, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, capNhatHienTaiVaoLichSu: capNhatVaoLichSu, setActiveModule: datPhan,
     role,   loadedHistoryId: loadedHistoryId,
   originalCustomerLoaded: originalCustomerLoaded, history: lichSu, materials,
+    currentSellerId: idNhanVienHienTai,
     saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin, showSaleOverrides: hienGhiDeSale, showAdminOverrides: hienGhiDeAdmin,
     setSaleOverride: datGhiDeSale, setAdminOverride: datGhiDeAdmin, setShowSaleOverrides: datHienGhiDeSale, setShowAdminOverrides: datHienGhiDeAdmin, persistOverrides: luuGhiDe, calculateForInput,
   accessToken, isAuthenticated,
@@ -570,8 +571,19 @@ const isSameCustomer = loadedItem && originalCustomerLoaded && currentCustomerCo
 const buttonLabel = loadedItem
   ? (isSameCustomer ? "🔄 Cập nhật" : "📄 Tạo bảng tính mới")
   : "💾 Lưu báo giá";
-const showBanner = loadedItem && !isSameCustomer;
+  const showBanner = loadedItem && !isSameCustomer;
   const [vatLieuCuonDangChon, datVatLieuCuonDangChon] = React.useState('');
+
+  // Sale chỉ được lưu khi khách hàng thuộc danh sách mình quản lý (hoặc khách vừa tạo
+  // mới — vốn đã được gán sellerId/managers của sale). Admin không bị giới hạn.
+  // Trả true nếu hợp lệ, ngược lại alert + trả false.
+  const kiemTraKhachHangQuyen = () => {
+    if (laKhachHangThuocQuyen(input.customer, loadCustomers() as KhachHangCoTen[], role, idNhanVienHienTai)) return true;
+    alert(input.customer.trim()
+      ? 'Bạn chỉ được lưu cho khách hàng mình quản lý. Vui lòng chọn từ gợi ý hoặc tạo khách mới.'
+      : 'Vui lòng chọn khách hàng bạn quản lý trước khi lưu.');
+    return false;
+  };
 
   if (manHinhDangMo !== 'manager') return null;
 
@@ -972,6 +984,7 @@ const showBanner = loadedItem && !isSameCustomer;
                         alert('Vui lòng nhập tên sản phẩm trước khi lưu.');
                         return;
                       }
+                      if (!kiemTraKhachHangQuyen()) return;
                       capNhatVaoLichSu();
                       const h = dungCuaHangTinhGia.getState().history.find(x => x.id === loadedHistoryId);
                       void syncPricingSheetToServer(h, isAuthenticated, accessToken);
@@ -996,6 +1009,7 @@ const showBanner = loadedItem && !isSameCustomer;
                         alert('Vui lòng nhập tên sản phẩm trước khi lưu.');
                         return;
                       }
+                      if (!kiemTraKhachHangQuyen()) return;
                       themVaoLichSu();
                       const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
                       const h = dungCuaHangTinhGia.getState().history.find(x => x.id === newId);
@@ -1023,6 +1037,7 @@ const showBanner = loadedItem && !isSameCustomer;
                       alert('Vui lòng nhập tên sản phẩm trước khi lưu.');
                       return;
                     }
+                    if (!kiemTraKhachHangQuyen()) return;
                     themVaoLichSu();
                     const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
                     const h = dungCuaHangTinhGia.getState().history.find(x => x.id === newId);
@@ -1220,6 +1235,7 @@ const showBanner = loadedItem && !isSameCustomer;
 
             // Khi chưa có loadedHistoryId: tự lưu lichSu trước rồi persist override
             const handleSaveNew = () => {
+              if (!kiemTraKhachHangQuyen()) return;
               themVaoLichSu();
               // loadedHistoryId vừa được set bởi themVaoLichSu (sync state)
               const newId = dungCuaHangTinhGia.getState().loadedHistoryId;

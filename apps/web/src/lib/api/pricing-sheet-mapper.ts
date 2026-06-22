@@ -120,7 +120,7 @@ export function mapPricingSheetToHistory(
     pricingSheetId: sheet.id,
     priceConfigIds: sheet.priceConfigIds,
     originalCustomer: sheet.customerCodeName || syncedInput.customer || undefined,
-    sellerName: sheet.original?.actorName,
+    sellerName: sheet.original?.actorName ?? undefined,
     input: syncedInput,
   };
 }

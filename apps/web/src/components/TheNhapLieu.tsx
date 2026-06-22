@@ -4,7 +4,7 @@ import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { LS_CUSTOMERS, loadCustomers, luuLocalStorage } from '../store/helpers';
 import { taoKhachHangNhanhChoBaoGia, laNguoiPhuTrach } from '../lib/customer-api';
-import { taoMaKhachHangService, layKhachHangService } from '../lib/api/service-lts';
+import { taoMaKhachHangService, layKhachHangService, luuNguoiPhuTrachKhachHangService } from '../lib/api/service-lts';
 import { chuyenDanhSachCustomerApiSangUi } from '../lib/customer-api';
 import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
 
@@ -128,9 +128,10 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   const [dangFocusKhachHang, datDangFocusKhachHang] = React.useState(false);
   const [danhSachKhachHang, datDanhSachKhachHang] = React.useState<KhachHangGoiY[]>(() => loadCustomers() as KhachHangGoiY[]);
   const [maKhachHangMoi, datMaKhachHangMoi] = React.useState('');
-  const [loiTaoKhachHang, datLoiTaoKhachHang] = React.useState('');
+ const [loiTaoKhachHang, datLoiTaoKhachHang] = React.useState('');
   const [dangTaoKhachHang, datDangTaoKhachHang] = React.useState(false);
   const quickCustomerRef = React.useRef<HTMLDivElement | null>(null);
+ const [vuaTaoKhachMoi, datVuaTaoKhachMoi] = React.useState(false);
 
   const lamMoiDanhSachKhachHang = React.useCallback(() => {
     datDanhSachKhachHang(loadCustomers() as KhachHangGoiY[]);
@@ -165,13 +166,37 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
 
   const goiYKhachHang = React.useMemo(() => {
     const tuKhoa = boDau(input.customer.trim());
-    if (!dangFocusKhachHang || tuKhoa.length < 1) return [];
+    if (!isAuthenticated || !dangFocusKhachHang || tuKhoa.length < 1) return [];
 
     return danhSachKhachHang
       .filter(kh => (role === 'admin' || laNguoiPhuTrach(kh, currentSellerId)) && kh.status !== 'inactive' && !kh.isLocked)
       .filter(kh => boDau(`${kh.companyName} ${kh.customerCode} ${kh.contactName ?? ''} ${kh.phone ?? ''}`).includes(tuKhoa))
       .slice(0, 6);
-  }, [currentSellerId, danhSachKhachHang, dangFocusKhachHang, input.customer, role]);
+ }, [isAuthenticated, currentSellerId, danhSachKhachHang, dangFocusKhachHang, input.customer, role]);
+
+  // ── Phân quyền chọn khách hàng ──────────────────────────────────────────
+  // Sale/purchase chỉ được dùng khách mình phụ trách. Admin và offline không bị giới hạn.
+  const tenKhachNhap = input.customer.trim();
+  const khachHopLe = React.useMemo(() => {
+    if (!isAuthenticated || role === 'admin') return true;
+    if (vuaTaoKhachMoi) return true;
+    if (!tenKhachNhap) return false;
+    const chuan = boDau(tenKhachNhap);
+    if (!chuan) return false;
+    return danhSachKhachHang.some(
+      kh => laNguoiPhuTrach(kh, currentSellerId) && boDau((kh.companyName || '').trim()) === chuan,
+    );
+  }, [isAuthenticated, role, vuaTaoKhachMoi, tenKhachNhap, danhSachKhachHang, currentSellerId]);
+
+  // Tên khách trùng một KH đã tồn tại trong DB nhưng không do sale quản lý.
+  const khachTonTaiNgoaiQuyen = React.useMemo(() => {
+    if (!isAuthenticated || role === 'admin' || !tenKhachNhap) return false;
+    const chuan = boDau(tenKhachNhap);
+    if (!chuan) return false;
+    return danhSachKhachHang.some(
+      kh => boDau((kh.companyName || '').trim()) === chuan && !laNguoiPhuTrach(kh, currentSellerId),
+    );
+  }, [isAuthenticated, role, tenKhachNhap, danhSachKhachHang, currentSellerId]);
 
   const xuLyRoiONhapKhachHang = () => {
     setTimeout(() => {
@@ -189,6 +214,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
         ...taoKhachHangNhanhChoBaoGia(input.customer, maKhachHangMoi),
         sellerId: currentSellerId || null,
         sellerName: currentSellerName || '',
+        managers: currentSellerId ? [{ userId: currentSellerId, fullName: currentSellerName || null }] : [],
       } as KhachHangGoiY;
     } catch (error) {
       datLoiTaoKhachHang(error instanceof Error ? error.message : 'Thông tin khách hàng chưa hợp lệ.');
@@ -205,13 +231,25 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
     try {
       if (isAuthenticated && accessToken) {
         await taoMaKhachHangService(khachHangMoi.customerCode, accessToken);
+        // Gán sale hiện tại làm người phụ trách trên server — đảm bảo khách mới
+        // thật sự thuộc sale khi tải lại (qua managers), không chỉ sellerId local.
+        if (currentSellerId) {
+          try {
+            await luuNguoiPhuTrachKhachHangService(
+              khachHangMoi.customerCode,
+              [{ managerId: currentSellerId }],
+              accessToken,
+            );
+          } catch { /* không rollback tạo khách nếu gán quản lý lỗi */ }
+        }
       }
       const danhSachMoi = [khachHangMoi, ...danhSachKhachHang];
       luuLocalStorage(LS_CUSTOMERS, danhSachMoi);
       datDanhSachKhachHang(danhSachMoi);
-      capNhatDauVao({ customer: khachHangMoi.companyName });
-      datMaKhachHangMoi('');
-      datDangFocusKhachHang(false);
+     capNhatDauVao({ customer: khachHangMoi.companyName });
+     datMaKhachHangMoi('');
+     datDangFocusKhachHang(false);
+      datVuaTaoKhachMoi(true);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Không tạo được khách hàng.';
       datLoiTaoKhachHang(message.includes('đã tồn tại') || message.includes('xung đột') ? 'Mã khách hàng này đã được sử dụng. Vui lòng chọn mã khác.' : message);
@@ -554,10 +592,20 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             placeholder="Tên khách hàng"
             value={input.customer}
             onFocus={() => datDangFocusKhachHang(true)}
-            onBlur={xuLyRoiONhapKhachHang}
-            onChange={e => capNhatDauVao({ customer: e.target.value })}
-            autoComplete="off"
-          />
+           onBlur={xuLyRoiONhapKhachHang}
+            onChange={e => { capNhatDauVao({ customer: e.target.value }); datVuaTaoKhachMoi(false); }}
+           autoComplete="off"
+         />
+          {isAuthenticated && role !== 'admin' && input.customer.trim() && !khachHopLe && (
+            <div style={{ marginTop: 6, fontSize: '.76rem', color: '#dc2626', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span aria-hidden>⚠️</span>
+              <span>
+                {khachTonTaiNgoaiQuyen
+                  ? 'Khách hàng này không do bạn quản lý — không thể chọn. Bạn có thể tạo khách hàng mới với mã riêng.'
+                  : 'Vui lòng chọn khách hàng từ danh sách hoặc tạo mới.'}
+              </span>
+            </div>
+          )}
           {dangFocusKhachHang && input.customer.trim() && goiYKhachHang.length === 0 && (
             <div
               ref={quickCustomerRef}
@@ -609,10 +657,11 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                   key={kh.id}
                   type="button"
                   onMouseDown={e => e.preventDefault()}
-                  onClick={() => {
-                    capNhatDauVao({ customer: kh.companyName });
-                    datDangFocusKhachHang(false);
-                  }}
+                 onClick={() => {
+                   capNhatDauVao({ customer: kh.companyName });
+                   datDangFocusKhachHang(false);
+                    datVuaTaoKhachMoi(false);
+                 }}
                   style={{
                     width: '100%', border: 0, background: 'transparent', textAlign: 'left', padding: '9px 11px',
                     cursor: 'pointer', borderBottom: '1px solid var(--border)', color: 'var(--text)'
@@ -1182,40 +1231,6 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
       )}
 
       <div className="divider"></div>
-
-      <div style={{ marginTop: '14px' }}>
-        <button
-          className="btn btn-primary"
-          id="btnCalculate"
-          onClick={() => {
-            const hopLe =
-              !!input.productType &&
-              (input.productType !== 'tui' || !!input.bagType) &&
-              (input.productType !== 'mang' || !!input.filmType) &&
-              (input.quantity || 0) > 0 &&
-              (input.spreadWidth || 0) > 0 &&
-              (input.cutStep || 0) > 0 &&
-              input.numColors !== null;
-            if (!hopLe) {
-              alert('Vui lòng nhập đầy đủ thông tin đơn hàng.');
-              return;
-            }
-            if (!result) {
-              alert('Vui lòng nhập đầy đủ thông tin đơn hàng.');
-              return;
-            }
-            if (!(input.productName || '').trim()) {
-              alert('Vui lòng nhập tên sản phẩm trước khi lưu.');
-              return;
-            }
-            themVaoLichSu();
-            const nhanDonVi = input.productType === 'mang' ? 'm²' : 'túi';
-            alert(`Giá đề xuất: ${Math.round(result.finalPrice).toLocaleString('vi-VN')} đ/${nhanDonVi}`);
-          }}
-        >
-          ⚡ Tính giá
-        </button>
-      </div>
 
       <div className="quick-actions">
         <button className="btn btn-sm btn-outline" onClick={xuLyDatLai}>🔄 Đặt lại</button>

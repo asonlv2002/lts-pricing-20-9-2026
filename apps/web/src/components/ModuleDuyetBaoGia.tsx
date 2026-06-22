@@ -5,7 +5,7 @@ import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { normalizeDisplayText } from '../lib/text-codec';
 import { coQuyenDuyetBaoGia } from '../lib/permissions';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
-import type { HistoryItem } from '../lib/types';
+import type { CalculateInput, HistoryItem } from '../lib/types';
 import {
   layDanhSachBaoGiaService,
   layBaoGiaChoDuyetService,
@@ -96,6 +96,40 @@ function InfoRow({ label, value, bold, mono, color }: { label: string; value: st
   );
 }
 
+function laObject(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function docInputBangTinh(value: unknown): Partial<CalculateInput> {
+  return laObject(value) ? (value as Partial<CalculateInput>) : {};
+}
+
+function cauTrucTuInput(input: Partial<CalculateInput>): string {
+  return [input.layer1Id, input.layer2Id, input.layer3Id, input.layer4Id, input.layer5Id]
+    .filter(Boolean)
+    .join(' / ');
+}
+
+function tenBaoGia(bg: BaoGiaApi): string {
+  return normalizeDisplayText(bg.quotationName || bg.pricingSheets?.[0]?.pricingSheetName || 'Báo giá');
+}
+
+function tuKhoaBaoGia(bg: BaoGiaApi): string {
+  const pricingText = (bg.pricingSheets ?? []).map(sheet => {
+    const input = docInputBangTinh(sheet.inputValue);
+    return [sheet.pricingSheetName, input.productName, input.customer, sheet.customer?.codeName, sheet.customerCodeName]
+      .filter(Boolean)
+      .join(' ');
+  }).join(' ');
+  return boDau(`${tenBaoGia(bg)} ${pricingText}`);
+}
+
+function nguoiTaoBaoGia(bg: BaoGiaApi): string | undefined {
+  return bg.original?.actorName
+    ?? bg.pricingSheets?.find(sheet => sheet.original?.actorName)?.original?.actorName
+    ?? undefined;
+}
+
 interface ChiTietProps {
   baoGia: BaoGiaApi;
   onClose: () => void;
@@ -108,11 +142,19 @@ interface ChiTietProps {
 
 function ChiTietBaoGiaPanel({ baoGia, onClose, laNguoiDuyet, dangXuLy, onNop, onDuyet, onTaoBanSua }: ChiTietProps) {
   const trangThai = chuyenTrangThaiBaoGia(baoGia.updateStatus);
-  // inputValue thực chất là một HistoryItem do frontend gửi lên khi tạo báo giá.
   const item = (baoGia.inputValue ?? {}) as Partial<HistoryItem>;
-  const meta = getPricingDisplayMeta(item.input ?? {});
+  const pricingSheets = baoGia.pricingSheets ?? [];
+  const firstSheet = pricingSheets[0];
+  const firstInput = docInputBangTinh(firstSheet?.inputValue);
+  const coSnapshotCu = !!(item.productName || item.quoteProducts?.length || item.input);
+  const meta = getPricingDisplayMeta(coSnapshotCu ? (item.input ?? {}) : firstInput);
   const coGiaChot = typeof item.chotGia === 'number' && item.chotGia > 0;
   const dsSanPham = item.quoteProducts ?? [];
+  const khachHang = item.customer || firstInput.customer || firstSheet?.customer?.codeName || firstSheet?.customerCodeName || '—';
+  const tenSanPham = item.productName || firstInput.productName || firstSheet?.pricingSheetName || (pricingSheets.length ? `${pricingSheets.length} sản phẩm` : '—');
+  const cauTruc = item.structure || cauTrucTuInput(firstInput) || '—';
+  const soLuong = typeof item.quantity === 'number' ? item.quantity : firstInput.quantity;
+  const nguoiLap = nguoiTaoBaoGia(baoGia);
 
   return (
     <>
@@ -123,7 +165,7 @@ function ChiTietBaoGiaPanel({ baoGia, onClose, laNguoiDuyet, dangXuLy, onNop, on
             <FileText size={18} />
           </div>
           <div className="qrev-panel-title">
-            <span className="qrev-panel-name">{normalizeDisplayText(baoGia.quotationName || 'Báo giá')}</span>
+            <span className="qrev-panel-name">{tenBaoGia(baoGia)}</span>
             <span className="qrev-panel-meta">
               Tạo {dinhDangNgay(baoGia.createdAt)} · Cập nhật {dinhDangNgay(baoGia.updatedAt)}
             </span>
@@ -139,13 +181,13 @@ function ChiTietBaoGiaPanel({ baoGia, onClose, laNguoiDuyet, dangXuLy, onNop, on
 
           <div className="qrev-panel-section-title">Thông tin chung</div>
           <div className="qrev-info-grid">
-            <InfoRow label="Khách hàng" value={item.customer || '—'} />
-            <InfoRow label="Sản phẩm" value={item.productName || '—'} />
-            <InfoRow label="Cấu trúc" value={item.structure || '—'} mono />
-            {typeof item.quantity === 'number' && (
-              <InfoRow label="Số lượng" value={`${dinhDangSo(item.quantity)} ${meta.quantityUnitForHistory}`} />
+            <InfoRow label="Khách hàng" value={normalizeDisplayText(String(khachHang))} />
+            <InfoRow label="Sản phẩm" value={normalizeDisplayText(String(tenSanPham))} />
+            <InfoRow label="Cấu trúc" value={normalizeDisplayText(cauTruc)} mono />
+            {typeof soLuong === 'number' && (
+              <InfoRow label="Số lượng" value={`${dinhDangSo(soLuong)} ${meta.quantityUnitForHistory}`} />
             )}
-            {item.sellerName && <InfoRow label="Sale" value={item.sellerName} />}
+            {nguoiLap && <InfoRow label="Sale" value={normalizeDisplayText(nguoiLap)} />}
           </div>
 
           {typeof item.finalPrice === 'number' && (
@@ -175,6 +217,36 @@ function ChiTietBaoGiaPanel({ baoGia, onClose, laNguoiDuyet, dangXuLy, onNop, on
                     ))}
                   </div>
                 ))}
+              </div>
+            </>
+          )}
+
+          {dsSanPham.length === 0 && pricingSheets.length > 0 && (
+            <>
+              <div className="qrev-panel-section-title">Sản phẩm trong báo giá</div>
+              <div className="qrev-info-grid">
+                {pricingSheets.map(sheet => {
+                  const input = docInputBangTinh(sheet.inputValue);
+                  const sheetMeta = getPricingDisplayMeta(input);
+                  const sheetStructure = cauTrucTuInput(input);
+                  return (
+                    <div key={sheet.id} className="qrev-product-line">
+                      <div className="qrev-product-name">{normalizeDisplayText(input.productName || sheet.pricingSheetName || 'Sản phẩm')}</div>
+                      {sheetStructure && <div className="qrev-product-struct">{normalizeDisplayText(sheetStructure)}</div>}
+                      {typeof input.quantity === 'number' && (
+                        <div className="qrev-product-tier">Số lượng: <b>{dinhDangSo(input.quantity)} {sheetMeta.quantityUnitForHistory}</b></div>
+                      )}
+                      {typeof input.numColors === 'number' && (
+                        <div className="qrev-product-tier">Màu in: <b>{input.numColors > 0 ? `${input.numColors} màu` : 'Không in'}</b></div>
+                      )}
+                      {(input.spreadWidth || input.cutStep) && (
+                        <div className="qrev-product-tier">
+                          Kích thước: <b>{input.spreadWidth ? `${Math.round(input.spreadWidth * 1000)}mm` : '—'} × {input.cutStep ? `${Math.round(input.cutStep * 1000)}mm` : '—'}</b>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </>
           )}
@@ -271,7 +343,7 @@ export default function ModuleDuyetBaoGia() {
     return danhSach.filter(bg => {
       const tt = chuyenTrangThaiBaoGia(bg.updateStatus);
       if (nguon === 'list' && !thuocBoLoc(tt, boLoc)) return false;
-      if (q && !boDau(normalizeDisplayText(bg.quotationName || '')).includes(q)) return false;
+      if (q && !tuKhoaBaoGia(bg).includes(q)) return false;
       return true;
     });
   }, [danhSach, tuKhoa, boLoc, nguon]);
@@ -318,7 +390,7 @@ export default function ModuleDuyetBaoGia() {
     try {
       await taoBanSuaBaoGiaService({
         quotationId: bg.id,
-        quotationName: `${normalizeDisplayText(bg.quotationName || 'Báo giá')} (bản sửa)`,
+        quotationName: `${tenBaoGia(bg)} (bản sửa)`,
         inputValue: bg.inputValue ?? {},
       }, accessToken);
       hienThongBao('Đã tạo bản sửa (nháp mới) từ báo giá bị từ chối.');
@@ -438,6 +510,7 @@ export default function ModuleDuyetBaoGia() {
               <thead>
                 <tr>
                   <th>Báo giá</th>
+                  <th>Sale</th>
                   <th>Cập nhật</th>
                   <th>Trạng thái</th>
                   <th>Thao tác</th>
@@ -446,17 +519,19 @@ export default function ModuleDuyetBaoGia() {
               <tbody>
                 {ketQua.map(bg => {
                   const trangThai = chuyenTrangThaiBaoGia(bg.updateStatus);
+                  const saleName = nguoiTaoBaoGia(bg);
                   return (
                     <tr key={bg.id} className="qrev-row" onClick={() => datChiTiet(bg)}>
                       <td>
                         <div className="qrev-cell-quote">
                           <div className="qrev-avatar" style={{ background: mauAvatar(bg.id) }}><FileText size={15} /></div>
                           <div className="qrev-cell-quote-text">
-                            <span className="qrev-cell-name">{normalizeDisplayText(bg.quotationName || 'Báo giá')}</span>
+                            <span className="qrev-cell-name">{tenBaoGia(bg)}</span>
                             <span className="qrev-cell-sub">{dinhDangNgay(bg.createdAt)}</span>
                           </div>
                         </div>
                       </td>
+                      <td className="qrev-cell-sale">{saleName ? normalizeDisplayText(saleName) : '—'}</td>
                       <td className="qrev-cell-date">{dinhDangNgay(bg.updatedAt)}</td>
                       <td><HuyHieuTrangThai trangThai={trangThai} /></td>
                       <td>{renderHanhDong(bg, trangThai)}</td>
@@ -576,6 +651,7 @@ const QREV_STYLES = `
 .qrev-cell-quote-text { display: flex; flex-direction: column; min-width: 0; }
 .qrev-cell-name { font-weight: 600; color: var(--text, #111827); }
 .qrev-cell-sub { font-size: 12px; color: var(--muted, #6b7280); }
+.qrev-cell-sale { font-size: 12.5px; color: var(--text, #374151); font-weight: 600; white-space: nowrap; }
 .qrev-cell-date { font-size: 12.5px; color: var(--muted, #6b7280); white-space: nowrap; }
 
 .qrev-badge {
@@ -683,6 +759,7 @@ const QREV_STYLES = `
     box-shadow: 0 2px 8px rgba(15,23,42,0.04);
   }
   .lts-shell--mobile .qrev-row td { display: block; padding: 0; border: 0; }
+  .lts-shell--mobile .qrev-cell-sale::before { content: 'Sale: '; color: var(--muted, #9ca3af); font-weight: 500; }
   .lts-shell--mobile .qrev-cell-date::before { content: 'Cập nhật: '; color: var(--muted, #9ca3af); }
   .lts-shell--mobile .qrev-row-actions { justify-content: flex-end; }
   .lts-shell--mobile .qrev-slide-panel { width: 100vw; }

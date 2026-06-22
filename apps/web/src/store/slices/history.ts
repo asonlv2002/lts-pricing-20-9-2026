@@ -35,8 +35,9 @@ export interface HistorySlice {
     products: QuoteProductLine[];
     terms: QuoteTerms;
     sendForApproval: boolean;
+    quotationId?: string;
   }) => string | null;
-  patchHistoryItem: (id: string, patch: Partial<Pick<HistoryItem, 'customer' | 'productName' | 'chotGia' | 'quoteStatus'>>) => void;
+  patchHistoryItem: (id: string, patch: Partial<Pick<HistoryItem, 'customer' | 'productName' | 'chotGia' | 'quoteStatus' | 'quotationId'>>) => void;
 }
 
 function tinhNgayHieuLuc(terms?: QuoteTerms): string | undefined {
@@ -169,7 +170,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
   },
 
   taiLichSuTuServer: async () => {
-    if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') return false;
     const state = get();
     const token = state.accessToken;
     if (!token) return false;
@@ -361,7 +361,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     });
   },
 
-  taoBaoGiaMoi: ({ customer, products, terms, sendForApproval }) => {
+  taoBaoGiaMoi: ({ customer, products, terms, sendForApproval, quotationId }) => {
     if (products.length === 0) return null;
     const state = get();
     const now = new Date();
@@ -379,6 +379,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       chotGia: first.chotGia,
       profitRate: first.profitRate,
       quoteStatus: status,
+      quotationId,
       quoteCode,
       isQuote: true,
       quoteProducts: products,

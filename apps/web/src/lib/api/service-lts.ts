@@ -215,11 +215,6 @@ export async function lamMoiTokenQuaQuanLyPhien(): Promise<TokenPair> {
 
 // ── Generic fetch ────────────────────────────────────────────────────────
 async function goiService<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
-  if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') {
-    const { mockPhanQuyen } = await import('./mock-phan-quyen');
-    return mockPhanQuyen<T>(path, options, token ?? layTokenHienTai?.()?.accessToken);
-  }
-
   const firstToken = token ?? layTokenHienTai?.()?.accessToken;
   let res: Response;
   try {
@@ -576,16 +571,19 @@ export interface CapNhatPricingSheetAdvisorInput {
 export interface PricingSheetApi {
   id: string;
   pricingSheetName: string;
-  customerCodeName: string;
-  inputValue: unknown;
-  saleResult?: unknown;
-  masterResult?: unknown;
+  customerCodeName?: string;
+  customer?: { codeName?: string | null } | null;
+  inputValue?: unknown;
+  saleResult?: unknown | null;
+  masterResult?: unknown | null;
   quotationId?: string | null;
   note?: string | null;
+  createdBy?: string | null;
+  updatedBy?: string | null;
   createdAt: string;
   updatedAt: string;
   priceConfigIds?: string[];
-  original?: { actorName: string };
+  original?: { actorName?: string | null } | null;
 }
 
 export async function taoPricingSheetService(
@@ -677,9 +675,14 @@ export interface BaoGiaApi {
   id: string;
   customerId?: string | null;
   productId?: string | null;
+  description?: string | null;
   quotationName?: string | null;
   inputValue?: unknown;
   updateStatus?: string | null;
+  createdBy?: string | null;
+  reviewerId?: string | null;
+  pricingSheets?: PricingSheetApi[];
+  original?: { actorName?: string | null } | null;
   createdAt: string;
   updatedAt: string;
 }

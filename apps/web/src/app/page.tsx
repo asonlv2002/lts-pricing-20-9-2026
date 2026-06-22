@@ -158,45 +158,14 @@ export default function TrangChinh() {
       }
 
       // Lịch sử
-      // Offline mode: dùng dữ liệu mẫu từ seed file.
-      // Online mode: hiển thị tạm localStorage (nếu có), history thật sẽ
-      // được tải từ server qua taiLichSuTuServer khi isAuthenticated → true.
-      const laOffline = process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true';
+      // History thật sẽ được tải từ server qua taiLichSuTuServer khi isAuthenticated → true.
       const rawLichSu = window.localStorage.getItem('lts_history');
       if (rawLichSu) {
         const parsed = JSON.parse(rawLichSu);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const patched = parsed.map((h: any) => ({ ...h, quoteStatus: h.quoteStatus ?? 'drafted' }));
           dungCuaHangTinhGia.setState({ history: patched });
-          // Offline: merge thêm seed báo giá nếu chưa có
-          if (laOffline) {
-            const hasQuote = patched.some((h: any) => h.isQuote || h.quoteProducts?.length);
-            if (!hasQuote) {
-              fetch('/seed-history.json')
-                .then(r => r.ok ? r.json() : [])
-                .then((seed: any[]) => {
-                  const quoteRecords = seed.filter((h: any) => h.isQuote || h.quoteProducts?.length);
-                  if (quoteRecords.length > 0) {
-                    const merged = [...patched, ...quoteRecords];
-                    dungCuaHangTinhGia.setState({ history: merged });
-                    try { window.localStorage.setItem('lts_history', JSON.stringify(merged)); } catch {}
-                  }
-                }).catch(() => {});
-            }
-          }
         }
-      } else if (laOffline) {
-        // Offline lần đầu: fetch dữ liệu mẫu từ seed file
-        fetch('/seed-history.json')
-          .then(r => r.ok ? r.json() : [])
-          .then((seed: any[]) => {
-            if (Array.isArray(seed) && seed.length > 0) {
-              const patched = seed.map((h: any) => ({ ...h, quoteStatus: h.quoteStatus ?? 'drafted' }));
-              dungCuaHangTinhGia.setState({ history: patched });
-              try { window.localStorage.setItem('lts_history', JSON.stringify(patched)); } catch {}
-            }
-          })
-          .catch(() => {});
       }
 
       // LSX

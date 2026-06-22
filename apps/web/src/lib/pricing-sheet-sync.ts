@@ -46,7 +46,6 @@ export function quyetDinhPricingSheetSync(
   pricingSheetId?: string | null,
 ): SyncDecision {
   if (!h) return { action: 'skip', includeAdvisor: false, reason: 'không có history item' };
-  if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') return { action: 'skip', includeAdvisor: false, reason: 'offline mode' };
   if (!isAuthenticated || !accessToken) return { action: 'skip', includeAdvisor: false, reason: 'chưa đăng nhập' };
 
   const maKH = timMaKhachHang(h.customer);

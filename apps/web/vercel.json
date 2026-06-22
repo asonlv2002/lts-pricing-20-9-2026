@@ -7,14 +7,12 @@
   ],
   "env": {
     "SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com",
-    "NEXT_PUBLIC_SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com",
-    "NEXT_PUBLIC_OFFLINE_MODE": "false"
+    "NEXT_PUBLIC_SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com"
   },
   "build":{
     "env": {
       "SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com",
-      "NEXT_PUBLIC_SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com",
-      "NEXT_PUBLIC_OFFLINE_MODE": "false"
+      "NEXT_PUBLIC_SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com"
     }
   }
 }

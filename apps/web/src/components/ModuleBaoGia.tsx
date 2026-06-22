@@ -14,7 +14,7 @@ import type { AppConstants, HistoryItem, Material, ProfitRow, QuoteProductLine, 
 import { QUOTE_STATUS_CONFIG } from '../lib/types';
 import { taoBaoGiaService, nopBaoGiaService, taoPricingSheetService } from '../lib/api/service-lts';
 import { mapHistoryToPricingSheet } from '../lib/api/pricing-sheet-mapper';
-import { kiemTraMaKhachHang, locKhachTheoQuyen } from '../lib/customer-api';
+import { kiemTraMaKhachHang, laNguoiPhuTrach, locKhachTheoQuyen } from '../lib/customer-api';
 import { countOverrideChanges, listOverrideChanges } from '../lib/override-display';
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
@@ -334,7 +334,7 @@ function hienThiKhacBietGhiDe(ov: OverrideTable | undefined, lopNhom: string, nh
 // ════════════════════════════════════════════════════════════
 function HopChonTrangThaiAdmin({ muc, khiCapNhat }: {
   muc: HistoryItem;
-  khiCapNhat: (id: string, status: QuoteStatus) => void;
+  khiCapNhat: (muc: HistoryItem, status: QuoteStatus) => Promise<void> | void;
 }) {
   const [mo, datMo] = useState(false);
   const hienTai = layTrangThai(muc);
@@ -365,7 +365,7 @@ function HopChonTrangThaiAdmin({ muc, khiCapNhat }: {
                 <button
                   key={buoc}
                   className={`qcard-dropdown-item ${dangChon ? 'active' : ''}`}
-                  onClick={() => { khiCapNhat(muc.id, buoc); datMo(false); }}
+                  onClick={() => { void khiCapNhat(muc, buoc); datMo(false); }}
                 >
                   <span className="qcard-dropdown-dot" style={{ background: cauHinhBuoc.color }} />
                   <span className="qcard-dropdown-icon">{ICON_BUOC[buoc]}</span>
@@ -390,11 +390,24 @@ function HopChonTrangThaiAdmin({ muc, khiCapNhat }: {
 // ════════════════════════════════════════════════════════════
 function DieuKhienTrangThaiSale({ muc, khiCapNhat }: {
   muc: HistoryItem;
-  khiCapNhat: (id: string, status: QuoteStatus) => void;
+  khiCapNhat: (muc: HistoryItem, status: QuoteStatus) => Promise<void> | void;
 }) {
   const [xacNhan, datXacNhan] = useState(false);
+  const [dangGui, datDangGui] = useState(false);
   const hienTai = layTrangThai(muc);
   const cauHinh = QUOTE_STATUS_CONFIG[hienTai];
+
+  const guiDuyet = async () => {
+    datDangGui(true);
+    try {
+      await khiCapNhat(muc, 'pending_approval');
+      datXacNhan(false);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Không gửi được báo giá lên máy chủ.');
+    } finally {
+      datDangGui(false);
+    }
+  };
 
   if (hienTai === 'drafted') {
     return (
@@ -412,6 +425,7 @@ function DieuKhienTrangThaiSale({ muc, khiCapNhat }: {
           <button
             className="qcard-send-btn"
             onClick={() => datXacNhan(true)}
+            disabled={dangGui}
             title="Gửi báo giá cho Admin duyệt"
           >
             <Send size={12} />
@@ -421,10 +435,12 @@ function DieuKhienTrangThaiSale({ muc, khiCapNhat }: {
           <div className="qcard-send-xacNhan">
             <span style={{ fontSize: '0.72rem', color: 'var(--muted)' }}>Xác nhận gửi?</span>
             <button className="qcard-send-btn qcard-send-btn--yes"
-              onClick={() => { khiCapNhat(muc.id, 'pending_approval'); datXacNhan(false); }}>
-              ✓
+              disabled={dangGui}
+              onClick={() => { void guiDuyet(); }}>
+              {dangGui ? '...' : '✓'}
             </button>
             <button className="qcard-send-btn qcard-send-btn--no"
+              disabled={dangGui}
               onClick={() => datXacNhan(false)}>
               ✕
             </button>
@@ -648,7 +664,7 @@ function AdminView({ mucs, search, chiTimKhachHang = false, onOpen, onStatusUpda
   search: string;
   chiTimKhachHang?: boolean;
   onOpen: (id: string) => void;
-  onStatusUpdate: (id: string, status: QuoteStatus) => void;
+  onStatusUpdate: (muc: HistoryItem, status: QuoteStatus) => Promise<void> | void;
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -760,7 +776,7 @@ function SaleView({ mucs, search, chiTimKhachHang = false, onOpen, onStatusUpdat
   search: string;
   chiTimKhachHang?: boolean;
   onOpen: (id: string) => void;
-  onStatusUpdate: (id: string, status: QuoteStatus) => void;
+  onStatusUpdate: (muc: HistoryItem, status: QuoteStatus) => Promise<void> | void;
 }) {
   const filtered = useMemo(() => {
     if (!search.trim()) return mucs;
@@ -1363,7 +1379,7 @@ function BuocXacNhan({
 // ════════════════════════════════════════════════════════════
 function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; onSavedNavigate?: () => void }) {
   const store = dungCuaHangTinhGia() as any;
-  const { history, currentSellerName, materials, constants, profitTable, smallWidthPrices, taoBaoGiaMoi, accessToken, isAuthenticated } = store;
+  const { history, currentSellerName, currentSellerId, role, materials, constants, profitTable, smallWidthPrices, taoBaoGiaMoi, accessToken, isAuthenticated } = store;
 
   const [state, setState] = useState<WizardState>({
     customer: null,
@@ -1382,15 +1398,28 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
     if (!prefill) return;
     const prefillProducts = (history as HistoryItem[])
       .filter((item: HistoryItem) => prefill.historyItemIds?.includes(item.id))
-      .map((item: HistoryItem) => buildWizardProductFromHistoryItem(item));
-    const prefillCustomer = docKhachHang().find(customer => {
+     .map((item: HistoryItem) => buildWizardProductFromHistoryItem(item));
+    // Chỉ prefill khách hàng do người dùng hiện tại phụ trách (admin thấy tất cả).
+    const tatCaKhach = docKhachHang();
+    const khachDuocChon = locKhachTheoQuyen(tatCaKhach, role, currentSellerId);
+    const prefillCustomer = khachDuocChon.find(customer => {
       const name = tenKhachHang(customer).toLowerCase();
       const query = (prefill.customerName ?? '').toLowerCase();
       return !!query && (name === query || customer.customerCode.toLowerCase() === query || name.includes(query) || query.includes(name));
     }) ?? null;
     setState(prev => ({ ...prev, customer: prefillCustomer, products: prefillProducts }));
-    if (!prefillCustomer) setError('Không tìm thấy khách hàng từ lịch sử. Vui lòng chọn khách hàng trước khi lưu báo giá.');
-  }, [history]);
+    if (!prefillCustomer) {
+      const query = (prefill.customerName ?? '').trim();
+      const tonTaiNgoaiQuyen = !!query && tatCaKhach.some(customer => {
+        const name = tenKhachHang(customer).toLowerCase();
+        const q = query.toLowerCase();
+        return name === q || customer.customerCode.toLowerCase() === q || name.includes(q) || q.includes(name);
+      });
+      setError(tonTaiNgoaiQuyen
+        ? `Khách hàng "${query}" không do bạn quản lý. Vui lòng chọn khách hàng khác.`
+        : 'Không tìm thấy khách hàng từ lịch sử. Vui lòng chọn khách hàng trước khi lưu báo giá.');
+    }
+ }, [history]);
 
   const handleCustomerSelect = (c: Customer) => {
     setState(prev => ({ ...prev, customer: c }));
@@ -1400,35 +1429,40 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
     }, 150);
   };
 
-  // Đẩy báo giá lên server theo schema mới (chạy ngầm, không hiện toast):
-  //   1) Tạo 1 pricing sheet cho mỗi sản phẩm (input + override sale/admin).
-  //   2) Tạo quotation tham chiếu toàn bộ pricingSheetIds vừa tạo.
-  // Thiếu/sai mã KH hoặc chưa đăng nhập → bỏ qua im lặng (local đã lưu xong).
+ // Đẩy báo giá lên server theo schema mới:
+ //   1) Dùng pricingSheetId đã có (đã sync từ màn tính giá), chỉ tạo mới khi chưa có.
+ //   2) Tạo quotation tham chiếu toàn bộ pricingSheetIds.
+ //   3) Nộp duyệt (PATCH status_update) khi sendForApproval.
+  // Tạo báo giá trên server trước. Chỉ lưu local sau khi server thành công.
   const dayBaoGiaLenServer = useCallback(async (
     products: WizardProduct[],
     customer: Customer | null,
     terms: WizardState['terms'],
     sendForApproval: boolean,
-  ) => {
-    if (!products.length || !customer) return;
-    if (!isAuthenticated || !accessToken) return;
+   ): Promise<string> => {
+     if (!products.length || !customer) throw new Error('Thiếu dữ liệu báo giá để gửi lên máy chủ.');
+     if (!isAuthenticated || !accessToken) throw new Error('Chưa đăng nhập, không thể lưu/gửi báo giá lên máy chủ.');
 
     const maKH = (customer.customerCode || '').trim();
-    if (!maKH) return;
+     if (!maKH) throw new Error('Khách hàng chưa có mã khách hàng.');
     const checkKH = kiemTraMaKhachHang(maKH);
-    if (!checkKH.hopLe) return;
+     if (!checkKH.hopLe) throw new Error(checkKH.loi ?? 'Mã khách hàng không hợp lệ.');
 
     try {
-      // Bước 1: đẩy từng pricing sheet, gom id.
+      // Bước 1: gom pricingSheetIds — dùng id đã có, chỉ tạo mới khi chưa có.
       const pricingSheetIds: string[] = [];
       for (const prod of products) {
+        if (prod.historyItem.pricingSheetId) {
+          pricingSheetIds.push(prod.historyItem.pricingSheetId);
+          continue;
+        }
         const sheet = await taoPricingSheetService(
           mapHistoryToPricingSheet(prod.historyItem, checkKH.maKhachHang),
           accessToken,
         );
         if (sheet?.id) pricingSheetIds.push(sheet.id);
       }
-      if (pricingSheetIds.length === 0) return;
+      if (pricingSheetIds.length === 0) throw new Error('Không tạo được pricing sheet trên máy chủ.');
 
       // Bước 2: tạo quotation tham chiếu các pricing sheet.
       const created = await taoBaoGiaService(
@@ -1447,11 +1481,15 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
         accessToken,
       );
 
-      if (sendForApproval && created?.id) {
+      if (sendForApproval) {
+        if (!created?.id) throw new Error('Báo giá đã tạo trên máy chủ nhưng không lấy được ID để nộp duyệt.');
         await nopBaoGiaService(created.id, accessToken);
       }
+      if (!created?.id) throw new Error('Báo giá đã tạo trên máy chủ nhưng không lấy được ID.');
+      return created.id;
     } catch (e) {
       console.warn('Đồng bộ báo giá lên máy chủ thất bại:', e);
+      throw e instanceof Error ? e : new Error('Đồng bộ báo giá lên máy chủ thất bại.');
     }
   }, [accessToken, isAuthenticated]);
 
@@ -1462,9 +1500,15 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
       setError('Vui lòng chọn khách hàng');
       setErrorSection(1);
       section1Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+     return;
+   }
+    if (role !== 'admin' && !laNguoiPhuTrach(state.customer, currentSellerId)) {
+      setError('Bạn chỉ được tạo báo giá cho khách hàng mình quản lý.');
+      setErrorSection(1);
+      section1Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       return;
     }
-    if (state.products.length === 0) {
+   if (state.products.length === 0) {
       setError('Vui lòng thêm ít nhất 1 sản phẩm');
       setErrorSection(2);
       section2Ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1501,25 +1545,23 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
           tiers,
         };
       });
-      // 1) Lưu local trước — đây là nguồn chính, luôn thành công.
+      const quotationId = await dayBaoGiaLenServer(state.products, state.customer, state.terms, sendForApproval);
+
       taoBaoGiaMoi({
         customer: state.customer ? tenKhachHang(state.customer) : '',
         products,
         terms: state.terms,
         sendForApproval,
+        quotationId,
       });
-
-      // 2) Đẩy bản sao lên server (song song, không chặn flow local).
-      //    Tạo pricing sheet cho từng sản phẩm rồi gom vào quotation.
-      await dayBaoGiaLenServer(state.products, state.customer, state.terms, sendForApproval);
 
       onClose();
       onSavedNavigate?.();
-    } catch {
-      setError('Có lỗi khi lưu báo giá. Vui lòng thử lại.');
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Có lỗi khi lưu báo giá lên máy chủ. Vui lòng thử lại.');
       setSaving(false);
     }
-  }, [state.products, state.customer, state.terms, taoBaoGiaMoi, onClose, onSavedNavigate, dayBaoGiaLenServer]);
+  }, [state.products, state.customer, state.terms, taoBaoGiaMoi, onClose, onSavedNavigate, dayBaoGiaLenServer, role, currentSellerId]);
 
   const canSaveDraft = !!state.customer;
   const canSubmit = !!state.customer && state.products.length > 0;
@@ -1635,13 +1677,14 @@ type QuoteEditDraft = {
 };
 
 function QuoteDetailPanel({
-  item, isAdmin, onClose, onLoadCalc, onPatch,
+  item, isAdmin, onClose, onLoadCalc, onPatch, onStatusUpdate,
 }: {
   item: HistoryItem;
   isAdmin: boolean;
   onClose: () => void;
   onLoadCalc: (id: string) => void;
   onPatch: (id: string, patch: Partial<Pick<HistoryItem, 'customer' | 'productName' | 'chotGia' | 'quoteStatus'>>) => void;
+  onStatusUpdate: (muc: HistoryItem, status: QuoteStatus) => Promise<void> | void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<QuoteEditDraft>({
@@ -1670,13 +1713,23 @@ function QuoteDetailPanel({
     return patch;
   }
 
-  function savePatch(shouldClose = false) {
+  async function savePatch(shouldClose = false) {
     const patch = buildPatch();
-    if (Object.keys(patch).length > 0) onPatch(item.id, patch);
-    setEditing(false);
-    setConfirmSave(false);
-    setConfirmClose(false);
-    if (shouldClose) onClose();
+    try {
+      if (patch.quoteStatus === 'pending_approval') {
+        await onStatusUpdate(item, 'pending_approval');
+        delete patch.quoteStatus;
+      }
+      if (Object.keys(patch).length > 0) onPatch(item.id, patch);
+      setEditing(false);
+      setConfirmSave(false);
+      setConfirmClose(false);
+      if (shouldClose) onClose();
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Không cập nhật được trạng thái báo giá.');
+      setConfirmSave(false);
+      setConfirmClose(false);
+    }
   }
 
   function handleClose() {
@@ -1712,7 +1765,7 @@ function QuoteDetailPanel({
             </p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button className="wiz-btn wiz-btn--secondary" onClick={() => setConfirmClose(false)}>Tiếp tục chỉnh sửa</button>
-              <button className="wiz-btn wiz-btn--primary" onClick={() => savePatch(true)}>Lưu & đóng</button>
+              <button className="wiz-btn wiz-btn--primary" onClick={() => { void savePatch(true); }}>Lưu & đóng</button>
               <button className="wiz-btn wiz-btn--danger" onClick={onClose}>Đóng không lưu</button>
             </div>
           </div>
@@ -1727,7 +1780,7 @@ function QuoteDetailPanel({
             <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: 18 }}>Thao tác này sẽ cập nhật báo giá và ghi nhật ký thao tác.</p>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
               <button className="wiz-btn wiz-btn--secondary" onClick={() => setConfirmSave(false)}>Hủy</button>
-              <button className="wiz-btn wiz-btn--primary" onClick={() => savePatch(false)}>Lưu</button>
+              <button className="wiz-btn wiz-btn--primary" onClick={() => { void savePatch(false); }}>Lưu</button>
             </div>
           </div>
         </div>
@@ -1942,9 +1995,9 @@ function QuoteDetailPanel({
 export default function QuotationModule({ role, menuDangChon, khiDieuHuong }: { role: string; hienTaiSellerId?: string; menuDangChon?: string; khiDieuHuong?: (menuKey: string) => void }) {
   const {
     history, loadHistoryItem: taiLichSu, setActiveModule: datPhan,
-    updateQuoteStatus: capNhatTrangThaiDon, currentSellerId: hienTaiSellerId,
+    updateQuoteStatus: capNhatTrangThaiLocal, currentSellerId: hienTaiSellerId,
     saoChepBangTinh, khoaBaoGia, moKhoaBaoGia, huyBaoGia, kiemTraHetHan,
-    patchHistoryItem,
+    patchHistoryItem, accessToken, isAuthenticated,
   } = dungCuaHangTinhGia();
   const [search, setSearch] = useState('');
   const [tuNgay, setTuNgay] = useState('');
@@ -1989,6 +2042,21 @@ export default function QuotationModule({ role, menuDangChon, khiDieuHuong }: { 
     }
     setSelectedItem(item);
   };
+
+  const capNhatTrangThaiDon = useCallback(async (muc: HistoryItem, status: QuoteStatus) => {
+    if (status !== 'pending_approval') {
+      capNhatTrangThaiLocal(muc.id, status);
+      return;
+    }
+    if (!isAuthenticated || !accessToken) {
+      throw new Error('Chưa đăng nhập, không thể gửi báo giá lên máy chủ.');
+    }
+    if (!muc.quotationId) {
+      throw new Error('Báo giá này chưa có mã server. Vui lòng tạo/lưu lại báo giá trên máy chủ trước khi gửi duyệt.');
+    }
+    await nopBaoGiaService(muc.quotationId, accessToken);
+    capNhatTrangThaiLocal(muc.id, 'pending_approval');
+  }, [accessToken, capNhatTrangThaiLocal, isAuthenticated]);
 
   if (showWizard) {
     return (
@@ -2067,6 +2135,7 @@ export default function QuotationModule({ role, menuDangChon, khiDieuHuong }: { 
             patchHistoryItem(id, patch);
             setSelectedItem(prev => prev ? { ...prev, ...patch } : prev);
           }}
+          onStatusUpdate={capNhatTrangThaiDon}
         />
       )}
     </div>

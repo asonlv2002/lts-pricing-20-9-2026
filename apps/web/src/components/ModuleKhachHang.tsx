@@ -1651,7 +1651,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
 
     setCustomers(mergeDraftIntoList(loadLocalCustomers(), loadCustomerDraft()));
 
-    if (!isAuthenticated || !accessToken || process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') {
+    if (!isAuthenticated || !accessToken) {
       return () => {
         cancelled = true;
       };
