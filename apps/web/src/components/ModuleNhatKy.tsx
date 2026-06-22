@@ -501,7 +501,7 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
 
   if (!coQuyenXemNhatKyHeThong) {
     return (
-      <div className="crm-root">
+      <div className="crm-root audit-log-root">
         <div className="crm-empty">
           <Lock size={40} />
           <p>Không có quyền xem nhật ký thao tác toàn hệ thống</p>
@@ -514,7 +514,7 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
   }
 
   return (
-    <div className="crm-root">
+    <div className="crm-root audit-log-root">
       {/* ── Filter Bar ── */}
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', marginBottom: 12 }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>

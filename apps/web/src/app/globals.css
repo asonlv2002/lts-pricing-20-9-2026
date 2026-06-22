@@ -3304,6 +3304,12 @@ body {
   padding: 0;
 }
 
+.crm-root.audit-log-root {
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+}
+
 /* ── Toolbar ── */
 .crm-toolbar {
   display: flex;
