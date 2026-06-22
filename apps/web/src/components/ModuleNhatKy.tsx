@@ -307,6 +307,8 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
     loadHistoryItem,
     history,
     nguoiDungHienTai,
+    accessToken,
+    taiBangTinhTuServer,
   } = dungCuaHangTinhGia();
   const coQuyenXemNhatKyHeThong = !!nguoiDungHienTai?.policies.includes('ACTIVITY_MONITOR');
 
@@ -457,13 +459,21 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
     setVisibleCount(BATCH_SIZE);
   };
 
-  const openRelated = (entry: AuditEntry) => {
+  const openRelated = async (entry: AuditEntry) => {
     if (entry.targetType === 'history' || entry.targetType === 'quote') {
       const item = history.find(h => h.id === entry.targetId || h.pricingSheetId === entry.targetId);
       if (entry.targetType === 'history' && item && !item.isQuote) {
         loadHistoryItem(item.id);
         setActiveModule('calculator');
         return;
+      }
+      // Bảng tính giá từ server không có trong local → fetch rồi mở thẳng calculator
+      if (entry.targetType === 'history' && !item && accessToken) {
+        const ok = await taiBangTinhTuServer(entry.targetId);
+        if (ok) {
+          setActiveModule('calculator');
+          return;
+        }
       }
       try {
         localStorage.setItem('lts_navigate_filter', JSON.stringify({ module: entry.targetType === 'quote' || item?.isQuote ? 'quote' : 'pricing', targetId: item?.id ?? entry.targetId, ts: Date.now() }));

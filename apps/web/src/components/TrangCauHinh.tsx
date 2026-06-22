@@ -39,7 +39,6 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
   const phienBan = tatCaPhienBan.filter(s => (s.scope ?? 'materials') === scope);
   const dangChonId = phienBanDangChon[scope] ?? null;
 
-  const [ten, datTen] = React.useState('');
   const [mocHieuLuc, datMocHieuLuc] = React.useState(() => new Date().toISOString().slice(0, 7));
   const [moDanhSachPhienBan, datMoDanhSachPhienBan] = React.useState(false);
 
@@ -50,15 +49,13 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
 
   const xuLyLuu = async () => {
     if (!mocHieuLuc) return;
-    await taoPhienBanDinhMuc({ scope, name: ten, effectiveMode: 'month', effectiveFrom: mocHieuLuc });
-    datTen('');
+    await taoPhienBanDinhMuc({ scope, effectiveMode: 'month', effectiveFrom: mocHieuLuc });
   };
 
   const xuLyApDung = (id: string) => {
     const s = tatCaPhienBan.find(x => x.id === id);
-    const tenPb = s?.name || 'Không tên';
     const hieuLuc = s ? `${s.effectiveMode === 'month' ? 'Tháng' : 'Ngày'} ${s.effectiveFrom}` : '';
-    if (!confirm(`Áp dụng phiên bản "${tenPb}" (${hieuLuc})?\n\nDữ liệu ${SCOPE_LABEL[scope]} hiện tại sẽ bị thay thế.`)) return;
+    if (!confirm(`Áp dụng phiên bản (${hieuLuc})?\n\nDữ liệu ${SCOPE_LABEL[scope]} hiện tại sẽ bị thay thế.`)) return;
     apDungPhienBanDinhMuc(id);
   };
 
@@ -71,11 +68,6 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
     <div className="card config-card config-version-card" id={`sect-config-versions-${scope}`} style={{scrollMarginTop: '80px'}}>
       <div className="config-section-title config-version-title"><span>Phiên bản — {SCOPE_LABEL[scope]}</span></div>
       <div className="config-cpsx-grid config-version-form" style={{marginBottom: '16px'}}>
-        <div className="config-cpsx-item config-version-name">
-          <label>Tên phiên bản</label>
-          <input className="form-input" value={ten} placeholder="VD: Tháng 05/2026"
-            onChange={e => datTen(e.target.value)} />
-        </div>
         <div className="config-cpsx-item config-version-effective">
           <label>Hiệu lực từ</label>
           <input className="form-input" type="month"
@@ -96,7 +88,6 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
         <table className="config-table">
           <thead>
             <tr>
-              <th>Tên phiên bản</th>
               <th>Hiệu lực</th>
               <th>Ngày tạo</th>
               <th>Trạng thái</th>
@@ -106,17 +97,16 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
           <tbody>
             {dangTaiPhienBan ? (
               <tr>
-                <td colSpan={5} style={{textAlign: 'center', color: 'var(--dim)'}}>Đang tải phiên bản từ server...</td>
+                <td colSpan={4} style={{textAlign: 'center', color: 'var(--dim)'}}>Đang tải phiên bản từ server...</td>
               </tr>
             ) : phienBan.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{textAlign: 'center', color: 'var(--dim)'}}>Chưa có phiên bản nào.</td>
+                <td colSpan={4} style={{textAlign: 'center', color: 'var(--dim)'}}>Chưa có phiên bản nào.</td>
               </tr>
             ) : phienBan.map(snapshot => {
               const dangApDung = dangChonId === snapshot.id;
               return (
                 <tr key={snapshot.id} style={dangApDung ? {background: 'var(--accent-subtle, rgba(59,130,246,0.07))'} : undefined}>
-                  <td style={{fontWeight: 600}}>{snapshot.name || 'Không tên'}</td>
                   <td>{snapshot.effectiveMode === 'month' ? 'Tháng' : 'Ngày'} {snapshot.effectiveFrom}</td>
                   <td>{new Date(snapshot.createdAt).toLocaleString('vi-VN')}</td>
                   <td>
@@ -125,7 +115,7 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
                       : <span style={{color: 'var(--muted)', fontSize: '0.82rem'}}>Đã lưu</span>}
                   </td>
                   <td>
-                    <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap'}}>
+                    <div style={{display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center'}}>
                       {!dangApDung && (
                         <button className="btn btn-sm btn-primary" onClick={() => xuLyApDung(snapshot.id)}>Áp dụng</button>
                       )}
@@ -154,7 +144,6 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
                 return (
                   <div className="config-version-sheet-row" key={snapshot.id}>
                     <div className="config-version-sheet-info">
-                      <strong>{snapshot.name || 'Không tên'}</strong>
                       <span>{snapshot.effectiveFrom} · {dangApDung ? 'Đang áp dụng' : 'Đã lưu'}</span>
                     </div>
                     <div className="config-version-sheet-actions">

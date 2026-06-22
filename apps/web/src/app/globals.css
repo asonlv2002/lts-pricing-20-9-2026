@@ -1653,7 +1653,7 @@ body {
 
   .lts-shell--mobile .config-page .config-version-form {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 104px 58px;
+    grid-template-columns: minmax(0, 1fr) 58px;
     align-items: end;
     gap: 6px;
     margin-bottom: 6px !important;

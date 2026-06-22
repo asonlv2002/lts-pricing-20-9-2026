@@ -1,9 +1,10 @@
 import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
-import { HistoryItem, QuoteProductLine, QuoteStatus, QuoteTerms } from '../../lib/types';
+import { CalculateInput, HistoryItem, QuoteProductLine, QuoteStatus, QuoteTerms } from '../../lib/types';
 import { tinhBaoGia } from '../../lib/manager-calculation';
 import { dongBoCotLoiNhuan } from '../../lib/engine';
 import { luuLocalStorage, LS_HISTORY } from '../helpers';
+import { layDanhSachPricingSheetService } from '../../lib/api/service-lts';
 
 export interface HistorySlice {
   history: HistoryItem[];
@@ -13,6 +14,7 @@ export interface HistorySlice {
   addCurrentToHistory: () => void;
   removeHistoryItem: (id: string) => void;
   loadHistoryItem: (id: string) => void;
+  taiBangTinhTuServer: (pricingSheetId: string) => Promise<boolean>;
   setChotGiaForLatest: (giaTri: number) => void;
   updateQuoteStatus: (id: string, status: QuoteStatus) => void;
   themHienTaiVaoLichSu: () => void;
@@ -175,6 +177,37 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         showAdminOverrides: !!item.adminOverrides && Object.keys(item.adminOverrides).length > 0,
       };
     });
+  },
+
+  taiBangTinhTuServer: async (pricingSheetId) => {
+    const state = get();
+    const token = state.accessToken;
+    if (!token) return false;
+    try {
+      const sheets = await layDanhSachPricingSheetService(token);
+      const sheet = sheets.find(s => s.id === pricingSheetId);
+      if (!sheet) return false;
+      const rawInput = sheet.inputValue as CalculateInput | null | undefined;
+      if (!rawInput || typeof rawInput !== 'object' || !rawInput.productType) return false;
+      const syncedInput = dongBoCotLoiNhuan({ ...rawInput }, state.materials);
+      set({
+        dauVao: syncedInput,
+        input: syncedInput,
+        result: tinhBaoGia(syncedInput, state.materials, state.constants, state.profitTable, state.smallWidthPrices),
+        currentChotGia: 0,
+        activeView: 'manager' as const,
+        isDirty: false,
+        loadedHistoryId: sheet.id,
+        originalCustomerLoaded: null,
+        saleOverrides: {},
+        adminOverrides: {},
+        showSaleOverrides: false,
+        showAdminOverrides: false,
+      });
+      return true;
+    } catch {
+      return false;
+    }
   },
 
   setChotGiaForLatest: (giaTri) => {
