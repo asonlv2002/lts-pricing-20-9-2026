@@ -153,26 +153,6 @@ const FIELD_LABELS: Record<string, string> = {
   crmStatus: 'Trạng thái CRM',
 };
 
-const CUSTOMER_AUDIT_KEYS: (keyof Customer)[] = [
-  'companyName', 'taxCode', 'invoiceAddress', 'contactName', 'phone', 'email',
-  'address', 'customerCode', 'sellerId', 'secondarySellerId',
-  'crmStatus', 'status', 'isLocked', 'notes', 'assignmentNote', 'contactNotes',
-];
-
-function diffCustomer(oldC: Customer | undefined, newC: Customer) {
-  const before: Record<string, unknown> = {};
-  const after: Record<string, unknown> = {};
-  for (const key of CUSTOMER_AUDIT_KEYS) {
-    const oldVal = oldC?.[key];
-    const newVal = newC[key];
-    if (!oldC || oldVal !== newVal) {
-      before[String(key)] = oldVal ?? '';
-      after[String(key)] = newVal ?? '';
-    }
-  }
-  return { before, after };
-}
-
 // ── Helpers ──────────────────────────────────────────────────────────────────
 const getCustomerType = (c: Customer): CustomerType => c.customerType ?? 'company';
 const isIndividual = (c: Customer) => getCustomerType(c) === 'individual';
@@ -688,7 +668,7 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
   const history = dungCuaHangTinhGia(s => s.history);
   const loadHistoryItem = dungCuaHangTinhGia(s => s.loadHistoryItem);
   const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
-  const auditLog = dungCuaHangTinhGia(s => s.auditLog);
+  const auditLog = dungCuaHangTinhGia(s => s.nhatKyHeThong);
   const panelRef = useRef<HTMLDivElement>(null);
 
   const { filled, total, missing } = getCompleteness(customer);
@@ -1571,7 +1551,6 @@ function CustomerAuditTab({ auditLog, customers, users, currentUser }: { auditLo
 }
 
 function CustomerAuditView({ customers }: { customers: Customer[] }) {
-  const auditLog = dungCuaHangTinhGia(s => s.auditLog);
   const nhatKyHeThong = dungCuaHangTinhGia(s => s.nhatKyHeThong);
   const taiNhatKyHeThong = dungCuaHangTinhGia(s => s.taiNhatKyHeThong);
   const currentUser = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
@@ -1580,16 +1559,11 @@ function CustomerAuditView({ customers }: { customers: Customer[] }) {
     taiNhatKyHeThong();
   }, [taiNhatKyHeThong]);
 
-  const mergedAuditLog = useMemo(() => {
-    const map = new Map<string, AuditEntry>();
-    for (const e of nhatKyHeThong) if (e.targetType === 'customer') map.set(e.id, e);
-    for (const e of (auditLog ?? [])) {
-      if (e.targetType === 'customer' && !map.has(e.id)) map.set(e.id, e);
-    }
-    return Array.from(map.values());
-  }, [auditLog, nhatKyHeThong]);
+  const customerAuditLog = useMemo(() => {
+    return nhatKyHeThong.filter(e => e.targetType === 'customer');
+  }, [nhatKyHeThong]);
 
-  return <CustomerAuditTab auditLog={mergedAuditLog} customers={customers} currentUser={currentUser} />;
+  return <CustomerAuditTab auditLog={customerAuditLog} customers={customers} currentUser={currentUser} />;
 }
 
 // ── Main Component ───────────────────────────────────────────────────────────
@@ -1603,7 +1577,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const [assigning, setAssigning] = useState<Customer | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
-  const ghiNhatKy = dungCuaHangTinhGia(s => s.ghiNhatKy);
   const [crmThresholds, setCrmThresholds] = useState<CrmThresholds>(() => loadCrmThresholds());
   const [showThresholdSettings, setShowThresholdSettings] = useState(false);
   const [txCardOpen, setTxCardOpen] = useState<string | null>(null);
@@ -1615,10 +1588,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const coQuyenTaoKhachHang = !!nguoiDungHienTai?.policies.includes('CUSTOMER_CREATE');
   const coQuyenQuanLyNguoiPhuTrach = !!nguoiDungHienTai?.policies.includes('CUSTOMER_MANAGER');
 
-  const getAuditActor = () => ({
-    userId: nguoiDungHienTai?.id ?? currentSellerId,
-      userName: normalizeDisplayText(nguoiDungHienTai?.fullName || nguoiDungHienTai?.account || SELLERS.find(s => s.id === currentSellerId)?.name || currentSellerId),
-  });
   // Close transaction dropdown on click outside
   useEffect(() => {
     if (!txCardOpen) return;
@@ -1777,20 +1746,8 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     const historyLine = changedSeller ? `${new Date().toLocaleString('vi-VN')}: chính ${old?.sellerName || old?.sellerId || 'Chưa phân'} → ${seller?.name || c.sellerId || 'Chưa phân'}; phụ ${old?.secondarySellerName || old?.secondarySellerId || 'Không có'} → ${secondary?.name || c.secondarySellerId || 'Không có'}${c.assignmentNote ? ` (${c.assignmentNote})` : ''}` : undefined;
     const saved = { ...c, sellerName: seller?.name ?? c.sellerName ?? '', secondarySellerName: secondary?.name ?? c.secondarySellerName ?? '', assignmentHistory: historyLine ? [...(old?.assignmentHistory ?? []), historyLine] : (c.assignmentHistory ?? []) };
     const isNew = !old;
-    const actor = getAuditActor();
-    const diff = diffCustomer(old, saved);
 
     setCustomers(prev => isNew ? [saved, ...prev] : prev.map(x => x.id === c.id ? saved : x));
-    ghiNhatKy({
-      userId: actor.userId,
-      userName: actor.userName,
-      action: isNew ? 'create' : 'update',
-      targetType: 'customer',
-      targetId: c.id,
-      targetName: c.companyName || c.contactName || c.customerCode,
-      before: isNew ? undefined : diff.before,
-      after: diff.after,
-    });
   };
 
   const upsert = async (c: Customer) => {
@@ -1839,25 +1796,8 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     const old = customers.find(c => c.id === id);
     if (!old) return;
     const saved = { ...old, ...partial, updatedAt: todayIso() };
-    const actor = getAuditActor();
-    const action = partial.isLocked !== undefined && partial.isLocked !== old.isLocked
-      ? (partial.isLocked ? 'lock' : 'unlock')
-      : partial.status !== undefined && partial.status !== old.status
-        ? 'status_change'
-        : 'update';
-    const diff = diffCustomer(old, saved);
 
     setCustomers(prev => prev.map(c => c.id === id ? saved : c));
-    ghiNhatKy({
-      userId: actor.userId,
-      userName: actor.userName,
-      action,
-      targetType: 'customer',
-      targetId: id,
-      targetName: old.companyName || old.contactName || old.customerCode,
-      before: diff.before,
-      after: diff.after,
-    });
   };
 
   const assignSeller = async (customer: Customer, managers: CustomerManagerUi[], note: string) => {
@@ -1880,18 +1820,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     };
     updateCustomerLocal(next);
 
-    const actor = getAuditActor();
-    ghiNhatKy({
-      userId: actor.userId,
-      userName: actor.userName,
-      action: 'assign',
-      targetType: 'customer',
-      targetId: customer.id,
-      targetName: customer.companyName || customer.contactName || customer.customerCode,
-      before: { managers: customer.managers ?? [] },
-      after: { managers: savedManagers },
-      note: note || undefined,
-    });
     if (isAuthenticated && accessToken) {
       refreshCustomersFromServer(accessToken).catch(error => {
         console.warn('Không tải lại danh sách khách hàng sau khi phân công:', error);

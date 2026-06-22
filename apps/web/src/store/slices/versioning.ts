@@ -70,16 +70,6 @@ export const createVersioningSlice: StateCreator<CuaHangTinhGia, [], [], Version
       luuLocalStorage(LS_HISTORY, history);
       return { history };
     });
-
-    state.ghiNhatKy({
-      userId: state.currentSellerId,
-      userName: state.currentSellerName,
-      action: 'version_restore',
-      targetType: 'history',
-      targetId: historyItemId,
-      targetName: version.data.productName,
-      note: `Khôi phục từ phiên bản ${new Date(version.timestamp).toLocaleString('vi-VN')}`,
-    });
   },
 
   taiVersions: (data) => set({ versions: data }),

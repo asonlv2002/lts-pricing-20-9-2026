@@ -99,13 +99,6 @@ assert(
 );
 
 assert(
-  'mobile pricing history shows the full code instead of the shortened mobile code',
-  /\.lts-shell--mobile \.hist-data-table--pricing \.hist-col-code \{[\s\S]*width:\s*112px/.test(globalsCss)
-    && /\.lts-shell--mobile \.hist-data-table--pricing \.hist-code-full \{[\s\S]*display:\s*inline-block/.test(globalsCss)
-    && /\.lts-shell--mobile \.hist-data-table--pricing \.hist-code-mobile \{[\s\S]*display:\s*none/.test(globalsCss),
-);
-
-assert(
   'mobile shell class activates at the same 768px breakpoint used by history CSS',
   shellSource.includes('const laManHinhMobile = chieuRong <= 768;')
     && globalsCss.includes('@media (max-width: 768px)'),

@@ -5,6 +5,7 @@ import { tinhBaoGia } from '../../lib/manager-calculation';
 import { dongBoCotLoiNhuan } from '../../lib/engine';
 import { luuLocalStorage, LS_HISTORY } from '../helpers';
 import { layDanhSachPricingSheetService } from '../../lib/api/service-lts';
+import { mapPricingSheetToHistory } from '../../lib/api/pricing-sheet-mapper';
 
 export interface HistorySlice {
   history: HistoryItem[];
@@ -15,6 +16,7 @@ export interface HistorySlice {
   removeHistoryItem: (id: string) => void;
   loadHistoryItem: (id: string) => void;
   taiBangTinhTuServer: (pricingSheetId: string) => Promise<boolean>;
+  taiLichSuTuServer: () => Promise<boolean>;
   setChotGiaForLatest: (giaTri: number) => void;
   updateQuoteStatus: (id: string, status: QuoteStatus) => void;
   themHienTaiVaoLichSu: () => void;
@@ -40,14 +42,6 @@ export interface HistorySlice {
 function tinhNgayHieuLuc(terms?: QuoteTerms): string | undefined {
   if (!terms || terms.validityDays <= 0) return undefined;
   return new Date(Date.now() + terms.validityDays * 86400000).toISOString();
-}
-
-function actionTheoTrangThai(status: QuoteStatus) {
-  if (status === 'pending_approval') return 'send_approval' as const;
-  if (status === 'approved') return 'approve' as const;
-  if (status === 'rejected') return 'reject' as const;
-  if (status === 'sent') return 'send_customer' as const;
-  return 'status_change' as const;
 }
 
 // Tìm mã khách hàng (codeName) từ tên khách (display name) trong HistoryItem.
@@ -116,17 +110,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const history = [item, ...state.history].slice(0, 200);
       luuLocalStorage(LS_HISTORY, history);
 
-      setTimeout(() => {
-        get().ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'create',
-          targetType: 'history',
-          targetId: item.id,
-          targetName: item.productName,
-        });
-      }, 0);
-
       return {
         history,
         isDirty: false,
@@ -141,19 +124,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const item = state.history.find(h => h.id === id);
       const history = state.history.filter(h => h.id !== id);
       luuLocalStorage(LS_HISTORY, history);
-
-      if (item) {
-        setTimeout(() => {
-          get().ghiNhatKy({
-            userId: state.currentSellerId,
-            userName: state.currentSellerName,
-            action: 'delete',
-            targetType: 'history',
-            targetId: id,
-            targetName: item.productName,
-          });
-        }, 0);
-      }
 
       return { history };
     });
@@ -210,6 +180,30 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     }
   },
 
+  taiLichSuTuServer: async () => {
+    if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') return false;
+    const state = get();
+    const token = state.accessToken;
+    if (!token) return false;
+    try {
+      const sheets = await layDanhSachPricingSheetService(token);
+      const ctx = {
+        materials: state.materials,
+        constants: state.constants,
+        profitTable: state.profitTable,
+        smallWidthPrices: state.smallWidthPrices,
+      };
+      const mapped = sheets
+        .map(s => mapPricingSheetToHistory(s, ctx))
+        .filter((h): h is HistoryItem => h !== null);
+      set({ history: mapped });
+      luuLocalStorage(LS_HISTORY, mapped);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+
   setChotGiaForLatest: (giaTri) => {
     set((state) => {
       if (!state.history.length) return state;
@@ -217,19 +211,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const old = history[0];
       history[0] = { ...old, chotGia: giaTri };
       luuLocalStorage(LS_HISTORY, history);
-      setTimeout(() => {
-        get().ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'update',
-          targetType: old.isQuote ? 'quote' : 'history',
-          targetId: old.id,
-          targetName: old.productName,
-          before: { chotGia: old.chotGia },
-          after: { chotGia: giaTri },
-          note: 'Cập nhật giá chốt',
-        });
-      }, 0);
       return { history };
     });
   },
@@ -243,16 +224,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       if (old) {
         setTimeout(() => {
           get().luuPhienBan(id, `Trước đổi trạng thái → ${status}`);
-          get().ghiNhatKy({
-            userId: state.currentSellerId,
-            userName: state.currentSellerName,
-            action: actionTheoTrangThai(status),
-            targetType: 'quote',
-            targetId: id,
-            targetName: old.productName,
-            before: { quoteStatus: old.quoteStatus },
-            after: { quoteStatus: status },
-          });
         }, 0);
       }
 
@@ -287,20 +258,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const history = state.history.map(h => h.id === old.id ? updated : h);
       luuLocalStorage(LS_HISTORY, history);
 
-      setTimeout(() => {
-        get().ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'update',
-          targetType: old.isQuote ? 'quote' : 'history',
-          targetId: old.id,
-          targetName: updated.productName,
-          before: { finalPrice: old.finalPrice, chotGia: old.chotGia, input: old.input },
-          after: { finalPrice: updated.finalPrice, chotGia: updated.chotGia, input: updated.input },
-          note: 'Cập nhật bảng tính giá',
-        });
-      }, 0);
-
       return { history, isDirty: false };
     });
   },
@@ -329,18 +286,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const history = [clone, ...state.history].slice(0, 200);
       luuLocalStorage(LS_HISTORY, history);
 
-      setTimeout(() => {
-        get().ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'duplicate',
-          targetType: 'history',
-          targetId: clone.id,
-          targetName: clone.productName,
-          note: `Sao chép từ ${item.quoteCode || item.id}`,
-        });
-      }, 0);
-
       return { history };
     });
   },
@@ -352,19 +297,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         : h
       );
       luuLocalStorage(LS_HISTORY, history);
-      const item = state.history.find(h => h.id === id);
-
-      setTimeout(() => {
-        get().ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'lock',
-          targetType: 'quote',
-          targetId: id,
-          targetName: item?.productName,
-        });
-      }, 0);
-
       return { history };
     });
   },
@@ -376,41 +308,14 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         : h
       );
       luuLocalStorage(LS_HISTORY, history);
-      const item = state.history.find(h => h.id === id);
-
-      setTimeout(() => {
-        get().ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'unlock',
-          targetType: 'quote',
-          targetId: id,
-          targetName: item?.productName,
-        });
-      }, 0);
-
       return { history };
     });
   },
 
   huyBaoGia: (id) => {
     set((state) => {
-      const old = state.history.find(h => h.id === id);
       const history = state.history.map(h => h.id === id ? { ...h, quoteStatus: 'cancelled' as QuoteStatus } : h);
       luuLocalStorage(LS_HISTORY, history);
-
-      setTimeout(() => {
-        get().ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'status_change',
-          targetType: 'quote',
-          targetId: id,
-          targetName: old?.productName,
-          before: { quoteStatus: old?.quoteStatus },
-          after: { quoteStatus: 'cancelled' },
-        });
-      }, 0);
 
       return { history };
     });
@@ -443,19 +348,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const history = state.history.map(h => h.id === id ? { ...h, terms, validUntil } : h);
       luuLocalStorage(LS_HISTORY, history);
 
-      const item = state.history.find(h => h.id === id);
       setTimeout(() => {
-        get().luuPhienBan(id, 'Trước cập nhật điều khoản');
-        get().ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'update',
-          targetType: 'quote',
-          targetId: id,
-          targetName: item?.productName,
-          after: { terms },
-          note: 'Cập nhật điều khoản báo giá',
-        });
+       get().luuPhienBan(id, 'Trước cập nhật điều khoản');
       }, 0);
 
       return { history };
@@ -464,22 +358,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
 
   phanCongBaoGia: (quoteId, sellerId, sellerName) => {
     set((state) => {
-      const old = state.history.find(h => h.id === quoteId);
       const history = state.history.map(h => h.id === quoteId ? { ...h, sellerId, sellerName } : h);
       luuLocalStorage(LS_HISTORY, history);
-
-      setTimeout(() => {
-        get().ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'assign',
-          targetType: 'quote',
-          targetId: quoteId,
-          targetName: old?.productName,
-          before: { sellerId: old?.sellerId, sellerName: old?.sellerName },
-          after: { sellerId, sellerName },
-        });
-      }, 0);
 
       return { history };
     });
@@ -487,22 +367,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
 
   ganTiersBaoGia: (quoteId, tiers) => {
     set((state) => {
-      const old = state.history.find(h => h.id === quoteId);
       const history = state.history.map(h => h.id === quoteId ? { ...h, tiers } : h);
       luuLocalStorage(LS_HISTORY, history);
-      setTimeout(() => {
-        get().ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'update',
-          targetType: 'quote',
-          targetId: quoteId,
-          targetName: old?.productName,
-          before: { tiers: old?.tiers },
-          after: { tiers },
-          note: 'Cập nhật mức số lượng báo giá',
-        });
-      }, 0);
       return { history };
     });
   },
@@ -538,31 +404,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     luuLocalStorage(LS_HISTORY, history);
     set({ history, loadedHistoryId: item.id });
 
-    setTimeout(() => {
-      get().ghiNhatKy({
-        userId: state.currentSellerId,
-        userName: state.currentSellerName,
-        action: 'create',
-        targetType: 'quote',
-        targetId: item.id,
-        targetName: item.quoteCode,
-        after: { quoteStatus: status, products: products.length, terms },
-        note: sendForApproval ? 'Tạo báo giá mới và gửi duyệt' : 'Tạo báo giá nháp',
-      });
-      if (sendForApproval) {
-        get().ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'send_approval',
-          targetType: 'quote',
-          targetId: item.id,
-          targetName: item.quoteCode,
-          before: { quoteStatus: 'drafted' },
-          after: { quoteStatus: status },
-        });
-      }
-    }, 0);
-
     return item.id;
   },
 
@@ -572,18 +413,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       if (!old) return state;
       const history = state.history.map(h => h.id === id ? { ...h, ...patch } : h);
       luuLocalStorage(LS_HISTORY, history);
-      setTimeout(() => {
-        get().ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'update',
-          targetType: old.isQuote ? 'quote' : 'history',
-          targetId: id,
-          targetName: patch.productName ?? old.productName,
-          before: Object.fromEntries(Object.keys(patch).map(k => [k, (old as unknown as Record<string, unknown>)[k]])),
-          after: patch as Record<string, unknown>,
-        });
-      }, 0);
       return { history };
     });
   },

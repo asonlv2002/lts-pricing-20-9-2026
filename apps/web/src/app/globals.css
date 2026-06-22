@@ -2842,9 +2842,7 @@ body {
     table-layout: auto;
   }
 
-  .lts-shell--mobile .hist-data-table .hist-col-code { width: 68px; }
   .lts-shell--mobile .hist-data-table .hist-col-actions { width: 42px; }
-  .lts-shell--mobile .hist-data-table--pricing .hist-col-code { width: 112px; }
   .lts-shell--mobile .hist-data-table--pricing .hist-col-select { width: 28px; }
   .lts-shell--mobile .hist-data-table--pricing .hist-col-actions { width: 76px; }
   .lts-shell--mobile .hist-data-table--pricing .hist-col-select input[type="checkbox"] {
@@ -2899,8 +2897,6 @@ body {
     display: block;
   }
 
-  .lts-shell--mobile .hist-data-table thead .hist-col-code span { font-size: 0; }
-  .lts-shell--mobile .hist-data-table thead .hist-col-code span::before { content: 'Mã'; font-size: 12px; }
   .lts-shell--mobile .hist-data-table thead .hist-col-product span { font-size: 0; }
   .lts-shell--mobile .hist-data-table thead .hist-col-product span::before { content: 'Thông tin'; font-size: 12px; }
   .lts-shell--mobile .hist-data-table thead .hist-col-customer span { font-size: 0; }
@@ -5164,6 +5160,12 @@ body {
 .hist-data-table th {
   background: rgba(79,70,229,0.06);
   color: var(--accent);
+}
+
+/* Desktop: chỉ hiện text chính, ẩn text phụ dành cho mobile */
+.hist-data-table .hist-mobile-secondary,
+.hist-data-table .hist-mobile-status {
+  display: none;
 }
 
 [data-theme="dark"] .hist-data-table th {

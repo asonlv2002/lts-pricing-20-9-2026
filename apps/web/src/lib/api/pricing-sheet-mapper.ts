@@ -11,8 +11,23 @@
 // Override là quyết định thủ công của người dùng nên KHÔNG tính lại được →
 // bắt buộc lưu. Bảng rỗng được map thành `undefined` để không gửi key thừa.
 
-import type { HistoryItem } from '../types';
-import type { TaoPricingSheetInput, CapNhatPricingSheetResultInput, CapNhatPricingSheetAdvisorInput } from './service-lts';
+import type {
+  HistoryItem,
+  CalculateInput,
+  OverrideTable,
+  Material,
+  AppConstants,
+  ProfitRow,
+  SmallWidthMaterialPrice,
+} from '../types';
+import { dongBoCotLoiNhuan } from '../engine';
+import { tinhBaoGia } from '../manager-calculation';
+import type {
+  TaoPricingSheetInput,
+  CapNhatPricingSheetResultInput,
+  CapNhatPricingSheetAdvisorInput,
+  PricingSheetApi,
+} from './service-lts';
 
 function bangGhiDeCoGiaTri(table: HistoryItem['saleOverrides']): unknown | undefined {
   if (!table) return undefined;
@@ -51,5 +66,61 @@ export function mapHistoryToAdvisorPatch(
 ): CapNhatPricingSheetAdvisorInput {
   return {
     masterResult: bangGhiDeCoGiaTri(h.adminOverrides),
+  };
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// Mapper đảo ngược: PricingSheetApi (server) → HistoryItem (local)
+// ═════════════════════════════════════════════════════════════════════════════
+// Server chỉ lưu inputValue (blob). Frontend tự tính lại finalPrice/profitRate/
+// structureText bằng engine hiện tại. Override (saleResult/masterResult) là quyết
+// định thủ công nên lấy nguyên, không tính lại.
+
+export interface MapPricingSheetCtx {
+  materials: Material[];
+  constants: AppConstants;
+  profitTable: ProfitRow[];
+  smallWidthPrices: SmallWidthMaterialPrice[];
+}
+
+function docBangGhiDe(blob: unknown): OverrideTable | undefined {
+  if (!blob || typeof blob !== 'object') return undefined;
+  const table = blob as Record<string, unknown>;
+  return Object.keys(table).length > 0 ? (blob as OverrideTable) : undefined;
+}
+
+export function mapPricingSheetToHistory(
+  sheet: PricingSheetApi,
+  ctx: MapPricingSheetCtx,
+): HistoryItem | null {
+  const rawInput = sheet.inputValue as CalculateInput | null | undefined;
+  if (!rawInput || typeof rawInput !== 'object' || !rawInput.productType) return null;
+
+  const syncedInput = dongBoCotLoiNhuan({ ...rawInput }, ctx.materials);
+  const result = tinhBaoGia(
+    syncedInput,
+    ctx.materials,
+    ctx.constants,
+    ctx.profitTable,
+    ctx.smallWidthPrices,
+  );
+  if (!result) return null;
+
+  return {
+    id: sheet.id,
+    date: new Date(sheet.createdAt).toLocaleDateString('vi-VN'),
+    customer: syncedInput.customer || sheet.customerCodeName || '—',
+    productName: sheet.pricingSheetName || syncedInput.productName || '—',
+    structure: result.structureText,
+    quantity: syncedInput.quantity,
+    finalPrice: result.finalPrice,
+    profitRate: result.profitRate,
+    saleOverrides: docBangGhiDe(sheet.saleResult),
+    adminOverrides: docBangGhiDe(sheet.masterResult),
+    pricingSheetId: sheet.id,
+    priceConfigIds: sheet.priceConfigIds,
+    originalCustomer: sheet.customerCodeName || syncedInput.customer || undefined,
+    sellerName: sheet.original?.actorName,
+    input: syncedInput,
   };
 }

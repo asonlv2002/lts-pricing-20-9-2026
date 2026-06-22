@@ -2,7 +2,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from 'react';
 import {
   Search, Database, RotateCcw, Download,
-  Eye, Filter, X, XCircle,
+  Eye, Filter, X, XCircle, RefreshCw,
   FileText, Trash2
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
@@ -18,7 +18,6 @@ import {
   isQuoteHistoryItem,
   type PricingWorkflowStatus,
 } from '../lib/history-filters';
-import { formatMobileHistoryCode } from '../lib/history-mobile-display';
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -644,7 +643,9 @@ function LsxDetailPanel({
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
 export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieuHuong?: (module: 'calculator' | 'quotations') => void; menuDangChon?: string }) {
-  const { history: lichSu, productionOrders, loadHistoryItem: taiLichSu, patchHistoryItem, capNhatLSX, materials, role } = dungCuaHangTinhGia();
+  const { history: lichSu, productionOrders, loadHistoryItem: taiLichSu, patchHistoryItem, capNhatLSX, materials, role,
+    taiLichSuTuServer, isAuthenticated: daDangNhap,
+  } = dungCuaHangTinhGia();
 
   // Toggle
   const [mode, setMode] = useState<ToggleMode>('pricing');
@@ -666,6 +667,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
   const [profitRateMax, setProfitRateMax] = useState('');
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [pendingTargetId, setPendingTargetId] = useState<string | null>(null);
+  const [dangTaiLichSu, setDangTaiLichSu] = useState(false);
 
   // Check for navigation filter from customer module
   useEffect(() => {
@@ -988,6 +990,22 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
             <Download size={13} /> Xuất CSV
           </button>
           <button className="btn btn-sm btn-outline" onClick={clearAll}>Xóa bộ lọc</button>
+          {daDangNhap && (
+            <button
+              className="btn btn-sm btn-outline"
+              disabled={dangTaiLichSu}
+              onClick={async () => {
+                setDangTaiLichSu(true);
+                try { await taiLichSuTuServer(); } catch {}
+                setDangTaiLichSu(false);
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+              title="Tải lại danh sách từ máy chủ"
+            >
+              <RefreshCw size={13} className={dangTaiLichSu ? 'um-spin' : ''} />
+              {dangTaiLichSu ? 'Đang tải...' : 'Làm mới'}
+            </button>
+          )}
         </div>
 
         {/* Custom date range */}
@@ -1141,7 +1159,6 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
               <thead>
                 <tr>
                   {mode === 'pricing' && <th className="hist-col-select" aria-label="Chọn">✓</th>}
-                  <th className="hist-col-code">Mã</th>
                   {(mode === 'pricing' || mode === 'lsx') && <th className="hist-col-product">Sản phẩm</th>}
                   <th className="hist-col-customer">Khách hàng</th>
                   {mode === 'quote' && <th className="hist-col-quote-count">Số SP</th>}
@@ -1155,8 +1172,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
               <tbody>
                 {mode === 'lsx' ? (pageItems as ProductionOrder[]).map(o => (
                   <tr key={o.id} onClick={() => setSelectedOrder(o)} style={{ cursor: 'pointer' }} onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface)')} onMouseLeave={e => (e.currentTarget.style.background = '')}>
-                    <td className="hist-col-code" title={o.id} style={{ fontFamily: "'Courier New', monospace", fontSize: '0.78rem' }}><span className="hist-code-full">{o.id}</span><span className="hist-code-mobile">{formatMobileHistoryCode(o.id)}</span></td>
-                    <td className="hist-col-product"><span className="hist-mobile-primary">{o.snapshot.customer}</span><span className="hist-mobile-secondary">{o.snapshot.productName} · {dinhDangSo(o.snapshot.chotGia)} ₫ · {LSX_STATUS_CONFIG[o.status].label}</span></td>
+                    <td className="hist-col-product"><span className="hist-mobile-primary">{o.snapshot.productName}</span><span className="hist-mobile-secondary">{o.snapshot.customer} · {dinhDangSo(o.snapshot.chotGia)} ₫ · {LSX_STATUS_CONFIG[o.status].label}</span></td>
                     <td className="hist-col-customer">{o.snapshot.customer}</td>
                     <td className="hist-col-date">{new Date(o.createdAt).toLocaleDateString('vi-VN')}</td>
                     <td className="hist-col-status"><span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 600, color: LSX_STATUS_CONFIG[o.status].color, background: LSX_STATUS_CONFIG[o.status].bg }}>● {LSX_STATUS_CONFIG[o.status].label}</span></td>
@@ -1184,11 +1200,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
                           />
                         </td>
                       )}
-                      <td className="hist-col-code" title={mode === 'quote' ? (h.quoteCode || h.id) : h.id} style={{ fontFamily: "'Courier New', monospace", fontSize: '0.78rem' }}>
-                        <span className="hist-code-full">{mode === 'quote' ? (h.quoteCode || h.id) : h.id}</span>
-                        <span className="hist-code-mobile">{formatMobileHistoryCode(mode === 'quote' ? (h.quoteCode || h.id) : h.id)}</span>
-                      </td>
-                      {mode === 'pricing' && <td className="hist-col-product"><span className="hist-mobile-primary">{h.customer}</span><span className="hist-mobile-secondary">{h.productName} · {dinhDangSo(h.finalPrice)} ₫ · {PRICING_STATUS_CONFIG[status]?.label}</span></td>}
+                      {mode === 'pricing' && <td className="hist-col-product"><span className="hist-mobile-primary">{h.productName}</span><span className="hist-mobile-secondary">{h.customer} · {dinhDangSo(h.finalPrice)} ₫ · {PRICING_STATUS_CONFIG[status]?.label}</span></td>}
                       <td className="hist-col-customer"><span className="hist-mobile-primary">{h.customer}</span><span className="hist-mobile-secondary">{h.productName} · {mode === 'quote' ? QUOTE_STATUS_CONFIG[status as QuoteStatus]?.label : PRICING_STATUS_CONFIG[status]?.label}</span></td>
                       {mode === 'quote' && <td className="hist-col-quote-count" style={{ textAlign: 'center' }}>{h.quoteProducts?.length ?? (h.tiers?.length ? 1 : 0)}</td>}
                       <td className="hist-col-date">{h.date}</td>

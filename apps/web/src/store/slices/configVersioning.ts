@@ -24,7 +24,7 @@ export interface ConfigVersioningSlice {
   taiPhienBanDinhMuc: (data: ConfigSnapshot[]) => void;
   taoPhienBanDinhMuc: (params: { scope: ConfigScope; name?: string; effectiveMode: 'date' | 'month'; effectiveFrom: string }) => Promise<void>;
   xoaPhienBanDinhMuc: (id: string) => void;
-  apDungPhienBanDinhMuc: (id: string) => void;
+  apDungPhienBanDinhMuc: (id: string, opts?: { silent?: boolean }) => void;
   taiLichSuPhienBanTuServer: (scope: ConfigScope) => Promise<void>;
   timPhienBanDinhMucTheoNgay: (scope: ConfigScope, date: string) => ConfigSnapshot | null;
 }
@@ -130,16 +130,6 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
           selectedConfigSnapshotId: { ...s.selectedConfigSnapshotId, [scope]: priceConfig.id },
         }));
 
-        state.ghiNhatKy({
-          userId: state.currentSellerId,
-          userName: state.currentSellerName,
-          action: 'create',
-          targetType: 'config',
-          targetId: priceConfig.id,
-          targetName: name || SCOPE_LABEL[scope],
-          after: { scope, name, effectiveMode, effectiveFrom, version: priceConfig.version },
-          note: `Tao phien ban ${configName} v${priceConfig.version}`,
-        });
         return;
       } catch (e) {
         console.warn('Luu phien ban len server that bai, fallback localStorage:', e);
@@ -155,16 +145,6 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
         configSnapshots,
         selectedConfigSnapshotId: { ...s.selectedConfigSnapshotId, [scope]: snapshot.id },
       };
-    });
-    state.ghiNhatKy({
-      userId: state.currentSellerId,
-      userName: state.currentSellerName,
-      action: 'create',
-      targetType: 'config',
-      targetId: snapshot.id,
-      targetName: snapshot.name || SCOPE_LABEL[scope],
-      after: { scope, name: snapshot.name, effectiveMode, effectiveFrom },
-      note: 'Tao phien ban dinh muc (local)',
     });
   },
 
@@ -201,7 +181,6 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
 
   xoaPhienBanDinhMuc: (id) => {
     const state = get();
-    const old = state.configSnapshots.find(snapshot => snapshot.id === id);
     set((s) => {
       const configSnapshots = s.configSnapshots.filter(snapshot => snapshot.id !== id);
       luuLocalStorage(LS_CONFIG_SNAPSHOTS, configSnapshots);
@@ -211,21 +190,9 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
       }
       return { configSnapshots, selectedConfigSnapshotId: selected };
     });
-    if (old) {
-      state.ghiNhatKy({
-        userId: state.currentSellerId,
-        userName: state.currentSellerName,
-        action: 'delete',
-        targetType: 'config',
-        targetId: id,
-        targetName: old.name || SCOPE_LABEL[old.scope],
-        before: { scope: old.scope, name: old.name, effectiveMode: old.effectiveMode, effectiveFrom: old.effectiveFrom },
-        note: 'Xoa phien ban dinh muc (local only)',
-      });
-    }
   },
 
-  apDungPhienBanDinhMuc: (id) => {
+  apDungPhienBanDinhMuc: (id, opts) => {
     const state = get();
     const snapshot = state.configSnapshots.find(item => item.id === id);
     if (!snapshot) return;
@@ -263,16 +230,6 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
     set((s) => ({
       selectedConfigSnapshotId: { ...s.selectedConfigSnapshotId, [scope]: id },
     }));
-    state.ghiNhatKy({
-      userId: state.currentSellerId,
-      userName: state.currentSellerName,
-      action: 'version_restore',
-      targetType: 'config',
-      targetId: id,
-      targetName: snapshot.name || SCOPE_LABEL[scope],
-      after: { scope, name: snapshot.name, effectiveMode: snapshot.effectiveMode, effectiveFrom: snapshot.effectiveFrom },
-      note: 'Ap dung phien ban dinh muc',
-    });
   },
 
   timPhienBanDinhMucTheoNgay: (scope, date) => {

@@ -7,7 +7,6 @@ export const LS_HISTORY  = 'lts_history';
 export const LS_CONFIG   = 'lts_material_config';
 export const LS_UI_PREFS = 'lts_ui_prefs';
 export const LS_LSX      = 'lts_production_orders';
-export const LS_AUDIT    = 'lts_audit_log';
 export const LS_VERSIONS = 'lts_versions';
 export const LS_CONFIG_SNAPSHOTS = 'lts_config_snapshots';
 export const LS_QUOTE_COUNTER = 'lts_quote_counter';

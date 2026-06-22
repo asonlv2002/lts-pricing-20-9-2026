@@ -1,7 +1,6 @@
 ﻿import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import type { AuditEntry, AuditAction } from '../../lib/types';
-import { luuLocalStorage, LS_AUDIT } from '../helpers';
 import {
   layNhatKyHeThongService,
   layTaiKhoanService,
@@ -12,20 +11,13 @@ import {
 } from '../../lib/api/service-lts';
 import { mapActivityLogsServer } from '../../lib/activity-log-mapper';
 
-const MAX_AUDIT = 1000;
-
 export interface AuditSlice {
-  auditLog: AuditEntry[];
-
   nhatKyHeThong: AuditEntry[];
   dangTaiNhatKy: boolean;
   loiNhatKy: string | null;
   lanCuoiTaiNhatKy: number | null;
 
-  ghiNhatKy: (entry: Omit<AuditEntry, 'id' | 'timestamp'>) => void;
-  layNhatKyTheoMuc: (targetId: string) => AuditEntry[];
   xuatNhatKyCsv: (targetId?: string) => void;
-  taiAuditLog: (data: AuditEntry[]) => void;
   taiNhatKyHeThong: (force?: boolean) => Promise<void>;
 }
 
@@ -44,33 +36,15 @@ const ACTION_LABELS: Record<AuditAction, string> = {
 };
 
 export const createAuditSlice: StateCreator<CuaHangTinhGia, [], [], AuditSlice> = (set, get) => ({
-  auditLog: [],
   nhatKyHeThong: [],
   dangTaiNhatKy: false,
   loiNhatKy: null,
   lanCuoiTaiNhatKy: null,
 
-  ghiNhatKy: (entry) => {
-    set((state) => {
-      const newEntry: AuditEntry = {
-        ...entry,
-        id: crypto.randomUUID(),
-        timestamp: new Date().toISOString(),
-      };
-      const auditLog = [newEntry, ...state.auditLog].slice(0, MAX_AUDIT);
-      luuLocalStorage(LS_AUDIT, auditLog);
-      return { auditLog };
-    });
-  },
-
-  layNhatKyTheoMuc: (targetId) => {
-    return get().auditLog.filter(e => e.targetId === targetId);
-  },
-
   xuatNhatKyCsv: (targetId) => {
     const entries = targetId
-      ? get().auditLog.filter(e => e.targetId === targetId)
-      : get().auditLog;
+      ? get().nhatKyHeThong.filter(e => e.targetId === targetId)
+      : get().nhatKyHeThong;
 
     const headers = ['Thời gian', 'Người thực hiện', 'Hành động', 'Loại', 'Mục tiêu', 'IP', 'Thiết bị', 'Ghi chú'];
     const rows = entries.map(e => [
@@ -94,8 +68,6 @@ export const createAuditSlice: StateCreator<CuaHangTinhGia, [], [], AuditSlice> 
     a.click();
     URL.revokeObjectURL(url);
   },
-
-  taiAuditLog: (data) => set({ auditLog: data }),
 
   taiNhatKyHeThong: async (force = false) => {
     if (typeof window === 'undefined') return;

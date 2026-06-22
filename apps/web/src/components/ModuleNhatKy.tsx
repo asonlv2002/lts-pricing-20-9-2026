@@ -297,7 +297,6 @@ function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }
 
 export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }) {
   const {
-    auditLog: localAuditLog,
     nhatKyHeThong,
     dangTaiNhatKy,
     loiNhatKy,
@@ -311,13 +310,6 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
     taiBangTinhTuServer,
   } = dungCuaHangTinhGia();
   const coQuyenXemNhatKyHeThong = !!nguoiDungHienTai?.policies.includes('ACTIVITY_MONITOR');
-
-  const fullAuditLog = useMemo<AuditEntry[]>(() => {
-    const map = new Map<string, AuditEntry>();
-    for (const e of nhatKyHeThong) map.set(e.id, e);
-    for (const e of localAuditLog) if (!map.has(e.id)) map.set(e.id, e);
-    return Array.from(map.values());
-  }, [nhatKyHeThong, localAuditLog]);
 
   useEffect(() => {
     if (!coQuyenXemNhatKyHeThong) return;
@@ -336,13 +328,13 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
 
   const auditLog = useMemo(() => {
     if (menuDangChon === 'pricing.audit_log') {
-      return fullAuditLog.filter(e => e.targetType === 'history' || e.targetType === 'quote' || e.targetType === 'order');
+      return nhatKyHeThong.filter(e => e.targetType === 'history' || e.targetType === 'quote' || e.targetType === 'order');
     }
     if (menuDangChon === 'customers.audit_log') {
-      return fullAuditLog.filter(e => e.targetType === 'customer');
+      return nhatKyHeThong.filter(e => e.targetType === 'customer');
     }
-    return fullAuditLog;
-  }, [fullAuditLog, menuDangChon]);
+    return nhatKyHeThong;
+  }, [nhatKyHeThong, menuDangChon]);
 
   // Filters
   const [search, setSearch] = useState('');

@@ -164,6 +164,8 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       });
 
       get().setRole(vaiTroTuPolicies(userPolicies));
+      // Tải danh sách lịch sử từ server sau khi đăng nhập thành công
+      get().taiLichSuTuServer().catch(() => {});
     } catch (error) {
       xoaToken();
       set({
@@ -284,6 +286,8 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       });
 
       get().setRole(vaiTroTuPolicies(userProfile?.policies ?? fallbackPolicies));
+      // Tải danh sách lịch sử từ server sau khi khôi phục phiên
+      get().taiLichSuTuServer().catch(() => {});
     } catch {
       // Token might be expired, try refresh
       try {
@@ -316,6 +320,8 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
         });
 
         get().setRole(vaiTroTuPolicies(userPolicies));
+        // Tải danh sách lịch sử từ server sau khi làm mới phiên
+        get().taiLichSuTuServer().catch(() => {});
       } catch {
         resetPhienHetHan(set);
       }
@@ -351,17 +357,6 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       refreshToken: data.refreshToken,
       isAuthenticated: true,
     });
-    if (user) {
-      get().ghiNhatKy({
-        userId: user.id,
-        userName: user.fullName || user.account,
-        action: 'update',
-        targetType: 'permission',
-        targetId: user.id,
-        targetName: user.fullName || user.account,
-        note: 'Đổi mật khẩu cá nhân',
-      });
-    }
   },
 });
 };

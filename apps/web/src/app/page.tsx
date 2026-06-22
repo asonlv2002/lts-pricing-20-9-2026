@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import type { Material, ProfitRow, BoxOption } from '../lib/types';
+import type { Material, ProfitRow, BoxOption, ConfigScope, ConfigSnapshot } from '../lib/types';
 import TheNhapLieu from '../components/TheNhapLieu';
 import ManHinhQuanLy from '../components/ManHinhQuanLy';
 import ManHinhKyThuat from '../components/ManHinhKyThuat';
@@ -89,6 +89,7 @@ export default function TrangChinh() {
     activeView: gocNhinHienTai, layoutType: kieuBoTriCuc, density: matDoHienThi, theme: chuDe, advancedOpen: moRongNangCao,
     materials: danhSachVatLieu, constants: hangSo, profitTable: bangLoiNhuan, smallWidthPrices: bangGiaKhoNho, result: ketQua,
     setActiveView: datGocNhin,
+    isAuthenticated: daDangNhap,
   } = dungCuaHangTinhGia();
 
   const [tabMobile, datTabMobile] = useState<'input' | 'result'>('input');
@@ -157,29 +158,35 @@ export default function TrangChinh() {
       }
 
       // Lịch sử
+      // Offline mode: dùng dữ liệu mẫu từ seed file.
+      // Online mode: hiển thị tạm localStorage (nếu có), history thật sẽ
+      // được tải từ server qua taiLichSuTuServer khi isAuthenticated → true.
+      const laOffline = process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true';
       const rawLichSu = window.localStorage.getItem('lts_history');
       if (rawLichSu) {
         const parsed = JSON.parse(rawLichSu);
         if (Array.isArray(parsed) && parsed.length > 0) {
           const patched = parsed.map((h: any) => ({ ...h, quoteStatus: h.quoteStatus ?? 'drafted' }));
-          // Nếu chưa có record báo giá nào, merge thêm từ seed
-          const hasQuote = patched.some((h: any) => h.isQuote || h.quoteProducts?.length);
-          if (!hasQuote) {
-            fetch('/seed-history.json')
-              .then(r => r.ok ? r.json() : [])
-              .then((seed: any[]) => {
-                const quoteRecords = seed.filter((h: any) => h.isQuote || h.quoteProducts?.length);
-                if (quoteRecords.length > 0) {
-                  const merged = [...patched, ...quoteRecords];
-                  dungCuaHangTinhGia.setState({ history: merged });
-                  try { window.localStorage.setItem('lts_history', JSON.stringify(merged)); } catch {}
-                }
-              }).catch(() => {});
-          }
           dungCuaHangTinhGia.setState({ history: patched });
+          // Offline: merge thêm seed báo giá nếu chưa có
+          if (laOffline) {
+            const hasQuote = patched.some((h: any) => h.isQuote || h.quoteProducts?.length);
+            if (!hasQuote) {
+              fetch('/seed-history.json')
+                .then(r => r.ok ? r.json() : [])
+                .then((seed: any[]) => {
+                  const quoteRecords = seed.filter((h: any) => h.isQuote || h.quoteProducts?.length);
+                  if (quoteRecords.length > 0) {
+                    const merged = [...patched, ...quoteRecords];
+                    dungCuaHangTinhGia.setState({ history: merged });
+                    try { window.localStorage.setItem('lts_history', JSON.stringify(merged)); } catch {}
+                  }
+                }).catch(() => {});
+            }
+          }
         }
-      } else {
-        // Lần đầu: fetch dữ liệu mẫu từ seed file
+      } else if (laOffline) {
+        // Offline lần đầu: fetch dữ liệu mẫu từ seed file
         fetch('/seed-history.json')
           .then(r => r.ok ? r.json() : [])
           .then((seed: any[]) => {
@@ -200,13 +207,8 @@ export default function TrangChinh() {
       }
 
       // Audit log
-      const rawAudit = window.localStorage.getItem('lts_audit_log');
-      if (rawAudit) {
-        try {
-          const parsed = JSON.parse(rawAudit);
-          if (Array.isArray(parsed)) dungCuaHangTinhGia.setState({ auditLog: parsed });
-        } catch {}
-      }
+      // Dọn rác localStorage nhật ký cũ (đã chuyển sang server-only)
+      try { window.localStorage.removeItem('lts_audit_log'); } catch {}
 
       // Versions
       const rawVersions = window.localStorage.getItem('lts_versions');
@@ -301,7 +303,49 @@ export default function TrangChinh() {
         dungCuaHangTinhGia.getState().recalculate();
       }
     } catch { /* localStorage lỗi */ }
+
+    // ── Auto-apply phiên bản định mức mới nhất từ server ───────────────────
+    void (async () => {
+      const store = dungCuaHangTinhGia.getState();
+      if (!store.isAuthenticated || !store.accessToken) return; // chưa login → giữ local
+
+      const scopes: ConfigScope[] = [
+        'materials', 'production', 'profit', 'surcharges', 'interest', 'waste', 'outsource',
+      ];
+
+      // Fetch song song 7 scope; lỗi 1 cái không ảnh hưởng cái khác
+      await Promise.allSettled(
+        scopes.map(s => dungCuaHangTinhGia.getState().taiLichSuPhienBanTuServer(s))
+      );
+
+      // Tìm version mới nhất của từng scope và apply silently
+      const state = dungCuaHangTinhGia.getState();
+      for (const scope of scopes) {
+        const candidates = state.configSnapshots.filter(
+          (s: ConfigSnapshot) => (s.scope ?? 'materials') === scope,
+        );
+        if (candidates.length === 0) continue; // server không có version → giữ local
+
+        const latest = [...candidates].sort(
+          (a, b) =>
+            b.effectiveFrom.localeCompare(a.effectiveFrom) ||
+            b.updatedAt.localeCompare(a.updatedAt),
+        )[0];
+        if (latest) {
+          state.apDungPhienBanDinhMuc(latest.id, { silent: true });
+        }
+      }
+    })();
   }, []);
+
+  // ── Tải lịch sử từ server khi đăng nhập thành công ──────────────────────────
+  const daDangNhapTruoc = useRef(false);
+  useEffect(() => {
+    if (daDangNhap && !daDangNhapTruoc.current) {
+      dungCuaHangTinhGia.getState().taiLichSuTuServer().catch(() => {});
+    }
+    daDangNhapTruoc.current = daDangNhap;
+  }, [daDangNhap]);
 
   // ── Lưu UI prefs ────────────────────────────────────────────────────────────
   useEffect(() => {
