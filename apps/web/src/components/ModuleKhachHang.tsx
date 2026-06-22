@@ -164,7 +164,7 @@ const statusLabel = (c: Customer) => c.isLocked ? 'Đã khóa' : c.status === 'a
 const normalize = (v?: string | null) => (v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const isAssignedSeller = (c: Customer, sellerId?: string) => !!sellerId && (c.sellerId === sellerId || c.secondarySellerId === sellerId);
 const canEdit = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || (role === 'sale' && isAssignedSeller(c, sellerId) && !c.isLocked);
-const canViewContact = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || role === 'purchase' || isAssignedSeller(c, sellerId);
+const canViewContact = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || isAssignedSeller(c, sellerId);
 const canLock = (role: Role) => role === 'admin';
 const isCustomerManager = (c: Customer, userId?: string) => !!userId && (c.managers ?? []).some(manager => manager.userId === userId);
 const canUpdateCustomerRecord = (c: Customer, userId?: string) => isCustomerManager(c, userId);

@@ -312,7 +312,6 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
   const coQuyenXemNhatKyHeThong = !!nguoiDungHienTai?.policies.includes('ACTIVITY_MONITOR');
 
   useEffect(() => {
-    if (!coQuyenXemNhatKyHeThong) return;
     taiNhatKyHeThong();
     const onFocus = () => taiNhatKyHeThong();
     const onVisibility = () => {
@@ -324,7 +323,7 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [coQuyenXemNhatKyHeThong, taiNhatKyHeThong]);
+  }, [taiNhatKyHeThong]);
 
   const auditLog = useMemo(() => {
     if (menuDangChon === 'pricing.audit_log') {
@@ -501,20 +500,6 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
   filterModule.forEach(m => activeChips.push({ label: TARGET_TYPE_LABELS[m] || m, clear: () => toggleModule(m) }));
   if (targetSearch) activeChips.push({ label: `Mục tiêu: ${targetSearch}`, clear: () => setTargetSearch('') });
 
-  if (!coQuyenXemNhatKyHeThong) {
-    return (
-      <div className="crm-root audit-log-root">
-        <div className="crm-empty">
-          <Lock size={40} />
-          <p>Không có quyền xem nhật ký thao tác toàn hệ thống</p>
-          <p style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
-            Tài khoản cần quyền ACTIVITY_MONITOR để xem dữ liệu này.
-          </p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="crm-root audit-log-root">
       {/* ── Filter Bar ── */}
@@ -583,6 +568,7 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
         {showAdvanced && (
           <div style={{ marginTop: 12, display: 'grid', gap: 16, gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
             {/* Tài khoản thực hiện - Autocomplete */}
+            {coQuyenXemNhatKyHeThong && (
             <div style={{ position: 'relative' }}>
               <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginBottom: 4, fontWeight: 500 }}>Tài khoản thực hiện</div>
               <input
@@ -620,6 +606,7 @@ export default function ModuleNhatKy({ menuDangChon }: { menuDangChon?: string }
                 </div>
               )}
             </div>
+            )}
 
             {/* Phân mục dữ liệu - Multi-select */}
             <div>

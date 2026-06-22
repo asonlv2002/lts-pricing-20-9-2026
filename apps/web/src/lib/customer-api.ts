@@ -155,12 +155,14 @@ export function laNguoiPhuTrach(
 // Lọc danh sách khách theo quyền xem:
 // - admin / purchase: thấy tất cả.
 // - còn lại (sale): chỉ thấy khách mình phụ trách.
+// - admin: thấy tất cả.
+// - sale / purchase: chỉ thấy khách mình phụ trách.
 export function locKhachTheoQuyen<T extends CoNguoiPhuTrach>(
   customers: T[],
   role: string,
   userId?: string | null,
 ): T[] {
-  if (role === 'admin' || role === 'purchase') return customers;
+  if (role === 'admin') return customers;
   return customers.filter(customer => laNguoiPhuTrach(customer, userId));
 }
 

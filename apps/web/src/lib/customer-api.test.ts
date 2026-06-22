@@ -251,7 +251,7 @@ assert('laNguoiPhuTrach khach chua phan cong -> false', laNguoiPhuTrach(khChuaPh
 
 const dsKhach = [khA, khB, khChuaPhanCong, khSellerCu];
 assert('admin thay tat ca', locKhachTheoQuyen(dsKhach, 'admin', 'user-1').length === 4);
-assert('purchase thay tat ca', locKhachTheoQuyen(dsKhach, 'purchase', 'user-1').length === 4);
+assert('purchase chi thay khach minh phu trach', locKhachTheoQuyen(dsKhach, 'purchase', 'user-1').length === 2);
 {
   const saleThay = locKhachTheoQuyen(dsKhach, 'sale', 'user-1');
   assert('sale chi thay khach minh phu trach', saleThay.length === 2 && saleThay.includes(khA) && saleThay.includes(khSellerCu), JSON.stringify(saleThay.length));

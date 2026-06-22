@@ -4,7 +4,8 @@ import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { LS_CUSTOMERS, loadCustomers, luuLocalStorage } from '../store/helpers';
 import { taoKhachHangNhanhChoBaoGia, laNguoiPhuTrach } from '../lib/customer-api';
-import { taoMaKhachHangService } from '../lib/api/service-lts';
+import { taoMaKhachHangService, layKhachHangService } from '../lib/api/service-lts';
+import { chuyenDanhSachCustomerApiSangUi } from '../lib/customer-api';
 import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
 
 type KhachHangGoiY = {
@@ -139,12 +140,35 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
     lamMoiDanhSachKhachHang();
   }, [lamMoiDanhSachKhachHang]);
 
+  // Fetch khách hàng từ server khi đăng nhập — đảm bảo có managers để filter đúng
+  React.useEffect(() => {
+    if (!isAuthenticated || !accessToken) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await layKhachHangService(accessToken);
+        if (cancelled) return;
+        const serverCustomers = chuyenDanhSachCustomerApiSangUi(Array.isArray(data) ? data : []);
+        const mapped = serverCustomers.map(c => ({
+          id: c.id, customerCode: c.customerCode, companyName: c.companyName,
+          contactName: c.contactName, phone: c.phone,
+          sellerId: c.sellerId, secondarySellerId: c.secondarySellerId,
+          sellerName: c.sellerName, managers: c.managers,
+          status: c.status, isLocked: c.isLocked,
+        } as KhachHangGoiY));
+        luuLocalStorage(LS_CUSTOMERS, mapped);
+        datDanhSachKhachHang(mapped);
+      } catch { /* giữ data localStorage cũ nếu server lỗi */ }
+    })();
+    return () => { cancelled = true; };
+  }, [isAuthenticated, accessToken]);
+
   const goiYKhachHang = React.useMemo(() => {
     const tuKhoa = boDau(input.customer.trim());
     if (!dangFocusKhachHang || tuKhoa.length < 1) return [];
 
     return danhSachKhachHang
-      .filter(kh => (role === 'admin' || role === 'purchase' || laNguoiPhuTrach(kh, currentSellerId)) && kh.status !== 'inactive' && !kh.isLocked)
+      .filter(kh => (role === 'admin' || laNguoiPhuTrach(kh, currentSellerId)) && kh.status !== 'inactive' && !kh.isLocked)
       .filter(kh => boDau(`${kh.companyName} ${kh.customerCode} ${kh.contactName ?? ''} ${kh.phone ?? ''}`).includes(tuKhoa))
       .slice(0, 6);
   }, [currentSellerId, danhSachKhachHang, dangFocusKhachHang, input.customer, role]);

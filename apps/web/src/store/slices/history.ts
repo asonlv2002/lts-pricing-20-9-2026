@@ -76,18 +76,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       // Tính mã khách hàng hiện tại
       const currentCustomerCode = timMaKhachHang(state.input.customer) || null;
 
-      // Xác định có copy pricingSheetId từ item đang load không
-      let pricingSheetIdToCopy: string | undefined;
-      if (state.loadedHistoryId) {
-        const loadedItem = state.history.find(h => h.id === state.loadedHistoryId);
-        if (loadedItem) {
-          const loadedCustomerCode = loadedItem.originalCustomer || timMaKhachHang(loadedItem.customer) || null;
-          if (loadedCustomerCode && currentCustomerCode && loadedCustomerCode === currentCustomerCode) {
-            pricingSheetIdToCopy = loadedItem.pricingSheetId;
-          }
-        }
-      }
-
       const item: HistoryItem = {
         id: String(now.getTime()),
         date: now.toLocaleDateString('vi-VN'),
@@ -105,7 +93,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         adminOverrides: Object.keys(state.adminOverrides).length > 0 ? state.adminOverrides : undefined,
         input: { ...state.input },
         originalCustomer: currentCustomerCode ?? undefined,
-        pricingSheetId: pricingSheetIdToCopy,
+        // Lưu mới → luôn tạo sheet mới trên server (không copy pricingSheetId từ item cũ)
       };
       const history = [item, ...state.history].slice(0, 200);
       luuLocalStorage(LS_HISTORY, history);

@@ -217,7 +217,7 @@ export async function lamMoiTokenQuaQuanLyPhien(): Promise<TokenPair> {
 async function goiService<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   if (process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true') {
     const { mockPhanQuyen } = await import('./mock-phan-quyen');
-    return mockPhanQuyen<T>(path, options);
+    return mockPhanQuyen<T>(path, options, token ?? layTokenHienTai?.()?.accessToken);
   }
 
   const firstToken = token ?? layTokenHienTai?.()?.accessToken;

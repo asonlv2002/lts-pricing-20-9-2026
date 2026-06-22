@@ -15,9 +15,7 @@ const NHOM_MENU_POLICIES: Record<string, PolicyCode[]> = {
 // Lưu ý: "pricing.quote_review" KHÔNG gate ở menu — admin/sale đều xem được danh sách báo giá.
 // Chức năng Duyệt/Từ chối bên trong trang vẫn gate theo QUOTATION_REVIEWER (coQuyenDuyetBaoGia).
 const MUC_MENU_POLICIES: Record<string, PolicyCode[]> = {
-  'pricing.audit_log': ['ACTIVITY_MONITOR'],
-  'customers.audit_log': ['ACTIVITY_MONITOR'],
-  'system.audit_log': ['ACTIVITY_MONITOR'],
+  // Nhật ký thao tác: ai cũng xem được (server tự filter — không có ACTIVITY_MONITOR chỉ thấy log của mình)
 };
 
 export function coTheXemNhomMenu(policies: PolicyCode[], nhomId: string): boolean {
@@ -32,6 +30,8 @@ export function coTheXemNhomMenu(policies: PolicyCode[], nhomId: string): boolea
 export function coTheXemMucMenu(policies: PolicyCode[], menuKey: string): boolean {
   const required = MUC_MENU_POLICIES[menuKey];
   if (required && required.length > 0) return required.every(p => policies.includes(p));
+  // Nhật ký: ai cũng xem được (server tự filter theo actorId)
+  if (menuKey.endsWith('.audit_log')) return true;
   if (menuKey.startsWith('system.')) return policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
   return true;
 }
@@ -47,5 +47,9 @@ export function laAdmin(policies: PolicyCode[]): boolean {
 
 export function vaiTroTuPolicies(policies: PolicyCode[]): 'admin' | 'sale' | 'purchase' {
   if (policies.length === 0) return 'purchase';
-  return 'admin';
+  const laAdmin = policies.some(p =>
+    p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY')
+    || p === 'ACTIVITY_MONITOR' || p === 'PRICE_CONFIG_MANAGER'
+  );
+  return laAdmin ? 'admin' : 'sale';
 }

@@ -497,8 +497,21 @@ function hienToastLuuGhiDe() {
   setTimeout(() => toast.remove(), 3500);
 }
 
+function hienToastCanhBao(noiDung: string) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.style.background = '#fef3c7';
+  toast.style.border = '1px solid #f59e0b';
+  toast.style.color = '#92400e';
+  toast.textContent = noiDung;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 6000);
+}
+
 // Đẩy 1 pricing sheet lên server (chạy ngầm, không hiện toast).
-// Bỏ qua im lặng nếu offline / chưa đăng nhập / thiếu mã khách hàng.
+// Bỏ qua im lặng nếu offline / chưa đăng nhập. Hiện toast nếu thiếu mã khách hàng.
 async function syncPricingSheetToServer(
   h: HistoryItem | undefined,
   isAuthenticated: boolean,
@@ -512,9 +525,15 @@ async function syncPricingSheetToServer(
   try {
     if (decision.action === 'postCreate') {
       const maKH = timMaKhachHang(h.customer);
-      if (!maKH) return;
+      if (!maKH) {
+        hienToastCanhBao(`Không tìm thấy mã khách hàng "${h.customer}". Bảng tính chỉ lưu cục bộ, chưa đẩy lên máy chủ.`);
+        return;
+      }
       const checkKH = kiemTraMaKhachHang(maKH);
-      if (!checkKH.hopLe) return;
+      if (!checkKH.hopLe) {
+        hienToastCanhBao(`Mã khách hàng không hợp lệ: ${checkKH.loi ?? maKH}. Bảng tính chỉ lưu cục bộ.`);
+        return;
+      }
       const sheet = await taoPricingSheetService(mapHistoryToPricingSheet(h, checkKH.maKhachHang), accessToken ?? undefined);
       // Lưu pricingSheetId vào history item
       if (sheet?.id) {

@@ -57,13 +57,13 @@ export const OFFLINE_ACCOUNTS: Record<'admin' | 'sale' | 'purchase', { id: strin
     id: 'offline-sale',
     account: 'sale',
     fullName: 'Sale (Test)',
-    policies: [],
+    policies: ['CUSTOMER_CREATE', 'CUSTOMER_READ', 'CUSTOMER_MANAGER'] as PolicyCode[],
   },
   purchase: {
     id: 'offline-purchase',
     account: 'purchase',
     fullName: 'Purchase (Test)',
-    policies: ['ACCOUNT_READ'] as PolicyCode[],
+    policies: [] as PolicyCode[],
   },
 };
 

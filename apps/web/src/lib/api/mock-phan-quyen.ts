@@ -5,6 +5,7 @@
 // ═════════════════════════════════════════════════════════════════════════════
 
 import { type TaiKhoanApi, type VaiTroApi, type PolicyCode, type ActivityLogServerApi, POLICY_CATALOG } from './service-lts';
+import { decodeBase64UrlUtf8 } from '../text-codec';
 
 // ── localStorage keys ───────────────────────────────────────────────────────
 const LS_MOCK_ACCOUNTS = 'lts_mock_accounts';
@@ -229,8 +230,29 @@ async function delay(): Promise<void> {
   await new Promise(r => setTimeout(r, 50));
 }
 
+// ── JWT helpers ─────────────────────────────────────────────────────────────
+function decodeJwtPayload(token: string): { sub: string; account: string } | null {
+  try {
+    const [, payload] = token.split('.');
+    if (!payload) return null;
+    return JSON.parse(decodeBase64UrlUtf8(payload));
+  } catch {
+    return null;
+  }
+}
+
+function userCoQuyenActivityMonitor(token: string | undefined): boolean {
+  if (!token) return false;
+  const payload = decodeJwtPayload(token);
+  if (!payload?.sub) return false;
+  const accounts = layAccounts();
+  const user = accounts.find(a => a.id === payload.sub);
+  if (!user) return false;
+  return (user.policies ?? []).some(p => p.code === 'ACTIVITY_MONITOR');
+}
+
 // ── Mock router ─────────────────────────────────────────────────────────────
-export async function mockPhanQuyen<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function mockPhanQuyen<T>(path: string, options: RequestInit = {}, token?: string): Promise<T> {
   await delay();
 
   const method = (options.method ?? 'GET').toUpperCase();
@@ -429,7 +451,12 @@ export async function mockPhanQuyen<T>(path: string, options: RequestInit = {}):
 
   // ── GET /activity-logs ──────────────────────────────────────────────────
   if (path === '/activity-logs' && method === 'GET') {
-    return layActivityLogs() as unknown as T;
+    const logs = layActivityLogs();
+    if (userCoQuyenActivityMonitor(token)) return logs as unknown as T;
+    // Không có ACTIVITY_MONITOR → chỉ trả log của chính user hiện tại
+    const payload = token ? decodeJwtPayload(token) : null;
+    const userId = payload?.sub ?? null;
+    return logs.filter(l => l.actorId === userId) as unknown as T;
   }
 
   // ── Fallback ────────────────────────────────────────────────────────────
