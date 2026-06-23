@@ -306,7 +306,7 @@ function OChuCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khi
 }
 
 // ── Override Table Section ────────────────────────────────────────────────────
-function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, chenhLechGiaGocDonVi, donViChenhLech, duocSua, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, materials }: {
+function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, chenhLechGiaGocDonVi, donViChenhLech, duocSua, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, materials, giaDaThayDoiDonVi, profitRatePct, khiDatProfitRate, soLuong }: {
   title: string;
   lopMau: 'sale' | 'admin';
   cacDongSanXuat: UniRow[];
@@ -317,9 +317,13 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
   duocSua: boolean;
   khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
   khiLuu: (id: string) => void;
-  khiLuuMoi: () => void; // gọi khi chưa có loadedHistoryId — tự lưu lichSu rồi persist
+  khiLuuMoi: () => void;
   loadedHistoryId: string | null;
   materials: Material[];
+  giaDaThayDoiDonVi: number;
+  profitRatePct: number;
+  khiDatProfitRate: (v: number) => void;
+  soLuong: number;
 }) {
   const { rows: cacDongDaXuLy, totalCPSX: tongCPSX, totalCPVL: tongCPVL } = xuLyDongGhiDe(cacDongSanXuat, ghiDeNguon, ghiDeHienTai);
   const coThayDoi = countOverrideChanges(ghiDeHienTai) > 0;
@@ -451,6 +455,45 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                 </td>
               </tr>
             )}
+            {giaDaThayDoiDonVi > 0 && (
+              (() => {
+                const pct = profitRatePct || 0;
+                const giaBan = giaDaThayDoiDonVi * (1 + pct / 100);
+                const chenhDonVi = giaBan - giaDaThayDoiDonVi;
+                const donVi = donViChenhLech === 'm2' ? 'm²' : 'túi';
+                const dt = giaBan * soLuong;
+                const ln = chenhDonVi * soLuong;
+                return (
+                  <tr className={`override-profit-rate-row override-profit-rate-row--${lopMau}`}>
+                    <td colSpan={5} className="override-profit-label">
+                      Tỷ lệ LN:{' '}
+                      {duocSua ? (
+                        <input
+                          className="profit-rate-input"
+                          type="number"
+                          step="0.1"
+                          value={pct || ''}
+                          onChange={(e) => khiDatProfitRate(Number(e.target.value) || 0)}
+                          placeholder="0"
+                        />
+                      ) : (
+                        <span className="profit-rate-value">{pct}%</span>
+                      )}
+                      {duocSua && <span className="profit-rate-pct-suffix">%</span>}
+                    </td>
+                    <td colSpan={2} className="num">
+                      Giá: {dinhDangSo(Math.round(giaBan), 0)} đ/{donVi}
+                      <span className={`profit-rate-diff ${chenhDonVi >= 0 ? 'diff-up' : 'diff-down'}`}>
+                        {' '}({chenhDonVi >= 0 ? '+' : ''}{dinhDangSo(Math.round(chenhDonVi), 0)})
+                      </span>
+                    </td>
+                    <td colSpan={3} className="num">
+                      DT: {dinhDangSo(Math.round(dt), 0)} đ  |  LN: {dinhDangSo(Math.round(ln), 0)} đ
+                    </td>
+                  </tr>
+                );
+              })()
+            )}
           </tbody>
         </table>
       </div>
@@ -560,6 +603,7 @@ export default function ManHinhQuanLy() {
   originalCustomerLoaded: originalCustomerLoaded, history: lichSu, materials,
     currentSellerId: idNhanVienHienTai,
     saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin, showSaleOverrides: hienGhiDeSale, showAdminOverrides: hienGhiDeAdmin,
+    saleProfitRatePct, adminProfitRatePct, setSaleProfitRatePct: datSaleProfitRatePct, setAdminProfitRatePct: datAdminProfitRatePct,
     setSaleOverride: datGhiDeSale, setAdminOverride: datGhiDeAdmin, setShowSaleOverrides: datHienGhiDeSale, setShowAdminOverrides: datHienGhiDeAdmin, persistOverrides: luuGhiDe, calculateForInput,
   accessToken, isAuthenticated,
 } = dungCuaHangTinhGia();
@@ -1280,6 +1324,10 @@ const buttonLabel = loadedItem
                     khiLuuMoi={handleSaveNew}
                     loadedHistoryId={loadedHistoryId}
                     materials={materials}
+                    giaDaThayDoiDonVi={giaSauGhiDeSaleDonVi}
+                    profitRatePct={saleProfitRatePct}
+                    khiDatProfitRate={datSaleProfitRatePct}
+                    soLuong={dauVaoKq.quantity}
                   />
                 )}
 
@@ -1298,6 +1346,10 @@ const buttonLabel = loadedItem
                     khiLuuMoi={handleSaveNew}
                     loadedHistoryId={loadedHistoryId}
                     materials={materials}
+                    giaDaThayDoiDonVi={giaSauGhiDeAdminDonVi}
+                    profitRatePct={adminProfitRatePct}
+                    khiDatProfitRate={datAdminProfitRatePct}
+                    soLuong={dauVaoKq.quantity}
                   />
                 )}
               </>

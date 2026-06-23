@@ -362,6 +362,8 @@ export interface HistoryItem {
   sellerName?: string;
   saleOverrides?: OverrideTable;
   adminOverrides?: OverrideTable;
+  saleProfitRatePct?: number;
+  adminProfitRatePct?: number;
   locked?: boolean;
   lockedBy?: string;
   lockedAt?: string;

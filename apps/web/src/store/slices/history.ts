@@ -92,6 +92,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         sellerName: state.currentSellerName,
         saleOverrides: Object.keys(state.saleOverrides).length > 0 ? state.saleOverrides : undefined,
         adminOverrides: Object.keys(state.adminOverrides).length > 0 ? state.adminOverrides : undefined,
+        saleProfitRatePct: state.saleProfitRatePct || undefined,
+        adminProfitRatePct: state.adminProfitRatePct || undefined,
         input: { ...state.input },
         originalCustomer: currentCustomerCode ?? undefined,
         // Lưu mới → luôn tạo sheet mới trên server (không copy pricingSheetId từ item cũ)
@@ -132,6 +134,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         loadedHistoryId: item.id,
         saleOverrides: item.saleOverrides ?? {},
         adminOverrides: item.adminOverrides ?? {},
+        saleProfitRatePct: item.saleProfitRatePct ?? 0,
+        adminProfitRatePct: item.adminProfitRatePct ?? 0,
         showSaleOverrides: !!item.saleOverrides && Object.keys(item.saleOverrides).length > 0,
         showAdminOverrides: !!item.adminOverrides && Object.keys(item.adminOverrides).length > 0,
       };

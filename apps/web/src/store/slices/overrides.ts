@@ -8,11 +8,15 @@ export interface OverrideSlice {
   adminOverrides: OverrideTable;
   showSaleOverrides: boolean;
   showAdminOverrides: boolean;
+  saleProfitRatePct: number;
+  adminProfitRatePct: number;
 
   setSaleOverride: (rowKey: OverrideRowKey, field: keyof OverrideFields, value: OverrideFields[keyof OverrideFields] | undefined) => void;
   setAdminOverride: (rowKey: OverrideRowKey, field: keyof OverrideFields, value: OverrideFields[keyof OverrideFields] | undefined) => void;
   setShowSaleOverrides: (v: boolean) => void;
   setShowAdminOverrides: (v: boolean) => void;
+  setSaleProfitRatePct: (v: number) => void;
+  setAdminProfitRatePct: (v: number) => void;
   persistOverrides: (historyId: string) => void;
 }
 
@@ -21,6 +25,8 @@ export const createOverrideSlice: StateCreator<CuaHangTinhGia, [], [], OverrideS
   adminOverrides: {},
   showSaleOverrides: false,
   showAdminOverrides: false,
+  saleProfitRatePct: 0,
+  adminProfitRatePct: 0,
 
   setSaleOverride: (khoaDong, truong, giaTri) => {
     set((state) => {
@@ -56,14 +62,16 @@ export const createOverrideSlice: StateCreator<CuaHangTinhGia, [], [], OverrideS
 
   setShowSaleOverrides:  (v) => set({ showSaleOverrides: v }),
   setShowAdminOverrides: (v) => set({ showAdminOverrides: v }),
+  setSaleProfitRatePct:  (v) => set({ saleProfitRatePct: v }),
+  setAdminProfitRatePct: (v) => set({ adminProfitRatePct: v }),
 
   persistOverrides: (idLichSu) => {
-    const { saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin, history } = get();
+    const { saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin, saleProfitRatePct, adminProfitRatePct, history } = get();
     const old = history.find(h => h.id === idLichSu);
     const ghiDeSaleDaLuu  = Object.keys(ghiDeSale).length  > 0 ? ghiDeSale  : undefined;
     const ghiDeAdminDaLuu = Object.keys(ghiDeAdmin).length > 0 ? ghiDeAdmin : undefined;
     const lichSuDaCapNhat = history.map(h =>
-      h.id === idLichSu ? { ...h, saleOverrides: ghiDeSaleDaLuu, adminOverrides: ghiDeAdminDaLuu } : h
+      h.id === idLichSu ? { ...h, saleOverrides: ghiDeSaleDaLuu, adminOverrides: ghiDeAdminDaLuu, saleProfitRatePct: saleProfitRatePct || undefined, adminProfitRatePct: adminProfitRatePct || undefined } : h
     );
     set({ history: lichSuDaCapNhat });
     luuLocalStorage(LS_HISTORY, lichSuDaCapNhat);

@@ -5318,6 +5318,71 @@ body {
   border-top: 1px solid var(--border);
 }
 
+/* Profit rate row in override table — 3-column layout matching table columns */
+.override-profit-rate-row td {
+  padding: 8px 12px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  border-top: 1px dashed var(--border);
+}
+
+.override-profit-rate-row--sale td {
+  background: rgba(59,130,246,0.04);
+}
+
+.override-profit-rate-row--admin td {
+  background: rgba(217,119,6,0.04);
+}
+
+.override-profit-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.profit-rate-input {
+  width: 56px;
+  padding: 3px 6px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.profit-rate-input:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+}
+
+.profit-rate-pct-suffix {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.profit-rate-value {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.profit-rate-diff {
+  font-size: 0.82rem;
+  font-weight: 500;
+}
+
+.profit-rate-diff.diff-up {
+  color: var(--green, #059669);
+}
+
+.profit-rate-diff.diff-down {
+  color: var(--danger, #dc2626);
+}
+
 /* Total row highlight in override table */
 .override-section .total-row td {
   font-weight: 700;
