@@ -450,25 +450,16 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                 {dinhDangSo(tongCPSX + tongCPVL + cpMangIn, 0)} đ
               </td>
             </tr>
-            {chenhLechGiaGocDonVi != null && (
-              <tr className={`total-row override-price-delta-row ${lopChenhLechGia}`}>
-                <td colSpan={10}>
-                  CHÊNH LỆCH SO VỚI GIÁ GỐC: <strong>{chenhLechGiaGocText} {donViChenhLechText}</strong>
-                </td>
-              </tr>
-            )}
             {giaDaThayDoiDonVi > 0 && (
               (() => {
                 const effectivePct = profitRatePct || 0;
                 const isOverridden = profitRatePct > 0;
                 const baseCost = effTotalProdCost / soLuong;
-                const giaSP = baseCost * (1 + effectivePct / 100);
-                const donVi = donViChenhLech === 'm2' ? 'm²' : 'túi';
-                const dt = giaSP * soLuong;
-                const ln = (giaSP - baseCost) * soLuong;
+                const dt = baseCost * (1 + effectivePct / 100) * soLuong;
+                const ln = baseCost * (effectivePct / 100) * soLuong;
                 return (
                   <tr className={`override-profit-rate-row override-profit-rate-row--${lopMau}${isOverridden ? ' override-profit-rate-row--overridden' : ''}`}>
-                    <td colSpan={3} className="override-profit-label">
+                    <td colSpan={4} className="override-profit-label">
                       Tỷ lệ LN:{' '}
                       {duocSua ? (
                         <input
@@ -484,10 +475,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                       )}
                       {duocSua && <span className="profit-rate-pct-suffix">%</span>}
                     </td>
-                    <td colSpan={2} className="num">
-                      Giá SP: {dinhDangSo(Math.round(giaSP), 0)} đ/{donVi}
-                    </td>
-                    <td colSpan={2} className="num">
+                    <td colSpan={3} className="num">
                       LN: {dinhDangSo(Math.round(ln), 0)} đ
                     </td>
                     <td colSpan={3} className="num">
@@ -496,6 +484,13 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                   </tr>
                 );
               })()
+            )}
+            {chenhLechGiaGocDonVi != null && (
+              <tr className={`total-row override-price-delta-row ${lopChenhLechGia}`}>
+                <td colSpan={10}>
+                  CHÊNH LỆCH SO VỚI GIÁ GỐC: <strong>{chenhLechGiaGocText} {donViChenhLechText}</strong>
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
@@ -775,7 +770,13 @@ const buttonLabel = loadedItem
   const giaSauGhiDeAdminDonVi = adminResult.giaDonVi;
   const tongCPSXAdmin = adminResult.tongChiPhiSX;
   const donViChenhLechGia = laMang ? 'm2' : 'tui';
-  const engineDefaultPct = +(r.profitRate * 100).toFixed(1);
+  const { effProfitRate: baseTableRate } = tinhGiaHieuLuc({
+    result: r, uniRows: cacDongSanXuat,
+    saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin,
+    saleProfitRatePct: 0, adminProfitRatePct: 0,
+    profitTable: bangLoiNhuan, constants: hangSo,
+  });
+  const engineDefaultPct = +(baseTableRate * 100).toFixed(1);
   const saleDefaultPct = engineDefaultPct;
   const adminDefaultPct = engineDefaultPct;
 
@@ -1495,6 +1496,7 @@ const buttonLabel = loadedItem
                                     ? `${dinhDangSo(row.availableMeters, 0)}m × ${dinhDangSo(dauVaoKq.spreadWidth, 3)}m = ${dinhDangSo(row.estQty, 0)} m²`
                                     : `(${dinhDangSo(row.availableMeters, 0)}m - ${dinhDangSo(row.selectedKg, 1)} kg)`}
                                 </span>
+                                {selectedData?.chiTietVatLieu?.length && renderMaterialBreakdown(selectedData, row.availableMeters)}
                               </>
                             )}
                           </td>

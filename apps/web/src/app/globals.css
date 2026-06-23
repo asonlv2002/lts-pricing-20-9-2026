@@ -1179,8 +1179,8 @@ body {
 .breakdown-list { list-style: none; }
 .breakdown-list li { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 0.84rem; }
 .breakdown-list li:last-child { border-bottom: none; }
-.breakdown-list .bl-label { color: var(--muted); }
-.breakdown-list .bl-value { font-weight: 600; font-variant-numeric: tabular-nums; }
+.breakdown-list .bl-label { color: var(--muted); user-select: text; }
+.breakdown-list .bl-value { font-weight: 600; font-variant-numeric: tabular-nums; user-select: text; }
 .breakdown-list .bl-total { font-size: 1rem; color: var(--accent); font-weight: 700; border-top: 2px solid var(--accent); padding-top: 10px; margin-top: 4px; }
 
 /* ═══════════ HISTORY ═══════════ */
@@ -1974,7 +1974,6 @@ body {
 /* ═══════════ COLLAPSIBLE RESULT CARDS ═══════════ */
 #resultArea .card-title.collapsible {
   cursor: pointer;
-  user-select: none;
   transition: color 0.2s, background 0.2s;
   border-radius: 8px;
   padding: 5px 8px;
@@ -1999,6 +1998,9 @@ body {
 }
 #resultArea .card-title.collapsible:hover .card-collapse-arrow {
   color: var(--accent);
+}
+#resultArea .card-title.collapsible .card-collapse-arrow {
+  user-select: none;
 }
 .card-collapse-arrow.open {
   transform: rotate(0deg);
