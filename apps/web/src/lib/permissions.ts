@@ -46,7 +46,7 @@ export function laAdmin(policies: PolicyCode[]): boolean {
 }
 
 export function vaiTroTuPolicies(policies: PolicyCode[]): 'admin' | 'sale' | 'purchase' {
-  if (policies.length === 0) return 'purchase';
+  if (policies.length === 0) return 'sale';
   const laAdmin = policies.some(p =>
     p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY')
     || p === 'ACTIVITY_MONITOR' || p === 'PRICE_CONFIG_MANAGER'

@@ -5360,6 +5360,20 @@ body {
   box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
 }
 
+.profit-rate-input--overridden {
+  border-color: #ea580c;
+  background: rgba(234,88,12,0.08);
+}
+
+.profit-rate-input--overridden:focus {
+  border-color: #ea580c;
+  box-shadow: 0 0 0 2px rgba(234,88,12,0.2);
+}
+
+.override-profit-rate-row--overridden {
+  background: rgba(234,88,12,0.05);
+}
+
 .profit-rate-pct-suffix {
   color: var(--muted);
   font-weight: 700;

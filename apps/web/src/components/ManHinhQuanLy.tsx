@@ -306,7 +306,7 @@ function OChuCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khi
 }
 
 // ── Override Table Section ────────────────────────────────────────────────────
-function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, chenhLechGiaGocDonVi, donViChenhLech, duocSua, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, materials, giaDaThayDoiDonVi, profitRatePct, khiDatProfitRate, soLuong }: {
+function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, chenhLechGiaGocDonVi, donViChenhLech, duocSua, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, materials, giaDaThayDoiDonVi, effTotalProdCost, profitRatePct, defaultProfitRatePct, khiDatProfitRate, soLuong }: {
   title: string;
   lopMau: 'sale' | 'admin';
   cacDongSanXuat: UniRow[];
@@ -321,7 +321,9 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
   loadedHistoryId: string | null;
   materials: Material[];
   giaDaThayDoiDonVi: number;
+  effTotalProdCost: number;
   profitRatePct: number;
+  defaultProfitRatePct: number;
   khiDatProfitRate: (v: number) => void;
   soLuong: number;
 }) {
@@ -457,38 +459,39 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
             )}
             {giaDaThayDoiDonVi > 0 && (
               (() => {
-                const pct = profitRatePct || 0;
-                const giaBan = giaDaThayDoiDonVi * (1 + pct / 100);
-                const chenhDonVi = giaBan - giaDaThayDoiDonVi;
+                const effectivePct = profitRatePct || 0;
+                const isOverridden = profitRatePct > 0;
+                const baseCost = effTotalProdCost / soLuong;
+                const giaSP = baseCost * (1 + effectivePct / 100);
                 const donVi = donViChenhLech === 'm2' ? 'm²' : 'túi';
-                const dt = giaBan * soLuong;
-                const ln = chenhDonVi * soLuong;
+                const dt = giaSP * soLuong;
+                const ln = (giaSP - baseCost) * soLuong;
                 return (
-                  <tr className={`override-profit-rate-row override-profit-rate-row--${lopMau}`}>
-                    <td colSpan={5} className="override-profit-label">
+                  <tr className={`override-profit-rate-row override-profit-rate-row--${lopMau}${isOverridden ? ' override-profit-rate-row--overridden' : ''}`}>
+                    <td colSpan={3} className="override-profit-label">
                       Tỷ lệ LN:{' '}
                       {duocSua ? (
                         <input
-                          className="profit-rate-input"
+                          className={`profit-rate-input${isOverridden ? ' profit-rate-input--overridden' : ''}`}
                           type="number"
                           step="0.1"
-                          value={pct || ''}
+                          value={profitRatePct || ''}
                           onChange={(e) => khiDatProfitRate(Number(e.target.value) || 0)}
-                          placeholder="0"
+                          placeholder={String(defaultProfitRatePct)}
                         />
                       ) : (
-                        <span className="profit-rate-value">{pct}%</span>
+                        <span className="profit-rate-value">{effectivePct}%</span>
                       )}
                       {duocSua && <span className="profit-rate-pct-suffix">%</span>}
                     </td>
                     <td colSpan={2} className="num">
-                      Giá: {dinhDangSo(Math.round(giaBan), 0)} đ/{donVi}
-                      <span className={`profit-rate-diff ${chenhDonVi >= 0 ? 'diff-up' : 'diff-down'}`}>
-                        {' '}({chenhDonVi >= 0 ? '+' : ''}{dinhDangSo(Math.round(chenhDonVi), 0)})
-                      </span>
+                      Giá SP: {dinhDangSo(Math.round(giaSP), 0)} đ/{donVi}
+                    </td>
+                    <td colSpan={2} className="num">
+                      LN: {dinhDangSo(Math.round(ln), 0)} đ
                     </td>
                     <td colSpan={3} className="num">
-                      DT: {dinhDangSo(Math.round(dt), 0)} đ  |  LN: {dinhDangSo(Math.round(ln), 0)} đ
+                      DT: {dinhDangSo(Math.round(dt), 0)} đ
                     </td>
                   </tr>
                 );
@@ -651,6 +654,8 @@ const buttonLabel = loadedItem
     uniRows: cacDongSanXuat,
     saleOverrides: ghiDeSale,
     adminOverrides: ghiDeAdmin,
+    saleProfitRatePct,
+    adminProfitRatePct,
     profitTable: bangLoiNhuan,
     constants: hangSo,
   });
@@ -743,26 +748,36 @@ const buttonLabel = loadedItem
   const loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
   const pctLoiNhuanCongTyChot = tongChiPhiSXHieuLuc > 0 ? (loiNhuanCongTyChot / tongChiPhiSXHieuLuc) : 0;
   const commissionPctShown = giaVonDonViHieuLuc > 0 ? (newCommissionPerUnit / giaVonDonViHieuLuc) : 0;
-  const tinhGiaSauGhiDeDonVi = (saleOverrides: OverrideTable, adminOverrides: OverrideTable) => {
-    const { effCostPerUnit } = tinhGiaHieuLuc({
+  const tinhGiaSauGhiDeDonVi = (saleOverrides: OverrideTable, adminOverrides: OverrideTable, spPct = 0, apPct = 0) => {
+    const { effCostPerUnit, effTotalProdCost } = tinhGiaHieuLuc({
       result: r,
       uniRows: cacDongSanXuat,
       saleOverrides,
       adminOverrides,
+      saleProfitRatePct: spPct,
+      adminProfitRatePct: apPct,
       profitTable: bangLoiNhuan,
       constants: hangSo,
     });
     const hoaHongDonVi = dauVaoKq.commissionFixedVND > 0
       ? dauVaoKq.commissionFixedVND
       : dauVaoKq.commissionRate * effCostPerUnit;
-    return effCostPerUnit
+    const giaDonVi = effCostPerUnit
       + r.zipperPerUnit + r.tapePerUnit + r.handlePerUnit
       + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + hoaHongDonVi
       + (r.cylAllocPerUnit ?? 0);
+    return { giaDonVi, tongChiPhiSX: effTotalProdCost };
   };
-  const giaSauGhiDeSaleDonVi = tinhGiaSauGhiDeDonVi(ghiDeSale, {});
-  const giaSauGhiDeAdminDonVi = tinhGiaSauGhiDeDonVi(ghiDeSale, ghiDeAdmin);
+  const saleResult = tinhGiaSauGhiDeDonVi(ghiDeSale, {});
+  const giaSauGhiDeSaleDonVi = saleResult.giaDonVi;
+  const tongCPSXSale = saleResult.tongChiPhiSX;
+  const adminResult = tinhGiaSauGhiDeDonVi(ghiDeSale, ghiDeAdmin);
+  const giaSauGhiDeAdminDonVi = adminResult.giaDonVi;
+  const tongCPSXAdmin = adminResult.tongChiPhiSX;
   const donViChenhLechGia = laMang ? 'm2' : 'tui';
+  const engineDefaultPct = +(r.profitRate * 100).toFixed(1);
+  const saleDefaultPct = engineDefaultPct;
+  const adminDefaultPct = engineDefaultPct;
 
   // ── MOQ Table ──
   const moqLevels = [5000, 10000, 15000, 20000, 30000, 40000, 50000, 70000, 100000, 150000, 200000];
@@ -1264,8 +1279,8 @@ const buttonLabel = loadedItem
           {(() => {
             const loadedItem = loadedHistoryId ? lichSu.find(h => h.id === loadedHistoryId) : null;
             const quoteStatus = loadedItem?.quoteStatus ?? 'drafted';
-            const canSaleEdit = role === 'sale' || role === 'admin';
-            const canAdminEdit = role === 'admin' || role === 'sale';
+            const canSaleEdit = role === 'sale';
+            const canAdminEdit = role === 'admin';
             // Source for bảng Admin = sale-resolved values (engine overridden by sale)
 
             // Lưu override cho item đã có sẵn — cập nhật local + sync server.
@@ -1324,7 +1339,9 @@ const buttonLabel = loadedItem
                     loadedHistoryId={loadedHistoryId}
                     materials={materials}
                     giaDaThayDoiDonVi={giaSauGhiDeSaleDonVi}
+                    effTotalProdCost={tongCPSXSale}
                     profitRatePct={saleProfitRatePct}
+                    defaultProfitRatePct={saleDefaultPct}
                     khiDatProfitRate={datSaleProfitRatePct}
                     soLuong={dauVaoKq.quantity}
                   />
@@ -1346,7 +1363,9 @@ const buttonLabel = loadedItem
                     loadedHistoryId={loadedHistoryId}
                     materials={materials}
                     giaDaThayDoiDonVi={giaSauGhiDeAdminDonVi}
+                    effTotalProdCost={tongCPSXAdmin}
                     profitRatePct={adminProfitRatePct}
+                    defaultProfitRatePct={adminDefaultPct}
                     khiDatProfitRate={datAdminProfitRatePct}
                     soLuong={dauVaoKq.quantity}
                   />

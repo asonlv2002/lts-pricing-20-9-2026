@@ -194,10 +194,12 @@ export function tinhGiaHieuLuc(params: {
   uniRows: UniRow[];
   saleOverrides: OverrideTable;
   adminOverrides: OverrideTable;
+  saleProfitRatePct: number;
+  adminProfitRatePct: number;
   profitTable: ProfitRow[];
   constants: AppConstants;
 }) {
-  const { result, uniRows, saleOverrides, adminOverrides, profitTable, constants } = params;
+  const { result, uniRows, saleOverrides, adminOverrides, saleProfitRatePct, adminProfitRatePct, profitTable, constants } = params;
   const activeOverrideOv = Object.keys(adminOverrides).length > 0 ? adminOverrides : Object.keys(saleOverrides).length > 0 ? saleOverrides : {};
   const sourceForActive = Object.keys(adminOverrides).length > 0 ? saleOverrides : {};
   const hasAnyOverride = Object.keys(activeOverrideOv).length > 0;
@@ -210,13 +212,19 @@ export function tinhGiaHieuLuc(params: {
     && !result.input.layer3Id
     && !result.input.layer4Id
     && !result.input.layer5Id;
-  const effProfitRate = isPrintFilmOnly
-    ? (constants.printFilmProfitRates ?? []).find(row =>
-      row.customerGroup === (result.input.printFilmCustomerGroup ?? 'normal')
-      && (result.input.numColors ?? 0) >= row.colorFrom
-      && (result.input.numColors ?? 0) <= row.colorTo
-    )?.rate ?? result.profitRate
-    : traLoiNhuanTheoBang(effTotalProdCost, result.input.profitColumn, profitTable, result.input.printFilmCustomerGroup ?? 'normal');
+  const hasAdminProfitOverride = adminProfitRatePct > 0;
+  const hasSaleProfitOverride = saleProfitRatePct > 0;
+  const effProfitRate = hasAdminProfitOverride
+    ? adminProfitRatePct / 100
+    : hasSaleProfitOverride
+      ? saleProfitRatePct / 100
+      : isPrintFilmOnly
+        ? (constants.printFilmProfitRates ?? []).find(row =>
+          row.customerGroup === (result.input.printFilmCustomerGroup ?? 'normal')
+          && (result.input.numColors ?? 0) >= row.colorFrom
+          && (result.input.numColors ?? 0) <= row.colorTo
+        )?.rate ?? result.profitRate
+        : traLoiNhuanTheoBang(effTotalProdCost, result.input.profitColumn, profitTable, result.input.printFilmCustomerGroup ?? 'normal');
   const effProfitAmount = effProfitRate * effTotalProdCost;
   const effRevenue = effTotalProdCost + effProfitAmount;
   const effCostPerUnit = result.input.quantity > 0 ? effRevenue / result.input.quantity : 0;
