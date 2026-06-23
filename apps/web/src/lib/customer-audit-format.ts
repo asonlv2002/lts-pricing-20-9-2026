@@ -3,6 +3,7 @@ import type { OverrideTable } from './types';
 import { listOverrideChanges } from './override-display';
 import { POLICY_CATALOG } from './api/service-lts';
 import { normalizeDisplayText } from './text-codec';
+import { diffManagerLists } from './activity-log-mapper';
 
 export type AuditChangedField = {
   key: string;
@@ -341,13 +342,15 @@ export function getAuditSummary(entry: AuditEntry, context: AuditActorContext = 
   const targetName = cleanAuditText(entry.targetName || entry.targetId);
 
   if (entry.action === 'assign') {
-    const beforeManagers = entry.before?.managerNames ?? entry.before?.managers;
-    const afterManagers = entry.after?.managerNames ?? entry.after?.managers;
+    const diff = diffManagerLists(entry.before, entry.after);
+    const parts: string[] = [];
+    if (diff.added.length > 0) parts.push(`Thêm: ${diff.added.map(n => cleanAuditText(n)).join(', ')}`);
+    if (diff.removed.length > 0) parts.push(`Gỡ: ${diff.removed.map(n => cleanAuditText(n)).join(', ')}`);
     return {
       actionLabel,
       actorName,
       targetName,
-      description: `Cập nhật người phụ trách: ${formatManagerCount(beforeManagers)} → ${formatManagerCount(afterManagers)}`,
+      description: parts.join(' · ') || 'Không có thay đổi người phụ trách',
       compactFields: [],
       changeCount: fields.length,
     };

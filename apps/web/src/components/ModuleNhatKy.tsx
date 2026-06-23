@@ -8,6 +8,7 @@ import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { AuditAction, AuditEntry } from '../lib/types';
 import { normalizeDisplayText } from '../lib/text-codec';
 import { formatAuditDisplayValue, getAuditFieldLabel } from '../lib/customer-audit-format';
+import { diffManagerLists } from '../lib/activity-log-mapper';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -146,14 +147,16 @@ const HIDDEN_DIFF_KEYS = new Set([
   'inputValue', 'saleResult', 'masterResult', 'pricingSheetId',
 ]);
 
+const MANAGER_DIFF_KEYS = new Set(['managerIds', 'managerNames', 'managers']);
+
 function formatDiffValue(fieldKey: string, val: unknown): string {
   const formatted = formatAuditDisplayValue(fieldKey, val);
   return formatted === '—' ? '(trống)' : formatted;
 }
 
-function DiffView({ before, after }: { before?: Record<string, unknown>; after?: Record<string, unknown> }) {
+function DiffView({ before, after, hiddenKeys }: { before?: Record<string, unknown>; after?: Record<string, unknown>; hiddenKeys?: Set<string> }) {
   if (!before && !after) return null;
-  const keys = Array.from(new Set([...Object.keys(before || {}), ...Object.keys(after || {})])).filter(k => !HIDDEN_DIFF_KEYS.has(k));  if (keys.length === 0) return null;
+  const keys = Array.from(new Set([...Object.keys(before || {}), ...Object.keys(after || {})])).filter(k => !HIDDEN_DIFF_KEYS.has(k) && (!hiddenKeys || !hiddenKeys.has(k)));  if (keys.length === 0) return null;
   return (
     <div style={{ marginTop: 8 }}>
       {keys.map(k => {
@@ -190,6 +193,14 @@ function TimelineEntry({ entry, onOpen }: { entry: AuditEntry; onOpen: (entry: A
   const [expanded, setExpanded] = useState(false);
   const cfg = ACTION_CONFIG[entry.action];
   const hasDiff = !!(entry.before || entry.after || entry.note);
+
+  const managerDiff = useMemo(() => {
+    if (entry.action === 'assign' && entry.targetType === 'customer') {
+      return diffManagerLists(entry.before, entry.after);
+    }
+    return null;
+  }, [entry]);
+  const hasManagerChanges = managerDiff && (managerDiff.added.length > 0 || managerDiff.removed.length > 0);
 
   return (
     <li style={{ display: 'flex', gap: 12, paddingBottom: 16 }}>
@@ -265,7 +276,31 @@ function TimelineEntry({ entry, onOpen }: { entry: AuditEntry; onOpen: (entry: A
             <Eye size={12} /> Mở dữ liệu liên quan
           </button>
 
-          {expanded && <DiffView before={entry.before} after={entry.after} />}
+          {expanded && (
+            <>
+              {hasManagerChanges && (
+                <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  {managerDiff!.added.map(name => (
+                    <div key={`add-${name}`} style={{
+                      fontSize: '0.8rem', color: '#059669', background: '#d1fae5',
+                      padding: '4px 8px', borderRadius: 6, lineHeight: 1.5,
+                    }}>
+                      {displayAuditText(entry.userName)} đã thêm {displayAuditText(name)} vào danh sách quản lí của {displayAuditText(entry.targetName || '')}
+                    </div>
+                  ))}
+                  {managerDiff!.removed.map(name => (
+                    <div key={`rm-${name}`} style={{
+                      fontSize: '0.8rem', color: '#dc2626', background: '#fee2e2',
+                      padding: '4px 8px', borderRadius: 6, lineHeight: 1.5,
+                    }}>
+                      {displayAuditText(entry.userName)} đã gỡ {displayAuditText(name)} khỏi danh sách quản lí của {displayAuditText(entry.targetName || '')}
+                    </div>
+                  ))}
+                </div>
+              )}
+              <DiffView before={entry.before} after={entry.after} hiddenKeys={hasManagerChanges ? MANAGER_DIFF_KEYS : undefined} />
+            </>
+          )}
         </div>
       </div>
     </li>

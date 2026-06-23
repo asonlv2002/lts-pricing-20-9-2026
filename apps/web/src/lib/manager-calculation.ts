@@ -137,18 +137,21 @@ export function xuLyDongGhiDe(
   sourceOverrides: OverrideTable,
   currentOverrides: OverrideTable,
 ): { rows: ResolvedOverrideRow[]; totalCPSX: number; totalCPVL: number; grandTotal: number } {
-  const rows: ResolvedOverrideRow[] = [];
+  const resolved: ResolvedOverrideRow[] = [];
+  let propagatedInputVL = 0;
 
-  uniRows.forEach((row) => {
+  for (let i = uniRows.length - 1; i >= 0; i--) {
+    const row = uniRows[i];
     const rk = row.rowKey;
     const src = sourceOverrides[rk] ?? {};
     const cur = currentOverrides[rk] ?? {};
     const stage = cur.stage ?? src.stage ?? row.stage;
     const mat = cur.mat ?? src.mat ?? row.mat;
     const width = cur.width ?? src.width ?? row.width;
-    const meters = cur.meters ?? src.meters ?? row.meters;
+    const meters = cur.meters ?? (propagatedInputVL || (src.meters ?? row.meters));
     const waste = cur.waste ?? src.waste ?? row.waste;
     const inputVL = meters + waste;
+    propagatedInputVL = inputVL;
     const cpsx = cur.cpsx ?? src.cpsx ?? row.cpsx;
     const matPrice = cur.matPrice ?? src.matPrice ?? row.matPrice;
     const srcWidth = src.width ?? row.width;
@@ -177,8 +180,9 @@ export function xuLyDongGhiDe(
     const srcCostCPSX = src.costCPSX ?? row.costCPSX;
     const srcCostMat = src.costMat ?? row.costMat;
     const materialId = cur.materialId ?? src.materialId ?? row.materialId;
-    rows.push({ ...row, stage, mat, materialId, width, meters, waste, inputVL, cpsx, matPrice, costCPSX, costMat, materialDetails, srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice, srcCpsx, srcCostCPSX, srcCostMat });
-  });
+    resolved.unshift({ ...row, stage, mat, materialId, width, meters, waste, inputVL, cpsx, matPrice, costCPSX, costMat, materialDetails, srcWidth, srcMeters, srcWaste, srcInputVL, srcMatPrice, srcCpsx, srcCostCPSX, srcCostMat });
+  }
+  const rows = resolved;
   const totalCPSX = rows.reduce((sum, row) => sum + row.costCPSX, 0);
   const totalCPVL = rows.reduce((sum, row) => sum + (row.costMat ?? 0), 0);
   const printFilmCost = uniRows.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;

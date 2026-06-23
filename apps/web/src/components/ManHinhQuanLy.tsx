@@ -410,11 +410,11 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                   <OChonVatLieuDong khoaDong={row.rowKey} giaTriGocId={ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId} giaTriGocTen={ghiDeNguon[row.rowKey]?.mat ?? dongGoc?.mat ?? row.mat} giaTriGocGia={ghiDeNguon[row.rowKey]?.matPrice ?? dongGoc?.matPrice ?? 0} ghiDeHienTai={ghiDeHienTai} duocSua={duocSua} khiDat={khiDat} materials={materials} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={row.srcWidth}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.meters}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.inputVL}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.inputVL} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />

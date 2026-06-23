@@ -163,3 +163,50 @@ export function mapActivityLogsServer(
 ): AuditEntry[] {
   return logs.map((log) => mapActivityLogServer(log, resolveActor, resolveTarget));
 }
+
+// ── manager list diff ─────────────────────────────────────────────────────
+
+export interface ManagerDiff {
+  added: string[];
+  removed: string[];
+}
+
+function extractManagerNames(data: Record<string, unknown> | undefined): string[] {
+  if (!data) return [];
+  const names = data.managerNames;
+  if (Array.isArray(names)) {
+    return names.map((n) => (typeof n === 'string' ? normalizeDisplayText(n).trim() : String(n))).filter(Boolean);
+  }
+  const mgrs = data.managers;
+  if (Array.isArray(mgrs)) {
+    return mgrs
+      .map((m) => {
+        if (m == null) return '';
+        if (typeof m === 'string') return normalizeDisplayText(m).trim();
+        if (typeof m === 'object') {
+          const obj = m as Record<string, unknown>;
+          return normalizeDisplayText(
+            String(obj.fullName || obj.account || obj.userId || ''),
+          ).trim();
+        }
+        return '';
+      })
+      .filter(Boolean);
+  }
+  const ids = data.managerIds;
+  if (Array.isArray(ids)) return ids.map((id) => String(id)).filter(Boolean);
+  return [];
+}
+
+export function diffManagerLists(
+  before?: Record<string, unknown>,
+  after?: Record<string, unknown>,
+): ManagerDiff {
+  const beforeNames = extractManagerNames(before);
+  const afterNames = extractManagerNames(after);
+
+  return {
+    added: afterNames.filter((n) => !beforeNames.includes(n)),
+    removed: beforeNames.filter((n) => !afterNames.includes(n)),
+  };
+}
