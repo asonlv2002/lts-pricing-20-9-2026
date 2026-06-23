@@ -168,6 +168,15 @@ const canViewContact = (role: Role, c: Customer, sellerId?: string) => role === 
 const canLock = (role: Role) => role === 'admin';
 const isCustomerManager = (c: Customer, userId?: string) => !!userId && (c.managers ?? []).some(manager => manager.userId === userId);
 const canUpdateCustomerRecord = (c: Customer, userId?: string) => isCustomerManager(c, userId);
+const CUSTOMER_EDITABLE_FIELDS: (keyof Customer)[] = ['customerCode', 'companyName', 'taxCode', 'contactName', 'phone', 'email', 'invoiceAddress', 'address', 'region', 'customerGroup', 'customerType', 'sellerId', 'secondarySellerId', 'status', 'crmStatus', 'isLocked', 'notes', 'contactNotes', 'assignmentNote'];
+function isCustomerFormUnchanged(form: Customer, original: Customer): boolean {
+  if (JSON.stringify(form.managers ?? []) !== JSON.stringify(original.managers ?? [])) return false;
+  return CUSTOMER_EDITABLE_FIELDS.every(f => {
+    const formVal = f === 'customerType' ? (form[f] || 'company') : form[f];
+    const origVal = f === 'customerType' ? (original[f] || 'company') : original[f];
+    return formVal === origVal;
+  });
+}
 const managerSummary = (c: Customer) => {
   if (c.managers && c.managers.length > 0) return tomTatNguoiPhuTrach(c.managers);
   if (c.sellerName || c.sellerId) return { primary: c.sellerName || c.sellerId || 'Chưa phân công', secondary: '' };
@@ -355,6 +364,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [duplicateWarnings, setDuplicateWarnings] = useState<string[]>([]);
   const [isMobileCustomerForm, setIsMobileCustomerForm] = useState(false);
+  const initialCustomer = useRef(customer).current;
   const seller = SELLERS.find(s => s.id === form.sellerId);
   const isLockedEdit = !isNew && !!customer?.isLocked;
   const [dirty, setDirty] = useState(false);
@@ -472,6 +482,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
       setStep(Number.isFinite(targetStep) ? targetStep : 0);
       return;
     }
+    if (initialCustomer && isCustomerFormUnchanged(form, initialCustomer)) { onCancel(); return; }
     onSave({ ...form, customerCode: checkCode.maKhachHang, sellerName: seller?.name ?? form.sellerName ?? '', updatedAt: todayIso() });
   };
 
@@ -1774,11 +1785,21 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     }
 
     try {
-      const savedApi = await luuThongTinKhachHangService(codeName, chuyenCustomerUiSangThongTinApi(c), accessToken);
-      const managers = managersPayload.length > 0
+      const detailsChanged = !old || CUSTOMER_EDITABLE_FIELDS.some(f => {
+        const newVal = f === 'customerType' ? (c[f] || 'company') : c[f];
+        const oldVal = f === 'customerType' ? (old[f] || 'company') : old[f];
+        return newVal !== oldVal;
+      });
+      let savedWithServer: Partial<Customer> = {};
+      if (detailsChanged) {
+        const savedApi = await luuThongTinKhachHangService(codeName, chuyenCustomerUiSangThongTinApi(c), accessToken);
+        savedWithServer = chuyenCustomerApiSangUi(savedApi);
+      }
+      const managersChangedFromOld = !old || JSON.stringify(old.managers ?? []) !== JSON.stringify(c.managers ?? []);
+      const managers = managersPayload.length > 0 && managersChangedFromOld
         ? chuyenCustomerManagersApiSangUi((await luuNguoiPhuTrachKhachHangService(codeName, managersPayload, accessToken)).managers)
-        : c.managers;
-      const saved = { ...c, ...chuyenCustomerApiSangUi(savedApi), managers, sellerId: c.sellerId, sellerName: c.sellerName, secondarySellerId: c.secondarySellerId, secondarySellerName: c.secondarySellerName, customerGroup: c.customerGroup, customerType: c.customerType, contactNotes: c.contactNotes, assignmentNote: c.assignmentNote, assignmentHistory: c.assignmentHistory, crmStatus: c.crmStatus } as Customer;
+        : (old ? old.managers : c.managers);
+      const saved = { ...c, ...savedWithServer, managers, sellerId: c.sellerId, sellerName: c.sellerName, secondarySellerId: c.secondarySellerId, secondarySellerName: c.secondarySellerName, customerGroup: c.customerGroup, customerType: c.customerType, contactNotes: c.contactNotes, assignmentNote: c.assignmentNote, assignmentHistory: c.assignmentHistory, crmStatus: c.crmStatus } as Customer;
       upsertLocal(saved);
       refreshCustomersFromServer(accessToken).catch(error => {
         console.warn('Không tải lại danh sách khách hàng sau khi lưu:', error);
@@ -1870,6 +1891,10 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
               canManageManagers={editing ? coQuyenQuanLyNguoiPhuTrach : true}
               saving={dangLuuKhachHang}
               onSave={async c => {
+                if (editing && !editing.id.startsWith('C') && isCustomerFormUnchanged(c, editing)) {
+                  setEditing(undefined);
+                  return;
+                }
                 setDangLuuKhachHang(true);
                 try {
                   const { isDraft: _bo, ...thongTinLuu } = c;
