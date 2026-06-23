@@ -119,7 +119,7 @@ export function mapPricingSheetToHistory(
     adminOverrides: docBangGhiDe(sheet.masterResult),
     pricingSheetId: sheet.id,
     priceConfigIds: sheet.priceConfigIds,
-    originalCustomer: sheet.customerCodeName || syncedInput.customer || undefined,
+    originalCustomer: sheet.customerCodeName || sheet.customer?.codeName || syncedInput.customer || undefined,
     sellerName: sheet.original?.actorName ?? undefined,
     input: syncedInput,
   };

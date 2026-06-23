@@ -3,7 +3,6 @@ import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import { CalculateInput, HistoryItem, QuoteProductLine, QuoteStatus, QuoteTerms } from '../../lib/types';
 import { tinhBaoGia } from '../../lib/manager-calculation';
 import { dongBoCotLoiNhuan } from '../../lib/engine';
-import { luuLocalStorage, LS_HISTORY } from '../helpers';
 import { layDanhSachPricingSheetService } from '../../lib/api/service-lts';
 import { mapPricingSheetToHistory } from '../../lib/api/pricing-sheet-mapper';
 
@@ -99,7 +98,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         // Lưu mới → luôn tạo sheet mới trên server (không copy pricingSheetId từ item cũ)
       };
       const history = [item, ...state.history].slice(0, 200);
-      luuLocalStorage(LS_HISTORY, history);
 
       return {
         history,
@@ -114,7 +112,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     set((state) => {
       const item = state.history.find(h => h.id === id);
       const history = state.history.filter(h => h.id !== id);
-      luuLocalStorage(LS_HISTORY, history);
 
       return { history };
     });
@@ -189,7 +186,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         .map(s => mapPricingSheetToHistory(s, ctx))
         .filter((h): h is HistoryItem => h !== null);
       set({ history: mapped });
-      luuLocalStorage(LS_HISTORY, mapped);
       return true;
     } catch {
       return false;
@@ -202,7 +198,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const history = [...state.history];
       const old = history[0];
       history[0] = { ...old, chotGia: giaTri };
-      luuLocalStorage(LS_HISTORY, history);
       return { history };
     });
   },
@@ -211,7 +206,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     set((state) => {
       const old = state.history.find(h => h.id === id);
       const history = state.history.map(h => h.id === id ? { ...h, quoteStatus: status } : h);
-      luuLocalStorage(LS_HISTORY, history);
 
       if (old) {
         setTimeout(() => {
@@ -248,7 +242,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         sellerName: state.currentSellerName || old.sellerName,
       };
       const history = state.history.map(h => h.id === old.id ? updated : h);
-      luuLocalStorage(LS_HISTORY, history);
 
       return { history, isDirty: false };
     });
@@ -276,7 +269,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         sellerName: state.currentSellerName,
       };
       const history = [clone, ...state.history].slice(0, 200);
-      luuLocalStorage(LS_HISTORY, history);
 
       return { history };
     });
@@ -288,7 +280,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         ? { ...h, locked: true, lockedBy: state.currentSellerId, lockedAt: new Date().toISOString() }
         : h
       );
-      luuLocalStorage(LS_HISTORY, history);
       return { history };
     });
   },
@@ -299,7 +290,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         ? { ...h, locked: false, lockedBy: undefined, lockedAt: undefined }
         : h
       );
-      luuLocalStorage(LS_HISTORY, history);
       return { history };
     });
   },
@@ -307,7 +297,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
   huyBaoGia: (id) => {
     set((state) => {
       const history = state.history.map(h => h.id === id ? { ...h, quoteStatus: 'cancelled' as QuoteStatus } : h);
-      luuLocalStorage(LS_HISTORY, history);
 
       return { history };
     });
@@ -327,8 +316,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         return h;
       });
       if (changed) {
-        luuLocalStorage(LS_HISTORY, history);
-        return { history };
+          return { history };
       }
       return state;
     });
@@ -338,7 +326,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     set((state) => {
       const validUntil = tinhNgayHieuLuc(terms);
       const history = state.history.map(h => h.id === id ? { ...h, terms, validUntil } : h);
-      luuLocalStorage(LS_HISTORY, history);
 
       setTimeout(() => {
        get().luuPhienBan(id, 'Trước cập nhật điều khoản');
@@ -351,7 +338,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
   phanCongBaoGia: (quoteId, sellerId, sellerName) => {
     set((state) => {
       const history = state.history.map(h => h.id === quoteId ? { ...h, sellerId, sellerName } : h);
-      luuLocalStorage(LS_HISTORY, history);
 
       return { history };
     });
@@ -360,7 +346,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
   ganTiersBaoGia: (quoteId, tiers) => {
     set((state) => {
       const history = state.history.map(h => h.id === quoteId ? { ...h, tiers } : h);
-      luuLocalStorage(LS_HISTORY, history);
       return { history };
     });
   },
@@ -394,7 +379,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       input: { ...first.input },
     };
     const history = [item, ...state.history].slice(0, 200);
-    luuLocalStorage(LS_HISTORY, history);
     set({ history, loadedHistoryId: item.id });
 
     return item.id;
@@ -405,7 +389,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const old = state.history.find(h => h.id === id);
       if (!old) return state;
       const history = state.history.map(h => h.id === id ? { ...h, ...patch } : h);
-      luuLocalStorage(LS_HISTORY, history);
       return { history };
     });
   },

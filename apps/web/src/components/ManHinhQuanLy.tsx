@@ -582,8 +582,7 @@ async function syncPricingSheetToServer(
       if (sheet?.id) {
         const state = dungCuaHangTinhGia.getState();
         const updatedHistory = state.history.map(x => x.id === h.id ? { ...x, pricingSheetId: sheet.id, priceConfigIds: sheet.priceConfigIds } : x);
-        localStorage.setItem('lts_history', JSON.stringify(updatedHistory));
-        state.history = updatedHistory;
+        dungCuaHangTinhGia.setState({ history: updatedHistory });
       }
     } else if (decision.action === 'patch') {
       if (!h.pricingSheetId) return;

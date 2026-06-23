@@ -157,17 +157,6 @@ export default function TrangChinh() {
         }));
       }
 
-      // Lịch sử
-      // History thật sẽ được tải từ server qua taiLichSuTuServer khi isAuthenticated → true.
-      const rawLichSu = window.localStorage.getItem('lts_history');
-      if (rawLichSu) {
-        const parsed = JSON.parse(rawLichSu);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          const patched = parsed.map((h: any) => ({ ...h, quoteStatus: h.quoteStatus ?? 'drafted' }));
-          dungCuaHangTinhGia.setState({ history: patched });
-        }
-      }
-
       // LSX
       const rawLSX = window.localStorage.getItem('lts_production_orders');
       if (rawLSX) {

@@ -3,7 +3,6 @@ import { INITIAL_MATERIALS } from '../lib/data';
 import { dongBoCotLoiNhuan } from '../lib/engine';
 import customersSeed from '../data/customers.json';
 
-export const LS_HISTORY  = 'lts_history';
 export const LS_CONFIG   = 'lts_material_config';
 export const LS_UI_PREFS = 'lts_ui_prefs';
 export const LS_LSX      = 'lts_production_orders';

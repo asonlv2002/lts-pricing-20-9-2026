@@ -1043,13 +1043,15 @@ function BuocChonSanPham({
   const addedIds = useMemo(() => new Set(products.map(p => p.historyItem.id)), [products]);
 
   const candidateSPs = useMemo(() => {
-    const khName = tenKhachHang(customer).toLowerCase();
     const khCode = (customer.customerCode || '').toLowerCase();
+    const khName = tenKhachHang(customer).toLowerCase();
     const q = searchSP.toLowerCase();
-    return history.filter(h => !h.isQuote).filter(h =>
-      h.customer.toLowerCase().includes(khName) ||
-      (!!khCode && h.customer.toLowerCase().includes(khCode))
-    ).filter(h =>
+    return history.filter(h => !h.isQuote).filter(h => {
+      const code = (h.originalCustomer || '').trim().toLowerCase();
+      if (code) return code === khCode;
+      return h.customer.toLowerCase().includes(khName) ||
+        (!!khCode && h.customer.toLowerCase().includes(khCode));
+    }).filter(h =>
       !q || h.productName.toLowerCase().includes(q) || h.structure.toLowerCase().includes(q)
     ).slice(0, 20);
   }, [history, customer, searchSP]);

@@ -1,7 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import { OverrideTable, OverrideRowKey, OverrideFields } from '../../lib/types';
-import { luuLocalStorage, LS_HISTORY } from '../helpers';
 
 export interface OverrideSlice {
   saleOverrides: OverrideTable;
@@ -74,6 +73,5 @@ export const createOverrideSlice: StateCreator<CuaHangTinhGia, [], [], OverrideS
       h.id === idLichSu ? { ...h, saleOverrides: ghiDeSaleDaLuu, adminOverrides: ghiDeAdminDaLuu, saleProfitRatePct: saleProfitRatePct || undefined, adminProfitRatePct: adminProfitRatePct || undefined } : h
     );
     set({ history: lichSuDaCapNhat });
-    luuLocalStorage(LS_HISTORY, lichSuDaCapNhat);
   },
 });

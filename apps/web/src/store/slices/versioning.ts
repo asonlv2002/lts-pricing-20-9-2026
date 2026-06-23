@@ -1,7 +1,7 @@
 import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import type { VersionSnapshot, HistoryItem } from '../../lib/types';
-import { luuLocalStorage, LS_VERSIONS, LS_HISTORY } from '../helpers';
+import { luuLocalStorage, LS_VERSIONS } from '../helpers';
 
 const MAX_VERSIONS_PER_ITEM = 10;
 
@@ -67,7 +67,6 @@ export const createVersioningSlice: StateCreator<CuaHangTinhGia, [], [], Version
           quoteCode: h.quoteCode,
         };
       });
-      luuLocalStorage(LS_HISTORY, history);
       return { history };
     });
   },
