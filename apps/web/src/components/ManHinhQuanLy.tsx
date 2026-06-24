@@ -432,12 +432,6 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                 );
               })()];
             })}
-            <tr className="total-row">
-              <td colSpan={7}>TỔNG</td>
-              <td className={`num ${coThayDoi ? 'override-changed' : ''}`}>{dinhDangSo(tongCPSX, 0)}</td>
-              <td className="num"></td>
-              <td className={`num ${coThayDoi ? 'override-changed' : ''}`}>{dinhDangSo(tongCPVL, 0)}</td>
-            </tr>
             {coCpMangIn && (
               <tr className="total-row">
                 <td colSpan={9}>CP theo thời gian in</td>
@@ -614,6 +608,8 @@ const buttonLabel = loadedItem
   : "💾 Lưu báo giá";
   const showBanner = loadedItem && !isSameCustomer;
   const [vatLieuCuonDangChon, datVatLieuCuonDangChon] = React.useState('');
+  const [phanBoCongTy, datPhanBoCongTy] = React.useState<number>(0);
+  const [donViPhanBo, datDonViPhanBo] = React.useState<'vnd' | 'percent'>('vnd');
 
   // Sale chỉ được lưu khi khách hàng thuộc danh sách mình quản lý (hoặc khách vừa tạo
   // mới — vốn đã được gán sellerId/managers của sale). Admin không bị giới hạn.
@@ -644,16 +640,11 @@ const buttonLabel = loadedItem
 
   const { uniRows: cacDongSanXuat, totalCPSX: tongCPSX, totalCPVL: tongCPVL, grandTotal: tongCong } = lapDongSanXuat(r, hangSo);
   const cpTheoThoiGianIn = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
-  const { effTotalProdCost: tongChiPhiSXHieuLuc, effProfitRate: tyLeLoiNhuanHieuLuc, effProfitAmount: tienLoiNhuanHieuLuc, effRevenue: doanhThuHieuLuc, effCostPerUnit: giaVonDonViHieuLuc } = tinhGiaHieuLuc({
-    result: r,
-    uniRows: cacDongSanXuat,
-    saleOverrides: ghiDeSale,
-    adminOverrides: ghiDeAdmin,
-    saleProfitRatePct,
-    adminProfitRatePct,
-    profitTable: bangLoiNhuan,
-    constants: hangSo,
-  });
+  // Giá trị gốc từ engine (không bị ảnh hưởng bởi admin/sale override)
+  const tongChiPhiSXHieuLuc = r.totalProductionCost;
+  const tyLeLoiNhuanHieuLuc = r.profitRate;
+  const tienLoiNhuanHieuLuc = r.profitAmount;
+  const giaVonDonViHieuLuc = r.costPerUnit;
 
   // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
   // (dùng giaVonDonViHieuLuc tạm, effFinalPriceWithComm sẽ được tính ở phần breakdown bên dưới)
@@ -698,11 +689,8 @@ const buttonLabel = loadedItem
   const cylTotal = r.cylinderCost;
   const laMangIn = hienThiGia.isPrintFilm;
 
-  // Commission phải tính lại từ giaVonDonViHieuLuc (sau override), không dùng r.commissionPerUnit (engine gốc)
-  // Vì: commissionPerUnit = commissionRate × costPerUnit → costPerUnit thay đổi thì commission thay đổi theo
-  const effCommissionPerUnit = dauVaoKq.commissionFixedVND > 0
-    ? dauVaoKq.commissionFixedVND
-    : dauVaoKq.commissionRate * giaVonDonViHieuLuc;
+  // Commission từ engine gốc (không bị ảnh hưởng bởi admin/sale override)
+  const effCommissionPerUnit = r.commissionPerUnit;
 
   // ── Breakdown items ──
   const breakdownItems: [string, string][] = [
@@ -726,14 +714,15 @@ const buttonLabel = loadedItem
   const commissionPct = giaVonDonViHieuLuc > 0 ? (effCommissionPerUnit / giaVonDonViHieuLuc) : 0;
   const chotGiaNum = giaChotHienTai || 0;
   const hasChotGia = chotGiaNum > 0;
-  // effFinalPrice tính lại với commission mới
-  const effFinalPriceWithComm = giaVonDonViHieuLuc
-    + r.zipperPerUnit + r.tapePerUnit + r.handlePerUnit
-    + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + effCommissionPerUnit
-    + (r.cylAllocPerUnit ?? 0);
+  // Giá cuối cùng từ engine gốc
+  const effFinalPriceWithComm = r.finalPrice;
   const shownPrice = hasChotGia ? chotGiaNum : effFinalPriceWithComm;
   const diff = hasChotGia ? chotGiaNum - effFinalPriceWithComm : 0;
-  const rawNewCommission = effCommissionPerUnit + diff;
+  const phanBoHoaHong = donViPhanBo === 'percent'
+    ? diff * ((100 - phanBoCongTy) / 100)
+    : diff - phanBoCongTy;
+  const hoaHongAllocation = diff < 0 ? 0 : phanBoHoaHong;
+  const rawNewCommission = effCommissionPerUnit + hoaHongAllocation;
   const profitDropFromChot = rawNewCommission < 0 ? Math.abs(rawNewCommission) * dauVaoKq.quantity : 0;
   const profitDropPct = rawNewCommission < 0 && tienLoiNhuanHieuLuc > 0 ? (profitDropFromChot / tienLoiNhuanHieuLuc) : 0;
   const newCommissionPerUnit = Math.max(0, rawNewCommission);
@@ -1012,7 +1001,7 @@ const buttonLabel = loadedItem
             </div>
 
             <div className="chot-gia-row">
-              <div className="form-group">
+              <div className="form-group" style={{flex: 1}}>
                 <label className="form-label">Giá bán chốt (đ/{nhanDonVi})</label>
                 <input
                   className="form-input"
@@ -1021,6 +1010,52 @@ const buttonLabel = loadedItem
                   value={giaChotHienTai > 0 ? String(Math.round(giaChotHienTai)) : ''}
                   onChange={(e) => datGiaChotHienTai(Number(e.target.value.replace(/[^\d.]/g, '')) || 0)}
                 />
+              </div>
+              <div className="form-group" style={{flex: 1.5, opacity: hasChotGia ? 1 : 0.5, pointerEvents: hasChotGia ? 'auto' : 'none'}}>
+                <label className="form-label" style={{whiteSpace:'nowrap'}}>Phân bổ chênh lệch {hasChotGia ? `(${diff >= 0 ? '+' : ''}${dinhDangSo(diff, 1)}đ/${nhanDonVi})` : ''}</label>
+                <div style={{display:'flex', gap:'4px', alignItems:'center'}}>
+                  <span style={{fontSize:'0.78rem', whiteSpace:'nowrap'}}>Công ty</span>
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="any"
+                    style={{flex: 1, textAlign:'right', minWidth:0}}
+                    value={hasChotGia && diff < 0 ? (donViPhanBo === 'percent' ? 100 : +(diff.toFixed(1))) : +(phanBoCongTy).toFixed(1)}
+                    onChange={(e) => { if (!(diff < 0)) datPhanBoCongTy(Number(e.target.value) || 0) }}
+                    disabled={hasChotGia && diff < 0}
+                    placeholder={donViPhanBo === 'percent' ? '100' : '0'}
+                  />
+                  <span style={{fontSize:'0.78rem', whiteSpace:'nowrap'}}>Hoa hồng</span>
+                  <input
+                    className="form-input"
+                    type="number"
+                    step="any"
+                    readOnly
+                    style={{flex: 1, textAlign:'right', minWidth:0, background:'var(--surface2)', color:'var(--muted)'}}
+                    value={hasChotGia ? (diff < 0 ? 0 : (donViPhanBo === 'percent' ? +(100 - phanBoCongTy).toFixed(1) : +(diff - phanBoCongTy).toFixed(1))) : '0'}
+                  />
+                  <select
+                    className="form-input"
+                    style={{width:'62px', padding:'6px 2px', flexShrink:0}}
+                    value={donViPhanBo}
+                    onChange={(e) => {
+                      const next = e.target.value as 'vnd' | 'percent';
+                      if (hasChotGia && diff !== 0) {
+                        if (diff < 0) {
+                          datPhanBoCongTy(next === 'percent' ? 100 : diff);
+                        } else {
+                          datPhanBoCongTy(next === 'percent'
+                            ? +(phanBoCongTy / diff * 100).toFixed(1)
+                            : +(phanBoCongTy * diff / 100).toFixed(1));
+                        }
+                      }
+                      datDonViPhanBo(next);
+                    }}
+                  >
+                    <option value="vnd">VNĐ</option>
+                    <option value="percent">%</option>
+                  </select>
+                </div>
               </div>
               <button
                 className="btn btn-sm btn-green"
@@ -1122,6 +1157,9 @@ const buttonLabel = loadedItem
                     <span className="chot-label">{diff >= 0 ? '✅' : '⚠️'} Chênh lệch / {nhanDonVi}</span>
                     <span className="chot-value">{diff >= 0 ? '+' : ''}{dinhDangSo(diff, 1)} đ/{nhanDonVi}</span>
                   </div>
+                  <div className="chot-row" style={{fontSize:'0.82rem', color:'var(--muted)'}}>
+                    <span className="chot-label">↳ Công ty: {dinhDangSo(diff < 0 ? diff : (donViPhanBo === 'percent' ? diff * (phanBoCongTy / 100) : phanBoCongTy), 1)}đ | Hoa hồng: {dinhDangSo(hoaHongAllocation, 1)}đ</span>
+                  </div>
                   <div className="chot-row" style={{fontWeight:700}}>
                     <span className="chot-label">Doanh thu tổng</span>
                     <span className="chot-value">{dinhDangSo(shownPrice)} đ/{nhanDonVi} × {dinhDangSo(dauVaoKq.quantity)} {nhanDonVi} = {dinhDangSo(doanhThuChot)} đ</span>
@@ -1152,7 +1190,7 @@ const buttonLabel = loadedItem
               </div>
               <div className="stat-card cyan">
                 <div className="stat-label">Doanh thu</div>
-                <div className="stat-value">{dinhDangSo(hasChotGia ? doanhThuChot : doanhThuHieuLuc)} đ</div>
+                <div className="stat-value">{dinhDangSo(hasChotGia ? doanhThuChot : r.revenue)} đ</div>
               </div>
               <div className="stat-card orange">
                 <div className="stat-label">{hasChotGia ? hienThiGia.closedPriceTitle : hienThiGia.salePriceTitle}</div>
@@ -1267,9 +1305,7 @@ const buttonLabel = loadedItem
                   )}
                   <tr className="total-row" style={{fontSize: '1.05em'}}>
                     <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
-                    <td className="num">{laMangIn ? '' : dinhDangSo(tongCPSX, 0)}</td>
-                    <td className="num"></td>
-                    <td className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{dinhDangSo(tongCong, 0)} đ</td>
+                    <td colSpan={3} className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{dinhDangSo(tongCong, 0)} đ</td>
                   </tr>
                 </tbody>
               </table>
