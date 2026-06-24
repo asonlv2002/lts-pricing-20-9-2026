@@ -2,7 +2,7 @@
 import React, { useMemo, useState } from 'react';
 import {
   Search, RefreshCw, Eye, X, FileText, Inbox,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, CheckSquare, Square,
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { getPricingWorkflowStatus, type PricingWorkflowStatus } from '../lib/history-filters';
@@ -54,19 +54,23 @@ function mauAvatar(id: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+const QUOTE_PREFILL_STORAGE_KEY = 'lts_quote_prefill_from_history';
+
 const PAGE_SIZE = 20;
 
 export default function ModuleDanhSachTinhGia({
   khiDieuHuong,
 }: {
-  khiDieuHuong?: (module: 'calculator') => void;
+  khiDieuHuong?: (module: 'calculator' | 'quotations') => void;
 }) {
-  const { history: lichSu, loadHistoryItem: taiLichSu } = dungCuaHangTinhGia();
+  const { history: lichSu, loadHistoryItem: taiLichSu, taiLichSuTuServer } = dungCuaHangTinhGia();
 
   const [tuKhoa, datTuKhoa] = useState('');
   const [boLoc, datBoLoc] = useState<BoLocTinhGia>('all');
   const [page, setPage] = useState(0);
   const [chiTiet, datChiTiet] = useState<HistoryItem | null>(null);
+  const [selectedQuoteHistoryIds, setSelectedQuoteHistoryIds] = useState<Set<string>>(new Set());
+  const [quoteDraftCustomer, setQuoteDraftCustomer] = useState<string | null>(null);
 
   const dsTinhGia = useMemo(
     () => lichSu.filter(h => !h.isQuote && !h.quoteProducts?.length),
@@ -75,7 +79,7 @@ export default function ModuleDanhSachTinhGia({
 
   const dsDaHienThi = useMemo(() => {
     const q = boDau(tuKhoa.trim());
-    return dsTinhGia.filter(h => {
+    let filtered = dsTinhGia.filter(h => {
       const status = getPricingWorkflowStatus(h);
       if (boLoc === 'draft' && status !== 'draft') return false;
       if (boLoc === 'saved' && status !== 'saved') return false;
@@ -93,7 +97,13 @@ export default function ModuleDanhSachTinhGia({
       const mbMs = new Date(yb ?? 0, (mb ?? 1) - 1, db ?? 1).getTime();
       return mbMs - maMs;
     });
-  }, [dsTinhGia, tuKhoa, boLoc]);
+    if (quoteDraftCustomer) {
+      filtered = filtered.filter(h =>
+        h.customer === quoteDraftCustomer || selectedQuoteHistoryIds.has(h.id)
+      );
+    }
+    return filtered;
+  }, [dsTinhGia, tuKhoa, boLoc, quoteDraftCustomer, selectedQuoteHistoryIds]);
 
   const demTheoChip = useMemo(() => {
     const dem: Record<BoLocTinhGia, number> = { all: dsTinhGia.length, draft: 0, saved: 0, used: 0 };
@@ -114,14 +124,57 @@ export default function ModuleDanhSachTinhGia({
     khiDieuHuong?.('calculator');
   };
 
+  const selectedQuoteItems = useMemo(
+    () => lichSu.filter(item => selectedQuoteHistoryIds.has(item.id)),
+    [lichSu, selectedQuoteHistoryIds],
+  );
+
+  const toggleQuoteSelection = (item: HistoryItem) => {
+    setSelectedQuoteHistoryIds(prev => {
+      const next = new Set(prev);
+      if (next.has(item.id)) {
+        next.delete(item.id);
+        if (next.size === 0) setQuoteDraftCustomer(null);
+        return next;
+      }
+      if (!quoteDraftCustomer) setQuoteDraftCustomer(item.customer);
+      if (quoteDraftCustomer && item.customer !== quoteDraftCustomer) return prev;
+      next.add(item.id);
+      return next;
+    });
+    setPage(0);
+  };
+
+  const createQuoteDraftFromSelection = () => {
+    if (selectedQuoteItems.length === 0) return;
+    localStorage.setItem(QUOTE_PREFILL_STORAGE_KEY, JSON.stringify({
+      customerName: quoteDraftCustomer ?? selectedQuoteItems[0].customer,
+      historyItemIds: selectedQuoteItems.map(item => item.id),
+      createdAt: new Date().toISOString(),
+    }));
+    setSelectedQuoteHistoryIds(new Set());
+    setQuoteDraftCustomer(null);
+    khiDieuHuong?.('quotations');
+  };
+
   const renderRow = (h: HistoryItem) => {
     const status = getPricingWorkflowStatus(h);
     const meta = getPricingDisplayMeta(h.input);
     const mau = STATUS_COLORS[status] ?? STATUS_COLORS.draft;
     const giaHienThi = h.chotGia && h.chotGia > 0 ? h.chotGia : h.finalPrice;
+    const duocChon = selectedQuoteHistoryIds.has(h.id);
 
     return (
       <tr key={h.id} className="qrev-row" onClick={() => datChiTiet(h)}>
+        <td style={{ width: 40 }} onClick={e => e.stopPropagation()}>
+          <button
+            className="qrev-btn-icon"
+            title={duocChon ? 'Bỏ chọn' : 'Chọn để tạo báo giá'}
+            onClick={() => toggleQuoteSelection(h)}
+          >
+            {duocChon ? <CheckSquare size={17} color="var(--accent)" /> : <Square size={17} />}
+          </button>
+        </td>
         <td>
           <div className="qrev-cell-quote">
             <div className="qrev-avatar" style={{ background: mauAvatar(h.id) }}>
@@ -170,7 +223,7 @@ export default function ModuleDanhSachTinhGia({
           </h1>
         </div>
         <div className="qrev-header-right">
-          <button className="qrev-btn qrev-btn--ghost" onClick={() => setPage(0)}>
+          <button className="qrev-btn qrev-btn--ghost" onClick={async () => { await taiLichSuTuServer(); setPage(0); }}>
             <RefreshCw size={15} /> Làm mới
           </button>
         </div>
@@ -192,16 +245,31 @@ export default function ModuleDanhSachTinhGia({
         )}
       </div>
 
-      <div className="qrev-chips">
-        {CHIP_LABELS.map(chip => (
-          <button
-            key={chip.key}
-            className={boLoc === chip.key ? 'qrev-chip qrev-chip--active' : 'qrev-chip'}
-            onClick={() => { datBoLoc(chip.key); setPage(0); }}
-          >
-            {chip.label} <span className="qrev-chip-count">{demTheoChip[chip.key]}</span>
-          </button>
-        ))}
+      <div className="qrev-chips" style={{ justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          {CHIP_LABELS.map(chip => (
+            <button
+              key={chip.key}
+              className={boLoc === chip.key ? 'qrev-chip qrev-chip--active' : 'qrev-chip'}
+              onClick={() => { datBoLoc(chip.key); setPage(0); }}
+            >
+              {chip.label} <span className="qrev-chip-count">{demTheoChip[chip.key]}</span>
+            </button>
+          ))}
+        </div>
+        {selectedQuoteItems.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: '0.82rem', color: 'var(--muted)' }}>
+              <strong>{quoteDraftCustomer}</strong> · {selectedQuoteItems.length} SP
+            </span>
+            <button className="btn btn-sm btn-outline" onClick={() => { setSelectedQuoteHistoryIds(new Set()); setQuoteDraftCustomer(null); }}>
+              <X size={14} />
+            </button>
+            <button className="btn btn-sm btn-primary" onClick={createQuoteDraftFromSelection}>
+              <FileText size={14} /> Tạo báo giá
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="qrev-table-shell">
@@ -216,6 +284,7 @@ export default function ModuleDanhSachTinhGia({
             <table className="qrev-table">
               <thead>
                 <tr>
+                  <th style={{ width: 40 }}></th>
                   <th>Sản phẩm</th>
                   <th>Khách hàng</th>
                   <th>Ngày</th>
