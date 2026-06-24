@@ -915,6 +915,11 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                         <ONhapSoThapPhan className="form-input" value={khoGiua} placeholder="m" step="0.001" onChange={datKhoGiua} />
                       </div>
                     </div>
+                    {(input.spreadWidth || 0) > 0 && (khoNgoai + khoGiua) > (input.spreadWidth || 0) && (
+                      <div style={{ marginTop: '8px', padding: '8px 12px', background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: '6px', color: '#dc2626', fontSize: '0.82rem', fontWeight: 600 }}>
+                        ⚠️ Tổng chiều dài lớp 2 ({(khoNgoai + khoGiua).toFixed(3)}m) vượt quá khổ trải ({(input.spreadWidth || 0).toFixed(3)}m). Vui lòng giảm chiều dài hoặc tăng khổ trải.
+                      </div>
+                    )}
                     </>
                   );
                 })()}

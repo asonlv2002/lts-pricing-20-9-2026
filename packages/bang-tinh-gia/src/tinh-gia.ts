@@ -139,6 +139,11 @@ export function tinhGia(
 
   if (dauVao.loaiSanPham === 'mang' && !dauVao.loaiMang) return null;
 
+  // Tổng chiều dài 2 lớp vượt khổ trải
+  if (dauVao.chieuDaiLop2 && dauVao.chieuDaiLop2.vl1 > 0 && dauVao.chieuDaiLop2.vl2 > 0) {
+    if ((dauVao.chieuDaiLop2.vl1 + dauVao.chieuDaiLop2.vl2) / 1000 > dauVao.khoTrai + 0.0001) return null;
+  }
+
 
 
 
