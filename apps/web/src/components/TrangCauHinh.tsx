@@ -35,25 +35,32 @@ const SCOPE_LABEL: Record<ConfigScope, string> = {
 function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
   const {
     configSnapshots: tatCaPhienBan,
-    selectedConfigSnapshotId: phienBanDangChon,
     taoPhienBanDinhMuc,
     xoaPhienBanDinhMuc,
-    apDungPhienBanDinhMuc,
+    xemPhienBanDinhMuc,
+    saoChepPhienBanDinhMuc,
+    thoatXemPhienBan,
     taiLichSuPhienBanTuServer,
     dangLuuPhienBan,
     dangTaiPhienBan,
+    dangXemPhienBan,
+    phienBanDangXemId,
+    nguoiDungHienTai,
   } = dungCuaHangTinhGia();
+
+  const coQuyenXoa = !!nguoiDungHienTai?.policies.includes('PRICE_CONFIG_MANAGER');
 
   const phienBan = tatCaPhienBan.filter(
     (s) => (s.scope ?? "materials") === scope,
   );
-  const dangChonId = phienBanDangChon[scope] ?? null;
 
   const [mocHieuLuc, datMocHieuLuc] = React.useState(() =>
     new Date().toISOString().slice(0, 7),
   );
   const [moDanhSachPhienBan, datMoDanhSachPhienBan] = React.useState(false);
   const [mo, datMo] = React.useState(false);
+  const [xacNhanXoaId, datXacNhanXoaId] = React.useState<string | null>(null);
+  const [loiXoa, datLoiXoa] = React.useState<{ names: string[] } | null>(null);
 
   // Tai lich su phien ban tu server khi component mount
   React.useEffect(() => {
@@ -69,31 +76,32 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
     });
   };
 
-  const xuLyApDung = (id: string) => {
-    const s = tatCaPhienBan.find((x) => x.id === id);
-    const hieuLuc = s
-      ? `${s.effectiveMode === "month" ? "Tháng" : "Ngày"} ${s.effectiveFrom}`
-      : "";
-    if (
-      !confirm(
-        `Áp dụng phiên bản (${hieuLuc})?\n\nDữ liệu ${SCOPE_LABEL[scope]} hiện tại sẽ bị thay thế.`,
-      )
-    )
-      return;
-    apDungPhienBanDinhMuc(id);
+  const xuLyXem = (id: string) => {
+    xemPhienBanDinhMuc(id);
   };
 
-  const xuLyXoa = (id: string) => {
-    if (!confirm("Xóa phiên bản này?")) return;
-    xoaPhienBanDinhMuc(id);
+  const xuLySaoChep = (id: string) => {
+    saoChepPhienBanDinhMuc(id);
+  };
+
+  const xuLyXoa = async (id: string) => {
+    const ketQua = await xoaPhienBanDinhMuc(id);
+    if (!ketQua.success) {
+      datLoiXoa({ names: ketQua.pricingSheetNames });
+    }
+  };
+
+  const moXacNhanXoa = (id: string) => {
+    datXacNhanXoaId(id);
   };
 
   return (
-    <div
-      className="card config-card config-version-card"
-      id={`sect-config-versions-${scope}`}
-      style={{ scrollMarginTop: "80px" }}
-    >
+    <>
+      <div
+        className="card config-card config-version-card"
+        id={`sect-config-versions-${scope}`}
+        style={{ scrollMarginTop: "80px" }}
+      >
       <div
         className="config-section-title config-version-title collapsible"
         onClick={() => datMo((v) => !v)}
@@ -154,7 +162,6 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
               <tr>
                 <th>Hiệu lực</th>
                 <th>Ngày tạo</th>
-                <th>Trạng thái</th>
                 <th>Thao tác</th>
               </tr>
             </thead>
@@ -162,7 +169,7 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
               {dangTaiPhienBan ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={3}
                     style={{ textAlign: "center", color: "var(--dim)" }}
                   >
                     Đang tải phiên bản từ server...
@@ -171,7 +178,7 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
               ) : phienBan.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={4}
+                    colSpan={3}
                     style={{ textAlign: "center", color: "var(--dim)" }}
                   >
                     Chưa có phiên bản nào.
@@ -179,18 +186,9 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
                 </tr>
               ) : (
                 phienBan.map((snapshot) => {
-                  const dangApDung = dangChonId === snapshot.id;
                   return (
                     <tr
                       key={snapshot.id}
-                      style={
-                        dangApDung
-                          ? {
-                              background:
-                                "var(--accent-subtle, rgba(59,130,246,0.07))",
-                            }
-                          : undefined
-                      }
                     >
                       <td>
                         {snapshot.effectiveMode === "month" ? "Tháng" : "Ngày"}{" "}
@@ -198,28 +196,6 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
                       </td>
                       <td>
                         {new Date(snapshot.createdAt).toLocaleString("vi-VN")}
-                      </td>
-                      <td>
-                        {dangApDung ? (
-                          <span
-                            style={{
-                              color: "var(--accent)",
-                              fontWeight: 700,
-                              fontSize: "0.82rem",
-                            }}
-                          >
-                            ✓ Đang áp dụng
-                          </span>
-                        ) : (
-                          <span
-                            style={{
-                              color: "var(--muted)",
-                              fontSize: "0.82rem",
-                            }}
-                          >
-                            Đã lưu
-                          </span>
-                        )}
                       </td>
                       <td>
                         <div
@@ -230,20 +206,26 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
                             justifyContent: "center",
                           }}
                         >
-                          {!dangApDung && (
-                            <button
-                              className="btn btn-sm btn-primary"
-                              onClick={() => xuLyApDung(snapshot.id)}
-                            >
-                              Áp dụng
-                            </button>
-                          )}
                           <button
                             className="btn btn-sm btn-outline"
-                            onClick={() => xuLyXoa(snapshot.id)}
+                            onClick={() => xuLyXem(snapshot.id)}
                           >
-                            Xóa
+                            Xem
                           </button>
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => xuLySaoChep(snapshot.id)}
+                          >
+                            Sao chép
+                          </button>
+                          {coQuyenXoa && (
+                            <button
+                              className="btn btn-sm btn-outline"
+                              onClick={() => moXacNhanXoa(snapshot.id)}
+                            >
+                              Xóa
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -287,7 +269,6 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
                   </div>
                 ) : (
                   phienBan.map((snapshot) => {
-                    const dangApDung = dangChonId === snapshot.id;
                     return (
                       <div
                         className="config-version-sheet-row"
@@ -295,28 +276,38 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
                       >
                         <div className="config-version-sheet-info">
                           <span>
-                            {snapshot.effectiveFrom} ·{" "}
-                            {dangApDung ? "Đang áp dụng" : "Đã lưu"}
+                            {snapshot.effectiveFrom}
                           </span>
                         </div>
                         <div className="config-version-sheet-actions">
-                          {!dangApDung && (
-                            <button
-                              className="btn btn-sm btn-primary"
-                              onClick={() => {
-                                xuLyApDung(snapshot.id);
-                                datMoDanhSachPhienBan(false);
-                              }}
-                            >
-                              Áp dụng
-                            </button>
-                          )}
                           <button
                             className="btn btn-sm btn-outline"
-                            onClick={() => xuLyXoa(snapshot.id)}
+                            onClick={() => {
+                              xuLyXem(snapshot.id);
+                              datMoDanhSachPhienBan(false);
+                            }}
                           >
-                            Xóa
+                            Xem
                           </button>
+                          <button
+                            className="btn btn-sm btn-primary"
+                            onClick={() => {
+                              xuLySaoChep(snapshot.id);
+                              datMoDanhSachPhienBan(false);
+                            }}
+                          >
+                            Sao chép
+                          </button>
+                          {coQuyenXoa && (
+                            <button
+                              className="btn btn-sm btn-outline"
+                              onClick={() => {
+                                moXacNhanXoa(snapshot.id);
+                              }}
+                            >
+                              Xóa
+                            </button>
+                          )}
                         </div>
                       </div>
                     );
@@ -328,7 +319,68 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
         )}
       </div>
     </div>
-  );
+    {dangXemPhienBan && phienBan.find(s => s.id === phienBanDangXemId) && (
+      <div
+        style={{
+          background: 'var(--accent-subtle, rgba(59,130,246,0.08))',
+          border: '1px solid var(--accent, rgba(59,130,246,0.3))',
+          borderRadius: '10px',
+          padding: '10px 16px',
+          marginBottom: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px',
+        }}
+      >
+        <span style={{ fontSize: '0.85rem', color: 'var(--accent, #3b82f6)', fontWeight: 500 }}>
+          ⚠ Đang xem dữ liệu của phiên bản — các trường chỉ đọc
+        </span>
+        <button
+          className="btn btn-sm btn-outline"
+          onClick={() => thoatXemPhienBan()}
+        >
+          Thoát xem
+        </button>
+      </div>
+    )}
+    {xacNhanXoaId && (
+      <div className="lts-confirm-backdrop" onClick={() => datXacNhanXoaId(null)}>
+        <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
+          <div className="lts-confirm-icon">🗑</div>
+          <h3 className="lts-confirm-title">Xóa phiên bản này?</h3>
+          <p className="lts-confirm-desc">
+            Thao tác này không thể hoàn tác.<br />
+            Phiên bản sẽ bị xóa vĩnh viễn.
+          </p>
+          <div className="lts-confirm-actions">
+            <button className="btn btn-outline" onClick={() => datXacNhanXoaId(null)}>Hủy</button>
+            <button className="btn btn-danger" onClick={() => { const id = xacNhanXoaId; datXacNhanXoaId(null); xuLyXoa(id); }}>Xóa</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {loiXoa && (
+      <div className="lts-confirm-backdrop" onClick={() => datLoiXoa(null)}>
+        <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
+          <div className="lts-confirm-icon">⚠️</div>
+          <h3 className="lts-confirm-title">Không thể xóa</h3>
+          <p className="lts-confirm-desc">
+            Hiện không thể xóa do cấu hình này đang liên kết với:
+          </p>
+          <ul style={{ textAlign: 'left', fontSize: '0.85rem', color: 'var(--muted)', lineHeight: 1.6, marginBottom: 22, paddingLeft: 20 }}>
+            {loiXoa.names.map((ten, i) => (
+              <li key={i}>{ten}</li>
+            ))}
+          </ul>
+          <div className="lts-confirm-actions">
+            <button className="btn btn-outline" onClick={() => datLoiXoa(null)}>Đóng</button>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
+);
 }
 
 type NhomCauHinh =
@@ -377,7 +429,16 @@ export default function TrangCauHinh({
     setConstantParam: capNhatHangSo,
     setSmallWidthPriceParam: capNhatGiaKhoNho,
     removeMaterial: xoaVatLieu,
+    dangXemPhienBan,
+    phienBanDangXemId,
+    configSnapshots: tatCaPhienBan,
   } = dungCuaHangTinhGia();
+
+  const scopeDangXem = React.useMemo(() => {
+    if (!dangXemPhienBan || !phienBanDangXemId) return null;
+    const s = tatCaPhienBan.find(x => x.id === phienBanDangXemId);
+    return s?.scope ?? null;
+  }, [dangXemPhienBan, phienBanDangXemId, tatCaPhienBan]);
   const [nhomKhachHang, datNhomKhachHang] = React.useState("other");
   const [nhomKhachMangInDangXem, datNhomKhachMangInDangXem] = React.useState<
     "normal" | "large"
@@ -766,7 +827,7 @@ export default function TrangCauHinh({
     luuBangLoiNhuanTre();
   };
   return (
-    <div className="config-page" id="configPage" style={{ display: "block" }}>
+    <div className={`config-page${dangXemPhienBan ? ' config-page--readonly' : ''}`} id="configPage" style={{ display: "block" }}>
       <div className="config-page-inner">
         <div className="config-content">
           {hienVatTu && (

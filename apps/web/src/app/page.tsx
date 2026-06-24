@@ -290,7 +290,7 @@ export default function TrangChinh() {
             b.updatedAt.localeCompare(a.updatedAt),
         )[0];
         if (latest) {
-          state.apDungPhienBanDinhMuc(latest.id, { silent: true });
+          state.saoChepPhienBanDinhMuc(latest.id);
         }
       }
     })();

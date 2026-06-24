@@ -1430,6 +1430,13 @@ body {
 .config-page-inner { display: flex; flex-direction: column; gap: 28px; position: relative; max-width: 1200px; margin: 0 auto; justify-content: center; }
 .config-content { max-width: 960px; margin: 0 auto; width: 100%; }
 
+/* Read-only overlay khi đang xem phiên bản */
+.config-page--readonly .config-content .card.config-card:not(.config-version-card) {
+  pointer-events: none;
+  opacity: 0.55;
+  user-select: none;
+}
+
 /* removed config toc custom classes */
 
 .config-page-header {

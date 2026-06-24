@@ -6,6 +6,7 @@ import { luuLocalStorage, LS_CONFIG_SNAPSHOTS } from '../helpers';
 import {
   upsertPriceConfigService,
   layLichSuPriceConfigService,
+  xoaPriceConfigService,
   type PriceConfigApi,
 } from '../../lib/api/service-lts';
 import {
@@ -17,25 +18,22 @@ import {
 
 export interface ConfigVersioningSlice {
   configSnapshots: ConfigSnapshot[];
-  selectedConfigSnapshotId: Record<ConfigScope, string | null>;
   dangLuuPhienBan: boolean;
   dangTaiPhienBan: boolean;
+  dangXemPhienBan: boolean;
+  phienBanDangXemId: string | null;
 
   taiPhienBanDinhMuc: (data: ConfigSnapshot[]) => void;
   taoPhienBanDinhMuc: (params: { scope: ConfigScope; name?: string; effectiveMode: 'date' | 'month'; effectiveFrom: string }) => Promise<void>;
-  xoaPhienBanDinhMuc: (id: string) => void;
-  apDungPhienBanDinhMuc: (id: string, opts?: { silent?: boolean }) => void;
+  xoaPhienBanDinhMuc: (id: string) => Promise<{ success: true } | { success: false; pricingSheetNames: string[] }>;
+  xemPhienBanDinhMuc: (id: string) => void;
+  saoChepPhienBanDinhMuc: (id: string) => void;
+  thoatXemPhienBan: () => void;
   taiLichSuPhienBanTuServer: (scope: ConfigScope) => Promise<void>;
-  timPhienBanDinhMucTheoNgay: (scope: ConfigScope, date: string) => ConfigSnapshot | null;
 }
 
 const sapXepTheoHieuLuc = (snapshots: ConfigSnapshot[]) =>
   [...snapshots].sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || b.updatedAt.localeCompare(a.updatedAt));
-
-const SCOPE_EMPTY: Record<ConfigScope, string | null> = {
-  materials: null, production: null, profit: null,
-  surcharges: null, interest: null, waste: null, outsource: null,
-};
 
 // Scope labels (ASCII-safe for server logs)
 const SCOPE_LABEL: Record<ConfigScope, string> = {
@@ -93,9 +91,10 @@ function taoSnapshotLocal(
 
 export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], ConfigVersioningSlice> = (set, get) => ({
   configSnapshots: INITIAL_CONFIG_SNAPSHOTS,
-  selectedConfigSnapshotId: { ...SCOPE_EMPTY },
   dangLuuPhienBan: false,
   dangTaiPhienBan: false,
+  dangXemPhienBan: false,
+  phienBanDangXemId: null,
 
   taiPhienBanDinhMuc: (data) => set({ configSnapshots: sapXepTheoHieuLuc(data) }),
 
@@ -127,7 +126,6 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
 
         set((s) => ({
           dangLuuPhienBan: false,
-          selectedConfigSnapshotId: { ...s.selectedConfigSnapshotId, [scope]: priceConfig.id },
         }));
 
         return;
@@ -141,10 +139,7 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
     set((s) => {
       const configSnapshots = sapXepTheoHieuLuc([snapshot, ...s.configSnapshots]);
       luuLocalStorage(LS_CONFIG_SNAPSHOTS, configSnapshots);
-      return {
-        configSnapshots,
-        selectedConfigSnapshotId: { ...s.selectedConfigSnapshotId, [scope]: snapshot.id },
-      };
+      return { configSnapshots };
     });
   },
 
@@ -179,20 +174,31 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
     }
   },
 
-  xoaPhienBanDinhMuc: (id) => {
+  xoaPhienBanDinhMuc: async (id) => {
     const state = get();
+    const token = state.accessToken;
+
+    if (state.isAuthenticated && token) {
+      const ketQua = await xoaPriceConfigService(id, token);
+      if (ketQua.success) {
+        set((s) => {
+          const configSnapshots = s.configSnapshots.filter(snapshot => snapshot.id !== id);
+          luuLocalStorage(LS_CONFIG_SNAPSHOTS, configSnapshots);
+          return { configSnapshots };
+        });
+      }
+      return ketQua;
+    }
+
     set((s) => {
       const configSnapshots = s.configSnapshots.filter(snapshot => snapshot.id !== id);
       luuLocalStorage(LS_CONFIG_SNAPSHOTS, configSnapshots);
-      const selected = { ...s.selectedConfigSnapshotId };
-      for (const scope of Object.keys(selected) as ConfigScope[]) {
-        if (selected[scope] === id) selected[scope] = null;
-      }
-      return { configSnapshots, selectedConfigSnapshotId: selected };
+      return { configSnapshots };
     });
+    return { success: true as const };
   },
 
-  apDungPhienBanDinhMuc: (id, opts) => {
+  xemPhienBanDinhMuc: (id) => {
     const state = get();
     const snapshot = state.configSnapshots.find(item => item.id === id);
     if (!snapshot) return;
@@ -227,18 +233,62 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
       });
     }
 
-    set((s) => ({
-      selectedConfigSnapshotId: { ...s.selectedConfigSnapshotId, [scope]: id },
-    }));
+    set({ dangXemPhienBan: true, phienBanDangXemId: id });
   },
 
-  timPhienBanDinhMucTheoNgay: (scope, date) => {
-    const targetMonth = date.slice(0, 7);
-    const candidates = get().configSnapshots.filter(snapshot => {
-      if (snapshot.scope !== scope) return false;
-      if (snapshot.effectiveMode === 'month') return snapshot.effectiveFrom <= targetMonth;
-      return snapshot.effectiveFrom <= date;
-    });
-    return sapXepTheoHieuLuc(candidates)[0] ?? null;
+  saoChepPhienBanDinhMuc: (id) => {
+    const state = get();
+    const snapshot = state.configSnapshots.find(item => item.id === id);
+    if (!snapshot) return;
+
+    const scope = snapshot.scope ?? 'materials';
+    const keys = SCOPE_CONSTANT_KEYS[scope] ?? [];
+
+    if (scope === 'materials') {
+      state.replaceFullConfig({
+        materials: structuredClone(snapshot.materials),
+        smallWidthPrices: structuredClone(snapshot.smallWidthPrices),
+        constants: state.constants,
+        profitTable: state.profitTable,
+      });
+    } else if (scope === 'profit') {
+      state.replaceFullConfig({
+        materials: state.materials,
+        smallWidthPrices: state.smallWidthPrices,
+        constants: state.constants,
+        profitTable: structuredClone(snapshot.profitTable),
+      });
+    } else if (keys.length > 0) {
+      const constantsMoi = { ...state.constants };
+      for (const key of keys) {
+        (constantsMoi as any)[key] = structuredClone((snapshot.constants as any)[key]);
+      }
+      state.replaceFullConfig({
+        materials: state.materials,
+        smallWidthPrices: state.smallWidthPrices,
+        constants: constantsMoi,
+        profitTable: state.profitTable,
+      });
+    }
+
+    set({ dangXemPhienBan: false, phienBanDangXemId: null });
+  },
+
+  thoatXemPhienBan: () => {
+    const state = get();
+    const phienBanDangXemId = state.phienBanDangXemId;
+    if (!phienBanDangXemId) { set({ dangXemPhienBan: false }); return; }
+
+    const snapshot = state.configSnapshots.find(s => s.id === phienBanDangXemId);
+    const scope = snapshot?.scope ?? 'materials';
+    const candidates = state.configSnapshots
+      .filter(s => (s.scope ?? 'materials') === scope)
+      .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || b.updatedAt.localeCompare(a.updatedAt));
+    const latest = candidates[0];
+    if (latest) {
+      get().saoChepPhienBanDinhMuc(latest.id);
+    } else {
+      set({ dangXemPhienBan: false, phienBanDangXemId: null });
+    }
   },
 });

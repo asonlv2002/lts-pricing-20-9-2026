@@ -644,6 +644,44 @@ export async function layLichSuPriceConfigService(
   return Array.isArray(data) ? data : [];
 }
 
+export async function xoaPriceConfigService(
+  id: string,
+  token?: string,
+): Promise<{ success: true } | { success: false; pricingSheetNames: string[] }> {
+  const firstToken = token ?? layTokenHienTai?.()?.accessToken;
+  let res: Response;
+  try {
+    res = await goiRaw(`/price-config/${encodeURIComponent(id)}`, { method: 'DELETE' }, firstToken);
+  } catch {
+    throw new LoiServiceLts('Không kết nối được tới máy chủ.');
+  }
+
+  if (res.status === 401) {
+    try {
+      const tokens = await lamMoiTokenTuHeThong();
+      try {
+        res = await goiRaw(`/price-config/${encodeURIComponent(id)}`, { method: 'DELETE' }, tokens.accessToken);
+      } catch {
+        throw new LoiServiceLts('Không kết nối được tới máy chủ.');
+      }
+    } catch (error) {
+      if (error instanceof LoiServiceLts && error.status === 401) {
+        xuLyPhienKhongHopLe?.();
+        throw new LoiServiceLts('Hết phiên đăng nhập.', 401);
+      }
+      throw error;
+    }
+  }
+
+  if (res.ok) return { success: true };
+
+  const body = await docJson(res);
+  const pricingSheetNames: string[] = Array.isArray((body as { pricingSheetNames?: unknown })?.pricingSheetNames)
+    ? ((body as { pricingSheetNames: unknown[] }).pricingSheetNames.map(String))
+    : [];
+  return { success: false, pricingSheetNames };
+}
+
 // -- Quotations ----------------------------------------------------------------
 // Frontend phải tạo pricing sheet trước, lấy id rồi gắn vào quotation này.
 export interface TaoBaoGiaInput {
