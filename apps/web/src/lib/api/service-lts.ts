@@ -607,6 +607,39 @@ export async function capNhatPricingSheetAdvisorResultService(
   }, token);
 }
 
+export async function xoaPricingSheetService(
+  id: string,
+  token?: string,
+): Promise<{ success: true } | { success: false }> {
+  const firstToken = token ?? layTokenHienTai?.()?.accessToken;
+  let res: Response;
+  try {
+    res = await goiRaw(`/pricing-sheet/${encodeURIComponent(id)}`, { method: 'DELETE' }, firstToken);
+  } catch {
+    throw new LoiServiceLts('Không kết nối được tới máy chủ.');
+  }
+
+  if (res.status === 401) {
+    try {
+      const tokens = await lamMoiTokenTuHeThong();
+      try {
+        res = await goiRaw(`/pricing-sheet/${encodeURIComponent(id)}`, { method: 'DELETE' }, tokens.accessToken);
+      } catch {
+        throw new LoiServiceLts('Không kết nối được tới máy chủ.');
+      }
+    } catch (error) {
+      if (error instanceof LoiServiceLts && error.status === 401) {
+        xuLyPhienKhongHopLe?.();
+        throw new LoiServiceLts('Hết phiên đăng nhập.', 401);
+      }
+      throw error;
+    }
+  }
+
+  if (res.ok) return { success: true };
+  return { success: false };
+}
+
 // -- Price Config ---------------------------------------------------------------
 export interface PriceConfigApi {
   id: string;

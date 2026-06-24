@@ -3,11 +3,13 @@ import React, { useMemo, useState } from 'react';
 import {
   Search, RefreshCw, Eye, X, FileText, Inbox,
   ChevronLeft, ChevronRight, CheckSquare, Square,
+  Trash2, FileEdit,
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { getPricingWorkflowStatus, type PricingWorkflowStatus } from '../lib/history-filters';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { QrevStyleInjector } from './qrev-styles';
+import { xoaPricingSheetService } from '../lib/api/service-lts';
 import type { HistoryItem } from '../lib/types';
 
 const boDau = (chuoi: string) =>
@@ -63,7 +65,7 @@ export default function ModuleDanhSachTinhGia({
 }: {
   khiDieuHuong?: (module: 'calculator' | 'quotations') => void;
 }) {
-  const { history: lichSu, loadHistoryItem: taiLichSu, taiLichSuTuServer } = dungCuaHangTinhGia();
+  const { history: lichSu, loadHistoryItem: taiLichSu, taiLichSuTuServer, removeHistoryItem: xoaLichSu, accessToken } = dungCuaHangTinhGia();
 
   const [tuKhoa, datTuKhoa] = useState('');
   const [boLoc, datBoLoc] = useState<BoLocTinhGia>('all');
@@ -71,6 +73,8 @@ export default function ModuleDanhSachTinhGia({
   const [chiTiet, datChiTiet] = useState<HistoryItem | null>(null);
   const [selectedQuoteHistoryIds, setSelectedQuoteHistoryIds] = useState<Set<string>>(new Set());
   const [quoteDraftCustomer, setQuoteDraftCustomer] = useState<string | null>(null);
+  const [xacNhanXoaId, datXacNhanXoaId] = useState<string | null>(null);
+  const [hienLoiXoa, datHienLoiXoa] = useState(false);
 
   const dsTinhGia = useMemo(
     () => lichSu.filter(h => !h.isQuote && !h.quoteProducts?.length),
@@ -122,6 +126,16 @@ export default function ModuleDanhSachTinhGia({
   const moLaiTinhGia = (id: string) => {
     taiLichSu(id);
     khiDieuHuong?.('calculator');
+  };
+
+  const xuLyXoa = async (id: string) => {
+    const item = lichSu.find(h => h.id === id);
+    if (!item) return;
+    if (item.pricingSheetId && accessToken) {
+      const ketQua = await xoaPricingSheetService(item.pricingSheetId, accessToken);
+      if (!ketQua.success) { datHienLoiXoa(true); return; }
+    }
+    xoaLichSu(id);
   };
 
   const selectedQuoteItems = useMemo(
@@ -203,7 +217,10 @@ export default function ModuleDanhSachTinhGia({
               <Eye size={15} />
             </button>
             <button className="qrev-btn-icon qrev-btn-icon--primary" title="Mở lại tính giá" onClick={() => moLaiTinhGia(h.id)}>
-              <RefreshCw size={15} />
+              <FileEdit size={15} />
+            </button>
+            <button className="qrev-btn-icon" title="Xóa bảng tính giá" onClick={() => datXacNhanXoaId(h.id)}>
+              <Trash2 size={15} />
             </button>
           </div>
         </td>
@@ -328,6 +345,36 @@ export default function ModuleDanhSachTinhGia({
           onClose={() => datChiTiet(null)}
           onMoLai={moLaiTinhGia}
         />
+      )}
+      {xacNhanXoaId && (
+        <div className="lts-confirm-backdrop" onClick={() => datXacNhanXoaId(null)}>
+          <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
+            <div className="lts-confirm-icon">🗑</div>
+            <h3 className="lts-confirm-title">Xóa bảng tính giá này?</h3>
+            <p className="lts-confirm-desc">
+              Thao tác này không thể hoàn tác.<br />
+              Bảng tính giá sẽ bị xóa vĩnh viễn.
+            </p>
+            <div className="lts-confirm-actions">
+              <button className="btn btn-outline" onClick={() => datXacNhanXoaId(null)}>Hủy</button>
+              <button className="btn btn-danger" onClick={() => { const id = xacNhanXoaId; datXacNhanXoaId(null); xuLyXoa(id); }}>Xóa</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {hienLoiXoa && (
+        <div className="lts-confirm-backdrop" onClick={() => datHienLoiXoa(false)}>
+          <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
+            <div className="lts-confirm-icon">⚠️</div>
+            <h3 className="lts-confirm-title">Không thể xóa</h3>
+            <p className="lts-confirm-desc">
+              Bảng này đang có liên kết với báo giá.
+            </p>
+            <div className="lts-confirm-actions">
+              <button className="btn btn-outline" onClick={() => datHienLoiXoa(false)}>Đóng</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
