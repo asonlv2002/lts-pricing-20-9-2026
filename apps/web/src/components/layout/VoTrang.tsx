@@ -9,6 +9,7 @@ import ModuleKhachHang from '../ModuleKhachHang';
 import ModuleBaoGia from '../ModuleBaoGia';
 import ModuleDuyetBaoGia from '../ModuleDuyetBaoGia';
 import ModuleLichSuDB from '../ModuleLichSuDB';
+import ModuleDanhSachTinhGia from '../ModuleDanhSachTinhGia';
 import TrangCauHinh from '../TrangCauHinh';
 import ModulePhanQuyen from '../ModulePhanQuyen';
 import ModuleTaoLenhSanXuat from '../ModuleTaoLenhSanXuat';
@@ -77,7 +78,7 @@ const CAC_NHOM_MENU: NhomMenu[] = [
       { key: 'pricing.create_lsx', id: 'create_lsx', label: 'Tạo LSX', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.quote_review', id: 'quotations', label: 'Danh sách báo giá', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.lsx_list', id: 'lsx_list', label: 'Danh sách LSX', vaiTros: ['admin', 'sale'] },
-      { key: 'pricing.history', id: 'history_db', label: 'Lịch sử tính giá và báo giá', vaiTros: ['admin', 'sale'] },
+      { key: 'pricing.history', id: 'history_db', label: 'Danh sách tính giá', vaiTros: ['admin', 'sale'] },
       { key: 'pricing.audit_log', id: 'audit_log', label: 'Nhật ký thao tác', vaiTros: ['admin', 'sale'] },
     ],
   },
@@ -204,7 +205,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
       { title: 'Tạo bảng báo giá', subtitle: 'Tạo bảng báo giá gửi khách hàng.', tone: 'sky', icon: <FileText size={30} />, action: { type: 'module', key: 'pricing.create_quote', module: 'quotations' } },
       { title: 'Tạo lệnh sản xuất', subtitle: 'Chuyển thông tin báo giá sang LSX.', tone: 'emerald', icon: <PackageCheck size={30} />, action: { type: 'module', key: 'pricing.create_lsx', module: 'create_lsx' } },
       { title: 'Danh sách lệnh sản xuất', subtitle: 'Theo dõi các LSX đã tạo.', tone: 'slate', icon: <ListChecks size={30} />, action: { type: 'module', key: 'pricing.lsx_list', module: 'lsx_list' } },
-      { title: 'Lịch sử tính giá & báo giá', subtitle: 'Xem lại các bảng tính và báo giá đã tạo.', tone: 'emerald', icon: <History size={30} />, action: { type: 'module', key: 'pricing.history', module: 'history_db' } },
+      { title: 'Danh sách tính giá', subtitle: 'Xem lại các bảng tính giá đã lưu.', tone: 'emerald', icon: <History size={30} />, action: { type: 'module', key: 'pricing.history', module: 'history_db' } },
       { title: 'Nhật ký thao tác', subtitle: 'Theo dõi các thao tác trong hệ thống.', tone: 'orange', icon: <ClipboardList size={30} />, action: { type: 'module', key: 'pricing.audit_log', module: 'audit_log' } },
     ],
   },
@@ -835,7 +836,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 : <ModuleBaoGia role={vaiTroHienTai} menuDangChon={menuDangChon} khiDieuHuong={(key) => { datMenuDangChon(key); datModuleDangMo('quotations'); }} />)}
               {moduleDangMo === 'create_lsx'        && <ModuleTaoLenhSanXuat />}
               {moduleDangMo === 'lsx_list'          && <ModuleDanhSachLSX />}
-              {moduleDangMo === 'history_db'        && <ModuleLichSuDB khiDieuHuong={datModuleDangMo} menuDangChon={menuDangChon} />}
+              {moduleDangMo === 'history_db'        && (menuDangChon === 'pricing.history'
+                ? <ModuleDanhSachTinhGia khiDieuHuong={(m) => datModuleDangMo(m)} />
+                : <ModuleLichSuDB khiDieuHuong={datModuleDangMo} menuDangChon={menuDangChon} />)}
               {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTroHienTai} currentSellerId={idNhanVienHienTai} menuDangChon={menuDangChon} />}
               {moduleDangMo === 'master_data'       && <TrangCauHinh menuDangChon={menuDangChon} />}
               {moduleDangMo === 'users'             && <ModulePhanQuyen menuDangChon={menuDangChon} />}
