@@ -23,8 +23,6 @@ import {
   layTaiKhoanService,
   taoTaiKhoanService,
   kichHoatTaiKhoanService,
-  voHieuTaiKhoanService,
-  capNhatBaoVeService,
   datLaiMatKhauTaiKhoanService,
   capQuyenService,
   thuHoiQuyenService,
@@ -45,17 +43,17 @@ import {
 // SAMPLE DATA  — chỉ dùng làm placeholder khi đang tải dữ liệu từ service-lts
 // ═════════════════════════════════════════════════════════════════════════════
 const TAI_KHOAN_MAU: TaiKhoan[] = [
-  { id: '1', account: 'admin',       fullName: 'Quản trị hệ thống', isActive: true,  isProtected: true,
+  { id: '1', account: 'admin',       fullName: 'Quản trị hệ thống', isActive: true,
     policies: POLICY_CATALOG.map(p => p.code), createdAt: '2025-08-12', lastLogin: '2026-05-25 08:42' },
-  { id: '2', account: 'thu.lts',     fullName: 'Lê Thị Thu',         isActive: true,  isProtected: false,
+  { id: '2', account: 'thu.lts',     fullName: 'Lê Thị Thu',         isActive: true,
     policies: ['ACCOUNT_READ','ACCOUNT_CREATE','ROLE_READ','USER_POLICY_GRANT'], createdAt: '2025-09-03', lastLogin: '2026-05-24 17:21' },
-  { id: '3', account: 'nguyen.an',   fullName: 'Nguyễn Văn An',      isActive: true,  isProtected: false,
+  { id: '3', account: 'nguyen.an',   fullName: 'Nguyễn Văn An',      isActive: true,
     policies: ['ACCOUNT_READ','ROLE_READ'], createdAt: '2025-10-19', lastLogin: '2026-05-25 09:05' },
-  { id: '4', account: 'phuong.kt',   fullName: 'Trần Thanh Phương',  isActive: false, isProtected: false,
+  { id: '4', account: 'phuong.kt',   fullName: 'Trần Thanh Phương',  isActive: false,
     policies: ['ACCOUNT_READ'], createdAt: '2025-11-08' },
-  { id: '5', account: 'quan.bd',     fullName: 'Lý Hoài Quân',       isActive: true,  isProtected: false,
+  { id: '5', account: 'quan.bd',     fullName: 'Lý Hoài Quân',       isActive: true,
     policies: ['ACCOUNT_READ','ROLE_READ','ROLE_CREATE','ROLE_UPDATE'], createdAt: '2026-01-22', lastLogin: '2026-05-23 14:11' },
-  { id: '6', account: 'mai.nv',      fullName: 'Phạm Hương Mai',     isActive: true,  isProtected: false,
+  { id: '6', account: 'mai.nv',      fullName: 'Phạm Hương Mai',     isActive: true,
     policies: ['ACCOUNT_READ'], createdAt: '2026-02-17', lastLogin: '2026-05-22 11:00' },
 ];
 
@@ -72,7 +70,7 @@ const VAI_TRO_MAU: VaiTro[] = [
     code: 'HR_MANAGER',
     name: 'Quản lý nhân sự',
     description: 'Tạo & quản lý tài khoản nhân viên, không động đến cấu hình quyền.',
-    policies: ['ACCOUNT_READ','ACCOUNT_CREATE','ACCOUNT_ACTIVATE','ACCOUNT_DEACTIVATE'],
+    policies: ['ACCOUNT_READ','ACCOUNT_CREATE','ACCOUNT_ACTIVATE'],
     granterName: 'Nguyễn Văn An',
     updatedAt: '2026-03-04',
   },
@@ -176,11 +174,6 @@ function HangTaiKhoan({ user, daChon, onClick }: { user: TaiKhoan; daChon: boole
       <div className="pq-row__main">
         <div className="pq-row__name">
           {displayName}
-          {user.isProtected && (
-            <span className="pq-row__lock" title="Tài khoản được bảo vệ">
-              <Lock size={11} />
-            </span>
-          )}
         </div>
         <div className="pq-row__account">@{user.account}</div>
       </div>
@@ -206,7 +199,6 @@ function InspectorTaiKhoan({
   onCancelPolicyChanges,
   onApplyTemplate,
   onToggleActive,
-  onToggleProtected,
   onResetPassword,
   templates,
   coQuyenPhanQuyen,
@@ -220,7 +212,6 @@ function InspectorTaiKhoan({
   onCancelPolicyChanges: () => void;
   onApplyTemplate: (template: VaiTro) => void;
   onToggleActive: () => void;
-  onToggleProtected: () => void;
   onResetPassword: () => void;
   templates: VaiTro[];
   coQuyenPhanQuyen: boolean;
@@ -272,11 +263,6 @@ function InspectorTaiKhoan({
         <div className="pq-inspector__title">
           <div className="pq-inspector__name">
             {displayName}
-            {user.isProtected && (
-              <span className="pq-badge pq-badge--lock">
-                <Lock size={11} /> Bảo vệ
-              </span>
-            )}
           </div>
           <div className="pq-inspector__account">
             <span className="pq-mono">@{user.account}</span>
@@ -649,7 +635,6 @@ function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: VaiTro[] }) {
         avatar: layChuCaiDau(u.fullName),
         avatarColor: layMauAvatar(u.fullName),
         policies: u.policies,
-        baoVe: u.isProtected,
         hoatDong: u.isActive,
       }))
     : roles.map(r => ({
@@ -659,7 +644,6 @@ function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: VaiTro[] }) {
         avatar: '',
         avatarColor: '',
         policies: r.policies,
-        baoVe: false,
         hoatDong: true,
       }));
 
@@ -716,7 +700,6 @@ function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: VaiTro[] }) {
                     <div>
                       <div className="pq-readable-table__name">
                         {row.ten}
-                        {row.baoVe && <Lock size={12} className="pq-readable-table__lock" />}
                       </div>
                       <div className="pq-readable-table__sub">
                         {row.phu}
@@ -782,7 +765,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   const [roles, setRoles]      = useState<VaiTro[]>(VAI_TRO_MAU);
   const [chonId, setChonId]   = useState<string>('');
   const [tuKhoa, setTuKhoa]   = useState('');
-  const [locTrangThai, setLocTrangThai] = useState<'all' | 'active' | 'inactive' | 'protected'>('all');
+  const [locTrangThai, setLocTrangThai] = useState<'all' | 'active' | 'inactive'>('all');
   const [dangTai, setDangTai] = useState(false);
   const [dangLuuQuyen, setDangLuuQuyen] = useState(false);
   const [loiApi, setLoiApi] = useState<string | null>(null);
@@ -884,28 +867,11 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     setDangTai(true);
     setLoiApi(null);
     try {
-      const updated = userDangChon.isActive
-        ? await voHieuTaiKhoanService(accessToken, userDangChon.id)
-        : await kichHoatTaiKhoanService(accessToken, userDangChon.id);
+      const updated = await kichHoatTaiKhoanService(accessToken, userDangChon.id, !userDangChon.isActive);
       luuUserTuApi(updated);
       await napTaiKhoan();
     } catch (error) {
       setLoiApi(error instanceof Error ? error.message : 'Không cập nhật được trạng thái tài khoản.');
-    } finally {
-      setDangTai(false);
-    }
-  };
-
-  const xuLyToggleProtected = async () => {
-    if (!userDangChon || !accessToken) return;
-    setDangTai(true);
-    setLoiApi(null);
-    try {
-      const updated = await capNhatBaoVeService(accessToken, userDangChon.id, !userDangChon.isProtected);
-      luuUserTuApi(updated);
-      await napTaiKhoan();
-    } catch (error) {
-      setLoiApi(error instanceof Error ? error.message : 'Không cập nhật được bảo vệ tài khoản.');
     } finally {
       setDangTai(false);
     }
@@ -949,7 +915,6 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     return users.filter(u => {
       if (locTrangThai === 'active'    && !u.isActive)    return false;
       if (locTrangThai === 'inactive'  &&  u.isActive)    return false;
-      if (locTrangThai === 'protected' && !u.isProtected) return false;
       return true;
     });
   }, [users, locTrangThai]);
@@ -957,7 +922,6 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     { key: 'all', label: 'Tất cả', count: users.length },
     { key: 'active', label: 'Đang hoạt động', count: users.filter(u => u.isActive).length },
     { key: 'inactive', label: 'Đã vô hiệu', count: users.filter(u => !u.isActive).length },
-    { key: 'protected', label: 'Được bảo vệ', count: users.filter(u => u.isProtected).length },
   ] as const;
 
   const capNhatQuyenTaiKhoan = (userId: string, policies: PolicyCode[]) => {
@@ -1049,7 +1013,6 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   const tongQuan = useMemo(() => ({
     tongUser:    users.length,
     activeUser:  users.filter(u => u.isActive).length,
-    protectUser: users.filter(u => u.isProtected).length,
     tongRole:    roles.length,
     tongPolicy:  POLICY_CATALOG.length,
   }), [users, roles]);
@@ -1074,7 +1037,6 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
           <div className="pq-crm-stats">
             <span><b>{tongQuan.tongUser}</b> Tài khoản</span>
             <span><b>{tongQuan.activeUser}</b> Đang hoạt động</span>
-            <span><b>{tongQuan.protectUser}</b> Được bảo vệ</span>
             <span><b>{tongQuan.tongRole}</b> Vai trò</span>
             <span><b>{tongQuan.tongPolicy}</b> Policy hệ thống</span>
           </div>
@@ -1141,7 +1103,6 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
                 onCancelPolicyChanges={huyThayDoiQuyen}
                 onApplyTemplate={applyTemplate}
                 onToggleActive={xuLyToggleActive}
-                onToggleProtected={xuLyToggleProtected}
                 onResetPassword={() => { if (userDangChon) setResetPasswordUser(userDangChon); }}
                 templates={roles}
                 coQuyenPhanQuyen={coQuyenPhanQuyen}

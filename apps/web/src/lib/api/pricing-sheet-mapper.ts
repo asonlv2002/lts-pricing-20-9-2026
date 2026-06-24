@@ -135,7 +135,7 @@ export function mapPricingSheetToHistory(
   return {
     id: sheet.id,
     date: new Date(sheet.createdAt).toLocaleDateString('vi-VN'),
-    customer: syncedInput.customer || sheet.customerCodeName || '—',
+    customer: sheet.original?.customerName || syncedInput.customer || sheet.customerCodeName || '—',
     productName: sheet.pricingSheetName || syncedInput.productName || '—',
     structure: result.structureText,
     quantity: syncedInput.quantity,

@@ -12,8 +12,8 @@ export const LS_REFRESH_TOKEN = 'lts_service_refresh_token';
 
 // ── Policy catalog ───────────────────────────────────────────────────────
 export type PolicyCode =
-  | 'ACCOUNT_READ' | 'ACCOUNT_CREATE' | 'ACCOUNT_ACTIVATE' | 'ACCOUNT_DEACTIVATE'
-  | 'ACCOUNT_PROTECT' | 'ACCOUNT_PASSWORD_UPDATE_ALL' | 'ROLE_CREATE' | 'ROLE_UPDATE' | 'ROLE_DELETE'
+  | 'ACCOUNT_READ' | 'ACCOUNT_CREATE' | 'ACCOUNT_ACTIVATE'
+  | 'ACCOUNT_PASSWORD_UPDATE_ALL' | 'ROLE_CREATE' | 'ROLE_UPDATE' | 'ROLE_DELETE'
   | 'ROLE_READ' | 'CUSTOMER_CREATE' | 'CUSTOMER_MANAGER'
   | 'USER_POLICY_GRANT' | 'USER_POLICY_REVOKE'
   | 'QUOTATION_REVIEWER' | 'PRODUCT_MANAGER' | 'PRICING_SHEET_ADVISOR'
@@ -30,9 +30,7 @@ export interface Policy {
 export const POLICY_CATALOG: Policy[] = [
   { code: 'ACCOUNT_READ',       ten: 'Xem tài khoản',         moTa: 'Cho phép đọc danh sách tài khoản và quyền đã cấp.',     nhom: 'Tài khoản', rui_ro: 'thap'  },
   { code: 'ACCOUNT_CREATE',     ten: 'Tạo tài khoản',         moTa: 'Cho phép tạo mới tài khoản người dùng.',                nhom: 'Tài khoản', rui_ro: 'trung' },
-  { code: 'ACCOUNT_ACTIVATE',   ten: 'Kích hoạt tài khoản',   moTa: 'Cho phép kích hoạt tài khoản đang vô hiệu.',            nhom: 'Tài khoản', rui_ro: 'trung' },
-  { code: 'ACCOUNT_DEACTIVATE', ten: 'Vô hiệu tài khoản',     moTa: 'Cho phép vô hiệu tài khoản đang hoạt động.',            nhom: 'Tài khoản', rui_ro: 'cao'   },
-  { code: 'ACCOUNT_PROTECT',    ten: 'Bảo vệ tài khoản',      moTa: 'Cho phép cập nhật cờ bảo vệ (protected) cho tài khoản.', nhom: 'Tài khoản', rui_ro: 'cao'   },
+  { code: 'ACCOUNT_ACTIVATE',   ten: 'Kích hoạt / vô hiệu tài khoản', moTa: 'Cho phép kích hoạt hoặc vô hiệu tài khoản người dùng.', nhom: 'Tài khoản', rui_ro: 'trung' },
   { code: 'ACCOUNT_PASSWORD_UPDATE_ALL', ten: 'Đặt lại mật khẩu tài khoản', moTa: 'Cho phép cập nhật mật khẩu cho tài khoản khác.', nhom: 'Tài khoản', rui_ro: 'cao' },
   { code: 'ROLE_READ',          ten: 'Xem vai trò',          moTa: 'Cho phép đọc các mẫu vai trò.',                         nhom: 'Vai trò', rui_ro: 'thap'  },
   { code: 'ROLE_CREATE',        ten: 'Tạo vai trò',          moTa: 'Cho phép tạo mẫu vai trò mới.',                         nhom: 'Vai trò', rui_ro: 'trung' },
@@ -55,7 +53,6 @@ export interface TaiKhoanApi {
   account: string;
   fullName: string | null;
   isActive: boolean;
-  isProtected: boolean;
   isSystem?: boolean;
   is_system?: boolean;
   createdAt: string;
@@ -85,7 +82,6 @@ export interface TaiKhoan {
   account: string;
   fullName: string;
   isActive: boolean;
-  isProtected: boolean;
   isSystem?: boolean;
   policies: PolicyCode[];
   createdAt: string;
@@ -293,24 +289,10 @@ export async function taoTaiKhoanService(token: string, input: { account: string
   }, token);
 }
 
-export async function kichHoatTaiKhoanService(token: string, userId: string): Promise<TaiKhoanApi> {
+export async function kichHoatTaiKhoanService(token: string, userId: string, isActive: boolean): Promise<TaiKhoanApi> {
   return goiService<TaiKhoanApi>(`/auth/accounts/${userId}/activate`, {
     method: 'PATCH',
-    body: JSON.stringify({ isActive: true }),
-  }, token);
-}
-
-export async function voHieuTaiKhoanService(token: string, userId: string): Promise<TaiKhoanApi> {
-  return goiService<TaiKhoanApi>(`/auth/accounts/${userId}/activate`, {
-    method: 'PATCH',
-    body: JSON.stringify({ isActive: false }),
-  }, token);
-}
-
-export async function capNhatBaoVeService(token: string, userId: string, isProtected: boolean): Promise<TaiKhoanApi> {
-  return goiService<TaiKhoanApi>(`/auth/accounts/${userId}/protection`, {
-    method: 'PATCH',
-    body: JSON.stringify({ isProtected }),
+    body: JSON.stringify({ isActive }),
   }, token);
 }
 
@@ -583,7 +565,7 @@ export interface PricingSheetApi {
   createdAt: string;
   updatedAt: string;
   priceConfigIds?: string[];
-  original?: { actorName?: string | null } | null;
+  original?: { actorName?: string | null; customerName?: string | null } | null;
 }
 
 export async function taoPricingSheetService(
@@ -802,7 +784,6 @@ export function chuyenTaiKhoanApi(user: TaiKhoanApi): TaiKhoan {
     account: user.account,
     fullName: normalizeDisplayText(user.fullName || user.account),
     isActive: user.isActive,
-    isProtected: user.isProtected,
     isSystem: Boolean(user.isSystem ?? user.is_system),
     policies: (Array.isArray(user.policies) ? user.policies : [])
       .map(p => p.code)

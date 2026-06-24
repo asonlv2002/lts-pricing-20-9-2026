@@ -206,8 +206,8 @@ assert('maps manager payload key to managerId', managerPayload[0]?.managerId ===
 assert('does not send manager canWrite in payload', !('canWrite' in managerPayload[0]!), JSON.stringify(managerPayload[0]));
 
 const activeAccounts = locTaiKhoanActive([
-  { id: '1', account: 'active', fullName: 'Active User', isActive: true, isProtected: false, policies: [], createdAt: '2026-06-01' },
-  { id: '2', account: 'inactive', fullName: 'Inactive User', isActive: false, isProtected: false, policies: [], createdAt: '2026-06-01' },
+  { id: '1', account: 'active', fullName: 'Active User', isActive: true, policies: [], createdAt: '2026-06-01' },
+  { id: '2', account: 'inactive', fullName: 'Inactive User', isActive: false, policies: [], createdAt: '2026-06-01' },
 ]);
 assert('filters active accounts for assignment search', activeAccounts.length === 1 && activeAccounts[0]?.account === 'active');
 
