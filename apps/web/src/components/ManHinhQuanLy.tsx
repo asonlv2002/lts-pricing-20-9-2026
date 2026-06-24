@@ -589,7 +589,7 @@ async function syncPricingSheetToServer(
 }
 
 export default function ManHinhQuanLy() {
-  const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, setChotGiaForLatest: datGiaChotChoMoiNhat, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, capNhatHienTaiVaoLichSu: capNhatVaoLichSu, setActiveModule: datPhan,
+  const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, capNhatHienTaiVaoLichSu: capNhatVaoLichSu, setActiveModule: datPhan,
     role,   loadedHistoryId: loadedHistoryId,
   originalCustomerLoaded: originalCustomerLoaded, history: lichSu, materials,
     currentSellerId: idNhanVienHienTai,
@@ -1058,16 +1058,6 @@ const buttonLabel = loadedItem
                   </select>
                 </div>
               </div>
-              <button
-                className="btn btn-sm btn-green"
-                style={{marginBottom: 0, height: '40px'}}
-                onClick={() => {
-                  if (!chotGiaNum) return;
-                  datGiaChotChoMoiNhat(chotGiaNum);
-                }}
-              >
-                ✓ Lưu giá chốt
-              </button>
               {loadedItem ? (
                 <>
                   <button

@@ -16,7 +16,6 @@ export interface HistorySlice {
   loadHistoryItem: (id: string) => void;
   taiBangTinhTuServer: (pricingSheetId: string) => Promise<boolean>;
   taiLichSuTuServer: () => Promise<boolean>;
-  setChotGiaForLatest: (giaTri: number) => void;
   updateQuoteStatus: (id: string, status: QuoteStatus) => void;
   themHienTaiVaoLichSu: () => void;
   capNhatHienTaiVaoLichSu: () => void;
@@ -190,16 +189,6 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     } catch {
       return false;
     }
-  },
-
-  setChotGiaForLatest: (giaTri) => {
-    set((state) => {
-      if (!state.history.length) return state;
-      const history = [...state.history];
-      const old = history[0];
-      history[0] = { ...old, chotGia: giaTri };
-      return { history };
-    });
   },
 
   updateQuoteStatus: (id, status) => {
