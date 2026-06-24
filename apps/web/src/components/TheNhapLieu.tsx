@@ -4,7 +4,7 @@ import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { LS_CUSTOMERS, loadCustomers, luuLocalStorage } from '../store/helpers';
 import { taoKhachHangNhanhChoBaoGia, laNguoiPhuTrach } from '../lib/customer-api';
-import { taoMaKhachHangService, layKhachHangService, luuNguoiPhuTrachKhachHangService } from '../lib/api/service-lts';
+import { taoMaKhachHangService, layKhachHangService, luuNguoiPhuTrachKhachHangService, luuThongTinKhachHangService } from '../lib/api/service-lts';
 import { chuyenDanhSachCustomerApiSangUi } from '../lib/customer-api';
 import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
 
@@ -242,6 +242,17 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             );
           } catch { /* không rollback tạo khách nếu gán quản lý lỗi */ }
         }
+        // Lưu thông tin version đầu tiên (tên công ty) lên server
+        try {
+          await luuThongTinKhachHangService(khachHangMoi.customerCode, {
+            organizationName: khachHangMoi.companyName,
+            contactName: '',
+            phoneNumber: '',
+            email: '',
+            address: '',
+            changeNote: 'Tạo nhanh từ bảng tính giá.',
+          }, accessToken);
+        } catch { /* không rollback nếu PATCH lỗi */ }
       }
       const danhSachMoi = [khachHangMoi, ...danhSachKhachHang];
       luuLocalStorage(LS_CUSTOMERS, danhSachMoi);

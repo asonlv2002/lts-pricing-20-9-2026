@@ -584,9 +584,9 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
             </div>
           </div>
           <div className="crm2-wizard-grid">
-            {renderField({ k: 'customerCode', icon: <Hash size={12}/>, required: true, helper: isNew ? 'VD: KH001, KH2026-001' : 'Mã khách hàng không thay đổi sau khi đã tạo hồ sơ' })}
+            {renderField({ k: 'customerCode', icon: <Hash size={12}/>, required: false, helper: isNew ? 'VD: KH001, KH2026-001' : 'Mã khách hàng không thay đổi sau khi đã tạo hồ sơ' })}
             {isIndividual(form)
-              ? renderField({ k: 'contactName', icon: <User size={12}/>, required: true, helper: 'Họ tên khách hàng cá nhân' })
+              ? renderField({ k: 'contactName', icon: <User size={12}/>, required: false, helper: 'Họ tên khách hàng cá nhân' })
               : renderField({ k: 'companyName', icon: <Building2 size={12}/>, required: true, helper: 'Tên pháp lý hoặc tên giao dịch' })}
             {!isIndividual(form) && renderField({ k: 'taxCode', icon: <Hash size={12}/>, helper: 'Mã số thuế (dùng khi xuất hóa đơn)' })}
             {renderField({ k: 'customerGroup', icon: <Users size={12}/>, helper: 'VD: Key account, FMCG, Khách lẻ' })}
@@ -621,9 +621,9 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
             </div>
           </div>
           <div className="crm2-wizard-grid">
-            {!isIndividual(form) && renderField({ k: 'contactName', icon: <User size={12}/>, required: true, helper: 'Họ tên người liên hệ' })}
-            {renderField({ k: 'phone', icon: <Phone size={12}/>, required: true, type: 'tel', helper: 'Số điện thoại liên hệ' })}
-            {renderField({ k: 'email', icon: <Mail size={12}/>, required: true, type: 'email', helper: 'Email nhận thông tin và báo giá' })}
+            {!isIndividual(form) && renderField({ k: 'contactName', icon: <User size={12}/>, required: false, helper: 'Họ tên người liên hệ' })}
+            {renderField({ k: 'phone', icon: <Phone size={12}/>, required: false, type: 'tel', helper: 'Số điện thoại liên hệ' })}
+            {renderField({ k: 'email', icon: <Mail size={12}/>, required: false, type: 'email', helper: 'Email nhận thông tin và báo giá' })}
             {renderField({ k: 'contactNotes', icon: <FileText size={12}/>, helper: 'Ghi chú riêng cho liên hệ' })}
           </div>
         </div>
