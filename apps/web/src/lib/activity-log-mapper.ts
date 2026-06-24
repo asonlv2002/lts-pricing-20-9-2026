@@ -24,6 +24,7 @@ const ACTION_MAP: Record<string, AuditAction> = {
   'customer_manager.replaced': 'assign',
 
   'pricing_sheet.created': 'create',
+  'pricing_sheet.deleted': 'delete',
   'pricing_sheet.advisor_result_updated': 'status_change',
   'pricing_sheet.result_updated': 'update',
 
