@@ -439,7 +439,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
               </tr>
             )}
             <tr className="total-row" style={{ fontSize: '1.05em' }}>
-              <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
+              <td colSpan={7}><strong>TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN</strong></td>
               <td colSpan={3} className={`num ${coThayDoi ? 'override-changed' : ''}`} style={{ color: coThayDoi ? undefined : 'var(--accent)', fontWeight: 800 }}>
                 {dinhDangSo(tongCPSX + tongCPVL + cpMangIn, 0)} đ
               </td>
@@ -460,7 +460,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                           className={`profit-rate-input${isOverridden ? ' profit-rate-input--overridden' : ''}`}
                           type="number"
                           step="0.1"
-                          value={profitRatePct || ''}
+                          value={profitRatePct > 0 ? profitRatePct : defaultProfitRatePct}
                           onChange={(e) => khiDatProfitRate(Number(e.target.value) || 0)}
                           placeholder={String(defaultProfitRatePct)}
                         />
@@ -473,7 +473,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                       LN: {dinhDangSo(Math.round(ln), 0)} đ
                     </td>
                     <td colSpan={3} className="num">
-                      DT: {dinhDangSo(Math.round(dt), 0)} đ
+                      Giá thành SX cơ bản: {dinhDangSo(Math.round(dt), 0)} đ
                     </td>
                   </tr>
                 );
@@ -610,6 +610,7 @@ const buttonLabel = loadedItem
   const [vatLieuCuonDangChon, datVatLieuCuonDangChon] = React.useState('');
   const [phanBoCongTy, datPhanBoCongTy] = React.useState<number>(0);
   const [donViPhanBo, datDonViPhanBo] = React.useState<'vnd' | 'percent'>('vnd');
+  const [tabDangMo, datTabDangMo] = React.useState<'sale' | 'admin'>('sale');
 
   // Sale chỉ được lưu khi khách hàng thuộc danh sách mình quản lý (hoặc khách vừa tạo
   // mới — vốn đã được gán sellerId/managers của sale). Admin không bị giới hạn.
@@ -1190,7 +1191,7 @@ const buttonLabel = loadedItem
               </div>
               <div className="stat-card cyan">
                 <div className="stat-label">Doanh thu</div>
-                <div className="stat-value">{dinhDangSo(hasChotGia ? doanhThuChot : r.revenue)} đ</div>
+                <div className="stat-value">{dinhDangSo(hasChotGia ? doanhThuChot : r.finalPrice * dauVaoKq.quantity)} đ</div>
               </div>
               <div className="stat-card orange">
                 <div className="stat-label">{hasChotGia ? hienThiGia.closedPriceTitle : hienThiGia.salePriceTitle}</div>
@@ -1304,7 +1305,7 @@ const buttonLabel = loadedItem
                     </tr>
                   )}
                   <tr className="total-row" style={{fontSize: '1.05em'}}>
-                    <td colSpan={7}><strong>TỔNG GIÁ VỐN SẢN XUẤT</strong></td>
+                    <td colSpan={7}><strong>TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN</strong></td>
                     <td colSpan={3} className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{dinhDangSo(tongCong, 0)} đ</td>
                   </tr>
                 </tbody>
@@ -1312,15 +1313,15 @@ const buttonLabel = loadedItem
             </div>
           </TheThuGon>
 
-          {/* ═══ SECTION: Override Toggle + Tables ═══ */}
+          {/* ═══ SECTION: Override Tables (tabbed) ═══ */}
           {(() => {
             const loadedItem = loadedHistoryId ? lichSu.find(h => h.id === loadedHistoryId) : null;
             const quoteStatus = loadedItem?.quoteStatus ?? 'drafted';
             const canSaleEdit = role === 'sale';
             const canAdminEdit = role === 'admin';
-            // Source for bảng Admin = sale-resolved values (engine overridden by sale)
+            const canSeeAdmin = role === 'admin';
+            const chiCoMotTab = !canSeeAdmin;
 
-            // Lưu override cho item đã có sẵn — cập nhật local + sync server.
             const handleSave = (idLichSu: string) => {
               luuGhiDe(idLichSu);
               hienToastLuuGhiDe();
@@ -1328,11 +1329,9 @@ const buttonLabel = loadedItem
               void syncPricingSheetToServer(h, isAuthenticated, accessToken);
             };
 
-            // Khi chưa có loadedHistoryId: tự lưu lichSu trước rồi persist override
             const handleSaveNew = () => {
               if (!kiemTraKhachHangQuyen()) return;
               themVaoLichSu();
-              // loadedHistoryId vừa được set bởi themVaoLichSu (sync state)
               const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
               if (newId) {
                 luuGhiDe(newId);
@@ -1342,72 +1341,77 @@ const buttonLabel = loadedItem
               }
             };
             const emptyOv: OverrideTable = {};
+            const saleCoThayDoi = countOverrideChanges(ghiDeSale) > 0;
+            const adminCoThayDoi = countOverrideChanges(ghiDeAdmin) > 0;
+
+            const renderSaleTable = () => (
+              <BangGhiDe
+                title="Thay đổi từ Sale"
+                lopMau="sale"
+                cacDongSanXuat={cacDongSanXuat}
+                ghiDeNguon={emptyOv}
+                ghiDeHienTai={ghiDeSale}
+                chenhLechGiaGocDonVi={giaSauGhiDeSaleDonVi - r.finalPrice}
+                donViChenhLech={donViChenhLechGia}
+                duocSua={canSaleEdit}
+                khiDat={datGhiDeSale}
+                khiLuu={handleSave}
+                khiLuuMoi={handleSaveNew}
+                loadedHistoryId={loadedHistoryId}
+                materials={materials}
+                giaDaThayDoiDonVi={giaSauGhiDeSaleDonVi}
+                effTotalProdCost={tongCPSXSale}
+                profitRatePct={saleProfitRatePct}
+                defaultProfitRatePct={saleDefaultPct}
+                khiDatProfitRate={datSaleProfitRatePct}
+                soLuong={dauVaoKq.quantity}
+              />
+            );
+
+            const renderAdminTable = () => (
+              <BangGhiDe
+                title="Thay đổi từ Admin"
+                lopMau="admin"
+                cacDongSanXuat={cacDongSanXuat}
+                ghiDeNguon={ghiDeSale}
+                ghiDeHienTai={ghiDeAdmin}
+                chenhLechGiaGocDonVi={giaSauGhiDeAdminDonVi - r.finalPrice}
+                donViChenhLech={donViChenhLechGia}
+                duocSua={canAdminEdit}
+                khiDat={datGhiDeAdmin}
+                khiLuu={handleSave}
+                khiLuuMoi={handleSaveNew}
+                loadedHistoryId={loadedHistoryId}
+                materials={materials}
+                giaDaThayDoiDonVi={giaSauGhiDeAdminDonVi}
+                effTotalProdCost={tongCPSXAdmin}
+                profitRatePct={adminProfitRatePct}
+                defaultProfitRatePct={adminDefaultPct}
+                khiDatProfitRate={datAdminProfitRatePct}
+                soLuong={dauVaoKq.quantity}
+              />
+            );
 
             return (
-              <>
-                <div className="override-toggle-row">
+              <div className="override-tab-wrapper" style={{marginTop: '14px'}}>
+                <div className="override-tab-bar">
                   <button
-                    className={`override-toggle-btn sale ${hienGhiDeSale ? 'active' : ''}`}
-                    onClick={() => datHienGhiDeSale(!hienGhiDeSale)}
+                    className={`override-tab ${tabDangMo === 'sale' ? 'active' : ''}`}
+                    onClick={() => datTabDangMo('sale')}
                   >
-                    {hienGhiDeSale ? '− Ẩn' : '＋'} Thay đổi từ Sale
+                    💼 Sale{saleCoThayDoi ? ' ●' : ''}
                   </button>
-                  <button
-                    className={`override-toggle-btn admin ${hienGhiDeAdmin ? 'active' : ''}`}
-                    onClick={() => datHienGhiDeAdmin(!hienGhiDeAdmin)}
-                  >
-                    {hienGhiDeAdmin ? '− Ẩn' : '＋'} Thay đổi từ Admin
-                  </button>
+                  {canSeeAdmin && (
+                    <button
+                      className={`override-tab ${tabDangMo === 'admin' ? 'active' : ''}`}
+                      onClick={() => datTabDangMo('admin')}
+                    >
+                      👑 Admin{adminCoThayDoi ? ' ●' : ''}
+                    </button>
+                  )}
                 </div>
-
-                {hienGhiDeSale && (
-                  <BangGhiDe
-                    title="Bảng thay đổi từ Sale"
-                    lopMau="sale"
-                    cacDongSanXuat={cacDongSanXuat}
-                    ghiDeNguon={emptyOv}
-                    ghiDeHienTai={ghiDeSale}
-                    chenhLechGiaGocDonVi={giaSauGhiDeSaleDonVi - r.finalPrice}
-                    donViChenhLech={donViChenhLechGia}
-                    duocSua={canSaleEdit}
-                    khiDat={datGhiDeSale}
-                    khiLuu={handleSave}
-                    khiLuuMoi={handleSaveNew}
-                    loadedHistoryId={loadedHistoryId}
-                    materials={materials}
-                    giaDaThayDoiDonVi={giaSauGhiDeSaleDonVi}
-                    effTotalProdCost={tongCPSXSale}
-                    profitRatePct={saleProfitRatePct}
-                    defaultProfitRatePct={saleDefaultPct}
-                    khiDatProfitRate={datSaleProfitRatePct}
-                    soLuong={dauVaoKq.quantity}
-                  />
-                )}
-
-                {hienGhiDeAdmin && (
-                  <BangGhiDe
-                    title="Bảng thay đổi từ Admin"
-                    lopMau="admin"
-                    cacDongSanXuat={cacDongSanXuat}
-                    ghiDeNguon={ghiDeSale}
-                    ghiDeHienTai={ghiDeAdmin}
-                    chenhLechGiaGocDonVi={giaSauGhiDeAdminDonVi - r.finalPrice}
-                    donViChenhLech={donViChenhLechGia}
-                    duocSua={canAdminEdit}
-                    khiDat={datGhiDeAdmin}
-                    khiLuu={handleSave}
-                    khiLuuMoi={handleSaveNew}
-                    loadedHistoryId={loadedHistoryId}
-                    materials={materials}
-                    giaDaThayDoiDonVi={giaSauGhiDeAdminDonVi}
-                    effTotalProdCost={tongCPSXAdmin}
-                    profitRatePct={adminProfitRatePct}
-                    defaultProfitRatePct={adminDefaultPct}
-                    khiDatProfitRate={datAdminProfitRatePct}
-                    soLuong={dauVaoKq.quantity}
-                  />
-                )}
-              </>
+                {tabDangMo === 'sale' ? renderSaleTable() : renderAdminTable()}
+              </div>
             );
           })()}
 

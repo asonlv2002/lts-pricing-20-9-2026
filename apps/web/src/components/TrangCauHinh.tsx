@@ -2578,7 +2578,7 @@ export default function TrangCauHinh({
                 className="config-section-title"
                 style={{ alignItems: "center" }}
               >
-                <span>📈 Tỉ lệ lợi nhuận theo giá vốn</span>
+                <span>📈 Tổng giá thành sản xuất cơ bản</span>
                 <div
                   style={{ display: "flex", alignItems: "center", gap: "8px" }}
                 >
