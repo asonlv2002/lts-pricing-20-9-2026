@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search, RefreshCw, Eye, X, FileText, Inbox,
   ChevronLeft, ChevronRight, CheckSquare, Square,
@@ -75,6 +75,28 @@ export default function ModuleDanhSachTinhGia({
   const [quoteDraftCustomer, setQuoteDraftCustomer] = useState<string | null>(null);
   const [xacNhanXoaId, datXacNhanXoaId] = useState<string | null>(null);
   const [hienLoiXoa, datHienLoiXoa] = useState(false);
+
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const khoiDongAutoRefresh = useCallback(() => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => {
+      taiLichSuTuServer();
+    }, 30_000);
+  }, [taiLichSuTuServer]);
+
+  useEffect(() => {
+    khoiDongAutoRefresh();
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [khoiDongAutoRefresh]);
+
+  const lamMoiVaResetTrang = useCallback(async () => {
+    await taiLichSuTuServer();
+    khoiDongAutoRefresh();
+    setPage(0);
+  }, [taiLichSuTuServer, khoiDongAutoRefresh]);
 
   const dsTinhGia = useMemo(
     () => lichSu.filter(h => !h.isQuote && !h.quoteProducts?.length),
@@ -240,7 +262,7 @@ export default function ModuleDanhSachTinhGia({
           </h1>
         </div>
         <div className="qrev-header-right">
-          <button className="qrev-btn qrev-btn--ghost" onClick={async () => { await taiLichSuTuServer(); setPage(0); }}>
+          <button className="qrev-btn qrev-btn--ghost" onClick={lamMoiVaResetTrang}>
             <RefreshCw size={15} /> Làm mới
           </button>
         </div>
