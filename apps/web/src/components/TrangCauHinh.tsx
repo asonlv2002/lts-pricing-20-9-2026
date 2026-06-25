@@ -1,6 +1,6 @@
 ﻿"use client";
 import React from "react";
-import { Save } from "lucide-react";
+import { Eye, Copy, Trash2, Save } from "lucide-react";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import type { ConfigScope } from "../lib/types";
 import {
@@ -209,21 +209,24 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
                           <button
                             className="btn btn-sm btn-outline"
                             onClick={() => xuLyXem(snapshot.id)}
+                            title="Xem"
                           >
-                            Xem
+                            <Eye size={13} />
                           </button>
                           <button
                             className="btn btn-sm btn-primary"
                             onClick={() => xuLySaoChep(snapshot.id)}
+                            title="Sao chép"
                           >
-                            Sao chép
+                            <Copy size={13} />
                           </button>
                           {coQuyenXoa && (
                             <button
                               className="btn btn-sm btn-outline"
                               onClick={() => moXacNhanXoa(snapshot.id)}
+                              title="Xóa"
                             >
-                              Xóa
+                              <Trash2 size={13} />
                             </button>
                           )}
                         </div>
@@ -286,8 +289,9 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
                               xuLyXem(snapshot.id);
                               datMoDanhSachPhienBan(false);
                             }}
+                            title="Xem"
                           >
-                            Xem
+                            <Eye size={13} />
                           </button>
                           <button
                             className="btn btn-sm btn-primary"
@@ -295,8 +299,9 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
                               xuLySaoChep(snapshot.id);
                               datMoDanhSachPhienBan(false);
                             }}
+                            title="Sao chép"
                           >
-                            Sao chép
+                            <Copy size={13} />
                           </button>
                           {coQuyenXoa && (
                             <button
@@ -304,8 +309,9 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
                               onClick={() => {
                                 moXacNhanXoa(snapshot.id);
                               }}
+                              title="Xóa"
                             >
-                              Xóa
+                              <Trash2 size={13} />
                             </button>
                           )}
                         </div>

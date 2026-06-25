@@ -1,7 +1,7 @@
 ---
 description: Flutter and QuickJS bridge specialist for apps/flutter_app and engine bundle
 mode: subagent
-model: vietapi/gpt-5.5-xhigh
+model: vietapi/deepseek-v4-pro
 permission:
   edit: ask
   bash: ask

@@ -1,7 +1,7 @@
 ---
 description: Code review, regression, and test coverage specialist for LTS Pricing
 mode: subagent
-model: vietapi/gpt-5.5-xhigh
+model: vietapi/deepseek-v4-pro
 permission:
   edit: deny
   bash: ask

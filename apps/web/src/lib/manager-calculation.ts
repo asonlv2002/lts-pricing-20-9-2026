@@ -148,9 +148,9 @@ export function xuLyDongGhiDe(
     const stage = cur.stage ?? src.stage ?? row.stage;
     const mat = cur.mat ?? src.mat ?? row.mat;
     const width = cur.width ?? src.width ?? row.width;
-    const meters = cur.meters ?? (propagatedInputVL || (src.meters ?? row.meters));
     const waste = cur.waste ?? src.waste ?? row.waste;
-    const inputVL = meters + waste;
+    const meters = cur.meters ?? (propagatedInputVL || (src.meters ?? row.meters));
+    const inputVL = cur.inputVL ?? (meters + waste);
     propagatedInputVL = inputVL;
     const cpsx = cur.cpsx ?? src.cpsx ?? row.cpsx;
     const matPrice = cur.matPrice ?? src.matPrice ?? row.matPrice;

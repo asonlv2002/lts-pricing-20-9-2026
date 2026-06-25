@@ -237,9 +237,13 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
         ? POLICY_CATALOG.map(policy => policy.code)
         : [];
 
+      const currentState = get();
+      const actTokens = currentState.accessToken && currentState.refreshToken
+        ? { accessToken: currentState.accessToken, refreshToken: currentState.refreshToken }
+        : { accessToken: savedAccess, refreshToken: savedRefresh };
+
       set({
-        accessToken: savedAccess,
-        refreshToken: savedRefresh,
+        ...actTokens,
         nguoiDungHienTai: userProfile
           ? { id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userProfile.policies }
           : payload

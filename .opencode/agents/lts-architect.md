@@ -1,7 +1,7 @@
 ---
 description: Architecture and planning specialist for the LTS Pricing monorepo
 mode: subagent
-model: vietapi/gpt-5.5-xhigh
+model: vietapi/deepseek-v4-pro
 permission:
   edit: deny
   bash: ask

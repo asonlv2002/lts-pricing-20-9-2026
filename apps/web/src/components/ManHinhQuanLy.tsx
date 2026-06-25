@@ -385,11 +385,11 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                       <OChiTietCoTheGhiDe khoaDong={row.rowKey} chiTietIndex={detailIdx} truong="width" giaTriGoc={chiTietGoc?.width ?? detail.width}
                         giaTriGhiDe={ghiDeHienTaiChiTiet?.width} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} soLe={3} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
-                        giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                        giaTriGhiDe={Math.abs(row.meters - row.srcMeters) > 0.001 ? row.meters : ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
                         giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
-                        giaTriGhiDe={ghiDeHienTai[row.rowKey]?.inputVL} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                        giaTriGhiDe={Math.abs(row.inputVL - row.srcInputVL) > 0.001 ? row.inputVL : ghiDeHienTai[row.rowKey]?.inputVL} duocSua={false} khiDat={khiDat} soLe={0} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
                         giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <td className={`num ${coDoiCPSX ? 'override-changed' : ''}`} data-label="Thành tiền CPSX">{dinhDangSo(detailCostCPSX, 0)}</td>
@@ -412,12 +412,12 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                   <OChonVatLieuDong khoaDong={row.rowKey} giaTriGocId={ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId} giaTriGocTen={ghiDeNguon[row.rowKey]?.mat ?? dongGoc?.mat ?? row.mat} giaTriGocGia={ghiDeNguon[row.rowKey]?.matPrice ?? dongGoc?.matPrice ?? 0} ghiDeHienTai={ghiDeHienTai} duocSua={duocSua} khiDat={khiDat} materials={materials} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={row.srcWidth}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.meters}
-                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
+                    giaTriGhiDe={Math.abs(row.meters - row.srcMeters) > 0.001 ? row.meters : ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.inputVL}
-                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.inputVL} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
+                    giaTriGhiDe={Math.abs(row.inputVL - row.srcInputVL) > 0.001 ? row.inputVL : ghiDeHienTai[row.rowKey]?.inputVL} duocSua={false} khiDat={khiDat} soLe={0} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                   <td className={`num ${coDoiCPSX ? 'override-changed' : ''}`} data-label="Thành tiền CPSX">{dinhDangSo(row.costCPSX, 0)}</td>
@@ -721,8 +721,8 @@ const buttonLabel = loadedItem
   const diff = hasChotGia ? chotGiaNum - effFinalPriceWithComm : 0;
   const phanBoHoaHong = donViPhanBo === 'percent'
     ? diff * ((100 - phanBoCongTy) / 100)
-    : diff - phanBoCongTy;
-  const hoaHongAllocation = diff < 0 ? 0 : phanBoHoaHong;
+    : diff >= 0 ? diff - phanBoCongTy : diff + phanBoCongTy;
+  const hoaHongAllocation = phanBoHoaHong;
   const rawNewCommission = effCommissionPerUnit + hoaHongAllocation;
   const profitDropFromChot = rawNewCommission < 0 ? Math.abs(rawNewCommission) * dauVaoKq.quantity : 0;
   const profitDropPct = rawNewCommission < 0 && tienLoiNhuanHieuLuc > 0 ? (profitDropFromChot / tienLoiNhuanHieuLuc) : 0;
@@ -1021,9 +1021,9 @@ const buttonLabel = loadedItem
                     type="number"
                     step="any"
                     style={{flex: 1, textAlign:'right', minWidth:0}}
-                    value={hasChotGia && diff < 0 ? (donViPhanBo === 'percent' ? 100 : +(diff.toFixed(1))) : +(phanBoCongTy).toFixed(1)}
-                    onChange={(e) => { if (!(diff < 0)) datPhanBoCongTy(Number(e.target.value) || 0) }}
-                    disabled={hasChotGia && diff < 0}
+                    value={+(phanBoCongTy).toFixed(1)}
+                    onChange={(e) => { datPhanBoCongTy(Number(e.target.value) || 0) }}
+                    disabled={hasChotGia && diff < 0 && effCommissionPerUnit <= 0}
                     placeholder={donViPhanBo === 'percent' ? '100' : '0'}
                   />
                   <span style={{fontSize:'0.78rem', whiteSpace:'nowrap'}}>Hoa hồng</span>
@@ -1033,7 +1033,7 @@ const buttonLabel = loadedItem
                     step="any"
                     readOnly
                     style={{flex: 1, textAlign:'right', minWidth:0, background:'var(--surface2)', color:'var(--muted)'}}
-                    value={hasChotGia ? (diff < 0 ? 0 : (donViPhanBo === 'percent' ? +(100 - phanBoCongTy).toFixed(1) : +(diff - phanBoCongTy).toFixed(1))) : '0'}
+                    value={hasChotGia ? (donViPhanBo === 'percent' ? +(diff * ((100 - phanBoCongTy) / 100)).toFixed(1) : +(diff >= 0 ? diff - phanBoCongTy : diff + phanBoCongTy).toFixed(1)) : '0'}
                   />
                   <select
                     className="form-input"
@@ -1042,14 +1042,10 @@ const buttonLabel = loadedItem
                     onChange={(e) => {
                       const next = e.target.value as 'vnd' | 'percent';
                       if (hasChotGia && diff !== 0) {
-                        if (diff < 0) {
-                          datPhanBoCongTy(next === 'percent' ? 100 : diff);
-                        } else {
                           datPhanBoCongTy(next === 'percent'
-                            ? +(phanBoCongTy / diff * 100).toFixed(1)
-                            : +(phanBoCongTy * diff / 100).toFixed(1));
+                            ? Math.abs(diff) > 0 ? +(phanBoCongTy / Math.abs(diff) * 100).toFixed(1) : 0
+                            : +(phanBoCongTy * Math.abs(diff) / 100).toFixed(1));
                         }
-                      }
                       datDonViPhanBo(next);
                     }}
                   >
@@ -1173,26 +1169,23 @@ const buttonLabel = loadedItem
               <div className="stat-card green" style={{position: 'relative'}}>
                 <div className="stat-label">{hienThiGia.profitLabel}</div>
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
-                  {dinhDangSo(hasChotGia ? loiNhuanCongTyChot : tienLoiNhuanHieuLuc)}đ <span style={{fontSize: '0.85rem'}}>({dinhDangPhanTram(hasChotGia ? pctLoiNhuanCongTyChot : tyLeLoiNhuanHieuLuc)})</span>
+                  {dinhDangSo(tienLoiNhuanHieuLuc)}đ <span style={{fontSize: '0.85rem'}}>({dinhDangPhanTram(tyLeLoiNhuanHieuLuc)})</span>
                 </div>
-                {profitDropFromChot > 0 && (
-                  <div style={{color:'#d9534f', fontSize:'0.85rem', fontWeight:700, marginTop:'8px'}}>⚠️ Giảm {dinhDangSo(profitDropFromChot)} đ ({dinhDangPhanTram(profitDropPct)}) LN so với đề xuất</div>
-                )}
               </div>
               <div className="stat-card cyan">
                 <div className="stat-label">Doanh thu</div>
-                <div className="stat-value">{dinhDangSo(hasChotGia ? doanhThuChot : r.finalPrice * dauVaoKq.quantity)} đ</div>
+                <div className="stat-value">{dinhDangSo(r.finalPrice * dauVaoKq.quantity)} đ</div>
               </div>
               <div className="stat-card orange">
-                <div className="stat-label">{hasChotGia ? hienThiGia.closedPriceTitle : hienThiGia.salePriceTitle}</div>
-                <div className="stat-value">{dinhDangSo(shownPrice, 0)} đ</div>
+                <div className="stat-label">{hienThiGia.salePriceTitle}</div>
+                <div className="stat-value">{dinhDangSo(effFinalPriceWithComm, 0)} đ</div>
               </div>
               <div className="stat-card pink">
                 <div className="stat-label">Hoa hồng</div>
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
-                  {dinhDangSo(hasChotGia ? tongHoaHongChot : totalCommission)} đ
+                  {dinhDangSo(totalCommission)} đ
                   <div style={{fontSize:'0.85rem', fontWeight:'normal', marginTop:'4px'}}>
-                    {dinhDangSo(hasChotGia ? newCommissionPerUnit : effCommissionPerUnit, 1)} đ/{nhanDonVi} ({dinhDangPhanTram(hasChotGia ? commissionPctShown : commissionPct)})
+                    {dinhDangSo(effCommissionPerUnit, 1)} đ/{nhanDonVi} ({dinhDangPhanTram(commissionPct)})
                   </div>
                 </div>
               </div>

@@ -1,7 +1,7 @@
 ---
 description: Pricing engine specialist for formulas, shared types, constants, and tests
 mode: subagent
-model: vietapi/gpt-5.5-xhigh
+model: vietapi/deepseek-v4-pro
 permission:
   edit: ask
   bash: ask
