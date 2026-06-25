@@ -1309,9 +1309,7 @@ const buttonLabel = loadedItem
             const policies = nguoiDungHienTai?.policies ?? [];
             const coQuyenAdvisor = coQuyenCoVanBangTinh(policies);
             const canSaleEdit = !coQuyenAdvisor;
-            const canAdminEdit = coQuyenAdvisor || role === 'admin';
-            const canSeeAdmin = coQuyenAdvisor || role === 'admin';
-            const chiCoMotTab = !canSeeAdmin;
+            const canAdminEdit = coQuyenAdvisor;
 
             const handleSave = (idLichSu: string) => {
               luuGhiDe(idLichSu);
@@ -1392,14 +1390,12 @@ const buttonLabel = loadedItem
                   >
                     💼 Sale{saleCoThayDoi ? ' ●' : ''}
                   </button>
-                  {canSeeAdmin && (
-                    <button
-                      className={`override-tab ${tabDangMo === 'admin' ? 'active' : ''}`}
-                      onClick={() => datTabDangMo('admin')}
-                    >
-                      👑 Admin{adminCoThayDoi ? ' ●' : ''}
-                    </button>
-                  )}
+                  <button
+                    className={`override-tab ${tabDangMo === 'admin' ? 'active' : ''}`}
+                    onClick={() => datTabDangMo('admin')}
+                  >
+                    👑 Admin{adminCoThayDoi ? ' ●' : ''}
+                  </button>
                 </div>
                 {tabDangMo === 'sale' ? renderSaleTable() : renderAdminTable()}
               </div>
