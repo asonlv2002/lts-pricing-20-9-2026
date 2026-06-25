@@ -4,7 +4,7 @@ import {
   AlertCircle, ArrowLeft, Briefcase, Building2, ChevronDown, ChevronRight,
   Copy, Download, Eye, FileText, Hash, Lock,
   Mail, MapPin, Package, Pencil, Phone, Plus, Save, Search,
-  Shield, Unlock, User, Users, X, ClipboardList, RotateCcw, Check, Settings,
+  Shield, Unlock, Upload, User, Users, X, ClipboardList, RotateCcw, Check, Settings,
   SlidersHorizontal
 } from 'lucide-react';
 import seedCustomers from '../data/customers.json';
@@ -35,6 +35,7 @@ import {
   taoMaKhachHangService,
 } from '../lib/api/service-lts';
 import { CustomerManagersPicker } from './customer/CustomerManagersPicker';
+import ImportKhachHangPanel from './customer/ImportKhachHangPanel';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type CustomerStatus = 'active' | 'inactive';
@@ -1586,6 +1587,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const [confirm, setConfirm] = useState<{ title: string; desc: string; action: () => void } | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<Customer | null>(null);
+  const [importOpen, setImportOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
   const [crmThresholds, setCrmThresholds] = useState<CrmThresholds>(() => loadCrmThresholds());
@@ -1925,6 +1927,19 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
         </>
       )}
 
+      {/* Import customers panel */}
+      {importOpen && (
+        <ImportKhachHangPanel
+          customers={customers}
+          accessToken={accessToken ?? undefined}
+          currentSellerId={currentSellerId}
+          onClose={() => setImportOpen(false)}
+          onImported={() => {
+            if (accessToken) refreshCustomersFromServer(accessToken);
+          }}
+        />
+      )}
+
       {/* Confirm dialog */}
       {confirm && (
         <div className="crm2-overlay crm2-overlay--open" onClick={() => setConfirm(null)}>
@@ -1970,6 +1985,11 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
           <div className="crm2-header-right">
             {!showingAuditLog && (
               <>
+                {coQuyenTaoKhachHang && (
+                  <button className="crm2-btn crm2-btn--ghost" onClick={() => setImportOpen(true)}>
+                    <Upload size={15}/> Nhập Excel
+                  </button>
+                )}
                 <button className="crm2-btn crm2-btn--ghost" disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}>
                   <Download size={15}/> Xuất CSV
                 </button>

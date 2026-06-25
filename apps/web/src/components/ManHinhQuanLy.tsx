@@ -754,10 +754,10 @@ const buttonLabel = loadedItem
       + (r.cylAllocPerUnit ?? 0);
     return { giaDonVi, tongChiPhiSX: effTotalProdCost };
   };
-  const saleResult = tinhGiaSauGhiDeDonVi(ghiDeSale, {});
+  const saleResult = tinhGiaSauGhiDeDonVi(ghiDeSale, {}, saleProfitRatePct, 0);
   const giaSauGhiDeSaleDonVi = saleResult.giaDonVi;
   const tongCPSXSale = saleResult.tongChiPhiSX;
-  const adminResult = tinhGiaSauGhiDeDonVi({}, ghiDeAdmin);
+  const adminResult = tinhGiaSauGhiDeDonVi({}, ghiDeAdmin, 0, adminProfitRatePct);
   const giaSauGhiDeAdminDonVi = adminResult.giaDonVi;
   const tongCPSXAdmin = adminResult.tongChiPhiSX;
   const donViChenhLechGia = laMang ? 'm2' : 'tui';
