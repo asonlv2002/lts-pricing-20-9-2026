@@ -41,6 +41,11 @@ export function coQuyenDuyetBaoGia(policies: PolicyCode[]): boolean {
   return policies.includes('QUOTATION_REVIEWER');
 }
 
+// Người dùng có quyền cố vấn bảng tính giá (chỉ sửa Admin, không sửa Sale).
+export function coQuyenCoVanBangTinh(policies: PolicyCode[]): boolean {
+  return policies.includes('PRICING_SHEET_ADVISOR');
+}
+
 export function laAdmin(policies: PolicyCode[]): boolean {
   return policies.length > 0;
 }

@@ -6,6 +6,7 @@ import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { TECHNICAL_TABLE_MOBILE_LABELS as MOBILE_LABELS } from '../lib/technical-table-mobile-labels';
 import type { Material, OverrideRowKey, OverrideFields, OverrideTable, HistoryItem } from '../lib/types';
 import { kiemTraMaKhachHang, laKhachHangThuocQuyen, type KhachHangCoTen } from '../lib/customer-api';
+import { coQuyenCoVanBangTinh } from '../lib/permissions';
 import { 
   taoPricingSheetService, 
   capNhatPricingSheetResultService, 
@@ -756,19 +757,24 @@ const buttonLabel = loadedItem
   const saleResult = tinhGiaSauGhiDeDonVi(ghiDeSale, {});
   const giaSauGhiDeSaleDonVi = saleResult.giaDonVi;
   const tongCPSXSale = saleResult.tongChiPhiSX;
-  const adminResult = tinhGiaSauGhiDeDonVi(ghiDeSale, ghiDeAdmin);
+  const adminResult = tinhGiaSauGhiDeDonVi({}, ghiDeAdmin);
   const giaSauGhiDeAdminDonVi = adminResult.giaDonVi;
   const tongCPSXAdmin = adminResult.tongChiPhiSX;
   const donViChenhLechGia = laMang ? 'm2' : 'tui';
-  const { effProfitRate: baseTableRate } = tinhGiaHieuLuc({
+  const { effProfitRate: saleBaseRate } = tinhGiaHieuLuc({
     result: r, uniRows: cacDongSanXuat,
-    saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin,
+    saleOverrides: ghiDeSale, adminOverrides: {},
     saleProfitRatePct: 0, adminProfitRatePct: 0,
     profitTable: bangLoiNhuan, constants: hangSo,
   });
-  const engineDefaultPct = +(baseTableRate * 100).toFixed(1);
-  const saleDefaultPct = engineDefaultPct;
-  const adminDefaultPct = engineDefaultPct;
+  const { effProfitRate: adminBaseRate } = tinhGiaHieuLuc({
+    result: r, uniRows: cacDongSanXuat,
+    saleOverrides: {}, adminOverrides: ghiDeAdmin,
+    saleProfitRatePct: 0, adminProfitRatePct: 0,
+    profitTable: bangLoiNhuan, constants: hangSo,
+  });
+  const saleDefaultPct = +(saleBaseRate * 100).toFixed(1);
+  const adminDefaultPct = +(adminBaseRate * 100).toFixed(1);
 
   // ── MOQ Table ──
   const moqLevels = [5000, 10000, 15000, 20000, 30000, 40000, 50000, 70000, 100000, 150000, 200000];
@@ -1299,10 +1305,12 @@ const buttonLabel = loadedItem
           {/* ═══ SECTION: Override Tables (tabbed) ═══ */}
           {(() => {
             const loadedItem = loadedHistoryId ? lichSu.find(h => h.id === loadedHistoryId) : null;
-            const quoteStatus = loadedItem?.quoteStatus ?? 'drafted';
-            const canSaleEdit = role === 'sale';
-            const canAdminEdit = role === 'admin';
-            const canSeeAdmin = role === 'admin';
+            const nguoiDungHienTai = dungCuaHangTinhGia.getState().nguoiDungHienTai;
+            const policies = nguoiDungHienTai?.policies ?? [];
+            const coQuyenAdvisor = coQuyenCoVanBangTinh(policies);
+            const canSaleEdit = !coQuyenAdvisor;
+            const canAdminEdit = coQuyenAdvisor || role === 'admin';
+            const canSeeAdmin = coQuyenAdvisor || role === 'admin';
             const chiCoMotTab = !canSeeAdmin;
 
             const handleSave = (idLichSu: string) => {
@@ -1356,7 +1364,7 @@ const buttonLabel = loadedItem
                 title="Thay đổi từ Admin"
                 lopMau="admin"
                 cacDongSanXuat={cacDongSanXuat}
-                ghiDeNguon={ghiDeSale}
+                ghiDeNguon={emptyOv}
                 ghiDeHienTai={ghiDeAdmin}
                 chenhLechGiaGocDonVi={giaSauGhiDeAdminDonVi - r.finalPrice}
                 donViChenhLech={donViChenhLechGia}
