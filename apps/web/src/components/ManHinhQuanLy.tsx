@@ -8,6 +8,7 @@ import type { Material, OverrideRowKey, OverrideFields, OverrideTable, HistoryIt
 import { kiemTraMaKhachHang, laKhachHangThuocQuyen, type KhachHangCoTen } from '../lib/customer-api';
 import { coQuyenCoVanBangTinh } from '../lib/permissions';
 import { 
+  LoiServiceLts,
   taoPricingSheetService, 
   capNhatPricingSheetResultService, 
   capNhatPricingSheetAdvisorResultService 
@@ -585,7 +586,9 @@ async function syncPricingSheetToServer(
       }
     }
   } catch (e) {
-    console.warn('Đồng bộ pricing sheet lên máy chủ thất bại:', e);
+    const msg = e instanceof LoiServiceLts ? e.message : 'Không thể đồng bộ bảng tính lên máy chủ.';
+    console.warn('Đồng bộ pricing sheet thất bại:', msg);
+    hienToastCanhBao(msg);
   }
 }
 
