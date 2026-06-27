@@ -21,6 +21,7 @@ import {
 import { quyetDinhPricingSheetSync } from '../lib/pricing-sheet-sync';
 import { LS_CUSTOMERS, loadCustomers } from '../store/helpers';
 import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override-display';
+import { tinhHienThiPhanBoChotGia } from '../lib/chot-gia-allocation';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
 // Mỗi lần render với resetKey mới → luôn bắt đầu ở trạng thái ĐÓNG
@@ -726,6 +727,7 @@ const buttonLabel = loadedItem
   const phanBoHoaHong = donViPhanBo === 'percent'
     ? diff * ((100 - phanBoCongTy) / 100)
     : diff >= 0 ? diff - phanBoCongTy : diff + phanBoCongTy;
+  const hienThiPhanBoChotGia = tinhHienThiPhanBoChotGia({ hasChotGia, diff, phanBoCongTy, donViPhanBo });
   const hoaHongAllocation = phanBoHoaHong;
   const rawNewCommission = effCommissionPerUnit + hoaHongAllocation;
   const profitDropFromChot = rawNewCommission < 0 ? Math.abs(rawNewCommission) * dauVaoKq.quantity : 0;
@@ -1042,7 +1044,7 @@ const buttonLabel = loadedItem
                     step="any"
                     readOnly
                     style={{flex: 1, textAlign:'right', minWidth:0, background:'var(--surface2)', color:'var(--muted)'}}
-                    value={hasChotGia ? (donViPhanBo === 'percent' ? +(diff * ((100 - phanBoCongTy) / 100)).toFixed(1) : +(diff >= 0 ? diff - phanBoCongTy : diff + phanBoCongTy).toFixed(1)) : '0'}
+                    value={hienThiPhanBoChotGia.hoaHongDisplay}
                   />
                   <select
                     className="form-input"
@@ -1154,7 +1156,11 @@ const buttonLabel = loadedItem
                     <span className="chot-value">{diff >= 0 ? '+' : ''}{dinhDangSo(diff, 1)} đ/{nhanDonVi}</span>
                   </div>
                   <div className="chot-row" style={{fontSize:'0.82rem', color:'var(--muted)'}}>
-                    <span className="chot-label">↳ Công ty: {dinhDangSo(diff < 0 ? diff : (donViPhanBo === 'percent' ? diff * (phanBoCongTy / 100) : phanBoCongTy), 1)}đ | Hoa hồng: {dinhDangSo(hoaHongAllocation, 1)}đ</span>
+                    <span className="chot-label">
+                      {donViPhanBo === 'percent'
+                        ? <>↳ Công ty: {dinhDangSo(hienThiPhanBoChotGia.congTyDisplay, 1)}% = {dinhDangSo(hienThiPhanBoChotGia.congTyAmount, 1)}đ | Hoa hồng: {dinhDangSo(hienThiPhanBoChotGia.hoaHongDisplay, 1)}% = {dinhDangSo(hienThiPhanBoChotGia.hoaHongAmount, 1)}đ</>
+                        : <>↳ Công ty: {dinhDangSo(hienThiPhanBoChotGia.congTyAmount, 1)}đ | Hoa hồng: {dinhDangSo(hoaHongAllocation, 1)}đ</>}
+                    </span>
                   </div>
                   <div className="chot-row" style={{fontWeight:700}}>
                     <span className="chot-label">Doanh thu tổng</span>
