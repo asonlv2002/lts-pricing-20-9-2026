@@ -1738,7 +1738,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     if (filters.createdFrom && created && created < filters.createdFrom) return false;
     if (filters.createdTo && created && created > filters.createdTo) return false;
     return true;
-  }).sort((a, b) => displayName(a).localeCompare(displayName(b), 'vi')), [visible, filters]);
+  }).sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '')), [visible, filters]);
 
   useEffect(() => {
     try {
@@ -2176,6 +2176,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                 <th>Liên hệ</th>
                 <th>Nhân viên</th>
                 <th>Trạng thái</th>
+                <th>Ngày khởi tạo</th>
                 <th>Thao tác</th>
               </tr>
             </thead>
@@ -2218,10 +2219,13 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
                       <span className="crm2-crm-badge" style={{ background: crmCfg.bg, color: crmCfg.text, fontSize: 11 }}>
                         {crmCfg.dot} {crmCfg.label}
                       </span>
-                    )}
-                  </td>
-                  <td>
-                    <div className="crm2-table-actions" onClick={e => e.stopPropagation()}>
+                     )}
+                   </td>
+                   <td>
+                     <span className="crm2-table-date">{fmtDate(c.createdAt)}</span>
+                   </td>
+                   <td>
+                     <div className="crm2-table-actions" onClick={e => e.stopPropagation()}>
                       {c.isDraft ? (
                         <button className="crm2-btn-icon" title="Xem / sửa nháp" onClick={() => openEdit(c)}><Eye size={14}/></button>
                       ) : (
