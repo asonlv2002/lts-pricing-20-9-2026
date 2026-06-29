@@ -21,7 +21,7 @@ import {
 import { quyetDinhPricingSheetSync } from '../lib/pricing-sheet-sync';
 import { LS_CUSTOMERS, loadCustomers } from '../store/helpers';
 import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override-display';
-import { tinhHienThiPhanBoChotGia } from '../lib/chot-gia-allocation';
+import { taoCanhBaoPhanBoChotGia, tinhHienThiPhanBoChotGia } from '../lib/chot-gia-allocation';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
 // Mỗi lần render với resetKey mới → luôn bắt đầu ở trạng thái ĐÓNG
@@ -601,6 +601,7 @@ export default function ManHinhQuanLy() {
     saleOverrides: ghiDeSale, adminOverrides: ghiDeAdmin, showSaleOverrides: hienGhiDeSale, showAdminOverrides: hienGhiDeAdmin,
     saleProfitRatePct, adminProfitRatePct, setSaleProfitRatePct: datSaleProfitRatePct, setAdminProfitRatePct: datAdminProfitRatePct,
     setSaleOverride: datGhiDeSale, setAdminOverride: datGhiDeAdmin, setShowSaleOverrides: datHienGhiDeSale, setShowAdminOverrides: datHienGhiDeAdmin, persistOverrides: luuGhiDe, calculateForInput,
+    phanBoCongTy = 0, donViPhanBo, setPhanBoCongTy, setDonViPhanBo,
   accessToken, isAuthenticated,
 } = dungCuaHangTinhGia();
 
@@ -613,9 +614,8 @@ const buttonLabel = loadedItem
   : "💾 Lưu báo giá";
   const showBanner = loadedItem && !isSameCustomer;
   const [vatLieuCuonDangChon, datVatLieuCuonDangChon] = React.useState('');
-  const [phanBoCongTy, datPhanBoCongTy] = React.useState<number>(0);
-  const [donViPhanBo, datDonViPhanBo] = React.useState<'vnd' | 'percent'>('vnd');
   const [tabDangMo, datTabDangMo] = React.useState<'sale' | 'admin'>('sale');
+  const [phanBoDangNhap, datPhanBoDangNhap] = React.useState<{ field: 'company' | 'commission' | null; value: string }>({ field: null, value: '' });
 
   // Sale chỉ được lưu khi khách hàng thuộc danh sách mình quản lý (hoặc khách vừa tạo
   // mới — vốn đã được gán sellerId/managers của sale). Admin không bị giới hạn.
@@ -726,8 +726,20 @@ const buttonLabel = loadedItem
   const diff = hasChotGia ? chotGiaNum - effFinalPriceWithComm : 0;
   const phanBoHoaHong = donViPhanBo === 'percent'
     ? diff * ((100 - phanBoCongTy) / 100)
-    : diff >= 0 ? diff - phanBoCongTy : diff + phanBoCongTy;
+    : diff - phanBoCongTy;
   const hienThiPhanBoChotGia = tinhHienThiPhanBoChotGia({ hasChotGia, diff, phanBoCongTy, donViPhanBo });
+  const canhBaoPhanBoChotGia = taoCanhBaoPhanBoChotGia({
+    hasChotGia,
+    diff,
+    congTyAmount: hienThiPhanBoChotGia.congTyAmount,
+    hoaHongAmount: hienThiPhanBoChotGia.hoaHongAmount,
+  });
+  const giaTriNhapCongTy = phanBoDangNhap.field === 'company'
+    ? phanBoDangNhap.value
+    : String(+(phanBoCongTy).toFixed(1));
+  const giaTriNhapHoaHong = phanBoDangNhap.field === 'commission'
+    ? phanBoDangNhap.value
+    : String(hienThiPhanBoChotGia.hoaHongDisplay);
   const hoaHongAllocation = phanBoHoaHong;
   const rawNewCommission = effCommissionPerUnit + hoaHongAllocation;
   const profitDropFromChot = rawNewCommission < 0 ? Math.abs(rawNewCommission) * dauVaoKq.quantity : 0;
@@ -1029,22 +1041,35 @@ const buttonLabel = loadedItem
                   <span style={{fontSize:'0.78rem', whiteSpace:'nowrap'}}>Công ty</span>
                   <input
                     className="form-input"
-                    type="number"
-                    step="any"
+                    type="text"
+                    inputMode="decimal"
                     style={{flex: 1, textAlign:'right', minWidth:0}}
-                    value={+(phanBoCongTy).toFixed(1)}
-                    onChange={(e) => { datPhanBoCongTy(Number(e.target.value) || 0) }}
-                    disabled={hasChotGia && diff < 0 && effCommissionPerUnit <= 0}
+                    value={giaTriNhapCongTy}
+                    onBlur={() => datPhanBoDangNhap({ field: null, value: '' })}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      datPhanBoDangNhap({ field: 'company', value: raw });
+                      const parsed = Number(raw.replace(',', '.'));
+                      if (Number.isFinite(parsed)) setPhanBoCongTy(parsed);
+                    }}
                     placeholder={donViPhanBo === 'percent' ? '100' : '0'}
                   />
                   <span style={{fontSize:'0.78rem', whiteSpace:'nowrap'}}>Hoa hồng</span>
                   <input
                     className="form-input"
-                    type="number"
-                    step="any"
-                    readOnly
-                    style={{flex: 1, textAlign:'right', minWidth:0, background:'var(--surface2)', color:'var(--muted)'}}
-                    value={hienThiPhanBoChotGia.hoaHongDisplay}
+                    type="text"
+                    inputMode="decimal"
+                    style={{flex: 1, textAlign:'right', minWidth:0}}
+                    value={giaTriNhapHoaHong}
+                    onBlur={() => datPhanBoDangNhap({ field: null, value: '' })}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      datPhanBoDangNhap({ field: 'commission', value: raw });
+                      const hoaHong = Number(raw.replace(',', '.'));
+                      if (Number.isFinite(hoaHong)) {
+                        setPhanBoCongTy(donViPhanBo === 'percent' ? 100 - hoaHong : diff - hoaHong);
+                      }
+                    }}
                   />
                   <select
                     className="form-input"
@@ -1053,11 +1078,12 @@ const buttonLabel = loadedItem
                     onChange={(e) => {
                       const next = e.target.value as 'vnd' | 'percent';
                       if (hasChotGia && diff !== 0) {
-                          datPhanBoCongTy(next === 'percent'
-                            ? Math.abs(diff) > 0 ? +(phanBoCongTy / Math.abs(diff) * 100).toFixed(1) : 0
-                            : +(phanBoCongTy * Math.abs(diff) / 100).toFixed(1));
+                          setPhanBoCongTy(next === 'percent'
+                            ? +(phanBoCongTy / diff * 100).toFixed(1)
+                            : +(phanBoCongTy * diff / 100).toFixed(1));
                         }
-                      datDonViPhanBo(next);
+                      datPhanBoDangNhap({ field: null, value: '' });
+                      setDonViPhanBo(next);
                     }}
                   >
                     <option value="vnd">VNĐ</option>
@@ -1160,6 +1186,9 @@ const buttonLabel = loadedItem
                       {donViPhanBo === 'percent'
                         ? <>↳ Công ty: {dinhDangSo(hienThiPhanBoChotGia.congTyDisplay, 1)}% = {dinhDangSo(hienThiPhanBoChotGia.congTyAmount, 1)}đ | Hoa hồng: {dinhDangSo(hienThiPhanBoChotGia.hoaHongDisplay, 1)}% = {dinhDangSo(hienThiPhanBoChotGia.hoaHongAmount, 1)}đ</>
                         : <>↳ Công ty: {dinhDangSo(hienThiPhanBoChotGia.congTyAmount, 1)}đ | Hoa hồng: {dinhDangSo(hoaHongAllocation, 1)}đ</>}
+                      {canhBaoPhanBoChotGia.map((msg, index) => (
+                        <div key={index} style={{marginTop: '4px', color: '#b45309'}}>⚠ {msg}</div>
+                      ))}
                     </span>
                   </div>
                   <div className="chot-row" style={{fontWeight:700}}>

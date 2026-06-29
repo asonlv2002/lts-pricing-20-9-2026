@@ -15,11 +15,15 @@ export interface CalculationSlice {
   smallWidthPrices: SmallWidthMaterialPrice[];
   result: CalculateResult | null;
   currentChotGia: number;
+  phanBoCongTy: number;
+  donViPhanBo: 'vnd' | 'percent';
   isDirty: boolean;
 
   setInput: (partial: Partial<CalculateInput>) => void;
   resetInput: () => void;
   setCurrentChotGia: (giaTri: number) => void;
+  setPhanBoCongTy: (val: number) => void;
+  setDonViPhanBo: (val: 'vnd' | 'percent') => void;
   setMaterialParam: (id: string, partial: Partial<Material>) => void;
   addMaterial: (m: Material) => void;
   removeMaterial: (id: string) => void;
@@ -63,6 +67,8 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
   smallWidthPrices: INITIAL_SMALL_WIDTH_PRICES,
   result: tinhBaoGia(dauVaoKhoiTao, INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES),
   currentChotGia: 0,
+  phanBoCongTy: 0,
+  donViPhanBo: 'vnd',
   isDirty: false,
 
   setInput: (partial) => {
@@ -152,14 +158,16 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
       dauVao: dongBoCotLoiNhuan({ ...dauVaoMacDinh }, state.materials),
       input: dongBoCotLoiNhuan({ ...dauVaoMacDinh }, state.materials),
       result: tinhBaoGia(dongBoCotLoiNhuan(dauVaoMacDinh, state.materials), state.materials, state.constants, state.profitTable, state.smallWidthPrices),
-      currentChotGia: 0, isDirty: false,
+      currentChotGia: 0, phanBoCongTy: 0, donViPhanBo: 'vnd', isDirty: false,
       saleOverrides: {}, adminOverrides: {},
       showSaleOverrides: false, showAdminOverrides: false,
       loadedHistoryId: null,
     }));
   },
 
-  setCurrentChotGia: (giaTri) => set({ currentChotGia: giaTri }),
+  setCurrentChotGia: (giaTri) => set((state) => ({ currentChotGia: giaTri, input: { ...state.input, chotGia: giaTri || undefined } })),
+  setPhanBoCongTy: (val) => set((state) => ({ phanBoCongTy: val, input: { ...state.input, phanBoCongTy: val || undefined } })),
+  setDonViPhanBo: (val) => set((state) => ({ donViPhanBo: val, input: { ...state.input, donViPhanBo: val || undefined } })),
 
   setMaterialParam: (id, partial) => {
     set((state) => {

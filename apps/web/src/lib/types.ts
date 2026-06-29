@@ -207,6 +207,9 @@ export interface CalculateInput {
   autoOptimizeThickness?: boolean; // tự động tối ưu độ dày (ưu tiên thấp nhất thỏa ±5 mic)
   micOverrides?: Record<string, number>;
   multiStructureLayers?: Record<string, string[]>;
+  chotGia?: number;
+  phanBoCongTy?: number;
+  donViPhanBo?: 'vnd' | 'percent';
 }
 
 // ── Quote Status (luồng báo giá 7 bước) ──────────────────────────────────────

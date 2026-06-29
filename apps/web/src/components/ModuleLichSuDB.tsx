@@ -6,6 +6,7 @@ import {
   FileText, Trash2
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import { tinhHienThiPhanBoChotGia } from '../lib/chot-gia-allocation';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import type { HistoryItem, LSXStatus, ProductionOrder, QuoteStatus } from '../lib/types';
 import { LSX_STATUS_CONFIG, QUOTE_STATUS_CONFIG } from '../lib/types';
@@ -144,6 +145,18 @@ function DetailPanel({
   const [confirmSave, setConfirmSave] = useState(false);
   const [closeAfterSave, setCloseAfterSave] = useState(false);
   const hienThiGia = getPricingDisplayMeta(item.input);
+  const giaChot = item.chotGia ?? item.input?.chotGia ?? 0;
+  const coGiaChot = giaChot > 0;
+  const chenhLechGiaChot = coGiaChot ? giaChot - item.finalPrice : 0;
+  const donViPhanBo = item.input?.donViPhanBo ?? 'vnd';
+  const phanBo = tinhHienThiPhanBoChotGia({
+    hasChotGia: coGiaChot,
+    diff: chenhLechGiaChot,
+    phanBoCongTy: item.input?.phanBoCongTy ?? 0,
+    donViPhanBo,
+  });
+  const tongPhanBo = phanBo.congTyAmount + phanBo.hoaHongAmount;
+  const doanhThuChot = giaChot * item.quantity;
 
   const isDirty = editing && (
     draft.customer !== item.customer ||
@@ -363,11 +376,37 @@ function DetailPanel({
               </InfoSection>
 
               <InfoSection title="Kết quả tính giá">
-                <InfoRow label={hienThiGia.priceTitle} value={`${dinhDangSo(item.finalPrice)} ₫`} bold />
-                {item.chotGia && item.chotGia > 0 && (
-                  <InfoRow label="Giá chốt" value={`${dinhDangSo(item.chotGia)} ₫`} bold color="var(--green, #059669)" />
+                <InfoRow label={hienThiGia.priceTitle} value={`${dinhDangSo(item.finalPrice)} ₫/${hienThiGia.unit}`} bold />
+                {coGiaChot && (
+                  <>
+                    <InfoRow label="Giá chốt" value={`${dinhDangSo(giaChot)} ₫/${hienThiGia.unit}`} bold color="var(--green, #059669)" />
+                    <InfoRow label="Chênh lệch" value={`${chenhLechGiaChot >= 0 ? '+' : ''}${dinhDangSo(chenhLechGiaChot, 1)} ₫/${hienThiGia.unit}`} color={chenhLechGiaChot >= 0 ? 'var(--green, #059669)' : '#dc2626'} />
+                  </>
                 )}
               </InfoSection>
+
+              {coGiaChot && (
+                <InfoSection title="Phân bổ chênh lệch">
+                  {donViPhanBo === 'percent' ? (
+                    <>
+                      <InfoRow label="Công ty" value={`${dinhDangSo(phanBo.congTyDisplay, 1)}% = ${dinhDangSo(phanBo.congTyAmount, 1)} ₫/${hienThiGia.unit}`} />
+                      <InfoRow label="Hoa hồng" value={`${dinhDangSo(phanBo.hoaHongDisplay, 1)}% = ${dinhDangSo(phanBo.hoaHongAmount, 1)} ₫/${hienThiGia.unit}`} />
+                    </>
+                  ) : (
+                    <>
+                      <InfoRow label="Công ty" value={`${dinhDangSo(phanBo.congTyAmount, 1)} ₫/${hienThiGia.unit}`} />
+                      <InfoRow label="Hoa hồng" value={`${dinhDangSo(phanBo.hoaHongAmount, 1)} ₫/${hienThiGia.unit}`} />
+                    </>
+                  )}
+                  <InfoRow label="Tổng phân bổ" value={`${dinhDangSo(tongPhanBo, 1)} ₫/${hienThiGia.unit}`} bold />
+                </InfoSection>
+              )}
+
+              {coGiaChot && (
+                <InfoSection title="Kết quả sau giá chốt">
+                  <InfoRow label="Doanh thu tổng" value={`${dinhDangSo(giaChot)} ₫/${hienThiGia.unit} × ${dinhDangSo(item.quantity)} ${hienThiGia.quantityUnitForHistory} = ${dinhDangSo(doanhThuChot)} ₫`} bold />
+                </InfoSection>
+              )}
 
               {mode === 'quote' && item.quoteProducts && item.quoteProducts.length > 0 && (
                 <InfoSection title="Sản phẩm trong báo giá">

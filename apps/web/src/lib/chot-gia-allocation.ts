@@ -7,6 +7,13 @@ export interface DauVaoPhanBoChotGia {
   donViPhanBo: DonViPhanBoChotGia;
 }
 
+export interface DauVaoCanhBaoPhanBoChotGia {
+  hasChotGia: boolean;
+  diff: number;
+  congTyAmount: number;
+  hoaHongAmount: number;
+}
+
 export interface KetQuaPhanBoChotGia {
   congTyDisplay: number;
   hoaHongDisplay: number;
@@ -37,11 +44,28 @@ export function tinhHienThiPhanBoChotGia({
     };
   }
 
-  const hoaHongAmount = diff >= 0 ? diff - phanBoCongTy : diff + phanBoCongTy;
+  const hoaHongAmount = diff - phanBoCongTy;
   return {
     congTyDisplay: lamTronMotSo(phanBoCongTy),
     hoaHongDisplay: lamTronMotSo(hoaHongAmount),
-    congTyAmount: diff < 0 ? diff : phanBoCongTy,
+    congTyAmount: phanBoCongTy,
     hoaHongAmount,
   };
+}
+
+export function taoCanhBaoPhanBoChotGia({
+  hasChotGia,
+  diff,
+  congTyAmount,
+  hoaHongAmount,
+}: DauVaoCanhBaoPhanBoChotGia): string[] {
+  if (!hasChotGia) return [];
+
+  const canhBao: string[] = [];
+  const tongPhanBo = congTyAmount + hoaHongAmount;
+  if (Math.abs(tongPhanBo - diff) > 0.01) {
+    canhBao.push('Tổng Công ty + Hoa hồng chưa bằng chênh lệch giá chốt.');
+  }
+
+  return canhBao;
 }

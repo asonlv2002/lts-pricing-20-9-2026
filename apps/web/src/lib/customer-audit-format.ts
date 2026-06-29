@@ -60,6 +60,9 @@ const FIELD_LABELS: Record<string, string> = {
   quoteCode: 'Mã báo giá',
   quoteProducts: 'Danh sách sản phẩm báo giá',
   chotGia: 'Giá chốt',
+  currentChotGia: 'Giá chốt',
+  phanBoCongTy: 'Phân bổ Công ty',
+  donViPhanBo: 'Đơn vị phân bổ',
   terms: 'Điều khoản báo giá',
   tiers: 'Các mốc số lượng',
   products: 'Số sản phẩm',
@@ -129,6 +132,8 @@ const LSX_STATUS_LABELS: Record<string, string> = {
 
 const INPUT_VALUE_LABELS: Record<string, string> = {
   manIn: 'Màng in',
+  vnd: 'VNĐ',
+  percent: '%',
 };
 
 const IMPORTANT_CREATE_FIELDS = ['customerCode', 'companyName', 'contactName', 'phone', 'email'];
@@ -246,9 +251,16 @@ function formatPricingInputAuditValue(value: unknown): string {
       lines.push(`${label}: ${INPUT_VALUE_LABELS[v] ?? cleanAuditText(v)}`);
     }
   };
+  const pushMoney = (label: string, v: unknown) => {
+    if (typeof v !== 'number') return;
+    lines.push(`${label}: ${v.toLocaleString('vi-VN')} đ`);
+  };
 
   push('Sản phẩm', input.productName);
   push('Số lượng', input.quantity);
+  pushMoney('Giá chốt', input.chotGia);
+  pushMoney('Phân bổ Công ty', input.phanBoCongTy);
+  push('Đơn vị phân bổ', input.donViPhanBo);
   push('Khổ trải', input.spreadWidth);
   push('Bước cắt', input.cutStep);
   push('Số màu', input.numColors);
@@ -285,6 +297,8 @@ function formatOverrideAuditValue(value: unknown): string {
 
 export function formatAuditDisplayValue(fieldKey: string, value: unknown): string {
   if (isEmpty(value)) return '—';
+  if (fieldKey === 'donViPhanBo' && typeof value === 'string') return value === 'vnd' ? 'VNĐ' : value === 'percent' ? '%' : cleanAuditText(value);
+  if ((fieldKey === 'chotGia' || fieldKey === 'currentChotGia' || fieldKey === 'phanBoCongTy') && typeof value === 'number') return `${value.toLocaleString('vi-VN')} đ`;
   if (fieldKey === 'saleOverrides' || fieldKey === 'adminOverrides') return formatOverrideAuditValue(value);
   if (fieldKey === 'input') return formatPricingInputAuditValue(value);
   if (fieldKey === 'terms') return formatQuoteTermsAuditValue(value);
