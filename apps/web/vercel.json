@@ -2,17 +2,15 @@
   "buildCommand": "cd ../.. && pnpm --filter web build",
   "installCommand": "cd ../.. && pnpm install --no-frozen-lockfile",
   "framework": "nextjs",
-  "regions": [
-    "sin1"
-  ],
+  "regions": ["sin1"],
   "env": {
-    "SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com",
-    "NEXT_PUBLIC_SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com"
+    "SERVICE_LTS_URL": "http://103.195.239.9:3000",
+    "NEXT_PUBLIC_SERVICE_LTS_URL": "http://103.195.239.9:3000"
   },
-  "build":{
+  "build": {
     "env": {
-      "SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com",
-      "NEXT_PUBLIC_SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com"
+      "SERVICE_LTS_URL": "http://103.195.239.9:3000",
+      "NEXT_PUBLIC_SERVICE_LTS_URL": "http://103.195.239.9:3000"
     }
   }
 }
