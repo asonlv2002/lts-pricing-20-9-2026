@@ -4,13 +4,13 @@
   "framework": "nextjs",
   "regions": ["sin1"],
   "env": {
-    "SERVICE_LTS_URL": "http://103.195.239.9:3000",
-    "NEXT_PUBLIC_SERVICE_LTS_URL": "http://103.195.239.9:3000"
+    "SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com",
+    "NEXT_PUBLIC_SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com"
   },
   "build": {
     "env": {
-      "SERVICE_LTS_URL": "http://103.195.239.9:3000",
-      "NEXT_PUBLIC_SERVICE_LTS_URL": "http://103.195.239.9:3000"
+      "SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com",
+      "NEXT_PUBLIC_SERVICE_LTS_URL": "https://lts-dev-server.zealstudiojsc.com"
     }
   }
 }
