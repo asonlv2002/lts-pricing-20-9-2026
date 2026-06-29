@@ -525,6 +525,11 @@ function timMaKhachHang(tenKhach: string): string | null {
   }
 }
 
+function timMucLichSuTheoId(history: HistoryItem[], id: string | null | undefined): HistoryItem | undefined {
+  if (!id) return undefined;
+  return history.find(h => h.id === id || h.pricingSheetId === id);
+}
+
 function hienToastLuuGhiDe() {
   const container = document.getElementById('toastContainer');
   if (!container) return;
@@ -577,7 +582,10 @@ async function syncPricingSheetToServer(
       if (sheet?.id) {
         const state = dungCuaHangTinhGia.getState();
         const updatedHistory = state.history.map(x => x.id === h.id ? { ...x, pricingSheetId: sheet.id, priceConfigIds: sheet.priceConfigIds } : x);
-        dungCuaHangTinhGia.setState({ history: updatedHistory });
+        dungCuaHangTinhGia.setState({
+          history: updatedHistory,
+          loadedHistoryId: state.loadedHistoryId === h.id ? sheet.id : state.loadedHistoryId,
+        });
       }
     } else if (decision.action === 'patch') {
       if (!h.pricingSheetId) return;
@@ -607,7 +615,7 @@ export default function ManHinhQuanLy() {
 
 // Tính toán trạng thái nút Lưu và banner
 const currentCustomerCode = timMaKhachHang(input.customer);
-const loadedItem = loadedHistoryId ? lichSu.find(h => h.id === loadedHistoryId) : null;
+const loadedItem = timMucLichSuTheoId(lichSu, loadedHistoryId) ?? null;
 const isSameCustomer = loadedItem && originalCustomerLoaded && currentCustomerCode && originalCustomerLoaded === currentCustomerCode;
 const buttonLabel = loadedItem
   ? (isSameCustomer ? "🔄 Cập nhật" : "📄 Tạo bảng tính mới")
@@ -1104,7 +1112,8 @@ const buttonLabel = loadedItem
                       }
                       if (!kiemTraKhachHangQuyen()) return;
                       capNhatVaoLichSu();
-                      const h = dungCuaHangTinhGia.getState().history.find(x => x.id === loadedHistoryId);
+                      const state = dungCuaHangTinhGia.getState();
+                      const h = timMucLichSuTheoId(state.history, loadedHistoryId);
                       void syncPricingSheetToServer(h, isAuthenticated, accessToken);
                       const container = document.getElementById('toastContainer');
                       if (!container) return;

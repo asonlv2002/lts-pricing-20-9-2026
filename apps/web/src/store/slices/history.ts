@@ -62,6 +62,11 @@ function timMaKhachHang(tenKhach: string): string | null {
   }
 }
 
+function timMucLichSuTheoId(history: HistoryItem[], id: string | null | undefined): HistoryItem | undefined {
+  if (!id) return undefined;
+  return history.find(h => h.id === id || h.pricingSheetId === id);
+}
+
 export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySlice> = (set, get) => ({
   history: [],
   loadedHistoryId: null,
@@ -118,7 +123,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
 
   loadHistoryItem: (id) => {
     set((state) => {
-      const item = state.history.find(h => h.id === id);
+      const item = timMucLichSuTheoId(state.history, id);
       if (!item) return state;
       return {
         dauVao: dongBoCotLoiNhuan({ ...item.input }, state.materials),
@@ -215,7 +220,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
   capNhatHienTaiVaoLichSu: () => {
     set((state) => {
       if (!state.loadedHistoryId || !state.result) return state;
-      const old = state.history.find(h => h.id === state.loadedHistoryId);
+      const old = timMucLichSuTheoId(state.history, state.loadedHistoryId);
       if (!old) return state;
 
       const updated: HistoryItem = {
