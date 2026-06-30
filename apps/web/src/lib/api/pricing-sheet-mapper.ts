@@ -141,6 +141,7 @@ export function mapPricingSheetToHistory(
     quantity: syncedInput.quantity,
     finalPrice: result.finalPrice,
     profitRate: result.profitRate,
+    chotGia: syncedInput.chotGia || undefined,
     saleOverrides: unwrapOverrides(sheet.saleResult),
     adminOverrides: unwrapOverrides(sheet.masterResult),
     saleProfitRatePct: unwrapProfitRatePct(sheet.saleResult),

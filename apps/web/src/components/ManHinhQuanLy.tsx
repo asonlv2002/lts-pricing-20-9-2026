@@ -1120,7 +1120,8 @@ const buttonLabel = loadedItem
                       capNhatVaoLichSu();
                       const state = dungCuaHangTinhGia.getState();
                       const h = timMucLichSuTheoId(state.history, loadedHistoryId);
-                      void syncPricingSheetToServer(h, isAuthenticated, accessToken);
+                      void syncPricingSheetToServer(h, isAuthenticated, accessToken)
+    .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
                       const container = document.getElementById('toastContainer');
                       if (!container) return;
                       const toast = document.createElement('div');
@@ -1146,7 +1147,8 @@ const buttonLabel = loadedItem
                       themVaoLichSu();
                       const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
                       const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, newId);
-                      void syncPricingSheetToServer(h, isAuthenticated, accessToken);
+                      void syncPricingSheetToServer(h, isAuthenticated, accessToken)
+    .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
                       const container = document.getElementById('toastContainer');
                       if (!container) return;
                       const toast = document.createElement('div');
@@ -1174,7 +1176,8 @@ const buttonLabel = loadedItem
                     themVaoLichSu();
                     const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
                     const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, newId);
-                    void syncPricingSheetToServer(h, isAuthenticated, accessToken);
+                    void syncPricingSheetToServer(h, isAuthenticated, accessToken)
+    .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
                     const container = document.getElementById('toastContainer');
                     if (!container) return;
                     const toast = document.createElement('div');
@@ -1370,7 +1373,8 @@ const buttonLabel = loadedItem
               luuGhiDe(idLichSu);
               hienToastLuuGhiDe();
               const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, idLichSu);
-              void syncPricingSheetToServer(h, isAuthenticated, accessToken);
+              void syncPricingSheetToServer(h, isAuthenticated, accessToken)
+    .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
             };
 
             const handleSaveNew = () => {
@@ -1381,7 +1385,8 @@ const buttonLabel = loadedItem
                 luuGhiDe(newId);
                 hienToastLuuGhiDe();
                 const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, newId);
-                void syncPricingSheetToServer(h, isAuthenticated, accessToken);
+                void syncPricingSheetToServer(h, isAuthenticated, accessToken)
+    .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
               }
             };
             const emptyOv: OverrideTable = {};

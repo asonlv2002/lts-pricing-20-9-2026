@@ -10,6 +10,8 @@ import { getPricingWorkflowStatus, type PricingWorkflowStatus } from '../lib/his
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { QrevStyleInjector } from './qrev-styles';
 import { xoaPricingSheetService } from '../lib/api/service-lts';
+import { tinhBaoGia } from '../lib/manager-calculation';
+import { tinhNhapPhanBoChotGia } from '../lib/chot-gia-allocation';
 import type { HistoryItem } from '../lib/types';
 
 const boDau = (chuoi: string) =>
@@ -417,6 +419,44 @@ function ChiTietPanel({
   const giaDeXuat = item.finalPrice;
   const coGiaChot = typeof item.chotGia === 'number' && item.chotGia > 0;
 
+  const engineResult = React.useMemo(() => {
+    const store = dungCuaHangTinhGia.getState();
+    return tinhBaoGia(item.input, store.materials, store.constants, store.profitTable, store.smallWidthPrices);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item.id]);
+
+  let doanhThuChot = 0;
+  let pctLN = 0;
+  let loiNhuanCongTy = 0;
+  let hoaHongMoi = 0;
+  let hoaHongMoiPct = 0;
+
+  if (coGiaChot && engineResult) {
+    doanhThuChot = item.chotGia! * item.quantity;
+    const diff = item.chotGia! - engineResult.finalPrice;
+
+    const phanBo = tinhNhapPhanBoChotGia({
+      hasChotGia: true,
+      diff,
+      hoaHongNhap: (item.input as any).phanBoCongTy ?? 0,
+      hoaHongEngine: engineResult.commissionPerUnit,
+      donViPhanBo: (item.input as any).donViPhanBo ?? 'vnd',
+    });
+
+    const hhMoiDonVi = Math.max(0, engineResult.commissionPerUnit + phanBo.hoaHongAmount);
+    hoaHongMoi = Math.round(hhMoiDonVi * item.quantity);
+    hoaHongMoiPct = engineResult.costPerUnit > 0 ? (hhMoiDonVi / engineResult.costPerUnit) * 100 : 0;
+
+    const tongChiPhi = engineResult.totalProductionCost
+      + engineResult.zipperTotal + engineResult.tapeTotal
+      + engineResult.handleTotal + engineResult.boxTotal
+      + engineResult.shippingTotal
+      + engineResult.interestPerUnit * item.quantity;
+
+    loiNhuanCongTy = doanhThuChot - tongChiPhi - hoaHongMoi;
+    pctLN = engineResult.totalProductionCost > 0 ? (loiNhuanCongTy / engineResult.totalProductionCost) * 100 : 0;
+  }
+
   return (
     <>
       <div className="qrev-overlay" onClick={onClose} />
@@ -449,6 +489,9 @@ function ChiTietPanel({
             <ChiTietDong label="Khách hàng" value={item.customer} />
             <ChiTietDong label="Cấu trúc" value={item.structure} mono />
             <ChiTietDong label="Số lượng" value={`${dinhDangSo(item.quantity)} ${meta.quantityUnitForHistory}`} />
+            <ChiTietDong label="Kích thước" value={`KT ${Math.round((item.input.spreadWidth || 0) * 1000)} × BC ${Math.round((item.input.cutStep || 0) * 1000)} mm`} />
+            <ChiTietDong label="Số màu" value={item.input.numColors && item.input.numColors > 0 ? `${item.input.numColors} màu` : 'Không in'} />
+            <ChiTietDong label="Độ dày" value={`${item.input.targetThickness || 0} mic`} />
             {item.sellerName && <ChiTietDong label="Sale" value={item.sellerName} />}
           </div>
 
@@ -456,7 +499,12 @@ function ChiTietPanel({
           <div className="qrev-info-grid">
             <ChiTietDong label={`Giá đề xuất / ${meta.unit}`} value={`${dinhDangSo(giaDeXuat)} ₫`} bold />
             {coGiaChot && (
-              <ChiTietDong label={`Giá chốt / ${meta.unit}`} value={`${dinhDangSo(item.chotGia!)} ₫`} bold color="#059669" />
+              <>
+                <ChiTietDong label={`Giá chốt / ${meta.unit}`} value={`${dinhDangSo(item.chotGia!)} ₫`} bold color="#059669" />
+                <ChiTietDong label="Doanh thu tổng" value={`${dinhDangSo(doanhThuChot)} ₫`} bold color="#059669" />
+                <ChiTietDong label={`Lợi nhuận công ty (${pctLN.toFixed(1)}%)`} value={`${dinhDangSo(loiNhuanCongTy)} ₫`} bold color="#059669" />
+                <ChiTietDong label={`Hoa hồng (${hoaHongMoiPct.toFixed(1)}%)`} value={`${dinhDangSo(hoaHongMoi)} ₫`} />
+              </>
             )}
           </div>
         </div>
