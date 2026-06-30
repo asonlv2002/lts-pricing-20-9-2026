@@ -874,6 +874,26 @@
   padding: 9px 10px;
   font: inherit;
 }
+.pq-modal__field select {
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text);
+  border-radius: 10px;
+  padding: 9px 10px;
+  font: inherit;
+}
+.pq-modal__row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pq-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+.pq-profile-note { font-size: 12px; color: var(--sky, #0284c7); padding: 6px 10px; border-radius: 8px; background: rgba(14,165,233,0.08); }
+.pq-profile-note-text { font-size: 11px; color: var(--muted); }
+.pq-profile-section { padding: 10px 16px; border-top: 1px solid var(--border); }
+.pq-profile-section__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+.pq-profile-section__head h4 { margin: 0; font-size: 13px; color: var(--text); }
+.pq-profile-section .pq-modal__field { margin-bottom: 10px; }
+.pq-profile-section .pq-modal__row { margin-bottom: 0; }
+.pq-profile-section .pq-modal__row .pq-modal__field { margin-bottom: 0; }
+.pq-profile-section .pq-btn { margin-top: 4px; }
+.pq-profile-saved { font-size: 12px; color: var(--green); padding: 6px 10px; border-radius: 8px; background: rgba(16,185,129,0.08); margin-bottom: 8px; }
 
 .pq-policy-detail { border: 0; width: min(500px, 100%); }
 .pq-policy-detail__hero {

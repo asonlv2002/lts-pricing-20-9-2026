@@ -770,7 +770,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   const [dangLuuQuyen, setDangLuuQuyen] = useState(false);
   const [loiApi, setLoiApi] = useState<string | null>(null);
   const [moFormTaoTaiKhoan, setMoFormTaoTaiKhoan] = useState(false);
-  const [taiKhoanMoi, setTaiKhoanMoi] = useState({ account: '', fullName: '', password: '' });
+  const [taiKhoanMoi, setTaiKhoanMoi] = useState({ account: '', fullName: '', password: '', anhDaiDien: '', ngaySinh: '', gioiTinh: '', soDienThoai: '', email: '' });
   const [draftPolicies, setDraftPolicies] = useState<PolicyCode[]>([]);
   const [resetPasswordUser, setResetPasswordUser] = useState<TaiKhoan | null>(null);
   const [matKhauDatLai, setMatKhauDatLai] = useState({ password: '', confirm: '' });
@@ -852,7 +852,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
         password: taiKhoanMoi.password,
       });
       luuUserTuApi(created);
-      setTaiKhoanMoi({ account: '', fullName: '', password: '' });
+      setTaiKhoanMoi({ account: '', fullName: '', password: '', anhDaiDien: '', ngaySinh: '', gioiTinh: '', soDienThoai: '', email: '' });
       setMoFormTaoTaiKhoan(false);
       await napTaiKhoan();
     } catch (error) {
@@ -1143,6 +1143,34 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
               <label className="pq-modal__field">
                 <b>Mật khẩu tạm</b>
                 <input type="password" value={taiKhoanMoi.password} onChange={e => setTaiKhoanMoi(prev => ({ ...prev, password: e.target.value }))} placeholder="Nhập mật khẩu ban đầu" required />
+              </label>
+              <hr className="pq-divider" />
+              <label className="pq-modal__field">
+                <b>Ảnh đại diện (URL)</b>
+                <input value={taiKhoanMoi.anhDaiDien} onChange={e => setTaiKhoanMoi(prev => ({ ...prev, anhDaiDien: e.target.value }))} placeholder="https://example.com/avatar.jpg" />
+              </label>
+              <div className="pq-modal__row">
+                <label className="pq-modal__field">
+                  <b>Ngày sinh</b>
+                  <input type="date" value={taiKhoanMoi.ngaySinh} onChange={e => setTaiKhoanMoi(prev => ({ ...prev, ngaySinh: e.target.value }))} />
+                </label>
+                <label className="pq-modal__field">
+                  <b>Giới tính</b>
+                  <select value={taiKhoanMoi.gioiTinh} onChange={e => setTaiKhoanMoi(prev => ({ ...prev, gioiTinh: e.target.value }))}>
+                    <option value="">Chưa chọn</option>
+                    <option value="nam">Nam</option>
+                    <option value="nu">Nữ</option>
+                    <option value="khac">Khác</option>
+                  </select>
+                </label>
+              </div>
+              <label className="pq-modal__field">
+                <b>Số điện thoại</b>
+                <input value={taiKhoanMoi.soDienThoai} onChange={e => setTaiKhoanMoi(prev => ({ ...prev, soDienThoai: e.target.value }))} placeholder="0912 345 678" />
+              </label>
+              <label className="pq-modal__field">
+                <b>Địa chỉ email</b>
+                <input type="email" value={taiKhoanMoi.email} onChange={e => setTaiKhoanMoi(prev => ({ ...prev, email: e.target.value }))} placeholder="name@company.com" />
               </label>
             </div>
             <div className="pq-modal__foot">
