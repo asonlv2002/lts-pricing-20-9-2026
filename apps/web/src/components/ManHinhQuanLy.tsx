@@ -472,11 +472,8 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                       )}
                       {duocSua && <span className="profit-rate-pct-suffix">%</span>}
                     </td>
-                    <td colSpan={3} className="num">
+                    <td colSpan={6} className="num">
                       LN: {dinhDangSo(Math.round(ln), 0)} đ
-                    </td>
-                    <td colSpan={3} className="num">
-                      Giá thành SX cơ bản: {dinhDangSo(Math.round(dt), 0)} đ
                     </td>
                   </tr>
                 );
