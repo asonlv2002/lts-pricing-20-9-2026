@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, RefreshCw, Send, CheckCircle2, XCircle, Eye, X, ClipboardEdit, FileText, Inbox } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { normalizeDisplayText } from '../lib/text-codec';
@@ -13,9 +13,11 @@ import {
   nopBaoGiaService,
   duyetBaoGiaService,
   taoBanSuaBaoGiaService,
+  layTaiKhoanService,
   chuyenTrangThaiBaoGia,
   NHAN_TRANG_THAI_BAO_GIA,
   type BaoGiaApi,
+  type TaiKhoanApi,
   type TrangThaiBaoGiaServer,
 } from '../lib/api/service-lts';
 
@@ -125,7 +127,10 @@ function tuKhoaBaoGia(bg: BaoGiaApi): string {
   return boDau(`${tenBaoGia(bg)} ${pricingText}`);
 }
 
-function nguoiTaoBaoGia(bg: BaoGiaApi): string | undefined {
+function nguoiTaoBaoGia(bg: BaoGiaApi, banDoTaiKhoan?: Map<string, string>): string | undefined {
+  if (bg.createdBy && banDoTaiKhoan?.has(bg.createdBy)) {
+    return banDoTaiKhoan.get(bg.createdBy);
+  }
   return bg.original?.actorName
     ?? bg.pricingSheets?.find(sheet => sheet.original?.actorName)?.original?.actorName
     ?? undefined;
@@ -139,9 +144,10 @@ interface ChiTietProps {
   onNop: (bg: BaoGiaApi) => void;
   onDuyet: (bg: BaoGiaApi, quyetDinh: 'approved' | 'rejected') => void;
   onTaoBanSua: (bg: BaoGiaApi) => void;
+  banDoTaiKhoan?: Map<string, string>;
 }
 
-function ChiTietBaoGiaPanel({ baoGia, onClose, laNguoiDuyet, dangXuLy, onNop, onDuyet, onTaoBanSua }: ChiTietProps) {
+function ChiTietBaoGiaPanel({ baoGia, onClose, laNguoiDuyet, dangXuLy, onNop, onDuyet, onTaoBanSua, banDoTaiKhoan }: ChiTietProps) {
   const trangThai = chuyenTrangThaiBaoGia(baoGia.updateStatus);
   const item = (baoGia.inputValue ?? {}) as Partial<HistoryItem>;
   const pricingSheets = baoGia.pricingSheets ?? [];
@@ -155,7 +161,7 @@ function ChiTietBaoGiaPanel({ baoGia, onClose, laNguoiDuyet, dangXuLy, onNop, on
   const tenSanPham = item.productName || firstInput.productName || firstSheet?.pricingSheetName || (pricingSheets.length ? `${pricingSheets.length} sản phẩm` : '—');
   const cauTruc = item.structure || cauTrucTuInput(firstInput) || '—';
   const soLuong = typeof item.quantity === 'number' ? item.quantity : firstInput.quantity;
-  const nguoiLap = nguoiTaoBaoGia(baoGia);
+  const nguoiLap = nguoiTaoBaoGia(baoGia, banDoTaiKhoan);
 
   return (
     <>
@@ -302,6 +308,23 @@ export default function ModuleDuyetBaoGia() {
   const [thongBao, datThongBao] = useState('');
   const [dangXuLyId, datDangXuLyId] = useState<string | null>(null);
   const [chiTiet, datChiTiet] = useState<BaoGiaApi | null>(null);
+
+  const [danhSachTaiKhoan, datDanhSachTaiKhoan] = useState<TaiKhoanApi[]>([]);
+  const daTaiTaiKhoan = useRef(false);
+
+  useEffect(() => {
+    if (!accessToken || daTaiTaiKhoan.current) return;
+    daTaiTaiKhoan.current = true;
+    layTaiKhoanService(accessToken).then(datDanhSachTaiKhoan).catch(() => {});
+  }, [accessToken]);
+
+  const banDoTaiKhoan = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const tk of danhSachTaiKhoan) {
+      if (tk.fullName) map.set(tk.id, tk.fullName);
+    }
+    return map;
+  }, [danhSachTaiKhoan]);
 
   const lamMoi = useCallback(async () => {
     if (!isAuthenticated || !accessToken) {
@@ -520,7 +543,7 @@ export default function ModuleDuyetBaoGia() {
               <tbody>
                 {ketQua.map(bg => {
                   const trangThai = chuyenTrangThaiBaoGia(bg.updateStatus);
-                  const saleName = nguoiTaoBaoGia(bg);
+                  const saleName = nguoiTaoBaoGia(bg, banDoTaiKhoan);
                   return (
                     <tr key={bg.id} className="qrev-row" onClick={() => datChiTiet(bg)}>
                       <td>
@@ -555,6 +578,7 @@ export default function ModuleDuyetBaoGia() {
           onNop={bg => { datChiTiet(null); void nopBaoGia(bg); }}
           onDuyet={(bg, quyetDinh) => { datChiTiet(null); void duyetBaoGia(bg, quyetDinh); }}
           onTaoBanSua={bg => { datChiTiet(null); void taoBanSua(bg); }}
+          banDoTaiKhoan={banDoTaiKhoan}
         />
       )}
     </div>

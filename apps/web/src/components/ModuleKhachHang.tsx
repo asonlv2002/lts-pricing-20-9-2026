@@ -357,11 +357,21 @@ function CustomerField({ k, icon, form, errors, role, disabled, required, type =
 }
 
 // ── CustomerForm (Wizard) ────────────────────────────────────────────────────
-function CustomerForm({ customer, role, currentSellerId, customers = [], token, canManageManagers = false, saving = false, onSave, onSaveDraft, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; customers?: Customer[]; token?: string; canManageManagers?: boolean; saving?: boolean; onSave: (c: Customer) => void; onSaveDraft: (c: Customer) => void; onCancel: () => void }) {
+function CustomerForm({ customer, role, currentSellerId, customers = [], token, canManageManagers = false, saving = false, currentUser, onSave, onSaveDraft, onCancel }: { customer?: Customer; role: Role; currentSellerId?: string; customers?: Customer[]; token?: string; canManageManagers?: boolean; saving?: boolean; currentUser?: { id: string; account: string; fullName: string } | null; onSave: (c: Customer) => void; onSaveDraft: (c: Customer) => void; onCancel: () => void }) {
   // Nháp local-only được coi như đang tạo mới (cho sửa mã KH + hiện nút Lưu nháp)
   const isNew = !customer || !!customer?.isDraft;
   const [step, setStep] = useState(0);
-  const [form, setForm] = useState<Customer>(makeInitialCustomer(customer, role, currentSellerId));
+  const [form, setForm] = useState<Customer>(() => {
+    const initial = makeInitialCustomer(customer, role, currentSellerId);
+    if (!customer && currentUser) {
+      initial.managers = [{
+        userId: currentUser.id,
+        account: currentUser.account,
+        fullName: currentUser.fullName,
+      }];
+    }
+    return initial;
+  });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [duplicateWarnings, setDuplicateWarnings] = useState<string[]>([]);
   const [isMobileCustomerForm, setIsMobileCustomerForm] = useState(false);
@@ -427,14 +437,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
       const nameOk = isIndividual(form)
         ? !!form.contactName?.trim()
         : !!form.companyName?.trim();
-      const addressOk = !!form.address?.trim();
-      return codeOk && nameOk && addressOk;
-    }
-    if (s === 1) {
-      const contactOk = isIndividual(form) ? true : !!form.contactName?.trim();
-      const phoneOk = !!form.phone?.trim();
-      const emailOk = isEmailValid(form.email);
-      return contactOk && phoneOk && emailOk;
+      return codeOk && nameOk;
     }
     return true;
   };
@@ -468,19 +471,13 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
     } catch { alert('Không lưu được nháp.'); }
   };
 
-  const next = () => { if (validateStep(step)) setStep(s => s + 1); };
+  const next = () => { validateStep(step); setStep(s => s + 1); };
   const back = () => setStep(s => s - 1);
   const submit = () => {
-    const e: Record<string, string> = {};
+    setErrors({});
     const checkCode = kiemTraMaKhachHang(form.customerCode);
-    if (!checkCode.hopLe) e.customerCode = checkCode.loi ?? 'Nhập mã khách hàng.';
-    Object.assign(e, kiemTraThongTinKhachHang(form).errors);
-    setErrors(e);
-    const errorKeys = Object.keys(e);
-    if (errorKeys.length > 0) {
-      // Nhảy về đúng bước chứa field lỗi đầu tiên (không phải luôn về bước 1)
-      const targetStep = Math.min(...errorKeys.map(fieldToStep));
-      setStep(Number.isFinite(targetStep) ? targetStep : 0);
+    if (!checkCode.hopLe) {
+      setErrors({ customerCode: checkCode.loi ?? 'Nhập mã khách hàng.' });
       return;
     }
     if (initialCustomer && isCustomerFormUnchanged(form, initialCustomer)) { onCancel(); return; }
@@ -536,7 +533,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
                 Tiếp tục <ChevronRight size={14}/>
               </button>
             ) : (
-              <button className="crm2-btn crm2-btn--primary" onClick={submit} disabled={saving || (isMobileCustomerForm && !canSubmitCustomerForm)}>
+              <button className="crm2-btn crm2-btn--primary" onClick={submit} disabled={saving}>
                 <Save size={14}/>{saving ? 'Đang lưu...' : isNew ? 'Tạo khách hàng' : 'Lưu thay đổi'}
               </button>
             )}
@@ -1892,6 +1889,7 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
               token={accessToken ?? undefined}
               canManageManagers={editing ? coQuyenQuanLyNguoiPhuTrach : true}
               saving={dangLuuKhachHang}
+              currentUser={nguoiDungHienTai}
               onSave={async c => {
                 if (editing && !editing.id.startsWith('C') && isCustomerFormUnchanged(c, editing)) {
                   setEditing(undefined);

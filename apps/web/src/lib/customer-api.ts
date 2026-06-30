@@ -323,10 +323,6 @@ export function chuyenDanhSachCustomerApiSangUi(customers: CustomerApi[] = []): 
 }
 
 export function chuyenCustomerUiSangThongTinApi(customer: CustomerUi) {
-  const validation = kiemTraThongTinKhachHang(customer);
-  if (!validation.hopLe) {
-    throw new Error(Object.values(validation.errors)[0] ?? 'Thông tin khách hàng chưa hợp lệ.');
-  }
   return {
     organizationName: customer.companyName.trim(),
     taxCode: customer.taxCode?.trim() || undefined,
