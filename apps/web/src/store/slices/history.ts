@@ -5,6 +5,7 @@ import { tinhBaoGia } from '../../lib/manager-calculation';
 import { dongBoCotLoiNhuan } from '../../lib/engine';
 import { layDanhSachPricingSheetService } from '../../lib/api/service-lts';
 import { mapPricingSheetToHistory } from '../../lib/api/pricing-sheet-mapper';
+import { giuMucDangMoKhiTaiServer, timMucLichSuTheoId } from '../../lib/history-identity';
 
 export interface HistorySlice {
   history: HistoryItem[];
@@ -60,11 +61,6 @@ function timMaKhachHang(tenKhach: string): string | null {
   } catch {
     return null;
   }
-}
-
-function timMucLichSuTheoId(history: HistoryItem[], id: string | null | undefined): HistoryItem | undefined {
-  if (!id) return undefined;
-  return history.find(h => h.id === id || h.pricingSheetId === id);
 }
 
 export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySlice> = (set, get) => ({
@@ -141,6 +137,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         adminProfitRatePct: item.adminProfitRatePct ?? 0,
         showSaleOverrides: !!item.saleOverrides && Object.keys(item.saleOverrides).length > 0,
         showAdminOverrides: !!item.adminOverrides && Object.keys(item.adminOverrides).length > 0,
+        originalCustomerLoaded: item.originalCustomer ?? timMaKhachHang(item.customer) ?? null,
       };
     });
   },
@@ -166,7 +163,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         activeView: 'manager' as const,
         isDirty: false,
         loadedHistoryId: sheet.id,
-        originalCustomerLoaded: null,
+        originalCustomerLoaded: sheet.customerCodeName || sheet.customer?.codeName || null,
         saleOverrides: {},
         adminOverrides: {},
         showSaleOverrides: false,
@@ -193,7 +190,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const mapped = sheets
         .map(s => mapPricingSheetToHistory(s, ctx))
         .filter((h): h is HistoryItem => h !== null);
-      set({ history: mapped });
+      set({ history: giuMucDangMoKhiTaiServer(mapped, state.history, state.loadedHistoryId) });
       return true;
     } catch {
       return false;
@@ -238,6 +235,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         input: { ...state.input },
         sellerId: state.currentSellerId || old.sellerId,
         sellerName: state.currentSellerName || old.sellerName,
+        saleProfitRatePct: state.saleProfitRatePct || undefined,
+        adminProfitRatePct: state.adminProfitRatePct || undefined,
       };
       const history = state.history.map(h => h.id === old.id ? updated : h);
 

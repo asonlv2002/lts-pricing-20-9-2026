@@ -21,7 +21,8 @@ import {
 import { quyetDinhPricingSheetSync } from '../lib/pricing-sheet-sync';
 import { LS_CUSTOMERS, loadCustomers } from '../store/helpers';
 import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override-display';
-import { taoCanhBaoPhanBoChotGia, tinhHienThiPhanBoChotGia } from '../lib/chot-gia-allocation';
+import { tinhNhapPhanBoChotGia } from '../lib/chot-gia-allocation';
+import { timMucLichSuTheoId } from '../lib/history-identity';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
 // Mỗi lần render với resetKey mới → luôn bắt đầu ở trạng thái ĐÓNG
@@ -522,11 +523,6 @@ function timMaKhachHang(tenKhach: string): string | null {
   }
 }
 
-function timMucLichSuTheoId(history: HistoryItem[], id: string | null | undefined): HistoryItem | undefined {
-  if (!id) return undefined;
-  return history.find(h => h.id === id || h.pricingSheetId === id);
-}
-
 function hienToastLuuGhiDe() {
   const container = document.getElementById('toastContainer');
   if (!container) return;
@@ -581,7 +577,6 @@ async function syncPricingSheetToServer(
         const updatedHistory = state.history.map(x => x.id === h.id ? { ...x, pricingSheetId: sheet.id, priceConfigIds: sheet.priceConfigIds } : x);
         dungCuaHangTinhGia.setState({
           history: updatedHistory,
-          loadedHistoryId: state.loadedHistoryId === h.id ? sheet.id : state.loadedHistoryId,
         });
       }
     } else if (decision.action === 'patch') {
@@ -729,22 +724,22 @@ const buttonLabel = loadedItem
   const effFinalPriceWithComm = r.finalPrice;
   const shownPrice = hasChotGia ? chotGiaNum : effFinalPriceWithComm;
   const diff = hasChotGia ? chotGiaNum - effFinalPriceWithComm : 0;
-  const phanBoHoaHong = donViPhanBo === 'percent'
-    ? diff * ((100 - phanBoCongTy) / 100)
-    : diff - phanBoCongTy;
-  const hienThiPhanBoChotGia = tinhHienThiPhanBoChotGia({ hasChotGia, diff, phanBoCongTy, donViPhanBo });
-  const canhBaoPhanBoChotGia = taoCanhBaoPhanBoChotGia({
+  const hienThiPhanBoChotGia = tinhNhapPhanBoChotGia({
     hasChotGia,
     diff,
-    congTyAmount: hienThiPhanBoChotGia.congTyAmount,
-    hoaHongAmount: hienThiPhanBoChotGia.hoaHongAmount,
+    hoaHongNhap: phanBoCongTy,
+    hoaHongEngine: effCommissionPerUnit,
+    donViPhanBo,
   });
-  const giaTriNhapCongTy = phanBoDangNhap.field === 'company'
-    ? phanBoDangNhap.value
-    : String(+(phanBoCongTy).toFixed(1));
+  const phanBoHoaHong = hienThiPhanBoChotGia.hoaHongAmount;
+  const canhBaoPhanBoChotGia = hienThiPhanBoChotGia.loi;
+  const coLoiPhanBo = canhBaoPhanBoChotGia.length > 0;
+  const giaTriNhapCongTy = coLoiPhanBo
+    ? 'Lỗi phân bổ'
+    : dinhDangSo(hienThiPhanBoChotGia.congTyDisplay, 1);
   const giaTriNhapHoaHong = phanBoDangNhap.field === 'commission'
     ? phanBoDangNhap.value
-    : String(hienThiPhanBoChotGia.hoaHongDisplay);
+    : String(+(hienThiPhanBoChotGia.hoaHongDisplay).toFixed(1));
   const hoaHongAllocation = phanBoHoaHong;
   const rawNewCommission = effCommissionPerUnit + hoaHongAllocation;
   const profitDropFromChot = rawNewCommission < 0 ? Math.abs(rawNewCommission) * dauVaoKq.quantity : 0;
@@ -1043,22 +1038,6 @@ const buttonLabel = loadedItem
               <div className="form-group" style={{flex: 1.5, opacity: hasChotGia ? 1 : 0.5, pointerEvents: hasChotGia ? 'auto' : 'none'}}>
                 <label className="form-label" style={{whiteSpace:'nowrap'}}>Phân bổ chênh lệch {hasChotGia ? `(${diff >= 0 ? '+' : ''}${dinhDangSo(diff, 1)}đ/${nhanDonVi})` : ''}</label>
                 <div style={{display:'flex', gap:'4px', alignItems:'center'}}>
-                  <span style={{fontSize:'0.78rem', whiteSpace:'nowrap'}}>Công ty</span>
-                  <input
-                    className="form-input"
-                    type="text"
-                    inputMode="decimal"
-                    style={{flex: 1, textAlign:'right', minWidth:0}}
-                    value={giaTriNhapCongTy}
-                    onBlur={() => datPhanBoDangNhap({ field: null, value: '' })}
-                    onChange={(e) => {
-                      const raw = e.target.value;
-                      datPhanBoDangNhap({ field: 'company', value: raw });
-                      const parsed = Number(raw.replace(',', '.'));
-                      if (Number.isFinite(parsed)) setPhanBoCongTy(parsed);
-                    }}
-                    placeholder={donViPhanBo === 'percent' ? '100' : '0'}
-                  />
                   <span style={{fontSize:'0.78rem', whiteSpace:'nowrap'}}>Hoa hồng</span>
                   <input
                     className="form-input"
@@ -1068,13 +1047,42 @@ const buttonLabel = loadedItem
                     value={giaTriNhapHoaHong}
                     onBlur={() => datPhanBoDangNhap({ field: null, value: '' })}
                     onChange={(e) => {
-                      const raw = e.target.value;
-                      datPhanBoDangNhap({ field: 'commission', value: raw });
-                      const hoaHong = Number(raw.replace(',', '.'));
-                      if (Number.isFinite(hoaHong)) {
-                        setPhanBoCongTy(donViPhanBo === 'percent' ? 100 - hoaHong : diff - hoaHong);
+                      const raw = e.target.value.replace(/-/g, '');
+                      if (raw.trim() === '') {
+                        datPhanBoDangNhap({ field: 'commission', value: '' });
+                        setPhanBoCongTy(0);
+                        return;
                       }
+                      const hoaHong = Number(raw.replace(',', '.'));
+                      if (!Number.isFinite(hoaHong)) {
+                        datPhanBoDangNhap({ field: 'commission', value: raw });
+                        return;
+                      }
+                      const nextHoaHong = donViPhanBo === 'percent'
+                        ? Math.min(100, Math.max(0, hoaHong))
+                        : Math.max(0, hoaHong);
+                      datPhanBoDangNhap({ field: 'commission', value: donViPhanBo === 'percent' && hoaHong > 100 ? '100' : raw });
+                      setPhanBoCongTy(nextHoaHong);
                     }}
+                    placeholder="0"
+                  />
+                  <span style={{fontSize:'0.78rem', whiteSpace:'nowrap'}}>Công ty</span>
+                  <input
+                    className="form-input"
+                    type="text"
+                    inputMode="decimal"
+                    style={{
+                      flex: 1,
+                      textAlign:'right',
+                      minWidth:0,
+                      background: 'var(--subtle, #f8fafc)',
+                      color: coLoiPhanBo ? '#dc2626' : undefined,
+                      fontWeight: coLoiPhanBo ? 700 : undefined,
+                      borderColor: coLoiPhanBo ? '#dc2626' : undefined,
+                    }}
+                    value={giaTriNhapCongTy}
+                    readOnly
+                    aria-readonly="true"
                   />
                   <select
                     className="form-input"
@@ -1083,9 +1091,10 @@ const buttonLabel = loadedItem
                     onChange={(e) => {
                       const next = e.target.value as 'vnd' | 'percent';
                       if (hasChotGia && diff !== 0) {
+                          const absDiff = Math.abs(diff);
                           setPhanBoCongTy(next === 'percent'
-                            ? +(phanBoCongTy / diff * 100).toFixed(1)
-                            : +(phanBoCongTy * diff / 100).toFixed(1));
+                            ? Math.min(100, +(donViPhanBo === 'vnd' && absDiff > 0 ? (phanBoCongTy / absDiff * 100) : phanBoCongTy).toFixed(1))
+                            : +(donViPhanBo === 'percent' ? (phanBoCongTy * absDiff / 100) : phanBoCongTy).toFixed(1));
                         }
                       datPhanBoDangNhap({ field: null, value: '' });
                       setDonViPhanBo(next);
@@ -1136,7 +1145,7 @@ const buttonLabel = loadedItem
                       if (!kiemTraKhachHangQuyen()) return;
                       themVaoLichSu();
                       const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
-                      const h = dungCuaHangTinhGia.getState().history.find(x => x.id === newId);
+                      const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, newId);
                       void syncPricingSheetToServer(h, isAuthenticated, accessToken);
                       const container = document.getElementById('toastContainer');
                       if (!container) return;
@@ -1164,7 +1173,7 @@ const buttonLabel = loadedItem
                     if (!kiemTraKhachHangQuyen()) return;
                     themVaoLichSu();
                     const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
-                    const h = dungCuaHangTinhGia.getState().history.find(x => x.id === newId);
+                    const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, newId);
                     void syncPricingSheetToServer(h, isAuthenticated, accessToken);
                     const container = document.getElementById('toastContainer');
                     if (!container) return;
@@ -1190,13 +1199,15 @@ const buttonLabel = loadedItem
                   <div className="chot-row" style={{fontSize:'0.82rem', color:'var(--muted)'}}>
                     <span className="chot-label">
                       {donViPhanBo === 'percent'
-                        ? <>↳ Công ty: {dinhDangSo(hienThiPhanBoChotGia.congTyDisplay, 1)}% = {dinhDangSo(hienThiPhanBoChotGia.congTyAmount, 1)}đ | Hoa hồng: {dinhDangSo(hienThiPhanBoChotGia.hoaHongDisplay, 1)}% = {dinhDangSo(hienThiPhanBoChotGia.hoaHongAmount, 1)}đ</>
-                        : <>↳ Công ty: {dinhDangSo(hienThiPhanBoChotGia.congTyAmount, 1)}đ | Hoa hồng: {dinhDangSo(hoaHongAllocation, 1)}đ</>}
-                      {canhBaoPhanBoChotGia.map((msg, index) => (
-                        <div key={index} style={{marginTop: '4px', color: '#b45309'}}>⚠ {msg}</div>
-                      ))}
+                        ? <>↳ Hoa hồng: {dinhDangSo(hienThiPhanBoChotGia.hoaHongDisplay, 1)}% = {dinhDangSo(hienThiPhanBoChotGia.hoaHongAmount, 1)}đ | Công ty: {dinhDangSo(hienThiPhanBoChotGia.congTyDisplay, 1)}% = {dinhDangSo(hienThiPhanBoChotGia.congTyAmount, 1)}đ</>
+                        : <>↳ Hoa hồng: {dinhDangSo(hoaHongAllocation, 1)}đ | Công ty: {dinhDangSo(hienThiPhanBoChotGia.congTyAmount, 1)}đ</>}
                     </span>
                   </div>
+                  {canhBaoPhanBoChotGia.map((msg, index) => (
+                    <div key={index} className="chot-row" style={{fontSize:'0.82rem', color: '#b45309'}}>
+                      <span className="chot-label">⚠ {msg}</span>
+                    </div>
+                  ))}
                   <div className="chot-row" style={{fontWeight:700}}>
                     <span className="chot-label">Doanh thu tổng</span>
                     <span className="chot-value">{dinhDangSo(shownPrice)} đ/{nhanDonVi} × {dinhDangSo(dauVaoKq.quantity)} {nhanDonVi} = {dinhDangSo(doanhThuChot)} đ</span>
@@ -1348,7 +1359,7 @@ const buttonLabel = loadedItem
 
           {/* ═══ SECTION: Override Tables (tabbed) ═══ */}
           {(() => {
-            const loadedItem = loadedHistoryId ? lichSu.find(h => h.id === loadedHistoryId) : null;
+            const loadedItem = timMucLichSuTheoId(lichSu, loadedHistoryId) ?? null;
             const nguoiDungHienTai = dungCuaHangTinhGia.getState().nguoiDungHienTai;
             const policies = nguoiDungHienTai?.policies ?? [];
             const coQuyenAdvisor = coQuyenCoVanBangTinh(policies);
@@ -1358,7 +1369,7 @@ const buttonLabel = loadedItem
             const handleSave = (idLichSu: string) => {
               luuGhiDe(idLichSu);
               hienToastLuuGhiDe();
-              const h = dungCuaHangTinhGia.getState().history.find(x => x.id === idLichSu);
+              const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, idLichSu);
               void syncPricingSheetToServer(h, isAuthenticated, accessToken);
             };
 
@@ -1369,7 +1380,7 @@ const buttonLabel = loadedItem
               if (newId) {
                 luuGhiDe(newId);
                 hienToastLuuGhiDe();
-                const h = dungCuaHangTinhGia.getState().history.find(x => x.id === newId);
+                const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, newId);
                 void syncPricingSheetToServer(h, isAuthenticated, accessToken);
               }
             };

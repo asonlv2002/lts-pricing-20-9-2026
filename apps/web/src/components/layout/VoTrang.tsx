@@ -262,16 +262,23 @@ interface ThuocTinhThanhBen {
 }
 
 function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, dangMo, datDangMo, laMobile, policies, datHienDoiMatKhau }: ThuocTinhThanhBen) {
-  const [nhomDangMo, datNhomDangMo] = useState(() => timNhomTheoMenu(menuDangChon));
+  const [cacNhomDangMo, datCacNhomDangMo] = useState<string[]>(() => [timNhomTheoMenu(menuDangChon)]);
+  const [nhomMobileDangMo, datNhomMobileDangMo] = useState(() => timNhomTheoMenu(menuDangChon));
   const nhomHienThi = CAC_NHOM_MENU.filter(nhom => coTheXemNhomMenu(policies, nhom.id));
 
   useEffect(() => {
-    datNhomDangMo(timNhomTheoMenu(menuDangChon));
-  }, [menuDangChon, datNhomDangMo]);
+    const nhomTheoMenu = timNhomTheoMenu(menuDangChon);
+    datCacNhomDangMo(cacNhom => cacNhom.includes(nhomTheoMenu) ? cacNhom : [...cacNhom, nhomTheoMenu]);
+    datNhomMobileDangMo(nhomTheoMenu);
+  }, [menuDangChon]);
 
   const xuLyChonNhom = (id: string) => {
     if (!dangMo && !laMobile) datDangMo(true);
-    datNhomDangMo(nhomDangMo === id ? '' : id);
+    if (laMobile) {
+      datNhomMobileDangMo(nhomMobileDangMo === id ? '' : id);
+      return;
+    }
+    datCacNhomDangMo(cacNhom => cacNhom.includes(id) ? cacNhom.filter(nhom => nhom !== id) : [...cacNhom, id]);
   };
 
   const xuLyDieuHuong = (item: MucMenu) => {
@@ -310,7 +317,7 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
           {nhomHienThi.map((nhom) => {
             const laNhomTongQuan = nhom.id === 'overview';
             const laNhomDangChon = nhom.mucCon.some(item => item.key === menuDangChon);
-            const laNhomDangMo = nhomDangMo === nhom.id;
+            const laNhomDangMo = laMobile ? nhomMobileDangMo === nhom.id : cacNhomDangMo.includes(nhom.id);
             return (
               <div key={nhom.id} className={`lts-nav-group ${laNhomDangChon ? 'active' : ''} ${laNhomDangMo ? 'open' : ''}`}>
                 <button
