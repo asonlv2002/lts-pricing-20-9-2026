@@ -223,7 +223,7 @@ function doiSangDauVao(i: CalculateInput, bangGiaKhoNho?: GiaVatLieuKhoNho[]): D
     khoiLuongKhoa: i.zipperWeight || 0,
     khoiLuongBangKeo: i.tapeWeight || 0,
     coKhoa: i.hasZipper, coBangKeo: i.hasTape, coQuaiXach: i.hasHandle,
-    ngayThanhToan: i.paymentDays || 30,
+    ngayThanhToan: i.paymentDays ?? 30,
     loaiTruc: i.cylType ?? 'A',
     baoTruc: i.cylIncluded ?? false,
     cotLoiNhuan: i.profitColumn || 2,

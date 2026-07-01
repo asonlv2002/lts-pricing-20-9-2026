@@ -218,6 +218,11 @@ section('3. LÃI VAY (Interest) — ĐÃ SỬA');
   const input14 = { ...input30, paymentDays: 14 };
   const r14 = calculate(input14, mats, cons, prof)!;
   assertApprox('3.5 14 ngày / 30 ngày = 14/30', r14.interestPerUnit / r30.interestPerUnit, 14 / 30, 0.1);
+
+  const input0 = { ...input30, paymentDays: 0 };
+  const r0 = calculate(input0, mats, cons, prof)!;
+  assertApprox('3.6 0 ngày: interestPerUnit = 0', r0.interestPerUnit, 0, 0.001);
+  assertExact('3.7 giữ nguyên paymentDays = 0', r0.paymentDays, 0);
 }
 
 
