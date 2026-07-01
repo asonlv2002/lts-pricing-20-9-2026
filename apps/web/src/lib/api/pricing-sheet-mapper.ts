@@ -149,6 +149,7 @@ export function mapPricingSheetToHistory(
     pricingSheetId: sheet.id,
     priceConfigIds: sheet.priceConfigIds,
     originalCustomer: sheet.customerCodeName || sheet.customer?.codeName || syncedInput.customer || undefined,
+    sellerId: sheet.createdBy ?? undefined,
     sellerName: sheet.original?.actorName ?? undefined,
     input: syncedInput,
   };

@@ -9,7 +9,7 @@
 import React, { useState, useCallback } from 'react';
 import { X, FileDown, FileText, Loader2 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import type { HistoryItem, ProductionOrder, LSXManualFields } from '../lib/types';
+import type { LsxSourceData, ProductionOrder, LSXManualFields } from '../lib/types';
 import { exportLSXtoPDF, exportLSXtoDOCX } from '../lib/lsxExport';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -259,13 +259,13 @@ function TA({ value, onChange, placeholder, rows }: {
 
 // ── Main component ────────────────────────────────────────────────────────────
 interface Props {
-  historyItem: HistoryItem;
+  sourceData: LsxSourceData;
   onClose: () => void;
 }
 
-export default function LSXFormModal({ historyItem, onClose }: Props) {
+export default function LSXFormModal({ sourceData, onClose }: Props) {
   const { materials, productionOrders, themLSX, currentSellerName } = dungCuaHangTinhGia();
-  const inp = historyItem.input;
+  const inp = sourceData.input;
   const isMang = inp.productType === 'mang';
   const isTui = !isMang;
   const khoMM = Math.round(inp.spreadWidth * 1000);
@@ -274,7 +274,7 @@ export default function LSXFormModal({ historyItem, onClose }: Props) {
   const [manual, setManual] = useState<LSXManualFields>(() => {
     const m = defaultManual(genLSXNumber(productionOrders), currentSellerName);
     // Pre-fill từ HistoryItem
-    m.tenSP = historyItem.productName || '';
+    m.tenSP = sourceData.productName || '';
     m.printFilmName = getMaterialName(materials, inp.layer1Id);
     if (isTui) {
       m.laminateFilm1 = getMaterialName(materials, inp.layer2Id);
@@ -294,13 +294,13 @@ export default function LSXFormModal({ historyItem, onClose }: Props) {
   // Tạo snapshot từ HistoryItem + materials
   function buildSnapshot(): ProductionOrder['snapshot'] {
     const getMat = (id?: string | null) => getMaterialName(materials, id);
-    const result = historyItem.input;
+    const result = sourceData.input;
     const area = result.quantity * result.spreadWidth * result.cutStep;
     return {
-      customer: historyItem.customer,
-      productName: historyItem.productName,
+      customer: sourceData.customer,
+      productName: sourceData.productName,
       productType: inp.productType,
-      structure: historyItem.structure,
+      structure: sourceData.structure,
       quantity: inp.quantity,
       spreadWidth: inp.spreadWidth,
       cutStep: inp.cutStep,
@@ -314,7 +314,7 @@ export default function LSXFormModal({ historyItem, onClose }: Props) {
       layer3Name: getMat(inp.layer3Id),
       layer4Name: getMat(inp.layer4Id),
       layer5Name: getMat(inp.layer5Id),
-      chotGia: historyItem.chotGia || historyItem.finalPrice,
+      chotGia: sourceData.chotGia || sourceData.finalPrice,
       totalArea: Math.round(area * 100) / 100,
     };
   }
@@ -324,7 +324,7 @@ export default function LSXFormModal({ historyItem, onClose }: Props) {
     try {
       const order: ProductionOrder = {
         id: genOrderId(),
-        quoteId: historyItem.id,
+        quoteId: sourceData.id,
         createdAt: new Date().toISOString(),
         status: 'created',
         manual,
@@ -388,7 +388,7 @@ export default function LSXFormModal({ historyItem, onClose }: Props) {
           flexShrink: 0,
         }}>
           <div style={{ fontWeight: 700, fontSize: '13px', color: '#2E7D32' }}>
-            📋 Tạo Lệnh Sản Xuất {isMang ? 'MÀNG IN' : 'TÚI'} {historyItem.customer}
+            📋 Tạo Lệnh Sản Xuất {isMang ? 'MÀNG IN' : 'TÚI'} {sourceData.customer}
           </div>
           <button
             onClick={onClose}
@@ -462,7 +462,7 @@ export default function LSXFormModal({ historyItem, onClose }: Props) {
               <tr>
                 <td style={styles.lbl}>Khách hàng:</td>
                 <td colSpan={3} style={{ ...styles.td, fontWeight: 700 }}>
-                  {historyItem.customer || '...'}
+                  {sourceData.customer || '...'}
                 </td>
                 <td style={styles.lbl} colSpan={4}></td>
               </tr>
@@ -479,7 +479,7 @@ export default function LSXFormModal({ historyItem, onClose }: Props) {
               <tr>
                 <td style={styles.lbl}>Cấu trúc:</td>
                 <td style={styles.td}>
-                  {historyItem.structure || '...'}
+                  {sourceData.structure || '...'}
                 </td>
                 <td style={styles.lbl}>Khổ màng:</td>
                 <td colSpan={5} style={styles.td}><b>K{khoMM}mm</b></td>

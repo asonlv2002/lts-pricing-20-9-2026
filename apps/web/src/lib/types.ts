@@ -453,6 +453,17 @@ export interface CalculateResult {
   }
 }
 
+// ── LSX Source Data (dữ liệu đầu vào cho Modal LSX) ─────────────────────────
+export interface LsxSourceData {
+  id: string;
+  customer: string;
+  productName: string;
+  structure: string;
+  finalPrice: number;
+  chotGia?: number;
+  input: CalculateInput;
+}
+
 // ── Production Order (Lệnh Sản Xuất) ─────────────────────────────────────────
 export type LSXStatus = 'created' | 'in_production' | 'completed' | 'cancelled';
 
