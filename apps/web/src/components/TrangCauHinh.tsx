@@ -484,7 +484,7 @@ export default function TrangCauHinh({
   const soNgayCongNoMoi = Number(ngayCongNoMoi);
   const hopLeNgayCongNoMoi =
     Number.isInteger(soNgayCongNoMoi) &&
-    soNgayCongNoMoi > 0 &&
+    soNgayCongNoMoi >= 0 &&
     !mocNgayLaiVay.includes(soNgayCongNoMoi);
   const capNhatNgayCongNoMoi = (value: string) => {
     if (/^\d*$/.test(value)) datNgayCongNoMoi(value);

@@ -20,7 +20,7 @@ export function tinhLaiVay(params: { chiPhiDonVi: number; ngayThanhToan?: number
     const laiSuatPerDonVi = params.chiPhiDonVi * params.laiSuatMangIn;
     return { ngayThanhToanThucTe: 0, laiSuatCoBan: params.laiSuatMangIn, laiSuatThem: 0, laiSuatPerDonVi };
   }
-  const ngayThanhToanThucTe = params.ngayThanhToan || 30;
+  const ngayThanhToanThucTe = params.ngayThanhToan ?? 30;
   const laiSuatCoBan = params.laiSuatCoBan ?? 0.10;
   const laiSuatThem = params.laiSuatThem ?? 0.03;
   const laiSuatPerDonVi = (laiSuatCoBan + laiSuatThem) / 12 * (ngayThanhToanThucTe / 30) * params.chiPhiDonVi;

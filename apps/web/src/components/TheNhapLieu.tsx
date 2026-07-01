@@ -535,7 +535,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
     );
   };
 
-  const soNgayThanhToanHienTai = input.paymentDays || 30;
+  const soNgayThanhToanHienTai = input.paymentDays ?? 30;
   const laNhapMangTheoMet = input.productType === 'mang' && (input.filmQuantityUnit || 'm2') === 'meter';
   const slMangGoc = input.filmInputQuantity ?? input.quantity ?? 0;
   const dienTichMangQuyDoi = laNhapMangTheoMet ? slMangGoc * (input.spreadWidth || 0) : (input.quantity || 0);
