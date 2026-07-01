@@ -1,5 +1,5 @@
 "use client";
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, RefreshCw, Send, CheckCircle2, XCircle, Eye, X, ClipboardEdit, FileText, Inbox } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { normalizeDisplayText } from '../lib/text-codec';
@@ -7,15 +7,18 @@ import { QrevStyleInjector } from './qrev-styles';
 import { coQuyenDuyetBaoGia } from '../lib/permissions';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import type { CalculateInput, HistoryItem } from '../lib/types';
+import ChiTietBaoGiaSlidePanel from './ChiTietBaoGiaSlidePanel';
 import {
   layDanhSachBaoGiaService,
   layBaoGiaChoDuyetService,
+  layTaiKhoanService,
   nopBaoGiaService,
   duyetBaoGiaService,
   taoBanSuaBaoGiaService,
   chuyenTrangThaiBaoGia,
   NHAN_TRANG_THAI_BAO_GIA,
   type BaoGiaApi,
+  type TaiKhoanApi,
   type TrangThaiBaoGiaServer,
 } from '../lib/api/service-lts';
 
@@ -83,32 +86,12 @@ function mauAvatar(id: string): string {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
-function InfoRow({ label, value, bold, mono, color }: { label: string; value: string; bold?: boolean; mono?: boolean; color?: string }) {
-  return (
-    <div className="qrev-info-row">
-      <span className="qrev-info-label">{label}</span>
-      <span
-        className="qrev-info-value"
-        style={{ fontWeight: bold ? 700 : 500, fontFamily: mono ? 'monospace' : undefined, color }}
-      >
-        {value}
-      </span>
-    </div>
-  );
-}
-
 function laObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
 function docInputBangTinh(value: unknown): Partial<CalculateInput> {
   return laObject(value) ? (value as Partial<CalculateInput>) : {};
-}
-
-function cauTrucTuInput(input: Partial<CalculateInput>): string {
-  return [input.layer1Id, input.layer2Id, input.layer3Id, input.layer4Id, input.layer5Id]
-    .filter(Boolean)
-    .join(' / ');
 }
 
 function tenBaoGia(bg: BaoGiaApi): string {
@@ -129,158 +112,6 @@ function nguoiTaoBaoGia(bg: BaoGiaApi): string | undefined {
   return bg.original?.actorName ?? undefined;
 }
 
-interface ChiTietProps {
-  baoGia: BaoGiaApi;
-  onClose: () => void;
-  laNguoiDuyet: boolean;
-  dangXuLy: boolean;
-  onNop: (bg: BaoGiaApi) => void;
-  onDuyet: (bg: BaoGiaApi, quyetDinh: 'approved' | 'rejected') => void;
-  onTaoBanSua: (bg: BaoGiaApi) => void;
-}
-
-function ChiTietBaoGiaPanel({ baoGia, onClose, laNguoiDuyet, dangXuLy, onNop, onDuyet, onTaoBanSua }: ChiTietProps) {
-  const trangThai = chuyenTrangThaiBaoGia(baoGia.updateStatus);
-  const item = (baoGia.inputValue ?? {}) as Partial<HistoryItem>;
-  const pricingSheets = baoGia.pricingSheets ?? [];
-  const firstSheet = pricingSheets[0];
-  const firstInput = docInputBangTinh(firstSheet?.inputValue);
-  const coSnapshotCu = !!(item.productName || item.quoteProducts?.length || item.input);
-  const meta = getPricingDisplayMeta(coSnapshotCu ? (item.input ?? {}) : firstInput);
-  const coGiaChot = typeof item.chotGia === 'number' && item.chotGia > 0;
-  const dsSanPham = item.quoteProducts ?? [];
-  const khachHang = item.customer || firstInput.customer || firstSheet?.customer?.codeName || firstSheet?.customerCodeName || '—';
-  const tenSanPham = item.productName || firstInput.productName || firstSheet?.pricingSheetName || (pricingSheets.length ? `${pricingSheets.length} sản phẩm` : '—');
-  const cauTruc = item.structure || cauTrucTuInput(firstInput) || '—';
-  const soLuong = typeof item.quantity === 'number' ? item.quantity : firstInput.quantity;
-  const nguoiLap = nguoiTaoBaoGia(baoGia);
-
-  return (
-    <>
-      <div className="qrev-overlay" onClick={onClose} />
-      <aside className="qrev-slide-panel" role="dialog" aria-modal="true" aria-label="Chi tiết báo giá">
-        <div className="qrev-panel-header">
-          <div className="qrev-panel-avatar" style={{ background: mauAvatar(baoGia.id) }}>
-            <FileText size={18} />
-          </div>
-          <div className="qrev-panel-title">
-            <span className="qrev-panel-name">{tenBaoGia(baoGia)}</span>
-            <span className="qrev-panel-meta">
-              Tạo {dinhDangNgay(baoGia.createdAt)} · Cập nhật {dinhDangNgay(baoGia.updatedAt)}
-            </span>
-          </div>
-          <button className="qrev-btn-icon qrev-btn-icon--close" aria-label="Đóng" onClick={onClose}><X size={18} /></button>
-        </div>
-
-        <div className="qrev-panel-body">
-          <div className="qrev-panel-row">
-            <span className="qrev-panel-label">Trạng thái</span>
-            <HuyHieuTrangThai trangThai={trangThai} />
-          </div>
-
-          <div className="qrev-panel-section-title">Thông tin chung</div>
-          <div className="qrev-info-grid">
-            <InfoRow label="Khách hàng" value={normalizeDisplayText(String(khachHang))} />
-            <InfoRow label="Sản phẩm" value={normalizeDisplayText(String(tenSanPham))} />
-            <InfoRow label="Cấu trúc" value={normalizeDisplayText(cauTruc)} mono />
-            {typeof soLuong === 'number' && (
-              <InfoRow label="Số lượng" value={`${dinhDangSo(soLuong)} ${meta.quantityUnitForHistory}`} />
-            )}
-            {nguoiLap && <InfoRow label="Sale" value={normalizeDisplayText(nguoiLap)} />}
-          </div>
-
-          {typeof item.finalPrice === 'number' && (
-            <>
-              <div className="qrev-panel-section-title">Giá</div>
-              <div className="qrev-info-grid">
-                <InfoRow label={meta.priceTitle} value={`${dinhDangSo(item.finalPrice)} ₫`} bold />
-                {coGiaChot && (
-                  <InfoRow label={meta.closedPriceTitle} value={`${dinhDangSo(item.chotGia!)} ₫`} bold color="#059669" />
-                )}
-              </div>
-            </>
-          )}
-
-          {dsSanPham.length > 0 && (
-            <>
-              <div className="qrev-panel-section-title">Sản phẩm trong báo giá</div>
-              <div className="qrev-info-grid">
-                {dsSanPham.map(sp => (
-                  <div key={sp.sourceHistoryItemId} className="qrev-product-line">
-                    <div className="qrev-product-name">{sp.productName}</div>
-                    <div className="qrev-product-struct">{sp.structure}</div>
-                    {sp.tiers.map((tier, i) => (
-                      <div key={i} className="qrev-product-tier">
-                        {dinhDangSo(tier.quantity)} {meta.quantityUnitForHistory}: <b>{dinhDangSo(tier.chotGia ?? tier.finalPrice)} ₫</b>
-                      </div>
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {dsSanPham.length === 0 && pricingSheets.length > 0 && (
-            <>
-              <div className="qrev-panel-section-title">Sản phẩm trong báo giá</div>
-              <div className="qrev-info-grid">
-                {pricingSheets.map(sheet => {
-                  const input = docInputBangTinh(sheet.inputValue);
-                  const sheetMeta = getPricingDisplayMeta(input);
-                  const sheetStructure = cauTrucTuInput(input);
-                  return (
-                    <div key={sheet.id} className="qrev-product-line">
-                      <div className="qrev-product-name">{normalizeDisplayText(input.productName || sheet.pricingSheetName || 'Sản phẩm')}</div>
-                      {sheetStructure && <div className="qrev-product-struct">{normalizeDisplayText(sheetStructure)}</div>}
-                      {typeof input.quantity === 'number' && (
-                        <div className="qrev-product-tier">Số lượng: <b>{dinhDangSo(input.quantity)} {sheetMeta.quantityUnitForHistory}</b></div>
-                      )}
-                      {typeof input.numColors === 'number' && (
-                        <div className="qrev-product-tier">Màu in: <b>{input.numColors > 0 ? `${input.numColors} màu` : 'Không in'}</b></div>
-                      )}
-                      {(input.spreadWidth || input.cutStep) && (
-                        <div className="qrev-product-tier">
-                          Kích thước: <b>{input.spreadWidth ? `${Math.round(input.spreadWidth * 1000)}mm` : '—'} × {input.cutStep ? `${Math.round(input.cutStep * 1000)}mm` : '—'}</b>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
-
-        {(trangThai === 'drafted' || (trangThai === 'submitted' && laNguoiDuyet)
-          || trangThai === 'rejected' || trangThai === 'customer_rejected') && (
-          <div className="qrev-panel-footer">
-            {trangThai === 'drafted' && (
-              <button className="qrev-btn qrev-btn--primary" disabled={dangXuLy} onClick={() => onNop(baoGia)}>
-                <Send size={15} /> Nộp duyệt
-              </button>
-            )}
-            {trangThai === 'submitted' && laNguoiDuyet && (
-              <>
-                <button className="qrev-btn qrev-btn--ok" disabled={dangXuLy} onClick={() => onDuyet(baoGia, 'approved')}>
-                  <CheckCircle2 size={15} /> Duyệt
-                </button>
-                <button className="qrev-btn qrev-btn--danger" disabled={dangXuLy} onClick={() => onDuyet(baoGia, 'rejected')}>
-                  <XCircle size={15} /> Từ chối
-                </button>
-              </>
-            )}
-            {(trangThai === 'rejected' || trangThai === 'customer_rejected') && (
-              <button className="qrev-btn qrev-btn--ghost" disabled={dangXuLy} onClick={() => onTaoBanSua(baoGia)}>
-                <ClipboardEdit size={15} /> Tạo bản sửa
-              </button>
-            )}
-          </div>
-        )}
-      </aside>
-    </>
-  );
-}
-
 type Nguon = 'list' | 'review';
 
 export default function ModuleDuyetBaoGia() {
@@ -289,6 +120,23 @@ export default function ModuleDuyetBaoGia() {
   const nguoiDung = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
   const policies = nguoiDung?.policies ?? [];
   const laNguoiDuyet = coQuyenDuyetBaoGia(policies);
+
+  const [danhSachTaiKhoan, datDanhSachTaiKhoan] = useState<TaiKhoanApi[]>([]);
+  const daTaiTaiKhoan = useRef(false);
+
+  useEffect(() => {
+    if (!accessToken || daTaiTaiKhoan.current) return;
+    daTaiTaiKhoan.current = true;
+    layTaiKhoanService(accessToken).then(datDanhSachTaiKhoan).catch(() => {});
+  }, [accessToken]);
+
+  const banDoTaiKhoan = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const tk of danhSachTaiKhoan) {
+      if (tk.fullName) map.set(tk.id, tk.fullName);
+    }
+    return map;
+  }, [danhSachTaiKhoan]);
 
   // Nguồn dữ liệu: 'list' = GET /quotations; 'review' = quotation-in-review (chỉ reviewer)
   const [nguon, datNguon] = useState<Nguon>('list');
@@ -545,9 +393,10 @@ export default function ModuleDuyetBaoGia() {
       </div>
 
       {chiTiet && (
-        <ChiTietBaoGiaPanel
+        <ChiTietBaoGiaSlidePanel
           baoGia={chiTiet}
           onClose={() => datChiTiet(null)}
+          banDoTaiKhoan={banDoTaiKhoan}
           laNguoiDuyet={laNguoiDuyet}
           dangXuLy={dangXuLyId === chiTiet.id}
           onNop={bg => { datChiTiet(null); void nopBaoGia(bg); }}

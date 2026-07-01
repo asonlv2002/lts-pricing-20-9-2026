@@ -9,6 +9,7 @@ import type { LsxSourceData } from '../lib/types';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import LSXFormModal from './ModalDonLSX';
 import { mapBaoGiaToLsxSources, laBaoGiaDaDuyet, layNhanTrangThai, type AdapterContext } from '../lib/bao-gia-adapter';
+import ChiTietBaoGiaSlidePanel from './ChiTietBaoGiaSlidePanel';
 
 interface DisplayRow {
   source: LsxSourceData;
@@ -18,6 +19,7 @@ interface DisplayRow {
   nguoiTao: string;
   allSources: LsxSourceData[];
   sourceIndex: number;
+  quotation: BaoGiaApi;
 }
 
 export default function ModuleTaoLenhSanXuat() {
@@ -28,6 +30,7 @@ export default function ModuleTaoLenhSanXuat() {
   const [error, setError] = useState('');
   const [tuKhoa, setTuKhoa] = useState('');
   const [modalData, setModalData] = useState<{ sources: LsxSourceData[]; activeIndex: number } | null>(null);
+  const [chiTietBaoGia, setChiTietBaoGia] = useState<BaoGiaApi | null>(null);
 
   const [danhSachTaiKhoan, setDanhSachTaiKhoan] = useState<TaiKhoanApi[]>([]);
   const daTaiTaiKhoan = useRef(false);
@@ -103,6 +106,7 @@ export default function ModuleTaoLenhSanXuat() {
           nguoiTao,
           allSources: sources,
           sourceIndex,
+          quotation: q,
         });
       });
     }
@@ -118,6 +122,7 @@ export default function ModuleTaoLenhSanXuat() {
   return (
     <div className="crm-root quote-root">
       {modalData && <LSXFormModal sources={modalData.sources} activeIndex={modalData.activeIndex} onClose={() => setModalData(null)} />}
+      {chiTietBaoGia && <ChiTietBaoGiaSlidePanel baoGia={chiTietBaoGia} onClose={() => setChiTietBaoGia(null)} banDoTaiKhoan={banDoTaiKhoan} />}
 
       <div className="crm-toolbar">
         <div className="crm-search-box">
@@ -233,20 +238,29 @@ export default function ModuleTaoLenhSanXuat() {
                         </span>
                       </td>
                       <td style={{ padding: '9px 12px', verticalAlign: 'middle', textAlign: 'center' }}>
-                        <button
-                          className="btn btn-sm"
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: 5,
-                            background: existed ? 'var(--border)' : '#059669',
-                            color: existed ? 'var(--muted)' : '#fff',
-                            cursor: existed ? 'default' : 'pointer',
-                            fontSize: '0.78rem', padding: '5px 12px', borderRadius: 6,
-                          }}
-                          onClick={() => { if (!existed) setModalData({ sources: row.allSources, activeIndex: row.sourceIndex }); }}
-                          disabled={existed}
-                        >
-                          <PackageCheck size={13} /> {existed ? 'Đã có LSX' : 'Tạo LSX'}
-                        </button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                          <button
+                            className="btn btn-sm btn-outline"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', padding: '5px 10px', borderRadius: 6 }}
+                            onClick={() => setChiTietBaoGia(row.quotation)}
+                          >
+                            <FileText size={13} /> Chi tiết
+                          </button>
+                          <button
+                            className="btn btn-sm"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 5,
+                              background: existed ? 'var(--border)' : '#059669',
+                              color: existed ? 'var(--muted)' : '#fff',
+                              cursor: existed ? 'default' : 'pointer',
+                              fontSize: '0.78rem', padding: '5px 12px', borderRadius: 6,
+                            }}
+                            onClick={() => { if (!existed) setModalData({ sources: row.allSources, activeIndex: row.sourceIndex }); }}
+                            disabled={existed}
+                          >
+                            <PackageCheck size={13} /> {existed ? 'Đã có LSX' : 'Tạo LSX'}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
