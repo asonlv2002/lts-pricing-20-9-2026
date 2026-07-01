@@ -6,10 +6,11 @@
 // Layout giống y mẫu thực tế QT.ISO-22-BM02 (bảng có border, nền xanh/vàng).
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React, { useState, useCallback } from 'react';
-import { X, FileDown, FileText, Loader2 } from 'lucide-react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
+import { X, FileDown, FileText, Loader2, ChevronDown } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { LsxSourceData, ProductionOrder, LSXManualFields } from '../lib/types';
+import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, type LsxBagTypeInfo } from '../lib/lsx-bag-classification';
 import { exportLSXtoPDF, exportLSXtoDOCX } from '../lib/lsxExport';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -97,6 +98,15 @@ function defaultManual(lsxNumber: string, preparedBy: string): LSXManualFields {
     bagMachineWaste: 0,
     bagDeliveryReq: '',
     bagMachineNotes: '',
+    tamZipperCachMieng: 0,
+    loTreoInfo: '',
+    danLung: 0,
+    danLungLech: 0,
+    danDay: 0,
+    nap: 0,
+    songSieuAm: 0,
+    docQuaiXach: false,
+    danKeoNap: false,
   };
 }
 
@@ -259,33 +269,91 @@ function TA({ value, onChange, placeholder, rows }: {
 
 // ── Main component ────────────────────────────────────────────────────────────
 interface Props {
-  sourceData: LsxSourceData;
+  sources: LsxSourceData[];
+  activeIndex: number;
   onClose: () => void;
 }
 
-export default function LSXFormModal({ sourceData, onClose }: Props) {
+function buildShortLabel(s: LsxSourceData): string {
+  const loai = s.input.productType === 'mang' ? 'Màng' : 'Túi';
+  const sl = s.input.quantity.toLocaleString('vi-VN');
+  const dv = s.input.productType === 'mang' ? 'm²' : 'túi';
+  return `${s.productName} (${loai}, ${sl} ${dv})`;
+}
+
+export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
   const { materials, productionOrders, themLSX, currentSellerName } = dungCuaHangTinhGia();
+
+  const [currentIndex, setCurrentIndex] = useState(activeIndex);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+
+  const sourceData = sources[currentIndex] ?? sources[0];
   const inp = sourceData.input;
   const isMang = inp.productType === 'mang';
   const isTui = !isMang;
   const khoMM = Math.round(inp.spreadWidth * 1000);
   const dlMM = Math.round(inp.cutStep * 1000);
 
-  const [manual, setManual] = useState<LSXManualFields>(() => {
-    const m = defaultManual(genLSXNumber(productionOrders), currentSellerName);
-    // Pre-fill từ HistoryItem
-    m.tenSP = sourceData.productName || '';
-    m.printFilmName = getMaterialName(materials, inp.layer1Id);
-    if (isTui) {
-      m.laminateFilm1 = getMaterialName(materials, inp.layer2Id);
-      m.laminateFilm1Width = khoMM;
+  const autoBagType = useMemo(() => classifyLsxBagType(inp.bagType, inp.hasZipper), [inp.bagType, inp.hasZipper]);
+  const [overrideBagTypeKey, setOverrideBagTypeKey] = useState<string>('');
+
+  function getActiveBagType(): LsxBagTypeInfo {
+    if (overrideBagTypeKey) return classifyLsxBagTypeByKey(overrideBagTypeKey);
+    return autoBagType;
+  }
+
+  function applyBagDefaults(m: LSXManualFields, info: LsxBagTypeInfo): LSXManualFields {
+    const defs = info.defaults;
+    for (const key of Object.keys(defs) as (keyof LSXManualFields)[]) {
+      (m as unknown as Record<string, unknown>)[key] = defs[key];
     }
-    m.numCylinders = (inp.numColors || 0) as number;
-    m.soLuongDHNote = `${inp.quantity.toLocaleString('vi-VN')} ${isTui ? 'túi' : 'm²'}`;
     return m;
-  });
+  }
+
+  function initManual(s: LsxSourceData, bagInfo: LsxBagTypeInfo) {
+    const i = s.input;
+    const m = defaultManual(genLSXNumber(productionOrders), currentSellerName);
+    const tui = i.productType !== 'mang';
+    m.tenSP = s.productName || '';
+    m.printFilmName = getMaterialName(materials, i.layer1Id);
+    if (tui) {
+      m.laminateFilm1 = getMaterialName(materials, i.layer2Id);
+      m.laminateFilm1Width = Math.round(i.spreadWidth * 1000);
+    }
+    m.numCylinders = (i.numColors || 0) as number;
+    m.soLuongDHNote = `${i.quantity.toLocaleString('vi-VN')} ${tui ? 'túi' : 'm²'}`;
+    if (tui) applyBagDefaults(m, bagInfo);
+    return m;
+  }
+
+  const [manual, setManual] = useState<LSXManualFields>(() => initManual(sourceData, autoBagType));
   const [loading, setLoading] = useState<'pdf' | 'docx' | null>(null);
   const [done, setDone] = useState(false);
+
+  useEffect(() => {
+    const s = sources[currentIndex] ?? sources[0];
+    if (!s) return;
+    const bagInfo = classifyLsxBagType(s.input.bagType, s.input.hasZipper);
+    setOverrideBagTypeKey('');
+    setManual(initManual(s, bagInfo));
+    setDone(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentIndex]);
+
+  const showDropdown = sources.length > 1;
+
+  const activeBagType = getActiveBagType();
+
+  function isFieldVisible(field: keyof LSXManualFields): boolean {
+    if (!isTui) return false;
+    const commonFields: (keyof LSXManualFields)[] = [
+      'soLuongDHNote', 'packagingNotes', 'deliveryNotes',
+      'bagWasteMeters', 'bagMachineNotes', 'bagDeliveryReq', 'bagLuuY', 'bagMachineWaste',
+    ];
+    if (commonFields.includes(field)) return true;
+    if (activeBagType.key === 'fallback') return true;
+    return activeBagType.extraFields.includes(field);
+  }
 
   const upd = useCallback(<K extends keyof LSXManualFields>(key: K, val: LSXManualFields[K]) => {
     setManual(prev => ({ ...prev, [key]: val }));
@@ -306,6 +374,7 @@ export default function LSXFormModal({ sourceData, onClose }: Props) {
       cutStep: inp.cutStep,
       numColors: inp.numColors,
       bagType: inp.bagType,
+      hasZipper: inp.hasZipper || false,
       cylLength: inp.cylLength,
       cylCircum: inp.cylCircum,
       filmRollLength: inp.filmRollLength,
@@ -387,12 +456,57 @@ export default function LSXFormModal({ sourceData, onClose }: Props) {
           background: '#f9f9f9',
           flexShrink: 0,
         }}>
-          <div style={{ fontWeight: 700, fontSize: '13px', color: '#2E7D32' }}>
-            📋 Tạo Lệnh Sản Xuất {isMang ? 'MÀNG IN' : 'TÚI'} {sourceData.customer}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: '13px', color: '#2E7D32', whiteSpace: 'nowrap' }}>
+              📋 Tạo Lệnh Sản Xuất
+            </div>
+            {showDropdown && (
+              <div style={{ position: 'relative' }}>
+                <button
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '3px 8px', fontSize: '11px', fontWeight: 600,
+                    border: '1px solid #2E7D32', borderRadius: 4,
+                    background: dropdownOpen ? '#e8f5e9' : '#fff',
+                    color: '#2E7D32', cursor: 'pointer', whiteSpace: 'nowrap',
+                  }}
+                  onClick={() => setDropdownOpen(!dropdownOpen)}
+                >
+                  {buildShortLabel(sourceData)} <ChevronDown size={12} />
+                </button>
+                {dropdownOpen && (
+                  <>
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 1099 }} onClick={() => setDropdownOpen(false)} />
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, zIndex: 1100,
+                      background: '#fff', border: '1px solid #ccc', borderRadius: 6,
+                      boxShadow: '0 6px 20px rgba(0,0,0,0.15)', minWidth: 280, marginTop: 4,
+                      overflow: 'hidden',
+                    }}>
+                      {sources.map((s, i) => (
+                        <div
+                          key={s.id}
+                          style={{
+                            padding: '7px 12px', fontSize: '12px', cursor: 'pointer',
+                            background: i === currentIndex ? '#e8f5e9' : '#fff',
+                            color: i === currentIndex ? '#2E7D32' : '#333',
+                            fontWeight: i === currentIndex ? 700 : 400,
+                            borderBottom: i < sources.length - 1 ? '1px solid #eee' : 'none',
+                          }}
+                          onClick={() => { setCurrentIndex(i); setDropdownOpen(false); }}
+                        >
+                          {buildShortLabel(s)}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
           <button
             onClick={onClose}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', padding: '4px' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#999', padding: '4px', flexShrink: 0 }}
           >
             <X size={18} />
           </button>
@@ -726,15 +840,29 @@ export default function LSXFormModal({ sourceData, onClose }: Props) {
                   <td colSpan={8} style={styles.secBlue}>MÁY LÀM TÚI</td>
                 </tr>
 
-                {/* Row: Số lượng + Kiểu túi */}
+                {/* Row: Số lượng + Kiểu túi (LSX) */}
                 <tr>
                   <td style={styles.lbl}>Số lượng :</td>
                   <td colSpan={3} style={styles.td}>
                     <TI value={manual.soLuongDHNote} onChange={v => upd('soLuongDHNote', v)} placeholder="5.400 túi -6.000 túi" style={{ ...styles.boldVal }} />
                   </td>
-                  <td style={styles.lbl}>Kiểu túi:</td>
-                  <td colSpan={3} style={{ ...styles.td, fontWeight: 700 }}>
-                    <TI value={inp.bagType || 'TÚI 4 BIÊN'} onChange={() => {}} style={{ fontWeight: 700 }} />
+                  <td style={styles.lbl}>Kiểu túi (LSX):</td>
+                  <td colSpan={3} style={styles.td}>
+                    <select
+                      style={{ ...styles.input, fontWeight: 700, fontSize: '12px' }}
+                      value={overrideBagTypeKey || autoBagType.key}
+                      onChange={e => {
+                        const key = e.target.value;
+                        setOverrideBagTypeKey(key === autoBagType.key ? '' : key);
+                        upd('lsxBagTypeOverride', key === autoBagType.key ? undefined : key);
+                      }}
+                    >
+                      {ALL_LSX_BAG_TYPES.map(t => (
+                        <option key={t.key} value={t.key}>
+                          {t.label}{t.key === autoBagType.key ? ' (tự suy)' : ''}
+                        </option>
+                      ))}
+                    </select>
                   </td>
                 </tr>
 
@@ -767,36 +895,126 @@ export default function LSXFormModal({ sourceData, onClose }: Props) {
                   </td>
                 </tr>
 
-                {/* Row: Xếp hông */}
+                {/* Row: YÊU CẦU GIAO HÀNG + các field động */}
                 <tr>
                   <td style={styles.lbl}>YÊU CẦU GIAO HÀNG:</td>
                   <td colSpan={3} rowSpan={4} style={{ ...styles.td, verticalAlign: 'top' }}>
                     <TA value={manual.deliveryNotes} onChange={v => upd('deliveryNotes', v)}
                       placeholder="=> PHÁT HIỆN LỖI BÁO CẤP TRÊN ĐỂ&#10;PHÂN LOẠI" rows={4} />
                   </td>
-                  <td style={styles.lbl}>Xếp hông:</td>
-                  <td style={styles.td}>
-                    <NI value={manual.xepHong} onChange={v => upd('xepHong', v)} placeholder="60" />mm
-                  </td>
+                  {isFieldVisible('xepHong') ? (
+                    <>
+                      <td style={styles.lbl}>Xếp hông:</td>
+                      <td style={styles.td}>
+                        <NI value={manual.xepHong} onChange={v => upd('xepHong', v)} placeholder="60" />mm
+                      </td>
+                    </>
+                  ) : (
+                    <td colSpan={2} style={styles.td}></td>
+                  )}
                   <td colSpan={2} style={styles.td}></td>
                 </tr>
 
-                {/* Row: Đục lỗ */}
+                {/* Row: Dán lưng / Dán lưng lệch */}
+                {isFieldVisible('danLung') && (
+                  <tr>
+                    <td style={styles.lbl}>Dán lưng:</td>
+                    <td style={styles.td}>
+                      <NI value={manual.danLung} onChange={v => upd('danLung', v)} placeholder="13" />mm
+                    </td>
+                    <td colSpan={2} style={styles.td}></td>
+                  </tr>
+                )}
+                {isFieldVisible('danLungLech') && (
+                  <tr>
+                    <td style={styles.lbl}>Dán lưng lệch:</td>
+                    <td style={styles.td}>
+                      <NI value={manual.danLungLech} onChange={v => upd('danLungLech', v)} placeholder="10" />mm
+                    </td>
+                    <td style={styles.lbl}>Dán đáy:</td>
+                    <td style={styles.td}>
+                      <NI value={manual.danDay} onChange={v => upd('danDay', v)} placeholder="10" />mm
+                    </td>
+                  </tr>
+                )}
+                {isFieldVisible('nap') && (
+                  <tr>
+                    <td style={styles.lbl}>Nắp:</td>
+                    <td style={styles.td}>
+                      <NI value={manual.nap} onChange={v => upd('nap', v)} placeholder="35" />mm
+                    </td>
+                    <td style={styles.lbl}>Sóng siêu âm:</td>
+                    <td style={styles.td}>
+                      <NI value={manual.songSieuAm} onChange={v => upd('songSieuAm', v)} placeholder="32" />mm
+                    </td>
+                  </tr>
+                )}
+                {!isFieldVisible('danLung') && !isFieldVisible('danLungLech') && !isFieldVisible('nap') && (
+                  <tr><td colSpan={4} style={styles.td}></td></tr>
+                )}
+
+                {/* Row: Đục lỗ / Tâm zipper */}
+                {isFieldVisible('holePunchInfo') && (
+                  <tr>
+                    <td colSpan={4} style={styles.td}>
+                      <TI value={manual.holePunchInfo} onChange={v => upd('holePunchInfo', v)}
+                        placeholder="Đục 3 lỗ trên quai xách( Theo Market)" />
+                    </td>
+                  </tr>
+                )}
+                {isFieldVisible('tamZipperCachMieng') && (
+                  <tr>
+                    <td style={styles.lbl}>Tâm zipper cách miệng:</td>
+                    <td style={styles.td}>
+                      <NI value={manual.tamZipperCachMieng} onChange={v => upd('tamZipperCachMieng', v)} placeholder="30" />mm
+                    </td>
+                    <td colSpan={2} style={styles.td}></td>
+                  </tr>
+                )}
+
+                {/* Row: Lỗ thông hơi / Nhấn xé V */}
                 <tr>
-                  <td colSpan={4} style={styles.td}>
-                    <TI value={manual.holePunchInfo} onChange={v => upd('holePunchInfo', v)}
-                      placeholder="Đục 3 lỗ trên quai xách( Theo Market)" />
-                  </td>
+                  {isFieldVisible('ventHoleInfo') ? (
+                    <td colSpan={2} style={styles.td}>
+                      <span style={{ fontSize: '11px' }}>Đục lỗ thông hơi </span>
+                      <TI value={manual.ventHoleInfo} onChange={v => upd('ventHoleInfo', v)} placeholder="6 lỗ/ mặt : Ø1mm" style={{ width: '60%' }} />
+                    </td>
+                  ) : isFieldVisible('tearNotch') ? (
+                    <td colSpan={2} style={styles.td}>
+                      <span style={{ fontSize: '11px' }}>Nhấn xé V: </span>
+                      <TI value={manual.tearNotch} onChange={v => upd('tearNotch', v)} placeholder="2 bên cách miệng 15mm" style={{ width: '60%' }} />
+                    </td>
+                  ) : isFieldVisible('loTreoInfo') ? (
+                    <td colSpan={2} style={styles.td}>
+                      <span style={{ fontSize: '11px' }}>Lỗ treo: </span>
+                      <TI value={manual.loTreoInfo} onChange={v => upd('loTreoInfo', v)} placeholder="Ø8mm ở giữa" style={{ width: '60%' }} />
+                    </td>
+                  ) : (
+                    <td colSpan={2} style={styles.td}></td>
+                  )}
+                  {(isFieldVisible('sealEdge') || isFieldVisible('foldBottom') || isFieldVisible('docQuaiXach') || isFieldVisible('danKeoNap')) ? (
+                    <td colSpan={2} style={styles.td}>
+                      {isFieldVisible('sealEdge') && <><span style={{ fontSize: '11px' }}>Dán biên: </span><TI value={manual.sealEdge} onChange={v => upd('sealEdge', v)} placeholder="10mm" style={{ width: '50%' }} /></>}
+                      {isFieldVisible('foldBottom') && <><span style={{ fontSize: '11px' }}>Xếp đáy: </span><TI value={manual.foldBottom} onChange={v => upd('foldBottom', v)} placeholder="100mm" style={{ width: '50%' }} /></>}
+                      {isFieldVisible('docQuaiXach') && <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '11px' }}><input type="checkbox" checked={manual.docQuaiXach} onChange={e => upd('docQuaiXach', e.target.checked)} />Đọc quai xách</label>}
+                      {isFieldVisible('danKeoNap') && <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '11px' }}><input type="checkbox" checked={manual.danKeoNap} onChange={e => upd('danKeoNap', e.target.checked)} />Dán keo nắp</label>}
+                    </td>
+                  ) : (
+                    <td colSpan={2} style={styles.td}></td>
+                  )}
                 </tr>
 
-                {/* Row: Lỗ thông hơi */}
-                <tr>
-                  <td colSpan={2} style={styles.td}>
-                    <span style={{ fontSize: '11px' }}>Đục lỗ thông hơi </span>
-                    <TI value={manual.ventHoleInfo} onChange={v => upd('ventHoleInfo', v)} placeholder="6 lỗ/ mặt : Ø1mm" style={{ width: '60%' }} />
-                  </td>
-                  <td colSpan={2} style={styles.td}></td>
-                </tr>
+                {/* Row: Khuôn bán nguyệt + Dao cắt 2 nhịp */}
+                {(isFieldVisible('useSemicircularMold') || isFieldVisible('useDualCutter')) && (
+                  <tr>
+                    <td colSpan={2} style={styles.td}>
+                      {isFieldVisible('useSemicircularMold') && <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '11px' }}><input type="checkbox" checked={manual.useSemicircularMold} onChange={e => upd('useSemicircularMold', e.target.checked)} />Dùng khuôn đáy bán nguyệt</label>}
+                    </td>
+                    <td colSpan={2} style={styles.td}>
+                      {isFieldVisible('useDualCutter') && <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '11px' }}><input type="checkbox" checked={manual.useDualCutter} onChange={e => upd('useDualCutter', e.target.checked)} />Dùng dao cắt 2 nhịp</label>}
+                    </td>
+                  </tr>
+                )}
 
                 {/* Row: ĐM phi hao + Ghi chú */}
                 <tr>

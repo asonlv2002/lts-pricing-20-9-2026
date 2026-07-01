@@ -553,6 +553,19 @@ export interface LSXManualFields {
   bagMachineWaste: number;      // Định mức phi hao máy túi (%)
   bagDeliveryReq: string;       // Yêu cầu giao hàng
   bagMachineNotes: string;      // Ghi chú máy làm túi
+
+  // Field mới cho 8 kiểu túi LSX (Section 13)
+  tamZipperCachMieng: number;   // Tâm zipper cách miệng (mm) — zipper cắt seal, đáy đứng
+  loTreoInfo: string;           // Lỗ treo (text) — zipper cắt seal
+  danLung: number;              // Dán lưng (mm) — dán lưng giữa
+  danLungLech: number;          // Dán lưng lệch (mm) — xếp hông lưng lệch
+  danDay: number;               // Dán đáy (mm) — xếp hông lưng lệch
+  nap: number;                  // Nắp (mm) — cắt seal nắp băng keo
+  songSieuAm: number;           // Sóng siêu âm (mm) — cắt seal nắp băng keo
+  docQuaiXach: boolean;         // Đọc quai xách — cắt seal nắp băng keo
+  danKeoNap: boolean;           // Dán keo nắp — cắt seal nắp băng keo
+
+  lsxBagTypeOverride?: string;  // Admin override kiểu túi LSX
 }
 
 export interface ProductionOrder {
@@ -572,6 +585,7 @@ export interface ProductionOrder {
     cutStep: number;            // Bước cắt (m → hiển thị mm)
     numColors: number | null;
     bagType: string;
+    hasZipper: boolean;          // Có zipper hay không (để phân loại LSX khi export)
     cylLength: number;          // Chiều dài trục (m)
     cylCircum: number;          // Chu vi trục (m)
     filmRollLength: number;     // Chiều dài cuộn màng (m)

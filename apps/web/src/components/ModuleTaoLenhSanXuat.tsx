@@ -16,6 +16,8 @@ interface DisplayRow {
   createdAt: string;
   trangThai: ReturnType<typeof layNhanTrangThai>;
   nguoiTao: string;
+  allSources: LsxSourceData[];
+  sourceIndex: number;
 }
 
 export default function ModuleTaoLenhSanXuat() {
@@ -25,7 +27,7 @@ export default function ModuleTaoLenhSanXuat() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [tuKhoa, setTuKhoa] = useState('');
-  const [selectedSource, setSelectedSource] = useState<LsxSourceData | null>(null);
+  const [modalData, setModalData] = useState<{ sources: LsxSourceData[]; activeIndex: number } | null>(null);
 
   const [danhSachTaiKhoan, setDanhSachTaiKhoan] = useState<TaiKhoanApi[]>([]);
   const daTaiTaiKhoan = useRef(false);
@@ -81,7 +83,7 @@ export default function ModuleTaoLenhSanXuat() {
       const trangThai = layNhanTrangThai(q.updateStatus);
 
       const sources = mapBaoGiaToLsxSources(q, ctx);
-      for (const source of sources) {
+      sources.forEach((source, sourceIndex) => {
         if (lower) {
           const haystack = [
             q.quotationName,
@@ -90,11 +92,19 @@ export default function ModuleTaoLenhSanXuat() {
             source.productName,
             source.structure,
           ].filter(Boolean).map(v => String(v).toLowerCase());
-          if (!haystack.some(v => v.includes(lower))) continue;
+          if (!haystack.some(v => v.includes(lower))) return;
         }
 
-        rows.push({ source, quotationName: q.quotationName, createdAt: q.createdAt, trangThai, nguoiTao });
-      }
+        rows.push({
+          source,
+          quotationName: q.quotationName,
+          createdAt: q.createdAt,
+          trangThai,
+          nguoiTao,
+          allSources: sources,
+          sourceIndex,
+        });
+      });
     }
 
     rows.sort((a, b) => b.source.id.localeCompare(a.source.id));
@@ -107,7 +117,7 @@ export default function ModuleTaoLenhSanXuat() {
 
   return (
     <div className="crm-root quote-root">
-      {selectedSource && <LSXFormModal sourceData={selectedSource} onClose={() => setSelectedSource(null)} />}
+      {modalData && <LSXFormModal sources={modalData.sources} activeIndex={modalData.activeIndex} onClose={() => setModalData(null)} />}
 
       <div className="crm-toolbar">
         <div className="crm-search-box">
@@ -232,7 +242,7 @@ export default function ModuleTaoLenhSanXuat() {
                             cursor: existed ? 'default' : 'pointer',
                             fontSize: '0.78rem', padding: '5px 12px', borderRadius: 6,
                           }}
-                          onClick={() => { if (!existed) setSelectedSource(source); }}
+                          onClick={() => { if (!existed) setModalData({ sources: row.allSources, activeIndex: row.sourceIndex }); }}
                           disabled={existed}
                         >
                           <PackageCheck size={13} /> {existed ? 'Đã có LSX' : 'Tạo LSX'}
