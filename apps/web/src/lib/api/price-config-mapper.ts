@@ -46,7 +46,7 @@ const SCOPE_CONSTANT_KEYS: Record<ConfigScope, (keyof AppConstants)[]> = {
     'boxPriceDefault', 'bagsPerBoxDefault', 'boxOptions',
     'shippingPerKmDefault', 'shippingKmDefault',
   ],
-  interest: ['interestBase', 'interestSpread', 'paymentDays'],
+  interest: ['interestBase', 'interestSpread', 'paymentDays', 'customPaymentDays'],
   waste: ['printWasteA', 'printWasteB', 'printWasteC', 'printWasteD', 'colorSetup',
           'ghepWasteA', 'ghepWasteB', 'ghepWasteC', 'cutWasteA', 'cutWasteB', 'cutWasteC'],
   outsource: [],
