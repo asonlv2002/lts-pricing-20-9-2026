@@ -16,6 +16,7 @@ import { taoBaoGiaService, nopBaoGiaService, taoPricingSheetService } from '../l
 import { mapHistoryToPricingSheet } from '../lib/api/pricing-sheet-mapper';
 import { kiemTraMaKhachHang, laNguoiPhuTrach, locKhachTheoQuyen } from '../lib/customer-api';
 import { countOverrideChanges, listOverrideChanges } from '../lib/override-display';
+import { buildDefaultBagSpec, shouldShowBagSpecField, type QuoteProductBagSpec } from '../lib/quote-product-spec';
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
 interface Customer {
@@ -84,6 +85,7 @@ function buildWizardProductFromHistoryItem(item: HistoryItem): WizardProduct {
   return {
     historyItem: item,
     tiers: [{ quantity: item.quantity, finalPrice: item.finalPrice, baoGia: item.chotGia ?? item.finalPrice }],
+    bagSpec: buildDefaultBagSpec(item.input),
   };
 }
 
@@ -97,6 +99,8 @@ interface TierRow {
 interface WizardProduct {
   historyItem: HistoryItem;
   tiers: TierRow[];
+  bagSpec: QuoteProductBagSpec;
+  expanded?: boolean;
 }
 
 interface WizardState {
@@ -186,6 +190,24 @@ const WIZARD_STYLES = `
 .wiz-add-tier:hover { text-decoration: underline; }
 .wiz-add-product { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1.5px dashed var(--border, #e5e7eb); border-radius: 10px; font-size: 0.85rem; color: var(--accent, #0891b2); background: transparent; cursor: pointer; width: 100%; justify-content: center; transition: all 0.15s; margin-top: 4px; }
 .wiz-add-product:hover { border-color: var(--accent, #0891b2); background: rgba(8,145,178,0.04); }
+.wiz-spec-toggle { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--border, #e5e7eb); background: var(--background, #fff); color: var(--foreground, #111); border-radius: 7px; padding: 4px 9px; font-size: 0.76rem; font-weight: 650; cursor: pointer; }
+.wiz-spec-toggle:hover { border-color: var(--accent, #0891b2); color: var(--accent, #0891b2); }
+.wiz-bag-spec { padding: 12px 14px 14px; border-bottom: 1px solid var(--border, #e5e7eb); background: linear-gradient(180deg, rgba(8,145,178,0.045), rgba(8,145,178,0.015)); }
+.wiz-bag-spec-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; font-size: 0.78rem; font-weight: 800; color: var(--muted, #6b7280); text-transform: uppercase; letter-spacing: 0.045em; }
+.wiz-bag-spec-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.wiz-bag-field { display: flex; flex-direction: column; gap: 4px; }
+.wiz-bag-label { font-size: 0.72rem; font-weight: 700; color: var(--muted, #6b7280); }
+.wiz-bag-input, .wiz-bag-select { width: 100%; min-height: 34px; border: 1px solid var(--border, #e5e7eb); border-radius: 7px; padding: 5px 8px; background: var(--background, #fff); color: var(--foreground, #111); font-size: 0.82rem; box-sizing: border-box; outline: none; }
+.wiz-bag-input:focus, .wiz-bag-select:focus { border-color: var(--accent, #0891b2); box-shadow: 0 0 0 2px rgba(8,145,178,0.12); }
+.wiz-bag-checks { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 12px; }
+.wiz-bag-check { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; font-weight: 650; color: var(--foreground, #111); }
+.wiz-bag-hint { font-size: 0.72rem; color: var(--muted, #6b7280); margin-top: 4px; }
+.wiz-bag-total { min-height: 34px; display: flex; align-items: center; border: 1px dashed var(--border, #e5e7eb); border-radius: 7px; padding: 5px 8px; background: rgba(255,255,255,0.55); font-size: 0.82rem; font-weight: 700; }
+.wiz-desc-block { margin-top: 12px; padding: 10px 12px; background: var(--surface, #f9fafb); border-radius: 8px; border: 1px solid var(--border, #e5e7eb); }
+.wiz-desc-title { font-size: 0.72rem; font-weight: 800; color: var(--muted, #6b7280); text-transform: uppercase; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--border, #e5e7eb); }
+.wiz-desc-row { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 0.82rem; line-height: 1.45; }
+.wiz-desc-label { flex-shrink: 0; width: 120px; font-weight: 650; color: var(--muted, #6b7280); font-size: 0.78rem; }
+.wiz-desc-value { color: var(--foreground, #111); word-break: break-word; }
 .wiz-product-search-dropdown { border: 1px solid var(--border, #e5e7eb); border-radius: 8px; max-height: 260px; overflow-y: auto; background: var(--background, #fff); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
 .wiz-product-option { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border, #e5e7eb); transition: background 0.1s; }
 .wiz-product-option:last-child { border-bottom: none; }
@@ -250,6 +272,8 @@ const WIZARD_STYLES = `
   .quote-wizard-mobile-action .wiz-btn { min-height: 46px; justify-content: center; border-radius: 14px; font-size: 14px; }
   .quote-wizard-mobile-action .wiz-btn--primary { flex: 1; background: #4f46e5; }
   .quote-wizard-mobile-action .wiz-btn--secondary { width: 104px; }
+  .wiz-bag-spec-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wiz-bag-spec { padding: 12px; }
   .wiz-customer-summary { padding: 14px; border-radius: 18px; box-shadow: 0 2px 8px rgba(15,23,42,0.04); }
   .wiz-customer-picker-trigger { border-radius: 14px; }
   .wiz-customer-sheet { max-height: 82dvh; }
@@ -1061,6 +1085,8 @@ function BuocChonSanPham({
     const newProduct: WizardProduct = {
       historyItem: item,
       tiers: [{ quantity: item.quantity, finalPrice: item.finalPrice, baoGia: item.chotGia || item.finalPrice }],
+      bagSpec: buildDefaultBagSpec(item.input),
+      expanded: true,
     };
     onProductsChange([...products, newProduct]);
     setShowSearch(false);
@@ -1110,6 +1136,14 @@ function BuocChonSanPham({
     ));
   };
 
+  const toggleProductExpanded = (pIdx: number) => {
+    onProductsChange(products.map((p, i) => i === pIdx ? { ...p, expanded: !p.expanded } : p));
+  };
+
+  const updateBagSpec = <K extends keyof QuoteProductBagSpec>(pIdx: number, field: K, val: QuoteProductBagSpec[K]) => {
+    onProductsChange(products.map((p, i) => i === pIdx ? { ...p, bagSpec: { ...p.bagSpec, [field]: val } } : p));
+  };
+
   return (
     <div>
       <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(8,145,178,0.06)', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1119,6 +1153,7 @@ function BuocChonSanPham({
       </div>
 
       {products.map((prod, pIdx) => {
+        const isTui = prod.historyItem.input.productType === 'tui';
         const spreadMm = prod.historyItem.input.spreadWidth ? Math.round(prod.historyItem.input.spreadWidth * 1000) : 0;
         const cutMm = prod.historyItem.input.cutStep ? Math.round(prod.historyItem.input.cutStep * 1000) : 0;
         return (
@@ -1140,7 +1175,250 @@ function BuocChonSanPham({
               >
                 <Trash2 size={12} /> Xóa
               </button>
+              {isTui && (
+              <button
+                className="wiz-spec-toggle"
+                onClick={() => toggleProductExpanded(pIdx)}
+                aria-expanded={!!prod.expanded}
+              >
+                {prod.expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                {prod.expanded ? 'Thu gọn' : 'Mở rộng'}
+              </button>
+              )}
             </div>
+
+            {prod.expanded && isTui && (() => {
+              const spec = prod.bagSpec;
+              const inp = prod.historyItem.input;
+              const showSideSeal = shouldShowBagSpecField(spec.bagType, 'sideSeal');
+              const showGusset = shouldShowBagSpecField(spec.bagType, 'gusset');
+              const showBackSeal = shouldShowBagSpecField(spec.bagType, 'backSeal');
+              const showStandup = shouldShowBagSpecField(spec.bagType, 'standupBottom');
+              const backSealLabel = spec.bagType === 'xephong_lech' ? 'Lưng lệch (mm)' : 'Lưng giữa (mm)';
+              const hasZipper = Boolean(inp.hasZipper);
+              const hasHandle = Boolean(inp.hasHandle);
+              const bagTypeLabel = (['dayDung', '3bien', 'cutSeal'].includes(spec.bagType) ? (hasZipper ? 'Túi zipper ' : 'Túi ') : 'Túi ')
+                + ({ '3bien': '3 biên', '4bien': '4 biên', 'xephong_lech': 'xếp hông dán lưng lệch', 'xephong_giua': 'xếp hông dán lưng giữa', 'dayDung': 'đáy đứng', 'cutSeal': 'cut seal' })[spec.bagType] || spec.bagType;
+              return (
+                <div className="wiz-bag-spec">
+                  <div className="wiz-bag-spec-title">
+                    <span>Quy cách túi</span>
+                  </div>
+                  <div className="wiz-bag-spec-grid">
+                    <label className="wiz-bag-field">
+                      <span className="wiz-bag-label">Loại túi</span>
+                      <span className="wiz-bag-total">{spec.bagType || '—'}</span>
+                    </label>
+                    <label className="wiz-bag-field">
+                      <span className="wiz-bag-label">Chiều rộng (mm)</span>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <input className="wiz-bag-input" type="number" min={0} value={spec.widthMm || ''} onChange={e => updateBagSpec(pIdx, 'widthMm', Number(e.target.value))} style={{ flex: 1 }} />
+                        <span className="wiz-bag-hint">±2</span>
+                      </div>
+                    </label>
+                    <label className="wiz-bag-field">
+                      <span className="wiz-bag-label">Chiều dài (mm)</span>
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <input className="wiz-bag-input" type="number" min={0} value={spec.lengthMm || ''} onChange={e => updateBagSpec(pIdx, 'lengthMm', Number(e.target.value))} style={{ flex: 1 }} />
+                        <span className="wiz-bag-hint">±3</span>
+                      </div>
+                    </label>
+                    {showSideSeal && (
+                      <label className="wiz-bag-field">
+                        <span className="wiz-bag-label">Hàn biên (mm)</span>
+                        <input className="wiz-bag-input" type="number" min={0} value={spec.sideSealMm || ''} onChange={e => updateBagSpec(pIdx, 'sideSealMm', Number(e.target.value))} />
+                      </label>
+                    )}
+                    <label className="wiz-bag-field">
+                      <span className="wiz-bag-label">Kiểu hàn</span>
+                      <select className="wiz-bag-select" value={spec.sealKind} onChange={e => updateBagSpec(pIdx, 'sealKind', e.target.value as QuoteProductBagSpec['sealKind'])}>
+                        <option value="head">Hàn đầu</option>
+                        <option value="bottom">Hàn đáy</option>
+                      </select>
+                    </label>
+                    <label className="wiz-bag-field">
+                      <span className="wiz-bag-label">Giá trị hàn (mm)</span>
+                      <input className="wiz-bag-input" type="number" min={0} value={spec.sealMm || ''} onChange={e => updateBagSpec(pIdx, 'sealMm', Number(e.target.value))} />
+                    </label>
+                    {showGusset && (
+                      <label className="wiz-bag-field">
+                        <span className="wiz-bag-label">Hông (mm)</span>
+                        <input className="wiz-bag-input" type="number" min={0} value={spec.gussetMm || ''} onChange={e => updateBagSpec(pIdx, 'gussetMm', Number(e.target.value))} />
+                      </label>
+                    )}
+                    {showBackSeal && (
+                      <label className="wiz-bag-field">
+                        <span className="wiz-bag-label">{backSealLabel}</span>
+                        <input className="wiz-bag-input" type="number" min={0} value={spec.backSealMm || ''} onChange={e => updateBagSpec(pIdx, 'backSealMm', Number(e.target.value))} />
+                      </label>
+                    )}
+                    {showStandup && (
+                      <>
+                        <label className="wiz-bag-field">
+                          <span className="wiz-bag-label">Đáy mỗi bên (mm)</span>
+                          <input className="wiz-bag-input" type="number" min={0} value={spec.standupBottomSideMm || ''} onChange={e => updateBagSpec(pIdx, 'standupBottomSideMm', Number(e.target.value))} />
+                        </label>
+                        <div className="wiz-bag-field">
+                          <span className="wiz-bag-label">Đáy mở tổng</span>
+                          <div className="wiz-bag-total">{(spec.standupBottomSideMm || 0) * 2} mm</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="wiz-bag-checks">
+                    {hasZipper && <span className="wiz-bag-check" style={{ color: 'var(--accent, #0891b2)' }}>✓ Có zipper (từ dữ liệu tính giá)</span>}
+                    {hasHandle && <span className="wiz-bag-check" style={{ color: 'var(--accent, #0891b2)' }}>✓ Có quai (từ dữ liệu tính giá)</span>}
+                    <label className="wiz-bag-check"><input type="checkbox" checked={spec.hasHangHole} onChange={e => updateBagSpec(pIdx, 'hasHangHole', e.target.checked)} /> Đục lỗ treo</label>
+                    <label className="wiz-bag-check"><input type="checkbox" checked={spec.hasTearNotch} onChange={e => updateBagSpec(pIdx, 'hasTearNotch', e.target.checked)} /> Nhấn xé "V"</label>
+                    <label className="wiz-bag-check"><input type="checkbox" checked={spec.hasHandleHole} onChange={e => updateBagSpec(pIdx, 'hasHandleHole', e.target.checked)} /> Đục lỗ quai xách</label>
+                    <label className="wiz-bag-check"><input type="checkbox" checked={spec.hasHalfMoonBottom} onChange={e => updateBagSpec(pIdx, 'hasHalfMoonBottom', e.target.checked)} /> Đáy bán nguyệt</label>
+                    <label className="wiz-bag-check"><input type="checkbox" checked={spec.hasBottomSeal} onChange={e => updateBagSpec(pIdx, 'hasBottomSeal', e.target.checked)} /> Hàn đáy</label>
+                  </div>
+                  {spec.structureBack ? (
+                    <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(8,145,178,0.04)', borderRadius: 7, border: '1px solid var(--border, #e5e7eb)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--muted, #6b7280)', whiteSpace: 'nowrap' }}>Chất liệu 2 mặt</span>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--foreground, #111)' }}>MT: {prod.historyItem.structure}</span>
+                      <button type="button" className="wiz-spec-toggle" style={{ padding: '2px 6px' }}
+                        onClick={() => updateBagSpec(pIdx, 'structureSwapped', !spec.structureSwapped)}
+                        title="Đảo mặt trước / mặt sau">⇄</button>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--foreground, #111)' }}>MS: {spec.structureBack}</span>
+                      <button type="button" className="wiz-spec-toggle" style={{ padding: '2px 4px', fontSize: '0.7rem' }}
+                        onClick={() => updateBagSpec(pIdx, 'structureBack', '')} title="Xóa chất liệu mặt sau">✕</button>
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--muted, #6b7280)' }}>Chất liệu 2 mặt:</span>
+                      <input className="wiz-bag-input" type="text" value={spec.structureBack} onChange={e => updateBagSpec(pIdx, 'structureBack', e.target.value)}
+                        placeholder="Nhập chất liệu mặt sau (nếu khác mặt trước)" style={{ flex: 1, maxWidth: 260 }} />
+                    </div>
+                  )}
+                  {(hasZipper || spec.hasTearNotch || spec.hasHangHole || spec.hasHandleHole || spec.hasBottomSeal) && (
+                    <div className="wiz-bag-spec-grid" style={{ marginTop: 10 }}>
+                      {hasZipper && (
+                        <label className="wiz-bag-field">
+                          <span className="wiz-bag-label">Tâm zipper cách đầu (mm)</span>
+                          <input className="wiz-bag-input" type="number" min={0} value={spec.zipperDistanceMm || ''} onChange={e => updateBagSpec(pIdx, 'zipperDistanceMm', Number(e.target.value))} />
+                        </label>
+                      )}
+                      {spec.hasTearNotch && (
+                        <>
+                          <label className="wiz-bag-field">
+                            <span className="wiz-bag-label">V cách đầu (mm)</span>
+                            <input className="wiz-bag-input" type="number" min={0} value={spec.tearNotchFromTopMm || ''} onChange={e => updateBagSpec(pIdx, 'tearNotchFromTopMm', Number(e.target.value))} />
+                          </label>
+                          <label className="wiz-bag-field">
+                            <span className="wiz-bag-label">V cách đáy (mm)</span>
+                            <input className="wiz-bag-input" type="number" min={0} value={spec.tearNotchFromBottomMm || ''} onChange={e => updateBagSpec(pIdx, 'tearNotchFromBottomMm', Number(e.target.value))} />
+                          </label>
+                        </>
+                      )}
+                      {spec.hasHangHole && (
+                        <label className="wiz-bag-field" style={{ gridColumn: 'span 2' }}>
+                          <span className="wiz-bag-label">Mô tả đục lỗ treo</span>
+                          <input className="wiz-bag-input" type="text" value={spec.hangHoleDescription} onChange={e => updateBagSpec(pIdx, 'hangHoleDescription', e.target.value)} placeholder="VD: Ø8mm cách đầu 10mm" />
+                        </label>
+                      )}
+                      {spec.hasHandleHole && (
+                        <label className="wiz-bag-field" style={{ gridColumn: 'span 2' }}>
+                          <span className="wiz-bag-label">Mô tả đục lỗ quai xách</span>
+                          <input className="wiz-bag-input" type="text" value={spec.handleHoleDescription} onChange={e => updateBagSpec(pIdx, 'handleHoleDescription', e.target.value)} placeholder="VD: 3 lỗ tròn Ø8mm" />
+                        </label>
+                      )}
+                      {spec.hasBottomSeal && (
+                        <label className="wiz-bag-field">
+                          <span className="wiz-bag-label">Hàn đáy (mm)</span>
+                          <input className="wiz-bag-input" type="number" min={0} value={spec.bottomSealMm || ''} onChange={e => updateBagSpec(pIdx, 'bottomSealMm', Number(e.target.value))} />
+                        </label>
+                      )}
+                    </div>
+                  )}
+                  <div className="wiz-desc-block">
+                    <div className="wiz-desc-title">Mô tả đơn hàng</div>
+                    <div className="wiz-desc-row">
+                      <span className="wiz-desc-label">Tên sản phẩm:</span>
+                      <span className="wiz-desc-value">{prod.historyItem.productName || '—'}</span>
+                    </div>
+                    <div className="wiz-desc-row">
+                      <span className="wiz-desc-label">Loại sản phẩm:</span>
+                      <span className="wiz-desc-value">{bagTypeLabel}</span>
+                    </div>
+                    <div className="wiz-desc-row">
+                      <span className="wiz-desc-label">Chất liệu:</span>
+                      <span className="wiz-desc-value">
+                        {spec.structureBack ? (
+                          spec.structureSwapped
+                            ? <span>Mặt trước: {spec.structureBack}, Mặt sau: {prod.historyItem.structure}</span>
+                            : <span>Mặt trước: {prod.historyItem.structure}, Mặt sau: {spec.structureBack}</span>
+                        ) : prod.historyItem.structure}
+                      </span>
+                    </div>
+                    {(spec.widthMm > 0 && spec.lengthMm > 0) && (
+                      <div className="wiz-desc-row">
+                        <span className="wiz-desc-label">Kích thước:</span>
+                        <span className="wiz-desc-value">
+                          Dài {spec.lengthMm}mm (±3), Rộng {spec.widthMm}mm (±2)
+                          {spec.gussetMm > 0 ? <span>, Hông {spec.gussetMm}mm</span> : null}
+                          {showStandup && spec.standupBottomSideMm > 0 ? <span>, Đáy {(spec.standupBottomSideMm || 0) * 2}mm</span> : null}
+                        </span>
+                      </div>
+                    )}
+                    {(spreadMm > 0 && cutMm > 0) && (
+                      <div className="wiz-desc-row">
+                        <span className="wiz-desc-label">Khổ trải:</span>
+                        <span className="wiz-desc-value">{spreadMm}mm × {cutMm}mm</span>
+                      </div>
+                    )}
+                    {(inp.numColors && inp.numColors > 0) ? (
+                      <div className="wiz-desc-row">
+                        <span className="wiz-desc-label">Số màu in:</span>
+                        <span className="wiz-desc-value">{inp.numColors} màu</span>
+                      </div>
+                    ) : null}
+                    {showSideSeal && spec.sideSealMm > 0 && (
+                      <div className="wiz-desc-row">
+                        <span className="wiz-desc-label">Hàn biên:</span>
+                        <span className="wiz-desc-value">{spec.sideSealMm}mm</span>
+                      </div>
+                    )}
+                    {spec.sealMm > 0 && (
+                      <div className="wiz-desc-row">
+                        <span className="wiz-desc-label">Hàn {spec.sealKind === 'head' ? 'đầu' : 'đáy'}:</span>
+                        <span className="wiz-desc-value">{spec.sealMm}mm</span>
+                      </div>
+                    )}
+                    {hasZipper && (
+                      <div className="wiz-desc-row">
+                        <span className="wiz-desc-label">Tâm zipper c/đầu:</span>
+                        <span className="wiz-desc-value">{spec.zipperDistanceMm || '—'}mm</span>
+                      </div>
+                    )}
+                    {spec.hasHangHole && spec.hangHoleDescription && (
+                      <div className="wiz-desc-row">
+                        <span className="wiz-desc-label">Đục lỗ treo:</span>
+                        <span className="wiz-desc-value">{spec.hangHoleDescription}</span>
+                      </div>
+                    )}
+                    {spec.hasTearNotch && (
+                      <div className="wiz-desc-row">
+                        <span className="wiz-desc-label">Nhấn xé "V":</span>
+                        <span className="wiz-desc-value">Cách đầu {spec.tearNotchFromTopMm || '—'}mm{spec.tearNotchFromBottomMm > 0 ? <>, cách đáy {spec.tearNotchFromBottomMm}mm</> : null}</span>
+                      </div>
+                    )}
+                    {spec.hasHalfMoonBottom && (
+                      <div className="wiz-desc-row">
+                        <span className="wiz-desc-label">Đáy bán nguyệt:</span>
+                        <span className="wiz-desc-value">Có</span>
+                      </div>
+                    )}
+                    <div className="wiz-desc-row" style={{ marginTop: 6 }}>
+                      <span className="wiz-desc-label">Mô tả khác:</span>
+                      <textarea className="wiz-terms-textarea" rows={2} value={spec.otherDescription} onChange={e => updateBagSpec(pIdx, 'otherDescription', e.target.value)}
+                        placeholder="Ghi chú thêm cho đơn hàng..." style={{ flex: 1, minHeight: 42, fontSize: '0.82rem', resize: 'vertical' }} />
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
 
             <table className="wiz-tier-table">
               <thead>
@@ -1477,6 +1755,12 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
             paymentTerms: terms.paymentTerms,
             deliveryTime: terms.deliveryTime,
             notes: terms.notes,
+            productBagSpecs: products.map(prod => ({
+              sourceHistoryItemId: prod.historyItem.id,
+              pricingSheetId: prod.historyItem.pricingSheetId,
+              productName: prod.historyItem.productName,
+              bagSpec: prod.bagSpec,
+            })),
           },
           pricingSheetIds,
         },
@@ -1544,6 +1828,7 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
           chotGia: tiers[0]?.chotGia,
           profitRate: prod.historyItem.profitRate,
           input: { ...prod.historyItem.input },
+          bagSpec: prod.bagSpec,
           tiers,
         };
       });

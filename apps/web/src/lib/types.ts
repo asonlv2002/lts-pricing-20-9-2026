@@ -344,6 +344,23 @@ export interface QuoteProductLine {
   chotGia?: number;
   profitRate?: number;
   input: CalculateInput;
+  bagSpec?: {
+    bagType: string;
+    widthMm: number;
+    lengthMm: number;
+    sideSealMm: number;
+    sealKind: 'head' | 'bottom';
+    sealMm: number;
+    gussetMm: number;
+    backSealMm: number;
+    hasZipper: boolean;
+    zipperDistanceMm: number;
+    standupBottomSideMm: number;
+    hasTearNotch: boolean;
+    tearNotchFromTopMm: number;
+    tearNotchFromBottomMm: number;
+    hasHalfMoonBottom: boolean;
+  };
   tiers: QuoteTier[];
 }
 
