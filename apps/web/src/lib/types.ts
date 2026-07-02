@@ -349,8 +349,8 @@ export interface QuoteProductLine {
     widthMm: number;
     lengthMm: number;
     sideSealMm: number;
-    sealKind: 'head' | 'bottom';
-    sealMm: number;
+    hasHeadSeal: boolean;
+    headSealMm: number;
     gussetMm: number;
     backSealMm: number;
     hasZipper: boolean;
@@ -360,6 +360,22 @@ export interface QuoteProductLine {
     tearNotchFromTopMm: number;
     tearNotchFromBottomMm: number;
     hasHalfMoonBottom: boolean;
+    hasHangHole: boolean;
+    hangHoleDescription: string;
+    hasHandleHole: boolean;
+    handleHoleDescription: string;
+    hasBottomSeal: boolean;
+    bottomSealMm: number;
+    lidMm: number;
+    hasCylinder: boolean;
+    cylinderQuantity: number;
+    cylinderUnitPrice: number;
+    otherDescription: string;
+    structureBack: string;
+    structureSwapped: boolean;
+    hasStructureBack: boolean;
+    hasHandle: boolean;
+    handleOptionKey: string;
   };
   tiers: QuoteTier[];
 }

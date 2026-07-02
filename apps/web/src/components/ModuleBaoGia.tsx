@@ -208,6 +208,18 @@ const WIZARD_STYLES = `
 .wiz-desc-row { display: flex; align-items: baseline; gap: 6px; padding: 3px 0; font-size: 0.82rem; line-height: 1.45; }
 .wiz-desc-label { flex-shrink: 0; width: 120px; font-weight: 650; color: var(--muted, #6b7280); font-size: 0.78rem; }
 .wiz-desc-value { color: var(--foreground, #111); word-break: break-word; }
+.wiz-spec-section { margin-top: 8px; border-top: 1px solid var(--border, #e5e7eb); padding-top: 8px; }
+.wiz-spec-row { display: flex; align-items: center; gap: 5px; padding: 3px 0; min-height: 30px; flex-wrap: wrap; }
+.wiz-spec-row-group { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; }
+.wiz-spec-check-label { display: inline-flex; align-items: center; gap: 3px; font-size: 0.78rem; font-weight: 650; color: var(--foreground, #111); cursor: pointer; white-space: nowrap; }
+.wiz-spec-check-label input { margin: 0; }
+.wiz-spec-badge { font-size: 0.78rem; font-weight: 650; color: var(--accent, #0891b2); white-space: nowrap; }
+.wiz-spec-inline-input { width: 52px; height: 26px; border: 1px solid var(--border, #e5e7eb); border-radius: 5px; padding: 2px 4px; font-size: 0.78rem; background: var(--background, #fff); color: var(--foreground, #111); outline: none; box-sizing: border-box; text-align: right; }
+.wiz-spec-inline-input:focus { border-color: var(--accent, #0891b2); }
+.wiz-spec-inline-text { flex: 1; min-width: 130px; height: 26px; border: 1px solid var(--border, #e5e7eb); border-radius: 5px; padding: 2px 6px; font-size: 0.78rem; background: var(--background, #fff); color: var(--foreground, #111); outline: none; box-sizing: border-box; }
+.wiz-spec-inline-text:focus { border-color: var(--accent, #0891b2); }
+.wiz-spec-unit { font-size: 0.72rem; color: var(--muted, #6b7280); white-space: nowrap; }
+.wiz-spec-inline-select { height: 26px; border: 1px solid var(--border, #e5e7eb); border-radius: 5px; padding: 1px 4px; font-size: 0.78rem; background: var(--background, #fff); color: var(--foreground, #111); outline: none; }
 .wiz-product-search-dropdown { border: 1px solid var(--border, #e5e7eb); border-radius: 8px; max-height: 260px; overflow-y: auto; background: var(--background, #fff); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
 .wiz-product-option { display: flex; align-items: flex-start; gap: 10px; padding: 10px 14px; cursor: pointer; border-bottom: 1px solid var(--border, #e5e7eb); transition: background 0.1s; }
 .wiz-product-option:last-child { border-bottom: none; }
@@ -1194,11 +1206,14 @@ function BuocChonSanPham({
               const showGusset = shouldShowBagSpecField(spec.bagType, 'gusset');
               const showBackSeal = shouldShowBagSpecField(spec.bagType, 'backSeal');
               const showStandup = shouldShowBagSpecField(spec.bagType, 'standupBottom');
+              const showLid = shouldShowBagSpecField(spec.bagType, 'lid');
               const backSealLabel = spec.bagType === 'xephong_lech' ? 'Lưng lệch (mm)' : 'Lưng giữa (mm)';
               const hasZipper = Boolean(inp.hasZipper);
-              const hasHandle = Boolean(inp.hasHandle);
-              const bagTypeLabel = (['dayDung', '3bien', 'cutSeal'].includes(spec.bagType) ? (hasZipper ? 'Túi zipper ' : 'Túi ') : 'Túi ')
-                + ({ '3bien': '3 biên', '4bien': '4 biên', 'xephong_lech': 'xếp hông dán lưng lệch', 'xephong_giua': 'xếp hông dán lưng giữa', 'dayDung': 'đáy đứng', 'cutSeal': 'cut seal' })[spec.bagType] || spec.bagType;
+              const hasHandlePricing = Boolean(inp.hasHandle);
+              const handleOptions = dungCuaHangTinhGia.getState().constants.handleOptions ?? [];
+              const handleLabel = hasHandlePricing ? (handleOptions.find(o => o.key === inp.handleOptionKey)?.label || 'Quai') : '';
+              const bagTypeLabel = (['dayDung', '3bien', 'cutSeal', 'cutSealNapKeo'].includes(spec.bagType) ? (hasZipper ? 'Túi zipper ' : 'Túi ') : 'Túi ')
+                + ({ '3bien': '3 biên', '4bien': '4 biên', 'xephong_lech': 'xếp hông dán lưng lệch', 'xephong_giua': 'xếp hông dán lưng giữa', 'dayDung': 'đáy đứng', 'cutSeal': 'cut seal', 'cutSealNapKeo': 'cut seal mở miệng có nắp keo' })[spec.bagType] || spec.bagType;
               return (
                 <div className="wiz-bag-spec">
                   <div className="wiz-bag-spec-title">
@@ -1207,7 +1222,7 @@ function BuocChonSanPham({
                   <div className="wiz-bag-spec-grid">
                     <label className="wiz-bag-field">
                       <span className="wiz-bag-label">Loại túi</span>
-                      <span className="wiz-bag-total">{spec.bagType || '—'}</span>
+                      <span className="wiz-bag-total">{({ '3bien': 'Túi 3 biên', '4bien': 'Túi 4 biên', 'xephong_lech': 'Túi xếp hông dán lưng lệch', 'xephong_giua': 'Túi xếp hông dán lưng giữa', 'dayDung': 'Túi đáy đứng', 'cutSeal': 'Túi cut seal', 'cutSealNapKeo': 'Túi cut seal mở miệng có nắp keo' })[spec.bagType] || spec.bagType || '—'}</span>
                     </label>
                     <label className="wiz-bag-field">
                       <span className="wiz-bag-label">Chiều rộng (mm)</span>
@@ -1229,17 +1244,6 @@ function BuocChonSanPham({
                         <input className="wiz-bag-input" type="number" min={0} value={spec.sideSealMm || ''} onChange={e => updateBagSpec(pIdx, 'sideSealMm', Number(e.target.value))} />
                       </label>
                     )}
-                    <label className="wiz-bag-field">
-                      <span className="wiz-bag-label">Kiểu hàn</span>
-                      <select className="wiz-bag-select" value={spec.sealKind} onChange={e => updateBagSpec(pIdx, 'sealKind', e.target.value as QuoteProductBagSpec['sealKind'])}>
-                        <option value="head">Hàn đầu</option>
-                        <option value="bottom">Hàn đáy</option>
-                      </select>
-                    </label>
-                    <label className="wiz-bag-field">
-                      <span className="wiz-bag-label">Giá trị hàn (mm)</span>
-                      <input className="wiz-bag-input" type="number" min={0} value={spec.sealMm || ''} onChange={e => updateBagSpec(pIdx, 'sealMm', Number(e.target.value))} />
-                    </label>
                     {showGusset && (
                       <label className="wiz-bag-field">
                         <span className="wiz-bag-label">Hông (mm)</span>
@@ -1264,74 +1268,78 @@ function BuocChonSanPham({
                         </div>
                       </>
                     )}
+                    {showLid && (
+                      <label className="wiz-bag-field">
+                        <span className="wiz-bag-label">Nắp (mm)</span>
+                        <input className="wiz-bag-input" type="number" min={0} value={spec.lidMm || ''} onChange={e => updateBagSpec(pIdx, 'lidMm', Number(e.target.value))} />
+                      </label>
+                    )}
                   </div>
-                  <div className="wiz-bag-checks">
-                    {hasZipper && <span className="wiz-bag-check" style={{ color: 'var(--accent, #0891b2)' }}>✓ Có zipper (từ dữ liệu tính giá)</span>}
-                    {hasHandle && <span className="wiz-bag-check" style={{ color: 'var(--accent, #0891b2)' }}>✓ Có quai (từ dữ liệu tính giá)</span>}
-                    <label className="wiz-bag-check"><input type="checkbox" checked={spec.hasHangHole} onChange={e => updateBagSpec(pIdx, 'hasHangHole', e.target.checked)} /> Đục lỗ treo</label>
-                    <label className="wiz-bag-check"><input type="checkbox" checked={spec.hasTearNotch} onChange={e => updateBagSpec(pIdx, 'hasTearNotch', e.target.checked)} /> Nhấn xé "V"</label>
-                    <label className="wiz-bag-check"><input type="checkbox" checked={spec.hasHandleHole} onChange={e => updateBagSpec(pIdx, 'hasHandleHole', e.target.checked)} /> Đục lỗ quai xách</label>
-                    <label className="wiz-bag-check"><input type="checkbox" checked={spec.hasHalfMoonBottom} onChange={e => updateBagSpec(pIdx, 'hasHalfMoonBottom', e.target.checked)} /> Đáy bán nguyệt</label>
-                    <label className="wiz-bag-check"><input type="checkbox" checked={spec.hasBottomSeal} onChange={e => updateBagSpec(pIdx, 'hasBottomSeal', e.target.checked)} /> Hàn đáy</label>
+                  <div className="wiz-spec-section">
+                    {hasZipper && (
+                      <div className="wiz-spec-row">
+                        <span className="wiz-spec-badge">✓ Có zipper (từ dữ liệu tính giá)</span>
+                        <span className="wiz-spec-badge" style={{ color: 'var(--muted, #6b7280)', fontWeight: 400 }}>Tâm zipper c/đầu</span>
+                        <input className="wiz-spec-inline-input" type="number" min={0} value={spec.zipperDistanceMm || ''} onChange={e => updateBagSpec(pIdx, 'zipperDistanceMm', Number(e.target.value))} />
+                        <span className="wiz-spec-unit">mm</span>
+                      </div>
+                    )}
+                    {hasHandlePricing ? (
+                      <div className="wiz-spec-row">
+                        <span className="wiz-spec-badge">✓ {handleLabel} (từ dữ liệu tính giá)</span>
+                      </div>
+                    ) : (
+                      <div className="wiz-spec-row">
+                        <label className="wiz-spec-check-label"><input type="checkbox" checked={spec.hasHandle ?? false} onChange={e => updateBagSpec(pIdx, 'hasHandle', e.target.checked)} /> Quai</label>
+                        {spec.hasHandle && (
+                          <select className="wiz-spec-inline-select" value={spec.handleOptionKey || ''} onChange={e => updateBagSpec(pIdx, 'handleOptionKey', e.target.value)}>
+                            <option value="">Chọn loại quai</option>
+                            {handleOptions.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    )}
+                    <div className="wiz-spec-row-group">
+                      <div className="wiz-spec-row">
+                        <label className="wiz-spec-check-label"><input type="checkbox" checked={spec.hasHeadSeal ?? false} onChange={e => updateBagSpec(pIdx, 'hasHeadSeal', e.target.checked)} /> Hàn đầu</label>
+                        {spec.hasHeadSeal && <><input className="wiz-spec-inline-input" type="number" min={0} value={spec.headSealMm || ''} onChange={e => updateBagSpec(pIdx, 'headSealMm', Number(e.target.value))} /><span className="wiz-spec-unit">mm</span></>}
+                      </div>
+                      <div className="wiz-spec-row">
+                        <label className="wiz-spec-check-label"><input type="checkbox" checked={spec.hasBottomSeal ?? false} onChange={e => updateBagSpec(pIdx, 'hasBottomSeal', e.target.checked)} /> Hàn đáy</label>
+                        {spec.hasBottomSeal && <><input className="wiz-spec-inline-input" type="number" min={0} value={spec.bottomSealMm || ''} onChange={e => updateBagSpec(pIdx, 'bottomSealMm', Number(e.target.value))} /><span className="wiz-spec-unit">mm</span></>}
+                      </div>
+                    </div>
+                    <div className="wiz-spec-row">
+                      <label className="wiz-spec-check-label"><input type="checkbox" checked={spec.hasTearNotch ?? false} onChange={e => updateBagSpec(pIdx, 'hasTearNotch', e.target.checked)} /> Nhấn xé "V"</label>
+                      {spec.hasTearNotch && <><span className="wiz-spec-badge" style={{ color: 'var(--muted, #6b7280)', fontWeight: 400 }}>V cách đầu</span><input className="wiz-spec-inline-input" type="number" min={0} value={spec.tearNotchFromTopMm || ''} onChange={e => updateBagSpec(pIdx, 'tearNotchFromTopMm', Number(e.target.value))} /><span className="wiz-spec-unit">mm</span><span className="wiz-spec-badge" style={{ color: 'var(--muted, #6b7280)', fontWeight: 400 }}>V cách đáy</span><input className="wiz-spec-inline-input" type="number" min={0} value={spec.tearNotchFromBottomMm || ''} onChange={e => updateBagSpec(pIdx, 'tearNotchFromBottomMm', Number(e.target.value))} /><span className="wiz-spec-unit">mm</span></>}
+                    </div>
+                    <div className="wiz-spec-row">
+                      <label className="wiz-spec-check-label"><input type="checkbox" checked={spec.hasHangHole ?? false} onChange={e => updateBagSpec(pIdx, 'hasHangHole', e.target.checked)} /> Đục lỗ treo</label>
+                      {spec.hasHangHole && <input className="wiz-spec-inline-text" type="text" value={spec.hangHoleDescription} onChange={e => updateBagSpec(pIdx, 'hangHoleDescription', e.target.value)} placeholder="VD: Ø8mm cách đầu 10mm" />}
+                    </div>
+                    <div className="wiz-spec-row">
+                      <label className="wiz-spec-check-label"><input type="checkbox" checked={spec.hasHandleHole ?? false} onChange={e => updateBagSpec(pIdx, 'hasHandleHole', e.target.checked)} /> Đục lỗ quai xách</label>
+                      {spec.hasHandleHole && <input className="wiz-spec-inline-text" type="text" value={spec.handleHoleDescription} onChange={e => updateBagSpec(pIdx, 'handleHoleDescription', e.target.value)} placeholder="VD: 3 lỗ tròn Ø8mm" />}
+                    </div>
+                    <div className="wiz-spec-row">
+                      <label className="wiz-spec-check-label"><input type="checkbox" checked={spec.hasHalfMoonBottom ?? false} onChange={e => updateBagSpec(pIdx, 'hasHalfMoonBottom', e.target.checked)} /> Đáy bán nguyệt</label>
+                      {spec.hasHalfMoonBottom && <span className="wiz-spec-badge" style={{ color: 'var(--green, #059669)' }}>Có</span>}
+                    </div>
+                    <div className="wiz-spec-row">
+                      <label className="wiz-spec-check-label"><input type="checkbox" checked={spec.hasCylinder ?? false} onChange={e => updateBagSpec(pIdx, 'hasCylinder', e.target.checked)} /> Trục in</label>
+                      {spec.hasCylinder && <><span className="wiz-spec-badge" style={{ color: 'var(--muted, #6b7280)', fontWeight: 400 }}>{prod.historyItem.productName}</span><span className="wiz-spec-badge" style={{ color: 'var(--muted, #6b7280)', fontWeight: 400 }}>Kích thước: chiều dài {Math.round(inp.cylLength * 1000)}mm × chu vi {Math.round(inp.cylCircum * 1000)}mm</span><span className="wiz-spec-badge" style={{ color: 'var(--muted, #6b7280)', fontWeight: 400 }}>Số lượng</span><input className="wiz-spec-inline-input" type="number" min={1} value={spec.cylinderQuantity || ''} onChange={e => updateBagSpec(pIdx, 'cylinderQuantity', Number(e.target.value))} /><span className="wiz-spec-badge" style={{ color: 'var(--muted, #6b7280)', fontWeight: 400 }}>Đơn giá</span><input className="wiz-spec-inline-input" type="number" min={0} value={spec.cylinderUnitPrice || ''} onChange={e => updateBagSpec(pIdx, 'cylinderUnitPrice', Number(e.target.value))} /><span className="wiz-spec-unit">đ</span></>}
+                    </div>
+                    <div className="wiz-spec-row">
+                      <label className="wiz-spec-check-label"><input type="checkbox" checked={spec.hasStructureBack ?? false} onChange={e => { const v = e.target.checked; updateBagSpec(pIdx, 'hasStructureBack', v); if (!v) { updateBagSpec(pIdx, 'structureBack', ''); } }} /> Chất liệu 2 mặt</label>
+                      {(spec.hasStructureBack) && (
+                        spec.structureBack ? (
+                          <><span style={{ fontSize: '0.78rem', color: 'var(--muted, #6b7280)' }}>MT: {prod.historyItem.structure}</span><button type="button" className="wiz-spec-toggle" style={{ padding: '1px 5px', fontSize: '0.7rem' }} onClick={() => updateBagSpec(pIdx, 'structureSwapped', !spec.structureSwapped)} title="Đảo mặt trước / mặt sau">⇄</button><span style={{ fontSize: '0.78rem', color: 'var(--muted, #6b7280)' }}>MS: {spec.structureBack}</span><button type="button" className="wiz-spec-toggle" style={{ padding: '1px 4px', fontSize: '0.7rem' }} onClick={() => updateBagSpec(pIdx, 'structureBack', '')} title="Xóa chất liệu mặt sau">✕</button></>
+                        ) : (
+                          <input className="wiz-spec-inline-text" type="text" value={spec.structureBack} onChange={e => updateBagSpec(pIdx, 'structureBack', e.target.value)} placeholder="Nhập chất liệu mặt sau" />
+                        )
+                      )}
+                    </div>
                   </div>
-                  {spec.structureBack ? (
-                    <div style={{ marginTop: 10, padding: '8px 10px', background: 'rgba(8,145,178,0.04)', borderRadius: 7, border: '1px solid var(--border, #e5e7eb)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--muted, #6b7280)', whiteSpace: 'nowrap' }}>Chất liệu 2 mặt</span>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--foreground, #111)' }}>MT: {prod.historyItem.structure}</span>
-                      <button type="button" className="wiz-spec-toggle" style={{ padding: '2px 6px' }}
-                        onClick={() => updateBagSpec(pIdx, 'structureSwapped', !spec.structureSwapped)}
-                        title="Đảo mặt trước / mặt sau">⇄</button>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--foreground, #111)' }}>MS: {spec.structureBack}</span>
-                      <button type="button" className="wiz-spec-toggle" style={{ padding: '2px 4px', fontSize: '0.7rem' }}
-                        onClick={() => updateBagSpec(pIdx, 'structureBack', '')} title="Xóa chất liệu mặt sau">✕</button>
-                    </div>
-                  ) : (
-                    <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--muted, #6b7280)' }}>Chất liệu 2 mặt:</span>
-                      <input className="wiz-bag-input" type="text" value={spec.structureBack} onChange={e => updateBagSpec(pIdx, 'structureBack', e.target.value)}
-                        placeholder="Nhập chất liệu mặt sau (nếu khác mặt trước)" style={{ flex: 1, maxWidth: 260 }} />
-                    </div>
-                  )}
-                  {(hasZipper || spec.hasTearNotch || spec.hasHangHole || spec.hasHandleHole || spec.hasBottomSeal) && (
-                    <div className="wiz-bag-spec-grid" style={{ marginTop: 10 }}>
-                      {hasZipper && (
-                        <label className="wiz-bag-field">
-                          <span className="wiz-bag-label">Tâm zipper cách đầu (mm)</span>
-                          <input className="wiz-bag-input" type="number" min={0} value={spec.zipperDistanceMm || ''} onChange={e => updateBagSpec(pIdx, 'zipperDistanceMm', Number(e.target.value))} />
-                        </label>
-                      )}
-                      {spec.hasTearNotch && (
-                        <>
-                          <label className="wiz-bag-field">
-                            <span className="wiz-bag-label">V cách đầu (mm)</span>
-                            <input className="wiz-bag-input" type="number" min={0} value={spec.tearNotchFromTopMm || ''} onChange={e => updateBagSpec(pIdx, 'tearNotchFromTopMm', Number(e.target.value))} />
-                          </label>
-                          <label className="wiz-bag-field">
-                            <span className="wiz-bag-label">V cách đáy (mm)</span>
-                            <input className="wiz-bag-input" type="number" min={0} value={spec.tearNotchFromBottomMm || ''} onChange={e => updateBagSpec(pIdx, 'tearNotchFromBottomMm', Number(e.target.value))} />
-                          </label>
-                        </>
-                      )}
-                      {spec.hasHangHole && (
-                        <label className="wiz-bag-field" style={{ gridColumn: 'span 2' }}>
-                          <span className="wiz-bag-label">Mô tả đục lỗ treo</span>
-                          <input className="wiz-bag-input" type="text" value={spec.hangHoleDescription} onChange={e => updateBagSpec(pIdx, 'hangHoleDescription', e.target.value)} placeholder="VD: Ø8mm cách đầu 10mm" />
-                        </label>
-                      )}
-                      {spec.hasHandleHole && (
-                        <label className="wiz-bag-field" style={{ gridColumn: 'span 2' }}>
-                          <span className="wiz-bag-label">Mô tả đục lỗ quai xách</span>
-                          <input className="wiz-bag-input" type="text" value={spec.handleHoleDescription} onChange={e => updateBagSpec(pIdx, 'handleHoleDescription', e.target.value)} placeholder="VD: 3 lỗ tròn Ø8mm" />
-                        </label>
-                      )}
-                      {spec.hasBottomSeal && (
-                        <label className="wiz-bag-field">
-                          <span className="wiz-bag-label">Hàn đáy (mm)</span>
-                          <input className="wiz-bag-input" type="number" min={0} value={spec.bottomSealMm || ''} onChange={e => updateBagSpec(pIdx, 'bottomSealMm', Number(e.target.value))} />
-                        </label>
-                      )}
-                    </div>
-                  )}
                   <div className="wiz-desc-block">
                     <div className="wiz-desc-title">Mô tả đơn hàng</div>
                     <div className="wiz-desc-row">
@@ -1380,10 +1388,37 @@ function BuocChonSanPham({
                         <span className="wiz-desc-value">{spec.sideSealMm}mm</span>
                       </div>
                     )}
-                    {spec.sealMm > 0 && (
+                    {spec.hasHeadSeal && spec.headSealMm > 0 && (
                       <div className="wiz-desc-row">
-                        <span className="wiz-desc-label">Hàn {spec.sealKind === 'head' ? 'đầu' : 'đáy'}:</span>
-                        <span className="wiz-desc-value">{spec.sealMm}mm</span>
+                        <span className="wiz-desc-label">Hàn đầu:</span>
+                        <span className="wiz-desc-value">{spec.headSealMm}mm</span>
+                      </div>
+                    )}
+                    {spec.hasBottomSeal && spec.bottomSealMm > 0 && (
+                      <div className="wiz-desc-row">
+                        <span className="wiz-desc-label">Hàn đáy:</span>
+                        <span className="wiz-desc-value">{spec.bottomSealMm}mm</span>
+                      </div>
+                    )}
+                    {(hasHandlePricing || spec.hasHandle) && (() => {
+                      const label = hasHandlePricing ? handleLabel : (handleOptions.find(o => o.key === spec.handleOptionKey)?.label || 'Quai');
+                      return (
+                        <div className="wiz-desc-row">
+                          <span className="wiz-desc-label">Quai:</span>
+                          <span className="wiz-desc-value">{label}</span>
+                        </div>
+                      );
+                    })()}
+                    {spec.hasCylinder && inp.cylLength > 0 && (
+                      <div className="wiz-desc-row">
+                        <span className="wiz-desc-label">Trục in:</span>
+                        <span className="wiz-desc-value">{prod.historyItem.productName} — Kích thước: chiều dài {Math.round(inp.cylLength * 1000)}mm × chu vi {Math.round(inp.cylCircum * 1000)}mm{spec.cylinderQuantity > 1 ? `, SL: ${spec.cylinderQuantity}` : ''}{spec.cylinderUnitPrice > 0 ? `, ${dinhDangSo(spec.cylinderUnitPrice)}đ` : ''}</span>
+                      </div>
+                    )}
+                    {spec.lidMm > 0 && (
+                      <div className="wiz-desc-row">
+                        <span className="wiz-desc-label">Nắp:</span>
+                        <span className="wiz-desc-value">{spec.lidMm}mm</span>
                       </div>
                     )}
                     {hasZipper && (
