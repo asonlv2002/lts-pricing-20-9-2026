@@ -86,28 +86,26 @@ export default function ModuleTaoLenhSanXuat() {
       const trangThai = layNhanTrangThai(q.updateStatus);
 
       const sources = mapBaoGiaToLsxSources(q, ctx);
-      sources.forEach((source, sourceIndex) => {
-        if (lower) {
-          const haystack = [
-            q.quotationName,
-            nguoiTao,
-            source.customer,
-            source.productName,
-            source.structure,
-          ].filter(Boolean).map(v => String(v).toLowerCase());
-          if (!haystack.some(v => v.includes(lower))) return;
-        }
+      if (sources.length === 0) continue;
 
-        rows.push({
-          source,
-          quotationName: q.quotationName,
-          createdAt: q.createdAt,
-          trangThai,
+      if (lower) {
+        const haystack = [
+          q.quotationName,
           nguoiTao,
-          allSources: sources,
-          sourceIndex,
-          quotation: q,
-        });
+          ...sources.flatMap(s => [s.customer, s.productName, s.structure]),
+        ].filter(Boolean).map(v => String(v).toLowerCase());
+        if (!haystack.some(v => v.includes(lower))) continue;
+      }
+
+      rows.push({
+        source: sources[0],
+        quotationName: q.quotationName,
+        createdAt: q.createdAt,
+        trangThai,
+        nguoiTao,
+        allSources: sources,
+        sourceIndex: 0,
+        quotation: q,
       });
     }
 
@@ -181,7 +179,8 @@ export default function ModuleTaoLenhSanXuat() {
               </thead>
               <tbody>
                 {displayRows.map(row => {
-                  const { source, quotationName, createdAt, trangThai, nguoiTao } = row;
+                  const { source, quotationName, createdAt, trangThai, nguoiTao, allSources } = row;
+                  const sourcesCount = allSources.length;
                   const existed = hasExistingLSX(source.id);
                   const meta = getPricingDisplayMeta(source.input);
                   const shownPrice = source.chotGia ?? source.finalPrice;
@@ -193,7 +192,7 @@ export default function ModuleTaoLenhSanXuat() {
 
                   return (
                     <tr
-                      key={source.id}
+                      key={row.quotation.id}
                       style={{ borderBottom: '1px solid var(--border)', opacity: existed ? 0.6 : 1 }}
                     >
                       <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
@@ -209,13 +208,21 @@ export default function ModuleTaoLenhSanXuat() {
                         </div>
                       </td>
                       <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
-                        <div style={{ fontWeight: 600 }}>{source.productName || '—'}</div>
+                        <div style={{ fontWeight: 600 }}>
+                          {sourcesCount > 1
+                            ? <span>{sourcesCount} sản phẩm</span>
+                            : (source.productName || '—')
+                          }
+                        </div>
                       </td>
                       <td style={{ padding: '9px 12px', verticalAlign: 'middle', fontSize: '0.8rem', color: 'var(--muted)' }}>
-                        {source.structure || '—'}
+                        {sourcesCount > 1 ? `${sourcesCount} cấu trúc` : (source.structure || '—')}
                       </td>
                       <td style={{ padding: '9px 12px', verticalAlign: 'middle', textAlign: 'right', fontWeight: 600 }}>
-                        {source.input.quantity.toLocaleString('vi-VN')} <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '0.76rem' }}>{meta.quantityUnit}</span>
+                        {sourcesCount > 1
+                          ? allSources.reduce((sum, s) => sum + (s.input.quantity || 0), 0).toLocaleString('vi-VN')
+                          : source.input.quantity.toLocaleString('vi-VN')
+                        } <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '0.76rem' }}>{meta.quantityUnit}</span>
                       </td>
                       <td style={{ padding: '9px 12px', verticalAlign: 'middle', textAlign: 'right', fontWeight: 600 }}>
                         {shownPrice.toLocaleString('vi-VN')} <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '0.76rem' }}>đ/{meta.unit}</span>
