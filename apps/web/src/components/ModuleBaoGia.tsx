@@ -17,6 +17,7 @@ import { mapHistoryToPricingSheet } from '../lib/api/pricing-sheet-mapper';
 import { kiemTraMaKhachHang, laNguoiPhuTrach, locKhachTheoQuyen } from '../lib/customer-api';
 import { countOverrideChanges, listOverrideChanges } from '../lib/override-display';
 import { buildDefaultBagSpec, shouldShowBagSpecField, type QuoteProductBagSpec } from '../lib/quote-product-spec';
+import { exportBaoGiaToDocx } from '../lib/baoGiaExport';
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
 interface Customer {
@@ -26,6 +27,8 @@ interface Customer {
   taxCode?: string;
   contactName?: string;
   phone?: string;
+  address?: string;
+  invoiceAddress?: string;
   sellerId?: string | null;
   secondarySellerId?: string | null;
   sellerName?: string;
@@ -82,10 +85,16 @@ function readQuotePrefillFromHistory(): QuotePrefillFromHistory | null {
 }
 
 function buildWizardProductFromHistoryItem(item: HistoryItem): WizardProduct {
+  const spec = buildDefaultBagSpec(item.input);
+  if (!spec.cylinderUnitPrice && item.input.cylLength > 0) {
+    const { materials, constants, profitTable, smallWidthPrices } = dungCuaHangTinhGia.getState();
+    const res = tinhBaoGia(item.input, materials, constants, profitTable, smallWidthPrices);
+    if (res?.cylinderCostPerUnit) spec.cylinderUnitPrice = res.cylinderCostPerUnit;
+  }
   return {
     historyItem: item,
     tiers: [{ quantity: item.quantity, finalPrice: item.finalPrice, baoGia: item.chotGia ?? item.finalPrice }],
-    bagSpec: buildDefaultBagSpec(item.input),
+    bagSpec: spec,
   };
 }
 
@@ -108,6 +117,7 @@ interface WizardState {
   products: WizardProduct[];
   terms: {
     vatRate: number;
+    vatCylinderRate: number;
     validityDays: number;
     paymentTerms: string;
     deliveryTime: string;
@@ -653,6 +663,20 @@ function QuotationCard({ muc, onClick, statusControl }: {
         Nhấn để mở bảng tính giá
         {muc.locked && <span style={{ marginLeft: 8, color: 'var(--orange)' }}><Lock size={11} /> Đã khóa</span>}
         {muc.quoteCode && <span style={{ marginLeft: 8 }}>{muc.quoteCode}</span>}
+        {muc.isQuote && muc.quoteProducts?.length && (
+          <button className="wiz-btn wiz-btn--secondary" style={{ marginLeft: 8, padding: '3px 8px', fontSize: '0.7rem' }}
+            onClick={e => {
+              e.stopPropagation();
+              const c = docKhachHang().find(kh => kh.companyName === muc.customer || kh.customerCode === muc.customer);
+              exportBaoGiaToDocx(muc, {
+                address: c?.address || c?.invoiceAddress || '',
+                taxCode: c?.taxCode || '',
+                phone: c?.phone || '',
+              }).catch(err => alert('Lỗi xuất DOCX: ' + (err instanceof Error ? err.message : err)));
+            }}>
+            <FileDown size={11} /> DOCX
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1095,9 +1119,7 @@ function BuocChonSanPham({
   const addProduct = (item: HistoryItem) => {
     if (addedIds.has(item.id)) return;
     const newProduct: WizardProduct = {
-      historyItem: item,
-      tiers: [{ quantity: item.quantity, finalPrice: item.finalPrice, baoGia: item.chotGia || item.finalPrice }],
-      bagSpec: buildDefaultBagSpec(item.input),
+      ...buildWizardProductFromHistoryItem(item),
       expanded: true,
     };
     onProductsChange([...products, newProduct]);
@@ -1623,6 +1645,18 @@ function BuocXacNhan({
       <p className="wiz-section-title">Điều khoản báo giá</p>
       <div className="wiz-terms-grid">
         <div className="wiz-terms-field">
+          <label className="wiz-terms-label">VAT hàng hóa (%)</label>
+          <input className="wiz-terms-input" type="number" min={0} max={100}
+            value={terms.vatRate}
+            onChange={e => onTermsChange({ ...terms, vatRate: Number(e.target.value) })} />
+        </div>
+        <div className="wiz-terms-field">
+          <label className="wiz-terms-label">VAT trục in (%)</label>
+          <input className="wiz-terms-input" type="number" min={0} max={100}
+            value={terms.vatCylinderRate}
+            onChange={e => onTermsChange({ ...terms, vatCylinderRate: Number(e.target.value) })} />
+        </div>
+        <div className="wiz-terms-field">
           <label className="wiz-terms-label">Hiệu lực (ngày)</label>
           <input className="wiz-terms-input" type="number" min={1}
             value={terms.validityDays}
@@ -1699,7 +1733,7 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
   const [state, setState] = useState<WizardState>({
     customer: null,
     products: [],
-    terms: { vatRate: 10, validityDays: 30, paymentTerms: 'Thanh toán 30 ngày', deliveryTime: '7-10 ngày làm việc', notes: '' },
+    terms: { vatRate: 8, vatCylinderRate: 10, validityDays: 30, paymentTerms: 'Thanh toán 30 ngày', deliveryTime: '7-10 ngày làm việc', notes: '' },
   });
   const [error, setError] = useState('');
   const [errorSection, setErrorSection] = useState<1 | 2 | 3 | null>(null);
@@ -1784,9 +1818,10 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
         {
           customerCodeName: checkKH.maKhachHang,
           description: terms.notes?.trim() ? terms.notes.trim() : undefined,
-          inputValue: {
-            vatRate: terms.vatRate,
-            validityDays: terms.validityDays,
+           inputValue: {
+             vatRate: terms.vatRate,
+             vatCylinderRate: terms.vatCylinderRate,
+             validityDays: terms.validityDays,
             paymentTerms: terms.paymentTerms,
             deliveryTime: terms.deliveryTime,
             notes: terms.notes,
@@ -1888,6 +1923,42 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
   const canSaveDraft = !!state.customer;
   const canSubmit = !!state.customer && state.products.length > 0;
 
+  const handleExportDocx = useCallback(() => {
+    if (!canSubmit) return;
+    const item = {
+      customer: state.customer?.companyName || '',
+      date: new Date().toLocaleDateString('vi-VN'),
+      sellerName: currentSellerName || '',
+      quoteCode: '',
+      isQuote: true,
+      productName: state.products[0]?.historyItem.productName || '',
+      structure: state.products[0]?.historyItem.structure || '',
+      quantity: state.products[0]?.tiers[0]?.quantity || 0,
+      finalPrice: state.products[0]?.tiers[0]?.finalPrice || 0,
+      chotGia: state.products[0]?.tiers[0]?.baoGia,
+      input: state.products[0]?.historyItem.input,
+      tiers: state.products[0]?.tiers.map(t => ({ quantity: t.quantity, finalPrice: t.finalPrice, chotGia: t.baoGia })),
+      quoteProducts: state.products.map(p => ({
+        sourceHistoryItemId: p.historyItem.id,
+        productName: p.historyItem.productName,
+        structure: p.historyItem.structure,
+        quantity: p.tiers[0]?.quantity || p.historyItem.quantity,
+        finalPrice: p.tiers[0]?.finalPrice || p.historyItem.finalPrice,
+        chotGia: p.tiers[0]?.baoGia,
+        input: p.historyItem.input,
+        bagSpec: p.bagSpec,
+        tiers: p.tiers.map(t => ({ historyItemId: p.historyItem.id, quantity: t.quantity, finalPrice: t.finalPrice, chotGia: t.baoGia })),
+      })),
+      terms: state.terms,
+    } as any as HistoryItem;
+    exportBaoGiaToDocx(item, {
+      address: state.customer?.address || '',
+      taxCode: state.customer?.taxCode || '',
+      phone: state.customer?.phone || '',
+      description: state.terms?.notes || '',
+    }).catch(err => alert('Lỗi xuất DOCX: ' + (err instanceof Error ? err.message : err)));
+  }, [state, currentSellerName, canSubmit]);
+
   return (
     <div className="crm-root quote-wizard-root" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <style>{WIZARD_STYLES}</style>
@@ -1901,6 +1972,9 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
           </div>
         </div>
         <div className="quote-wizard-header-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="wiz-btn wiz-btn--secondary" onClick={() => handleExportDocx()} disabled={!canSubmit}>
+            <FileDown size={14} /> Xuất DOCX
+          </button>
           <button className="wiz-btn wiz-btn--secondary" onClick={() => handleSave(false)} disabled={saving || !canSaveDraft}>
             Lưu nháp
           </button>
@@ -1978,6 +2052,9 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
       </div>
 
       <div className="quote-wizard-mobile-action">
+        <button className="wiz-btn wiz-btn--secondary" onClick={() => handleExportDocx()} disabled={!canSubmit}>
+          <FileDown size={14} /> DOCX
+        </button>
         <button className="wiz-btn wiz-btn--secondary" onClick={() => handleSave(false)} disabled={saving || !canSaveDraft}>
           Lưu nháp
         </button>

@@ -320,6 +320,7 @@ export interface QuoteCodeConfig {
 export interface QuoteTerms {
   vatRate: number;
   vatCustom?: number;
+  vatCylinderRate?: number;
   validityDays: number;
   paymentTerms: string;
   deliveryTime: string;
