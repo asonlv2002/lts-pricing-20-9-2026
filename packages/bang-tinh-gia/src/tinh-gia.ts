@@ -230,9 +230,10 @@ export function tinhGia(
   const chieuDaiCuonMang = dauVao.chieuDaiCuonMang || 6000;
   const soTuiPerThuungThucTe = soTuiPerThuung || 0;
   const giaThuungThucTe = giaThuung || 0;
-  const { dienTichCuonMang, soThuung, tongTienThuung, thuungPerDonVi, phiDongGoiPerDonVi } = tinhDongGoi({ laMang, soLuong, khoTrai, chieuDaiCuonMang, giaThuungThucTe, soTuiPerThuungThucTe });
+  const { dienTichCuonMang, soThuung, tongTienThuung, thuungPerDonVi, phiDongGoiPerDonVi } = tinhDongGoi({ laMang, soLuong, khoTrai, soHinh, chieuDaiCuonMang, giaThuungThucTe, soTuiPerThuungThucTe });
 
-  const dienTichDonVi = laMang ? 1.0 : dienTichTui;
+  const tyLeBienCat = laMang && khoTrai > 0 && soHinh > 0 ? khoCatIn / (khoTrai * soHinh) : 1;
+  const dienTichDonVi = laMang ? tyLeBienCat : dienTichTui;
 
 
   const khoiLuongThuungPerDonVi = !laMang && soTuiPerThuungThucTe > 0 ? khoiLuongThuung / soTuiPerThuungThucTe : 0;

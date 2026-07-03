@@ -540,7 +540,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   const slMangGoc = input.filmInputQuantity ?? input.quantity ?? 0;
   const dienTichMangQuyDoi = laNhapMangTheoMet ? slMangGoc * (input.spreadWidth || 0) : (input.quantity || 0);
   const soCuonMangQuyDoi = ((input.filmRollLength || 6000) > 0 && (input.spreadWidth || 0) > 0)
-    ? dienTichMangQuyDoi / ((input.filmRollLength || 6000) * (input.spreadWidth || 0))
+    ? dienTichMangQuyDoi / ((input.filmRollLength || 6000) * (input.spreadWidth || 0) * (input.numImages || 1))
     : 0;
   const hienCauTruc =
     (input.productType === 'tui' && !!input.bagType) ||

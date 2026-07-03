@@ -1,6 +1,6 @@
-﻿export function tinhDongGoi(params: { laMang: boolean; soLuong: number; khoTrai: number; chieuDaiCuonMang: number; giaThuungThucTe: number; soTuiPerThuungThucTe: number }) {
-  const { laMang, soLuong, khoTrai, chieuDaiCuonMang, giaThuungThucTe, soTuiPerThuungThucTe } = params;
-  const dienTichCuonMang = laMang ? khoTrai * chieuDaiCuonMang : 0;
+﻿export function tinhDongGoi(params: { laMang: boolean; soLuong: number; khoTrai: number; soHinh: number; chieuDaiCuonMang: number; giaThuungThucTe: number; soTuiPerThuungThucTe: number }) {
+  const { laMang, soLuong, khoTrai, soHinh, chieuDaiCuonMang, giaThuungThucTe, soTuiPerThuungThucTe } = params;
+  const dienTichCuonMang = laMang ? khoTrai * soHinh * chieuDaiCuonMang : 0;
   let soThuung: number, tongTienThuung: number, thuungPerDonVi: number, phiDongGoiPerDonVi: number;
   if (laMang) {
     if (giaThuungThucTe > 0 && dienTichCuonMang > 0) {

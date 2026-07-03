@@ -968,7 +968,7 @@ const buttonLabel = loadedItem
       : isKgBase
         ? getMetersFromKg(selectedMat, levelVal, selectedData.width)
         : levelVal * rollLen;
-    const areaM2 = laMang ? availableMeters * (dauVaoKq.spreadWidth || 0) : 0;
+    const areaM2 = laMang ? availableMeters * (dauVaoKq.spreadWidth || 0) * (dauVaoKq.numImages || 1) : 0;
     const estQty = laMang
       ? Math.round(areaM2)
       : findEstQtyForMeters(availableMeters);
@@ -1659,7 +1659,7 @@ const buttonLabel = loadedItem
                                 <span style={{fontWeight:700}}>{row.levelVal} cuộn</span><br />
                                 <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>
                                   {laMang
-                                    ? `${dinhDangSo(row.availableMeters, 0)}m × ${dinhDangSo(dauVaoKq.spreadWidth, 3)}m = ${dinhDangSo(row.estQty, 0)} m²`
+                                    ? `${dinhDangSo(row.availableMeters, 0)}m × ${dinhDangSo(dauVaoKq.spreadWidth, 3)}m${(dauVaoKq.numImages || 1) > 1 ? ` × ${dauVaoKq.numImages}` : ''} = ${dinhDangSo(row.areaM2, 0)} m²`
                                     : `(${dinhDangSo(row.availableMeters, 0)}m - ${dinhDangSo(row.selectedKg, 1)} kg)`}
                                 </span>
                                 {selectedData?.chiTietVatLieu?.length && renderMaterialBreakdown(selectedData, row.availableMeters)}
@@ -1673,7 +1673,7 @@ const buttonLabel = loadedItem
                                 {dinhDangSo(row.areaM2, 0)} m²
                                 <br />
                                 <span style={{fontSize:'0.75rem', color:'var(--muted)', fontWeight:400}}>
-                                  {dinhDangSo(row.availableMeters, 0)}m × {dinhDangSo(dauVaoKq.spreadWidth, 3)}m
+                                  {dinhDangSo(row.availableMeters, 0)}m × {dinhDangSo(dauVaoKq.spreadWidth, 3)}m{(dauVaoKq.numImages || 1) > 1 ? ` × ${dauVaoKq.numImages}` : ''}
                                 </span>
                               </td>
                             </>
