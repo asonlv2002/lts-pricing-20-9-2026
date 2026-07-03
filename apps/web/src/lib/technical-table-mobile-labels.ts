@@ -5,6 +5,7 @@ export const TECHNICAL_TABLE_MOBILE_LABELS = {
   meters: 'TP',
   waste: 'Hao',
   inputMaterial: 'ĐV VL',
+  rawMaterialPrice: 'Giá NL',
   cpsx: 'CPSX',
   totalCpsx: 'TT SX',
   materialPrice: 'CPVL',

@@ -247,7 +247,8 @@ export interface OverrideFields {
   costCPSX?: number;
   matPrice?: number;
   costMat?: number;
-  detailOverrides?: Record<number, { width?: number; matPrice?: number; materialId?: string; materialName?: string }>;
+  rawMatPrice?: number;
+  detailOverrides?: Record<number, { width?: number; matPrice?: number; rawMatPrice?: number; materialId?: string; materialName?: string }>;
 }
 export type OverrideTable = Partial<Record<OverrideRowKey, Partial<OverrideFields>>>;
 

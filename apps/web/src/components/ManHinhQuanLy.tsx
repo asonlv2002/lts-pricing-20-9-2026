@@ -84,7 +84,7 @@ function coGhiDeChiTiet(detailOverride: NonNullable<OverrideFields['detailOverri
 }
 
 // ── Overridable Cell (click-to-edit inline) ──────────────────────────────────
-function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat, soLe = 0 }: {
+function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat, soLe = 0, onAfterSet }: {
   khoaDong: OverrideRowKey;
   truong: keyof OverrideFields;
   giaTriGoc: number;
@@ -92,6 +92,7 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
   duocSua: boolean;
   khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
   soLe?: number;
+  onAfterSet?: (value: number | undefined) => void;
 }) {
   const giaTriHienThi = giaTriGhiDe ?? giaTriGoc;
   const daThayDoi = giaTriGhiDe !== undefined && Math.abs(giaTriGhiDe - giaTriGoc) > 0.001;
@@ -101,12 +102,12 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
   const xacNhan = () => {
     datDangSua(false);
     const soDaDoc = parseFloat(giaTriTam);
-    // Từ chối: NaN, số âm (khổ/số mét/phi hao/giá VL không thể âm),
-    // hoặc gần bằng giá trị nguồn (revert về gốc)
     if (isNaN(soDaDoc) || soDaDoc < 0 || Math.abs(soDaDoc - giaTriGoc) < 0.001) {
-      khiDat(khoaDong, truong, undefined); // revert
+      khiDat(khoaDong, truong, undefined);
+      onAfterSet?.(undefined);
     } else {
       khiDat(khoaDong, truong, soDaDoc);
+      onAfterSet?.(soDaDoc);
     }
   };
 
@@ -148,7 +149,7 @@ function datGhiDeChiTiet(
   ghiDeHienTai: OverrideTable,
   khoaDong: OverrideRowKey,
   chiTietIndex: number,
-  truong: 'width' | 'matPrice' | 'materialId' | 'materialName',
+  truong: 'width' | 'matPrice' | 'rawMatPrice' | 'materialId' | 'materialName',
   giaTri: number | string | undefined,
 ) {
   const hienTai = ghiDeHienTai[khoaDong]?.detailOverrides ?? {};
@@ -162,16 +163,17 @@ function datGhiDeChiTiet(
 }
 
 
-function OChiTietCoTheGhiDe({ khoaDong, chiTietIndex, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat, ghiDeHienTai, soLe = 0 }: {
+function OChiTietCoTheGhiDe({ khoaDong, chiTietIndex, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat, ghiDeHienTai, soLe = 0, onAfterSet }: {
   khoaDong: OverrideRowKey;
   chiTietIndex: number;
-  truong: 'width' | 'matPrice';
+  truong: 'width' | 'matPrice' | 'rawMatPrice';
   giaTriGoc: number;
   giaTriGhiDe: number | undefined;
   duocSua: boolean;
   khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
   ghiDeHienTai: OverrideTable;
   soLe?: number;
+  onAfterSet?: (value: number | undefined) => void;
 }) {
   const giaTriHienThi = giaTriGhiDe ?? giaTriGoc;
   const daThayDoi = giaTriGhiDe !== undefined && Math.abs(giaTriGhiDe - giaTriGoc) > 0.001;
@@ -180,8 +182,9 @@ function OChiTietCoTheGhiDe({ khoaDong, chiTietIndex, truong, giaTriGoc, giaTriG
   const xacNhan = () => {
     datDangSua(false);
     const soDaDoc = parseFloat(giaTriTam);
-    datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, truong,
-      isNaN(soDaDoc) || soDaDoc < 0 || Math.abs(soDaDoc - giaTriGoc) < 0.001 ? undefined : soDaDoc);
+    const resolved = isNaN(soDaDoc) || soDaDoc < 0 || Math.abs(soDaDoc - giaTriGoc) < 0.001 ? undefined : soDaDoc;
+    datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, truong, resolved);
+    onAfterSet?.(resolved);
   };
   if (!duocSua) {
     return <td className={`num ${daThayDoi ? 'override-changed' : ''}`}>{dinhDangSo(giaTriHienThi, soLe)}</td>;
@@ -224,12 +227,14 @@ function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, d
           datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialId', undefined);
           datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialName', undefined);
           datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'matPrice', undefined);
+          datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'rawMatPrice', undefined);
           return;
         }
         const giaM2 = mat.pricePerM2 ?? (mat.pricePerKg * mat.thickness * mat.density / 1000);
         datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialId', mat.id);
         datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialName', mat.name);
         datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'matPrice', giaM2);
+        datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'rawMatPrice', undefined);
       }}>
         <option value={giaTriGoc.id ?? ''}>{tenGoc}</option>
         {materials.filter(m => m.id !== giaTriGoc.id).map(m => <option key={m.id} value={m.id}>{formatMaterialOptionLabel(m)}</option>)}
@@ -262,12 +267,14 @@ function OChonVatLieuDong({ khoaDong, giaTriGocId, giaTriGocTen, giaTriGocGia, g
           khiDat(khoaDong, 'materialId', undefined);
           khiDat(khoaDong, 'mat', undefined);
           khiDat(khoaDong, 'matPrice', undefined);
+          khiDat(khoaDong, 'rawMatPrice', undefined);
           return;
         }
         const giaM2 = mat.pricePerM2 ?? (mat.pricePerKg * mat.thickness * mat.density / 1000);
         khiDat(khoaDong, 'materialId', mat.id);
         khiDat(khoaDong, 'mat', mat.name);
         khiDat(khoaDong, 'matPrice', giaM2);
+        khiDat(khoaDong, 'rawMatPrice', undefined);
       }}>
         <option value={giaTriGocId}>{tenGoc}</option>
         {materials.filter(m => m.id !== giaTriGocId).map(m => <option key={m.id} value={m.id}>{formatMaterialOptionLabel(m)}</option>)}
@@ -340,6 +347,24 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
   const chenhLechGiaGocText = `${chenhLechGiaGocLamTron > 0 ? '+' : ''}${dinhDangSo(chenhLechGiaGocLamTron, 0)}`;
   const lopChenhLechGia = chenhLechGiaGocLamTron > 0 ? 'override-price-delta--up' : chenhLechGiaGocLamTron < 0 ? 'override-price-delta--down' : 'override-price-delta--flat';
 
+  const layGiaTriGocRawMat = (matId: string | undefined, matName: string): number => {
+    if (matName === '-' || !matName) return 0;
+    const m = matId ? materials.find(x => x.id === matId) : materials.find(x => x.name === matName);
+    return m?.pricePerKg ?? 0;
+  };
+
+  const tinhMatPriceTuRaw = (rawMat: number, matId?: string, matName?: string, rk?: OverrideRowKey, detailIdx?: number) => {
+    if (!matName || matName === '-' || rawMat <= 0) return;
+    const m = matId ? materials.find(x => x.id === matId) : materials.find(x => x.name === matName);
+    if (!m || m.thickness <= 0 || m.density <= 0) return;
+    const newMatPrice = rawMat * m.thickness * m.density / 1000;
+    if (detailIdx !== undefined && rk) {
+      datGhiDeChiTiet(khiDat, ghiDeHienTai, rk, detailIdx, 'matPrice', newMatPrice);
+    } else if (rk) {
+      khiDat(rk, 'matPrice', newMatPrice);
+    }
+  };
+
   return (
     <div className={`override-section override-section--${lopMau}`}>
       <div className="override-section-header">
@@ -353,8 +378,9 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
           <thead>
             <tr>
               <th data-mobile-label={MOBILE_LABELS.stage}>Công đoạn</th><th data-mobile-label={MOBILE_LABELS.material}>Vật liệu</th>
-              <th className="num" data-mobile-label={MOBILE_LABELS.width}>Kho vao (m)</th><th className="num" data-mobile-label={MOBILE_LABELS.meters}>Thanh pham (m)</th>
-              <th className="num" data-mobile-label={MOBILE_LABELS.waste}>Phi hao</th><th className="num" data-mobile-label={MOBILE_LABELS.inputMaterial}>Đầu vào VL</th>
+              <th className="num" data-mobile-label={MOBILE_LABELS.width}>khổ màng NVL (m)</th><th className="num" data-mobile-label={MOBILE_LABELS.meters}>thành phẩm (m)</th>
+              <th className="num" data-mobile-label={MOBILE_LABELS.waste}>phi hao (m)</th><th className="num" data-mobile-label={MOBILE_LABELS.inputMaterial}>đầu vào NVL (m)</th>
+              <th className="num" data-mobile-label={MOBILE_LABELS.rawMaterialPrice}>Giá NVL (VNĐ/kg)</th>
               <th className="num" data-mobile-label={MOBILE_LABELS.cpsx}>CPSX (đ/m²)</th><th className="num" data-mobile-label={MOBILE_LABELS.totalCpsx}>Thành tiền CPSX</th>
               <th className="num" data-mobile-label={MOBILE_LABELS.materialPrice}>CP vật liệu (đ/m²)</th><th className="num" data-mobile-label={MOBILE_LABELS.totalMaterial}>Thành tiền CPVL</th>
             </tr>
@@ -394,6 +420,19 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                         giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
                         giaTriGhiDe={Math.abs(row.inputVL - row.srcInputVL) > 0.001 ? row.inputVL : ghiDeHienTai[row.rowKey]?.inputVL} duocSua={false} khiDat={khiDat} soLe={0} />
+                      <OChiTietCoTheGhiDe khoaDong={row.rowKey} chiTietIndex={detailIdx} truong="rawMatPrice"
+                        giaTriGoc={layGiaTriGocRawMat(
+                          ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId,
+                          ghiDeNguonChiTiet?.materialName ?? chiTietGoc?.name ?? detail.name,
+                        )}
+                        giaTriGhiDe={ghiDeHienTaiChiTiet?.rawMatPrice} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} soLe={0}
+                        onAfterSet={(v) => {
+                          if (v !== undefined) {
+                            const effId = ghiDeHienTaiChiTiet?.materialId ?? ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId;
+                            const effName = ghiDeHienTaiChiTiet?.materialName ?? ghiDeNguonChiTiet?.materialName ?? chiTietGoc?.name ?? detail.name;
+                            tinhMatPriceTuRaw(v, effId, effName, row.rowKey, detailIdx);
+                          }
+                        }} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
                         giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <td className={`num ${coDoiCPSX ? 'override-changed' : ''}`} data-label="Thành tiền CPSX">{dinhDangSo(detailCostCPSX, 0)}</td>
@@ -422,6 +461,19 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
                     giaTriGhiDe={Math.abs(row.inputVL - row.srcInputVL) > 0.001 ? row.inputVL : ghiDeHienTai[row.rowKey]?.inputVL} duocSua={false} khiDat={khiDat} soLe={0} />
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="rawMatPrice"
+                    giaTriGoc={layGiaTriGocRawMat(
+                      ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId ?? row.materialId,
+                      ghiDeNguon[row.rowKey]?.mat ?? dongGoc?.mat ?? row.mat,
+                    )}
+                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.rawMatPrice} duocSua={duocSua} khiDat={khiDat} soLe={0}
+                    onAfterSet={(v) => {
+                      if (v !== undefined) {
+                        const effId = ghiDeHienTai[row.rowKey]?.materialId ?? ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId ?? row.materialId;
+                        const effName = ghiDeHienTai[row.rowKey]?.mat ?? ghiDeNguon[row.rowKey]?.mat ?? dongGoc?.mat ?? row.mat;
+                        tinhMatPriceTuRaw(v, effId, effName, row.rowKey);
+                      }
+                    }} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                   <td className={`num ${coDoiCPSX ? 'override-changed' : ''}`} data-label="Thành tiền CPSX">{dinhDangSo(row.costCPSX, 0)}</td>
@@ -438,12 +490,12 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
             })}
             {coCpMangIn && (
               <tr className="total-row">
-                <td colSpan={9}>CP theo thời gian in</td>
+                <td colSpan={10}>CP theo thời gian in</td>
                 <td className="num">{dinhDangSo(cpMangIn, 0)} đ</td>
               </tr>
             )}
             <tr className="total-row" style={{ fontSize: '1.05em' }}>
-              <td colSpan={7}><strong>TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN</strong></td>
+              <td colSpan={8}><strong>TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN</strong></td>
               <td colSpan={3} className={`num ${coThayDoi ? 'override-changed' : ''}`} style={{ color: coThayDoi ? undefined : 'var(--accent)', fontWeight: 800 }}>
                 {dinhDangSo(tongCPSX + tongCPVL + cpMangIn, 0)} đ
               </td>
@@ -473,7 +525,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                       )}
                       {duocSua && <span className="profit-rate-pct-suffix">%</span>}
                     </td>
-                    <td colSpan={6} className="num">
+                    <td colSpan={7} className="num">
                       LN: {dinhDangSo(Math.round(ln), 0)} đ
                     </td>
                   </tr>
@@ -482,7 +534,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
             )}
             {chenhLechGiaGocDonVi != null && (
               <tr className={`total-row override-price-delta-row ${lopChenhLechGia}`}>
-                <td colSpan={10}>
+                <td colSpan={11}>
                   CHÊNH LỆCH SO VỚI GIÁ GỐC: <strong>{chenhLechGiaGocText} {donViChenhLechText}</strong>
                 </td>
               </tr>
@@ -1294,9 +1346,10 @@ const buttonLabel = loadedItem
             <div className="table-responsive">
               <table className="data-table" id="m-t-unified-table">
                 <thead>
-                  <tr>
+                   <tr>
                     <th>Công đoạn</th><th>Vật liệu</th>
-                    <th className="num">Kho vao (m)</th><th className="num">Thanh pham (m)</th><th className="num">Phi hao</th><th className="num">Dau vao VL</th>
+                    <th className="num">khổ màng NVL (m)</th><th className="num">thành phẩm (m)</th><th className="num">phi hao (m)</th><th className="num">đầu vào NVL (m)</th>
+                    <th className="num">Giá NVL (VNĐ/kg)</th>
                     <th className="num">CPSX (đ/m²)</th><th className="num">Thành tiền CPSX</th>
                     <th className="num">CP vật liệu (đ/m²)</th><th className="num">Thành tiền CPVL</th>
                   </tr>
@@ -1317,10 +1370,22 @@ const buttonLabel = loadedItem
                           <tr key={`${idx}-${detailIdx}`} className="detail-group-row">
                             {detailIdx === 0 && <td data-label="Công đoạn" rowSpan={rowSpan}>{row.stage}</td>}
                             <td data-label="Vật liệu">{detail.name}</td>
-                            <td className="num" data-label="Kho vao (m)">{dinhDangSo(detail.width, 3)}</td>
-                            <td className="num" data-label="Thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
-                            <td className="num" data-label="Phi hao">{dinhDangSo(dWaste, 0)}</td>
-                            <td className="num highlight" data-label="Đầu vào VL">{dinhDangSo(inputVL, 0)}</td>
+                            <td className="num" data-label="khổ màng NVL (m)">{dinhDangSo(detail.width, 3)}</td>
+                            <td className="num" data-label="thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
+                            <td className="num" data-label="phi hao (m)">{dinhDangSo(dWaste, 0)}</td>
+                            <td className="num highlight" data-label="đầu vào NVL (m)">{dinhDangSo(inputVL, 0)}</td>
+                            {(() => {
+                              const giaDetail = (() => {
+                                const m = detail.materialId ? materials.find(x => x.id === detail.materialId) : materials.find(x => x.name === detail.name);
+                                if (m) return m.pricePerKg;
+                                const u = detail.name.toUpperCase();
+                                if (u.includes('MPET')) return 55000;
+                                if (u.includes('PET')) return 45000;
+                                if (u.includes('LLDPE') || u === 'PE') return 40000;
+                                return 0;
+                              })();
+                              return <td className="num" data-label="Giá NVL">{giaDetail > 0 ? `${dinhDangSo(giaDetail, 0)} đ/kg` : '—'}</td>;
+                            })()}
                             <td className="num" data-label="CPSX (đ/m²)">{dinhDangSo(row.cpsx, 0)}</td>
                             <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(detailCostCPSX, 0)}</td>
                             <td className="num" data-label="CP vật liệu (đ/m²)">{dinhDangSo(detail.matPrice, 1)}</td>
@@ -1334,10 +1399,23 @@ const buttonLabel = loadedItem
                       <tr key={idx}>
                         <td data-label="Công đoạn">{row.stage}</td>
                         <td data-label="Vật liệu">{row.mat}</td>
-                        <td className="num" data-label="Kho vao (m)">{dinhDangSo(dWidth, 3)}</td>
-                        <td className="num" data-label="Thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
-                        <td className="num" data-label="Phi hao">{dinhDangSo(dWaste, 0)}</td>
-                        <td className="num highlight" data-label="Đầu vào VL">{dinhDangSo(inputVL, 0)}</td>
+                        <td className="num" data-label="khổ màng NVL (m)">{dinhDangSo(dWidth, 3)}</td>
+                        <td className="num" data-label="thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
+                        <td className="num" data-label="phi hao (m)">{dinhDangSo(dWaste, 0)}</td>
+                        <td className="num highlight" data-label="đầu vào NVL (m)">{dinhDangSo(inputVL, 0)}</td>
+                        {(() => {
+                          const giaRow = (() => {
+                            if (row.mat === '-' || row.mat === '') return 0;
+                            const m = row.materialId ? materials.find(x => x.id === row.materialId) : materials.find(x => x.name === row.mat);
+                            if (m) return m.pricePerKg;
+                            const u = row.mat.toUpperCase();
+                            if (u.includes('MPET')) return 55000;
+                            if (u.includes('PET')) return 45000;
+                            if (u.includes('LLDPE') || u === 'PE') return 40000;
+                            return 0;
+                          })();
+                          return <td className="num" data-label="Giá NVL">{giaRow > 0 ? `${dinhDangSo(giaRow, 0)} đ/kg` : '—'}</td>;
+                        })()}
                         <td className="num" data-label="CPSX (đ/m²)">{dinhDangSo(row.cpsx, 0)}</td>
                         <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(row.costCPSX, 0)}</td>
                         <td className="num" data-label="CP vật liệu (đ/m²)">{row.matPrice != null ? dinhDangSo(row.matPrice, 1) : '—'}</td>
@@ -1347,18 +1425,17 @@ const buttonLabel = loadedItem
                   })}
                   {laMangIn && cpTheoThoiGianIn > 0 && (
                     <tr className="total-row">
-                      <td colSpan={9}>CP theo thời gian in</td>
+                      <td colSpan={10}>CP theo thời gian in</td>
                       <td className="num">{dinhDangSo(cpTheoThoiGianIn, 0)} đ</td>
                     </tr>
                   )}
                   <tr className="total-row" style={{fontSize: '1.05em'}}>
-                    <td colSpan={7}><strong>TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN</strong></td>
+                    <td colSpan={8}><strong>TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN</strong></td>
                     <td colSpan={3} className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{dinhDangSo(tongCong, 0)} đ</td>
                   </tr>
                 </tbody>
               </table>
             </div>
-          </TheThuGon>
 
           {/* ═══ SECTION: Override Tables (tabbed) ═══ */}
           {(() => {
@@ -1461,6 +1538,8 @@ const buttonLabel = loadedItem
               </div>
             );
           })()}
+
+          </TheThuGon>
 
           {/* ═══ SECTION: Bảng giá theo số lượng (MOQ) ═══ */}
           <div id="sect-moq" className="manager-section-anchor"></div>

@@ -22,6 +22,7 @@ const FIELD_LABELS: Record<string, string> = {
   matPrice: 'CP vật liệu',
   costMat: 'Thành tiền CPVL',
   materialName: 'Vật liệu',
+  rawMatPrice: 'Giá NVL',
 };
 
 export interface OverrideChangeDisplay {
