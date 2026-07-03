@@ -267,7 +267,7 @@ export function tinhGia(
     laiSuatMangIn: laMangInChiCoCongDoanIn ? (hangSo.laiSuatMangIn ?? 0.01) : undefined,
   });
 
-  const { hoaHongPerDonVi } = tinhHoaHong({ chiPhiDonVi, tyLeHoaHong, donViHoaHong: dauVao.donViHoaHong, hoaHongCoDinhVND: dauVao.hoaHongCoDinhVND });
+  const { hoaHongPerDonVi } = tinhHoaHong({ chiPhiDonVi: soLuong > 0 ? tongChiPhiSX / soLuong : 0, tyLeHoaHong, donViHoaHong: dauVao.donViHoaHong, hoaHongCoDinhVND: dauVao.hoaHongCoDinhVND });
 
   const { chieuDaiTrucThucTe, chuViTrucThucTe, dienTichTruc, chiPhiTrucPerDonVi, chiPhiTruc, chiPhiTrucPhanBo } = tinhTrucIn({ dauVao, hangSo, soMau: soMau || 0, laMang, dienTichTui });
 

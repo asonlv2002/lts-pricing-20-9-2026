@@ -769,7 +769,7 @@ const buttonLabel = loadedItem
 
   const cylAllocTotal = dauVaoKq.cylIncluded ? ((r.cylAllocPerUnit ?? 0) * dauVaoKq.quantity) : 0;
   const totalCommission = effCommissionPerUnit * dauVaoKq.quantity;
-  const commissionPct = giaVonDonViHieuLuc > 0 ? (effCommissionPerUnit / giaVonDonViHieuLuc) : 0;
+  const commissionPct = tongChiPhiSXHieuLuc > 0 ? (effCommissionPerUnit * dauVaoKq.quantity / tongChiPhiSXHieuLuc) : 0;
   const chotGiaNum = giaChotHienTai || 0;
   const hasChotGia = chotGiaNum > 0;
   // Giá cuối cùng từ engine gốc
@@ -799,10 +799,10 @@ const buttonLabel = loadedItem
   const newCommissionPerUnit = Math.max(0, rawNewCommission);
   const doanhThuChot = shownPrice * dauVaoKq.quantity;
   const tongHoaHongChot = newCommissionPerUnit * dauVaoKq.quantity;
-  const tongChiPhi = tongChiPhiSXHieuLuc + r.zipperTotal + r.tapeTotal + r.handleTotal + r.boxTotal + r.shippingTotal + (r.interestPerUnit * dauVaoKq.quantity);
+  const tongChiPhi = tongChiPhiSXHieuLuc + r.zipperTotal + r.tapeTotal + r.handleTotal + r.boxTotal + r.shippingTotal + (r.interestPerUnit * dauVaoKq.quantity) + cylAllocTotal;
   const loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
   const pctLoiNhuanCongTyChot = tongChiPhiSXHieuLuc > 0 ? (loiNhuanCongTyChot / tongChiPhiSXHieuLuc) : 0;
-  const commissionPctShown = giaVonDonViHieuLuc > 0 ? (newCommissionPerUnit / giaVonDonViHieuLuc) : 0;
+  const commissionPctShown = tongChiPhiSXHieuLuc > 0 ? (newCommissionPerUnit * dauVaoKq.quantity / tongChiPhiSXHieuLuc) : 0;
   const tinhGiaSauGhiDeDonVi = (saleOverrides: OverrideTable, adminOverrides: OverrideTable, spPct = 0, apPct = 0) => {
     const { effCostPerUnit, effTotalProdCost } = tinhGiaHieuLuc({
       result: r,
@@ -816,7 +816,7 @@ const buttonLabel = loadedItem
     });
     const hoaHongDonVi = dauVaoKq.commissionFixedVND > 0
       ? dauVaoKq.commissionFixedVND
-      : dauVaoKq.commissionRate * effCostPerUnit;
+      : dauVaoKq.commissionRate * (dauVaoKq.quantity > 0 ? effTotalProdCost / dauVaoKq.quantity : 0);
     const giaDonVi = effCostPerUnit
       + r.zipperPerUnit + r.tapePerUnit + r.handlePerUnit
       + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + hoaHongDonVi
