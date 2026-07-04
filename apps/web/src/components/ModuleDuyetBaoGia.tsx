@@ -8,6 +8,8 @@ import { coQuyenDuyetBaoGia } from '../lib/permissions';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import type { CalculateInput, HistoryItem } from '../lib/types';
 import ChiTietBaoGiaSlidePanel from './ChiTietBaoGiaSlidePanel';
+import ConfirmDialog from './ConfirmDialog';
+import { previewBaoGia, buildHistoryItemFromServerData } from '../lib/baoGiaExport';
 import {
   layDanhSachBaoGiaService,
   layBaoGiaChoDuyetService,
@@ -148,6 +150,7 @@ export default function ModuleDuyetBaoGia() {
   const [thongBao, datThongBao] = useState('');
   const [dangXuLyId, datDangXuLyId] = useState<string | null>(null);
   const [chiTiet, datChiTiet] = useState<BaoGiaApi | null>(null);
+  const [confirm, setConfirm] = useState<{ bg: BaoGiaApi; title: string; message: string; onConfirm: () => void } | null>(null);
 
   const lamMoi = useCallback(async () => {
     if (!isAuthenticated || !accessToken) {
@@ -202,32 +205,49 @@ export default function ModuleDuyetBaoGia() {
 
   const nopBaoGia = useCallback(async (bg: BaoGiaApi) => {
     if (!accessToken) return;
-    datDangXuLyId(bg.id);
-    datLoi('');
-    try {
-      await nopBaoGiaService(bg.id, accessToken);
-      hienThongBao('Đã nộp báo giá để chờ duyệt.');
-      await lamMoi();
-    } catch (error) {
-      datLoi(error instanceof Error ? error.message : 'Không nộp được báo giá.');
-    } finally {
-      datDangXuLyId(null);
-    }
+    setConfirm({
+      bg,
+      title: 'Gửi duyệt báo giá',
+      message: `Bạn có chắc muốn gửi báo giá "${tenBaoGia(bg)}" để duyệt?`,
+      onConfirm: async () => {
+        setConfirm(null);
+        datDangXuLyId(bg.id);
+        datLoi('');
+        try {
+          await nopBaoGiaService(bg.id, accessToken);
+          hienThongBao('Đã nộp báo giá để chờ duyệt.');
+          await lamMoi();
+        } catch (error) {
+          datLoi(error instanceof Error ? error.message : 'Không nộp được báo giá.');
+        } finally {
+          datDangXuLyId(null);
+        }
+      },
+    });
   }, [accessToken, lamMoi, hienThongBao]);
 
   const duyetBaoGia = useCallback(async (bg: BaoGiaApi, quyetDinh: 'approved' | 'rejected') => {
     if (!accessToken) return;
-    datDangXuLyId(bg.id);
-    datLoi('');
-    try {
-      await duyetBaoGiaService(bg.id, quyetDinh, accessToken);
-      hienThongBao(quyetDinh === 'approved' ? 'Đã duyệt báo giá.' : 'Đã từ chối báo giá.');
-      await lamMoi();
-    } catch (error) {
-      datLoi(error instanceof Error ? error.message : 'Không cập nhật được trạng thái báo giá.');
-    } finally {
-      datDangXuLyId(null);
-    }
+    const label = quyetDinh === 'approved' ? 'duyệt' : 'từ chối';
+    setConfirm({
+      bg,
+      title: quyetDinh === 'approved' ? 'Duyệt báo giá' : 'Từ chối báo giá',
+      message: `Bạn có chắc muốn ${label} báo giá "${tenBaoGia(bg)}"?`,
+      onConfirm: async () => {
+        setConfirm(null);
+        datDangXuLyId(bg.id);
+        datLoi('');
+        try {
+          await duyetBaoGiaService(bg.id, quyetDinh, accessToken);
+          hienThongBao(quyetDinh === 'approved' ? 'Đã duyệt báo giá.' : 'Đã từ chối báo giá.');
+          await lamMoi();
+        } catch (error) {
+          datLoi(error instanceof Error ? error.message : 'Không cập nhật được trạng thái báo giá.');
+        } finally {
+          datDangXuLyId(null);
+        }
+      },
+    });
   }, [accessToken, lamMoi, hienThongBao]);
 
   const taoBanSua = useCallback(async (bg: BaoGiaApi) => {
@@ -254,8 +274,26 @@ export default function ModuleDuyetBaoGia() {
     datBoLoc(key);
   };
 
+  const layKhachHangLocal = (): Array<{ companyName?: string; customerCode?: string; address?: string; invoiceAddress?: string; taxCode?: string; phone?: string }> => {
+    try { return JSON.parse(window.localStorage.getItem('lts_customers') || '[]'); } catch { return []; }
+  };
+
   const renderHanhDong = (bg: BaoGiaApi, trangThai: TrangThaiBaoGiaServer) => {
     const dangXuLy = dangXuLyId === bg.id;
+
+    const handleXemBaoGia = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const item = buildHistoryItemFromServerData(bg as any);
+      const customerName = (item.customer || bg.pricingSheets?.[0]?.customer?.codeName || '') as string;
+      const customers = layKhachHangLocal();
+      const c = customers.find(kh => kh.companyName === customerName || kh.customerCode === customerName);
+      previewBaoGia(item as HistoryItem, {
+        address: c?.address || c?.invoiceAddress || '',
+        taxCode: c?.taxCode || '',
+        phone: c?.phone || '',
+      }).catch(err => alert('Lỗi xem báo giá: ' + (err instanceof Error ? err.message : err)));
+    };
+
     return (
       <div className="qrev-row-actions" onClick={e => e.stopPropagation()}>
         <button className="qrev-btn-icon" title="Xem chi tiết" onClick={() => datChiTiet(bg)}>
@@ -281,6 +319,9 @@ export default function ModuleDuyetBaoGia() {
             <ClipboardEdit size={15} />
           </button>
         )}
+        <button className="qrev-btn-icon" title="Xem PDF báo giá" onClick={handleXemBaoGia}>
+          <FileText size={14} />
+        </button>
       </div>
     );
   };
@@ -404,6 +445,14 @@ export default function ModuleDuyetBaoGia() {
           onTaoBanSua={bg => { datChiTiet(null); void taoBanSua(bg); }}
         />
       )}
+
+      <ConfirmDialog
+        open={!!confirm}
+        title={confirm?.title || ''}
+        message={confirm?.message || ''}
+        onConfirm={() => confirm?.onConfirm()}
+        onCancel={() => setConfirm(null)}
+      />
     </div>
   );
 }

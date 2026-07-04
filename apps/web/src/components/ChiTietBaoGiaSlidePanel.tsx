@@ -1,10 +1,12 @@
 "use client";
-import React from 'react';
+import React, { useState } from 'react';
 import { X, FileText } from 'lucide-react';
 import { normalizeDisplayText } from '../lib/text-codec';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { QrevStyleInjector } from './qrev-styles';
 import type { HistoryItem } from '../lib/types';
+import ConfirmDialog from './ConfirmDialog';
+import { previewBaoGia, buildHistoryItemFromServerData } from '../lib/baoGiaExport';
 import {
   chuyenTrangThaiBaoGia,
   NHAN_TRANG_THAI_BAO_GIA,
@@ -19,6 +21,10 @@ function dinhDangNgay(iso?: string): string {
   if (!iso) return '—';
   const ms = new Date(iso).getTime();
   return ms ? new Date(ms).toLocaleString('vi-VN') : '—';
+}
+
+function layKhachHangLocal(): Array<{ companyName?: string; customerCode?: string; address?: string; invoiceAddress?: string; taxCode?: string; phone?: string }> {
+  try { return JSON.parse(window.localStorage.getItem('lts_customers') || '[]'); } catch { return []; }
 }
 
 function dinhDangSo(n: number): string {
@@ -106,6 +112,7 @@ export default function ChiTietBaoGiaSlidePanel({
   laNguoiDuyet = false, dangXuLy = false,
   onNop, onDuyet, onTaoBanSua,
 }: ChiTietBaoGiaPanelProps) {
+  const [confirm, setConfirm] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const trangThai = chuyenTrangThaiBaoGia(baoGia.updateStatus);
   const item = (baoGia.inputValue ?? {}) as Partial<HistoryItem>;
   const pricingSheets = baoGia.pricingSheets ?? [];
@@ -226,16 +233,28 @@ export default function ChiTietBaoGiaSlidePanel({
         {coFooter && (
           <div className="qrev-panel-footer">
             {trangThai === 'drafted' && onNop && (
-              <button className="qrev-btn qrev-btn--primary" disabled={dangXuLy} onClick={() => onNop(baoGia)}>
+              <button className="qrev-btn qrev-btn--primary" disabled={dangXuLy} onClick={() => setConfirm({
+                title: 'Gửi duyệt báo giá',
+                message: 'Bạn có chắc muốn gửi báo giá này để duyệt?',
+                onConfirm: () => { setConfirm(null); onNop(baoGia); },
+              })}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg> Nộp duyệt
               </button>
             )}
             {trangThai === 'submitted' && laNguoiDuyet && onDuyet && (
               <>
-                <button className="qrev-btn qrev-btn--ok" disabled={dangXuLy} onClick={() => onDuyet(baoGia, 'approved')}>
+                <button className="qrev-btn qrev-btn--ok" disabled={dangXuLy} onClick={() => setConfirm({
+                  title: 'Duyệt báo giá',
+                  message: 'Bạn có chắc muốn duyệt báo giá này?',
+                  onConfirm: () => { setConfirm(null); onDuyet(baoGia, 'approved'); },
+                })}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> Duyệt
                 </button>
-                <button className="qrev-btn qrev-btn--danger" disabled={dangXuLy} onClick={() => onDuyet(baoGia, 'rejected')}>
+                <button className="qrev-btn qrev-btn--danger" disabled={dangXuLy} onClick={() => setConfirm({
+                  title: 'Từ chối báo giá',
+                  message: 'Bạn có chắc muốn từ chối báo giá này?',
+                  onConfirm: () => { setConfirm(null); onDuyet(baoGia, 'rejected'); },
+                })}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Từ chối
                 </button>
               </>
@@ -247,7 +266,30 @@ export default function ChiTietBaoGiaSlidePanel({
             )}
           </div>
         )}
+        <div className="qrev-panel-footer">
+          <button className="qrev-btn qrev-btn--ghost" onClick={() => {
+            const item = buildHistoryItemFromServerData(baoGia as any);
+            const customerName = (item.customer || baoGia.pricingSheets?.[0]?.customer?.codeName || '') as string;
+            const customers = layKhachHangLocal();
+            const c = customers.find(kh => kh.companyName === customerName || kh.customerCode === customerName);
+            previewBaoGia(item as HistoryItem, {
+              address: c?.address || c?.invoiceAddress || '',
+              taxCode: c?.taxCode || '',
+              phone: c?.phone || '',
+            }).catch(err => alert('Lỗi xem báo giá: ' + (err instanceof Error ? err.message : err)));
+          }}>
+            <FileText size={14} /> Xem PDF báo giá
+          </button>
+        </div>
       </aside>
+
+      <ConfirmDialog
+        open={!!confirm}
+        title={confirm?.title || ''}
+        message={confirm?.message || ''}
+        onConfirm={() => confirm?.onConfirm()}
+        onCancel={() => setConfirm(null)}
+      />
     </>
   );
 }

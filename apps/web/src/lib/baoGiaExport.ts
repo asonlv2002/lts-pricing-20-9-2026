@@ -131,8 +131,8 @@ const CSS = `
     .pdf-toolbar { display: none !important; }
     body { background: #fff !important; }
     .pdf-pages { padding: 0 !important; }
-    .page { width: auto !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; margin-bottom: 0 !important; page-break-after: always; }
-    .page:last-child { page-break-after: auto; }
+    .page { width: auto !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; margin-bottom: 0 !important; }
+    .page:not(:last-child) { page-break-after: always; }
   }
 
   /* ── Screen / viewer mode ── */
@@ -667,4 +667,108 @@ export async function exportBaoGiaToDocx(
   a.download = `BaoGia_${safeFn(item.quoteCode || item.customer)}.docx`;
   a.click();
   URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PREVIEW — mở cửa sổ HTML, toolbar có nút In PDF
+// ═══════════════════════════════════════════════════════════════════════════════
+export async function previewBaoGia(
+  item: HistoryItem,
+  customerInfo?: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string },
+): Promise<void> {
+  const html = buildBaoGiaHtmlV2(item, customerInfo);
+  const win = window.open('', '_blank', 'width=1000,height=900');
+  if (!win) { alert('Trình duyệt chặn popup. Vui lòng cho phép popup.'); return; }
+  win.document.title = `Bảng báo giá ${item.quoteCode || item.customer || ''}`;
+  win.document.write(html);
+  win.document.close();
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// HELPERS — dựng HistoryItem từ dữ liệu server (BaoGiaApi)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+interface BaoGiaApiLoose {
+  id?: string;
+  quotationName?: string | null;
+  inputValue?: unknown;
+  pricingSheets?: Array<{
+    id?: string;
+    pricingSheetName?: string;
+    customer?: { codeName?: string } | null;
+    inputValue?: Record<string, unknown>;
+    saleResult?: { finalPrice?: number } | null;
+    masterResult?: { finalPrice?: number } | null;
+  }>;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+function buildStructure(layers: (string | undefined)[]): string {
+  return layers.filter(Boolean).join(' / ');
+}
+
+export function buildHistoryItemFromServerData(bg: BaoGiaApiLoose): Partial<HistoryItem> & { date?: string; quoteCode?: string; terms?: QuoteTerms } {
+  const inputValue = (bg.inputValue ?? {}) as Record<string, unknown>;
+  const sheets = bg.pricingSheets ?? [];
+  const firstSheet = sheets[0];
+  const firstInput = (firstSheet?.inputValue ?? {}) as Record<string, unknown>;
+  const bagSpecs = (inputValue.productBagSpecs as Array<{
+    productName?: string;
+    pricingSheetId?: string;
+    sourceHistoryItemId?: string;
+    bagSpec?: Record<string, unknown>;
+  }>) ?? [];
+
+  const customer = (inputValue.customer as string) || (firstInput?.customer as string) || firstSheet?.customer?.codeName || '';
+
+  const quoteProducts: QuoteProductLine[] = bagSpecs.map(spec => {
+    const sheet = sheets.find(s => s.id === spec.pricingSheetId);
+    const sheetInput = (sheet?.inputValue ?? {}) as Record<string, unknown>;
+    const productName = spec.productName || sheet?.pricingSheetName || '';
+    const structure = buildStructure([
+      sheetInput?.layer1Id as string,
+      sheetInput?.layer2Id as string,
+      sheetInput?.layer3Id as string,
+      sheetInput?.layer4Id as string,
+      sheetInput?.layer5Id as string,
+    ]);
+    const quantity = (sheetInput?.quantity as number) ?? 0;
+    const finalPrice = (sheet?.saleResult as any)?.finalPrice ?? (sheet?.masterResult as any)?.finalPrice ?? 0;
+    return {
+      sourceHistoryItemId: spec.sourceHistoryItemId || spec.pricingSheetId || '',
+      productName,
+      structure,
+      quantity,
+      finalPrice,
+      chotGia: 0,
+      input: sheetInput as any,
+      tiers: [{ quantity, chotGia: 0, finalPrice } as QuoteTier],
+      bagSpec: spec.bagSpec as any,
+    } as QuoteProductLine;
+  });
+
+  const mainProduct = quoteProducts[0];
+  const dateStr = bg.createdAt ? new Date(bg.createdAt).toLocaleDateString('vi-VN') : '';
+  const quoteCode = bg.quotationName || bg.id?.slice(0, 8) || '';
+
+  return {
+    customer,
+    productName: mainProduct?.productName || (firstInput?.productName as string) || '',
+    structure: mainProduct?.structure || buildStructure([firstInput?.layer1Id as string, firstInput?.layer2Id as string]),
+    quantity: mainProduct?.quantity ?? (firstInput?.quantity as number) ?? 0,
+    finalPrice: mainProduct?.finalPrice ?? 0,
+    chotGia: 0,
+    input: firstInput as any,
+    quoteProducts,
+    tiers: [],
+    date: dateStr,
+    quoteCode,
+    terms: {
+      vatRate: (inputValue.vatRate as number) ?? 8,
+      paymentTerms: (inputValue.paymentTerms as string) || '',
+      notes: (inputValue.notes as string) || '',
+      deliveryTime: (inputValue.deliveryTime as string) || '',
+    },
+  } as any;
 }
