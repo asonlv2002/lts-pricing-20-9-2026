@@ -158,7 +158,7 @@ const CSS = `
     padding: 24px 12px 40px;
   }
   .page {
-    width: 210mm; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.35);
+    width: 210mm; min-height: 297mm; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.35);
     border-radius: 1px; margin-bottom: 24px; padding: 20mm 15mm 15mm 15mm;
     box-sizing: border-box; overflow: hidden;
   }
