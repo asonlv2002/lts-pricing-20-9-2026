@@ -1752,6 +1752,13 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
   const [error, setError] = useState('');
   const [errorSection, setErrorSection] = useState<1 | 2 | 3 | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmExit, setConfirmExit] = useState(false);
+  const pendingModuleRef = useRef<string | null>(null);
+  const hasDataRef = useRef(false);
+  const exitingRef = useRef(false);
+
+  const hasData = !!(state.customer || state.products.length > 0);
+  useEffect(() => { hasDataRef.current = hasData; }, [hasData]);
 
   const section2Ref = useRef<HTMLDivElement>(null);
   const section1Ref = useRef<HTMLDivElement>(null);
@@ -1782,7 +1789,37 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
         ? `Khách hàng "${query}" không do bạn quản lý. Vui lòng chọn khách hàng khác.`
         : 'Không tìm thấy khách hàng từ lịch sử. Vui lòng chọn khách hàng trước khi lưu báo giá.');
     }
- }, [history]);
+  }, [history]);
+
+  // Chặn chuyển tab khi wizard đang có data chưa lưu
+  useEffect(() => {
+    const unsub = (dungCuaHangTinhGia as any).subscribe((state: any, prev: any) => {
+      if (state.activeModule && state.activeModule !== 'quotations' && prev.activeModule === 'quotations' && hasDataRef.current && !exitingRef.current) {
+        pendingModuleRef.current = state.activeModule;
+        (dungCuaHangTinhGia as any).setState({ activeModule: 'quotations' });
+        setConfirmExit(true);
+      }
+    });
+    return unsub;
+  }, []);
+
+  const handleCancelWizard = () => {
+    if (hasData) {
+      pendingModuleRef.current = null;
+      setConfirmExit(true);
+    } else {
+      onClose();
+    }
+  };
+
+  const handleForceExit = () => {
+    exitingRef.current = true;
+    const target = pendingModuleRef.current;
+    onClose();
+    if (target) {
+      (dungCuaHangTinhGia as any).setState({ activeModule: target });
+    }
+  };
 
   const handleCustomerSelect = (c: Customer) => {
     setState(prev => ({ ...prev, customer: c }));
@@ -2022,9 +2059,6 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
           </div>
         </div>
         <div className="quote-wizard-header-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-          <button className="wiz-btn wiz-btn--secondary" onClick={() => handleExportDocx()} disabled={!canSubmit}>
-            <FileDown size={14} /> Xuất DOCX
-          </button>
           <button className="wiz-btn wiz-btn--secondary" onClick={() => handleExportPdf()} disabled={!canSubmit}>
             <FileDown size={14} /> Xuất PDF
           </button>
@@ -2034,8 +2068,8 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
           <button className="wiz-btn wiz-btn--primary" onClick={() => handleSave(true)} disabled={saving || !canSubmit}>
             <CheckCircle2 size={14} /> Lưu & Gửi duyệt
           </button>
-          <button className="wiz-btn wiz-btn--ghost quote-wizard-close" onClick={onClose} style={{ padding: '6px 8px' }} aria-label="Đóng">
-            <X size={18} />
+          <button className="wiz-btn wiz-btn--secondary" onClick={handleCancelWizard} style={{ color: '#dc2626' }}>
+            <X size={14} /> Hủy bỏ
           </button>
         </div>
       </div>
@@ -2118,6 +2152,23 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
           <CheckCircle2 size={14} /> Lưu & Gửi duyệt
         </button>
       </div>
+
+      {/* Confirm exit dialog */}
+      {confirmExit && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.4)' }}>
+          <div style={{ background: '#fff', borderRadius: 12, padding: '24px 28px', maxWidth: 380, boxShadow: '0 8px 32px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ fontSize: '2rem', marginBottom: 8 }}>⚠️</div>
+            <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 8 }}>Thoát mà không lưu?</div>
+            <p style={{ fontSize: '0.85rem', color: '#666', marginBottom: 20 }}>
+              Báo giá chưa được lưu. Nếu thoát, mọi thay đổi sẽ bị mất.
+            </p>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center' }}>
+              <button className="wiz-btn wiz-btn--secondary" onClick={() => setConfirmExit(false)}>Ở lại</button>
+              <button className="wiz-btn wiz-btn--danger" onClick={handleForceExit}>Thoát không lưu</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
