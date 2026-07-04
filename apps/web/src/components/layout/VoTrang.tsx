@@ -837,7 +837,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               )}
               {moduleDangMo === 'calculator'        && children}
               {moduleDangMo === 'quotations'        && (menuDangChon === 'pricing.quote_review'
-                ? <ModuleDuyetBaoGia />
+                ? <ModuleDuyetBaoGia khiDieuHuong={(key) => { datMenuDangChon(key); datModuleDangMo('quotations'); }} />
                 : <ModuleBaoGia role={vaiTroHienTai} menuDangChon={menuDangChon} khiDieuHuong={(key) => { datMenuDangChon(key); datModuleDangMo('quotations'); }} />)}
               {moduleDangMo === 'create_lsx'        && <ModuleTaoLenhSanXuat />}
               {moduleDangMo === 'lsx_list'          && <ModuleDanhSachLSX />}

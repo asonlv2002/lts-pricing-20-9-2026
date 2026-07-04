@@ -17,7 +17,6 @@ import {
   nopBaoGiaService,
   duyetBaoGiaService,
   taoBanSuaBaoGiaService,
-  capNhatBaoGiaService,
   chuyenTrangThaiBaoGia,
   NHAN_TRANG_THAI_BAO_GIA,
   type BaoGiaApi,
@@ -117,10 +116,11 @@ function nguoiTaoBaoGia(bg: BaoGiaApi): string | undefined {
 
 type Nguon = 'list' | 'review';
 
-export default function ModuleDuyetBaoGia() {
+export default function ModuleDuyetBaoGia({ khiDieuHuong }: { khiDieuHuong?: (menuKey: string) => void }) {
   const accessToken = dungCuaHangTinhGia(s => s.accessToken);
   const isAuthenticated = dungCuaHangTinhGia(s => s.isAuthenticated);
   const nguoiDung = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
+  const datBaoGiaDangSua = dungCuaHangTinhGia(s => s.datBaoGiaDangSua);
   const policies = nguoiDung?.policies ?? [];
   const laNguoiDuyet = coQuyenDuyetBaoGia(policies);
 
@@ -272,26 +272,9 @@ export default function ModuleDuyetBaoGia() {
 
   const capNhatBaoGia = useCallback((bg: BaoGiaApi) => {
     if (!accessToken) return;
-    setConfirm({
-      bg,
-      title: 'Cập nhật báo giá',
-      message: `Bạn có chắc muốn cập nhật báo giá "${tenBaoGia(bg)}" và gửi lại duyệt?`,
-      onConfirm: async () => {
-        setConfirm(null);
-        datDangXuLyId(bg.id);
-        datLoi('');
-        try {
-          await capNhatBaoGiaService(bg.id, { duLieuDauVao: bg.inputValue }, accessToken);
-          hienThongBao('Đã cập nhật báo giá.');
-          await lamMoi();
-        } catch (loi) {
-          datLoi(loi instanceof Error ? loi.message : 'Không cập nhật được báo giá.');
-        } finally {
-          datDangXuLyId(null);
-        }
-      },
-    });
-  }, [accessToken, lamMoi, hienThongBao]);
+    datBaoGiaDangSua(bg);
+    khiDieuHuong?.('pricing.create_quote');
+  }, [accessToken, datBaoGiaDangSua, khiDieuHuong]);
 
   const chonChip = (key: BoLoc) => {
     datNguon('list');
@@ -477,7 +460,7 @@ export default function ModuleDuyetBaoGia() {
           onNop={bg => { datChiTiet(null); void nopBaoGia(bg); }}
           onDuyet={(bg, quyetDinh) => { datChiTiet(null); void duyetBaoGia(bg, quyetDinh); }}
           onTaoBanSua={bg => { datChiTiet(null); void taoBanSua(bg); }}
-          onCapNhat={chiTiet.createdBy === nguoiDung?.id ? (bg) => { datChiTiet(null); capNhatBaoGia(bg); } : undefined}
+          onCapNhat={chiTiet.createdBy === nguoiDung?.id ? (_bg: BaoGiaApi) => { datChiTiet(null); datBaoGiaDangSua(chiTiet); khiDieuHuong?.('pricing.create_quote'); } : undefined}
         />
       )}
 

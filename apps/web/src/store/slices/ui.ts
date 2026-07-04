@@ -1,5 +1,6 @@
 import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
+import type { BaoGiaApi } from '../../lib/api/service-lts';
 
 export interface UISlice {
   activeView: 'manager' | 'tech' | 'history' | 'config' | 'bento';
@@ -11,6 +12,7 @@ export interface UISlice {
   currentSellerId: string;
   currentSellerName: string;
   role: string;
+  baoGiaDangSua: BaoGiaApi | null;
 
   setActiveView: (v: UISlice['activeView']) => void;
   setActiveModule: (v: UISlice['activeModule']) => void;
@@ -20,6 +22,7 @@ export interface UISlice {
   setAdvancedOpen: (v: boolean) => void;
   setCurrentSeller: (id: string, name: string) => void;
   setRole: (r: string) => void;
+  datBaoGiaDangSua: (bg: BaoGiaApi | null) => void;
   datManHinhDangMo: UISlice['setActiveView'];
   datPhanHeDangMo: UISlice['setActiveModule'];
 }
@@ -34,6 +37,7 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   currentSellerId: 'S1',
   currentSellerName: 'Nguyễn Văn An',
   role: 'admin',
+  baoGiaDangSua: null,
 
   setActiveView:    (v) => set({ activeView: v }),
   setActiveModule:  (v) => set({ activeModule: v }),
@@ -43,6 +47,7 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   setAdvancedOpen:  (v) => set({ advancedOpen: v }),
   setCurrentSeller: (id, name) => set({ currentSellerId: id, currentSellerName: name }),
   setRole:          (r) => set({ role: r }),
+  datBaoGiaDangSua: (bg) => set({ baoGiaDangSua: bg }),
   datManHinhDangMo: (v) => set({ activeView: v }),
   datPhanHeDangMo:  (v) => set({ activeModule: v }),
 });

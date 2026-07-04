@@ -60,6 +60,7 @@ import { QUOTE_STATUS_CONFIG } from "../lib/types";
 import {
   taoBaoGiaService,
   nopBaoGiaService,
+  capNhatBaoGiaService,
   taoPricingSheetService,
 } from "../lib/api/service-lts";
 import { mapHistoryToPricingSheet } from "../lib/api/pricing-sheet-mapper";
@@ -1318,9 +1319,11 @@ function SaleView({
 function BuocChonKhachHang({
   selected,
   onSelect,
+  chiDoc,
 }: {
   selected: Customer | null;
   onSelect: (c: Customer) => void;
+  chiDoc?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -1397,6 +1400,32 @@ function BuocChonKhachHang({
       )}
     </div>
   );
+
+  if (chiDoc && selected) {
+    return (
+      <div>
+        <p className="wiz-section-title">Khách hàng</p>
+        <div className="wiz-customer-summary wiz-customer-summary--selected">
+          <div className="wiz-customer-summary-main">
+            <div className="wiz-customer-icon">
+              <Lock size={16} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div className="wiz-customer-name">{tieuDeKhachHang(selected)}</div>
+              <div className="wiz-customer-meta">
+                {metaKhachHang(selected).map((line) => (
+                  <span key={line}>{line}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <p style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Lock size={12} /> Không thể thay đổi khách hàng khi cập nhật báo giá.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isMobilePicker) {
     return (
@@ -3357,7 +3386,11 @@ function TaoBaoGiaWizard({
     taoBaoGiaMoi,
     accessToken,
     isAuthenticated,
+    baoGiaDangSua,
+    datBaoGiaDangSua,
   } = store;
+
+  const dangSua = !!baoGiaDangSua;
 
   const [state, setState] = useState<WizardState>({
     customer: null,
@@ -3435,6 +3468,56 @@ function TaoBaoGiaWizard({
     }
   }, [history]);
 
+  const daDocBaoGiaSua = useRef(false);
+  useEffect(() => {
+    if (!baoGiaDangSua || daDocBaoGiaSua.current) return;
+    daDocBaoGiaSua.current = true;
+    const bg = baoGiaDangSua;
+    const tatCaKhach = docKhachHang();
+    const maKH = bg.pricingSheets?.[0]?.customer?.codeName?.trim() || '';
+    const khachHang = tatCaKhach.find(c => c.customerCode === maKH) || null;
+    const sheets = bg.pricingSheets ?? [];
+    const sanPham: WizardProduct[] = [];
+    for (const sheet of sheets) {
+      const dv = (sheet.inputValue ?? {}) as Record<string, unknown>;
+      const kq = (sheet.saleResult ?? sheet.masterResult ?? {}) as Record<string, unknown>;
+      const cauTruc = [
+        dv.layer1Id, dv.layer2Id, dv.layer3Id, dv.layer4Id, dv.layer5Id,
+      ].filter(Boolean).join(' / ');
+      const giaAo = {
+        id: sheet.id,
+        customer: maKH,
+        productName: (dv.productName as string) || sheet.pricingSheetName || '',
+        productType: (dv.productType as string) || 'tui',
+        structure: cauTruc || (dv.productName as string) || '',
+        quantity: (dv.quantity as number) || 0,
+        finalPrice: (kq.finalPrice as number) || 0,
+        chotGia: undefined as number | undefined,
+        profitRate: (kq.profitRate as number) || 0,
+        input: dv as any,
+        pricingSheetId: sheet.id,
+        bagType: (dv.bagType as string) || '',
+        numColors: typeof dv.numColors === 'number' ? dv.numColors : 0,
+        spreadWidth: (dv.spreadWidth as number) || 0,
+        cutStep: (dv.cutStep as number) || 0,
+        cylLength: (dv.cylLength as number) || 0,
+        cylCircum: (dv.cylCircum as number) || 0,
+        totalArea: (dv.totalArea as number) || 0,
+      } as any as HistoryItem;
+      sanPham.push(buildWizardProductFromHistoryItem(giaAo));
+    }
+    const iv = (bg.inputValue ?? {}) as Record<string, unknown>;
+    const dieuKhoan = {
+      vatRate: (iv.vatRate as number) ?? 8,
+      vatCylinderRate: (iv.vatCylinderRate as number) ?? 10,
+      validityDays: (iv.validityDays as number) ?? 30,
+      paymentTerms: (iv.paymentTerms as string) || 'Thanh toán 30 ngày',
+      deliveryTime: (iv.deliveryTime as string) || '7-10 ngày làm việc',
+      notes: (iv.notes as string) || '',
+    };
+    setState({ customer: khachHang, products: sanPham, terms: dieuKhoan });
+  }, [baoGiaDangSua]);
+
   // Chặn chuyển tab khi wizard đang có data chưa lưu
   useEffect(() => {
     const unsub = (dungCuaHangTinhGia as any).subscribe(
@@ -3460,6 +3543,7 @@ function TaoBaoGiaWizard({
       pendingModuleRef.current = null;
       setConfirmExit(true);
     } else {
+      datBaoGiaDangSua(null);
       onClose();
     }
   };
@@ -3467,6 +3551,7 @@ function TaoBaoGiaWizard({
   const handleForceExit = () => {
     exitingRef.current = true;
     const target = pendingModuleRef.current;
+    datBaoGiaDangSua(null);
     onClose();
     if (target) {
       (dungCuaHangTinhGia as any).setState({ activeModule: target });
@@ -3474,6 +3559,7 @@ function TaoBaoGiaWizard({
   };
 
   const handleCustomerSelect = (c: Customer) => {
+    if (dangSua) return;
     setState((prev) => ({ ...prev, customer: c }));
     // Auto-scroll to section 2 after selecting customer
     setTimeout(() => {
@@ -3510,6 +3596,50 @@ function TaoBaoGiaWizard({
         throw new Error(checkKH.loi ?? "Mã khách hàng không hợp lệ.");
 
       try {
+        const bgDangSua = dungCuaHangTinhGia.getState().baoGiaDangSua;
+        const laDangSua = !!bgDangSua;
+
+        if (laDangSua && bgDangSua) {
+          const pricingSheetIds: string[] = [];
+          for (const prod of products) {
+            if (prod.historyItem.pricingSheetId) {
+              pricingSheetIds.push(prod.historyItem.pricingSheetId);
+              continue;
+            }
+            const sheet = await taoPricingSheetService(
+              mapHistoryToPricingSheet(prod.historyItem, checkKH.maKhachHang),
+              accessToken,
+            );
+            if (sheet?.id) pricingSheetIds.push(sheet.id);
+          }
+          if (pricingSheetIds.length === 0)
+            throw new Error("Không có pricing sheet nào để cập nhật.");
+
+          await capNhatBaoGiaService(bgDangSua.id, {
+            moTa: terms.notes?.trim() || undefined,
+            duLieuDauVao: {
+              vatRate: terms.vatRate,
+              vatCylinderRate: terms.vatCylinderRate,
+              validityDays: terms.validityDays,
+              paymentTerms: terms.paymentTerms,
+              deliveryTime: terms.deliveryTime,
+              notes: terms.notes,
+              productBagSpecs: products.map((prod) => ({
+                sourceHistoryItemId: prod.historyItem.id,
+                pricingSheetId: prod.historyItem.pricingSheetId,
+                productName: prod.historyItem.productName,
+                bagSpec: prod.bagSpec,
+              })),
+            },
+            dsPricingSheetId: pricingSheetIds,
+          }, accessToken);
+
+          if (sendForApproval) {
+            await nopBaoGiaService(bgDangSua.id, accessToken);
+          }
+          return bgDangSua.id;
+        }
+
         // Bước 1: gom pricingSheetIds — dùng id đã có, chỉ tạo mới khi chưa có.
         const pricingSheetIds: string[] = [];
         for (const prod of products) {
@@ -3660,6 +3790,7 @@ function TaoBaoGiaWizard({
           quotationId,
         });
 
+        datBaoGiaDangSua(null);
         onClose();
         onSavedNavigate?.();
       } catch (error) {
@@ -3792,9 +3923,9 @@ function TaoBaoGiaWizard({
       <div className="sp-sticky-header quote-wizard-header">
         <div className="quote-wizard-header-title">
           <div className="quote-wizard-title-stack">
-            <h2 className="quote-wizard-title">Tạo báo giá mới</h2>
+            <h2 className="quote-wizard-title">{dangSua ? 'Cập nhật báo giá' : 'Tạo báo giá mới'}</h2>
             <div className="quote-wizard-subtitle">
-              Bước 1/3: Chọn khách hàng
+              {dangSua ? `Bước 1/3: Khách hàng (không thể thay đổi)` : 'Bước 1/3: Chọn khách hàng'}
             </div>
           </div>
         </div>
@@ -3809,20 +3940,41 @@ function TaoBaoGiaWizard({
           >
             <FileDown size={14} /> Xuất PDF
           </button>
-          <button
-            className="wiz-btn wiz-btn--secondary"
-            onClick={() => handleSave(false)}
-            disabled={saving || !canSaveDraft}
-          >
-            Lưu nháp
-          </button>
-          <button
-            className="wiz-btn wiz-btn--primary"
-            onClick={() => handleSave(true)}
-            disabled={saving || !canSubmit}
-          >
-            <CheckCircle2 size={14} /> Lưu & Gửi duyệt
-          </button>
+          {dangSua ? (
+            <>
+              <button
+                className="wiz-btn wiz-btn--secondary"
+                onClick={() => handleSave(false)}
+                disabled={saving || !canSaveDraft}
+              >
+                Cập nhật
+              </button>
+              <button
+                className="wiz-btn wiz-btn--primary"
+                onClick={() => handleSave(true)}
+                disabled={saving || !canSubmit}
+              >
+                <CheckCircle2 size={14} /> Cập nhật & Gửi duyệt
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="wiz-btn wiz-btn--secondary"
+                onClick={() => handleSave(false)}
+                disabled={saving || !canSaveDraft}
+              >
+                Lưu nháp
+              </button>
+              <button
+                className="wiz-btn wiz-btn--primary"
+                onClick={() => handleSave(true)}
+                disabled={saving || !canSubmit}
+              >
+                <CheckCircle2 size={14} /> Lưu & Gửi duyệt
+              </button>
+            </>
+          )}
           <button
             className="wiz-btn wiz-btn--secondary"
             onClick={handleCancelWizard}
@@ -3856,6 +4008,7 @@ function TaoBaoGiaWizard({
           <BuocChonKhachHang
             selected={state.customer}
             onSelect={handleCustomerSelect}
+            chiDoc={dangSua}
           />
         </div>
 
@@ -3922,20 +4075,41 @@ function TaoBaoGiaWizard({
         >
           <FileText size={14} /> Xem PDF báo giá
         </button>
-        <button
-          className="wiz-btn wiz-btn--secondary"
-          onClick={() => handleSave(false)}
-          disabled={saving || !canSaveDraft}
-        >
-          Lưu nháp
-        </button>
-        <button
-          className="wiz-btn wiz-btn--primary"
-          onClick={() => handleSave(true)}
-          disabled={saving || !canSubmit}
-        >
-          <CheckCircle2 size={14} /> Lưu & Gửi duyệt
-        </button>
+        {dangSua ? (
+          <>
+            <button
+              className="wiz-btn wiz-btn--secondary"
+              onClick={() => handleSave(false)}
+              disabled={saving || !canSaveDraft}
+            >
+              Cập nhật
+            </button>
+            <button
+              className="wiz-btn wiz-btn--primary"
+              onClick={() => handleSave(true)}
+              disabled={saving || !canSubmit}
+            >
+              <CheckCircle2 size={14} /> Cập nhật & Gửi
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              className="wiz-btn wiz-btn--secondary"
+              onClick={() => handleSave(false)}
+              disabled={saving || !canSaveDraft}
+            >
+              Lưu nháp
+            </button>
+            <button
+              className="wiz-btn wiz-btn--primary"
+              onClick={() => handleSave(true)}
+              disabled={saving || !canSubmit}
+            >
+              <CheckCircle2 size={14} /> Lưu & Gửi duyệt
+            </button>
+          </>
+        )}
       </div>
 
       {/* Confirm exit dialog */}
