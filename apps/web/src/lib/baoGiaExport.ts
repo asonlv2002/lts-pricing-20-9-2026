@@ -56,16 +56,6 @@ function withTimeout<T>(p: Promise<T>, ms: number, lbl: string): Promise<T> {
   });
 }
 
-async function loadLogoDataUrl(): Promise<string> {
-  try {
-    const resp = await fetch('/logo_lts.png');
-    if (!resp.ok) return '';
-    const buf = await resp.arrayBuffer();
-    const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
-    return `data:image/png;base64,${b64}`;
-  } catch { return ''; }
-}
-
 function layVatThucTe(terms?: QuoteTerms): number {
   if (!terms) return 0;
   if (terms.vatRate === -1) return terms.vatCustom ?? 0;
@@ -75,10 +65,6 @@ function layVatThucTe(terms?: QuoteTerms): number {
 function layVatTruc(terms?: QuoteTerms): number {
   return terms?.vatCylinderRate ?? 10;
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Helpers — xây mô tả từ bagSpec
-// ═══════════════════════════════════════════════════════════════════════════════
 
 const BAG_TYPE_LABELS: Record<string, string> = {
   '3bien': 'TÚI 3 BIÊN',
@@ -135,121 +121,193 @@ function buildBagSpecDescription(
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// PDF (via print HTML)
+// PDF (via print HTML) — mirror DOCX layout 100%
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function buildBaoGiaHtml(item: HistoryItem, logo: string): string {
+const CSS = `
+  @page { size: A4; margin: 20mm 15mm 15mm 15mm; }
+  @media print {
+    .page { page-break-after: always; }
+    .page:last-child { page-break-after: auto; }
+  }
+  body { font-family: 'Times New Roman', serif; color: #000; margin: 0; padding: 0; }
+  .page { padding: 0; }
+  .co-name { text-align: center; font-size: 12pt; font-weight: bold; margin: 0 0 2px; }
+  .co-addr { text-align: center; font-size: 10pt; margin: 0 0 2px; }
+  .co-tax { text-align: center; font-size: 10pt; margin: 0 0 12px; }
+  .title { text-align: center; font-size: 16pt; font-weight: bold; margin: 6px 0 2px; }
+  .title-date { text-align: center; font-size: 11pt; margin: 0 0 6px; }
+  .cust-line { font-size: 11pt; margin: 2px 0; }
+  .cust-intro { font-size: 11pt; margin: 6px 0; }
+  .mg-bg { font-size: 11pt; color: #555; margin: 2px 0; }
+  table.bbg { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 8px 0; }
+  table.bbg th, table.bbg td { border: 1px solid #333; padding: 3px 4px; font-size: 10pt; }
+  table.bbg th { background: #3d85c6; color: #fff; font-weight: bold; text-align: center; }
+  td.ar { text-align: right; }
+  td.ac { text-align: center; }
+  td.pl { white-space: pre-line; }
+  .xem-tiep { text-align: center; font-style: italic; color: #888; font-size: 10pt; }
+  .luu-y { font-size: 11pt; font-weight: bold; margin: 14px 0 4px; }
+  .luu-y-item { font-size: 10pt; margin: 1px 0; }
+  .sig-row { text-align: center; font-size: 11pt; margin-top: 30px; }
+  .sig-sub { text-align: center; font-size: 10pt; margin: 2px 0; }
+`;
+
+function buildBaoGiaHtmlV2(
+  item: HistoryItem,
+  customerInfo?: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string },
+): string {
+  const products: QuoteProductLine[] = item.quoteProducts?.length
+    ? item.quoteProducts
+    : [{
+        sourceHistoryItemId: item.id, productName: item.productName, structure: item.structure,
+        quantity: item.quantity, finalPrice: item.finalPrice, chotGia: item.chotGia,
+        input: item.input, tiers: item.tiers || [],
+      } as QuoteProductLine];
+
+  const groups = buildGroups(products);
+  const totalPages = Math.ceil(groups.length / GROUPS_PER_PAGE);
   const vat = layVatThucTe(item.terms);
-  const donGia = item.chotGia || item.finalPrice;
-  const thanhTien = donGia * item.quantity;
-  const tienVat = thanhTien * vat / 100;
-  const tongCong = thanhTien + tienVat;
-  const tiers = item.tiers && item.tiers.length > 0 ? item.tiers : null;
+  const vatTruc = layVatTruc(item.terms);
 
-  const tierRows = tiers
-    ? tiers.map((t, i) => `
-      <tr>
-        <td style="text-align:center">${i + 1}</td>
-        <td>${item.productName}</td>
-        <td>${item.structure}</td>
-        <td style="text-align:right">${dinhDangSo(t.quantity)}</td>
-        <td style="text-align:right">${dinhDangSo(Math.round(t.chotGia || t.finalPrice))}</td>
-        <td style="text-align:right">${dinhDangSo(Math.round((t.chotGia || t.finalPrice) * t.quantity))}</td>
-      </tr>`).join('')
-    : `<tr>
-        <td style="text-align:center">1</td>
-        <td>${item.productName}</td>
-        <td>${item.structure}</td>
-        <td style="text-align:right">${dinhDangSo(item.quantity)}</td>
-        <td style="text-align:right">${dinhDangSo(Math.round(donGia))}</td>
-        <td style="text-align:right">${dinhDangSo(Math.round(thanhTien))}</td>
-      </tr>`;
+  // ═══ Column widths (% of total) — mirrors DOCX DXA proportions ═══
+  const W = { stt: '4.5%', name: '18%', desc: '38%', unit: '6%', qty: '9.5%', price: '12.5%', total: '11.5%' };
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8">
-<title>Báo giá ${item.quoteCode || ''}</title>
-<style>
-  @page { size: A4; margin: 15mm 20mm; }
-  body { font-family: 'Times New Roman', serif; font-size: 12pt; color: #000; }
-  .header { display: flex; align-items: center; gap: 16px; margin-bottom: 12px; }
-  .header img { width: 80px; height: auto; }
-  .company { font-size: 10pt; }
-  .company h2 { margin: 0; font-size: 13pt; color: #1a56db; }
-  h1 { text-align: center; font-size: 18pt; margin: 20px 0 6px; color: #1a56db; }
-  .quote-code { text-align: center; font-size: 11pt; margin-bottom: 16px; color: #555; }
-  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-bottom: 16px; font-size: 11pt; }
-  .info-grid .label { color: #555; }
-  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
-  th, td { border: 1px solid #333; padding: 6px 8px; font-size: 11pt; }
-  th { background: #3d85c6; color: #fff; font-weight: bold; }
-  .total-row td { font-weight: bold; background: #f0f7ff; }
-  .terms { margin-top: 16px; font-size: 11pt; }
-  .terms h3 { font-size: 12pt; margin: 12px 0 4px; }
-  .terms p { margin: 2px 0; }
-  .signature { display: flex; justify-content: space-between; margin-top: 40px; text-align: center; }
-  .signature div { width: 200px; }
-  .signature .title { font-weight: bold; margin-bottom: 60px; }
-</style></head><body>
-<div class="header">
-  ${logo ? `<img src="${logo}" />` : ''}
-  <div class="company">
-    <h2>CÔNG TY CP LAI TRƯỜNG SƠN</h2>
-    <div>Sản xuất bao bì nhựa mềm</div>
-  </div>
-</div>
+  let pagesHtml = '';
 
-<h1>BÁO GIÁ</h1>
-<div class="quote-code">${item.quoteCode || ''} — Ngày: ${item.date}</div>
+  for (let page = 0; page < totalPages; page++) {
+    const start = page * GROUPS_PER_PAGE;
+    const pageGroups = groups.slice(start, start + GROUPS_PER_PAGE);
+    const isLast = page === totalPages - 1;
+    let sttBase = start + 1;
 
-<div class="info-grid">
-  <div><span class="label">Khách hàng:</span> <strong>${item.customer}</strong></div>
-  <div><span class="label">Người lập:</span> ${item.sellerName || '—'}</div>
-  <div><span class="label">Sản phẩm:</span> ${item.productName}</div>
-  <div><span class="label">Hiệu lực:</span> ${item.terms?.validityDays ? item.terms.validityDays + ' ngày' : '30 ngày'}</div>
-</div>
+    // ── Table rows ──
+    let tbody = '';
 
-<table>
-  <thead>
-    <tr>
-      <th style="width:40px">STT</th>
-      <th>Sản phẩm</th>
-      <th>Quy cách</th>
-      <th style="width:90px">Số lượng</th>
-      <th style="width:100px">Đơn giá (đ)</th>
-      <th style="width:120px">Thành tiền (đ)</th>
-    </tr>
-  </thead>
-  <tbody>
-    ${tierRows}
-    <tr class="total-row">
-      <td colspan="5" style="text-align:right">Cộng:</td>
-      <td style="text-align:right">${dinhDangSo(Math.round(tiers ? tiers.reduce((s, t) => s + (t.chotGia || t.finalPrice) * t.quantity, 0) : thanhTien))}</td>
-    </tr>
-    ${vat > 0 ? `<tr><td colspan="5" style="text-align:right">VAT (${vat}%):</td><td style="text-align:right">${dinhDangSo(Math.round(tienVat))}</td></tr>` : ''}
-    <tr class="total-row">
-      <td colspan="5" style="text-align:right"><strong>TỔNG CỘNG:</strong></td>
-      <td style="text-align:right"><strong>${dinhDangSo(Math.round(tongCong))}</strong></td>
-    </tr>
-  </tbody>
-</table>
+    // Header
+    tbody += `<tr><th style="width:${W.stt}">STT</th><th style="width:${W.name}">Tên hàng</th><th style="width:${W.desc}">Mô tả</th><th style="width:${W.unit}">ĐVT</th><th style="width:${W.qty}">Số lượng</th><th style="width:${W.price}">Đơn giá VNĐ</th><th style="width:${W.total}">Thành tiền VNĐ</th></tr>`;
 
-${item.terms ? `<div class="terms">
-  <h3>Điều khoản báo giá</h3>
-  ${item.terms.paymentTerms ? `<p><strong>Thanh toán:</strong> ${item.terms.paymentTerms}</p>` : ''}
-  ${item.terms.deliveryTime ? `<p><strong>Giao hàng:</strong> ${item.terms.deliveryTime}</p>` : ''}
-  ${item.terms.notes ? `<p><strong>Ghi chú:</strong> ${item.terms.notes}</p>` : ''}
-</div>` : ''}
+    for (const g of pageGroups) {
+      const stt = sttBase++;
+      const tierCount = g.tiers.length;
+      const cylRows = g.cylinder ? 1 : 0;
+      const groupRows = tierCount + cylRows;
 
-<div class="signature">
-  <div><div class="title">Người lập</div><div>${item.sellerName || ''}</div></div>
-  <div><div class="title">Phê duyệt</div><div></div></div>
-  <div><div class="title">Khách hàng</div><div></div></div>
-</div>
-</body></html>`;
+      for (let i = 0; i < groupRows; i++) {
+        const isFirst = i === 0;
+        const isTierRow = i < tierCount;
+        const tier = isTierRow ? g.tiers[i] : undefined;
+        const cyl = (!isTierRow && g.cylinder) ? g.cylinder : undefined;
+
+        if (isFirst) {
+          const desc = (g.description || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+          tbody += `<tr>`
+            + `<td class="ac">${stt}</td>`
+            + `<td>${escHtml(g.productName)}</td>`
+            + `<td class="pl">${desc}</td>`
+            + `<td class="ac">${g.isBag ? 'Túi' : 'm²'}</td>`
+            + `<td class="ar">${dinhDangSo(tier!.quantity)}</td>`
+            + `<td class="ar">${dinhDangSo(tier!.unitPrice)}</td>`
+            + `<td class="ar">${dinhDangSo(tier!.total)}</td>`
+            + `</tr>`;
+        } else if (isTierRow && i > 0) {
+          tbody += `<tr>`
+            + `<td></td><td></td><td></td><td></td>`
+            + `<td class="ar">${dinhDangSo(tier!.quantity)}</td>`
+            + `<td class="ar">${dinhDangSo(tier!.unitPrice)}</td>`
+            + `<td class="ar">${dinhDangSo(tier!.total)}</td>`
+            + `</tr>`;
+        } else if (cyl) {
+          tbody += `<tr>`
+            + `<td></td>`
+            + `<td>${escHtml(cyl.name)}</td>`
+            + `<td>${escHtml(cyl.dims)}</td>`
+            + `<td class="ac">trục</td>`
+            + `<td class="ar">${dinhDangSo(cyl.qty)}</td>`
+            + `<td class="ar">${dinhDangSo(cyl.unitPrice)}</td>`
+            + `<td class="ar">${dinhDangSo(cyl.total)}</td>`
+            + `</tr>`;
+        }
+      }
+    }
+
+    // Totals (last page only) or "Xem tiếp"
+    if (isLast) {
+      const allTierTotal = groups.reduce((s, g) => s + g.tiers.reduce((ss, t) => ss + t.total, 0), 0);
+      const allCylTotal = groups.reduce((s, g) => s + (g.cylinder?.total || 0), 0);
+      const grandTotal = allTierTotal + allCylTotal;
+      const tienVat = allTierTotal * vat / 100;
+      const tienVatTruc = allCylTotal * vatTruc / 100;
+      const tongCong = grandTotal + tienVat + tienVatTruc;
+
+      const makeTotal = (label: string, value: number, bold?: boolean) =>
+        `<tr><td colspan="6" style="text-align:right;${bold ? 'font-weight:bold' : ''}">${label}</td><td class="ar" style="${bold ? 'font-weight:bold' : ''}">${dinhDangSo(Math.round(value))}</td></tr>`;
+
+      tbody += makeTotal('CỘNG TIỀN HÀNG:', grandTotal);
+      if (vat > 0 && allTierTotal > 0) tbody += makeTotal(`THUẾ GTGT HÀNG HÓA (${vat}%):`, tienVat);
+      if (vatTruc > 0 && allCylTotal > 0) tbody += makeTotal(`THUẾ GTGT TRỤC IN (${vatTruc}%):`, tienVatTruc);
+      tbody += makeTotal('TỔNG THANH TOÁN:', tongCong, true);
+      tbody += `<tr><td colspan="6">Số tiền (viết bằng chữ): ${soSangChu(Math.round(tongCong))}</td><td></td></tr>`;
+    } else {
+      tbody += `<tr><td colspan="7" class="xem-tiep">── Xem tiếp trang sau ──</td></tr>`;
+    }
+
+    // ── Build page ──
+    const titleText = page === 0 ? 'BẢNG BÁO GIÁ' : 'BẢNG BÁO GIÁ (tiếp theo)';
+    let pageHtml = '';
+
+    // Company header
+    pageHtml += `<div class="co-name">CÔNG TY CỔ PHẦN THƯƠNG MẠI VÀ SẢN XUẤT BAO BÌ LAI TRƯỜNG SƠN- LONG AN</div>`;
+    pageHtml += `<div class="co-addr">SỐ 36, ĐƯỜNG ẤP 7B, XÃ MỸ YÊN, TỈNH TÂY NINH, VIỆT NAM</div>`;
+    pageHtml += `<div class="co-tax">MST: 1101904518&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Mail: baobilaitruongson.la@gmail.com</div>`;
+
+    // Title
+    pageHtml += `<div class="title">${escHtml(titleText)}</div>`;
+    pageHtml += `<div class="title-date">Ngày ${item.date}</div>`;
+
+    // Customer info
+    pageHtml += `<div class="cust-line" style="margin-top:6px">Kính gửi: ${escHtml(item.customer || '')}</div>`;
+    pageHtml += `<div class="cust-line">Địa chỉ: ${escHtml(customerInfo?.address || '')}</div>`;
+    pageHtml += `<div class="cust-line">MST: ${escHtml(customerInfo?.taxCode || '')}</div>`;
+    pageHtml += `<div class="cust-line">Điện thoại: ${escHtml(customerInfo?.phone || '')}&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Fax: ${escHtml(customerInfo?.fax || '')}</div>`;
+    pageHtml += `<div class="cust-line">Diễn giải: ${escHtml(customerInfo?.description || item.terms?.notes || '')}</div>`;
+    if (item.quoteCode) {
+      pageHtml += `<div class="mg-bg">Mã BG: ${escHtml(item.quoteCode)}</div>`;
+    }
+    pageHtml += `<div class="cust-intro">Chúng tôi xin trân trọng gửi đến quý khách hàng xác nhận báo giá bao bì chi tiết như sau:</div>`;
+
+    // Table
+    pageHtml += `<table class="bbg"><tbody>${tbody}</tbody></table>`;
+
+    // Terms & signatures (last page only)
+    if (isLast) {
+      if (item.terms) {
+        pageHtml += `<div class="luu-y">Lưu ý:</div>`;
+        pageHtml += `<div class="luu-y-item">- Số lượng thành phẩm có thể tăng hoặc giảm so với ĐĐH: &plusmn;10%</div>`;
+        if (item.terms.paymentTerms) pageHtml += `<div class="luu-y-item">- Thanh toán: ${escHtml(item.terms.paymentTerms)}</div>`;
+        if (item.terms.deliveryTime) pageHtml += `<div class="luu-y-item">- Thời gian giao hàng: ${escHtml(item.terms.deliveryTime)}</div>`;
+        if (item.terms.notes) pageHtml += `<div class="luu-y-item">- Ghi chú: ${escHtml(item.terms.notes)}</div>`;
+      }
+
+      pageHtml += `<div class="sig-row">NGƯỜI LẬP&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;PHÊ DUYỆT&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;KHÁCH HÀNG</div>`;
+      pageHtml += `<div class="sig-sub">(ký, họ tên)&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;(ký, họ tên)&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;(ký, họ tên)</div>`;
+    }
+
+    pagesHtml += `<div class="page">${pageHtml}</div>`;
+  }
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng báo giá ${item.quoteCode || ''}</title><style>${CSS}</style></head><body>${pagesHtml}</body></html>`;
 }
 
-export async function exportBaoGiaToPDF(item: HistoryItem): Promise<void> {
-  const logo = await loadLogoDataUrl();
-  const html = buildBaoGiaHtml(item, logo);
+function escHtml(s: string): string {
+  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+export async function exportBaoGiaToPDF(
+  item: HistoryItem,
+  customerInfo?: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string },
+): Promise<void> {
+  const html = buildBaoGiaHtmlV2(item, customerInfo);
   const win = window.open('', '_blank', 'width=800,height=1100');
   if (!win) { alert('Trình duyệt chặn popup. Vui lòng cho phép popup.'); return; }
   win.document.write(html);

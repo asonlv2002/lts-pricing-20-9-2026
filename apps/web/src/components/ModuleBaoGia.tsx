@@ -17,7 +17,7 @@ import { mapHistoryToPricingSheet } from '../lib/api/pricing-sheet-mapper';
 import { kiemTraMaKhachHang, laNguoiPhuTrach, locKhachTheoQuyen } from '../lib/customer-api';
 import { countOverrideChanges, listOverrideChanges } from '../lib/override-display';
 import { buildDefaultBagSpec, shouldShowBagSpecField, type QuoteProductBagSpec } from '../lib/quote-product-spec';
-import { exportBaoGiaToDocx } from '../lib/baoGiaExport';
+import { exportBaoGiaToDocx, exportBaoGiaToPDF } from '../lib/baoGiaExport';
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
 interface Customer {
@@ -664,6 +664,7 @@ function QuotationCard({ muc, onClick, statusControl }: {
         {muc.locked && <span style={{ marginLeft: 8, color: 'var(--orange)' }}><Lock size={11} /> Đã khóa</span>}
         {muc.quoteCode && <span style={{ marginLeft: 8 }}>{muc.quoteCode}</span>}
         {muc.isQuote && muc.quoteProducts?.length && (
+          <>
           <button className="wiz-btn wiz-btn--secondary" style={{ marginLeft: 8, padding: '3px 8px', fontSize: '0.7rem' }}
             onClick={e => {
               e.stopPropagation();
@@ -676,6 +677,19 @@ function QuotationCard({ muc, onClick, statusControl }: {
             }}>
             <FileDown size={11} /> DOCX
           </button>
+          <button className="wiz-btn wiz-btn--secondary" style={{ marginLeft: 4, padding: '3px 8px', fontSize: '0.7rem' }}
+            onClick={e => {
+              e.stopPropagation();
+              const c = docKhachHang().find(kh => kh.companyName === muc.customer || kh.customerCode === muc.customer);
+              exportBaoGiaToPDF(muc, {
+                address: c?.address || c?.invoiceAddress || '',
+                taxCode: c?.taxCode || '',
+                phone: c?.phone || '',
+              }).catch(err => alert('Lỗi xuất PDF: ' + (err instanceof Error ? err.message : err)));
+            }}>
+            <FileDown size={11} /> PDF
+          </button>
+          </>
         )}
       </div>
     </div>
@@ -1959,6 +1973,42 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
     }).catch(err => alert('Lỗi xuất DOCX: ' + (err instanceof Error ? err.message : err)));
   }, [state, currentSellerName, canSubmit]);
 
+  const handleExportPdf = useCallback(() => {
+    if (!canSubmit) return;
+    const item = {
+      customer: state.customer?.companyName || '',
+      date: new Date().toLocaleDateString('vi-VN'),
+      sellerName: currentSellerName || '',
+      quoteCode: '',
+      isQuote: true,
+      productName: state.products[0]?.historyItem.productName || '',
+      structure: state.products[0]?.historyItem.structure || '',
+      quantity: state.products[0]?.tiers[0]?.quantity || 0,
+      finalPrice: state.products[0]?.tiers[0]?.finalPrice || 0,
+      chotGia: state.products[0]?.tiers[0]?.baoGia,
+      input: state.products[0]?.historyItem.input,
+      tiers: state.products[0]?.tiers.map(t => ({ quantity: t.quantity, finalPrice: t.finalPrice, chotGia: t.baoGia })),
+      quoteProducts: state.products.map(p => ({
+        sourceHistoryItemId: p.historyItem.id,
+        productName: p.historyItem.productName,
+        structure: p.historyItem.structure,
+        quantity: p.tiers[0]?.quantity || p.historyItem.quantity,
+        finalPrice: p.tiers[0]?.finalPrice || p.historyItem.finalPrice,
+        chotGia: p.tiers[0]?.baoGia,
+        input: p.historyItem.input,
+        bagSpec: p.bagSpec,
+        tiers: p.tiers.map(t => ({ historyItemId: p.historyItem.id, quantity: t.quantity, finalPrice: t.finalPrice, chotGia: t.baoGia })),
+      })),
+      terms: state.terms,
+    } as any as HistoryItem;
+    exportBaoGiaToPDF(item, {
+      address: state.customer?.address || '',
+      taxCode: state.customer?.taxCode || '',
+      phone: state.customer?.phone || '',
+      description: state.terms?.notes || '',
+    }).catch(err => alert('Lỗi xuất PDF: ' + (err instanceof Error ? err.message : err)));
+  }, [state, currentSellerName, canSubmit]);
+
   return (
     <div className="crm-root quote-wizard-root" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <style>{WIZARD_STYLES}</style>
@@ -1974,6 +2024,9 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
         <div className="quote-wizard-header-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button className="wiz-btn wiz-btn--secondary" onClick={() => handleExportDocx()} disabled={!canSubmit}>
             <FileDown size={14} /> Xuất DOCX
+          </button>
+          <button className="wiz-btn wiz-btn--secondary" onClick={() => handleExportPdf()} disabled={!canSubmit}>
+            <FileDown size={14} /> Xuất PDF
           </button>
           <button className="wiz-btn wiz-btn--secondary" onClick={() => handleSave(false)} disabled={saving || !canSaveDraft}>
             Lưu nháp
@@ -2054,6 +2107,9 @@ function TaoBaoGiaWizard({ onClose, onSavedNavigate }: { onClose: () => void; on
       <div className="quote-wizard-mobile-action">
         <button className="wiz-btn wiz-btn--secondary" onClick={() => handleExportDocx()} disabled={!canSubmit}>
           <FileDown size={14} /> DOCX
+        </button>
+        <button className="wiz-btn wiz-btn--secondary" onClick={() => handleExportPdf()} disabled={!canSubmit}>
+          <FileDown size={14} /> PDF
         </button>
         <button className="wiz-btn wiz-btn--secondary" onClick={() => handleSave(false)} disabled={saving || !canSaveDraft}>
           Lưu nháp
