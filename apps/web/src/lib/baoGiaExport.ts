@@ -125,13 +125,43 @@ function buildBagSpecDescription(
 // ═══════════════════════════════════════════════════════════════════════════════
 
 const CSS = `
+  /* ── Print mode ── */
   @page { size: A4; margin: 20mm 15mm 15mm 15mm; }
   @media print {
-    .page { page-break-after: always; }
+    .pdf-toolbar { display: none !important; }
+    body { background: #fff !important; }
+    .pdf-pages { padding: 0 !important; }
+    .page { width: auto !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; margin-bottom: 0 !important; page-break-after: always; }
     .page:last-child { page-break-after: auto; }
   }
-  body { font-family: 'Times New Roman', serif; color: #000; margin: 0; padding: 0; }
-  .page { padding: 0; }
+
+  /* ── Screen / viewer mode ── */
+  body { font-family: 'Times New Roman', serif; color: #000; margin: 0; padding: 0; background: #525659; }
+  .pdf-toolbar {
+    position: sticky; top: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    background: #323639; color: #e8eaed; padding: 8px 20px;
+    font-family: system-ui, -apple-system, sans-serif; font-size: 13px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+  .pdf-toolbar-title { font-weight: 500; }
+  .pdf-toolbar-actions { display: flex; gap: 8px; }
+  .pdf-toolbar-actions button {
+    background: #484c52; color: #e8eaed; border: none; border-radius: 4px;
+    padding: 6px 14px; cursor: pointer; font-size: 12px; font-family: inherit;
+  }
+  .pdf-toolbar-actions button:hover { background: #5a5f66; }
+  .pdf-toolbar-actions button.btn-print { background: #1a73e8; }
+  .pdf-toolbar-actions button.btn-print:hover { background: #1765cc; }
+  .pdf-pages {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 24px 12px 40px;
+  }
+  .page {
+    width: 210mm; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.35);
+    border-radius: 1px; margin-bottom: 24px; padding: 20mm 15mm 15mm 15mm;
+    box-sizing: border-box; overflow: hidden;
+  }
   .co-name { text-align: center; font-size: 12pt; font-weight: bold; margin: 0 0 2px; }
   .co-addr { text-align: center; font-size: 10pt; margin: 0 0 2px; }
   .co-tax { text-align: center; font-size: 10pt; margin: 0 0 12px; }
@@ -296,7 +326,16 @@ function buildBaoGiaHtmlV2(
     pagesHtml += `<div class="page">${pageHtml}</div>`;
   }
 
-  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng báo giá ${item.quoteCode || ''}</title><style>${CSS}</style></head><body>${pagesHtml}</body></html>`;
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng báo giá ${item.quoteCode || ''}</title><style>${CSS}</style></head><body class="pdf-viewer">
+<div class="pdf-toolbar">
+  <span class="pdf-toolbar-title">Bảng báo giá ${escHtml(item.quoteCode || item.customer || '')}</span>
+  <div class="pdf-toolbar-actions">
+    <button class="btn-print" onclick="window.print()">In PDF</button>
+    <button onclick="window.close()">Đóng</button>
+  </div>
+</div>
+<div class="pdf-pages">${pagesHtml}</div>
+</body></html>`;
 }
 
 function escHtml(s: string): string {
@@ -308,11 +347,10 @@ export async function exportBaoGiaToPDF(
   customerInfo?: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string },
 ): Promise<void> {
   const html = buildBaoGiaHtmlV2(item, customerInfo);
-  const win = window.open('', '_blank', 'width=800,height=1100');
+  const win = window.open('', '_blank', 'width=1000,height=900');
   if (!win) { alert('Trình duyệt chặn popup. Vui lòng cho phép popup.'); return; }
   win.document.write(html);
   win.document.close();
-  setTimeout(() => win.print(), 500);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
