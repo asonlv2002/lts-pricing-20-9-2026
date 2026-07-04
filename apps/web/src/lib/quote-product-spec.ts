@@ -30,6 +30,7 @@ export interface QuoteProductBagSpec {
   structureBack: string;
   structureSwapped: boolean;
   hasStructureBack: boolean;
+  bottomFollows: 'front' | 'back';
   hasHandle: boolean;
   handleOptionKey: string;
 }
@@ -39,7 +40,7 @@ export type BagSpecConditionalField = 'gusset' | 'backSeal' | 'standupBottom' | 
 export function shouldShowBagSpecField(bagType: string, field: BagSpecConditionalField): boolean {
   if (field === 'gusset') return ['4bien', 'xephong_lech', 'xephong_giua'].includes(bagType);
   if (field === 'backSeal') return ['xephong_lech', 'xephong_giua'].includes(bagType);
-  if (field === 'sideSeal') return !['cutSeal', 'cutSealNapKeo'].includes(bagType);
+  if (field === 'sideSeal') return !['cutSeal', 'cutSealNapKeo', 'xephong_lech', 'xephong_giua'].includes(bagType);
   if (field === 'lid') return bagType === 'cutSealNapKeo';
   return bagType === 'dayDung';
 }
@@ -75,6 +76,7 @@ export function buildDefaultBagSpec(input: CalculateInput): QuoteProductBagSpec 
     structureBack: '',
     structureSwapped: false,
     hasStructureBack: false,
+    bottomFollows: 'front',
     hasHandle: Boolean(input.hasHandle),
     handleOptionKey: input.handleOptionKey || '',
   };

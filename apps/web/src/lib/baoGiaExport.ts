@@ -2,6 +2,7 @@
 // Export báo giá ra PDF (print) và DOCX
 
 import type { HistoryItem, QuoteTerms, QuoteProductLine, QuoteTier } from './types';
+import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 
 function dinhDangSo(n: number) { return n.toLocaleString('vi-VN'); }
 function safeFn(s: string): string { return (s || 'bao-gia').replace(/[<>:"/\\|?*\s]+/g, '_').slice(0, 60); }
@@ -80,12 +81,14 @@ function buildBagSpecDescription(
   spec: Record<string, any> | undefined,
   input: Record<string, any>,
   structure: string,
+  totalThickness = 0,
 ): string {
   if (!spec) return structure || '';
   const lines: string[] = [];
   const bagLabel = BAG_TYPE_LABELS[spec.bagType] || (spec.bagType ? spec.bagType.toUpperCase() : '');
   if (bagLabel) lines.push(bagLabel + '.');
   if (structure) lines.push(`Chất liệu: ${structure}.`);
+  if (totalThickness > 0) lines.push(`Độ dày: ${totalThickness} mic (± 5 mic).`);
   const dimParts: string[] = [];
   const w = spec.widthMm || 0;
   const l = spec.lengthMm || 0;
@@ -266,16 +269,14 @@ function buildBaoGiaHtmlV2(
       const allTierTotal = groups.reduce((s, g) => s + g.tiers.reduce((ss, t) => ss + t.total, 0), 0);
       const allCylTotal = groups.reduce((s, g) => s + (g.cylinder?.total || 0), 0);
       const grandTotal = allTierTotal + allCylTotal;
-      const tienVat = allTierTotal * vat / 100;
-      const tienVatTruc = allCylTotal * vatTruc / 100;
-      const tongCong = grandTotal + tienVat + tienVatTruc;
+      const tienVat = allTierTotal * vat / 100 + allCylTotal * vatTruc / 100;
+      const tongCong = grandTotal + tienVat;
 
       const makeTotal = (label: string, value: number, bold?: boolean) =>
         `<tr><td colspan="6" style="text-align:right;${bold ? 'font-weight:bold' : ''}">${label}</td><td class="ar" style="${bold ? 'font-weight:bold' : ''}">${dinhDangSo(Math.round(value))}</td></tr>`;
 
       tbody += makeTotal('CỘNG TIỀN HÀNG:', grandTotal);
-      if (vat > 0 && allTierTotal > 0) tbody += makeTotal(`THUẾ GTGT HÀNG HÓA (${vat}%):`, tienVat);
-      if (vatTruc > 0 && allCylTotal > 0) tbody += makeTotal(`THUẾ GTGT TRỤC IN (${vatTruc}%):`, tienVatTruc);
+      tbody += makeTotal('THUẾ GTGT:', tienVat);
       tbody += makeTotal('TỔNG THANH TOÁN:', tongCong, true);
       tbody += `<tr><td colspan="6">Số tiền (viết bằng chữ): ${soSangChu(Math.round(tongCong))}</td><td></td></tr>`;
     } else {
@@ -313,7 +314,12 @@ function buildBaoGiaHtmlV2(
     if (isLast) {
       if (item.terms) {
         pageHtml += `<div class="luu-y">Lưu ý:</div>`;
-        pageHtml += `<div class="luu-y-item">- Số lượng thành phẩm có thể tăng hoặc giảm so với ĐĐH: &plusmn;10%</div>`;
+        pageHtml += `<div class="luu-y-item">- Số lượng thành phẩm có thể tăng hoặc giảm so với đơn đặt hàng: &plusmn;10%</div>`;
+        if (vat > 0 || vatTruc > 0) {
+          pageHtml += `<div class="luu-y-item">- Thuế VAT: ${vat}% đối với hàng hóa, ${vatTruc}% đối với trục in</div>`;
+        } else {
+          pageHtml += `<div class="luu-y-item">- Chưa bao gồm thuế VAT</div>`;
+        }
         if (item.terms.paymentTerms) pageHtml += `<div class="luu-y-item">- Thanh toán: ${escHtml(item.terms.paymentTerms)}</div>`;
         if (item.terms.deliveryTime) pageHtml += `<div class="luu-y-item">- Thời gian giao hàng: ${escHtml(item.terms.deliveryTime)}</div>`;
         if (item.terms.notes) pageHtml += `<div class="luu-y-item">- Ghi chú: ${escHtml(item.terms.notes)}</div>`;
@@ -368,6 +374,8 @@ interface ProductGroup {
 }
 
 function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
+  const { materials } = dungCuaHangTinhGia.getState();
+
   return products.map(p => {
     const input = p.input || {} as any;
     const spec = p.bagSpec || {} as any;
@@ -382,7 +390,18 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
       tiers.push({ quantity: p.quantity, unitPrice: up, total: up * p.quantity });
     }
     const isBag = input.productType !== 'mang';
-    const description = buildBagSpecDescription(spec, input, p.structure);
+
+    let totalThickness = 0;
+    for (const layerKey of ['layer1Id', 'layer2Id', 'layer3Id', 'layer4Id', 'layer5Id']) {
+      const matId = (input as any)[layerKey] as string | undefined;
+      if (matId) {
+        const mat = materials.find((m: any) => m.id === matId);
+        const override = (input.micOverrides as Record<string, number> | undefined)?.[layerKey];
+        totalThickness += override ?? (mat as any)?.thickness ?? 0;
+      }
+    }
+
+    const description = buildBagSpecDescription(spec, input, p.structure, totalThickness);
     let cylinder: ProductGroup['cylinder'] | undefined;
     if (input.cylLength > 0) {
       cylinder = {
@@ -521,9 +540,8 @@ export async function exportBaoGiaToDocx(
       const allCylTotal = groups.reduce((s, g) =>
         s + (g.cylinder?.total || 0), 0);
       const grandTotal = allTierTotal + allCylTotal;
-      const tienVat = allTierTotal * vat / 100;
-      const tienVatTruc = allCylTotal * vatTruc / 100;
-      const tongCong = grandTotal + tienVat + tienVatTruc;
+      const tienVat = allTierTotal * vat / 100 + allCylTotal * vatTruc / 100;
+      const tongCong = grandTotal + tienVat;
 
       const totalCell = (label: string, value: number, opts?: { bold?: boolean }) =>
         new TableRow({ children: [
@@ -532,9 +550,8 @@ export async function exportBaoGiaToDocx(
           tc(dinhDangSo(Math.round(value)), CW.total, { bold: opts?.bold, align: AlignmentType.RIGHT }),
         ] });
 
-       rows.push(totalCell('CỘNG TIỀN HÀNG:', grandTotal));
-      if (vat > 0 && allTierTotal > 0) rows.push(totalCell(`THUẾ GTGT HÀNG HÓA (${vat}%):`, tienVat));
-      if (vatTruc > 0 && allCylTotal > 0) rows.push(totalCell(`THUẾ GTGT TRỤC IN (${vatTruc}%):`, tienVatTruc));
+      rows.push(totalCell('CỘNG TIỀN HÀNG:', grandTotal));
+      rows.push(totalCell('THUẾ GTGT:', tienVat));
       rows.push(totalCell('TỔNG THANH TOÁN:', tongCong, { bold: true }));
       rows.push(new TableRow({ children: [
         new TableCell({ width: { size: CW.stt + CW.name + CW.desc + CW.unit + CW.qty + CW.price, type: WidthType.DXA }, borders, columnSpan: 6, margins: { top: 60, bottom: 60, left: 60, right: 60 },
@@ -622,7 +639,12 @@ export async function exportBaoGiaToDocx(
           spacing: { before: 300 },
         }));
         const notes: string[] = [];
-        notes.push('- Số lượng thành phẩm có thể tăng hoặc giảm so với ĐĐH: ±10%');
+        notes.push('- Số lượng thành phẩm có thể tăng hoặc giảm so với đơn đặt hàng: ±10%');
+        if (vat > 0 || vatTruc > 0) {
+          notes.push(`- Thuế VAT: ${vat}% đối với hàng hóa, ${vatTruc}% đối với trục in`);
+        } else {
+          notes.push('- Chưa bao gồm thuế VAT');
+        }
         if (item.terms.paymentTerms) notes.push(`- Thanh toán: ${item.terms.paymentTerms}`);
         if (item.terms.deliveryTime) notes.push(`- Thời gian giao hàng: ${item.terms.deliveryTime}`);
         if (item.terms.notes) notes.push(`- Ghi chú: ${item.terms.notes}`);

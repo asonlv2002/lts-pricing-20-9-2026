@@ -307,7 +307,8 @@ const WIZARD_STYLES = `
 .wiz-spec-section { margin-top: 8px; border-top: 1px solid var(--border, #e5e7eb); padding-top: 8px; }
 .wiz-spec-row { display: flex; align-items: center; gap: 5px; padding: 3px 0; min-height: 30px; flex-wrap: wrap; }
 .wiz-spec-row-group { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 14px; }
-.wiz-spec-check-label { display: inline-flex; align-items: center; gap: 3px; font-size: 0.78rem; font-weight: 650; color: var(--foreground, #111); cursor: pointer; white-space: nowrap; }
+.wiz-spec-toggle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px 16px; margin-top: 2px; }
+.wiz-spec-check-label { display: inline-flex; align-items: center; gap: 4px; font-size: 0.85rem; font-weight: 650; color: var(--foreground, #111); cursor: pointer; white-space: nowrap; }
 .wiz-spec-check-label input { margin: 0; }
 .wiz-spec-badge { font-size: 0.78rem; font-weight: 650; color: var(--accent, #0891b2); white-space: nowrap; }
 .wiz-spec-inline-input { width: 52px; height: 26px; border: 1px solid var(--border, #e5e7eb); border-radius: 5px; padding: 2px 4px; font-size: 0.78rem; background: var(--background, #fff); color: var(--foreground, #111); outline: none; box-sizing: border-box; text-align: right; }
@@ -382,6 +383,7 @@ const WIZARD_STYLES = `
   .quote-wizard-mobile-action .wiz-btn--secondary { width: 104px; }
   .wiz-bag-spec-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .wiz-bag-spec { padding: 12px; }
+  .wiz-spec-toggle-grid { grid-template-columns: repeat(2, 1fr); gap: 4px 10px; }
   .wiz-customer-summary { padding: 14px; border-radius: 18px; box-shadow: 0 2px 8px rgba(15,23,42,0.04); }
   .wiz-customer-picker-trigger { border-radius: 14px; }
   .wiz-customer-sheet { max-height: 82dvh; }
@@ -439,6 +441,17 @@ function laBanGhiBaoGia(muc: HistoryItem): boolean {
 
 function dinhDangSo(n: number) {
   return n.toLocaleString("vi-VN");
+}
+
+function boSoCauTruc(s: string): string {
+  return s
+    .replace(/\d+/g, "")
+    .replace(/\bLLDPE\s+\S+/gi, "LLDPE")
+    .replace(/\s*\/\/\s*/g, "//")
+    .replace(/\s*\+\s*/g, "+")
+    .replace(/\s*\[\s*/g, "[")
+    .replace(/\s*\]\s*/g, "]")
+    .trim();
 }
 
 function doiNgayVnSangMs(date?: string): number {
@@ -2078,7 +2091,7 @@ function BuocChonSanPham({
                           )}
                         </div>
                       )}
-                      <div className="wiz-spec-row-group">
+                      <div className="wiz-spec-toggle-grid">
                         <div className="wiz-spec-row">
                           <label className="wiz-spec-check-label">
                             <input
@@ -2112,8 +2125,8 @@ function BuocChonSanPham({
                               <span className="wiz-spec-unit">mm</span>
                             </>
                           )}
-                        </div>
-                        <div className="wiz-spec-row">
+                      </div>
+                      <div className="wiz-spec-row">
                           <label className="wiz-spec-check-label">
                             <input
                               type="checkbox"
@@ -2147,7 +2160,6 @@ function BuocChonSanPham({
                             </>
                           )}
                         </div>
-                      </div>
                       <div className="wiz-spec-row">
                         <label className="wiz-spec-check-label">
                           <input
@@ -2300,7 +2312,8 @@ function BuocChonSanPham({
                           </span>
                         )}
                       </div>
-                      <div className="wiz-spec-row">
+                    </div>
+                    <div className="wiz-spec-row">
                         <label className="wiz-spec-check-label">
                           <input
                             type="checkbox"
@@ -2395,6 +2408,19 @@ function BuocChonSanPham({
                               updateBagSpec(pIdx, "hasStructureBack", v);
                               if (!v) {
                                 updateBagSpec(pIdx, "structureBack", "");
+                                updateBagSpec(pIdx, "structureSwapped", false);
+                              } else {
+                                const frontHasMPET = /MPET/i.test(
+                                  prod.historyItem.structure,
+                                );
+                                const backHasMPET = /MPET/i.test(
+                                  spec.structureBack || "",
+                                );
+                                if (!frontHasMPET && backHasMPET) {
+                                  updateBagSpec(pIdx, "structureSwapped", true);
+                                } else if (frontHasMPET) {
+                                  updateBagSpec(pIdx, "structureSwapped", false);
+                                }
                               }
                             }}
                           />{" "}
@@ -2402,68 +2428,299 @@ function BuocChonSanPham({
                         </label>
                         {spec.hasStructureBack &&
                           (spec.structureBack ? (
-                            <>
-                              <span
-                                style={{
-                                  fontSize: "0.78rem",
-                                  color: "var(--muted, #6b7280)",
-                                }}
-                              >
-                                MT: {prod.historyItem.structure}
-                              </span>
-                              <button
-                                type="button"
-                                className="wiz-spec-toggle"
-                                style={{
-                                  padding: "1px 5px",
-                                  fontSize: "0.7rem",
-                                }}
-                                onClick={() =>
-                                  updateBagSpec(
-                                    pIdx,
-                                    "structureSwapped",
-                                    !spec.structureSwapped,
-                                  )
-                                }
-                                title="Đảo mặt trước / mặt sau"
-                              >
-                                ⇄
-                              </button>
-                              <span
-                                style={{
-                                  fontSize: "0.78rem",
-                                  color: "var(--muted, #6b7280)",
-                                }}
-                              >
-                                MS: {spec.structureBack}
-                              </span>
-                              <button
-                                type="button"
-                                className="wiz-spec-toggle"
-                                style={{
-                                  padding: "1px 4px",
-                                  fontSize: "0.7rem",
-                                }}
-                                onClick={() =>
-                                  updateBagSpec(pIdx, "structureBack", "")
-                                }
-                                title="Xóa chất liệu mặt sau"
-                              >
-                                ✕
-                              </button>
-                            </>
+                            spec.bagType === "dayDung" ? (
+                              <>
+                                <div
+                                  style={{
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 6,
+                                    marginTop: 4,
+                                    width: "100%",
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      display: "flex",
+                                      alignItems: "center",
+                                      gap: 8,
+                                      flexWrap: "wrap",
+                                    }}
+                                  >
+                                    <span
+                                      style={{
+                                        fontSize: "0.78rem",
+                                        fontWeight: 600,
+                                        color: "var(--foreground, #111)",
+                                        whiteSpace: "nowrap",
+                                      }}
+                                    >
+                                      Đáy giống:
+                                    </span>
+                                    <label
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                        fontSize: "0.78rem",
+                                        fontWeight: 500,
+                                        color: "var(--foreground, #111)",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      <input
+                                        type="radio"
+                                        checked={
+                                          spec.bottomFollows === "front"
+                                        }
+                                        onChange={() =>
+                                          updateBagSpec(
+                                            pIdx,
+                                            "bottomFollows",
+                                            "front",
+                                          )
+                                        }
+                                      />
+                                      Mặt trước
+                                    </label>
+                                    <label
+                                      style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 4,
+                                        fontSize: "0.78rem",
+                                        fontWeight: 500,
+                                        color: "var(--foreground, #111)",
+                                        cursor: "pointer",
+                                      }}
+                                    >
+                                      <input
+                                        type="radio"
+                                        checked={
+                                          spec.bottomFollows === "back"
+                                        }
+                                        onChange={() =>
+                                          updateBagSpec(
+                                            pIdx,
+                                            "bottomFollows",
+                                            "back",
+                                          )
+                                        }
+                                      />
+                                      Mặt sau
+                                    </label>
+                                    <button
+                                      type="button"
+                                      className="wiz-spec-toggle"
+                                      style={{
+                                        padding: "1px 6px",
+                                        fontSize: "0.7rem",
+                                        marginLeft: "auto",
+                                      }}
+                                      onClick={() => {
+                                        updateBagSpec(
+                                          pIdx,
+                                          "structureSwapped",
+                                          !spec.structureSwapped,
+                                        );
+                                      }}
+                                      title="Đảo mặt trước / mặt sau"
+                                    >
+                                      ⇄ Đảo
+                                    </button>
+                                  </div>
+                                  <div
+                                    style={{
+                                      padding: "8px 10px",
+                                      background:
+                                        "rgba(8,145,178,0.05)",
+                                      borderRadius: 6,
+                                      border:
+                                        "1px solid var(--border, #e5e7eb)",
+                                    }}
+                                  >
+                                    {(() => {
+                                      const front = boSoCauTruc(
+                                        spec.structureSwapped
+                                          ? spec.structureBack
+                                          : prod.historyItem.structure,
+                                      );
+                                      const back = boSoCauTruc(
+                                        spec.structureSwapped
+                                          ? prod.historyItem.structure
+                                          : spec.structureBack,
+                                      );
+                                      const showBottomWith =
+                                        spec.bottomFollows === "front"
+                                          ? "trước"
+                                          : "sau";
+                                      return (
+                                        <div
+                                          style={{
+                                            fontSize: "0.78rem",
+                                            lineHeight: 1.6,
+                                            color:
+                                              "var(--foreground, #111)",
+                                          }}
+                                        >
+                                          <div>
+                                            <strong>
+                                              Mặt trước
+                                              {spec.bottomFollows ===
+                                              "front"
+                                                ? " + Đáy"
+                                                : ""}
+                                              :
+                                            </strong>{" "}
+                                            {front}
+                                          </div>
+                                          <div>
+                                            <strong>
+                                              Mặt sau
+                                              {spec.bottomFollows ===
+                                              "back"
+                                                ? " + Đáy"
+                                                : ""}
+                                              :
+                                            </strong>{" "}
+                                            {back}
+                                          </div>
+                                          <div
+                                            style={{
+                                              fontSize: "0.72rem",
+                                              color:
+                                                "var(--muted, #6b7280)",
+                                              marginTop: 2,
+                                            }}
+                                          >
+                                            Đáy theo mặt{" "}
+                                            {showBottomWith}
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="wiz-spec-toggle"
+                                    style={{
+                                      padding: "1px 4px",
+                                      fontSize: "0.7rem",
+                                      alignSelf: "flex-start",
+                                    }}
+                                    onClick={() =>
+                                      updateBagSpec(
+                                        pIdx,
+                                        "structureBack",
+                                        "",
+                                      )
+                                    }
+                                    title="Xóa chất liệu mặt sau"
+                                  >
+                                    ✕ Xóa mặt sau
+                                  </button>
+                                </div>
+                              </>
+                            ) : (
+                              <>
+                                <span
+                                  style={{
+                                    fontSize: "0.78rem",
+                                    color: "var(--muted, #6b7280)",
+                                  }}
+                                >
+                                  Mặt trước:{" "}
+                                  {boSoCauTruc(prod.historyItem.structure)}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="wiz-spec-toggle"
+                                  style={{
+                                    padding: "1px 5px",
+                                    fontSize: "0.7rem",
+                                  }}
+                                  onClick={() =>
+                                    updateBagSpec(
+                                      pIdx,
+                                      "structureSwapped",
+                                      !spec.structureSwapped,
+                                    )
+                                  }
+                                  title="Đảo mặt trước / mặt sau"
+                                >
+                                  ⇄
+                                </button>
+                                <span
+                                  style={{
+                                    fontSize: "0.78rem",
+                                    color: "var(--muted, #6b7280)",
+                                  }}
+                                >
+                                  Mặt sau:{" "}
+                                  {boSoCauTruc(spec.structureBack)}
+                                </span>
+                                <button
+                                  type="button"
+                                  className="wiz-spec-toggle"
+                                  style={{
+                                    padding: "1px 4px",
+                                    fontSize: "0.7rem",
+                                  }}
+                                  onClick={() =>
+                                    updateBagSpec(
+                                      pIdx,
+                                      "structureBack",
+                                      "",
+                                    )
+                                  }
+                                  title="Xóa chất liệu mặt sau"
+                                >
+                                  ✕
+                                </button>
+                              </>
+                            )
                           ) : (
                             <input
                               className="wiz-spec-inline-text"
                               type="text"
                               value={spec.structureBack}
-                              onChange={(e) =>
+                              onChange={(e) => {
+                                const val = e.target.value;
                                 updateBagSpec(
                                   pIdx,
                                   "structureBack",
-                                  e.target.value,
-                                )
-                              }
+                                  val,
+                                );
+                                if (
+                                  spec.bagType === "dayDung"
+                                ) {
+                                  const frontHasMPET =
+                                    /MPET/i.test(
+                                      prod.historyItem.structure,
+                                    );
+                                  const backHasMPET =
+                                    /MPET/i.test(val);
+                                  if (
+                                    !frontHasMPET &&
+                                    backHasMPET
+                                  ) {
+                                    updateBagSpec(
+                                      pIdx,
+                                      "structureSwapped",
+                                      true,
+                                    );
+                                  } else if (
+                                    frontHasMPET &&
+                                    !backHasMPET
+                                  ) {
+                                    updateBagSpec(
+                                      pIdx,
+                                      "structureSwapped",
+                                      false,
+                                    );
+                                  }
+                                }
+                              }}
                               placeholder="Nhập chất liệu mặt sau"
                             />
                           ))}
@@ -2485,22 +2742,58 @@ function BuocChonSanPham({
                         <span className="wiz-desc-label">Chất liệu:</span>
                         <span className="wiz-desc-value">
                           {spec.structureBack ? (
-                            spec.structureSwapped ? (
-                              <span>
-                                Mặt trước: {spec.structureBack}, Mặt sau:{" "}
-                                {prod.historyItem.structure}
-                              </span>
-                            ) : (
-                              <span>
-                                Mặt trước: {prod.historyItem.structure}, Mặt
-                                sau: {spec.structureBack}
-                              </span>
-                            )
+                            (() => {
+                              const isDayDung = spec.bagType === "dayDung";
+                              const front = boSoCauTruc(
+                                spec.structureSwapped
+                                  ? spec.structureBack
+                                  : prod.historyItem.structure,
+                              );
+                              const back = boSoCauTruc(
+                                spec.structureSwapped
+                                  ? prod.historyItem.structure
+                                  : spec.structureBack,
+                              );
+                              if (isDayDung) {
+                                const frontSuffix =
+                                  spec.bottomFollows === "front"
+                                    ? " + Đáy"
+                                    : "";
+                                const backSuffix =
+                                  spec.bottomFollows === "back"
+                                    ? " + Đáy"
+                                    : "";
+                                return (
+                                  <span>
+                                    Mặt trước{frontSuffix}: {front}, Mặt
+                                    sau{backSuffix}: {back}
+                                  </span>
+                                );
+                              }
+                              return (
+                                <span>
+                                  Mặt trước: {front}, Mặt sau: {back}
+                                </span>
+                              );
+                            })()
                           ) : (
-                            prod.historyItem.structure
+                            boSoCauTruc(prod.historyItem.structure)
                           )}
                         </span>
                       </div>
+                      {(() => {
+                        const res = tinhBaoGia(inp, materials, constants, profitTable, smallWidthPrices);
+                        const doDay = res?.totalThickness ?? 0;
+                        if (doDay > 0) {
+                          return (
+                            <div className="wiz-desc-row">
+                              <span className="wiz-desc-label">Độ dày:</span>
+                              <span className="wiz-desc-value">{doDay} mic (± 5 mic)</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       {spec.widthMm > 0 && spec.lengthMm > 0 && (
                         <div className="wiz-desc-row">
                           <span className="wiz-desc-label">Kích thước:</span>

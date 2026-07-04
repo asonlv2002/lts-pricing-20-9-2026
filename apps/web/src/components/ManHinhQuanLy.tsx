@@ -727,16 +727,16 @@ const buttonLabel = loadedItem
   };
   const tenLoaiTui: Record<string, string> = {
     '3bien': '3 biên', '4bien': '4 biên', 'xephong_lech': 'Xếp hông dán lưng lệch',
-    'xephong_giua': 'Xếp hông dán lưng giữa', 'dayDung': 'Đáy đứng', 'cutSeal': 'Cut seal'
+    'xephong_giua': 'Xếp hông dán lưng giữa', 'dayDung': 'Đáy đứng', 'cutSeal': 'Cut seal',
+    'cutSealNapKeo': 'Cut seal mở miệng có nắp keo'
   };
   let chuoiLoaiTui = tenLoaiTui[dauVaoKq.bagType] || '';
   if (!laMang && chuoiLoaiTui) {
+    if (dauVaoKq.hasTape && dauVaoKq.bagType === 'cutSeal') {
+      chuoiLoaiTui = 'Cut seal mở miệng có nắp keo';
+    }
     if (dauVaoKq.hasZipper) {
-      if (dauVaoKq.bagType === 'cutSeal') {
-        chuoiLoaiTui = 'Cute seal nắp băng keo';
-      } else {
-        chuoiLoaiTui = 'Zipper ' + chuoiLoaiTui;
-      }
+      chuoiLoaiTui = 'Zipper ' + chuoiLoaiTui;
     }
   } else if (laMang) {
     chuoiLoaiTui = tenLoaiMang[dauVaoKq.filmType] || 'Màng cuộn';

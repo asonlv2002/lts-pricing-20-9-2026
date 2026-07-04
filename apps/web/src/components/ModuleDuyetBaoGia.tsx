@@ -17,6 +17,7 @@ import {
   nopBaoGiaService,
   duyetBaoGiaService,
   taoBanSuaBaoGiaService,
+  capNhatBaoGiaService,
   chuyenTrangThaiBaoGia,
   NHAN_TRANG_THAI_BAO_GIA,
   type BaoGiaApi,
@@ -269,6 +270,29 @@ export default function ModuleDuyetBaoGia() {
     }
   }, [accessToken, lamMoi, hienThongBao]);
 
+  const capNhatBaoGia = useCallback((bg: BaoGiaApi) => {
+    if (!accessToken) return;
+    setConfirm({
+      bg,
+      title: 'Cập nhật báo giá',
+      message: `Bạn có chắc muốn cập nhật báo giá "${tenBaoGia(bg)}" và gửi lại duyệt?`,
+      onConfirm: async () => {
+        setConfirm(null);
+        datDangXuLyId(bg.id);
+        datLoi('');
+        try {
+          await capNhatBaoGiaService(bg.id, { duLieuDauVao: bg.inputValue }, accessToken);
+          hienThongBao('Đã cập nhật báo giá.');
+          await lamMoi();
+        } catch (loi) {
+          datLoi(loi instanceof Error ? loi.message : 'Không cập nhật được báo giá.');
+        } finally {
+          datDangXuLyId(null);
+        }
+      },
+    });
+  }, [accessToken, lamMoi, hienThongBao]);
+
   const chonChip = (key: BoLoc) => {
     datNguon('list');
     datBoLoc(key);
@@ -304,6 +328,11 @@ export default function ModuleDuyetBaoGia() {
             <Send size={15} />
           </button>
         )}
+        {trangThai === 'drafted' && bg.createdBy === nguoiDung?.id && (
+          <button className="qrev-btn-icon" title="Cập nhật" disabled={dangXuLy} onClick={() => capNhatBaoGia(bg)}>
+            <RefreshCw size={15} />
+          </button>
+        )}
         {trangThai === 'submitted' && laNguoiDuyet && (
           <>
             <button className="qrev-btn-icon qrev-btn-icon--ok" title="Duyệt" disabled={dangXuLy} onClick={() => void duyetBaoGia(bg, 'approved')}>
@@ -317,6 +346,11 @@ export default function ModuleDuyetBaoGia() {
         {(trangThai === 'rejected' || trangThai === 'customer_rejected') && (
           <button className="qrev-btn-icon" title="Tạo bản sửa" disabled={dangXuLy} onClick={() => void taoBanSua(bg)}>
             <ClipboardEdit size={15} />
+          </button>
+        )}
+        {(trangThai === 'rejected' || trangThai === 'customer_rejected') && bg.createdBy === nguoiDung?.id && (
+          <button className="qrev-btn-icon" title="Cập nhật" disabled={dangXuLy} onClick={() => capNhatBaoGia(bg)}>
+            <RefreshCw size={15} />
           </button>
         )}
         <button className="qrev-btn-icon" title="Xem PDF báo giá" onClick={handleXemBaoGia}>
@@ -443,6 +477,7 @@ export default function ModuleDuyetBaoGia() {
           onNop={bg => { datChiTiet(null); void nopBaoGia(bg); }}
           onDuyet={(bg, quyetDinh) => { datChiTiet(null); void duyetBaoGia(bg, quyetDinh); }}
           onTaoBanSua={bg => { datChiTiet(null); void taoBanSua(bg); }}
+          onCapNhat={chiTiet.createdBy === nguoiDung?.id ? (bg) => { datChiTiet(null); capNhatBaoGia(bg); } : undefined}
         />
       )}
 

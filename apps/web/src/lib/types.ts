@@ -376,6 +376,7 @@ export interface QuoteProductLine {
     structureBack: string;
     structureSwapped: boolean;
     hasStructureBack: boolean;
+    bottomFollows: 'front' | 'back';
     hasHandle: boolean;
     handleOptionKey: string;
   };

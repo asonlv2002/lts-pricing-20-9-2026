@@ -828,6 +828,29 @@ export async function duyetBaoGiaService(
   }, token);
 }
 
+// Dữ liệu đầu vào cập nhật báo giá (gửi lại duyệt).
+export interface CapNhatBaoGiaInput {
+  moTa?: string;
+  duLieuDauVao?: unknown;
+  dsPricingSheetId?: string[];
+}
+
+// PATCH /quotations/{id}/update — cập nhật báo giá nháp / bị từ chối và gửi lại duyệt.
+export async function capNhatBaoGiaService(
+  idBaoGia: string,
+  duLieu: CapNhatBaoGiaInput,
+  token?: string,
+): Promise<BaoGiaApi> {
+  const thanDuLieu: Record<string, unknown> = {};
+  if (duLieu.moTa !== undefined) thanDuLieu.description = duLieu.moTa;
+  if (duLieu.duLieuDauVao !== undefined) thanDuLieu.inputValue = duLieu.duLieuDauVao;
+  if (duLieu.dsPricingSheetId !== undefined) thanDuLieu.pricingSheetIds = duLieu.dsPricingSheetId;
+  return goiService<BaoGiaApi>(`/quotations/${encodeURIComponent(idBaoGia)}/update`, {
+    method: 'PATCH',
+    body: JSON.stringify(thanDuLieu),
+  }, token);
+}
+
 // ── Activity Logs ────────────────────────────────────────────────────────
 // Server resourceType: 'customer' | 'pricing_sheet' | 'quotation' | 'account' | 'role' | 'user_policy' | 'customer_manager'
 // Server action: xem activity-log-actions.ts (backend)
