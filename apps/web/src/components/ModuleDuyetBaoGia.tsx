@@ -708,17 +708,19 @@ export default function ModuleDuyetBaoGia({
                               </button>
                             </div>
                           ) : trangThai === "approved" || trangThai === "customer_approved" ? (
-                            <CheckCircle2
-                              size={16}
-                              style={{ color: "#16a34a" }}
-                              title="Đã duyệt"
-                            />
+                            <span title="Đã duyệt">
+                              <CheckCircle2
+                                size={16}
+                                style={{ color: "#16a34a" }}
+                              />
+                            </span>
                           ) : trangThai === "rejected" || trangThai === "customer_rejected" ? (
-                            <XCircle
-                              size={16}
-                              style={{ color: "#dc2626" }}
-                              title="Đã từ chối"
-                            />
+                            <span title="Đã từ chối">
+                              <XCircle
+                                size={16}
+                                style={{ color: "#dc2626" }}
+                              />
+                            </span>
                           ) : (
                             "—"
                           )}
