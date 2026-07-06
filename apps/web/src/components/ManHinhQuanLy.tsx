@@ -204,7 +204,7 @@ function OChiTietCoTheGhiDe({ khoaDong, chiTietIndex, truong, giaTriGoc, giaTriG
   );
 }
 
-function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, duocSua, khiDat, ghiDeHienTai, materials }: {
+function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, duocSua, khiDat, ghiDeHienTai, materials, engineParams }: {
   khoaDong: OverrideRowKey;
   chiTietIndex: number;
   giaTriGoc: { id?: string; name: string; matPrice: number };
@@ -213,6 +213,7 @@ function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, d
   khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
   ghiDeHienTai: OverrideTable;
   materials: Material[];
+  engineParams?: { numColors: number; coverageRatio: number; metallicSurcharge: number; laborCost: number; isPrintFilm: boolean; printFilmInkBOPP: number; printFilmInkOther: number };
 }) {
   const tenHienThi = layNhanVatLieu(materials, giaTriGhiDe?.materialId ?? giaTriGoc.id, giaTriGhiDe?.materialName ?? giaTriGoc.name);
   const idHienThi = giaTriGhiDe?.materialId ?? giaTriGoc.id ?? '';
@@ -228,13 +229,25 @@ function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, d
           datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialName', undefined);
           datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'matPrice', undefined);
           datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'rawMatPrice', undefined);
+          if (khoaDong === 'print') khiDat(khoaDong, 'cpsx', undefined);
           return;
         }
         const giaM2 = mat.pricePerM2 ?? (mat.pricePerKg * mat.thickness * mat.density / 1000);
         datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialId', mat.id);
         datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialName', mat.name);
         datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'matPrice', giaM2);
-        datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'rawMatPrice', undefined);
+        datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'rawMatPrice', mat.pricePerKg);
+        if (khoaDong === 'print' && engineParams && engineParams.numColors > 0) {
+          const ep = engineParams;
+          if (ep.isPrintFilm) {
+            const isBOPP = mat.id.toUpperCase().includes('BOPP') || mat.name.toUpperCase().includes('BOPP');
+            const giaMuc = isBOPP ? ep.printFilmInkBOPP : ep.printFilmInkOther;
+            khiDat(khoaDong, 'cpsx', ep.numColors * giaMuc + ep.metallicSurcharge);
+          } else {
+            const giaMuc = mat.inkPricePerColor || (mat.isPETorPA ? 135 : 120);
+            khiDat(khoaDong, 'cpsx', ep.numColors * giaMuc * ep.coverageRatio + ep.laborCost + ep.metallicSurcharge);
+          }
+        }
       }}>
         <option value={giaTriGoc.id ?? ''}>{tenGoc}</option>
         {materials.filter(m => m.id !== giaTriGoc.id).map(m => <option key={m.id} value={m.id}>{formatMaterialOptionLabel(m)}</option>)}
@@ -243,7 +256,7 @@ function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, d
   );
 }
 
-function OChonVatLieuDong({ khoaDong, giaTriGocId, giaTriGocTen, giaTriGocGia, ghiDeHienTai, duocSua, khiDat, materials }: {
+function OChonVatLieuDong({ khoaDong, giaTriGocId, giaTriGocTen, giaTriGocGia, ghiDeHienTai, duocSua, khiDat, materials, engineParams }: {
   khoaDong: OverrideRowKey;
   giaTriGocId?: string;
   giaTriGocTen: string;
@@ -252,6 +265,7 @@ function OChonVatLieuDong({ khoaDong, giaTriGocId, giaTriGocTen, giaTriGocGia, g
   duocSua: boolean;
   khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
   materials: Material[];
+  engineParams?: { numColors: number; coverageRatio: number; metallicSurcharge: number; laborCost: number; isPrintFilm: boolean; printFilmInkBOPP: number; printFilmInkOther: number };
 }) {
   const cur = ghiDeHienTai[khoaDong];
   const tenHienThi = layNhanVatLieu(materials, cur?.materialId ?? giaTriGocId, cur?.mat ?? giaTriGocTen);
@@ -268,13 +282,25 @@ function OChonVatLieuDong({ khoaDong, giaTriGocId, giaTriGocTen, giaTriGocGia, g
           khiDat(khoaDong, 'mat', undefined);
           khiDat(khoaDong, 'matPrice', undefined);
           khiDat(khoaDong, 'rawMatPrice', undefined);
+          if (khoaDong === 'print') khiDat(khoaDong, 'cpsx', undefined);
           return;
         }
         const giaM2 = mat.pricePerM2 ?? (mat.pricePerKg * mat.thickness * mat.density / 1000);
         khiDat(khoaDong, 'materialId', mat.id);
         khiDat(khoaDong, 'mat', mat.name);
         khiDat(khoaDong, 'matPrice', giaM2);
-        khiDat(khoaDong, 'rawMatPrice', undefined);
+        khiDat(khoaDong, 'rawMatPrice', mat.pricePerKg);
+        if (khoaDong === 'print' && engineParams && engineParams.numColors > 0) {
+          const ep = engineParams;
+          if (ep.isPrintFilm) {
+            const isBOPP = mat.id.toUpperCase().includes('BOPP') || mat.name.toUpperCase().includes('BOPP');
+            const giaMuc = isBOPP ? ep.printFilmInkBOPP : ep.printFilmInkOther;
+            khiDat(khoaDong, 'cpsx', ep.numColors * giaMuc + ep.metallicSurcharge);
+          } else {
+            const giaMuc = mat.inkPricePerColor || (mat.isPETorPA ? 135 : 120);
+            khiDat(khoaDong, 'cpsx', ep.numColors * giaMuc * ep.coverageRatio + ep.laborCost + ep.metallicSurcharge);
+          }
+        }
       }}>
         <option value={giaTriGocId}>{tenGoc}</option>
         {materials.filter(m => m.id !== giaTriGocId).map(m => <option key={m.id} value={m.id}>{formatMaterialOptionLabel(m)}</option>)}
@@ -317,7 +343,7 @@ function OChuCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khi
 }
 
 // ── Override Table Section ────────────────────────────────────────────────────
-function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, chenhLechGiaGocDonVi, donViChenhLech, duocSua, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, materials, giaDaThayDoiDonVi, effTotalProdCost, profitRatePct, defaultProfitRatePct, khiDatProfitRate, soLuong }: {
+function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, chenhLechGiaGocDonVi, donViChenhLech, duocSua, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, materials, giaDaThayDoiDonVi, effTotalProdCost, profitRatePct, defaultProfitRatePct, khiDatProfitRate, soLuong, engineParams, printFilmParams }: {
   title: string;
   lopMau: 'sale' | 'admin';
   cacDongSanXuat: UniRow[];
@@ -337,10 +363,13 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
   defaultProfitRatePct: number;
   khiDatProfitRate: (v: number) => void;
   soLuong: number;
+  engineParams?: { numColors: number; coverageRatio: number; metallicSurcharge: number; laborCost: number; isPrintFilm: boolean; printFilmInkBOPP: number; printFilmInkOther: number };
+  printFilmParams?: { numColors: number; setupMin: number; setupDiv: number; threshold: number; speed: number; laborPerHr: number };
 }) {
-  const { rows: cacDongDaXuLy, totalCPSX: tongCPSX, totalCPVL: tongCPVL } = xuLyDongGhiDe(cacDongSanXuat, ghiDeNguon, ghiDeHienTai);
-  const coThayDoi = countOverrideChanges(ghiDeHienTai) > 0;
-  const cpMangIn = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
+  const { rows: cacDongDaXuLy, totalCPSX: tongCPSX, totalCPVL: tongCPVL, printFilmCost: cpMangIn } = xuLyDongGhiDe(cacDongSanXuat, ghiDeNguon, ghiDeHienTai, printFilmParams);
+  const cpMangInGoc = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
+  const coDoiCpMangIn = Math.abs(cpMangIn - cpMangInGoc) > 0.01;
+  const coThayDoi = countOverrideChanges(ghiDeHienTai) > 0 || coDoiCpMangIn;
   const coCpMangIn = cpMangIn > 0;
   const donViChenhLechText = donViChenhLech === 'm2' ? 'ĐỒNG / MÉT VUÔNG' : 'ĐỒNG / TÚI';
   const chenhLechGiaGocLamTron = Math.round(chenhLechGiaGocDonVi ?? 0);
@@ -411,7 +440,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                           name: ghiDeNguonChiTiet?.materialName ?? chiTietGoc?.name ?? detail.name,
                           matPrice: ghiDeNguonChiTiet?.matPrice ?? chiTietGoc?.matPrice ?? detail.matPrice,
                         }}
-                        giaTriGhiDe={ghiDeHienTaiChiTiet} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} />
+                        giaTriGhiDe={ghiDeHienTaiChiTiet} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} engineParams={engineParams} />
                       <OChiTietCoTheGhiDe khoaDong={row.rowKey} chiTietIndex={detailIdx} truong="width" giaTriGoc={chiTietGoc?.width ?? detail.width}
                         giaTriGhiDe={ghiDeHienTaiChiTiet?.width} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} soLe={3} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
@@ -452,7 +481,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                 return (
                 <tr key={row.rowKey}>
                   <td data-label="Công đoạn">{row.stage}</td>
-                  <OChonVatLieuDong khoaDong={row.rowKey} giaTriGocId={ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId} giaTriGocTen={ghiDeNguon[row.rowKey]?.mat ?? dongGoc?.mat ?? row.mat} giaTriGocGia={ghiDeNguon[row.rowKey]?.matPrice ?? dongGoc?.matPrice ?? 0} ghiDeHienTai={ghiDeHienTai} duocSua={duocSua} khiDat={khiDat} materials={materials} />
+                  <OChonVatLieuDong khoaDong={row.rowKey} giaTriGocId={ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId} giaTriGocTen={ghiDeNguon[row.rowKey]?.mat ?? dongGoc?.mat ?? row.mat} giaTriGocGia={ghiDeNguon[row.rowKey]?.matPrice ?? dongGoc?.matPrice ?? 0} ghiDeHienTai={ghiDeHienTai} duocSua={duocSua} khiDat={khiDat} materials={materials} engineParams={engineParams} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={row.srcWidth}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
@@ -489,7 +518,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
               })()];
             })}
             {coCpMangIn && (
-              <tr className="total-row">
+              <tr className={`total-row ${coDoiCpMangIn ? 'override-changed' : ''}`}>
                 <td colSpan={10}>CP theo thời gian in</td>
                 <td className="num">{dinhDangSo(cpMangIn, 0)} đ</td>
               </tr>
@@ -695,6 +724,25 @@ const buttonLabel = loadedItem
   const dauVaoKq = r.input;
   const hienThiGia = getPricingDisplayMeta(dauVaoKq);
   const laMang = hienThiGia.isFilm;
+
+  const engineOverrideParams = {
+    numColors: dauVaoKq.numColors ?? 0,
+    coverageRatio: dauVaoKq.coverageRatio ?? 1,
+    metallicSurcharge: dauVaoKq.metallicSurcharge ?? 0,
+    laborCost: hangSo.laborCost ?? 0,
+    isPrintFilm: hienThiGia.isPrintFilm,
+    printFilmInkBOPP: hangSo.printFilmInkPriceBopp ?? 150,
+    printFilmInkOther: hangSo.printFilmInkPriceOther ?? 200,
+  };
+
+  const printFilmOverrideParams = hienThiGia.isPrintFilm ? {
+    numColors: dauVaoKq.numColors ?? 0,
+    setupMin: hangSo.printFilmSetupMinutesPerColor ?? 20,
+    setupDiv: hangSo.printFilmSetupHourDivisor ?? 60,
+    threshold: hangSo.printFilmLengthThreshold ?? 40000,
+    speed: hangSo.printFilmShortRunSpeed ?? 7500,
+    laborPerHr: hangSo.printFilmLaborCostPerHour ?? 1200000,
+  } : undefined;
 
   const { uniRows: cacDongSanXuat, totalCPSX: tongCPSX, totalCPVL: tongCPVL, grandTotal: tongCong } = lapDongSanXuat(r, hangSo);
   const cpTheoThoiGianIn = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
@@ -1491,6 +1539,8 @@ const buttonLabel = loadedItem
                 defaultProfitRatePct={saleDefaultPct}
                 khiDatProfitRate={datSaleProfitRatePct}
                 soLuong={dauVaoKq.quantity}
+                engineParams={engineOverrideParams}
+                printFilmParams={printFilmOverrideParams}
               />
             );
 
@@ -1515,6 +1565,8 @@ const buttonLabel = loadedItem
                 defaultProfitRatePct={adminDefaultPct}
                 khiDatProfitRate={datAdminProfitRatePct}
                 soLuong={dauVaoKq.quantity}
+                engineParams={engineOverrideParams}
+                printFilmParams={printFilmOverrideParams}
               />
             );
 

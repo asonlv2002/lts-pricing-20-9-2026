@@ -97,7 +97,7 @@ export function mapHistoryToAdvisorPatch(
   h: HistoryItem,
 ): CapNhatPricingSheetAdvisorInput {
   return {
-    masterResult: wrapResult(h.adminOverrides, h.adminProfitRatePct),
+    result: wrapResult(h.adminOverrides, h.adminProfitRatePct),
   };
 }
 

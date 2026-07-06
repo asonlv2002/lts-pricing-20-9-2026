@@ -1,0 +1,523 @@
+import type { AppConstants, CalculateResult, HistoryItem, Material, OverrideTable, ProfitRow } from './types';
+import { tinhBaoGia, lapDongSanXuat, xuLyDongGhiDe, tinhGiaHieuLuc } from './manager-calculation';
+import { countOverrideChanges } from './override-display';
+import { getPricingDisplayMeta, isPrintFilm } from './pricing-display';
+import { tinhNhapPhanBoChotGia } from './chot-gia-allocation';
+
+// ── Helpers ─────────────────────────────────────────────────────────────────────
+function dinhDangSo(n: number, d = 0): string {
+  return Math.round(n).toLocaleString('vi-VN');
+}
+function dinhDangSoLe(n: number, d = 1): string {
+  return n.toLocaleString('vi-VN', { maximumFractionDigits: d });
+}
+function dinhDangM2(n: number): string {
+  return n.toLocaleString('vi-VN', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+}
+function dinhDangPhanTram(n: number): string {
+  return parseFloat((n * 100).toFixed(2)) + '%';
+}
+
+function coGhiDeDong(ov: Record<string, unknown> | undefined, fields: string[]): boolean {
+  if (!ov) return false;
+  return fields.some(f => ov[f] !== undefined);
+}
+
+function coGhiDeChiTiet(detail: Record<string, unknown> | undefined, fields: string[]): boolean {
+  if (!detail) return false;
+  return fields.some(f => detail[f] !== undefined);
+}
+
+const TEN_LOAI_MANG: Record<string, string> = {
+  mangIn: 'Màng in',
+  mangGhep: 'Màng ghép',
+  mangDongGoi: 'Màng đóng gói tự động',
+  mangGhepKoIn: 'Màng ghép không in',
+  mangGhepCoIn: 'Màng ghép có in',
+};
+const TEN_LOAI_TUI: Record<string, string> = {
+  '3bien': '3 biên', '4bien': '4 biên', xephong_lech: 'Xếp hông dán lưng lệch',
+  xephong_giua: 'Xếp hông dán lưng giữa', dayDung: 'Đáy đứng', cutSeal: 'Cut seal',
+  cutSealNapKeo: 'Cut seal mở miệng có nắp keo',
+};
+
+// ── CSS ─────────────────────────────────────────────────────────────────────────
+const CSS = `
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 10.5pt; color: #1e293b; background: #f1f5f9; }
+.pdf-toolbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 24px; background: #fff; border-bottom: 2px solid #e2e8f0; }
+.pdf-toolbar-title { font-weight: 700; font-size: 13pt; }
+.pdf-toolbar-actions { display: flex; gap: 8px; }
+.btn-print { padding: 6px 18px; background: #0891b2; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 10.5pt; }
+.btn-close { padding: 6px 12px; background: #e2e8f0; color: #475569; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 10.5pt; }
+.pdf-pages { max-width: 210mm; margin: 24px auto; }
+
+.page { background: #fff; padding: 18mm 15mm; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-radius: 4px; }
+.page-title { text-align: center; font-size: 9pt; color: #94a3b8; margin-bottom: 8px; font-style: italic; }
+@media print {
+  @page { size: A4; margin: 15mm; }
+  body { background: #fff; }
+  .pdf-toolbar { display: none; }
+  .pdf-pages { margin: 0; }
+  .page { box-shadow: none; margin: 0; padding: 0; page-break-after: always; }
+  .page:last-child { page-break-after: auto; }
+  table { page-break-inside: auto; }
+  tr { page-break-inside: avoid; }
+}
+
+h1 { font-size: 16pt; font-weight: 800; text-align: center; margin-bottom: 4px; color: #0f172a; }
+.section { margin-top: 18px; }
+.section-title { font-size: 11pt; font-weight: 700; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid #e2e8f0; color: #334155; }
+.section-title .icon { margin-right: 4px; }
+.info-box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; }
+.info-box .name-line { font-weight: 700; font-size: 11pt; color: #0f172a; margin-bottom: 8px; }
+.info-grid { display: flex; flex-wrap: wrap; gap: 4px 24px; }
+.info-item { font-size: 9.5pt; }
+.info-item strong { font-weight: 600; color: #475569; }
+
+.price-box { border: 1px solid #d1d5db; border-radius: 8px; padding: 12px 16px; }
+.price-row { display: flex; justify-content: space-between; align-items: center; padding: 3px 0; }
+.price-row.chot { font-weight: 700; font-size: 10.5pt; }
+.price-row.chenh { color: #059669; font-weight: 600; }
+.price-row.sub { font-size: 8.5pt; color: #64748b; padding-left: 12px; }
+.price-row.doanhthu { font-weight: 700; padding-top: 6px; border-top: 1px dashed #e2e8f0; margin-top: 6px; }
+
+.stat-row { display: flex; gap: 10px; margin-top: 10px; }
+.stat-card { flex: 1; border-radius: 8px; padding: 8px 12px; text-align: center; border: 1px solid; }
+.stat-card.green { background: #f0fdf4; border-color: #bbf7d0; }
+.stat-card.cyan { background: #ecfeff; border-color: #a5f3fc; }
+.stat-card.orange { background: #fff7ed; border-color: #fed7aa; }
+.stat-card.pink { background: #fdf2f8; border-color: #fbcfe8; }
+.stat-label { font-size: 7.5pt; text-transform: uppercase; font-weight: 600; color: #64748b; margin-bottom: 2px; }
+.stat-value { font-weight: 700; font-size: 10.5pt; }
+.stat-sub { font-size: 7.5pt; color: #64748b; margin-top: 1px; }
+
+.breakdown-box { border: 1px solid #e2e8f0; border-radius: 8px; margin-top: 10px; padding: 8px 16px; }
+.breakdown-title { font-size: 9pt; font-weight: 600; color: #64748b; margin-bottom: 6px; }
+.bl-row { display: flex; justify-content: space-between; font-size: 9pt; padding: 2px 0; }
+.bl-label { color: #475569; }
+.bl-value { font-weight: 600; }
+.bl-total { font-weight: 700; border-top: 1px solid #cbd5e1; padding-top: 4px; margin-top: 4px; }
+
+table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 8.5pt; }
+th { background: #dbeafe; font-weight: 700; font-size: 7.5pt; text-transform: uppercase; letter-spacing: 0.02em;
+  padding: 5px 6px; border: 1px solid #bae6fd; white-space: nowrap; text-align: center; }
+td { padding: 4px 6px; border: 1px solid #e2e8f0; text-align: center; }
+td.left { text-align: left; }
+.total-row td { font-weight: 700; border-top: 2px solid #94a3b8; background: #f8fafc; }
+.cell-changed { background: #ffedd5 !important; font-weight: 700; }
+.cell-propagated { background: #fff7ed !important; }
+.override-price-delta-row td { font-weight: 700; font-size: 9pt; padding: 8px 10px; }
+.override-price-delta-row--up td { color: #059669; background: #f0fdf4; }
+.override-price-delta-row--down td { color: #dc2626; background: #fef2f2; }
+
+@media print {
+  td, th { font-size: 7pt; }
+  .section { page-break-inside: avoid; }
+}
+`;
+
+// ── Section builders ────────────────────────────────────────────────────────────
+
+function buildThongTinChung(r: CalculateResult, item: HistoryItem): string {
+  const i = item.input;
+  const laMang = i.productType === 'mang';
+  const soMau = i.numColors && i.numColors > 0 ? `${i.numColors} màu` : 'Không in';
+  const khoMm = Math.round(i.spreadWidth * 1000);
+  const buocMm = Math.round(i.cutStep * 1000);
+  let loai = laMang
+    ? (TEN_LOAI_MANG[i.filmType] || 'Màng cuộn')
+    : (TEN_LOAI_TUI[i.bagType] || '');
+  if (!laMang && loai) {
+    if (i.hasTape && i.bagType === 'cutSeal') loai = 'Cut seal mở miệng có nắp keo';
+    if (i.hasZipper) loai = 'Zipper ' + loai;
+  }
+
+  let trucIn = '';
+  if (i.numColors && i.numColors > 0 && r.cylLength > 0) {
+    const d = Math.round(r.cylLength * 1000);
+    const cv = Math.round(r.cylCircum * 1000);
+    const giaTruc = r.cylinderCostPerUnit;
+    const tongTruc = r.cylinderCost;
+    trucIn = `<div><strong>Trục in:</strong> D ${dinhDangSo(d)} mm x CV ${dinhDangSo(cv)} mm<br>${dinhDangSo(giaTruc)} đ/trục × ${i.numColors} trục = ${dinhDangSo(tongTruc)} đ</div>`;
+  }
+
+  let cuonMang = '';
+  if (laMang) {
+    const cl = i.filmRollLength || 6000;
+    cuonMang = `<div><strong>Cuộn màng TP:</strong> ${dinhDangSo(cl)} m/cuộn (${dinhDangSoLe(r.filmRollArea, 1)} m²/cuộn)</div>`;
+  }
+
+  return `
+    <div class="section">
+      <div class="section-title"><span class="icon">📋</span> THÔNG TIN CHUNG</div>
+      <div class="info-box">
+        <div class="name-line">${item.customer} — ${item.productName}</div>
+        <div class="info-grid">
+          <div class="info-item"><strong>Chất liệu:</strong> ${r.structureText}</div>
+          <div class="info-item"><strong>${laMang ? 'Diện tích' : 'Số lượng'}:</strong> ${dinhDangSo(i.quantity)} ${laMang ? 'm²' : 'túi'}</div>
+          <div class="info-item"><strong>Số màu:</strong> ${soMau}</div>
+          <div class="info-item"><strong>Kích thước:</strong> KT ${khoMm} mm x BC ${buocMm} mm</div>
+          <div class="info-item"><strong>Độ dày:</strong> ${r.totalThickness} mic</div>
+          <div class="info-item"><strong>Diện tích ${laMang ? 'băng' : '1 túi'}:</strong> ${dinhDangM2(r.bagArea)}</div>
+          ${!laMang ? `<div class="info-item"><strong>Trọng lượng:</strong> ${dinhDangSoLe(r.tareWeight, 2)} gr</div>` : ''}
+          <div class="info-item"><strong>Loại ${laMang ? 'màng' : 'túi'}:</strong> ${loai}</div>
+        </div>
+        ${cuonMang}
+        ${trucIn}
+        ${item.sellerName ? `<div style="margin-top:6px;font-size:9pt;color:#64748b;">Sale: ${item.sellerName}</div>` : ''}
+      </div>
+    </div>`;
+}
+
+function buildGia(r: CalculateResult, item: HistoryItem, constants: AppConstants, profitTable: ProfitRow[]): string {
+  const meta = getPricingDisplayMeta(item.input);
+  const coChot = typeof item.chotGia === 'number' && item.chotGia > 0;
+  const giaDeXuat = item.finalPrice || r.finalPrice || 0;
+  const chotGia = coChot ? item.chotGia! : 0;
+  const diff = coChot ? chotGia - r.finalPrice : 0;
+
+  // Phân bổ chốt giá
+  const hoaHongEngine = r.commissionPerUnit;
+  const donViPb = ((item.input as any).donViPhanBo as 'vnd' | 'percent') || 'vnd';
+  const phanBoCongTy = (item.input as any).phanBoCongTy ?? 0;
+  const phanBo = tinhNhapPhanBoChotGia({
+    hasChotGia: coChot,
+    diff,
+    hoaHongNhap: phanBoCongTy,
+    hoaHongEngine,
+    donViPhanBo: donViPb,
+  });
+
+  // Doanh thu + LN
+  let doanhThuChot = 0, loiNhuanCongTyChot = 0, pctLN = 0;
+  let tongHoaHongChot = 0, commissionPctShown = 0;
+  if (coChot) {
+    doanhThuChot = chotGia * item.quantity;
+    const hhMoi = Math.max(0, hoaHongEngine + phanBo.hoaHongAmount);
+    tongHoaHongChot = Math.round(hhMoi * item.quantity);
+    const tongChiPhi = r.totalProductionCost + r.zipperTotal + r.tapeTotal
+      + r.handleTotal + r.boxTotal + r.shippingTotal
+      + r.interestPerUnit * item.quantity;
+    loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
+    pctLN = r.totalProductionCost > 0 ? (loiNhuanCongTyChot / r.totalProductionCost) * 100 : 0;
+    commissionPctShown = r.costPerUnit > 0 ? (hhMoi / r.costPerUnit) * 100 : 0;
+  }
+
+  // 4 stat boxes
+  const tienLN = r.profitAmount;
+  const tyLeLN = r.profitRate;
+  const doanhThu = r.revenue;
+  const giaBan = coChot ? chotGia : r.finalPrice;
+  const totalCommission = r.commissionPerUnit * item.quantity;
+  const commissionPct = r.totalProductionCost > 0 ? (r.commissionPerUnit * item.quantity / r.totalProductionCost) : 0;
+
+  // Breakdown items
+  const blItems: [string, string][] = [
+    [`${meta.initialPriceLabel} (Vốn + ${dinhDangPhanTram(tyLeLN)} LN)`, dinhDangSoLe(r.costPerUnit, 1) + ' đ'],
+  ];
+  if (item.input.hasZipper) blItems.push(['Chi phí Zipper', dinhDangSoLe(r.zipperPerUnit, 1) + ' đ']);
+  if (item.input.hasTape) blItems.push(['Chi phí Băng keo', dinhDangSoLe(r.tapePerUnit, 1) + ' đ']);
+  if (item.input.hasHandle) blItems.push(['Chi phí Quai', dinhDangSoLe(r.handlePerUnit, 1) + ' đ']);
+  blItems.push(
+    [item.input.productType === 'mang' ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSoLe(r.boxPerUnit, 1) + ' đ'],
+    [meta.shippingLabel, dinhDangSoLe(r.shippingPerUnit, 1) + ' đ'],
+    [meta.interestLabel(r.interestBase || 0, r.paymentDays ?? 30), dinhDangSoLe(r.interestPerUnit, 1) + ` đ${isPrintFilm(item.input) ? '/' + meta.unit : ''}`],
+    ['Hoa hồng kinh doanh', dinhDangSoLe(r.commissionPerUnit, 1) + ' đ'],
+  );
+  if (item.input.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
+    blItems.push(['Trục in phân bổ (bao trục / 200k m²)', dinhDangSoLe(r.cylAllocPerUnit ?? 0, 2) + ' đ']);
+  }
+  if (coChot) {
+    blItems.push(['+ Chênh lệch chốt giá', dinhDangSoLe(diff, 1) + ' đ']);
+  }
+
+  let html = `
+    <div class="section">
+      <div class="section-title"><span class="icon">💰</span> GIÁ</div>
+      <div class="price-box">`;
+
+  if (coChot) {
+    html += `<div class="price-row chot">Giá chốt / ${meta.unit} <span>${dinhDangSo(chotGia)} đ</span></div>`;
+    html += `<div class="price-row chenh">✅ Chênh lệch / ${meta.unit} <span>${diff >= 0 ? '+' : ''}${dinhDangSoLe(diff, 1)} đ/${meta.unit}</span></div>`;
+    html += `<div class="price-row sub">↳ Hoa hồng: ${dinhDangSoLe(phanBo.hoaHongAmount, 1)}đ | Công ty: ${dinhDangSoLe(phanBo.congTyAmount, 1)}đ</div>`;
+    html += `<div class="price-row doanhthu">Doanh thu tổng <span>${dinhDangSo(chotGia)} đ/${meta.unit} × ${dinhDangSo(item.quantity)} ${meta.unit} = ${dinhDangSo(doanhThuChot)} đ</span></div>`;
+    html += `<div class="price-row">LN công ty (${dinhDangSoLe(pctLN, 2)}%) <span>${dinhDangSo(loiNhuanCongTyChot)} đ</span></div>`;
+    html += `<div class="price-row">% Hoa hồng (${dinhDangSoLe(commissionPctShown, 2)}%) <span>${dinhDangSo(tongHoaHongChot)} đ</span></div>`;
+  } else {
+    html += `<div class="price-row chot">Giá đề xuất / ${meta.unit} <span>${dinhDangSo(giaDeXuat)} đ</span></div>`;
+  }
+
+  // 4 stat boxes
+  html += `
+    <div class="stat-row">
+      <div class="stat-card green">
+        <div class="stat-label">${meta.profitLabel}</div>
+        <div class="stat-value">${dinhDangSo(tienLN)}đ</div>
+        <div class="stat-sub">(${dinhDangPhanTram(tyLeLN)})</div>
+      </div>
+      <div class="stat-card cyan">
+        <div class="stat-label">Doanh thu</div>
+        <div class="stat-value">${dinhDangSo(doanhThu)} đ</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-label">${meta.salePriceTitle}</div>
+        <div class="stat-value">${dinhDangSo(giaBan)} đ</div>
+      </div>
+      <div class="stat-card pink">
+        <div class="stat-label">Hoa hồng</div>
+        <div class="stat-value">${dinhDangSo(totalCommission)} đ</div>
+        <div class="stat-sub">${dinhDangSoLe(r.commissionPerUnit, 1)} đ/${meta.unit} (${dinhDangPhanTram(commissionPct)})</div>
+      </div>
+    </div>`;
+
+  // Breakdown
+  html += `
+    <div class="breakdown-box">
+      <div class="breakdown-title">Chi tiết giá ${coChot ? 'chốt' : 'đề xuất'} / ${meta.unit}</div>`;
+  for (const [l, v] of blItems) {
+    html += `<div class="bl-row"><span class="bl-label">${l}</span><span class="bl-value">${v}</span></div>`;
+  }
+  html += `<div class="bl-row bl-total"><span>Giá cuối cùng / ${meta.unit}</span><span>${dinhDangSoLe(coChot ? chotGia : r.finalPrice, 1)} đ</span></div>`;
+  html += `</div></div></div>`;
+
+  return html;
+}
+
+function buildCPSXTable(r: CalculateResult, constants: AppConstants): string {
+  const { uniRows } = lapDongSanXuat(r, constants);
+  let rowsHtml = '';
+  let tong = 0;
+  for (const row of uniRows) {
+    const stageLabel = row.stage;
+    const name = row.mat && row.mat !== '-' ? row.mat : '—';
+    const cpvl = row.costMat != null ? dinhDangSo(row.costMat) : '—';
+    rowsHtml += `<tr>
+      <td class="left">${stageLabel}</td>
+      <td class="left">${name}</td>
+      <td>${dinhDangSoLe(row.width, 3)}</td>
+      <td>${dinhDangSo(row.meters)}</td>
+      <td>${dinhDangSo(row.waste)}</td>
+      <td>${dinhDangSo(row.meters + row.waste)}</td>
+      <td>${dinhDangSo(row.cpsx)}</td>
+      <td>${cpvl}</td>
+    </tr>`;
+    tong += row.costCPSX + (row.costMat ?? 0);
+  }
+
+  return `
+    <div class="section">
+      <div class="section-title"><span class="icon">🏭</span> BẢNG CPSX — CHI TIẾT CÔNG ĐOẠN SẢN XUẤT</div>
+      <table>
+        <thead><tr>
+          <th class="left">Công đoạn</th><th class="left">Vật liệu</th>
+          <th>Khổ NVL (m)</th><th>TP (m)</th><th>Hao (m)</th><th>Đầu vào NVL (m)</th>
+          <th>CPSX (đ/m²)</th><th>CPVL (đ)</th>
+        </tr></thead>
+        <tbody>
+          ${rowsHtml}
+          <tr class="total-row"><td colspan="8">TỔNG: ${dinhDangSo(tong)} đ</td></tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function buildOverrideTable(
+  title: string,
+  icon: string,
+  uniRows: ReturnType<typeof lapDongSanXuat>['uniRows'],
+  sourceOv: OverrideTable,
+  currentOv: OverrideTable,
+  profitRatePct: number,
+  defaultProfitRatePct: number,
+  r: CalculateResult,
+  constants: AppConstants,
+  profitTable: ProfitRow[],
+  quantity: number,
+): string {
+  const changeCount = countOverrideChanges(currentOv);
+  if (changeCount === 0) return '';
+
+  const { rows, totalCPSX, totalCPVL, grandTotal } = xuLyDongGhiDe(uniRows, sourceOv, currentOv);
+
+  // Effective pricing for this override level
+  const effPricing = tinhGiaHieuLuc({
+    result: r, uniRows,
+    saleOverrides: sourceOv,
+    adminOverrides: currentOv,
+    saleProfitRatePct: 0,
+    adminProfitRatePct: profitRatePct || 0,
+    profitTable, constants,
+  });
+
+  const baseFinalPrice = r.finalPrice;
+  const chenhLech = effPricing.effCostPerUnit - r.costPerUnit;
+  const donViText = r.input.productType === 'mang' ? 'MÉT VUÔNG' : 'TÚI';
+  const chenhLechText = `${chenhLech >= 0 ? '+' : ''}${dinhDangSo(chenhLech)}`;
+  const lopChenhLech = chenhLech >= 0 ? 'override-price-delta-row--up' : 'override-price-delta-row--down';
+
+  let rowsHtml = '';
+
+  for (const row of rows) {
+    if (row.materialDetails?.length) {
+      for (let di = 0; di < row.materialDetails.length; di++) {
+        const detail = row.materialDetails[di];
+        const dtOv = currentOv[row.rowKey]?.detailOverrides?.[di];
+        const coDoiWidth = coGhiDeChiTiet(dtOv, ['width']);
+        const coDoiMatPrice = coGhiDeChiTiet(dtOv, ['matPrice', 'materialId', 'materialName']);
+        const coDoiCPSX = coGhiDeDong(currentOv[row.rowKey], ['meters', 'waste', 'cpsx']) || coDoiWidth;
+        const coDoiCPVL = coGhiDeDong(currentOv[row.rowKey], ['meters', 'waste']) || coDoiWidth || coDoiMatPrice;
+        const widthChanged = Math.abs(detail.width - (row.srcWidth)) > 0.001;
+        const metersChanged = Math.abs(row.meters - row.srcMeters) > 0.001;
+        const wasteChanged = Math.abs(row.waste - row.srcWaste) > 0.001;
+        const inputVLChanged = Math.abs(row.inputVL - row.srcInputVL) > 0.001;
+        const cpsxChanged = coGhiDeDong(currentOv[row.rowKey], ['cpsx']);
+        const matPriceChanged = coGhiDeChiTiet(dtOv, ['matPrice']);
+        const cpvl = di === row.materialDetails.length - 1 ? (row.costMat != null ? dinhDangSo(row.costMat) : '—') : '';
+
+        rowsHtml += `<tr>
+          <td class="left">${row.stage}</td>
+          <td class="left">${detail.name}</td>
+          <td class="${coDoiCPSX ? 'cell-changed' : ''}">${dinhDangSoLe(detail.width, 3)}</td>
+          <td class="${metersChanged ? 'cell-changed' : ''}">${dinhDangSo(row.meters)}</td>
+          <td class="${wasteChanged ? 'cell-changed' : ''}">${dinhDangSo(row.waste)}</td>
+          <td class="${inputVLChanged ? 'cell-propagated' : ''}">${dinhDangSo(row.inputVL)}</td>
+          <td class="${cpsxChanged ? 'cell-changed' : ''}">${dinhDangSo(row.cpsx)}</td>
+          <td class="${coDoiCPVL ? 'cell-changed' : ''}">${cpvl}</td>
+        </tr>`;
+      }
+    } else {
+      const metersChanged = Math.abs(row.meters - row.srcMeters) > 0.001;
+      const wasteChanged = coGhiDeDong(currentOv[row.rowKey], ['waste']) || Math.abs(row.waste - row.srcWaste) > 0.001;
+      const inputVLChanged = Math.abs(row.inputVL - row.srcInputVL) > 0.001;
+      const cpsxChanged = coGhiDeDong(currentOv[row.rowKey], ['cpsx']) || Math.abs(row.cpsx - row.srcCpsx) > 0.001;
+      const matPriceChanged = coGhiDeDong(currentOv[row.rowKey], ['matPrice', 'mat', 'materialId']);
+      const coDoiCPSX = coGhiDeDong(currentOv[row.rowKey], ['width', 'meters', 'waste', 'cpsx']);
+      const coDoiCPVL = coGhiDeDong(currentOv[row.rowKey], ['width', 'meters', 'waste', 'matPrice', 'mat', 'materialId']);
+
+      const name = row.mat && row.mat !== '-' ? row.mat : '—';
+      const cpvl = row.costMat != null ? dinhDangSo(row.costMat) : '—';
+      const cpvlChanged = coDoiCPVL;
+
+      rowsHtml += `<tr>
+        <td class="left">${row.stage}</td>
+        <td class="left">${name}</td>
+        <td class="${coDoiCPSX ? 'cell-changed' : ''}">${dinhDangSoLe(row.width, 3)}</td>
+        <td class="${metersChanged ? 'cell-changed' : ''}">${dinhDangSo(row.meters)}</td>
+        <td class="${wasteChanged ? 'cell-changed' : ''}">${dinhDangSo(row.waste)}</td>
+        <td class="${inputVLChanged ? 'cell-propagated' : ''}">${dinhDangSo(row.inputVL)}</td>
+        <td class="${cpsxChanged ? 'cell-changed' : ''}">${dinhDangSo(row.cpsx)}</td>
+        <td class="${cpvlChanged ? 'cell-changed' : ''}">${cpvl}</td>
+      </tr>`;
+    }
+  }
+
+  const totalChanged = Math.abs(grandTotal - r.totalProductionCost) > 1;
+
+  // Tỷ lệ LN
+  let profitRateHtml = '';
+  const effectivePct = profitRatePct || defaultProfitRatePct;
+  const baseCost = effPricing.effTotalProdCost / quantity;
+  const ln = baseCost * (effectivePct / 100) * quantity;
+  profitRateHtml = `<tr class="total-row"><td colspan="8">Tỷ lệ LN: ${effectivePct}% &mdash; LN: ${dinhDangSo(Math.round(ln))} đ</td></tr>`;
+
+  return `
+    <div class="section">
+      <div class="section-title"><span class="icon">${icon}</span> ${title} (${changeCount} thay đổi)</div>
+      <table>
+        <thead><tr>
+          <th class="left">C.đoạn</th><th class="left">Vật liệu</th>
+          <th>Khổ (m)</th><th>TP (m)</th><th>Hao (m)</th><th>Đ.vào NVL (m)</th>
+          <th>CPSX (đ/m²)</th><th>CPVL (đ)</th>
+        </tr></thead>
+        <tbody>
+          ${rowsHtml}
+          <tr class="total-row ${totalChanged ? 'cell-changed' : ''}">
+            <td colspan="8">TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN &mdash; ${dinhDangSo(grandTotal)} đ</td>
+          </tr>
+          ${profitRateHtml}
+          <tr class="total-row override-price-delta-row ${lopChenhLech}">
+            <td colspan="8">CHÊNH LỆCH SO VỚI GIÁ GỐC: <strong>${chenhLechText} ĐỒNG / ${donViText}</strong></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>`;
+}
+
+// ── Main export ─────────────────────────────────────────────────────────────────
+export function exportPricingDetailToA4(
+  item: HistoryItem,
+  materials: Material[],
+  constants: AppConstants,
+  profitTable: ProfitRow[],
+): void {
+  const r = tinhBaoGia(item.input, materials, constants, profitTable);
+  if (!r) {
+    alert('Không thể tính lại bảng giá này. Dữ liệu có thể không hợp lệ.');
+    return;
+  }
+
+  const { uniRows } = lapDongSanXuat(r, constants);
+  const emptyOv: OverrideTable = {};
+
+  const saleOv = item.saleOverrides && Object.keys(item.saleOverrides).length > 0 ? item.saleOverrides : {};
+  const adminOv = item.adminOverrides && Object.keys(item.adminOverrides).length > 0 ? item.adminOverrides : {};
+
+  const saleDefaultPct = +(r.profitRate * 100).toFixed(1);
+  const adminDefaultPct = saleDefaultPct;
+
+  let pagesHtml = '';
+
+  // Page 1: Tiêu đề + Thông tin chung + Giá
+  pagesHtml += `<div class="page">
+    <h1>CHI TIẾT BẢNG TÍNH GIÁ</h1>
+    <div style="text-align:center;font-size:9pt;color:#64748b;margin-bottom:12px;">Ngày ${item.date}</div>
+    ${buildThongTinChung(r, item)}
+    ${buildGia(r, item, constants, profitTable)}
+  </div>`;
+
+  // Page 2: Bảng CPSX
+  pagesHtml += `<div class="page">
+    <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ — ${item.productName} (tiếp theo)</div>
+    ${buildCPSXTable(r, constants)}
+  </div>`;
+
+  // Page 3: Sale override (if any)
+  if (Object.keys(saleOv).length > 0) {
+    const saleTable = buildOverrideTable('THAY ĐỔI TỪ SALE', '💼', uniRows, emptyOv, saleOv,
+      item.saleProfitRatePct ?? 0, saleDefaultPct, r, constants, profitTable, item.quantity);
+    pagesHtml += `<div class="page">
+      <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ — ${item.productName} (tiếp theo)</div>
+      ${saleTable}
+    </div>`;
+  }
+
+  // Page 4: Admin override (if any)
+  if (Object.keys(adminOv).length > 0) {
+    const adminTable = buildOverrideTable('THAY ĐỔI TỪ ADMIN', '👑', uniRows, saleOv, adminOv,
+      item.adminProfitRatePct ?? 0, adminDefaultPct, r, constants, profitTable, item.quantity);
+    pagesHtml += `<div class="page">
+      <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ — ${item.productName} (tiếp theo)</div>
+      ${adminTable}
+    </div>`;
+  }
+
+  const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Chi tiết ${item.productName}</title><style>${CSS}</style></head><body>
+<div class="pdf-toolbar">
+  <span class="pdf-toolbar-title">Chi tiết bảng tính giá — ${item.productName}</span>
+  <div class="pdf-toolbar-actions">
+    <button class="btn-print" onclick="window.print()">🖨 In PDF</button>
+    <button class="btn-close" onclick="window.close()">✕ Đóng</button>
+  </div>
+</div>
+<div class="pdf-pages">
+  ${pagesHtml}
+</div>
+</body></html>`;
+
+  const win = window.open('', '_blank', 'width=1100,height=900');
+  if (!win) { alert('Trình duyệt chặn popup. Vui lòng cho phép popup.'); return; }
+  win.document.write(fullHtml);
+  win.document.close();
+}

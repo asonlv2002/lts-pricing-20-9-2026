@@ -136,7 +136,8 @@ export function xuLyDongGhiDe(
   uniRows: UniRow[],
   sourceOverrides: OverrideTable,
   currentOverrides: OverrideTable,
-): { rows: ResolvedOverrideRow[]; totalCPSX: number; totalCPVL: number; grandTotal: number } {
+  printFilmParams?: { numColors: number; setupMin: number; setupDiv: number; threshold: number; speed: number; laborPerHr: number },
+): { rows: ResolvedOverrideRow[]; totalCPSX: number; totalCPVL: number; grandTotal: number; printFilmCost: number } {
   const resolved: ResolvedOverrideRow[] = [];
   let propagatedInputVL = 0;
 
@@ -185,8 +186,20 @@ export function xuLyDongGhiDe(
   const rows = resolved;
   const totalCPSX = rows.reduce((sum, row) => sum + row.costCPSX, 0);
   const totalCPVL = rows.reduce((sum, row) => sum + (row.costMat ?? 0), 0);
-  const printFilmCost = uniRows.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
-  return { rows, totalCPSX, totalCPVL, grandTotal: totalCPSX + totalCPVL + printFilmCost };
+  let printFilmCost = uniRows.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
+
+  if (printFilmParams && printFilmCost > 0) {
+    const printRow = rows.find(r => r.rowKey === 'print');
+    if (printRow && printFilmParams.numColors > 0) {
+      const { numColors, setupMin, setupDiv, threshold, speed, laborPerHr } = printFilmParams;
+      const setupHours = setupDiv > 0 ? numColors * setupMin / setupDiv : 0;
+      let prodHours = speed > 0 ? printRow.meters / speed : 0;
+      if (printRow.meters >= threshold && threshold > 0) prodHours += printRow.meters / threshold;
+      printFilmCost = (setupHours + prodHours) * laborPerHr;
+    }
+  }
+
+  return { rows, totalCPSX, totalCPVL, grandTotal: totalCPSX + totalCPVL + printFilmCost, printFilmCost };
 }
 
 export function tinhGiaHieuLuc(params: {

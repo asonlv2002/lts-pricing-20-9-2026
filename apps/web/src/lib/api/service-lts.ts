@@ -547,7 +547,7 @@ export interface CapNhatPricingSheetResultInput {
 
 // PATCH /pricing-sheet/{id}/advisor-result — cập nhật masterResult (cần quyền PRICING_SHEET_ADVISOR)
 export interface CapNhatPricingSheetAdvisorInput {
-  masterResult?: unknown;
+  result?: unknown;
 }
 
 export interface PricingSheetApi {

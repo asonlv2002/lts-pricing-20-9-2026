@@ -6,12 +6,11 @@ import {
   Trash2, FileEdit,
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import { getPricingWorkflowStatus, type PricingWorkflowStatus } from '../lib/history-filters';
+import { getPricingWorkflowStatus } from '../lib/history-filters';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { QrevStyleInjector } from './qrev-styles';
 import { xoaPricingSheetService } from '../lib/api/service-lts';
-import { tinhBaoGia } from '../lib/manager-calculation';
-import { tinhNhapPhanBoChotGia } from '../lib/chot-gia-allocation';
+import { exportPricingDetailToA4 } from '../lib/pricing-detail-export';
 import type { HistoryItem } from '../lib/types';
 
 const boDau = (chuoi: string) =>
@@ -67,12 +66,11 @@ export default function ModuleDanhSachTinhGia({
 }: {
   khiDieuHuong?: (module: 'calculator' | 'quotations') => void;
 }) {
-  const { history: lichSu, loadHistoryItem: taiLichSu, taiLichSuTuServer, removeHistoryItem: xoaLichSu, accessToken } = dungCuaHangTinhGia();
+  const { history: lichSu, loadHistoryItem: taiLichSu, taiLichSuTuServer, removeHistoryItem: xoaLichSu, accessToken, materials, constants, profitTable } = dungCuaHangTinhGia();
 
   const [tuKhoa, datTuKhoa] = useState('');
   const [boLoc, datBoLoc] = useState<BoLocTinhGia>('all');
   const [page, setPage] = useState(0);
-  const [chiTiet, datChiTiet] = useState<HistoryItem | null>(null);
   const [selectedQuoteHistoryIds, setSelectedQuoteHistoryIds] = useState<Set<string>>(new Set());
   const [quoteDraftCustomer, setQuoteDraftCustomer] = useState<string | null>(null);
   const [xacNhanXoaId, datXacNhanXoaId] = useState<string | null>(null);
@@ -152,6 +150,10 @@ export default function ModuleDanhSachTinhGia({
     khiDieuHuong?.('calculator');
   };
 
+  const moXemA4 = (h: HistoryItem) => {
+    exportPricingDetailToA4(h, materials, constants, profitTable);
+  };
+
   const xuLyXoa = async (id: string) => {
     const item = lichSu.find(h => h.id === id);
     if (!item) return;
@@ -203,7 +205,7 @@ export default function ModuleDanhSachTinhGia({
     const duocChon = selectedQuoteHistoryIds.has(h.id);
 
     return (
-      <tr key={h.id} className="qrev-row" onClick={() => datChiTiet(h)}>
+      <tr key={h.id} className="qrev-row" onClick={() => moXemA4(h)}>
         <td style={{ width: 40 }} onClick={e => e.stopPropagation()}>
           <button
             className="qrev-btn-icon"
@@ -237,7 +239,7 @@ export default function ModuleDanhSachTinhGia({
         </td>
         <td>
           <div className="qrev-row-actions" onClick={e => e.stopPropagation()}>
-            <button className="qrev-btn-icon" title="Xem chi tiết" onClick={() => datChiTiet(h)}>
+            <button className="qrev-btn-icon" title="Xem chi tiết" onClick={() => moXemA4(h)}>
               <Eye size={15} />
             </button>
             <button className="qrev-btn-icon qrev-btn-icon--primary" title="Mở lại tính giá" onClick={() => moLaiTinhGia(h.id)}>
@@ -363,13 +365,6 @@ export default function ModuleDanhSachTinhGia({
         )}
       </div>
 
-      {chiTiet && (
-        <ChiTietPanel
-          item={chiTiet}
-          onClose={() => datChiTiet(null)}
-          onMoLai={moLaiTinhGia}
-        />
-      )}
       {xacNhanXoaId && (
         <div className="lts-confirm-backdrop" onClick={() => datXacNhanXoaId(null)}>
           <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
@@ -400,137 +395,6 @@ export default function ModuleDanhSachTinhGia({
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function ChiTietPanel({
-  item,
-  onClose,
-  onMoLai,
-}: {
-  item: HistoryItem;
-  onClose: () => void;
-  onMoLai: (id: string) => void;
-}) {
-  const status = getPricingWorkflowStatus(item);
-  const mau = STATUS_COLORS[status] ?? STATUS_COLORS.draft;
-  const meta = getPricingDisplayMeta(item.input);
-  const coGiaChot = typeof item.chotGia === 'number' && item.chotGia > 0;
-  const engineResult = React.useMemo(() => {
-    const store = dungCuaHangTinhGia.getState();
-    return tinhBaoGia(item.input, store.materials, store.constants, store.profitTable, store.smallWidthPrices);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item.id]);
-
-  const giaDeXuat = item.finalPrice || engineResult?.finalPrice || 0;
-
-  let doanhThuChot = 0;
-  let pctLN = 0;
-  let loiNhuanCongTy = 0;
-  let hoaHongMoi = 0;
-  let hoaHongMoiPct = 0;
-
-  if (coGiaChot && engineResult) {
-    doanhThuChot = item.chotGia! * item.quantity;
-    const diff = item.chotGia! - engineResult.finalPrice;
-
-    const phanBo = tinhNhapPhanBoChotGia({
-      hasChotGia: true,
-      diff,
-      hoaHongNhap: (item.input as any).phanBoCongTy ?? 0,
-      hoaHongEngine: engineResult.commissionPerUnit,
-      donViPhanBo: (item.input as any).donViPhanBo ?? 'vnd',
-    });
-
-    const hhMoiDonVi = Math.max(0, engineResult.commissionPerUnit + phanBo.hoaHongAmount);
-    hoaHongMoi = Math.round(hhMoiDonVi * item.quantity);
-    hoaHongMoiPct = engineResult.costPerUnit > 0 ? (hhMoiDonVi / engineResult.costPerUnit) * 100 : 0;
-
-    const tongChiPhi = engineResult.totalProductionCost
-      + engineResult.zipperTotal + engineResult.tapeTotal
-      + engineResult.handleTotal + engineResult.boxTotal
-      + engineResult.shippingTotal
-      + engineResult.interestPerUnit * item.quantity;
-
-    loiNhuanCongTy = doanhThuChot - tongChiPhi - hoaHongMoi;
-    pctLN = engineResult.totalProductionCost > 0 ? (loiNhuanCongTy / engineResult.totalProductionCost) * 100 : 0;
-  }
-
-  return (
-    <>
-      <div className="qrev-overlay" onClick={onClose} />
-      <aside className="qrev-slide-panel" role="dialog" aria-modal="true" aria-label="Chi tiết bảng tính giá">
-        <div className="qrev-panel-header">
-          <div className="qrev-panel-avatar" style={{ background: mauAvatar(item.id) }}>
-            <FileText size={18} />
-          </div>
-          <div className="qrev-panel-title">
-            <span className="qrev-panel-name">{item.productName}</span>
-            <span className="qrev-panel-meta">
-              {dinhDangNgay(item.date)} · {item.structure}
-            </span>
-          </div>
-          <button className="qrev-btn-icon qrev-btn-icon--close" aria-label="Đóng" onClick={onClose}><X size={18} /></button>
-        </div>
-
-        <div className="qrev-panel-body">
-          <div className="qrev-panel-row">
-            <span className="qrev-panel-label">Trạng thái</span>
-            <span className="qrev-badge" style={{ background: mau.bg, color: mau.fg }}>
-              <span className="qrev-badge-dot" style={{ background: mau.fg }} />
-              {STATUS_LABELS[status]}
-            </span>
-          </div>
-
-          <div className="qrev-panel-section-title">Thông tin chung</div>
-          <div className="qrev-info-grid">
-            <ChiTietDong label="Sản phẩm" value={item.productName} />
-            <ChiTietDong label="Khách hàng" value={item.customer} />
-            <ChiTietDong label="Cấu trúc" value={item.structure} mono />
-            <ChiTietDong label="Số lượng" value={`${dinhDangSo(item.quantity)} ${meta.quantityUnitForHistory}`} />
-            <ChiTietDong label="Kích thước" value={`KT ${Math.round((item.input.spreadWidth || 0) * 1000)} × BC ${Math.round((item.input.cutStep || 0) * 1000)} mm`} />
-            <ChiTietDong label="Số màu" value={item.input.numColors && item.input.numColors > 0 ? `${item.input.numColors} màu` : 'Không in'} />
-            <ChiTietDong label="Độ dày" value={`${item.input.targetThickness || 0} mic`} />
-            {item.sellerName && <ChiTietDong label="Sale" value={item.sellerName} />}
-          </div>
-
-          <div className="qrev-panel-section-title">Giá</div>
-          <div className="qrev-info-grid">
-            <ChiTietDong label={`Giá đề xuất / ${meta.unit}`} value={`${dinhDangSo(giaDeXuat)} ₫`} bold />
-            {coGiaChot && (
-              <>
-                <ChiTietDong label={`Giá chốt / ${meta.unit}`} value={`${dinhDangSo(item.chotGia!)} ₫`} bold color="#059669" />
-                <ChiTietDong label="Doanh thu tổng" value={`${dinhDangSo(doanhThuChot)} ₫`} bold color="#059669" />
-                <ChiTietDong label={`Lợi nhuận công ty (${pctLN.toFixed(1)}%)`} value={`${dinhDangSo(loiNhuanCongTy)} ₫`} bold color="#059669" />
-                <ChiTietDong label={`Hoa hồng (${hoaHongMoiPct.toFixed(1)}%)`} value={`${dinhDangSo(hoaHongMoi)} ₫`} />
-              </>
-            )}
-          </div>
-        </div>
-
-        <div className="qrev-panel-footer">
-          <button className="qrev-btn qrev-btn--primary" onClick={() => onMoLai(item.id)}>
-            <RefreshCw size={15} /> Mở lại tính giá
-          </button>
-        </div>
-      </aside>
-    </>
-  );
-}
-
-function ChiTietDong({ label, value, bold, mono, color }: {
-  label: string; value: string; bold?: boolean; mono?: boolean; color?: string;
-}) {
-  return (
-    <div className="qrev-info-row">
-      <span className="qrev-info-label">{label}</span>
-      <span
-        className="qrev-info-value"
-        style={{ fontWeight: bold ? 700 : 500, fontFamily: mono ? 'monospace' : undefined, color }}
-      >
-        {value}
-      </span>
     </div>
   );
 }
