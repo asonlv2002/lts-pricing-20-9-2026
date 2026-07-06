@@ -1595,7 +1595,6 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   const accessToken = dungCuaHangTinhGia(s => s.accessToken);
   const isAuthenticated = dungCuaHangTinhGia(s => s.isAuthenticated);
   const nguoiDungHienTai = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
-  const coQuyenTaoKhachHang = !!nguoiDungHienTai?.policies.includes('CUSTOMER_CREATE');
   const coQuyenQuanLyNguoiPhuTrach = !!nguoiDungHienTai?.policies.includes('CUSTOMER_MANAGER');
 
   // Close transaction dropdown on click outside
@@ -1983,19 +1982,15 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
           <div className="crm2-header-right">
             {!showingAuditLog && (
               <>
-                {coQuyenTaoKhachHang && (
-                  <button className="crm2-btn crm2-btn--ghost" onClick={() => setImportOpen(true)}>
+                <button className="crm2-btn crm2-btn--ghost" onClick={() => setImportOpen(true)}>
                     <Upload size={15}/> Nhập Excel
                   </button>
-                )}
                 <button className="crm2-btn crm2-btn--ghost" disabled={filtered.length === 0} onClick={() => exportCsv(filtered)}>
                   <Download size={15}/> Xuất CSV
                 </button>
-                {coQuyenTaoKhachHang && (
-                  <button className="crm2-btn crm2-btn--primary" onClick={() => openEdit(null)}>
-                    <Plus size={15}/> Thêm mới
-                  </button>
-                )}
+                <button className="crm2-btn crm2-btn--primary" onClick={() => openEdit(null)}>
+                  <Plus size={15}/> Thêm mới
+                </button>
               </>
             )}
           </div>

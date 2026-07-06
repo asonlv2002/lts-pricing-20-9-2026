@@ -416,14 +416,14 @@ function ChiTietPanel({
   const status = getPricingWorkflowStatus(item);
   const mau = STATUS_COLORS[status] ?? STATUS_COLORS.draft;
   const meta = getPricingDisplayMeta(item.input);
-  const giaDeXuat = item.finalPrice;
   const coGiaChot = typeof item.chotGia === 'number' && item.chotGia > 0;
-
   const engineResult = React.useMemo(() => {
     const store = dungCuaHangTinhGia.getState();
     return tinhBaoGia(item.input, store.materials, store.constants, store.profitTable, store.smallWidthPrices);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [item.id]);
+
+  const giaDeXuat = item.finalPrice || engineResult?.finalPrice || 0;
 
   let doanhThuChot = 0;
   let pctLN = 0;

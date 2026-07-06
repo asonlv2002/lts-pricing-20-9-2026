@@ -105,6 +105,8 @@ const QUOTE_PREFILL_STORAGE_KEY = "lts_quote_prefill_from_history";
 type QuotePrefillFromHistory = {
   customerName?: string;
   historyItemIds?: string[];
+  quoteProducts?: QuoteProductLine[];
+  terms?: QuoteTerms;
   createdAt?: string;
 };
 
@@ -181,6 +183,47 @@ function buildWizardProductFromHistoryItem(item: HistoryItem): WizardProduct {
         baoGia: item.chotGia ?? item.finalPrice,
       },
     ],
+    bagSpec: spec,
+  };
+}
+
+function buildWizardProductFromQuoteProductLine(qp: QuoteProductLine): WizardProduct {
+  const historyItem: HistoryItem = {
+    id: qp.sourceHistoryItemId,
+    date: new Date().toISOString().slice(0, 10).replace(/-/g, "/"),
+    customer: "",
+    productName: qp.productName,
+    structure: qp.structure,
+    quantity: qp.quantity,
+    finalPrice: qp.finalPrice,
+    chotGia: qp.chotGia,
+    profitRate: qp.profitRate,
+    input: qp.input,
+  };
+  const spec = buildDefaultBagSpec(qp.input);
+  if (qp.bagSpec) {
+    Object.assign(spec, qp.bagSpec);
+  }
+  if (!spec.cylinderUnitPrice && qp.input.cylLength > 0) {
+    const { materials, constants, profitTable, smallWidthPrices } =
+      dungCuaHangTinhGia.getState();
+    const res = tinhBaoGia(
+      qp.input,
+      materials,
+      constants,
+      profitTable,
+      smallWidthPrices,
+    );
+    if (res?.cylinderCostPerUnit)
+      spec.cylinderUnitPrice = res.cylinderCostPerUnit;
+  }
+  return {
+    historyItem,
+    tiers: qp.tiers.map((t) => ({
+      quantity: t.quantity,
+      finalPrice: t.finalPrice,
+      baoGia: t.chotGia ?? t.finalPrice,
+    })),
     bagSpec: spec,
   };
 }
@@ -702,10 +745,12 @@ function QuotationCard({
   muc,
   onClick,
   statusControl,
+  onCopy,
 }: {
   muc: HistoryItem;
   onClick: () => void;
   statusControl: React.ReactNode;
+  onCopy?: () => void;
 }) {
   const [showDiff, setShowDiff] = useState(false);
   const spreadMm = muc.input.spreadWidth
@@ -1008,6 +1053,30 @@ function QuotationCard({
         {muc.quoteCode && (
           <span style={{ marginLeft: 8 }}>{muc.quoteCode}</span>
         )}
+        {onCopy && (
+          <button
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 8px",
+              borderRadius: 6,
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              border: "1px solid var(--accent, #0891b2)",
+              background: "rgba(8,145,178,0.08)",
+              color: "var(--accent, #0891b2)",
+              marginLeft: 8,
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onCopy();
+            }}
+          >
+            <Copy size={11} /> Sao chép
+          </button>
+        )}
         <button
           style={{
             display: "inline-flex",
@@ -1117,6 +1186,7 @@ function AdminView({
   chiTimKhachHang = false,
   onOpen,
   onStatusUpdate,
+  onCopy,
 }: {
   mucs: HistoryItem[];
   search: string;
@@ -1126,6 +1196,7 @@ function AdminView({
     muc: HistoryItem,
     status: QuoteStatus,
   ) => Promise<void> | void;
+  onCopy?: (muc: HistoryItem) => void;
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -1242,6 +1313,7 @@ function AdminView({
                         khiCapNhat={onStatusUpdate}
                       />
                     }
+                    onCopy={onCopy ? () => onCopy(muc) : undefined}
                   />
                 ))}
               </div>
@@ -1262,6 +1334,7 @@ function SaleView({
   chiTimKhachHang = false,
   onOpen,
   onStatusUpdate,
+  onCopy,
 }: {
   mucs: HistoryItem[];
   search: string;
@@ -1271,6 +1344,7 @@ function SaleView({
     muc: HistoryItem,
     status: QuoteStatus,
   ) => Promise<void> | void;
+  onCopy?: (muc: HistoryItem) => void;
 }) {
   const filtered = useMemo(() => {
     if (!search.trim()) return mucs;
@@ -1307,6 +1381,7 @@ function SaleView({
           statusControl={
             <DieuKhienTrangThaiSale muc={muc} khiCapNhat={onStatusUpdate} />
           }
+          onCopy={onCopy ? () => onCopy(muc) : undefined}
         />
       ))}
     </div>
@@ -3423,9 +3498,16 @@ function TaoBaoGiaWizard({
   useEffect(() => {
     const prefill = readQuotePrefillFromHistory();
     if (!prefill) return;
-    const prefillProducts = (history as HistoryItem[])
-      .filter((item: HistoryItem) => prefill.historyItemIds?.includes(item.id))
-      .map((item: HistoryItem) => buildWizardProductFromHistoryItem(item));
+    let prefillProducts: WizardProduct[];
+    if (prefill.quoteProducts && prefill.quoteProducts.length > 0) {
+      prefillProducts = prefill.quoteProducts.map((qp) =>
+        buildWizardProductFromQuoteProductLine(qp),
+      );
+    } else {
+      prefillProducts = (history as HistoryItem[])
+        .filter((item: HistoryItem) => prefill.historyItemIds?.includes(item.id))
+        .map((item: HistoryItem) => buildWizardProductFromHistoryItem(item));
+    }
     // Chỉ prefill khách hàng do người dùng hiện tại phụ trách (admin thấy tất cả).
     const tatCaKhach = docKhachHang();
     const khachDuocChon = locKhachTheoQuyen(tatCaKhach, role, currentSellerId);
@@ -3445,6 +3527,16 @@ function TaoBaoGiaWizard({
       ...prev,
       customer: prefillCustomer,
       products: prefillProducts,
+      terms: prefill.terms
+        ? {
+            vatRate: prefill.terms.vatRate ?? prev.terms.vatRate,
+            vatCylinderRate: prefill.terms.vatCylinderRate ?? prev.terms.vatCylinderRate,
+            validityDays: prefill.terms.validityDays ?? prev.terms.validityDays,
+            paymentTerms: prefill.terms.paymentTerms || prev.terms.paymentTerms,
+            deliveryTime: prefill.terms.deliveryTime || prev.terms.deliveryTime,
+            notes: prefill.terms.notes ?? prev.terms.notes,
+          }
+        : prev.terms,
     }));
     if (!prefillCustomer) {
       const query = (prefill.customerName ?? "").trim();
@@ -5154,6 +5246,21 @@ export default function QuotationModule({
     setSelectedItem(item);
   };
 
+  const handleCopyQuote = useCallback((muc: HistoryItem) => {
+    const prefill: QuotePrefillFromHistory = {
+      customerName: muc.customer,
+      createdAt: new Date().toISOString(),
+    };
+    if (muc.quoteProducts && muc.quoteProducts.length > 0) {
+      prefill.quoteProducts = muc.quoteProducts;
+    }
+    if (muc.terms) {
+      prefill.terms = muc.terms;
+    }
+    window.localStorage.setItem(QUOTE_PREFILL_STORAGE_KEY, JSON.stringify(prefill));
+    setShowWizard(true);
+  }, []);
+
   const capNhatTrangThaiDon = useCallback(
     async (muc: HistoryItem, status: QuoteStatus) => {
       if (status !== "pending_approval") {
@@ -5262,6 +5369,7 @@ export default function QuotationModule({
             chiTimKhachHang={laLichSuBaoGiaTheoKhach}
             onOpen={handleOpen}
             onStatusUpdate={capNhatTrangThaiDon}
+            onCopy={handleCopyQuote}
           />
         ) : (
           <SaleView
@@ -5270,6 +5378,7 @@ export default function QuotationModule({
             chiTimKhachHang={laLichSuBaoGiaTheoKhach}
             onOpen={handleOpen}
             onStatusUpdate={capNhatTrangThaiDon}
+            onCopy={handleCopyQuote}
           />
         )}
       </div>

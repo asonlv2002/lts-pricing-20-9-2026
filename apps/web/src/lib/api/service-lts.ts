@@ -14,7 +14,7 @@ export const LS_REFRESH_TOKEN = 'lts_service_refresh_token';
 export type PolicyCode =
   | 'ACCOUNT_READ' | 'ACCOUNT_CREATE' | 'ACCOUNT_ACTIVATE'
   | 'ACCOUNT_PASSWORD_UPDATE_ALL' | 'ROLE_CREATE' | 'ROLE_UPDATE' | 'ROLE_DELETE'
-  | 'ROLE_READ' | 'CUSTOMER_CREATE' | 'CUSTOMER_MANAGER'
+  | 'ROLE_READ' | 'CUSTOMER_MANAGER'
   | 'USER_POLICY_GRANT' | 'USER_POLICY_REVOKE'
   | 'QUOTATION_REVIEWER' | 'PRODUCT_MANAGER' | 'PRICING_SHEET_ADVISOR'
   | 'PRICE_CONFIG_MANAGER' | 'ACTIVITY_MONITOR';
@@ -36,7 +36,7 @@ export const POLICY_CATALOG: Policy[] = [
   { code: 'ROLE_CREATE',        ten: 'Tạo vai trò',          moTa: 'Cho phép tạo mẫu vai trò mới.',                         nhom: 'Vai trò', rui_ro: 'trung' },
   { code: 'ROLE_UPDATE',        ten: 'Sửa vai trò',          moTa: 'Cho phép cập nhật mẫu vai trò.',                         nhom: 'Vai trò', rui_ro: 'trung' },
   { code: 'ROLE_DELETE',        ten: 'Xóa vai trò',          moTa: 'Cho phép xóa mẫu vai trò.',                              nhom: 'Vai trò', rui_ro: 'cao'   },
-  { code: 'CUSTOMER_CREATE',    ten: 'Tạo khách hàng',        moTa: 'Cho phép tạo hồ sơ khách hàng mới.',                    nhom: 'Cấp phát', rui_ro: 'trung' },
+
   { code: 'CUSTOMER_MANAGER',   ten: 'Quản lý người phụ trách khách hàng', moTa: 'Cho phép thêm hoặc xóa người phụ trách trên hồ sơ khách hàng.', nhom: 'Cấp phát', rui_ro: 'trung' },
   { code: 'USER_POLICY_GRANT',  ten: 'Cấp quyền cho user',    moTa: 'Cho phép cấp policy trực tiếp cho tài khoản.',          nhom: 'Cấp phát', rui_ro: 'cao'   },
   { code: 'USER_POLICY_REVOKE', ten: 'Thu hồi quyền user',    moTa: 'Cho phép thu hồi policy trực tiếp khỏi tài khoản.',     nhom: 'Cấp phát', rui_ro: 'cao'   },

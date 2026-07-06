@@ -361,7 +361,10 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       productName: products.length === 1 ? first.productName : `Báo giá ${products.length} sản phẩm`,
       structure: products.length === 1 ? first.structure : products.map(p => p.structure).join(' + '),
       quantity: products.reduce((sum, p) => sum + (p.quantity || 0), 0),
-      finalPrice: first.finalPrice,
+      finalPrice: first.finalPrice || (() => {
+        const r = tinhBaoGia({ ...first.input }, state.materials, state.constants, state.profitTable, state.smallWidthPrices);
+        return r?.finalPrice ?? 0;
+      })(),
       chotGia: first.chotGia,
       profitRate: first.profitRate,
       quoteStatus: status,

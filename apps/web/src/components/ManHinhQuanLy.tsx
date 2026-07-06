@@ -932,7 +932,7 @@ const buttonLabel = loadedItem
   const selectedMat = selectedData?.material;
   const isKgBase = !laMang && !!selectedMat && (selectedMat.name.toUpperCase().includes('LLDPE') || selectedMat.name.toUpperCase() === 'PE');
   const rollLevels = isKgBase ? [200, 300, 400, 500, 600, 700] : [1, 2, 3, 4, 5, 6];
-  const rollLen = laMang ? chieuDaiCuonMang : (selectedMat?.rollLength || 6000);
+  const rollLen = laMang ? (selectedMat?.rollLength || chieuDaiCuonMang) : (selectedMat?.rollLength || 6000);
   const filmRollAreaTP = dauVaoKq.spreadWidth * rollLen;
   const totalSelectedMeters = selectedData ? selectedData.meters + selectedData.waste : 0;
   const otherLayers = rollOptions.filter((c) => c !== selectedCol);
