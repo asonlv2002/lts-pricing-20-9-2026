@@ -740,6 +740,8 @@ export function buildHistoryItemFromServerData(bg: BaoGiaApiLoose): Partial<Hist
     pricingSheetId?: string;
     sourceHistoryItemId?: string;
     bagSpec?: Record<string, unknown>;
+    finalPrice?: number;
+    chotGia?: number;
   }>) ?? [];
 
   const customer = (inputValue.customer as string) || (firstInput?.customer as string) || firstSheet?.customer?.codeName || '';
@@ -756,16 +758,20 @@ export function buildHistoryItemFromServerData(bg: BaoGiaApiLoose): Partial<Hist
       sheetInput?.layer5Id as string,
     ]);
     const quantity = (sheetInput?.quantity as number) ?? 0;
-    const finalPrice = (sheet?.saleResult as any)?.finalPrice ?? (sheet?.masterResult as any)?.finalPrice ?? 0;
+    const finalPrice = spec.finalPrice
+      ?? (sheet?.saleResult as any)?.finalPrice
+      ?? (sheet?.masterResult as any)?.finalPrice
+      ?? 0;
+    const chotGia = spec.chotGia ?? 0;
     return {
       sourceHistoryItemId: spec.sourceHistoryItemId || spec.pricingSheetId || '',
       productName,
       structure,
       quantity,
       finalPrice,
-      chotGia: 0,
+      chotGia,
       input: sheetInput as any,
-      tiers: [{ quantity, chotGia: 0, finalPrice } as QuoteTier],
+      tiers: [{ quantity, chotGia, finalPrice } as QuoteTier],
       bagSpec: spec.bagSpec as any,
     } as QuoteProductLine;
   });
@@ -780,7 +786,7 @@ export function buildHistoryItemFromServerData(bg: BaoGiaApiLoose): Partial<Hist
     structure: mainProduct?.structure || buildStructure([firstInput?.layer1Id as string, firstInput?.layer2Id as string]),
     quantity: mainProduct?.quantity ?? (firstInput?.quantity as number) ?? 0,
     finalPrice: mainProduct?.finalPrice ?? 0,
-    chotGia: 0,
+    chotGia: mainProduct?.chotGia ?? 0,
     input: firstInput as any,
     quoteProducts,
     tiers: [],

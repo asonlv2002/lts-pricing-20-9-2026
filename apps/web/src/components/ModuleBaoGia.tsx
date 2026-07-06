@@ -3516,6 +3516,7 @@ function TaoBaoGiaWizard({
   const [saving, setSaving] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
   const [confirmCreateNew, setConfirmCreateNew] = useState(false);
+  const [confirmSaoChep, setConfirmSaoChep] = useState(false);
   const pendingModuleRef = useRef<string | null>(null);
   const hasDataRef = useRef(false);
   const exitingRef = useRef(false);
@@ -3702,6 +3703,30 @@ function TaoBaoGiaWizard({
     }
   };
 
+  const handleSaoChepWizard = () => {
+    setConfirmSaoChep(false);
+    datBaoGiaDangSua(null);
+
+    const copiedProducts = state.products.map((p) => ({
+      ...p,
+      historyItem: {
+        ...p.historyItem,
+        id: String(Date.now()) + Math.random().toString(36).slice(2, 8),
+        date: new Date().toLocaleDateString("vi-VN"),
+        pricingSheetId: undefined,
+      },
+      tiers: p.tiers.map((t) => ({ ...t })),
+    }));
+
+    setState({
+      customer: state.customer,
+      products: copiedProducts,
+      terms: { ...state.terms },
+    });
+    setError("");
+    setErrorSection(null);
+  };
+
   const handleCustomerSelect = (c: Customer) => {
     if (dangSua) return;
     setState((prev) => ({ ...prev, customer: c }));
@@ -3751,29 +3776,34 @@ function TaoBaoGiaWizard({
               continue;
             }
             const sheet = await taoPricingSheetService(
-              mapHistoryToPricingSheet(prod.historyItem, checkKH.maKhachHang),
-              accessToken,
-            );
-            if (sheet?.id) pricingSheetIds.push(sheet.id);
-          }
-          if (pricingSheetIds.length === 0)
-            throw new Error("Không có pricing sheet nào để cập nhật.");
+                mapHistoryToPricingSheet(prod.historyItem, checkKH.maKhachHang),
+                accessToken,
+              );
+              if (sheet?.id) {
+                pricingSheetIds.push(sheet.id);
+                prod.historyItem.pricingSheetId = sheet.id;
+              }
+            }
+            if (pricingSheetIds.length === 0)
+              throw new Error("Không có pricing sheet nào để cập nhật.");
 
-          await capNhatBaoGiaService(bgDangSua.id, {
-            moTa: terms.notes?.trim() || undefined,
-            duLieuDauVao: {
-              vatRate: terms.vatRate,
-              vatCylinderRate: terms.vatCylinderRate,
-              validityDays: terms.validityDays,
-              paymentTerms: terms.paymentTerms,
-              deliveryTime: terms.deliveryTime,
-              notes: terms.notes,
-              productBagSpecs: products.map((prod) => ({
-                sourceHistoryItemId: prod.historyItem.id,
-                pricingSheetId: prod.historyItem.pricingSheetId,
-                productName: prod.historyItem.productName,
-                bagSpec: prod.bagSpec,
-              })),
+            await capNhatBaoGiaService(bgDangSua.id, {
+              moTa: terms.notes?.trim() || undefined,
+              duLieuDauVao: {
+                vatRate: terms.vatRate,
+                vatCylinderRate: terms.vatCylinderRate,
+                validityDays: terms.validityDays,
+                paymentTerms: terms.paymentTerms,
+                deliveryTime: terms.deliveryTime,
+                notes: terms.notes,
+                productBagSpecs: products.map((prod) => ({
+                  sourceHistoryItemId: prod.historyItem.id,
+                  pricingSheetId: prod.historyItem.pricingSheetId,
+                  productName: prod.historyItem.productName,
+                  bagSpec: prod.bagSpec,
+                  finalPrice: prod.tiers[0]?.finalPrice ?? prod.historyItem.finalPrice,
+                  chotGia: prod.tiers[0]?.baoGia,
+                })),
             },
             dsPricingSheetId: pricingSheetIds,
           }, accessToken);
@@ -3791,33 +3821,38 @@ function TaoBaoGiaWizard({
             pricingSheetIds.push(prod.historyItem.pricingSheetId);
             continue;
           }
-          const sheet = await taoPricingSheetService(
-            mapHistoryToPricingSheet(prod.historyItem, checkKH.maKhachHang),
-            accessToken,
-          );
-          if (sheet?.id) pricingSheetIds.push(sheet.id);
-        }
-        if (pricingSheetIds.length === 0)
-          throw new Error("Không tạo được pricing sheet trên máy chủ.");
+            const sheet = await taoPricingSheetService(
+                mapHistoryToPricingSheet(prod.historyItem, checkKH.maKhachHang),
+                accessToken,
+              );
+              if (sheet?.id) {
+                pricingSheetIds.push(sheet.id);
+                prod.historyItem.pricingSheetId = sheet.id;
+              }
+            }
+            if (pricingSheetIds.length === 0)
+              throw new Error("Không tạo được pricing sheet trên máy chủ.");
 
-        // Bước 2: tạo quotation tham chiếu các pricing sheet.
-        const created = await taoBaoGiaService(
-          {
-            customerCodeName: checkKH.maKhachHang,
-            description: terms.notes?.trim() ? terms.notes.trim() : undefined,
-            inputValue: {
-              vatRate: terms.vatRate,
-              vatCylinderRate: terms.vatCylinderRate,
-              validityDays: terms.validityDays,
-              paymentTerms: terms.paymentTerms,
-              deliveryTime: terms.deliveryTime,
-              notes: terms.notes,
-              productBagSpecs: products.map((prod) => ({
-                sourceHistoryItemId: prod.historyItem.id,
-                pricingSheetId: prod.historyItem.pricingSheetId,
-                productName: prod.historyItem.productName,
-                bagSpec: prod.bagSpec,
-              })),
+            // Bước 2: tạo quotation tham chiếu các pricing sheet.
+            const created = await taoBaoGiaService(
+              {
+                customerCodeName: checkKH.maKhachHang,
+                description: terms.notes?.trim() ? terms.notes.trim() : undefined,
+                inputValue: {
+                  vatRate: terms.vatRate,
+                  vatCylinderRate: terms.vatCylinderRate,
+                  validityDays: terms.validityDays,
+                  paymentTerms: terms.paymentTerms,
+                  deliveryTime: terms.deliveryTime,
+                  notes: terms.notes,
+                  productBagSpecs: products.map((prod) => ({
+                    sourceHistoryItemId: prod.historyItem.id,
+                    pricingSheetId: prod.historyItem.pricingSheetId,
+                    productName: prod.historyItem.productName,
+                    bagSpec: prod.bagSpec,
+                    finalPrice: prod.tiers[0]?.finalPrice ?? prod.historyItem.finalPrice,
+                    chotGia: prod.tiers[0]?.baoGia,
+                  })),
             },
             pricingSheetIds,
           },
@@ -4091,6 +4126,14 @@ function TaoBaoGiaWizard({
           >
             {dangSua ? 'Cập nhật' : 'Lưu'}
           </button>
+          {dangSua && (
+            <button
+              className="wiz-btn wiz-btn--secondary"
+              onClick={() => setConfirmSaoChep(true)}
+            >
+              <Copy size={14} /> Sao chép
+            </button>
+          )}
           <button
             className="wiz-btn wiz-btn--secondary"
             onClick={() => setConfirmCreateNew(true)}
@@ -4198,6 +4241,14 @@ function TaoBaoGiaWizard({
         >
           {dangSua ? 'Cập nhật' : 'Lưu nháp'}
         </button>
+        {dangSua && (
+          <button
+            className="wiz-btn wiz-btn--secondary"
+            onClick={() => setConfirmSaoChep(true)}
+          >
+            <Copy size={14} /> Sao chép
+          </button>
+        )}
         <button
           className="wiz-btn wiz-btn--secondary"
           onClick={() => setConfirmCreateNew(true)}
@@ -4220,6 +4271,24 @@ function TaoBaoGiaWizard({
             <div className="lts-confirm-actions">
               <button className="btn btn-outline" onClick={() => setConfirmCreateNew(false)}>Hủy</button>
               <button className="btn btn-danger" onClick={handleCreateNew}>Tạo mới</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm sao chép dialog */}
+      {confirmSaoChep && (
+        <div className="lts-confirm-backdrop" onClick={() => setConfirmSaoChep(false)}>
+          <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
+            <div className="lts-confirm-icon">📋</div>
+            <h3 className="lts-confirm-title">Sao chép báo giá?</h3>
+            <p className="lts-confirm-desc">
+              Dữ liệu hiện tại sẽ được sao chép thành báo giá mới.<br />
+              Bản cập nhật hiện tại sẽ không được lưu.
+            </p>
+            <div className="lts-confirm-actions">
+              <button className="btn btn-outline" onClick={() => setConfirmSaoChep(false)}>Hủy</button>
+              <button className="btn btn-danger" onClick={handleSaoChepWizard}>Sao chép</button>
             </div>
           </div>
         </div>

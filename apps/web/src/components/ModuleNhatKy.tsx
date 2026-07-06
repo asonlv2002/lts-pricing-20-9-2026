@@ -249,6 +249,7 @@ const HIDDEN_DIFF_KEYS = new Set([
   "saleResult",
   "masterResult",
   "pricingSheetId",
+  "pricingSheetIds",
 ]);
 
 const MANAGER_DIFF_KEYS = new Set(["managerIds", "managerNames", "managers"]);
