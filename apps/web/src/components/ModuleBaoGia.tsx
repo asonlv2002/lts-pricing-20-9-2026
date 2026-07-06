@@ -151,10 +151,9 @@ function readQuotePrefillFromHistory(): QuotePrefillFromHistory | null {
     if (!raw) return null;
     window.localStorage.removeItem(QUOTE_PREFILL_STORAGE_KEY);
     const parsed = JSON.parse(raw) as QuotePrefillFromHistory;
-    return Array.isArray(parsed.historyItemIds) &&
-      parsed.historyItemIds.length > 0
-      ? parsed
-      : null;
+    const hasHistoryItems = Array.isArray(parsed.historyItemIds) && parsed.historyItemIds.length > 0;
+    const hasQuoteProducts = Array.isArray(parsed.quoteProducts) && parsed.quoteProducts.length > 0;
+    return (hasHistoryItems || hasQuoteProducts) ? parsed : null;
   } catch {
     return null;
   }
