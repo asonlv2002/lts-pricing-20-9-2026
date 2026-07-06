@@ -223,7 +223,7 @@ export const QUOTE_STATUS_CONFIG: Record<QuoteStatus, {
   step: number;
   description: string;
 }> = {
-  drafted:          { label: 'Đang nháp',        shortLabel: 'Nháp',       color: '#6b7280', bg: 'rgba(107,114,128,0.1)', step: 1, description: 'Báo giá đang được soạn' },
+  drafted:          { label: 'Khởi tạo',        shortLabel: 'Khởi tạo',  color: '#6b7280', bg: 'rgba(107,114,128,0.1)', step: 1, description: 'Báo giá đang được soạn' },
   pending_approval: { label: 'Chờ duyệt',        shortLabel: 'Chờ duyệt',  color: '#d97706', bg: 'rgba(217,119,6,0.1)',   step: 2, description: 'Đang chờ phê duyệt nội bộ' },
   approved:         { label: 'Đã duyệt',         shortLabel: 'Đã duyệt',   color: '#2563eb', bg: 'rgba(37,99,235,0.1)',   step: 3, description: 'Admin đã duyệt báo giá' },
   sent:             { label: 'Đã gửi khách',     shortLabel: 'Đã gửi',     color: '#4f46e5', bg: 'rgba(79,70,229,0.1)',   step: 4, description: 'Đã gửi báo giá cho khách hàng' },
@@ -414,6 +414,7 @@ export interface HistoryItem {
   pricingSheetId?: string;    // ID của pricing sheet trên server (nếu đã sync)
   priceConfigIds?: string[];   // IDs của price config đã link trên server
   originalCustomer?: string;  // Mã khách hàng gốc khi load từ lịch sử (để so sánh)
+  deletable?: boolean;        // Cho phép xóa trên server (từ Original.deletable)
   input: CalculateInput;
 }
 

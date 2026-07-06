@@ -62,6 +62,7 @@ import {
   nopBaoGiaService,
   capNhatBaoGiaService,
   taoPricingSheetService,
+  xoaBaoGiaService,
 } from "../lib/api/service-lts";
 import { mapHistoryToPricingSheet } from "../lib/api/pricing-sheet-mapper";
 import {
@@ -746,11 +747,13 @@ function QuotationCard({
   onClick,
   statusControl,
   onCopy,
+  onDelete,
 }: {
   muc: HistoryItem;
   onClick: () => void;
   statusControl: React.ReactNode;
   onCopy?: () => void;
+  onDelete?: () => void;
 }) {
   const [showDiff, setShowDiff] = useState(false);
   const spreadMm = muc.input.spreadWidth
@@ -1077,6 +1080,30 @@ function QuotationCard({
             <Copy size={11} /> Sao chép
           </button>
         )}
+        {muc.deletable && onDelete && (
+          <button
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "3px 8px",
+              borderRadius: 6,
+              fontSize: "0.7rem",
+              fontWeight: 600,
+              cursor: "pointer",
+              border: "1px solid #fca5a5",
+              background: "rgba(220,38,38,0.08)",
+              color: "#dc2626",
+              marginLeft: 8,
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+          >
+            <Trash2 size={11} /> Xóa
+          </button>
+        )}
         <button
           style={{
             display: "inline-flex",
@@ -1187,6 +1214,7 @@ function AdminView({
   onOpen,
   onStatusUpdate,
   onCopy,
+  onDelete,
 }: {
   mucs: HistoryItem[];
   search: string;
@@ -1197,6 +1225,7 @@ function AdminView({
     status: QuoteStatus,
   ) => Promise<void> | void;
   onCopy?: (muc: HistoryItem) => void;
+  onDelete?: (muc: HistoryItem) => void;
 }) {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
@@ -1314,6 +1343,7 @@ function AdminView({
                       />
                     }
                     onCopy={onCopy ? () => onCopy(muc) : undefined}
+                    onDelete={onDelete ? () => onDelete(muc) : undefined}
                   />
                 ))}
               </div>
@@ -1335,6 +1365,7 @@ function SaleView({
   onOpen,
   onStatusUpdate,
   onCopy,
+  onDelete,
 }: {
   mucs: HistoryItem[];
   search: string;
@@ -1345,6 +1376,7 @@ function SaleView({
     status: QuoteStatus,
   ) => Promise<void> | void;
   onCopy?: (muc: HistoryItem) => void;
+  onDelete?: (muc: HistoryItem) => void;
 }) {
   const filtered = useMemo(() => {
     if (!search.trim()) return mucs;
@@ -1382,6 +1414,7 @@ function SaleView({
             <DieuKhienTrangThaiSale muc={muc} khiCapNhat={onStatusUpdate} />
           }
           onCopy={onCopy ? () => onCopy(muc) : undefined}
+          onDelete={onDelete ? () => onDelete(muc) : undefined}
         />
       ))}
     </div>
@@ -3483,6 +3516,7 @@ function TaoBaoGiaWizard({
   const [errorSection, setErrorSection] = useState<1 | 2 | 3 | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmExit, setConfirmExit] = useState(false);
+  const [confirmCreateNew, setConfirmCreateNew] = useState(false);
   const pendingModuleRef = useRef<string | null>(null);
   const hasDataRef = useRef(false);
   const exitingRef = useRef(false);
@@ -3638,6 +3672,25 @@ function TaoBaoGiaWizard({
       datBaoGiaDangSua(null);
       onClose();
     }
+  };
+
+  const handleCreateNew = () => {
+    setConfirmCreateNew(false);
+    setState({
+      customer: null,
+      products: [],
+      terms: {
+        vatRate: 8,
+        vatCylinderRate: 10,
+        validityDays: 30,
+        paymentTerms: "Thanh toán 30 ngày",
+        deliveryTime: "7-10 ngày làm việc",
+        notes: "",
+      },
+    });
+    setError("");
+    setErrorSection(null);
+    datBaoGiaDangSua(null);
   };
 
   const handleForceExit = () => {
@@ -4032,47 +4085,19 @@ function TaoBaoGiaWizard({
           >
             <FileDown size={14} /> Xuất PDF
           </button>
-          {dangSua ? (
-            <>
-              <button
-                className="wiz-btn wiz-btn--secondary"
-                onClick={() => handleSave(false)}
-                disabled={saving || !canSaveDraft}
-              >
-                Cập nhật
-              </button>
-              <button
-                className="wiz-btn wiz-btn--primary"
-                onClick={() => handleSave(true)}
-                disabled={saving || !canSubmit}
-              >
-                <CheckCircle2 size={14} /> Cập nhật & Gửi duyệt
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                className="wiz-btn wiz-btn--secondary"
-                onClick={() => handleSave(false)}
-                disabled={saving || !canSaveDraft}
-              >
-                Lưu nháp
-              </button>
-              <button
-                className="wiz-btn wiz-btn--primary"
-                onClick={() => handleSave(true)}
-                disabled={saving || !canSubmit}
-              >
-                <CheckCircle2 size={14} /> Lưu & Gửi duyệt
-              </button>
-            </>
-          )}
           <button
             className="wiz-btn wiz-btn--secondary"
-            onClick={handleCancelWizard}
+            onClick={() => handleSave(false)}
+            disabled={saving || !canSaveDraft}
+          >
+            {dangSua ? 'Cập nhật' : 'Lưu'}
+          </button>
+          <button
+            className="wiz-btn wiz-btn--secondary"
+            onClick={() => setConfirmCreateNew(true)}
             style={{ color: "#dc2626" }}
           >
-            <X size={14} /> Hủy bỏ
+            <Plus size={14} /> Tạo mới
           </button>
         </div>
       </div>
@@ -4167,42 +4192,39 @@ function TaoBaoGiaWizard({
         >
           <FileText size={14} /> Xem PDF báo giá
         </button>
-        {dangSua ? (
-          <>
-            <button
-              className="wiz-btn wiz-btn--secondary"
-              onClick={() => handleSave(false)}
-              disabled={saving || !canSaveDraft}
-            >
-              Cập nhật
-            </button>
-            <button
-              className="wiz-btn wiz-btn--primary"
-              onClick={() => handleSave(true)}
-              disabled={saving || !canSubmit}
-            >
-              <CheckCircle2 size={14} /> Cập nhật & Gửi
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              className="wiz-btn wiz-btn--secondary"
-              onClick={() => handleSave(false)}
-              disabled={saving || !canSaveDraft}
-            >
-              Lưu nháp
-            </button>
-            <button
-              className="wiz-btn wiz-btn--primary"
-              onClick={() => handleSave(true)}
-              disabled={saving || !canSubmit}
-            >
-              <CheckCircle2 size={14} /> Lưu & Gửi duyệt
-            </button>
-          </>
-        )}
+        <button
+          className="wiz-btn wiz-btn--secondary"
+          onClick={() => handleSave(false)}
+          disabled={saving || !canSaveDraft}
+        >
+          {dangSua ? 'Cập nhật' : 'Lưu nháp'}
+        </button>
+        <button
+          className="wiz-btn wiz-btn--secondary"
+          onClick={() => setConfirmCreateNew(true)}
+          style={{ color: "#dc2626" }}
+        >
+          <Plus size={14} /> Tạo mới
+        </button>
       </div>
+
+      {/* Confirm create new dialog */}
+      {confirmCreateNew && (
+        <div className="lts-confirm-backdrop" onClick={() => setConfirmCreateNew(false)}>
+          <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
+            <div className="lts-confirm-icon">🔄</div>
+            <h3 className="lts-confirm-title">Tạo báo giá mới?</h3>
+            <p className="lts-confirm-desc">
+              Dữ liệu đang nhập sẽ bị xóa.<br />
+              Bạn có chắc muốn tiếp tục?
+            </p>
+            <div className="lts-confirm-actions">
+              <button className="btn btn-outline" onClick={() => setConfirmCreateNew(false)}>Hủy</button>
+              <button className="btn btn-danger" onClick={handleCreateNew}>Tạo mới</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm exit dialog */}
       {confirmExit && (
@@ -5182,6 +5204,7 @@ export default function QuotationModule({
     patchHistoryItem,
     accessToken,
     isAuthenticated,
+    removeHistoryItem: xoaLichSu,
   } = dungCuaHangTinhGia();
   const [search, setSearch] = useState("");
   const [tuNgay, setTuNgay] = useState("");
@@ -5189,6 +5212,7 @@ export default function QuotationModule({
   const [confirmHuy, setConfirmHuy] = useState<string | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
+  const [xacNhanXoaBaoGia, datXacNhanXoaBaoGia] = useState<HistoryItem | null>(null);
 
   React.useEffect(() => {
     kiemTraHetHan();
@@ -5260,6 +5284,20 @@ export default function QuotationModule({
     window.localStorage.setItem(QUOTE_PREFILL_STORAGE_KEY, JSON.stringify(prefill));
     setShowWizard(true);
   }, []);
+
+  const handleDeleteQuote = useCallback(async (muc: HistoryItem) => {
+    datXacNhanXoaBaoGia(null);
+    if (muc.quotationId && accessToken) {
+      try {
+        const ketQua = await xoaBaoGiaService(muc.quotationId, accessToken);
+        if (!ketQua.success) { alert("Không thể xóa báo giá trên máy chủ."); return; }
+      } catch (e) {
+        alert(e instanceof Error ? e.message : "Lỗi khi xóa báo giá.");
+        return;
+      }
+    }
+    xoaLichSu(muc.id);
+  }, [accessToken, xoaLichSu]);
 
   const capNhatTrangThaiDon = useCallback(
     async (muc: HistoryItem, status: QuoteStatus) => {
@@ -5370,6 +5408,7 @@ export default function QuotationModule({
             onOpen={handleOpen}
             onStatusUpdate={capNhatTrangThaiDon}
             onCopy={handleCopyQuote}
+            onDelete={datXacNhanXoaBaoGia}
           />
         ) : (
           <SaleView
@@ -5379,6 +5418,7 @@ export default function QuotationModule({
             onOpen={handleOpen}
             onStatusUpdate={capNhatTrangThaiDon}
             onCopy={handleCopyQuote}
+            onDelete={datXacNhanXoaBaoGia}
           />
         )}
       </div>
@@ -5398,6 +5438,23 @@ export default function QuotationModule({
           }}
           onStatusUpdate={capNhatTrangThaiDon}
         />
+      )}
+
+      {xacNhanXoaBaoGia && (
+        <div className="lts-confirm-backdrop" onClick={() => datXacNhanXoaBaoGia(null)}>
+          <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
+            <div className="lts-confirm-icon">🗑</div>
+            <h3 className="lts-confirm-title">Xóa báo giá này?</h3>
+            <p className="lts-confirm-desc">
+              Thao tác này không thể hoàn tác.<br />
+              Báo giá sẽ bị xóa vĩnh viễn.
+            </p>
+            <div className="lts-confirm-actions">
+              <button className="btn btn-outline" onClick={() => datXacNhanXoaBaoGia(null)}>Hủy</button>
+              <button className="btn btn-danger" onClick={() => handleDeleteQuote(xacNhanXoaBaoGia)}>Xóa</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

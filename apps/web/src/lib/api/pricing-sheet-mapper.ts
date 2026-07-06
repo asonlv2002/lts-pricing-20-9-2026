@@ -151,6 +151,7 @@ export function mapPricingSheetToHistory(
     originalCustomer: sheet.customerCodeName || sheet.customer?.codeName || syncedInput.customer || undefined,
     sellerId: sheet.createdBy ?? undefined,
     sellerName: sheet.original?.actorName ?? undefined,
+    deletable: sheet.original?.deletable,
     input: syncedInput,
   };
 }

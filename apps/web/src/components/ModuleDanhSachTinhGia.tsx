@@ -245,9 +245,11 @@ export default function ModuleDanhSachTinhGia({
             <button className="qrev-btn-icon qrev-btn-icon--primary" title="Mở lại tính giá" onClick={() => moLaiTinhGia(h.id)}>
               <FileEdit size={15} />
             </button>
+            {h.deletable && (
             <button className="qrev-btn-icon" title="Xóa bảng tính giá" onClick={() => datXacNhanXoaId(h.id)}>
               <Trash2 size={15} />
             </button>
+            )}
           </div>
         </td>
       </tr>
