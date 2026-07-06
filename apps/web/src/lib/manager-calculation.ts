@@ -188,7 +188,7 @@ export function xuLyDongGhiDe(
   const totalCPVL = rows.reduce((sum, row) => sum + (row.costMat ?? 0), 0);
   let printFilmCost = uniRows.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
 
-  if (printFilmParams && printFilmCost > 0) {
+  if (printFilmParams) {
     const printRow = rows.find(r => r.rowKey === 'print');
     if (printRow && printFilmParams.numColors > 0) {
       const { numColors, setupMin, setupDiv, threshold, speed, laborPerHr } = printFilmParams;
