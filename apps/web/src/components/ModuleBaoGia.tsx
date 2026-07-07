@@ -159,6 +159,11 @@ function readQuotePrefillFromHistory(): QuotePrefillFromHistory | null {
   }
 }
 
+function taoDieuKhoanThanhToan(soNgay: number): string {
+  if (soNgay === 0) return "Thanh toán ngay khi nhận hàng";
+  return `Thanh toán ${soNgay} ngày`;
+}
+
 function buildWizardProductFromHistoryItem(item: HistoryItem): WizardProduct {
   const spec = buildDefaultBagSpec(item.input);
   if (!spec.cylinderUnitPrice && item.input.cylLength > 0) {
@@ -3578,7 +3583,10 @@ function TaoBaoGiaWizard({
             vatRate: prefill.terms.vatRate ?? prev.terms.vatRate,
             vatCylinderRate: prefill.terms.vatCylinderRate ?? prev.terms.vatCylinderRate,
             validityDays: prefill.terms.validityDays ?? prev.terms.validityDays,
-            paymentTerms: prefill.terms.paymentTerms || prev.terms.paymentTerms,
+            paymentTerms: prefill.terms.paymentTerms
+              || (prefillProducts.length > 0
+                ? taoDieuKhoanThanhToan(prefillProducts[0].historyItem.input?.paymentDays ?? 30)
+                : prev.terms.paymentTerms),
             deliveryTime: prefill.terms.deliveryTime || prev.terms.deliveryTime,
             notes: prefill.terms.notes ?? prev.terms.notes,
           }
@@ -3649,7 +3657,10 @@ function TaoBaoGiaWizard({
       vatRate: (iv.vatRate as number) ?? 8,
       vatCylinderRate: (iv.vatCylinderRate as number) ?? 10,
       validityDays: (iv.validityDays as number) ?? 30,
-      paymentTerms: (iv.paymentTerms as string) || 'Thanh toán 30 ngày',
+      paymentTerms: (iv.paymentTerms as string)
+        || (sanPham.length > 0
+          ? taoDieuKhoanThanhToan((sanPham[0].historyItem.input as unknown as Record<string, unknown>)?.paymentDays as number ?? 30)
+          : 'Thanh toán 30 ngày'),
       deliveryTime: (iv.deliveryTime as string) || '7-10 ngày làm việc',
       notes: (iv.notes as string) || '',
     };

@@ -794,7 +794,8 @@ export function buildHistoryItemFromServerData(bg: BaoGiaApiLoose): Partial<Hist
     quoteCode,
     terms: {
       vatRate: (inputValue.vatRate as number) ?? 8,
-      paymentTerms: (inputValue.paymentTerms as string) || '',
+      paymentTerms: (inputValue.paymentTerms as string)
+        || (firstInput?.paymentDays === 0 ? 'Thanh toán ngay khi nhận hàng' : ''),
       notes: (inputValue.notes as string) || '',
       deliveryTime: (inputValue.deliveryTime as string) || '',
     },
