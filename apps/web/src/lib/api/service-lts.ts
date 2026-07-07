@@ -834,6 +834,7 @@ export interface TaoPricingSheetInput {
 
 // PATCH /pricing-sheet/{id}/result — cập nhật inputValue và saleResult
 export interface CapNhatPricingSheetResultInput {
+  pricingSheetName?: string;
   inputValue: unknown;
   saleResult?: unknown;
   useLatestPriceConfigs?: boolean;
@@ -863,6 +864,7 @@ export interface PricingSheetApi {
     actorName?: string | null;
     customerName?: string | null;
     deletable?: boolean;
+    canUpdate?: boolean;
   } | null;
 }
 

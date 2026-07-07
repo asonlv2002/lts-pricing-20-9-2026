@@ -415,6 +415,7 @@ export interface HistoryItem {
   priceConfigIds?: string[];   // IDs của price config đã link trên server
   originalCustomer?: string;  // Mã khách hàng gốc khi load từ lịch sử (để so sánh)
   deletable?: boolean;        // Cho phép xóa trên server (từ Original.deletable)
+  canUpdate?: boolean;        // Cho phép cập nhật trên server (từ Original.canUpdate)
   input: CalculateInput;
 }
 

@@ -86,6 +86,7 @@ export function mapHistoryToResultPatch(
   h: HistoryItem,
 ): CapNhatPricingSheetResultInput {
   return {
+    pricingSheetName: h.productName,
     inputValue: h.input,
     saleResult: wrapResult(h.saleOverrides, h.saleProfitRatePct),
     useLatestPriceConfigs: true,
@@ -152,6 +153,7 @@ export function mapPricingSheetToHistory(
     sellerId: sheet.createdBy ?? undefined,
     sellerName: sheet.original?.actorName ?? undefined,
     deletable: sheet.original?.deletable,
+    canUpdate: sheet.original?.canUpdate,
     input: syncedInput,
   };
 }

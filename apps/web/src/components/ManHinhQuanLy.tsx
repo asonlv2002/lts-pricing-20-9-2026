@@ -1207,6 +1207,7 @@ const buttonLabel = loadedItem
               </div>
               {loadedItem ? (
                 <>
+                  {loadedItem?.canUpdate === true && (
                   <button
                     className="btn btn-sm btn-green"
                     style={{marginBottom: 0, height: '40px'}}
@@ -1234,8 +1235,9 @@ const buttonLabel = loadedItem
                   >
                     🔄 Cập nhật
                   </button>
+                  )}
                   <button
-                    className="btn btn-sm btn-accent"
+                    className="btn btn-sm btn-green"
                     style={{marginBottom: 0, height: '40px'}}
                     title="Tạo bảng tính giá mới"
                     onClick={() => {
@@ -1264,7 +1266,7 @@ const buttonLabel = loadedItem
                 </>
               ) : (
                 <button
-                  className="btn btn-sm btn-accent"
+                  className="btn btn-sm btn-green"
                   style={{marginBottom: 0, height: '40px'}}
                   title="Lưu bảng tính này vào lịch sử báo giá"
                   onClick={() => {
