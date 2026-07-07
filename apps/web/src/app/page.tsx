@@ -5,6 +5,7 @@ import type { Material, ProfitRow, BoxOption, ConfigScope, ConfigSnapshot } from
 import TheNhapLieu from '../components/TheNhapLieu';
 import ManHinhQuanLy from '../components/ManHinhQuanLy';
 import ManHinhKyThuat from '../components/ManHinhKyThuat';
+import { ArrowLeft, FileText } from 'lucide-react';
 
 // ── Format helper ─────────────────────────────────────────────────────────────
 function dinhDangSo(n: number, soLe = 0): string {
@@ -348,9 +349,48 @@ export default function TrangChinh() {
   const coKetQua = Boolean(ketQua);
   const coKetQuaMobile = laMobile && coKetQua;
 
+  const { quoteWizardSnapshot, setActiveModule } = dungCuaHangTinhGia();
+  const dangTuBaoGia = !!quoteWizardSnapshot;
+
+  const quayLaiBaoGia = () => {
+    setActiveModule('quotations');
+  };
+
   return (
     <>
       <div className="toast-container" id="toastContainer" />
+
+      {dangTuBaoGia && (
+        <div
+          style={{
+            background: "linear-gradient(135deg, rgba(8,145,178,0.08), rgba(8,145,178,0.03))",
+            border: "1px solid rgba(8,145,178,0.25)",
+            borderRadius: 10,
+            padding: "10px 16px",
+            margin: "0 0 12px 0",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <FileText size={16} style={{ color: "var(--accent, #0891b2)", flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--foreground, #111)" }}>
+              Đang xem lại từ báo giá
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "var(--muted, #6b7280)" }}>
+              Bạn đang xem bảng tính giá của sản phẩm trong báo giá. Nhấn quay lại để tiếp tục tạo báo giá.
+            </div>
+          </div>
+          <button
+            className="btn btn-outline btn-sm"
+            style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}
+            onClick={quayLaiBaoGia}
+          >
+            <ArrowLeft size={14} /> Quay lại báo giá
+          </button>
+        </div>
+      )}
 
       {!laMobile && doRongTrai != null && (
         <div className="panel-resize-hint">

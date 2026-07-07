@@ -1704,6 +1704,7 @@ function BuocChonSanPham({
   constants,
   profitTable,
   smallWidthPrices,
+  onViewPricing,
 }: {
   customer: Customer;
   history: HistoryItem[];
@@ -1713,6 +1714,7 @@ function BuocChonSanPham({
   constants: AppConstants;
   profitTable: ProfitRow[];
   smallWidthPrices: SmallWidthMaterialPrice[];
+  onViewPricing?: (pIdx: number) => void;
 }) {
   const [searchSP, setSearchSP] = useState("");
   const [showSearch, setShowSearch] = useState(false);
@@ -1902,6 +1904,16 @@ function BuocChonSanPham({
                   )}
                 </div>
               </div>
+              {onViewPricing && (
+                <button
+                  className="wiz-btn wiz-btn--secondary"
+                  style={{ padding: "4px 10px", fontSize: "0.76rem", display: "flex", alignItems: "center", gap: 4 }}
+                  onClick={() => onViewPricing(pIdx)}
+                  title="Xem lại bảng tính giá của sản phẩm này"
+                >
+                  <Eye size={12} /> Xem tính giá
+                </button>
+              )}
               <button
                 className="wiz-btn wiz-btn--danger"
                 style={{ padding: "4px 10px", fontSize: "0.76rem" }}
@@ -3644,6 +3656,22 @@ function TaoBaoGiaWizard({
     setState({ customer: khachHang, products: sanPham, terms: dieuKhoan });
   }, [baoGiaDangSua]);
 
+  const daKhoiPhucSnapshot = useRef(false);
+  useEffect(() => {
+    if (daKhoiPhucSnapshot.current || dangSua) return;
+    const snapshot = (dungCuaHangTinhGia as any).getState().quoteWizardSnapshot;
+    if (snapshot && snapshot.customer && snapshot.products?.length > 0) {
+      daKhoiPhucSnapshot.current = true;
+      setState({
+        customer: snapshot.customer,
+        products: snapshot.products,
+        terms: snapshot.terms || state.terms,
+      });
+      (dungCuaHangTinhGia as any).getState().datQuoteWizardSnapshot(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dangSua]);
+
   // Chặn chuyển tab khi wizard đang có data chưa lưu
   useEffect(() => {
     const unsub = (dungCuaHangTinhGia as any).subscribe(
@@ -3670,12 +3698,14 @@ function TaoBaoGiaWizard({
       setConfirmExit(true);
     } else {
       datBaoGiaDangSua(null);
+      (dungCuaHangTinhGia as any).getState().datQuoteWizardSnapshot(null);
       onClose();
     }
   };
 
   const handleCreateNew = () => {
     setConfirmCreateNew(false);
+    (dungCuaHangTinhGia as any).getState().datQuoteWizardSnapshot(null);
     setState({
       customer: null,
       products: [],
@@ -3697,6 +3727,7 @@ function TaoBaoGiaWizard({
     exitingRef.current = true;
     const target = pendingModuleRef.current;
     datBaoGiaDangSua(null);
+    (dungCuaHangTinhGia as any).getState().datQuoteWizardSnapshot(null);
     onClose();
     if (target) {
       (dungCuaHangTinhGia as any).setState({ activeModule: target });
@@ -3725,6 +3756,19 @@ function TaoBaoGiaWizard({
     });
     setError("");
     setErrorSection(null);
+  };
+
+  const handleViewPricing = (pIdx: number) => {
+    const product = state.products[pIdx];
+    if (!product) return;
+    exitingRef.current = true;
+    (dungCuaHangTinhGia as any).getState().datQuoteWizardSnapshot({
+      customer: state.customer,
+      products: state.products,
+      terms: state.terms,
+    });
+    (dungCuaHangTinhGia as any).getState().loadHistoryItem(product.historyItem.id);
+    (dungCuaHangTinhGia as any).getState().setActiveModule("calculator");
   };
 
   const handleCustomerSelect = (c: Customer) => {
@@ -3970,6 +4014,7 @@ function TaoBaoGiaWizard({
         });
 
         datBaoGiaDangSua(null);
+        (dungCuaHangTinhGia as any).getState().datQuoteWizardSnapshot(null);
         onClose();
         onSavedNavigate?.();
       } catch (error) {
@@ -4197,6 +4242,7 @@ function TaoBaoGiaWizard({
               constants={constants}
               profitTable={profitTable}
               smallWidthPrices={smallWidthPrices}
+              onViewPricing={handleViewPricing}
             />
           )}
         </div>
