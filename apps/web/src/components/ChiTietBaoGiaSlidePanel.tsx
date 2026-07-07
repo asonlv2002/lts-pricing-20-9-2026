@@ -104,14 +104,13 @@ export interface ChiTietBaoGiaPanelProps {
   dangXuLy?: boolean;
   onNop?: (bg: BaoGiaApi) => void;
   onDuyet?: (bg: BaoGiaApi, quyetDinh: 'approved' | 'rejected') => void;
-  onTaoBanSua?: (bg: BaoGiaApi) => void;
   onCapNhat?: (bg: BaoGiaApi) => void;
 }
 
 export default function ChiTietBaoGiaSlidePanel({
   baoGia, onClose, banDoTaiKhoan,
   laNguoiDuyet = false, dangXuLy = false,
-  onNop, onDuyet, onTaoBanSua, onCapNhat,
+  onNop, onDuyet, onCapNhat,
 }: ChiTietBaoGiaPanelProps) {
   const [confirm, setConfirm] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
   const trangThai = chuyenTrangThaiBaoGia(baoGia.updateStatus);
@@ -129,9 +128,8 @@ export default function ChiTietBaoGiaSlidePanel({
   const soLuong = typeof item.quantity === 'number' ? item.quantity : firstInput.quantity;
   const nguoiLap = nguoiTaoBaoGia(baoGia, banDoTaiKhoan);
 
-  const coFooter = (onNop || onDuyet || onTaoBanSua || onCapNhat) && (
+  const coFooter = (onNop || onDuyet || onCapNhat) && (
     trangThai === 'drafted' || (trangThai === 'submitted' && laNguoiDuyet)
-    || trangThai === 'rejected' || trangThai === 'customer_rejected'
   );
 
   return (
@@ -242,7 +240,7 @@ export default function ChiTietBaoGiaSlidePanel({
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg> Nộp duyệt
               </button>
             )}
-            {trangThai === 'drafted' && onCapNhat && (
+            {baoGia.original?.canUpdate === true && onCapNhat && (
               <button className="qrev-btn qrev-btn--ghost" disabled={dangXuLy} onClick={() => onCapNhat(baoGia)}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Cập nhật
               </button>
@@ -264,16 +262,6 @@ export default function ChiTietBaoGiaSlidePanel({
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg> Từ chối
                 </button>
               </>
-            )}
-            {(trangThai === 'rejected' || trangThai === 'customer_rejected') && onTaoBanSua && (
-              <button className="qrev-btn qrev-btn--ghost" disabled={dangXuLy} onClick={() => onTaoBanSua(baoGia)}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg> Tạo bản sửa
-              </button>
-            )}
-            {(trangThai === 'rejected' || trangThai === 'customer_rejected') && onCapNhat && (
-              <button className="qrev-btn qrev-btn--ghost" disabled={dangXuLy} onClick={() => onCapNhat(baoGia)}>
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg> Cập nhật
-              </button>
             )}
           </div>
         )}

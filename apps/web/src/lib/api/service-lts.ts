@@ -1077,7 +1077,7 @@ export interface BaoGiaApi {
   createdBy?: string | null;
   reviewerId?: string | null;
   pricingSheets?: PricingSheetApi[];
-  original?: { actorName?: string | null; deletable?: boolean } | null;
+  original?: { actorName?: string | null; deletable?: boolean; canUpdate?: boolean } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1137,27 +1137,6 @@ export const NHAN_TRANG_THAI_BAO_GIA: Record<TrangThaiBaoGiaServer, string> = {
   customer_rejected: "Khách từ chối",
   unknown: "Không xác định",
 };
-
-export interface SuaBaoGiaInput {
-  quotationId: string;
-  quotationName: string;
-  inputValue: unknown;
-}
-
-// PATCH /quotations — tạo bản sửa (nháp mới) từ báo giá bị từ chối.
-export async function taoBanSuaBaoGiaService(
-  input: SuaBaoGiaInput,
-  token?: string,
-): Promise<BaoGiaApi> {
-  return goiService<BaoGiaApi>(
-    "/quotations",
-    {
-      method: "PATCH",
-      body: JSON.stringify(input),
-    },
-    token,
-  );
-}
 
 // GET /quotations — danh sách báo giá thuộc các khách hàng đang quản lý.
 export async function layDanhSachBaoGiaService(

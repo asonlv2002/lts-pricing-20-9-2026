@@ -38,7 +38,6 @@ import {
   layTaiKhoanService,
   nopBaoGiaService,
   duyetBaoGiaService,
-  taoBanSuaBaoGiaService,
   xoaBaoGiaService,
   chuyenTrangThaiBaoGia,
   NHAN_TRANG_THAI_BAO_GIA,
@@ -350,33 +349,6 @@ export default function ModuleDuyetBaoGia({
     [accessToken, lamMoi, hienThongBao],
   );
 
-  const taoBanSua = useCallback(
-    async (bg: BaoGiaApi) => {
-      if (!accessToken) return;
-      datDangXuLyId(bg.id);
-      datLoi("");
-      try {
-        await taoBanSuaBaoGiaService(
-          {
-            quotationId: bg.id,
-            quotationName: `${tenBaoGia(bg)} (bản sửa)`,
-            inputValue: bg.inputValue ?? {},
-          },
-          accessToken,
-        );
-        hienThongBao("Đã tạo bản sửa (nháp mới) từ báo giá bị từ chối.");
-        await lamMoi();
-      } catch (error) {
-        datLoi(
-          error instanceof Error ? error.message : "Không tạo được bản sửa.",
-        );
-      } finally {
-        datDangXuLyId(null);
-      }
-    },
-    [accessToken, lamMoi, hienThongBao],
-  );
-
   const xoaBaoGia = useCallback(
     async (bg: BaoGiaApi) => {
       if (!accessToken) return;
@@ -497,8 +469,7 @@ export default function ModuleDuyetBaoGia({
         >
           <Copy size={14} />
         </button>
-        {((trangThai === "drafted" || trangThai === "rejected" || trangThai === "customer_rejected") &&
-          bg.createdBy === nguoiDung?.id) && (
+        {bg.original?.canUpdate === true && (
           <button
             className="qrev-btn-icon"
             title="Cập nhật"
@@ -750,10 +721,6 @@ export default function ModuleDuyetBaoGia({
           onDuyet={(bg, quyetDinh) => {
             datChiTiet(null);
             void duyetBaoGia(bg, quyetDinh);
-          }}
-          onTaoBanSua={(bg) => {
-            datChiTiet(null);
-            void taoBanSua(bg);
           }}
           onCapNhat={
             chiTiet.createdBy === nguoiDung?.id
