@@ -6,7 +6,9 @@ import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { QrevStyleInjector } from './qrev-styles';
 import type { HistoryItem } from '../lib/types';
 import ConfirmDialog from './ConfirmDialog';
-import { previewBaoGia, buildHistoryItemFromServerData } from '../lib/baoGiaExport';
+import { buildHistoryItemFromServerData } from '../lib/baoGiaExport';
+import { BaoGiaReactPdfDownload } from './BaoGiaPdfDocument';
+import BaoGiaPreviewModal from './BaoGiaPreviewModal';
 import {
   chuyenTrangThaiBaoGia,
   NHAN_TRANG_THAI_BAO_GIA,
@@ -25,6 +27,25 @@ function dinhDangNgay(iso?: string): string {
 
 function layKhachHangLocal(): Array<{ companyName?: string; customerCode?: string; address?: string; invoiceAddress?: string; taxCode?: string; phone?: string }> {
   try { return JSON.parse(window.localStorage.getItem('lts_customers') || '[]'); } catch { return []; }
+}
+
+function layDuLieuBaoGia(baoGia: BaoGiaApi): {
+  item: Partial<HistoryItem> & { date?: string; quoteCode?: string; terms?: any };
+  customerInfo: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string };
+} {
+  const item = buildHistoryItemFromServerData(baoGia as any);
+  const customerName = (item.customer || baoGia.pricingSheets?.[0]?.customer?.codeName || '') as string;
+  const customers = layKhachHangLocal();
+  const c = customers.find(kh => kh.companyName === customerName || kh.customerCode === customerName);
+  return {
+    item,
+    customerInfo: {
+      address: c?.address || c?.invoiceAddress || '',
+      taxCode: c?.taxCode || '',
+      phone: c?.phone || '',
+      description: '',
+    },
+  };
 }
 
 function dinhDangSo(n: number): string {
@@ -113,6 +134,7 @@ export default function ChiTietBaoGiaSlidePanel({
   onNop, onDuyet, onCapNhat,
 }: ChiTietBaoGiaPanelProps) {
   const [confirm, setConfirm] = useState<{ title: string; message: string; onConfirm: () => void } | null>(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
   const trangThai = chuyenTrangThaiBaoGia(baoGia.updateStatus);
   const item = (baoGia.inputValue ?? {}) as Partial<HistoryItem>;
   const pricingSheets = baoGia.pricingSheets ?? [];
@@ -266,19 +288,17 @@ export default function ChiTietBaoGiaSlidePanel({
           </div>
         )}
         <div className="qrev-panel-footer">
-          <button className="qrev-btn qrev-btn--ghost" onClick={() => {
-            const item = buildHistoryItemFromServerData(baoGia as any);
-            const customerName = (item.customer || baoGia.pricingSheets?.[0]?.customer?.codeName || '') as string;
-            const customers = layKhachHangLocal();
-            const c = customers.find(kh => kh.companyName === customerName || kh.customerCode === customerName);
-            previewBaoGia(item as HistoryItem, {
-              address: c?.address || c?.invoiceAddress || '',
-              taxCode: c?.taxCode || '',
-              phone: c?.phone || '',
-            }).catch(err => alert('Lỗi xem báo giá: ' + (err instanceof Error ? err.message : err)));
-          }}>
+          <button className="qrev-btn qrev-btn--ghost" onClick={() => setShowPreviewModal(true)}>
             <FileText size={14} /> Xem PDF báo giá
           </button>
+          <BaoGiaReactPdfDownload
+            item={((): HistoryItem => {
+              const { item } = layDuLieuBaoGia(baoGia);
+              return item as HistoryItem;
+            })()}
+            customerInfo={layDuLieuBaoGia(baoGia).customerInfo}
+            className="qrev-btn qrev-btn--ghost"
+          />
         </div>
       </aside>
 
@@ -289,6 +309,18 @@ export default function ChiTietBaoGiaSlidePanel({
         onConfirm={() => confirm?.onConfirm()}
         onCancel={() => setConfirm(null)}
       />
+
+      {showPreviewModal && (
+        <BaoGiaPreviewModal
+          open={showPreviewModal}
+          onClose={() => setShowPreviewModal(false)}
+          item={((): HistoryItem => {
+            const { item } = layDuLieuBaoGia(baoGia);
+            return item as HistoryItem;
+          })()}
+          customerInfo={layDuLieuBaoGia(baoGia).customerInfo}
+        />
+      )}
     </>
   );
 }

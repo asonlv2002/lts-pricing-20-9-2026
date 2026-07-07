@@ -79,7 +79,7 @@ import {
   shouldShowBagSpecField,
   type QuoteProductBagSpec,
 } from "../lib/quote-product-spec";
-import { previewBaoGia } from "../lib/baoGiaExport";
+import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
 interface Customer {
@@ -760,6 +760,10 @@ function QuotationCard({
   onDelete?: () => void;
 }) {
   const [showDiff, setShowDiff] = useState(false);
+  const [previewState, setPreviewState] = useState<{
+    item: HistoryItem;
+    customerInfo: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string };
+  } | null>(null);
   const spreadMm = muc.input.spreadWidth
     ? Math.round(muc.input.spreadWidth * 1000)
     : 0;
@@ -1130,27 +1134,30 @@ function QuotationCard({
                 kh.companyName === muc.customer ||
                 kh.customerCode === muc.customer,
             );
-            previewBaoGia(muc, {
-              address: c?.address || c?.invoiceAddress || "",
-              taxCode: c?.taxCode || "",
-              phone: c?.phone || "",
-            }).catch((err) =>
-              alert(
-                "Lỗi xem báo giá: " +
-                  (err instanceof Error ? err.message : err),
-              ),
-            );
+            setPreviewState({
+              item: muc,
+              customerInfo: {
+                address: c?.address || c?.invoiceAddress || "",
+                taxCode: c?.taxCode || "",
+                phone: c?.phone || "",
+              },
+            });
           }}
         >
           <FileText size={11} /> Xem PDF báo giá
         </button>
       </div>
+      {previewState && (
+        <BaoGiaPreviewModal
+          open={!!previewState}
+          onClose={() => setPreviewState(null)}
+          item={previewState.item}
+          customerInfo={previewState.customerInfo}
+        />
+      )}
     </div>
   );
 }
-
-// ════════════════════════════════════════════════════════════
-// STATS BAR
 // ════════════════════════════════════════════════════════════
 function StatsBar({
   mucs,
@@ -3528,6 +3535,10 @@ function TaoBaoGiaWizard({
       notes: "",
     },
   });
+  const [previewState, setPreviewState] = useState<{
+    item: HistoryItem;
+    customerInfo: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string };
+  } | null>(null);
   const [error, setError] = useState("");
   const [errorSection, setErrorSection] = useState<1 | 2 | 3 | null>(null);
   const [saving, setSaving] = useState(false);
@@ -4090,14 +4101,15 @@ function TaoBaoGiaWizard({
       })),
       terms: state.terms,
     } as any as HistoryItem;
-    previewBaoGia(item, {
-      address: state.customer?.address || "",
-      taxCode: state.customer?.taxCode || "",
-      phone: state.customer?.phone || "",
-      description: state.terms?.notes || "",
-    }).catch((err) =>
-      alert("Lỗi xem báo giá: " + (err instanceof Error ? err.message : err)),
-    );
+    setPreviewState({
+      item,
+      customerInfo: {
+        address: state.customer?.address || "",
+        taxCode: state.customer?.taxCode || "",
+        phone: state.customer?.phone || "",
+        description: state.terms?.notes || "",
+      },
+    });
   }, [state, currentSellerName, canSubmit]);
 
   const handleExportPdf = useCallback(() => {
@@ -4137,14 +4149,15 @@ function TaoBaoGiaWizard({
       })),
       terms: state.terms,
     } as any as HistoryItem;
-    previewBaoGia(item, {
-      address: state.customer?.address || "",
-      taxCode: state.customer?.taxCode || "",
-      phone: state.customer?.phone || "",
-      description: state.terms?.notes || "",
-    }).catch((err) =>
-      alert("Lỗi xem báo giá: " + (err instanceof Error ? err.message : err)),
-    );
+    setPreviewState({
+      item,
+      customerInfo: {
+        address: state.customer?.address || "",
+        taxCode: state.customer?.taxCode || "",
+        phone: state.customer?.phone || "",
+        description: state.terms?.notes || "",
+      },
+    });
   }, [state, currentSellerName, canSubmit]);
 
   return (
@@ -4397,6 +4410,14 @@ function TaoBaoGiaWizard({
             </div>
           </div>
         </div>
+      )      }
+      {previewState && (
+        <BaoGiaPreviewModal
+          open={!!previewState}
+          onClose={() => setPreviewState(null)}
+          item={previewState.item}
+          customerInfo={previewState.customerInfo}
+        />
       )}
     </div>
   );
@@ -4443,6 +4464,10 @@ function QuoteDetailPanel({
   });
   const [confirmClose, setConfirmClose] = useState(false);
   const [confirmSave, setConfirmSave] = useState(false);
+  const [previewState, setPreviewState] = useState<{
+    item: HistoryItem;
+    customerInfo: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string };
+  } | null>(null);
 
   const isDirty =
     editing &&
@@ -5280,16 +5305,14 @@ function QuoteDetailPanel({
                       kh.companyName === item.customer ||
                       kh.customerCode === item.customer,
                   );
-                  previewBaoGia(item, {
-                    address: c?.address || c?.invoiceAddress || "",
-                    taxCode: c?.taxCode || "",
-                    phone: c?.phone || "",
-                  }).catch((err) =>
-                    alert(
-                      "Lỗi xem báo giá: " +
-                        (err instanceof Error ? err.message : err),
-                    ),
-                  );
+                  setPreviewState({
+                    item,
+                    customerInfo: {
+                      address: c?.address || c?.invoiceAddress || "",
+                      taxCode: c?.taxCode || "",
+                      phone: c?.phone || "",
+                    },
+                  });
                 }}
               >
                 <FileText size={13} /> Xem PDF báo giá
@@ -5298,6 +5321,14 @@ function QuoteDetailPanel({
           )}
         </div>
       </div>
+      {previewState && (
+        <BaoGiaPreviewModal
+          open={!!previewState}
+          onClose={() => setPreviewState(null)}
+          item={previewState.item}
+          customerInfo={previewState.customerInfo}
+        />
+      )}
     </>
   );
 }

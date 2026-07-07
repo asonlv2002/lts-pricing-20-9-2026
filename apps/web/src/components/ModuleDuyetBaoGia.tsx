@@ -29,9 +29,9 @@ import type { CalculateInput, HistoryItem } from "../lib/types";
 import ChiTietBaoGiaSlidePanel from "./ChiTietBaoGiaSlidePanel";
 import ConfirmDialog from "./ConfirmDialog";
 import {
-  previewBaoGia,
   buildHistoryItemFromServerData,
 } from "../lib/baoGiaExport";
+import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
 import {
   layDanhSachBaoGiaService,
   layBaoGiaChoDuyetService,
@@ -185,6 +185,10 @@ export default function ModuleDuyetBaoGia({
   const laNguoiDuyet = coQuyenDuyetBaoGia(policies);
 
   const [danhSachTaiKhoan, datDanhSachTaiKhoan] = useState<TaiKhoanApi[]>([]);
+  const [previewState, setPreviewState] = useState<{
+    item: HistoryItem;
+    customerInfo: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string };
+  } | null>(null);
   const daTaiTaiKhoan = useRef(false);
 
   useEffect(() => {
@@ -426,13 +430,14 @@ export default function ModuleDuyetBaoGia({
         (kh) =>
           kh.companyName === customerName || kh.customerCode === customerName,
       );
-      previewBaoGia(item as HistoryItem, {
-        address: c?.address || c?.invoiceAddress || "",
-        taxCode: c?.taxCode || "",
-        phone: c?.phone || "",
-      }).catch((err) =>
-        alert("Lỗi xem báo giá: " + (err instanceof Error ? err.message : err)),
-      );
+      setPreviewState({
+        item: item as HistoryItem,
+        customerInfo: {
+          address: c?.address || c?.invoiceAddress || "",
+          taxCode: c?.taxCode || "",
+          phone: c?.phone || "",
+        },
+      });
     };
 
     const handleSaoChep = (e: React.MouseEvent) => {
@@ -741,6 +746,15 @@ export default function ModuleDuyetBaoGia({
         onConfirm={() => confirm?.onConfirm()}
         onCancel={() => setConfirm(null)}
       />
+
+      {previewState && (
+        <BaoGiaPreviewModal
+          open={!!previewState}
+          onClose={() => setPreviewState(null)}
+          item={previewState.item}
+          customerInfo={previewState.customerInfo}
+        />
+      )}
     </div>
   );
 }
