@@ -325,6 +325,7 @@ export interface QuoteTerms {
   validityDays: number;
   paymentTerms: string;
   deliveryTime: string;
+  deliveryAddress?: string;
   notes: string;
 }
 

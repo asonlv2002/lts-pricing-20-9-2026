@@ -37,6 +37,7 @@ import {
   Check,
 } from "lucide-react";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
+import ComboBoxDieuKhoan from "./ComboBoxDieuKhoan";
 import { normalizeDisplayText } from "../lib/text-codec";
 import {
   lapDongSanXuat,
@@ -256,6 +257,7 @@ interface WizardState {
     validityDays: number;
     paymentTerms: string;
     deliveryTime: string;
+    deliveryAddress?: string;
     notes: string;
   };
 }
@@ -387,6 +389,26 @@ const WIZARD_STYLES = `
 .wiz-terms-input:focus { border-color: var(--accent, #0891b2); }
 .wiz-terms-textarea { padding: 7px 10px; border: 1px solid var(--border, #e5e7eb); border-radius: 7px; font-size: 0.85rem; background: var(--background, #fff); color: var(--foreground, #111); outline: none; resize: vertical; min-height: 60px; }
 .wiz-terms-textarea:focus { border-color: var(--accent, #0891b2); }
+.wiz-cb { position: relative; width: 100%; }
+.wiz-cb-trigger { display: flex; align-items: center; justify-content: space-between; padding: 7px 10px; border: 1px solid var(--border, #e5e7eb); border-radius: 7px; font-size: 0.85rem; background: var(--background, #fff); color: var(--foreground, #111); cursor: pointer; min-height: 36px; user-select: none; transition: border-color 0.15s; }
+.wiz-cb-trigger:hover { border-color: var(--accent, #0891b2); }
+.wiz-cb-trigger--open { border-color: var(--accent, #0891b2); box-shadow: 0 0 0 2px rgba(8,145,178,0.12); }
+.wiz-cb-value { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wiz-cb-placeholder { color: var(--muted, #9ca3af); }
+.wiz-cb-arrow { flex-shrink: 0; color: var(--muted, #6b7280); transition: transform 0.2s; }
+.wiz-cb-arrow--open { transform: rotate(180deg); }
+.wiz-cb-dropdown { position: absolute; top: 100%; left: 0; right: 0; z-index: 50; margin-top: 4px; background: var(--background, #fff); border: 1px solid var(--border, #e5e7eb); border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); max-height: 260px; overflow-y: auto; }
+.wiz-cb-option { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: 8px 12px; border: none; background: transparent; cursor: pointer; font-size: 0.84rem; color: var(--foreground, #111); text-align: left; transition: background 0.1s; }
+.wiz-cb-option:hover { background: var(--surface, #f3f4f6); }
+.wiz-cb-option--selected { background: rgba(8,145,178,0.06); color: var(--accent, #0891b2); font-weight: 600; }
+.wiz-cb-option--other { color: var(--muted, #6b7280); font-style: italic; }
+.wiz-cb-check { flex-shrink: 0; color: var(--accent, #0891b2); }
+.wiz-cb-separator { height: 1px; margin: 4px 8px; background: var(--border, #e5e7eb); }
+.wiz-cb-custom { display: flex; align-items: center; gap: 6px; padding: 6px 12px; }
+.wiz-cb-custom-input { flex: 1; padding: 6px 8px; border: 1px solid var(--border, #e5e7eb); border-radius: 6px; font-size: 0.84rem; background: var(--background, #fff); color: var(--foreground, #111); outline: none; }
+.wiz-cb-custom-input:focus { border-color: var(--accent, #0891b2); }
+.wiz-cb-custom-btn { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: none; border-radius: 6px; background: var(--accent, #0891b2); color: #fff; cursor: pointer; flex-shrink: 0; }
+.wiz-cb-custom-btn:hover { opacity: 0.85; }
 .wiz-error { display: flex; align-items: center; gap: 6px; padding: 8px 12px; background: #fef2f2; border: 1px solid #fecaca; border-radius: 7px; font-size: 0.82rem; color: #dc2626; margin-bottom: 12px; }
 .wiz-empty { text-align: center; padding: 32px 16px; color: var(--muted, #9ca3af); font-size: 0.88rem; }
 .sp-sticky-header { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; padding: 14px 24px; border-bottom: 1px solid var(--border, #e5e7eb); background: var(--surface, #fff); box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
@@ -468,6 +490,25 @@ const ICON_BUOC: Record<QuoteStatus, React.ReactNode> = {
   cancelled: <XCircle size={13} />,
   expired: <TimerOff size={13} />,
 };
+
+const VAT_OPTIONS = ['0%', '5%', '7%', '8%', '10%'];
+const HIEU_LUC_OPTIONS = ['7 ngày', '14 ngày', '30 ngày', '60 ngày', '90 ngày', '180 ngày'];
+const THANH_TOAN_OPTIONS = [
+  'Thanh toán ngay khi nhận hàng',
+  'Thanh toán trong vòng 15 ngày kể từ ngày nhận hàng',
+  'Thanh toán trong vòng 30 ngày kể từ ngày nhận hàng',
+  'Thanh toán trong vòng 45 ngày kể từ ngày nhận hàng',
+  'Thanh toán trong vòng 60 ngày kể từ ngày nhận hàng',
+  'Thanh toán trong vòng 90 ngày kể từ ngày nhận hàng',
+];
+const GIAO_HANG_OPTIONS = [
+  '3-5 ngày làm việc',
+  '5-7 ngày làm việc',
+  '7-10 ngày làm việc',
+  '10-15 ngày làm việc',
+  '15-20 ngày làm việc',
+  '20-30 ngày làm việc',
+];
 
 function layTrangThai(muc: HistoryItem): QuoteStatus {
   // Luôn dùng quoteStatus tường minh; fallback 'drafted' nếu muc cũ chưa có truong này
@@ -2555,6 +2596,22 @@ function BuocChonSanPham({
                               }
                             />
                             <span className="wiz-spec-unit">đ</span>
+                            <span
+                              className="wiz-spec-badge"
+                              style={{ color: "var(--muted, #6b7280)", fontWeight: 400 }}
+                            >
+                              Ghi chú
+                            </span>
+                            <input
+                              className="wiz-spec-inline-input"
+                              type="text"
+                              value={spec.cylinderNote || ""}
+                              onChange={(e) =>
+                                updateBagSpec(pIdx, "cylinderNote", e.target.value)
+                              }
+                              placeholder="Nhập ghi chú..."
+                              style={{ minWidth: 160 }}
+                            />
                           </>
                         )}
                       </div>
@@ -3094,11 +3151,10 @@ function BuocChonSanPham({
                     <div className="wiz-desc-block">
                       <div className="wiz-desc-title">Mô tả trục in</div>
                       <div className="wiz-desc-row">
-                        <span className="wiz-desc-label">Trục in túi:</span>
                         <span className="wiz-desc-value">
                           {inp.cylLength > 0 ? (
                             <>
-                              {prod.historyItem.productName} — Kích thước: chiều
+                              Trục in {prod.historyItem.productName} — Kích thước: chiều
                               dài {Math.round(inp.cylLength * 1000)}mm × chu vi{" "}
                               {Math.round(inp.cylCircum * 1000)}mm
                               {spec.cylinderQuantity > 0
@@ -3106,6 +3162,9 @@ function BuocChonSanPham({
                                 : ""}
                               {spec.cylinderUnitPrice > 0
                                 ? `, Đơn giá: ${dinhDangSo(spec.cylinderUnitPrice)}đ`
+                                : ""}
+                              {spec.cylinderNote?.trim()
+                                ? `, Ghi chú: ${spec.cylinderNote}`
                                 : ""}
                             </>
                           ) : (
@@ -3363,67 +3422,66 @@ function BuocXacNhan({
       <div className="wiz-terms-grid">
         <div className="wiz-terms-field">
           <label className="wiz-terms-label">VAT hàng hóa (%)</label>
-          <input
-            className="wiz-terms-input"
-            type="number"
-            min={0}
-            max={100}
-            value={terms.vatRate}
-            onChange={(e) =>
-              onTermsChange({ ...terms, vatRate: Number(e.target.value) })
+          <ComboBoxDieuKhoan
+            value={terms.vatRate > 0 || terms.vatRate === 0 ? `${terms.vatRate}%` : ''}
+            onChange={(val) =>
+              onTermsChange({ ...terms, vatRate: parseInt(val) || 0 })
             }
+            options={VAT_OPTIONS}
           />
         </div>
         <div className="wiz-terms-field">
           <label className="wiz-terms-label">VAT trục in (%)</label>
-          <input
-            className="wiz-terms-input"
-            type="number"
-            min={0}
-            max={100}
-            value={terms.vatCylinderRate}
-            onChange={(e) =>
+          <ComboBoxDieuKhoan
+            value={terms.vatCylinderRate > 0 || terms.vatCylinderRate === 0 ? `${terms.vatCylinderRate}%` : ''}
+            onChange={(val) =>
               onTermsChange({
                 ...terms,
-                vatCylinderRate: Number(e.target.value),
+                vatCylinderRate: parseInt(val) || 0,
               })
             }
+            options={VAT_OPTIONS}
           />
         </div>
         <div className="wiz-terms-field">
           <label className="wiz-terms-label">Hiệu lực (ngày)</label>
-          <input
-            className="wiz-terms-input"
-            type="number"
-            min={1}
-            value={terms.validityDays}
-            onChange={(e) =>
-              onTermsChange({ ...terms, validityDays: Number(e.target.value) })
+          <ComboBoxDieuKhoan
+            value={terms.validityDays > 0 ? `${terms.validityDays} ngày` : ''}
+            onChange={(val) =>
+              onTermsChange({ ...terms, validityDays: parseInt(val) || 1 })
             }
+            options={HIEU_LUC_OPTIONS}
           />
         </div>
         <div className="wiz-terms-field">
           <label className="wiz-terms-label">Điều khoản thanh toán</label>
-          <input
-            className="wiz-terms-input"
+          <ComboBoxDieuKhoan
             value={terms.paymentTerms}
-            onChange={(e) =>
-              onTermsChange({ ...terms, paymentTerms: e.target.value })
+            onChange={(val) =>
+              onTermsChange({ ...terms, paymentTerms: val })
             }
-            placeholder="VD: Thanh toán 30 ngày"
+            options={THANH_TOAN_OPTIONS}
           />
         </div>
         <div className="wiz-terms-field">
           <label className="wiz-terms-label">Thời gian giao hàng</label>
-          <input
-            className="wiz-terms-input"
+          <ComboBoxDieuKhoan
             value={terms.deliveryTime}
-            onChange={(e) =>
-              onTermsChange({ ...terms, deliveryTime: e.target.value })
+            onChange={(val) =>
+              onTermsChange({ ...terms, deliveryTime: val })
             }
-            placeholder="VD: 7-10 ngày làm việc"
+            options={GIAO_HANG_OPTIONS}
           />
         </div>
+      </div>
+      <div className="wiz-terms-field" style={{ marginBottom: 12 }}>
+        <label className="wiz-terms-label">Địa điểm giao hàng</label>
+        <textarea
+          className="wiz-terms-textarea"
+          value={terms.deliveryAddress || ''}
+          onChange={(e) => onTermsChange({ ...terms, deliveryAddress: e.target.value })}
+          placeholder="Nhập địa điểm giao hàng..."
+        />
       </div>
       <div className="wiz-terms-field" style={{ marginBottom: 16 }}>
         <label className="wiz-terms-label">Ghi chú</label>
@@ -3532,6 +3590,7 @@ function TaoBaoGiaWizard({
       validityDays: 30,
       paymentTerms: "Thanh toán 30 ngày",
       deliveryTime: "7-10 ngày làm việc",
+      deliveryAddress: "",
       notes: "",
     },
   });
@@ -3599,6 +3658,7 @@ function TaoBaoGiaWizard({
                 ? taoDieuKhoanThanhToan(prefillProducts[0].historyItem.input?.paymentDays ?? 30)
                 : prev.terms.paymentTerms),
             deliveryTime: prefill.terms.deliveryTime || prev.terms.deliveryTime,
+            deliveryAddress: prefill.terms.deliveryAddress ?? prev.terms.deliveryAddress,
             notes: prefill.terms.notes ?? prev.terms.notes,
           }
         : prev.terms,
@@ -3673,6 +3733,7 @@ function TaoBaoGiaWizard({
           ? taoDieuKhoanThanhToan((sanPham[0].historyItem.input as unknown as Record<string, unknown>)?.paymentDays as number ?? 30)
           : 'Thanh toán 30 ngày'),
       deliveryTime: (iv.deliveryTime as string) || '7-10 ngày làm việc',
+      deliveryAddress: (iv.deliveryAddress as string) || khachHang?.address || '',
       notes: (iv.notes as string) || '',
     };
     setState({ customer: khachHang, products: sanPham, terms: dieuKhoan });
@@ -3737,6 +3798,7 @@ function TaoBaoGiaWizard({
         validityDays: 30,
         paymentTerms: "Thanh toán 30 ngày",
         deliveryTime: "7-10 ngày làm việc",
+        deliveryAddress: "",
         notes: "",
       },
     });
@@ -3810,6 +3872,13 @@ function TaoBaoGiaWizard({
   //   2) Tạo quotation tham chiếu toàn bộ pricingSheetIds.
   //   3) Nộp duyệt (PATCH status_update) khi sendForApproval.
   // Tạo báo giá trên server trước. Chỉ lưu local sau khi server thành công.
+  function mergeGhiChu(terms: WizardState["terms"]): string {
+    const diaDiem = terms.deliveryAddress?.trim();
+    const ghiChu = terms.notes?.trim();
+    if (diaDiem && ghiChu) return `Địa điểm giao hàng: ${diaDiem}\n\n${ghiChu}`;
+    if (diaDiem) return `Địa điểm giao hàng: ${diaDiem}`;
+    return ghiChu || '';
+  }
   const dayBaoGiaLenServer = useCallback(
     async (
       products: WizardProduct[],
@@ -3854,14 +3923,15 @@ function TaoBaoGiaWizard({
               throw new Error("Không có pricing sheet nào để cập nhật.");
 
             await capNhatBaoGiaService(bgDangSua.id, {
-              moTa: terms.notes?.trim() || undefined,
+              moTa: mergeGhiChu(terms) || undefined,
               duLieuDauVao: {
                 vatRate: terms.vatRate,
                 vatCylinderRate: terms.vatCylinderRate,
                 validityDays: terms.validityDays,
                 paymentTerms: terms.paymentTerms,
                 deliveryTime: terms.deliveryTime,
-                notes: terms.notes,
+                deliveryAddress: terms.deliveryAddress,
+                notes: mergeGhiChu(terms),
                 productBagSpecs: products.map((prod) => ({
                   sourceHistoryItemId: prod.historyItem.id,
                   pricingSheetId: prod.historyItem.pricingSheetId,
@@ -3903,14 +3973,15 @@ function TaoBaoGiaWizard({
             const created = await taoBaoGiaService(
               {
                 customerCodeName: checkKH.maKhachHang,
-                description: terms.notes?.trim() ? terms.notes.trim() : undefined,
+                description: mergeGhiChu(terms) || undefined,
                 inputValue: {
                   vatRate: terms.vatRate,
                   vatCylinderRate: terms.vatCylinderRate,
                   validityDays: terms.validityDays,
                   paymentTerms: terms.paymentTerms,
                   deliveryTime: terms.deliveryTime,
-                  notes: terms.notes,
+                  deliveryAddress: terms.deliveryAddress,
+                  notes: mergeGhiChu(terms),
                   productBagSpecs: products.map((prod) => ({
                     sourceHistoryItemId: prod.historyItem.id,
                     pricingSheetId: prod.historyItem.pricingSheetId,
@@ -4030,7 +4101,10 @@ function TaoBaoGiaWizard({
         taoBaoGiaMoi({
           customer: state.customer ? tenKhachHang(state.customer) : "",
           products,
-          terms: state.terms,
+          terms: {
+            ...state.terms,
+            notes: mergeGhiChu(state.terms),
+          },
           sendForApproval,
           quotationId,
         });
@@ -4099,7 +4173,7 @@ function TaoBaoGiaWizard({
           chotGia: t.baoGia,
         })),
       })),
-      terms: state.terms,
+      terms: { ...state.terms, notes: mergeGhiChu(state.terms) },
     } as any as HistoryItem;
     setPreviewState({
       item,
@@ -4107,7 +4181,7 @@ function TaoBaoGiaWizard({
         address: state.customer?.address || "",
         taxCode: state.customer?.taxCode || "",
         phone: state.customer?.phone || "",
-        description: state.terms?.notes || "",
+        description: mergeGhiChu(state.terms) || "",
       },
     });
   }, [state, currentSellerName, canSubmit]);
@@ -4147,7 +4221,7 @@ function TaoBaoGiaWizard({
           chotGia: t.baoGia,
         })),
       })),
-      terms: state.terms,
+      terms: { ...state.terms, notes: mergeGhiChu(state.terms) },
     } as any as HistoryItem;
     setPreviewState({
       item,
@@ -4155,7 +4229,7 @@ function TaoBaoGiaWizard({
         address: state.customer?.address || "",
         taxCode: state.customer?.taxCode || "",
         phone: state.customer?.phone || "",
-        description: state.terms?.notes || "",
+        description: mergeGhiChu(state.terms) || "",
       },
     });
   }, [state, currentSellerName, canSubmit]);

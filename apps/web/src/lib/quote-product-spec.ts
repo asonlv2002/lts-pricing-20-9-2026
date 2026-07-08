@@ -26,6 +26,7 @@ export interface QuoteProductBagSpec {
   hasCylinder: boolean;
   cylinderQuantity: number;
   cylinderUnitPrice: number;
+  cylinderNote?: string;
   otherDescription: string;
   structureBack: string;
   structureSwapped: boolean;
@@ -72,6 +73,7 @@ export function buildDefaultBagSpec(input: CalculateInput): QuoteProductBagSpec 
     hasCylinder: false,
     cylinderQuantity: input.numColors || 1,
     cylinderUnitPrice: input.cylUnitPrice || 0,
+    cylinderNote: '',
     otherDescription: '',
     structureBack: '',
     structureSwapped: false,
