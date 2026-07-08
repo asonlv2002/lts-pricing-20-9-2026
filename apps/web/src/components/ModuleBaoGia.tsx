@@ -2596,22 +2596,6 @@ function BuocChonSanPham({
                               }
                             />
                             <span className="wiz-spec-unit">đ</span>
-                            <span
-                              className="wiz-spec-badge"
-                              style={{ color: "var(--muted, #6b7280)", fontWeight: 400 }}
-                            >
-                              Ghi chú
-                            </span>
-                            <input
-                              className="wiz-spec-inline-input"
-                              type="text"
-                              value={spec.cylinderNote || ""}
-                              onChange={(e) =>
-                                updateBagSpec(pIdx, "cylinderNote", e.target.value)
-                              }
-                              placeholder="Nhập ghi chú..."
-                              style={{ minWidth: 160 }}
-                            />
                           </>
                         )}
                       </div>
@@ -3163,14 +3147,24 @@ function BuocChonSanPham({
                               {spec.cylinderUnitPrice > 0
                                 ? `, Đơn giá: ${dinhDangSo(spec.cylinderUnitPrice)}đ`
                                 : ""}
-                              {spec.cylinderNote?.trim()
-                                ? `, Ghi chú: ${spec.cylinderNote}`
-                                : ""}
                             </>
                           ) : (
                             "Chưa có thông tin trục in"
                           )}
                         </span>
+                      </div>
+                      <div className="wiz-desc-row" style={{ marginTop: 8 }}>
+                        <span className="wiz-desc-label">Ghi chú:</span>
+                        <input
+                          className="wiz-spec-inline-input"
+                          type="text"
+                          value={spec.cylinderNote || ""}
+                          onChange={(e) =>
+                            updateBagSpec(pIdx, "cylinderNote", e.target.value)
+                          }
+                          placeholder="Nhập ghi chú trục in..."
+                            style={{ flex: 1, minWidth: 0 }}
+                        />
                       </div>
                     </div>
                   </div>
