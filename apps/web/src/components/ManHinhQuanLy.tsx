@@ -1496,7 +1496,8 @@ const buttonLabel = loadedItem
             const coQuyenAdvisor = coQuyenCoVanBangTinh(policies);
             const canSaleEdit = !coQuyenAdvisor;
             const canAdminEdit = coQuyenAdvisor;
-            const coTheLuu = loadedItem?.canUpdate !== false;
+            const coTheLuuSale = loadedItem?.canUpdate !== false;
+            const coTheLuuAdmin = loadedItem?.canAdminUpdate !== false;
 
             const handleSave = (idLichSu: string) => {
               luuGhiDe(idLichSu);
@@ -1532,7 +1533,7 @@ const buttonLabel = loadedItem
                 chenhLechGiaGocDonVi={giaSauGhiDeSaleDonVi - r.finalPrice}
                 donViChenhLech={donViChenhLechGia}
                 duocSua={canSaleEdit}
-                coTheLuu={coTheLuu}
+                coTheLuu={coTheLuuSale}
                 khiDat={datGhiDeSale}
                 khiLuu={handleSave}
                 khiLuuMoi={handleSaveNew}
@@ -1559,7 +1560,7 @@ const buttonLabel = loadedItem
                 chenhLechGiaGocDonVi={giaSauGhiDeAdminDonVi - r.finalPrice}
                 donViChenhLech={donViChenhLechGia}
                 duocSua={canAdminEdit}
-                coTheLuu={coTheLuu}
+                coTheLuu={coTheLuuAdmin}
                 khiDat={datGhiDeAdmin}
                 khiLuu={handleSave}
                 khiLuuMoi={handleSaveNew}

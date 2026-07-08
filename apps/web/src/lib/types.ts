@@ -417,6 +417,7 @@ export interface HistoryItem {
   originalCustomer?: string;  // Mã khách hàng gốc khi load từ lịch sử (để so sánh)
   deletable?: boolean;        // Cho phép xóa trên server (từ Original.deletable)
   canUpdate?: boolean;        // Cho phép cập nhật trên server (từ Original.canUpdate)
+  canAdminUpdate?: boolean;   // Cho phép admin cập nhật trên server (từ Original.canAdminUpdate)
   input: CalculateInput;
 }
 

@@ -865,6 +865,7 @@ export interface PricingSheetApi {
     customerName?: string | null;
     deletable?: boolean;
     canUpdate?: boolean;
+    canAdminUpdate?: boolean;
   } | null;
 }
 
@@ -1079,7 +1080,7 @@ export interface BaoGiaApi {
   createdBy?: string | null;
   reviewerId?: string | null;
   pricingSheets?: PricingSheetApi[];
-  original?: { actorName?: string | null; deletable?: boolean; canUpdate?: boolean } | null;
+  original?: { actorName?: string | null; deletable?: boolean; canUpdate?: boolean; canAdminUpdate?: boolean } | null;
   createdAt: string;
   updatedAt: string;
 }
