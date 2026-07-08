@@ -110,5 +110,6 @@ cylLength = max(0.7, spreadWidth × numImages + 0.1)    // min 0.7m, max 1.25m
 | `.claude/training/CongThuc.md` | Quick reference công thức |
 | `.claude/training/UIUX.md` | Hướng dẫn UI/UX, design system |
 | `.claude/training/notes.md` | Ghi chú: thuật toán độ dày, mobile build tips |
+| `.claude/training/LSX-References.md` | Lệnh Sản Xuất thực tế — 10 mẫu LSX, mapping sang engine schema, phụ lục nguyên văn |
 
 
