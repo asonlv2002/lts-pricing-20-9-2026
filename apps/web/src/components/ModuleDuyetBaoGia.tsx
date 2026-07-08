@@ -14,8 +14,7 @@ import {
   XCircle,
   Eye,
   X,
-  ClipboardEdit,
-  Copy,
+  FileEdit,
   FileText,
   Inbox,
   Trash2,
@@ -24,7 +23,6 @@ import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { normalizeDisplayText } from "../lib/text-codec";
 import { QrevStyleInjector } from "./qrev-styles";
 import { coQuyenDuyetBaoGia } from "../lib/permissions";
-import { getPricingDisplayMeta } from "../lib/pricing-display";
 import type { CalculateInput, HistoryItem } from "../lib/types";
 import ChiTietBaoGiaSlidePanel from "./ChiTietBaoGiaSlidePanel";
 import ConfirmDialog from "./ConfirmDialog";
@@ -416,7 +414,7 @@ export default function ModuleDuyetBaoGia({
     }
   };
 
-  const renderHanhDong = (bg: BaoGiaApi, trangThai: TrangThaiBaoGiaServer) => {
+  const renderHanhDong = (bg: BaoGiaApi, _trangThai: TrangThaiBaoGiaServer) => {
     const dangXuLy = dangXuLyId === bg.id;
 
     const handleXemBaoGia = (e: React.MouseEvent) => {
@@ -440,24 +438,6 @@ export default function ModuleDuyetBaoGia({
       });
     };
 
-    const handleSaoChep = (e: React.MouseEvent) => {
-      e.stopPropagation();
-      const item = buildHistoryItemFromServerData(bg as any);
-      const prefill = {
-        customerName: (item.customer ||
-          bg.pricingSheets?.[0]?.customer?.codeName ||
-          "") as string,
-        quoteProducts: item.quoteProducts || [],
-        terms: item.terms || undefined,
-        createdAt: new Date().toISOString(),
-      };
-      window.localStorage.setItem(
-        "lts_quote_prefill_from_history",
-        JSON.stringify(prefill),
-      );
-      khiDieuHuong?.("pricing.create_quote");
-    };
-
     return (
       <div className="qrev-row-actions" onClick={(e) => e.stopPropagation()}>
         <button
@@ -468,23 +448,13 @@ export default function ModuleDuyetBaoGia({
           <Eye size={15} />
         </button>
         <button
-          className="qrev-btn-icon"
-          title="Sao chép báo giá"
-          onClick={handleSaoChep}
+          className="qrev-btn-icon qrev-btn-icon--primary"
+          title="Mở lại bảng báo giá"
+          onClick={() => capNhatBaoGia(bg)}
         >
-          <Copy size={14} />
+          <FileEdit size={15} />
         </button>
-        {bg.original?.canUpdate === true && (
-          <button
-            className="qrev-btn-icon"
-            title="Cập nhật"
-            disabled={dangXuLy}
-            onClick={() => capNhatBaoGia(bg)}
-          >
-            <RefreshCw size={15} />
-          </button>
-        )}
-        {trangThai === "drafted" && bg.original?.deletable === true && (
+        {bg.original?.deletable === true && (
           <button
             className="qrev-btn-icon qrev-btn-icon--danger"
             title="Xóa"
@@ -492,16 +462,6 @@ export default function ModuleDuyetBaoGia({
             onClick={() => void xoaBaoGia(bg)}
           >
             <Trash2 size={15} />
-          </button>
-        )}
-        {trangThai === "drafted" && (
-          <button
-            className="qrev-btn-icon qrev-btn-icon--primary"
-            title="Nộp duyệt"
-            disabled={dangXuLy}
-            onClick={() => void nopBaoGia(bg)}
-          >
-            <Send size={15} />
           </button>
         )}
       </div>
@@ -614,7 +574,7 @@ export default function ModuleDuyetBaoGia({
                   <th>Cập nhật</th>
                   <th>Trạng thái</th>
                   <th>Thao tác</th>
-                  {laNguoiDuyet && <th>Duyệt</th>}
+                  <th>Duyệt</th>
                 </tr>
               </thead>
               <tbody>
@@ -655,53 +615,50 @@ export default function ModuleDuyetBaoGia({
                         <HuyHieuTrangThai trangThai={trangThai} />
                       </td>
                       <td>{renderHanhDong(bg, trangThai)}</td>
-                      {laNguoiDuyet && (
-                        <td>
-                          {trangThai === "submitted" ? (
-                            <div
-                              className="qrev-row-actions"
-                              onClick={(e) => e.stopPropagation()}
+                      <td>
+                        {trangThai === "drafted" && bg.createdBy === nguoiDung?.id && (
+                          <div className="qrev-row-actions" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="qrev-btn-icon qrev-btn-icon--primary"
+                              title="Nộp duyệt"
+                              disabled={dangXuLyId === bg.id}
+                              onClick={() => void nopBaoGia(bg)}
                             >
-                              <button
-                                className="qrev-btn-icon qrev-btn-icon--ok"
-                                title="Duyệt"
-                                disabled={dangXuLyId === bg.id}
-                                onClick={() =>
-                                  void duyetBaoGia(bg, "approved")
-                                }
-                              >
-                                <CheckCircle2 size={15} />
-                              </button>
-                              <button
-                                className="qrev-btn-icon qrev-btn-icon--danger"
-                                title="Từ chối"
-                                disabled={dangXuLyId === bg.id}
-                                onClick={() =>
-                                  void duyetBaoGia(bg, "rejected")
-                                }
-                              >
-                                <XCircle size={15} />
-                              </button>
-                            </div>
-                          ) : trangThai === "approved" || trangThai === "customer_approved" ? (
-                            <span title="Đã duyệt">
-                              <CheckCircle2
-                                size={16}
-                                style={{ color: "#16a34a" }}
-                              />
-                            </span>
-                          ) : trangThai === "rejected" || trangThai === "customer_rejected" ? (
-                            <span title="Đã từ chối">
-                              <XCircle
-                                size={16}
-                                style={{ color: "#dc2626" }}
-                              />
-                            </span>
-                          ) : (
-                            "—"
-                          )}
-                        </td>
-                      )}
+                              <Send size={15} />
+                            </button>
+                          </div>
+                        )}
+                        {trangThai === "submitted" && laNguoiDuyet && (
+                          <div className="qrev-row-actions" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              className="qrev-btn-icon qrev-btn-icon--ok"
+                              title="Duyệt"
+                              disabled={dangXuLyId === bg.id}
+                              onClick={() => void duyetBaoGia(bg, "approved")}
+                            >
+                              <CheckCircle2 size={15} />
+                            </button>
+                            <button
+                              className="qrev-btn-icon qrev-btn-icon--danger"
+                              title="Từ chối"
+                              disabled={dangXuLyId === bg.id}
+                              onClick={() => void duyetBaoGia(bg, "rejected")}
+                            >
+                              <XCircle size={15} />
+                            </button>
+                          </div>
+                        )}
+                        {(trangThai === "approved" || trangThai === "customer_approved") && (
+                          <span title="Đã duyệt">
+                            <CheckCircle2 size={16} style={{ color: "#16a34a" }} />
+                          </span>
+                        )}
+                        {(trangThai === "rejected" || trangThai === "customer_rejected") && (
+                          <span title="Đã từ chối">
+                            <XCircle size={16} style={{ color: "#dc2626" }} />
+                          </span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
