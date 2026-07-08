@@ -655,6 +655,13 @@ export default function ModuleNhatKy({
     if (menuDangChon === "customers.audit_log") {
       return nhatKyHeThong.filter((e) => e.targetType === "customer");
     }
+    if (menuDangChon === "system.audit_log") {
+      return nhatKyHeThong.filter(
+        (e) =>
+          e.targetType === "config" ||
+          e.targetType === "permission",
+      );
+    }
     return nhatKyHeThong;
   }, [nhatKyHeThong, menuDangChon]);
 
