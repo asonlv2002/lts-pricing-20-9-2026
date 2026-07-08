@@ -4188,13 +4188,15 @@ function TaoBaoGiaWizard({
           >
             <FileDown size={14} /> Xuất PDF
           </button>
-          <button
-            className="wiz-btn wiz-btn--secondary"
-            onClick={() => handleSave(false)}
-            disabled={saving || !canSaveDraft}
-          >
-            {dangSua ? 'Cập nhật' : 'Lưu'}
-          </button>
+          {(!dangSua || baoGiaDangSua?.original?.canUpdate) && (
+            <button
+              className="wiz-btn wiz-btn--secondary"
+              onClick={() => handleSave(false)}
+              disabled={saving || !canSaveDraft}
+            >
+              {dangSua ? 'Cập nhật' : 'Lưu'}
+            </button>
+          )}
           {dangSua && (
             <button
               className="wiz-btn wiz-btn--secondary"
@@ -4304,13 +4306,15 @@ function TaoBaoGiaWizard({
         >
           <FileText size={14} /> Xem PDF báo giá
         </button>
-        <button
-          className="wiz-btn wiz-btn--secondary"
-          onClick={() => handleSave(false)}
-          disabled={saving || !canSaveDraft}
-        >
-          {dangSua ? 'Cập nhật' : 'Lưu nháp'}
-        </button>
+        {(!dangSua || baoGiaDangSua?.original?.canUpdate) && (
+          <button
+            className="wiz-btn wiz-btn--secondary"
+            onClick={() => handleSave(false)}
+            disabled={saving || !canSaveDraft}
+          >
+            {dangSua ? 'Cập nhật' : 'Lưu nháp'}
+          </button>
+        )}
         {dangSua && (
           <button
             className="wiz-btn wiz-btn--secondary"
@@ -4730,7 +4734,7 @@ function QuoteDetailPanel({
             </div>
           </div>
           <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            {!editing && (
+            {item.canUpdate && !editing && (
               <button
                 className="wiz-btn wiz-btn--secondary"
                 style={{ padding: "5px 12px", fontSize: "0.78rem" }}

@@ -146,6 +146,20 @@ function tenBaoGia(bg: BaoGiaApi): string {
   );
 }
 
+function tenKhachHang(bg: BaoGiaApi): string {
+  const sheet = bg.pricingSheets?.[0];
+  const input = docInputBangTinh(sheet?.inputValue);
+  return normalizeDisplayText(
+    input.customer || sheet?.customer?.codeName || sheet?.original?.customerName || "—",
+  );
+}
+
+function tenSanPham(bg: BaoGiaApi): string {
+  const sheet = bg.pricingSheets?.[0];
+  const input = docInputBangTinh(sheet?.inputValue);
+  return normalizeDisplayText(input.productName || "—");
+}
+
 function tuKhoaBaoGia(bg: BaoGiaApi): string {
   const pricingText = (bg.pricingSheets ?? [])
     .map((sheet) => {
@@ -597,10 +611,10 @@ export default function ModuleDuyetBaoGia({
                           </div>
                           <div className="qrev-cell-quote-text">
                             <span className="qrev-cell-name">
-                              {tenBaoGia(bg)}
+                              {tenKhachHang(bg)}
                             </span>
                             <span className="qrev-cell-sub">
-                              {dinhDangNgay(bg.createdAt)}
+                              {tenSanPham(bg)}
                             </span>
                           </div>
                         </div>

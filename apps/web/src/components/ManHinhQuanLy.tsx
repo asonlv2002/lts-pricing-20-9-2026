@@ -343,7 +343,7 @@ function OChuCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khi
 }
 
 // ── Override Table Section ────────────────────────────────────────────────────
-function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, chenhLechGiaGocDonVi, donViChenhLech, duocSua, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, materials, giaDaThayDoiDonVi, effTotalProdCost, profitRatePct, defaultProfitRatePct, khiDatProfitRate, soLuong, engineParams, printFilmParams }: {
+function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, chenhLechGiaGocDonVi, donViChenhLech, duocSua, coTheLuu = true, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, materials, giaDaThayDoiDonVi, effTotalProdCost, profitRatePct, defaultProfitRatePct, khiDatProfitRate, soLuong, engineParams, printFilmParams }: {
   title: string;
   lopMau: 'sale' | 'admin';
   cacDongSanXuat: UniRow[];
@@ -352,6 +352,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
   chenhLechGiaGocDonVi?: number;
   donViChenhLech?: 'tui' | 'm2';
   duocSua: boolean;
+  coTheLuu?: boolean;
   khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
   khiLuu: (id: string) => void;
   khiLuuMoi: () => void;
@@ -571,7 +572,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
           </tbody>
         </table>
       </div>
-      {duocSua && (
+      {duocSua && coTheLuu && (
         <div className="override-save-row">
           <button
             className="btn btn-sm btn-green"
@@ -1495,6 +1496,7 @@ const buttonLabel = loadedItem
             const coQuyenAdvisor = coQuyenCoVanBangTinh(policies);
             const canSaleEdit = !coQuyenAdvisor;
             const canAdminEdit = coQuyenAdvisor;
+            const coTheLuu = loadedItem?.canUpdate !== false;
 
             const handleSave = (idLichSu: string) => {
               luuGhiDe(idLichSu);
@@ -1530,6 +1532,7 @@ const buttonLabel = loadedItem
                 chenhLechGiaGocDonVi={giaSauGhiDeSaleDonVi - r.finalPrice}
                 donViChenhLech={donViChenhLechGia}
                 duocSua={canSaleEdit}
+                coTheLuu={coTheLuu}
                 khiDat={datGhiDeSale}
                 khiLuu={handleSave}
                 khiLuuMoi={handleSaveNew}
@@ -1556,6 +1559,7 @@ const buttonLabel = loadedItem
                 chenhLechGiaGocDonVi={giaSauGhiDeAdminDonVi - r.finalPrice}
                 donViChenhLech={donViChenhLechGia}
                 duocSua={canAdminEdit}
+                coTheLuu={coTheLuu}
                 khiDat={datGhiDeAdmin}
                 khiLuu={handleSave}
                 khiLuuMoi={handleSaveNew}
