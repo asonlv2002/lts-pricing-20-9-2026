@@ -401,8 +401,6 @@ function BaoGiaPage({ item, page, totalPages, pageGroups, customerInfo }: {
       <Text style={styles.custLine}>Địa chỉ: {customerInfo?.address || ''}</Text>
       <Text style={styles.custLine}>MST: {customerInfo?.taxCode || ''}</Text>
       <Text style={styles.custLine}>Điện thoại: {customerInfo?.phone || ''}                    Fax: {customerInfo?.fax || ''}</Text>
-      <Text style={styles.custLine}>Diễn giải: {customerInfo?.description || item.terms?.notes || ''}</Text>
-      {item.quoteCode ? <Text style={styles.mgBg}>Mã BG: {item.quoteCode}</Text> : null}
       <Text style={styles.custIntro}>Chúng tôi xin trân trọng gửi đến quý khách hàng xác nhận báo giá bao bì chi tiết như sau:</Text>
 
       {/* Product table */}

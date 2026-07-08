@@ -301,10 +301,6 @@ function buildBaoGiaHtmlV2(
     pageHtml += `<div class="cust-line">Địa chỉ: ${escHtml(customerInfo?.address || '')}</div>`;
     pageHtml += `<div class="cust-line">MST: ${escHtml(customerInfo?.taxCode || '')}</div>`;
     pageHtml += `<div class="cust-line">Điện thoại: ${escHtml(customerInfo?.phone || '')}&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Fax: ${escHtml(customerInfo?.fax || '')}</div>`;
-    pageHtml += `<div class="cust-line">Diễn giải: ${escHtml(customerInfo?.description || item.terms?.notes || '')}</div>`;
-    if (item.quoteCode) {
-      pageHtml += `<div class="mg-bg">Mã BG: ${escHtml(item.quoteCode)}</div>`;
-    }
     pageHtml += `<div class="cust-intro">Chúng tôi xin trân trọng gửi đến quý khách hàng xác nhận báo giá bao bì chi tiết như sau:</div>`;
 
     // Table
@@ -617,15 +613,6 @@ export async function exportBaoGiaToDocx(
     pageChildren.push(new Paragraph({
       children: [new TextRun({ text: `Điện thoại: ${customerInfo?.phone || ''}                    Fax: ${customerInfo?.fax || ''}`, font: FONT, size: 22 })],
     }));
-    pageChildren.push(new Paragraph({
-      children: [new TextRun({ text: `Diễn giải: ${customerInfo?.description || item.terms?.notes || ''}`, font: FONT, size: 22 })],
-      spacing: { after: 100 },
-    }));
-    if (item.quoteCode) {
-      pageChildren.push(new Paragraph({
-        children: [new TextRun({ text: `Mã BG: ${item.quoteCode}`, font: FONT, size: 22, color: '555555' })],
-      }));
-    }
     pageChildren.push(new Paragraph({ children: [new TextRun({ text: 'Chúng tôi xin trân trọng gửi đến quý khách hàng xác nhận báo giá bao bì chi tiết như sau:', font: FONT, size: 22 })], spacing: { after: 100 } }));
 
     // Product table
