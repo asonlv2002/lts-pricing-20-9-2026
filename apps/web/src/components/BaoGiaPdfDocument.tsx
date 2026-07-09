@@ -352,8 +352,6 @@ function buildBagSpecDescription(
     const parts = ['Nhấn xé "V"'];
     if (spec.tearNotchFromTopMm > 0)
       parts.push("cách đầu " + spec.tearNotchFromTopMm + "mm");
-    if (spec.tearNotchFromBottomMm > 0)
-      parts.push("cách đáy " + spec.tearNotchFromBottomMm + "mm");
     lines.push(parts.join(" ") + ".");
   }
   if (spec.hasHalfMoonBottom) lines.push("Đáy bán nguyệt.");

@@ -2447,29 +2447,6 @@ function BuocChonSanPham({
                                 }
                               />
                               <span className="wiz-spec-unit">mm</span>
-                              <span
-                                className="wiz-spec-badge"
-                                style={{
-                                  color: "var(--muted, #6b7280)",
-                                  fontWeight: 400,
-                                }}
-                              >
-                                V cách đáy
-                              </span>
-                              <input
-                                className="wiz-spec-inline-input"
-                                type="number"
-                                min={0}
-                                value={spec.tearNotchFromBottomMm || ""}
-                                onChange={(e) =>
-                                  updateBagSpec(
-                                    pIdx,
-                                    "tearNotchFromBottomMm",
-                                    Number(e.target.value),
-                                  )
-                                }
-                              />
-                              <span className="wiz-spec-unit">mm</span>
                             </>
                           )}
                         </div>
@@ -3118,9 +3095,6 @@ function BuocChonSanPham({
                           <span className="wiz-desc-label">Nhấn xé "V":</span>
                           <span className="wiz-desc-value">
                             Cách đầu {spec.tearNotchFromTopMm || "—"}mm
-                            {spec.tearNotchFromBottomMm > 0 ? (
-                              <>, cách đáy {spec.tearNotchFromBottomMm}mm</>
-                            ) : null}
                           </span>
                         </div>
                       )}
