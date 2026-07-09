@@ -1836,10 +1836,16 @@ function BuocChonSanPham({
 
   const addProduct = (item: HistoryItem) => {
     if (addedIds.has(item.id)) return;
-    const newProduct: WizardProduct = {
-      ...buildWizardProductFromHistoryItem(item),
-      expanded: true,
-    };
+    const base = buildWizardProductFromHistoryItem(item);
+    const calcPrice = tinhGiaTheoSoLuong(item, item.quantity);
+    if (calcPrice > 0) {
+      base.tiers = base.tiers.map((t) => ({
+        ...t,
+        finalPrice: calcPrice,
+        baoGia: t.baoGia > 0 ? t.baoGia : calcPrice,
+      }));
+    }
+    const newProduct: WizardProduct = { ...base, expanded: true };
     onProductsChange([...products, newProduct]);
     setShowSearch(false);
     setSearchSP("");
@@ -3150,7 +3156,18 @@ function BuocChonSanPham({
                       </div>
                     </div>
                     <div className="wiz-desc-block">
-                      <div className="wiz-desc-title">Mô tả trục in</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <div className="wiz-desc-title" style={{ margin: 0, padding: 0, border: 'none' }}>Mô tả trục in</div>
+                        <select
+                          className="wiz-spec-inline-select"
+                          value={spec.includeCylinderInQuote ? 'co' : 'khong'}
+                          onChange={(e) => updateBagSpec(pIdx, 'includeCylinderInQuote', e.target.value === 'co')}
+                          style={{ fontSize: '0.78rem', padding: '2px 6px' }}
+                        >
+                          <option value="co">Có báo giá trục</option>
+                          <option value="khong">Không báo giá trục</option>
+                        </select>
+                      </div>
                       <div className="wiz-desc-row">
                         <span className="wiz-desc-value">
                           {inp.cylLength > 0 ? (
@@ -3213,7 +3230,7 @@ function BuocChonSanPham({
                           type="number"
                           inputMode="numeric"
                           min={1}
-                          value={tier.quantity || ""}
+                          value={tier.quantity ?? ""}
                           onChange={(e) =>
                             updateTier(
                               pIdx,
@@ -3242,7 +3259,7 @@ function BuocChonSanPham({
                           type="number"
                           inputMode="numeric"
                           min={0}
-                          value={tier.baoGia || ""}
+                          value={tier.baoGia ?? ""}
                           onChange={(e) =>
                             updateTier(
                               pIdx,
@@ -3760,6 +3777,16 @@ function TaoBaoGiaWizard({
     const maKH = bg.pricingSheets?.[0]?.customer?.codeName?.trim() || "";
     const khachHang = tatCaKhach.find((c) => c.customerCode === maKH) || null;
     const sheets = bg.pricingSheets ?? [];
+    const bagSpecs = (bg.inputValue?.productBagSpecs as any[]) ?? [];
+    const specMap = new Map<string, { chotGia?: number; finalPrice?: number; bagSpec?: any }>();
+    for (const bs of bagSpecs) {
+      const pid = (bs?.pricingSheetId as string) || '';
+      if (pid) specMap.set(pid, {
+        chotGia: typeof bs?.chotGia === 'number' ? bs.chotGia : undefined,
+        finalPrice: typeof bs?.finalPrice === 'number' ? bs.finalPrice : undefined,
+        bagSpec: bs?.bagSpec || undefined,
+      });
+    }
     const sanPham: WizardProduct[] = [];
     for (const sheet of sheets) {
       const dv = (sheet.inputValue ?? {}) as Record<string, unknown>;
@@ -3776,6 +3803,7 @@ function TaoBaoGiaWizard({
       ]
         .filter(Boolean)
         .join(" / ");
+      const specFromServer = specMap.get(sheet.id);
       const giaAo = {
         id: sheet.id,
         customer: maKH,
@@ -3783,8 +3811,8 @@ function TaoBaoGiaWizard({
         productType: (dv.productType as string) || "tui",
         structure: cauTruc || (dv.productName as string) || "",
         quantity: (dv.quantity as number) || 0,
-        finalPrice: (kq.finalPrice as number) || 0,
-        chotGia: undefined as number | undefined,
+        finalPrice: specFromServer?.finalPrice ?? ((kq.finalPrice as number) || 0),
+        chotGia: specFromServer?.chotGia ?? undefined,
         profitRate: (kq.profitRate as number) || 0,
         input: dv as any,
         pricingSheetId: sheet.id,

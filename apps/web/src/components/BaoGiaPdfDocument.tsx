@@ -416,7 +416,7 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
     );
 
     let cylinder: ProductGroup["cylinder"] | undefined;
-    if (input.cylLength > 0) {
+    if (input.cylLength > 0 && spec.includeCylinderInQuote !== false) {
       cylinder = {
         name: "TRỤC IN " + p.productName,
         dims:

@@ -529,7 +529,7 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
       totalThickness,
     );
     let cylinder: ProductGroup["cylinder"] | undefined;
-    if (input.cylLength > 0) {
+    if (input.cylLength > 0 && spec.includeCylinderInQuote !== false) {
       cylinder = {
         name: `TRỤC IN ${p.productName}`,
         dims: `K.thước: chiều dài ${Math.round(input.cylLength * 1000)}mm × chu vi ${Math.round(input.cylCircum * 1000)}mm`,
