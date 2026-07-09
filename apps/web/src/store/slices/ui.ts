@@ -13,6 +13,7 @@ export interface UISlice {
   currentSellerName: string;
   role: string;
   baoGiaDangSua: BaoGiaApi | null;
+  wizardNguon: 'list' | 'duyet' | null;
   quoteWizardSnapshot: any;
 
   setActiveView: (v: UISlice['activeView']) => void;
@@ -24,6 +25,7 @@ export interface UISlice {
   setCurrentSeller: (id: string, name: string) => void;
   setRole: (r: string) => void;
   datBaoGiaDangSua: (bg: BaoGiaApi | null) => void;
+  datNguonWizard: (nguon: 'list' | 'duyet' | null) => void;
   datManHinhDangMo: UISlice['setActiveView'];
   datPhanHeDangMo: UISlice['setActiveModule'];
   datQuoteWizardSnapshot: (s: any) => void;
@@ -40,6 +42,7 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   currentSellerName: 'Nguyễn Văn An',
   role: 'admin',
   baoGiaDangSua: null,
+  wizardNguon: null,
   quoteWizardSnapshot: null as any,
 
   setActiveView:    (v) => set({ activeView: v }),
@@ -51,6 +54,7 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   setCurrentSeller: (id, name) => set({ currentSellerId: id, currentSellerName: name }),
   setRole:          (r) => set({ role: r }),
   datBaoGiaDangSua: (bg) => set({ baoGiaDangSua: bg }),
+  datNguonWizard: (nguon) => set({ wizardNguon: nguon }),
   datManHinhDangMo: (v) => set({ activeView: v }),
   datPhanHeDangMo:  (v) => set({ activeModule: v }),
   datQuoteWizardSnapshot: (s) => set({ quoteWizardSnapshot: s }),

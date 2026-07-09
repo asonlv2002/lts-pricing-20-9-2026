@@ -32,6 +32,7 @@ import {
   Plus,
   Trash2,
   AlertTriangle,
+  ArrowLeft,
   CheckCircle2,
   X,
   Check,
@@ -4461,6 +4462,23 @@ function TaoBaoGiaWizard({
         </div>
       </div>
 
+      {dangSua && (
+      <div style={{ padding: '12px 24px', borderBottom: '1px solid var(--border)', background: 'var(--surface2, #f8f9fb)', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <FileText size={16} style={{ color: 'var(--accent, #0891b2)', flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--foreground, #111)' }}>
+            Đang chỉnh sửa báo giá
+          </div>
+          <div style={{ fontSize: '0.75rem', color: 'var(--muted, #6b7280)' }}>
+            Nhấn quay lại để về Danh sách báo giá.
+          </div>
+        </div>
+        <button className="wiz-btn wiz-btn--ghost" onClick={onClose} style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
+          <ArrowLeft size={14} /> Danh sách báo giá
+        </button>
+      </div>
+      )}
+
       {/* Scrollable content */}
       <div
         className="quote-wizard-content"
@@ -4977,6 +4995,20 @@ function QuoteDetailPanel({
           boxShadow: "-4px 0 24px rgba(0,0,0,0.12)",
         }}
       >
+        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', background: 'var(--surface2, #f8f9fb)', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <FileText size={16} style={{ color: 'var(--accent, #0891b2)', flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--foreground, #111)' }}>
+              {editing ? 'Đang chỉnh sửa báo giá' : 'Đang xem báo giá'}
+            </div>
+            <div style={{ fontSize: '0.75rem', color: 'var(--muted, #6b7280)' }}>
+              Nhấn quay lại để về Danh sách báo giá.
+            </div>
+          </div>
+          <button onClick={handleClose} style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', fontSize: '0.82rem', color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <ArrowLeft size={14} /> Danh sách báo giá
+          </button>
+        </div>
         {/* Header */}
         <div
           style={{
@@ -5645,6 +5677,8 @@ export default function QuotationModule({
     accessToken,
     isAuthenticated,
     removeHistoryItem: xoaLichSu,
+    wizardNguon,
+    datNguonWizard,
   } = dungCuaHangTinhGia();
   const [search, setSearch] = useState("");
   const [tuNgay, setTuNgay] = useState("");
@@ -5771,10 +5805,18 @@ export default function QuotationModule({
   );
 
   if (showWizard) {
+    const handleBackFromWizard = () => {
+      if (wizardNguon === 'duyet') {
+        khiDieuHuong?.("pricing.quote_review");
+      } else {
+        setShowWizard(false);
+      }
+      datNguonWizard(null);
+    };
     return (
       <TaoBaoGiaWizard
-        onClose={() => setShowWizard(false)}
-        onSavedNavigate={() => khiDieuHuong?.("pricing.quote_review")}
+        onClose={handleBackFromWizard}
+        onSavedNavigate={() => { datNguonWizard(null); khiDieuHuong?.("pricing.quote_review"); }}
       />
     );
   }

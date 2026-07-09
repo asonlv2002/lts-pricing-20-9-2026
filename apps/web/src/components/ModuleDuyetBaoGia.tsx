@@ -193,6 +193,7 @@ export default function ModuleDuyetBaoGia({
   const isAuthenticated = dungCuaHangTinhGia((s) => s.isAuthenticated);
   const nguoiDung = dungCuaHangTinhGia((s) => s.nguoiDungHienTai);
   const datBaoGiaDangSua = dungCuaHangTinhGia((s) => s.datBaoGiaDangSua);
+  const datNguonWizard = dungCuaHangTinhGia((s) => s.datNguonWizard);
   const policies = nguoiDung?.policies ?? [];
   const laNguoiDuyet = coQuyenDuyetBaoGia(policies);
 
@@ -403,9 +404,10 @@ export default function ModuleDuyetBaoGia({
     (bg: BaoGiaApi) => {
       if (!accessToken) return;
       datBaoGiaDangSua(bg);
+      datNguonWizard('duyet');
       khiDieuHuong?.("pricing.create_quote");
     },
-    [accessToken, datBaoGiaDangSua, khiDieuHuong],
+    [accessToken, datBaoGiaDangSua, datNguonWizard, khiDieuHuong],
   );
 
   const chonChip = (key: BoLoc) => {
