@@ -382,7 +382,8 @@ interface ProductGroup {
 }
 
 function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
-  return products.map((p) => {
+  return products
+    .map((p) => {
     const input = p.input || {};
     const spec = p.bagSpec || {};
     const tiers: { quantity: number; unitPrice: number; total: number }[] = [];
@@ -406,12 +407,11 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
     const isBag = input.productType !== "mang";
     let totalThickness = 0;
     // Simplified — just use the structure
-    const description = buildBagSpecDescription(
-      spec,
-      input,
-      p.structure,
-      totalThickness,
-    );
+    const excludeBag = (p.bagSpec as any)?.includeBagInQuote === false;
+    const description = excludeBag
+      ? ""
+      : buildBagSpecDescription(spec, input, p.structure, totalThickness);
+    const finalTiers = excludeBag ? [] : tiers;
 
     let cylinder: ProductGroup["cylinder"] | undefined;
     if (input.cylLength > 0 && spec.includeCylinderInQuote !== false) {
@@ -429,8 +429,9 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
         note: (spec as any).cylinderNote || undefined,
       };
     }
-    return { productName: p.productName, tiers, description, isBag, cylinder };
-  });
+    return { productName: p.productName, tiers: finalTiers, description, isBag, cylinder };
+    })
+    .filter((g) => g.tiers.length > 0 || g.cylinder);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -483,7 +484,7 @@ function ProductRow({
   const isCyl = !isTier && !!group.cylinder;
   const cyl = isCyl ? group.cylinder : undefined;
 
-  if (isFirst) {
+  if (isFirst && group.tiers.length > 0) {
     return (
       <View style={styles.tableRow} key={idx}>
         <View style={[styles.td, styles.tdAC, { width: CW.stt }]}>
@@ -634,11 +635,11 @@ function BaoGiaPage({
   const allGroups = buildGroups(products);
 
   const tableRows: React.ReactNode[] = [];
+  let rowNum = 0;
 
   for (const g of pageGroups) {
     const stt = sttBase++;
     const groupRows = g.tiers.length + (g.cylinder ? 1 : 0);
-    let rowNum = 0;
     for (let i = 0; i < groupRows; i++) {
       rowNum++;
       const tier = i < g.tiers.length ? g.tiers[i] : undefined;

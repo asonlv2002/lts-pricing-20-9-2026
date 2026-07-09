@@ -25,6 +25,7 @@ export interface QuoteProductBagSpec {
   lidMm: number;
   hasCylinder: boolean;
   includeCylinderInQuote: boolean;
+  includeBagInQuote: boolean;
   cylinderQuantity: number;
   cylinderUnitPrice: number;
   cylinderNote?: string;
@@ -73,6 +74,7 @@ export function buildDefaultBagSpec(input: CalculateInput): QuoteProductBagSpec 
     lidMm: 0,
     hasCylinder: false,
     includeCylinderInQuote: true,
+    includeBagInQuote: true,
     cylinderQuantity: input.numColors || 1,
     cylinderUnitPrice: input.cylUnitPrice || 0,
     cylinderNote: '',

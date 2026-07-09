@@ -281,12 +281,13 @@ function buildBaoGiaHtmlV2(
     // Header
     tbody += `<tr><th style="width:${W.stt}">STT</th><th style="width:${W.name}">Tên hàng</th><th style="width:${W.desc}">Mô tả</th><th style="width:${W.unit}">ĐVT</th><th style="width:${W.qty}">Số lượng</th><th style="width:${W.price}">Đơn giá VNĐ</th><th style="width:${W.total}">Thành tiền VNĐ</th></tr>`;
 
+    let rowNum = 0;
+
     for (const g of pageGroups) {
       const stt = sttBase++;
       const tierCount = g.tiers.length;
       const cylRows = g.cylinder ? 1 : 0;
       const groupRows = tierCount + cylRows;
-      let rowNum = 0;
 
       for (let i = 0; i < groupRows; i++) {
         rowNum++;
@@ -295,7 +296,7 @@ function buildBaoGiaHtmlV2(
         const tier = isTierRow ? g.tiers[i] : undefined;
         const cyl = !isTierRow && g.cylinder ? g.cylinder : undefined;
 
-        if (isFirst) {
+        if (isFirst && tierCount > 0) {
           const desc = (g.description || "")
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
@@ -483,7 +484,8 @@ interface ProductGroup {
 function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
   const { materials } = dungCuaHangTinhGia.getState();
 
-  return products.map((p) => {
+  return products
+    .map((p) => {
     const input = p.input || ({} as any);
     const spec = p.bagSpec || ({} as any);
     const tiers: { quantity: number; unitPrice: number; total: number }[] = [];
@@ -524,12 +526,12 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
       }
     }
 
-    const description = buildBagSpecDescription(
-      spec,
-      input,
-      p.structure,
-      totalThickness,
-    );
+    const excludeBag = (p.bagSpec as any)?.includeBagInQuote === false;
+    const description = excludeBag
+      ? ""
+      : buildBagSpecDescription(spec, input, p.structure, totalThickness);
+    const finalTiers = excludeBag ? [] : tiers;
+
     let cylinder: ProductGroup["cylinder"] | undefined;
     if (input.cylLength > 0 && spec.includeCylinderInQuote !== false) {
       cylinder = {
@@ -541,8 +543,9 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
         note: (spec as any).cylinderNote || undefined,
       };
     }
-    return { productName: p.productName, tiers, description, isBag, cylinder };
-  });
+    return { productName: p.productName, tiers: finalTiers, description, isBag, cylinder };
+    })
+    .filter((g) => g.tiers.length > 0 || g.cylinder);
 }
 
 export async function exportBaoGiaToDocx(
@@ -692,12 +695,13 @@ export async function exportBaoGiaToDocx(
       }),
     );
 
+    let rowNum = 0;
+
     for (const g of pageGroups) {
       const stt = sttBase++;
       const tierCount = g.tiers.length;
       const cylRows = g.cylinder ? 1 : 0;
       const groupRows = tierCount + cylRows;
-      let rowNum = 0;
 
       for (let i = 0; i < groupRows; i++) {
         rowNum++;

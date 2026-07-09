@@ -2922,7 +2922,19 @@ function BuocChonSanPham({
                       </div>
                     </div>
                     <div className="wiz-desc-block">
-                      <div className="wiz-desc-title">Mô tả đơn hàng</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <div className="wiz-desc-title" style={{ margin: 0, padding: 0, border: 'none' }}>Mô tả đơn hàng</div>
+                        <select
+                          className="wiz-spec-inline-select"
+                          value={spec.includeBagInQuote ? 'co' : 'khong'}
+                          onChange={(e) => updateBagSpec(pIdx, 'includeBagInQuote', e.target.value === 'co')}
+                          style={{ fontSize: '0.78rem', padding: '2px 6px' }}
+                        >
+                          <option value="co">Có báo giá túi</option>
+                          <option value="khong">Không báo giá túi</option>
+                        </select>
+                      </div>
+                      <div style={spec.includeBagInQuote ? undefined : { opacity: 0.45 }}>
                       <div className="wiz-desc-row">
                         <span className="wiz-desc-label">Tên sản phẩm:</span>
                         <span className="wiz-desc-value">
@@ -3128,6 +3140,7 @@ function BuocChonSanPham({
                           }}
                         />
                       </div>
+                      </div>
                     </div>
                     <div className="wiz-desc-block">
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -3142,6 +3155,7 @@ function BuocChonSanPham({
                           <option value="khong">Không báo giá trục</option>
                         </select>
                       </div>
+                      <div style={spec.includeCylinderInQuote ? undefined : { opacity: 0.45 }}>
                       <div className="wiz-desc-row">
                         <span className="wiz-desc-value">
                           {inp.cylLength > 0 ? (
@@ -3174,6 +3188,7 @@ function BuocChonSanPham({
                           placeholder="Nhập ghi chú trục in..."
                           style={{ flex: 1, minWidth: 0 }}
                         />
+                      </div>
                       </div>
                     </div>
                   </div>
