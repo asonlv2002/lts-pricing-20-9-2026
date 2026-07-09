@@ -79,6 +79,7 @@ import {
   buildDefaultBagSpec,
   shouldShowBagSpecField,
   type QuoteProductBagSpec,
+  generateStructureBackOptions,
 } from "../lib/quote-product-spec";
 import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
 
@@ -182,6 +183,15 @@ function buildWizardProductFromHistoryItem(item: HistoryItem): WizardProduct {
     if (res?.cylinderCostPerUnit)
       spec.cylinderUnitPrice = res.cylinderCostPerUnit;
   }
+  if (item.input.layer2AltId && !spec.structureBack) {
+    const { materials } = dungCuaHangTinhGia.getState();
+    const opts = generateStructureBackOptions(item.input, spec.bagType, materials);
+    if (opts.length > 0) {
+      spec.structureBack = opts[0].structureBack;
+      spec.bottomFollows = opts[0].bottomFollows;
+      spec.structureSwapped = opts[0].structureSwapped;
+    }
+  }
   return {
     historyItem: item,
     tiers: [
@@ -226,6 +236,15 @@ function buildWizardProductFromQuoteProductLine(
     );
     if (res?.cylinderCostPerUnit)
       spec.cylinderUnitPrice = res.cylinderCostPerUnit;
+  }
+  if (qp.input.layer2AltId && !spec.structureBack) {
+    const { materials } = dungCuaHangTinhGia.getState();
+    const opts = generateStructureBackOptions(qp.input, spec.bagType, materials);
+    if (opts.length > 0) {
+      spec.structureBack = opts[0].structureBack;
+      spec.bottomFollows = opts[0].bottomFollows;
+      spec.structureSwapped = opts[0].structureSwapped;
+    }
   }
   return {
     historyItem,
@@ -2655,9 +2674,39 @@ function BuocChonSanPham({
                           Chất liệu 2 mặt
                         </label>
                         {spec.hasStructureBack &&
-                          (spec.structureBack ? (
-                            spec.bagType === "dayDung" ? (
-                              <>
+                          (() => {
+                            const hasAlt = Boolean(prod.historyItem.input.layer2AltId);
+                            if (hasAlt) {
+                              const opts = generateStructureBackOptions(
+                                prod.historyItem.input,
+                                spec.bagType,
+                                dungCuaHangTinhGia.getState().materials,
+                              );
+                              const selectedIdx = spec.structureBack
+                                ? opts.findIndex((o) => o.structureBack === spec.structureBack)
+                                : -1;
+                              return (
+                                <select
+                                  className="wiz-spec-inline-select"
+                                  style={{ flex: 1, minWidth: 0, fontSize: '0.78rem' }}
+                                  value={selectedIdx >= 0 ? selectedIdx : 0}
+                                  onChange={(e) => {
+                                    const idx = Number(e.target.value);
+                                    const opt = opts[idx];
+                                    updateBagSpec(pIdx, "structureBack", opt.structureBack);
+                                    updateBagSpec(pIdx, "bottomFollows", opt.bottomFollows);
+                                    updateBagSpec(pIdx, "structureSwapped", opt.structureSwapped);
+                                  }}
+                                >
+                                  {opts.map((opt, i) => (
+                                    <option key={i} value={i}>{opt.label}</option>
+                                  ))}
+                                </select>
+                              );
+                            }
+                            return spec.structureBack ? (
+                              spec.bagType === "dayDung" ? (
+                                <>
                                 <div
                                   style={{
                                     display: "flex",
@@ -2918,7 +2967,8 @@ function BuocChonSanPham({
                               }}
                               placeholder="Nhập chất liệu mặt sau"
                             />
-                          ))}
+                          );
+                        })()}
                       </div>
                     </div>
                     <div className="wiz-desc-block">

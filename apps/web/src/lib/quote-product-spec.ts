@@ -1,4 +1,4 @@
-import type { CalculateInput } from './types';
+import type { CalculateInput, Material } from './types';
 
 export interface QuoteProductBagSpec {
   bagType: string;
@@ -81,11 +81,72 @@ export function buildDefaultBagSpec(input: CalculateInput): QuoteProductBagSpec 
     otherDescription: '',
     structureBack: '',
     structureSwapped: false,
-    hasStructureBack: false,
+    hasStructureBack: Boolean(input.layer2AltId),
     bottomFollows: 'front',
     hasHandle: Boolean(input.hasHandle),
     handleOptionKey: input.handleOptionKey || '',
   };
+}
+
+export function buildSideStructure(
+  materials: Material[],
+  layer1Id: string | null | undefined,
+  layer2Id: string | null | undefined,
+  layer3Id: string | null | undefined,
+  layer4Id: string | null | undefined,
+  layer5Id: string | null | undefined,
+): string {
+  const parts: string[] = [];
+  const l1 = materials.find((m) => m.id === layer1Id);
+  if (l1) parts.push(`${l1.name} ${l1.thickness}`);
+  const l2 = materials.find((m) => m.id === layer2Id);
+  if (l2) parts.push(`${l2.name} ${l2.thickness}`);
+  for (const id of [layer3Id, layer4Id, layer5Id]) {
+    if (id) {
+      const m = materials.find((mat) => mat.id === id);
+      if (m) parts.push(`${m.name} ${m.thickness}`);
+    }
+  }
+  return parts.join('//');
+}
+
+export interface StructureBackOption {
+  label: string;
+  structureBack: string;
+  bottomFollows: 'front' | 'back';
+  structureSwapped: boolean;
+}
+
+export function generateStructureBackOptions(
+  input: CalculateInput,
+  bagType: string,
+  materials: Material[],
+): StructureBackOption[] {
+  const frontMatId = input.layer2Id!;
+  const backMatId = input.layer2AltId!;
+  const frontStructure = buildSideStructure(
+    materials, input.layer1Id, frontMatId,
+    input.layer3Id, input.layer4Id, input.layer5Id,
+  );
+  const backStructure = buildSideStructure(
+    materials, input.layer1Id, backMatId,
+    input.layer3Id, input.layer4Id, input.layer5Id,
+  );
+  const clean = (s: string) => s.replace(/\d+/g, '').replace(/\bLLDPE\s+\S+/gi, 'LLDPE').replace(/\s*\/\/\s*/g, '//').trim();
+
+  if (bagType === 'dayDung') {
+    return [
+      { label: `Mặt trước + Đáy: ${clean(frontStructure)}, Mặt sau: ${clean(backStructure)}`, structureBack: backStructure, bottomFollows: 'front', structureSwapped: false },
+      { label: `Mặt trước + Đáy: ${clean(backStructure)}, Mặt sau: ${clean(frontStructure)}`, structureBack: backStructure, bottomFollows: 'front', structureSwapped: true },
+      { label: `Mặt sau + Đáy: ${clean(backStructure)}, Mặt trước: ${clean(frontStructure)}`, structureBack: backStructure, bottomFollows: 'back', structureSwapped: false },
+      { label: `Mặt sau + Đáy: ${clean(frontStructure)}, Mặt trước: ${clean(backStructure)}`, structureBack: backStructure, bottomFollows: 'back', structureSwapped: true },
+    ];
+  }
+
+  return [
+    { label: `Mặt trước: ${clean(frontStructure)}, Mặt sau: ${clean(backStructure)}`, structureBack: backStructure, bottomFollows: 'front', structureSwapped: false },
+    { label: `Mặt trước: ${clean(backStructure)}, Mặt sau: ${clean(frontStructure)}`, structureBack: backStructure, bottomFollows: 'front', structureSwapped: true },
+  ];
 }
 
 export function generateOrderDescription(
