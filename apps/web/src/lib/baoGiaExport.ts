@@ -286,8 +286,10 @@ function buildBaoGiaHtmlV2(
       const tierCount = g.tiers.length;
       const cylRows = g.cylinder ? 1 : 0;
       const groupRows = tierCount + cylRows;
+      let rowNum = 0;
 
       for (let i = 0; i < groupRows; i++) {
+        rowNum++;
         const isFirst = i === 0;
         const isTierRow = i < tierCount;
         const tier = isTierRow ? g.tiers[i] : undefined;
@@ -301,7 +303,7 @@ function buildBaoGiaHtmlV2(
             .replace(/"/g, "&quot;");
           tbody +=
             `<tr>` +
-            `<td class="ac">${stt}</td>` +
+            `<td class="ac">${rowNum}</td>` +
             `<td>${escHtml(g.productName)}</td>` +
             `<td class="pl">${desc}</td>` +
             `<td class="ac">${g.isBag ? "Túi" : "m²"}</td>` +
@@ -312,7 +314,7 @@ function buildBaoGiaHtmlV2(
         } else if (isTierRow && i > 0) {
           tbody +=
             `<tr>` +
-            `<td></td><td></td><td></td><td></td>` +
+            `<td class="ac">${rowNum}</td><td></td><td></td><td></td>` +
             `<td class="ar">${dinhDangSo(tier!.quantity)}</td>` +
             `<td class="ar">${dinhDangSo(tier!.unitPrice)}</td>` +
             `<td class="ar">${dinhDangSo(tier!.total)}</td>` +
@@ -320,7 +322,7 @@ function buildBaoGiaHtmlV2(
         } else if (cyl) {
           tbody +=
             `<tr>` +
-            `<td></td>` +
+            `<td class="ac">${rowNum}</td>` +
             `<td>${escHtml(cyl.name)}</td>` +
             `<td>${escHtml(cyl.dims)}${cyl.note ? `<br><i style="color:#64748b;font-size:9pt">Ghi chú: ${escHtml(cyl.note)}</i>` : ""}</td>` +
             `<td class="ac">trục</td>` +
@@ -695,8 +697,10 @@ export async function exportBaoGiaToDocx(
       const tierCount = g.tiers.length;
       const cylRows = g.cylinder ? 1 : 0;
       const groupRows = tierCount + cylRows;
+      let rowNum = 0;
 
       for (let i = 0; i < groupRows; i++) {
+        rowNum++;
         const isFirst = i === 0;
         const isTierRow = i < tierCount;
         const tier = isTierRow ? g.tiers[i] : undefined;
@@ -707,7 +711,7 @@ export async function exportBaoGiaToDocx(
           rows.push(
             new TableRow({
               children: [
-                tc(String(stt), CW.stt, { align: AlignmentType.CENTER }),
+                tc(String(rowNum), CW.stt, { align: AlignmentType.CENTER }),
                 tc(g.productName, CW.name),
                 tc(g.description, CW.desc),
                 tc(g.isBag ? "Túi" : "m²", CW.unit, {
@@ -726,11 +730,11 @@ export async function exportBaoGiaToDocx(
             }),
           );
         } else if (isTierRow && i > 0) {
-          // Additional tier row: no STT/product/desc, just quantity columns
+          // Additional tier row
           rows.push(
             new TableRow({
               children: [
-                emptyCell(CW.stt),
+                tc(String(rowNum), CW.stt, { align: AlignmentType.CENTER }),
                 emptyCell(CW.name),
                 emptyCell(CW.desc),
                 emptyCell(CW.unit),
@@ -747,11 +751,11 @@ export async function exportBaoGiaToDocx(
             }),
           );
         } else if (cyl) {
-          // Cylinder row: no STT
+          // Cylinder row
           rows.push(
             new TableRow({
               children: [
-                emptyCell(CW.stt),
+                tc(String(rowNum), CW.stt, { align: AlignmentType.CENTER }),
                 tc(cyl.name, CW.name),
                 tc(cyl.dims + (cyl.note ? `\nGhi chú: ${cyl.note}` : ""), CW.desc),
                 tc("trục", CW.unit, { align: AlignmentType.CENTER }),

@@ -515,7 +515,9 @@ function ProductRow({
   if (isTier) {
     return (
       <View style={styles.tableRow} key={idx}>
-        <View style={[styles.td, { width: CW.stt }]} />
+        <View style={[styles.td, styles.tdAC, { width: CW.stt }]}>
+          <Text>{stt}</Text>
+        </View>
         <View style={[styles.td, { width: CW.name }]} />
         <View style={[styles.td, { width: CW.desc }]} />
         <View style={[styles.td, { width: CW.unit }]} />
@@ -534,7 +536,9 @@ function ProductRow({
   if (isCyl && cyl) {
     return (
       <View style={styles.tableRow} key={idx}>
-        <View style={[styles.td, { width: CW.stt }]} />
+        <View style={[styles.td, styles.tdAC, { width: CW.stt }]}>
+          <Text>{stt}</Text>
+        </View>
         <View style={[styles.td, { width: CW.name }]}>
           <Text>{cyl.name}</Text>
         </View>
@@ -636,12 +640,14 @@ function BaoGiaPage({
   for (const g of pageGroups) {
     const stt = sttBase++;
     const groupRows = g.tiers.length + (g.cylinder ? 1 : 0);
+    let rowNum = 0;
     for (let i = 0; i < groupRows; i++) {
+      rowNum++;
       const tier = i < g.tiers.length ? g.tiers[i] : undefined;
       tableRows.push(
         <ProductRow
           key={`${stt}-${i}`}
-          stt={stt}
+          stt={rowNum}
           group={g}
           tier={tier}
           idx={i}
