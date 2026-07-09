@@ -152,9 +152,11 @@ function readQuotePrefillFromHistory(): QuotePrefillFromHistory | null {
     if (!raw) return null;
     window.localStorage.removeItem(QUOTE_PREFILL_STORAGE_KEY);
     const parsed = JSON.parse(raw) as QuotePrefillFromHistory;
-    const hasHistoryItems = Array.isArray(parsed.historyItemIds) && parsed.historyItemIds.length > 0;
-    const hasQuoteProducts = Array.isArray(parsed.quoteProducts) && parsed.quoteProducts.length > 0;
-    return (hasHistoryItems || hasQuoteProducts) ? parsed : null;
+    const hasHistoryItems =
+      Array.isArray(parsed.historyItemIds) && parsed.historyItemIds.length > 0;
+    const hasQuoteProducts =
+      Array.isArray(parsed.quoteProducts) && parsed.quoteProducts.length > 0;
+    return hasHistoryItems || hasQuoteProducts ? parsed : null;
   } catch {
     return null;
   }
@@ -193,7 +195,9 @@ function buildWizardProductFromHistoryItem(item: HistoryItem): WizardProduct {
   };
 }
 
-function buildWizardProductFromQuoteProductLine(qp: QuoteProductLine): WizardProduct {
+function buildWizardProductFromQuoteProductLine(
+  qp: QuoteProductLine,
+): WizardProduct {
   const historyItem: HistoryItem = {
     id: qp.sourceHistoryItemId,
     date: new Date().toISOString().slice(0, 10).replace(/-/g, "/"),
@@ -259,6 +263,8 @@ interface WizardState {
     deliveryTime: string;
     deliveryAddress?: string;
     notes: string;
+    quantityTolerance: number;
+    techRequirement: string;
   };
 }
 
@@ -491,24 +497,34 @@ const ICON_BUOC: Record<QuoteStatus, React.ReactNode> = {
   expired: <TimerOff size={13} />,
 };
 
-const VAT_OPTIONS = ['0%', '5%', '7%', '8%', '10%'];
-const HIEU_LUC_OPTIONS = ['7 ngày', '14 ngày', '30 ngày', '60 ngày', '90 ngày', '180 ngày'];
+const VAT_OPTIONS = ["0%", "5%", "7%", "8%", "10%"];
+const HIEU_LUC_OPTIONS = [
+  "7 ngày",
+  "14 ngày",
+  "30 ngày",
+  "60 ngày",
+  "90 ngày",
+  "180 ngày",
+];
 const THANH_TOAN_OPTIONS = [
-  'Thanh toán ngay khi nhận hàng',
-  'Thanh toán trong vòng 15 ngày kể từ ngày nhận hàng',
-  'Thanh toán trong vòng 30 ngày kể từ ngày nhận hàng',
-  'Thanh toán trong vòng 45 ngày kể từ ngày nhận hàng',
-  'Thanh toán trong vòng 60 ngày kể từ ngày nhận hàng',
-  'Thanh toán trong vòng 90 ngày kể từ ngày nhận hàng',
+  "Thanh toán ngay khi nhận hàng",
+  "Thanh toán trong vòng 15 ngày kể từ ngày nhận hàng",
+  "Thanh toán trong vòng 30 ngày kể từ ngày nhận hàng",
+  "Thanh toán trong vòng 45 ngày kể từ ngày nhận hàng",
+  "Thanh toán trong vòng 60 ngày kể từ ngày nhận hàng",
+  "Thanh toán trong vòng 90 ngày kể từ ngày nhận hàng",
 ];
 const GIAO_HANG_OPTIONS = [
-  '3-5 ngày làm việc',
-  '5-7 ngày làm việc',
-  '7-10 ngày làm việc',
-  '10-15 ngày làm việc',
-  '15-20 ngày làm việc',
-  '20-30 ngày làm việc',
+  "3-5 ngày làm việc",
+  "5-7 ngày làm việc",
+  "7-10 ngày làm việc",
+  "10-15 ngày làm việc",
+  "15-20 ngày làm việc",
+  "20-30 ngày làm việc",
 ];
+
+const DUNG_SAI_OPTIONS = ["5%", "7%", "8%", "10%", "15%"];
+const YEU_CAU_KY_THUAT_OPTIONS = ["Chạy theo market ký duyệt"];
 
 function layTrangThai(muc: HistoryItem): QuoteStatus {
   // Luôn dùng quoteStatus tường minh; fallback 'drafted' nếu muc cũ chưa có truong này
@@ -803,7 +819,13 @@ function QuotationCard({
   const [showDiff, setShowDiff] = useState(false);
   const [previewState, setPreviewState] = useState<{
     item: HistoryItem;
-    customerInfo: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string };
+    customerInfo: {
+      address?: string;
+      taxCode?: string;
+      phone?: string;
+      fax?: string;
+      description?: string;
+    };
   } | null>(null);
   const spreadMm = muc.input.spreadWidth
     ? Math.round(muc.input.spreadWidth * 1000)
@@ -1571,7 +1593,9 @@ function BuocChonKhachHang({
               <Lock size={16} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="wiz-customer-name">{tieuDeKhachHang(selected)}</div>
+              <div className="wiz-customer-name">
+                {tieuDeKhachHang(selected)}
+              </div>
               <div className="wiz-customer-meta">
                 {metaKhachHang(selected).map((line) => (
                   <span key={line}>{line}</span>
@@ -1579,8 +1603,18 @@ function BuocChonKhachHang({
               </div>
             </div>
           </div>
-          <p style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 4 }}>
-            <Lock size={12} /> Không thể thay đổi khách hàng khi cập nhật báo giá.
+          <p
+            style={{
+              fontSize: "0.78rem",
+              color: "var(--muted)",
+              marginTop: 8,
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+            }}
+          >
+            <Lock size={12} /> Không thể thay đổi khách hàng khi cập nhật báo
+            giá.
           </p>
         </div>
       </div>
@@ -1960,7 +1994,13 @@ function BuocChonSanPham({
               {onViewPricing && (
                 <button
                   className="wiz-btn wiz-btn--secondary"
-                  style={{ padding: "4px 10px", fontSize: "0.76rem", display: "flex", alignItems: "center", gap: 4 }}
+                  style={{
+                    padding: "4px 10px",
+                    fontSize: "0.76rem",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 4,
+                  }}
                   onClick={() => onViewPricing(pIdx)}
                   title="Xem lại bảng tính giá của sản phẩm này"
                 >
@@ -2194,8 +2234,8 @@ function BuocChonSanPham({
                             <span className="wiz-bag-label">Đáy mở tổng</span>
                             <div className="wiz-bag-total">
                               {(spec.standupBottomSideMm || 0) * 2} mm
-                    </div>
-                  </div>
+                            </div>
+                          </div>
                         </>
                       )}
                       {showLid && (
@@ -2326,8 +2366,8 @@ function BuocChonSanPham({
                               <span className="wiz-spec-unit">mm</span>
                             </>
                           )}
-                      </div>
-                      <div className="wiz-spec-row">
+                        </div>
+                        <div className="wiz-spec-row">
                           <label className="wiz-spec-check-label">
                             <input
                               type="checkbox"
@@ -2361,160 +2401,160 @@ function BuocChonSanPham({
                             </>
                           )}
                         </div>
-                      <div className="wiz-spec-row">
-                        <label className="wiz-spec-check-label">
-                          <input
-                            type="checkbox"
-                            checked={spec.hasTearNotch ?? false}
-                            onChange={(e) =>
-                              updateBagSpec(
-                                pIdx,
-                                "hasTearNotch",
-                                e.target.checked,
-                              )
-                            }
-                          />{" "}
-                          Nhấn xé "V"
-                        </label>
-                        {spec.hasTearNotch && (
-                          <>
-                            <span
-                              className="wiz-spec-badge"
-                              style={{
-                                color: "var(--muted, #6b7280)",
-                                fontWeight: 400,
-                              }}
-                            >
-                              V cách đầu
-                            </span>
+                        <div className="wiz-spec-row">
+                          <label className="wiz-spec-check-label">
                             <input
-                              className="wiz-spec-inline-input"
-                              type="number"
-                              min={0}
-                              value={spec.tearNotchFromTopMm || ""}
+                              type="checkbox"
+                              checked={spec.hasTearNotch ?? false}
                               onChange={(e) =>
                                 updateBagSpec(
                                   pIdx,
-                                  "tearNotchFromTopMm",
-                                  Number(e.target.value),
+                                  "hasTearNotch",
+                                  e.target.checked,
                                 )
                               }
-                            />
-                            <span className="wiz-spec-unit">mm</span>
-                            <span
-                              className="wiz-spec-badge"
-                              style={{
-                                color: "var(--muted, #6b7280)",
-                                fontWeight: 400,
-                              }}
-                            >
-                              V cách đáy
-                            </span>
+                            />{" "}
+                            Nhấn xé "V"
+                          </label>
+                          {spec.hasTearNotch && (
+                            <>
+                              <span
+                                className="wiz-spec-badge"
+                                style={{
+                                  color: "var(--muted, #6b7280)",
+                                  fontWeight: 400,
+                                }}
+                              >
+                                V cách đầu
+                              </span>
+                              <input
+                                className="wiz-spec-inline-input"
+                                type="number"
+                                min={0}
+                                value={spec.tearNotchFromTopMm || ""}
+                                onChange={(e) =>
+                                  updateBagSpec(
+                                    pIdx,
+                                    "tearNotchFromTopMm",
+                                    Number(e.target.value),
+                                  )
+                                }
+                              />
+                              <span className="wiz-spec-unit">mm</span>
+                              <span
+                                className="wiz-spec-badge"
+                                style={{
+                                  color: "var(--muted, #6b7280)",
+                                  fontWeight: 400,
+                                }}
+                              >
+                                V cách đáy
+                              </span>
+                              <input
+                                className="wiz-spec-inline-input"
+                                type="number"
+                                min={0}
+                                value={spec.tearNotchFromBottomMm || ""}
+                                onChange={(e) =>
+                                  updateBagSpec(
+                                    pIdx,
+                                    "tearNotchFromBottomMm",
+                                    Number(e.target.value),
+                                  )
+                                }
+                              />
+                              <span className="wiz-spec-unit">mm</span>
+                            </>
+                          )}
+                        </div>
+                        <div className="wiz-spec-row">
+                          <label className="wiz-spec-check-label">
                             <input
-                              className="wiz-spec-inline-input"
-                              type="number"
-                              min={0}
-                              value={spec.tearNotchFromBottomMm || ""}
+                              type="checkbox"
+                              checked={spec.hasHangHole ?? false}
                               onChange={(e) =>
                                 updateBagSpec(
                                   pIdx,
-                                  "tearNotchFromBottomMm",
-                                  Number(e.target.value),
+                                  "hasHangHole",
+                                  e.target.checked,
                                 )
                               }
+                            />{" "}
+                            Đục lỗ treo
+                          </label>
+                          {spec.hasHangHole && (
+                            <input
+                              className="wiz-spec-inline-text"
+                              type="text"
+                              value={spec.hangHoleDescription}
+                              onChange={(e) =>
+                                updateBagSpec(
+                                  pIdx,
+                                  "hangHoleDescription",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="VD: Ø8mm cách đầu 10mm"
                             />
-                            <span className="wiz-spec-unit">mm</span>
-                          </>
-                        )}
+                          )}
+                        </div>
+                        <div className="wiz-spec-row">
+                          <label className="wiz-spec-check-label">
+                            <input
+                              type="checkbox"
+                              checked={spec.hasHandleHole ?? false}
+                              onChange={(e) =>
+                                updateBagSpec(
+                                  pIdx,
+                                  "hasHandleHole",
+                                  e.target.checked,
+                                )
+                              }
+                            />{" "}
+                            Đục lỗ quai xách
+                          </label>
+                          {spec.hasHandleHole && (
+                            <input
+                              className="wiz-spec-inline-text"
+                              type="text"
+                              value={spec.handleHoleDescription}
+                              onChange={(e) =>
+                                updateBagSpec(
+                                  pIdx,
+                                  "handleHoleDescription",
+                                  e.target.value,
+                                )
+                              }
+                              placeholder="VD: 3 lỗ tròn Ø8mm"
+                            />
+                          )}
+                        </div>
+                        <div className="wiz-spec-row">
+                          <label className="wiz-spec-check-label">
+                            <input
+                              type="checkbox"
+                              checked={spec.hasHalfMoonBottom ?? false}
+                              onChange={(e) =>
+                                updateBagSpec(
+                                  pIdx,
+                                  "hasHalfMoonBottom",
+                                  e.target.checked,
+                                )
+                              }
+                            />{" "}
+                            Đáy bán nguyệt
+                          </label>
+                          {spec.hasHalfMoonBottom && (
+                            <span
+                              className="wiz-spec-badge"
+                              style={{ color: "var(--green, #059669)" }}
+                            >
+                              Có
+                            </span>
+                          )}
+                        </div>
                       </div>
                       <div className="wiz-spec-row">
-                        <label className="wiz-spec-check-label">
-                          <input
-                            type="checkbox"
-                            checked={spec.hasHangHole ?? false}
-                            onChange={(e) =>
-                              updateBagSpec(
-                                pIdx,
-                                "hasHangHole",
-                                e.target.checked,
-                              )
-                            }
-                          />{" "}
-                          Đục lỗ treo
-                        </label>
-                        {spec.hasHangHole && (
-                          <input
-                            className="wiz-spec-inline-text"
-                            type="text"
-                            value={spec.hangHoleDescription}
-                            onChange={(e) =>
-                              updateBagSpec(
-                                pIdx,
-                                "hangHoleDescription",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="VD: Ø8mm cách đầu 10mm"
-                          />
-                        )}
-                      </div>
-                      <div className="wiz-spec-row">
-                        <label className="wiz-spec-check-label">
-                          <input
-                            type="checkbox"
-                            checked={spec.hasHandleHole ?? false}
-                            onChange={(e) =>
-                              updateBagSpec(
-                                pIdx,
-                                "hasHandleHole",
-                                e.target.checked,
-                              )
-                            }
-                          />{" "}
-                          Đục lỗ quai xách
-                        </label>
-                        {spec.hasHandleHole && (
-                          <input
-                            className="wiz-spec-inline-text"
-                            type="text"
-                            value={spec.handleHoleDescription}
-                            onChange={(e) =>
-                              updateBagSpec(
-                                pIdx,
-                                "handleHoleDescription",
-                                e.target.value,
-                              )
-                            }
-                            placeholder="VD: 3 lỗ tròn Ø8mm"
-                          />
-                        )}
-                      </div>
-                      <div className="wiz-spec-row">
-                        <label className="wiz-spec-check-label">
-                          <input
-                            type="checkbox"
-                            checked={spec.hasHalfMoonBottom ?? false}
-                            onChange={(e) =>
-                              updateBagSpec(
-                                pIdx,
-                                "hasHalfMoonBottom",
-                                e.target.checked,
-                              )
-                            }
-                          />{" "}
-                          Đáy bán nguyệt
-                        </label>
-                        {spec.hasHalfMoonBottom && (
-                          <span
-                            className="wiz-spec-badge"
-                            style={{ color: "var(--green, #059669)" }}
-                          >
-                            Có
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="wiz-spec-row">
                         <label className="wiz-spec-check-label">
                           <input
                             type="checkbox"
@@ -2620,7 +2660,11 @@ function BuocChonSanPham({
                                 if (!frontHasMPET && backHasMPET) {
                                   updateBagSpec(pIdx, "structureSwapped", true);
                                 } else if (frontHasMPET) {
-                                  updateBagSpec(pIdx, "structureSwapped", false);
+                                  updateBagSpec(
+                                    pIdx,
+                                    "structureSwapped",
+                                    false,
+                                  );
                                 }
                               }
                             }}
@@ -2671,9 +2715,7 @@ function BuocChonSanPham({
                                     >
                                       <input
                                         type="radio"
-                                        checked={
-                                          spec.bottomFollows === "front"
-                                        }
+                                        checked={spec.bottomFollows === "front"}
                                         onChange={() =>
                                           updateBagSpec(
                                             pIdx,
@@ -2697,9 +2739,7 @@ function BuocChonSanPham({
                                     >
                                       <input
                                         type="radio"
-                                        checked={
-                                          spec.bottomFollows === "back"
-                                        }
+                                        checked={spec.bottomFollows === "back"}
                                         onChange={() =>
                                           updateBagSpec(
                                             pIdx,
@@ -2733,8 +2773,7 @@ function BuocChonSanPham({
                                   <div
                                     style={{
                                       padding: "8px 10px",
-                                      background:
-                                        "rgba(8,145,178,0.05)",
+                                      background: "rgba(8,145,178,0.05)",
                                       borderRadius: 6,
                                       border:
                                         "1px solid var(--border, #e5e7eb)",
@@ -2760,15 +2799,13 @@ function BuocChonSanPham({
                                           style={{
                                             fontSize: "0.78rem",
                                             lineHeight: 1.6,
-                                            color:
-                                              "var(--foreground, #111)",
+                                            color: "var(--foreground, #111)",
                                           }}
                                         >
                                           <div>
                                             <strong>
                                               Mặt trước
-                                              {spec.bottomFollows ===
-                                              "front"
+                                              {spec.bottomFollows === "front"
                                                 ? " + Đáy"
                                                 : ""}
                                               :
@@ -2778,8 +2815,7 @@ function BuocChonSanPham({
                                           <div>
                                             <strong>
                                               Mặt sau
-                                              {spec.bottomFollows ===
-                                              "back"
+                                              {spec.bottomFollows === "back"
                                                 ? " + Đáy"
                                                 : ""}
                                               :
@@ -2789,13 +2825,11 @@ function BuocChonSanPham({
                                           <div
                                             style={{
                                               fontSize: "0.72rem",
-                                              color:
-                                                "var(--muted, #6b7280)",
+                                              color: "var(--muted, #6b7280)",
                                               marginTop: 2,
                                             }}
                                           >
-                                            Đáy theo mặt{" "}
-                                            {showBottomWith}
+                                            Đáy theo mặt {showBottomWith}
                                           </div>
                                         </div>
                                       );
@@ -2810,11 +2844,7 @@ function BuocChonSanPham({
                                       alignSelf: "flex-start",
                                     }}
                                     onClick={() =>
-                                      updateBagSpec(
-                                        pIdx,
-                                        "structureBack",
-                                        "",
-                                      )
+                                      updateBagSpec(pIdx, "structureBack", "")
                                     }
                                     title="Xóa chất liệu mặt sau"
                                   >
@@ -2857,8 +2887,7 @@ function BuocChonSanPham({
                                     color: "var(--muted, #6b7280)",
                                   }}
                                 >
-                                  Mặt sau:{" "}
-                                  {boSoCauTruc(spec.structureBack)}
+                                  Mặt sau: {boSoCauTruc(spec.structureBack)}
                                 </span>
                                 <button
                                   type="button"
@@ -2868,11 +2897,7 @@ function BuocChonSanPham({
                                     fontSize: "0.7rem",
                                   }}
                                   onClick={() =>
-                                    updateBagSpec(
-                                      pIdx,
-                                      "structureBack",
-                                      "",
-                                    )
+                                    updateBagSpec(pIdx, "structureBack", "")
                                   }
                                   title="Xóa chất liệu mặt sau"
                                 >
@@ -2887,33 +2912,19 @@ function BuocChonSanPham({
                               value={spec.structureBack}
                               onChange={(e) => {
                                 const val = e.target.value;
-                                updateBagSpec(
-                                  pIdx,
-                                  "structureBack",
-                                  val,
-                                );
-                                if (
-                                  spec.bagType === "dayDung"
-                                ) {
-                                  const frontHasMPET =
-                                    /MPET/i.test(
-                                      prod.historyItem.structure,
-                                    );
-                                  const backHasMPET =
-                                    /MPET/i.test(val);
-                                  if (
-                                    !frontHasMPET &&
-                                    backHasMPET
-                                  ) {
+                                updateBagSpec(pIdx, "structureBack", val);
+                                if (spec.bagType === "dayDung") {
+                                  const frontHasMPET = /MPET/i.test(
+                                    prod.historyItem.structure,
+                                  );
+                                  const backHasMPET = /MPET/i.test(val);
+                                  if (!frontHasMPET && backHasMPET) {
                                     updateBagSpec(
                                       pIdx,
                                       "structureSwapped",
                                       true,
                                     );
-                                  } else if (
-                                    frontHasMPET &&
-                                    !backHasMPET
-                                  ) {
+                                  } else if (frontHasMPET && !backHasMPET) {
                                     updateBagSpec(
                                       pIdx,
                                       "structureSwapped",
@@ -2942,54 +2953,60 @@ function BuocChonSanPham({
                       <div className="wiz-desc-row">
                         <span className="wiz-desc-label">Chất liệu:</span>
                         <span className="wiz-desc-value">
-                          {spec.structureBack ? (
-                            (() => {
-                              const isDayDung = spec.bagType === "dayDung";
-                              const front = boSoCauTruc(
-                                spec.structureSwapped
-                                  ? spec.structureBack
-                                  : prod.historyItem.structure,
-                              );
-                              const back = boSoCauTruc(
-                                spec.structureSwapped
-                                  ? prod.historyItem.structure
-                                  : spec.structureBack,
-                              );
-                              if (isDayDung) {
-                                const frontSuffix =
-                                  spec.bottomFollows === "front"
-                                    ? " + Đáy"
-                                    : "";
-                                const backSuffix =
-                                  spec.bottomFollows === "back"
-                                    ? " + Đáy"
-                                    : "";
+                          {spec.structureBack
+                            ? (() => {
+                                const isDayDung = spec.bagType === "dayDung";
+                                const front = boSoCauTruc(
+                                  spec.structureSwapped
+                                    ? spec.structureBack
+                                    : prod.historyItem.structure,
+                                );
+                                const back = boSoCauTruc(
+                                  spec.structureSwapped
+                                    ? prod.historyItem.structure
+                                    : spec.structureBack,
+                                );
+                                if (isDayDung) {
+                                  const frontSuffix =
+                                    spec.bottomFollows === "front"
+                                      ? " + Đáy"
+                                      : "";
+                                  const backSuffix =
+                                    spec.bottomFollows === "back"
+                                      ? " + Đáy"
+                                      : "";
+                                  return (
+                                    <span>
+                                      Mặt trước{frontSuffix}: {front}, Mặt sau
+                                      {backSuffix}: {back}
+                                    </span>
+                                  );
+                                }
                                 return (
                                   <span>
-                                    Mặt trước{frontSuffix}: {front}, Mặt
-                                    sau{backSuffix}: {back}
+                                    Mặt trước: {front}, Mặt sau: {back}
                                   </span>
                                 );
-                              }
-                              return (
-                                <span>
-                                  Mặt trước: {front}, Mặt sau: {back}
-                                </span>
-                              );
-                            })()
-                          ) : (
-                            boSoCauTruc(prod.historyItem.structure)
-                          )}
+                              })()
+                            : boSoCauTruc(prod.historyItem.structure)}
                         </span>
                       </div>
                       {(() => {
-                        const res = tinhBaoGia(inp, materials, constants, profitTable, smallWidthPrices);
+                        const res = tinhBaoGia(
+                          inp,
+                          materials,
+                          constants,
+                          profitTable,
+                          smallWidthPrices,
+                        );
                         const doDay = res?.totalThickness ?? 0;
                         if (doDay > 0) {
                           return (
                             <div className="wiz-desc-row">
                               <span className="wiz-desc-label">Độ dày:</span>
-                              <span className="wiz-desc-value">{doDay} mic (± 5 mic)</span>
+                              <span className="wiz-desc-value">
+                                {doDay} mic (± 5 mic)
+                              </span>
                             </div>
                           );
                         }
@@ -3138,8 +3155,9 @@ function BuocChonSanPham({
                         <span className="wiz-desc-value">
                           {inp.cylLength > 0 ? (
                             <>
-                              Trục in {prod.historyItem.productName} — Kích thước: chiều
-                              dài {Math.round(inp.cylLength * 1000)}mm × chu vi{" "}
+                              Trục in {prod.historyItem.productName} — Kích
+                              thước: chiều dài{" "}
+                              {Math.round(inp.cylLength * 1000)}mm × chu vi{" "}
                               {Math.round(inp.cylCircum * 1000)}mm
                               {spec.cylinderQuantity > 0
                                 ? `, Số lượng: ${spec.cylinderQuantity}`
@@ -3163,7 +3181,7 @@ function BuocChonSanPham({
                             updateBagSpec(pIdx, "cylinderNote", e.target.value)
                           }
                           placeholder="Nhập ghi chú trục in..."
-                            style={{ flex: 1, minWidth: 0 }}
+                          style={{ flex: 1, minWidth: 0 }}
                         />
                       </div>
                     </div>
@@ -3412,12 +3430,45 @@ function BuocXacNhan({
         </div>
       </div>
 
+      <p className="wiz-section-title">Điều khoản sản xuất</p>
+      <div className="wiz-terms-grid">
+        <div className="wiz-terms-field">
+          <label className="wiz-terms-label">
+            Số lượng thành phẩm có thể tăng hoặc giảm so với ĐĐH:
+          </label>
+          <ComboBoxDieuKhoan
+            value={
+              terms.quantityTolerance > 0 ? `±${terms.quantityTolerance}%` : ""
+            }
+            onChange={(val) => {
+              const num = parseInt(val.replace(/[±%]/g, "")) || 10;
+              onTermsChange({ ...terms, quantityTolerance: num });
+            }}
+            options={DUNG_SAI_OPTIONS.map((o) => `±${o}`)}
+          />
+        </div>
+        <div className="wiz-terms-field">
+          <label className="wiz-terms-label">Yêu cầu kỹ thuật</label>
+          <ComboBoxDieuKhoan
+            value={terms.techRequirement || ""}
+            onChange={(val) =>
+              onTermsChange({ ...terms, techRequirement: val })
+            }
+            options={YEU_CAU_KY_THUAT_OPTIONS}
+          />
+        </div>
+      </div>
+
       <p className="wiz-section-title">Điều khoản báo giá</p>
       <div className="wiz-terms-grid">
         <div className="wiz-terms-field">
           <label className="wiz-terms-label">VAT hàng hóa (%)</label>
           <ComboBoxDieuKhoan
-            value={terms.vatRate > 0 || terms.vatRate === 0 ? `${terms.vatRate}%` : ''}
+            value={
+              terms.vatRate > 0 || terms.vatRate === 0
+                ? `${terms.vatRate}%`
+                : ""
+            }
             onChange={(val) =>
               onTermsChange({ ...terms, vatRate: parseInt(val) || 0 })
             }
@@ -3427,7 +3478,11 @@ function BuocXacNhan({
         <div className="wiz-terms-field">
           <label className="wiz-terms-label">VAT trục in (%)</label>
           <ComboBoxDieuKhoan
-            value={terms.vatCylinderRate > 0 || terms.vatCylinderRate === 0 ? `${terms.vatCylinderRate}%` : ''}
+            value={
+              terms.vatCylinderRate > 0 || terms.vatCylinderRate === 0
+                ? `${terms.vatCylinderRate}%`
+                : ""
+            }
             onChange={(val) =>
               onTermsChange({
                 ...terms,
@@ -3440,7 +3495,7 @@ function BuocXacNhan({
         <div className="wiz-terms-field">
           <label className="wiz-terms-label">Hiệu lực (ngày)</label>
           <ComboBoxDieuKhoan
-            value={terms.validityDays > 0 ? `${terms.validityDays} ngày` : ''}
+            value={terms.validityDays > 0 ? `${terms.validityDays} ngày` : ""}
             onChange={(val) =>
               onTermsChange({ ...terms, validityDays: parseInt(val) || 1 })
             }
@@ -3451,9 +3506,7 @@ function BuocXacNhan({
           <label className="wiz-terms-label">Điều khoản thanh toán</label>
           <ComboBoxDieuKhoan
             value={terms.paymentTerms}
-            onChange={(val) =>
-              onTermsChange({ ...terms, paymentTerms: val })
-            }
+            onChange={(val) => onTermsChange({ ...terms, paymentTerms: val })}
             options={THANH_TOAN_OPTIONS}
           />
         </div>
@@ -3461,9 +3514,7 @@ function BuocXacNhan({
           <label className="wiz-terms-label">Thời gian giao hàng</label>
           <ComboBoxDieuKhoan
             value={terms.deliveryTime}
-            onChange={(val) =>
-              onTermsChange({ ...terms, deliveryTime: val })
-            }
+            onChange={(val) => onTermsChange({ ...terms, deliveryTime: val })}
             options={GIAO_HANG_OPTIONS}
           />
         </div>
@@ -3472,8 +3523,10 @@ function BuocXacNhan({
         <label className="wiz-terms-label">Địa điểm giao hàng</label>
         <textarea
           className="wiz-terms-textarea"
-          value={terms.deliveryAddress || ''}
-          onChange={(e) => onTermsChange({ ...terms, deliveryAddress: e.target.value })}
+          value={terms.deliveryAddress || ""}
+          onChange={(e) =>
+            onTermsChange({ ...terms, deliveryAddress: e.target.value })
+          }
           placeholder="Nhập địa điểm giao hàng..."
         />
       </div>
@@ -3586,11 +3639,19 @@ function TaoBaoGiaWizard({
       deliveryTime: "7-10 ngày làm việc",
       deliveryAddress: "",
       notes: "",
+      quantityTolerance: 10,
+      techRequirement: "Chạy theo market ký duyệt",
     },
   });
   const [previewState, setPreviewState] = useState<{
     item: HistoryItem;
-    customerInfo: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string };
+    customerInfo: {
+      address?: string;
+      taxCode?: string;
+      phone?: string;
+      fax?: string;
+      description?: string;
+    };
   } | null>(null);
   const [error, setError] = useState("");
   const [errorSection, setErrorSection] = useState<1 | 2 | 3 | null>(null);
@@ -3620,7 +3681,9 @@ function TaoBaoGiaWizard({
       );
     } else {
       prefillProducts = (history as HistoryItem[])
-        .filter((item: HistoryItem) => prefill.historyItemIds?.includes(item.id))
+        .filter((item: HistoryItem) =>
+          prefill.historyItemIds?.includes(item.id),
+        )
         .map((item: HistoryItem) => buildWizardProductFromHistoryItem(item));
     }
     // Chỉ prefill khách hàng do người dùng hiện tại phụ trách (admin thấy tất cả).
@@ -3645,15 +3708,24 @@ function TaoBaoGiaWizard({
       terms: prefill.terms
         ? {
             vatRate: prefill.terms.vatRate ?? prev.terms.vatRate,
-            vatCylinderRate: prefill.terms.vatCylinderRate ?? prev.terms.vatCylinderRate,
+            vatCylinderRate:
+              prefill.terms.vatCylinderRate ?? prev.terms.vatCylinderRate,
             validityDays: prefill.terms.validityDays ?? prev.terms.validityDays,
-            paymentTerms: prefill.terms.paymentTerms
-              || (prefillProducts.length > 0
-                ? taoDieuKhoanThanhToan(prefillProducts[0].historyItem.input?.paymentDays ?? 30)
+            paymentTerms:
+              prefill.terms.paymentTerms ||
+              (prefillProducts.length > 0
+                ? taoDieuKhoanThanhToan(
+                    prefillProducts[0].historyItem.input?.paymentDays ?? 30,
+                  )
                 : prev.terms.paymentTerms),
             deliveryTime: prefill.terms.deliveryTime || prev.terms.deliveryTime,
-            deliveryAddress: prefill.terms.deliveryAddress ?? prev.terms.deliveryAddress,
+            deliveryAddress:
+              prefill.terms.deliveryAddress ?? prev.terms.deliveryAddress,
             notes: prefill.terms.notes ?? prev.terms.notes,
+            quantityTolerance:
+              prefill.terms.quantityTolerance ?? prev.terms.quantityTolerance,
+            techRequirement:
+              prefill.terms.techRequirement ?? prev.terms.techRequirement,
           }
         : prev.terms,
     }));
@@ -3685,30 +3757,39 @@ function TaoBaoGiaWizard({
     daDocBaoGiaSua.current = true;
     const bg = baoGiaDangSua;
     const tatCaKhach = docKhachHang();
-    const maKH = bg.pricingSheets?.[0]?.customer?.codeName?.trim() || '';
-    const khachHang = tatCaKhach.find(c => c.customerCode === maKH) || null;
+    const maKH = bg.pricingSheets?.[0]?.customer?.codeName?.trim() || "";
+    const khachHang = tatCaKhach.find((c) => c.customerCode === maKH) || null;
     const sheets = bg.pricingSheets ?? [];
     const sanPham: WizardProduct[] = [];
     for (const sheet of sheets) {
       const dv = (sheet.inputValue ?? {}) as Record<string, unknown>;
-      const kq = (sheet.saleResult ?? sheet.masterResult ?? {}) as Record<string, unknown>;
+      const kq = (sheet.saleResult ?? sheet.masterResult ?? {}) as Record<
+        string,
+        unknown
+      >;
       const cauTruc = [
-        dv.layer1Id, dv.layer2Id, dv.layer3Id, dv.layer4Id, dv.layer5Id,
-      ].filter(Boolean).join(' / ');
+        dv.layer1Id,
+        dv.layer2Id,
+        dv.layer3Id,
+        dv.layer4Id,
+        dv.layer5Id,
+      ]
+        .filter(Boolean)
+        .join(" / ");
       const giaAo = {
         id: sheet.id,
         customer: maKH,
-        productName: (dv.productName as string) || sheet.pricingSheetName || '',
-        productType: (dv.productType as string) || 'tui',
-        structure: cauTruc || (dv.productName as string) || '',
+        productName: (dv.productName as string) || sheet.pricingSheetName || "",
+        productType: (dv.productType as string) || "tui",
+        structure: cauTruc || (dv.productName as string) || "",
         quantity: (dv.quantity as number) || 0,
         finalPrice: (kq.finalPrice as number) || 0,
         chotGia: undefined as number | undefined,
         profitRate: (kq.profitRate as number) || 0,
         input: dv as any,
         pricingSheetId: sheet.id,
-        bagType: (dv.bagType as string) || '',
-        numColors: typeof dv.numColors === 'number' ? dv.numColors : 0,
+        bagType: (dv.bagType as string) || "",
+        numColors: typeof dv.numColors === "number" ? dv.numColors : 0,
         spreadWidth: (dv.spreadWidth as number) || 0,
         cutStep: (dv.cutStep as number) || 0,
         cylLength: (dv.cylLength as number) || 0,
@@ -3722,13 +3803,25 @@ function TaoBaoGiaWizard({
       vatRate: (iv.vatRate as number) ?? 8,
       vatCylinderRate: (iv.vatCylinderRate as number) ?? 10,
       validityDays: (iv.validityDays as number) ?? 30,
-      paymentTerms: (iv.paymentTerms as string)
-        || (sanPham.length > 0
-          ? taoDieuKhoanThanhToan((sanPham[0].historyItem.input as unknown as Record<string, unknown>)?.paymentDays as number ?? 30)
-          : 'Thanh toán 30 ngày'),
-      deliveryTime: (iv.deliveryTime as string) || '7-10 ngày làm việc',
-      deliveryAddress: (iv.deliveryAddress as string) || khachHang?.address || '',
-      notes: (iv.notes as string) || '',
+      paymentTerms:
+        (iv.paymentTerms as string) ||
+        (sanPham.length > 0
+          ? taoDieuKhoanThanhToan(
+              ((
+                sanPham[0].historyItem.input as unknown as Record<
+                  string,
+                  unknown
+                >
+              )?.paymentDays as number) ?? 30,
+            )
+          : "Thanh toán 30 ngày"),
+      deliveryTime: (iv.deliveryTime as string) || "7-10 ngày làm việc",
+      deliveryAddress:
+        (iv.deliveryAddress as string) || khachHang?.address || "",
+      notes: (iv.notes as string) || "",
+      quantityTolerance: (iv.quantityTolerance as number) ?? 10,
+      techRequirement:
+        (iv.techRequirement as string) || "Chạy theo market ký duyệt",
     };
     setState({ customer: khachHang, products: sanPham, terms: dieuKhoan });
   }, [baoGiaDangSua]);
@@ -3794,6 +3887,8 @@ function TaoBaoGiaWizard({
         deliveryTime: "7-10 ngày làm việc",
         deliveryAddress: "",
         notes: "",
+        quantityTolerance: 10,
+        techRequirement: "Chạy theo market ký duyệt",
       },
     });
     setError("");
@@ -3845,7 +3940,9 @@ function TaoBaoGiaWizard({
       products: state.products,
       terms: state.terms,
     });
-    (dungCuaHangTinhGia as any).getState().loadHistoryItem(product.historyItem.id);
+    (dungCuaHangTinhGia as any)
+      .getState()
+      .loadHistoryItem(product.historyItem.id);
     (dungCuaHangTinhGia as any).getState().setActiveModule("calculator");
   };
 
@@ -3871,7 +3968,7 @@ function TaoBaoGiaWizard({
     const ghiChu = terms.notes?.trim();
     if (diaDiem && ghiChu) return `Địa điểm giao hàng: ${diaDiem}\n\n${ghiChu}`;
     if (diaDiem) return `Địa điểm giao hàng: ${diaDiem}`;
-    return ghiChu || '';
+    return ghiChu || "";
   }
   const dayBaoGiaLenServer = useCallback(
     async (
@@ -3905,18 +4002,20 @@ function TaoBaoGiaWizard({
               continue;
             }
             const sheet = await taoPricingSheetService(
-                mapHistoryToPricingSheet(prod.historyItem, checkKH.maKhachHang),
-                accessToken,
-              );
-              if (sheet?.id) {
-                pricingSheetIds.push(sheet.id);
-                prod.historyItem.pricingSheetId = sheet.id;
-              }
+              mapHistoryToPricingSheet(prod.historyItem, checkKH.maKhachHang),
+              accessToken,
+            );
+            if (sheet?.id) {
+              pricingSheetIds.push(sheet.id);
+              prod.historyItem.pricingSheetId = sheet.id;
             }
-            if (pricingSheetIds.length === 0)
-              throw new Error("Không có pricing sheet nào để cập nhật.");
+          }
+          if (pricingSheetIds.length === 0)
+            throw new Error("Không có pricing sheet nào để cập nhật.");
 
-            await capNhatBaoGiaService(bgDangSua.id, {
+          await capNhatBaoGiaService(
+            bgDangSua.id,
+            {
               moTa: mergeGhiChu(terms) || undefined,
               duLieuDauVao: {
                 vatRate: terms.vatRate,
@@ -3926,17 +4025,22 @@ function TaoBaoGiaWizard({
                 deliveryTime: terms.deliveryTime,
                 deliveryAddress: terms.deliveryAddress,
                 notes: mergeGhiChu(terms),
+                quantityTolerance: terms.quantityTolerance,
+                techRequirement: terms.techRequirement,
                 productBagSpecs: products.map((prod) => ({
                   sourceHistoryItemId: prod.historyItem.id,
                   pricingSheetId: prod.historyItem.pricingSheetId,
                   productName: prod.historyItem.productName,
                   bagSpec: prod.bagSpec,
-                  finalPrice: prod.tiers[0]?.finalPrice ?? prod.historyItem.finalPrice,
+                  finalPrice:
+                    prod.tiers[0]?.finalPrice ?? prod.historyItem.finalPrice,
                   chotGia: prod.tiers[0]?.baoGia,
                 })),
+              },
+              dsPricingSheetId: pricingSheetIds,
             },
-            dsPricingSheetId: pricingSheetIds,
-          }, accessToken);
+            accessToken,
+          );
 
           if (sendForApproval) {
             await nopBaoGiaService(bgDangSua.id, accessToken);
@@ -3951,39 +4055,42 @@ function TaoBaoGiaWizard({
             pricingSheetIds.push(prod.historyItem.pricingSheetId);
             continue;
           }
-            const sheet = await taoPricingSheetService(
-                mapHistoryToPricingSheet(prod.historyItem, checkKH.maKhachHang),
-                accessToken,
-              );
-              if (sheet?.id) {
-                pricingSheetIds.push(sheet.id);
-                prod.historyItem.pricingSheetId = sheet.id;
-              }
-            }
-            if (pricingSheetIds.length === 0)
-              throw new Error("Không tạo được pricing sheet trên máy chủ.");
+          const sheet = await taoPricingSheetService(
+            mapHistoryToPricingSheet(prod.historyItem, checkKH.maKhachHang),
+            accessToken,
+          );
+          if (sheet?.id) {
+            pricingSheetIds.push(sheet.id);
+            prod.historyItem.pricingSheetId = sheet.id;
+          }
+        }
+        if (pricingSheetIds.length === 0)
+          throw new Error("Không tạo được pricing sheet trên máy chủ.");
 
-            // Bước 2: tạo quotation tham chiếu các pricing sheet.
-            const created = await taoBaoGiaService(
-              {
-                customerCodeName: checkKH.maKhachHang,
-                description: mergeGhiChu(terms) || undefined,
-                inputValue: {
-                  vatRate: terms.vatRate,
-                  vatCylinderRate: terms.vatCylinderRate,
-                  validityDays: terms.validityDays,
-                  paymentTerms: terms.paymentTerms,
-                  deliveryTime: terms.deliveryTime,
-                  deliveryAddress: terms.deliveryAddress,
-                  notes: mergeGhiChu(terms),
-                  productBagSpecs: products.map((prod) => ({
-                    sourceHistoryItemId: prod.historyItem.id,
-                    pricingSheetId: prod.historyItem.pricingSheetId,
-                    productName: prod.historyItem.productName,
-                    bagSpec: prod.bagSpec,
-                    finalPrice: prod.tiers[0]?.finalPrice ?? prod.historyItem.finalPrice,
-                    chotGia: prod.tiers[0]?.baoGia,
-                  })),
+        // Bước 2: tạo quotation tham chiếu các pricing sheet.
+        const created = await taoBaoGiaService(
+          {
+            customerCodeName: checkKH.maKhachHang,
+            description: mergeGhiChu(terms) || undefined,
+            inputValue: {
+              vatRate: terms.vatRate,
+              vatCylinderRate: terms.vatCylinderRate,
+              validityDays: terms.validityDays,
+              paymentTerms: terms.paymentTerms,
+              deliveryTime: terms.deliveryTime,
+              deliveryAddress: terms.deliveryAddress,
+              notes: mergeGhiChu(terms),
+              quantityTolerance: terms.quantityTolerance,
+              techRequirement: terms.techRequirement,
+              productBagSpecs: products.map((prod) => ({
+                sourceHistoryItemId: prod.historyItem.id,
+                pricingSheetId: prod.historyItem.pricingSheetId,
+                productName: prod.historyItem.productName,
+                bagSpec: prod.bagSpec,
+                finalPrice:
+                  prod.tiers[0]?.finalPrice ?? prod.historyItem.finalPrice,
+                chotGia: prod.tiers[0]?.baoGia,
+              })),
             },
             pricingSheetIds,
           },
@@ -4239,9 +4346,13 @@ function TaoBaoGiaWizard({
       <div className="sp-sticky-header quote-wizard-header">
         <div className="quote-wizard-header-title">
           <div className="quote-wizard-title-stack">
-            <h2 className="quote-wizard-title">{dangSua ? 'Cập nhật báo giá' : 'Tạo báo giá mới'}</h2>
+            <h2 className="quote-wizard-title">
+              {dangSua ? "Cập nhật báo giá" : "Tạo báo giá mới"}
+            </h2>
             <div className="quote-wizard-subtitle">
-              {dangSua ? `Bước 1/3: Khách hàng (không thể thay đổi)` : 'Bước 1/3: Chọn khách hàng'}
+              {dangSua
+                ? `Bước 1/3: Khách hàng (không thể thay đổi)`
+                : "Bước 1/3: Chọn khách hàng"}
             </div>
           </div>
         </div>
@@ -4262,7 +4373,7 @@ function TaoBaoGiaWizard({
               onClick={() => handleSave(false)}
               disabled={saving || !canSaveDraft}
             >
-              {dangSua ? 'Cập nhật' : 'Lưu'}
+              {dangSua ? "Cập nhật" : "Lưu"}
             </button>
           )}
           {dangSua && (
@@ -4380,7 +4491,7 @@ function TaoBaoGiaWizard({
             onClick={() => handleSave(false)}
             disabled={saving || !canSaveDraft}
           >
-            {dangSua ? 'Cập nhật' : 'Lưu nháp'}
+            {dangSua ? "Cập nhật" : "Lưu nháp"}
           </button>
         )}
         {dangSua && (
@@ -4402,17 +4513,31 @@ function TaoBaoGiaWizard({
 
       {/* Confirm create new dialog */}
       {confirmCreateNew && (
-        <div className="lts-confirm-backdrop" onClick={() => setConfirmCreateNew(false)}>
-          <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
+        <div
+          className="lts-confirm-backdrop"
+          onClick={() => setConfirmCreateNew(false)}
+        >
+          <div
+            className="lts-confirm-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="lts-confirm-icon">🔄</div>
             <h3 className="lts-confirm-title">Tạo báo giá mới?</h3>
             <p className="lts-confirm-desc">
-              Dữ liệu đang nhập sẽ bị xóa.<br />
+              Dữ liệu đang nhập sẽ bị xóa.
+              <br />
               Bạn có chắc muốn tiếp tục?
             </p>
             <div className="lts-confirm-actions">
-              <button className="btn btn-outline" onClick={() => setConfirmCreateNew(false)}>Hủy</button>
-              <button className="btn btn-danger" onClick={handleCreateNew}>Tạo mới</button>
+              <button
+                className="btn btn-outline"
+                onClick={() => setConfirmCreateNew(false)}
+              >
+                Hủy
+              </button>
+              <button className="btn btn-danger" onClick={handleCreateNew}>
+                Tạo mới
+              </button>
             </div>
           </div>
         </div>
@@ -4420,17 +4545,31 @@ function TaoBaoGiaWizard({
 
       {/* Confirm sao chép dialog */}
       {confirmSaoChep && (
-        <div className="lts-confirm-backdrop" onClick={() => setConfirmSaoChep(false)}>
-          <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
+        <div
+          className="lts-confirm-backdrop"
+          onClick={() => setConfirmSaoChep(false)}
+        >
+          <div
+            className="lts-confirm-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="lts-confirm-icon">📋</div>
             <h3 className="lts-confirm-title">Sao chép báo giá?</h3>
             <p className="lts-confirm-desc">
-              Dữ liệu hiện tại sẽ được sao chép thành báo giá mới.<br />
+              Dữ liệu hiện tại sẽ được sao chép thành báo giá mới.
+              <br />
               Bản cập nhật hiện tại sẽ không được lưu.
             </p>
             <div className="lts-confirm-actions">
-              <button className="btn btn-outline" onClick={() => setConfirmSaoChep(false)}>Hủy</button>
-              <button className="btn btn-danger" onClick={handleSaoChepWizard}>Sao chép</button>
+              <button
+                className="btn btn-outline"
+                onClick={() => setConfirmSaoChep(false)}
+              >
+                Hủy
+              </button>
+              <button className="btn btn-danger" onClick={handleSaoChepWizard}>
+                Sao chép
+              </button>
             </div>
           </div>
         </div>
@@ -4482,7 +4621,7 @@ function TaoBaoGiaWizard({
             </div>
           </div>
         </div>
-      )      }
+      )}
       {previewState && (
         <BaoGiaPreviewModal
           open={!!previewState}
@@ -4538,7 +4677,13 @@ function QuoteDetailPanel({
   const [confirmSave, setConfirmSave] = useState(false);
   const [previewState, setPreviewState] = useState<{
     item: HistoryItem;
-    customerInfo: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string };
+    customerInfo: {
+      address?: string;
+      taxCode?: string;
+      phone?: string;
+      fax?: string;
+      description?: string;
+    };
   } | null>(null);
 
   const isDirty =
@@ -5440,7 +5585,9 @@ export default function QuotationModule({
   const [confirmHuy, setConfirmHuy] = useState<string | null>(null);
   const [showWizard, setShowWizard] = useState(false);
   const [selectedItem, setSelectedItem] = useState<HistoryItem | null>(null);
-  const [xacNhanXoaBaoGia, datXacNhanXoaBaoGia] = useState<HistoryItem | null>(null);
+  const [xacNhanXoaBaoGia, datXacNhanXoaBaoGia] = useState<HistoryItem | null>(
+    null,
+  );
 
   React.useEffect(() => {
     kiemTraHetHan();
@@ -5509,23 +5656,32 @@ export default function QuotationModule({
     if (muc.terms) {
       prefill.terms = muc.terms;
     }
-    window.localStorage.setItem(QUOTE_PREFILL_STORAGE_KEY, JSON.stringify(prefill));
+    window.localStorage.setItem(
+      QUOTE_PREFILL_STORAGE_KEY,
+      JSON.stringify(prefill),
+    );
     setShowWizard(true);
   }, []);
 
-  const handleDeleteQuote = useCallback(async (muc: HistoryItem) => {
-    datXacNhanXoaBaoGia(null);
-    if (muc.quotationId && accessToken) {
-      try {
-        const ketQua = await xoaBaoGiaService(muc.quotationId, accessToken);
-        if (!ketQua.success) { alert("Không thể xóa báo giá trên máy chủ."); return; }
-      } catch (e) {
-        alert(e instanceof Error ? e.message : "Lỗi khi xóa báo giá.");
-        return;
+  const handleDeleteQuote = useCallback(
+    async (muc: HistoryItem) => {
+      datXacNhanXoaBaoGia(null);
+      if (muc.quotationId && accessToken) {
+        try {
+          const ketQua = await xoaBaoGiaService(muc.quotationId, accessToken);
+          if (!ketQua.success) {
+            alert("Không thể xóa báo giá trên máy chủ.");
+            return;
+          }
+        } catch (e) {
+          alert(e instanceof Error ? e.message : "Lỗi khi xóa báo giá.");
+          return;
+        }
       }
-    }
-    xoaLichSu(muc.id);
-  }, [accessToken, xoaLichSu]);
+      xoaLichSu(muc.id);
+    },
+    [accessToken, xoaLichSu],
+  );
 
   const capNhatTrangThaiDon = useCallback(
     async (muc: HistoryItem, status: QuoteStatus) => {
@@ -5669,17 +5825,34 @@ export default function QuotationModule({
       )}
 
       {xacNhanXoaBaoGia && (
-        <div className="lts-confirm-backdrop" onClick={() => datXacNhanXoaBaoGia(null)}>
-          <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>
+        <div
+          className="lts-confirm-backdrop"
+          onClick={() => datXacNhanXoaBaoGia(null)}
+        >
+          <div
+            className="lts-confirm-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="lts-confirm-icon">🗑</div>
             <h3 className="lts-confirm-title">Xóa báo giá này?</h3>
             <p className="lts-confirm-desc">
-              Thao tác này không thể hoàn tác.<br />
+              Thao tác này không thể hoàn tác.
+              <br />
               Báo giá sẽ bị xóa vĩnh viễn.
             </p>
             <div className="lts-confirm-actions">
-              <button className="btn btn-outline" onClick={() => datXacNhanXoaBaoGia(null)}>Hủy</button>
-              <button className="btn btn-danger" onClick={() => handleDeleteQuote(xacNhanXoaBaoGia)}>Xóa</button>
+              <button
+                className="btn btn-outline"
+                onClick={() => datXacNhanXoaBaoGia(null)}
+              >
+                Hủy
+              </button>
+              <button
+                className="btn btn-danger"
+                onClick={() => handleDeleteQuote(xacNhanXoaBaoGia)}
+              >
+                Xóa
+              </button>
             </div>
           </div>
         </div>

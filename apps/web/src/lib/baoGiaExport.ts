@@ -385,7 +385,9 @@ function buildBaoGiaHtmlV2(
     if (isLast) {
       if (item.terms) {
         pageHtml += `<div class="luu-y">Lưu ý:</div>`;
-        pageHtml += `<div class="luu-y-item">- Số lượng thành phẩm có thể tăng hoặc giảm so với đơn đặt hàng: &plusmn;10%</div>`;
+        pageHtml += `<div class="luu-y-item">- Số lượng thành phẩm có thể tăng hoặc giảm so với đơn đặt hàng: &plusmn;${item.terms.quantityTolerance ?? 10}%</div>`;
+        if (item.terms.techRequirement)
+          pageHtml += `<div class="luu-y-item">- Yêu cầu kỹ thuật: ${escHtml(item.terms.techRequirement)}</div>`;
         if (vat > 0 || vatTruc > 0) {
           pageHtml += `<div class="luu-y-item">- Thuế VAT: ${vat}% đối với hàng hóa, ${vatTruc}% đối với trục in</div>`;
         } else {
@@ -1034,8 +1036,10 @@ export async function exportBaoGiaToDocx(
         );
         const notes: string[] = [];
         notes.push(
-          "- Số lượng thành phẩm có thể tăng hoặc giảm so với đơn đặt hàng: ±10%",
+          `- Số lượng thành phẩm có thể tăng hoặc giảm so với đơn đặt hàng: ±${item.terms.quantityTolerance ?? 10}%`,
         );
+        if (item.terms.techRequirement)
+          notes.push(`- Yêu cầu kỹ thuật: ${item.terms.techRequirement}`);
         if (vat > 0 || vatTruc > 0) {
           notes.push(
             `- Thuế VAT: ${vat}% đối với hàng hóa, ${vatTruc}% đối với trục in`,

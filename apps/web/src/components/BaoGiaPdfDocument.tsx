@@ -282,6 +282,8 @@ interface HistoryItem {
     paymentTerms?: string;
     deliveryTime?: string;
     notes?: string;
+    quantityTolerance?: number;
+    techRequirement?: string;
   };
   quoteProducts?: QuoteProductLine[];
   input: any;
@@ -734,8 +736,13 @@ function BaoGiaPage({
               <Text style={styles.luuY}>Lưu ý:</Text>
               <Text style={styles.luuYItem}>
                 - Số lượng thành phẩm có thể tăng hoặc giảm so với đơn đặt hàng:
-                ±10%
+                ±{item.terms.quantityTolerance ?? 10}%
               </Text>
+              {item.terms.techRequirement ? (
+                <Text style={styles.luuYItem}>
+                  - Yêu cầu kỹ thuật: {item.terms.techRequirement}
+                </Text>
+              ) : null}
               {vat > 0 || vatTruc > 0 ? (
                 <Text style={styles.luuYItem}>
                   - Thuế VAT: {vat}% đối với hàng hóa, {vatTruc}% đối với trục

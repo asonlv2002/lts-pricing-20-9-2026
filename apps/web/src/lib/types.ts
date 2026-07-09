@@ -327,6 +327,8 @@ export interface QuoteTerms {
   deliveryTime: string;
   deliveryAddress?: string;
   notes: string;
+  quantityTolerance?: number;
+  techRequirement?: string;
 }
 
 // ── Multi-tier (nhiều mốc số lượng) ──────────────────────────────────────────
