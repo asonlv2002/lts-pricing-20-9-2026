@@ -836,6 +836,33 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             </div>
           </div>
 
+          <div className="form-group" style={{ marginTop: '2px' }}>
+            <label className="form-row-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem' }}>
+              <input type="checkbox" checked={!!input.hasDivide}
+                onChange={e => capNhatDauVao({ hasDivide: e.target.checked } as any)} />
+              <span>Có chia</span>
+            </label>
+          </div>
+
+          {!!input.hasDivide && (
+            <div className="form-row-3 structure-input-grid">
+              <div className="form-group">
+                <label className="form-label">Khổ ban đầu (mm)</label>
+                <ONhapSoDinhDang className="form-input" value={input.originalWidthMm || 0} onChange={(val: number) => capNhatDauVao({ originalWidthMm: val } as any)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Khổ chia (mm)</label>
+                <ONhapSoDinhDang className="form-input" value={input.divideWidthMm || 0} onChange={(val: number) => capNhatDauVao({ divideWidthMm: val } as any)} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Số phần tử</label>
+                <input type="text" className="form-input" inputMode="numeric"
+                  value={input.divideElements || ''}
+                  onKeyDown={e => { if (e.key === '.' || e.key === ',' || e.key === 'e') e.preventDefault(); }}
+                  onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); capNhatDauVao({ divideElements: raw ? parseInt(raw, 10) : 0 } as any); }} />
+              </div>
+            </div>
+          )}
 
           {hienThiChonLop('Lớp 1', 'layer1Id', false)}
           {!(input as any).layer2AltId ? (

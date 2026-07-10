@@ -163,6 +163,10 @@ export interface CalculateInput {
   quantity: number;
   numColors: number | null;
   numImages: number;
+  hasDivide?: boolean;
+  originalWidthMm?: number;
+  divideWidthMm?: number;
+  divideElements?: number;
   printFilmCustomerGroup?: 'normal' | 'large';
   layer1Id?: string | null;
   layer2Id?: string | null;
