@@ -158,12 +158,10 @@ export default function TrangChinh() {
         }));
       }
 
-      // LSX
-      const rawLSX = window.localStorage.getItem('lts_production_orders');
-      if (rawLSX) {
-        const parsed = JSON.parse(rawLSX);
-        if (Array.isArray(parsed)) dungCuaHangTinhGia.setState({ productionOrders: parsed });
-      }
+      // LSX — không lưu local; dọn key cũ nếu còn
+      try { window.localStorage.removeItem('lts_production_orders'); } catch {}
+      dungCuaHangTinhGia.setState({ productionOrders: [] });
+
 
       // Audit log
       // Dọn rác localStorage nhật ký cũ (đã chuyển sang server-only)

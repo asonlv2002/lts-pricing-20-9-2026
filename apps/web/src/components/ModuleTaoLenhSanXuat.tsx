@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search, PackageCheck, Building2, Calendar, FileText, RefreshCw, Loader2, User,
-  ChevronDown, ChevronUp, Eye, FileType,
+  ChevronDown, ChevronUp, Eye, FileType, FileDown,
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { BaoGiaApi, TaiKhoanApi } from '../lib/api/service-lts';
@@ -12,10 +12,12 @@ import type { LsxSourceData, ProductionOrder, HistoryItem } from '../lib/types';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import LSXFormModal from './ModalDonLSX';
 import { mapBaoGiaToLsxSources, laBaoGiaDaDuyet, layNhanTrangThai } from '../lib/bao-gia-adapter';
-import ChiTietBaoGiaSlidePanel from './ChiTietBaoGiaSlidePanel';
 import BaoGiaPreviewModal from './BaoGiaPreviewModal';
+
 import LsxPreviewModal from './LsxPreviewModal';
+import LsxPdfPreviewModal from './LsxPdfPreviewModal';
 import { exportLSXtoDOCX } from '../lib/lsxExport';
+import { exportLSXtoPDF } from './LsxPdfDocument';
 import { buildHistoryItemFromServerData } from '../lib/baoGiaExport';
 
 interface DisplayRow {
@@ -60,10 +62,11 @@ export default function ModuleTaoLenhSanXuat() {
   const [error, setError] = useState('');
   const [tuKhoa, setTuKhoa] = useState('');
   const [modalData, setModalData] = useState<{ sources: LsxSourceData[]; activeIndex: number } | null>(null);
-  const [chiTietBaoGia, setChiTietBaoGia] = useState<BaoGiaApi | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
   const [previewBg, setPreviewBg] = useState<{ item: HistoryItem; customerInfo?: any } | null>(null);
   const [previewLsx, setPreviewLsx] = useState<ProductionOrder | null>(null);
+  const [previewLsxPdf, setPreviewLsxPdf] = useState<ProductionOrder | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
 
   const [danhSachTaiKhoan, setDanhSachTaiKhoan] = useState<TaiKhoanApi[]>([]);
@@ -181,6 +184,18 @@ export default function ModuleTaoLenhSanXuat() {
     }
   }
 
+  async function handleExportLsxPdf(order: ProductionOrder) {
+    setExportingId(order.id + '-pdf');
+    try {
+      await exportLSXtoPDF(order);
+    } catch (e) {
+      console.error(e);
+      alert('Lỗi xuất PDF LSX.');
+    } finally {
+      setExportingId(null);
+    }
+  }
+
   const btnSm: React.CSSProperties = {
     display: 'inline-flex', alignItems: 'center', gap: 4,
     fontSize: '0.74rem', padding: '4px 8px', borderRadius: 6, whiteSpace: 'nowrap',
@@ -193,13 +208,6 @@ export default function ModuleTaoLenhSanXuat() {
           sources={modalData.sources}
           activeIndex={modalData.activeIndex}
           onClose={() => setModalData(null)}
-        />
-      )}
-      {chiTietBaoGia && (
-        <ChiTietBaoGiaSlidePanel
-          baoGia={chiTietBaoGia}
-          onClose={() => setChiTietBaoGia(null)}
-          banDoTaiKhoan={banDoTaiKhoan}
         />
       )}
       {previewBg && (
@@ -215,6 +223,13 @@ export default function ModuleTaoLenhSanXuat() {
           open={!!previewLsx}
           onClose={() => setPreviewLsx(null)}
           order={previewLsx}
+        />
+      )}
+      {previewLsxPdf && (
+        <LsxPdfPreviewModal
+          open={!!previewLsxPdf}
+          onClose={() => setPreviewLsxPdf(null)}
+          order={previewLsxPdf}
         />
       )}
 
@@ -289,7 +304,11 @@ export default function ModuleTaoLenhSanXuat() {
 
                   return (
                     <React.Fragment key={row.quotation.id}>
-                      <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border)' }}>
+                      <tr style={{
+                        borderBottom: isExpanded ? 'none' : '1px solid var(--border)',
+                        background: isExpanded ? '#dbeafe' : undefined,
+                      }}>
+
                         <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                             <FileText size={14} style={{ color: '#2563eb', flexShrink: 0 }} />
@@ -355,23 +374,12 @@ export default function ModuleTaoLenhSanXuat() {
                               {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                               {isExpanded ? 'Thu gọn' : 'Chi tiết'}
                             </button>
-                            <button
-                              className="btn btn-sm"
-                              style={{
-                                ...btnSm,
-                                background: '#059669',
-                                color: '#fff',
-                              }}
-                              onClick={() => openTaoLsx(row.allSources, row.sourceIndex)}
-                            >
-                              <PackageCheck size={13} /> Tạo LSX
-                            </button>
                           </div>
                         </td>
                       </tr>
 
                       {isExpanded && (
-                        <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface2, #f8fafc)' }}>
+                        <tr style={{ borderBottom: '1px solid var(--border)', background: '#dbeafe' }}>
                           <td colSpan={10} style={{ padding: '8px 16px 12px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                               {allSources.map((sp, spIdx) => {
@@ -417,7 +425,8 @@ export default function ModuleTaoLenhSanXuat() {
                                         <button
                                           className="btn btn-sm"
                                           style={{ ...btnSm, background: '#059669', color: '#fff' }}
-                                          onClick={() => openTaoLsx(allSources, spIdx)}
+                                          onClick={() => openTaoLsx([allSources[spIdx]], 0)}
+
                                         >
                                           <PackageCheck size={13} /> Tạo LSX
                                         </button>
@@ -454,6 +463,14 @@ export default function ModuleTaoLenhSanXuat() {
                                             <button
                                               className="btn btn-sm btn-outline"
                                               style={btnSm}
+                                              onClick={() => setPreviewLsxPdf(ord)}
+                                              title="Xem PDF LSX"
+                                            >
+                                              <Eye size={12} /> Review PDF
+                                            </button>
+                                            <button
+                                              className="btn btn-sm btn-outline"
+                                              style={btnSm}
                                               disabled={exportingId === ord.id + '-docx'}
                                               onClick={() => handleExportLsxDocx(ord)}
                                             >
@@ -462,6 +479,17 @@ export default function ModuleTaoLenhSanXuat() {
                                                 : <FileType size={12} />}
                                               Xuất DOCX
                                             </button>
+                                            <button
+                                              className="btn btn-sm btn-outline"
+                                              style={btnSm}
+                                              disabled={exportingId === ord.id + '-pdf'}
+                                              onClick={() => handleExportLsxPdf(ord)}
+                                            >
+                                              {exportingId === ord.id + '-pdf'
+                                                ? <Loader2 size={12} className="um-spin" />
+                                                : <FileDown size={12} />}
+                                              Xuất PDF
+                                            </button>
                                           </div>
                                         ))}
                                       </div>
@@ -469,23 +497,6 @@ export default function ModuleTaoLenhSanXuat() {
                                   </div>
                                 );
                               })}
-
-                              <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
-                                <button
-                                  className="btn btn-sm btn-outline"
-                                  style={btnSm}
-                                  onClick={() => setChiTietBaoGia(row.quotation)}
-                                >
-                                  <FileText size={13} /> Chi tiết báo giá (panel)
-                                </button>
-                                <button
-                                  className="btn btn-sm btn-outline"
-                                  style={btnSm}
-                                  onClick={() => openXemBg(row.quotation)}
-                                >
-                                  <Eye size={13} /> Xem PDF báo giá
-                                </button>
-                              </div>
                             </div>
                           </td>
                         </tr>

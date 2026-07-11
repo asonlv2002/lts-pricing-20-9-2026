@@ -8,13 +8,15 @@ import {
   StyleSheet,
   Font,
 } from "@react-pdf/renderer";
-import type { ProductionOrder } from "../lib/types";
+import type { ProductionOrder, LSXManualFields } from "../lib/types";
 import {
   orderHasDivide,
   resolveLsxBagTypeInfo,
+  resolveLsxDocxTemplate,
+  type LsxDocxTemplateKey,
 } from "../lib/lsxExport";
 
-// Times New Roman — same as BaoGiaPdfDocument
+// Times New Roman — same as BaoGiaPdfDocument / DOCX ground truth
 Font.register({
   family: "TimesNewRoman",
   fonts: [
@@ -39,7 +41,6 @@ const styles = StyleSheet.create({
     paddingRight: 32,
     lineHeight: 1.2,
   },
-  // ISO header
   isoTable: { width: "100%", borderLeft: BORDER, borderTop: BORDER, marginBottom: 6 },
   isoRow: { flexDirection: "row" },
   isoCell: {
@@ -54,7 +55,6 @@ const styles = StyleSheet.create({
   isoVal: { width: "22%", textAlign: "center" },
   isoTitle: { width: "36%", textAlign: "center", fontWeight: 700, fontSize: 12 },
   red: { color: "#ff0000" },
-  // Section
   secGreen: {
     backgroundColor: GREEN,
     textAlign: "center",
@@ -129,7 +129,7 @@ function Line({ label, value, boldLabel = true }: { label: string; value?: strin
   );
 }
 
-function isSingleLayer(s: ProductionOrder["snapshot"], m: ProductionOrder["manual"]) {
+function isSingleLayer(s: ProductionOrder["snapshot"], m: LSXManualFields) {
   return !s.layer2Name && !s.layer3Name && !m.laminateFilm1 && !m.laminateFilm2;
 }
 
@@ -366,6 +366,7 @@ function MangBody({ order }: { order: ProductionOrder }) {
                   "Ghi chú: Quấn cuộn đúng quy cách, cuộn lẻ không quá ……m/cuộn"}
               </Text>
               <Text>Cân ký cẩn thận, đảm bảo chính xác tránh sai lệnh quá nhiều.</Text>
+              <Text>Đánh dấu từng cặp MT-MS để khách hàng phân biệt.</Text>
               <Text style={styles.bold}>** Lưu ý:</Text>
             </Cell>
           </View>
@@ -386,6 +387,205 @@ function MangBody({ order }: { order: ProductionOrder }) {
   );
 }
 
+/** Bag-machine field rows — mirrors lsxExport switch(templateKey) */
+function bagTemplateLines(
+  templateKey: LsxDocxTemplateKey,
+  m: LSXManualFields,
+): React.ReactNode[] {
+  const lines: React.ReactNode[] = [];
+  const push = (node: React.ReactNode) => lines.push(node);
+
+  switch (templateKey) {
+    case "tui-3-bien":
+      push(
+        <Text key="b1">
+          <Text style={styles.bold}>Dán biên: </Text>
+          {v(m.sealEdge) || v(m.hanBien, "mm") || "7mm"}
+          {"   "}
+          <Text style={styles.bold}>Hàn đầu: </Text>
+          {v(m.hanDau, "mm") || "30mm"}
+        </Text>,
+      );
+      push(
+        <Line key="b2" label="Đục lỗ: " value={v(m.holePunchInfo) || "…"} />,
+      );
+      break;
+
+    case "tui-zipper-3-bien":
+      push(
+        <Text key="z1">
+          <Text style={styles.bold}>Hàn biên: </Text>
+          {v(m.hanBien, "mm") || "mặc định 10mm"}
+          {"   "}
+          <Text style={styles.bold}>Xếp đáy: </Text>
+          {v(m.foldBottom)}
+        </Text>,
+      );
+      push(<Line key="z2" label='Nhấn xé "v": ' value={v(m.tearNotch)} />);
+      push(<Line key="z3" label="Hàn đầu: " value={v(m.hanDau, "mm") || "…"} />);
+      if (m.useDualCutter) {
+        push(
+          <Text key="z4" style={styles.bold}>
+            Sử dụng dao cắt 2 nhịp để cắt
+          </Text>,
+        );
+      }
+      if (m.useSemicircularMold) {
+        push(
+          <Text key="z5" style={styles.bold}>
+            Sử dụng khuôn đáy đứng bán nguyệt
+          </Text>,
+        );
+      }
+      break;
+
+    case "tui-4-bien":
+      push(
+        <Text key="f1">
+          <Text style={styles.bold}>Hàn biên: </Text>
+          {v(m.hanBien, "mm") || "10mm"}
+          {"   "}
+          <Text style={styles.bold}>Hàn đầu: </Text>
+          {v(m.hanDau, "mm") || "50mm"}
+        </Text>,
+      );
+      push(<Line key="f2" label="Xếp hông: " value={v(m.xepHong, "mm") || "…"} />);
+      push(
+        <Text key="f3">
+          {v(m.holePunchInfo) || "Đục 3 lỗ tròn quai xách (Theo Market)"}
+        </Text>,
+      );
+      push(
+        <Line key="f4" label="Đục lỗ thông hơi: " value={v(m.ventHoleInfo) || "…"} />,
+      );
+      break;
+
+    case "tui-dan-lung-giua":
+      push(<Line key="d1" label="Hàn đầu: " value={v(m.hanDau, "mm") || "13mm"} />);
+      push(
+        <Line key="d2" label="Dán lưng: " value={v(m.danLung, "mm") || "13mm"} />,
+      );
+      if (m.ventHoleInfo) {
+        push(
+          <Text key="d3">{`Đục lỗ thông hơi: ${m.ventHoleInfo}`}</Text>,
+        );
+      }
+      break;
+
+    case "tui-xep-hong-lung-lech":
+      push(<Line key="x1" label="Xếp hông: " value={v(m.xepHong, "mm") || "…"} />);
+      push(
+        <Text key="x2">
+          <Text style={styles.bold}>Dán lưng lệch: </Text>
+          {v(m.danLungLech, "mm") || "10mm"}
+          {"   "}
+          <Text style={styles.bold}>Dán đáy: </Text>
+          {v(m.danDay, "mm") || "10mm"}
+        </Text>,
+      );
+      break;
+
+    case "tui-zipper-day-dung":
+      push(
+        <Text key="s1">
+          <Text style={styles.bold}>Tâm zipper cách miệng: </Text>
+          {v(m.tamZipperCachMieng, "mm") || "30mm"}
+          {"   "}
+          <Text style={styles.bold}>Nhấn xé &quot;v&quot;: </Text>
+          {v(m.tearNotch) || "2 bên cách miệng 15mm"}
+        </Text>,
+      );
+      push(
+        <Text key="s2">
+          <Text style={styles.bold}>Dán biên: </Text>
+          {v(m.sealEdge) || "10mm"}
+          {"   "}
+          <Text style={styles.bold}>Xếp đáy: </Text>
+          {v(m.foldBottom) || "100mm"}
+        </Text>,
+      );
+      break;
+
+    case "tui-zipper-cat-seal":
+      push(
+        <Line
+          key="c1"
+          label="Tâm zipper cách đầu: "
+          value={v(m.tamZipperCachMieng, "mm") || "25mm"}
+        />,
+      );
+      push(
+        <Line
+          key="c2"
+          label="Đục treo lỗ tròn: "
+          value={
+            v(m.loTreoInfo) ||
+            "Ø8mm ở giữa khoảng cách miệng túi và tâm zipper"
+          }
+        />,
+      );
+      break;
+
+    case "tui-cat-seal-nap-keo":
+      push(
+        <Text key="n1">
+          <Text style={styles.bold}>Nắp: </Text>
+          {v(m.nap, "mm") || "35mm"}
+          {"   "}
+          <Text style={styles.bold}>Sóng siêu âm: </Text>
+          {v(m.songSieuAm, "mm") || "32mm"}
+        </Text>,
+      );
+      push(
+        <Text key="n2">
+          {m.docQuaiXach
+            ? "Dọc quai xách: có (cây dọc riêng của khách)"
+            : "Dọc quai xách: …"}
+        </Text>,
+      );
+      if (m.danKeoNap) {
+        push(<Text key="n3">Dán keo ở mé dưới trong nắp: có</Text>);
+      }
+      break;
+
+    default:
+      push(
+        <Text key="def1">
+          <Text style={styles.bold}>Hàn biên: </Text>
+          {v(m.hanBien, "mm") || v(m.sealEdge) || "…"}
+          {"   "}
+          <Text style={styles.bold}>Hàn đầu: </Text>
+          {v(m.hanDau, "mm") || "…"}
+        </Text>,
+      );
+      if (m.xepHong) push(<Line key="def2" label="Xếp hông: " value={v(m.xepHong, "mm")} />);
+      if (m.foldBottom) push(<Line key="def3" label="Xếp đáy: " value={v(m.foldBottom)} />);
+      if (m.tamZipperCachMieng) {
+        push(
+          <Line key="def4" label="Tâm zipper: " value={v(m.tamZipperCachMieng, "mm")} />,
+        );
+      }
+      if (m.tearNotch) push(<Line key="def5" label='Nhấn xé "v": ' value={m.tearNotch} />);
+      if (m.holePunchInfo) push(<Text key="def6">{m.holePunchInfo}</Text>);
+      if (m.useDualCutter) {
+        push(
+          <Text key="def7" style={styles.bold}>
+            Sử dụng dao cắt 2 nhịp để cắt
+          </Text>,
+        );
+      }
+      if (m.useSemicircularMold) {
+        push(
+          <Text key="def8" style={styles.bold}>
+            Sử dụng khuôn đáy đứng bán nguyệt
+          </Text>,
+        );
+      }
+      break;
+  }
+  return lines;
+}
+
 function TuiBody({ order }: { order: ProductionOrder }) {
   const { snapshot: s, manual: m } = order;
   const hasDivide = orderHasDivide(order);
@@ -397,6 +597,8 @@ function TuiBody({ order }: { order: ProductionOrder }) {
     bagInfo.key === "fallback" ? s.bagType || "Túi" : bagInfo.label;
   const khoMM = Math.round((s.spreadWidth || 0) * 1000);
   const dlMM = Math.round((s.cutStep || 0) * 1000);
+  const templateKey = resolveLsxDocxTemplate(order);
+  const bagLines = bagTemplateLines(templateKey, m);
 
   return (
     <View style={styles.table}>
@@ -424,8 +626,46 @@ function TuiBody({ order }: { order: ProductionOrder }) {
               <Line label="Khổ: " value={khoMM ? `${khoMM}mm` : ""} />
             </Cell>
             <Cell w="60%">
-              <Line label="Chia BTP: " value={m.divideNotes || ""} />
-              <Line label="Khổ chia: " value={vd(m.divideWidth || s.divideWidthMm, "mm")} />
+              <Line label="Chia BTP thành phẩm in: " value="" />
+              <Text>
+                {m.divideNotes ||
+                  (khoMM
+                    ? `${m.printFilmName || s.layer1Name || "PE"} × ${khoMM} × ${vd(m.printProductQty)}m`
+                    : "")}
+              </Text>
+            </Cell>
+          </View>
+          <View style={styles.row}>
+            <Cell w="20%">
+              <Line
+                label="Trục in: "
+                value={v(m.cylDiameter) ? `D${v(m.cylDiameter)} x CV${v(m.cylWidth)}` : ""}
+              />
+              <Line label="Mã Số Trục: " value={v(m.printMST) || "…"} />
+            </Cell>
+            <Cell w="20%">
+              <Line label="Số trục: " value={vd(m.numCylinders)} />
+              <Line label="Chiều ra cuộn: " value={v(m.printDirection) || "…"} />
+            </Cell>
+            <Cell w="60%">
+              <Line
+                label="Thành phẩm chia: "
+                value={vd(m.divideWidth || s.divideWidthMm, "mm")}
+              />
+              {!!m.rollLength && <Text>{` × ${v(m.rollLength)}m`}</Text>}
+            </Cell>
+          </View>
+          <View style={styles.row}>
+            <Cell w="40%">
+              <Text>{`Định mức phi hao: ${v(m.printWastePercent, "m")}`}</Text>
+              <Text>{`Thành phẩm in: ${v(m.printProductQty, m.printProductUnit ? ` ${m.printProductUnit}` : "m")}`}</Text>
+              <Line label="Ghi chú: " value={m.printNotes || ""} />
+              <Text>{`- Màu sắc: duyệt màu theo ${v(m.maMucNhu) || "…"}`}</Text>
+              <Text>{`- Chiều xả: ${v(m.printDirection) || "…"}`}</Text>
+            </Cell>
+            <Cell w="60%">
+              <Line label="Ghi chú chia: " value="" />
+              <Text>{m.divideDeliveryReq || m.divideNotes || ""}</Text>
             </Cell>
           </View>
         </>
@@ -487,17 +727,18 @@ function TuiBody({ order }: { order: ProductionOrder }) {
               <Line label="Ghi chú: " value={m.printNotes || ""} />
               <Text>{`- Màu sắc: duyệt màu theo ${v(m.maMucNhu) || "…"}`}</Text>
               <Text>{`- Chiều xả: ${v(m.printDirection) || "…"}`}</Text>
+              {!!m.cylInfo && <Line label="Trục in: " value={m.cylInfo} />}
             </Cell>
             <Cell w="60%">
               <Text>{`Định mức phi hao: L1: ${v(m.lamWaste, "m")}${m.lamBTP || s.layer3Name ? `, L2: ${v(m.lamBTP, "m")}` : ""}`}</Text>
               <Text>{`Thành phẩm yêu cầu: ${v(m.lamProductQty, m.lamProductUnit ? ` ${m.lamProductUnit}` : "m")}`}</Text>
+              {!!m.lamBTPNote && <Text>{m.lamBTPNote}</Text>}
               <Line label="Ghi chú: " value={m.laminateNotes || ""} />
             </Cell>
           </View>
         </>
       )}
 
-      {/* CHIA | TÚI or full TÚI */}
       {useLeftDivide ? (
         <View style={styles.row}>
           <View style={[styles.cell, { width: "40%" }, styles.secOrange]}>
@@ -546,32 +787,19 @@ function TuiBody({ order }: { order: ProductionOrder }) {
             <Text style={styles.bold}>Chiều dài: </Text>
             {dlMM ? `${dlMM}mm` : "…"}
           </Text>
-          {(m.hanBien || m.sealEdge) && (
-            <Line label="Hàn biên: " value={v(m.hanBien, "mm") || v(m.sealEdge) || ""} />
-          )}
-          {!!m.hanDau && <Line label="Hàn đầu: " value={v(m.hanDau, "mm")} />}
-          {!!m.xepHong && <Line label="Xếp hông: " value={v(m.xepHong, "mm")} />}
-          {!!m.foldBottom && <Line label="Xếp đáy: " value={v(m.foldBottom)} />}
-          {!!m.tearNotch && <Line label='Nhấn xé "v": ' value={m.tearNotch} />}
-          {!!m.tamZipperCachMieng && (
-            <Line label="Tâm zipper: " value={v(m.tamZipperCachMieng, "mm")} />
-          )}
-          {!!m.holePunchInfo && <Text>{m.holePunchInfo}</Text>}
-          {!!m.ventHoleInfo && <Line label="Đục lỗ thông hơi: " value={m.ventHoleInfo} />}
-          {!!m.danLung && <Line label="Dán lưng: " value={v(m.danLung, "mm")} />}
-          {!!m.danLungLech && <Line label="Dán lưng lệch: " value={v(m.danLungLech, "mm")} />}
-          {!!m.danDay && <Line label="Dán đáy: " value={v(m.danDay, "mm")} />}
-          {!!m.nap && <Line label="Nắp: " value={v(m.nap, "mm")} />}
-          {!!m.songSieuAm && <Line label="Sóng siêu âm: " value={v(m.songSieuAm, "mm")} />}
-          {m.useDualCutter && <Text style={styles.bold}>Sử dụng dao cắt 2 nhịp để cắt</Text>}
-          {m.useSemicircularMold && (
-            <Text style={styles.bold}>Sử dụng khuôn đáy đứng bán nguyệt</Text>
-          )}
+          {bagLines}
           <Text style={styles.bold}>{`Định mức phi hao: ${vd(m.bagWasteMeters, "m")}`}</Text>
+          <Text>
+            <Text style={styles.bold}>Ghi chú: </Text>
+            {m.bagLuuY || m.bagMachineNotes || "chạy theo mẫu đã sản xuất"}
+          </Text>
           <Text style={styles.redNote}>
             Ghi chú: {m.bagMachineNotes || "chạy theo mẫu đã sản xuất"}
           </Text>
           {!!m.packagingInfo && <Text>{`SL đóng gói: ${m.packagingInfo}`}</Text>}
+          {!!m.soLuongDHNote && (
+            <Line label="Số lượng: " value={m.soLuongDHNote} />
+          )}
           <Line label="Yêu cầu giao hàng: " value={m.deliveryNotes || m.bagDeliveryReq || ""} />
         </Cell>
       </View>
@@ -608,4 +836,18 @@ export function LsxPdfDocument({ order }: { order: ProductionOrder }) {
 export function lsxPdfFileName(order: ProductionOrder): string {
   const safe = (s: string) => (s || "unknown").replace(/[<>:"/\\|?*\s]+/g, "_").slice(0, 60);
   return `LSX_${safe(order.manual.lsxNumber || order.id)}_${safe(order.snapshot.customer)}.pdf`;
+}
+
+/** Download LSX PDF via @react-pdf/renderer (same engine as preview). */
+export async function exportLSXtoPDF(order: ProductionOrder): Promise<void> {
+  const { pdf } = await import("@react-pdf/renderer");
+  const blob = await pdf(<LsxPdfDocument order={order} />).toBlob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = lsxPdfFileName(order);
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }

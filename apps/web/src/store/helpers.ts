@@ -5,11 +5,11 @@ import customersSeed from '../data/customers.json';
 
 export const LS_CONFIG   = 'lts_material_config';
 export const LS_UI_PREFS = 'lts_ui_prefs';
-export const LS_LSX      = 'lts_production_orders';
 export const LS_VERSIONS = 'lts_versions';
 export const LS_CONFIG_SNAPSHOTS = 'lts_config_snapshots';
 export const LS_QUOTE_COUNTER = 'lts_quote_counter';
 export const LS_CUSTOMERS = 'lts_customers';
+
 
 export function luuLocalStorage(key: string, giaTri: unknown) {
   try { window.localStorage.setItem(key, JSON.stringify(giaTri)); } catch { /* quota */ }
