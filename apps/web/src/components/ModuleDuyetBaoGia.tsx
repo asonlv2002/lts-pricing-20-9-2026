@@ -665,15 +665,16 @@ export default function ModuleDuyetBaoGia({
                           </div>
                         )}
                         {(trangThai === "approved" || trangThai === "customer_approved") && (
-                          <span title="Đã duyệt">
+                          <span title="Đã duyệt" aria-label="Đã duyệt">
                             <CheckCircle2 size={16} style={{ color: "#16a34a" }} />
                           </span>
                         )}
                         {(trangThai === "rejected" || trangThai === "customer_rejected") && (
-                          <span title="Đã từ chối">
+                          <span title="Đã từ chối" aria-label="Đã từ chối">
                             <XCircle size={16} style={{ color: "#dc2626" }} />
                           </span>
                         )}
+
                       </td>
                     </tr>
                   );
