@@ -106,6 +106,39 @@ export function classifyLsxBagTypeByKey(key: string): LsxBagTypeInfo {
 }
 
 export function needsLsxDivideSection(bagType: string, hasZipper: boolean): boolean {
-  const info = classifyLsxBagType(bagType, hasZipper);
-  return info.key === 'tui-zipper-cat-seal';
+  // Legacy: trước đây gắn chia với zipper-cat-seal.
+  // Chia giờ theo hasDivide từ báo giá — xem resolveLsxHasDivide trong lsxExport.
+  void bagType;
+  void hasZipper;
+  return false;
+}
+
+/** Strict: có chia chỉ khi BG bật hasDivide hoặc có khổ chia. */
+export function resolveLsxHasDivide(input: {
+  hasDivide?: boolean;
+  divideWidthMm?: number;
+}, manualDivideWidth?: number): boolean {
+  if (input.hasDivide === true) return true;
+  if ((input.divideWidthMm ?? 0) > 0) return true;
+  if ((manualDivideWidth ?? 0) > 0) return true;
+  return false;
+}
+
+/**
+ * MVP layout khâu (sketch):
+ * A: tui + chia → in|ghép / chia|túi
+ * B: tui + không chia → in|ghép / túi
+ * F: mang + chia → in → chia
+ * F_no_divide: mang + không chia → chỉ in
+ */
+export type LsxStageLayout = 'A' | 'B' | 'F' | 'F_no_divide';
+
+export function resolveLsxStageLayout(opts: {
+  productType: string;
+  hasDivide: boolean;
+  hasLaminate: boolean; // ≥2 lớp
+}): LsxStageLayout {
+  const isMang = opts.productType === 'mang';
+  if (isMang) return opts.hasDivide ? 'F' : 'F_no_divide';
+  return opts.hasDivide ? 'A' : 'B';
 }

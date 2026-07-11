@@ -141,6 +141,8 @@ const orders: ProductionOrder[] = [
       cutStep: 0.48,
       numColors: 6,
       bagType: '3bien',
+      hasZipper: false,
+      hasDivide: false,
       cylLength: 0.7,
       cylCircum: 0.48,
       filmRollLength: 6000,

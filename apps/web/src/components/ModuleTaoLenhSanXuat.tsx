@@ -1,15 +1,22 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Search, PackageCheck, Building2, Calendar, FileText, RefreshCw, Loader2, User } from 'lucide-react';
+import {
+  Search, PackageCheck, Building2, Calendar, FileText, RefreshCw, Loader2, User,
+  ChevronDown, ChevronUp, Eye, FileType,
+} from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { BaoGiaApi, TaiKhoanApi } from '../lib/api/service-lts';
 import { layDanhSachBaoGiaService, layTaiKhoanService, NHAN_TRANG_THAI_BAO_GIA } from '../lib/api/service-lts';
-import type { LsxSourceData } from '../lib/types';
+import type { LsxSourceData, ProductionOrder, HistoryItem } from '../lib/types';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import LSXFormModal from './ModalDonLSX';
-import { mapBaoGiaToLsxSources, laBaoGiaDaDuyet, layNhanTrangThai, type AdapterContext } from '../lib/bao-gia-adapter';
+import { mapBaoGiaToLsxSources, laBaoGiaDaDuyet, layNhanTrangThai } from '../lib/bao-gia-adapter';
 import ChiTietBaoGiaSlidePanel from './ChiTietBaoGiaSlidePanel';
+import BaoGiaPreviewModal from './BaoGiaPreviewModal';
+import LsxPreviewModal from './LsxPreviewModal';
+import { exportLSXtoDOCX } from '../lib/lsxExport';
+import { buildHistoryItemFromServerData } from '../lib/baoGiaExport';
 
 interface DisplayRow {
   source: LsxSourceData;
@@ -22,8 +29,31 @@ interface DisplayRow {
   quotation: BaoGiaApi;
 }
 
+function layKhachHangLocal(): Array<{ companyName?: string; customerCode?: string; address?: string; invoiceAddress?: string; taxCode?: string; phone?: string }> {
+  try { return JSON.parse(window.localStorage.getItem('lts_customers') || '[]'); } catch { return []; }
+}
+
+function layDuLieuBaoGia(baoGia: BaoGiaApi): {
+  item: HistoryItem;
+  customerInfo: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string };
+} {
+  const item = buildHistoryItemFromServerData(baoGia as any) as HistoryItem;
+  const customerName = (item.customer || baoGia.pricingSheets?.[0]?.customer?.codeName || '') as string;
+  const customers = layKhachHangLocal();
+  const c = customers.find(kh => kh.companyName === customerName || kh.customerCode === customerName);
+  return {
+    item,
+    customerInfo: {
+      address: c?.address || c?.invoiceAddress || '',
+      taxCode: c?.taxCode || '',
+      phone: c?.phone || '',
+      description: '',
+    },
+  };
+}
+
 export default function ModuleTaoLenhSanXuat() {
-  const { materials, constants, profitTable, smallWidthPrices, accessToken, isAuthenticated, productionOrders } = dungCuaHangTinhGia();
+  const { accessToken, isAuthenticated, productionOrders } = dungCuaHangTinhGia();
 
   const [quotations, setQuotations] = useState<BaoGiaApi[]>([]);
   const [loading, setLoading] = useState(false);
@@ -31,6 +61,10 @@ export default function ModuleTaoLenhSanXuat() {
   const [tuKhoa, setTuKhoa] = useState('');
   const [modalData, setModalData] = useState<{ sources: LsxSourceData[]; activeIndex: number } | null>(null);
   const [chiTietBaoGia, setChiTietBaoGia] = useState<BaoGiaApi | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const [previewBg, setPreviewBg] = useState<{ item: HistoryItem; customerInfo?: any } | null>(null);
+  const [previewLsx, setPreviewLsx] = useState<ProductionOrder | null>(null);
+  const [exportingId, setExportingId] = useState<string | null>(null);
 
   const [danhSachTaiKhoan, setDanhSachTaiKhoan] = useState<TaiKhoanApi[]>([]);
   const daTaiTaiKhoan = useRef(false);
@@ -48,10 +82,6 @@ export default function ModuleTaoLenhSanXuat() {
     }
     return map;
   }, [danhSachTaiKhoan]);
-
-  const ctx: AdapterContext = useMemo(() => ({
-    materials, constants, profitTable, smallWidthPrices,
-  }), [materials, constants, profitTable, smallWidthPrices]);
 
   const fetchQuotations = useCallback(async () => {
     if (!isAuthenticated || !accessToken) {
@@ -85,7 +115,7 @@ export default function ModuleTaoLenhSanXuat() {
       const nguoiTao = tenNguoiTao(q);
       const trangThai = layNhanTrangThai(q.updateStatus);
 
-      const sources = mapBaoGiaToLsxSources(q, ctx);
+      const sources = mapBaoGiaToLsxSources(q);
       if (sources.length === 0) continue;
 
       if (lower) {
@@ -111,16 +141,82 @@ export default function ModuleTaoLenhSanXuat() {
 
     rows.sort((a, b) => b.source.id.localeCompare(a.source.id));
     return rows;
-  }, [quotations, ctx, tuKhoa, tenNguoiTao]);
+  }, [quotations, tuKhoa, tenNguoiTao]);
 
-  function hasExistingLSX(sourceId: string): boolean {
-    return productionOrders.some(o => o.quoteId === sourceId);
+  function findOrdersForSource(sourceId: string): ProductionOrder[] {
+    return productionOrders.filter(o => o.quoteId === sourceId);
   }
+
+  function hasAnyLsx(sources: LsxSourceData[]): boolean {
+    return sources.some(s => productionOrders.some(o => o.quoteId === s.id));
+  }
+
+  function toggleExpand(id: string) {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function openTaoLsx(sources: LsxSourceData[], index: number) {
+    setModalData({ sources, activeIndex: index });
+  }
+
+  function openXemBg(baoGia: BaoGiaApi) {
+    const data = layDuLieuBaoGia(baoGia);
+    setPreviewBg({ item: data.item, customerInfo: data.customerInfo });
+  }
+
+  async function handleExportLsxDocx(order: ProductionOrder) {
+    setExportingId(order.id + '-docx');
+    try {
+      await exportLSXtoDOCX(order);
+    } catch (e) {
+      console.error(e);
+      alert('Lỗi xuất DOCX LSX.');
+    } finally {
+      setExportingId(null);
+    }
+  }
+
+  const btnSm: React.CSSProperties = {
+    display: 'inline-flex', alignItems: 'center', gap: 4,
+    fontSize: '0.74rem', padding: '4px 8px', borderRadius: 6, whiteSpace: 'nowrap',
+  };
 
   return (
     <div className="crm-root quote-root">
-      {modalData && <LSXFormModal sources={modalData.sources} activeIndex={modalData.activeIndex} onClose={() => setModalData(null)} />}
-      {chiTietBaoGia && <ChiTietBaoGiaSlidePanel baoGia={chiTietBaoGia} onClose={() => setChiTietBaoGia(null)} banDoTaiKhoan={banDoTaiKhoan} />}
+      {modalData && (
+        <LSXFormModal
+          sources={modalData.sources}
+          activeIndex={modalData.activeIndex}
+          onClose={() => setModalData(null)}
+        />
+      )}
+      {chiTietBaoGia && (
+        <ChiTietBaoGiaSlidePanel
+          baoGia={chiTietBaoGia}
+          onClose={() => setChiTietBaoGia(null)}
+          banDoTaiKhoan={banDoTaiKhoan}
+        />
+      )}
+      {previewBg && (
+        <BaoGiaPreviewModal
+          open={!!previewBg}
+          onClose={() => setPreviewBg(null)}
+          item={previewBg.item}
+          customerInfo={previewBg.customerInfo}
+        />
+      )}
+      {previewLsx && (
+        <LsxPreviewModal
+          open={!!previewLsx}
+          onClose={() => setPreviewLsx(null)}
+          order={previewLsx}
+        />
+      )}
 
       <div className="crm-toolbar">
         <div className="crm-search-box">
@@ -181,7 +277,8 @@ export default function ModuleTaoLenhSanXuat() {
                 {displayRows.map(row => {
                   const { source, quotationName, createdAt, trangThai, nguoiTao, allSources } = row;
                   const sourcesCount = allSources.length;
-                  const existed = hasExistingLSX(source.id);
+                  const existed = hasAnyLsx(allSources);
+                  const isExpanded = expandedIds.has(row.quotation.id);
                   const meta = getPricingDisplayMeta(source.input);
                   const shownPrice = source.chotGia ?? source.finalPrice;
                   const mauTrangThai: Record<string, { fg: string; bg: string }> = {
@@ -191,85 +288,209 @@ export default function ModuleTaoLenhSanXuat() {
                   const mau = mauTrangThai[trangThai] || { fg: '#6b7280', bg: '#f3f4f6' };
 
                   return (
-                    <tr
-                      key={row.quotation.id}
-                      style={{ borderBottom: '1px solid var(--border)', opacity: existed ? 0.6 : 1 }}
-                    >
-                      <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <FileText size={14} style={{ color: '#2563eb', flexShrink: 0 }} />
-                          <span style={{ fontWeight: 600, fontSize: '0.84rem' }}>{quotationName || 'Chưa đặt tên'}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <Building2 size={12} style={{ color: 'var(--muted)' }} />
-                          <span>{source.customer || '—'}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
-                        <div style={{ fontWeight: 600 }}>
+                    <React.Fragment key={row.quotation.id}>
+                      <tr style={{ borderBottom: isExpanded ? 'none' : '1px solid var(--border)' }}>
+                        <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <FileText size={14} style={{ color: '#2563eb', flexShrink: 0 }} />
+                            <span style={{ fontWeight: 600, fontSize: '0.84rem' }}>{quotationName || 'Chưa đặt tên'}</span>
+                            {existed && (
+                              <span style={{
+                                fontSize: '0.68rem', fontWeight: 700, padding: '1px 6px', borderRadius: 999,
+                                background: '#ecfdf5', color: '#047857',
+                              }}>Đã có LSX</span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <Building2 size={12} style={{ color: 'var(--muted)' }} />
+                            <span>{source.customer || '—'}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
+                          <div style={{ fontWeight: 600 }}>
+                            {sourcesCount > 1
+                              ? <span>{sourcesCount} sản phẩm</span>
+                              : (source.productName || '—')
+                            }
+                          </div>
+                        </td>
+                        <td style={{ padding: '9px 12px', verticalAlign: 'middle', fontSize: '0.8rem', color: 'var(--muted)' }}>
+                          {sourcesCount > 1 ? `${sourcesCount} cấu trúc` : (source.structure || '—')}
+                        </td>
+                        <td style={{ padding: '9px 12px', verticalAlign: 'middle', textAlign: 'right', fontWeight: 600 }}>
                           {sourcesCount > 1
-                            ? <span>{sourcesCount} sản phẩm</span>
-                            : (source.productName || '—')
-                          }
-                        </div>
-                      </td>
-                      <td style={{ padding: '9px 12px', verticalAlign: 'middle', fontSize: '0.8rem', color: 'var(--muted)' }}>
-                        {sourcesCount > 1 ? `${sourcesCount} cấu trúc` : (source.structure || '—')}
-                      </td>
-                      <td style={{ padding: '9px 12px', verticalAlign: 'middle', textAlign: 'right', fontWeight: 600 }}>
-                        {sourcesCount > 1
-                          ? allSources.reduce((sum, s) => sum + (s.input.quantity || 0), 0).toLocaleString('vi-VN')
-                          : source.input.quantity.toLocaleString('vi-VN')
-                        } <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '0.76rem' }}>{meta.quantityUnit}</span>
-                      </td>
-                      <td style={{ padding: '9px 12px', verticalAlign: 'middle', textAlign: 'right', fontWeight: 600 }}>
-                        {shownPrice.toLocaleString('vi-VN')} <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '0.76rem' }}>đ/{meta.unit}</span>
-                      </td>
-                      <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <User size={12} style={{ color: 'var(--muted)' }} />
-                          <span style={{ fontSize: '0.8rem' }}>{nguoiTao}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: 'var(--muted)' }}>
-                          <Calendar size={12} />
-                          <span>{new Date(createdAt).toLocaleDateString('vi-VN')}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
-                        <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700, color: mau.fg, background: mau.bg, whiteSpace: 'nowrap' }}>
-                          ● {NHAN_TRANG_THAI_BAO_GIA[trangThai]}
-                        </span>
-                      </td>
-                      <td style={{ padding: '9px 12px', verticalAlign: 'middle', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                          <button
-                            className="btn btn-sm btn-outline"
-                            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', padding: '5px 10px', borderRadius: 6 }}
-                            onClick={() => setChiTietBaoGia(row.quotation)}
-                          >
-                            <FileText size={13} /> Chi tiết
-                          </button>
-                          <button
-                            className="btn btn-sm"
-                            style={{
-                              display: 'inline-flex', alignItems: 'center', gap: 5,
-                              background: existed ? 'var(--border)' : '#059669',
-                              color: existed ? 'var(--muted)' : '#fff',
-                              cursor: existed ? 'default' : 'pointer',
-                              fontSize: '0.78rem', padding: '5px 12px', borderRadius: 6,
-                            }}
-                            onClick={() => { if (!existed) setModalData({ sources: row.allSources, activeIndex: row.sourceIndex }); }}
-                            disabled={existed}
-                          >
-                            <PackageCheck size={13} /> {existed ? 'Đã có LSX' : 'Tạo LSX'}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
+                            ? allSources.reduce((sum, s) => sum + (s.input.quantity || 0), 0).toLocaleString('vi-VN')
+                            : source.input.quantity.toLocaleString('vi-VN')
+                          } <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '0.76rem' }}>{meta.quantityUnit}</span>
+                        </td>
+                        <td style={{ padding: '9px 12px', verticalAlign: 'middle', textAlign: 'right', fontWeight: 600 }}>
+                          {shownPrice.toLocaleString('vi-VN')} <span style={{ fontWeight: 400, color: 'var(--muted)', fontSize: '0.76rem' }}>đ/{meta.unit}</span>
+                        </td>
+                        <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                            <User size={12} style={{ color: 'var(--muted)' }} />
+                            <span style={{ fontSize: '0.8rem' }}>{nguoiTao}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.8rem', color: 'var(--muted)' }}>
+                            <Calendar size={12} />
+                            <span>{new Date(createdAt).toLocaleDateString('vi-VN')}</span>
+                          </div>
+                        </td>
+                        <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
+                          <span style={{ padding: '3px 8px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700, color: mau.fg, background: mau.bg, whiteSpace: 'nowrap' }}>
+                            ● {NHAN_TRANG_THAI_BAO_GIA[trangThai]}
+                          </span>
+                        </td>
+                        <td style={{ padding: '9px 12px', verticalAlign: 'middle', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+                            <button
+                              className="btn btn-sm btn-outline"
+                              style={btnSm}
+                              onClick={() => toggleExpand(row.quotation.id)}
+                            >
+                              {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                              {isExpanded ? 'Thu gọn' : 'Chi tiết'}
+                            </button>
+                            <button
+                              className="btn btn-sm"
+                              style={{
+                                ...btnSm,
+                                background: '#059669',
+                                color: '#fff',
+                              }}
+                              onClick={() => openTaoLsx(row.allSources, row.sourceIndex)}
+                            >
+                              <PackageCheck size={13} /> Tạo LSX
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+
+                      {isExpanded && (
+                        <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface2, #f8fafc)' }}>
+                          <td colSpan={10} style={{ padding: '8px 16px 12px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {allSources.map((sp, spIdx) => {
+                                const spMeta = getPricingDisplayMeta(sp.input);
+                                const orders = findOrdersForSource(sp.id);
+                                const spPrice = sp.chotGia ?? sp.finalPrice;
+                                return (
+                                  <div
+                                    key={sp.id}
+                                    style={{
+                                      border: '1px solid var(--border)',
+                                      borderRadius: 8,
+                                      padding: '10px 12px',
+                                      background: 'var(--surface, #fff)',
+                                    }}
+                                  >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                                      <div style={{ flex: 1, minWidth: 200 }}>
+                                        <div style={{ fontWeight: 700, fontSize: '0.84rem' }}>
+                                          SP{spIdx + 1}. {sp.productName || '—'}
+                                        </div>
+                                        <div style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 2 }}>
+                                          {sp.structure || '—'}
+                                        </div>
+                                        <div style={{ fontSize: '0.78rem', marginTop: 4 }}>
+                                          SL: <b>{(sp.input.quantity || 0).toLocaleString('vi-VN')} {spMeta.quantityUnit}</b>
+                                          {' · '}
+                                          Giá: <b>{spPrice.toLocaleString('vi-VN')} đ/{spMeta.unit}</b>
+                                          {sp.input.productType === 'tui' && sp.input.bagType
+                                            ? ` · ${sp.input.bagType}`
+                                            : ''}
+                                        </div>
+                                      </div>
+                                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                                        <button
+                                          className="btn btn-sm btn-outline"
+                                          style={btnSm}
+                                          onClick={() => openXemBg(row.quotation)}
+                                          title="Xem PDF báo giá"
+                                        >
+                                          <Eye size={13} /> Xem BG
+                                        </button>
+                                        <button
+                                          className="btn btn-sm"
+                                          style={{ ...btnSm, background: '#059669', color: '#fff' }}
+                                          onClick={() => openTaoLsx(allSources, spIdx)}
+                                        >
+                                          <PackageCheck size={13} /> Tạo LSX
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    {orders.length > 0 && (
+                                      <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border)' }}>
+                                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--muted)', marginBottom: 6 }}>
+                                          LSX đã tạo ({orders.length})
+                                        </div>
+                                        {orders.map(ord => (
+                                          <div
+                                            key={ord.id}
+                                            style={{
+                                              display: 'flex', alignItems: 'center', gap: 8,
+                                              flexWrap: 'wrap', marginBottom: 4,
+                                              fontSize: '0.78rem',
+                                            }}
+                                          >
+                                            <span style={{ fontWeight: 700, fontFamily: 'monospace' }}>
+                                              {ord.manual.lsxNumber || ord.id}
+                                            </span>
+                                            <span style={{ color: 'var(--muted)' }}>
+                                              {new Date(ord.createdAt).toLocaleDateString('vi-VN')}
+                                            </span>
+                                            <button
+                                              className="btn btn-sm btn-outline"
+                                              style={btnSm}
+                                              onClick={() => setPreviewLsx(ord)}
+                                            >
+                                              <Eye size={12} /> Review LSX
+                                            </button>
+                                            <button
+                                              className="btn btn-sm btn-outline"
+                                              style={btnSm}
+                                              disabled={exportingId === ord.id + '-docx'}
+                                              onClick={() => handleExportLsxDocx(ord)}
+                                            >
+                                              {exportingId === ord.id + '-docx'
+                                                ? <Loader2 size={12} className="um-spin" />
+                                                : <FileType size={12} />}
+                                              Xuất DOCX
+                                            </button>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+
+                              <div style={{ display: 'flex', gap: 8, marginTop: 2 }}>
+                                <button
+                                  className="btn btn-sm btn-outline"
+                                  style={btnSm}
+                                  onClick={() => setChiTietBaoGia(row.quotation)}
+                                >
+                                  <FileText size={13} /> Chi tiết báo giá (panel)
+                                </button>
+                                <button
+                                  className="btn btn-sm btn-outline"
+                                  style={btnSm}
+                                  onClick={() => openXemBg(row.quotation)}
+                                >
+                                  <Eye size={13} /> Xem PDF báo giá
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>

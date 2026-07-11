@@ -33,10 +33,11 @@ function makeOrder(patch: Partial<ProductionOrder>): ProductionOrder {
       laminateFilm1: '', laminateFilm1Width: 0, lamWaste: 0, lamProductQty: 0, lamBTP: 0, laminateFilm2: '', laminateNotes: '', lamMaterialSupplyQty: '', lamProductUnit: '', lamBTPNote: '',
       packagingInfo: '', packagingNotes: '', deliveryNotes: '',
       sealEdge: '', foldBottom: '', tearNotch: '', hanTruoc: 0, hanSau: 0, hanBien: 0, hanDau: 0, xepHong: 0, holePunchInfo: '', ventHoleInfo: '', bagWasteMeters: 0, bagLuuY: '', useSemicircularMold: false, useDualCutter: false, bagMachineWaste: 0, bagDeliveryReq: '', bagMachineNotes: '',
+      tamZipperCachMieng: 0, loTreoInfo: '', danLung: 0, danLungLech: 0, danDay: 0, nap: 0, songSieuAm: 0, docQuaiXach: false, danKeoNap: false,
     },
     snapshot: {
       customer: 'Cong ty Gao Viet Xanh', productName: 'Tui gao ST25', productType: 'tui', structure: 'PET 12//MPET 12//LLDPE 120', quantity: 10000,
-      spreadWidth: 0.32, cutStep: 0.48, numColors: 4, bagType: '3bien', cylLength: 0.7, cylCircum: 0.48, filmRollLength: 6000,
+      spreadWidth: 0.32, cutStep: 0.48, numColors: 4, bagType: '3bien', hasZipper: false, hasDivide: false, cylLength: 0.7, cylCircum: 0.48, filmRollLength: 6000,
       layer1Name: 'PET', layer2Name: 'MPET', layer3Name: 'LLDPE', layer4Name: '', layer5Name: '', chotGia: 25000, totalArea: 1536,
     },
     ...patch,

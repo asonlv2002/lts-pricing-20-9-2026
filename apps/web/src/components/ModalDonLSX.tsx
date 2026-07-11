@@ -7,11 +7,11 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import React, { useState, useCallback, useEffect, useMemo } from 'react';
-import { X, FileDown, FileText, Loader2, ChevronDown } from 'lucide-react';
+import { X, FileText, Loader2, ChevronDown } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { LsxSourceData, ProductionOrder, LSXManualFields } from '../lib/types';
-import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, type LsxBagTypeInfo } from '../lib/lsx-bag-classification';
-import { exportLSXtoPDF, exportLSXtoDOCX } from '../lib/lsxExport';
+import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, resolveLsxHasDivide, type LsxBagTypeInfo } from '../lib/lsx-bag-classification';
+import { exportLSXtoDOCX } from '../lib/lsxExport';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function todayStr(): string {
@@ -322,12 +322,16 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
     }
     m.numCylinders = (i.numColors || 0) as number;
     m.soLuongDHNote = `${i.quantity.toLocaleString('vi-VN')} ${tui ? 'túi' : 'm²'}`;
+    // Prefill khổ chia từ báo giá (hasDivide / divideWidthMm)
+    if (i.divideWidthMm && i.divideWidthMm > 0) {
+      m.divideWidth = i.divideWidthMm;
+    }
     if (tui) applyBagDefaults(m, bagInfo);
     return m;
   }
 
   const [manual, setManual] = useState<LSXManualFields>(() => initManual(sourceData, autoBagType));
-  const [loading, setLoading] = useState<'pdf' | 'docx' | null>(null);
+  const [loading, setLoading] = useState(false);
   const [done, setDone] = useState(false);
 
   useEffect(() => {
@@ -343,6 +347,14 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
   const showDropdown = sources.length > 1;
 
   const activeBagType = getActiveBagType();
+
+  const showDivide = useMemo(
+    () => resolveLsxHasDivide(
+      { hasDivide: !!inp.hasDivide, divideWidthMm: inp.divideWidthMm },
+      manual.divideWidth,
+    ),
+    [inp.hasDivide, inp.divideWidthMm, manual.divideWidth],
+  );
 
   function isFieldVisible(field: keyof LSXManualFields): boolean {
     if (!isTui) return false;
@@ -375,6 +387,10 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
       numColors: inp.numColors,
       bagType: inp.bagType,
       hasZipper: inp.hasZipper || false,
+      hasDivide: !!inp.hasDivide || (inp.divideWidthMm ?? 0) > 0 || (manual.divideWidth ?? 0) > 0,
+      divideWidthMm: inp.divideWidthMm || manual.divideWidth || undefined,
+      originalWidthMm: inp.originalWidthMm || undefined,
+      numImages: inp.numImages || undefined,
       cylLength: inp.cylLength,
       cylCircum: inp.cylCircum,
       filmRollLength: inp.filmRollLength,
@@ -388,8 +404,8 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
     };
   }
 
-  async function handleSubmit(format: 'pdf' | 'docx') {
-    setLoading(format);
+  async function handleSubmit() {
+    setLoading(true);
     try {
       const order: ProductionOrder = {
         id: genOrderId(),
@@ -400,15 +416,8 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
         snapshot: buildSnapshot(),
       };
 
-      // Lưu vào store + server
       await themLSX(order);
-
-      // Xuất file
-      if (format === 'pdf') {
-        await exportLSXtoPDF(order);
-      } else {
-        await exportLSXtoDOCX(order);
-      }
+      await exportLSXtoDOCX(order);
 
       setDone(true);
       setTimeout(() => onClose(), 1200);
@@ -416,7 +425,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
       console.error('[LSX] Export error:', err);
       alert('Có lỗi khi xuất file. Vui lòng thử lại.');
     } finally {
-      setLoading(null);
+      setLoading(false);
     }
   }
 
@@ -655,15 +664,17 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
             </tbody>
           </table>
 
-          {/* ═══════ MÁY IN + MÁY GHÉP (cạnh nhau) ═══════ */}
+          {/* ═══════ MÁY IN + MÁY GHÉP / MÁY CHIA ═══════ */}
           <table style={styles.table}>
             <tbody>
               <tr>
                 <td colSpan={4} style={{ ...styles.secBlue, width: '50%' }}>MÁY IN</td>
-                <td colSpan={4} style={{ ...styles.secBlue, width: '50%' }}>{isTui ? 'MÁY GHÉP' : 'MÁY CHIA'}</td>
+                <td colSpan={4} style={{ ...styles.secBlue, width: '50%' }}>
+                  {isTui ? 'MÁY GHÉP' : (showDivide ? 'MÁY CHIA' : '')}
+                </td>
               </tr>
 
-              {/* Row 1: Màng in + Khổ | Màng ghép + Khổ */}
+              {/* Row 1: Màng in + Khổ | Màng ghép / Khổ chia */}
               <tr>
                 <td style={styles.lbl}>Màng in:</td>
                 <td style={styles.td}>
@@ -684,19 +695,21 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                       <NI value={manual.laminateFilm1Width} onChange={v => upd('laminateFilm1Width', v)} placeholder="640" />mm
                     </td>
                   </>
-                ) : (
+                ) : showDivide ? (
                   <>
                     <td style={styles.lbl}>Khổ màng:</td>
-                    <td style={styles.td}>{khoMM}mm</td>
+                    <td style={styles.td}>{inp.originalWidthMm || khoMM}mm</td>
                     <td style={styles.lbl}>Khổ chia:</td>
                     <td style={styles.td}>
                       <NI value={manual.divideWidth} onChange={v => upd('divideWidth', v)} placeholder="mm" />mm
                     </td>
                   </>
+                ) : (
+                  <td colSpan={4} style={styles.td}></td>
                 )}
               </tr>
 
-              {/* Row 2: Trục in: D × W, MST | ĐM phi hao */}
+              {/* Row 2: Trục in: D × W, MST | ĐM phi hao / chia */}
               <tr>
                 <td style={styles.lbl}>Trục in:</td>
                 <td style={styles.td}>
@@ -725,7 +738,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                     </td>
                     <td style={styles.lbl} colSpan={2} rowSpan={1}></td>
                   </>
-                ) : (
+                ) : showDivide ? (
                   <>
                     <td style={styles.lbl}>Chiều dài cuộn:</td>
                     <td style={styles.td}>
@@ -736,6 +749,8 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                       <NI value={manual.divideRollOutWidth} onChange={v => upd('divideRollOutWidth', v)} placeholder="mm" />mm
                     </td>
                   </>
+                ) : (
+                  <td colSpan={4} style={styles.td}></td>
                 )}
               </tr>
 
@@ -764,7 +779,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                 )}
               </tr>
 
-              {/* Row 4: ĐM phi hao | SL cấp vật tư */}
+              {/* Row 4: ĐM phi hao | SL cấp vật tư / ghi chú chia */}
               <tr>
                 <td style={styles.lbl}>Định mức phi hao:</td>
                 <td colSpan={3} style={styles.td}>
@@ -777,17 +792,19 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                       <TI value={manual.lamMaterialSupplyQty} onChange={v => upd('lamMaterialSupplyQty', v)} placeholder="" />
                     </td>
                   </>
-                ) : (
+                ) : showDivide ? (
                   <>
                     <td style={styles.lbl}>Ghi chú:</td>
                     <td colSpan={3} style={styles.td}>
                       <TI value={manual.divideNotes} onChange={v => upd('divideNotes', v)} placeholder="" />
                     </td>
                   </>
+                ) : (
+                  <td colSpan={4} style={styles.td}></td>
                 )}
               </tr>
 
-              {/* Row 5: Thành phẩm in | Ghi chú */}
+              {/* Row 5: Thành phẩm in | Ghi chú ghép */}
               <tr>
                 <td style={styles.lbl}>Thành phẩm in:</td>
                 <td colSpan={3} style={styles.td}>
@@ -807,18 +824,14 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                 )}
               </tr>
 
-              {/* Row 6: Ghi chú máy in (dài) */}
+              {/* Row 6: Ghi chú máy in */}
               <tr>
                 <td style={styles.lbl}>Ghi chú:</td>
                 <td colSpan={3} style={styles.td}>
                   <TA value={manual.printNotes} onChange={v => upd('printNotes', v)}
                     placeholder="PA15-640: tồn kho&#10;=> Duyệt Chạy mẫu sắc theo Epson giấy có chữ ký khách, Nội dung theo file, Sáng duyệt lại mẫu in" rows={3} />
                 </td>
-                {isTui ? (
-                  <td colSpan={4} style={styles.td}></td>
-                ) : (
-                  <td colSpan={4} style={styles.td}></td>
-                )}
+                <td colSpan={4} style={styles.td}></td>
               </tr>
 
               {/* Row 7: Trục in (vế) */}
@@ -831,6 +844,33 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
               </tr>
             </tbody>
           </table>
+
+          {/* ═══════ MÁY CHIA (túi có chia) ═══════ */}
+          {isTui && showDivide && (
+            <table style={styles.table}>
+              <tbody>
+                <tr>
+                  <td colSpan={8} style={styles.secBlue}>MÁY CHIA</td>
+                </tr>
+                <tr>
+                  <td style={styles.lbl}>Khổ màng:</td>
+                  <td style={styles.td}>{inp.originalWidthMm || khoMM}mm</td>
+                  <td style={styles.lbl}>Khổ chia:</td>
+                  <td style={styles.td}>
+                    <NI value={manual.divideWidth} onChange={v => upd('divideWidth', v)} placeholder="mm" />mm
+                  </td>
+                  <td style={styles.lbl}>Chiều dài:</td>
+                  <td style={styles.td}>
+                    <NI value={manual.rollLength} onChange={v => upd('rollLength', v)} placeholder="m" /> m
+                  </td>
+                  <td style={styles.lbl}>Ghi chú:</td>
+                  <td style={styles.td}>
+                    <TI value={manual.divideNotes} onChange={v => upd('divideNotes', v)} placeholder="" />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          )}
 
           {/* ═══════ MÁY LÀM TÚI (chỉ túi — full width) ═══════ */}
           {isTui && (
@@ -1037,8 +1077,8 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
             </table>
           )}
 
-          {/* ═══════ MÁY CHIA (chỉ màng) ═══════ */}
-          {isMang && (
+          {/* ═══════ YÊU CẦU GIAO HÀNG (màng có chia) ═══════ */}
+          {isMang && showDivide && (
             <table style={styles.table}>
               <tbody>
                 <tr>
@@ -1047,6 +1087,21 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                 <tr>
                   <td colSpan={8} style={{ ...styles.td, padding: '6px 8px' }}>
                     <TA value={manual.divideDeliveryReq} onChange={v => upd('divideDeliveryReq', v)}
+                      placeholder="Yêu cầu giao hàng..." rows={3} />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          )}
+          {isMang && !showDivide && (
+            <table style={styles.table}>
+              <tbody>
+                <tr>
+                  <td colSpan={8} style={styles.secBlue}>YÊU CẦU GIAO HÀNG</td>
+                </tr>
+                <tr>
+                  <td colSpan={8} style={{ ...styles.td, padding: '6px 8px' }}>
+                    <TA value={manual.deliveryNotes} onChange={v => upd('deliveryNotes', v)}
                       placeholder="Yêu cầu giao hàng..." rows={3} />
                   </td>
                 </tr>
@@ -1092,26 +1147,17 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
             </div>
           ) : (
             <>
-              <button className="btn btn-outline" onClick={onClose} disabled={!!loading} style={{ fontSize: '12px' }}>
+              <button className="btn btn-outline" onClick={onClose} disabled={loading} style={{ fontSize: '12px' }}>
                 Huỷ
               </button>
               <button
                 className="btn btn-sm"
                 style={{ background: '#1976D2', color: '#fff', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                onClick={() => handleSubmit('docx')}
-                disabled={!!loading}
+                onClick={() => handleSubmit()}
+                disabled={loading}
               >
-                {loading === 'docx' ? <Loader2 size={14} className="spin" /> : <FileText size={14} />}
+                {loading ? <Loader2 size={14} className="spin" /> : <FileText size={14} />}
                 Lưu & Xuất DOCX
-              </button>
-              <button
-                className="btn btn-sm"
-                style={{ background: '#2E7D32', color: '#fff', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                onClick={() => handleSubmit('pdf')}
-                disabled={!!loading}
-              >
-                {loading === 'pdf' ? <Loader2 size={14} className="spin" /> : <FileDown size={14} />}
-                Lưu & Xuất PDF
               </button>
             </>
           )}

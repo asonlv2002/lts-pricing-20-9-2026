@@ -1,16 +1,9 @@
 // ── Adapter: BaoGiaApi (server) → LsxSourceData (LSX input) ──────────────────
+// Dữ liệu báo giá từ server đã có sẵn finalPrice từ saleResult/masterResult,
+// structure từ layer IDs trong inputValue → không cần chạy lại engine Tính giá.
 import type { BaoGiaApi, PricingSheetApi, TrangThaiBaoGiaServer } from './api/service-lts';
 import { chuyenTrangThaiBaoGia } from './api/service-lts';
-import type { CalculateInput, LsxSourceData, Material, AppConstants, ProfitRow, SmallWidthMaterialPrice } from './types';
-import { dongBoCotLoiNhuan } from './engine';
-import { tinhBaoGia } from './manager-calculation';
-
-export interface AdapterContext {
-  materials: Material[];
-  constants: AppConstants;
-  profitTable: ProfitRow[];
-  smallWidthPrices: SmallWidthMaterialPrice[];
-}
+import type { CalculateInput, LsxSourceData } from './types';
 
 function laObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -26,19 +19,22 @@ function cauTrucTuInput(input: Partial<CalculateInput>): string {
     .join(' / ');
 }
 
+function layFinalPrice(sheet: PricingSheetApi): number {
+  const saleP = (sheet.saleResult as Record<string, unknown> | null | undefined)?.finalPrice;
+  if (typeof saleP === 'number') return saleP;
+  const masterP = (sheet.masterResult as Record<string, unknown> | null | undefined)?.finalPrice;
+  if (typeof masterP === 'number') return masterP;
+  return 0;
+}
+
 function tuPricingSheet(
   quotationId: string,
   sheet: PricingSheetApi,
-  ctx: AdapterContext,
 ): LsxSourceData | null {
   const rawInput = docInputBangTinh(sheet.inputValue);
   if (!rawInput.productType) return null;
 
-  const syncedInput = dongBoCotLoiNhuan(rawInput as CalculateInput, ctx.materials);
-  const result = tinhBaoGia(syncedInput, ctx.materials, ctx.constants, ctx.profitTable, ctx.smallWidthPrices);
-  if (!result) return null;
-
-  const customer = syncedInput.customer
+  const customer = rawInput.customer
     || sheet.customer?.codeName
     || sheet.customerCodeName
     || '—';
@@ -46,53 +42,45 @@ function tuPricingSheet(
   return {
     id: `${quotationId}:${sheet.id}`,
     customer,
-    productName: sheet.pricingSheetName || syncedInput.productName || '—',
-    structure: result.structureText || cauTrucTuInput(syncedInput),
-    finalPrice: result.finalPrice,
-    chotGia: syncedInput.chotGia || undefined,
-    input: syncedInput,
+    productName: sheet.pricingSheetName || rawInput.productName || '—',
+    structure: cauTrucTuInput(rawInput),
+    finalPrice: layFinalPrice(sheet),
+    chotGia: rawInput.chotGia || undefined,
+    input: rawInput as CalculateInput,
   };
 }
 
 function tuInputValueTrucTiep(
   quotationId: string,
   inputValue: unknown,
-  ctx: AdapterContext,
 ): LsxSourceData | null {
   const rawInput = docInputBangTinh(inputValue);
   if (!rawInput.productType) return null;
 
-  const syncedInput = dongBoCotLoiNhuan(rawInput as CalculateInput, ctx.materials);
-  const result = tinhBaoGia(syncedInput, ctx.materials, ctx.constants, ctx.profitTable, ctx.smallWidthPrices);
-  if (!result) return null;
-
   return {
     id: quotationId,
-    customer: syncedInput.customer || '—',
-    productName: syncedInput.productName || '—',
-    structure: result.structureText || cauTrucTuInput(syncedInput),
-    finalPrice: result.finalPrice,
-    chotGia: syncedInput.chotGia || undefined,
-    input: syncedInput,
+    customer: rawInput.customer || '—',
+    productName: rawInput.productName || '—',
+    structure: cauTrucTuInput(rawInput),
+    finalPrice: rawInput.chotGia ?? 0,
+    chotGia: rawInput.chotGia || undefined,
+    input: rawInput as CalculateInput,
   };
 }
 
-export function mapBaoGiaToLsxSources(
-  baoGia: BaoGiaApi,
-  ctx: AdapterContext,
-): LsxSourceData[] {
+export function mapBaoGiaToLsxSources(baoGia: BaoGiaApi): LsxSourceData[] {
   const results: LsxSourceData[] = [];
 
   const pricingSheets = baoGia.pricingSheets ?? [];
   if (pricingSheets.length > 0) {
     for (const sheet of pricingSheets) {
-      const mapped = tuPricingSheet(baoGia.id, sheet, ctx);
+      const mapped = tuPricingSheet(baoGia.id, sheet);
       if (mapped) results.push(mapped);
     }
     return results;
   }
 
-  const mapped = tuInputValueTrucTiep(baoGia.id, baoGia.inputValue, ctx);
+  const mapped = tuInputValueTrucTiep(baoGia.id, baoGia.inputValue);
   if (mapped) results.push(mapped);
   return results;
 }

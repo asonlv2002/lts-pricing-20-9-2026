@@ -632,6 +632,10 @@ export interface ProductionOrder {
     numColors: number | null;
     bagType: string;
     hasZipper: boolean;          // Có zipper hay không (để phân loại LSX khi export)
+    hasDivide: boolean;          // Báo giá bật "Có chia" → hiện MÁY CHIA trên LSX
+    divideWidthMm?: number;      // Khổ chia từ báo giá (mm)
+    originalWidthMm?: number;    // Khổ ban đầu trước chia (mm)
+    numImages?: number;          // Số con hình
     cylLength: number;          // Chiều dài trục (m)
     cylCircum: number;          // Chu vi trục (m)
     filmRollLength: number;     // Chiều dài cuộn màng (m)
