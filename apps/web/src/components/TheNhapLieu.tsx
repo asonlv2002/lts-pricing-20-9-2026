@@ -1091,7 +1091,8 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                 <div className="advanced-sub-title">🎀 Phụ kiện</div>
                 <div className="form-row-3">
                   <div className="form-group"><label className="form-check"><input type="checkbox" checked={input.hasZipper} onChange={e => capNhatDauVao({ hasZipper: e.target.checked })} /> Zipper (378đ/m)</label></div>
-                  <div className="form-group"><label className="form-check"><input type="checkbox" checked={input.hasTape} onChange={e => { const val = e.target.checked; capNhatDauVao({ hasTape: val, bagType: val && input.bagType === 'cutSeal' ? 'cutSealNapKeo' : !val && input.bagType === 'cutSealNapKeo' ? 'cutSeal' : input.bagType }); }} /> Băng keo</label></div>
+                  <div className="form-group"><label className="form-check"><input type="checkbox" checked={input.hasTape} onChange={e => { const val = e.target.checked; capNhatDauVao({ hasTape: val }); }} /> Băng keo</label></div>
+
                                     <div className="form-group">
                     <label className="form-check"><input type="checkbox" checked={input.hasHandle} onChange={e => capNhatDauVao({ hasHandle: e.target.checked, handleOptionKey: e.target.checked ? (input.handleOptionKey || constants.handleOptions?.[0]?.key || null) : null })} /> Quai</label>
                     {input.hasHandle && (

@@ -11,7 +11,9 @@ import { X, FileText, Loader2, FileDown } from 'lucide-react';
 
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { LsxSourceData, ProductionOrder, LSXManualFields } from '../lib/types';
-import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, resolveLsxHasDivide, type LsxBagTypeInfo } from '../lib/lsx-bag-classification';
+import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, resolveLsxStageFlags, applyBagDefaults, resolveLsxBagVisibleFields, type LsxBagTypeInfo } from '../lib/lsx-bag-classification';
+
+
 import { exportLSXtoDOCX } from '../lib/lsxExport';
 import { exportLSXtoPDF } from './LsxPdfDocument';
 
@@ -323,35 +325,31 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
     return autoBagType;
   }
 
-  function applyBagDefaults(m: LSXManualFields, info: LsxBagTypeInfo): LSXManualFields {
-    const defs = info.defaults;
-    for (const key of Object.keys(defs) as (keyof LSXManualFields)[]) {
-      (m as unknown as Record<string, unknown>)[key] = defs[key];
-    }
-    return m;
-  }
-
   function initManual(s: LsxSourceData, bagInfo: LsxBagTypeInfo) {
     const i = s.input;
     const m = defaultManual(genLSXNumber(productionOrders), currentSellerName);
     const tui = i.productType !== 'mang';
     m.tenSP = s.productName || '';
+    m.msp = (s.input as { productCode?: string }).productCode || '';
     m.printFilmName = getMaterialName(materials, i.layer1Id);
     const layerCount = [i.layer1Id, i.layer2Id, i.layer3Id, i.layer4Id, i.layer5Id].filter(Boolean).length;
     if (layerCount >= 2) {
       m.laminateFilm1 = getMaterialName(materials, i.layer2Id);
       m.laminateFilm1Width = Math.round(i.spreadWidth * 1000);
+      if (i.layer3Id) {
+        m.laminateFilm2 = getMaterialName(materials, i.layer3Id);
+      }
     }
     m.numCylinders = (i.numColors || 0) as number;
 
     m.soLuongDHNote = `${i.quantity.toLocaleString('vi-VN')} ${tui ? 'túi' : 'm²'}`;
-    // Prefill khổ chia từ báo giá (hasDivide / divideWidthMm)
     if (i.divideWidthMm && i.divideWidthMm > 0) {
       m.divideWidth = i.divideWidthMm;
     }
-    if (tui) applyBagDefaults(m, bagInfo);
+    if (tui) return applyBagDefaults(m, bagInfo, !!i.hasZipper);
     return m;
   }
+
 
   const [manual, setManual] = useState<LSXManualFields>(() => initManual(sourceData, autoBagType));
   const [loading, setLoading] = useState(false);
@@ -370,16 +368,25 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
 
 
   const showIn = (inp.numColors ?? 0) > 0;
-  const showGhep = [inp.layer1Id, inp.layer2Id, inp.layer3Id, inp.layer4Id, inp.layer5Id]
-    .filter(Boolean).length >= 2;
-  const showChia = useMemo(
-    () => resolveLsxHasDivide(
-      { hasDivide: !!inp.hasDivide, divideWidthMm: inp.divideWidthMm },
-      manual.divideWidth,
-    ),
-    [inp.hasDivide, inp.divideWidthMm, manual.divideWidth],
+  const stageFlags = useMemo(
+    () => resolveLsxStageFlags({
+      productType: inp.productType,
+      numColors: inp.numColors,
+      layer1Id: inp.layer1Id,
+      layer2Id: inp.layer2Id,
+      layer3Id: inp.layer3Id,
+      layer4Id: inp.layer4Id,
+      layer5Id: inp.layer5Id,
+      layer2AltId: inp.layer2AltId,
+      hasDivide: inp.hasDivide,
+      divideWidthMm: inp.divideWidthMm,
+    }, manual.divideWidth),
+    [inp.productType, inp.numColors, inp.layer1Id, inp.layer2Id, inp.layer3Id, inp.layer4Id, inp.layer5Id, inp.layer2AltId, inp.hasDivide, inp.divideWidthMm, manual.divideWidth],
   );
-  const showTui = isTui;
+  const showGhep = stageFlags.showGhep;
+  const showChia = stageFlags.showChia;
+  const showTui = stageFlags.showTui;
+  void stageFlags.hasDualStructure;
 
 
   function isFieldVisible(field: keyof LSXManualFields): boolean {
@@ -390,8 +397,10 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
     ];
     if (commonFields.includes(field)) return true;
     if (activeBagType.key === 'fallback') return true;
-    return activeBagType.extraFields.includes(field);
+    const visible = resolveLsxBagVisibleFields(activeBagType, !!inp.hasZipper);
+    return visible.includes(field);
   }
+
 
   const upd = useCallback(<K extends keyof LSXManualFields>(key: K, val: LSXManualFields[K]) => {
     setManual(prev => ({ ...prev, [key]: val }));
@@ -431,7 +440,20 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
   }
 
   async function handleSubmit(format: 'docx' | 'pdf' = 'docx') {
+    if (!sourceData.customer?.trim()) {
+      alert('Vui lòng có Khách hàng trước khi lưu LSX.');
+      return;
+    }
+    if (!manual.msp?.trim()) {
+      alert('Vui lòng nhập MSP (mã sản phẩm).');
+      return;
+    }
+    if (!manual.tenSP?.trim() && !sourceData.productName?.trim()) {
+      alert('Vui lòng nhập Tên sản phẩm.');
+      return;
+    }
     setLoading(true);
+
     try {
       const order: ProductionOrder = {
         id: genOrderId(),
@@ -905,14 +927,18 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                 {showChia && !showTui && (
                   <>
                     <tr>
-                      <td style={styles.lbl}>Khổ màng:</td>
+                      <td style={styles.lbl}>Khổ ban đầu:</td>
                       <td style={styles.td}>{inp.originalWidthMm || khoMM}mm</td>
                       <td style={styles.lbl}>Khổ chia:</td>
-                      <td style={styles.td} colSpan={5}>
+                      <td style={styles.td}>
                         <div style={styles.cellRow}>
                           <NI value={manual.divideWidth} onChange={v => upd('divideWidth', v)} placeholder="mm" />
                           <span>mm</span>
                         </div>
+                      </td>
+                      <td style={styles.lbl}>Số phần tử:</td>
+                      <td style={styles.td} colSpan={3}>
+                        <NI value={inp.divideElements || 0} onChange={() => {}} placeholder="2" />
                       </td>
                     </tr>
                     <tr>
@@ -948,18 +974,23 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                   </>
                 )}
 
+
                 {showChia && showTui && (
                   <tr>
                     <td colSpan={4} style={{ ...styles.td, verticalAlign: 'top' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
                         <div style={styles.cellRow}>
-                          <span style={{ fontWeight: 700, fontSize: '11px' }}>Khổ màng:</span>
+                          <span style={{ fontWeight: 700, fontSize: '11px' }}>Khổ ban đầu:</span>
                           <span>{inp.originalWidthMm || khoMM}mm</span>
                         </div>
                         <div style={styles.cellRow}>
                           <span style={{ fontWeight: 700, fontSize: '11px' }}>Khổ chia:</span>
                           <NI value={manual.divideWidth} onChange={v => upd('divideWidth', v)} placeholder="mm" style={{ width: '70px', maxWidth: '70px' }} />
                           <span>mm</span>
+                        </div>
+                        <div style={styles.cellRow}>
+                          <span style={{ fontWeight: 700, fontSize: '11px' }}>Số phần tử:</span>
+                          <span>{inp.divideElements || '—'}</span>
                         </div>
                         <div style={styles.cellRow}>
                           <span style={{ fontWeight: 700, fontSize: '11px' }}>Chiều dài:</span>

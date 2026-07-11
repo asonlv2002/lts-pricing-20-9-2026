@@ -31,7 +31,7 @@ function qty(n: number): string { return n > 0 ? n.toLocaleString('vi-VN') : '..
 function safeFn(s: string): string { return (s || 'unknown').replace(/[<>:"/\\|?*\s]+/g, '_').slice(0, 60); }
 
 // ── Template resolution (shared by DOCX export + tests) ───────────────────────
-export type LsxDocxTemplateKey = 'mang' | LsxBagTypeKey;
+export type LsxDocxTemplateKey = 'mang' | 'mang-in' | 'mang-ghep' | LsxBagTypeKey;
 
 export function resolveLsxDocxTemplate(order: ProductionOrder): LsxDocxTemplateKey {
   if (order.snapshot.productType === 'mang') return 'mang';
@@ -42,6 +42,7 @@ export function resolveLsxDocxTemplate(order: ProductionOrder): LsxDocxTemplateK
   }
   return classifyLsxBagType(order.snapshot.bagType || '', !!order.snapshot.hasZipper).key;
 }
+
 
 export function resolveLsxBagTypeInfo(order: ProductionOrder): LsxBagTypeInfo {
   if (order.snapshot.productType === 'mang') {
@@ -483,26 +484,17 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
         pushContinue([
           cell([para([run('Đục lỗ: ', { b: true }), run(v(m.holePunchInfo) || '…')])], { cs: rcs(3) }),
         ]);
-        break;
-
-      case 'tui-zipper-3-bien':
-        pushContinue([
-          cell([para([run('Hàn biên: ', { b: true }), run(v(m.hanBien, 'mm') || 'mặc định 10mm')])], { cs: rcs(1) }),
-          cell([para([run('Xếp đáy: ', { b: true }), run(v(m.foldBottom))])], { cs: rcs(2) }),
-        ]);
-        pushContinue([
-          cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch))])], { cs: rcs(3) }),
-        ]);
-        pushContinue([
-          cell([para([run('Hàn đầu: ', { b: true }), run(v(m.hanDau, 'mm') || '…')])], { cs: rcs(3) }),
-        ]);
-        pushContinue([
-          cell([
-            ...(m.useDualCutter ? [para([run('Sử dụng dao cắt 2 nhịp để cắt', { b: true })])] : []),
-            ...(m.useSemicircularMold ? [para([run('Sử dụng khuôn đáy đứng bán nguyệt', { b: true })])] : []),
-            ...((!m.useDualCutter && !m.useSemicircularMold) ? [para([run('')])] : []),
-          ], { cs: rcs(3) }),
-        ], 340);
+        if (s.hasZipper || m.tamZipperCachMieng || m.tearNotch || m.useDualCutter || m.useSemicircularMold) {
+          if (m.tearNotch) pushContinue([cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch))])], { cs: rcs(3) })]);
+          if (m.useDualCutter || m.useSemicircularMold) {
+            pushContinue([
+              cell([
+                ...(m.useDualCutter ? [para([run('Sử dụng dao cắt 2 nhịp để cắt', { b: true })])] : []),
+                ...(m.useSemicircularMold ? [para([run('Sử dụng khuôn đáy đứng bán nguyệt', { b: true })])] : []),
+              ], { cs: rcs(3) }),
+            ], 340);
+          }
+        }
         break;
 
       case 'tui-4-bien':
@@ -543,27 +535,31 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
         ]);
         break;
 
-      case 'tui-zipper-day-dung':
+      case 'tui-day-dung':
+        if (s.hasZipper || m.tamZipperCachMieng) {
+          pushContinue([
+            cell([para([run('Tâm zipper cách miệng: ', { b: true }), run(v(m.tamZipperCachMieng, 'mm') || '30mm')])], { cs: rcs(1) }),
+            cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch) || '2 bên cách miệng 15mm')])], { cs: rcs(2) }),
+          ]);
+        }
         pushContinue([
-          cell([para([run('Tâm zipper cách miệng: ', { b: true }), run(v(m.tamZipperCachMieng, 'mm') || '30mm')])], { cs: rcs(1) }),
-          cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch) || '2 bên cách miệng 15mm')])], { cs: rcs(2) }),
-        ]);
-        pushContinue([
-          cell([para([run('Dán biên: ', { b: true }), run(v(m.sealEdge) || '10mm')])], { cs: rcs(1) }),
+          cell([para([run('Dán biên: ', { b: true }), run(v(m.sealEdge) || v(m.hanBien, 'mm') || '10mm')])], { cs: rcs(1) }),
           cell([para([run('Xếp đáy: ', { b: true }), run(v(m.foldBottom) || '100mm')])], { cs: rcs(2) }),
         ]);
         break;
 
-      case 'tui-zipper-cat-seal':
-        pushContinue([
-          cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(v(m.tamZipperCachMieng, 'mm') || '25mm')])], { cs: rcs(3) }),
-        ]);
-        pushContinue([
-          cell([para([run('Đục treo lỗ tròn: ', { b: true }), run(v(m.loTreoInfo) || 'Ø8mm ở giữa khoảng cách miệng túi và tâm zipper')])], { cs: rcs(3) }),
-        ]);
+      case 'tui-cut-seal':
+        if (s.hasZipper || m.tamZipperCachMieng) {
+          pushContinue([
+            cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(v(m.tamZipperCachMieng, 'mm') || '25mm')])], { cs: rcs(3) }),
+          ]);
+          pushContinue([
+            cell([para([run('Đục treo lỗ tròn: ', { b: true }), run(v(m.loTreoInfo) || 'Ø8mm ở giữa khoảng cách miệng túi và tâm zipper')])], { cs: rcs(3) }),
+          ]);
+        }
         break;
 
-      case 'tui-cat-seal-nap-keo':
+      case 'tui-cut-seal-nap-keo':
         pushContinue([
           cell([para([run('Nắp: ', { b: true }), run(v(m.nap, 'mm') || '35mm')])], { cs: rcs(1) }),
           cell([para([run('Sóng siêu âm: ', { b: true }), run(v(m.songSieuAm, 'mm') || '32mm')])], { cs: rcs(2) }),

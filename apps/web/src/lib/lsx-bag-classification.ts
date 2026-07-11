@@ -1,91 +1,153 @@
-// ── Phân loại kiểu túi LSX từ (bagType, hasZipper) ──────────────────────────
-// Dùng chung cho ModalDonLSX (form nhập) và lsxExport.ts (xuất DOCX/PDF).
+// ── Phân loại sản phẩm LSX: 7 túi + màng; zipper = phụ kiện ─────────────────
+// Dùng chung ModalDonLSX, lsxExport, lsxHtml, LsxPdfDocument.
 // KHÔNG sửa bagType tính giá trong engine.
-// Tham chiếu: .claude/training/LSX-References.md Section 13.
+// Spec: session chốt — zipper không tạo loại SP; 7 dáng túi từ bagType.
 
 import type { LSXManualFields } from './types';
 
+/** 7 kiểu túi chuẩn + fallback nội bộ (data lạ / legacy). */
 export type LsxBagTypeKey =
   | 'tui-3-bien'
-  | 'tui-zipper-3-bien'
   | 'tui-4-bien'
   | 'tui-dan-lung-giua'
   | 'tui-xep-hong-lung-lech'
-  | 'tui-zipper-day-dung'
-  | 'tui-zipper-cat-seal'
-  | 'tui-cat-seal-nap-keo'
+  | 'tui-day-dung'
+  | 'tui-cut-seal'
+  | 'tui-cut-seal-nap-keo'
   | 'fallback';
+
+/** Key màng (phase 1: 2 profile; legacy `mang` = mang-in). */
+export type LsxFilmTypeKey = 'mang-in' | 'mang-ghep' | 'mang';
+
+export type LsxProductKey = LsxBagTypeKey | LsxFilmTypeKey;
 
 export interface LsxBagTypeInfo {
   key: LsxBagTypeKey;
   label: string;
-  extraFields: (keyof LSXManualFields)[];
+  /** Field máy túi theo kiểu dáng (không gồm zipper). */
+  baseFields: (keyof LSXManualFields)[];
+  /** Defaults khi chọn kiểu túi. */
   defaults: Partial<LSXManualFields>;
+  /** @deprecated dùng baseFields */
+  extraFields: (keyof LSXManualFields)[];
 }
+
+/** Field zipper khi hasZipper (phụ kiện). */
+export const ZIPPER_ACCESSORY_FIELDS: (keyof LSXManualFields)[] = [
+  'tamZipperCachMieng',
+  'tearNotch',
+  'loTreoInfo',
+  'useDualCutter',
+  'useSemicircularMold',
+];
+
+export const ZIPPER_ACCESSORY_DEFAULTS: Partial<LSXManualFields> = {
+  tamZipperCachMieng: 30,
+  tearNotch: '2 bên cách miệng 15mm',
+};
 
 const BAG_TYPES: Record<LsxBagTypeKey, LsxBagTypeInfo> = {
   'tui-3-bien': {
     key: 'tui-3-bien',
     label: 'Túi 3 biên',
-    extraFields: ['holePunchInfo'],
+    baseFields: ['holePunchInfo', 'sealEdge', 'hanBien', 'hanDau'],
     defaults: { hanDau: 30, sealEdge: '7mm', holePunchInfo: 'Lỗ tròn Ø8mm cách đầu túi 10mm' },
-  },
-  'tui-zipper-3-bien': {
-    key: 'tui-zipper-3-bien',
-    label: 'Túi zipper 3 biên',
-    extraFields: ['useDualCutter', 'useSemicircularMold'],
-    defaults: { hanBien: 10, useDualCutter: true, useSemicircularMold: true },
+    extraFields: ['holePunchInfo', 'sealEdge', 'hanBien', 'hanDau'],
   },
   'tui-4-bien': {
     key: 'tui-4-bien',
     label: 'Túi 4 biên',
-    extraFields: ['xepHong', 'holePunchInfo', 'ventHoleInfo'],
-    defaults: { hanBien: 10, hanDau: 50, xepHong: 60, holePunchInfo: '3 lỗ tròn quai xách (theo Market)', ventHoleInfo: '6 lỗ/mặt Ø1mm' },
+    baseFields: ['xepHong', 'holePunchInfo', 'ventHoleInfo', 'hanBien', 'hanDau'],
+    defaults: {
+      hanBien: 10,
+      hanDau: 50,
+      xepHong: 60,
+      holePunchInfo: '3 lỗ tròn quai xách (theo Market)',
+      ventHoleInfo: '6 lỗ/mặt Ø1mm',
+    },
+    extraFields: ['xepHong', 'holePunchInfo', 'ventHoleInfo', 'hanBien', 'hanDau'],
   },
   'tui-dan-lung-giua': {
     key: 'tui-dan-lung-giua',
     label: 'Túi dán lưng giữa',
-    extraFields: ['danLung', 'ventHoleInfo'],
+    baseFields: ['danLung', 'ventHoleInfo', 'hanDau'],
     defaults: { hanDau: 13, danLung: 13, ventHoleInfo: '2 lỗ trên/dưới' },
+    extraFields: ['danLung', 'ventHoleInfo', 'hanDau'],
   },
   'tui-xep-hong-lung-lech': {
     key: 'tui-xep-hong-lung-lech',
     label: 'Túi xếp hông dán lưng lệch',
-    extraFields: ['xepHong', 'danLungLech', 'danDay'],
+    baseFields: ['xepHong', 'danLungLech', 'danDay'],
     defaults: { xepHong: 73, danLungLech: 10, danDay: 10 },
+    extraFields: ['xepHong', 'danLungLech', 'danDay'],
   },
-  'tui-zipper-day-dung': {
-    key: 'tui-zipper-day-dung',
-    label: 'Túi zipper đáy đứng',
-    extraFields: ['tamZipperCachMieng', 'tearNotch', 'sealEdge', 'foldBottom'],
-    defaults: { tamZipperCachMieng: 30, tearNotch: '2 bên cách miệng 15mm', sealEdge: '10mm', foldBottom: '100mm' },
+  'tui-day-dung': {
+    key: 'tui-day-dung',
+    label: 'Túi đáy đứng',
+    baseFields: ['sealEdge', 'foldBottom', 'hanBien'],
+    defaults: { sealEdge: '10mm', foldBottom: '100mm', hanBien: 10 },
+    extraFields: ['sealEdge', 'foldBottom', 'hanBien'],
   },
-  'tui-zipper-cat-seal': {
-    key: 'tui-zipper-cat-seal',
-    label: 'Túi zipper cắt seal',
-    extraFields: ['tamZipperCachMieng', 'loTreoInfo'],
-    defaults: { tamZipperCachMieng: 25, loTreoInfo: 'Ø8mm ở giữa khoảng cách miệng túi và tâm zipper' },
+  'tui-cut-seal': {
+    key: 'tui-cut-seal',
+    label: 'Túi cắt seal',
+    baseFields: [],
+    defaults: {},
+    extraFields: [],
   },
-  'tui-cat-seal-nap-keo': {
-    key: 'tui-cat-seal-nap-keo',
+  'tui-cut-seal-nap-keo': {
+    key: 'tui-cut-seal-nap-keo',
     label: 'Túi cắt seal có nắp băng keo',
-    extraFields: ['nap', 'songSieuAm', 'docQuaiXach', 'danKeoNap'],
+    baseFields: ['nap', 'songSieuAm', 'docQuaiXach', 'danKeoNap'],
     defaults: { nap: 35, songSieuAm: 32, docQuaiXach: true, danKeoNap: true },
+    extraFields: ['nap', 'songSieuAm', 'docQuaiXach', 'danKeoNap'],
   },
-  'fallback': {
+  fallback: {
     key: 'fallback',
     label: 'Khác (hiện tất cả field)',
-    extraFields: [],
+    baseFields: [],
     defaults: {},
+    extraFields: [],
   },
 };
 
-export const ALL_LSX_BAG_TYPES: LsxBagTypeInfo[] = Object.values(BAG_TYPES);
+/** 7 loại túi cho dropdown (không fallback). */
+export const ALL_LSX_BAG_TYPES: LsxBagTypeInfo[] = (
+  [
+    'tui-3-bien',
+    'tui-4-bien',
+    'tui-dan-lung-giua',
+    'tui-xep-hong-lung-lech',
+    'tui-day-dung',
+    'tui-cut-seal',
+    'tui-cut-seal-nap-keo',
+  ] as const
+).map(k => BAG_TYPES[k]);
 
-export function classifyLsxBagType(bagType: string, hasZipper: boolean): LsxBagTypeInfo {
+/** Map override / template key cũ → key mới. */
+const LEGACY_KEY_MAP: Record<string, LsxBagTypeKey> = {
+  'tui-zipper-3-bien': 'tui-3-bien',
+  'tui-zipper-day-dung': 'tui-day-dung',
+  'tui-zipper-cat-seal': 'tui-cut-seal',
+  'tui-cat-seal-nap-keo': 'tui-cut-seal-nap-keo',
+};
+
+export function normalizeLegacyLsxKey(key: string): LsxBagTypeKey | LsxFilmTypeKey {
+  if (key === 'mang' || key === 'mang-in' || key === 'mang-ghep') return key as LsxFilmTypeKey;
+  if (LEGACY_KEY_MAP[key]) return LEGACY_KEY_MAP[key];
+  if (key in BAG_TYPES) return key as LsxBagTypeKey;
+  return 'fallback';
+}
+
+/**
+ * Phân loại túi chỉ từ bagType — hasZipper KHÔNG đổi key.
+ * @param _hasZipper giữ signature cũ cho callers; bị bỏ qua.
+ */
+export function classifyLsxBagType(bagType: string, _hasZipper?: boolean): LsxBagTypeInfo {
+  void _hasZipper;
   switch (bagType) {
     case '3bien':
-      return hasZipper ? BAG_TYPES['tui-zipper-3-bien'] : BAG_TYPES['tui-3-bien'];
+      return BAG_TYPES['tui-3-bien'];
     case '4bien':
       return BAG_TYPES['tui-4-bien'];
     case 'xephong_giua':
@@ -93,31 +155,71 @@ export function classifyLsxBagType(bagType: string, hasZipper: boolean): LsxBagT
     case 'xephong_lech':
       return BAG_TYPES['tui-xep-hong-lung-lech'];
     case 'dayDung':
-      return hasZipper ? BAG_TYPES['tui-zipper-day-dung'] : BAG_TYPES['fallback'];
+      return BAG_TYPES['tui-day-dung'];
     case 'cutSeal':
-      return hasZipper ? BAG_TYPES['tui-zipper-cat-seal'] : BAG_TYPES['tui-cat-seal-nap-keo'];
+      return BAG_TYPES['tui-cut-seal'];
+    case 'cutSealNapKeo':
+      return BAG_TYPES['tui-cut-seal-nap-keo'];
     default:
-      return BAG_TYPES['fallback'];
+      return BAG_TYPES.fallback;
   }
 }
 
 export function classifyLsxBagTypeByKey(key: string): LsxBagTypeInfo {
-  return BAG_TYPES[key as LsxBagTypeKey] ?? BAG_TYPES['fallback'];
+  const normalized = normalizeLegacyLsxKey(key);
+  if (normalized === 'mang' || normalized === 'mang-in' || normalized === 'mang-ghep') {
+    return BAG_TYPES.fallback;
+  }
+  return BAG_TYPES[normalized] ?? BAG_TYPES.fallback;
+}
+
+export function classifyLsxFilmType(filmType?: string): LsxFilmTypeKey {
+  if (filmType === 'mangGhep') return 'mang-ghep';
+  if (filmType === 'mangIn') return 'mang-in';
+  return 'mang';
+}
+
+/** Field máy túi visible: base kiểu + zipper nếu bật. */
+export function resolveLsxBagVisibleFields(
+  bagInfo: LsxBagTypeInfo,
+  hasZipper: boolean,
+): (keyof LSXManualFields)[] {
+  if (bagInfo.key === 'fallback') return [];
+  const fields = new Set<keyof LSXManualFields>(bagInfo.baseFields);
+  if (hasZipper) {
+    for (const f of ZIPPER_ACCESSORY_FIELDS) fields.add(f);
+  }
+  return [...fields];
+}
+
+export function applyBagDefaults(
+  m: LSXManualFields,
+  bagInfo: LsxBagTypeInfo,
+  hasZipper: boolean,
+): LSXManualFields {
+  const next = { ...m };
+  for (const [k, v] of Object.entries(bagInfo.defaults)) {
+    (next as Record<string, unknown>)[k] = v;
+  }
+  if (hasZipper) {
+    for (const [k, v] of Object.entries(ZIPPER_ACCESSORY_DEFAULTS)) {
+      (next as Record<string, unknown>)[k] = v;
+    }
+  }
+  return next;
 }
 
 export function needsLsxDivideSection(bagType: string, hasZipper: boolean): boolean {
-  // Legacy: trước đây gắn chia với zipper-cat-seal.
-  // Chia giờ theo hasDivide từ báo giá — xem resolveLsxHasDivide trong lsxExport.
   void bagType;
   void hasZipper;
   return false;
 }
 
-/** Strict: có chia chỉ khi BG bật hasDivide hoặc có khổ chia. */
-export function resolveLsxHasDivide(input: {
-  hasDivide?: boolean;
-  divideWidthMm?: number;
-}, manualDivideWidth?: number): boolean {
+/** Có chia chỉ khi BG bật hasDivide hoặc có khổ chia. */
+export function resolveLsxHasDivide(
+  input: { hasDivide?: boolean; divideWidthMm?: number },
+  manualDivideWidth?: number,
+): boolean {
   if (input.hasDivide === true) return true;
   if ((input.divideWidthMm ?? 0) > 0) return true;
   if ((manualDivideWidth ?? 0) > 0) return true;
@@ -125,7 +227,7 @@ export function resolveLsxHasDivide(input: {
 }
 
 /**
- * MVP layout khâu (sketch):
+ * Layout khâu:
  * A: tui + chia → in|ghép / chia|túi
  * B: tui + không chia → in|ghép / túi
  * F: mang + chia → in → chia
@@ -136,9 +238,46 @@ export type LsxStageLayout = 'A' | 'B' | 'F' | 'F_no_divide';
 export function resolveLsxStageLayout(opts: {
   productType: string;
   hasDivide: boolean;
-  hasLaminate: boolean; // ≥2 lớp
+  hasLaminate: boolean;
 }): LsxStageLayout {
+  void opts.hasLaminate;
   const isMang = opts.productType === 'mang';
   if (isMang) return opts.hasDivide ? 'F' : 'F_no_divide';
   return opts.hasDivide ? 'A' : 'B';
+}
+
+/** Cờ 4 công đoạn form LSX. */
+export function resolveLsxStageFlags(input: {
+  productType?: string;
+  numColors?: number | null;
+  layer1Id?: string | null;
+  layer2Id?: string | null;
+  layer3Id?: string | null;
+  layer4Id?: string | null;
+  layer5Id?: string | null;
+  layer2AltId?: string | null;
+  hasDivide?: boolean;
+  divideWidthMm?: number;
+}, manualDivideWidth?: number): {
+  showIn: boolean;
+  showGhep: boolean;
+  showChia: boolean;
+  showTui: boolean;
+  layerCount: number;
+  hasDualStructure: boolean;
+} {
+  const ids = [input.layer1Id, input.layer2Id, input.layer3Id, input.layer4Id, input.layer5Id].filter(Boolean);
+  const layerCount = ids.length;
+  const hasDualStructure = !!(input.layer2Id && input.layer2AltId);
+  return {
+    showIn: (input.numColors ?? 0) > 0,
+    showGhep: layerCount >= 2,
+    showChia: resolveLsxHasDivide(
+      { hasDivide: input.hasDivide, divideWidthMm: input.divideWidthMm },
+      manualDivideWidth,
+    ),
+    showTui: input.productType !== 'mang',
+    layerCount,
+    hasDualStructure,
+  };
 }

@@ -148,21 +148,28 @@ console.log('resolveLsxDocxTemplate');
 
 assert('mang', resolveLsxDocxTemplate(order('mang', '', false)) === 'mang');
 assert('tui-3-bien', resolveLsxDocxTemplate(order('tui', '3bien', false)) === 'tui-3-bien');
-assert('tui-zipper-3-bien', resolveLsxDocxTemplate(order('tui', '3bien', true)) === 'tui-zipper-3-bien');
+assert('tui-3-bien + zipper still 3-bien', resolveLsxDocxTemplate(order('tui', '3bien', true)) === 'tui-3-bien');
 assert('tui-4-bien', resolveLsxDocxTemplate(order('tui', '4bien', false)) === 'tui-4-bien');
 assert('tui-dan-lung-giua', resolveLsxDocxTemplate(order('tui', 'xephong_giua', false)) === 'tui-dan-lung-giua');
 assert('tui-xep-hong-lung-lech', resolveLsxDocxTemplate(order('tui', 'xephong_lech', false)) === 'tui-xep-hong-lung-lech');
-assert('tui-zipper-day-dung', resolveLsxDocxTemplate(order('tui', 'dayDung', true)) === 'tui-zipper-day-dung');
-assert('tui-zipper-cat-seal', resolveLsxDocxTemplate(order('tui', 'cutSeal', true)) === 'tui-zipper-cat-seal');
-assert('tui-cat-seal-nap-keo', resolveLsxDocxTemplate(order('tui', 'cutSeal', false)) === 'tui-cat-seal-nap-keo');
+assert('tui-day-dung no zipper', resolveLsxDocxTemplate(order('tui', 'dayDung', false)) === 'tui-day-dung');
+assert('tui-day-dung + zipper still day-dung', resolveLsxDocxTemplate(order('tui', 'dayDung', true)) === 'tui-day-dung');
+assert('tui-cut-seal + zipper', resolveLsxDocxTemplate(order('tui', 'cutSeal', true)) === 'tui-cut-seal');
+assert('tui-cut-seal no zipper', resolveLsxDocxTemplate(order('tui', 'cutSeal', false)) === 'tui-cut-seal');
+assert('tui-cut-seal-nap-keo', resolveLsxDocxTemplate(order('tui', 'cutSealNapKeo', false)) === 'tui-cut-seal-nap-keo');
+assert('legacy override zipper-3-bien → 3-bien', resolveLsxDocxTemplate(order('tui', '3bien', false, 'tui-zipper-3-bien')) === 'tui-3-bien');
 assert('override wins', resolveLsxDocxTemplate(order('tui', '3bien', false, 'tui-4-bien')) === 'tui-4-bien');
 assert(
   'label Túi 4 biên',
   resolveLsxBagTypeInfo(order('tui', '4bien', false)).label === 'Túi 4 biên',
 );
 assert(
-  'label zipper cắt seal',
-  resolveLsxBagTypeInfo(order('tui', 'cutSeal', true)).label === 'Túi zipper cắt seal',
+  'label cắt seal',
+  resolveLsxBagTypeInfo(order('tui', 'cutSeal', true)).label === 'Túi cắt seal',
+);
+assert(
+  'label đáy đứng',
+  resolveLsxBagTypeInfo(order('tui', 'dayDung', false)).label === 'Túi đáy đứng',
 );
 
 console.log('\nresolveLsxHasDivide / orderHasDivide');

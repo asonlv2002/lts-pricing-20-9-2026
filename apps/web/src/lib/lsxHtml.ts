@@ -122,7 +122,7 @@ type BagRow =
   | { kind: 'full'; text: string };
 
 /** Bag-machine field rows per template — mirrors reference document.xml */
-function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields): BagRow[] {
+function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields, hasZipper = false): BagRow[] {
   const rows: BagRow[] = [];
   switch (templateKey) {
     case 'tui-3-bien':
@@ -132,15 +132,9 @@ function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields): Bag
         right: `<span class="b">Hàn đầu: </span>${esc(v(m.hanDau, 'mm') || '30mm')}`,
       });
       rows.push({ kind: 'full', text: `<span class="b">Đục lỗ: </span>${esc(v(m.holePunchInfo) || '…')}` });
-      break;
-    case 'tui-zipper-3-bien':
-      rows.push({
-        kind: 'pair',
-        left: `<span class="b">Hàn biên: </span>${esc(v(m.hanBien, 'mm') || 'mặc định 10mm')}`,
-        right: `<span class="b">Xếp đáy: </span>${esc(v(m.foldBottom))}`,
-      });
-      rows.push({ kind: 'full', text: `<span class="b">Nhấn xé "v": </span>${esc(v(m.tearNotch))}` });
-      rows.push({ kind: 'full', text: `<span class="b">Hàn đầu: </span>${esc(v(m.hanDau, 'mm') || '…')}` });
+      if (hasZipper || m.tearNotch) {
+        rows.push({ kind: 'full', text: `<span class="b">Nhấn xé "v": </span>${esc(v(m.tearNotch))}` });
+      }
       {
         const extras: string[] = [];
         if (m.useDualCutter) extras.push('Sử dụng dao cắt 2 nhịp để cắt');
@@ -170,29 +164,33 @@ function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields): Bag
       rows.push({ kind: 'full', text: `<span class="b">Dán lưng lệch: </span>${esc(v(m.danLungLech, 'mm') || '10mm')}` });
       rows.push({ kind: 'full', text: `<span class="b">Dán đáy: </span>${esc(v(m.danDay, 'mm') || '10mm')}` });
       break;
-    case 'tui-zipper-day-dung':
+    case 'tui-day-dung':
+      if (hasZipper || m.tamZipperCachMieng) {
+        rows.push({
+          kind: 'pair',
+          left: `<span class="b">Tâm zipper cách miệng: </span>${esc(v(m.tamZipperCachMieng, 'mm') || '30mm')}`,
+          right: `<span class="b">Nhấn xé "v": </span>${esc(v(m.tearNotch) || '2 bên cách miệng 15mm')}`,
+        });
+      }
       rows.push({
         kind: 'pair',
-        left: `<span class="b">Tâm zipper cách miệng: </span>${esc(v(m.tamZipperCachMieng, 'mm') || '30mm')}`,
-        right: `<span class="b">Nhấn xé "v": </span>${esc(v(m.tearNotch) || '2 bên cách miệng 15mm')}`,
-      });
-      rows.push({
-        kind: 'pair',
-        left: `<span class="b">Dán biên: </span>${esc(v(m.sealEdge) || '10mm')}`,
+        left: `<span class="b">Dán biên: </span>${esc(v(m.sealEdge) || v(m.hanBien, 'mm') || '10mm')}`,
         right: `<span class="b">Xếp đáy: </span>${esc(v(m.foldBottom) || '100mm')}`,
       });
       break;
-    case 'tui-zipper-cat-seal':
-      rows.push({
-        kind: 'full',
-        text: `<span class="b">Tâm zipper cách đầu: </span>${esc(v(m.tamZipperCachMieng, 'mm') || '25mm')}`,
-      });
-      rows.push({
-        kind: 'full',
-        text: `<span class="b">Đục treo lỗ tròn: </span>${esc(v(m.loTreoInfo) || 'Ø8mm ở giữa khoảng cách miệng túi và tâm zipper')}`,
-      });
+    case 'tui-cut-seal':
+      if (hasZipper || m.tamZipperCachMieng) {
+        rows.push({
+          kind: 'full',
+          text: `<span class="b">Tâm zipper cách đầu: </span>${esc(v(m.tamZipperCachMieng, 'mm') || '25mm')}`,
+        });
+        rows.push({
+          kind: 'full',
+          text: `<span class="b">Đục treo lỗ tròn: </span>${esc(v(m.loTreoInfo) || 'Ø8mm ở giữa khoảng cách miệng túi và tâm zipper')}`,
+        });
+      }
       break;
-    case 'tui-cat-seal-nap-keo':
+    case 'tui-cut-seal-nap-keo':
       rows.push({ kind: 'full', text: `Nắp: ${esc(v(m.nap, 'mm') || '35mm')}` });
       rows.push({ kind: 'full', text: `Từ đầu đến sóng siêu âm : ${esc(v(m.songSieuAm, 'mm') || '32mm')}` });
       rows.push({
@@ -224,6 +222,7 @@ function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields): Bag
   }
   return rows;
 }
+
 
 /**
  * Render bag field row.
@@ -452,7 +451,8 @@ function tuiBodyHtml(order: ProductionOrder): string {
   const khoMM = Math.round((s.spreadWidth || 0) * 1000);
   const dlMM = Math.round((s.cutStep || 0) * 1000);
   const templateKey = resolveLsxDocxTemplate(order);
-  const fieldSpecs = bagFieldSpecs(templateKey, m);
+  const fieldSpecs = bagFieldSpecs(templateKey, m, !!s.hasZipper);
+
 
   // Left vMerge spans: kiểu túi + R/D + field rows + footer notes (layout A only)
   const leftRowspan = 1 + 1 + fieldSpecs.length + 1;

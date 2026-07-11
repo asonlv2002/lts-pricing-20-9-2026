@@ -409,30 +409,17 @@ function bagTemplateLines(
       push(
         <Line key="b2" label="Đục lỗ: " value={v(m.holePunchInfo) || "…"} />,
       );
-      break;
-
-    case "tui-zipper-3-bien":
-      push(
-        <Text key="z1">
-          <Text style={styles.bold}>Hàn biên: </Text>
-          {v(m.hanBien, "mm") || "mặc định 10mm"}
-          {"   "}
-          <Text style={styles.bold}>Xếp đáy: </Text>
-          {v(m.foldBottom)}
-        </Text>,
-      );
-      push(<Line key="z2" label='Nhấn xé "v": ' value={v(m.tearNotch)} />);
-      push(<Line key="z3" label="Hàn đầu: " value={v(m.hanDau, "mm") || "…"} />);
+      if (m.tearNotch) push(<Line key="b3" label='Nhấn xé "v": ' value={v(m.tearNotch)} />);
       if (m.useDualCutter) {
         push(
-          <Text key="z4" style={styles.bold}>
+          <Text key="b4" style={styles.bold}>
             Sử dụng dao cắt 2 nhịp để cắt
           </Text>,
         );
       }
       if (m.useSemicircularMold) {
         push(
-          <Text key="z5" style={styles.bold}>
+          <Text key="b5" style={styles.bold}>
             Sử dụng khuôn đáy đứng bán nguyệt
           </Text>,
         );
@@ -485,20 +472,22 @@ function bagTemplateLines(
       );
       break;
 
-    case "tui-zipper-day-dung":
-      push(
-        <Text key="s1">
-          <Text style={styles.bold}>Tâm zipper cách miệng: </Text>
-          {v(m.tamZipperCachMieng, "mm") || "30mm"}
-          {"   "}
-          <Text style={styles.bold}>Nhấn xé &quot;v&quot;: </Text>
-          {v(m.tearNotch) || "2 bên cách miệng 15mm"}
-        </Text>,
-      );
+    case "tui-day-dung":
+      if (m.tamZipperCachMieng || m.tearNotch) {
+        push(
+          <Text key="s1">
+            <Text style={styles.bold}>Tâm zipper cách miệng: </Text>
+            {v(m.tamZipperCachMieng, "mm") || "30mm"}
+            {"   "}
+            <Text style={styles.bold}>Nhấn xé &quot;v&quot;: </Text>
+            {v(m.tearNotch) || "2 bên cách miệng 15mm"}
+          </Text>,
+        );
+      }
       push(
         <Text key="s2">
           <Text style={styles.bold}>Dán biên: </Text>
-          {v(m.sealEdge) || "10mm"}
+          {v(m.sealEdge) || v(m.hanBien, "mm") || "10mm"}
           {"   "}
           <Text style={styles.bold}>Xếp đáy: </Text>
           {v(m.foldBottom) || "100mm"}
@@ -506,27 +495,29 @@ function bagTemplateLines(
       );
       break;
 
-    case "tui-zipper-cat-seal":
-      push(
-        <Line
-          key="c1"
-          label="Tâm zipper cách đầu: "
-          value={v(m.tamZipperCachMieng, "mm") || "25mm"}
-        />,
-      );
-      push(
-        <Line
-          key="c2"
-          label="Đục treo lỗ tròn: "
-          value={
-            v(m.loTreoInfo) ||
-            "Ø8mm ở giữa khoảng cách miệng túi và tâm zipper"
-          }
-        />,
-      );
+    case "tui-cut-seal":
+      if (m.tamZipperCachMieng || m.loTreoInfo) {
+        push(
+          <Line
+            key="c1"
+            label="Tâm zipper cách đầu: "
+            value={v(m.tamZipperCachMieng, "mm") || "25mm"}
+          />,
+        );
+        push(
+          <Line
+            key="c2"
+            label="Đục treo lỗ tròn: "
+            value={
+              v(m.loTreoInfo) ||
+              "Ø8mm ở giữa khoảng cách miệng túi và tâm zipper"
+            }
+          />,
+        );
+      }
       break;
 
-    case "tui-cat-seal-nap-keo":
+    case "tui-cut-seal-nap-keo":
       push(
         <Text key="n1">
           <Text style={styles.bold}>Nắp: </Text>
@@ -583,6 +574,7 @@ function bagTemplateLines(
       }
       break;
   }
+
   return lines;
 }
 
