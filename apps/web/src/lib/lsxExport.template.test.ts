@@ -9,7 +9,19 @@ import {
   resolveLsxBagTypeInfo,
   orderHasDivide,
   orderStageLayout,
+  resolveLsxLaminateRows,
+  formatLsxLamWasteText,
+  toCylMm,
+  resolveLsxCylMm,
+  formatLsxCylText,
+  formatLsxNumCylinders,
+  formatLsxPrintWasteLine,
+  formatLsxPrintProductLine,
+  formatLsxLamProductLine,
+  formatLsxLamSupplyLine,
+  buildLsxLamBtpNote,
 } from './lsxExport';
+
 import { resolveLsxHasDivide, resolveLsxStageLayout } from './lsx-bag-classification';
 
 let passed = 0;
@@ -68,7 +80,10 @@ function baseManual(partial: Partial<LSXManualFields> = {}): LSXManualFields {
     lamMaterialSupplyQty: '',
     lamProductUnit: 'MD',
     lamBTPNote: '',
+    laminateLayers: [],
+    divideElements: 0,
     packagingInfo: '',
+
     packagingNotes: '',
     deliveryNotes: '',
     sealEdge: '',
@@ -221,5 +236,84 @@ assert(
   orderStageLayout(order('mang', '', false)) === 'F_no_divide',
 );
 
+console.log('\nresolveLsxLaminateRows / formatLsxLamWasteText');
+
+{
+  const o = order('tui', '3bien', false);
+  o.manual.laminateLayers = [
+    { layerIndex: 2, label: 'Màng ghép 1', parts: [{ name: 'PET12', widthMm: 325 }], wasteMeters: 100 },
+    { layerIndex: 2, label: 'Màng ghép 2', parts: [{ name: 'MPET12', widthMm: 325 }], wasteMeters: 0 },
+    { layerIndex: 3, label: 'Màng ghép 3', parts: [{ name: 'LLDPE', widthMm: 325 }], wasteMeters: 60 },
+  ];
+  const rows = resolveLsxLaminateRows(o);
+  assert('3 màng ghép rows', rows.length === 3);
+  assert('row1 name', rows[0].name === 'PET12');
+  assert('row2 name', rows[1].name === 'MPET12');
+  assert('row3 name', rows[2].name === 'LLDPE');
+  assert(
+    'waste L1 L2 only non-zero passes',
+    formatLsxLamWasteText(rows) === 'L1: 100m, L2: 60m',
+  );
+  assert('has laminate stage', orderStageLayout(o) === 'B');
+}
+
+{
+  const o = order('tui', '3bien', false);
+  o.manual.laminateFilm1 = 'A';
+  o.manual.laminateFilm2 = 'B';
+  o.manual.lamWaste = 50;
+  o.manual.lamBTP = 40;
+  const rows = resolveLsxLaminateRows(o);
+  assert('legacy 2 rows', rows.length === 2);
+  assert('legacy waste', formatLsxLamWasteText(rows) === 'L1: 50m, L2: 40m');
+}
+
+console.log('\nIN/GHÉP format helpers');
+
+assert('toCylMm meters', toCylMm(0.75) === 750);
+assert('toCylMm already mm', toCylMm(750) === 750);
+assert('toCylMm zero', toCylMm(0) === 0);
+
+{
+  const o = order('tui', '3bien', false);
+  // snapshot cylLength=0.7, cylCircum=0.4
+  const cyl = resolveLsxCylMm(o.manual, o.snapshot);
+  assert('resolve cyl from snapshot m', cyl.d === 700 && cyl.cv === 400);
+  assert('format cyl text', formatLsxCylText(o.manual, o.snapshot) === 'Dài 700 x Chu vi 400');
+  o.manual.cylDiameter = 850;
+  o.manual.cylWidth = 442;
+  assert('manual cyl wins', formatLsxCylText(o.manual, o.snapshot) === 'Dài 850 x Chu vi 442');
+  assert(
+    'format cyl with mm',
+    formatLsxCylText(o.manual, o.snapshot, { withMm: true }) === 'Dài 850mm x Chu vi 442mm',
+  );
+}
+
+assert('num cylinders pad', formatLsxNumCylinders({ numCylinders: 8 }) === '08 trục');
+assert('num cylinders fallback', formatLsxNumCylinders({ numCylinders: 0 }) === '= số màu');
+assert('num cylinders empty', formatLsxNumCylinders({ numCylinders: 0 }, false) === '…');
+
+assert(
+  'print waste line',
+  formatLsxPrintWasteLine({ printWastePercent: 2320 }) === '2.320m'
+    || formatLsxPrintWasteLine({ printWastePercent: 2320 }) === '2320m',
+);
+assert('print waste empty', formatLsxPrintWasteLine({ printWastePercent: 0 }, '…') === '…');
+assert(
+  'print product',
+  formatLsxPrintProductLine({ printProductQty: 3300, printProductUnit: 'MD' }).includes('MD'),
+);
+assert(
+  'lam product',
+  formatLsxLamProductLine({ lamProductQty: 3180, lamProductUnit: 'MD' }).includes('MD'),
+);
+assert('lam supply', formatLsxLamSupplyLine({ lamMaterialSupplyQty: 'tồn kho' }) === 'tồn kho');
+assert('lam supply empty', formatLsxLamSupplyLine({ lamMaterialSupplyQty: '' }, '…') === '…');
+assert(
+  'btp note',
+  buildLsxLamBtpNote(3300).includes('ghép hết BTP in') && buildLsxLamBtpNote(3300).includes('3'),
+);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
+

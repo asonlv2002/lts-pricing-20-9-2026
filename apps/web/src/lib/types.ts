@@ -567,14 +567,24 @@ export interface LSXManualFields {
   // Máy Ghép (chỉ túi)
   laminateFilm1: string;        // Màng ghép (tên/mã, vd: I.LDPE130)
   laminateFilm1Width: number;   // Khổ màng ghép (mm)
-  lamWaste: number;             // Định mức phù hao ghép (m)
+  lamWaste: number;             // Định mức phù hao ghép lần 1 (m) — legacy
   lamProductQty: number;        // Thành phẩm ghép (m²)
   lamBTP: number;               // BTP (m)
-  laminateFilm2: string;        // Chi tiết phụ (vd: I.LDPE130-K640)
+  laminateFilm2: string;        // Màng ghép 2 (legacy string)
   laminateNotes: string;        // Ghi chú máy ghép
   lamMaterialSupplyQty: string; // Số lượng cấp vật tư (text)
   lamProductUnit: string;       // Đơn vị thành phẩm ghép (vd: "MD")
   lamBTPNote: string;           // Ghi chú BTP (vd: "ghép hết BTP in 3.300m")
+  /** Các lớp ghép động (L2…Ln); mỗi phần tử 1 dòng form. Dual-structure: nhiều parts. */
+  laminateLayers?: Array<{
+    layerIndex: number;
+    label: string;
+    parts: Array<{ name: string; widthMm: number }>;
+    wasteMeters: number;
+  }>;
+  /** Số phần tử chia (sửa trên form LSX). */
+  divideElements?: number;
+
 
   // Phần giữa — SL đóng gói & yêu cầu giao hàng
   packagingInfo: string;        // Thông tin đóng gói (vd: "2 cái × 4.000 túi")

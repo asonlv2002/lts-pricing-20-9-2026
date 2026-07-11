@@ -13,6 +13,14 @@ import {
   orderHasDivide,
   resolveLsxBagTypeInfo,
   resolveLsxDocxTemplate,
+  resolveLsxLaminateRows,
+  formatLsxLamWasteText,
+  formatLsxCylText,
+  formatLsxNumCylinders,
+  formatLsxPrintWasteLine,
+  formatLsxPrintProductLine,
+  formatLsxLamProductLine,
+  formatLsxLamSupplyLine,
   type LsxDocxTemplateKey,
 } from "../lib/lsxExport";
 
@@ -35,18 +43,18 @@ const styles = StyleSheet.create({
   page: {
     fontFamily: FONT,
     fontSize: 10,
-    paddingTop: 28,
+    paddingTop: 32,
     paddingBottom: 28,
     paddingLeft: 40,
     paddingRight: 32,
-    lineHeight: 1.2,
+    lineHeight: 1.25,
   },
   isoTable: { width: "100%", borderLeft: BORDER, borderTop: BORDER, marginBottom: 6 },
   isoRow: { flexDirection: "row" },
   isoCell: {
     borderRight: BORDER,
     borderBottom: BORDER,
-    padding: 4,
+    padding: 5,
     fontSize: 9,
   },
   isoLogo: { width: "22%", justifyContent: "center", alignItems: "center" },
@@ -78,7 +86,10 @@ const styles = StyleSheet.create({
   cell: {
     borderRight: BORDER,
     borderBottom: BORDER,
-    padding: 4,
+    paddingTop: 4,
+    paddingBottom: 4,
+    paddingLeft: 5,
+    paddingRight: 5,
     fontSize: 10,
   },
   bold: { fontWeight: 700 },
@@ -130,7 +141,9 @@ function Line({ label, value, boldLabel = true }: { label: string; value?: strin
 }
 
 function isSingleLayer(s: ProductionOrder["snapshot"], m: LSXManualFields) {
-  return !s.layer2Name && !s.layer3Name && !m.laminateFilm1 && !m.laminateFilm2;
+  if (m.laminateLayers && m.laminateLayers.length > 0) return false;
+  return !s.layer2Name && !s.layer3Name && !s.layer4Name && !s.layer5Name
+    && !m.laminateFilm1 && !m.laminateFilm2;
 }
 
 function IsoHeader({ order }: { order: ProductionOrder }) {
@@ -297,12 +310,12 @@ function MangBody({ order }: { order: ProductionOrder }) {
         <Cell w="50%">
           <Line
             label="Quy cách trục: "
-            value={v(m.cylDiameter) ? `D:${v(m.cylDiameter)} x CV:${v(m.cylWidth)}mm` : ""}
+            value={formatLsxCylText(m, s, { withMm: true })}
           />
           <Line label="MST: " value={v(m.printMST)} />
         </Cell>
         <Cell w="50%">
-          <Line label="Số trục: " value={vd(m.numCylinders)} />
+          <Line label="Số trục: " value={formatLsxNumCylinders(m, false)} />
           <Line label="Chiều ra cuộn: " value={v(m.printDirection) || v(m.rollOutWidth, "mm")} />
         </Cell>
       </View>
@@ -310,9 +323,9 @@ function MangBody({ order }: { order: ProductionOrder }) {
         <Cell w="100%">
           <Line
             label="Thành phẩm in yêu cầu: "
-            value={v(m.printProductQty, m.printProductUnit ? ` ${m.printProductUnit}` : "m")}
+            value={formatLsxPrintProductLine(m)}
           />
-          <Text>{`Định mức phi hao: ${v(m.printWastePercent, "m")}`}</Text>
+          <Text>{`Định mức phi hao: ${formatLsxPrintWasteLine(m)}`}</Text>
           <Text>{`Số lượng cấp vật tư: ${v(m.materialQtySupplied)}`}</Text>
           <Line label="Ghi chú: " value={m.printNotes || "Sử dụng màng"} />
           <Line label="Trục in: " value={v(m.cylInfo)} />
@@ -631,12 +644,12 @@ function TuiBody({ order }: { order: ProductionOrder }) {
             <Cell w="20%">
               <Line
                 label="Trục in: "
-                value={v(m.cylDiameter) ? `D${v(m.cylDiameter)} x CV${v(m.cylWidth)}` : ""}
+                value={formatLsxCylText(m, s)}
               />
               <Line label="Mã Số Trục: " value={v(m.printMST) || "…"} />
             </Cell>
             <Cell w="20%">
-              <Line label="Số trục: " value={vd(m.numCylinders)} />
+              <Line label="Số trục: " value={formatLsxNumCylinders(m, false)} />
               <Line label="Chiều ra cuộn: " value={v(m.printDirection) || "…"} />
             </Cell>
             <Cell w="60%">
@@ -649,8 +662,8 @@ function TuiBody({ order }: { order: ProductionOrder }) {
           </View>
           <View style={styles.row}>
             <Cell w="40%">
-              <Text>{`Định mức phi hao: ${v(m.printWastePercent, "m")}`}</Text>
-              <Text>{`Thành phẩm in: ${v(m.printProductQty, m.printProductUnit ? ` ${m.printProductUnit}` : "m")}`}</Text>
+              <Text>{`Định mức phi hao: ${formatLsxPrintWasteLine(m, "…")}`}</Text>
+              <Text>{`Thành phẩm in: ${formatLsxPrintProductLine(m, "…")}`}</Text>
               <Line label="Ghi chú: " value={m.printNotes || ""} />
               <Text>{`- Màu sắc: duyệt màu theo ${v(m.maMucNhu) || "…"}`}</Text>
               <Text>{`- Chiều xả: ${v(m.printDirection) || "…"}`}</Text>
@@ -671,65 +684,80 @@ function TuiBody({ order }: { order: ProductionOrder }) {
               <Text style={styles.bold}>MÁY GHÉP</Text>
             </View>
           </View>
-          <View style={styles.row}>
-            <Cell w="20%">
-              <Line label="Màng in: " value={m.printFilmName || s.layer1Name || ""} />
-            </Cell>
-            <Cell w="20%">
-              <Line label="Khổ: " value={khoMM ? `${khoMM}mm` : ""} />
-            </Cell>
-            <Cell w="40%">
-              <Line label="Màng ghép 1: " value={m.laminateFilm1 || s.layer2Name || ""} />
-            </Cell>
-            <Cell w="20%">
-              <Line label="Khổ: " value={vd(m.laminateFilm1Width || khoMM, "mm")} />
-            </Cell>
-          </View>
-          <View style={styles.row}>
-            <Cell w="20%">
-              <Line
-                label="Trục in: "
-                value={v(m.cylDiameter) ? `D${v(m.cylDiameter)} x CV${v(m.cylWidth)}` : ""}
-              />
-              <Line label="MST: " value={v(m.printMST) || "…"} />
-            </Cell>
-            <Cell w="20%">
-              <Line label="Số trục: " value={m.numCylinders ? vd(m.numCylinders) : "= số màu"} />
-            </Cell>
-            <Cell w="40%">
-              <Line label="Màng ghép 2: " value={m.laminateFilm2 || s.layer3Name || ""} />
-            </Cell>
-            <Cell w="20%">
-              <Line
-                label="Khổ: "
-                value={
-                  m.laminateFilm2 || s.layer3Name
-                    ? khoMM
-                      ? `${khoMM}mm`
-                      : "…"
-                    : ""
-                }
-              />
-            </Cell>
-          </View>
-          <View style={styles.row}>
-            <Cell w="40%">
-              <Text>{`Định mức phi hao: ${v(m.printWastePercent, "m")}`}</Text>
-              <Text>{`Thành phẩm yêu cầu: ${v(m.printProductQty, m.printProductUnit ? ` ${m.printProductUnit}` : "m")}`}</Text>
-              <Line label="Ghi chú: " value={m.printNotes || ""} />
-              <Text>{`- Màu sắc: duyệt màu theo ${v(m.maMucNhu) || "…"}`}</Text>
-              <Text>{`- Chiều xả: ${v(m.printDirection) || "…"}`}</Text>
-              {!!m.cylInfo && <Line label="Trục in: " value={m.cylInfo} />}
-            </Cell>
-            <Cell w="60%">
-              <Text>{`Định mức phi hao: L1: ${v(m.lamWaste, "m")}${m.lamBTP || s.layer3Name ? `, L2: ${v(m.lamBTP, "m")}` : ""}`}</Text>
-              <Text>{`Thành phẩm yêu cầu: ${v(m.lamProductQty, m.lamProductUnit ? ` ${m.lamProductUnit}` : "m")}`}</Text>
-              {!!m.lamBTPNote && <Text>{m.lamBTPNote}</Text>}
-              <Line label="Ghi chú: " value={m.laminateNotes || ""} />
-            </Cell>
-          </View>
+          {(() => {
+            const lamRows = resolveLsxLaminateRows(order);
+            const lam0 = lamRows[0];
+            const lam1 = lamRows[1];
+            const wasteText = formatLsxLamWasteText(lamRows);
+            return (
+              <>
+                <View style={styles.row}>
+                  <Cell w="20%">
+                    <Line label="Màng in: " value={m.printFilmName || s.layer1Name || ""} />
+                  </Cell>
+                  <Cell w="20%">
+                    <Line label="Khổ: " value={khoMM ? `${khoMM}mm` : ""} />
+                  </Cell>
+                  <Cell w="40%">
+                    <Line label={`${lam0?.label || "Màng ghép 1"}: `} value={lam0?.name || ""} />
+                  </Cell>
+                  <Cell w="20%">
+                    <Line label="Khổ: " value={lam0 ? vd(lam0.widthMm || khoMM, "mm") : ""} />
+                  </Cell>
+                </View>
+                <View style={styles.row}>
+                  <Cell w="20%">
+                    <Line
+                      label="Trục in: "
+                      value={formatLsxCylText(m, s)}
+                    />
+                    <Line label="MST: " value={v(m.printMST) || "…"} />
+                  </Cell>
+                  <Cell w="20%">
+                    <Line label="Số trục: " value={formatLsxNumCylinders(m)} />
+                    <Line label="Chiều ra cuộn: " value={v(m.printDirection) || "…"} />
+                  </Cell>
+                  <Cell w="40%">
+                    <Line label={`${lam1?.label || "Màng ghép 2"}: `} value={lam1?.name || ""} />
+                  </Cell>
+                  <Cell w="20%">
+                    <Line label="Khổ: " value={lam1 ? vd(lam1.widthMm || khoMM, "mm") : ""} />
+                  </Cell>
+                </View>
+                {lamRows.slice(2).map((lr, i) => (
+                  <View style={styles.row} key={`lam-extra-${i}`}>
+                    <Cell w="40%"><Text> </Text></Cell>
+                    <Cell w="40%">
+                      <Line label={`${lr.label}: `} value={lr.name} />
+                    </Cell>
+                    <Cell w="20%">
+                      <Line label="Khổ: " value={vd(lr.widthMm || khoMM, "mm")} />
+                    </Cell>
+                  </View>
+                ))}
+                <View style={styles.row}>
+                  <Cell w="40%">
+                    <Text>{`Định mức phi hao: ${formatLsxPrintWasteLine(m, "…")}`}</Text>
+                    <Text>{`Thành phẩm yêu cầu: ${formatLsxPrintProductLine(m, "…")}`}</Text>
+                    <Line label="Ghi chú: " value={m.printNotes || ""} />
+                    <Text>{`- Màu sắc: duyệt màu theo ${v(m.maMucNhu) || "…"}`}</Text>
+                    <Text>{`- Chiều xả: ${v(m.printDirection) || "…"}`}</Text>
+                    {!!m.cylInfo && <Line label="Trục in: " value={m.cylInfo} />}
+                  </Cell>
+                  <Cell w="60%">
+                    <Text>{`Định mức phi hao: ${wasteText || "…"}`}</Text>
+                    <Text>{`Thành phẩm yêu cầu: ${formatLsxLamProductLine(m, "…")}`}</Text>
+                    {!!m.lamBTPNote && <Text>{m.lamBTPNote}</Text>}
+                    <Line label="Số lượng cấp vật tư: " value={formatLsxLamSupplyLine(m, "…")} />
+                    <Line label="Ghi chú: " value={m.laminateNotes || ""} />
+                  </Cell>
+                </View>
+              </>
+            );
+          })()}
         </>
       )}
+
 
       {useLeftDivide ? (
         <View style={styles.row}>

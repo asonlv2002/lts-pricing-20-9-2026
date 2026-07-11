@@ -16,6 +16,9 @@ import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, resolve
 
 import { exportLSXtoDOCX } from '../lib/lsxExport';
 import { exportLSXtoPDF } from './LsxPdfDocument';
+import { calculate } from '../lib/engine';
+import type { Material, AppConstants, ProfitRow, SmallWidthMaterialPrice, CalculateInput } from '../lib/types';
+import { buildLsxLamBtpNote, toCylMm } from '../lib/lsxExport';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function todayStr(): string {
@@ -33,10 +36,172 @@ function genOrderId(): string {
   return `lsx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-function getMaterialName(materials: { id: string; name: string }[], id?: string | null): string {
+function getMaterialName(materials: { id: string; name: string; thickness?: number }[], id?: string | null): string {
   if (!id) return '';
   return materials.find(m => m.id === id)?.name ?? id;
 }
+
+function getMaterialLabel(
+  materials: { id: string; name: string; thickness?: number }[],
+  id?: string | null,
+  micOverride?: number,
+): string {
+  if (!id) return '';
+  const mat = materials.find(m => m.id === id);
+  if (!mat) return id;
+  const mic = micOverride ?? mat.thickness;
+  if (mic != null && mic > 0 && !/\d/.test(mat.name.slice(-3))) {
+    return `${mat.name}${mic}`;
+  }
+  return mat.name;
+}
+
+type LamLayerPart = { name: string; widthMm: number };
+type LamLayerRow = {
+  layerIndex: number;
+  label: string;
+  parts: LamLayerPart[];
+  wasteMeters: number;
+};
+
+/** Dựng các dòng ghép từ input BG: mỗi lớp ≥2 = 1 dòng; dual-structure = mỗi part 1 dòng Màng ghép N. */
+function buildLaminateLayersFromInput(
+  i: LsxSourceData['input'],
+  materials: { id: string; name: string; thickness?: number }[],
+  wasteByLayerIndex?: Map<number, number>,
+): LamLayerRow[] {
+  const defaultW = Math.round((i.spreadWidth || 0) * 1000);
+  const mic = i.micOverrides || {};
+  const rows: LamLayerRow[] = [];
+  let ghepNum = 0;
+  const usedLayerWaste = new Set<number>();
+
+  const pushPart = (layerIndex: number, name: string, widthMm: number) => {
+    ghepNum += 1;
+    // 1 lần ghép (layerIndex) → 1 ĐM phi hao; dual-structure chỉ gán waste vào dòng đầu của lớp đó
+    let wasteMeters = 0;
+    if (wasteByLayerIndex && !usedLayerWaste.has(layerIndex)) {
+      wasteMeters = Math.round(wasteByLayerIndex.get(layerIndex) || 0);
+      usedLayerWaste.add(layerIndex);
+    }
+    rows.push({
+      layerIndex,
+      label: `Màng ghép ${ghepNum}`,
+      parts: [{ name, widthMm }],
+      wasteMeters,
+    });
+  };
+
+  // Lớp 2 (+ dual-structure)
+  if (i.layer2Id && i.layer2AltId) {
+    const w1 = i.layer2Lengths?.mat1
+      ? Math.round(i.layer2Lengths.mat1 * 1000)
+      : defaultW;
+    const w2 = i.layer2Lengths?.mat2
+      ? Math.round(i.layer2Lengths.mat2 * 1000)
+      : defaultW;
+    pushPart(2, getMaterialLabel(materials, i.layer2Id, mic.layer2Id), w1);
+    pushPart(2, getMaterialLabel(materials, i.layer2AltId, mic.layer2AltId), w2);
+    if (i.layer2PairingMode === 'bottom_to_bottom') {
+      pushPart(2, getMaterialLabel(materials, i.layer2Id, mic.layer2Id), w1);
+    }
+  } else if (i.layer2Id) {
+    pushPart(2, getMaterialLabel(materials, i.layer2Id, mic.layer2Id), defaultW);
+  }
+
+  // Lớp 3–5
+  for (const idx of [3, 4, 5] as const) {
+    const id = i[`layer${idx}Id` as 'layer3Id' | 'layer4Id' | 'layer5Id'];
+    if (!id) continue;
+    pushPart(idx, getMaterialLabel(materials, id, mic[`layer${idx}Id`]), defaultW);
+  }
+
+  return rows;
+}
+
+/** Prefill ĐM phi hao / TP in-ghép từ engine (mét, làm tròn). */
+function prefillFromEngine(
+  m: LSXManualFields,
+  layers: LamLayerRow[],
+  input: CalculateInput,
+  materials: Material[],
+  constants: AppConstants,
+  profitTable: ProfitRow[],
+  smallWidthPrices: SmallWidthMaterialPrice[],
+): LamLayerRow[] {
+  // Trục: m → mm (chỉ khi manual còn 0)
+  if (!m.cylDiameter && (input.cylLength ?? 0) > 0) {
+    m.cylDiameter = toCylMm(input.cylLength);
+  }
+  if (!m.cylWidth && (input.cylCircum ?? 0) > 0) {
+    m.cylWidth = toCylMm(input.cylCircum);
+  }
+
+  try {
+    const r = calculate(input, materials, constants, profitTable, smallWidthPrices);
+    if (!r) return layers;
+
+    if (!m.printWastePercent && r.printWaste > 0) {
+      m.printWastePercent = Math.round(r.printWaste);
+    }
+    if (!m.printProductQty && r.layers?.print?.meters > 0) {
+      m.printProductQty = Math.round(r.layers.print.meters);
+    }
+
+    const lams = r.layers?.laminations || [];
+    const wasteByLayer = new Map<number, number>();
+    for (const lam of lams) {
+      const layerNum = (lam as { layerNum?: number }).layerNum;
+      const waste = (lam as { waste?: number }).waste || 0;
+      if (layerNum != null && waste > 0) wasteByLayer.set(layerNum, waste);
+    }
+
+    // Gán waste theo layerIndex (mỗi lớp 1 lần)
+    const used = new Set<number>();
+    const next = layers.map(row => {
+      if (used.has(row.layerIndex)) return row;
+      const w = wasteByLayer.get(row.layerIndex);
+      if (w == null || w <= 0) return row;
+      used.add(row.layerIndex);
+      return { ...row, wasteMeters: Math.round(w) };
+    });
+
+    // Thành phẩm ghép = mét lớp ghép cuối
+    if (!m.lamProductQty && lams.length > 0) {
+      const last = lams[lams.length - 1] as { meters?: number };
+      if (last?.meters && last.meters > 0) {
+        m.lamProductQty = Math.round(last.meters);
+      }
+    }
+
+    // Phi hao cắt/túi
+    if (!m.bagWasteMeters && r.cutWaste > 0 && input.productType !== 'mang') {
+      m.bagWasteMeters = Math.round(r.cutWaste);
+    }
+
+    // Ghi chú BTP ghép từ TP in
+    if (!m.lamBTPNote && m.printProductQty > 0) {
+      m.lamBTPNote = buildLsxLamBtpNote(m.printProductQty);
+    }
+
+    return next;
+  } catch {
+    return layers;
+  }
+}
+
+function syncLegacyLaminateFields(m: LSXManualFields, layers: LamLayerRow[]): void {
+  if (layers[0]) {
+    m.laminateFilm1 = layers[0].parts.map(p => p.name).join(' / ');
+    m.laminateFilm1Width = layers[0].parts[0]?.widthMm || 0;
+    m.lamWaste = layers[0].wasteMeters;
+  }
+  if (layers[1]) {
+    m.laminateFilm2 = layers[1].parts.map(p => p.name).join(' / ');
+    m.lamBTP = layers[1].wasteMeters;
+  }
+}
+
 
 // ── Default manual fields ─────────────────────────────────────────────────────
 function defaultManual(lsxNumber: string, preparedBy: string): LSXManualFields {
@@ -82,7 +247,10 @@ function defaultManual(lsxNumber: string, preparedBy: string): LSXManualFields {
     lamMaterialSupplyQty: '',
     lamProductUnit: 'MD',
     lamBTPNote: '',
+    laminateLayers: [],
+    divideElements: 0,
     packagingInfo: '',
+
     packagingNotes: '',
     deliveryNotes: '',
     sealEdge: '',
@@ -308,7 +476,10 @@ function buildShortLabel(s: LsxSourceData): string {
 }
 
 export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
-  const { materials, productionOrders, themLSX, currentSellerName } = dungCuaHangTinhGia();
+  const {
+    materials, constants, profitTable, smallWidthPrices,
+    productionOrders, themLSX, currentSellerName,
+  } = dungCuaHangTinhGia();
 
   const sourceData = sources[activeIndex] ?? sources[0];
   const inp = sourceData.input;
@@ -332,23 +503,24 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
     m.tenSP = s.productName || '';
     m.msp = (s.input as { productCode?: string }).productCode || '';
     m.printFilmName = getMaterialName(materials, i.layer1Id);
-    const layerCount = [i.layer1Id, i.layer2Id, i.layer3Id, i.layer4Id, i.layer5Id].filter(Boolean).length;
-    if (layerCount >= 2) {
-      m.laminateFilm1 = getMaterialName(materials, i.layer2Id);
-      m.laminateFilm1Width = Math.round(i.spreadWidth * 1000);
-      if (i.layer3Id) {
-        m.laminateFilm2 = getMaterialName(materials, i.layer3Id);
-      }
-    }
+    let layers = buildLaminateLayersFromInput(i, materials);
+    layers = prefillFromEngine(
+      m, layers, i as CalculateInput,
+      materials, constants, profitTable, smallWidthPrices,
+    );
+    m.laminateLayers = layers;
+    syncLegacyLaminateFields(m, layers);
     m.numCylinders = (i.numColors || 0) as number;
 
     m.soLuongDHNote = `${i.quantity.toLocaleString('vi-VN')} ${tui ? 'túi' : 'm²'}`;
     if (i.divideWidthMm && i.divideWidthMm > 0) {
       m.divideWidth = i.divideWidthMm;
     }
+    m.divideElements = i.divideElements || 0;
     if (tui) return applyBagDefaults(m, bagInfo, !!i.hasZipper);
     return m;
   }
+
 
 
   const [manual, setManual] = useState<LSXManualFields>(() => initManual(sourceData, autoBagType));
@@ -386,7 +558,32 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
   const showGhep = stageFlags.showGhep;
   const showChia = stageFlags.showChia;
   const showTui = stageFlags.showTui;
-  void stageFlags.hasDualStructure;
+  const laminateLayers = manual.laminateLayers ?? [];
+
+  function updLamLayer(li: number, patch: Partial<LamLayerRow>) {
+    setManual(prev => {
+      const layers = [...(prev.laminateLayers ?? [])];
+      if (!layers[li]) return prev;
+      layers[li] = { ...layers[li], ...patch };
+      const next = { ...prev, laminateLayers: layers };
+      syncLegacyLaminateFields(next, layers);
+      return next;
+    });
+  }
+
+  function updLamPart(li: number, pi: number, patch: Partial<LamLayerPart>) {
+    setManual(prev => {
+      const layers = [...(prev.laminateLayers ?? [])];
+      if (!layers[li]) return prev;
+      const parts = [...layers[li].parts];
+      if (!parts[pi]) return prev;
+      parts[pi] = { ...parts[pi], ...patch };
+      layers[li] = { ...layers[li], parts };
+      const next = { ...prev, laminateLayers: layers };
+      syncLegacyLaminateFields(next, layers);
+      return next;
+    });
+  }
 
 
   function isFieldVisible(field: keyof LSXManualFields): boolean {
@@ -711,32 +908,135 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                         </td>
                       </>
                     )}
-                    {showGhep && (
+                    {showGhep && laminateLayers.length > 0 && (
                       <>
-                        <td style={styles.lbl}>Màng ghép:</td>
-                        <td style={styles.td}>
-                          <TI value={manual.laminateFilm1} onChange={v => upd('laminateFilm1', v)} placeholder="LLDPE130" style={{ fontWeight: 700 }} />
-                        </td>
-                        <td style={styles.lbl}>Khổ:</td>
-                        <td style={styles.td} colSpan={showIn ? 1 : 5}>
-                          <div style={styles.cellRow}>
-                            <NI value={manual.laminateFilm1Width} onChange={v => upd('laminateFilm1Width', v)} placeholder="640" />
-                            <span>mm</span>
+                        <td style={styles.lbl}>{laminateLayers[0].label}:</td>
+                        <td style={styles.td} colSpan={showIn ? 3 : 7}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                            {laminateLayers[0].parts.map((p, pi) => (
+                              <div key={pi} style={styles.cellRow}>
+                                <TI
+                                  value={p.name}
+                                  onChange={v => updLamPart(0, pi, { name: v })}
+                                  placeholder="LLDPE130"
+                                  style={{ fontWeight: 700, flex: 1, minWidth: 0 }}
+                                />
+                                <span style={{ fontSize: 11 }}>Khổ</span>
+                                <NI
+                                  value={p.widthMm}
+                                  onChange={v => updLamPart(0, pi, { widthMm: v })}
+                                  placeholder="640"
+                                  style={{ width: '56px', maxWidth: '56px' }}
+                                />
+                                <span>mm</span>
+                              </div>
+                            ))}
                           </div>
                         </td>
                       </>
                     )}
+                    {showGhep && laminateLayers.length === 0 && (
+                      <td colSpan={showIn ? 4 : 8} style={styles.td}></td>
+                    )}
                   </tr>
                 )}
 
-                {showIn && (
+                {/* Thêm dòng màng ghép 2..N */}
+                {showGhep && laminateLayers.slice(1).map((layer, idx) => {
+                  const li = idx + 1;
+                  return (
+                    <tr key={`lam-${li}-${layer.label}`}>
+                      {showIn && <td colSpan={4} style={styles.td}></td>}
+                      <td style={styles.lbl}>{layer.label}:</td>
+                      <td style={styles.td} colSpan={showIn ? 3 : 7}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                          {layer.parts.map((p, pi) => (
+                            <div key={pi} style={styles.cellRow}>
+                              <TI
+                                value={p.name}
+                                onChange={v => updLamPart(li, pi, { name: v })}
+                                placeholder="MPET12"
+                                style={{ fontWeight: 700, flex: 1, minWidth: 0 }}
+                              />
+                              <span style={{ fontSize: 11 }}>Khổ</span>
+                              <NI
+                                value={p.widthMm}
+                                onChange={v => updLamPart(li, pi, { widthMm: v })}
+                                placeholder="640"
+                                style={{ width: '56px', maxWidth: '56px' }}
+                              />
+                              <span>mm</span>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+
+
+                {/* Phi hao từng lần ghép */}
+                {showGhep && laminateLayers.length > 0 && (
+                  <tr>
+                    {showIn ? (
+                      <>
+                        <td style={styles.lbl}>Trục in:</td>
+                        <td style={styles.td}>
+                          <div style={styles.cellRow}>
+                            <span>Dài:</span>
+                            <NI value={manual.cylDiameter} onChange={v => upd('cylDiameter', v)} placeholder="750" style={{ width: '50px', maxWidth: '50px' }} />
+                            <span>x</span>
+                            <span>Chu vi:</span>
+                            <NI value={manual.cylWidth} onChange={v => upd('cylWidth', v)} placeholder="500" style={{ width: '50px', maxWidth: '50px' }} />
+                            <span>mm</span>
+                          </div>
+                        </td>
+                        <td style={styles.lbl} colSpan={2}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                            <div style={styles.cellRow}>
+                              <span>Số trục:</span>
+                              <TI value={manual.numCylinders ? `${String(manual.numCylinders).padStart(2, '0')} trục` : ''} onChange={v => {
+                                const n = parseInt(v) || 0;
+                                upd('numCylinders', n);
+                              }} placeholder="08 trục" style={{ width: '70px', maxWidth: '70px', fontWeight: 700 }} />
+                            </div>
+                            <div style={styles.cellRow}>
+                              <span>Chiều:</span>
+                              <TI value={manual.printDirection} onChange={v => upd('printDirection', v)} placeholder="Đầu chữ ra trước" style={{ flex: 1, minWidth: 0 }} />
+                            </div>
+                          </div>
+                        </td>
+                      </>
+                    ) : null}
+                    <td style={styles.lbl}>ĐM phi hao:</td>
+                    <td style={styles.td} colSpan={showIn ? 3 : 7}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                        {laminateLayers.map((layer, li) => (
+                          <div key={`waste-${li}-${layer.label}`} style={styles.cellRow}>
+                            <span style={{ fontSize: 11, fontWeight: 700, minWidth: 28 }}>L{li + 1}:</span>
+                            <NI
+                              value={layer.wasteMeters}
+                              onChange={v => updLamLayer(li, { wasteMeters: v })}
+                              placeholder="120"
+                              style={{ width: '70px', maxWidth: '70px' }}
+                            />
+                            <span>m</span>
+                          </div>
+                        ))}
+                      </div>
+                    </td>
+                  </tr>
+                )}
+
+                {showIn && !showGhep && (
                   <tr>
                     <td style={styles.lbl}>Trục in:</td>
                     <td style={styles.td}>
                       <div style={styles.cellRow}>
-                        <span>D:</span>
+                        <span>Dài:</span>
                         <NI value={manual.cylDiameter} onChange={v => upd('cylDiameter', v)} placeholder="750" style={{ width: '50px', maxWidth: '50px' }} />
                         <span>x</span>
+                        <span>Chu vi:</span>
                         <NI value={manual.cylWidth} onChange={v => upd('cylWidth', v)} placeholder="500" style={{ width: '50px', maxWidth: '50px' }} />
                         <span>mm</span>
                       </div>
@@ -756,31 +1056,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                         </div>
                       </div>
                     </td>
-                    {showGhep ? (
-                      <>
-                        <td style={styles.lbl}>Định mức phi hao:</td>
-                        <td style={styles.td} colSpan={3}>
-                          <div style={styles.cellRow}>
-                            <NI value={manual.lamWaste} onChange={v => upd('lamWaste', v)} placeholder="120" />
-                            <span>m</span>
-                          </div>
-                        </td>
-                      </>
-                    ) : (
-                      <td colSpan={4} style={styles.td}></td>
-                    )}
-                  </tr>
-                )}
-
-                {!showIn && showGhep && (
-                  <tr>
-                    <td style={styles.lbl}>Định mức phi hao:</td>
-                    <td style={styles.td} colSpan={7}>
-                      <div style={styles.cellRow}>
-                        <NI value={manual.lamWaste} onChange={v => upd('lamWaste', v)} placeholder="120" />
-                        <span>m</span>
-                      </div>
-                    </td>
+                    <td colSpan={4} style={styles.td}></td>
                   </tr>
                 )}
 
@@ -938,7 +1214,11 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                       </td>
                       <td style={styles.lbl}>Số phần tử:</td>
                       <td style={styles.td} colSpan={3}>
-                        <NI value={inp.divideElements || 0} onChange={() => {}} placeholder="2" />
+                        <NI
+                          value={manual.divideElements || 0}
+                          onChange={v => upd('divideElements', v)}
+                          placeholder="2"
+                        />
                       </td>
                     </tr>
                     <tr>
@@ -990,7 +1270,12 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                         </div>
                         <div style={styles.cellRow}>
                           <span style={{ fontWeight: 700, fontSize: '11px' }}>Số phần tử:</span>
-                          <span>{inp.divideElements || '—'}</span>
+                          <NI
+                            value={manual.divideElements || 0}
+                            onChange={v => upd('divideElements', v)}
+                            placeholder="2"
+                            style={{ width: '50px', maxWidth: '50px' }}
+                          />
                         </div>
                         <div style={styles.cellRow}>
                           <span style={{ fontWeight: 700, fontSize: '11px' }}>Chiều dài:</span>

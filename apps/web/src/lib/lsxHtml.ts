@@ -11,8 +11,17 @@ import {
   orderHasDivide,
   resolveLsxBagTypeInfo,
   resolveLsxDocxTemplate,
+  resolveLsxLaminateRows,
+  formatLsxLamWasteText,
+  formatLsxCylText,
+  formatLsxNumCylinders,
+  formatLsxPrintWasteLine,
+  formatLsxPrintProductLine,
+  formatLsxLamProductLine,
+  formatLsxLamSupplyLine,
   type LsxDocxTemplateKey,
 } from './lsxExport';
+
 
 function v(val: string | number | null | undefined, suffix = ''): string {
   if (val === null || val === undefined || val === '' || val === 0) return '';
@@ -33,7 +42,9 @@ function esc(s: string): string {
     .replace(/"/g, '&quot;');
 }
 function isSingleLayer(s: ProductionOrder['snapshot'], m: LSXManualFields): boolean {
-  return !s.layer2Name && !s.layer3Name && !m.laminateFilm1 && !m.laminateFilm2;
+  if (m.laminateLayers && m.laminateLayers.length > 0) return false;
+  return !s.layer2Name && !s.layer3Name && !s.layer4Name && !s.layer5Name
+    && !m.laminateFilm1 && !m.laminateFilm2;
 }
 
 /** Canonical 5-col bag body (DXA ~2943+2126+2410+567+2092 ≈ 10138) */
@@ -358,18 +369,18 @@ function mangBodyHtml(order: ProductionOrder): string {
     </tr>
     <tr>
       <td>
-        <div><span class="b">Quy cách trục: </span>${esc(v(m.cylDiameter) ? `D:${v(m.cylDiameter)} x CV:${v(m.cylWidth)}mm` : '')}</div>
+        <div><span class="b">Quy cách trục: </span>${esc(formatLsxCylText(m, s, { withMm: true }))}</div>
         <div><span class="b">MST: </span>${esc(v(m.printMST))}</div>
       </td>
       <td>
-        <div><span class="b">Số trục: </span>${esc(vd(m.numCylinders))}</div>
+        <div><span class="b">Số trục: </span>${esc(formatLsxNumCylinders(m, false))}</div>
         <div><span class="b">Chiều ra cuộn: </span>${esc(v(m.printDirection) || v(m.rollOutWidth, 'mm'))}</div>
       </td>
     </tr>
     <tr>
       <td colspan="2">
-        <div><span class="b">Thành phẩm in yêu cầu: </span>${esc(v(m.printProductQty, m.printProductUnit ? ` ${m.printProductUnit}` : 'm'))}</div>
-        <div>Định mức phi hao: ${esc(v(m.printWastePercent, 'm'))}</div>
+        <div><span class="b">Thành phẩm in yêu cầu: </span>${esc(formatLsxPrintProductLine(m))}</div>
+        <div>Định mức phi hao: ${esc(formatLsxPrintWasteLine(m))}</div>
         <div>Số lượng cấp vật tư: ${esc(v(m.materialQtySupplied))}</div>
         <div><span class="b">Ghi chú: </span>${esc(m.printNotes || 'Sử dụng màng')}</div>
         <div><span class="b">Trục in: </span>${esc(v(m.cylInfo))}</div>
@@ -478,18 +489,18 @@ function tuiBodyHtml(order: ProductionOrder): string {
     </tr>
     <tr>
       <td>
-        <div><span class="b">Trục in: </span>${esc(v(m.cylDiameter) ? `D${v(m.cylDiameter)} x CV${v(m.cylWidth)}` : '')}</div>
+        <div><span class="b">Trục in: </span>${esc(formatLsxCylText(m, s))}</div>
         <div><span class="b">MST: </span>${esc(v(m.printMST) || '…')}</div>
       </td>
       <td>
-        <div><span class="b">Số trục: </span>${esc(vd(m.numCylinders))}</div>
+        <div><span class="b">Số trục: </span>${esc(formatLsxNumCylinders(m, false))}</div>
         <div><span class="b">Chiều ra cuộn: </span>${esc(v(m.printDirection) || '…')}</div>
       </td>
     </tr>
     <tr>
       <td colspan="2">
-        <div>Định mức phi hao: ${esc(v(m.printWastePercent, 'm'))}</div>
-        <div>Thành phẩm in: ${esc(v(m.printProductQty, m.printProductUnit ? ` ${m.printProductUnit}` : 'm'))}</div>
+        <div>Định mức phi hao: ${esc(formatLsxPrintWasteLine(m, '…'))}</div>
+        <div>Thành phẩm in: ${esc(formatLsxPrintProductLine(m, '…'))}</div>
         <div><span class="b">Ghi chú: </span>${esc(m.printNotes || '')}</div>
         <div>- Màu sắc: duyệt màu theo ${esc(v(m.maMucNhu) || '…')}</div>
         <div>- Chiều xả: ${esc(v(m.printDirection) || '…')}</div>
@@ -500,7 +511,20 @@ function tuiBodyHtml(order: ProductionOrder): string {
     </tr>`;
   } else {
     // ── IN | GHÉP ──
-    const hasLam2 = !!(m.laminateFilm2 || s.layer3Name);
+    const lamRows = resolveLsxLaminateRows(order);
+    const lam0 = lamRows[0];
+    const lam1 = lamRows[1];
+    const wasteText = formatLsxLamWasteText(lamRows);
+    let extraLam = '';
+    for (let i = 2; i < lamRows.length; i++) {
+      const lr = lamRows[i];
+      extraLam += `
+    <tr>
+      <td colspan="2"></td>
+      <td colspan="2"><span class="b">${esc(lr.label)}: </span>${esc(lr.name)}</td>
+      <td><span class="b">Khổ: </span>${esc(vd(lr.widthMm || khoMM, 'mm'))}</td>
+    </tr>`;
+    }
     html += `
     <tr>
       <td colspan="2" class="sec-orange" style="width:50%">MÁY IN</td>
@@ -509,25 +533,25 @@ function tuiBodyHtml(order: ProductionOrder): string {
     <tr>
       <td style="width:29%"><span class="b">Màng in: </span>${esc(m.printFilmName || s.layer1Name || '')}</td>
       <td style="width:21%"><span class="b">Khổ: </span>${khoMM ? `${khoMM}mm` : ''}</td>
-      <td colspan="2" style="width:29.5%"><span class="b">Màng ghép 1: </span>${esc(m.laminateFilm1 || s.layer2Name || '')}</td>
-      <td style="width:20.5%"><span class="b">Khổ: </span>${esc(vd(m.laminateFilm1Width || khoMM, 'mm'))}</td>
+      <td colspan="2" style="width:29.5%"><span class="b">${esc(lam0?.label || 'Màng ghép 1')}: </span>${esc(lam0?.name || '')}</td>
+      <td style="width:20.5%"><span class="b">Khổ: </span>${esc(lam0 ? vd(lam0.widthMm || khoMM, 'mm') : '')}</td>
     </tr>
     <tr>
       <td>
-        <div><span class="b">Trục in: </span>${esc(v(m.cylDiameter) ? `D${v(m.cylDiameter)} x CV${v(m.cylWidth)}` : '')}</div>
+        <div><span class="b">Trục in: </span>${esc(formatLsxCylText(m, s))}</div>
         <div><span class="b">MST: </span>${esc(v(m.printMST) || '…')}</div>
       </td>
       <td>
-        <div><span class="b">Số trục: </span>${esc(m.numCylinders ? vd(m.numCylinders) : '= số màu')}</div>
+        <div><span class="b">Số trục: </span>${esc(formatLsxNumCylinders(m))}</div>
         ${m.printDirection ? `<div><span class="b">Chiều: </span>${esc(m.printDirection)}</div>` : ''}
       </td>
-      <td colspan="2"><span class="b">Màng ghép 2: </span>${esc(m.laminateFilm2 || s.layer3Name || '')}</td>
-      <td><span class="b">Khổ: </span>${hasLam2 ? (khoMM ? `${khoMM}mm` : '…') : ''}</td>
-    </tr>
+      <td colspan="2"><span class="b">${esc(lam1?.label || 'Màng ghép 2')}: </span>${esc(lam1?.name || '')}</td>
+      <td><span class="b">Khổ: </span>${esc(lam1 ? vd(lam1.widthMm || khoMM, 'mm') : '')}</td>
+    </tr>${extraLam}
     <tr>
       <td colspan="2">
-        <div>Định mức phi hao: ${esc(v(m.printWastePercent, 'm'))}</div>
-        <div>Thành phẩm yêu cầu: ${esc(v(m.printProductQty, m.printProductUnit ? ` ${m.printProductUnit}` : 'm'))}</div>
+        <div>Định mức phi hao: ${esc(formatLsxPrintWasteLine(m, '…'))}</div>
+        <div>Thành phẩm yêu cầu: ${esc(formatLsxPrintProductLine(m, '…'))}</div>
         <div><span class="b">Ghi chú:</span></div>
         <div>${esc(m.printNotes || '')}</div>
         <div>- Màu sắc: duyệt màu theo ${esc(v(m.maMucNhu) || '…')}</div>
@@ -535,13 +559,15 @@ function tuiBodyHtml(order: ProductionOrder): string {
         ${m.cylInfo ? `<div><span class="b">Trục in: </span>${esc(m.cylInfo)}</div>` : ''}
       </td>
       <td colspan="3">
-        <div>Định mức phi hao: L1: ${esc(v(m.lamWaste, 'm'))}${m.lamBTP || s.layer3Name ? `, L2: ${esc(v(m.lamBTP, 'm'))}` : ''}</div>
-        <div>Thành phẩm yêu cầu: ${esc(v(m.lamProductQty, m.lamProductUnit ? ` ${m.lamProductUnit}` : 'm'))}</div>
+        <div>Định mức phi hao: ${esc(wasteText || '…')}</div>
+        <div>Thành phẩm yêu cầu: ${esc(formatLsxLamProductLine(m, '…'))}</div>
         ${m.lamBTPNote ? `<div>${esc(m.lamBTPNote)}</div>` : ''}
+        <div><span class="b">Số lượng cấp vật tư: </span>${esc(formatLsxLamSupplyLine(m, '…'))}</div>
         <div><span class="b">Ghi chú: </span>${esc(m.laminateNotes || '')}</div>
       </td>
     </tr>`;
   }
+
 
   // ── Bag section header ──
   if (useLeftDivideCol) {
