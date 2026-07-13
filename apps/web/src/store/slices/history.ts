@@ -3,8 +3,13 @@ import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import { CalculateInput, HistoryItem, QuoteProductLine, QuoteStatus, QuoteTerms } from '../../lib/types';
 import { tinhBaoGia } from '../../lib/manager-calculation';
 import { dongBoCotLoiNhuan } from '../../lib/engine';
-import { layDanhSachPricingSheetService } from '../../lib/api/service-lts';
+import {
+  layDanhSachPricingSheetService,
+  layPricingSheetTheoIdService,
+} from '../../lib/api/service-lts';
 import { mapPricingSheetToHistory } from '../../lib/api/pricing-sheet-mapper';
+import { xayEngineCtxTuPriceConfigs } from '../../lib/api/price-config-mapper';
+import { layConfigsTheoIdsCoCache } from '../../lib/api/price-config-cache';
 import { giuMucDangMoKhiTaiServer, timMucLichSuTheoId } from '../../lib/history-identity';
 
 export interface HistorySlice {
@@ -14,7 +19,10 @@ export interface HistorySlice {
 
   addCurrentToHistory: () => void;
   removeHistoryItem: (id: string) => void;
+  /** Sync load; pin async nếu có priceConfigIds (fire-and-forget apply). */
   loadHistoryItem: (id: string) => void;
+  /** Mở sheet + pin config theo priceConfigIds (await). */
+  moBangTinhVoiPin: (id: string) => Promise<boolean>;
   taiBangTinhTuServer: (pricingSheetId: string) => Promise<boolean>;
   taiLichSuTuServer: () => Promise<boolean>;
   updateQuoteStatus: (id: string, status: QuoteStatus) => void;
@@ -121,28 +129,59 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
   },
 
   loadHistoryItem: (id) => {
-    set((state) => {
-      const item = timMucLichSuTheoId(state.history, id);
-      if (!item) return state;
-      return {
-        dauVao: dongBoCotLoiNhuan({ ...item.input }, state.materials),
-        input: dongBoCotLoiNhuan({ ...item.input }, state.materials),
-        result: tinhBaoGia(dongBoCotLoiNhuan(item.input, state.materials), state.materials, state.constants, state.profitTable, state.smallWidthPrices),
-        currentChotGia: item.input?.chotGia ?? item.chotGia ?? 0,
-        phanBoCongTy: item.input?.phanBoCongTy ?? 0,
-        donViPhanBo: item.input?.donViPhanBo ?? 'vnd',
-        activeView: 'manager' as const,
-        isDirty: false,
-        loadedHistoryId: item.id,
-        saleOverrides: item.saleOverrides ?? {},
-        adminOverrides: item.adminOverrides ?? {},
-        saleProfitRatePct: item.saleProfitRatePct ?? 0,
-        adminProfitRatePct: item.adminProfitRatePct ?? 0,
-        showSaleOverrides: !!item.saleOverrides && Object.keys(item.saleOverrides).length > 0,
-        showAdminOverrides: !!item.adminOverrides && Object.keys(item.adminOverrides).length > 0,
-        originalCustomerLoaded: item.originalCustomer ?? timMaKhachHang(item.customer) ?? null,
-      };
+    void get().moBangTinhVoiPin(id);
+  },
+
+  moBangTinhVoiPin: async (id) => {
+    const state = get();
+    const item = timMucLichSuTheoId(state.history, id);
+    if (!item) return false;
+
+    const pinIds = (item.priceConfigIds ?? []).filter(Boolean);
+    if (pinIds.length && state.accessToken) {
+      try {
+        const configs = await layConfigsTheoIdsCoCache(pinIds, state.accessToken);
+        if (configs.length) {
+          const fallback = {
+            materials: state.sessionConfigSnapshot?.materials ?? state.materials,
+            constants: state.sessionConfigSnapshot?.constants ?? state.constants,
+            profitTable: state.sessionConfigSnapshot?.profitTable ?? state.profitTable,
+            smallWidthPrices: state.sessionConfigSnapshot?.smallWidthPrices ?? state.smallWidthPrices,
+          };
+          const ctx = xayEngineCtxTuPriceConfigs(configs, fallback, pinIds);
+          get().applyPinnedConfig(ctx, pinIds);
+        } else {
+          get().restoreSessionConfig();
+        }
+      } catch (e) {
+        console.warn('Không tải được price-config pin, dùng session:', e);
+        get().restoreSessionConfig();
+      }
+    } else {
+      get().restoreSessionConfig();
+    }
+
+    const s = get();
+    const synced = dongBoCotLoiNhuan({ ...item.input }, s.materials);
+    set({
+      dauVao: synced,
+      input: synced,
+      result: tinhBaoGia(synced, s.materials, s.constants, s.profitTable, s.smallWidthPrices),
+      currentChotGia: item.input?.chotGia ?? item.chotGia ?? 0,
+      phanBoCongTy: item.input?.phanBoCongTy ?? 0,
+      donViPhanBo: item.input?.donViPhanBo ?? 'vnd',
+      activeView: 'manager' as const,
+      isDirty: false,
+      loadedHistoryId: item.id,
+      saleOverrides: item.saleOverrides ?? {},
+      adminOverrides: item.adminOverrides ?? {},
+      saleProfitRatePct: item.saleProfitRatePct ?? 0,
+      adminProfitRatePct: item.adminProfitRatePct ?? 0,
+      showSaleOverrides: !!item.saleOverrides && Object.keys(item.saleOverrides).length > 0,
+      showAdminOverrides: !!item.adminOverrides && Object.keys(item.adminOverrides).length > 0,
+      originalCustomerLoaded: item.originalCustomer ?? timMaKhachHang(item.customer) ?? null,
     });
+    return true;
   },
 
   taiBangTinhTuServer: async (pricingSheetId) => {
@@ -150,27 +189,80 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     const token = state.accessToken;
     if (!token) return false;
     try {
-      const sheets = await layDanhSachPricingSheetService(token);
-      const sheet = sheets.find(s => s.id === pricingSheetId);
+      let sheet;
+      try {
+        sheet = await layPricingSheetTheoIdService(pricingSheetId, token);
+      } catch {
+        const sheets = await layDanhSachPricingSheetService(token);
+        sheet = sheets.find(s => s.id === pricingSheetId);
+      }
       if (!sheet) return false;
       const rawInput = sheet.inputValue as CalculateInput | null | undefined;
       if (!rawInput || typeof rawInput !== 'object' || !rawInput.productType) return false;
-      const syncedInput = dongBoCotLoiNhuan({ ...rawInput }, state.materials);
-      set({
-        dauVao: syncedInput,
-        input: syncedInput,
-        result: tinhBaoGia(syncedInput, state.materials, state.constants, state.profitTable, state.smallWidthPrices),
-        currentChotGia: syncedInput.chotGia || 0,
-        phanBoCongTy: syncedInput.phanBoCongTy ?? 0,
-        donViPhanBo: syncedInput.donViPhanBo ?? 'vnd',
-        activeView: 'manager' as const,
-        isDirty: false,
-        loadedHistoryId: sheet.id,
-        originalCustomerLoaded: sheet.customerCodeName || sheet.customer?.codeName || null,
-        saleOverrides: {},
-        adminOverrides: {},
-        showSaleOverrides: false,
-        showAdminOverrides: false,
+
+      const pinIds = (sheet.priceConfigIds ?? []).filter(Boolean);
+      if (pinIds.length) {
+        try {
+          const configs = await layConfigsTheoIdsCoCache(pinIds, token);
+          if (configs.length) {
+            const fallback = {
+              materials: state.sessionConfigSnapshot?.materials ?? state.materials,
+              constants: state.sessionConfigSnapshot?.constants ?? state.constants,
+              profitTable: state.sessionConfigSnapshot?.profitTable ?? state.profitTable,
+              smallWidthPrices: state.sessionConfigSnapshot?.smallWidthPrices ?? state.smallWidthPrices,
+            };
+            const ctx = xayEngineCtxTuPriceConfigs(configs, fallback, pinIds);
+            get().applyPinnedConfig(ctx, pinIds);
+          } else {
+            get().restoreSessionConfig();
+          }
+        } catch (e) {
+          console.warn('Không tải được price-config pin, dùng session:', e);
+          get().restoreSessionConfig();
+        }
+      } else {
+        get().restoreSessionConfig();
+      }
+
+      const s = get();
+      const syncedInput = dongBoCotLoiNhuan({ ...rawInput }, s.materials);
+      const mapped = mapPricingSheetToHistory(sheet, {
+        materials: s.materials,
+        constants: s.constants,
+        profitTable: s.profitTable,
+        smallWidthPrices: s.smallWidthPrices,
+      });
+
+      set((prev) => {
+        let nextHistory = prev.history;
+        if (mapped) {
+          const idx = prev.history.findIndex(
+            (h) => h.id === mapped.id || h.pricingSheetId === mapped.id,
+          );
+          nextHistory =
+            idx >= 0
+              ? prev.history.map((h, i) => (i === idx ? { ...h, ...mapped } : h))
+              : [mapped, ...prev.history].slice(0, 200);
+        }
+        return {
+          history: nextHistory,
+          dauVao: syncedInput,
+          input: syncedInput,
+          result: tinhBaoGia(syncedInput, s.materials, s.constants, s.profitTable, s.smallWidthPrices),
+          currentChotGia: syncedInput.chotGia || 0,
+          phanBoCongTy: syncedInput.phanBoCongTy ?? 0,
+          donViPhanBo: syncedInput.donViPhanBo ?? 'vnd',
+          activeView: 'manager' as const,
+          isDirty: false,
+          loadedHistoryId: sheet.id,
+          originalCustomerLoaded: sheet.customerCodeName || sheet.customer?.codeName || null,
+          saleOverrides: mapped?.saleOverrides ?? {},
+          adminOverrides: mapped?.adminOverrides ?? {},
+          saleProfitRatePct: mapped?.saleProfitRatePct ?? 0,
+          adminProfitRatePct: mapped?.adminProfitRatePct ?? 0,
+          showSaleOverrides: !!(mapped?.saleOverrides && Object.keys(mapped.saleOverrides).length > 0),
+          showAdminOverrides: !!(mapped?.adminOverrides && Object.keys(mapped.adminOverrides).length > 0),
+        };
       });
       return true;
     } catch {

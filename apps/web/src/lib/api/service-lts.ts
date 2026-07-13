@@ -384,9 +384,8 @@ async function goiService<T>(
     }
   }
 
-  // Retry GET 1 lần khi 429 (rate limit)
-  const method = (options.method ?? "GET").toUpperCase();
-  if (res.status === 429 && method === "GET" && lanThu < 1) {
+  // Retry 1 lần khi 429 (rate limit) — GET + POST by-ids
+  if (res.status === 429 && lanThu < 1) {
     const retryAfter = Number(res.headers.get("Retry-After"));
     const waitMs =
       Number.isFinite(retryAfter) && retryAfter > 0
@@ -912,6 +911,18 @@ export async function layDanhSachPricingSheetService(
   return Array.isArray(data) ? data : [];
 }
 
+// GET /pricing-sheet/{id} — 1 sheet (deep-link / mở chi tiết, tránh list all).
+export async function layPricingSheetTheoIdService(
+  id: string,
+  token?: string,
+): Promise<PricingSheetApi> {
+  return goiService<PricingSheetApi>(
+    `/pricing-sheet/${encodeURIComponent(id)}`,
+    {},
+    token,
+  );
+}
+
 // PATCH /pricing-sheet/{id}/result — cập nhật inputValue và saleResult (Sale/Admin)
 export async function capNhatPricingSheetResultService(
   id: string,
@@ -1015,6 +1026,24 @@ export async function layPriceConfigMoiNhatService(
   const data = await goiService<PriceConfigApi[]>(
     "/price-config/latest-version",
     {},
+    token,
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+// POST /price-config/by-ids — batch load theo id (1 request, tránh N× GET / 429).
+export async function layPriceConfigTheoIdsService(
+  ids: string[],
+  token?: string,
+): Promise<PriceConfigApi[]> {
+  const unique = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+  if (!unique.length) return [];
+  const data = await goiService<PriceConfigApi[]>(
+    "/price-config/by-ids",
+    {
+      method: "POST",
+      body: JSON.stringify({ ids: unique }),
+    },
     token,
   );
   return Array.isArray(data) ? data : [];

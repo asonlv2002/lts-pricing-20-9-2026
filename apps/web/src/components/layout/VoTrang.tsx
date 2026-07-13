@@ -611,6 +611,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     loadedHistoryId,
     history: lichSu,
     loadHistoryItem,
+    moBangTinhVoiPin,
     taiBangTinhTuServer,
     taiLichSuTuServer,
     resetInput,
@@ -800,7 +801,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           const local = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, deep.id);
           if (local && !local.isQuote) {
             if (huy) return;
-            loadHistoryItem(local.id);
+            await moBangTinhVoiPin(local.id);
+            if (huy) return;
             datModuleDangMo('calculator');
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai('ok');
@@ -812,7 +814,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
           const sauTai = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, deep.id);
           if (sauTai && !sauTai.isQuote) {
-            loadHistoryItem(sauTai.id);
+            await moBangTinhVoiPin(sauTai.id);
+            if (huy) return;
             datModuleDangMo('calculator');
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai('ok');
@@ -863,6 +866,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     sessionChecked,
     accessToken,
     loadHistoryItem,
+    moBangTinhVoiPin,
     taiBangTinhTuServer,
     taiLichSuTuServer,
     datModuleDangMo,

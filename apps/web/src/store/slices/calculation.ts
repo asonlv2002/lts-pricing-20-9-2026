@@ -6,6 +6,11 @@ import { tinhBaoGia, toiUuDoDayTheoVatLieu, tinhKetQuaMoq } from '../../lib/mana
 import { dongBoCotLoiNhuan } from '../../lib/engine';
 import { dauVaoMacDinh, dauVaoKhoiTao, luuConfigVaoLS } from '../helpers';
 
+export type EngineConfigSnapshot = Pick<
+  CalculationSlice,
+  'materials' | 'constants' | 'profitTable' | 'smallWidthPrices'
+>;
+
 export interface CalculationSlice {
   dauVao: CalculateInput;
   input: CalculateInput;
@@ -18,6 +23,10 @@ export interface CalculationSlice {
   phanBoCongTy: number;
   donViPhanBo: 'vnd' | 'percent';
   isDirty: boolean;
+  /** Latest sau bootstrap — restore khi đóng sheet pin. */
+  sessionConfigSnapshot: EngineConfigSnapshot | null;
+  /** priceConfigIds đang pin (sheet mở). */
+  workingPriceConfigIds: string[] | null;
 
   setInput: (partial: Partial<CalculateInput>) => void;
   resetInput: () => void;
@@ -30,6 +39,12 @@ export interface CalculationSlice {
   setConstantParam: (key: keyof AppConstants, val: any) => void;
   setSmallWidthPriceParam: (id: string, partial: Partial<SmallWidthMaterialPrice>) => void;
   replaceFullConfig: (config: Pick<CalculationSlice, 'materials' | 'constants' | 'profitTable' | 'smallWidthPrices'>) => void;
+  /** Lưu store hiện tại làm session latest (sau bootstrap). */
+  luuSessionConfigSnapshot: () => void;
+  /** Apply pin từ sheet; không ghi đè session snapshot. */
+  applyPinnedConfig: (config: EngineConfigSnapshot, priceConfigIds: string[]) => void;
+  /** Khôi phục session latest; clear pin. */
+  restoreSessionConfig: () => void;
   recalculate: () => void;
   calculateForInput: (input: CalculateInput) => CalculateResult | null;
   calculateForQuantity: (quantity: number) => CalculateResult | null;
@@ -70,6 +85,8 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
   phanBoCongTy: 0,
   donViPhanBo: 'vnd',
   isDirty: false,
+  sessionConfigSnapshot: null,
+  workingPriceConfigIds: null,
 
   setInput: (partial) => {
     set((state) => {
@@ -154,6 +171,7 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
   },
 
   resetInput: () => {
+    get().restoreSessionConfig();
     set((state) => ({
       dauVao: dongBoCotLoiNhuan({ ...dauVaoMacDinh }, state.materials),
       input: dongBoCotLoiNhuan({ ...dauVaoMacDinh }, state.materials),
@@ -162,6 +180,7 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
       saleOverrides: {}, adminOverrides: {},
       showSaleOverrides: false, showAdminOverrides: false,
       loadedHistoryId: null,
+      workingPriceConfigIds: null,
     }));
   },
 
@@ -250,6 +269,55 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
         input,
         dauVao: input,
         result: tinhBaoGia(input, config.materials, config.constants, config.profitTable, config.smallWidthPrices),
+      };
+    });
+  },
+
+  luuSessionConfigSnapshot: () => {
+    const state = get();
+    set({
+      sessionConfigSnapshot: {
+        materials: structuredClone(state.materials),
+        constants: structuredClone(state.constants),
+        profitTable: structuredClone(state.profitTable),
+        smallWidthPrices: structuredClone(state.smallWidthPrices),
+      },
+    });
+  },
+
+  applyPinnedConfig: (config, priceConfigIds) => {
+    set((state) => {
+      const input = dongBoCotLoiNhuan(dongBoPhuPhiIn(state.input, config.constants), config.materials);
+      return {
+        materials: config.materials,
+        constants: config.constants,
+        profitTable: config.profitTable,
+        smallWidthPrices: config.smallWidthPrices,
+        input,
+        dauVao: input,
+        result: tinhBaoGia(input, config.materials, config.constants, config.profitTable, config.smallWidthPrices),
+        workingPriceConfigIds: [...priceConfigIds],
+      };
+    });
+  },
+
+  restoreSessionConfig: () => {
+    const snap = get().sessionConfigSnapshot;
+    if (!snap) {
+      set({ workingPriceConfigIds: null });
+      return;
+    }
+    set((state) => {
+      const input = dongBoCotLoiNhuan(dongBoPhuPhiIn(state.input, snap.constants), snap.materials);
+      return {
+        materials: structuredClone(snap.materials),
+        constants: structuredClone(snap.constants),
+        profitTable: structuredClone(snap.profitTable),
+        smallWidthPrices: structuredClone(snap.smallWidthPrices),
+        input,
+        dauVao: input,
+        result: tinhBaoGia(input, snap.materials, snap.constants, snap.profitTable, snap.smallWidthPrices),
+        workingPriceConfigIds: null,
       };
     });
   },

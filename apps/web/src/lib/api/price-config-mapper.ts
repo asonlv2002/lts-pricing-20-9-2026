@@ -134,6 +134,51 @@ export interface ConfigSnapshotLike {
   profitTable: ProfitRow[];
 }
 
+/**
+ * Gộp nhiều PriceConfig (theo order id ưu tiên) thành 1 engine ctx.
+ * Cùng scope: bản xuất hiện trước trong `uuTienIds` thắng; nếu không có list
+ * thì giữ bản apply sau cùng trong mảng configs.
+ */
+export function xayEngineCtxTuPriceConfigs(
+  configs: PriceConfigApi[],
+  fallback: StoreDataForScope,
+  uuTienIds?: string[],
+): StoreDataForScope {
+  const byId = new Map(configs.map((pc) => [pc.id, pc]));
+  const ordered: PriceConfigApi[] = [];
+  if (uuTienIds?.length) {
+    for (const id of uuTienIds) {
+      const pc = byId.get(id);
+      if (pc) ordered.push(pc);
+    }
+    for (const pc of configs) {
+      if (!uuTienIds.includes(pc.id)) ordered.push(pc);
+    }
+  } else {
+    ordered.push(...configs);
+  }
+
+  // Áp theo thứ tự ngược: bản ưu tiên (đầu list) apply sau cùng để thắng
+  const applyOrder = [...ordered].reverse();
+
+  let materials = structuredClone(fallback.materials);
+  let smallWidthPrices = structuredClone(fallback.smallWidthPrices);
+  let constants = structuredClone(fallback.constants);
+  let profitTable = structuredClone(fallback.profitTable);
+
+  for (const pc of applyOrder) {
+    const scope = configNameToScope(pc.configName);
+    if (!scope) continue;
+    const applied = apDungDuLieuScope(scope, pc.inputValue);
+    if (applied.materials) materials = applied.materials;
+    if (applied.smallWidthPrices) smallWidthPrices = applied.smallWidthPrices;
+    if (applied.profitTable) profitTable = applied.profitTable;
+    if (applied.constants) constants = { ...constants, ...applied.constants };
+  }
+
+  return { materials, smallWidthPrices, constants, profitTable };
+}
+
 export function priceConfigToSnapshot(
   pc: PriceConfigApi,
   scope: ConfigScope,

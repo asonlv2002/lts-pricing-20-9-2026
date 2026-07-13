@@ -663,7 +663,22 @@ async function syncPricingSheetToServer(
       }
     } else if (decision.action === 'patch') {
       if (!h.pricingSheetId) return;
-      await capNhatPricingSheetResultService(h.pricingSheetId, mapHistoryToResultPatch(h), accessToken ?? undefined);
+      // Sheet đã pin (có priceConfigIds) → useLatest=false; chưa pin → true
+      const sheet = await capNhatPricingSheetResultService(
+        h.pricingSheetId,
+        mapHistoryToResultPatch(h),
+        accessToken ?? undefined,
+      );
+      if (sheet?.priceConfigIds) {
+        const state = dungCuaHangTinhGia.getState();
+        dungCuaHangTinhGia.setState({
+          history: state.history.map((x) =>
+            x.id === h.id || x.pricingSheetId === h.pricingSheetId
+              ? { ...x, priceConfigIds: sheet.priceConfigIds }
+              : x,
+          ),
+        });
+      }
       if (decision.includeAdvisor) {
         await capNhatPricingSheetAdvisorResultService(h.pricingSheetId, mapHistoryToAdvisorPatch(h), accessToken ?? undefined);
       }

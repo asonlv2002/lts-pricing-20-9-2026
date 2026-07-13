@@ -17,6 +17,7 @@ import {
   apDungDuLieuScope,
   priceConfigToSnapshot,
 } from '../../lib/api/price-config-mapper';
+import { seedPriceConfigCache } from '../../lib/api/price-config-cache';
 
 const CAC_SCOPE_CAU_HINH: ConfigScope[] = [
   'materials', 'production', 'profit', 'surcharges', 'interest', 'waste', 'outsource',
@@ -190,6 +191,7 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
     set({ dangTaiPhienBan: true });
     try {
       const list = await layPriceConfigMoiNhatService(token);
+      seedPriceConfigCache(list);
       const fallback = {
         materials: state.materials,
         smallWidthPrices: state.smallWidthPrices,
@@ -229,6 +231,8 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
         )[0];
         if (latest) after.saoChepPhienBanDinhMuc(latest.id);
       }
+      // Snapshot session sau khi apply latest — pin sheet restore về đây
+      get().luuSessionConfigSnapshot();
     } catch (e) {
       console.warn('Tải cấu hình mới nhất thất bại:', e);
       set({ dangTaiPhienBan: false });

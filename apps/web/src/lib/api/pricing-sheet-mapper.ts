@@ -82,14 +82,16 @@ export function mapHistoryToPricingSheet(
 }
 
 // Map HistoryItem → payload cho PATCH /pricing-sheet/{id}/result
+// Sheet đã có priceConfigIds → giữ pin (false). Sheet mới / chưa link → true.
 export function mapHistoryToResultPatch(
   h: HistoryItem,
 ): CapNhatPricingSheetResultInput {
+  const daPin = !!(h.priceConfigIds && h.priceConfigIds.length > 0);
   return {
     pricingSheetName: h.productName,
     inputValue: h.input,
     saleResult: wrapResult(h.saleOverrides, h.saleProfitRatePct),
-    useLatestPriceConfigs: true,
+    useLatestPriceConfigs: !daPin,
   };
 }
 
