@@ -18,15 +18,25 @@ import ModuleNhatKy from '../ModuleNhatKy';
 import { coTheXemNhomMenu, coTheXemMucMenu, vaiTroTuPolicies } from '../../lib/permissions';
 import { tinhThoiGianChoLamMoiPhien, tokenCanLamMoiNgay } from '../../lib/auth-session';
 import {
-  docIdTuSearchParams,
-  dongBoUrlTinhGia,
-  idChiaSeBangTinh,
+  docDeepLinkTuSearchParams,
+  dongBoUrlDeepLinkClear,
   tieuDeKhongTimThay,
   type LoaiDeepLink,
   type TrangThaiDeepLink,
+} from '../../lib/support-route';
+import {
+  TINH_GIA_QUERY,
+  docIdTuSearchParams,
+  dongBoUrlTinhGia,
+  idChiaSeBangTinh,
 } from '../../lib/tinh-gia-route';
+import {
+  BAO_GIA_QUERY,
+  docBaoGiaIdTuSearchParams,
+  dongBoUrlBaoGia,
+} from '../../lib/bao-gia-route';
 import { timMucLichSuTheoId } from '../../lib/history-identity';
-import type { PolicyCode } from '../../lib/api/service-lts';
+import { layBaoGiaTheoIdService, type PolicyCode } from '../../lib/api/service-lts';
 import {
   Calculator, Users, Menu, Factory,
   X, ChevronRight, Plus, FileText, History, ClipboardList, UserCircle,
@@ -599,6 +609,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     taiBangTinhTuServer,
     taiLichSuTuServer,
     resetInput,
+    baoGiaDangSua,
+    datBaoGiaDangSua,
+    datNguonWizard,
   } = dungCuaHangTinhGia();
 
   const policies = nguoiDung?.policies ?? [];
@@ -711,87 +724,132 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (mucMoi) datMenuDangChon(mucMoi.key);
   }, [moduleDangMo, laMobile, menuDangChon]);
 
-  // Deep-link: /?tinh-gia=<id> → tải bảng tính + mở calculator (hoặc empty not_found)
+  // Deep-link: /?tinh-gia=<id> | /?bao-gia=<id>
   useEffect(() => {
     if (!isAuthenticated || !sessionChecked) return;
-    const idTuUrl = docIdTuSearchParams(window.location.search);
-    if (!idTuUrl) {
+    const deep = docDeepLinkTuSearchParams(window.location.search, [
+      { loai: 'tinh-gia', key: TINH_GIA_QUERY },
+      { loai: 'bao-gia', key: BAO_GIA_QUERY },
+    ]);
+    if (!deep) {
       deepLinkDaXuLy.current = null;
       datDeepLinkLoai(null);
       datDeepLinkTrangThai('idle');
       return;
     }
-    if (deepLinkDaXuLy.current === idTuUrl) return;
+    const keyXuLy = `${deep.loai}:${deep.id}`;
+    if (deepLinkDaXuLy.current === keyXuLy) return;
 
     let huy = false;
-    datDeepLinkLoai('tinh-gia');
+    datDeepLinkLoai(deep.loai);
     datDeepLinkTrangThai('loading');
 
-    const moBangTinh = async () => {
-      const local = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, idTuUrl);
-      if (local && !local.isQuote) {
+    const moDeepLink = async () => {
+      if (deep.loai === 'tinh-gia') {
+        const local = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, deep.id);
+        if (local && !local.isQuote) {
+          if (huy) return;
+          loadHistoryItem(local.id);
+          datModuleDangMo('calculator');
+          deepLinkDaXuLy.current = keyXuLy;
+          datDeepLinkTrangThai('ok');
+          return;
+        }
+
+        await taiLichSuTuServer().catch(() => false);
         if (huy) return;
-        loadHistoryItem(local.id);
-        datModuleDangMo('calculator');
-        deepLinkDaXuLy.current = idTuUrl;
-        datDeepLinkTrangThai('ok');
+
+        const sauTai = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, deep.id);
+        if (sauTai && !sauTai.isQuote) {
+          loadHistoryItem(sauTai.id);
+          datModuleDangMo('calculator');
+          deepLinkDaXuLy.current = keyXuLy;
+          datDeepLinkTrangThai('ok');
+          return;
+        }
+
+        const ok = await taiBangTinhTuServer(deep.id);
+        if (huy) return;
+        if (ok) {
+          datModuleDangMo('calculator');
+          deepLinkDaXuLy.current = keyXuLy;
+          datDeepLinkTrangThai('ok');
+          return;
+        }
+
+        deepLinkDaXuLy.current = keyXuLy;
+        datDeepLinkTrangThai('not_found');
         return;
       }
 
-      await taiLichSuTuServer().catch(() => false);
-      if (huy) return;
-
-      const sauTai = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, idTuUrl);
-      if (sauTai && !sauTai.isQuote) {
-        loadHistoryItem(sauTai.id);
-        datModuleDangMo('calculator');
-        deepLinkDaXuLy.current = idTuUrl;
-        datDeepLinkTrangThai('ok');
-        return;
+      if (deep.loai === 'bao-gia') {
+        try {
+          const bg = await layBaoGiaTheoIdService(deep.id, accessToken ?? undefined);
+          if (huy) return;
+          datBaoGiaDangSua(bg);
+          datNguonWizard('list');
+          datMenuDangChon('pricing.create_quote');
+          datModuleDangMo('quotations');
+          deepLinkDaXuLy.current = keyXuLy;
+          datDeepLinkTrangThai('ok');
+        } catch {
+          if (huy) return;
+          deepLinkDaXuLy.current = keyXuLy;
+          datDeepLinkTrangThai('not_found');
+        }
       }
-
-      const ok = await taiBangTinhTuServer(idTuUrl);
-      if (huy) return;
-      if (ok) {
-        datModuleDangMo('calculator');
-        deepLinkDaXuLy.current = idTuUrl;
-        datDeepLinkTrangThai('ok');
-        return;
-      }
-
-      deepLinkDaXuLy.current = idTuUrl;
-      datDeepLinkTrangThai('not_found');
     };
 
-    void moBangTinh();
+    void moDeepLink();
     return () => {
       huy = true;
     };
   }, [
     isAuthenticated,
     sessionChecked,
+    accessToken,
     loadHistoryItem,
     taiBangTinhTuServer,
     taiLichSuTuServer,
     datModuleDangMo,
+    datBaoGiaDangSua,
+    datNguonWizard,
   ]);
 
-  // Đồng bộ URL khi loadedHistoryId / module đổi (copy-share được)
+  // Đồng bộ URL (copy-share): tính giá hoặc báo giá — mutual exclusive
   useEffect(() => {
     if (!isAuthenticated || !sessionChecked) return;
-    // Giữ query khi đang resolve / không tìm thấy deep-link
     if (deepLinkTrangThai === 'loading' || deepLinkTrangThai === 'not_found') return;
 
-    if (moduleDangMo !== 'calculator' || !loadedHistoryId) {
-      if (docIdTuSearchParams(window.location.search)) {
-        dongBoUrlTinhGia(null);
-      }
+    if (moduleDangMo === 'calculator' && loadedHistoryId) {
+      const item = timMucLichSuTheoId(lichSu, loadedHistoryId);
+      const idShare = idChiaSeBangTinh(item ?? { id: loadedHistoryId });
+      dongBoUrlTinhGia(idShare);
       return;
     }
-    const item = timMucLichSuTheoId(lichSu, loadedHistoryId);
-    const idShare = idChiaSeBangTinh(item ?? { id: loadedHistoryId });
-    dongBoUrlTinhGia(idShare);
-  }, [isAuthenticated, sessionChecked, moduleDangMo, loadedHistoryId, lichSu, deepLinkTrangThai]);
+
+    if (
+      moduleDangMo === 'quotations'
+      && menuDangChon === 'pricing.create_quote'
+      && baoGiaDangSua?.id
+    ) {
+      dongBoUrlBaoGia(baoGiaDangSua.id);
+      return;
+    }
+
+    if (docIdTuSearchParams(window.location.search) || docBaoGiaIdTuSearchParams(window.location.search)) {
+      dongBoUrlDeepLinkClear();
+    }
+  }, [
+    isAuthenticated,
+    sessionChecked,
+    moduleDangMo,
+    menuDangChon,
+    loadedHistoryId,
+    lichSu,
+    baoGiaDangSua?.id,
+    deepLinkTrangThai,
+  ]);
 
   // Sync html classes for overflow control
   useEffect(() => {
@@ -894,7 +952,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     deepLinkDaXuLy.current = null;
     datDeepLinkLoai(null);
     datDeepLinkTrangThai('idle');
-    dongBoUrlTinhGia(null);
+    dongBoUrlDeepLinkClear();
   };
 
   const veDanhSachTinhGia = () => {
@@ -909,6 +967,33 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     datMenuDangChon('pricing.create_calculation');
     datModuleDangMo('calculator');
   };
+
+  const veDanhSachBaoGia = () => {
+    dongDeepLinkNotFound();
+    datBaoGiaDangSua(null);
+    datMenuDangChon('pricing.quote_review');
+    datModuleDangMo('quotations');
+  };
+
+  const taoBaoGiaMoi = () => {
+    dongDeepLinkNotFound();
+    datBaoGiaDangSua(null);
+    datNguonWizard(null);
+    datMenuDangChon('pricing.create_quote');
+    datModuleDangMo('quotations');
+  };
+
+  const nutEmptyDeepLink = deepLinkLoai === 'bao-gia'
+    ? {
+        primary: { label: 'Về danh sách báo giá', onClick: veDanhSachBaoGia },
+        outline: { label: 'Tạo báo giá mới', onClick: taoBaoGiaMoi },
+        loading: 'Đang tải báo giá...',
+      }
+    : {
+        primary: { label: 'Về danh sách tính giá', onClick: veDanhSachTinhGia },
+        outline: { label: 'Tạo bảng tính mới', onClick: taoBangTinhMoi },
+        loading: 'Đang tải bảng tính giá...',
+      };
 
   const hubMobileDangMo = laMobile && laMobileHubKey(menuDangChon)
     ? MOBILE_HUBS[layMobileHubId(menuDangChon)]
@@ -949,7 +1034,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           {deepLinkTrangThai === 'loading' ? (
             <div className="crm-root">
               <div className="crm-empty" role="status" aria-live="polite">
-                <p>Đang tải bảng tính giá...</p>
+                <p>{nutEmptyDeepLink.loading}</p>
               </div>
             </div>
           ) : deepLinkTrangThai === 'not_found' && deepLinkLoai ? (
@@ -960,11 +1045,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   {tieuDeKhongTimThay(deepLinkLoai)}
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 8 }}>
-                  <button type="button" className="btn btn-primary" onClick={veDanhSachTinhGia}>
-                    Về danh sách tính giá
+                  <button type="button" className="btn btn-primary" onClick={nutEmptyDeepLink.primary.onClick}>
+                    {nutEmptyDeepLink.primary.label}
                   </button>
-                  <button type="button" className="btn btn-outline" onClick={taoBangTinhMoi}>
-                    Tạo bảng tính mới
+                  <button type="button" className="btn btn-outline" onClick={nutEmptyDeepLink.outline.onClick}>
+                    {nutEmptyDeepLink.outline.label}
                   </button>
                 </div>
               </div>

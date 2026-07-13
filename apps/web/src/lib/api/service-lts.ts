@@ -1149,6 +1149,18 @@ export async function layDanhSachBaoGiaService(
   return Array.isArray(data) ? data : [];
 }
 
+// GET /quotations/{id} — chi tiết báo giá (cùng quyền xem như list).
+export async function layBaoGiaTheoIdService(
+  id: string,
+  token?: string,
+): Promise<BaoGiaApi> {
+  return goiService<BaoGiaApi>(
+    `/quotations/${encodeURIComponent(id)}`,
+    {},
+    token,
+  );
+}
+
 // PATCH /quotations/{id}/status_update — nộp một báo giá nháp để chờ duyệt.
 export async function nopBaoGiaService(
   quotationId: string,

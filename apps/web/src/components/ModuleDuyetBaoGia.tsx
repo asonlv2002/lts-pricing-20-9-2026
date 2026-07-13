@@ -33,6 +33,7 @@ import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
 import {
   layDanhSachBaoGiaService,
   layBaoGiaChoDuyetService,
+  layBaoGiaTheoIdService,
   layTaiKhoanService,
   nopBaoGiaService,
   duyetBaoGiaService,
@@ -400,14 +401,51 @@ export default function ModuleDuyetBaoGia({
     [accessToken, lamMoi, hienThongBao],
   );
 
-  const capNhatBaoGia = useCallback(
-    (bg: BaoGiaApi) => {
-      if (!accessToken) return;
-      datBaoGiaDangSua(bg);
-      datNguonWizard('duyet');
-      khiDieuHuong?.("pricing.create_quote");
+  const moChiTietBaoGia = useCallback(
+    async (bg: BaoGiaApi) => {
+      if (!accessToken) {
+        datChiTiet(bg);
+        return;
+      }
+      datDangXuLyId(bg.id);
+      datLoi("");
+      try {
+        const fresh = await layBaoGiaTheoIdService(bg.id, accessToken);
+        datChiTiet(fresh);
+      } catch (error) {
+        datLoi(
+          error instanceof Error
+            ? error.message
+            : "Không tải được chi tiết báo giá.",
+        );
+      } finally {
+        datDangXuLyId(null);
+      }
     },
-    [accessToken, datBaoGiaDangSua, datNguonWizard, khiDieuHuong],
+    [accessToken],
+  );
+
+  const capNhatBaoGia = useCallback(
+    async (bg: BaoGiaApi) => {
+      if (!accessToken) return;
+      datDangXuLyId(bg.id);
+      datLoi("");
+      try {
+        const fresh = await layBaoGiaTheoIdService(bg.id, accessToken);
+        datBaoGiaDangSua(fresh);
+        datNguonWizard(nguon === "review" ? "duyet" : "list");
+        khiDieuHuong?.("pricing.create_quote");
+      } catch (error) {
+        datLoi(
+          error instanceof Error
+            ? error.message
+            : "Không tải được báo giá để chỉnh sửa.",
+        );
+      } finally {
+        datDangXuLyId(null);
+      }
+    },
+    [accessToken, datBaoGiaDangSua, datNguonWizard, khiDieuHuong, nguon],
   );
 
   const chonChip = (key: BoLoc) => {
@@ -466,7 +504,7 @@ export default function ModuleDuyetBaoGia({
         <button
           className="qrev-btn-icon qrev-btn-icon--primary"
           title="Mở lại bảng báo giá"
-          onClick={() => capNhatBaoGia(bg)}
+          onClick={() => void capNhatBaoGia(bg)}
         >
           <FileEdit size={15} />
         </button>
@@ -601,7 +639,7 @@ export default function ModuleDuyetBaoGia({
                     <tr
                       key={bg.id}
                       className="qrev-row"
-                      onClick={() => datChiTiet(bg)}
+                      onClick={() => void moChiTietBaoGia(bg)}
                     >
                       <td>
                         <div className="qrev-cell-quote">
@@ -703,10 +741,9 @@ export default function ModuleDuyetBaoGia({
           }}
           onCapNhat={
             chiTiet.createdBy === nguoiDung?.id
-              ? (_bg: BaoGiaApi) => {
+              ? (bg: BaoGiaApi) => {
                   datChiTiet(null);
-                  datBaoGiaDangSua(chiTiet);
-                  khiDieuHuong?.("pricing.create_quote");
+                  void capNhatBaoGia(bg);
                 }
               : undefined
           }
