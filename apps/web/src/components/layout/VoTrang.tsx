@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { dungCuaHangTinhGia } from '../../store/CuaHangTinhGia';
 import { getPricingDisplayMeta } from '../../lib/pricing-display';
 import { normalizeDisplayText } from '../../lib/text-codec';
@@ -17,6 +17,12 @@ import ModuleDanhSachLSX from '../ModuleDanhSachLSX';
 import ModuleNhatKy from '../ModuleNhatKy';
 import { coTheXemNhomMenu, coTheXemMucMenu, vaiTroTuPolicies } from '../../lib/permissions';
 import { tinhThoiGianChoLamMoiPhien, tokenCanLamMoiNgay } from '../../lib/auth-session';
+import {
+  docIdTuSearchParams,
+  dongBoUrlTinhGia,
+  idChiaSeBangTinh,
+} from '../../lib/tinh-gia-route';
+import { timMucLichSuTheoId } from '../../lib/history-identity';
 import type { PolicyCode } from '../../lib/api/service-lts';
 import {
   Calculator, Users, Menu, Factory,
@@ -578,9 +584,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const idNhanVienHienTai = dungCuaHangTinhGia(s => s.currentSellerId);
   const vaiTroHienTai = dungCuaHangTinhGia(s => s.role);
 
-  const { result: ketQua, activeModule: moduleDangMo, setActiveModule: datModuleDangMo, setCurrentSeller: datNhanVienHienTai, setRole: datVaiTroStore } = dungCuaHangTinhGia();
+  const {
+    result: ketQua,
+    activeModule: moduleDangMo,
+    setActiveModule: datModuleDangMo,
+    setCurrentSeller: datNhanVienHienTai,
+    setRole: datVaiTroStore,
+    loadedHistoryId,
+    history: lichSu,
+    loadHistoryItem,
+    taiBangTinhTuServer,
+    taiLichSuTuServer,
+  } = dungCuaHangTinhGia();
 
   const policies = nguoiDung?.policies ?? [];
+  const deepLinkDaXuLy = useRef<string | null>(null);
 
   // Restore session on mount
   useEffect(() => {
@@ -686,6 +704,73 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       ?? CAC_MUC_MENU.find(m => m.id === moduleDangMo);
     if (mucMoi) datMenuDangChon(mucMoi.key);
   }, [moduleDangMo, laMobile, menuDangChon]);
+
+  // Deep-link: /?tinh-gia=<id> → tải bảng tính + mở calculator
+  useEffect(() => {
+    if (!isAuthenticated || !sessionChecked) return;
+    const idTuUrl = docIdTuSearchParams(window.location.search);
+    if (!idTuUrl) {
+      deepLinkDaXuLy.current = null;
+      return;
+    }
+    if (deepLinkDaXuLy.current === idTuUrl) return;
+
+    let huy = false;
+    const moBangTinh = async () => {
+      const local = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, idTuUrl);
+      if (local && !local.isQuote) {
+        if (huy) return;
+        loadHistoryItem(local.id);
+        datModuleDangMo('calculator');
+        deepLinkDaXuLy.current = idTuUrl;
+        return;
+      }
+
+      await taiLichSuTuServer().catch(() => false);
+      if (huy) return;
+
+      const sauTai = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, idTuUrl);
+      if (sauTai && !sauTai.isQuote) {
+        loadHistoryItem(sauTai.id);
+        datModuleDangMo('calculator');
+        deepLinkDaXuLy.current = idTuUrl;
+        return;
+      }
+
+      const ok = await taiBangTinhTuServer(idTuUrl);
+      if (huy) return;
+      if (ok) {
+        datModuleDangMo('calculator');
+        deepLinkDaXuLy.current = idTuUrl;
+      }
+    };
+
+    void moBangTinh();
+    return () => {
+      huy = true;
+    };
+  }, [
+    isAuthenticated,
+    sessionChecked,
+    loadHistoryItem,
+    taiBangTinhTuServer,
+    taiLichSuTuServer,
+    datModuleDangMo,
+  ]);
+
+  // Đồng bộ URL khi loadedHistoryId / module đổi (copy-share được)
+  useEffect(() => {
+    if (!isAuthenticated || !sessionChecked) return;
+    if (moduleDangMo !== 'calculator' || !loadedHistoryId) {
+      if (docIdTuSearchParams(window.location.search)) {
+        dongBoUrlTinhGia(null);
+      }
+      return;
+    }
+    const item = timMucLichSuTheoId(lichSu, loadedHistoryId);
+    const idShare = idChiaSeBangTinh(item ?? { id: loadedHistoryId });
+    dongBoUrlTinhGia(idShare);
+  }, [isAuthenticated, sessionChecked, moduleDangMo, loadedHistoryId, lichSu]);
 
   // Sync html classes for overflow control
   useEffect(() => {
