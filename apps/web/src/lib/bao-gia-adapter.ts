@@ -4,6 +4,8 @@
 import type { BaoGiaApi, PricingSheetApi, TrangThaiBaoGiaServer } from './api/service-lts';
 import { chuyenTrangThaiBaoGia } from './api/service-lts';
 import type { CalculateInput, LsxSourceData } from './types';
+import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import { buildStructureFromLayers } from './format-structure';
 
 function laObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -14,9 +16,14 @@ function docInputBangTinh(value: unknown): Partial<CalculateInput> {
 }
 
 function cauTrucTuInput(input: Partial<CalculateInput>): string {
-  return [input.layer1Id, input.layer2Id, input.layer3Id, input.layer4Id, input.layer5Id]
-    .filter(Boolean)
-    .join(' / ');
+  const { materials } = dungCuaHangTinhGia.getState();
+  return buildStructureFromLayers(materials, [
+    input.layer1Id,
+    input.layer2Id,
+    input.layer3Id,
+    input.layer4Id,
+    input.layer5Id,
+  ]);
 }
 
 function layFinalPrice(sheet: PricingSheetApi): number {

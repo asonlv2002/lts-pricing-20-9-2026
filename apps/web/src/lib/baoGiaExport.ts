@@ -8,6 +8,7 @@ import type {
   QuoteTier,
 } from "./types";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
+import { boSoCauTruc, buildStructureFromLayers } from "./format-structure";
 
 function dinhDangSo(n: number) {
   return n.toLocaleString("vi-VN");
@@ -112,13 +113,14 @@ function buildBagSpecDescription(
   structure: string,
   totalThickness = 0,
 ): string {
-  if (!spec) return structure || "";
+  if (!spec) return boSoCauTruc(structure) || "";
   const lines: string[] = [];
   const bagLabel =
     BAG_TYPE_LABELS[spec.bagType] ||
     (spec.bagType ? spec.bagType.toUpperCase() : "");
   if (bagLabel) lines.push(bagLabel + ".");
-  if (structure) lines.push(`Chất liệu: ${structure}.`);
+  const chatLieu = boSoCauTruc(structure);
+  if (chatLieu) lines.push(`Chất liệu: ${chatLieu}.`);
   if (totalThickness > 0)
     lines.push(`Độ dày: ${totalThickness} mic (± 5 mic).`);
   const dimParts: string[] = [];
@@ -216,7 +218,7 @@ const CSS = `
   .mg-bg { font-size: 11pt; color: #555; margin: 2px 0; }
   table.bbg { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 8px 0; }
   table.bbg th, table.bbg td { border: 1px solid #333; padding: 3px 4px; font-size: 10pt; }
-  table.bbg th { background: #3d85c6; color: #fff; font-weight: bold; text-align: center; }
+  table.bbg th { background: #1DA65E; color: #fff; font-weight: bold; text-align: center; }
   td.ar { text-align: right; }
   td.ac { text-align: center; }
   td.pl { white-space: pre-line; }
@@ -613,7 +615,7 @@ export async function exportBaoGiaToDocx(
       width: { size: w, type: WidthType.DXA },
       borders,
       margins: { top: 60, bottom: 60, left: 60, right: 60 },
-      shading: { fill: "3d85c6" },
+      shading: { fill: "1DA65E" },
       children: [
         new Paragraph({
           children: [
@@ -1155,10 +1157,6 @@ interface BaoGiaApiLoose {
   updatedAt?: string;
 }
 
-function buildStructure(layers: (string | undefined)[]): string {
-  return layers.filter(Boolean).join(" / ");
-}
-
 export function buildHistoryItemFromServerData(
   bg: BaoGiaApiLoose,
 ): Partial<HistoryItem> & {
@@ -1166,6 +1164,7 @@ export function buildHistoryItemFromServerData(
   quoteCode?: string;
   terms?: QuoteTerms;
 } {
+  const { materials } = dungCuaHangTinhGia.getState();
   const inputValue = (bg.inputValue ?? {}) as Record<string, unknown>;
   const sheets = bg.pricingSheets ?? [];
   const firstSheet = sheets[0];
@@ -1190,7 +1189,7 @@ export function buildHistoryItemFromServerData(
     const sheet = sheets.find((s) => s.id === spec.pricingSheetId);
     const sheetInput = (sheet?.inputValue ?? {}) as Record<string, unknown>;
     const productName = spec.productName || sheet?.pricingSheetName || "";
-    const structure = buildStructure([
+    const structure = buildStructureFromLayers(materials, [
       sheetInput?.layer1Id as string,
       sheetInput?.layer2Id as string,
       sheetInput?.layer3Id as string,
@@ -1230,7 +1229,7 @@ export function buildHistoryItemFromServerData(
       mainProduct?.productName || (firstInput?.productName as string) || "",
     structure:
       mainProduct?.structure ||
-      buildStructure([
+      buildStructureFromLayers(materials, [
         firstInput?.layer1Id as string,
         firstInput?.layer2Id as string,
       ]),

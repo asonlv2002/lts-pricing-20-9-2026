@@ -1,4 +1,5 @@
 import type { CalculateInput, Material } from './types';
+import { boSoCauTruc } from './format-structure';
 
 export interface QuoteProductBagSpec {
   bagType: string;
@@ -76,7 +77,8 @@ export function buildDefaultBagSpec(input: CalculateInput): QuoteProductBagSpec 
     includeCylinderInQuote: true,
     includeBagInQuote: true,
     cylinderQuantity: input.numColors || 1,
-    cylinderUnitPrice: input.cylUnitPrice || 0,
+    // Không lấy cylUnitPrice (đơn giá A/B đ/m², vd 7.3tr) — wizard fill từ cylinderCostPerUnit (giá 1 trục)
+    cylinderUnitPrice: 0,
     cylinderNote: '',
     otherDescription: '',
     structureBack: '',
@@ -132,7 +134,7 @@ export function generateStructureBackOptions(
     materials, input.layer1Id, backMatId,
     input.layer3Id, input.layer4Id, input.layer5Id,
   );
-  const clean = (s: string) => s.replace(/\d+/g, '').replace(/\bLLDPE\s+\S+/gi, 'LLDPE').replace(/\s*\/\/\s*/g, '//').trim();
+  const clean = boSoCauTruc;
 
   if (bagType === 'dayDung') {
     return [

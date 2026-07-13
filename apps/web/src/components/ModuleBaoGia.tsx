@@ -82,6 +82,7 @@ import {
   type QuoteProductBagSpec,
   generateStructureBackOptions,
 } from "../lib/quote-product-spec";
+import { boSoCauTruc, buildStructureFromLayers } from "../lib/format-structure";
 import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
 
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
@@ -169,8 +170,17 @@ function taoDieuKhoanThanhToan(soNgay: number): string {
   return `Thanh toán ${soNgay} ngày`;
 }
 
-function buildWizardProductFromHistoryItem(item: HistoryItem): WizardProduct {
+function buildWizardProductFromHistoryItem(
+  item: HistoryItem,
+  savedBagSpec?: Partial<QuoteProductBagSpec> | null,
+): WizardProduct {
   const spec = buildDefaultBagSpec(item.input);
+  // Merge bagSpec đã lưu (rộng/dài/hàn/đục lỗ/trục…) — không ghi đè bằng default
+  if (savedBagSpec) {
+    Object.assign(spec, savedBagSpec);
+  }
+  // Mặc định đơn giá trục = giá 1 trục từ engine (DT × đơn giá A/B), không dùng cylUnitPrice (đ/m²)
+  // Chỉ fill khi chưa có giá từ bagSpec đã lưu
   if (!spec.cylinderUnitPrice && item.input.cylLength > 0) {
     const { materials, constants, profitTable, smallWidthPrices } =
       dungCuaHangTinhGia.getState();
@@ -182,7 +192,7 @@ function buildWizardProductFromHistoryItem(item: HistoryItem): WizardProduct {
       smallWidthPrices,
     );
     if (res?.cylinderCostPerUnit)
-      spec.cylinderUnitPrice = res.cylinderCostPerUnit;
+      spec.cylinderUnitPrice = Math.round(res.cylinderCostPerUnit);
   }
   if (item.input.layer2AltId && !spec.structureBack) {
     const { materials } = dungCuaHangTinhGia.getState();
@@ -225,6 +235,7 @@ function buildWizardProductFromQuoteProductLine(
   if (qp.bagSpec) {
     Object.assign(spec, qp.bagSpec);
   }
+  // Chỉ fill từ engine khi chưa có giá trục (tạo mới / bagSpec cũ thiếu field)
   if (!spec.cylinderUnitPrice && qp.input.cylLength > 0) {
     const { materials, constants, profitTable, smallWidthPrices } =
       dungCuaHangTinhGia.getState();
@@ -236,7 +247,7 @@ function buildWizardProductFromQuoteProductLine(
       smallWidthPrices,
     );
     if (res?.cylinderCostPerUnit)
-      spec.cylinderUnitPrice = res.cylinderCostPerUnit;
+      spec.cylinderUnitPrice = Math.round(res.cylinderCostPerUnit);
   }
   if (qp.input.layer2AltId && !spec.structureBack) {
     const { materials } = dungCuaHangTinhGia.getState();
@@ -567,17 +578,6 @@ function laBanGhiBaoGia(muc: HistoryItem): boolean {
 
 function dinhDangSo(n: number) {
   return n.toLocaleString("vi-VN");
-}
-
-function boSoCauTruc(s: string): string {
-  return s
-    .replace(/\d+/g, "")
-    .replace(/\bLLDPE\s+\S+/gi, "LLDPE")
-    .replace(/\s*\/\/\s*/g, "//")
-    .replace(/\s*\+\s*/g, "+")
-    .replace(/\s*\[\s*/g, "[")
-    .replace(/\s*\]\s*/g, "]")
-    .trim();
 }
 
 function doiNgayVnSangMs(date?: string): number {
@@ -3818,38 +3818,53 @@ function TaoBaoGiaWizard({
     const khachHang = tatCaKhach.find((c) => c.customerCode === maKH) || null;
     const sheets = bg.pricingSheets ?? [];
     const bagSpecs = (bg.inputValue?.productBagSpecs as any[]) ?? [];
-    const specMap = new Map<string, { chotGia?: number; finalPrice?: number; bagSpec?: any }>();
-    for (const bs of bagSpecs) {
-      const pid = (bs?.pricingSheetId as string) || '';
-      if (pid) specMap.set(pid, {
-        chotGia: typeof bs?.chotGia === 'number' ? bs.chotGia : undefined,
-        finalPrice: typeof bs?.finalPrice === 'number' ? bs.finalPrice : undefined,
+    type SavedSpec = { chotGia?: number; finalPrice?: number; bagSpec?: any; productName?: string };
+    const specMap = new Map<string, SavedSpec>();
+    for (let i = 0; i < bagSpecs.length; i++) {
+      const bs = bagSpecs[i];
+      const entry: SavedSpec = {
+        chotGia: typeof bs?.chotGia === "number" ? bs.chotGia : undefined,
+        finalPrice: typeof bs?.finalPrice === "number" ? bs.finalPrice : undefined,
         bagSpec: bs?.bagSpec || undefined,
-      });
+        productName: (bs?.productName as string) || undefined,
+      };
+      const pid = (bs?.pricingSheetId as string) || "";
+      if (pid) specMap.set(pid, entry);
+      // Index fallback key
+      specMap.set(`__idx_${i}`, entry);
+      if (entry.productName) specMap.set(`__name_${entry.productName}`, entry);
     }
+    const laySpecDaLuu = (sheetId: string, productName: string, idx: number): SavedSpec | undefined => {
+      return (
+        specMap.get(sheetId) ||
+        specMap.get(`__name_${productName}`) ||
+        specMap.get(`__idx_${idx}`)
+      );
+    };
     const sanPham: WizardProduct[] = [];
-    for (const sheet of sheets) {
+    for (let sheetIdx = 0; sheetIdx < sheets.length; sheetIdx++) {
+      const sheet = sheets[sheetIdx];
       const dv = (sheet.inputValue ?? {}) as Record<string, unknown>;
       const kq = (sheet.saleResult ?? sheet.masterResult ?? {}) as Record<
         string,
         unknown
       >;
-      const cauTruc = [
-        dv.layer1Id,
-        dv.layer2Id,
-        dv.layer3Id,
-        dv.layer4Id,
-        dv.layer5Id,
-      ]
-        .filter(Boolean)
-        .join(" / ");
-      const specFromServer = specMap.get(sheet.id);
+      const cauTruc = buildStructureFromLayers(materials, [
+        dv.layer1Id as string | undefined,
+        dv.layer2Id as string | undefined,
+        dv.layer3Id as string | undefined,
+        dv.layer4Id as string | undefined,
+        dv.layer5Id as string | undefined,
+      ]);
+      const productName =
+        (dv.productName as string) || sheet.pricingSheetName || "";
+      const specFromServer = laySpecDaLuu(sheet.id, productName, sheetIdx);
       const giaAo = {
         id: sheet.id,
         customer: maKH,
-        productName: (dv.productName as string) || sheet.pricingSheetName || "",
+        productName,
         productType: (dv.productType as string) || "tui",
-        structure: cauTruc || (dv.productName as string) || "",
+        structure: cauTruc || productName || "",
         quantity: (dv.quantity as number) || 0,
         finalPrice: specFromServer?.finalPrice ?? ((kq.finalPrice as number) || 0),
         chotGia: specFromServer?.chotGia ?? undefined,
@@ -3864,7 +3879,9 @@ function TaoBaoGiaWizard({
         cylCircum: (dv.cylCircum as number) || 0,
         totalArea: (dv.totalArea as number) || 0,
       } as any as HistoryItem;
-      sanPham.push(buildWizardProductFromHistoryItem(giaAo));
+      sanPham.push(
+        buildWizardProductFromHistoryItem(giaAo, specFromServer?.bagSpec),
+      );
     }
     const iv = (bg.inputValue ?? {}) as Record<string, unknown>;
     const dieuKhoan = {
@@ -3884,9 +3901,16 @@ function TaoBaoGiaWizard({
             )
           : "Thanh toán 30 ngày"),
       deliveryTime: (iv.deliveryTime as string) || "7-10 ngày làm việc",
-      deliveryAddress:
-        (iv.deliveryAddress as string) || khachHang?.address || "",
-      notes: (iv.notes as string) || "",
+      ...(() => {
+        const tach = tachDiaDiemTuGhiChu(
+          (iv.notes as string) || "",
+          (iv.deliveryAddress as string) || "",
+        );
+        return {
+          deliveryAddress: tach.deliveryAddress || khachHang?.address || "",
+          notes: tach.notes,
+        };
+      })(),
       quantityTolerance: (iv.quantityTolerance as number) ?? 10,
       techRequirement:
         (iv.techRequirement as string) || "Chạy theo market ký duyệt",
@@ -4031,12 +4055,30 @@ function TaoBaoGiaWizard({
   //   2) Tạo quotation tham chiếu toàn bộ pricingSheetIds.
   //   3) Nộp duyệt (PATCH status_update) khi sendForApproval.
   // Tạo báo giá trên server trước. Chỉ lưu local sau khi server thành công.
+  /** Gộp địa điểm + ghi chú — chỉ dùng khi hiển thị PDF / mô tả, KHÔNG ghi đè field form. */
   function mergeGhiChu(terms: WizardState["terms"]): string {
     const diaDiem = terms.deliveryAddress?.trim();
     const ghiChu = terms.notes?.trim();
     if (diaDiem && ghiChu) return `Địa điểm giao hàng: ${diaDiem}\n\n${ghiChu}`;
     if (diaDiem) return `Địa điểm giao hàng: ${diaDiem}`;
     return ghiChu || "";
+  }
+
+  /** Tách format cũ "Địa điểm giao hàng: ...\n\n..." khỏi notes khi load. */
+  function tachDiaDiemTuGhiChu(
+    notesRaw: string,
+    deliveryAddressRaw: string,
+  ): { deliveryAddress: string; notes: string } {
+    const notes = (notesRaw || "").trim();
+    let deliveryAddress = (deliveryAddressRaw || "").trim();
+    const m = notes.match(
+      /^Địa điểm giao hàng:\s*([\s\S]+?)(?:\n\n([\s\S]*))?$/i,
+    );
+    if (m) {
+      if (!deliveryAddress) deliveryAddress = (m[1] || "").trim();
+      return { deliveryAddress, notes: (m[2] || "").trim() };
+    }
+    return { deliveryAddress, notes };
   }
   const dayBaoGiaLenServer = useCallback(
     async (
@@ -4091,8 +4133,8 @@ function TaoBaoGiaWizard({
                 validityDays: terms.validityDays,
                 paymentTerms: terms.paymentTerms,
                 deliveryTime: terms.deliveryTime,
-                deliveryAddress: terms.deliveryAddress,
-                notes: mergeGhiChu(terms),
+                deliveryAddress: terms.deliveryAddress?.trim() || "",
+                notes: terms.notes?.trim() || "",
                 quantityTolerance: terms.quantityTolerance,
                 techRequirement: terms.techRequirement,
                 productBagSpecs: products.map((prod) => ({
@@ -4146,8 +4188,8 @@ function TaoBaoGiaWizard({
               validityDays: terms.validityDays,
               paymentTerms: terms.paymentTerms,
               deliveryTime: terms.deliveryTime,
-              deliveryAddress: terms.deliveryAddress,
-              notes: mergeGhiChu(terms),
+              deliveryAddress: terms.deliveryAddress?.trim() || "",
+              notes: terms.notes?.trim() || "",
               quantityTolerance: terms.quantityTolerance,
               techRequirement: terms.techRequirement,
               productBagSpecs: products.map((prod) => ({
@@ -4272,7 +4314,8 @@ function TaoBaoGiaWizard({
           products,
           terms: {
             ...state.terms,
-            notes: mergeGhiChu(state.terms),
+            deliveryAddress: state.terms.deliveryAddress?.trim() || "",
+            notes: state.terms.notes?.trim() || "",
           },
           sendForApproval,
           quotationId,

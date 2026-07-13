@@ -7,6 +7,8 @@ import { QrevStyleInjector } from './qrev-styles';
 import type { HistoryItem } from '../lib/types';
 import ConfirmDialog from './ConfirmDialog';
 import { buildHistoryItemFromServerData } from '../lib/baoGiaExport';
+import { buildStructureFromLayers } from '../lib/format-structure';
+import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { BaoGiaReactPdfDownload } from './BaoGiaPdfDocument';
 import BaoGiaPreviewModal from './BaoGiaPreviewModal';
 import {
@@ -99,9 +101,14 @@ function docInputBangTinh(value: unknown): Partial<import('../lib/types').Calcul
 }
 
 function cauTrucTuInput(input: Partial<import('../lib/types').CalculateInput>): string {
-  return [input.layer1Id, input.layer2Id, input.layer3Id, input.layer4Id, input.layer5Id]
-    .filter(Boolean)
-    .join(' / ');
+  const { materials } = dungCuaHangTinhGia.getState();
+  return buildStructureFromLayers(materials, [
+    input.layer1Id,
+    input.layer2Id,
+    input.layer3Id,
+    input.layer4Id,
+    input.layer5Id,
+  ]);
 }
 
 function tenBaoGia(bg: BaoGiaApi): string {

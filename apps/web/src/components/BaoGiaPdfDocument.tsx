@@ -9,6 +9,8 @@ import {
   Font,
   PDFDownloadLink,
 } from "@react-pdf/renderer";
+import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
+import { boSoCauTruc } from "../lib/format-structure";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // BaoGiaPdfDocument — tạo PDF báo giá bằng @react-pdf/renderer, layout 100% DOCX
@@ -36,7 +38,7 @@ const CW = {
   price: "12.5%",
   total: "11.5%",
 };
-const BLUE = "#3d85c6";
+const BLUE = "#1DA65E";
 const BORDER = "1px solid #333";
 
 const styles = StyleSheet.create({
@@ -310,13 +312,14 @@ function buildBagSpecDescription(
   structure: string,
   totalThickness = 0,
 ): string {
-  if (!spec) return structure || "";
+  if (!spec) return boSoCauTruc(structure) || "";
   const lines: string[] = [];
   const bagLabel =
     BAG_TYPE_LABELS[spec.bagType] ||
     (spec.bagType ? spec.bagType.toUpperCase() : "");
   if (bagLabel) lines.push(bagLabel + ".");
-  if (structure) lines.push("Chất liệu: " + structure + ".");
+  const chatLieu = boSoCauTruc(structure);
+  if (chatLieu) lines.push("Chất liệu: " + chatLieu + ".");
   if (totalThickness > 0)
     lines.push("Độ dày: " + totalThickness + " mic (± 5 mic).");
   const dimParts: string[] = [];
@@ -382,6 +385,8 @@ interface ProductGroup {
 }
 
 function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
+  const { materials } = dungCuaHangTinhGia.getState();
+
   return products
     .map((p) => {
     const input = p.input || {};
@@ -405,8 +410,25 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
       });
     }
     const isBag = input.productType !== "mang";
+
     let totalThickness = 0;
-    // Simplified — just use the structure
+    for (const layerKey of [
+      "layer1Id",
+      "layer2Id",
+      "layer3Id",
+      "layer4Id",
+      "layer5Id",
+    ]) {
+      const matId = input[layerKey] as string | undefined;
+      if (matId) {
+        const mat = materials.find((m: any) => m.id === matId);
+        const override = (
+          input.micOverrides as Record<string, number> | undefined
+        )?.[layerKey];
+        totalThickness += override ?? (mat as any)?.thickness ?? 0;
+      }
+    }
+
     const excludeBag = (p.bagSpec as any)?.includeBagInQuote === false;
     const description = excludeBag
       ? ""
