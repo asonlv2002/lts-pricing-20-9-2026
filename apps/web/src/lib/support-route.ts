@@ -85,3 +85,44 @@ export function dongBoUrlQueryExclusive(
 export function dongBoUrlDeepLinkClear(): void {
   dongBoUrlQueryExclusive(null);
 }
+
+/** URL tuyệt đối để copy/chia sẻ (origin + path + query exclusive). */
+export function taoUrlChiaSeTuyetDoi(
+  set: { key: string; id: string } | null,
+  clearKeys: readonly string[] = DEEP_LINK_QUERY_KEYS,
+): string {
+  if (typeof window === 'undefined') {
+    return ghepUrlQueryExclusive('/', set, clearKeys);
+  }
+  const pathQuery = ghepUrlQueryExclusive(window.location.href, set, clearKeys);
+  return `${window.location.origin}${pathQuery}`;
+}
+
+/** Copy text vào clipboard. Trả true nếu thành công. */
+export async function saoChepVaoClipboard(text: string): Promise<boolean> {
+  const value = text.trim();
+  if (!value) return false;
+  try {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    /* fallback bên dưới */
+  }
+  try {
+    if (typeof document === 'undefined') return false;
+    const ta = document.createElement('textarea');
+    ta.value = value;
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return ok;
+  } catch {
+    return false;
+  }
+}

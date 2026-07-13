@@ -1025,6 +1025,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className={`lts-shell ${laMobile ? 'lts-shell--mobile' : ''}`}>
+      {/* Toast trượt từ phải — dùng chung mọi module (copy URL, v.v.) */}
+      <div className="toast-container" id="toastContainer" />
       {!laMobile && (
         <ThanhBen
           moduleDangMo={moduleDangMo}

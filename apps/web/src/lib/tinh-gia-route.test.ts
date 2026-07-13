@@ -4,6 +4,7 @@ import {
   docIdTuUrl,
   idChiaSeBangTinh,
   ghepUrlTinhGia,
+  taoUrlChiaSeTinhGia,
 } from './tinh-gia-route';
 
 let passed = 0;
@@ -82,6 +83,11 @@ assert(
 assert(
   'ghepUrlTinhGia clears bao-gia',
   ghepUrlTinhGia('https://x.com/?bao-gia=Q1', 'T1') === '/?tinh-gia=T1',
+);
+
+assert(
+  'taoUrlChiaSeTinhGia null when empty',
+  taoUrlChiaSeTinhGia('') === null && taoUrlChiaSeTinhGia(null) === null,
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

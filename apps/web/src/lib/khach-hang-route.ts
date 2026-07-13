@@ -2,6 +2,7 @@ import {
   docQueryParam,
   dongBoUrlQueryExclusive,
   ghepUrlQueryExclusive,
+  taoUrlChiaSeTuyetDoi,
 } from './support-route';
 
 /** Query param deep-link panel khách hàng: /?khach-hang=<codeName> */
@@ -43,4 +44,13 @@ export function dongBoUrlKhachHang(codeName: string | null | undefined): void {
   } else {
     dongBoUrlQueryExclusive(null);
   }
+}
+
+/** URL tuyệt đối /?khach-hang=<codeName> để copy chia sẻ. */
+export function taoUrlChiaSeKhachHang(
+  codeName: string | null | undefined,
+): string | null {
+  const ma = codeName?.trim();
+  if (!ma) return null;
+  return taoUrlChiaSeTuyetDoi({ key: KHACH_HANG_QUERY, id: ma });
 }

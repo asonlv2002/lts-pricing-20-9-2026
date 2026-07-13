@@ -40,10 +40,12 @@ import {
   dongBoUrlKhachHang,
   khopMaKhachHang,
   chuanHoaMaKhachHang,
+  taoUrlChiaSeKhachHang,
 } from '../lib/khach-hang-route';
 import { tieuDeKhongTimThay } from '../lib/support-route';
 import { CustomerManagersPicker } from './customer/CustomerManagersPicker';
 import ImportKhachHangPanel from './customer/ImportKhachHangPanel';
+import NutSaoChepLienKet from './NutSaoChepLienKet';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type CustomerStatus = 'active' | 'inactive';
@@ -958,13 +960,19 @@ function CustomerCard({ customer, role, currentSellerId, canUpdateCustomer, rela
       )}
       {/* Quick actions on hover */}
       <div className={`crm2-card-actions${hovered ? ' crm2-card-actions--visible' : ''}`}>
-        <button className="crm2-btn-icon" title="Xem chi tiết" onClick={e => { e.stopPropagation(); onView(); }}><Eye size={14}/></button>
-        {canUpdateCustomer && <button className="crm2-btn-icon" title="Chỉnh sửa" onClick={e => { e.stopPropagation(); onEdit(); }}><Pencil size={14}/></button>}
-        {role === 'admin' && <button className="crm2-btn-icon" title="Phân công nhân viên" onClick={e => { e.stopPropagation(); onAssign(); }}><Briefcase size={14}/></button>}
-        {canLock(role) && <button className="crm2-btn-icon" title={customer.isLocked ? 'Mở khóa' : 'Khóa'} onClick={e => { e.stopPropagation(); onToggleLock(); }}>{customer.isLocked ? <Unlock size={14}/> : <Lock size={14}/>}</button>}
+        <button className="crm2-btn-icon" title="Xem chi tiết" onClick={e => { e.stopPropagation(); onView(); }}><Eye size={15}/></button>
+        {!customer.isDraft && (
+          <NutSaoChepLienKet
+            url={taoUrlChiaSeKhachHang(customer.customerCode || customer.id)}
+            variant="crm2"
+            size={15}
+          />
+        )}
+        {role === 'admin' && <button className="crm2-btn-icon" title="Phân công nhân viên" onClick={e => { e.stopPropagation(); onAssign(); }}><Briefcase size={15}/></button>}
+        {canLock(role) && <button className="crm2-btn-icon" title={customer.isLocked ? 'Mở khóa' : 'Khóa'} onClick={e => { e.stopPropagation(); onToggleLock(); }}>{customer.isLocked ? <Unlock size={15}/> : <Lock size={15}/>}</button>}
         <div style={{ position: 'relative', display: 'inline-block' }} onMouseDown={e => e.stopPropagation()}>
           <button className="crm2-btn-icon" title="Hồ sơ giao dịch" onClick={e => { e.stopPropagation(); setTxCardOpen(txCardOpen === customer.id ? null : customer.id); }}>
-            <ClipboardList size={14}/>
+            <ClipboardList size={15}/>
           </button>
           {txCardOpen === customer.id && (
             <div className="crm2-dropdown-menu" style={{ position: 'absolute', top: 0, right: 'calc(100% + 8px)', left: 'auto', minWidth: 200, zIndex: 20 }}>
@@ -2385,7 +2393,7 @@ export default function ModuleKhachHang({
                 <th>Nhân viên</th>
                 <th>Trạng thái</th>
                 <th>Ngày khởi tạo</th>
-                <th>Thao tác</th>
+                <th className="crm2-col-actions">Thao tác</th>
               </tr>
             </thead>
             <tbody>
@@ -2394,7 +2402,6 @@ export default function ModuleKhachHang({
                 const crmCfg = CRM_STATUS_CONFIG[getCrmStatus(c)];
                 const duocXemLienHe = canViewContact(role, c, currentSellerId);
                 const managerNames = managerNamesForTable(c);
-                const canUpdateThisCustomer = canUpdateCustomerRecord(c, nguoiDungHienTai?.id);
                 return (
                 <tr key={c.id} className="crm2-table-row" onClick={() => c.isDraft ? openEdit(c) : openDetail(c)}>
                   <td>
@@ -2432,27 +2439,31 @@ export default function ModuleKhachHang({
                    <td>
                      <span className="crm2-table-date">{fmtDate(c.createdAt)}</span>
                    </td>
-                   <td>
-                     <div className="crm2-table-actions" onClick={e => e.stopPropagation()}>
-                      {c.isDraft ? (
-                        <button className="crm2-btn-icon" title="Xem / sửa nháp" onClick={() => openEdit(c)}><Eye size={14}/></button>
-                      ) : (
-                      <>
-                      <button className="crm2-btn-icon" title="Xem" onClick={() => openDetail(c)}><Eye size={14}/></button>
-                      {canUpdateThisCustomer && <button className="crm2-btn-icon" title="Sửa" onClick={() => openEdit(c)}><Pencil size={14}/></button>}
-                      {coQuyenQuanLyNguoiPhuTrach && <button className="crm2-btn-icon" title="Phân công" onClick={() => openAssign(c)}><Briefcase size={14}/></button>}
+                   <td className="crm2-col-actions">
+                      <div className="crm2-table-actions" onClick={e => e.stopPropagation()}>
+                       {c.isDraft ? (
+                         <button className="crm2-btn-icon" title="Xem / sửa nháp" onClick={() => openEdit(c)}><Eye size={15}/></button>
+                       ) : (
+                       <>
+                       <button className="crm2-btn-icon" title="Xem" onClick={() => openDetail(c)}><Eye size={15}/></button>
+                      <NutSaoChepLienKet
+                        url={taoUrlChiaSeKhachHang(c.customerCode || c.id)}
+                        variant="crm2"
+                        size={15}
+                      />
+                      {coQuyenQuanLyNguoiPhuTrach && <button className="crm2-btn-icon" title="Phân công" onClick={() => openAssign(c)}><Briefcase size={15}/></button>}
                       {canLock(role) && (
                         <button className="crm2-btn-icon" title={c.isLocked ? 'Mở khóa' : 'Khóa'} onClick={() => setConfirm({
                           title: c.isLocked ? 'Mở khóa?' : 'Khóa?',
                           desc: c.isLocked ? `${displayName(c)} sẽ được mở khóa.` : `${displayName(c)} sẽ bị khóa.`,
                           action: () => patch(c.id, { isLocked: !c.isLocked })
                         })}>
-                          {c.isLocked ? <Unlock size={14}/> : <Lock size={14}/>}
+                          {c.isLocked ? <Unlock size={15}/> : <Lock size={15}/>}
                         </button>
                       )}
                       <div style={{ position: 'relative', display: 'inline-block' }} onMouseDown={e => e.stopPropagation()}>
                         <button className="crm2-btn-icon" title="Hồ sơ giao dịch" onClick={() => setTxCardOpen(txCardOpen === c.id ? null : c.id)}>
-                          <ClipboardList size={14}/>
+                          <ClipboardList size={15}/>
                         </button>
                         {txCardOpen === c.id && (
                           <div className="crm2-dropdown-menu" style={{ position: 'absolute', top: 0, right: 'calc(100% + 8px)', left: 'auto', minWidth: 200, zIndex: 20 }}>
@@ -2824,7 +2835,60 @@ const CRM2_STYLES = `
 .crm2-table-contact { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--muted, #6b7280); }
 .crm2-table-seller { font-size: 12px; }
 .crm2-table-managers { display: flex; flex-direction: column; gap: 2px; font-size: 12px; color: var(--foreground, #111); line-height: 1.35; }
-.crm2-table-actions { display: flex; gap: 4px; }
+/* Cột Thao tác: nút bám trái dưới header, không dồn phải */
+.crm2-table th.crm2-col-actions,
+.crm2-table td.crm2-col-actions {
+  text-align: left;
+  width: 1%;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+/* Hàng nút thao tác list — đồng bộ qrev (tính giá / báo giá) */
+.crm2-table-actions {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+  width: auto;
+}
+.crm2-table-actions .crm2-btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--surface, #fff);
+  color: var(--muted, #6b7280);
+}
+.crm2-table-actions .crm2-btn-icon:hover {
+  background: var(--surface2, #f3f4f6);
+  color: var(--text, #1e293b);
+}
+.crm2-table-actions .crm2-btn-icon--primary {
+  color: var(--accent, #0891b2);
+  border-color: var(--accent, #0891b2);
+}
+.crm2-table-actions .crm2-btn-icon--primary:hover {
+  background: rgba(8, 145, 178, 0.08);
+  color: var(--accent, #0891b2);
+}
+/* Card list: cùng kiểu nút bordered */
+.crm2-card-actions .crm2-btn-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--surface, #fff);
+  color: var(--muted, #6b7280);
+}
+.crm2-card-actions .crm2-btn-icon:hover {
+  background: var(--surface2, #f3f4f6);
+  color: var(--text, #1e293b);
+}
+.crm2-card-actions .crm2-btn-icon--primary {
+  color: var(--accent, #0891b2);
+  border-color: var(--accent, #0891b2);
+}
 
 /* Slide panel */
 .crm2-overlay {

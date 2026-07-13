@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { normalizeDisplayText } from "../lib/text-codec";
+import { taoUrlChiaSeBaoGia } from "../lib/bao-gia-route";
 import { QrevStyleInjector } from "./qrev-styles";
 import { coQuyenDuyetBaoGia } from "../lib/permissions";
 import type { CalculateInput, HistoryItem } from "../lib/types";
@@ -30,6 +31,7 @@ import {
   buildHistoryItemFromServerData,
 } from "../lib/baoGiaExport";
 import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
+import NutSaoChepLienKet from "./NutSaoChepLienKet";
 import {
   layDanhSachBaoGiaService,
   layBaoGiaChoDuyetService,
@@ -501,6 +503,11 @@ export default function ModuleDuyetBaoGia({
         >
           <Eye size={15} />
         </button>
+        <NutSaoChepLienKet
+          url={taoUrlChiaSeBaoGia(bg.id)}
+          variant="qrev"
+          size={15}
+        />
         <button
           className="qrev-btn-icon qrev-btn-icon--primary"
           title="Mở lại bảng báo giá"

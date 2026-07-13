@@ -8,9 +8,11 @@ import {
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { getPricingWorkflowStatus } from '../lib/history-filters';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
+import { idChiaSeBangTinh, taoUrlChiaSeTinhGia } from '../lib/tinh-gia-route';
 import { QrevStyleInjector } from './qrev-styles';
 import { xoaPricingSheetService } from '../lib/api/service-lts';
 import { exportPricingDetailToA4 } from '../lib/pricing-detail-export';
+import NutSaoChepLienKet from './NutSaoChepLienKet';
 import type { HistoryItem } from '../lib/types';
 
 const boDau = (chuoi: string) =>
@@ -242,6 +244,11 @@ export default function ModuleDanhSachTinhGia({
             <button className="qrev-btn-icon" title="Xem chi tiết" onClick={() => moXemA4(h)}>
               <Eye size={15} />
             </button>
+            <NutSaoChepLienKet
+              url={taoUrlChiaSeTinhGia(idChiaSeBangTinh(h))}
+              variant="qrev"
+              size={15}
+            />
             <button className="qrev-btn-icon qrev-btn-icon--primary" title="Mở lại tính giá" onClick={() => moLaiTinhGia(h.id)}>
               <FileEdit size={15} />
             </button>

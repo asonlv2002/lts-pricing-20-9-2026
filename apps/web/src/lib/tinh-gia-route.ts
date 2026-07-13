@@ -2,6 +2,7 @@ import {
   docQueryParam,
   dongBoUrlQueryExclusive,
   ghepUrlQueryExclusive,
+  taoUrlChiaSeTuyetDoi,
 } from './support-route';
 
 /** Query param deep-link mở bảng tính giá: /?tinh-gia=<id> */
@@ -49,4 +50,11 @@ export function dongBoUrlTinhGia(id: string | null | undefined): void {
   } else {
     dongBoUrlQueryExclusive(null);
   }
+}
+
+/** URL tuyệt đối /?tinh-gia=<id> để copy chia sẻ. */
+export function taoUrlChiaSeTinhGia(id: string | null | undefined): string | null {
+  const shareId = id?.trim();
+  if (!shareId) return null;
+  return taoUrlChiaSeTuyetDoi({ key: TINH_GIA_QUERY, id: shareId });
 }
