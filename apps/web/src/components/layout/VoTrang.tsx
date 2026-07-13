@@ -35,6 +35,10 @@ import {
   docBaoGiaIdTuSearchParams,
   dongBoUrlBaoGia,
 } from '../../lib/bao-gia-route';
+import {
+  KHACH_HANG_QUERY,
+  docKhachHangIdTuSearchParams,
+} from '../../lib/khach-hang-route';
 import { timMucLichSuTheoId } from '../../lib/history-identity';
 import { layBaoGiaTheoIdService, type PolicyCode } from '../../lib/api/service-lts';
 import {
@@ -724,12 +728,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (mucMoi) datMenuDangChon(mucMoi.key);
   }, [moduleDangMo, laMobile, menuDangChon]);
 
-  // Deep-link: /?tinh-gia=<id> | /?bao-gia=<id>
+  // Deep-link: /?tinh-gia=<id> | /?bao-gia=<id> | /?khach-hang=<code>
   useEffect(() => {
     if (!isAuthenticated || !sessionChecked) return;
     const deep = docDeepLinkTuSearchParams(window.location.search, [
       { loai: 'tinh-gia', key: TINH_GIA_QUERY },
       { loai: 'bao-gia', key: BAO_GIA_QUERY },
+      { loai: 'khach-hang', key: KHACH_HANG_QUERY },
     ]);
     if (!deep) {
       deepLinkDaXuLy.current = null;
@@ -742,9 +747,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     let huy = false;
     datDeepLinkLoai(deep.loai);
-    datDeepLinkTrangThai('loading');
+    // Khách hàng dùng panel — không full-page loading; ModuleKhachHang xử lý panel
+    if (deep.loai !== 'khach-hang') {
+      datDeepLinkTrangThai('loading');
+    }
 
     const moDeepLink = async () => {
+      if (deep.loai === 'khach-hang') {
+        if (huy) return;
+        datMenuDangChon('customers.list');
+        datModuleDangMo('customers');
+        deepLinkDaXuLy.current = keyXuLy;
+        datDeepLinkTrangThai('ok');
+        return;
+      }
+
       if (deep.loai === 'tinh-gia') {
         const local = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, deep.id);
         if (local && !local.isQuote) {
@@ -816,10 +833,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     datNguonWizard,
   ]);
 
-  // Đồng bộ URL (copy-share): tính giá hoặc báo giá — mutual exclusive
+  // Đồng bộ URL (copy-share): tính giá / báo giá — khách hàng do ModuleKhachHang giữ
   useEffect(() => {
     if (!isAuthenticated || !sessionChecked) return;
     if (deepLinkTrangThai === 'loading' || deepLinkTrangThai === 'not_found') return;
+    // Panel KH tự sync ?khach-hang= — không đụng ở đây
+    if (moduleDangMo === 'customers') return;
 
     if (moduleDangMo === 'calculator' && loadedHistoryId) {
       const item = timMucLichSuTheoId(lichSu, loadedHistoryId);
@@ -1079,7 +1098,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               {moduleDangMo === 'history_db'        && (menuDangChon === 'pricing.history'
                 ? <ModuleDanhSachTinhGia khiDieuHuong={(m) => datModuleDangMo(m)} />
                 : <ModuleLichSuDB khiDieuHuong={datModuleDangMo} menuDangChon={menuDangChon} />)}
-              {moduleDangMo === 'customers'         && <ModuleKhachHang role={vaiTroHienTai} currentSellerId={idNhanVienHienTai} menuDangChon={menuDangChon} />}
+              {moduleDangMo === 'customers'         && (
+                <ModuleKhachHang
+                  role={vaiTroHienTai}
+                  currentSellerId={idNhanVienHienTai}
+                  menuDangChon={menuDangChon}
+                  deepLinkCode={docKhachHangIdTuSearchParams(
+                    typeof window !== 'undefined' ? window.location.search : null,
+                  )}
+                />
+              )}
               {moduleDangMo === 'master_data'       && <TrangCauHinh menuDangChon={menuDangChon} />}
               {moduleDangMo === 'users'             && <ModulePhanQuyen menuDangChon={menuDangChon} />}
               {moduleDangMo === 'settings'          && <div className="crm-root"><div className="crm-empty"><p>Module này chưa có màn hình chi tiết.</p><p style={{fontSize:'0.85rem',color:'var(--muted)'}}>Mục đang chọn: {CAC_MUC_MENU.find(i => i.key === menuDangChon)?.label ?? menuDangChon}</p></div></div>}

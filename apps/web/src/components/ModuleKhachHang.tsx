@@ -29,11 +29,19 @@ import {
 } from '../lib/customer-api';
 import {
   layKhachHangService,
+  layChiTietKhachHangService,
   layNguoiPhuTrachKhachHangService,
   luuNguoiPhuTrachKhachHangService,
   luuThongTinKhachHangService,
   taoMaKhachHangService,
 } from '../lib/api/service-lts';
+import {
+  docKhachHangIdTuSearchParams,
+  dongBoUrlKhachHang,
+  khopMaKhachHang,
+  chuanHoaMaKhachHang,
+} from '../lib/khach-hang-route';
+import { tieuDeKhongTimThay } from '../lib/support-route';
 import { CustomerManagersPicker } from './customer/CustomerManagersPicker';
 import ImportKhachHangPanel from './customer/ImportKhachHangPanel';
 
@@ -1576,17 +1584,35 @@ function CustomerAuditView({ customers }: { customers: Customer[] }) {
 }
 
 // ── Main Component ───────────────────────────────────────────────────────────
-export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDangChon }: { role: Role; currentSellerId?: string; menuDangChon?: string }) {
+export default function ModuleKhachHang({
+  role,
+  currentSellerId = 'S1',
+  menuDangChon,
+  deepLinkCode,
+}: {
+  role: Role;
+  currentSellerId?: string;
+  menuDangChon?: string;
+  /** Mã KH từ /?khach-hang= — VoTrang truyền xuống để tránh race parse URL + list refresh */
+  deepLinkCode?: string | null;
+}) {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [filters, setFilters] = useState<CustomerFilters>(emptyFilters);
   const [editing, setEditing] = useState<Customer | null | undefined>(undefined);
   const [detail, setDetail] = useState<Customer | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailNotFound, setDetailNotFound] = useState(false);
+  /** true sau lần load list server (hoặc offline local) — deep-link chỉ mở panel sau flag này */
+  const [daTaiList, setDaTaiList] = useState(false);
   const [confirm, setConfirm] = useState<{ title: string; desc: string; action: () => void } | null>(null);
   const [dropdownOpen, setDropdownOpen] = useState<string | null>(null);
   const [assigning, setAssigning] = useState<Customer | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
+  const deepLinkKhachHangDaXuLy = useRef<string | null>(null);
+  const customersRef = useRef<Customer[]>([]);
   const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
+  customersRef.current = customers;
   const [crmThresholds, setCrmThresholds] = useState<CrmThresholds>(() => loadCrmThresholds());
   const [showThresholdSettings, setShowThresholdSettings] = useState(false);
   const [txCardOpen, setTxCardOpen] = useState<string | null>(null);
@@ -1605,8 +1631,17 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     return () => document.removeEventListener('mousedown', handler);
   }, [txCardOpen]);
 
-  const handleNavigate = (module: string, filter: string, quoteMode?: boolean) => {
+  const dongPanelChiTiet = () => {
     setDetail(null);
+    setDetailLoading(false);
+    setDetailNotFound(false);
+    setEditing(undefined);
+    deepLinkKhachHangDaXuLy.current = null;
+    dongBoUrlKhachHang(null);
+  };
+
+  const handleNavigate = (module: string, filter: string, quoteMode?: boolean) => {
+    dongPanelChiTiet();
     // Pass customer name as pre-fill filter to target module
     try { localStorage.setItem('lts_navigate_filter', JSON.stringify({ module: quoteMode ? 'quote' : module, customerName: filter, ts: Date.now() })); } catch {}
     setActiveModule(module as Parameters<typeof setActiveModule>[0]);
@@ -1626,7 +1661,13 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     setDetail(current => current ? customersWithManagers.find(customer => customer.id === current.id) ?? current : current);
     setEditing(current => current ? customersWithManagers.find(customer => customer.id === current.id) ?? current : current);
     setAssigning(current => current ? customersWithManagers.find(customer => customer.id === current.id) ?? current : current);
+    setDaTaiList(true);
   };
+
+  const timKhachTrongList = (ma: string, list: Customer[] = customersRef.current) =>
+    list.find(
+      c => !c.isDraft && (khopMaKhachHang(c.customerCode, ma) || khopMaKhachHang(c.id, ma)),
+    );
 
   const ensureManagers = async (customer: Customer): Promise<Customer> => {
     if (customer.managers) return customer;
@@ -1636,9 +1677,144 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   };
 
   const openDetail = async (customer: Customer) => {
+    setDetailNotFound(false);
+    setDetailLoading(false);
     setDetail(customer);
+    const ma = customer.customerCode?.trim() || customer.id;
+    if (ma) {
+      deepLinkKhachHangDaXuLy.current = `ok:${chuanHoaMaKhachHang(ma)}`;
+      dongBoUrlKhachHang(ma);
+    }
     try { await ensureManagers(customer); } catch (error) { console.warn('Không tải được người phụ trách:', error); }
   };
+
+  // Deep-link /?khach-hang=<codeName>:
+  // 1) chờ list load xong (daTaiList)
+  // 2) mở panel từ item trên list
+  // 3) không có trên list → GET by code; fail → empty panel
+  useEffect(() => {
+    if (menuDangChon === 'customers.audit_log') return;
+
+    const maTuUrl = (
+      deepLinkCode?.trim()
+      || docKhachHangIdTuSearchParams(
+        typeof window !== 'undefined' ? window.location.search : null,
+      )
+      || ''
+    ).trim() || null;
+    if (!maTuUrl) return;
+
+    const maChuan = chuanHoaMaKhachHang(maTuUrl);
+    if (!maChuan) return;
+
+    // Đã resolve xong đúng mã (normalize) — không fetch lại
+    if (
+      deepLinkKhachHangDaXuLy.current === `ok:${maChuan}`
+      || deepLinkKhachHangDaXuLy.current === `nf:${maChuan}`
+    ) {
+      return;
+    }
+
+    // Chưa có list → chỉ hiện loading, chờ daTaiList
+    if (!daTaiList) {
+      setDetailLoading(true);
+      setDetailNotFound(false);
+      return;
+    }
+
+    // List đã sẵn: ưu tiên mở từ list
+    const local = timKhachTrongList(maTuUrl);
+    if (local) {
+      setDetail(local);
+      setDetailLoading(false);
+      setDetailNotFound(false);
+      deepLinkKhachHangDaXuLy.current = `ok:${chuanHoaMaKhachHang(local.customerCode || local.id)}`;
+      dongBoUrlKhachHang(local.customerCode || local.id);
+      void ensureManagers(local).catch(() => {});
+      return;
+    }
+
+    // Không có trên list → fallback GET by code (chỉ sau khi list đã load)
+    if (!isAuthenticated || !accessToken) {
+      setDetail(null);
+      setDetailLoading(false);
+      setDetailNotFound(true);
+      deepLinkKhachHangDaXuLy.current = `nf:${maChuan}`;
+      return;
+    }
+
+    let huy = false;
+    deepLinkKhachHangDaXuLy.current = `load:${maChuan}`;
+    setDetailLoading(true);
+    setDetailNotFound(false);
+
+    const moTheoApi = async () => {
+      try {
+        const api = await layChiTietKhachHangService(maTuUrl, accessToken);
+        if (huy) return;
+        // List có thể vừa refresh — thử lại list trước khi dùng response
+        const tuList = timKhachTrongList(maTuUrl);
+        if (tuList) {
+          setDetail(tuList);
+          setDetailNotFound(false);
+          setDetailLoading(false);
+          deepLinkKhachHangDaXuLy.current = `ok:${chuanHoaMaKhachHang(tuList.customerCode || tuList.id)}`;
+          dongBoUrlKhachHang(tuList.customerCode || tuList.id);
+          void ensureManagers(tuList).catch(() => {});
+          return;
+        }
+        const ui = {
+          ...chuyenCustomerApiSangUi(api),
+          managers: chuyenCustomerManagersApiSangUi(api.managers ?? []),
+        } as Customer;
+        setCustomers(prev => {
+          const idx = prev.findIndex(
+            c => khopMaKhachHang(c.id, ui.id) || khopMaKhachHang(c.customerCode, ui.customerCode),
+          );
+          if (idx >= 0) {
+            const next = [...prev];
+            next[idx] = { ...prev[idx], ...ui };
+            return next;
+          }
+          return [ui, ...prev];
+        });
+        setDetail(ui);
+        setDetailNotFound(false);
+        setDetailLoading(false);
+        deepLinkKhachHangDaXuLy.current = `ok:${chuanHoaMaKhachHang(ui.customerCode || ui.id || maTuUrl)}`;
+        dongBoUrlKhachHang(ui.customerCode || ui.id);
+        if (!ui.managers?.length) {
+          void ensureManagers(ui).catch(() => {});
+        }
+      } catch {
+        if (huy) return;
+        // Lần cuối: list có thể đã có sau refresh song song
+        const tuList = timKhachTrongList(maTuUrl);
+        if (tuList) {
+          setDetail(tuList);
+          setDetailNotFound(false);
+          setDetailLoading(false);
+          deepLinkKhachHangDaXuLy.current = `ok:${chuanHoaMaKhachHang(tuList.customerCode || tuList.id)}`;
+          dongBoUrlKhachHang(tuList.customerCode || tuList.id);
+          void ensureManagers(tuList).catch(() => {});
+          return;
+        }
+        setDetail(null);
+        setDetailNotFound(true);
+        setDetailLoading(false);
+        deepLinkKhachHangDaXuLy.current = `nf:${maChuan}`;
+      }
+    };
+
+    void moTheoApi();
+    return () => {
+      huy = true;
+      if (deepLinkKhachHangDaXuLy.current === `load:${maChuan}`) {
+        deepLinkKhachHangDaXuLy.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- mở từ list khi daTaiList / customers đổi
+  }, [menuDangChon, deepLinkCode, isAuthenticated, accessToken, daTaiList, customers]);
 
   const openEdit = async (customer: Customer | null) => {
     if (!customer) {
@@ -1659,8 +1835,11 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
     let refreshing = false;
 
     setCustomers(mergeDraftIntoList(loadLocalCustomers(), loadCustomerDraft()));
+    setDaTaiList(false);
 
     if (!isAuthenticated || !accessToken) {
+      // Offline: coi local list là “đã tải” để deep-link vẫn mở được từ cache
+      setDaTaiList(true);
       return () => {
         cancelled = true;
       };
@@ -1672,7 +1851,11 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
       try {
         await refreshCustomersFromServer(accessToken);
       } catch (error) {
-        if (!cancelled) console.warn('Không tải được danh sách khách hàng:', error);
+        if (!cancelled) {
+          console.warn('Không tải được danh sách khách hàng:', error);
+          // Vẫn cho deep-link thử list local + GET by code
+          setDaTaiList(true);
+        }
       } finally {
         refreshing = false;
       }
@@ -1862,18 +2045,50 @@ export default function ModuleKhachHang({ role, currentSellerId = 'S1', menuDang
   return (
     <div className="crm2-root">
       <StyleInjector />
-      {/* Slide-in detail panel */}
-      {detail && (
+      {/* Slide-in detail panel (+ loading / not-found deep-link). Ưu tiên: data > not_found > loading */}
+      {detail ? (
         <CustomerDetailPanel
           customer={detail}
           role={role}
           currentSellerId={currentSellerId}
           canUpdateCustomer={canUpdateCustomerRecord(detail, nguoiDungHienTai?.id)}
-          onClose={() => { setDetail(null); setEditing(undefined); }}
+          onClose={dongPanelChiTiet}
           onEdit={() => openEdit(detail)}
           onNavigate={handleNavigate}
         />
-      )}
+      ) : detailNotFound ? (
+        <>
+          <div className="crm2-overlay crm2-overlay--open" onClick={dongPanelChiTiet} />
+          <div className="crm2-slide-panel crm2-slide-panel--open" role="dialog" aria-modal="true" aria-label="Không tìm thấy khách hàng">
+            <div className="crm2-panel-header">
+              <div className="crm2-panel-title"><h3>Khách hàng</h3></div>
+              <button type="button" className="crm2-btn-icon crm2-btn-icon--close" aria-label="Đóng" onClick={dongPanelChiTiet}><X size={18}/></button>
+            </div>
+            <div className="crm2-panel-body" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16, minHeight: 240, textAlign: 'center', padding: 24 }}>
+              <Search size={40} style={{ opacity: 0.4 }} aria-hidden />
+              <p style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--foreground, #374151)', margin: 0 }}>
+                {tieuDeKhongTimThay('khach-hang')}
+              </p>
+              <button type="button" className="crm2-btn crm2-btn--ghost" onClick={dongPanelChiTiet}>
+                Đóng
+              </button>
+            </div>
+          </div>
+        </>
+      ) : detailLoading ? (
+        <>
+          <div className="crm2-overlay crm2-overlay--open" onClick={dongPanelChiTiet} />
+          <div className="crm2-slide-panel crm2-slide-panel--open" role="dialog" aria-modal="true" aria-label="Đang tải khách hàng">
+            <div className="crm2-panel-header">
+              <div className="crm2-panel-title"><h3>Khách hàng</h3></div>
+              <button type="button" className="crm2-btn-icon crm2-btn-icon--close" aria-label="Đóng" onClick={dongPanelChiTiet}><X size={18}/></button>
+            </div>
+            <div className="crm2-panel-body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200, color: 'var(--muted)' }}>
+              Đang tải khách hàng...
+            </div>
+          </div>
+        </>
+      ) : null}
 
       {/* Edit/Create panel — slide-in từ phải */}
       {editing !== undefined && (

@@ -24,8 +24,10 @@ function assert(name: string, condition: boolean, detail = '') {
 console.log('support-route');
 
 assert(
-  'DEEP_LINK_QUERY_KEYS has both domains',
-  DEEP_LINK_QUERY_KEYS.includes('tinh-gia') && DEEP_LINK_QUERY_KEYS.includes('bao-gia'),
+  'DEEP_LINK_QUERY_KEYS has all domains',
+  DEEP_LINK_QUERY_KEYS.includes('tinh-gia')
+    && DEEP_LINK_QUERY_KEYS.includes('bao-gia')
+    && DEEP_LINK_QUERY_KEYS.includes('khach-hang'),
 );
 
 assert(

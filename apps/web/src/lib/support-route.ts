@@ -5,7 +5,7 @@ export type LoaiDeepLink = 'tinh-gia' | 'bao-gia' | 'khach-hang';
 export type TrangThaiDeepLink = 'idle' | 'loading' | 'ok' | 'not_found';
 
 /** Query keys deep-link hiện có — clear mutual exclusive khi set 1 key. */
-export const DEEP_LINK_QUERY_KEYS = ['tinh-gia', 'bao-gia'] as const;
+export const DEEP_LINK_QUERY_KEYS = ['tinh-gia', 'bao-gia', 'khach-hang'] as const;
 
 export const NHAN_LOAI_DEEP_LINK: Record<LoaiDeepLink, string> = {
   'tinh-gia': 'Tính giá',
