@@ -21,6 +21,9 @@ import {
   docIdTuSearchParams,
   dongBoUrlTinhGia,
   idChiaSeBangTinh,
+  tieuDeKhongTimThay,
+  type LoaiDeepLink,
+  type TrangThaiDeepLink,
 } from '../../lib/tinh-gia-route';
 import { timMucLichSuTheoId } from '../../lib/history-identity';
 import type { PolicyCode } from '../../lib/api/service-lts';
@@ -30,7 +33,7 @@ import {
   BarChart3, Clock3, TrendingUp, PackageCheck, Settings2, Wrench, Percent,
   Coins, UserPlus, ListChecks, KeyRound as KeyRoundIcon,
   LayoutDashboard, Shield,
-  LogOut, KeyRound,
+  LogOut, KeyRound, Search,
 } from 'lucide-react';
 
 // ============================================================
@@ -595,10 +598,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     loadHistoryItem,
     taiBangTinhTuServer,
     taiLichSuTuServer,
+    resetInput,
   } = dungCuaHangTinhGia();
 
   const policies = nguoiDung?.policies ?? [];
   const deepLinkDaXuLy = useRef<string | null>(null);
+  const [deepLinkLoai, datDeepLinkLoai] = useState<LoaiDeepLink | null>(null);
+  const [deepLinkTrangThai, datDeepLinkTrangThai] = useState<TrangThaiDeepLink>('idle');
 
   // Restore session on mount
   useEffect(() => {
@@ -705,17 +711,22 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (mucMoi) datMenuDangChon(mucMoi.key);
   }, [moduleDangMo, laMobile, menuDangChon]);
 
-  // Deep-link: /?tinh-gia=<id> → tải bảng tính + mở calculator
+  // Deep-link: /?tinh-gia=<id> → tải bảng tính + mở calculator (hoặc empty not_found)
   useEffect(() => {
     if (!isAuthenticated || !sessionChecked) return;
     const idTuUrl = docIdTuSearchParams(window.location.search);
     if (!idTuUrl) {
       deepLinkDaXuLy.current = null;
+      datDeepLinkLoai(null);
+      datDeepLinkTrangThai('idle');
       return;
     }
     if (deepLinkDaXuLy.current === idTuUrl) return;
 
     let huy = false;
+    datDeepLinkLoai('tinh-gia');
+    datDeepLinkTrangThai('loading');
+
     const moBangTinh = async () => {
       const local = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, idTuUrl);
       if (local && !local.isQuote) {
@@ -723,6 +734,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         loadHistoryItem(local.id);
         datModuleDangMo('calculator');
         deepLinkDaXuLy.current = idTuUrl;
+        datDeepLinkTrangThai('ok');
         return;
       }
 
@@ -734,6 +746,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         loadHistoryItem(sauTai.id);
         datModuleDangMo('calculator');
         deepLinkDaXuLy.current = idTuUrl;
+        datDeepLinkTrangThai('ok');
         return;
       }
 
@@ -742,7 +755,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       if (ok) {
         datModuleDangMo('calculator');
         deepLinkDaXuLy.current = idTuUrl;
+        datDeepLinkTrangThai('ok');
+        return;
       }
+
+      deepLinkDaXuLy.current = idTuUrl;
+      datDeepLinkTrangThai('not_found');
     };
 
     void moBangTinh();
@@ -761,6 +779,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   // Đồng bộ URL khi loadedHistoryId / module đổi (copy-share được)
   useEffect(() => {
     if (!isAuthenticated || !sessionChecked) return;
+    // Giữ query khi đang resolve / không tìm thấy deep-link
+    if (deepLinkTrangThai === 'loading' || deepLinkTrangThai === 'not_found') return;
+
     if (moduleDangMo !== 'calculator' || !loadedHistoryId) {
       if (docIdTuSearchParams(window.location.search)) {
         dongBoUrlTinhGia(null);
@@ -770,7 +791,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const item = timMucLichSuTheoId(lichSu, loadedHistoryId);
     const idShare = idChiaSeBangTinh(item ?? { id: loadedHistoryId });
     dongBoUrlTinhGia(idShare);
-  }, [isAuthenticated, sessionChecked, moduleDangMo, loadedHistoryId, lichSu]);
+  }, [isAuthenticated, sessionChecked, moduleDangMo, loadedHistoryId, lichSu, deepLinkTrangThai]);
 
   // Sync html classes for overflow control
   useEffect(() => {
@@ -869,6 +890,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     datMenuDangChon(MOBILE_TAB_FALLBACK[hubId] ?? MOBILE_TAB_FALLBACK.pricing_quote);
   };
 
+  const dongDeepLinkNotFound = () => {
+    deepLinkDaXuLy.current = null;
+    datDeepLinkLoai(null);
+    datDeepLinkTrangThai('idle');
+    dongBoUrlTinhGia(null);
+  };
+
+  const veDanhSachTinhGia = () => {
+    dongDeepLinkNotFound();
+    datMenuDangChon('pricing.history');
+    datModuleDangMo('history_db');
+  };
+
+  const taoBangTinhMoi = () => {
+    dongDeepLinkNotFound();
+    resetInput();
+    datMenuDangChon('pricing.create_calculation');
+    datModuleDangMo('calculator');
+  };
+
   const hubMobileDangMo = laMobile && laMobileHubKey(menuDangChon)
     ? MOBILE_HUBS[layMobileHubId(menuDangChon)]
     : undefined;
@@ -905,7 +946,30 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         )}
 
         <div className="lts-shell-content lts-shell-content--scroll">
-          {hubMobileDangMo ? (
+          {deepLinkTrangThai === 'loading' ? (
+            <div className="crm-root">
+              <div className="crm-empty" role="status" aria-live="polite">
+                <p>Đang tải bảng tính giá...</p>
+              </div>
+            </div>
+          ) : deepLinkTrangThai === 'not_found' && deepLinkLoai ? (
+            <div className="crm-root">
+              <div className="crm-empty lts-deep-link-empty" role="status">
+                <Search size={40} style={{ opacity: 0.4 }} aria-hidden />
+                <p style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--foreground, #374151)', margin: 0 }}>
+                  {tieuDeKhongTimThay(deepLinkLoai)}
+                </p>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 8 }}>
+                  <button type="button" className="btn btn-primary" onClick={veDanhSachTinhGia}>
+                    Về danh sách tính giá
+                  </button>
+                  <button type="button" className="btn btn-outline" onClick={taoBangTinhMoi}>
+                    Tạo bảng tính mới
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : hubMobileDangMo ? (
             <MobileHubScreen hub={hubMobileDangMo} onAction={xuLyMobileHubAction} />
           ) : (
             <>

@@ -1,6 +1,21 @@
 /** Query param deep-link mở bảng tính giá: /?tinh-gia=<id> */
 export const TINH_GIA_QUERY = 'tinh-gia';
 
+/** Loại deep-link (mở rộng sau: báo giá, khách hàng). */
+export type LoaiDeepLink = 'tinh-gia' | 'bao-gia' | 'khach-hang';
+
+export type TrangThaiDeepLink = 'idle' | 'loading' | 'ok' | 'not_found';
+
+export const NHAN_LOAI_DEEP_LINK: Record<LoaiDeepLink, string> = {
+  'tinh-gia': 'Tính giá',
+  'bao-gia': 'Báo giá',
+  'khach-hang': 'Khách hàng',
+};
+
+export function tieuDeKhongTimThay(loai: LoaiDeepLink): string {
+  return `Không tìm thấy dữ liệu của ${NHAN_LOAI_DEEP_LINK[loai]}`;
+}
+
 export function docIdTuSearchParams(
   search: string | URLSearchParams | null | undefined,
 ): string | null {

@@ -4,6 +4,7 @@ import {
   docIdTuUrl,
   idChiaSeBangTinh,
   ghepUrlTinhGia,
+  tieuDeKhongTimThay,
 } from './tinh-gia-route';
 
 let passed = 0;
@@ -78,6 +79,19 @@ assert(
 assert(
   'ghepUrlTinhGia replace id',
   ghepUrlTinhGia('https://x.com/?tinh-gia=old', 'new') === '/?tinh-gia=new',
+);
+
+assert(
+  'tieuDeKhongTimThay tinh-gia',
+  tieuDeKhongTimThay('tinh-gia') === 'Không tìm thấy dữ liệu của Tính giá',
+);
+assert(
+  'tieuDeKhongTimThay bao-gia',
+  tieuDeKhongTimThay('bao-gia') === 'Không tìm thấy dữ liệu của Báo giá',
+);
+assert(
+  'tieuDeKhongTimThay khach-hang',
+  tieuDeKhongTimThay('khach-hang') === 'Không tìm thấy dữ liệu của Khách hàng',
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);
