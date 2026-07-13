@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, Search, UserPlus, X } from 'lucide-react';
+import { AlertTriangle, Search, UserPlus, X } from 'lucide-react';
 import { layTaiKhoanService, type TaiKhoanApi } from '../../lib/api/service-lts';
 import { locTaiKhoanActive, type CustomerManagerUi } from '../../lib/customer-api';
 import { normalizeDisplayText } from '../../lib/text-codec';
@@ -76,7 +76,7 @@ export function CustomerManagersPicker({ token, value, disabled = false, onChang
             placeholder="Tìm tài khoản active theo tên hoặc username..."
           />
           {loading && <span className="crm2-field-hint">Đang tải tài khoản...</span>}
-          {error && <span className="crm2-field-error" role="alert"><AlertCircle size={11}/>{error}</span>}
+          {error && <span className="crm2-field-error" role="alert"><AlertTriangle size={11}/>{error}</span>}
         </div>
       )}
 
@@ -124,7 +124,7 @@ export function CustomerManagersPicker({ token, value, disabled = false, onChang
       )}
 
       {!disabled && value.length === 0 && (
-        <div className="crm2-alert crm2-alert--warning"><AlertCircle size={14}/> Cần ít nhất 1 người phụ trách trước khi lưu.</div>
+        <div className="crm2-alert crm2-alert--warning"><AlertTriangle size={14}/> Cần ít nhất 1 người phụ trách trước khi lưu.</div>
       )}
     </div>
   );

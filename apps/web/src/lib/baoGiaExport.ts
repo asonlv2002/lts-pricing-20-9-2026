@@ -208,11 +208,14 @@ const CSS = `
     border-radius: 1px; margin-bottom: 24px; padding: 20mm 15mm 15mm 15mm;
     box-sizing: border-box; overflow: hidden;
   }
-  .co-name { text-align: center; font-size: 12pt; font-weight: bold; margin: 0 0 2px; }
-  .co-addr { text-align: center; font-size: 10pt; margin: 0 0 2px; }
-  .co-tax { text-align: center; font-size: 10pt; margin: 0 0 12px; }
-  .title { text-align: center; font-size: 16pt; font-weight: bold; margin: 6px 0 2px; }
-  .title-date { text-align: center; font-size: 11pt; margin: 0 0 6px; }
+  .co-header { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; }
+  .co-logo { width: 64px; height: 52px; object-fit: contain; flex-shrink: 0; }
+  .co-text { flex: 1; min-width: 0; }
+  .co-name { text-align: left; font-size: 9pt; font-weight: bold; margin: 0 0 2px; white-space: nowrap; }
+  .co-addr { text-align: left; font-size: 9pt; margin: 0 0 2px; }
+  .co-tax { text-align: left; font-size: 9pt; margin: 0; }
+  .title { text-align: center; font-size: 16pt; font-weight: bold; margin: 6px 0 10px; }
+  .title-date { text-align: center; font-size: 11pt; margin: 2px 0 6px; }
   .cust-line { font-size: 11pt; margin: 2px 0; }
   .cust-intro { font-size: 11pt; margin: 6px 0; }
   .mg-bg { font-size: 11pt; color: #555; margin: 2px 0; }
@@ -260,9 +263,9 @@ function buildBaoGiaHtmlV2(
 
   // ═══ Column widths (% of total) — mirrors DOCX DXA proportions ═══
   const W = {
-    stt: "4.5%",
+    stt: "6%",
     name: "18%",
-    desc: "38%",
+    desc: "36.5%",
     unit: "6%",
     qty: "9.5%",
     price: "12.5%",
@@ -367,10 +370,14 @@ function buildBaoGiaHtmlV2(
     const titleText = page === 0 ? "BẢNG BÁO GIÁ" : "BẢNG BÁO GIÁ (tiếp theo)";
     let pageHtml = "";
 
-    // Company header
+    // Company header — layout B: logo trái + chữ cạnh
+    pageHtml += `<div class="co-header">`;
+    pageHtml += `<img class="co-logo" src="/logo-LTS-LA.jpg" alt="LTS" />`;
+    pageHtml += `<div class="co-text">`;
     pageHtml += `<div class="co-name">CÔNG TY CỔ PHẦN THƯƠNG MẠI VÀ SẢN XUẤT BAO BÌ LAI TRƯỜNG SƠN- LONG AN</div>`;
     pageHtml += `<div class="co-addr">SỐ 36, ĐƯỜNG ẤP 7B, XÃ MỸ YÊN, TỈNH TÂY NINH, VIỆT NAM</div>`;
-    pageHtml += `<div class="co-tax">MST: 1101904518&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Mail: baobilaitruongson.la@gmail.com</div>`;
+    pageHtml += `<div class="co-tax">MST: 1101904518&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Mail: baobilaitruongson.la@gmail.com</div>`;
+    pageHtml += `</div></div>`;
 
     // Title
     pageHtml += `<div class="title">${escHtml(titleText)}</div>`;
@@ -550,6 +557,16 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
     .filter((g) => g.tiers.length > 0 || g.cylinder);
 }
 
+async function loadBaoGiaLogoBytes(): Promise<Uint8Array | null> {
+  try {
+    const resp = await fetch("/logo-LTS-LA.jpg");
+    if (!resp.ok) return null;
+    return new Uint8Array(await resp.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
 export async function exportBaoGiaToDocx(
   item: HistoryItem,
   customerInfo?: {
@@ -560,7 +577,10 @@ export async function exportBaoGiaToDocx(
     description?: string;
   },
 ): Promise<void> {
-  const docx = await withTimeout(import("docx"), 10000, "import docx");
+  const [docx, logoBytes] = await Promise.all([
+    withTimeout(import("docx"), 10000, "import docx"),
+    loadBaoGiaLogoBytes(),
+  ]);
   const {
     Document,
     Packer,
@@ -572,7 +592,8 @@ export async function exportBaoGiaToDocx(
     WidthType,
     AlignmentType,
     BorderStyle,
-    PageBreak,
+    ImageRun,
+    VerticalAlign,
   } = docx;
 
   const products: QuoteProductLine[] = item.quoteProducts?.length
@@ -597,9 +618,9 @@ export async function exportBaoGiaToDocx(
 
   // ═══ Column widths (DXA) — tổng 9638 ≈ 170mm khổ A4 margin 20mm ═══
   const CW = {
-    stt: 450,
+    stt: 580,
     name: 1800,
-    desc: 3800,
+    desc: 3670,
     unit: 600,
     qty: 950,
     price: 1250,
@@ -909,45 +930,97 @@ export async function exportBaoGiaToDocx(
     // ── Build page children ──
     const pageChildren: any[] = [];
 
-    // Company header
+    // Company header — layout B: logo trái + chữ cạnh (table 2 cột, không border)
+    const noBorder = {
+      style: BorderStyle.NONE,
+      size: 0,
+      color: "FFFFFF",
+    };
+    const noBorders = {
+      top: noBorder,
+      bottom: noBorder,
+      left: noBorder,
+      right: noBorder,
+    };
+    const logoW = 1200; // ~21mm
+    const textW = 8438;
+    const logoChildren = logoBytes
+      ? [
+          new Paragraph({
+            children: [
+              new ImageRun({
+                data: logoBytes,
+                transformation: { width: 72, height: 58 },
+                type: "jpg",
+              } as any),
+            ],
+            alignment: AlignmentType.LEFT,
+          }),
+        ]
+      : [
+          new Paragraph({
+            children: [
+              new TextRun({ text: "LTS", bold: true, font: FONT, size: 28 }),
+            ],
+            alignment: AlignmentType.CENTER,
+          }),
+        ];
     pageChildren.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: "CÔNG TY CỔ PHẦN THƯƠNG MẠI VÀ SẢN XUẤT BAO BÌ LAI TRƯỜNG SƠN- LONG AN",
-            bold: true,
-            font: FONT,
-            size: 24,
+      new Table({
+        width: { size: logoW + textW, type: WidthType.DXA },
+        columnWidths: [logoW, textW],
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                width: { size: logoW, type: WidthType.DXA },
+                borders: noBorders,
+                verticalAlign: VerticalAlign.CENTER,
+                children: logoChildren,
+              }),
+              new TableCell({
+                width: { size: textW, type: WidthType.DXA },
+                borders: noBorders,
+                verticalAlign: VerticalAlign.CENTER,
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: "CÔNG TY CỔ PHẦN THƯƠNG MẠI VÀ SẢN XUẤT BAO BÌ LAI TRƯỜNG SƠN- LONG AN",
+                        bold: true,
+                        font: FONT,
+                        size: 18,
+                      }),
+                    ],
+                    alignment: AlignmentType.LEFT,
+                  }),
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: "SỐ 36, ĐƯỜNG ẤP 7B, XÃ MỸ YÊN, TỈNH TÂY NINH, VIỆT NAM",
+                        font: FONT,
+                        size: 18,
+                      }),
+                    ],
+                    alignment: AlignmentType.LEFT,
+                  }),
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: "MST: 1101904518                Mail: baobilaitruongson.la@gmail.com",
+                        font: FONT,
+                        size: 18,
+                      }),
+                    ],
+                    alignment: AlignmentType.LEFT,
+                    spacing: { after: 120 },
+                  }),
+                ],
+              }),
+            ],
           }),
         ],
-        alignment: AlignmentType.CENTER,
-      }),
-    );
-    pageChildren.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: "SỐ 36, ĐƯỜNG ẤP 7B, XÃ MỸ YÊN, TỈNH TÂY NINH, VIỆT NAM",
-            font: FONT,
-            size: 20,
-          }),
-        ],
-        alignment: AlignmentType.CENTER,
-      }),
-    );
-    pageChildren.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: "MST: 1101904518", font: FONT, size: 20 }),
-          new TextRun({
-            text: "                              Mail: baobilaitruongson.la@gmail.com",
-            font: FONT,
-            size: 20,
-          }),
-        ],
-        alignment: AlignmentType.CENTER,
-        spacing: { after: 200 },
-      }),
+      }) as any,
     );
 
     // Title
@@ -958,7 +1031,7 @@ export async function exportBaoGiaToDocx(
           new TextRun({ text: titleText, bold: true, font: FONT, size: 32 }),
         ],
         alignment: AlignmentType.CENTER,
-        spacing: { before: 100 },
+        spacing: { before: 100, after: 140 },
       }),
     );
     pageChildren.push(
@@ -967,7 +1040,7 @@ export async function exportBaoGiaToDocx(
           new TextRun({ text: `Ngày ${item.date}`, font: FONT, size: 22 }),
         ],
         alignment: AlignmentType.CENTER,
-        spacing: { after: 100 },
+        spacing: { before: 40, after: 100 },
       }),
     );
 

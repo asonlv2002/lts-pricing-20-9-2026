@@ -5,12 +5,15 @@ import {
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
   Font,
   PDFDownloadLink,
 } from "@react-pdf/renderer";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { boSoCauTruc } from "../lib/format-structure";
+
+const LOGO_SRC = "/logo-LTS-LA.jpg";
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // BaoGiaPdfDocument — tạo PDF báo giá bằng @react-pdf/renderer, layout 100% DOCX
@@ -30,9 +33,9 @@ const FONT = "TimesNewRoman";
 
 // ═══ Column widths (%) — mirrors DOCX DXA proportions ═══
 const CW = {
-  stt: "4.5%",
+  stt: "6%",
   name: "18%",
-  desc: "38%",
+  desc: "36.5%",
   unit: "6%",
   qty: "9.5%",
   price: "12.5%",
@@ -51,24 +54,40 @@ const styles = StyleSheet.create({
     paddingRight: 42,
     lineHeight: 1.15,
   },
-  // ── Company header ──
+  // ── Company header (layout B: logo trái + chữ cạnh) ──
+  coHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 10,
+  },
+  coLogo: {
+    width: 64,
+    height: 52,
+    objectFit: "contain",
+    marginRight: 10,
+  },
+  coText: {
+    flex: 1,
+    flexDirection: "column",
+    justifyContent: "center",
+  },
   coName: {
-    textAlign: "center",
-    fontSize: 12,
+    textAlign: "left",
+    fontSize: 9,
     fontWeight: 700,
     marginBottom: 2,
   },
-  coAddr: { textAlign: "center", fontSize: 10, marginBottom: 2 },
-  coTax: { textAlign: "center", fontSize: 10, marginBottom: 12 },
+  coAddr: { textAlign: "left", fontSize: 9, marginBottom: 2 },
+  coTax: { textAlign: "left", fontSize: 9 },
   // ── Title ──
   title: {
     textAlign: "center",
     fontSize: 16,
     fontWeight: 700,
     marginTop: 6,
-    marginBottom: 2,
+    marginBottom: 10,
   },
-  titleDate: { textAlign: "center", fontSize: 11, marginBottom: 6 },
+  titleDate: { textAlign: "center", fontSize: 11, marginTop: 2, marginBottom: 6 },
   // ── Customer info ──
   custLine: { fontSize: 11, marginVertical: 2 },
   custIntro: { fontSize: 11, marginVertical: 6 },
@@ -680,16 +699,21 @@ function BaoGiaPage({
 
   return (
     <Page size="A4" style={styles.page}>
-      {/* Company header */}
-      <Text style={styles.coName}>
-        CÔNG TY CỔ PHẦN THƯƠNG MẠI VÀ SẢN XUẤT BAO BÌ LAI TRƯỜNG SƠN- LONG AN
-      </Text>
-      <Text style={styles.coAddr}>
-        SỐ 36, ĐƯỜNG ẤP 7B, XÃ MỸ YÊN, TỈNH TÂY NINH, VIỆT NAM
-      </Text>
-      <Text style={styles.coTax}>
-        MST: 1101904518 Mail: baobilaitruongson.la@gmail.com
-      </Text>
+      {/* Company header — layout B: logo trái + chữ cạnh */}
+      <View style={styles.coHeader}>
+        <Image src={LOGO_SRC} style={styles.coLogo} />
+        <View style={styles.coText}>
+          <Text style={styles.coName}>
+            CÔNG TY CỔ PHẦN THƯƠNG MẠI VÀ SẢN XUẤT BAO BÌ LAI TRƯỜNG SƠN- LONG AN
+          </Text>
+          <Text style={styles.coAddr}>
+            SỐ 36, ĐƯỜNG ẤP 7B, XÃ MỸ YÊN, TỈNH TÂY NINH, VIỆT NAM
+          </Text>
+          <Text style={styles.coTax}>
+            MST: 1101904518{"            "}Mail: baobilaitruongson.la@gmail.com
+          </Text>
+        </View>
+      </View>
 
       {/* Title */}
       <Text style={styles.title}>{titleText}</Text>

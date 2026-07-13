@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  AlertCircle, Check, Download, FileSpreadsheet, Upload, X,
+  AlertTriangle, Check, Download, FileSpreadsheet, Upload, X,
 } from 'lucide-react';
 import {
   computeImportStats,
@@ -300,10 +300,10 @@ export default function ImportKhachHangPanel({
                   <Check size={14} /> {stats.ok} Mới
                 </span>
                 <span className="crm2-import-stat crm2-import-stat--warn">
-                  <AlertCircle size={14} /> {stats.duplicate} Trùng
+                  <AlertTriangle size={14} /> {stats.duplicate} Trùng
                 </span>
                 <span className="crm2-import-stat crm2-import-stat--error">
-                  <AlertCircle size={14} /> {stats.error} Lỗi
+                  <AlertTriangle size={14} /> {stats.error} Lỗi
                 </span>
                 <span className="crm2-import-stat crm2-import-stat--will">
                   Sẽ tải: {stats.willImport} khách hàng

@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertCircle, AlertTriangle, ArrowLeft, Briefcase, Building2, ChevronDown, ChevronRight,
+  AlertTriangle, ArrowLeft, Briefcase, Building2, ChevronDown, ChevronRight,
   Copy, Download, Eye, FileText, Hash, Lock,
   Mail, MapPin, Package, Pencil, Phone, Plus, Save, Search,
   Shield, Unlock, Upload, User, Users, X, ClipboardList, RotateCcw, Check, Settings,
@@ -358,7 +358,7 @@ function CustomerField({ k, icon, form, errors, role, disabled, required, type =
         <input id={`wiz-${String(k)}`} type={type} inputMode={type === 'tel' ? 'numeric' : undefined} className={`crm2-input${err ? ' crm2-input--error' : ''}`} value={String(form[k] ?? '')} onChange={e => onSet(k, e.target.value)} onBlur={e => onCommit?.(k, e.target.value)} disabled={disabled} aria-invalid={!!err} />
       )}
       {err ? (
-        <span className="crm2-field-error" role="alert"><AlertCircle size={11}/>{err}</span>
+        <span className="crm2-field-error" role="alert"><AlertTriangle size={11}/>{err}</span>
       ) : helper ? (
         <span className="crm2-field-hint">{helper}</span>
       ) : null}
@@ -657,7 +657,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
               setErrors(e => ({ ...e, managers: '' }));
             }}
           />
-          {errors.managers && <span className="crm2-field-error" role="alert"><AlertCircle size={11}/>{errors.managers}</span>}
+          {errors.managers && <span className="crm2-field-error" role="alert"><AlertTriangle size={11}/>{errors.managers}</span>}
           <div className="crm2-wizard-grid">
             {renderField({ k: 'crmStatus', icon: <Shield size={12}/>, helper: 'Trạng thái quan hệ khách hàng' })}
             {renderField({ k: 'assignmentNote', icon: <FileText size={12}/>, helper: 'Lý do phân công/chuyển phụ trách/thu hồi' })}
@@ -668,7 +668,7 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
 
       {duplicateWarnings.length > 0 && (
         <div className="crm2-alert crm2-alert--orange">
-          <AlertCircle size={14}/> Cảnh báo trùng: {duplicateWarnings.join(' · ')}
+          <AlertTriangle size={14}/> Cảnh báo trùng: {duplicateWarnings.join(' · ')}
         </div>
       )}
 
@@ -882,7 +882,7 @@ function AssignSellerDialog({ customer, token, saving = false, onSave, onClose }
             <label className="crm2-field-label"><FileText size={12}/><span>Ghi chú phân công</span></label>
             <textarea className="crm2-input crm2-textarea" rows={2} value={note} onChange={e => setNote(e.target.value)} placeholder="Lý do phân công, chuyển phụ trách..." />
           </div>
-          {error && <span className="crm2-field-error" role="alert"><AlertCircle size={11}/>{error}</span>}
+          {error && <span className="crm2-field-error" role="alert"><AlertTriangle size={11}/>{error}</span>}
         </div>
         <div className="crm2-confirm-actions" style={{ marginTop: 16 }}>
           <button className="crm2-btn crm2-btn--ghost" onClick={onClose}>Hủy</button>
