@@ -260,6 +260,13 @@ function dichLoiServer(message: string, status: number): string {
     return "Dữ liệu nhập chưa hợp lệ.";
   if (lower.includes("network") || lower.includes("fetch failed"))
     return "Không kết nối được tới máy chủ.";
+  if (
+    status === 429 ||
+    lower.includes("too many requests") ||
+    lower.includes("rate limit")
+  ) {
+    return "Máy chủ đang giới hạn truy cập, vui lòng thử lại sau.";
+  }
 
   if (/^[\x00-\x7F]*$/.test(text)) {
     if (status === 400) return "Dữ liệu gửi lên chưa hợp lệ.";
@@ -267,6 +274,8 @@ function dichLoiServer(message: string, status: number): string {
     if (status === 403) return "Bạn không có quyền thực hiện thao tác này.";
     if (status === 404) return "Không tìm thấy dữ liệu yêu cầu.";
     if (status === 409) return "Dữ liệu này đã tồn tại hoặc bị xung đột.";
+    if (status === 429)
+      return "Máy chủ đang giới hạn truy cập, vui lòng thử lại sau.";
     if (status >= 500) return "Máy chủ đang gặp lỗi, vui lòng thử lại sau.";
   }
 
@@ -344,6 +353,7 @@ async function goiService<T>(
   path: string,
   options: RequestInit = {},
   token?: string,
+  lanThu = 0,
 ): Promise<T> {
   const firstToken = token ?? layTokenHienTai?.()?.accessToken;
   let res: Response;
@@ -372,6 +382,18 @@ async function goiService<T>(
       }
       throw error;
     }
+  }
+
+  // Retry GET 1 lần khi 429 (rate limit)
+  const method = (options.method ?? "GET").toUpperCase();
+  if (res.status === 429 && method === "GET" && lanThu < 1) {
+    const retryAfter = Number(res.headers.get("Retry-After"));
+    const waitMs =
+      Number.isFinite(retryAfter) && retryAfter > 0
+        ? Math.min(retryAfter * 1000, 10_000)
+        : 1500;
+    await new Promise((r) => setTimeout(r, waitMs));
+    return goiService<T>(path, options, token, lanThu + 1);
   }
 
   if (!res.ok) {

@@ -44,6 +44,9 @@ function tinhNgayHieuLuc(terms?: QuoteTerms): string | undefined {
   return new Date(Date.now() + terms.validityDays * 86400000).toISOString();
 }
 
+/** Dedup concurrent GET pricing-sheet (auth + page mount). */
+let dangTaiLichSuPromise: Promise<boolean> | null = null;
+
 // Tìm mã khách hàng (codeName) từ tên khách (display name) trong HistoryItem.
 // Đọc từ localStorage LS_CUSTOMERS.
 function timMaKhachHang(tenKhach: string): string | null {
@@ -176,25 +179,31 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
   },
 
   taiLichSuTuServer: async () => {
-    const state = get();
-    const token = state.accessToken;
-    if (!token) return false;
-    try {
-      const sheets = await layDanhSachPricingSheetService(token);
-      const ctx = {
-        materials: state.materials,
-        constants: state.constants,
-        profitTable: state.profitTable,
-        smallWidthPrices: state.smallWidthPrices,
-      };
-      const mapped = sheets
-        .map(s => mapPricingSheetToHistory(s, ctx))
-        .filter((h): h is HistoryItem => h !== null);
-      set({ history: giuMucDangMoKhiTaiServer(mapped, state.history, state.loadedHistoryId) });
-      return true;
-    } catch {
-      return false;
-    }
+    if (dangTaiLichSuPromise) return dangTaiLichSuPromise;
+    dangTaiLichSuPromise = (async () => {
+      const state = get();
+      const token = state.accessToken;
+      if (!token) return false;
+      try {
+        const sheets = await layDanhSachPricingSheetService(token);
+        const ctx = {
+          materials: state.materials,
+          constants: state.constants,
+          profitTable: state.profitTable,
+          smallWidthPrices: state.smallWidthPrices,
+        };
+        const mapped = sheets
+          .map(s => mapPricingSheetToHistory(s, ctx))
+          .filter((h): h is HistoryItem => h !== null);
+        set({ history: giuMucDangMoKhiTaiServer(mapped, state.history, state.loadedHistoryId) });
+        return true;
+      } catch {
+        return false;
+      } finally {
+        dangTaiLichSuPromise = null;
+      }
+    })();
+    return dangTaiLichSuPromise;
   },
 
   updateQuoteStatus: (id, status) => {

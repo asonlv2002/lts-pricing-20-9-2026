@@ -7,7 +7,7 @@ const NHOM_MENU_POLICIES: Record<string, PolicyCode[]> = {
   overview: [],
   pricing_quote: [],
   customers: [],
-  pricing_config: ['ACCOUNT_READ'],
+  pricing_config: ['PRICE_CONFIG_MANAGER'],
   system: ['ACCOUNT_READ', 'ROLE_READ'],
 };
 
@@ -15,7 +15,14 @@ const NHOM_MENU_POLICIES: Record<string, PolicyCode[]> = {
 // Lưu ý: "pricing.quote_review" KHÔNG gate ở menu — admin/sale đều xem được danh sách báo giá.
 // Chức năng Duyệt/Từ chối bên trong trang vẫn gate theo QUOTATION_REVIEWER (coQuyenDuyetBaoGia).
 const MUC_MENU_POLICIES: Record<string, PolicyCode[]> = {
-  // Nhật ký thao tác: ai cũng xem được (server tự filter — không có ACTIVITY_MONITOR chỉ thấy log của mình)
+  'config.materials': ['PRICE_CONFIG_MANAGER'],
+  'config.production_costs': ['PRICE_CONFIG_MANAGER'],
+  'config.outsource_costs': ['PRICE_CONFIG_MANAGER'],
+  'config.profit_margin': ['PRICE_CONFIG_MANAGER'],
+  'config.surcharges': ['PRICE_CONFIG_MANAGER'],
+  'config.interest': ['PRICE_CONFIG_MANAGER'],
+  'config.waste_norms': ['PRICE_CONFIG_MANAGER'],
+  'config.formulas': ['PRICE_CONFIG_MANAGER'],
 };
 
 export function coTheXemNhomMenu(policies: PolicyCode[], nhomId: string): boolean {

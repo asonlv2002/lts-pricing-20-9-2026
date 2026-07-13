@@ -49,6 +49,23 @@ assert(
   'group-level rule must remain intact for account/role access',
 );
 
+console.log('\n== pricing_config PRICE_CONFIG_MANAGER gate ==');
+assert(
+  'pricing_config hidden without PRICE_CONFIG_MANAGER',
+  coTheXemNhomMenu([], 'pricing_config') === false
+    && coTheXemNhomMenu(['ACCOUNT_READ'] as PolicyCode[], 'pricing_config') === false,
+  'ACCOUNT_READ alone must NOT open pricing_config',
+);
+assert(
+  'pricing_config visible with PRICE_CONFIG_MANAGER',
+  coTheXemNhomMenu(['PRICE_CONFIG_MANAGER'] as PolicyCode[], 'pricing_config') === true,
+);
+assert(
+  'config.materials item requires PRICE_CONFIG_MANAGER',
+  coTheXemMucMenu(['ACCOUNT_READ'] as PolicyCode[], 'config.materials') === false
+    && coTheXemMucMenu(['PRICE_CONFIG_MANAGER'] as PolicyCode[], 'config.materials') === true,
+);
+
 console.log('\n== vaiTroTuPolicies ==');
 assert(
   'admin policies -> admin',
@@ -59,8 +76,8 @@ assert(
   vaiTroTuPolicies(['CUSTOMER_CREATE', 'CUSTOMER_READ'] as PolicyCode[]) === 'sale',
 );
 assert(
-  'no policies -> purchase',
-  vaiTroTuPolicies([] as PolicyCode[]) === 'purchase',
+  'no policies -> sale',
+  vaiTroTuPolicies([] as PolicyCode[]) === 'sale',
 );
 assert(
   'mixed admin+sale -> admin',

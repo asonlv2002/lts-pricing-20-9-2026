@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import type { Material, ProfitRow, BoxOption, ConfigScope, ConfigSnapshot } from '../lib/types';
+import type { Material, ProfitRow, BoxOption, ConfigSnapshot } from '../lib/types';
 import TheNhapLieu from '../components/TheNhapLieu';
 import ManHinhQuanLy from '../components/ManHinhQuanLy';
 import ManHinhKyThuat from '../components/ManHinhKyThuat';
@@ -261,37 +261,20 @@ export default function TrangChinh() {
       }
     } catch { /* localStorage lỗi */ }
 
-    // ── Auto-apply phiên bản định mức mới nhất từ server ───────────────────
+    // ── Auto-apply phiên bản định mức mới nhất từ server (1 request) ───────
     void (async () => {
       const store = dungCuaHangTinhGia.getState();
-      if (!store.isAuthenticated || !store.accessToken) return; // chưa login → giữ local
+      if (!store.isAuthenticated || !store.accessToken) return;
 
-      const scopes: ConfigScope[] = [
-        'materials', 'production', 'profit', 'surcharges', 'interest', 'waste', 'outsource',
-      ];
-
-      // Fetch song song 7 scope; lỗi 1 cái không ảnh hưởng cái khác
-      await Promise.allSettled(
-        scopes.map(s => dungCuaHangTinhGia.getState().taiLichSuPhienBanTuServer(s))
-      );
-
-      // Tìm version mới nhất của từng scope và apply silently
-      const state = dungCuaHangTinhGia.getState();
-      for (const scope of scopes) {
-        const candidates = state.configSnapshots.filter(
-          (s: ConfigSnapshot) => (s.scope ?? 'materials') === scope,
-        );
-        if (candidates.length === 0) continue; // server không có version → giữ local
-
-        const latest = [...candidates].sort(
-          (a, b) =>
-            b.effectiveFrom.localeCompare(a.effectiveFrom) ||
-            b.updatedAt.localeCompare(a.updatedAt),
-        )[0];
-        if (latest) {
-          state.saoChepPhienBanDinhMuc(latest.id);
-        }
+      // Nhường bandwidth cho deep-link báo giá / tính giá
+      const hasDeep =
+        typeof window !== 'undefined' &&
+        (window.location.search.includes('bao-gia=') ||
+          window.location.search.includes('tinh-gia='));
+      if (hasDeep) {
+        await new Promise((r) => setTimeout(r, 800));
       }
+      await dungCuaHangTinhGia.getState().taiCauHinhMoiNhatTuServer();
     })();
   }, []);
 

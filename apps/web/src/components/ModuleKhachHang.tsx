@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  AlertCircle, ArrowLeft, Briefcase, Building2, ChevronDown, ChevronRight,
+  AlertCircle, AlertTriangle, ArrowLeft, Briefcase, Building2, ChevronDown, ChevronRight,
   Copy, Download, Eye, FileText, Hash, Lock,
   Mail, MapPin, Package, Pencil, Phone, Plus, Save, Search,
   Shield, Unlock, Upload, User, Users, X, ClipboardList, RotateCcw, Check, Settings,
@@ -779,8 +779,8 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
           {activeTab === 'info' && (
             <div>
               {missing.length > 0 && (
-                <div className="crm2-alert crm2-alert--orange" style={{ marginBottom: 16 }}>
-                  <AlertCircle size={14}/> Thiếu {missing.length} trường: {missing.slice(0, 3).join(', ')}{missing.length > 3 ? ` và ${missing.length - 3} trường khác` : ''}
+                <div className="crm2-alert crm2-alert--warning" style={{ marginBottom: 16 }}>
+                  <AlertTriangle size={14}/> Thiếu {missing.length} trường: {missing.slice(0, 3).join(', ')}{missing.length > 3 ? ` và ${missing.length - 3} trường khác` : ''}
                 </div>
               )}
               <div className="crm2-info-grid">
@@ -956,7 +956,7 @@ function CustomerCard({ customer, role, currentSellerId, canUpdateCustomer, rela
         <span className="crm2-card-progress-label">{filled}/{total}</span>
       </div>
       {hasWarning && (
-        <div className="crm2-card-missing">Thiếu: {missing.slice(0, 2).join(', ')}{missing.length > 2 ? ` +${missing.length - 2}` : ''}</div>
+        <div className="crm2-card-missing"><AlertTriangle size={11}/> Thiếu: {missing.slice(0, 2).join(', ')}{missing.length > 2 ? ` +${missing.length - 2}` : ''}</div>
       )}
       {/* Quick actions on hover */}
       <div className={`crm2-card-actions${hovered ? ' crm2-card-actions--visible' : ''}`}>
@@ -3120,7 +3120,7 @@ const CRM2_STYLES = `
   display: flex; align-items: center; gap: 5px;
   font-size: 12px; font-weight: 500; color: var(--foreground, #374151);
 }
-.crm2-req { color: #ef4444; }
+.crm2-req { color: #fbbf24; }
 .crm2-input {
   padding: 9px 12px; border-radius: 8px;
   border: 1px solid var(--border, #e5e7eb);
@@ -3133,9 +3133,12 @@ const CRM2_STYLES = `
   border-color: var(--accent, #0891b2);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent, #0891b2) 10%, transparent);
 }
-.crm2-input--error { border-color: #ef4444; }
+.crm2-input--error {
+  border-color: #fcd34d;
+  box-shadow: 0 0 0 3px rgba(253, 224, 71, 0.28);
+}
 .crm2-textarea { resize: vertical; min-height: 72px; }
-.crm2-field-error { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #ef4444; }
+.crm2-field-error { display: flex; align-items: center; gap: 4px; font-size: 11px; color: #d97706; }
 .crm2-field-hint { font-size: 11px; color: var(--muted, #9ca3af); }
 
 /* Wizard actions */
@@ -3153,7 +3156,7 @@ const CRM2_STYLES = `
   margin-bottom: 12px;
   border: 1px solid var(--border, #e5e7eb);
 }
-.crm2-alert--warning { background: #fef3c7; border-color: #fbbf24; color: #92400e; }
+.crm2-alert--warning { background: #fffbeb; border-color: #fde68a; color: #b45309; }
 .crm2-alert--orange { background: #fff7ed; border-color: #fb923c; color: #c2410c; }
 
 /* Responsive */
@@ -3626,8 +3629,10 @@ const CRM2_STYLES = `
 
 /* Card missing fields hint */
 .crm2-card-missing {
-  font-size: 11px; color: #ef4444; margin-top: 4px;
-  padding: 3px 6px; background: #fef2f2; border-radius: 4px;
+  font-size: 11px; color: #b45309; margin-top: 4px;
+  padding: 3px 6px; background: #fffbeb; border-radius: 4px;
+  border: 1px solid #fde68a;
+  display: flex; align-items: center; gap: 4px;
 }
 
 /* Card info row warn */

@@ -6,15 +6,21 @@ import { luuLocalStorage, LS_CONFIG_SNAPSHOTS } from '../helpers';
 import {
   upsertPriceConfigService,
   layLichSuPriceConfigService,
+  layPriceConfigMoiNhatService,
   xoaPriceConfigService,
   type PriceConfigApi,
 } from '../../lib/api/service-lts';
 import {
   scopeToConfigName,
+  configNameToScope,
   trichXuatDuLieuScope,
   apDungDuLieuScope,
   priceConfigToSnapshot,
 } from '../../lib/api/price-config-mapper';
+
+const CAC_SCOPE_CAU_HINH: ConfigScope[] = [
+  'materials', 'production', 'profit', 'surcharges', 'interest', 'waste', 'outsource',
+];
 
 export interface ConfigVersioningSlice {
   configSnapshots: ConfigSnapshot[];
@@ -30,6 +36,8 @@ export interface ConfigVersioningSlice {
   saoChepPhienBanDinhMuc: (id: string) => void;
   thoatXemPhienBan: () => void;
   taiLichSuPhienBanTuServer: (scope: ConfigScope) => Promise<void>;
+  /** Bootstrap: 1 request latest-version thay vì 7× history. */
+  taiCauHinhMoiNhatTuServer: () => Promise<void>;
 }
 
 const sapXepTheoHieuLuc = (snapshots: ConfigSnapshot[]) =>
@@ -170,6 +178,59 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
       });
     } catch (e) {
       console.warn('Tai lich su phien ban tu server that bai:', e);
+      set({ dangTaiPhienBan: false });
+    }
+  },
+
+  taiCauHinhMoiNhatTuServer: async () => {
+    const state = get();
+    const token = state.accessToken;
+    if (!state.isAuthenticated || !token) return;
+
+    set({ dangTaiPhienBan: true });
+    try {
+      const list = await layPriceConfigMoiNhatService(token);
+      const fallback = {
+        materials: state.materials,
+        smallWidthPrices: state.smallWidthPrices,
+        constants: state.constants,
+        profitTable: state.profitTable,
+      };
+      const snapshots = list
+        .map((pc) => {
+          const scope = configNameToScope(pc.configName);
+          if (!scope) return null;
+          return priceConfigToSnapshot(pc, scope, fallback) as ConfigSnapshot;
+        })
+        .filter((s): s is ConfigSnapshot => s !== null);
+
+      set((s) => {
+        const byScopeLatest = new Map(
+          snapshots.map((sn) => [sn.scope ?? 'materials', sn] as const),
+        );
+        const others = s.configSnapshots.filter(
+          (sn) => !byScopeLatest.has(sn.scope ?? 'materials'),
+        );
+        const merged = sapXepTheoHieuLuc([...snapshots, ...others]);
+        luuLocalStorage(LS_CONFIG_SNAPSHOTS, merged);
+        return { configSnapshots: merged, dangTaiPhienBan: false };
+      });
+
+      const after = get();
+      for (const scope of CAC_SCOPE_CAU_HINH) {
+        const candidates = after.configSnapshots.filter(
+          (sn) => (sn.scope ?? 'materials') === scope,
+        );
+        if (!candidates.length) continue;
+        const latest = [...candidates].sort(
+          (a, b) =>
+            b.effectiveFrom.localeCompare(a.effectiveFrom) ||
+            b.updatedAt.localeCompare(a.updatedAt),
+        )[0];
+        if (latest) after.saoChepPhienBanDinhMuc(latest.id);
+      }
+    } catch (e) {
+      console.warn('Tải cấu hình mới nhất thất bại:', e);
       set({ dangTaiPhienBan: false });
     }
   },

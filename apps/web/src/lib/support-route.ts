@@ -2,7 +2,14 @@
 
 export type LoaiDeepLink = 'tinh-gia' | 'bao-gia' | 'khach-hang';
 
-export type TrangThaiDeepLink = 'idle' | 'loading' | 'ok' | 'not_found';
+export type TrangThaiDeepLink =
+  | 'idle'
+  | 'loading'
+  | 'ok'
+  | 'not_found'
+  | 'rate_limited'
+  | 'forbidden'
+  | 'error';
 
 /** Query keys deep-link hiện có — clear mutual exclusive khi set 1 key. */
 export const DEEP_LINK_QUERY_KEYS = ['tinh-gia', 'bao-gia', 'khach-hang'] as const;
@@ -15,6 +22,32 @@ export const NHAN_LOAI_DEEP_LINK: Record<LoaiDeepLink, string> = {
 
 export function tieuDeKhongTimThay(loai: LoaiDeepLink): string {
   return `Không tìm thấy dữ liệu của ${NHAN_LOAI_DEEP_LINK[loai]}`;
+}
+
+export function tieuDeDeepLinkLoi(
+  loai: LoaiDeepLink,
+  trangThai: TrangThaiDeepLink,
+): string {
+  if (trangThai === 'rate_limited') {
+    return 'Máy chủ đang giới hạn truy cập. Vui lòng thử lại sau vài giây.';
+  }
+  if (trangThai === 'forbidden') {
+    return `Bạn không có quyền xem ${NHAN_LOAI_DEEP_LINK[loai].toLowerCase()} này.`;
+  }
+  if (trangThai === 'error') {
+    return 'Không tải được dữ liệu. Vui lòng thử lại.';
+  }
+  return tieuDeKhongTimThay(loai);
+}
+
+/** true khi empty-state deep-link nên hiện (không phải loading/ok/idle). */
+export function laLoiDeepLink(trangThai: TrangThaiDeepLink): boolean {
+  return (
+    trangThai === 'not_found' ||
+    trangThai === 'rate_limited' ||
+    trangThai === 'forbidden' ||
+    trangThai === 'error'
+  );
 }
 
 export function toSearchParams(

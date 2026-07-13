@@ -20,7 +20,8 @@ import { tinhThoiGianChoLamMoiPhien, tokenCanLamMoiNgay } from '../../lib/auth-s
 import {
   docDeepLinkTuSearchParams,
   dongBoUrlDeepLinkClear,
-  tieuDeKhongTimThay,
+  laLoiDeepLink,
+  tieuDeDeepLinkLoi,
   type LoaiDeepLink,
   type TrangThaiDeepLink,
 } from '../../lib/support-route';
@@ -40,7 +41,7 @@ import {
   docKhachHangIdTuSearchParams,
 } from '../../lib/khach-hang-route';
 import { timMucLichSuTheoId } from '../../lib/history-identity';
-import { layBaoGiaTheoIdService, type PolicyCode } from '../../lib/api/service-lts';
+import { layBaoGiaTheoIdService, LoiServiceLts, type PolicyCode } from '../../lib/api/service-lts';
 import {
   Calculator, Users, Menu, Factory,
   X, ChevronRight, Plus, FileText, History, ClipboardList, UserCircle,
@@ -622,6 +623,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const deepLinkDaXuLy = useRef<string | null>(null);
   const [deepLinkLoai, datDeepLinkLoai] = useState<LoaiDeepLink | null>(null);
   const [deepLinkTrangThai, datDeepLinkTrangThai] = useState<TrangThaiDeepLink>('idle');
+  const [deepLinkRetryDem, datDeepLinkRetryDem] = useState(0);
 
   // Restore session on mount
   useEffect(() => {
@@ -660,13 +662,35 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     };
   }, [accessToken, isAuthenticated, lamMoiPhien]);
 
-  // Sync user info to UISlice when authenticated
+  // Sync user info to UISlice when authenticated / policies change (login, restore, grant/revoke)
   useEffect(() => {
     if (isAuthenticated && nguoiDung) {
       datNhanVienHienTai(nguoiDung.id, nguoiDung.fullName);
       datVaiTroStore(vaiTroTuPolicies(policies));
     }
-  }, [isAuthenticated, nguoiDung?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, nguoiDung?.id, policies.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Rời màn cấu hình nếu user không còn PRICE_CONFIG_MANAGER (login user khác / revoke / restore)
+  useEffect(() => {
+    if (!isAuthenticated || !sessionChecked) return;
+
+    const coQuyenConfig = policies.includes('PRICE_CONFIG_MANAGER');
+    const dangOConfig =
+      moduleDangMo === 'master_data' || menuDangChon.startsWith('config.');
+
+    if (!coQuyenConfig && dangOConfig) {
+      datMenuDangChon('pricing.create_calculation');
+      datModuleDangMo('calculator');
+    }
+  }, [
+    isAuthenticated,
+    sessionChecked,
+    policies,
+    moduleDangMo,
+    menuDangChon,
+    datMenuDangChon,
+    datModuleDangMo,
+  ]);
 
   // Detect mobile on mount and resize
   useEffect(() => {
@@ -752,6 +776,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       datDeepLinkTrangThai('loading');
     }
 
+    const ganLoiDeepLink = (error: unknown) => {
+      deepLinkDaXuLy.current = null;
+      const status = error instanceof LoiServiceLts ? error.status : undefined;
+      if (status === 429) datDeepLinkTrangThai('rate_limited');
+      else if (status === 403) datDeepLinkTrangThai('forbidden');
+      else if (status === 404) datDeepLinkTrangThai('not_found');
+      else datDeepLinkTrangThai('error');
+    };
+
     const moDeepLink = async () => {
       if (deep.loai === 'khach-hang') {
         if (huy) return;
@@ -763,39 +796,44 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       }
 
       if (deep.loai === 'tinh-gia') {
-        const local = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, deep.id);
-        if (local && !local.isQuote) {
+        try {
+          const local = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, deep.id);
+          if (local && !local.isQuote) {
+            if (huy) return;
+            loadHistoryItem(local.id);
+            datModuleDangMo('calculator');
+            deepLinkDaXuLy.current = keyXuLy;
+            datDeepLinkTrangThai('ok');
+            return;
+          }
+
+          await taiLichSuTuServer().catch(() => false);
           if (huy) return;
-          loadHistoryItem(local.id);
-          datModuleDangMo('calculator');
-          deepLinkDaXuLy.current = keyXuLy;
-          datDeepLinkTrangThai('ok');
-          return;
+
+          const sauTai = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, deep.id);
+          if (sauTai && !sauTai.isQuote) {
+            loadHistoryItem(sauTai.id);
+            datModuleDangMo('calculator');
+            deepLinkDaXuLy.current = keyXuLy;
+            datDeepLinkTrangThai('ok');
+            return;
+          }
+
+          const ok = await taiBangTinhTuServer(deep.id);
+          if (huy) return;
+          if (ok) {
+            datModuleDangMo('calculator');
+            deepLinkDaXuLy.current = keyXuLy;
+            datDeepLinkTrangThai('ok');
+            return;
+          }
+
+          deepLinkDaXuLy.current = null;
+          datDeepLinkTrangThai('not_found');
+        } catch (error) {
+          if (huy) return;
+          ganLoiDeepLink(error);
         }
-
-        await taiLichSuTuServer().catch(() => false);
-        if (huy) return;
-
-        const sauTai = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, deep.id);
-        if (sauTai && !sauTai.isQuote) {
-          loadHistoryItem(sauTai.id);
-          datModuleDangMo('calculator');
-          deepLinkDaXuLy.current = keyXuLy;
-          datDeepLinkTrangThai('ok');
-          return;
-        }
-
-        const ok = await taiBangTinhTuServer(deep.id);
-        if (huy) return;
-        if (ok) {
-          datModuleDangMo('calculator');
-          deepLinkDaXuLy.current = keyXuLy;
-          datDeepLinkTrangThai('ok');
-          return;
-        }
-
-        deepLinkDaXuLy.current = keyXuLy;
-        datDeepLinkTrangThai('not_found');
         return;
       }
 
@@ -809,10 +847,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           datModuleDangMo('quotations');
           deepLinkDaXuLy.current = keyXuLy;
           datDeepLinkTrangThai('ok');
-        } catch {
+        } catch (error) {
           if (huy) return;
-          deepLinkDaXuLy.current = keyXuLy;
-          datDeepLinkTrangThai('not_found');
+          ganLoiDeepLink(error);
         }
       }
     };
@@ -831,12 +868,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     datModuleDangMo,
     datBaoGiaDangSua,
     datNguonWizard,
+    deepLinkRetryDem,
   ]);
 
   // Đồng bộ URL (copy-share): tính giá / báo giá — khách hàng do ModuleKhachHang giữ
   useEffect(() => {
     if (!isAuthenticated || !sessionChecked) return;
-    if (deepLinkTrangThai === 'loading' || deepLinkTrangThai === 'not_found') return;
+    if (deepLinkTrangThai === 'loading' || laLoiDeepLink(deepLinkTrangThai)) return;
     // Panel KH tự sync ?khach-hang= — không đụng ở đây
     if (moduleDangMo === 'customers') return;
 
@@ -967,50 +1005,67 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     datMenuDangChon(MOBILE_TAB_FALLBACK[hubId] ?? MOBILE_TAB_FALLBACK.pricing_quote);
   };
 
-  const dongDeepLinkNotFound = () => {
+  const dongDeepLinkLoi = () => {
     deepLinkDaXuLy.current = null;
     datDeepLinkLoai(null);
     datDeepLinkTrangThai('idle');
     dongBoUrlDeepLinkClear();
   };
 
+  const thuLaiDeepLink = () => {
+    deepLinkDaXuLy.current = null;
+    datDeepLinkTrangThai('loading');
+    datDeepLinkRetryDem((n) => n + 1);
+  };
+
   const veDanhSachTinhGia = () => {
-    dongDeepLinkNotFound();
+    dongDeepLinkLoi();
     datMenuDangChon('pricing.history');
     datModuleDangMo('history_db');
   };
 
   const taoBangTinhMoi = () => {
-    dongDeepLinkNotFound();
+    dongDeepLinkLoi();
     resetInput();
     datMenuDangChon('pricing.create_calculation');
     datModuleDangMo('calculator');
   };
 
   const veDanhSachBaoGia = () => {
-    dongDeepLinkNotFound();
+    dongDeepLinkLoi();
     datBaoGiaDangSua(null);
     datMenuDangChon('pricing.quote_review');
     datModuleDangMo('quotations');
   };
 
   const taoBaoGiaMoi = () => {
-    dongDeepLinkNotFound();
+    dongDeepLinkLoi();
     datBaoGiaDangSua(null);
     datNguonWizard(null);
     datMenuDangChon('pricing.create_quote');
     datModuleDangMo('quotations');
   };
 
+  const coTheThuLaiDeepLink =
+    deepLinkTrangThai === 'rate_limited' || deepLinkTrangThai === 'error';
+
   const nutEmptyDeepLink = deepLinkLoai === 'bao-gia'
     ? {
-        primary: { label: 'Về danh sách báo giá', onClick: veDanhSachBaoGia },
-        outline: { label: 'Tạo báo giá mới', onClick: taoBaoGiaMoi },
+        primary: coTheThuLaiDeepLink
+          ? { label: 'Thử lại', onClick: thuLaiDeepLink }
+          : { label: 'Về danh sách báo giá', onClick: veDanhSachBaoGia },
+        outline: coTheThuLaiDeepLink
+          ? { label: 'Về danh sách báo giá', onClick: veDanhSachBaoGia }
+          : { label: 'Tạo báo giá mới', onClick: taoBaoGiaMoi },
         loading: 'Đang tải báo giá...',
       }
     : {
-        primary: { label: 'Về danh sách tính giá', onClick: veDanhSachTinhGia },
-        outline: { label: 'Tạo bảng tính mới', onClick: taoBangTinhMoi },
+        primary: coTheThuLaiDeepLink
+          ? { label: 'Thử lại', onClick: thuLaiDeepLink }
+          : { label: 'Về danh sách tính giá', onClick: veDanhSachTinhGia },
+        outline: coTheThuLaiDeepLink
+          ? { label: 'Về danh sách tính giá', onClick: veDanhSachTinhGia }
+          : { label: 'Tạo bảng tính mới', onClick: taoBangTinhMoi },
         loading: 'Đang tải bảng tính giá...',
       };
 
@@ -1058,12 +1113,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 <p>{nutEmptyDeepLink.loading}</p>
               </div>
             </div>
-          ) : deepLinkTrangThai === 'not_found' && deepLinkLoai ? (
+          ) : laLoiDeepLink(deepLinkTrangThai) && deepLinkLoai ? (
             <div className="crm-root">
               <div className="crm-empty lts-deep-link-empty" role="status">
                 <Search size={40} style={{ opacity: 0.4 }} aria-hidden />
                 <p style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--foreground, #374151)', margin: 0 }}>
-                  {tieuDeKhongTimThay(deepLinkLoai)}
+                  {tieuDeDeepLinkLoi(deepLinkLoai, deepLinkTrangThai)}
                 </p>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 8 }}>
                   <button type="button" className="btn btn-primary" onClick={nutEmptyDeepLink.primary.onClick}>

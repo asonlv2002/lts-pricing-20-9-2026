@@ -3,6 +3,8 @@ import {
   docQueryParam,
   docDeepLinkTuSearchParams,
   ghepUrlQueryExclusive,
+  laLoiDeepLink,
+  tieuDeDeepLinkLoi,
   tieuDeKhongTimThay,
 } from './support-route';
 import { TINH_GIA_QUERY } from './tinh-gia-route';
@@ -94,6 +96,27 @@ assert(
 assert(
   'tieuDeKhongTimThay khach-hang',
   tieuDeKhongTimThay('khach-hang') === 'Không tìm thấy dữ liệu của Khách hàng',
+);
+
+assert(
+  'tieuDeDeepLinkLoi rate_limited',
+  tieuDeDeepLinkLoi('bao-gia', 'rate_limited').includes('giới hạn'),
+);
+assert(
+  'tieuDeDeepLinkLoi forbidden',
+  tieuDeDeepLinkLoi('bao-gia', 'forbidden').includes('không có quyền'),
+);
+assert(
+  'tieuDeDeepLinkLoi not_found falls back',
+  tieuDeDeepLinkLoi('bao-gia', 'not_found') === tieuDeKhongTimThay('bao-gia'),
+);
+assert(
+  'laLoiDeepLink',
+  laLoiDeepLink('not_found')
+    && laLoiDeepLink('rate_limited')
+    && laLoiDeepLink('error')
+    && !laLoiDeepLink('ok')
+    && !laLoiDeepLink('loading'),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

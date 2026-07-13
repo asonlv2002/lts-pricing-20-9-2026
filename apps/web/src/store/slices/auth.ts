@@ -67,6 +67,8 @@ function resetPhienHetHan(set: Parameters<StateCreator<CuaHangTinhGia, [], [], A
     authLoading: false,
     authError: THONG_BAO_HET_PHIEN,
     sessionChecked: true,
+    role: 'sale',
+    activeModule: 'calculator',
   });
 }
 
@@ -153,6 +155,8 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
         authLoading: false,
         authError: error instanceof Error ? error.message : 'Login failed.',
         sessionChecked: true,
+        role: 'sale',
+        activeModule: 'calculator',
       });
       throw error;
     }
@@ -168,6 +172,8 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       authLoading: false,
       authError: null,
       sessionChecked: true,
+      role: 'sale',
+      activeModule: 'calculator',
     });
   },
 
