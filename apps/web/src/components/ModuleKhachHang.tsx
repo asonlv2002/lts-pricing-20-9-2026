@@ -933,7 +933,7 @@ function CustomerCard({ customer, role, currentSellerId, canUpdateCustomer, rela
         </div>
         <div className="crm2-card-identity">
           <span className="crm2-card-name">
-            {hasWarning && <span className="crm2-missing-dot" aria-label={`Thiếu ${missing.length} trường thông tin bắt buộc`} title={`Thiếu: ${missing.slice(0,3).join(', ')}${missing.length > 3 ? '...' : ''}`}>!</span>}
+            {hasWarning && <span className="crm2-missing-dot" aria-label={`Thiếu ${missing.length} trường thông tin bắt buộc`} title={`Thiếu: ${missing.slice(0,3).join(', ')}${missing.length > 3 ? '...' : ''}`}><AlertTriangle size={14} /></span>}
             {displayName(customer)}
           </span>
           <span className="crm2-card-code">{customer.customerCode}</span>
@@ -2409,7 +2409,7 @@ export default function ModuleKhachHang({
                       <div className="crm2-table-avatar" style={{ background: getAvatarColor(c.id) }}>{getInitials(c)}</div>
                       <div>
                         <span className="crm2-table-name">
-                          {missing.length > 0 && <span className="crm2-missing-dot" title={`Thiếu: ${missing.slice(0,3).join(', ')}${missing.length > 3 ? '...' : ''}`}>!</span>}
+                          {missing.length > 0 && <span className="crm2-missing-dot" title={`Thiếu: ${missing.slice(0,3).join(', ')}${missing.length > 3 ? '...' : ''}`}><AlertTriangle size={14} /></span>}
                           {displayName(c)}
                         </span>
                         <span className="crm2-table-code">{c.customerCode} · {typeLabel(c)}</span>
@@ -3600,12 +3600,10 @@ const CRM2_STYLES = `
   flex-shrink: 0;
 }
 
-/* Missing dot indicator */
+/* Missing warning indicator */
 .crm2-missing-dot {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 16px; height: 16px; border-radius: 50%;
-  background: #ef4444; color: #fff;
-  font-size: 10px; font-weight: 700;
+  color: #f59e0b;
   margin-right: 5px; flex-shrink: 0;
   vertical-align: middle;
 }
