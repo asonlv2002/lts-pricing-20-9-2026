@@ -115,6 +115,54 @@ export interface PrintPressTime {
   avgSpeedMPerMin: number;
 }
 
+/** Lương NC máy ghép (đ/phút) — luôn 4 người; độc lập với in; chưa nối engine */
+export interface LaminatePressLabor {
+  wages: [number, number, number, number];
+  mealMorning: number;
+  mealEvening: number;
+  otFactor: number;
+}
+
+/** Điện máy ghép (đ/phút) — cấu hình UI; chưa nối engine */
+export interface LaminatePressElectric {
+  powerKw: number;
+  efficiency: number;
+  pricePerKwh: number;
+}
+
+/** Thời gian SX ghép — cấu hình UI; mét hao/TP lấy từ tính giá sau */
+export interface LaminatePressTime {
+  setupFirstMinutes: number;
+  setupNextMinutes: number;
+  avgSpeedMPerMin: number;
+}
+
+/** Lương NC máy chia — 1 người, 12h ca sáng; chưa nối engine */
+export interface SlitPressLabor {
+  wage: number;
+  mealMorning: number;
+}
+
+/** Điện máy chia (đ/phút) — cấu hình UI; chưa nối engine */
+export interface SlitPressElectric {
+  powerKw: number;
+  efficiency: number;
+  pricePerKwh: number;
+}
+
+/** Rule setup/tốc độ chia theo loại SP */
+export interface SlitPressTimeRule {
+  key: string;
+  label: string;
+  setupMinutes: number;
+  speedMPerMin: number;
+}
+
+/** Thời gian SX chia — bảng rule; mét hao/TP lấy từ tính giá sau */
+export interface SlitPressTime {
+  rules: SlitPressTimeRule[];
+}
+
 export interface AppConstants {
   zipperPrice: number;
   zipperWeight: number;
@@ -178,6 +226,18 @@ export interface AppConstants {
   printPressElectric?: PrintPressElectric;
   /** Thời gian SX in (tham số) — chỉ lưu cấu hình, engine chưa dùng */
   printPressTime?: PrintPressTime;
+  /** Lương NC máy ghép — chỉ lưu cấu hình, engine chưa dùng */
+  laminatePressLabor?: LaminatePressLabor;
+  /** Điện máy ghép — chỉ lưu cấu hình, engine chưa dùng */
+  laminatePressElectric?: LaminatePressElectric;
+  /** Thời gian SX ghép — chỉ lưu cấu hình, engine chưa dùng */
+  laminatePressTime?: LaminatePressTime;
+  /** Lương NC máy chia — chỉ lưu cấu hình, engine chưa dùng */
+  slitPressLabor?: SlitPressLabor;
+  /** Điện máy chia — chỉ lưu cấu hình, engine chưa dùng */
+  slitPressElectric?: SlitPressElectric;
+  /** Thời gian SX chia — chỉ lưu cấu hình, engine chưa dùng */
+  slitPressTime?: SlitPressTime;
 }
 
 export interface CalculateInput {

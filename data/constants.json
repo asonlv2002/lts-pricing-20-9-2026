@@ -126,6 +126,40 @@
     "matteExtraMinutes": 80,
     "avgSpeedMPerMin": 150
   },
+  "laminatePressLabor": {
+    "wages": [0, 0, 0, 0],
+    "mealMorning": 30000,
+    "mealEvening": 65000,
+    "otFactor": 1.5
+  },
+  "laminatePressElectric": {
+    "powerKw": 45,
+    "efficiency": 0.65,
+    "pricePerKwh": 2140
+  },
+  "laminatePressTime": {
+    "setupFirstMinutes": 10,
+    "setupNextMinutes": 30,
+    "avgSpeedMPerMin": 100
+  },
+  "slitPressLabor": {
+    "wage": 0,
+    "mealMorning": 30000
+  },
+  "slitPressElectric": {
+    "powerKw": 15,
+    "efficiency": 0.6,
+    "pricePerKwh": 2140
+  },
+  "slitPressTime": {
+    "rules": [
+      { "key": "opp_mattopp", "label": "Màng OPP / MattOPP", "setupMinutes": 30, "speedMPerMin": 180 },
+      { "key": "mpet_pet", "label": "Màng MPET / PET", "setupMinutes": 20, "speedMPerMin": 90 },
+      { "key": "laminate_2", "label": "Màng ghép 2 lớp", "setupMinutes": 20, "speedMPerMin": 145 },
+      { "key": "laminate_3", "label": "Màng ghép 3 lớp", "setupMinutes": 20, "speedMPerMin": 90 },
+      { "key": "matte_flip", "label": "In phủ mờ (lật mặt)", "setupMinutes": 20, "speedMPerMin": 150 }
+    ]
+  },
   "handleOptions": [
     {
       "key": "large",

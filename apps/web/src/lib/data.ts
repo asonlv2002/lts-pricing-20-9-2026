@@ -1,4 +1,4 @@
-import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate, PrintPressLabor, PrintPressElectric, PrintPressTime } from './types';
+import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate, PrintPressLabor, PrintPressElectric, PrintPressTime, LaminatePressLabor, LaminatePressElectric, LaminatePressTime, SlitPressLabor, SlitPressElectric, SlitPressTime, SlitPressTimeRule } from './types';
 // Single source of truth: /data ở root repo (dùng chung cho web + Flutter)
 import materialsJson  from '@data/materials.json';
 import constantsJson  from '@data/constants.json';
@@ -77,6 +77,48 @@ export const DEFAULT_PRINT_PRESS_TIME: PrintPressTime = {
   avgSpeedMPerMin: 150,
 };
 
+export const DEFAULT_LAMINATE_PRESS_LABOR: LaminatePressLabor = {
+  wages: [0, 0, 0, 0],
+  mealMorning: 30000,
+  mealEvening: 65000,
+  otFactor: 1.5,
+};
+
+export const DEFAULT_LAMINATE_PRESS_ELECTRIC: LaminatePressElectric = {
+  powerKw: 45,
+  efficiency: 0.65,
+  pricePerKwh: 2140,
+};
+
+export const DEFAULT_LAMINATE_PRESS_TIME: LaminatePressTime = {
+  setupFirstMinutes: 10,
+  setupNextMinutes: 30,
+  avgSpeedMPerMin: 100,
+};
+
+export const DEFAULT_SLIT_PRESS_LABOR: SlitPressLabor = {
+  wage: 0,
+  mealMorning: 30000,
+};
+
+export const DEFAULT_SLIT_PRESS_ELECTRIC: SlitPressElectric = {
+  powerKw: 15,
+  efficiency: 0.6,
+  pricePerKwh: 2140,
+};
+
+export const DEFAULT_SLIT_PRESS_TIME_RULES: SlitPressTimeRule[] = [
+  { key: 'opp_mattopp', label: 'Màng OPP / MattOPP', setupMinutes: 30, speedMPerMin: 180 },
+  { key: 'mpet_pet', label: 'Màng MPET / PET', setupMinutes: 20, speedMPerMin: 90 },
+  { key: 'laminate_2', label: 'Màng ghép 2 lớp', setupMinutes: 20, speedMPerMin: 145 },
+  { key: 'laminate_3', label: 'Màng ghép 3 lớp', setupMinutes: 20, speedMPerMin: 90 },
+  { key: 'matte_flip', label: 'In phủ mờ (lật mặt)', setupMinutes: 20, speedMPerMin: 150 },
+];
+
+export const DEFAULT_SLIT_PRESS_TIME: SlitPressTime = {
+  rules: DEFAULT_SLIT_PRESS_TIME_RULES.map((r) => ({ ...r })),
+};
+
 const rawPrintPressLabor = (rawConstants as { printPressLabor?: PrintPressLabor }).printPressLabor;
 const printPressLabor: PrintPressLabor = {
   wages: Array.isArray(rawPrintPressLabor?.wages) && (rawPrintPressLabor?.wages.length ?? 0) > 0
@@ -121,6 +163,88 @@ const printPressTime: PrintPressTime = {
     : DEFAULT_PRINT_PRESS_TIME.avgSpeedMPerMin,
 };
 
+const rawLaminatePressLabor = (rawConstants as unknown as {
+  laminatePressLabor?: { wages?: number[]; mealMorning?: number; mealEvening?: number; otFactor?: number };
+}).laminatePressLabor;
+const padLaminateWages = (wages?: number[]): [number, number, number, number] => {
+  const src = Array.isArray(wages) ? wages : [];
+  return [
+    Number(src[0]) || 0,
+    Number(src[1]) || 0,
+    Number(src[2]) || 0,
+    Number(src[3]) || 0,
+  ];
+};
+const laminatePressLabor: LaminatePressLabor = {
+  wages: padLaminateWages(rawLaminatePressLabor?.wages),
+  mealMorning: Number(rawLaminatePressLabor?.mealMorning) || DEFAULT_LAMINATE_PRESS_LABOR.mealMorning,
+  mealEvening: Number(rawLaminatePressLabor?.mealEvening) || DEFAULT_LAMINATE_PRESS_LABOR.mealEvening,
+  otFactor: Number(rawLaminatePressLabor?.otFactor) > 0
+    ? Number(rawLaminatePressLabor?.otFactor)
+    : DEFAULT_LAMINATE_PRESS_LABOR.otFactor,
+};
+
+const rawLaminatePressElectric = (rawConstants as { laminatePressElectric?: LaminatePressElectric }).laminatePressElectric;
+const laminatePressElectric: LaminatePressElectric = {
+  powerKw: Number(rawLaminatePressElectric?.powerKw) > 0
+    ? Number(rawLaminatePressElectric?.powerKw)
+    : DEFAULT_LAMINATE_PRESS_ELECTRIC.powerKw,
+  efficiency: Number(rawLaminatePressElectric?.efficiency) > 0
+    ? Number(rawLaminatePressElectric?.efficiency)
+    : DEFAULT_LAMINATE_PRESS_ELECTRIC.efficiency,
+  pricePerKwh: Number(rawLaminatePressElectric?.pricePerKwh) > 0
+    ? Number(rawLaminatePressElectric?.pricePerKwh)
+    : DEFAULT_LAMINATE_PRESS_ELECTRIC.pricePerKwh,
+};
+
+const rawLaminatePressTime = (rawConstants as { laminatePressTime?: LaminatePressTime }).laminatePressTime;
+const laminatePressTime: LaminatePressTime = {
+  setupFirstMinutes: Number(rawLaminatePressTime?.setupFirstMinutes) > 0
+    ? Number(rawLaminatePressTime?.setupFirstMinutes)
+    : DEFAULT_LAMINATE_PRESS_TIME.setupFirstMinutes,
+  setupNextMinutes: Number(rawLaminatePressTime?.setupNextMinutes) > 0
+    ? Number(rawLaminatePressTime?.setupNextMinutes)
+    : DEFAULT_LAMINATE_PRESS_TIME.setupNextMinutes,
+  avgSpeedMPerMin: Number(rawLaminatePressTime?.avgSpeedMPerMin) > 0
+    ? Number(rawLaminatePressTime?.avgSpeedMPerMin)
+    : DEFAULT_LAMINATE_PRESS_TIME.avgSpeedMPerMin,
+};
+
+const rawSlitPressLabor = (rawConstants as unknown as {
+  slitPressLabor?: { wage?: number; mealMorning?: number };
+}).slitPressLabor;
+const slitPressLabor: SlitPressLabor = {
+  wage: Number(rawSlitPressLabor?.wage) || 0,
+  mealMorning: Number(rawSlitPressLabor?.mealMorning) || DEFAULT_SLIT_PRESS_LABOR.mealMorning,
+};
+
+const rawSlitPressElectric = (rawConstants as { slitPressElectric?: SlitPressElectric }).slitPressElectric;
+const slitPressElectric: SlitPressElectric = {
+  powerKw: Number(rawSlitPressElectric?.powerKw) > 0
+    ? Number(rawSlitPressElectric?.powerKw)
+    : DEFAULT_SLIT_PRESS_ELECTRIC.powerKw,
+  efficiency: Number(rawSlitPressElectric?.efficiency) > 0
+    ? Number(rawSlitPressElectric?.efficiency)
+    : DEFAULT_SLIT_PRESS_ELECTRIC.efficiency,
+  pricePerKwh: Number(rawSlitPressElectric?.pricePerKwh) > 0
+    ? Number(rawSlitPressElectric?.pricePerKwh)
+    : DEFAULT_SLIT_PRESS_ELECTRIC.pricePerKwh,
+};
+
+const rawSlitPressTime = (rawConstants as unknown as {
+  slitPressTime?: { rules?: Array<{ key?: string; label?: string; setupMinutes?: number; speedMPerMin?: number }> };
+}).slitPressTime;
+const slitPressTime: SlitPressTime = {
+  rules: Array.isArray(rawSlitPressTime?.rules) && (rawSlitPressTime?.rules?.length ?? 0) > 0
+    ? (rawSlitPressTime?.rules ?? []).map((r, i) => ({
+        key: r.key || `rule_${i + 1}`,
+        label: r.label || `Loại ${i + 1}`,
+        setupMinutes: Number(r.setupMinutes) > 0 ? Number(r.setupMinutes) : 20,
+        speedMPerMin: Number(r.speedMPerMin) > 0 ? Number(r.speedMPerMin) : 100,
+      }))
+    : DEFAULT_SLIT_PRESS_TIME.rules.map((r) => ({ ...r })),
+};
+
 export const INITIAL_CONSTANTS: AppConstants = {
   ...rawConstants,
   boxOptions: rawConstants.boxOptions?.length ? rawConstants.boxOptions : fallbackBoxOptions,
@@ -131,6 +255,12 @@ export const INITIAL_CONSTANTS: AppConstants = {
   printPressLabor,
   printPressElectric,
   printPressTime,
+  laminatePressLabor,
+  laminatePressElectric,
+  laminatePressTime,
+  slitPressLabor,
+  slitPressElectric,
+  slitPressTime,
   // JSON stores colorSetup keys as strings → convert back to number keys
   colorSetup: Object.fromEntries(
     Object.entries(rawConstants.colorSetup).map(([k, v]) => [Number(k), v])
