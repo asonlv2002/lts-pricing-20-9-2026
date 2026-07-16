@@ -17,6 +17,11 @@ import {
   DEFAULT_SLIT_PRESS_LABOR,
   DEFAULT_SLIT_PRESS_ELECTRIC,
   DEFAULT_SLIT_PRESS_TIME,
+  DEFAULT_BAG_PRESS_LABOR,
+  DEFAULT_BAG_PRESS_ELECTRIC,
+  DEFAULT_BAG_PRESS_TIME,
+  BAG_PRESS_MAX_PER_SHIFT,
+  normalizeBagPressLabor,
 } from "../lib/data";
 import type {
   PrintPressLabor,
@@ -29,6 +34,11 @@ import type {
   SlitPressElectric,
   SlitPressTime,
   SlitPressTimeRule,
+  BagPressLabor,
+  BagPressElectric,
+  BagPressTime,
+  BagPressSetupRule,
+  BagPressSpeedRule,
 } from "../lib/types";
 import {
   commitProfitThresholdDraft,
@@ -601,6 +611,9 @@ export default function TrangCauHinh({
       "slitPressLabor",
       "slitPressElectric",
       "slitPressTime",
+      "bagPressLabor",
+      "bagPressElectric",
+      "bagPressTime",
       "nhuPrice",
       "moPrice",
       "ghepCPSX",
@@ -718,6 +731,33 @@ export default function TrangCauHinh({
           key,
           structuredClone(
             INITIAL_CONSTANTS.slitPressTime ?? DEFAULT_SLIT_PRESS_TIME,
+          ) as any,
+        );
+        return;
+      }
+      if (key === "bagPressLabor") {
+        capNhatHangSo(
+          key,
+          structuredClone(
+            INITIAL_CONSTANTS.bagPressLabor ?? DEFAULT_BAG_PRESS_LABOR,
+          ) as any,
+        );
+        return;
+      }
+      if (key === "bagPressElectric") {
+        capNhatHangSo(
+          key,
+          structuredClone(
+            INITIAL_CONSTANTS.bagPressElectric ?? DEFAULT_BAG_PRESS_ELECTRIC,
+          ) as any,
+        );
+        return;
+      }
+      if (key === "bagPressTime") {
+        capNhatHangSo(
+          key,
+          structuredClone(
+            INITIAL_CONSTANTS.bagPressTime ?? DEFAULT_BAG_PRESS_TIME,
           ) as any,
         );
         return;
@@ -1196,6 +1236,147 @@ export default function TrangCauHinh({
         i === index ? { ...rule, ...patch } : rule,
       ),
     );
+  };
+  const bagPressLabor: BagPressLabor = normalizeBagPressLabor(
+    hangSo.bagPressLabor,
+  );
+  const bagMorningWages = bagPressLabor.wages.slice(
+    0,
+    bagPressLabor.morningCount,
+  );
+  const bagEveningWages = bagPressLabor.wages.slice(
+    bagPressLabor.morningCount,
+  );
+  const capNhatBagPressLabor = (patch: Partial<BagPressLabor>) => {
+    capNhatHangSo(
+      "bagPressLabor" as any,
+      normalizeBagPressLabor({ ...bagPressLabor, ...patch }) as any,
+    );
+  };
+  const capNhatBagShiftWage = (
+    shift: "morning" | "evening",
+    idx: number,
+    wage: number,
+  ) => {
+    const morning = [...bagMorningWages];
+    const evening = [...bagEveningWages];
+    if (shift === "morning") morning[idx] = wage;
+    else evening[idx] = wage;
+    capNhatBagPressLabor({
+      wages: [...morning, ...evening],
+      morningCount: morning.length,
+    });
+  };
+  const themBagShiftWorker = (shift: "morning" | "evening") => {
+    const morning = [...bagMorningWages];
+    const evening = [...bagEveningWages];
+    const list = shift === "morning" ? morning : evening;
+    if (list.length >= BAG_PRESS_MAX_PER_SHIFT) return;
+    const def =
+      DEFAULT_BAG_PRESS_LABOR.wages[
+        list.length % BAG_PRESS_MAX_PER_SHIFT
+      ] ?? 500000;
+    list.push(def);
+    capNhatBagPressLabor({
+      wages: [...morning, ...evening],
+      morningCount: morning.length,
+    });
+  };
+  const xoaBagShiftWorker = (
+    shift: "morning" | "evening",
+    idx: number,
+  ) => {
+    let morning = [...bagMorningWages];
+    let evening = [...bagEveningWages];
+    if (shift === "morning") {
+      if (morning.length <= 1) return;
+      morning = morning.filter((_, i) => i !== idx);
+    } else {
+      if (evening.length <= 1) return;
+      evening = evening.filter((_, i) => i !== idx);
+    }
+    capNhatBagPressLabor({
+      wages: [...morning, ...evening],
+      morningCount: morning.length,
+    });
+  };
+  const tongLuongMayTui = bagPressLabor.wages.reduce(
+    (sum, w) => sum + (Number(w) || 0),
+    0,
+  );
+  const soCongNhanMayTui = bagPressLabor.wages.length;
+  const comSangMayTui =
+    bagPressLabor.mealMorning * (soCongNhanMayTui / 2);
+  const comToiMayTui =
+    bagPressLabor.mealEvening * (soCongNhanMayTui / 2);
+  const tangCaMayTui = (tongLuongMayTui / 2) * bagPressLabor.otFactor;
+  const tuSoLuongMayTui =
+    tongLuongMayTui + comSangMayTui + comToiMayTui + tangCaMayTui;
+  const luongMoiPhutMayTui =
+    soCongNhanMayTui > 0 ? tuSoLuongMayTui / (24 * 60) : 0;
+  const bagPressElectric: BagPressElectric = {
+    powerKw:
+      hangSo.bagPressElectric?.powerKw && hangSo.bagPressElectric.powerKw > 0
+        ? hangSo.bagPressElectric.powerKw
+        : DEFAULT_BAG_PRESS_ELECTRIC.powerKw,
+    efficiency:
+      hangSo.bagPressElectric?.efficiency &&
+      hangSo.bagPressElectric.efficiency > 0
+        ? hangSo.bagPressElectric.efficiency
+        : DEFAULT_BAG_PRESS_ELECTRIC.efficiency,
+    pricePerKwh:
+      hangSo.bagPressElectric?.pricePerKwh &&
+      hangSo.bagPressElectric.pricePerKwh > 0
+        ? hangSo.bagPressElectric.pricePerKwh
+        : DEFAULT_BAG_PRESS_ELECTRIC.pricePerKwh,
+  };
+  const capNhatBagPressElectric = (patch: Partial<BagPressElectric>) => {
+    capNhatHangSo("bagPressElectric" as any, {
+      ...bagPressElectric,
+      ...patch,
+    } as any);
+  };
+  const dienMoiPhutMayTui =
+    (bagPressElectric.powerKw *
+      bagPressElectric.efficiency *
+      bagPressElectric.pricePerKwh) /
+    60;
+  const bagPressSetupRules: BagPressSetupRule[] =
+    Array.isArray(hangSo.bagPressTime?.setupRules) &&
+    hangSo.bagPressTime!.setupRules.length > 0
+      ? hangSo.bagPressTime!.setupRules
+      : DEFAULT_BAG_PRESS_TIME.setupRules.map((r) => ({ ...r }));
+  const bagPressSpeedRules: BagPressSpeedRule[] =
+    Array.isArray(hangSo.bagPressTime?.speedRules) &&
+    hangSo.bagPressTime!.speedRules.length > 0
+      ? hangSo.bagPressTime!.speedRules
+      : DEFAULT_BAG_PRESS_TIME.speedRules.map((r) => ({ ...r }));
+  const capNhatBagPressTime = (patch: Partial<BagPressTime>) => {
+    capNhatHangSo("bagPressTime" as any, {
+      setupRules: bagPressSetupRules,
+      speedRules: bagPressSpeedRules,
+      ...patch,
+    } as any);
+  };
+  const capNhatBagPressSetupRule = (
+    index: number,
+    patch: Partial<BagPressSetupRule>,
+  ) => {
+    capNhatBagPressTime({
+      setupRules: bagPressSetupRules.map((rule, i) =>
+        i === index ? { ...rule, ...patch } : rule,
+      ),
+    });
+  };
+  const capNhatBagPressSpeedRule = (
+    index: number,
+    patch: Partial<BagPressSpeedRule>,
+  ) => {
+    capNhatBagPressTime({
+      speedRules: bagPressSpeedRules.map((rule, i) =>
+        i === index ? { ...rule, ...patch } : rule,
+      ),
+    });
   };
   const layBienLoiNhuan = (i: number, nguong: number) => {
     const from = i === 0 ? 0 : (bangLoiNhuan[i - 1]?.threshold ?? 0);
@@ -4339,6 +4520,597 @@ export default function TrangCauHinh({
                 💡 CPSX Cắt = Cắt cơ bản × Hệ số. Ngưỡng dựa trên diện tích túi
                 (m²).
               </p>
+
+              {hienSanXuat && (
+                <div className="config-print-press-stack">
+                  <HopThuGon
+                    tieuDe="Lương nhân công máy làm túi"
+                    tomTat={`${dinhDangVnd(Math.round(luongMoiPhutMayTui))} ₫/phút · ${soCongNhanMayTui} CN · 2 ca`}
+                    macDinhMo={false}
+                  >
+                    <div className="config-print-press-labor__hint">
+                      Chỉ cấu hình — chưa áp vào engine · 2 ca (sáng / tối), mỗi
+                      ca tối đa {BAG_PRESS_MAX_PER_SHIFT} người · 24h + OT
+                    </div>
+                    <div className="config-print-press-labor__split">
+                      <div className="config-print-press-labor__col config-print-press-labor__col--wages">
+                        {(
+                          [
+                            {
+                              key: "morning" as const,
+                              title: "Ca sáng",
+                              list: bagMorningWages,
+                            },
+                            {
+                              key: "evening" as const,
+                              title: "Ca tối",
+                              list: bagEveningWages,
+                            },
+                          ] as const
+                        ).map((shift) => (
+                          <div
+                            key={shift.key}
+                            style={{ marginBottom: "14px" }}
+                          >
+                            <div className="config-print-press-labor__col-title">
+                              {shift.title} (tối đa {BAG_PRESS_MAX_PER_SHIFT})
+                            </div>
+                            <div className="config-print-press-labor__table-wrap">
+                              <table className="config-table config-print-press-labor__table">
+                                <thead>
+                                  <tr>
+                                    <th>STT</th>
+                                    <th>Nhãn</th>
+                                    <th>Lương/ca</th>
+                                    <th></th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {shift.list.map((wage, idx) => (
+                                    <tr key={`${shift.key}-${idx}`}>
+                                      <td className="config-print-press-labor__stt">
+                                        {idx + 1}
+                                      </td>
+                                      <td>
+                                        <span className="config-print-press-labor__label">
+                                          Công nhân {idx + 1}
+                                        </span>
+                                      </td>
+                                      <td>
+                                        <input
+                                          type="text"
+                                          inputMode="numeric"
+                                          className="config-inline-input"
+                                          value={dinhDangVnd(wage || 0)}
+                                          onChange={(e) =>
+                                            capNhatBagShiftWage(
+                                              shift.key,
+                                              idx,
+                                              docSoVnd(e.target.value),
+                                            )
+                                          }
+                                          style={{
+                                            width: "110px",
+                                            fontWeight: 700,
+                                            textAlign: "right",
+                                          }}
+                                        />
+                                      </td>
+                                      <td>
+                                        <button
+                                          type="button"
+                                          className="btn btn-sm btn-outline"
+                                          disabled={shift.list.length <= 1}
+                                          onClick={() =>
+                                            xoaBagShiftWorker(shift.key, idx)
+                                          }
+                                          title="Xóa công nhân"
+                                        >
+                                          🗑
+                                        </button>
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-outline"
+                              style={{ marginTop: "8px" }}
+                              disabled={
+                                shift.list.length >= BAG_PRESS_MAX_PER_SHIFT
+                              }
+                              onClick={() => themBagShiftWorker(shift.key)}
+                            >
+                              + Thêm {shift.title.toLowerCase()}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="config-print-press-labor__col config-print-press-labor__col--allowance">
+                        <div className="config-print-press-labor__col-title">
+                          Phụ cấp & tăng ca
+                        </div>
+                        <div className="config-print-press-labor__field">
+                          <label>Tiền cơm ca sáng</label>
+                          <div className="config-print-press-labor__input-row">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              className="config-inline-input"
+                              value={dinhDangVnd(bagPressLabor.mealMorning)}
+                              onChange={(e) =>
+                                capNhatBagPressLabor({
+                                  mealMorning: docSoVnd(e.target.value),
+                                })
+                              }
+                              style={{
+                                width: "110px",
+                                fontWeight: 700,
+                                textAlign: "right",
+                              }}
+                            />
+                            <span>₫ / người</span>
+                          </div>
+                        </div>
+                        <div className="config-print-press-labor__field">
+                          <label>Tiền cơm ca tối</label>
+                          <div className="config-print-press-labor__input-row">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              className="config-inline-input"
+                              value={dinhDangVnd(bagPressLabor.mealEvening)}
+                              onChange={(e) =>
+                                capNhatBagPressLabor({
+                                  mealEvening: docSoVnd(e.target.value),
+                                })
+                              }
+                              style={{
+                                width: "110px",
+                                fontWeight: 700,
+                                textAlign: "right",
+                              }}
+                            />
+                            <span>₫ / người</span>
+                          </div>
+                        </div>
+                        <div className="config-print-press-labor__field">
+                          <label>Hệ số tăng ca</label>
+                          <div className="config-print-press-labor__input-row">
+                            <input
+                              type="number"
+                              className="config-inline-input"
+                              step="0.1"
+                              min="0"
+                              value={bagPressLabor.otFactor}
+                              onChange={(e) => {
+                                const v = parseFloat(e.target.value);
+                                capNhatBagPressLabor({
+                                  otFactor:
+                                    Number.isFinite(v) && v > 0
+                                      ? v
+                                      : DEFAULT_BAG_PRESS_LABOR.otFactor,
+                                });
+                              }}
+                              style={{
+                                width: "80px",
+                                fontWeight: 700,
+                                textAlign: "right",
+                              }}
+                            />
+                          </div>
+                        </div>
+                        <div className="config-print-press-labor__meta">
+                          <div>
+                            <span>Tổng lương</span>
+                            <strong>{dinhDangVnd(tongLuongMayTui)} ₫</strong>
+                          </div>
+                          <div>
+                            <span>Số công nhân</span>
+                            <strong>
+                              {soCongNhanMayTui} ({bagMorningWages.length} sáng
+                              + {bagEveningWages.length} tối)
+                            </strong>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="config-print-press-labor__preview">
+                      <div className="config-print-press-labor__col-title">
+                        Preview công thức
+                      </div>
+                      <div className="config-print-press-labor__formula">
+                        <div>
+                          Cơm sáng = {dinhDangVnd(bagPressLabor.mealMorning)} ×{" "}
+                          {soCongNhanMayTui}/2 = {dinhDangVnd(comSangMayTui)} ₫
+                        </div>
+                        <div>
+                          Cơm tối = {dinhDangVnd(bagPressLabor.mealEvening)} ×{" "}
+                          {soCongNhanMayTui}/2 = {dinhDangVnd(comToiMayTui)} ₫
+                        </div>
+                        <div>
+                          Tăng ca = tổng/2 × {bagPressLabor.otFactor} ={" "}
+                          {dinhDangVnd(Math.round(tangCaMayTui))} ₫
+                        </div>
+                        <div>
+                          Tử số = {dinhDangVnd(Math.round(tuSoLuongMayTui))} ₫ ·
+                          Mẫu số = 24h × 60 = 1.440 phút
+                        </div>
+                      </div>
+                      <div className="config-print-press-labor__result">
+                        <span>Lương máy làm túi / phút</span>
+                        <strong>
+                          {dinhDangVnd(Math.round(luongMoiPhutMayTui))} ₫/phút
+                        </strong>
+                      </div>
+                    </div>
+                  </HopThuGon>
+
+                  <HopThuGon
+                    tieuDe="Chi phí điện máy làm túi"
+                    tomTat={`${dinhDangVnd(Math.round(dienMoiPhutMayTui))} ₫/phút`}
+                    macDinhMo={false}
+                  >
+                    <div className="config-print-press-labor__hint">
+                      Chỉ cấu hình — chưa áp vào engine tính giá
+                    </div>
+                    <div className="config-print-press-electric__split">
+                      <div className="config-print-press-labor__col">
+                        <div className="config-print-press-labor__col-title">
+                          Tham số máy & điện
+                        </div>
+                        <div className="config-print-press-labor__field">
+                          <label>Công suất máy</label>
+                          <div className="config-print-press-labor__input-row">
+                            <input
+                              type="number"
+                              className="config-inline-input"
+                              min="0"
+                              step="1"
+                              value={bagPressElectric.powerKw}
+                              onChange={(e) => {
+                                const v = parseFloat(e.target.value);
+                                capNhatBagPressElectric({
+                                  powerKw:
+                                    Number.isFinite(v) && v > 0
+                                      ? v
+                                      : DEFAULT_BAG_PRESS_ELECTRIC.powerKw,
+                                });
+                              }}
+                              style={{
+                                width: "100px",
+                                fontWeight: 700,
+                                textAlign: "right",
+                              }}
+                            />
+                            <span>kW</span>
+                          </div>
+                        </div>
+                        <div className="config-print-press-labor__field">
+                          <label>Hiệu suất máy</label>
+                          <div className="config-print-press-labor__input-row">
+                            <input
+                              type="number"
+                              className="config-inline-input"
+                              min="0"
+                              max="100"
+                              step="0.1"
+                              value={parseFloat(
+                                (bagPressElectric.efficiency * 100).toFixed(2),
+                              )}
+                              onChange={(e) => {
+                                const v = parseFloat(e.target.value);
+                                capNhatBagPressElectric({
+                                  efficiency:
+                                    Number.isFinite(v) && v > 0
+                                      ? v / 100
+                                      : DEFAULT_BAG_PRESS_ELECTRIC.efficiency,
+                                });
+                              }}
+                              style={{
+                                width: "100px",
+                                fontWeight: 700,
+                                textAlign: "right",
+                              }}
+                            />
+                            <span>%</span>
+                          </div>
+                        </div>
+                        <div className="config-print-press-labor__field">
+                          <label>Giá điện</label>
+                          <div className="config-print-press-labor__input-row">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              className="config-inline-input"
+                              value={dinhDangVnd(bagPressElectric.pricePerKwh)}
+                              onChange={(e) =>
+                                capNhatBagPressElectric({
+                                  pricePerKwh:
+                                    docSoVnd(e.target.value) ||
+                                    DEFAULT_BAG_PRESS_ELECTRIC.pricePerKwh,
+                                })
+                              }
+                              style={{
+                                width: "110px",
+                                fontWeight: 700,
+                                textAlign: "right",
+                              }}
+                            />
+                            <span>đ/kWh</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="config-print-press-labor__col">
+                        <div className="config-print-press-labor__col-title">
+                          Preview
+                        </div>
+                        <div className="config-print-press-labor__formula">
+                          <div>
+                            (công suất × hiệu suất × giá điện) / 60
+                          </div>
+                          <div>
+                            ({bagPressElectric.powerKw} ×{" "}
+                            {bagPressElectric.efficiency} ×{" "}
+                            {dinhDangVnd(bagPressElectric.pricePerKwh)}) / 60
+                          </div>
+                        </div>
+                        <div className="config-print-press-labor__result">
+                          <span>Điện máy làm túi / phút</span>
+                          <strong>
+                            {dinhDangVnd(Math.round(dienMoiPhutMayTui))} ₫/phút
+                          </strong>
+                        </div>
+                      </div>
+                    </div>
+                  </HopThuGon>
+
+                  <HopThuGon
+                    tieuDe="Thời gian sản xuất cắt"
+                    tomTat={`${bagPressSetupRules.length} loại túi · ${bagPressSpeedRules.length} bậc bước cắt`}
+                    macDinhMo={false}
+                  >
+                    <div className="config-print-press-labor__hint">
+                      Setup theo loại túi · tốc độ theo bước cắt (cái/phút) · mét
+                      hao/TP lấy từ tính giá sau này
+                    </div>
+                    <div className="config-print-press-labor__col-title">
+                      Setup theo loại túi
+                    </div>
+                    <div className="config-print-press-labor__table-wrap">
+                      <table className="config-table config-print-press-labor__table">
+                        <thead>
+                          <tr>
+                            <th>Loại túi</th>
+                            <th>Setup (phút)</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bagPressSetupRules.map((rule, idx) => (
+                            <tr key={rule.key || idx}>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="config-inline-input"
+                                  value={rule.label}
+                                  onChange={(e) =>
+                                    capNhatBagPressSetupRule(idx, {
+                                      label: e.target.value,
+                                    })
+                                  }
+                                  style={{ width: "220px", fontWeight: 600 }}
+                                />
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="config-inline-input"
+                                  min="0"
+                                  step="1"
+                                  value={rule.setupMinutes}
+                                  onChange={(e) => {
+                                    const v = parseFloat(e.target.value);
+                                    capNhatBagPressSetupRule(idx, {
+                                      setupMinutes:
+                                        Number.isFinite(v) && v > 0 ? v : 90,
+                                    });
+                                  }}
+                                  style={{
+                                    width: "80px",
+                                    fontWeight: 700,
+                                    textAlign: "right",
+                                  }}
+                                />
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline"
+                                  disabled={bagPressSetupRules.length <= 1}
+                                  onClick={() => {
+                                    if (bagPressSetupRules.length <= 1) return;
+                                    capNhatBagPressTime({
+                                      setupRules: bagPressSetupRules.filter(
+                                        (_, i) => i !== idx,
+                                      ),
+                                    });
+                                  }}
+                                  title="Xóa loại túi"
+                                >
+                                  🗑
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline"
+                      style={{ marginTop: "8px", marginBottom: "14px" }}
+                      onClick={() =>
+                        capNhatBagPressTime({
+                          setupRules: [
+                            ...bagPressSetupRules,
+                            {
+                              key: `setup_${Date.now()}`,
+                              label: `Loại túi ${bagPressSetupRules.length + 1}`,
+                              setupMinutes: 90,
+                            },
+                          ],
+                        })
+                      }
+                    >
+                      + Thêm loại túi
+                    </button>
+
+                    <div className="config-print-press-labor__col-title">
+                      Tốc độ theo bước cắt (mm → cái/phút)
+                    </div>
+                    <div className="config-print-press-labor__table-wrap">
+                      <table className="config-table config-print-press-labor__table">
+                        <thead>
+                          <tr>
+                            <th>Bậc bước cắt</th>
+                            <th>Ngưỡng max (mm)</th>
+                            <th>Tốc độ (cái/phút)</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {bagPressSpeedRules.map((rule, idx) => (
+                            <tr key={rule.key || idx}>
+                              <td>
+                                <input
+                                  type="text"
+                                  className="config-inline-input"
+                                  value={rule.label}
+                                  onChange={(e) =>
+                                    capNhatBagPressSpeedRule(idx, {
+                                      label: e.target.value,
+                                    })
+                                  }
+                                  style={{ width: "140px", fontWeight: 600 }}
+                                />
+                              </td>
+                              <td>
+                                {rule.maxStepMm == null ? (
+                                  <span style={{ color: "var(--muted)" }}>
+                                    ∞ (không trần)
+                                  </span>
+                                ) : (
+                                  <input
+                                    type="number"
+                                    className="config-inline-input"
+                                    min="0"
+                                    step="1"
+                                    value={rule.maxStepMm}
+                                    onChange={(e) => {
+                                      const v = parseFloat(e.target.value);
+                                      capNhatBagPressSpeedRule(idx, {
+                                        maxStepMm:
+                                          Number.isFinite(v) && v > 0
+                                            ? v
+                                            : 200,
+                                      });
+                                    }}
+                                    style={{
+                                      width: "90px",
+                                      fontWeight: 700,
+                                      textAlign: "right",
+                                    }}
+                                  />
+                                )}
+                              </td>
+                              <td>
+                                <input
+                                  type="number"
+                                  className="config-inline-input"
+                                  min="0"
+                                  step="1"
+                                  value={rule.bagsPerMinute}
+                                  onChange={(e) => {
+                                    const v = parseFloat(e.target.value);
+                                    capNhatBagPressSpeedRule(idx, {
+                                      bagsPerMinute:
+                                        Number.isFinite(v) && v > 0 ? v : 50,
+                                    });
+                                  }}
+                                  style={{
+                                    width: "90px",
+                                    fontWeight: 700,
+                                    textAlign: "right",
+                                  }}
+                                />
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline"
+                                  disabled={bagPressSpeedRules.length <= 1}
+                                  onClick={() => {
+                                    if (bagPressSpeedRules.length <= 1) return;
+                                    capNhatBagPressTime({
+                                      speedRules: bagPressSpeedRules.filter(
+                                        (_, i) => i !== idx,
+                                      ),
+                                    });
+                                  }}
+                                  title="Xóa bậc"
+                                >
+                                  🗑
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline"
+                      style={{ marginTop: "8px" }}
+                      onClick={() =>
+                        capNhatBagPressTime({
+                          speedRules: [
+                            ...bagPressSpeedRules,
+                            {
+                              key: `speed_${Date.now()}`,
+                              label: `Bậc ${bagPressSpeedRules.length + 1}`,
+                              maxStepMm: 500,
+                              bagsPerMinute: 50,
+                            },
+                          ],
+                        })
+                      }
+                    >
+                      + Thêm bậc tốc độ
+                    </button>
+
+                    <div className="config-print-press-labor__preview">
+                      <div className="config-print-press-labor__col-title">
+                        Review công thức
+                      </div>
+                      <div className="config-print-press-labor__formula">
+                        <div>
+                          T = setup(loại túi) + (mét hao + mét TP) / tốc độ
+                        </div>
+                        <div>
+                          Tốc độ: cái/phút theo bước cắt (mm) — bảng trên
+                        </div>
+                        <div>
+                          ℹ️ mét / loại túi / bước cắt: từ đơn + tính giá (sau
+                          này)
+                        </div>
+                      </div>
+                    </div>
+                  </HopThuGon>
+                </div>
+              )}
             </div>
           )}
           {hienLoiNhuan && <KhoiPhienBan scope="profit" />}

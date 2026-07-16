@@ -1,4 +1,4 @@
-import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate, PrintPressLabor, PrintPressElectric, PrintPressTime, LaminatePressLabor, LaminatePressElectric, LaminatePressTime, SlitPressLabor, SlitPressElectric, SlitPressTime, SlitPressTimeRule } from './types';
+import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate, PrintPressLabor, PrintPressElectric, PrintPressTime, LaminatePressLabor, LaminatePressElectric, LaminatePressTime, SlitPressLabor, SlitPressElectric, SlitPressTime, SlitPressTimeRule, BagPressLabor, BagPressElectric, BagPressTime, BagPressSetupRule, BagPressSpeedRule } from './types';
 // Single source of truth: /data ở root repo (dùng chung cho web + Flutter)
 import materialsJson  from '@data/materials.json';
 import constantsJson  from '@data/constants.json';
@@ -78,7 +78,7 @@ export const DEFAULT_PRINT_PRESS_TIME: PrintPressTime = {
 };
 
 export const DEFAULT_LAMINATE_PRESS_LABOR: LaminatePressLabor = {
-  wages: [0, 0, 0, 0],
+  wages: [800000, 550000, 800000, 550000],
   mealMorning: 30000,
   mealEvening: 65000,
   otFactor: 1.5,
@@ -97,7 +97,7 @@ export const DEFAULT_LAMINATE_PRESS_TIME: LaminatePressTime = {
 };
 
 export const DEFAULT_SLIT_PRESS_LABOR: SlitPressLabor = {
-  wage: 0,
+  wage: 550000,
   mealMorning: 30000,
 };
 
@@ -117,6 +117,92 @@ export const DEFAULT_SLIT_PRESS_TIME_RULES: SlitPressTimeRule[] = [
 
 export const DEFAULT_SLIT_PRESS_TIME: SlitPressTime = {
   rules: DEFAULT_SLIT_PRESS_TIME_RULES.map((r) => ({ ...r })),
+};
+
+export const BAG_PRESS_MAX_PER_SHIFT = 3;
+
+export const DEFAULT_BAG_PRESS_LABOR: BagPressLabor = {
+  // 2 ca × 3 CN: [ca sáng…, ca tối…]
+  wages: [800000, 550000, 500000, 800000, 550000, 500000],
+  morningCount: 3,
+  mealMorning: 30000,
+  mealEvening: 65000,
+  otFactor: 1.5,
+};
+
+/** Chuẩn hoá wages 2 ca; bản cũ length≤3 → ca tối = default */
+export function normalizeBagPressLabor(
+  raw?: Partial<BagPressLabor> & { wages?: number[] },
+): BagPressLabor {
+  const defMorning = DEFAULT_BAG_PRESS_LABOR.wages.slice(0, BAG_PRESS_MAX_PER_SHIFT);
+  const defEvening = DEFAULT_BAG_PRESS_LABOR.wages.slice(BAG_PRESS_MAX_PER_SHIFT);
+  const src = Array.isArray(raw?.wages) ? raw!.wages!.map((w) => Number(w) || 0) : [];
+
+  let morning: number[];
+  let evening: number[];
+
+  if (src.length === 0) {
+    morning = [...defMorning];
+    evening = [...defEvening];
+  } else if (src.length <= BAG_PRESS_MAX_PER_SHIFT) {
+    morning = src.slice(0, BAG_PRESS_MAX_PER_SHIFT);
+    evening = [...defEvening];
+  } else {
+    const mcRaw = Number(raw?.morningCount);
+    const mc =
+      Number.isFinite(mcRaw) && mcRaw >= 1 && mcRaw <= BAG_PRESS_MAX_PER_SHIFT
+        ? Math.floor(mcRaw)
+        : BAG_PRESS_MAX_PER_SHIFT;
+    morning = src.slice(0, mc).slice(0, BAG_PRESS_MAX_PER_SHIFT);
+    evening = src.slice(mc).slice(0, BAG_PRESS_MAX_PER_SHIFT);
+    if (evening.length === 0) evening = [...defEvening];
+  }
+
+  if (morning.length === 0) morning = [defMorning[0] ?? 500000];
+  if (evening.length === 0) evening = [defEvening[0] ?? 500000];
+
+  return {
+    wages: [...morning, ...evening],
+    morningCount: morning.length,
+    mealMorning: Number(raw?.mealMorning) || DEFAULT_BAG_PRESS_LABOR.mealMorning,
+    mealEvening: Number(raw?.mealEvening) || DEFAULT_BAG_PRESS_LABOR.mealEvening,
+    otFactor:
+      Number(raw?.otFactor) > 0
+        ? Number(raw?.otFactor)
+        : DEFAULT_BAG_PRESS_LABOR.otFactor,
+  };
+}
+
+export const DEFAULT_BAG_PRESS_ELECTRIC: BagPressElectric = {
+  powerKw: 22,
+  efficiency: 0.6,
+  pricePerKwh: 2140,
+};
+
+export const DEFAULT_BAG_PRESS_SETUP_RULES: BagPressSetupRule[] = [
+  { key: '3bien', label: 'Túi 3 biên', setupMinutes: 90 },
+  { key: '4bien', label: 'Túi 4 biên', setupMinutes: 90 },
+  { key: '3_4bien_gt30', label: 'Túi 3 biên, 4 biên (>30cm)', setupMinutes: 90 },
+  { key: '3_4bien_gt40', label: 'Túi 3 biên, 4 biên (>40cm)', setupMinutes: 90 },
+  { key: 'xephong', label: 'Xếp hông lưng lệch / lưng giữa', setupMinutes: 120 },
+  { key: 'xephong_gt40', label: 'Xếp hông lưng lệch / lưng giữa (>40cm)', setupMinutes: 120 },
+  { key: 'zipper_daydung', label: 'Zipper đáy đứng', setupMinutes: 120 },
+  { key: 'zipper_3bien', label: 'Zipper 3 biên', setupMinutes: 120 },
+  { key: 'nap_bangkeo', label: 'Nắp băng keo', setupMinutes: 120 },
+  { key: 'cut_seal', label: 'Túi cắt Seal', setupMinutes: 90 },
+];
+
+export const DEFAULT_BAG_PRESS_SPEED_RULES: BagPressSpeedRule[] = [
+  { key: 'le_200', label: '≤ 200 mm', maxStepMm: 200, bagsPerMinute: 80 },
+  { key: '200_300', label: '200 – ≤300 mm', maxStepMm: 300, bagsPerMinute: 70 },
+  { key: '300_400', label: '300 – ≤400 mm', maxStepMm: 400, bagsPerMinute: 60 },
+  { key: '400_550', label: '400 – ≤550 mm', maxStepMm: 550, bagsPerMinute: 50 },
+  { key: 'gt_550', label: '> 550 mm', maxStepMm: null, bagsPerMinute: 20 },
+];
+
+export const DEFAULT_BAG_PRESS_TIME: BagPressTime = {
+  setupRules: DEFAULT_BAG_PRESS_SETUP_RULES.map((r) => ({ ...r })),
+  speedRules: DEFAULT_BAG_PRESS_SPEED_RULES.map((r) => ({ ...r })),
 };
 
 const rawPrintPressLabor = (rawConstants as { printPressLabor?: PrintPressLabor }).printPressLabor;
@@ -245,6 +331,48 @@ const slitPressTime: SlitPressTime = {
     : DEFAULT_SLIT_PRESS_TIME.rules.map((r) => ({ ...r })),
 };
 
+const rawBagPressLabor = (rawConstants as unknown as {
+  bagPressLabor?: Partial<BagPressLabor> & { wages?: number[] };
+}).bagPressLabor;
+const bagPressLabor: BagPressLabor = normalizeBagPressLabor(rawBagPressLabor);
+
+const rawBagPressElectric = (rawConstants as { bagPressElectric?: BagPressElectric }).bagPressElectric;
+const bagPressElectric: BagPressElectric = {
+  powerKw: Number(rawBagPressElectric?.powerKw) > 0
+    ? Number(rawBagPressElectric?.powerKw)
+    : DEFAULT_BAG_PRESS_ELECTRIC.powerKw,
+  efficiency: Number(rawBagPressElectric?.efficiency) > 0
+    ? Number(rawBagPressElectric?.efficiency)
+    : DEFAULT_BAG_PRESS_ELECTRIC.efficiency,
+  pricePerKwh: Number(rawBagPressElectric?.pricePerKwh) > 0
+    ? Number(rawBagPressElectric?.pricePerKwh)
+    : DEFAULT_BAG_PRESS_ELECTRIC.pricePerKwh,
+};
+
+const rawBagPressTime = (rawConstants as unknown as {
+  bagPressTime?: {
+    setupRules?: Array<{ key?: string; label?: string; setupMinutes?: number }>;
+    speedRules?: Array<{ key?: string; label?: string; maxStepMm?: number | null; bagsPerMinute?: number }>;
+  };
+}).bagPressTime;
+const bagPressTime: BagPressTime = {
+  setupRules: Array.isArray(rawBagPressTime?.setupRules) && (rawBagPressTime?.setupRules?.length ?? 0) > 0
+    ? (rawBagPressTime?.setupRules ?? []).map((r, i) => ({
+        key: r.key || `setup_${i + 1}`,
+        label: r.label || `Loại túi ${i + 1}`,
+        setupMinutes: Number(r.setupMinutes) > 0 ? Number(r.setupMinutes) : 90,
+      }))
+    : DEFAULT_BAG_PRESS_TIME.setupRules.map((r) => ({ ...r })),
+  speedRules: Array.isArray(rawBagPressTime?.speedRules) && (rawBagPressTime?.speedRules?.length ?? 0) > 0
+    ? (rawBagPressTime?.speedRules ?? []).map((r, i) => ({
+        key: r.key || `speed_${i + 1}`,
+        label: r.label || `Bậc ${i + 1}`,
+        maxStepMm: r.maxStepMm == null ? null : (Number(r.maxStepMm) || null),
+        bagsPerMinute: Number(r.bagsPerMinute) > 0 ? Number(r.bagsPerMinute) : 50,
+      }))
+    : DEFAULT_BAG_PRESS_TIME.speedRules.map((r) => ({ ...r })),
+};
+
 export const INITIAL_CONSTANTS: AppConstants = {
   ...rawConstants,
   boxOptions: rawConstants.boxOptions?.length ? rawConstants.boxOptions : fallbackBoxOptions,
@@ -261,6 +389,9 @@ export const INITIAL_CONSTANTS: AppConstants = {
   slitPressLabor,
   slitPressElectric,
   slitPressTime,
+  bagPressLabor,
+  bagPressElectric,
+  bagPressTime,
   // JSON stores colorSetup keys as strings → convert back to number keys
   colorSetup: Object.fromEntries(
     Object.entries(rawConstants.colorSetup).map(([k, v]) => [Number(k), v])

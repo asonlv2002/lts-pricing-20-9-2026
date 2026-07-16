@@ -163,6 +163,44 @@ export interface SlitPressTime {
   rules: SlitPressTimeRule[];
 }
 
+/** Lương NC máy làm túi — 2 ca, tối đa 3 CN/ca (wages flatten: sáng rồi tối); chưa nối engine */
+export interface BagPressLabor {
+  wages: number[];
+  /** Số CN ca sáng (1–3); phần còn lại của wages là ca tối (≤3) */
+  morningCount: number;
+  mealMorning: number;
+  mealEvening: number;
+  otFactor: number;
+}
+
+/** Điện máy làm túi (đ/phút) — cấu hình UI; chưa nối engine */
+export interface BagPressElectric {
+  powerKw: number;
+  efficiency: number;
+  pricePerKwh: number;
+}
+
+/** Setup theo loại túi (phút) */
+export interface BagPressSetupRule {
+  key: string;
+  label: string;
+  setupMinutes: number;
+}
+
+/** Tốc độ theo bước cắt (mm → cái/phút); maxStepMm null = không trần */
+export interface BagPressSpeedRule {
+  key: string;
+  label: string;
+  maxStepMm: number | null;
+  bagsPerMinute: number;
+}
+
+/** Thời gian SX cắt — setup loại túi + tốc độ bước cắt */
+export interface BagPressTime {
+  setupRules: BagPressSetupRule[];
+  speedRules: BagPressSpeedRule[];
+}
+
 export interface AppConstants {
   zipperPrice: number;
   zipperWeight: number;
@@ -238,6 +276,12 @@ export interface AppConstants {
   slitPressElectric?: SlitPressElectric;
   /** Thời gian SX chia — chỉ lưu cấu hình, engine chưa dùng */
   slitPressTime?: SlitPressTime;
+  /** Lương NC máy làm túi — chỉ lưu cấu hình, engine chưa dùng */
+  bagPressLabor?: BagPressLabor;
+  /** Điện máy làm túi — chỉ lưu cấu hình, engine chưa dùng */
+  bagPressElectric?: BagPressElectric;
+  /** Thời gian SX cắt — chỉ lưu cấu hình, engine chưa dùng */
+  bagPressTime?: BagPressTime;
 }
 
 export interface CalculateInput {

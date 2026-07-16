@@ -65,6 +65,91 @@
   "printWasteB": 40,
   "printWasteC": 50000,
   "printWasteD": 400,
+  "printPressLabor": {
+    "wages": [800000, 550000, 500000, 800000, 550000, 500000],
+    "mealMorning": 30000,
+    "mealEvening": 65000,
+    "otFactor": 1.5
+  },
+  "printPressElectric": {
+    "powerKw": 180,
+    "efficiency": 0.55,
+    "pricePerKwh": 2140
+  },
+  "printPressTime": {
+    "mountMinutesPerColor": 15,
+    "proofMinutes1to7": 20,
+    "proofMinutes8": 30,
+    "matteExtraMinutes": 80,
+    "avgSpeedMPerMin": 150
+  },
+  "laminatePressLabor": {
+    "wages": [800000, 550000, 800000, 550000],
+    "mealMorning": 30000,
+    "mealEvening": 65000,
+    "otFactor": 1.5
+  },
+  "laminatePressElectric": {
+    "powerKw": 45,
+    "efficiency": 0.65,
+    "pricePerKwh": 2140
+  },
+  "laminatePressTime": {
+    "setupFirstMinutes": 10,
+    "setupNextMinutes": 30,
+    "avgSpeedMPerMin": 100
+  },
+  "slitPressLabor": {
+    "wage": 550000,
+    "mealMorning": 30000
+  },
+  "slitPressElectric": {
+    "powerKw": 15,
+    "efficiency": 0.6,
+    "pricePerKwh": 2140
+  },
+  "slitPressTime": {
+    "rules": [
+      { "key": "opp_mattopp", "label": "Màng OPP / MattOPP", "setupMinutes": 30, "speedMPerMin": 180 },
+      { "key": "mpet_pet", "label": "Màng MPET / PET", "setupMinutes": 20, "speedMPerMin": 90 },
+      { "key": "laminate_2", "label": "Màng ghép 2 lớp", "setupMinutes": 20, "speedMPerMin": 145 },
+      { "key": "laminate_3", "label": "Màng ghép 3 lớp", "setupMinutes": 20, "speedMPerMin": 90 },
+      { "key": "matte_flip", "label": "In phủ mờ (lật mặt)", "setupMinutes": 20, "speedMPerMin": 150 }
+    ]
+  },
+  "bagPressLabor": {
+    "wages": [800000, 550000, 500000, 800000, 550000, 500000],
+    "morningCount": 3,
+    "mealMorning": 30000,
+    "mealEvening": 65000,
+    "otFactor": 1.5
+  },
+  "bagPressElectric": {
+    "powerKw": 22,
+    "efficiency": 0.6,
+    "pricePerKwh": 2140
+  },
+  "bagPressTime": {
+    "setupRules": [
+      { "key": "3bien", "label": "Túi 3 biên", "setupMinutes": 90 },
+      { "key": "4bien", "label": "Túi 4 biên", "setupMinutes": 90 },
+      { "key": "3_4bien_gt30", "label": "Túi 3 biên, 4 biên (>30cm)", "setupMinutes": 90 },
+      { "key": "3_4bien_gt40", "label": "Túi 3 biên, 4 biên (>40cm)", "setupMinutes": 90 },
+      { "key": "xephong", "label": "Xếp hông lưng lệch / lưng giữa", "setupMinutes": 120 },
+      { "key": "xephong_gt40", "label": "Xếp hông lưng lệch / lưng giữa (>40cm)", "setupMinutes": 120 },
+      { "key": "zipper_daydung", "label": "Zipper đáy đứng", "setupMinutes": 120 },
+      { "key": "zipper_3bien", "label": "Zipper 3 biên", "setupMinutes": 120 },
+      { "key": "nap_bangkeo", "label": "Nắp băng keo", "setupMinutes": 120 },
+      { "key": "cut_seal", "label": "Túi cắt Seal", "setupMinutes": 90 }
+    ],
+    "speedRules": [
+      { "key": "le_200", "label": "≤ 200 mm", "maxStepMm": 200, "bagsPerMinute": 80 },
+      { "key": "200_300", "label": "200 – ≤300 mm", "maxStepMm": 300, "bagsPerMinute": 70 },
+      { "key": "300_400", "label": "300 – ≤400 mm", "maxStepMm": 400, "bagsPerMinute": 60 },
+      { "key": "400_550", "label": "400 – ≤550 mm", "maxStepMm": 550, "bagsPerMinute": 50 },
+      { "key": "gt_550", "label": "> 550 mm", "maxStepMm": null, "bagsPerMinute": 20 }
+    ]
+  },
   "handleOptions": [
     {
       "key": "large",
