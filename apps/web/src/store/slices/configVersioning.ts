@@ -58,7 +58,7 @@ const SCOPE_LABEL: Record<ConfigScope, string> = {
 const SCOPE_CONSTANT_KEYS: Record<ConfigScope, (keyof AppConstants)[]> = {
   materials: [],
   production: [
-    'laborCost', 'ghepCPSX', 'cutBase', 'cutThreshold1', 'cutThreshold2',
+    'laborCost', 'printPressLabor', 'printPressElectric', 'printPressTime', 'ghepCPSX', 'cutBase', 'cutThreshold1', 'cutThreshold2',
     'cutMult1', 'cutMult2', 'cutMult3', 'cutRules', 'cylinderPricePerUnit', 'cylPriceA', 'cylPriceB',
     'nhuPrice', 'moPrice', 'colorSetup',
   ],

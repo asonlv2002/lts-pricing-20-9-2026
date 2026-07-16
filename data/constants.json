@@ -108,6 +108,24 @@
     { "customerGroup": "large", "colorFrom": 6, "colorTo": 6, "rate": 0.06 },
     { "customerGroup": "large", "colorFrom": 7, "colorTo": 8, "rate": 0.05 }
   ],
+  "printPressLabor": {
+    "wages": [800000, 550000, 500000, 800000, 550000, 500000],
+    "mealMorning": 30000,
+    "mealEvening": 65000,
+    "otFactor": 1.5
+  },
+  "printPressElectric": {
+    "powerKw": 180,
+    "efficiency": 0.55,
+    "pricePerKwh": 2140
+  },
+  "printPressTime": {
+    "mountMinutesPerColor": 15,
+    "proofMinutes1to7": 20,
+    "proofMinutes8": 30,
+    "matteExtraMinutes": 80,
+    "avgSpeedMPerMin": 150
+  },
   "handleOptions": [
     {
       "key": "large",

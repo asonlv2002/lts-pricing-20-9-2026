@@ -1524,6 +1524,206 @@ body {
   display: none;
 }
 
+/* Accordion boxes — CPSX print press */
+.config-print-press-stack {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.config-accordion {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface, var(--bg));
+  overflow: hidden;
+}
+.config-accordion.is-open {
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--border));
+}
+.config-accordion__header {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: var(--text);
+  font-family: inherit;
+}
+.config-accordion__header:hover {
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+.config-accordion__title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.config-accordion__title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.config-accordion__summary {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.config-accordion__arrow {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: var(--muted);
+  transition: transform 0.18s ease;
+  line-height: 1;
+}
+.config-accordion__arrow.open {
+  transform: rotate(180deg);
+  color: var(--accent);
+}
+.config-accordion__body {
+  padding: 0 14px 14px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+
+/* Lương NC máy in (config only) */
+.config-print-press-labor__hint {
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.config-print-press-labor__split {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.config-print-press-labor__col {
+  min-width: 0;
+}
+.config-print-press-labor__col-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 8px;
+}
+.config-print-press-labor__table-wrap {
+  overflow-x: auto;
+}
+.config-print-press-labor__table th,
+.config-print-press-labor__table td {
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+.config-print-press-labor__stt {
+  text-align: center;
+  color: var(--dim);
+  width: 40px;
+}
+.config-print-press-labor__label {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.config-print-press-labor__field {
+  margin-bottom: 10px;
+}
+.config-print-press-labor__field label {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+.config-print-press-labor__input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.config-print-press-labor__input-row span {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.config-print-press-labor__meta {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.config-print-press-labor__meta > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+.config-print-press-labor__meta span {
+  color: var(--muted);
+}
+.config-print-press-labor__meta strong {
+  font-weight: 700;
+  color: var(--text);
+}
+.config-print-press-labor__preview {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface, var(--bg));
+}
+.config-print-press-labor__formula {
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.55;
+  margin-bottom: 10px;
+}
+.config-print-press-labor__result {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+}
+.config-print-press-labor__result span {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.config-print-press-labor__result strong {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.config-print-press-electric__split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+.config-print-press-time__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px 16px;
+  margin-bottom: 12px;
+}
+
 /* CPSX Grid */
 .config-cpsx-grid {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -7737,6 +7937,38 @@ body {
 .config-cpsx-lead { display: none; }
 
 @media (max-width: 767px) {
+  .lts-shell--mobile .config-page .config-print-press-labor__split,
+  .lts-shell--mobile .config-page .config-print-press-electric__split,
+  html.in-config-page .config-page .config-print-press-labor__split,
+  html.in-config-page .config-page .config-print-press-electric__split {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  .lts-shell--mobile .config-page .config-print-press-time__grid,
+  html.in-config-page .config-page .config-print-press-time__grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .lts-shell--mobile .config-page .config-print-press-labor__col,
+  html.in-config-page .config-page .config-print-press-labor__col {
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+  }
+
+  .lts-shell--mobile .config-page .config-print-press-labor__result,
+  html.in-config-page .config-page .config-print-press-labor__result {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .lts-shell--mobile .config-page .config-accordion__summary,
+  html.in-config-page .config-page .config-accordion__summary {
+    white-space: normal;
+  }
+
   .lts-shell--mobile .config-page .config-cpsx-split,
   html.in-config-page .config-page .config-cpsx-split {
     display: grid !important;

@@ -8,7 +8,15 @@ import {
   INITIAL_CONSTANTS,
   INITIAL_PROFIT_TABLE,
   INITIAL_SMALL_WIDTH_PRICES,
+  DEFAULT_PRINT_PRESS_LABOR,
+  DEFAULT_PRINT_PRESS_ELECTRIC,
+  DEFAULT_PRINT_PRESS_TIME,
 } from "../lib/data";
+import type {
+  PrintPressLabor,
+  PrintPressElectric,
+  PrintPressTime,
+} from "../lib/types";
 import {
   commitProfitThresholdDraft,
   removeLastAddedProfitRow,
@@ -31,6 +39,43 @@ const SCOPE_LABEL: Record<ConfigScope, string> = {
   waste: "tham số hao hụt",
   outsource: "gia công ngoài",
 };
+
+function HopThuGon({
+  tieuDe,
+  tomTat,
+  macDinhMo = false,
+  children,
+}: {
+  tieuDe: string;
+  tomTat?: string;
+  macDinhMo?: boolean;
+  children: React.ReactNode;
+}) {
+  const [mo, datMo] = React.useState(macDinhMo);
+  return (
+    <div className={`config-accordion${mo ? " is-open" : ""}`}>
+      <button
+        type="button"
+        className="config-accordion__header"
+        onClick={() => datMo((v) => !v)}
+        aria-expanded={mo}
+      >
+        <span className="config-accordion__title-wrap">
+          <span className="config-accordion__title">{tieuDe}</span>
+          {!mo && tomTat ? (
+            <span className="config-accordion__summary">{tomTat}</span>
+          ) : null}
+        </span>
+        <span className={`config-accordion__arrow${mo ? " open" : ""}`}>
+          ▼
+        </span>
+      </button>
+      {mo ? (
+        <div className="config-accordion__body">{children}</div>
+      ) : null}
+    </div>
+  );
+}
 
 function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
   const {
@@ -534,6 +579,9 @@ export default function TrangCauHinh({
     // Reset constants
     const cacKhoaDatLai: (keyof typeof INITIAL_CONSTANTS)[] = [
       "laborCost",
+      "printPressLabor",
+      "printPressElectric",
+      "printPressTime",
       "nhuPrice",
       "moPrice",
       "ghepCPSX",
@@ -571,6 +619,34 @@ export default function TrangCauHinh({
       "customPrintSurcharges",
     ];
     cacKhoaDatLai.forEach((key) => {
+      if (key === "printPressLabor") {
+        capNhatHangSo(
+          key,
+          structuredClone(
+            INITIAL_CONSTANTS.printPressLabor ?? DEFAULT_PRINT_PRESS_LABOR,
+          ) as any,
+        );
+        return;
+      }
+      if (key === "printPressElectric") {
+        capNhatHangSo(
+          key,
+          structuredClone(
+            INITIAL_CONSTANTS.printPressElectric ??
+              DEFAULT_PRINT_PRESS_ELECTRIC,
+          ) as any,
+        );
+        return;
+      }
+      if (key === "printPressTime") {
+        capNhatHangSo(
+          key,
+          structuredClone(
+            INITIAL_CONSTANTS.printPressTime ?? DEFAULT_PRINT_PRESS_TIME,
+          ) as any,
+        );
+        return;
+      }
       capNhatHangSo(key, INITIAL_CONSTANTS[key] as number);
     });
     // Reset colorSetup
@@ -787,6 +863,104 @@ export default function TrangCauHinh({
   };
   const dinhDangVnd = (n: number) => n.toLocaleString("vi-VN");
   const docSoVnd = (value: string) => Number(value.replace(/\D/g, "")) || 0;
+  const printPressLabor: PrintPressLabor = {
+    wages:
+      Array.isArray(hangSo.printPressLabor?.wages) &&
+      hangSo.printPressLabor!.wages.length > 0
+        ? hangSo.printPressLabor!.wages
+        : [...DEFAULT_PRINT_PRESS_LABOR.wages],
+    mealMorning:
+      hangSo.printPressLabor?.mealMorning ??
+      DEFAULT_PRINT_PRESS_LABOR.mealMorning,
+    mealEvening:
+      hangSo.printPressLabor?.mealEvening ??
+      DEFAULT_PRINT_PRESS_LABOR.mealEvening,
+    otFactor:
+      hangSo.printPressLabor?.otFactor && hangSo.printPressLabor.otFactor > 0
+        ? hangSo.printPressLabor.otFactor
+        : DEFAULT_PRINT_PRESS_LABOR.otFactor,
+  };
+  const capNhatPrintPressLabor = (patch: Partial<PrintPressLabor>) => {
+    capNhatHangSo("printPressLabor" as any, {
+      ...printPressLabor,
+      ...patch,
+    } as any);
+  };
+  const tongLuongMayIn = printPressLabor.wages.reduce(
+    (sum, w) => sum + (Number(w) || 0),
+    0,
+  );
+  const soCongNhanMayIn = printPressLabor.wages.length;
+  const comSangMayIn =
+    printPressLabor.mealMorning * (soCongNhanMayIn / 2);
+  const comToiMayIn =
+    printPressLabor.mealEvening * (soCongNhanMayIn / 2);
+  const tangCaMayIn = (tongLuongMayIn / 2) * printPressLabor.otFactor;
+  const tuSoLuongMayIn =
+    tongLuongMayIn + comSangMayIn + comToiMayIn + tangCaMayIn;
+  const luongMoiPhutMayIn =
+    soCongNhanMayIn > 0 ? tuSoLuongMayIn / (24 * 60) : 0;
+  const printPressElectric: PrintPressElectric = {
+    powerKw:
+      hangSo.printPressElectric?.powerKw &&
+      hangSo.printPressElectric.powerKw > 0
+        ? hangSo.printPressElectric.powerKw
+        : DEFAULT_PRINT_PRESS_ELECTRIC.powerKw,
+    efficiency:
+      hangSo.printPressElectric?.efficiency &&
+      hangSo.printPressElectric.efficiency > 0
+        ? hangSo.printPressElectric.efficiency
+        : DEFAULT_PRINT_PRESS_ELECTRIC.efficiency,
+    pricePerKwh:
+      hangSo.printPressElectric?.pricePerKwh &&
+      hangSo.printPressElectric.pricePerKwh > 0
+        ? hangSo.printPressElectric.pricePerKwh
+        : DEFAULT_PRINT_PRESS_ELECTRIC.pricePerKwh,
+  };
+  const capNhatPrintPressElectric = (patch: Partial<PrintPressElectric>) => {
+    capNhatHangSo("printPressElectric" as any, {
+      ...printPressElectric,
+      ...patch,
+    } as any);
+  };
+  const dienMoiPhutMayIn =
+    (printPressElectric.powerKw *
+      printPressElectric.efficiency *
+      printPressElectric.pricePerKwh) /
+    60;
+  const printPressTime: PrintPressTime = {
+    mountMinutesPerColor:
+      hangSo.printPressTime?.mountMinutesPerColor &&
+      hangSo.printPressTime.mountMinutesPerColor > 0
+        ? hangSo.printPressTime.mountMinutesPerColor
+        : DEFAULT_PRINT_PRESS_TIME.mountMinutesPerColor,
+    proofMinutes1to7:
+      hangSo.printPressTime?.proofMinutes1to7 &&
+      hangSo.printPressTime.proofMinutes1to7 > 0
+        ? hangSo.printPressTime.proofMinutes1to7
+        : DEFAULT_PRINT_PRESS_TIME.proofMinutes1to7,
+    proofMinutes8:
+      hangSo.printPressTime?.proofMinutes8 &&
+      hangSo.printPressTime.proofMinutes8 > 0
+        ? hangSo.printPressTime.proofMinutes8
+        : DEFAULT_PRINT_PRESS_TIME.proofMinutes8,
+    matteExtraMinutes:
+      hangSo.printPressTime?.matteExtraMinutes != null &&
+      hangSo.printPressTime.matteExtraMinutes >= 0
+        ? hangSo.printPressTime.matteExtraMinutes
+        : DEFAULT_PRINT_PRESS_TIME.matteExtraMinutes,
+    avgSpeedMPerMin:
+      hangSo.printPressTime?.avgSpeedMPerMin &&
+      hangSo.printPressTime.avgSpeedMPerMin > 0
+        ? hangSo.printPressTime.avgSpeedMPerMin
+        : DEFAULT_PRINT_PRESS_TIME.avgSpeedMPerMin,
+  };
+  const capNhatPrintPressTime = (patch: Partial<PrintPressTime>) => {
+    capNhatHangSo("printPressTime" as any, {
+      ...printPressTime,
+      ...patch,
+    } as any);
+  };
   const layBienLoiNhuan = (i: number, nguong: number) => {
     const from = i === 0 ? 0 : (bangLoiNhuan[i - 1]?.threshold ?? 0);
     return { from, to: nguong };
@@ -1836,6 +2010,513 @@ export default function TrangCauHinh({
                   </div>
                 </div>
               </div>
+
+              <div className="config-print-press-stack">
+              <HopThuGon
+                tieuDe="Lương nhân công máy in"
+                tomTat={`${dinhDangVnd(Math.round(luongMoiPhutMayIn))} ₫/phút · ${soCongNhanMayIn} CN`}
+                macDinhMo={false}
+              >
+                <div className="config-print-press-labor__hint">
+                  Chỉ cấu hình — chưa áp vào engine tính giá
+                </div>
+                <div className="config-print-press-labor__split">
+                  <div className="config-print-press-labor__col config-print-press-labor__col--wages">
+                    <div className="config-print-press-labor__col-title">
+                      Danh sách công nhân
+                    </div>
+                    <div className="config-print-press-labor__table-wrap">
+                      <table className="config-table config-print-press-labor__table">
+                        <thead>
+                          <tr>
+                            <th>STT</th>
+                            <th>Nhãn</th>
+                            <th>Lương/ca</th>
+                            <th></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {printPressLabor.wages.map((wage, idx) => (
+                            <tr key={idx}>
+                              <td className="config-print-press-labor__stt">
+                                {idx + 1}
+                              </td>
+                              <td>
+                                <span className="config-print-press-labor__label">
+                                  Công nhân {idx + 1}
+                                </span>
+                              </td>
+                              <td>
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  className="config-inline-input"
+                                  value={dinhDangVnd(wage || 0)}
+                                  onChange={(e) => {
+                                    const next = [...printPressLabor.wages];
+                                    next[idx] = docSoVnd(e.target.value);
+                                    capNhatPrintPressLabor({ wages: next });
+                                  }}
+                                  style={{
+                                    width: "110px",
+                                    fontWeight: 700,
+                                    textAlign: "right",
+                                  }}
+                                />
+                              </td>
+                              <td>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-outline"
+                                  disabled={printPressLabor.wages.length <= 1}
+                                  onClick={() => {
+                                    if (printPressLabor.wages.length <= 1)
+                                      return;
+                                    capNhatPrintPressLabor({
+                                      wages: printPressLabor.wages.filter(
+                                        (_, i) => i !== idx,
+                                      ),
+                                    });
+                                  }}
+                                  title="Xóa công nhân"
+                                >
+                                  🗑
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline"
+                      style={{ marginTop: "8px" }}
+                      onClick={() =>
+                        capNhatPrintPressLabor({
+                          wages: [
+                            ...printPressLabor.wages,
+                            DEFAULT_PRINT_PRESS_LABOR.wages[
+                              printPressLabor.wages.length %
+                                DEFAULT_PRINT_PRESS_LABOR.wages.length
+                            ] ?? 500000,
+                          ],
+                        })
+                      }
+                    >
+                      + Thêm công nhân
+                    </button>
+                  </div>
+
+                  <div className="config-print-press-labor__col config-print-press-labor__col--allowance">
+                    <div className="config-print-press-labor__col-title">
+                      Phụ cấp & tăng ca
+                    </div>
+                    <div className="config-print-press-labor__field">
+                      <label>Tiền cơm ca sáng</label>
+                      <div className="config-print-press-labor__input-row">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="config-inline-input"
+                          value={dinhDangVnd(printPressLabor.mealMorning)}
+                          onChange={(e) =>
+                            capNhatPrintPressLabor({
+                              mealMorning: docSoVnd(e.target.value),
+                            })
+                          }
+                          style={{
+                            width: "110px",
+                            fontWeight: 700,
+                            textAlign: "right",
+                          }}
+                        />
+                        <span>₫ / người</span>
+                      </div>
+                    </div>
+                    <div className="config-print-press-labor__field">
+                      <label>Tiền cơm ca tối</label>
+                      <div className="config-print-press-labor__input-row">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="config-inline-input"
+                          value={dinhDangVnd(printPressLabor.mealEvening)}
+                          onChange={(e) =>
+                            capNhatPrintPressLabor({
+                              mealEvening: docSoVnd(e.target.value),
+                            })
+                          }
+                          style={{
+                            width: "110px",
+                            fontWeight: 700,
+                            textAlign: "right",
+                          }}
+                        />
+                        <span>₫ / người</span>
+                      </div>
+                    </div>
+                    <div className="config-print-press-labor__field">
+                      <label>Hệ số tăng ca</label>
+                      <div className="config-print-press-labor__input-row">
+                        <input
+                          type="number"
+                          className="config-inline-input"
+                          step="0.1"
+                          min="0"
+                          value={printPressLabor.otFactor}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            capNhatPrintPressLabor({
+                              otFactor:
+                                Number.isFinite(v) && v > 0
+                                  ? v
+                                  : DEFAULT_PRINT_PRESS_LABOR.otFactor,
+                            });
+                          }}
+                          style={{
+                            width: "80px",
+                            fontWeight: 700,
+                            textAlign: "right",
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div className="config-print-press-labor__meta">
+                      <div>
+                        <span>Tổng lương</span>
+                        <strong>{dinhDangVnd(tongLuongMayIn)} ₫</strong>
+                      </div>
+                      <div>
+                        <span>Số công nhân</span>
+                        <strong>{soCongNhanMayIn}</strong>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="config-print-press-labor__preview">
+                  <div className="config-print-press-labor__col-title">
+                    Preview công thức
+                  </div>
+                  <div className="config-print-press-labor__formula">
+                    <div>
+                      Cơm sáng = {dinhDangVnd(printPressLabor.mealMorning)} ×{" "}
+                      {soCongNhanMayIn}/2 = {dinhDangVnd(comSangMayIn)} ₫
+                    </div>
+                    <div>
+                      Cơm tối = {dinhDangVnd(printPressLabor.mealEvening)} ×{" "}
+                      {soCongNhanMayIn}/2 = {dinhDangVnd(comToiMayIn)} ₫
+                    </div>
+                    <div>
+                      Tăng ca = tổng/2 × {printPressLabor.otFactor} ={" "}
+                      {dinhDangVnd(Math.round(tangCaMayIn))} ₫
+                    </div>
+                    <div>
+                      Tử số = {dinhDangVnd(Math.round(tuSoLuongMayIn))} ₫ · Mẫu
+                      số = 24h × 60 = 1.440 phút
+                    </div>
+                  </div>
+                  <div className="config-print-press-labor__result">
+                    <span>Lương máy in / phút</span>
+                    <strong>
+                      {dinhDangVnd(Math.round(luongMoiPhutMayIn))} ₫/phút
+                    </strong>
+                  </div>
+                </div>
+              </HopThuGon>
+
+              <HopThuGon
+                tieuDe="Chi phí điện máy in"
+                tomTat={`${dinhDangVnd(Math.round(dienMoiPhutMayIn))} ₫/phút`}
+                macDinhMo={false}
+              >
+                <div className="config-print-press-labor__hint">
+                  Chỉ cấu hình — chưa áp vào engine tính giá
+                </div>
+                <div className="config-print-press-electric__split">
+                  <div className="config-print-press-labor__col">
+                    <div className="config-print-press-labor__col-title">
+                      Tham số máy & điện
+                    </div>
+                    <div className="config-print-press-labor__field">
+                      <label>Công suất máy</label>
+                      <div className="config-print-press-labor__input-row">
+                        <input
+                          type="number"
+                          className="config-inline-input"
+                          min="0"
+                          step="1"
+                          value={printPressElectric.powerKw}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            capNhatPrintPressElectric({
+                              powerKw:
+                                Number.isFinite(v) && v > 0
+                                  ? v
+                                  : DEFAULT_PRINT_PRESS_ELECTRIC.powerKw,
+                            });
+                          }}
+                          style={{
+                            width: "100px",
+                            fontWeight: 700,
+                            textAlign: "right",
+                          }}
+                        />
+                        <span>kW</span>
+                      </div>
+                    </div>
+                    <div className="config-print-press-labor__field">
+                      <label>Hiệu suất máy</label>
+                      <div className="config-print-press-labor__input-row">
+                        <input
+                          type="number"
+                          className="config-inline-input"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={parseFloat(
+                            (printPressElectric.efficiency * 100).toFixed(2),
+                          )}
+                          onChange={(e) => {
+                            const v = parseFloat(e.target.value);
+                            capNhatPrintPressElectric({
+                              efficiency:
+                                Number.isFinite(v) && v > 0
+                                  ? v / 100
+                                  : DEFAULT_PRINT_PRESS_ELECTRIC.efficiency,
+                            });
+                          }}
+                          style={{
+                            width: "100px",
+                            fontWeight: 700,
+                            textAlign: "right",
+                          }}
+                        />
+                        <span>%</span>
+                      </div>
+                    </div>
+                    <div className="config-print-press-labor__field">
+                      <label>Giá điện</label>
+                      <div className="config-print-press-labor__input-row">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="config-inline-input"
+                          value={dinhDangVnd(printPressElectric.pricePerKwh)}
+                          onChange={(e) =>
+                            capNhatPrintPressElectric({
+                              pricePerKwh:
+                                docSoVnd(e.target.value) ||
+                                DEFAULT_PRINT_PRESS_ELECTRIC.pricePerKwh,
+                            })
+                          }
+                          style={{
+                            width: "110px",
+                            fontWeight: 700,
+                            textAlign: "right",
+                          }}
+                        />
+                        <span>đ/kWh</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="config-print-press-labor__col">
+                    <div className="config-print-press-labor__col-title">
+                      Preview
+                    </div>
+                    <div className="config-print-press-labor__formula">
+                      <div>
+                        (công suất × hiệu suất × giá điện) / 60
+                      </div>
+                      <div>
+                        ({printPressElectric.powerKw} ×{" "}
+                        {printPressElectric.efficiency} ×{" "}
+                        {dinhDangVnd(printPressElectric.pricePerKwh)}) / 60
+                      </div>
+                    </div>
+                    <div className="config-print-press-labor__result">
+                      <span>Điện máy in / phút</span>
+                      <strong>
+                        {dinhDangVnd(Math.round(dienMoiPhutMayIn))} ₫/phút
+                      </strong>
+                    </div>
+                  </div>
+                </div>
+              </HopThuGon>
+
+              <HopThuGon
+                tieuDe="Thời gian sản xuất in"
+                tomTat={`Lên trục ${printPressTime.mountMinutesPerColor}'/màu · ${printPressTime.avgSpeedMPerMin} m/phút`}
+                macDinhMo={false}
+              >
+                <div className="config-print-press-labor__hint">
+                  Chỉ cấu hình — mét hao/TP lấy từ kết quả tính giá sau này
+                </div>
+                <div className="config-print-press-time__grid">
+                  <div className="config-print-press-labor__field">
+                    <label>Thời gian lên trục</label>
+                    <div className="config-print-press-labor__input-row">
+                      <input
+                        type="number"
+                        className="config-inline-input"
+                        min="0"
+                        step="1"
+                        value={printPressTime.mountMinutesPerColor}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          capNhatPrintPressTime({
+                            mountMinutesPerColor:
+                              Number.isFinite(v) && v > 0
+                                ? v
+                                : DEFAULT_PRINT_PRESS_TIME.mountMinutesPerColor,
+                          });
+                        }}
+                        style={{
+                          width: "80px",
+                          fontWeight: 700,
+                          textAlign: "right",
+                        }}
+                      />
+                      <span>phút / màu</span>
+                    </div>
+                  </div>
+                  <div className="config-print-press-labor__field">
+                    <label>Duyệt mẫu (1–7 màu)</label>
+                    <div className="config-print-press-labor__input-row">
+                      <input
+                        type="number"
+                        className="config-inline-input"
+                        min="0"
+                        step="1"
+                        value={printPressTime.proofMinutes1to7}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          capNhatPrintPressTime({
+                            proofMinutes1to7:
+                              Number.isFinite(v) && v > 0
+                                ? v
+                                : DEFAULT_PRINT_PRESS_TIME.proofMinutes1to7,
+                          });
+                        }}
+                        style={{
+                          width: "80px",
+                          fontWeight: 700,
+                          textAlign: "right",
+                        }}
+                      />
+                      <span>phút / màu</span>
+                    </div>
+                  </div>
+                  <div className="config-print-press-labor__field">
+                    <label>Duyệt mẫu (8 màu)</label>
+                    <div className="config-print-press-labor__input-row">
+                      <input
+                        type="number"
+                        className="config-inline-input"
+                        min="0"
+                        step="1"
+                        value={printPressTime.proofMinutes8}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          capNhatPrintPressTime({
+                            proofMinutes8:
+                              Number.isFinite(v) && v > 0
+                                ? v
+                                : DEFAULT_PRINT_PRESS_TIME.proofMinutes8,
+                          });
+                        }}
+                        style={{
+                          width: "80px",
+                          fontWeight: 700,
+                          textAlign: "right",
+                        }}
+                      />
+                      <span>phút / màu</span>
+                    </div>
+                  </div>
+                  <div className="config-print-press-labor__field">
+                    <label>In phủ mờ thêm</label>
+                    <div className="config-print-press-labor__input-row">
+                      <input
+                        type="number"
+                        className="config-inline-input"
+                        min="0"
+                        step="1"
+                        value={printPressTime.matteExtraMinutes}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          capNhatPrintPressTime({
+                            matteExtraMinutes:
+                              Number.isFinite(v) && v >= 0
+                                ? v
+                                : DEFAULT_PRINT_PRESS_TIME.matteExtraMinutes,
+                          });
+                        }}
+                        style={{
+                          width: "80px",
+                          fontWeight: 700,
+                          textAlign: "right",
+                        }}
+                      />
+                      <span>phút / đơn</span>
+                    </div>
+                  </div>
+                  <div className="config-print-press-labor__field">
+                    <label>Tốc độ trung bình</label>
+                    <div className="config-print-press-labor__input-row">
+                      <input
+                        type="number"
+                        className="config-inline-input"
+                        min="0"
+                        step="1"
+                        value={printPressTime.avgSpeedMPerMin}
+                        onChange={(e) => {
+                          const v = parseFloat(e.target.value);
+                          capNhatPrintPressTime({
+                            avgSpeedMPerMin:
+                              Number.isFinite(v) && v > 0
+                                ? v
+                                : DEFAULT_PRINT_PRESS_TIME.avgSpeedMPerMin,
+                          });
+                        }}
+                        style={{
+                          width: "80px",
+                          fontWeight: 700,
+                          textAlign: "right",
+                        }}
+                      />
+                      <span>m / phút</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="config-print-press-labor__preview">
+                  <div className="config-print-press-labor__col-title">
+                    Review công thức
+                  </div>
+                  <div className="config-print-press-labor__formula">
+                    <div>
+                      T = soMau × (lên trục + duyệt mẫu) + (mét hao + mét TP
+                      in) / tốc độ + (phủ mờ ? thêm : 0)
+                    </div>
+                    <div>
+                      Lên trục = {printPressTime.mountMinutesPerColor} phút/màu
+                      · Duyệt 1–7 = {printPressTime.proofMinutes1to7} phút/màu ·
+                      Duyệt 8 = {printPressTime.proofMinutes8} phút/màu
+                    </div>
+                    <div>
+                      Tốc độ = {printPressTime.avgSpeedMPerMin} m/phút · Phủ mờ
+                      thêm = {printPressTime.matteExtraMinutes} phút
+                    </div>
+                    <div>
+                      ℹ️ Duyệt mẫu × soMau · mét hao + mét TP: lấy từ kết quả
+                      tính giá (sau này)
+                    </div>
+                  </div>
+                </div>
+              </HopThuGon>
+              </div>
+
               <p className="config-note">
                 💡 Với Màng in: CPSX đ/m² chỉ là mực/dung môi + phụ phí in; chi
                 phí chạy máy nằm ở CP Màng in.

@@ -91,6 +91,30 @@ export interface PrintSurchargeOption {
   price: number;
 }
 
+/** Lương NC máy in (đ/phút) — cấu hình UI; chưa nối engine */
+export interface PrintPressLabor {
+  wages: number[];
+  mealMorning: number;
+  mealEvening: number;
+  otFactor: number;
+}
+
+/** Điện máy in (đ/phút) — cấu hình UI; chưa nối engine */
+export interface PrintPressElectric {
+  powerKw: number;
+  efficiency: number; // thập phân, vd 0.55 = 55%
+  pricePerKwh: number;
+}
+
+/** Tham số thời gian SX in — cấu hình UI; mét hao/TP lấy từ tính giá sau */
+export interface PrintPressTime {
+  mountMinutesPerColor: number;
+  proofMinutes1to7: number;
+  proofMinutes8: number;
+  matteExtraMinutes: number;
+  avgSpeedMPerMin: number;
+}
+
 export interface AppConstants {
   zipperPrice: number;
   zipperWeight: number;
@@ -148,6 +172,12 @@ export interface AppConstants {
   customPaymentDays?: number[];
   customAccessories?: CustomAccessory[];
   customPrintSurcharges?: PrintSurchargeOption[];
+  /** Lương NC máy in theo phút — chỉ lưu cấu hình, engine chưa dùng */
+  printPressLabor?: PrintPressLabor;
+  /** Điện máy in — chỉ lưu cấu hình, engine chưa dùng */
+  printPressElectric?: PrintPressElectric;
+  /** Thời gian SX in (tham số) — chỉ lưu cấu hình, engine chưa dùng */
+  printPressTime?: PrintPressTime;
 }
 
 export interface CalculateInput {
