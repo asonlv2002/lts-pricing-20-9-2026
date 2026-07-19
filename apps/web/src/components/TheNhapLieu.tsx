@@ -7,6 +7,7 @@ import { taoKhachHangNhanhChoBaoGia, laNguoiPhuTrach } from '../lib/customer-api
 import { taoMaKhachHangService, layKhachHangService, luuNguoiPhuTrachKhachHangService, luuThongTinKhachHangService } from '../lib/api/service-lts';
 import { chuyenDanhSachCustomerApiSangUi } from '../lib/customer-api';
 import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
+import { ChonCongDoanGiaCong, ChiTietGiaCongNgoai } from './PanelGiaCongNgoai';
 
 type KhachHangGoiY = {
   id: string;
@@ -124,6 +125,10 @@ const ONhapSoThapPhan = ({ value, onChange, placeholder, min, step, className, d
 
 export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () => void }) {
   const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness, currentSellerId, currentSellerName, role, setActiveModule: datPhanHe, accessToken, isAuthenticated } = dungCuaHangTinhGia();
+  const nhanCheDo =
+    input.pricingMode === 'outsource'
+      ? `Gia công${input.outsource?.steps?.length ? ` · ${input.outsource.steps.length} CD` : ''}`
+      : 'Nội bộ';
   const [nhomTheoLop, datNhomTheoLop] = React.useState<Record<string, string>>({});
   const [dangFocusKhachHang, datDangFocusKhachHang] = React.useState(false);
   const [danhSachKhachHang, datDanhSachKhachHang] = React.useState<KhachHangGoiY[]>(() => loadCustomers() as KhachHangGoiY[]);
@@ -593,7 +598,21 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
         Nhập thông tin để xem giá tự động. Debounce 300ms được xử lý ở tầng store/engine.
       </div>
       <div className="auto-calc-badge"><div className="pulse-dot"></div> Tự động tính khi thay đổi</div>
-      <div className="card-title"><span className="icon">📝</span> Thông tin đơn hàng</div>
+      <div className="card-title" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span><span className="icon">📝</span> Thông tin đơn hàng</span>
+        <span
+          style={{
+            fontSize: '0.72rem',
+            fontWeight: 700,
+            padding: '2px 8px',
+            borderRadius: 999,
+            background: input.pricingMode === 'outsource' ? 'rgba(220,38,38,0.1)' : 'rgba(100,116,139,0.12)',
+            color: input.pricingMode === 'outsource' ? '#dc2626' : 'var(--muted)',
+          }}
+        >
+          {nhanCheDo}
+        </span>
+      </div>
 
       <div className="form-row customer-product-row">
         <div className="form-group" style={{ position: 'relative' }}>
@@ -796,6 +815,10 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
           <label className="form-label">Chiều dài mỗi cuộn màng TP (m)</label>
           <ONhapSoDinhDang className="form-input" placeholder="VD: 6000" value={(input as any).filmRollLength || 6000} onChange={(val: number) => capNhatDauVao({ filmRollLength: val } as any)} />
         </div>
+      )}
+
+      {input.pricingMode === 'outsource' && (
+        <ChonCongDoanGiaCong input={input} onChange={capNhatDauVao} />
       )}
 
       <div className="divider"></div>
@@ -1049,7 +1072,18 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
               </button>
             </div>
           )}
+        </div>
+      )}
 
+      {input.pricingMode === 'outsource' && (
+        <>
+          <div className="divider"></div>
+          <ChiTietGiaCongNgoai input={input} onChange={capNhatDauVao} />
+        </>
+      )}
+
+      {hienCauTruc && (
+        <>
           <div className="advanced-toggle" onClick={() => datMoRongNangCao(!advancedOpen)}>
             <span>⚙️ Tùy chỉnh nâng cao</span>
             <span className={`advanced-arrow ${advancedOpen ? 'open' : ''}`}>▸</span>
@@ -1277,7 +1311,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             </div>
 
           </div>
-        </div>
+        </>
       )}
 
       <div className="divider"></div>

@@ -36,6 +36,7 @@ import {
   docBaoGiaIdTuSearchParams,
   dongBoUrlBaoGia,
 } from '../../lib/bao-gia-route';
+import { ModalCheDoTinhGia } from '../ModalCheDoTinhGia';
 import {
   KHACH_HANG_QUERY,
   docKhachHangIdTuSearchParams,
@@ -284,9 +285,11 @@ interface ThuocTinhThanhBen {
   laMobile: boolean;
   policies: PolicyCode[];
   datHienDoiMatKhau: () => void;
+  /** Intercept "Tạo bảng tính giá" → wizard mode (nội bộ / gia công) */
+  onTaoBangTinhGia?: () => void;
 }
 
-function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, dangMo, datDangMo, laMobile, policies, datHienDoiMatKhau }: ThuocTinhThanhBen) {
+function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo, dangMo, datDangMo, laMobile, policies, datHienDoiMatKhau, onTaoBangTinhGia }: ThuocTinhThanhBen) {
   const [cacNhomDangMo, datCacNhomDangMo] = useState<string[]>(() => [timNhomTheoMenu(menuDangChon)]);
   const [nhomMobileDangMo, datNhomMobileDangMo] = useState(() => timNhomTheoMenu(menuDangChon));
   const nhomHienThi = CAC_NHOM_MENU.filter(nhom => coTheXemNhomMenu(policies, nhom.id));
@@ -307,6 +310,11 @@ function ThanhBen({ moduleDangMo, menuDangChon, datMenuDangChon, datModuleDangMo
   };
 
   const xuLyDieuHuong = (item: MucMenu) => {
+    if (item.key === 'pricing.create_calculation' && onTaoBangTinhGia) {
+      onTaoBangTinhGia();
+      if (laMobile) datDangMo(false);
+      return;
+    }
     datMenuDangChon(item.key);
     datModuleDangMo(item.id);
     if (laMobile) datDangMo(false);
@@ -527,17 +535,27 @@ interface DauTrangTrenProps {
 }
 
 function DauTrangTren({ moduleDangMo, onExport, onMenuToggle, laMobile }: DauTrangTrenProps) {
-  const { result: ketQua, isDirty: dangBan, resetInput: datLaiDauVao } = dungCuaHangTinhGia();
+  const { result: ketQua, isDirty: dangBan, resetInput: datLaiDauVao, setInput: capNhatDauVao } = dungCuaHangTinhGia();
   const [hienXacNhanMoi, datHienXacNhanMoi] = useState(false);
+  const [hienModalCheDo, datHienModalCheDo] = useState(false);
 
   const xuLyTaoMoi = () => {
     if (dangBan) datHienXacNhanMoi(true);
-    else datLaiDauVao();
+    else datHienModalCheDo(true);
   };
 
   const xacNhanTaoMoi = () => {
-    datLaiDauVao();
     datHienXacNhanMoi(false);
+    datHienModalCheDo(true);
+  };
+
+  const xacNhanCheDo = (mode: import('../../lib/types').PricingMode, steps: import('../../lib/types').OutsourceStep[]) => {
+    datLaiDauVao();
+    capNhatDauVao({
+      pricingMode: mode,
+      outsource: mode === 'outsource' ? { steps } : undefined,
+    });
+    datHienModalCheDo(false);
   };
 
   return (
@@ -558,6 +576,11 @@ function DauTrangTren({ moduleDangMo, onExport, onMenuToggle, laMobile }: DauTra
           </div>
         </div>
       )}
+      <ModalCheDoTinhGia
+        open={hienModalCheDo}
+        onClose={() => datHienModalCheDo(false)}
+        onConfirm={xacNhanCheDo}
+      />
 
       <header className="lts-topbar">
         <div className="lts-topbar-left">
@@ -624,6 +647,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [deepLinkLoai, datDeepLinkLoai] = useState<LoaiDeepLink | null>(null);
   const [deepLinkTrangThai, datDeepLinkTrangThai] = useState<TrangThaiDeepLink>('idle');
   const [deepLinkRetryDem, datDeepLinkRetryDem] = useState(0);
+  const [hienModalCheDoDeep, datHienModalCheDoDeep] = useState(false);
 
   // Restore session on mount
   useEffect(() => {
@@ -989,6 +1013,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     URL.revokeObjectURL(duongDan);
   };
 
+  const moWizardTaoBangTinh = () => {
+    datHienModalCheDoDeep(true);
+  };
+
   const xuLyMobileHubAction = (action: MobileHubAction) => {
     if (action.type === 'changePassword') {
       datHienDoiMatKhau(true);
@@ -996,6 +1024,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
     if (action.type === 'logout') {
       dungCuaHangTinhGia.getState().logout();
+      return;
+    }
+    if (action.key === 'pricing.create_calculation') {
+      moWizardTaoBangTinh();
       return;
     }
     datMenuDangChon(action.key);
@@ -1028,9 +1060,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const taoBangTinhMoi = () => {
     dongDeepLinkLoi();
+    moWizardTaoBangTinh();
+  };
+  const xacNhanCheDoDeep = (mode: import('../../lib/types').PricingMode, steps: import('../../lib/types').OutsourceStep[]) => {
     resetInput();
+    dungCuaHangTinhGia.getState().setInput({
+      pricingMode: mode,
+      outsource: mode === 'outsource' ? { steps } : undefined,
+    });
     datMenuDangChon('pricing.create_calculation');
     datModuleDangMo('calculator');
+    datHienModalCheDoDeep(false);
   };
 
   const veDanhSachBaoGia = () => {
@@ -1084,6 +1124,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className={`lts-shell ${laMobile ? 'lts-shell--mobile' : ''}`}>
       {/* Toast trượt từ phải — dùng chung mọi module (copy URL, v.v.) */}
       <div className="toast-container" id="toastContainer" />
+      <ModalCheDoTinhGia
+        open={hienModalCheDoDeep}
+        onClose={() => datHienModalCheDoDeep(false)}
+        onConfirm={xacNhanCheDoDeep}
+      />
       {!laMobile && (
         <ThanhBen
           moduleDangMo={moduleDangMo}
@@ -1095,6 +1140,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           laMobile={false}
           policies={policies}
           datHienDoiMatKhau={() => datHienDoiMatKhau(true)}
+          onTaoBangTinhGia={moWizardTaoBangTinh}
         />
       )}
 

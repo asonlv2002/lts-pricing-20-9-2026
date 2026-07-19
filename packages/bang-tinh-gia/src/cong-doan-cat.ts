@@ -1,8 +1,39 @@
 ﻿import type { HangSo } from '@lts/kieu-du-lieu';
+import { tinhCpsxGcM2, tinhCpsxGcDonVi } from './gia-cong-ngoai';
 
-export function tinhCongDoanCat(params: { laMang: boolean; dienTichTui: number; metCat: number; hatHaoCat: number; khoCat: number; hangSo: HangSo }) {
-  const { laMang, dienTichTui, metCat, hatHaoCat, khoCat, hangSo } = params;
+export interface GiaCongCatParams {
+  /** Chia — CPSX theo m² TP */
+  chia?: { bat: boolean; giaGcMoiM2: number; m2ThanhPham: number };
+  /** Làm túi — CPSX theo số túi (ghi đè CPSX cat khi productType túi) */
+  lamTui?: { bat: boolean; giaGcMoiTui: number; soLuong: number };
+}
+
+export function tinhCongDoanCat(params: {
+  laMang: boolean;
+  dienTichTui: number;
+  metCat: number;
+  hatHaoCat: number;
+  khoCat: number;
+  hangSo: HangSo;
+  giaCongCat?: GiaCongCatParams;
+}) {
+  const { laMang, dienTichTui, metCat, hatHaoCat, khoCat, hangSo, giaCongCat } = params;
   let cpSXCat = 0, chiPhiSXCat = 0, tongChiPhiCat = 0;
+
+  if (giaCongCat?.chia?.bat) {
+    chiPhiSXCat = tinhCpsxGcM2(giaCongCat.chia.giaGcMoiM2, giaCongCat.chia.m2ThanhPham);
+    cpSXCat = giaCongCat.chia.giaGcMoiM2;
+    tongChiPhiCat = chiPhiSXCat;
+    return { cpSXCat, chiPhiSXCat, tongChiPhiCat };
+  }
+
+  if (giaCongCat?.lamTui?.bat && !laMang) {
+    chiPhiSXCat = tinhCpsxGcDonVi(giaCongCat.lamTui.giaGcMoiTui, giaCongCat.lamTui.soLuong);
+    cpSXCat = giaCongCat.lamTui.soLuong > 0 ? chiPhiSXCat / ((hatHaoCat + metCat) * khoCat || 1) : 0;
+    tongChiPhiCat = chiPhiSXCat;
+    return { cpSXCat, chiPhiSXCat, tongChiPhiCat };
+  }
+
   if (!laMang) {
     const cpCatCoBan = hangSo.cpCatCoBan || 971;
     const quyTac = hangSo.quyTacCat?.length

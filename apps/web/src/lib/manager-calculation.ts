@@ -22,6 +22,10 @@ export interface UniRow {
   printFilmTotalHours?: number;
   printFilmLaborCostPerHour?: number;
   materialDetails?: Array<{ materialId?: string; name: string; width: number; matPrice: number; costMat: number }>;
+  /** Công đoạn đang dùng rule gia công ngoài */
+  isOutsourced?: boolean;
+  /** Giá NVL theo đ/m² (vendor) thay vì đ/kg */
+  matPriceIsPerM2?: boolean;
 }
 
 export interface ResolvedOverrideRow extends UniRow {
@@ -55,6 +59,9 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
   const r = result;
   const isMang = r.input.productType === 'mang';
   const isMangIn = r.input.productType === 'mang' && r.input.filmType === 'mangIn';
+  const steps = r.input.pricingMode === 'outsource' ? (r.input.outsource?.steps ?? []) : [];
+  const printGc = steps.includes('print');
+  const printVendor = printGc && r.input.outsource?.print?.filmSource === 'vendor';
   const uniRows: UniRow[] = [];
   let totalCPSX = 0;
   let totalCPVL = 0;
@@ -79,11 +86,17 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
     printFilmProductionHours: isMangIn ? (r.printFilmProductionHours ?? 0) : 0,
     printFilmTotalHours: isMangIn ? (r.printFilmTotalHours ?? 0) : 0,
     printFilmLaborCostPerHour: isMangIn ? (r.printFilmLaborCostPerHour ?? 0) : 0,
+    isOutsourced: printGc,
+    matPriceIsPerM2: printVendor,
   });
 
   r.layers.laminations?.slice().sort((a: any, b: any) => a.layerNum - b.layerNum).forEach((lam: any) => {
     totalCPSX += lam.costCPSX;
     totalCPVL += lam.costMat;
+    const layerKey = `layer${lam.layerNum}` as 'layer2' | 'layer3' | 'layer4' | 'layer5';
+    const layerCfg = r.input.outsource?.laminate?.layers?.[layerKey];
+    const lamGc = steps.includes('laminate') && !!layerCfg;
+    const lamVendor = lamGc && layerCfg?.filmSource === 'vendor';
     const materialDetails = lam.chiTietVatLieu?.map((item: any) => ({
       materialId: item.vatLieuId,
       name: item.ten,
@@ -102,17 +115,20 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
       width: lam.width,
       meters: lam.meters,
       waste: lam.waste,
-      cpsx: constants.ghepCPSX,
+      cpsx: lamGc ? (lam.cpsx ?? layerCfg?.gcPricePerM2 ?? 0) : constants.ghepCPSX,
       costCPSX: lam.costCPSX,
       matPrice: materialDetails?.length ? null : (lam.matPrice ?? lam.material?.pricePerM2 ?? 0),
       costMat: lam.costMat,
       materialDetails,
       outputWidth: lam.width,
+      isOutsourced: lamGc,
+      matPriceIsPerM2: lamVendor,
     });
   });
 
   if (!isMang) {
     totalCPSX += r.cutCostCPSX;
+    const cutGc = steps.includes('slit') || steps.includes('bag');
     uniRows.push({
       rowKey: 'cut',
       stage: 'CẮT',
@@ -125,6 +141,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
       matPrice: null,
       costMat: null,
       outputWidth: r.input.spreadWidth * (r.input.numImages || 1),
+      isOutsourced: cutGc,
     });
   }
 

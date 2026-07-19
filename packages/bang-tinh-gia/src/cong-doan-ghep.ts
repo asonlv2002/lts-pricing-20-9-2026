@@ -1,5 +1,6 @@
-import type { VatLieu, HangSo, GiaVatLieuKhoNho } from '@lts/kieu-du-lieu';
+import type { VatLieu, HangSo, GiaVatLieuKhoNho, CauHinhGiaCongLop } from '@lts/kieu-du-lieu';
 import { layGiaVatLieuTheoKho } from './vat-lieu';
+import { tinhHatHaoGc, tinhCpsxGcM2 } from './gia-cong-ngoai';
 
 export interface ChiTietVatLieuGhep {
   vatLieuId: string;
@@ -27,6 +28,32 @@ export interface KetQuaLopGhep {
   tongCong: number;
 }
 
+export interface GiaCongGhepParams {
+  m2ThanhPham: number;
+  lop?: Partial<Record<'lop2' | 'lop3' | 'lop4' | 'lop5', CauHinhGiaCongLop | undefined>>;
+}
+
+function keyLopGhep(soLop: number): 'lop2' | 'lop3' | 'lop4' | 'lop5' | null {
+  if (soLop === 2) return 'lop2';
+  if (soLop === 3) return 'lop3';
+  if (soLop === 4) return 'lop4';
+  if (soLop === 5) return 'lop5';
+  return null;
+}
+
+function hatHaoGhepNoiBo(met: number, hangSo: HangSo): number {
+  const hHGhepA = hangSo.hatHaoGhepA || 3000;
+  const hHGhepB = hangSo.hatHaoGhepB || 20;
+  const hHGhepC = hangSo.hatHaoGhepC || 100;
+  return met / hHGhepA * hHGhepB + hHGhepC;
+}
+
+function hatHaoTheoCauHinh(met: number, hangSo: HangSo, cfg?: CauHinhGiaCongLop): number {
+  if (!cfg) return hatHaoGhepNoiBo(met, hangSo);
+  if (cfg.nguonMang === 'ben_ngoai') return 0;
+  return tinhHatHaoGc(met, cfg.tyLePhiHao ?? 0, cfg.phiHaoSetupM ?? 0);
+}
+
 export function tinhCongDoanGhep(params: {
   lop2: VatLieu | null;
   lop2Phu: VatLieu | null;
@@ -43,8 +70,9 @@ export function tinhCongDoanGhep(params: {
   matTruocLop2?: 'main' | 'alt';
   kieuGhepLop2?: 'bottom_to_bottom' | 'front_to_front';
   bangGiaKhoNho?: GiaVatLieuKhoNho[];
+  giaCongGhep?: GiaCongGhepParams;
 }): { danhSachGhep: KetQuaLopGhep[]; tongHatHaoGhep: number; tongChiPhiGhep: number } {
-  const { lop2, lop2Phu, lop3, lop4, lop5, khoCat, metCat, hatHaoCat, khoTrai, soHinh, hangSo, chieuDaiLop2, matTruocLop2, kieuGhepLop2, bangGiaKhoNho } = params;
+  const { lop2, lop2Phu, lop3, lop4, lop5, khoCat, metCat, hatHaoCat, khoTrai, soHinh, hangSo, chieuDaiLop2, matTruocLop2, kieuGhepLop2, bangGiaKhoNho, giaCongGhep } = params;
 
   const danhSachGhep: KetQuaLopGhep[] = [];
 
@@ -60,24 +88,36 @@ export function tinhCongDoanGhep(params: {
 
   [...chuoiGhep].reverse().forEach(({ soLop }) => {
     metGhepTheoLop.set(soLop, metCanThiet);
-    const hHGhepA = hangSo.hatHaoGhepA || 3000;
-    const hHGhepB = hangSo.hatHaoGhepB || 20;
-    const hHGhepC = hangSo.hatHaoGhepC || 100;
-    metCanThiet = metCanThiet + (metCanThiet / hHGhepA * hHGhepB + hHGhepC);
+    const k = keyLopGhep(soLop);
+    const cfg = k && giaCongGhep?.lop ? giaCongGhep.lop[k] : undefined;
+    const hh = hatHaoTheoCauHinh(metCanThiet, hangSo, cfg);
+    metCanThiet = metCanThiet + hh;
   });
 
   chuoiGhep.forEach(({ lop, lopPhu, soLop }) => {
     if (!lop) return;
     const kho = khoCat;
     const met = metGhepTheoLop.get(soLop) ?? metCanThiet;
-    const hHGhepA = hangSo.hatHaoGhepA || 3000;
-    const hHGhepB = hangSo.hatHaoGhepB || 20;
-    const hHGhepC = hangSo.hatHaoGhepC || 100;
-    const hatHao = met / hHGhepA * hHGhepB + hHGhepC;
-    const cpsx = hangSo.cpSXGhep;
-    const chiPhiSX = cpsx * (hatHao + met) * kho;
-    const donGiaLop = layGiaVatLieuTheoKho(lop, kho, bangGiaKhoNho);
+    const k = keyLopGhep(soLop);
+    const cfg = k && giaCongGhep?.lop ? giaCongGhep.lop[k] : undefined;
+    const hatHao = hatHaoTheoCauHinh(met, hangSo, cfg);
+
+    let cpsx = hangSo.cpSXGhep;
+    let chiPhiSX = cpsx * (hatHao + met) * kho;
+    let donGiaLop = layGiaVatLieuTheoKho(lop, kho, bangGiaKhoNho);
     let chiPhiVL = donGiaLop * (hatHao + met) * kho;
+
+    if (cfg?.nguonMang === 'ben_ngoai') {
+      cpsx = 0;
+      chiPhiSX = 0;
+      donGiaLop = cfg.giaMuaMangMoiM2 ?? 0;
+      chiPhiVL = donGiaLop * met * kho;
+    } else if (cfg?.nguonMang === 'lts') {
+      cpsx = cfg.giaGcMoiM2 ?? 0;
+      chiPhiSX = tinhCpsxGcM2(cfg.giaGcMoiM2 ?? 0, giaCongGhep?.m2ThanhPham ?? 0);
+      chiPhiVL = donGiaLop * (hatHao + met) * kho;
+    }
+
     let chiTietVatLieu: ChiTietVatLieuGhep[] | undefined;
 
     if (soLop === 2 && lopPhu) {

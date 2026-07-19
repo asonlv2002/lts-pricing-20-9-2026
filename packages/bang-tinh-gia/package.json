@@ -7,7 +7,7 @@
   "exports": { ".": "./src/index.ts" },
   "scripts": {
     "type-check": "tsc --noEmit",
-    "test": "tsx src/kiem-thu/tinh-gia.test.ts"
+    "test": "tsx src/kiem-thu/gia-cong-ngoai.test.ts"
   },
   "dependencies": {
     "@lts/kieu-du-lieu": "workspace:*",

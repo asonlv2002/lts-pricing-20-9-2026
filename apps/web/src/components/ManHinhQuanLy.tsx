@@ -1407,7 +1407,20 @@ const buttonLabel = loadedItem
           <TheThuGon
             resetKey={khoaKetQua}
             style={{marginBottom: '14px'}}
-            title={<><span className="icon">🏭</span> Đặc tả kỹ thuật &amp; nguyên liệu</>}
+            title={
+              <>
+                <span className="icon">🏭</span> Đặc tả kỹ thuật &amp; nguyên liệu
+                {dauVaoKq.pricingMode === 'outsource' ? (
+                  <span style={{ marginLeft: 8, fontSize: '0.72rem', fontWeight: 700, color: '#dc2626' }}>
+                    [GIA CÔNG]
+                  </span>
+                ) : (
+                  <span style={{ marginLeft: 8, fontSize: '0.72rem', fontWeight: 600, color: 'var(--muted)' }}>
+                    [NỘI BỘ]
+                  </span>
+                )}
+              </>
+            }
           >
             <div className="table-responsive">
               <table className="data-table" id="m-t-unified-table">
@@ -1434,13 +1447,22 @@ const buttonLabel = loadedItem
                         const detailCostCPSX = row.costCPSX * detail.width / totalDetailWidth;
                         return (
                           <tr key={`${idx}-${detailIdx}`} className="detail-group-row">
-                            {detailIdx === 0 && <td data-label="Công đoạn" rowSpan={rowSpan}>{row.stage}</td>}
+                            {detailIdx === 0 && (
+                              <td data-label="Công đoạn" rowSpan={rowSpan}>
+                                {row.isOutsourced && <span className="gc-dot" title="Gia công">●</span>}
+                                {row.stage}
+                                {row.isOutsourced && <span className="gc-notice"> Gia công</span>}
+                              </td>
+                            )}
                             <td data-label="Vật liệu">{detail.name}</td>
                             <td className="num" data-label="khổ màng NVL (m)">{dinhDangSo(detail.width, 3)}</td>
                             <td className="num" data-label="thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
                             <td className="num" data-label="phi hao (m)">{dinhDangSo(dWaste, 0)}</td>
                             <td className="num highlight" data-label="đầu vào NVL (m)">{dinhDangSo(inputVL, 0)}</td>
                             {(() => {
+                              if (row.matPriceIsPerM2) {
+                                return <td className="num" data-label="Giá NVL">{detail.matPrice > 0 ? `${dinhDangSo(detail.matPrice, 0)} đ/m²` : '—'}</td>;
+                              }
                               const giaDetail = (() => {
                                 const m = detail.materialId ? materials.find(x => x.id === detail.materialId) : materials.find(x => x.name === detail.name);
                                 if (m) return m.pricePerKg;
@@ -1463,13 +1485,20 @@ const buttonLabel = loadedItem
 
                     return (
                       <tr key={idx}>
-                        <td data-label="Công đoạn">{row.stage}</td>
+                        <td data-label="Công đoạn">
+                          {row.isOutsourced && <span className="gc-dot" title="Gia công">●</span>}
+                          {row.stage}
+                          {row.isOutsourced && <span className="gc-notice"> Gia công</span>}
+                        </td>
                         <td data-label="Vật liệu">{row.mat}</td>
                         <td className="num" data-label="khổ màng NVL (m)">{dinhDangSo(dWidth, 3)}</td>
                         <td className="num" data-label="thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
                         <td className="num" data-label="phi hao (m)">{dinhDangSo(dWaste, 0)}</td>
                         <td className="num highlight" data-label="đầu vào NVL (m)">{dinhDangSo(inputVL, 0)}</td>
                         {(() => {
+                          if (row.matPriceIsPerM2 && row.matPrice != null) {
+                            return <td className="num" data-label="Giá NVL">{row.matPrice > 0 ? `${dinhDangSo(row.matPrice, 0)} đ/m²` : '—'}</td>;
+                          }
                           const giaRow = (() => {
                             if (row.mat === '-' || row.mat === '') return 0;
                             const m = row.materialId ? materials.find(x => x.id === row.materialId) : materials.find(x => x.name === row.mat);

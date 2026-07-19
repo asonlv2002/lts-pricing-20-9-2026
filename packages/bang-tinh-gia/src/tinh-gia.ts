@@ -1,4 +1,4 @@
-﻿// @lts/bang-tinh-gia — Engine tính giá bao bì
+// @lts/bang-tinh-gia — Engine tính giá bao bì
 // Pure TypeScript — không phụ thuộc DOM, Node, hay bất kỳ framework nào.
 
 import type { DauVaoTinhGia, KetQuaTinhGia, VatLieu, HangSo, ChiTietLop, ChiTietLopCat } from '@lts/kieu-du-lieu';
@@ -15,6 +15,7 @@ import { tinhDongGoi } from './dong-goi';
 import { tinhVanChuyen, tinhLaiVay, tinhHoaHong } from './tai-chinh';
 import { tinhTrucIn } from './truc-in';
 import { tinhDoDayVaGSM, taoChuoiCauTruc } from './cau-truc';
+import { coCongDoanGc, tinhHatHaoGc, tinhCpsxGcDonVi } from './gia-cong-ngoai';
 export { layVatLieu } from './vat-lieu';
 export { traLoiNhuan } from './loi-nhuan';
 export { toiUuDoDay, type KetQuaToiUuDoDay } from './toi-uu-do-day';
@@ -168,7 +169,15 @@ export function tinhGia(
 
   const { dienTichTui, tongDienTich, khoCatIn, chieuDaiMang, khoCat, metCat } = tinhKichThuoc({ soLuong, khoTrai, buocCat, soHinh, laMang });
 
-  const hatHaoCat = laMangInChiCoCongDoanIn ? 0 : tinhHaoHutCat(metCat, hangSo);
+  const gc = dauVao.cheDoTinhGia === 'gia_cong' ? dauVao.giaCongNgoai : undefined;
+  const m2Tp = tongDienTich;
+
+  let hatHaoCat = laMangInChiCoCongDoanIn ? 0 : tinhHaoHutCat(metCat, hangSo);
+  if (coCongDoanGc(gc, 'chia') && gc?.chia) {
+    hatHaoCat = tinhHatHaoGc(metCat, gc.chia.tyLePhiHao, gc.chia.phiHaoSetupM);
+  } else if (coCongDoanGc(gc, 'lam_tui') && gc?.lamTui && !coCongDoanGc(gc, 'chia') && !laMangInChiCoCongDoanIn) {
+    hatHaoCat = tinhHatHaoGc(metCat, gc.lamTui.tyLePhiHao, gc.lamTui.phiHaoSetupM);
+  }
 
   const { danhSachGhep, tongHatHaoGhep, tongChiPhiGhep } = laMangInChiCoCongDoanIn
     ? { danhSachGhep: [], tongHatHaoGhep: 0, tongChiPhiGhep: 0 }
@@ -179,6 +188,9 @@ export function tinhGia(
     matTruocLop2: dauVao.matTruocLop2,
     kieuGhepLop2: dauVao.kieuGhepLop2,
     bangGiaKhoNho: dauVao.bangGiaKhoNho,
+    giaCongGhep: coCongDoanGc(gc, 'ghep')
+      ? { m2ThanhPham: m2Tp, lop: gc?.ghep?.lop }
+      : undefined,
   });
 
 
@@ -193,11 +205,41 @@ export function tinhGia(
 
 
 
-  const { hatHaoIn, cpSXIn, chiPhiSXIn, donGiaVatLieuIn, chiPhiVatLieuIn, tongChiPhiIn, cpMangIn, gioSetupMangIn, gioSanXuatMangIn, tongGioMangIn, chiPhiGioMangIn } = tinhCongDoanIn({ lop1, soMau: soMau!, metIn, khoNLIn, hangSo, tyLePhuMucMuc, phiKimLoai, bangGiaKhoNho: dauVao.bangGiaKhoNho, laMangInChiCoCongDoanIn });
+  const { hatHaoIn, cpSXIn, chiPhiSXIn, donGiaVatLieuIn, chiPhiVatLieuIn, tongChiPhiIn, cpMangIn, gioSetupMangIn, gioSanXuatMangIn, tongGioMangIn, chiPhiGioMangIn } = tinhCongDoanIn({
+    lop1, soMau: soMau!, metIn, khoNLIn, hangSo, tyLePhuMucMuc, phiKimLoai,
+    bangGiaKhoNho: dauVao.bangGiaKhoNho,
+    laMangInChiCoCongDoanIn,
+    giaCongIn: coCongDoanGc(gc, 'in') && gc?.in
+      ? {
+        bat: true,
+        nguonMang: gc.in.nguonMang,
+        tyLePhiHao: gc.in.tyLePhiHao,
+        phiHaoSetupM: gc.in.phiHaoSetupM,
+        giaGcMoiM2: gc.in.giaGcMoiM2,
+        giaMuaMangMoiM2: gc.in.giaMuaMangMoiM2,
+        m2ThanhPham: m2Tp,
+      }
+      : undefined,
+  });
 
-  const { cpSXCat, chiPhiSXCat, tongChiPhiCat } = tinhCongDoanCat({ laMang, dienTichTui, metCat, hatHaoCat, khoCat, hangSo });
+  const { cpSXCat, chiPhiSXCat, tongChiPhiCat } = tinhCongDoanCat({
+    laMang, dienTichTui, metCat, hatHaoCat, khoCat, hangSo,
+    giaCongCat: {
+      chia: coCongDoanGc(gc, 'chia') && gc?.chia
+        ? { bat: true, giaGcMoiM2: gc.chia.giaGcMoiM2, m2ThanhPham: m2Tp }
+        : undefined,
+      lamTui: coCongDoanGc(gc, 'lam_tui') && gc?.lamTui && !coCongDoanGc(gc, 'chia')
+        ? { bat: true, giaGcMoiTui: gc.lamTui.giaGcMoiTui, soLuong }
+        : undefined,
+    },
+  });
 
-  const tongChiPhiSX = tongChiPhiIn + tongChiPhiGhep + tongChiPhiCat;
+  const chiPhiBaoPp = coCongDoanGc(gc, 'bao_pp') && gc?.baoPp
+    ? tinhCpsxGcDonVi(gc.baoPp.giaGcMoiCai, soLuong)
+      + tinhCpsxGcDonVi(gc.baoPp.giaVatTuPpMoiCai ?? 0, soLuong)
+    : 0;
+
+  const tongChiPhiSX = tongChiPhiIn + tongChiPhiGhep + tongChiPhiCat + chiPhiBaoPp;
 
   const cotLoiNhuanApDung = chonCotLoiNhuanApDung({ dauVao, lop1, lop2, lop2Phu, lop3, lop4, lop5, coKhoa });
   const dongLoiNhuanMangIn = laMangInChiCoCongDoanIn
@@ -225,7 +267,15 @@ export function tinhGia(
 
   const { tongDoDay, tongGSM } = tinhDoDayVaGSM({ lop1, lop2, lop2Phu, lop3, lop4, lop5 });
 
-  const { tongTienKhoa, khoaPerDonVi, tongTienBangKeo, bangKeoPerDonVi, tongTienQuaiXach, quaiXachPerDonVi, khoiLuongPhuKienThemPerDonVi } = tinhPhuKien({ soLuong, buocCat, hangSo, coKhoa, coBangKeo, coQuaiXach, khoiLuongKhoa, khoiLuongBangKeo });
+  const { tongTienKhoa, khoaPerDonVi, tongTienBangKeo, bangKeoPerDonVi, tongTienQuaiXach, quaiXachPerDonVi, khoiLuongPhuKienThemPerDonVi } = tinhPhuKien({
+    soLuong, buocCat, hangSo, coKhoa, coBangKeo, coQuaiXach, khoiLuongKhoa, khoiLuongBangKeo,
+    tuyChonGc: {
+      boZipper: coCongDoanGc(gc, 'lam_tui') && gc?.lamTui?.cheDoZipper === 'gom',
+      quaiGc: coCongDoanGc(gc, 'gan_quai') && gc?.ganQuai
+        ? { giaGcMoiTui: gc.ganQuai.giaGcMoiTui, giaQuaiMoiTui: gc.ganQuai.giaQuaiMoiTui }
+        : undefined,
+    },
+  });
 
   const chieuDaiCuonMang = dauVao.chieuDaiCuonMang || 6000;
   const soTuiPerThuungThucTe = soTuiPerThuung || 0;

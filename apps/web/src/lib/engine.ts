@@ -6,6 +6,7 @@ import type { DauVaoTinhGia, KetQuaTinhGia, VatLieu, HangSo, GiaVatLieuKhoNho } 
 import type { DongLoiNhuan } from '@lts/hang-so';
 import { CalculateInput, CalculateResult, Material, AppConstants, ProfitRow, SmallWidthMaterialPrice } from './types';
 import { PROFIT_DEFAULT } from './data';
+import { mapOutsourceEnToVn, mapPricingModeEnToVn } from './outsource-map';
 
 // ── Tra lợi nhuận (giữ alias cũ cho các module chưa đổi) ──────────────────────
 export function traLoiNhuanTheoBang(tongChiPhi: number, cot: number, bangLoiNhuan: ProfitRow[], nhomKhach: 'normal' | 'large' = 'normal'): number {
@@ -250,6 +251,8 @@ function doiSangDauVao(i: CalculateInput, bangGiaKhoNho?: GiaVatLieuKhoNho[]): D
       })
     ) : {},
     bangGiaKhoNho,
+    cheDoTinhGia: mapPricingModeEnToVn(i.pricingMode),
+    giaCongNgoai: mapOutsourceEnToVn(i.outsource),
   };
 }
 

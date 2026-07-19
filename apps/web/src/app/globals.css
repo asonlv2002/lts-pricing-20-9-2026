@@ -8402,3 +8402,7 @@ body {
     content: " quy tắc cắt";
   }
 }
+
+.gc-dot { color: #dc2626; margin-right: 4px; }
+.gc-notice { color: #dc2626; font-size: 0.75em; font-weight: 600; }
+

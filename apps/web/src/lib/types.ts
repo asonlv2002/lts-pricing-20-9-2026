@@ -284,6 +284,53 @@ export interface AppConstants {
   bagPressTime?: BagPressTime;
 }
 
+export type PricingMode = 'internal' | 'outsource';
+
+export type OutsourceStep =
+  | 'print'
+  | 'laminate'
+  | 'slit'
+  | 'bag'
+  | 'handle'
+  | 'pp_bag';
+
+export type OutsourceFilmSource = 'lts' | 'vendor';
+
+export interface OutsourceLayerConfig {
+  filmSource: OutsourceFilmSource;
+  wastePct?: number;
+  wasteSetupM?: number;
+  gcPricePerM2?: number;
+  filmBuyPricePerM2?: number;
+}
+
+export interface OutsourceConfig {
+  steps: OutsourceStep[];
+  print?: OutsourceLayerConfig;
+  laminate?: {
+    layers: Partial<Record<'layer2' | 'layer3' | 'layer4' | 'layer5', OutsourceLayerConfig>>;
+  };
+  slit?: { wastePct: number; wasteSetupM: number; gcPricePerM2: number };
+  bag?: {
+    wastePct: number;
+    wasteSetupM: number;
+    gcPricePerBag: number;
+    zipperMode?: 'included' | 'excluded';
+  };
+  handle?: {
+    wastePct: number;
+    gcPricePerBag: number;
+    handleUnitPrice: number;
+  };
+  pp_bag?: {
+    variant: 'pp' | 'pp_pe';
+    wastePct: number;
+    wasteSetupM: number;
+    gcPricePerUnit: number;
+    ppMaterialPricePerUnit?: number;
+  };
+}
+
 export interface CalculateInput {
   customer: string;
   productName: string;
@@ -348,6 +395,8 @@ export interface CalculateInput {
   chotGia?: number;
   phanBoCongTy?: number;
   donViPhanBo?: 'vnd' | 'percent';
+  pricingMode?: PricingMode;
+  outsource?: OutsourceConfig;
 }
 
 // ── Quote Status (luồng báo giá 7 bước) ──────────────────────────────────────

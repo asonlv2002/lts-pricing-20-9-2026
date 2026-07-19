@@ -131,6 +131,58 @@ export interface DongLoiNhuan {
   cot2KhachLon: number;
 }
 
+// ── Gia công ngoài ───────────────────────────────────────────────────────────
+export type CheDoTinhGia = 'noi_bo' | 'gia_cong';
+
+export type CongDoanGiaCong =
+  | 'in'
+  | 'ghep'
+  | 'chia'
+  | 'lam_tui'
+  | 'gan_quai'
+  | 'bao_pp';
+
+export type NguonMangGiaCong = 'lts' | 'ben_ngoai';
+
+export interface CauHinhGiaCongLop {
+  nguonMang: NguonMangGiaCong;
+  tyLePhiHao?: number;       // % dạng 20 = 20%
+  phiHaoSetupM?: number;
+  giaGcMoiM2?: number;
+  giaMuaMangMoiM2?: number;
+}
+
+export interface GiaCongNgoai {
+  congDoan: CongDoanGiaCong[];
+  in?: CauHinhGiaCongLop;
+  ghep?: {
+    lop: Partial<Record<'lop2' | 'lop3' | 'lop4' | 'lop5', CauHinhGiaCongLop>>;
+  };
+  chia?: {
+    tyLePhiHao: number;
+    phiHaoSetupM: number;
+    giaGcMoiM2: number;
+  };
+  lamTui?: {
+    tyLePhiHao: number;
+    phiHaoSetupM: number;
+    giaGcMoiTui: number;
+    cheDoZipper?: 'gom' | 'chua_gom';
+  };
+  ganQuai?: {
+    tyLePhiHao: number;
+    giaGcMoiTui: number;
+    giaQuaiMoiTui: number;
+  };
+  baoPp?: {
+    bienThe: 'pp' | 'pp_pe';
+    tyLePhiHao: number;
+    phiHaoSetupM: number;
+    giaGcMoiCai: number;
+    giaVatTuPpMoiCai?: number;
+  };
+}
+
 // ── Đầu vào tính giá ─────────────────────────────────────────────────────────
 export interface DauVaoTinhGia {
   khachHang: string;
@@ -183,6 +235,8 @@ export interface DauVaoTinhGia {
   ghiDeDayLop?: Record<string, number>;
   cauTrucNhieuVatLieu?: Record<string, string[]>;
   bangGiaKhoNho?: GiaVatLieuKhoNho[];
+  cheDoTinhGia?: CheDoTinhGia;
+  giaCongNgoai?: GiaCongNgoai;
 }
 
 // ── Trạng thái đơn hàng ───────────────────────────────────────────────────────

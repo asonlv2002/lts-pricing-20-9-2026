@@ -1,14 +1,76 @@
-﻿import type { HangSo, VatLieu, GiaVatLieuKhoNho } from '@lts/kieu-du-lieu';
+﻿import type { HangSo, VatLieu, GiaVatLieuKhoNho, NguonMangGiaCong } from '@lts/kieu-du-lieu';
 import { layGiaVatLieuTheoKho } from './vat-lieu';
 import { tinhHaoHutIn } from './hao-hut';
+import { tinhHatHaoGc, tinhCpsxGcM2 } from './gia-cong-ngoai';
 
 function laBOPP(lop1: VatLieu): boolean {
   const chuoi = `${lop1.id} ${lop1.ten} ${lop1.nhom ?? ''}`.toUpperCase();
   return chuoi.includes('BOPP');
 }
 
-export function tinhCongDoanIn(params: { lop1: VatLieu; soMau: number; metIn: number; khoNLIn: number; hangSo: HangSo; tyLePhuMucMuc: number; phiKimLoai: number; bangGiaKhoNho?: GiaVatLieuKhoNho[]; laMangInChiCoCongDoanIn?: boolean }) {
-  const { lop1, soMau, metIn, khoNLIn, hangSo, tyLePhuMucMuc, phiKimLoai, bangGiaKhoNho, laMangInChiCoCongDoanIn } = params;
+export interface GiaCongInParams {
+  bat: boolean;
+  nguonMang: NguonMangGiaCong;
+  tyLePhiHao?: number;
+  phiHaoSetupM?: number;
+  giaGcMoiM2?: number;
+  giaMuaMangMoiM2?: number;
+  m2ThanhPham: number;
+}
+
+export function tinhCongDoanIn(params: {
+  lop1: VatLieu;
+  soMau: number;
+  metIn: number;
+  khoNLIn: number;
+  hangSo: HangSo;
+  tyLePhuMucMuc: number;
+  phiKimLoai: number;
+  bangGiaKhoNho?: GiaVatLieuKhoNho[];
+  laMangInChiCoCongDoanIn?: boolean;
+  giaCongIn?: GiaCongInParams;
+}) {
+  const { lop1, soMau, metIn, khoNLIn, hangSo, tyLePhuMucMuc, phiKimLoai, bangGiaKhoNho, laMangInChiCoCongDoanIn, giaCongIn } = params;
+
+  if (giaCongIn?.bat) {
+    if (giaCongIn.nguonMang === 'ben_ngoai') {
+      const donGia = giaCongIn.giaMuaMangMoiM2 ?? 0;
+      const dienTich = metIn * khoNLIn;
+      return {
+        hatHaoIn: 0,
+        cpSXIn: 0,
+        chiPhiSXIn: 0,
+        donGiaVatLieuIn: donGia,
+        chiPhiVatLieuIn: donGia * dienTich,
+        tongChiPhiIn: donGia * dienTich,
+        cpMangIn: 0,
+        gioSetupMangIn: 0,
+        gioSanXuatMangIn: 0,
+        tongGioMangIn: 0,
+        chiPhiGioMangIn: 0,
+      };
+    }
+    const hatHaoIn = tinhHatHaoGc(metIn, giaCongIn.tyLePhiHao ?? 0, giaCongIn.phiHaoSetupM ?? 0);
+    const chiPhiSXIn = tinhCpsxGcM2(giaCongIn.giaGcMoiM2 ?? 0, giaCongIn.m2ThanhPham);
+    const dienTichDauVaoIn = (hatHaoIn + metIn) * khoNLIn;
+    const donGiaVatLieuIn = layGiaVatLieuTheoKho(lop1, khoNLIn, bangGiaKhoNho);
+    const chiPhiVatLieuIn = donGiaVatLieuIn * dienTichDauVaoIn;
+    const cpSXIn = giaCongIn.giaGcMoiM2 ?? 0;
+    return {
+      hatHaoIn,
+      cpSXIn,
+      chiPhiSXIn,
+      donGiaVatLieuIn,
+      chiPhiVatLieuIn,
+      tongChiPhiIn: chiPhiSXIn + chiPhiVatLieuIn,
+      cpMangIn: 0,
+      gioSetupMangIn: 0,
+      gioSanXuatMangIn: 0,
+      tongGioMangIn: 0,
+      chiPhiGioMangIn: 0,
+    };
+  }
+
   const { hatHaoIn } = tinhHaoHutIn(metIn, soMau, hangSo);
   const dienTichDauVaoIn = (hatHaoIn + metIn) * khoNLIn;
   const giaMucPerMau = laMangInChiCoCongDoanIn
