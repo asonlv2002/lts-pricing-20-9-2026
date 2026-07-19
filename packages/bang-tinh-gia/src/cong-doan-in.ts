@@ -1,7 +1,7 @@
 ﻿import type { HangSo, VatLieu, GiaVatLieuKhoNho, NguonMangGiaCong } from '@lts/kieu-du-lieu';
 import { layGiaVatLieuTheoKho } from './vat-lieu';
 import { tinhHaoHutIn } from './hao-hut';
-import { tinhHatHaoGc, tinhCpsxGcM2 } from './gia-cong-ngoai';
+import { tinhHatHaoGc, tinhCpsxGcDienTich } from './gia-cong-ngoai';
 
 function laBOPP(lop1: VatLieu): boolean {
   const chuoi = `${lop1.id} ${lop1.ten} ${lop1.nhom ?? ''}`.toUpperCase();
@@ -15,7 +15,6 @@ export interface GiaCongInParams {
   phiHaoSetupM?: number;
   giaGcMoiM2?: number;
   giaMuaMangMoiM2?: number;
-  m2ThanhPham: number;
 }
 
 export function tinhCongDoanIn(params: {
@@ -51,7 +50,7 @@ export function tinhCongDoanIn(params: {
       };
     }
     const hatHaoIn = tinhHatHaoGc(metIn, giaCongIn.tyLePhiHao ?? 0, giaCongIn.phiHaoSetupM ?? 0);
-    const chiPhiSXIn = tinhCpsxGcM2(giaCongIn.giaGcMoiM2 ?? 0, giaCongIn.m2ThanhPham);
+    const chiPhiSXIn = tinhCpsxGcDienTich(giaCongIn.giaGcMoiM2 ?? 0, metIn, hatHaoIn, khoNLIn);
     const dienTichDauVaoIn = (hatHaoIn + metIn) * khoNLIn;
     const donGiaVatLieuIn = layGiaVatLieuTheoKho(lop1, khoNLIn, bangGiaKhoNho);
     const chiPhiVatLieuIn = donGiaVatLieuIn * dienTichDauVaoIn;

@@ -95,7 +95,7 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
     totalCPVL += lam.costMat;
     const layerKey = `layer${lam.layerNum}` as 'layer2' | 'layer3' | 'layer4' | 'layer5';
     const layerCfg = r.input.outsource?.laminate?.layers?.[layerKey];
-    const lamGc = steps.includes('laminate') && !!layerCfg;
+    const lamGc = steps.includes('laminate');
     const lamVendor = lamGc && layerCfg?.filmSource === 'vendor';
     const materialDetails = lam.chiTietVatLieu?.map((item: any) => ({
       materialId: item.vatLieuId,

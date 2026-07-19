@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, { useState } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhGiaHieuLuc, xuLyDongGhiDe, type UniRow } from '../lib/manager-calculation';
@@ -69,6 +69,21 @@ function dinhDangPhanTram(n: number) {
   return parseFloat(val.toFixed(2)) + '%';
 }
 function dinhDangM2(n: number) { return dinhDangSo(n, 4) + ' m²'; }
+
+function oSoGc(
+  noiDung: React.ReactNode,
+  danhDau: boolean,
+  opts?: { className?: string; dataLabel?: string },
+): React.ReactElement {
+  const cls = ['num', opts?.className, danhDau ? 'gc-cell' : ''].filter(Boolean).join(' ');
+  return (
+    <td className={cls} data-label={opts?.dataLabel}>
+      {danhDau ? <span className="gc-cell__dot" title="Gia công" aria-label="Gia công" /> : null}
+      {noiDung}
+    </td>
+  );
+}
+
 
 function layNhanVatLieu(materials: Material[], id: string | undefined, tenDuPhong: string): string {
   const material = id ? materials.find(m => m.id === id) : undefined;
@@ -1407,20 +1422,7 @@ const buttonLabel = loadedItem
           <TheThuGon
             resetKey={khoaKetQua}
             style={{marginBottom: '14px'}}
-            title={
-              <>
-                <span className="icon">🏭</span> Đặc tả kỹ thuật &amp; nguyên liệu
-                {dauVaoKq.pricingMode === 'outsource' ? (
-                  <span style={{ marginLeft: 8, fontSize: '0.72rem', fontWeight: 700, color: '#dc2626' }}>
-                    [GIA CÔNG]
-                  </span>
-                ) : (
-                  <span style={{ marginLeft: 8, fontSize: '0.72rem', fontWeight: 600, color: 'var(--muted)' }}>
-                    [NỘI BỘ]
-                  </span>
-                )}
-              </>
-            }
+            title={<><span className="icon">🏭</span> Đặc tả kỹ thuật &amp; nguyên liệu</>}
           >
             <div className="table-responsive">
               <table className="data-table" id="m-t-unified-table">
@@ -1449,19 +1451,17 @@ const buttonLabel = loadedItem
                           <tr key={`${idx}-${detailIdx}`} className="detail-group-row">
                             {detailIdx === 0 && (
                               <td data-label="Công đoạn" rowSpan={rowSpan}>
-                                {row.isOutsourced && <span className="gc-dot" title="Gia công">●</span>}
                                 {row.stage}
-                                {row.isOutsourced && <span className="gc-notice"> Gia công</span>}
                               </td>
                             )}
                             <td data-label="Vật liệu">{detail.name}</td>
                             <td className="num" data-label="khổ màng NVL (m)">{dinhDangSo(detail.width, 3)}</td>
                             <td className="num" data-label="thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
-                            <td className="num" data-label="phi hao (m)">{dinhDangSo(dWaste, 0)}</td>
+                            {oSoGc(dinhDangSo(dWaste, 0), !!row.isOutsourced, { dataLabel: "phi hao (m)" })}
                             <td className="num highlight" data-label="đầu vào NVL (m)">{dinhDangSo(inputVL, 0)}</td>
                             {(() => {
                               if (row.matPriceIsPerM2) {
-                                return <td className="num" data-label="Giá NVL">{detail.matPrice > 0 ? `${dinhDangSo(detail.matPrice, 0)} đ/m²` : '—'}</td>;
+                                return oSoGc("—", false, { dataLabel: "Giá NVL" });
                               }
                               const giaDetail = (() => {
                                 const m = detail.materialId ? materials.find(x => x.id === detail.materialId) : materials.find(x => x.name === detail.name);
@@ -1472,12 +1472,12 @@ const buttonLabel = loadedItem
                                 if (u.includes('LLDPE') || u === 'PE') return 40000;
                                 return 0;
                               })();
-                              return <td className="num" data-label="Giá NVL">{giaDetail > 0 ? `${dinhDangSo(giaDetail, 0)} đ/kg` : '—'}</td>;
+                              return oSoGc(giaDetail > 0 ? `${dinhDangSo(giaDetail, 0)} đ/kg` : "—", !!row.isOutsourced && giaDetail > 0, { dataLabel: "Giá NVL" });
                             })()}
-                            <td className="num" data-label="CPSX (đ/m²)">{dinhDangSo(row.cpsx, 0)}</td>
-                            <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(detailCostCPSX, 0)}</td>
-                            <td className="num" data-label="CP vật liệu (đ/m²)">{dinhDangSo(detail.matPrice, 1)}</td>
-                            <td className="num" data-label="Thành tiền CPVL">{dinhDangSo(detail.costMat, 0)}</td>
+                            {oSoGc(dinhDangSo(row.cpsx, 0), !!row.isOutsourced, { dataLabel: "CPSX (đ/m²)" })}
+                            {oSoGc(dinhDangSo(detailCostCPSX, 0), !!row.isOutsourced, { dataLabel: "Thành tiền CPSX" })}
+                            {oSoGc(dinhDangSo(detail.matPrice, 1), !!row.isOutsourced, { dataLabel: "CP vật liệu (đ/m²)" })}
+                            {oSoGc(dinhDangSo(detail.costMat, 0), !!row.isOutsourced, { dataLabel: "Thành tiền CPVL" })}
                           </tr>
                         );
                       });
@@ -1486,19 +1486,17 @@ const buttonLabel = loadedItem
                     return (
                       <tr key={idx}>
                         <td data-label="Công đoạn">
-                          {row.isOutsourced && <span className="gc-dot" title="Gia công">●</span>}
                           {row.stage}
-                          {row.isOutsourced && <span className="gc-notice"> Gia công</span>}
                         </td>
                         <td data-label="Vật liệu">{row.mat}</td>
                         <td className="num" data-label="khổ màng NVL (m)">{dinhDangSo(dWidth, 3)}</td>
                         <td className="num" data-label="thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
-                        <td className="num" data-label="phi hao (m)">{dinhDangSo(dWaste, 0)}</td>
+                        {oSoGc(dinhDangSo(dWaste, 0), !!row.isOutsourced, { dataLabel: "phi hao (m)" })}
                         <td className="num highlight" data-label="đầu vào NVL (m)">{dinhDangSo(inputVL, 0)}</td>
                         {(() => {
                           if (row.matPriceIsPerM2 && row.matPrice != null) {
-                            return <td className="num" data-label="Giá NVL">{row.matPrice > 0 ? `${dinhDangSo(row.matPrice, 0)} đ/m²` : '—'}</td>;
-                          }
+                          return oSoGc("—", false, { dataLabel: "Giá NVL" });
+                        }
                           const giaRow = (() => {
                             if (row.mat === '-' || row.mat === '') return 0;
                             const m = row.materialId ? materials.find(x => x.id === row.materialId) : materials.find(x => x.name === row.mat);
@@ -1509,12 +1507,12 @@ const buttonLabel = loadedItem
                             if (u.includes('LLDPE') || u === 'PE') return 40000;
                             return 0;
                           })();
-                          return <td className="num" data-label="Giá NVL">{giaRow > 0 ? `${dinhDangSo(giaRow, 0)} đ/kg` : '—'}</td>;
+                          return oSoGc(giaRow > 0 ? `${dinhDangSo(giaRow, 0)} đ/kg` : "—", !!row.isOutsourced && giaRow > 0, { dataLabel: "Giá NVL" });
                         })()}
-                        <td className="num" data-label="CPSX (đ/m²)">{dinhDangSo(row.cpsx, 0)}</td>
-                        <td className="num" data-label="Thành tiền CPSX">{dinhDangSo(row.costCPSX, 0)}</td>
-                        <td className="num" data-label="CP vật liệu (đ/m²)">{row.matPrice != null ? dinhDangSo(row.matPrice, 1) : '—'}</td>
-                        <td className="num" data-label="Thành tiền CPVL">{row.costMat != null ? dinhDangSo(row.costMat, 0) : '—'}</td>
+                        {oSoGc(dinhDangSo(row.cpsx, 0), !!row.isOutsourced, { dataLabel: "CPSX (đ/m²)" })}
+                        {oSoGc(dinhDangSo(row.costCPSX, 0), !!row.isOutsourced, { dataLabel: "Thành tiền CPSX" })}
+                        {oSoGc(row.matPrice != null ? dinhDangSo(row.matPrice, 1) : "—", !!row.isOutsourced && row.matPrice != null, { dataLabel: "CP vật liệu (đ/m²)" })}
+                        {oSoGc(row.costMat != null ? dinhDangSo(row.costMat, 0) : "—", !!row.isOutsourced && row.costMat != null, { dataLabel: "Thành tiền CPVL" })}
                       </tr>
                     );
                   })}

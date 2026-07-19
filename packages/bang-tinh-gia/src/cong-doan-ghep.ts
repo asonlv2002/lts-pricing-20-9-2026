@@ -1,6 +1,6 @@
-import type { VatLieu, HangSo, GiaVatLieuKhoNho, CauHinhGiaCongLop } from '@lts/kieu-du-lieu';
+﻿import type { VatLieu, HangSo, GiaVatLieuKhoNho, CauHinhGiaCongLop } from '@lts/kieu-du-lieu';
 import { layGiaVatLieuTheoKho } from './vat-lieu';
-import { tinhHatHaoGc, tinhCpsxGcM2 } from './gia-cong-ngoai';
+import { tinhHatHaoGc, tinhCpsxGcDienTich } from './gia-cong-ngoai';
 
 export interface ChiTietVatLieuGhep {
   vatLieuId: string;
@@ -29,7 +29,6 @@ export interface KetQuaLopGhep {
 }
 
 export interface GiaCongGhepParams {
-  m2ThanhPham: number;
   lop?: Partial<Record<'lop2' | 'lop3' | 'lop4' | 'lop5', CauHinhGiaCongLop | undefined>>;
 }
 
@@ -114,7 +113,7 @@ export function tinhCongDoanGhep(params: {
       chiPhiVL = donGiaLop * met * kho;
     } else if (cfg?.nguonMang === 'lts') {
       cpsx = cfg.giaGcMoiM2 ?? 0;
-      chiPhiSX = tinhCpsxGcM2(cfg.giaGcMoiM2 ?? 0, giaCongGhep?.m2ThanhPham ?? 0);
+      chiPhiSX = tinhCpsxGcDienTich(cfg.giaGcMoiM2 ?? 0, met, hatHao, kho);
       chiPhiVL = donGiaLop * (hatHao + met) * kho;
     }
 

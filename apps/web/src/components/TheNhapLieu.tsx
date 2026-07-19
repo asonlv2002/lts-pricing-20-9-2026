@@ -7,7 +7,7 @@ import { taoKhachHangNhanhChoBaoGia, laNguoiPhuTrach } from '../lib/customer-api
 import { taoMaKhachHangService, layKhachHangService, luuNguoiPhuTrachKhachHangService, luuThongTinKhachHangService } from '../lib/api/service-lts';
 import { chuyenDanhSachCustomerApiSangUi } from '../lib/customer-api';
 import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
-import { ChonCongDoanGiaCong, ChiTietGiaCongNgoai } from './PanelGiaCongNgoai';
+import { ChiTietGiaCongNgoai } from './PanelGiaCongNgoai';
 
 type KhachHangGoiY = {
   id: string;
@@ -137,6 +137,8 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   const [dangTaoKhachHang, datDangTaoKhachHang] = React.useState(false);
   const quickCustomerRef = React.useRef<HTMLDivElement | null>(null);
  const [vuaTaoKhachMoi, datVuaTaoKhachMoi] = React.useState(false);
+  const [cauTrucMo, datCauTrucMo] = React.useState(true);
+  const [chiTietGcMo, datChiTietGcMo] = React.useState(true);
 
   const lamMoiDanhSachKhachHang = React.useCallback(() => {
     datDanhSachKhachHang(loadCustomers() as KhachHangGoiY[]);
@@ -830,15 +832,22 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
         </div>
       )}
 
-      {input.pricingMode === 'outsource' && (
-        <ChonCongDoanGiaCong input={input} onChange={capNhatDauVao} />
-      )}
-
       <div className="divider"></div>
 
       {hienCauTruc && (
         <div id="structureSection">
-          <div className="card-title" style={{ fontSize: '0.78rem' }}><span className="icon">🏗️</span> Cấu trúc</div>
+          <div
+            className="advanced-toggle"
+            onClick={() => datCauTrucMo(v => !v)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); datCauTrucMo(v => !v); } }}
+            aria-expanded={cauTrucMo}
+          >
+            <span><span className="icon">🏗️</span> Cấu trúc</span>
+            <span className={`advanced-arrow ${cauTrucMo ? 'open' : ''}`}>▸</span>
+          </div>
+          <div className={`advanced-section form-collapse-section ${cauTrucMo ? 'open' : ''}`}>
 
           <div className="form-row-3 structure-input-grid">
             <div className="form-group">
@@ -1085,13 +1094,27 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
               </button>
             </div>
           )}
+          </div>
         </div>
       )}
 
       {input.pricingMode === 'outsource' && (
         <>
           <div className="divider"></div>
-          <ChiTietGiaCongNgoai input={input} onChange={capNhatDauVao} />
+          <div
+            className="advanced-toggle"
+            onClick={() => datChiTietGcMo(v => !v)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); datChiTietGcMo(v => !v); } }}
+            aria-expanded={chiTietGcMo}
+          >
+            <span><span className="icon">🔧</span> Chi tiết gia công ngoài</span>
+            <span className={`advanced-arrow ${chiTietGcMo ? 'open' : ''}`}>▸</span>
+          </div>
+          <div className={`advanced-section form-collapse-section ${chiTietGcMo ? 'open' : ''}`}>
+            <ChiTietGiaCongNgoai input={input} onChange={capNhatDauVao} anTieuDe />
+          </div>
         </>
       )}
 

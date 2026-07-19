@@ -65,6 +65,9 @@ export function mapOutsourceEnToVn(o?: OutsourceConfig): GiaCongNgoai | undefine
       phiHaoSetupM: o.bag.wasteSetupM,
       giaGcMoiTui: o.bag.gcPricePerBag,
       cheDoZipper: o.bag.zipperMode === 'included' ? 'gom' : o.bag.zipperMode === 'excluded' ? 'chua_gom' : undefined,
+      giaZipperMoiM: o.bag.zipperPricePerM,
+      cheDoBangKeo: o.bag.tapeMode === 'included' ? 'gom' : o.bag.tapeMode === 'excluded' ? 'chua_gom' : undefined,
+      giaBangKeoMoiM: o.bag.tapePricePerM,
     };
   }
   if (o.handle) {

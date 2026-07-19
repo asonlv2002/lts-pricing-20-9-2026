@@ -25,4 +25,19 @@ assert(vn!.ghep?.lop?.lop2?.nguonMang === 'lts', 'l2');
 assert(vn!.ghep?.lop?.lop3?.nguonMang === 'ben_ngoai', 'l3');
 assert(vn!.ghep?.lop?.lop3?.giaMuaMangMoiM2 === 5500, 'buy');
 
+const bag = mapOutsourceEnToVn({
+  steps: ['bag'],
+  bag: {
+    wastePct: 5,
+    wasteSetupM: 100,
+    gcPricePerBag: 80,
+    zipperMode: 'excluded',
+    zipperPricePerM: 500,
+    tapeMode: 'included',
+  },
+});
+assert(bag?.lamTui?.cheDoZipper === 'chua_gom', 'zipper mode');
+assert(bag?.lamTui?.giaZipperMoiM === 500, 'zipper price');
+assert(bag?.lamTui?.cheDoBangKeo === 'gom', 'tape included');
+
 console.log('outsource-map OK');

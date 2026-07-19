@@ -1,9 +1,9 @@
 ﻿import type { HangSo } from '@lts/kieu-du-lieu';
-import { tinhCpsxGcM2, tinhCpsxGcDonVi } from './gia-cong-ngoai';
+import { tinhCpsxGcDienTich, tinhCpsxGcDonVi } from './gia-cong-ngoai';
 
 export interface GiaCongCatParams {
   /** Chia — CPSX theo m² TP */
-  chia?: { bat: boolean; giaGcMoiM2: number; m2ThanhPham: number };
+  chia?: { bat: boolean; giaGcMoiM2: number };
   /** Làm túi — CPSX theo số túi (ghi đè CPSX cat khi productType túi) */
   lamTui?: { bat: boolean; giaGcMoiTui: number; soLuong: number };
 }
@@ -21,7 +21,7 @@ export function tinhCongDoanCat(params: {
   let cpSXCat = 0, chiPhiSXCat = 0, tongChiPhiCat = 0;
 
   if (giaCongCat?.chia?.bat) {
-    chiPhiSXCat = tinhCpsxGcM2(giaCongCat.chia.giaGcMoiM2, giaCongCat.chia.m2ThanhPham);
+    chiPhiSXCat = tinhCpsxGcDienTich(giaCongCat.chia.giaGcMoiM2, metCat, hatHaoCat, khoCat);
     cpSXCat = giaCongCat.chia.giaGcMoiM2;
     tongChiPhiCat = chiPhiSXCat;
     return { cpSXCat, chiPhiSXCat, tongChiPhiCat };

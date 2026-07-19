@@ -1,4 +1,4 @@
-﻿import type { HangSo } from '@lts/kieu-du-lieu';
+import type { HangSo } from '@lts/kieu-du-lieu';
 
 export function tinhPhuKien(params: {
   soLuong: number; buocCat: number; hangSo: HangSo;
@@ -6,17 +6,32 @@ export function tinhPhuKien(params: {
   khoiLuongKhoa: number; khoiLuongBangKeo: number;
   tuyChonGc?: {
     boZipper?: boolean;
+    /** Thay hangSo.giaKhoa khi GC chưa gồm zipper */
+    giaZipperMoiM?: number;
+    boBangKeo?: boolean;
+    /** Thay hangSo.giaBangKeo khi GC chưa gồm băng keo */
+    giaBangKeoMoiM?: number;
     quaiGc?: { giaGcMoiTui: number; giaQuaiMoiTui: number };
   };
 }) {
-  const { soLuong, buocCat, hangSo, coBangKeo, khoiLuongKhoa, khoiLuongBangKeo, tuyChonGc } = params;
+  const { soLuong, buocCat, hangSo, khoiLuongKhoa, khoiLuongBangKeo, tuyChonGc } = params;
   const coKhoa = tuyChonGc?.boZipper ? false : params.coKhoa;
+  const coBangKeo = tuyChonGc?.boBangKeo ? false : params.coBangKeo;
   const coQuaiXach = params.coQuaiXach;
 
-  const tongTienKhoa = coKhoa ? soLuong * buocCat * hangSo.giaKhoa : 0;
+  const giaKhoa =
+    tuyChonGc?.giaZipperMoiM != null && Number.isFinite(tuyChonGc.giaZipperMoiM)
+      ? Math.max(0, tuyChonGc.giaZipperMoiM)
+      : hangSo.giaKhoa;
+  const giaBangKeo =
+    tuyChonGc?.giaBangKeoMoiM != null && Number.isFinite(tuyChonGc.giaBangKeoMoiM)
+      ? Math.max(0, tuyChonGc.giaBangKeoMoiM)
+      : hangSo.giaBangKeo;
+
+  const tongTienKhoa = coKhoa ? soLuong * buocCat * giaKhoa : 0;
   const khoaPerDonVi = soLuong > 0 ? tongTienKhoa / soLuong : 0;
   const tongKhoiLuongKhoa = coKhoa ? soLuong * buocCat * khoiLuongKhoa : 0;
-  const tongTienBangKeo = coBangKeo ? soLuong * buocCat * hangSo.giaBangKeo : 0;
+  const tongTienBangKeo = coBangKeo ? soLuong * buocCat * giaBangKeo : 0;
   const bangKeoPerDonVi = soLuong > 0 ? tongTienBangKeo / soLuong : 0;
   const tongKhoiLuongBangKeo = coBangKeo ? soLuong * buocCat * khoiLuongBangKeo : 0;
 

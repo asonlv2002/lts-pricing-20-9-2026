@@ -168,6 +168,11 @@ export interface GiaCongNgoai {
     phiHaoSetupM: number;
     giaGcMoiTui: number;
     cheDoZipper?: 'gom' | 'chua_gom';
+    /** VNĐ/m — khi cheDoZipper = chua_gom */
+    giaZipperMoiM?: number;
+    cheDoBangKeo?: 'gom' | 'chua_gom';
+    /** VNĐ/m — khi cheDoBangKeo = chua_gom */
+    giaBangKeoMoiM?: number;
   };
   ganQuai?: {
     tyLePhiHao: number;

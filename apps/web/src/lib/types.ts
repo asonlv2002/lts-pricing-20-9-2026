@@ -1,4 +1,4 @@
-﻿// ── User / Auth ───────────────────────────────────────────────────────────────
+// ── User / Auth ───────────────────────────────────────────────────────────────
 export interface AppUser {
   id: string;           // e.g. "U001"
   username: string;     // login username
@@ -316,6 +316,11 @@ export interface OutsourceConfig {
     wasteSetupM: number;
     gcPricePerBag: number;
     zipperMode?: 'included' | 'excluded';
+    /** VNĐ/m — dùng khi zipperMode = excluded */
+    zipperPricePerM?: number;
+    tapeMode?: 'included' | 'excluded';
+    /** VNĐ/m — dùng khi tapeMode = excluded */
+    tapePricePerM?: number;
   };
   handle?: {
     wastePct: number;

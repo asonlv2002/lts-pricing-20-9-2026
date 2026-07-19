@@ -170,7 +170,6 @@ export function tinhGia(
   const { dienTichTui, tongDienTich, khoCatIn, chieuDaiMang, khoCat, metCat } = tinhKichThuoc({ soLuong, khoTrai, buocCat, soHinh, laMang });
 
   const gc = dauVao.cheDoTinhGia === 'gia_cong' ? dauVao.giaCongNgoai : undefined;
-  const m2Tp = tongDienTich;
 
   let hatHaoCat = laMangInChiCoCongDoanIn ? 0 : tinhHaoHutCat(metCat, hangSo);
   if (coCongDoanGc(gc, 'chia') && gc?.chia) {
@@ -189,7 +188,7 @@ export function tinhGia(
     kieuGhepLop2: dauVao.kieuGhepLop2,
     bangGiaKhoNho: dauVao.bangGiaKhoNho,
     giaCongGhep: coCongDoanGc(gc, 'ghep')
-      ? { m2ThanhPham: m2Tp, lop: gc?.ghep?.lop }
+      ? { lop: gc?.ghep?.lop }
       : undefined,
   });
 
@@ -217,7 +216,6 @@ export function tinhGia(
         phiHaoSetupM: gc.in.phiHaoSetupM,
         giaGcMoiM2: gc.in.giaGcMoiM2,
         giaMuaMangMoiM2: gc.in.giaMuaMangMoiM2,
-        m2ThanhPham: m2Tp,
       }
       : undefined,
   });
@@ -226,7 +224,7 @@ export function tinhGia(
     laMang, dienTichTui, metCat, hatHaoCat, khoCat, hangSo,
     giaCongCat: {
       chia: coCongDoanGc(gc, 'chia') && gc?.chia
-        ? { bat: true, giaGcMoiM2: gc.chia.giaGcMoiM2, m2ThanhPham: m2Tp }
+        ? { bat: true, giaGcMoiM2: gc.chia.giaGcMoiM2 }
         : undefined,
       lamTui: coCongDoanGc(gc, 'lam_tui') && gc?.lamTui && !coCongDoanGc(gc, 'chia')
         ? { bat: true, giaGcMoiTui: gc.lamTui.giaGcMoiTui, soLuong }
@@ -271,6 +269,15 @@ export function tinhGia(
     soLuong, buocCat, hangSo, coKhoa, coBangKeo, coQuaiXach, khoiLuongKhoa, khoiLuongBangKeo,
     tuyChonGc: {
       boZipper: coCongDoanGc(gc, 'lam_tui') && gc?.lamTui?.cheDoZipper === 'gom',
+      giaZipperMoiM:
+        coCongDoanGc(gc, 'lam_tui') && gc?.lamTui?.cheDoZipper === 'chua_gom'
+          ? gc.lamTui.giaZipperMoiM
+          : undefined,
+      boBangKeo: coCongDoanGc(gc, 'lam_tui') && gc?.lamTui?.cheDoBangKeo === 'gom',
+      giaBangKeoMoiM:
+        coCongDoanGc(gc, 'lam_tui') && gc?.lamTui?.cheDoBangKeo === 'chua_gom'
+          ? gc.lamTui.giaBangKeoMoiM
+          : undefined,
       quaiGc: coCongDoanGc(gc, 'gan_quai') && gc?.ganQuai
         ? { giaGcMoiTui: gc.ganQuai.giaGcMoiTui, giaQuaiMoiTui: gc.ganQuai.giaQuaiMoiTui }
         : undefined,

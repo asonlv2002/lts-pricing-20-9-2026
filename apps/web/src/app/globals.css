@@ -8403,6 +8403,26 @@ body {
   }
 }
 
-.gc-dot { color: #dc2626; margin-right: 4px; }
-.gc-notice { color: #dc2626; font-size: 0.75em; font-weight: 600; }
 
+
+
+/* Form collapsible sections (Cấu trúc / Chi tiết GC) — taller than advanced */
+.form-collapse-section.open {
+  max-height: 6000px;
+}
+
+/* Gia công: chấm đỏ góc trên-phải ô số (hover = Gia công) */
+.gc-cell {
+  position: relative;
+}
+.gc-cell__dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #dc2626;
+  pointer-events: auto;
+  z-index: 1;
+}

@@ -10,12 +10,12 @@ import type {
 } from '../lib/types';
 
 const CD_OPTIONS: { key: OutsourceStep; label: string }[] = [
-  { key: 'print', label: 'In' },
-  { key: 'laminate', label: 'Ghép' },
-  { key: 'slit', label: 'Chia' },
   { key: 'bag', label: 'Làm túi' },
   { key: 'handle', label: 'Gắn quai' },
   { key: 'pp_bag', label: 'Làm bao PP' },
+  { key: 'slit', label: 'Chia' },
+  { key: 'laminate', label: 'Ghép' },
+  { key: 'print', label: 'In' },
 ];
 
 const STEP_LABEL: Record<OutsourceStep, string> = {
@@ -65,9 +65,9 @@ function NguonMangSelect(props: {
 
 function HangTitleCoNguon(props: {
   label: string;
-  showGiaCong?: boolean;
   filmSource: OutsourceFilmSource;
   onFilmSource: (v: OutsourceFilmSource) => void;
+  indent?: boolean;
 }) {
   return (
     <div
@@ -78,14 +78,11 @@ function HangTitleCoNguon(props: {
         gap: 10,
         marginBottom: 8,
         flexWrap: 'wrap',
+        paddingLeft: props.indent ? 14 : 0,
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: '0.85rem' }}>
-        <span style={{ color: '#dc2626' }}>●</span>
-        <span>{props.label}</span>
-        {props.showGiaCong !== false && (
-          <span style={{ color: '#dc2626', fontSize: '0.72rem', fontWeight: 600 }}>Gia công</span>
-        )}
+      <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>
+        {props.label}
       </div>
       <NguonMangSelect value={props.filmSource} onChange={props.onFilmSource} />
     </div>
@@ -124,36 +121,60 @@ function FieldsTheoNguon(props: {
 
 function TitleCd({ label }: { label: string }) {
   return (
-    <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ color: '#dc2626' }}>●</span>
-      <span>{label}</span>
-      <span style={{ color: '#dc2626', fontSize: '0.72rem', fontWeight: 600 }}>Gia công</span>
+    <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 8 }}>
+      {label}
     </div>
   );
 }
 
-/** Multi-select công đoạn — đặt dưới Số lượng */
-export function ChonCongDoanGiaCong(props: {
+/** Chi tiết GC — gồm chọn công đoạn + form; dưới Cấu trúc, trên Tùy chỉnh nâng cao */
+export function ChiTietGiaCongNgoai(props: {
   input: CalculateInput;
   onChange: (partial: Partial<CalculateInput>) => void;
+  anTieuDe?: boolean;
 }) {
-  const { input, onChange } = props;
+  const { input, onChange, anTieuDe } = props;
   if (input.pricingMode !== 'outsource') return null;
 
-  const steps = input.outsource?.steps ?? [];
   const out: OutsourceConfig = input.outsource ?? { steps: [] };
+  const steps = out.steps;
 
   const toggle = (key: OutsourceStep) => {
     const next = steps.includes(key) ? steps.filter(s => s !== key) : [...steps, key];
     onChange({ outsource: { ...out, steps: next } });
   };
 
+  const patchOut = (partial: Partial<OutsourceConfig>) => {
+    onChange({ outsource: { ...out, ...partial } });
+  };
+  const bagBase = {
+    wastePct: out.bag?.wastePct ?? 0,
+    wasteSetupM: out.bag?.wasteSetupM ?? 0,
+    gcPricePerBag: out.bag?.gcPricePerBag ?? 0,
+    zipperMode: out.bag?.zipperMode,
+    zipperPricePerM: out.bag?.zipperPricePerM,
+    tapeMode: out.bag?.tapeMode,
+    tapePricePerM: out.bag?.tapePricePerM,
+  };
+
+  const layerKeys = (
+    [
+      ['layer2', input.layer2Id, 'Lớp 2'],
+      ['layer3', input.layer3Id, 'Lớp 3'],
+      ['layer4', input.layer4Id, 'Lớp 4'],
+      ['layer5', input.layer5Id, 'Lớp 5'],
+    ] as const
+  ).filter(([, id]) => !!id);
+
   return (
-    <div style={{ marginTop: 12, marginBottom: 4 }}>
-      <div className="card-title" style={{ fontSize: '0.78rem', marginBottom: 10 }}>
-        <span className="icon">🔧</span> Chọn công đoạn gia công ngoài
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+    <div style={{ marginTop: anTieuDe ? 0 : 4, marginBottom: 8 }}>
+      {!anTieuDe && (
+        <div className="card-title" style={{ fontSize: '0.78rem', marginBottom: 12 }}>
+          <span className="icon">🔧</span> Chi tiết gia công ngoài
+        </div>
+      )}
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: steps.length ? 14 : 4 }}>
         {CD_OPTIONS.map(cd => {
           const on = steps.includes(cd.key);
           return (
@@ -179,154 +200,8 @@ export function ChonCongDoanGiaCong(props: {
         })}
       </div>
       {steps.length === 0 && (
-        <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#dc2626' }}>
+        <div style={{ marginTop: 2, marginBottom: 4, fontSize: '0.75rem', color: '#dc2626' }}>
           Chọn ít nhất 1 công đoạn
-        </div>
-      )}
-    </div>
-  );
-}
-
-/** Chi tiết GC — dưới Cấu trúc, trên Tùy chỉnh nâng cao; không box */
-export function ChiTietGiaCongNgoai(props: {
-  input: CalculateInput;
-  onChange: (partial: Partial<CalculateInput>) => void;
-}) {
-  const { input, onChange } = props;
-  if (input.pricingMode !== 'outsource' || !input.outsource?.steps?.length) return null;
-
-  const out: OutsourceConfig = input.outsource;
-  const steps = out.steps;
-
-  const patchOut = (partial: Partial<OutsourceConfig>) => {
-    onChange({ outsource: { ...out, ...partial } });
-  };
-
-  const layerKeys = (
-    [
-      ['layer2', input.layer2Id, 'Lớp 2'],
-      ['layer3', input.layer3Id, 'Lớp 3'],
-      ['layer4', input.layer4Id, 'Lớp 4'],
-      ['layer5', input.layer5Id, 'Lớp 5'],
-    ] as const
-  ).filter(([, id]) => !!id);
-
-  return (
-    <div style={{ marginTop: 4, marginBottom: 8 }}>
-      <div className="card-title" style={{ fontSize: '0.78rem', marginBottom: 12 }}>
-        <span className="icon">🏭</span> Chi tiết gia công ngoài
-      </div>
-
-      {steps.includes('print') && (
-        <div style={{ marginBottom: 16 }}>
-          <HangTitleCoNguon
-            label={STEP_LABEL.print}
-            filmSource={out.print?.filmSource ?? 'lts'}
-            onFilmSource={v =>
-              patchOut({
-                print: { ...(out.print ?? { filmSource: 'lts' }), filmSource: v },
-              })
-            }
-          />
-          <FieldsTheoNguon
-            cfg={out.print ?? { filmSource: 'lts' }}
-            onChange={cfg => patchOut({ print: cfg })}
-          />
-        </div>
-      )}
-
-      {steps.includes('laminate') && (
-        <div style={{ marginBottom: 16 }}>
-          <TitleCd label={STEP_LABEL.laminate} />
-          {layerKeys.length === 0 && (
-            <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '0 0 8px' }}>
-              Chọn lớp 2+ ở cấu trúc để cấu hình ghép GC.
-            </p>
-          )}
-          {layerKeys.map(([key, , label]) => {
-            const cfg = out.laminate?.layers?.[key] ?? { filmSource: 'lts' as const };
-            return (
-              <div key={key} style={{ marginBottom: 12 }}>
-                <HangTitleCoNguon
-                  label={label}
-                  showGiaCong={false}
-                  filmSource={cfg.filmSource}
-                  onFilmSource={v =>
-                    patchOut({
-                      laminate: {
-                        layers: {
-                          ...out.laminate?.layers,
-                          [key]: { ...cfg, filmSource: v },
-                        },
-                      },
-                    })
-                  }
-                />
-                <FieldsTheoNguon
-                  cfg={cfg}
-                  onChange={next =>
-                    patchOut({
-                      laminate: {
-                        layers: {
-                          ...out.laminate?.layers,
-                          [key]: next,
-                        },
-                      },
-                    })
-                  }
-                />
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {steps.includes('slit') && (
-        <div style={{ marginBottom: 16 }}>
-          <TitleCd label={STEP_LABEL.slit} />
-          <div className="form-row-3">
-            <OSo
-              label="% phi hao"
-              value={out.slit?.wastePct}
-              onChange={v =>
-                patchOut({
-                  slit: {
-                    wastePct: v,
-                    wasteSetupM: out.slit?.wasteSetupM ?? 0,
-                    gcPricePerM2: out.slit?.gcPricePerM2 ?? 0,
-                  },
-                })
-              }
-            />
-            <OSo
-              label="PH setup"
-              suffix="m"
-              value={out.slit?.wasteSetupM}
-              onChange={v =>
-                patchOut({
-                  slit: {
-                    wastePct: out.slit?.wastePct ?? 0,
-                    wasteSetupM: v,
-                    gcPricePerM2: out.slit?.gcPricePerM2 ?? 0,
-                  },
-                })
-              }
-            />
-            <OSo
-              label="Giá gia công"
-              suffix="đ/m²"
-              value={out.slit?.gcPricePerM2}
-              onChange={v =>
-                patchOut({
-                  slit: {
-                    wastePct: out.slit?.wastePct ?? 0,
-                    wasteSetupM: out.slit?.wasteSetupM ?? 0,
-                    gcPricePerM2: v,
-                  },
-                })
-              }
-            />
-          </div>
         </div>
       )}
 
@@ -340,10 +215,8 @@ export function ChiTietGiaCongNgoai(props: {
               onChange={v =>
                 patchOut({
                   bag: {
+                    ...bagBase,
                     wastePct: v,
-                    wasteSetupM: out.bag?.wasteSetupM ?? 0,
-                    gcPricePerBag: out.bag?.gcPricePerBag ?? 0,
-                    zipperMode: out.bag?.zipperMode,
                   },
                 })
               }
@@ -355,10 +228,8 @@ export function ChiTietGiaCongNgoai(props: {
               onChange={v =>
                 patchOut({
                   bag: {
-                    wastePct: out.bag?.wastePct ?? 0,
+                    ...bagBase,
                     wasteSetupM: v,
-                    gcPricePerBag: out.bag?.gcPricePerBag ?? 0,
-                    zipperMode: out.bag?.zipperMode,
                   },
                 })
               }
@@ -370,35 +241,89 @@ export function ChiTietGiaCongNgoai(props: {
               onChange={v =>
                 patchOut({
                   bag: {
-                    wastePct: out.bag?.wastePct ?? 0,
-                    wasteSetupM: out.bag?.wasteSetupM ?? 0,
+                    ...bagBase,
                     gcPricePerBag: v,
-                    zipperMode: out.bag?.zipperMode,
                   },
                 })
               }
             />
           </div>
-          <div className="form-group">
-            <label className="form-label">Zipper</label>
-            <select
-              className="form-select"
-              value={out.bag?.zipperMode === 'included' ? 'included' : 'excluded'}
-              onChange={e =>
-                patchOut({
-                  bag: {
-                    wastePct: out.bag?.wastePct ?? 0,
-                    wasteSetupM: out.bag?.wasteSetupM ?? 0,
-                    gcPricePerBag: out.bag?.gcPricePerBag ?? 0,
-                    zipperMode: e.target.value as 'included' | 'excluded',
-                  },
-                })
-              }
-            >
-              <option value="included">GC đã gồm phí zipper</option>
-              <option value="excluded">GC chưa gồm (giữ phí zipper)</option>
-            </select>
-          </div>
+          {input.hasZipper && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Zipper</label>
+                <select
+                  className="form-select"
+                  value={out.bag?.zipperMode === 'included' ? 'included' : 'excluded'}
+                  onChange={e =>
+                    patchOut({
+                      bag: {
+                        ...bagBase,
+                        zipperMode: e.target.value as 'included' | 'excluded',
+                      },
+                    })
+                  }
+                >
+                  <option value="included">GC đã gồm phí zipper</option>
+                  <option value="excluded">GC chưa gồm — nhập giá zipper</option>
+                </select>
+              </div>
+              {out.bag?.zipperMode !== 'included' && (
+                <OSo
+                  label="Giá zipper"
+                  suffix="VNĐ/m"
+                  value={out.bag?.zipperPricePerM}
+                  onChange={v =>
+                    patchOut({
+                      bag: {
+                        ...bagBase,
+                        zipperMode: 'excluded',
+                        zipperPricePerM: v,
+                      },
+                    })
+                  }
+                />
+              )}
+            </>
+          )}
+          {input.hasTape && (
+            <>
+              <div className="form-group">
+                <label className="form-label">Băng keo</label>
+                <select
+                  className="form-select"
+                  value={out.bag?.tapeMode === 'included' ? 'included' : 'excluded'}
+                  onChange={e =>
+                    patchOut({
+                      bag: {
+                        ...bagBase,
+                        tapeMode: e.target.value as 'included' | 'excluded',
+                      },
+                    })
+                  }
+                >
+                  <option value="included">GC đã gồm phí băng keo</option>
+                  <option value="excluded">GC chưa gồm — nhập giá băng keo</option>
+                </select>
+              </div>
+              {out.bag?.tapeMode !== 'included' && (
+                <OSo
+                  label="Giá băng keo"
+                  suffix="VNĐ/m"
+                  value={out.bag?.tapePricePerM}
+                  onChange={v =>
+                    patchOut({
+                      bag: {
+                        ...bagBase,
+                        tapeMode: 'excluded',
+                        tapePricePerM: v,
+                      },
+                    })
+                  }
+                />
+              )}
+            </>
+          )}
         </div>
       )}
 
@@ -470,7 +395,7 @@ export function ChiTietGiaCongNgoai(props: {
               }
             >
               <option value="pp">Bao PP</option>
-              <option value="pp_pe">Bao PP lồng PE</option>
+              <option value="pp_pe">Bao PP lót PE</option>
             </select>
           </div>
           <div className="form-row-3">
@@ -538,6 +463,119 @@ export function ChiTietGiaCongNgoai(props: {
           />
         </div>
       )}
+
+      {steps.includes('slit') && (
+        <div style={{ marginBottom: 16 }}>
+          <TitleCd label={STEP_LABEL.slit} />
+          <div className="form-row-3">
+            <OSo
+              label="% phi hao"
+              value={out.slit?.wastePct}
+              onChange={v =>
+                patchOut({
+                  slit: {
+                    wastePct: v,
+                    wasteSetupM: out.slit?.wasteSetupM ?? 0,
+                    gcPricePerM2: out.slit?.gcPricePerM2 ?? 0,
+                  },
+                })
+              }
+            />
+            <OSo
+              label="PH setup"
+              suffix="m"
+              value={out.slit?.wasteSetupM}
+              onChange={v =>
+                patchOut({
+                  slit: {
+                    wastePct: out.slit?.wastePct ?? 0,
+                    wasteSetupM: v,
+                    gcPricePerM2: out.slit?.gcPricePerM2 ?? 0,
+                  },
+                })
+              }
+            />
+            <OSo
+              label="Giá gia công"
+              suffix="đ/m²"
+              value={out.slit?.gcPricePerM2}
+              onChange={v =>
+                patchOut({
+                  slit: {
+                    wastePct: out.slit?.wastePct ?? 0,
+                    wasteSetupM: out.slit?.wasteSetupM ?? 0,
+                    gcPricePerM2: v,
+                  },
+                })
+              }
+            />
+          </div>
+        </div>
+      )}
+
+      {steps.includes('laminate') && (
+        <div style={{ marginBottom: 16 }}>
+          <TitleCd label={STEP_LABEL.laminate} />
+          {layerKeys.length === 0 && (
+            <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '0 0 8px' }}>
+              Chọn lớp 2+ ở cấu trúc để cấu hình ghép GC.
+            </p>
+          )}
+          {layerKeys.map(([key, , label]) => {
+            const cfg = out.laminate?.layers?.[key] ?? { filmSource: 'lts' as const };
+            return (
+              <div key={key} style={{ marginBottom: 12, paddingLeft: 14 }}>
+                <HangTitleCoNguon
+                  label={label}
+                  filmSource={cfg.filmSource}
+                  onFilmSource={v =>
+                    patchOut({
+                      laminate: {
+                        layers: {
+                          ...out.laminate?.layers,
+                          [key]: { ...cfg, filmSource: v },
+                        },
+                      },
+                    })
+                  }
+                />
+                <FieldsTheoNguon
+                  cfg={cfg}
+                  onChange={next =>
+                    patchOut({
+                      laminate: {
+                        layers: {
+                          ...out.laminate?.layers,
+                          [key]: next,
+                        },
+                      },
+                    })
+                  }
+                />
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {steps.includes('print') && (
+        <div style={{ marginBottom: 16 }}>
+          <HangTitleCoNguon
+            label={STEP_LABEL.print}
+            filmSource={out.print?.filmSource ?? 'lts'}
+            onFilmSource={v =>
+              patchOut({
+                print: { ...(out.print ?? { filmSource: 'lts' }), filmSource: v },
+              })
+            }
+          />
+          <FieldsTheoNguon
+            cfg={out.print ?? { filmSource: 'lts' }}
+            onChange={cfg => patchOut({ print: cfg })}
+          />
+        </div>
+      )}
+
     </div>
   );
 }
