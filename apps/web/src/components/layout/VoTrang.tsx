@@ -36,7 +36,6 @@ import {
   docBaoGiaIdTuSearchParams,
   dongBoUrlBaoGia,
 } from '../../lib/bao-gia-route';
-import { ModalCheDoTinhGia } from '../ModalCheDoTinhGia';
 import {
   KHACH_HANG_QUERY,
   docKhachHangIdTuSearchParams,
@@ -535,28 +534,19 @@ interface DauTrangTrenProps {
 }
 
 function DauTrangTren({ moduleDangMo, onExport, onMenuToggle, laMobile }: DauTrangTrenProps) {
-  const { result: ketQua, isDirty: dangBan, resetInput: datLaiDauVao, setInput: capNhatDauVao } = dungCuaHangTinhGia();
+  const { result: ketQua, isDirty: dangBan, resetInput: datLaiDauVao, setPricingEntry: datPricingEntry } = dungCuaHangTinhGia();
   const [hienXacNhanMoi, datHienXacNhanMoi] = useState(false);
-  const [hienModalCheDo, datHienModalCheDo] = useState(false);
 
   const xuLyTaoMoi = () => {
     if (dangBan) datHienXacNhanMoi(true);
-    else datHienModalCheDo(true);
+    else { datLaiDauVao(); datPricingEntry('pick'); }
   };
 
   const xacNhanTaoMoi = () => {
     datHienXacNhanMoi(false);
-    datHienModalCheDo(true);
+    datLaiDauVao(); datPricingEntry('pick');
   };
 
-  const xacNhanCheDo = (mode: import('../../lib/types').PricingMode, steps: import('../../lib/types').OutsourceStep[]) => {
-    datLaiDauVao();
-    capNhatDauVao({
-      pricingMode: mode,
-      outsource: mode === 'outsource' ? { steps } : undefined,
-    });
-    datHienModalCheDo(false);
-  };
 
   return (
     <>
@@ -576,13 +566,7 @@ function DauTrangTren({ moduleDangMo, onExport, onMenuToggle, laMobile }: DauTra
           </div>
         </div>
       )}
-      <ModalCheDoTinhGia
-        open={hienModalCheDo}
-        onClose={() => datHienModalCheDo(false)}
-        onConfirm={xacNhanCheDo}
-      />
-
-      <header className="lts-topbar">
+<header className="lts-topbar">
         <div className="lts-topbar-left">
           <h1 className="lts-topbar-title">{TIEU_DE_MODULE[moduleDangMo]}</h1>
           {moduleDangMo === 'calculator' && (
@@ -647,7 +631,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [deepLinkLoai, datDeepLinkLoai] = useState<LoaiDeepLink | null>(null);
   const [deepLinkTrangThai, datDeepLinkTrangThai] = useState<TrangThaiDeepLink>('idle');
   const [deepLinkRetryDem, datDeepLinkRetryDem] = useState(0);
-  const [hienModalCheDoDeep, datHienModalCheDoDeep] = useState(false);
 
   // Restore session on mount
   useEffect(() => {
@@ -1013,8 +996,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     URL.revokeObjectURL(duongDan);
   };
 
-  const moWizardTaoBangTinh = () => {
-    datHienModalCheDoDeep(true);
+  const moLandingTaoBangTinh = () => {
+    resetInput();
+    dungCuaHangTinhGia.getState().setPricingEntry('pick');
+    datMenuDangChon('pricing.create_calculation');
+    datModuleDangMo('calculator');
   };
 
   const xuLyMobileHubAction = (action: MobileHubAction) => {
@@ -1027,7 +1013,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       return;
     }
     if (action.key === 'pricing.create_calculation') {
-      moWizardTaoBangTinh();
+      moLandingTaoBangTinh();
       return;
     }
     datMenuDangChon(action.key);
@@ -1060,17 +1046,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const taoBangTinhMoi = () => {
     dongDeepLinkLoi();
-    moWizardTaoBangTinh();
-  };
-  const xacNhanCheDoDeep = (mode: import('../../lib/types').PricingMode, steps: import('../../lib/types').OutsourceStep[]) => {
-    resetInput();
-    dungCuaHangTinhGia.getState().setInput({
-      pricingMode: mode,
-      outsource: mode === 'outsource' ? { steps } : undefined,
-    });
-    datMenuDangChon('pricing.create_calculation');
-    datModuleDangMo('calculator');
-    datHienModalCheDoDeep(false);
+    moLandingTaoBangTinh();
   };
 
   const veDanhSachBaoGia = () => {
@@ -1124,12 +1100,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className={`lts-shell ${laMobile ? 'lts-shell--mobile' : ''}`}>
       {/* Toast trượt từ phải — dùng chung mọi module (copy URL, v.v.) */}
       <div className="toast-container" id="toastContainer" />
-      <ModalCheDoTinhGia
-        open={hienModalCheDoDeep}
-        onClose={() => datHienModalCheDoDeep(false)}
-        onConfirm={xacNhanCheDoDeep}
-      />
-      {!laMobile && (
+{!laMobile && (
         <ThanhBen
           moduleDangMo={moduleDangMo}
           menuDangChon={menuDangChon}
@@ -1140,7 +1111,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           laMobile={false}
           policies={policies}
           datHienDoiMatKhau={() => datHienDoiMatKhau(true)}
-          onTaoBangTinhGia={moWizardTaoBangTinh}
+          onTaoBangTinhGia={moLandingTaoBangTinh}
         />
       )}
 

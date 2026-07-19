@@ -5,6 +5,8 @@ import type { BaoGiaApi } from '../../lib/api/service-lts';
 export interface UISlice {
   activeView: 'manager' | 'tech' | 'history' | 'config' | 'bento';
   activeModule: 'calculator' | 'quotations' | 'create_lsx' | 'lsx_list' | 'history_db' | 'master_data' | 'customers' | 'settings' | 'users' | 'audit_log';
+  /** pick = landing chọn mode (ẩn form); form = đang nhập liệu */
+  pricingEntry: 'pick' | 'form';
   layoutType: 'default' | 'stacked' | 'wide' | 'bento';
   density: 'compact' | 'comfortable' | 'spacious';
   theme: 'light' | 'dark';
@@ -18,6 +20,7 @@ export interface UISlice {
 
   setActiveView: (v: UISlice['activeView']) => void;
   setActiveModule: (v: UISlice['activeModule']) => void;
+  setPricingEntry: (v: UISlice['pricingEntry']) => void;
   setLayoutType: (v: UISlice['layoutType']) => void;
   setDensity: (v: UISlice['density']) => void;
   setTheme: (v: UISlice['theme']) => void;
@@ -34,6 +37,7 @@ export interface UISlice {
 export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set) => ({
   activeView: 'manager',
   activeModule: 'calculator',
+  pricingEntry: 'pick',
   layoutType: 'default',
   density: 'comfortable',
   theme: 'light',
@@ -47,6 +51,7 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
 
   setActiveView:    (v) => set({ activeView: v }),
   setActiveModule:  (v) => set({ activeModule: v }),
+  setPricingEntry:  (v) => set({ pricingEntry: v }),
   setLayoutType:    (v) => set({ layoutType: v }),
   setDensity:       (v) => set({ density: v }),
   setTheme:         (v) => set({ theme: v }),

@@ -1,4 +1,4 @@
-﻿// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
 // Auth Slice — service-lts authentication & session management
 // ═══════════════════════════════════════════════════════════════════════════
 import type { StateCreator } from 'zustand';
@@ -69,6 +69,7 @@ function resetPhienHetHan(set: Parameters<StateCreator<CuaHangTinhGia, [], [], A
     sessionChecked: true,
     role: 'sale',
     activeModule: 'calculator',
+      pricingEntry: 'pick' as const,
   });
 }
 
@@ -157,6 +158,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
         sessionChecked: true,
         role: 'sale',
         activeModule: 'calculator',
+      pricingEntry: 'pick' as const,
       });
       throw error;
     }
@@ -174,6 +176,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       sessionChecked: true,
       role: 'sale',
       activeModule: 'calculator',
+      pricingEntry: 'pick' as const,
     });
   },
 

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
@@ -124,7 +124,7 @@ const ONhapSoThapPhan = ({ value, onChange, placeholder, min, step, className, d
 };
 
 export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () => void }) {
-  const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness, currentSellerId, currentSellerName, role, setActiveModule: datPhanHe, accessToken, isAuthenticated } = dungCuaHangTinhGia();
+  const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness, currentSellerId, currentSellerName, role, setActiveModule: datPhanHe, accessToken, isAuthenticated, setPricingEntry: datPricingEntry } = dungCuaHangTinhGia();
   const nhanCheDo =
     input.pricingMode === 'outsource'
       ? `Gia công${input.outsource?.steps?.length ? ` · ${input.outsource.steps.length} CD` : ''}`
@@ -612,6 +612,19 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
         >
           {nhanCheDo}
         </span>
+        <button
+          type="button"
+          className="btn btn-sm btn-outline"
+          style={{ marginLeft: 'auto', fontSize: '0.72rem', padding: '2px 8px' }}
+          onClick={() => {
+            if (window.confirm('Đổi loại bảng tính? Dữ liệu đang nhập sẽ bị xóa.')) {
+              datLaiDauVao();
+              datPricingEntry('pick');
+            }
+          }}
+        >
+          Đổi loại
+        </button>
       </div>
 
       <div className="form-row customer-product-row">

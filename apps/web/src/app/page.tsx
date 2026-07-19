@@ -5,41 +5,43 @@ import type { Material, ProfitRow, BoxOption, ConfigSnapshot } from '../lib/type
 import TheNhapLieu from '../components/TheNhapLieu';
 import ManHinhQuanLy from '../components/ManHinhQuanLy';
 import ManHinhKyThuat from '../components/ManHinhKyThuat';
+import { ManHinhChonCheDoTinhGia } from '../components/ManHinhChonCheDoTinhGia';
+import type { PricingMode } from '../lib/types';
 import { ArrowLeft, FileText } from 'lucide-react';
 
-// ── Format helper ─────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Format helper Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function dinhDangSo(n: number, soLe = 0): string {
-  if (!n || isNaN(n)) return '—';
+  if (!n || isNaN(n)) return 'Ã¢â‚¬â€';
   return n.toLocaleString('vi-VN', { minimumFractionDigits: soLe, maximumFractionDigits: soLe });
 }
 
-// ── Thanh giá mini (mobile) ───────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Thanh giÃƒÂ¡ mini (mobile) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function ThanhGiaMini({ onNhan }: { onNhan: () => void }) {
   const { result, currentChotGia } = dungCuaHangTinhGia();
   if (!result) return null;
 
   const gia = currentChotGia > 0 ? currentChotGia : result.finalPrice;
   const laMang = result.input.productType === 'mang';
-  const donVi = laMang ? 'm²' : 'túi';
+  const donVi = laMang ? 'mÃ‚Â²' : 'tÃƒÂºi';
 
   return (
     <div className="mini-price-strip" onClick={onNhan} role="button" tabIndex={0}
       onKeyDown={e => e.key === 'Enter' && onNhan()}
-      title="Nhấn để xem kết quả chi tiết"
+      title="NhÃ¡ÂºÂ¥n Ã„â€˜Ã¡Â»Æ’ xem kÃ¡ÂºÂ¿t quÃ¡ÂºÂ£ chi tiÃ¡ÂºÂ¿t"
     >
       <div className="mps-left">
-        <span className="mps-label">Giá {currentChotGia > 0 ? 'chốt' : 'đề xuất'}</span>
-        <span className="mps-price">{dinhDangSo(gia, 0)} đ/{donVi}</span>
+        <span className="mps-label">GiÃƒÂ¡ {currentChotGia > 0 ? 'chÃ¡Â»â€˜t' : 'Ã„â€˜Ã¡Â»Â xuÃ¡ÂºÂ¥t'}</span>
+        <span className="mps-price">{dinhDangSo(gia, 0)} Ã„â€˜/{donVi}</span>
       </div>
       <div className="mps-right">
         <span className="mps-profit">LN: {dinhDangSo(result.profitRate * 100, 1)}%</span>
-        <span className="mps-arrow">→ Xem chi tiết</span>
+        <span className="mps-arrow">Ã¢â€ â€™ Xem chi tiÃ¡ÂºÂ¿t</span>
       </div>
     </div>
   );
 }
 
-// ── Thanh kéo điều chỉnh panel (desktop) ─────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Thanh kÃƒÂ©o Ã„â€˜iÃ¡Â»Âu chÃ¡Â»â€°nh panel (desktop) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 function ThanhKeoPanel({ onKeo }: { onKeo: (delta: number) => void }) {
   const dangKeo = useRef(false);
   const xBatDau = useRef(0);
@@ -75,7 +77,7 @@ function ThanhKeoPanel({ onKeo }: { onKeo: (delta: number) => void }) {
     <div
       className="panel-resizer"
       onMouseDown={onMouseDown}
-      title="Kéo để điều chỉnh độ rộng panel nhập liệu"
+      title="KÃƒÂ©o Ã„â€˜Ã¡Â»Æ’ Ã„â€˜iÃ¡Â»Âu chÃ¡Â»â€°nh Ã„â€˜Ã¡Â»â„¢ rÃ¡Â»â„¢ng panel nhÃ¡ÂºÂ­p liÃ¡Â»â€¡u"
       role="separator"
       aria-orientation="vertical"
     >
@@ -84,13 +86,17 @@ function ThanhKeoPanel({ onKeo }: { onKeo: (delta: number) => void }) {
   );
 }
 
-// ── Trang chính ───────────────────────────────────────────────────────────────
+// Ã¢â€â‚¬Ã¢â€â‚¬ Trang chÃƒÂ­nh Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
 export default function TrangChinh() {
   const {
     activeView: gocNhinHienTai, layoutType: kieuBoTriCuc, density: matDoHienThi, theme: chuDe, advancedOpen: moRongNangCao,
     materials: danhSachVatLieu, constants: hangSo, profitTable: bangLoiNhuan, smallWidthPrices: bangGiaKhoNho, result: ketQua,
     setActiveView: datGocNhin,
     isAuthenticated: daDangNhap,
+    pricingEntry,
+    setPricingEntry: datPricingEntry,
+    resetInput: datLaiDauVao,
+    setInput: capNhatDauVao,
   } = dungCuaHangTinhGia();
 
   const [tabMobile, datTabMobile] = useState<'input' | 'result'>('input');
@@ -99,7 +105,20 @@ export default function TrangChinh() {
   const [anPanelNhap, datAnPanelNhap] = useState(false);
   const coTheAnPanelNhap = !laMobile && kieuBoTriCuc !== 'stacked' && kieuBoTriCuc !== 'bento';
 
-  // ── Phát hiện mobile ────────────────────────────────────────────────────────
+  const dangChonCheDo = pricingEntry === 'pick';
+
+  const xuLyChonCheDoTinhGia = (mode: PricingMode) => {
+    datLaiDauVao();
+    // resetInput sets pricingEntry back to pick Ã¢â‚¬â€ force form after mode choice
+    capNhatDauVao({
+      pricingMode: mode,
+      outsource: mode === 'outsource' ? { steps: [] } : undefined,
+    });
+    datPricingEntry('form');
+  };
+
+
+  // Ã¢â€â‚¬Ã¢â€â‚¬ PhÃƒÂ¡t hiÃ¡Â»â€¡n mobile Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   useEffect(() => {
     const check = () => datLaMobile(window.innerWidth < 768);
     check();
@@ -107,7 +126,7 @@ export default function TrangChinh() {
     return () => window.removeEventListener('resize', check);
   }, []);
 
-  // ── Tự chuyển sang kết quả khi có tính toán mới ────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ TÃ¡Â»Â± chuyÃ¡Â»Æ’n sang kÃ¡ÂºÂ¿t quÃ¡ÂºÂ£ khi cÃƒÂ³ tÃƒÂ­nh toÃƒÂ¡n mÃ¡Â»â€ºi Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const ketQuaTruoc = useRef<typeof ketQua>(null);
   useEffect(() => {
     if (ketQua && ketQua !== ketQuaTruoc.current) {
@@ -128,7 +147,7 @@ export default function TrangChinh() {
     });
   }, []);
 
-  // ── Đồng bộ theme / layout / density ───────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ Ã„ÂÃ¡Â»â€œng bÃ¡Â»â„¢ theme / layout / density Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', chuDe);
     document.documentElement.setAttribute('data-layout', kieuBoTriCuc);
@@ -137,7 +156,7 @@ export default function TrangChinh() {
     else document.documentElement.classList.remove('in-config-page');
   }, [chuDe, kieuBoTriCuc, matDoHienThi, gocNhinHienTai]);
 
-  // ── Khởi tạo từ localStorage ────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ KhÃ¡Â»Å¸i tÃ¡ÂºÂ¡o tÃ¡Â»Â« localStorage Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   useEffect(() => {
     try {
       // UI preferences
@@ -158,13 +177,13 @@ export default function TrangChinh() {
         }));
       }
 
-      // LSX — không lưu local; dọn key cũ nếu còn
+      // LSX Ã¢â‚¬â€ khÃƒÂ´ng lÃ†Â°u local; dÃ¡Â»Ân key cÃ…Â© nÃ¡ÂºÂ¿u cÃƒÂ²n
       try { window.localStorage.removeItem('lts_production_orders'); } catch {}
       dungCuaHangTinhGia.setState({ productionOrders: [] });
 
 
       // Audit log
-      // Dọn rác localStorage nhật ký cũ (đã chuyển sang server-only)
+      // DÃ¡Â»Ân rÃƒÂ¡c localStorage nhÃ¡ÂºÂ­t kÃƒÂ½ cÃ…Â© (Ã„â€˜ÃƒÂ£ chuyÃ¡Â»Æ’n sang server-only)
       try { window.localStorage.removeItem('lts_audit_log'); } catch {}
 
       // Versions
@@ -176,7 +195,7 @@ export default function TrangChinh() {
         } catch {}
       }
 
-      // Phiên bản bảng định mức
+      // PhiÃƒÂªn bÃ¡ÂºÂ£n bÃ¡ÂºÂ£ng Ã„â€˜Ã¡Â»â€¹nh mÃ¡Â»Â©c
       const rawConfigSnapshots = window.localStorage.getItem('lts_config_snapshots');
       if (rawConfigSnapshots) {
         try {
@@ -194,7 +213,7 @@ export default function TrangChinh() {
         } catch {}
       }
 
-      // Cấu hình vật liệu & hằng số
+      // CÃ¡ÂºÂ¥u hÃƒÂ¬nh vÃ¡ÂºÂ­t liÃ¡Â»â€¡u & hÃ¡ÂºÂ±ng sÃ¡Â»â€˜
       const cfgRaw = window.localStorage.getItem('lts_material_config');
       if (cfgRaw) {
         const cfg = JSON.parse(cfgRaw) as {
@@ -259,14 +278,14 @@ export default function TrangChinh() {
         });
         dungCuaHangTinhGia.getState().recalculate();
       }
-    } catch { /* localStorage lỗi */ }
+    } catch { /* localStorage lÃ¡Â»â€”i */ }
 
-    // ── Auto-apply phiên bản định mức mới nhất từ server (1 request) ───────
+    // Ã¢â€â‚¬Ã¢â€â‚¬ Auto-apply phiÃƒÂªn bÃ¡ÂºÂ£n Ã„â€˜Ã¡Â»â€¹nh mÃ¡Â»Â©c mÃ¡Â»â€ºi nhÃ¡ÂºÂ¥t tÃ¡Â»Â« server (1 request) Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
     void (async () => {
       const store = dungCuaHangTinhGia.getState();
       if (!store.isAuthenticated || !store.accessToken) return;
 
-      // Nhường bandwidth cho deep-link báo giá / tính giá
+      // NhÃ†Â°Ã¡Â»Âng bandwidth cho deep-link bÃƒÂ¡o giÃƒÂ¡ / tÃƒÂ­nh giÃƒÂ¡
       const hasDeep =
         typeof window !== 'undefined' &&
         (window.location.search.includes('bao-gia=') ||
@@ -278,7 +297,7 @@ export default function TrangChinh() {
     })();
   }, []);
 
-  // ── Tải lịch sử từ server khi đăng nhập thành công ──────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ TÃ¡ÂºÂ£i lÃ¡Â»â€¹ch sÃ¡Â»Â­ tÃ¡Â»Â« server khi Ã„â€˜Ã„Æ’ng nhÃ¡ÂºÂ­p thÃƒÂ nh cÃƒÂ´ng Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   const daDangNhapTruoc = useRef(false);
   useEffect(() => {
     if (daDangNhap && !daDangNhapTruoc.current) {
@@ -287,12 +306,12 @@ export default function TrangChinh() {
     daDangNhapTruoc.current = daDangNhap;
   }, [daDangNhap]);
 
-  // ── Lưu UI prefs ────────────────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ LÃ†Â°u UI prefs Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   useEffect(() => {
     window.localStorage.setItem('lts_ui_prefs', JSON.stringify({ kieuBoTriCuc, matDoHienThi, chuDe, moRongNangCao }));
   }, [kieuBoTriCuc, matDoHienThi, chuDe, moRongNangCao]);
 
-  // ── Lưu config cache ────────────────────────────────────────────────────────
+  // Ã¢â€â‚¬Ã¢â€â‚¬ LÃ†Â°u config cache Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬Ã¢â€â‚¬
   useEffect(() => {
     window.localStorage.setItem('lts_material_config', JSON.stringify({
       materials: danhSachVatLieu.map((m: Material) => ({ id: m.id, name: m.id.startsWith('custom-') ? m.name : undefined, group: m.group, density: m.id.startsWith('custom-') ? m.density : undefined, thickness: m.thickness, pricePerKg: m.pricePerKg, inkPricePerColor: m.inkPricePerColor })),
@@ -357,10 +376,10 @@ export default function TrangChinh() {
           <FileText size={16} style={{ color: "var(--accent, #0891b2)", flexShrink: 0 }} />
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--foreground, #111)" }}>
-              Đang xem lại từ báo giá
+              Ã„Âang xem lÃ¡ÂºÂ¡i tÃ¡Â»Â« bÃƒÂ¡o giÃƒÂ¡
             </div>
             <div style={{ fontSize: "0.75rem", color: "var(--muted, #6b7280)" }}>
-              Bạn đang xem bảng tính giá của sản phẩm trong báo giá. Nhấn quay lại để tiếp tục tạo báo giá.
+              BÃ¡ÂºÂ¡n Ã„â€˜ang xem bÃ¡ÂºÂ£ng tÃƒÂ­nh giÃƒÂ¡ cÃ¡Â»Â§a sÃ¡ÂºÂ£n phÃ¡ÂºÂ©m trong bÃƒÂ¡o giÃƒÂ¡. NhÃ¡ÂºÂ¥n quay lÃ¡ÂºÂ¡i Ã„â€˜Ã¡Â»Æ’ tiÃ¡ÂºÂ¿p tÃ¡Â»Â¥c tÃ¡ÂºÂ¡o bÃƒÂ¡o giÃƒÂ¡.
             </div>
           </div>
           <button
@@ -368,71 +387,74 @@ export default function TrangChinh() {
             style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}
             onClick={quayLaiBaoGia}
           >
-            <ArrowLeft size={14} /> Quay lại báo giá
+            <ArrowLeft size={14} /> Quay lÃ¡ÂºÂ¡i bÃƒÂ¡o giÃƒÂ¡
           </button>
         </div>
       )}
 
       {!laMobile && doRongTrai != null && (
         <div className="panel-resize-hint">
-          <span>Panel nhập: {doRongTrai}px</span>
-          <button onClick={() => datDoRongTrai(null)} title="Đặt lại độ rộng mặc định">↺ Mặc định</button>
+          <span>Panel nhÃ¡ÂºÂ­p: {doRongTrai}px</span>
+          <button onClick={() => datDoRongTrai(null)} title="Ã„ÂÃ¡ÂºÂ·t lÃ¡ÂºÂ¡i Ã„â€˜Ã¡Â»â„¢ rÃ¡Â»â„¢ng mÃ¡ÂºÂ·c Ã„â€˜Ã¡Â»â€¹nh">Ã¢â€ Âº MÃ¡ÂºÂ·c Ã„â€˜Ã¡Â»â€¹nh</button>
         </div>
       )}
 
       <div className="container mobile-calc-container">
         <div className={`main-grid ${coTheAnPanelNhap && anPanelNhap ? 'main-grid--input-collapsed' : ''}`} style={gridStyle}>
 
-          {coTheAnPanelNhap && anPanelNhap && (
+          {!dangChonCheDo && coTheAnPanelNhap && anPanelNhap && (
             <button
               type="button"
               className="input-panel-rail"
               onClick={() => datAnPanelNhap(false)}
-              title="Mở phần nhập liệu"
-              aria-label="Mở phần nhập liệu"
+              title="MÃ¡Â»Å¸ phÃ¡ÂºÂ§n nhÃ¡ÂºÂ­p liÃ¡Â»â€¡u"
+              aria-label="MÃ¡Â»Å¸ phÃ¡ÂºÂ§n nhÃ¡ÂºÂ­p liÃ¡Â»â€¡u"
             >
-              <span className="input-panel-rail-icon">›</span>
-              <span className="input-panel-rail-text">Nhập liệu</span>
+              <span className="input-panel-rail-icon">Ã¢â‚¬Âº</span>
+              <span className="input-panel-rail-text">NhÃ¡ÂºÂ­p liÃ¡Â»â€¡u</span>
             </button>
           )}
 
-          {/* Panel trái: nhập liệu */}
+          {/* Panel trÃƒÂ¡i: nhÃ¡ÂºÂ­p liÃ¡Â»â€¡u */}
           <div
             id="inputCard"
             className={`grid-col-input ${!coKetQuaMobile || tabMobile === 'input' ? 'active' : ''}`}
+            style={dangChonCheDo ? { gridColumn: '1 / -1', maxWidth: 760, margin: '0 auto', width: '100%' } : undefined}
           >
-            {laMobile && tabMobile === 'input' && ketQua && (
+            {!dangChonCheDo && laMobile && tabMobile === 'input' && ketQua && (
               <ThanhGiaMini onNhan={() => datTabMobile('result')} />
             )}
-            <TheNhapLieu onCollapseInput={coTheAnPanelNhap ? () => datAnPanelNhap(true) : undefined} />
+            {dangChonCheDo
+              ? <ManHinhChonCheDoTinhGia onChon={xuLyChonCheDoTinhGia} />
+              : <TheNhapLieu onCollapseInput={coTheAnPanelNhap ? () => datAnPanelNhap(true) : undefined} />}
           </div>
 
-          {/* Thanh kéo desktop */}
-          {coTheAnPanelNhap && !anPanelNhap && (
+          {/* Thanh kÃƒÂ©o desktop */}
+          {!dangChonCheDo && coTheAnPanelNhap && !anPanelNhap && (
             <ThanhKeoPanel onKeo={xuLyKeoPanel} />
           )}
 
-          {/* Panel phải: kết quả */}
-          <div
+          {/* Panel phÃ¡ÂºÂ£i: kÃ¡ÂºÂ¿t quÃ¡ÂºÂ£ */}
+          {!dangChonCheDo && <div
             id="resultArea"
             className={`grid-col-result ${!laMobile || (coKetQuaMobile && tabMobile === 'result') ? 'active' : ''}`}
           >
             <ManHinhQuanLy />
             <ManHinhKyThuat />
-          </div>
+          </div>}
 
         </div>
 
-        {/* Nav mobile chỉ xuất hiện sau khi nhập liệu hợp lệ và đã có kết quả. */}
-        {coKetQua && (
-          <nav className="mobile-calc-nav" aria-label="Điều hướng màn hình tính giá">
+        {/* Nav mobile chÃ¡Â»â€° xuÃ¡ÂºÂ¥t hiÃ¡Â»â€¡n sau khi nhÃ¡ÂºÂ­p liÃ¡Â»â€¡u hÃ¡Â»Â£p lÃ¡Â»â€¡ vÃƒÂ  Ã„â€˜ÃƒÂ£ cÃƒÂ³ kÃ¡ÂºÂ¿t quÃ¡ÂºÂ£. */}
+        {!dangChonCheDo && coKetQua && (
+          <nav className="mobile-calc-nav" aria-label="Ã„ÂiÃ¡Â»Âu hÃ†Â°Ã¡Â»â€ºng mÃƒÂ n hÃƒÂ¬nh tÃƒÂ­nh giÃƒÂ¡">
             <button className={`m-tab ${tabMobile === 'input' ? 'active' : ''}`}
               onClick={() => datTabMobile('input')} aria-pressed={tabMobile === 'input'}>
-              📋 Nhập liệu
+              Ã°Å¸â€œâ€¹ NhÃ¡ÂºÂ­p liÃ¡Â»â€¡u
             </button>
             <button className={`m-tab ${tabMobile === 'result' ? 'active' : ''}`}
               onClick={() => datTabMobile('result')} aria-pressed={tabMobile === 'result'}>
-              💰 Kết quả
+              Ã°Å¸â€™Â° KÃ¡ÂºÂ¿t quÃ¡ÂºÂ£
               <div className="m-tab-badge" aria-hidden="true" />
             </button>
           </nav>
