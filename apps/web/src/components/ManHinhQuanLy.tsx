@@ -842,6 +842,16 @@ const buttonLabel = loadedItem
     [hienThiGia.interestLabel(r.interestBase || 0, r.paymentDays ?? dauVaoKq.paymentDays ?? 30), dinhDangSo(r.interestPerUnit, 1) + ` đ${laMangIn ? `/${nhanDonVi}` : ''}`],
     ['Hoa hồng kinh doanh', dinhDangSo(effCommissionPerUnit, 1) + ' đ']
   );
+  
+  if ((r.gcShippingPerUnit ?? 0) > 0) {
+    breakdownItems.push(['Vận chuyển (gia công)', dinhDangSo(r.gcShippingPerUnit ?? 0, 1) + ' đ']);
+  }
+  if ((r.gcPackagingPerUnit ?? 0) > 0) {
+    breakdownItems.push(['Đóng gói (gia công)', dinhDangSo(r.gcPackagingPerUnit ?? 0, 1) + ' đ']);
+  }
+  if ((r.gcOtherPerUnit ?? 0) > 0) {
+    breakdownItems.push(['Phụ phí khác (gia công)', dinhDangSo(r.gcOtherPerUnit ?? 0, 1) + ' đ']);
+  }
   if (dauVaoKq.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
     breakdownItems.push([`Trục in phân bổ (bao trục / 200k m²)`, dinhDangSo(r.cylAllocPerUnit ?? 0, 2) + ' đ']);
   }
@@ -878,7 +888,7 @@ const buttonLabel = loadedItem
   const newCommissionPerUnit = Math.max(0, rawNewCommission);
   const doanhThuChot = shownPrice * dauVaoKq.quantity;
   const tongHoaHongChot = newCommissionPerUnit * dauVaoKq.quantity;
-  const tongChiPhi = tongChiPhiSXHieuLuc + r.zipperTotal + r.tapeTotal + r.handleTotal + r.boxTotal + r.shippingTotal + (r.interestPerUnit * dauVaoKq.quantity) + cylAllocTotal;
+  const tongChiPhi = tongChiPhiSXHieuLuc + r.zipperTotal + r.tapeTotal + r.handleTotal + r.boxTotal + r.shippingTotal + (r.interestPerUnit * dauVaoKq.quantity) + cylAllocTotal + (r.gcShippingTotal ?? 0) + (r.gcPackagingTotal ?? 0) + (r.gcOtherTotal ?? 0);
   const loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
   const pctLoiNhuanCongTyChot = tongChiPhiSXHieuLuc > 0 ? (loiNhuanCongTyChot / tongChiPhiSXHieuLuc) : 0;
   const commissionPctShown = tongChiPhiSXHieuLuc > 0 ? (newCommissionPerUnit * dauVaoKq.quantity / tongChiPhiSXHieuLuc) : 0;

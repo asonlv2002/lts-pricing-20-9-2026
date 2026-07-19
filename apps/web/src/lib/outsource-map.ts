@@ -25,6 +25,15 @@ export function mapPricingModeEnToVn(mode?: PricingMode): CheDoTinhGia {
   return mode === 'outsource' ? 'gia_cong' : 'noi_bo';
 }
 
+function mapFees(x?: { shippingVnd?: number; packagingVnd?: number; otherVnd?: number }) {
+  if (!x) return {};
+  return {
+    vanChuyenVnd: x.shippingVnd,
+    dongGoiVnd: x.packagingVnd,
+    phuPhiKhacVnd: x.otherVnd,
+  };
+}
+
 function mapLayer(l?: OutsourceLayerConfig): CauHinhGiaCongLop | undefined {
   if (!l) return undefined;
   const nguonMang: NguonMangGiaCong = l.filmSource === 'vendor' ? 'ben_ngoai' : 'lts';
@@ -34,6 +43,7 @@ function mapLayer(l?: OutsourceLayerConfig): CauHinhGiaCongLop | undefined {
     phiHaoSetupM: l.wasteSetupM,
     giaGcMoiM2: l.gcPricePerM2,
     giaMuaMangMoiM2: l.filmBuyPricePerM2,
+    ...mapFees(l),
   };
 }
 
@@ -42,14 +52,17 @@ export function mapOutsourceEnToVn(o?: OutsourceConfig): GiaCongNgoai | undefine
   const congDoan = o.steps.map(s => STEP_EN_TO_VN[s]);
   const result: GiaCongNgoai = { congDoan };
   if (o.print) result.in = mapLayer(o.print);
-  if (o.laminate?.layers) {
+  if (o.laminate?.layers || o.laminate) {
     result.ghep = {
-      lop: {
-        lop2: mapLayer(o.laminate.layers.layer2),
-        lop3: mapLayer(o.laminate.layers.layer3),
-        lop4: mapLayer(o.laminate.layers.layer4),
-        lop5: mapLayer(o.laminate.layers.layer5),
-      },
+      lop: o.laminate?.layers
+        ? {
+            lop2: mapLayer(o.laminate.layers.layer2),
+            lop3: mapLayer(o.laminate.layers.layer3),
+            lop4: mapLayer(o.laminate.layers.layer4),
+            lop5: mapLayer(o.laminate.layers.layer5),
+          }
+        : {},
+      ...mapFees(o.laminate),
     };
   }
   if (o.slit) {
@@ -57,6 +70,7 @@ export function mapOutsourceEnToVn(o?: OutsourceConfig): GiaCongNgoai | undefine
       tyLePhiHao: o.slit.wastePct,
       phiHaoSetupM: o.slit.wasteSetupM,
       giaGcMoiM2: o.slit.gcPricePerM2,
+      ...mapFees(o.slit),
     };
   }
   if (o.bag) {
@@ -68,6 +82,7 @@ export function mapOutsourceEnToVn(o?: OutsourceConfig): GiaCongNgoai | undefine
       giaZipperMoiM: o.bag.zipperPricePerM,
       cheDoBangKeo: o.bag.tapeMode === 'included' ? 'gom' : o.bag.tapeMode === 'excluded' ? 'chua_gom' : undefined,
       giaBangKeoMoiM: o.bag.tapePricePerM,
+      ...mapFees(o.bag),
     };
   }
   if (o.handle) {
@@ -75,6 +90,7 @@ export function mapOutsourceEnToVn(o?: OutsourceConfig): GiaCongNgoai | undefine
       tyLePhiHao: o.handle.wastePct,
       giaGcMoiTui: o.handle.gcPricePerBag,
       giaQuaiMoiTui: o.handle.handleUnitPrice,
+      ...mapFees(o.handle),
     };
   }
   if (o.pp_bag) {
@@ -84,6 +100,7 @@ export function mapOutsourceEnToVn(o?: OutsourceConfig): GiaCongNgoai | undefine
       phiHaoSetupM: o.pp_bag.wasteSetupM,
       giaGcMoiCai: o.pp_bag.gcPricePerUnit,
       giaVatTuPpMoiCai: o.pp_bag.ppMaterialPricePerUnit,
+      ...mapFees(o.pp_bag),
     };
   }
   return result;

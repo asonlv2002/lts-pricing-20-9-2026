@@ -296,7 +296,14 @@ export type OutsourceStep =
 
 export type OutsourceFilmSource = 'lts' | 'vendor';
 
-export interface OutsourceLayerConfig {
+export interface OutsourceExtraFees {
+  /** VNĐ tổng / đơn — vận chuyển gia công theo CD */
+  shippingVnd?: number;
+  packagingVnd?: number;
+  otherVnd?: number;
+}
+
+export interface OutsourceLayerConfig extends OutsourceExtraFees {
   filmSource: OutsourceFilmSource;
   wastePct?: number;
   wasteSetupM?: number;
@@ -309,8 +316,8 @@ export interface OutsourceConfig {
   print?: OutsourceLayerConfig;
   laminate?: {
     layers: Partial<Record<'layer2' | 'layer3' | 'layer4' | 'layer5', OutsourceLayerConfig>>;
-  };
-  slit?: { wastePct: number; wasteSetupM: number; gcPricePerM2: number };
+  } & OutsourceExtraFees;
+  slit?: { wastePct: number; wasteSetupM: number; gcPricePerM2: number } & OutsourceExtraFees;
   bag?: {
     wastePct: number;
     wasteSetupM: number;
@@ -321,19 +328,9 @@ export interface OutsourceConfig {
     tapeMode?: 'included' | 'excluded';
     /** VNĐ/m — dùng khi tapeMode = excluded */
     tapePricePerM?: number;
-  };
-  handle?: {
-    wastePct: number;
-    gcPricePerBag: number;
-    handleUnitPrice: number;
-  };
-  pp_bag?: {
-    variant: 'pp' | 'pp_pe';
-    wastePct: number;
-    wasteSetupM: number;
-    gcPricePerUnit: number;
-    ppMaterialPricePerUnit?: number;
-  };
+  } & OutsourceExtraFees;
+  handle?: { wastePct: number; gcPricePerBag: number; handleUnitPrice: number } & OutsourceExtraFees;
+  pp_bag?: { variant: 'pp' | 'pp_pe'; wastePct: number; wasteSetupM: number; gcPricePerUnit: number; ppMaterialPricePerUnit?: number } & OutsourceExtraFees;
 }
 
 export interface CalculateInput {
@@ -664,6 +661,13 @@ export interface CalculateResult {
   tareWeight: number;
   shippingPerUnit: number;
   shippingTotal: number;
+  /** Phụ phí GC / đơn vị (đã × (1+LN+r)) */
+  gcShippingPerUnit?: number;
+  gcPackagingPerUnit?: number;
+  gcOtherPerUnit?: number;
+  gcShippingTotal?: number;
+  gcPackagingTotal?: number;
+  gcOtherTotal?: number;
   shippingRate: number;
   actualShippingPerKm: number;
   actualShippingKm: number;

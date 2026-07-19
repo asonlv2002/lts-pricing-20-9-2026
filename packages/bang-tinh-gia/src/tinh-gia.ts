@@ -15,7 +15,7 @@ import { tinhDongGoi } from './dong-goi';
 import { tinhVanChuyen, tinhLaiVay, tinhHoaHong } from './tai-chinh';
 import { tinhTrucIn } from './truc-in';
 import { tinhDoDayVaGSM, taoChuoiCauTruc } from './cau-truc';
-import { coCongDoanGc, tinhHatHaoGc, tinhCpsxGcDonVi } from './gia-cong-ngoai';
+import { coCongDoanGc, tinhHatHaoGc, tinhCpsxGcDonVi, tongPhuPhiGcTheoLoai, tinhPhuPhiGcVaoDonGia } from './gia-cong-ngoai';
 export { layVatLieu } from './vat-lieu';
 export { traLoiNhuan } from './loi-nhuan';
 export { toiUuDoDay, type KetQuaToiUuDoDay } from './toi-uu-do-day';
@@ -329,10 +329,23 @@ export function tinhGia(
 
   const { chieuDaiTrucThucTe, chuViTrucThucTe, dienTichTruc, chiPhiTrucPerDonVi, chiPhiTruc, chiPhiTrucPhanBo } = tinhTrucIn({ dauVao, hangSo, soMau: soMau || 0, laMang, dienTichTui });
 
+  const ppGcRaw = tongPhuPhiGcTheoLoai(gc);
+  const {
+    vanChuyenGcPerDonVi, dongGoiGcPerDonVi, phuPhiKhacGcPerDonVi,
+    tongVanChuyenGc, tongDongGoiGc, tongPhuPhiKhacGc,
+  } = tinhPhuPhiGcVaoDonGia({
+    tongVanChuyen: ppGcRaw.vanChuyen,
+    tongDongGoi: ppGcRaw.dongGoi,
+    tongKhac: ppGcRaw.khac,
+    tyLeLoiNhuan,
+    laiSuatPerDonVi,
+    chiPhiDonVi,
+    soLuong,
+  });
+
   const giaCuoiCung = chiPhiDonVi + khoaPerDonVi + bangKeoPerDonVi + quaiXachPerDonVi
-
-
-    + thuungPerDonVi + cuocVanChuyenPerDonVi + laiSuatPerDonVi + hoaHongPerDonVi + chiPhiTrucPhanBo;
+    + thuungPerDonVi + cuocVanChuyenPerDonVi + laiSuatPerDonVi + hoaHongPerDonVi + chiPhiTrucPhanBo
+    + vanChuyenGcPerDonVi + dongGoiGcPerDonVi + phuPhiKhacGcPerDonVi;
 
 
   const ngaySanXuat = Math.ceil(soLuong / 30000) + 4;
@@ -375,6 +388,7 @@ export function tinhGia(
 
 
     cuocVanChuyenPerDonVi, tongCuocVanChuyen, tyLeCuocVanChuyen, cuocVanChuyenThucTePerKm, soKmThucTe,
+    vanChuyenGcPerDonVi, dongGoiGcPerDonVi, phuPhiKhacGcPerDonVi, tongVanChuyenGc, tongDongGoiGc, tongPhuPhiKhacGc,
 
 
     laiSuatPerDonVi, laiSuatCoBan, laiSuatThem, ngayThanhToan: ngayThanhToanThucTe,

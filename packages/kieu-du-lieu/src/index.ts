@@ -144,7 +144,14 @@ export type CongDoanGiaCong =
 
 export type NguonMangGiaCong = 'lts' | 'ben_ngoai';
 
-export interface CauHinhGiaCongLop {
+export interface PhuPhiGiaCong {
+  /** VNĐ tổng / đơn */
+  vanChuyenVnd?: number;
+  dongGoiVnd?: number;
+  phuPhiKhacVnd?: number;
+}
+
+export interface CauHinhGiaCongLop extends PhuPhiGiaCong {
   nguonMang: NguonMangGiaCong;
   tyLePhiHao?: number;       // % dạng 20 = 20%
   phiHaoSetupM?: number;
@@ -157,12 +164,8 @@ export interface GiaCongNgoai {
   in?: CauHinhGiaCongLop;
   ghep?: {
     lop: Partial<Record<'lop2' | 'lop3' | 'lop4' | 'lop5', CauHinhGiaCongLop>>;
-  };
-  chia?: {
-    tyLePhiHao: number;
-    phiHaoSetupM: number;
-    giaGcMoiM2: number;
-  };
+  } & PhuPhiGiaCong;
+  chia?: { tyLePhiHao: number; phiHaoSetupM: number; giaGcMoiM2: number } & PhuPhiGiaCong;
   lamTui?: {
     tyLePhiHao: number;
     phiHaoSetupM: number;
@@ -173,19 +176,9 @@ export interface GiaCongNgoai {
     cheDoBangKeo?: 'gom' | 'chua_gom';
     /** VNĐ/m — khi cheDoBangKeo = chua_gom */
     giaBangKeoMoiM?: number;
-  };
-  ganQuai?: {
-    tyLePhiHao: number;
-    giaGcMoiTui: number;
-    giaQuaiMoiTui: number;
-  };
-  baoPp?: {
-    bienThe: 'pp' | 'pp_pe';
-    tyLePhiHao: number;
-    phiHaoSetupM: number;
-    giaGcMoiCai: number;
-    giaVatTuPpMoiCai?: number;
-  };
+  } & PhuPhiGiaCong;
+  ganQuai?: { tyLePhiHao: number; giaGcMoiTui: number; giaQuaiMoiTui: number } & PhuPhiGiaCong;
+  baoPp?: { bienThe: 'pp' | 'pp_pe'; tyLePhiHao: number; phiHaoSetupM: number; giaGcMoiCai: number; giaVatTuPpMoiCai?: number } & PhuPhiGiaCong;
 }
 
 // ── Đầu vào tính giá ─────────────────────────────────────────────────────────
@@ -365,6 +358,12 @@ export interface KetQuaTinhGia {
   khoiLuongTare: number;
   cuocVanChuyenPerDonVi: number;
   tongCuocVanChuyen: number;
+  vanChuyenGcPerDonVi?: number;
+  dongGoiGcPerDonVi?: number;
+  phuPhiKhacGcPerDonVi?: number;
+  tongVanChuyenGc?: number;
+  tongDongGoiGc?: number;
+  tongPhuPhiKhacGc?: number;
   tyLeCuocVanChuyen: number;
   cuocVanChuyenThucTePerKm: number;
   soKmThucTe: number;

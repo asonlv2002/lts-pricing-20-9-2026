@@ -119,6 +119,36 @@ function FieldsTheoNguon(props: {
   );
 }
 
+function PhuPhiCd(props: {
+  shippingVnd?: number;
+  packagingVnd?: number;
+  otherVnd?: number;
+  onChange: (patch: { shippingVnd?: number; packagingVnd?: number; otherVnd?: number }) => void;
+}) {
+  return (
+    <div className="form-row-3" style={{ marginTop: 8, marginBottom: 4 }}>
+      <OSo
+        label="Vận chuyển"
+        suffix="VNĐ"
+        value={props.shippingVnd}
+        onChange={v => props.onChange({ shippingVnd: v, packagingVnd: props.packagingVnd, otherVnd: props.otherVnd })}
+      />
+      <OSo
+        label="Đóng gói"
+        suffix="VNĐ"
+        value={props.packagingVnd}
+        onChange={v => props.onChange({ shippingVnd: props.shippingVnd, packagingVnd: v, otherVnd: props.otherVnd })}
+      />
+      <OSo
+        label="Phụ phí khác"
+        suffix="VNĐ"
+        value={props.otherVnd}
+        onChange={v => props.onChange({ shippingVnd: props.shippingVnd, packagingVnd: props.packagingVnd, otherVnd: v })}
+      />
+    </div>
+  );
+}
+
 function TitleCd({ label }: { label: string }) {
   return (
     <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: 8 }}>
@@ -155,6 +185,9 @@ export function ChiTietGiaCongNgoai(props: {
     zipperPricePerM: out.bag?.zipperPricePerM,
     tapeMode: out.bag?.tapeMode,
     tapePricePerM: out.bag?.tapePricePerM,
+    shippingVnd: out.bag?.shippingVnd,
+    packagingVnd: out.bag?.packagingVnd,
+    otherVnd: out.bag?.otherVnd,
   };
 
   const layerKeys = (
@@ -324,6 +357,19 @@ export function ChiTietGiaCongNgoai(props: {
               )}
             </>
           )}
+          <PhuPhiCd
+            shippingVnd={out.bag?.shippingVnd}
+            packagingVnd={out.bag?.packagingVnd}
+            otherVnd={out.bag?.otherVnd}
+            onChange={fees =>
+              patchOut({
+                bag: {
+                  ...bagBase,
+                  ...fees,
+                },
+              })
+            }
+          />
         </div>
       )}
 
@@ -371,6 +417,21 @@ export function ChiTietGiaCongNgoai(props: {
               }
             />
           </div>
+          <PhuPhiCd
+            shippingVnd={out.handle?.shippingVnd}
+            packagingVnd={out.handle?.packagingVnd}
+            otherVnd={out.handle?.otherVnd}
+            onChange={fees =>
+              patchOut({
+                handle: {
+                  wastePct: out.handle?.wastePct ?? 0,
+                  gcPricePerBag: out.handle?.gcPricePerBag ?? 0,
+                  handleUnitPrice: out.handle?.handleUnitPrice ?? 0,
+                  ...fees,
+                },
+              })
+            }
+          />
         </div>
       )}
 
@@ -461,6 +522,12 @@ export function ChiTietGiaCongNgoai(props: {
               })
             }
           />
+          <PhuPhiCd
+            shippingVnd={out.pp_bag?.shippingVnd}
+            packagingVnd={out.pp_bag?.packagingVnd}
+            otherVnd={out.pp_bag?.otherVnd}
+            onChange={fees => patchOut({ pp_bag: { variant: out.pp_bag?.variant ?? 'pp', wastePct: out.pp_bag?.wastePct ?? 0, wasteSetupM: out.pp_bag?.wasteSetupM ?? 0, gcPricePerUnit: out.pp_bag?.gcPricePerUnit ?? 0, ppMaterialPricePerUnit: out.pp_bag?.ppMaterialPricePerUnit, ...fees } })}
+          />
         </div>
       )}
 
@@ -510,6 +577,12 @@ export function ChiTietGiaCongNgoai(props: {
               }
             />
           </div>
+          <PhuPhiCd
+            shippingVnd={out.slit?.shippingVnd}
+            packagingVnd={out.slit?.packagingVnd}
+            otherVnd={out.slit?.otherVnd}
+            onChange={fees => patchOut({ slit: { wastePct: out.slit?.wastePct ?? 0, wasteSetupM: out.slit?.wasteSetupM ?? 0, gcPricePerM2: out.slit?.gcPricePerM2 ?? 0, ...fees } })}
+          />
         </div>
       )}
 
@@ -555,6 +628,12 @@ export function ChiTietGiaCongNgoai(props: {
               </div>
             );
           })}
+          <PhuPhiCd
+            shippingVnd={out.laminate?.shippingVnd}
+            packagingVnd={out.laminate?.packagingVnd}
+            otherVnd={out.laminate?.otherVnd}
+            onChange={fees => patchOut({ laminate: { layers: out.laminate?.layers ?? {}, ...fees } })}
+          />
         </div>
       )}
 
@@ -572,6 +651,12 @@ export function ChiTietGiaCongNgoai(props: {
           <FieldsTheoNguon
             cfg={out.print ?? { filmSource: 'lts' }}
             onChange={cfg => patchOut({ print: cfg })}
+          />
+          <PhuPhiCd
+            shippingVnd={out.print?.shippingVnd}
+            packagingVnd={out.print?.packagingVnd}
+            otherVnd={out.print?.otherVnd}
+            onChange={fees => patchOut({ print: { ...(out.print ?? { filmSource: 'lts' }), ...fees } })}
           />
         </div>
       )}
