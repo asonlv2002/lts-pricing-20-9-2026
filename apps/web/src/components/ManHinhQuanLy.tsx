@@ -909,7 +909,8 @@ const buttonLabel = loadedItem
     const giaDonVi = effCostPerUnit
       + r.zipperPerUnit + r.tapePerUnit + r.handlePerUnit
       + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + hoaHongDonVi
-      + (r.cylAllocPerUnit ?? 0);
+      + (r.cylAllocPerUnit ?? 0)
+      + (r.gcShippingPerUnit ?? 0) + (r.gcPackagingPerUnit ?? 0) + (r.gcOtherPerUnit ?? 0);
     return { giaDonVi, tongChiPhiSX: effTotalProdCost };
   };
   const saleResult = tinhGiaSauGhiDeDonVi(ghiDeSale, {}, saleProfitRatePct, 0);
