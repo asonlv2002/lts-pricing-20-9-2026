@@ -10,12 +10,12 @@ import type {
 } from '../lib/types';
 
 const CD_OPTIONS: { key: OutsourceStep; label: string }[] = [
+  { key: 'print', label: 'In' },
+  { key: 'laminate', label: 'Ghép' },
+  { key: 'slit', label: 'Chia' },
   { key: 'bag', label: 'Làm túi' },
   { key: 'handle', label: 'Gắn quai' },
   { key: 'pp_bag', label: 'Làm bao PP' },
-  { key: 'slit', label: 'Chia' },
-  { key: 'laminate', label: 'Ghép' },
-  { key: 'print', label: 'In' },
 ];
 
 const STEP_LABEL: Record<OutsourceStep, string> = {
@@ -27,6 +27,14 @@ const STEP_LABEL: Record<OutsourceStep, string> = {
   pp_bag: 'Làm bao PP',
 };
 
+function Hang3({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return (
+    <div className="outsource-grid-3" style={style}>
+      {children}
+    </div>
+  );
+}
+
 function OSo(props: {
   label: string;
   value: number | undefined;
@@ -34,10 +42,12 @@ function OSo(props: {
   suffix?: string;
 }) {
   return (
-    <div className="form-group" style={{ marginBottom: 8 }}>
-      <label className="form-label">{props.label}{props.suffix ? ` (${props.suffix})` : ''}</label>
+    <div className="form-group outsource-field" style={{ marginBottom: 8 }}>
+      <label className="form-label outsource-field-label">
+        {props.label}{props.suffix ? ` (${props.suffix})` : ''}
+      </label>
       <input
-        className="form-input"
+        className="form-input outsource-field-input"
         type="number"
         value={props.value ?? ''}
         onChange={e => props.onChange(Number(e.target.value) || 0)}
@@ -106,16 +116,16 @@ function FieldsTheoNguon(props: {
     );
   }
   return (
-    <div className="form-row-3" style={{ marginBottom: 4 }}>
+    <Hang3 style={{ marginBottom: 4 }}>
       <OSo label="% phi hao" value={props.cfg.wastePct} onChange={v => props.onChange({ ...props.cfg, wastePct: v })} />
       <OSo label="PH setup" suffix="m" value={props.cfg.wasteSetupM} onChange={v => props.onChange({ ...props.cfg, wasteSetupM: v })} />
       <OSo
-        label="Giá gia công"
+        label="Giá GC"
         suffix={props.gcSuffix ?? 'đ/m²'}
         value={props.cfg.gcPricePerM2}
         onChange={v => props.onChange({ ...props.cfg, gcPricePerM2: v })}
       />
-    </div>
+    </Hang3>
   );
 }
 
@@ -126,26 +136,26 @@ function PhuPhiCd(props: {
   onChange: (patch: { shippingVnd?: number; packagingVnd?: number; otherVnd?: number }) => void;
 }) {
   return (
-    <div className="form-row-3" style={{ marginTop: 8, marginBottom: 4 }}>
+    <Hang3 style={{ marginTop: 8, marginBottom: 4 }}>
       <OSo
         label="Vận chuyển"
-        suffix="VNĐ"
+        suffix="đ"
         value={props.shippingVnd}
         onChange={v => props.onChange({ shippingVnd: v, packagingVnd: props.packagingVnd, otherVnd: props.otherVnd })}
       />
       <OSo
         label="Đóng gói"
-        suffix="VNĐ"
+        suffix="đ"
         value={props.packagingVnd}
         onChange={v => props.onChange({ shippingVnd: props.shippingVnd, packagingVnd: v, otherVnd: props.otherVnd })}
       />
       <OSo
         label="Phụ phí khác"
-        suffix="VNĐ"
+        suffix="đ"
         value={props.otherVnd}
         onChange={v => props.onChange({ shippingVnd: props.shippingVnd, packagingVnd: props.packagingVnd, otherVnd: v })}
       />
-    </div>
+    </Hang3>
   );
 }
 
@@ -200,7 +210,7 @@ export function ChiTietGiaCongNgoai(props: {
   ).filter(([, id]) => !!id);
 
   return (
-    <div style={{ marginTop: anTieuDe ? 0 : 4, marginBottom: 8 }}>
+    <div className="outsource-panel" style={{ display: 'flex', flexDirection: 'column', marginTop: anTieuDe ? 0 : 4, marginBottom: 8, minWidth: 0 }}>
       {!anTieuDe && (
         <div className="card-title" style={{ fontSize: '0.78rem', marginBottom: 12 }}>
           <span className="icon">🔧</span> Chi tiết gia công ngoài
@@ -239,9 +249,9 @@ export function ChiTietGiaCongNgoai(props: {
       )}
 
       {steps.includes('bag') && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ order: 4, marginBottom: 16 }}>
           <TitleCd label={STEP_LABEL.bag} />
-          <div className="form-row-3">
+          <Hang3>
             <OSo
               label="% phi hao"
               value={out.bag?.wastePct}
@@ -268,7 +278,7 @@ export function ChiTietGiaCongNgoai(props: {
               }
             />
             <OSo
-              label="Giá gia công"
+              label="Giá GC"
               suffix="đ/túi"
               value={out.bag?.gcPricePerBag}
               onChange={v =>
@@ -280,7 +290,7 @@ export function ChiTietGiaCongNgoai(props: {
                 })
               }
             />
-          </div>
+          </Hang3>
           {input.hasZipper && (
             <>
               <div className="form-group">
@@ -374,9 +384,9 @@ export function ChiTietGiaCongNgoai(props: {
       )}
 
       {steps.includes('handle') && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ order: 5, marginBottom: 16 }}>
           <TitleCd label={STEP_LABEL.handle} />
-          <div className="form-row-3">
+          <Hang3>
             <OSo
               label="% phi hao"
               value={out.handle?.wastePct}
@@ -416,7 +426,7 @@ export function ChiTietGiaCongNgoai(props: {
                 })
               }
             />
-          </div>
+          </Hang3>
           <PhuPhiCd
             shippingVnd={out.handle?.shippingVnd}
             packagingVnd={out.handle?.packagingVnd}
@@ -436,7 +446,7 @@ export function ChiTietGiaCongNgoai(props: {
       )}
 
       {steps.includes('pp_bag') && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ order: 6, marginBottom: 16 }}>
           <TitleCd label={STEP_LABEL.pp_bag} />
           <div className="form-group" style={{ marginBottom: 8 }}>
             <label className="form-label">Biến thể</label>
@@ -459,7 +469,7 @@ export function ChiTietGiaCongNgoai(props: {
               <option value="pp_pe">Bao PP lót PE</option>
             </select>
           </div>
-          <div className="form-row-3">
+          <Hang3>
             <OSo
               label="% phi hao"
               value={out.pp_bag?.wastePct}
@@ -506,7 +516,7 @@ export function ChiTietGiaCongNgoai(props: {
                 })
               }
             />
-          </div>
+          </Hang3>
           <OSo
             label="Vật tư PP / cái"
             value={out.pp_bag?.ppMaterialPricePerUnit}
@@ -532,9 +542,9 @@ export function ChiTietGiaCongNgoai(props: {
       )}
 
       {steps.includes('slit') && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ order: 3, marginBottom: 16 }}>
           <TitleCd label={STEP_LABEL.slit} />
-          <div className="form-row-3">
+          <Hang3>
             <OSo
               label="% phi hao"
               value={out.slit?.wastePct}
@@ -563,7 +573,7 @@ export function ChiTietGiaCongNgoai(props: {
               }
             />
             <OSo
-              label="Giá gia công"
+              label="Giá GC"
               suffix="đ/m²"
               value={out.slit?.gcPricePerM2}
               onChange={v =>
@@ -576,7 +586,7 @@ export function ChiTietGiaCongNgoai(props: {
                 })
               }
             />
-          </div>
+          </Hang3>
           <PhuPhiCd
             shippingVnd={out.slit?.shippingVnd}
             packagingVnd={out.slit?.packagingVnd}
@@ -587,7 +597,7 @@ export function ChiTietGiaCongNgoai(props: {
       )}
 
       {steps.includes('laminate') && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ order: 2, marginBottom: 16 }}>
           <TitleCd label={STEP_LABEL.laminate} />
           {layerKeys.length === 0 && (
             <p style={{ fontSize: '0.75rem', color: 'var(--muted)', margin: '0 0 8px' }}>
@@ -638,7 +648,7 @@ export function ChiTietGiaCongNgoai(props: {
       )}
 
       {steps.includes('print') && (
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ order: 1, marginBottom: 16 }}>
           <HangTitleCoNguon
             label={STEP_LABEL.print}
             filmSource={out.print?.filmSource ?? 'lts'}

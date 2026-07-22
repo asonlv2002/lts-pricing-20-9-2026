@@ -7,6 +7,7 @@ import { taoKhachHangNhanhChoBaoGia, laNguoiPhuTrach } from '../lib/customer-api
 import { taoMaKhachHangService, layKhachHangService, luuNguoiPhuTrachKhachHangService, luuThongTinKhachHangService } from '../lib/api/service-lts';
 import { chuyenDanhSachCustomerApiSangUi } from '../lib/customer-api';
 import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
+import { chuanHoaSoThapPhan } from '../lib/so-thap-phan';
 import { ChiTietGiaCongNgoai } from './PanelGiaCongNgoai';
 
 type KhachHangGoiY = {
@@ -76,6 +77,7 @@ const ONhapSoDinhDang = ({ value, onChange, placeholder, min, step, className }:
 };
 
 // --- DECIMAL INPUT ---
+// Nhận cả dấu phẩy và dấu chấm; chuẩn hóa hiển thị/lưu về dấu chấm.
 const ONhapSoThapPhan = ({ value, onChange, placeholder, min, step, className, disabled, style }: any) => {
   const [giaTriNoiBo, datGiaTriNoiBo] = React.useState(value === 0 ? '' : value.toString());
   const [dangNhap, datDangNhap] = React.useState(false);
@@ -87,12 +89,7 @@ const ONhapSoThapPhan = ({ value, onChange, placeholder, min, step, className, d
   }, [value, dangNhap]);
 
   const xuLyThayDoi = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let phanTho = e.target.value.replace(',', '.');
-    phanTho = phanTho.replace(/[^0-9.]/g, '');
-
-    const soDauCham = (phanTho.match(/\./g) || []).length;
-    if (soDauCham > 1) return;
-
+    const phanTho = chuanHoaSoThapPhan(e.target.value);
     datGiaTriNoiBo(phanTho);
 
     if (phanTho === '' || phanTho === '.') {
@@ -116,7 +113,15 @@ const ONhapSoThapPhan = ({ value, onChange, placeholder, min, step, className, d
       value={giaTriNoiBo}
       onChange={xuLyThayDoi}
       onFocus={() => datDangNhap(true)}
-      onBlur={() => datDangNhap(false)}
+      onBlur={() => {
+        datDangNhap(false);
+        if (giaTriNoiBo === '' || giaTriNoiBo === '.') {
+          datGiaTriNoiBo('');
+          return;
+        }
+        const so = parseFloat(giaTriNoiBo);
+        if (!isNaN(so)) datGiaTriNoiBo(String(so));
+      }}
       disabled={disabled}
       style={style}
     />
@@ -890,11 +895,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
           </div>
 
           {!!input.hasDivide && (
-            <div className="form-row-3 structure-input-grid">
-              <div className="form-group">
-                <label className="form-label">Khổ ban đầu (mm)</label>
-                <ONhapSoDinhDang className="form-input" value={input.originalWidthMm || 0} onChange={(val: number) => capNhatDauVao({ originalWidthMm: val } as any)} />
-              </div>
+            <div className="form-row structure-input-grid structure-divide-row">
               <div className="form-group">
                 <label className="form-label">Khổ chia (mm)</label>
                 <ONhapSoDinhDang className="form-input" value={input.divideWidthMm || 0} onChange={(val: number) => capNhatDauVao({ divideWidthMm: val } as any)} />
@@ -1096,26 +1097,6 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
           )}
           </div>
         </div>
-      )}
-
-      {input.pricingMode === 'outsource' && (
-        <>
-          <div className="divider"></div>
-          <div
-            className="advanced-toggle"
-            onClick={() => datChiTietGcMo(v => !v)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); datChiTietGcMo(v => !v); } }}
-            aria-expanded={chiTietGcMo}
-          >
-            <span><span className="icon">🔧</span> Chi tiết gia công ngoài</span>
-            <span className={`advanced-arrow ${chiTietGcMo ? 'open' : ''}`}>▸</span>
-          </div>
-          <div className={`advanced-section form-collapse-section ${chiTietGcMo ? 'open' : ''}`}>
-            <ChiTietGiaCongNgoai input={input} onChange={capNhatDauVao} anTieuDe />
-          </div>
-        </>
       )}
 
       {hienCauTruc && (
@@ -1346,6 +1327,25 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
               <GoiYHoaHong />
             </div>
 
+          </div>
+        </>
+      )}
+
+      {input.pricingMode === 'outsource' && hienCauTruc && (
+        <>
+          <div
+            className="advanced-toggle"
+            onClick={() => datChiTietGcMo(v => !v)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); datChiTietGcMo(v => !v); } }}
+            aria-expanded={chiTietGcMo}
+          >
+            <span><span className="icon">🔧</span> Chi tiết gia công ngoài</span>
+            <span className={`advanced-arrow ${chiTietGcMo ? 'open' : ''}`}>▸</span>
+          </div>
+          <div className={`advanced-section form-collapse-section ${chiTietGcMo ? 'open' : ''}`}>
+            <ChiTietGiaCongNgoai input={input} onChange={capNhatDauVao} anTieuDe />
           </div>
         </>
       )}

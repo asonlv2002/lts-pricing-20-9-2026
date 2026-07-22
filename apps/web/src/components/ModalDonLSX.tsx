@@ -621,7 +621,8 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
       hasZipper: inp.hasZipper || false,
       hasDivide: !!inp.hasDivide || (inp.divideWidthMm ?? 0) > 0 || (manual.divideWidth ?? 0) > 0,
       divideWidthMm: inp.divideWidthMm || manual.divideWidth || undefined,
-      originalWidthMm: inp.originalWidthMm || undefined,
+      // Khổ ban đầu = khổ màng (spreadWidth), không nhập riêng
+      originalWidthMm: khoMM || undefined,
       numImages: inp.numImages || undefined,
       cylLength: inp.cylLength,
       cylCircum: inp.cylCircum,
@@ -1204,7 +1205,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                   <>
                     <tr>
                       <td style={styles.lbl}>Khổ ban đầu:</td>
-                      <td style={styles.td}>{inp.originalWidthMm || khoMM}mm</td>
+                      <td style={styles.td}>{khoMM}mm</td>
                       <td style={styles.lbl}>Khổ chia:</td>
                       <td style={styles.td}>
                         <div style={styles.cellRow}>
@@ -1261,7 +1262,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
                         <div style={styles.cellRow}>
                           <span style={{ fontWeight: 700, fontSize: '11px' }}>Khổ ban đầu:</span>
-                          <span>{inp.originalWidthMm || khoMM}mm</span>
+                          <span>{khoMM}mm</span>
                         </div>
                         <div style={styles.cellRow}>
                           <span style={{ fontWeight: 700, fontSize: '11px' }}>Khổ chia:</span>

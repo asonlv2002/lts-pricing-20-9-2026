@@ -407,11 +407,11 @@ export default function TrangChinh() {
               type="button"
               className="input-panel-rail"
               onClick={() => datAnPanelNhap(false)}
-              title="MÃ¡Â»Å¸ phÃ¡ÂºÂ§n nhÃ¡ÂºÂ­p liÃ¡Â»â€¡u"
-              aria-label="MÃ¡Â»Å¸ phÃ¡ÂºÂ§n nhÃ¡ÂºÂ­p liÃ¡Â»â€¡u"
+              title="Mở phần nhập liệu"
+              aria-label="Mở phần nhập liệu"
             >
-              <span className="input-panel-rail-icon">Ã¢â‚¬Âº</span>
-              <span className="input-panel-rail-text">NhÃ¡ÂºÂ­p liÃ¡Â»â€¡u</span>
+              <span className="input-panel-rail-icon">›</span>
+              <span className="input-panel-rail-text">Nhập liệu</span>
             </button>
           )}
 
