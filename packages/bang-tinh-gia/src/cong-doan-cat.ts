@@ -21,7 +21,7 @@ export function tinhCongDoanCat(params: {
   let cpSXCat = 0, chiPhiSXCat = 0, tongChiPhiCat = 0;
 
   if (giaCongCat?.chia?.bat) {
-    chiPhiSXCat = tinhCpsxGcDienTich(giaCongCat.chia.giaGcMoiM2, metCat, hatHaoCat, khoCat);
+    chiPhiSXCat = tinhCpsxGcDienTich(giaCongCat.chia.giaGcMoiM2, metCat, khoCat);
     cpSXCat = giaCongCat.chia.giaGcMoiM2;
     tongChiPhiCat = chiPhiSXCat;
     return { cpSXCat, chiPhiSXCat, tongChiPhiCat };

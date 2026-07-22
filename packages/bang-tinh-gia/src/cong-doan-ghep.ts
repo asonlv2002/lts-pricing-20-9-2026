@@ -113,7 +113,7 @@ export function tinhCongDoanGhep(params: {
       chiPhiVL = donGiaLop * met * kho;
     } else if (cfg?.nguonMang === 'lts') {
       cpsx = cfg.giaGcMoiM2 ?? 0;
-      chiPhiSX = tinhCpsxGcDienTich(cfg.giaGcMoiM2 ?? 0, met, hatHao, kho);
+      chiPhiSX = tinhCpsxGcDienTich(cfg.giaGcMoiM2 ?? 0, met, kho);
       chiPhiVL = donGiaLop * (hatHao + met) * kho;
     }
 

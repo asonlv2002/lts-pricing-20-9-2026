@@ -425,8 +425,8 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
               <th data-mobile-label={MOBILE_LABELS.stage}>Công đoạn</th><th data-mobile-label={MOBILE_LABELS.material}>Vật liệu</th>
               <th className="num" data-mobile-label={MOBILE_LABELS.width}>khổ màng NVL (m)</th><th className="num" data-mobile-label={MOBILE_LABELS.meters}>thành phẩm (m)</th>
               <th className="num" data-mobile-label={MOBILE_LABELS.waste}>phi hao (m)</th><th className="num" data-mobile-label={MOBILE_LABELS.inputMaterial}>đầu vào NVL (m)</th>
-              <th className="num" data-mobile-label={MOBILE_LABELS.rawMaterialPrice}>Giá NVL (VNĐ/kg)</th>
               <th className="num" data-mobile-label={MOBILE_LABELS.cpsx}>CPSX (đ/m²)</th><th className="num" data-mobile-label={MOBILE_LABELS.totalCpsx}>Thành tiền CPSX</th>
+              <th className="num" data-mobile-label={MOBILE_LABELS.rawMaterialPrice}>Giá NVL (đ/kg)</th>
               <th className="num" data-mobile-label={MOBILE_LABELS.materialPrice}>CP vật liệu (đ/m²)</th><th className="num" data-mobile-label={MOBILE_LABELS.totalMaterial}>Thành tiền CPVL</th>
             </tr>
           </thead>
@@ -465,6 +465,9 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                         giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
                         giaTriGhiDe={Math.abs(row.inputVL - row.srcInputVL) > 0.001 ? row.inputVL : ghiDeHienTai[row.rowKey]?.inputVL} duocSua={false} khiDat={khiDat} soLe={0} />
+                      <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
+                        giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                      <td className={`num ${coDoiCPSX ? 'override-changed' : ''}`} data-label="Thành tiền CPSX">{dinhDangSo(detailCostCPSX, 0)}</td>
                       <OChiTietCoTheGhiDe khoaDong={row.rowKey} chiTietIndex={detailIdx} truong="rawMatPrice"
                         giaTriGoc={layGiaTriGocRawMat(
                           ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId,
@@ -478,9 +481,6 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                             tinhMatPriceTuRaw(v, effId, effName, row.rowKey, detailIdx);
                           }
                         }} />
-                      <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
-                        giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                      <td className={`num ${coDoiCPSX ? 'override-changed' : ''}`} data-label="Thành tiền CPSX">{dinhDangSo(detailCostCPSX, 0)}</td>
                       <OChiTietCoTheGhiDe khoaDong={row.rowKey} chiTietIndex={detailIdx} truong="matPrice" giaTriGoc={chiTietGoc?.matPrice ?? detail.matPrice}
                         giaTriGhiDe={ghiDeHienTaiChiTiet?.matPrice} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} soLe={1} />
                       <td className={`num ${coDoiCPVL ? 'override-changed' : ''}`} data-label="Thành tiền CPVL">{dinhDangSo(detailCostMat, 0)}</td>
@@ -506,6 +506,9 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
                     giaTriGhiDe={Math.abs(row.inputVL - row.srcInputVL) > 0.001 ? row.inputVL : ghiDeHienTai[row.rowKey]?.inputVL} duocSua={false} khiDat={khiDat} soLe={0} />
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
+                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                  <td className={`num ${coDoiCPSX ? 'override-changed' : ''}`} data-label="Thành tiền CPSX">{dinhDangSo(row.costCPSX, 0)}</td>
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="rawMatPrice"
                     giaTriGoc={layGiaTriGocRawMat(
                       ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId ?? row.materialId,
@@ -519,9 +522,6 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                         tinhMatPriceTuRaw(v, effId, effName, row.rowKey);
                       }
                     }} />
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
-                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                  <td className={`num ${coDoiCPSX ? 'override-changed' : ''}`} data-label="Thành tiền CPSX">{dinhDangSo(row.costCPSX, 0)}</td>
                   {row.matPrice != null ? (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="matPrice" giaTriGoc={row.srcMatPrice ?? 0}
                       giaTriGhiDe={ghiDeHienTai[row.rowKey]?.matPrice} duocSua={duocSua && row.matPrice != null} khiDat={khiDat} soLe={1} />
@@ -1441,8 +1441,8 @@ const buttonLabel = loadedItem
                    <tr>
                     <th>Công đoạn</th><th>Vật liệu</th>
                     <th className="num">khổ màng NVL (m)</th><th className="num">thành phẩm (m)</th><th className="num">phi hao (m)</th><th className="num">đầu vào NVL (m)</th>
-                    <th className="num">Giá NVL (VNĐ/kg)</th>
                     <th className="num">CPSX (đ/m²)</th><th className="num">Thành tiền CPSX</th>
+                    <th className="num">Giá NVL (đ/kg)</th>
                     <th className="num">CP vật liệu (đ/m²)</th><th className="num">Thành tiền CPVL</th>
                   </tr>
                 </thead>
@@ -1470,6 +1470,8 @@ const buttonLabel = loadedItem
                             <td className="num" data-label="thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
                             {oSoGc(dinhDangSo(dWaste, 0), !!row.isOutsourced, { dataLabel: "phi hao (m)" })}
                             <td className="num highlight" data-label="đầu vào NVL (m)">{dinhDangSo(inputVL, 0)}</td>
+                            {oSoGc(dinhDangSo(row.cpsx, 0), !!row.isOutsourced, { dataLabel: "CPSX (đ/m²)" })}
+                            {oSoGc(dinhDangSo(detailCostCPSX, 0), !!row.isOutsourced, { dataLabel: "Thành tiền CPSX" })}
                             {(() => {
                               if (row.matPriceIsPerM2) {
                                 return oSoGc("—", false, { dataLabel: "Giá NVL" });
@@ -1485,8 +1487,6 @@ const buttonLabel = loadedItem
                               })();
                               return oSoGc(giaDetail > 0 ? `${dinhDangSo(giaDetail, 0)} đ/kg` : "—", !!row.isOutsourced && giaDetail > 0, { dataLabel: "Giá NVL" });
                             })()}
-                            {oSoGc(dinhDangSo(row.cpsx, 0), !!row.isOutsourced, { dataLabel: "CPSX (đ/m²)" })}
-                            {oSoGc(dinhDangSo(detailCostCPSX, 0), !!row.isOutsourced, { dataLabel: "Thành tiền CPSX" })}
                             {oSoGc(dinhDangSo(detail.matPrice, 1), !!row.isOutsourced, { dataLabel: "CP vật liệu (đ/m²)" })}
                             {oSoGc(dinhDangSo(detail.costMat, 0), !!row.isOutsourced, { dataLabel: "Thành tiền CPVL" })}
                           </tr>
@@ -1504,6 +1504,8 @@ const buttonLabel = loadedItem
                         <td className="num" data-label="thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
                         {oSoGc(dinhDangSo(dWaste, 0), !!row.isOutsourced, { dataLabel: "phi hao (m)" })}
                         <td className="num highlight" data-label="đầu vào NVL (m)">{dinhDangSo(inputVL, 0)}</td>
+                        {oSoGc(dinhDangSo(row.cpsx, 0), !!row.isOutsourced, { dataLabel: "CPSX (đ/m²)" })}
+                        {oSoGc(dinhDangSo(row.costCPSX, 0), !!row.isOutsourced, { dataLabel: "Thành tiền CPSX" })}
                         {(() => {
                           if (row.matPriceIsPerM2 && row.matPrice != null) {
                           return oSoGc("—", false, { dataLabel: "Giá NVL" });
@@ -1520,8 +1522,6 @@ const buttonLabel = loadedItem
                           })();
                           return oSoGc(giaRow > 0 ? `${dinhDangSo(giaRow, 0)} đ/kg` : "—", !!row.isOutsourced && giaRow > 0, { dataLabel: "Giá NVL" });
                         })()}
-                        {oSoGc(dinhDangSo(row.cpsx, 0), !!row.isOutsourced, { dataLabel: "CPSX (đ/m²)" })}
-                        {oSoGc(dinhDangSo(row.costCPSX, 0), !!row.isOutsourced, { dataLabel: "Thành tiền CPSX" })}
                         {oSoGc(row.matPrice != null ? dinhDangSo(row.matPrice, 1) : "—", !!row.isOutsourced && row.matPrice != null, { dataLabel: "CP vật liệu (đ/m²)" })}
                         {oSoGc(row.costMat != null ? dinhDangSo(row.costMat, 0) : "—", !!row.isOutsourced && row.costMat != null, { dataLabel: "Thành tiền CPVL" })}
                       </tr>

@@ -50,7 +50,7 @@ export function tinhCongDoanIn(params: {
       };
     }
     const hatHaoIn = tinhHatHaoGc(metIn, giaCongIn.tyLePhiHao ?? 0, giaCongIn.phiHaoSetupM ?? 0);
-    const chiPhiSXIn = tinhCpsxGcDienTich(giaCongIn.giaGcMoiM2 ?? 0, metIn, hatHaoIn, khoNLIn);
+    const chiPhiSXIn = tinhCpsxGcDienTich(giaCongIn.giaGcMoiM2 ?? 0, metIn, khoNLIn);
     const dienTichDauVaoIn = (hatHaoIn + metIn) * khoNLIn;
     const donGiaVatLieuIn = layGiaVatLieuTheoKho(lop1, khoNLIn, bangGiaKhoNho);
     const chiPhiVatLieuIn = donGiaVatLieuIn * dienTichDauVaoIn;

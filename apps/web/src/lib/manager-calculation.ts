@@ -189,7 +189,10 @@ export function xuLyDongGhiDe(
     const effectiveWidth = materialDetails?.length
       ? materialDetails.reduce((sum, detail) => sum + detail.width, 0)
       : width;
-    const rawCostCPSX = cpsx * inputVL * effectiveWidth;
+    // GC: CPSX × m² TP (không nhân phi hao). Nội bộ: × (TP + PH) × khổ.
+    const rawCostCPSX = row.isOutsourced
+      ? cpsx * meters * effectiveWidth
+      : cpsx * inputVL * effectiveWidth;
     const rawCostMat = materialDetails
       ? materialDetails.reduce((sum, detail) => sum + detail.matPrice * inputVL * detail.width, 0)
       : matPrice != null ? matPrice * inputVL * width : null;

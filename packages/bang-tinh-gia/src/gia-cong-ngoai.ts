@@ -12,14 +12,13 @@ export function tinhHatHaoGc(metTp: number, tyLePct: number, setupM: number): nu
   return metTp * (Math.max(0, tyLePct) / 100) + Math.max(0, setupM);
 }
 
-/** CPSX in/ghép/chia GC LTS: đơn giá × (mét + phi hao) × khổ — khớp bảng ghi đè Sale/Admin */
+/** CPSX in/ghép/chia GC LTS: đơn giá × m² thành phẩm (mét TP × khổ) — không nhân phi hao */
 export function tinhCpsxGcDienTich(
   giaMoiM2: number,
-  met: number,
-  hatHao: number,
+  metTp: number,
   kho: number,
 ): number {
-  return Math.max(0, giaMoiM2) * Math.max(0, met + hatHao) * Math.max(0, kho);
+  return Math.max(0, giaMoiM2) * Math.max(0, metTp) * Math.max(0, kho);
 }
 
 export function tinhCpsxGcDonVi(giaMoiDv: number, soLuong: number): number {

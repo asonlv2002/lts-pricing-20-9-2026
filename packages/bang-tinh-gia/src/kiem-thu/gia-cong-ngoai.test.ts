@@ -18,8 +18,8 @@ const gc: GiaCongNgoai = {
 assert(coCongDoanGc(gc, 'in') === true, 'has in');
 assert(coCongDoanGc(gc, 'chia') === false, 'no chia');
 assert(Math.abs(tinhHatHaoGc(10000, 20, 1000) - 3000) < 0.01, 'waste 20%+1000');
-assert(tinhCpsxGcDienTich(2500, 1000, 0, 1) === 2_500_000, 'cpsx dien tich');
-assert(tinhCpsxGcDienTich(3000, 5000, 1000, 0.6) === 10_800_000, 'cpsx met+hao x kho');
+assert(tinhCpsxGcDienTich(2500, 1000, 1) === 2_500_000, 'cpsx dien tich TP');
+assert(tinhCpsxGcDienTich(3000, 5000, 0.6) === 9_000_000, 'cpsx met TP x kho (khong hao)');
 assert(tinhCpsxGcDonVi(80, 100_000) === 8_000_000, 'cpsx bag');
 
 console.log('gia-cong-ngoai helpers OK');
