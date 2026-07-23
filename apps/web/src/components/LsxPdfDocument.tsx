@@ -23,6 +23,7 @@ import {
   formatLsxLamSupplyLine,
   type LsxDocxTemplateKey,
 } from "../lib/lsxExport";
+import { lsxExportBaseName } from "../lib/lsx-msp";
 
 // Times New Roman — same as BaoGiaPdfDocument / DOCX ground truth
 Font.register({
@@ -854,8 +855,7 @@ export function LsxPdfDocument({ order }: { order: ProductionOrder }) {
 }
 
 export function lsxPdfFileName(order: ProductionOrder): string {
-  const safe = (s: string) => (s || "unknown").replace(/[<>:"/\\|?*\s]+/g, "_").slice(0, 60);
-  return `LSX_${safe(order.manual.lsxNumber || order.id)}_${safe(order.snapshot.customer)}.pdf`;
+  return `${lsxExportBaseName(order)}.pdf`;
 }
 
 /** Download LSX PDF via @react-pdf/renderer (same engine as preview). */

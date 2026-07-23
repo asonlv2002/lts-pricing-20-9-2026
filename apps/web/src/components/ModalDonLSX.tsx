@@ -19,6 +19,7 @@ import { exportLSXtoPDF } from './LsxPdfDocument';
 import { calculate } from '../lib/engine';
 import type { Material, AppConstants, ProfitRow, SmallWidthMaterialPrice, CalculateInput } from '../lib/types';
 import { buildLsxLamBtpNote, toCylMm } from '../lib/lsxExport';
+import { genMsp } from '../lib/lsx-msp';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function todayStr(): string {
@@ -501,7 +502,8 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
     const m = defaultManual(genLSXNumber(productionOrders), currentSellerName);
     const tui = i.productType !== 'mang';
     m.tenSP = s.productName || '';
-    m.msp = (s.input as { productCode?: string }).productCode || '';
+    const productCode = (s.input as { productCode?: string }).productCode?.trim();
+    m.msp = productCode || genMsp(productionOrders);
     m.printFilmName = getMaterialName(materials, i.layer1Id);
     let layers = buildLaminateLayersFromInput(i, materials);
     layers = prefillFromEngine(
@@ -642,10 +644,6 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
       alert('Vui lòng có Khách hàng trước khi lưu LSX.');
       return;
     }
-    if (!manual.msp?.trim()) {
-      alert('Vui lòng nhập MSP (mã sản phẩm).');
-      return;
-    }
     if (!manual.tenSP?.trim() && !sourceData.productName?.trim()) {
       alert('Vui lòng nhập Tên sản phẩm.');
       return;
@@ -653,12 +651,17 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
     setLoading(true);
 
     try {
+      const manualToSave: LSXManualFields = {
+        ...manual,
+        msp: manual.msp?.trim() || genMsp(productionOrders),
+        tenSP: manual.tenSP?.trim() || sourceData.productName || '',
+      };
       const order: ProductionOrder = {
         id: genOrderId(),
         quoteId: sourceData.id,
         createdAt: new Date().toISOString(),
         status: 'created',
-        manual,
+        manual: manualToSave,
         snapshot: buildSnapshot(),
       };
 

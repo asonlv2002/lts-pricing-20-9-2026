@@ -17,6 +17,7 @@ import {
   type LsxBagTypeKey,
   type LsxStageLayout,
 } from './lsx-bag-classification';
+import { lsxExportBaseName } from './lsx-msp';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function v(val: string | number | null | undefined, suffix = ''): string {
@@ -28,7 +29,6 @@ function vd(val: string | number | null | undefined, suffix = ''): string {
   return String(val) + suffix;
 }
 function qty(n: number): string { return n > 0 ? n.toLocaleString('vi-VN') : '...'; }
-function safeFn(s: string): string { return (s || 'unknown').replace(/[<>:"/\\|?*\s]+/g, '_').slice(0, 60); }
 
 // ── Template resolution (shared by DOCX export + tests) ───────────────────────
 export type LsxDocxTemplateKey = 'mang' | 'mang-in' | 'mang-ghep' | LsxBagTypeKey;
@@ -886,11 +886,10 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
 export async function exportLSXtoDOCX(order: ProductionOrder): Promise<void> {
   console.log('[LSX] DOCX start:', order.id, 'template=', resolveLsxDocxTemplate(order));
   const blob = await buildLSXDocxBlob(order);
-  const { snapshot: s, manual: m } = order;
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `LSX_${safeFn(m.lsxNumber || order.id)}_${safeFn(s.customer)}.docx`;
+  a.download = `${lsxExportBaseName(order)}.docx`;
   document.body.appendChild(a); a.click();
   await new Promise(r => setTimeout(r, 500));
   document.body.removeChild(a); URL.revokeObjectURL(url);
