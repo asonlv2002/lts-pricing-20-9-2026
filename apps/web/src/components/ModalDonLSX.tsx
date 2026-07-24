@@ -11,277 +11,18 @@ import { X, FileText, Loader2, FileDown } from 'lucide-react';
 
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { LsxSourceData, ProductionOrder, LSXManualFields } from '../lib/types';
-import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, resolveLsxStageFlags, applyBagDefaults, resolveLsxBagVisibleFields, type LsxBagTypeInfo } from '../lib/lsx-bag-classification';
-
-
+import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, resolveLsxStageFlags, resolveLsxBagVisibleFields, type LsxBagTypeInfo } from '../lib/lsx-bag-classification';
 import { exportLSXtoDOCX } from '../lib/lsxExport';
 import { exportLSXtoPDF } from './LsxPdfDocument';
-import { calculate } from '../lib/engine';
-import type { Material, AppConstants, ProfitRow, SmallWidthMaterialPrice, CalculateInput } from '../lib/types';
-import { buildLsxLamBtpNote, toCylMm } from '../lib/lsxExport';
 import { genMsp } from '../lib/lsx-msp';
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function todayStr(): string {
-  return new Date().toLocaleDateString('vi-VN'); // dd/mm/yyyy
-}
-
-function genLSXNumber(existing: ProductionOrder[]): string {
-  const date = new Date();
-  const ymd = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
-  const seq = (existing.length + 1).toString().padStart(3, '0');
-  return `LSX-${ymd}-${seq}`;
-}
-
-function genOrderId(): string {
-  return `lsx_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-}
-
-function getMaterialName(materials: { id: string; name: string; thickness?: number }[], id?: string | null): string {
-  if (!id) return '';
-  return materials.find(m => m.id === id)?.name ?? id;
-}
-
-function getMaterialLabel(
-  materials: { id: string; name: string; thickness?: number }[],
-  id?: string | null,
-  micOverride?: number,
-): string {
-  if (!id) return '';
-  const mat = materials.find(m => m.id === id);
-  if (!mat) return id;
-  const mic = micOverride ?? mat.thickness;
-  if (mic != null && mic > 0 && !/\d/.test(mat.name.slice(-3))) {
-    return `${mat.name}${mic}`;
-  }
-  return mat.name;
-}
-
-type LamLayerPart = { name: string; widthMm: number };
-type LamLayerRow = {
-  layerIndex: number;
-  label: string;
-  parts: LamLayerPart[];
-  wasteMeters: number;
-};
-
-/** Dựng các dòng ghép từ input BG: mỗi lớp ≥2 = 1 dòng; dual-structure = mỗi part 1 dòng Màng ghép N. */
-function buildLaminateLayersFromInput(
-  i: LsxSourceData['input'],
-  materials: { id: string; name: string; thickness?: number }[],
-  wasteByLayerIndex?: Map<number, number>,
-): LamLayerRow[] {
-  const defaultW = Math.round((i.spreadWidth || 0) * 1000);
-  const mic = i.micOverrides || {};
-  const rows: LamLayerRow[] = [];
-  let ghepNum = 0;
-  const usedLayerWaste = new Set<number>();
-
-  const pushPart = (layerIndex: number, name: string, widthMm: number) => {
-    ghepNum += 1;
-    // 1 lần ghép (layerIndex) → 1 ĐM phi hao; dual-structure chỉ gán waste vào dòng đầu của lớp đó
-    let wasteMeters = 0;
-    if (wasteByLayerIndex && !usedLayerWaste.has(layerIndex)) {
-      wasteMeters = Math.round(wasteByLayerIndex.get(layerIndex) || 0);
-      usedLayerWaste.add(layerIndex);
-    }
-    rows.push({
-      layerIndex,
-      label: `Màng ghép ${ghepNum}`,
-      parts: [{ name, widthMm }],
-      wasteMeters,
-    });
-  };
-
-  // Lớp 2 (+ dual-structure)
-  if (i.layer2Id && i.layer2AltId) {
-    const w1 = i.layer2Lengths?.mat1
-      ? Math.round(i.layer2Lengths.mat1 * 1000)
-      : defaultW;
-    const w2 = i.layer2Lengths?.mat2
-      ? Math.round(i.layer2Lengths.mat2 * 1000)
-      : defaultW;
-    pushPart(2, getMaterialLabel(materials, i.layer2Id, mic.layer2Id), w1);
-    pushPart(2, getMaterialLabel(materials, i.layer2AltId, mic.layer2AltId), w2);
-    if (i.layer2PairingMode === 'bottom_to_bottom') {
-      pushPart(2, getMaterialLabel(materials, i.layer2Id, mic.layer2Id), w1);
-    }
-  } else if (i.layer2Id) {
-    pushPart(2, getMaterialLabel(materials, i.layer2Id, mic.layer2Id), defaultW);
-  }
-
-  // Lớp 3–5
-  for (const idx of [3, 4, 5] as const) {
-    const id = i[`layer${idx}Id` as 'layer3Id' | 'layer4Id' | 'layer5Id'];
-    if (!id) continue;
-    pushPart(idx, getMaterialLabel(materials, id, mic[`layer${idx}Id`]), defaultW);
-  }
-
-  return rows;
-}
-
-/** Prefill ĐM phi hao / TP in-ghép từ engine (mét, làm tròn). */
-function prefillFromEngine(
-  m: LSXManualFields,
-  layers: LamLayerRow[],
-  input: CalculateInput,
-  materials: Material[],
-  constants: AppConstants,
-  profitTable: ProfitRow[],
-  smallWidthPrices: SmallWidthMaterialPrice[],
-): LamLayerRow[] {
-  // Trục: m → mm (chỉ khi manual còn 0)
-  if (!m.cylDiameter && (input.cylLength ?? 0) > 0) {
-    m.cylDiameter = toCylMm(input.cylLength);
-  }
-  if (!m.cylWidth && (input.cylCircum ?? 0) > 0) {
-    m.cylWidth = toCylMm(input.cylCircum);
-  }
-
-  try {
-    const r = calculate(input, materials, constants, profitTable, smallWidthPrices);
-    if (!r) return layers;
-
-    if (!m.printWastePercent && r.printWaste > 0) {
-      m.printWastePercent = Math.round(r.printWaste);
-    }
-    if (!m.printProductQty && r.layers?.print?.meters > 0) {
-      m.printProductQty = Math.round(r.layers.print.meters);
-    }
-
-    const lams = r.layers?.laminations || [];
-    const wasteByLayer = new Map<number, number>();
-    for (const lam of lams) {
-      const layerNum = (lam as { layerNum?: number }).layerNum;
-      const waste = (lam as { waste?: number }).waste || 0;
-      if (layerNum != null && waste > 0) wasteByLayer.set(layerNum, waste);
-    }
-
-    // Gán waste theo layerIndex (mỗi lớp 1 lần)
-    const used = new Set<number>();
-    const next = layers.map(row => {
-      if (used.has(row.layerIndex)) return row;
-      const w = wasteByLayer.get(row.layerIndex);
-      if (w == null || w <= 0) return row;
-      used.add(row.layerIndex);
-      return { ...row, wasteMeters: Math.round(w) };
-    });
-
-    // Thành phẩm ghép = mét lớp ghép cuối
-    if (!m.lamProductQty && lams.length > 0) {
-      const last = lams[lams.length - 1] as { meters?: number };
-      if (last?.meters && last.meters > 0) {
-        m.lamProductQty = Math.round(last.meters);
-      }
-    }
-
-    // Phi hao cắt/túi
-    if (!m.bagWasteMeters && r.cutWaste > 0 && input.productType !== 'mang') {
-      m.bagWasteMeters = Math.round(r.cutWaste);
-    }
-
-    // Ghi chú BTP ghép từ TP in
-    if (!m.lamBTPNote && m.printProductQty > 0) {
-      m.lamBTPNote = buildLsxLamBtpNote(m.printProductQty);
-    }
-
-    return next;
-  } catch {
-    return layers;
-  }
-}
-
-function syncLegacyLaminateFields(m: LSXManualFields, layers: LamLayerRow[]): void {
-  if (layers[0]) {
-    m.laminateFilm1 = layers[0].parts.map(p => p.name).join(' / ');
-    m.laminateFilm1Width = layers[0].parts[0]?.widthMm || 0;
-    m.lamWaste = layers[0].wasteMeters;
-  }
-  if (layers[1]) {
-    m.laminateFilm2 = layers[1].parts.map(p => p.name).join(' / ');
-    m.lamBTP = layers[1].wasteMeters;
-  }
-}
-
-
-// ── Default manual fields ─────────────────────────────────────────────────────
-function defaultManual(lsxNumber: string, preparedBy: string): LSXManualFields {
-  return {
-    lsxNumber,
-    issuedDate: todayStr(),
-    preparedBy,
-    approvedBy: '',
-    deliveryDate: '',
-    notes: '',
-    msp: '',
-    tenSP: '',
-    maMucNhu: '',
-    quyCachNote: '',
-    quyCachCuon: '',
-    chieuRaCuonSP: '',
-    soLuongDHNote: '',
-    printFilmName: '',
-    printWastePercent: 0,
-    printProductQty: 0,
-    numCylinders: 0,
-    cylDiameter: 0,
-    cylWidth: 0,
-    rollOutWidth: 0,
-    materialQtySupplied: 0,
-    printNotes: '',
-    cylInfo: '',
-    printDirection: '',
-    printMST: '',
-    printProductUnit: 'MD',
-    divideWidth: 0,
-    rollLength: 0,
-    divideRollOutWidth: 0,
-    divideDeliveryReq: '',
-    divideNotes: '',
-    laminateFilm1: '',
-    laminateFilm1Width: 0,
-    lamWaste: 0,
-    lamProductQty: 0,
-    lamBTP: 0,
-    laminateFilm2: '',
-    laminateNotes: '',
-    lamMaterialSupplyQty: '',
-    lamProductUnit: 'MD',
-    lamBTPNote: '',
-    laminateLayers: [],
-    divideElements: 0,
-    packagingInfo: '',
-
-    packagingNotes: '',
-    deliveryNotes: '',
-    sealEdge: '',
-    foldBottom: '',
-    tearNotch: '',
-    hanTruoc: 0,
-    hanSau: 0,
-    hanBien: 0,
-    hanDau: 0,
-    xepHong: 0,
-    holePunchInfo: '',
-    ventHoleInfo: '',
-    bagWasteMeters: 0,
-    bagLuuY: '',
-    useSemicircularMold: false,
-    useDualCutter: false,
-    bagMachineWaste: 0,
-    bagDeliveryReq: '',
-    bagMachineNotes: '',
-    tamZipperCachMieng: 0,
-    loTreoInfo: '',
-    danLung: 0,
-    danLungLech: 0,
-    danDay: 0,
-    nap: 0,
-    songSieuAm: 0,
-    docQuaiXach: false,
-    danKeoNap: false,
-  };
-}
+import {
+  buildManualFromSource,
+  buildSnapshotFromSource,
+  genOrderId,
+  syncLegacyLaminateFields,
+  type LamLayerPart,
+  type LamLayerRow,
+} from '../lib/lsx-build-order';
 
 // ── CSS cho form giống mẫu thực ─────────────────────────────────────────────
 const styles = {
@@ -498,29 +239,14 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
   }
 
   function initManual(s: LsxSourceData, bagInfo: LsxBagTypeInfo) {
-    const i = s.input;
-    const m = defaultManual(genLSXNumber(productionOrders), currentSellerName);
-    const tui = i.productType !== 'mang';
-    m.tenSP = s.productName || '';
-    const productCode = (s.input as { productCode?: string }).productCode?.trim();
-    m.msp = productCode || genMsp(productionOrders);
-    m.printFilmName = getMaterialName(materials, i.layer1Id);
-    let layers = buildLaminateLayersFromInput(i, materials);
-    layers = prefillFromEngine(
-      m, layers, i as CalculateInput,
-      materials, constants, profitTable, smallWidthPrices,
-    );
-    m.laminateLayers = layers;
-    syncLegacyLaminateFields(m, layers);
-    m.numCylinders = (i.numColors || 0) as number;
-
-    m.soLuongDHNote = `${i.quantity.toLocaleString('vi-VN')} ${tui ? 'túi' : 'm²'}`;
-    if (i.divideWidthMm && i.divideWidthMm > 0) {
-      m.divideWidth = i.divideWidthMm;
-    }
-    m.divideElements = i.divideElements || 0;
-    if (tui) return applyBagDefaults(m, bagInfo, !!i.hasZipper);
-    return m;
+    return buildManualFromSource(s, {
+      materials,
+      constants,
+      profitTable,
+      smallWidthPrices,
+      productionOrders,
+      preparedBy: currentSellerName,
+    }, bagInfo);
   }
 
 
@@ -605,40 +331,6 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
     setManual(prev => ({ ...prev, [key]: val }));
   }, []);
 
-  // Tạo snapshot từ HistoryItem + materials
-  function buildSnapshot(): ProductionOrder['snapshot'] {
-    const getMat = (id?: string | null) => getMaterialName(materials, id);
-    const result = sourceData.input;
-    const area = result.quantity * result.spreadWidth * result.cutStep;
-    return {
-      customer: sourceData.customer,
-      productName: sourceData.productName,
-      productType: inp.productType,
-      structure: sourceData.structure,
-      quantity: inp.quantity,
-      spreadWidth: inp.spreadWidth,
-      cutStep: inp.cutStep,
-      numColors: inp.numColors,
-      bagType: inp.bagType,
-      hasZipper: inp.hasZipper || false,
-      hasDivide: !!inp.hasDivide || (inp.divideWidthMm ?? 0) > 0 || (manual.divideWidth ?? 0) > 0,
-      divideWidthMm: inp.divideWidthMm || manual.divideWidth || undefined,
-      // Khổ ban đầu = khổ màng (spreadWidth), không nhập riêng
-      originalWidthMm: khoMM || undefined,
-      numImages: inp.numImages || undefined,
-      cylLength: inp.cylLength,
-      cylCircum: inp.cylCircum,
-      filmRollLength: inp.filmRollLength,
-      layer1Name: getMat(inp.layer1Id),
-      layer2Name: getMat(inp.layer2Id),
-      layer3Name: getMat(inp.layer3Id),
-      layer4Name: getMat(inp.layer4Id),
-      layer5Name: getMat(inp.layer5Id),
-      chotGia: sourceData.chotGia || sourceData.finalPrice,
-      totalArea: Math.round(area * 100) / 100,
-    };
-  }
-
   async function handleSubmit(format: 'docx' | 'pdf' = 'docx') {
     if (!sourceData.customer?.trim()) {
       alert('Vui lòng có Khách hàng trước khi lưu LSX.');
@@ -662,7 +354,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
         createdAt: new Date().toISOString(),
         status: 'created',
         manual: manualToSave,
-        snapshot: buildSnapshot(),
+        snapshot: buildSnapshotFromSource(sourceData, manualToSave, materials),
       };
 
       await themLSX(order);

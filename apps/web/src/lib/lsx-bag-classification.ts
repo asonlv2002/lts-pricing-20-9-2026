@@ -32,13 +32,12 @@ export interface LsxBagTypeInfo {
   extraFields: (keyof LSXManualFields)[];
 }
 
-/** Field zipper khi hasZipper (phụ kiện). */
+/** Field zipper khi hasZipper (phụ kiện). Khuôn bán nguyệt không thuộc zipper — luôn hiện với túi. */
 export const ZIPPER_ACCESSORY_FIELDS: (keyof LSXManualFields)[] = [
   'tamZipperCachMieng',
   'tearNotch',
   'loTreoInfo',
   'useDualCutter',
-  'useSemicircularMold',
 ];
 
 export const ZIPPER_ACCESSORY_DEFAULTS: Partial<LSXManualFields> = {
@@ -179,13 +178,14 @@ export function classifyLsxFilmType(filmType?: string): LsxFilmTypeKey {
   return 'mang';
 }
 
-/** Field máy túi visible: base kiểu + zipper nếu bật. */
+/** Field máy túi visible: base kiểu + khuôn bán nguyệt (luôn) + zipper nếu bật. */
 export function resolveLsxBagVisibleFields(
   bagInfo: LsxBagTypeInfo,
   hasZipper: boolean,
 ): (keyof LSXManualFields)[] {
   if (bagInfo.key === 'fallback') return [];
   const fields = new Set<keyof LSXManualFields>(bagInfo.baseFields);
+  fields.add('useSemicircularMold');
   if (hasZipper) {
     for (const f of ZIPPER_ACCESSORY_FIELDS) fields.add(f);
   }

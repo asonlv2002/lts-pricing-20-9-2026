@@ -700,6 +700,8 @@ export interface LsxSourceData {
   finalPrice: number;
   chotGia?: number;
   input: CalculateInput;
+  /** Từ bagSpec báo giá — prefill khuôn đáy bán nguyệt trên LSX */
+  hasHalfMoonBottom?: boolean;
 }
 
 // ── Production Order (Lệnh Sản Xuất) ─────────────────────────────────────────

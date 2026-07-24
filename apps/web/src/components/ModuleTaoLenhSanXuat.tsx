@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Search, PackageCheck, Building2, Calendar, FileText, RefreshCw, Loader2, User,
-  ChevronDown, ChevronUp, Eye, FileType, FileDown,
+  ChevronDown, ChevronUp, Eye, FileType, FileDown, Download,
 } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { BaoGiaApi, TaiKhoanApi } from '../lib/api/service-lts';
@@ -19,6 +19,7 @@ import LsxPdfPreviewModal from './LsxPdfPreviewModal';
 import { exportLSXtoDOCX } from '../lib/lsxExport';
 import { exportLSXtoPDF } from './LsxPdfDocument';
 import { buildHistoryItemFromServerData } from '../lib/baoGiaExport';
+import { buildProductionOrderFromSource } from '../lib/lsx-build-order';
 
 interface DisplayRow {
   source: LsxSourceData;
@@ -55,7 +56,10 @@ function layDuLieuBaoGia(baoGia: BaoGiaApi): {
 }
 
 export default function ModuleTaoLenhSanXuat() {
-  const { accessToken, isAuthenticated, productionOrders } = dungCuaHangTinhGia();
+  const {
+    accessToken, isAuthenticated, productionOrders, themLSX,
+    materials, constants, profitTable, smallWidthPrices, currentSellerName,
+  } = dungCuaHangTinhGia();
 
   const [quotations, setQuotations] = useState<BaoGiaApi[]>([]);
   const [loading, setLoading] = useState(false);
@@ -68,6 +72,7 @@ export default function ModuleTaoLenhSanXuat() {
   const [previewLsx, setPreviewLsx] = useState<ProductionOrder | null>(null);
   const [previewLsxPdf, setPreviewLsxPdf] = useState<ProductionOrder | null>(null);
   const [exportingId, setExportingId] = useState<string | null>(null);
+  const [batchProgress, setBatchProgress] = useState<{ quoteId: string; current: number; total: number } | null>(null);
 
   const [danhSachTaiKhoan, setDanhSachTaiKhoan] = useState<TaiKhoanApi[]>([]);
   const daTaiTaiKhoan = useRef(false);
@@ -193,6 +198,54 @@ export default function ModuleTaoLenhSanXuat() {
       alert('Lỗi xuất PDF LSX.');
     } finally {
       setExportingId(null);
+    }
+  }
+
+  /** Tạo N LSX + N PDF cho mọi SP của báo giá (không chặn SP đã có LSX). */
+  async function handleTaoTatCa(quoteId: string, sources: LsxSourceData[]) {
+    if (sources.length === 0) return;
+    if (batchProgress) return;
+
+    const n = sources.length;
+    setBatchProgress({ quoteId, current: 0, total: n });
+    let ok = 0;
+    let fail = 0;
+    let ordersSoFar = [...productionOrders];
+
+    try {
+      for (let i = 0; i < n; i++) {
+        setBatchProgress({ quoteId, current: i + 1, total: n });
+        const source = sources[i];
+        try {
+          if (!source.customer?.trim()) {
+            throw new Error('Thiếu khách hàng');
+          }
+          const order = buildProductionOrderFromSource(source, {
+            materials,
+            constants,
+            profitTable,
+            smallWidthPrices,
+            productionOrders: ordersSoFar,
+            preparedBy: currentSellerName || '',
+          });
+          themLSX(order);
+          ordersSoFar = [order, ...ordersSoFar];
+          await exportLSXtoPDF(order);
+          ok += 1;
+          // Tránh browser chặn multi-download
+          if (i < n - 1) await new Promise(r => setTimeout(r, 400));
+        } catch (e) {
+          console.error('[LSX batch]', source.id, e);
+          fail += 1;
+        }
+      }
+      if (fail === 0) {
+        alert(`Đã tạo ${ok}/${n} LSX và tải PDF.`);
+      } else {
+        alert(`Đã tạo ${ok}/${n} LSX + PDF. Lỗi: ${fail}.`);
+      }
+    } finally {
+      setBatchProgress(null);
     }
   }
 
@@ -373,6 +426,29 @@ export default function ModuleTaoLenhSanXuat() {
                             >
                               {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                               {isExpanded ? 'Thu gọn' : 'Chi tiết'}
+                            </button>
+                            <button
+                              className="btn btn-sm"
+                              style={{
+                                ...btnSm,
+                                background: '#2563eb',
+                                color: '#fff',
+                                padding: '4px 8px',
+                                opacity: batchProgress && batchProgress.quoteId !== row.quotation.id ? 0.5 : 1,
+                              }}
+                              disabled={!!batchProgress}
+                              title={
+                                batchProgress?.quoteId === row.quotation.id
+                                  ? `Đang tạo ${batchProgress.current}/${batchProgress.total}`
+                                  : `Tạo ${sourcesCount} LSX và tải ${sourcesCount} PDF`
+                              }
+                              aria-label={`Tạo tất cả ${sourcesCount} LSX`}
+                              onClick={() => handleTaoTatCa(row.quotation.id, allSources)}
+                            >
+                              {batchProgress?.quoteId === row.quotation.id
+                                ? <Loader2 size={14} className="um-spin" />
+                                : <Download size={14} />
+                              }
                             </button>
                           </div>
                         </td>
