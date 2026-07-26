@@ -14,6 +14,7 @@ import type {
   SmallWidthMaterialPrice,
 } from './types';
 import { calculate } from './engine';
+import { normalizeMaterialBaseName } from './format-structure';
 import { buildLsxLamBtpNote, toCylMm } from './lsxExport';
 import { genMsp } from './lsx-msp';
 import {
@@ -60,15 +61,33 @@ export function getMaterialLabel(
 ): string {
   if (!id) return '';
   const mat = materials.find(m => m.id === id);
-  if (!mat) return id;
+  if (!mat) return normalizeMaterialBaseName(id) || id;
+  const base = normalizeMaterialBaseName(mat.name) || mat.name;
   const mic = micOverride ?? mat.thickness;
-  if (mic != null && mic > 0 && !/\d/.test(mat.name.slice(-3))) {
-    return `${mat.name}${mic}`;
+  if (mic != null && mic > 0 && !/\d/.test(base.slice(-3))) {
+    return `${base}${mic}`;
   }
-  return mat.name;
+  return base;
 }
 
-/** Dựng các dòng ghép từ input BG: mỗi lớp ≥2 = 1 dòng; dual-structure = mỗi part 1 dòng. */
+/** Checklist ghi chú máy ghép: "PET12 khổ 480:" mỗi lớp con. */
+export function buildLaminateNotesChecklist(layers: LamLayerRow[]): string {
+  return layers
+    .flatMap((row) =>
+      row.parts
+        .filter((p) => p.name)
+        .map((p) =>
+          p.widthMm > 0 ? `${p.name} khổ ${p.widthMm}:` : `${p.name} khổ :`,
+        ),
+    )
+    .join('\n');
+}
+
+/**
+ * Dựng các dòng ghép từ input BG.
+ * - Lớp in (layer1) = Màng ghép 1 (khổ full).
+ * - L2…Ln = các pass tiếp; dual-structure = nhiều parts trong cùng 1 row (ô gộp).
+ */
 export function buildLaminateLayersFromInput(
   i: LsxSourceData['input'],
   materials: { id: string; name: string; thickness?: number }[],
@@ -78,22 +97,31 @@ export function buildLaminateLayersFromInput(
   const mic = i.micOverrides || {};
   const rows: LamLayerRow[] = [];
   let ghepNum = 0;
-  const usedLayerWaste = new Set<number>();
 
-  const pushPart = (layerIndex: number, name: string, widthMm: number) => {
+  const pushPass = (layerIndex: number, parts: LamLayerPart[]) => {
+    if (parts.length === 0) return;
     ghepNum += 1;
-    let wasteMeters = 0;
-    if (wasteByLayerIndex && !usedLayerWaste.has(layerIndex)) {
-      wasteMeters = Math.round(wasteByLayerIndex.get(layerIndex) || 0);
-      usedLayerWaste.add(layerIndex);
-    }
+    const wasteMeters =
+      wasteByLayerIndex && wasteByLayerIndex.has(layerIndex)
+        ? Math.round(wasteByLayerIndex.get(layerIndex) || 0)
+        : 0;
     rows.push({
       layerIndex,
       label: `Màng ghép ${ghepNum}`,
-      parts: [{ name, widthMm }],
+      parts,
       wasteMeters,
     });
   };
+
+  // Pass 1: màng in (layer1) — user muốn ghi vào máy ghép làm Màng ghép 1
+  if (i.layer1Id) {
+    pushPass(1, [
+      {
+        name: getMaterialLabel(materials, i.layer1Id, mic.layer1Id),
+        widthMm: defaultW,
+      },
+    ]);
+  }
 
   if (i.layer2Id && i.layer2AltId) {
     const w1 = i.layer2Lengths?.mat1
@@ -102,19 +130,29 @@ export function buildLaminateLayersFromInput(
     const w2 = i.layer2Lengths?.mat2
       ? Math.round(i.layer2Lengths.mat2 * 1000)
       : defaultW;
-    pushPart(2, getMaterialLabel(materials, i.layer2Id, mic.layer2Id), w1);
-    pushPart(2, getMaterialLabel(materials, i.layer2AltId, mic.layer2AltId), w2);
-    if (i.layer2PairingMode === 'bottom_to_bottom') {
-      pushPart(2, getMaterialLabel(materials, i.layer2Id, mic.layer2Id), w1);
-    }
+    const parts: LamLayerPart[] = [
+      { name: getMaterialLabel(materials, i.layer2Id, mic.layer2Id), widthMm: w1 },
+      { name: getMaterialLabel(materials, i.layer2AltId, mic.layer2AltId), widthMm: w2 },
+    ];
+    pushPass(2, parts);
   } else if (i.layer2Id) {
-    pushPart(2, getMaterialLabel(materials, i.layer2Id, mic.layer2Id), defaultW);
+    pushPass(2, [
+      {
+        name: getMaterialLabel(materials, i.layer2Id, mic.layer2Id),
+        widthMm: defaultW,
+      },
+    ]);
   }
 
   for (const idx of [3, 4, 5] as const) {
     const id = i[`layer${idx}Id` as 'layer3Id' | 'layer4Id' | 'layer5Id'];
     if (!id) continue;
-    pushPart(idx, getMaterialLabel(materials, id, mic[`layer${idx}Id`]), defaultW);
+    pushPass(idx, [
+      {
+        name: getMaterialLabel(materials, id, mic[`layer${idx}Id`]),
+        widthMm: defaultW,
+      },
+    ]);
   }
 
   return rows;
@@ -177,6 +215,10 @@ export function prefillFromEngine(
 
     if (!m.lamBTPNote && m.printProductQty > 0) {
       m.lamBTPNote = buildLsxLamBtpNote(m.printProductQty);
+    }
+
+    if (!m.lamMaterialSupplyQty && m.printProductQty > 0) {
+      m.lamMaterialSupplyQty = String(m.printProductQty);
     }
 
     return next;
@@ -295,7 +337,7 @@ export function buildManualFromSource(
   m.tenSP = source.productName || '';
   const productCode = (i as { productCode?: string }).productCode?.trim();
   m.msp = productCode || genMsp(ctx.productionOrders);
-  m.printFilmName = getMaterialName(ctx.materials, i.layer1Id);
+  m.printFilmName = getMaterialLabel(ctx.materials, i.layer1Id, i.micOverrides?.layer1Id);
   let layers = buildLaminateLayersFromInput(i, ctx.materials);
   layers = prefillFromEngine(
     m,
@@ -308,6 +350,9 @@ export function buildManualFromSource(
   );
   m.laminateLayers = layers;
   syncLegacyLaminateFields(m, layers);
+  if (!m.laminateNotes) {
+    m.laminateNotes = buildLaminateNotesChecklist(layers);
+  }
   m.numCylinders = (i.numColors || 0) as number;
   m.soLuongDHNote = `${i.quantity.toLocaleString('vi-VN')} ${tui ? 'túi' : 'm²'}`;
   if (i.divideWidthMm && i.divideWidthMm > 0) {

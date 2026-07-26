@@ -690,6 +690,30 @@ function TuiBody({ order }: { order: ProductionOrder }) {
             const lam0 = lamRows[0];
             const lam1 = lamRows[1];
             const wasteText = formatLsxLamWasteText(lamRows);
+            const renderLamPass = (lr: (typeof lamRows)[0] | undefined, fallbackLabel: string) => {
+              if (!lr) return <Line label={`${fallbackLabel}: `} value="" />;
+              const parts = lr.parts?.length ? lr.parts : [{ name: lr.name, widthMm: lr.widthMm }];
+              if (parts.length <= 1) {
+                return <Line label={`${lr.label}: `} value={parts[0]?.name || lr.name || ""} />;
+              }
+              return (
+                <>
+                  <Text style={styles.bold}>{lr.label}:</Text>
+                  {parts.map((p, i) => (
+                    <Text key={i}>
+                      {`· ${p.name || ""}${p.widthMm ? `  Khổ ${p.widthMm}mm` : ""}`}
+                    </Text>
+                  ))}
+                </>
+              );
+            };
+            const lamPassKho = (lr: (typeof lamRows)[0] | undefined) => {
+              if (!lr) return "";
+              if (lr.parts && lr.parts.length > 1) {
+                return lr.parts.map((p) => (p.widthMm ? String(p.widthMm) : "…")).join(" / ") + "mm";
+              }
+              return vd(lr.widthMm || khoMM, "mm");
+            };
             return (
               <>
                 <View style={styles.row}>
@@ -700,10 +724,10 @@ function TuiBody({ order }: { order: ProductionOrder }) {
                     <Line label="Khổ: " value={khoMM ? `${khoMM}mm` : ""} />
                   </Cell>
                   <Cell w="40%">
-                    <Line label={`${lam0?.label || "Màng ghép 1"}: `} value={lam0?.name || ""} />
+                    {renderLamPass(lam0, "Màng ghép 1")}
                   </Cell>
                   <Cell w="20%">
-                    <Line label="Khổ: " value={lam0 ? vd(lam0.widthMm || khoMM, "mm") : ""} />
+                    <Line label="Khổ: " value={lamPassKho(lam0)} />
                   </Cell>
                 </View>
                 <View style={styles.row}>
@@ -719,20 +743,20 @@ function TuiBody({ order }: { order: ProductionOrder }) {
                     <Line label="Chiều ra cuộn: " value={v(m.printDirection) || "…"} />
                   </Cell>
                   <Cell w="40%">
-                    <Line label={`${lam1?.label || "Màng ghép 2"}: `} value={lam1?.name || ""} />
+                    {renderLamPass(lam1, "Màng ghép 2")}
                   </Cell>
                   <Cell w="20%">
-                    <Line label="Khổ: " value={lam1 ? vd(lam1.widthMm || khoMM, "mm") : ""} />
+                    <Line label="Khổ: " value={lamPassKho(lam1)} />
                   </Cell>
                 </View>
                 {lamRows.slice(2).map((lr, i) => (
                   <View style={styles.row} key={`lam-extra-${i}`}>
                     <Cell w="40%"><Text> </Text></Cell>
                     <Cell w="40%">
-                      <Line label={`${lr.label}: `} value={lr.name} />
+                      {renderLamPass(lr, lr.label)}
                     </Cell>
                     <Cell w="20%">
-                      <Line label="Khổ: " value={vd(lr.widthMm || khoMM, "mm")} />
+                      <Line label="Khổ: " value={lamPassKho(lr)} />
                     </Cell>
                   </View>
                 ))}

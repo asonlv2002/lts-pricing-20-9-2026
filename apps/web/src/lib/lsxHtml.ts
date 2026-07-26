@@ -515,14 +515,35 @@ function tuiBodyHtml(order: ProductionOrder): string {
     const lam0 = lamRows[0];
     const lam1 = lamRows[1];
     const wasteText = formatLsxLamWasteText(lamRows);
+    const lamPassHtml = (lr: typeof lam0, fallbackLabel: string) => {
+      if (!lr) return `<span class="b">${esc(fallbackLabel)}: </span>`;
+      const parts = lr.parts?.length ? lr.parts : [{ name: lr.name, widthMm: lr.widthMm }];
+      if (parts.length <= 1) {
+        return `<span class="b">${esc(lr.label)}: </span>${esc(parts[0]?.name || lr.name || '')}`;
+      }
+      const lines = parts
+        .map(
+          (p) =>
+            `<div>· ${esc(p.name || '')}${p.widthMm ? `  Khổ ${p.widthMm}mm` : ''}</div>`,
+        )
+        .join('');
+      return `<div><span class="b">${esc(lr.label)}:</span></div>${lines}`;
+    };
+    const lamPassKho = (lr: typeof lam0) => {
+      if (!lr) return '';
+      if (lr.parts && lr.parts.length > 1) {
+        return lr.parts.map((p) => (p.widthMm ? String(p.widthMm) : '…')).join(' / ') + 'mm';
+      }
+      return vd(lr.widthMm || khoMM, 'mm');
+    };
     let extraLam = '';
     for (let i = 2; i < lamRows.length; i++) {
       const lr = lamRows[i];
       extraLam += `
     <tr>
       <td colspan="2"></td>
-      <td colspan="2"><span class="b">${esc(lr.label)}: </span>${esc(lr.name)}</td>
-      <td><span class="b">Khổ: </span>${esc(vd(lr.widthMm || khoMM, 'mm'))}</td>
+      <td colspan="2">${lamPassHtml(lr, lr.label)}</td>
+      <td><span class="b">Khổ: </span>${esc(lamPassKho(lr))}</td>
     </tr>`;
     }
     html += `
@@ -533,8 +554,8 @@ function tuiBodyHtml(order: ProductionOrder): string {
     <tr>
       <td style="width:29%"><span class="b">Màng in: </span>${esc(m.printFilmName || s.layer1Name || '')}</td>
       <td style="width:21%"><span class="b">Khổ: </span>${khoMM ? `${khoMM}mm` : ''}</td>
-      <td colspan="2" style="width:29.5%"><span class="b">${esc(lam0?.label || 'Màng ghép 1')}: </span>${esc(lam0?.name || '')}</td>
-      <td style="width:20.5%"><span class="b">Khổ: </span>${esc(lam0 ? vd(lam0.widthMm || khoMM, 'mm') : '')}</td>
+      <td colspan="2" style="width:29.5%">${lamPassHtml(lam0, 'Màng ghép 1')}</td>
+      <td style="width:20.5%"><span class="b">Khổ: </span>${esc(lam0 ? lamPassKho(lam0) : '')}</td>
     </tr>
     <tr>
       <td>
@@ -545,8 +566,8 @@ function tuiBodyHtml(order: ProductionOrder): string {
         <div><span class="b">Số trục: </span>${esc(formatLsxNumCylinders(m))}</div>
         ${m.printDirection ? `<div><span class="b">Chiều: </span>${esc(m.printDirection)}</div>` : ''}
       </td>
-      <td colspan="2"><span class="b">${esc(lam1?.label || 'Màng ghép 2')}: </span>${esc(lam1?.name || '')}</td>
-      <td><span class="b">Khổ: </span>${esc(lam1 ? vd(lam1.widthMm || khoMM, 'mm') : '')}</td>
+      <td colspan="2">${lamPassHtml(lam1, 'Màng ghép 2')}</td>
+      <td><span class="b">Khổ: </span>${esc(lam1 ? lamPassKho(lam1) : '')}</td>
     </tr>${extraLam}
     <tr>
       <td colspan="2">

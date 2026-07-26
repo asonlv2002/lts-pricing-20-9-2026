@@ -74,44 +74,69 @@ export function orderStageLayout(order: ProductionOrder): LsxStageLayout {
 }
 
 /** Dòng màng ghép export (ưu tiên laminateLayers; fallback legacy 1–2 field). */
+export type LsxLamExportPart = { name: string; widthMm: number };
+
 export type LsxLamExportRow = {
   label: string;
   name: string;
   widthMm: number;
   wasteMeters: number;
+  /** Dual-structure: nhiều lớp con trong 1 ô Màng ghép N */
+  parts: LsxLamExportPart[];
 };
+
+/** Format 1 pass ghép: 1 part → name; multi → "A 240mm / B 240mm". */
+export function formatLsxLamPassName(parts: LsxLamExportPart[], fallbackName = ''): string {
+  if (parts.length === 0) return fallbackName;
+  if (parts.length === 1) return parts[0].name || fallbackName;
+  return parts
+    .map((p) => {
+      const w = p.widthMm > 0 ? ` ${p.widthMm}mm` : '';
+      return `${p.name || ''}${w}`.trim();
+    })
+    .filter(Boolean)
+    .join(' / ');
+}
 
 export function resolveLsxLaminateRows(order: ProductionOrder): LsxLamExportRow[] {
   const { snapshot: s, manual: m } = order;
   const defaultKho = Math.round((s.spreadWidth || 0) * 1000);
   if (m.laminateLayers && m.laminateLayers.length > 0) {
     return m.laminateLayers.map((layer, i) => {
-      const names = layer.parts.map(p => p.name).filter(Boolean);
-      const name = names.join(' / ') || '';
-      const widthMm = layer.parts[0]?.widthMm || defaultKho;
+      const parts: LsxLamExportPart[] = (layer.parts || [])
+        .filter((p) => p.name || p.widthMm)
+        .map((p) => ({ name: p.name || '', widthMm: p.widthMm || defaultKho }));
+      const name = formatLsxLamPassName(parts);
+      const widthMm = parts[0]?.widthMm || defaultKho;
       return {
         label: layer.label || `Màng ghép ${i + 1}`,
         name,
         widthMm,
         wasteMeters: layer.wasteMeters || 0,
+        parts: parts.length ? parts : [{ name, widthMm }],
       };
     });
   }
   const rows: LsxLamExportRow[] = [];
   if (m.laminateFilm1 || s.layer2Name) {
+    const name = m.laminateFilm1 || s.layer2Name || '';
+    const widthMm = m.laminateFilm1Width || defaultKho;
     rows.push({
       label: 'Màng ghép 1',
-      name: m.laminateFilm1 || s.layer2Name || '',
-      widthMm: m.laminateFilm1Width || defaultKho,
+      name,
+      widthMm,
       wasteMeters: m.lamWaste || 0,
+      parts: [{ name, widthMm }],
     });
   }
   if (m.laminateFilm2 || s.layer3Name) {
+    const name = m.laminateFilm2 || s.layer3Name || '';
     rows.push({
       label: 'Màng ghép 2',
-      name: m.laminateFilm2 || s.layer3Name || '',
+      name,
       widthMm: defaultKho,
       wasteMeters: m.lamBTP || 0,
+      parts: [{ name, widthMm: defaultKho }],
     });
   }
   if (s.layer4Name) {
@@ -120,6 +145,7 @@ export function resolveLsxLaminateRows(order: ProductionOrder): LsxLamExportRow[
       name: s.layer4Name,
       widthMm: defaultKho,
       wasteMeters: 0,
+      parts: [{ name: s.layer4Name, widthMm: defaultKho }],
     });
   }
   if (s.layer5Name) {
@@ -128,6 +154,7 @@ export function resolveLsxLaminateRows(order: ProductionOrder): LsxLamExportRow[
       name: s.layer5Name,
       widthMm: defaultKho,
       wasteMeters: 0,
+      parts: [{ name: s.layer5Name, widthMm: defaultKho }],
     });
   }
   return rows;
@@ -555,11 +582,31 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
         cell([para([run('MÁY IN', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' }),
         cell([para([run('MÁY GHÉP', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 3, bg: 'fabf8f', va: 'center' }),
       ));
+      const lamPassParas = (lr: LsxLamExportRow | undefined, fallbackLabel: string) => {
+        if (!lr) return [para([run(`${fallbackLabel}: `, { b: true })])];
+        const parts = lr.parts?.length ? lr.parts : [{ name: lr.name, widthMm: lr.widthMm }];
+        if (parts.length <= 1) {
+          return [para([run(`${lr.label}: `, { b: true }), run(parts[0]?.name || lr.name || '')])];
+        }
+        return [
+          para([run(`${lr.label}:`, { b: true })]),
+          ...parts.map((p) =>
+            para([run(`  · ${p.name || ''}${p.widthMm ? `  Khổ ${p.widthMm}mm` : ''}`)]),
+          ),
+        ];
+      };
+      const lamPassKho = (lr: LsxLamExportRow | undefined) => {
+        if (!lr) return '';
+        if (lr.parts && lr.parts.length > 1) {
+          return lr.parts.map((p) => (p.widthMm ? `${p.widthMm}` : '…')).join(' / ') + 'mm';
+        }
+        return vd(lr.widthMm || khoMM, 'mm');
+      };
       tR.push(rowH(280,
         cell([para([run('Màng in: ', { b: true }), run(m.printFilmName || s.layer1Name || '')])]),
         cell([para([run('Khổ: ', { b: true }), run(khoMM ? `${khoMM}mm` : '')])]),
-        cell([para([run(`${lam0?.label || 'Màng ghép 1'}: `, { b: true }), run(lam0?.name || '')])], { cs: 2 }),
-        cell([para([run('Khổ: ', { b: true }), run(lam0 ? vd(lam0.widthMm || khoMM, 'mm') : '')])]),
+        cell(lamPassParas(lam0, 'Màng ghép 1'), { cs: 2 }),
+        cell([para([run('Khổ: ', { b: true }), run(lam0 ? lamPassKho(lam0) : '')])]),
       ));
       tR.push(rowH(360,
         cell([
@@ -570,15 +617,15 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
           para([run('Số trục: ', { b: true }), run(formatLsxNumCylinders(m))]),
           para([run('Chiều ra cuộn: ', { b: true }), run(v(m.printDirection) || '…')]),
         ]),
-        cell([para([run(`${lam1?.label || 'Màng ghép 2'}: `, { b: true }), run(lam1?.name || '')])], { cs: 2 }),
-        cell([para([run('Khổ: ', { b: true }), run(lam1 ? vd(lam1.widthMm || khoMM, 'mm') : '')])]),
+        cell(lamPassParas(lam1, 'Màng ghép 2'), { cs: 2 }),
+        cell([para([run('Khổ: ', { b: true }), run(lam1 ? lamPassKho(lam1) : '')])]),
       ));
       for (let i = 2; i < lamRows.length; i++) {
         const lr = lamRows[i];
         tR.push(rowH(280,
           cell([para([])], { cs: 2 }),
-          cell([para([run(`${lr.label}: `, { b: true }), run(lr.name)])], { cs: 2 }),
-          cell([para([run('Khổ: ', { b: true }), run(vd(lr.widthMm || khoMM, 'mm'))])]),
+          cell(lamPassParas(lr, lr.label), { cs: 2 }),
+          cell([para([run('Khổ: ', { b: true }), run(lamPassKho(lr))])]),
         ));
       }
       const wasteText = formatLsxLamWasteText(lamRows);

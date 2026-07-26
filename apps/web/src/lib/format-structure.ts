@@ -5,15 +5,22 @@
  *   "PET / PA / LLDPE_GAO"     → "PET/PA/LLDPE"
  */
 
-export function boSoCauTruc(s: string): string {
-  return (s || "")
-    // 1) Bỏ suffix trong ngoặc: "LLDPE (gạo)" → "LLDPE "
+/**
+ * Chuẩn hóa tên gốc VL (giữ mic gắn riêng sau).
+ * "LLDPE thường" / "LLDPE (gạo)" / "LLDPE_GAO" → "LLDPE"
+ */
+export function normalizeMaterialBaseName(name: string): string {
+  return (name || "")
     .replace(/\([^)]*\)/g, "")
-    // 2) Id dạng LLDPE_GAO, LLDPE_HUT_CHAN_KHONG, …
     .replace(/\bLLDPE_[A-Za-z0-9_]+/gi, "LLDPE")
-    // 3) Name suffix còn sót: "LLDPE sữa" → "LLDPE"
     .replace(/\bLLDPE\s+\S+/gi, "LLDPE")
-    // 4) Bỏ số mic
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+export function boSoCauTruc(s: string): string {
+  return normalizeMaterialBaseName(s || "")
+    // Bỏ số mic
     .replace(/\d+/g, "")
     .replace(/\s*\/\/\s*/g, "//")
     .replace(/\s*\/\s*/g, "/")
