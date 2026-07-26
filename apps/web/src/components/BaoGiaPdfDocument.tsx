@@ -12,6 +12,10 @@ import {
 } from "@react-pdf/renderer";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { boSoCauTruc } from "../lib/format-structure";
+import {
+  estimateQuoteGroupHeight,
+  paginateQuoteGroups,
+} from "../lib/bao-gia-pagination";
 
 const LOGO_SRC = "/logo-LTS-LA.jpg";
 
@@ -386,7 +390,7 @@ function buildBagSpecDescription(
 // PRODUCT GROUPS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const GROUPS_PER_PAGE = 4;
+const PAGE_GROUP_HEIGHT = 500;
 
 interface ProductGroup {
   productName: string;
@@ -638,12 +642,14 @@ function BaoGiaPage({
   page,
   totalPages,
   pageGroups,
+  firstRowNumber,
   customerInfo,
 }: {
   item: HistoryItem;
   page: number;
   totalPages: number;
   pageGroups: ProductGroup[];
+  firstRowNumber: number;
   customerInfo?: {
     address?: string;
     taxCode?: string;
@@ -653,8 +659,7 @@ function BaoGiaPage({
   };
 }) {
   const isLast = page === totalPages - 1;
-  const titleText = page === 0 ? "BẢNG BÁO GIÁ" : "BẢNG BÁO GIÁ (tiếp theo)";
-  let sttBase = page * GROUPS_PER_PAGE + 1;
+  let rowNum = firstRowNumber - 1;
   const vat = layVatThucTe(item.terms);
   const vatTruc = layVatTruc(item.terms);
 
@@ -676,25 +681,28 @@ function BaoGiaPage({
   const allGroups = buildGroups(products);
 
   const tableRows: React.ReactNode[] = [];
-  let rowNum = 0;
 
   for (const g of pageGroups) {
-    const stt = sttBase++;
     const groupRows = g.tiers.length + (g.cylinder ? 1 : 0);
-    for (let i = 0; i < groupRows; i++) {
-      rowNum++;
-      const tier = i < g.tiers.length ? g.tiers[i] : undefined;
-      tableRows.push(
-        <ProductRow
-          key={`${stt}-${i}`}
-          stt={rowNum}
-          group={g}
-          tier={tier}
-          idx={i}
-          totalRows={groupRows}
-        />,
-      );
-    }
+    const groupStart = rowNum + 1;
+    rowNum += groupRows;
+    tableRows.push(
+      <View key={`group-${groupStart}`} wrap={false}>
+        {Array.from({ length: groupRows }, (_, i) => {
+          const tier = i < g.tiers.length ? g.tiers[i] : undefined;
+          return (
+            <ProductRow
+              key={`${groupStart}-${i}`}
+              stt={groupStart + i}
+              group={g}
+              tier={tier}
+              idx={i}
+              totalRows={groupRows}
+            />
+          );
+        })}
+      </View>,
+    );
   }
 
   return (
@@ -715,23 +723,25 @@ function BaoGiaPage({
         </View>
       </View>
 
-      {/* Title */}
-      <Text style={styles.title}>{titleText}</Text>
-      <Text style={styles.titleDate}>Ngày {item.date}</Text>
+      {page === 0 && (
+        <>
+          <Text style={styles.title}>BẢNG BÁO GIÁ</Text>
+          <Text style={styles.titleDate}>Ngày {item.date}</Text>
 
-      {/* Customer info */}
-      <Text style={styles.custLine}>Kính gửi: {item.customer || ""}</Text>
-      <Text style={styles.custLine}>
-        Địa chỉ: {customerInfo?.address || ""}
-      </Text>
-      <Text style={styles.custLine}>MST: {customerInfo?.taxCode || ""}</Text>
-      <Text style={styles.custLine}>
-        Điện thoại: {customerInfo?.phone || ""} Fax: {customerInfo?.fax || ""}
-      </Text>
-      <Text style={styles.custIntro}>
-        Chúng tôi xin trân trọng gửi đến quý khách hàng bảng báo giá bao bì chi
-        tiết như sau:
-      </Text>
+          <Text style={styles.custLine}>Kính gửi: {item.customer || ""}</Text>
+          <Text style={styles.custLine}>
+            Địa chỉ: {customerInfo?.address || ""}
+          </Text>
+          <Text style={styles.custLine}>MST: {customerInfo?.taxCode || ""}</Text>
+          <Text style={styles.custLine}>
+            Điện thoại: {customerInfo?.phone || ""} Fax: {customerInfo?.fax || ""}
+          </Text>
+          <Text style={styles.custIntro}>
+            Chúng tôi xin trân trọng gửi đến quý khách hàng bảng báo giá bao bì chi
+            tiết như sau:
+          </Text>
+        </>
+      )}
 
       {/* Product table */}
       <View style={styles.table}>
@@ -861,21 +871,41 @@ export function BaoGiaPdfDocument({
       ];
 
   const groups = buildGroups(products);
-  const totalPages = Math.ceil(groups.length / GROUPS_PER_PAGE);
-
+  const pagedGroups = paginateQuoteGroups(
+    groups.map((group, index) => ({
+      ...group,
+      id: String(index),
+      height: estimateQuoteGroupHeight({
+        productName: group.productName,
+        description: group.description,
+        tierCount: group.tiers.length,
+        hasCylinder: Boolean(group.cylinder),
+        cylinderDescription: group.cylinder
+          ? `${group.cylinder.name}\n${group.cylinder.dims}`
+          : "",
+      }),
+    })),
+    PAGE_GROUP_HEIGHT,
+  );
   const pages: React.ReactNode[] = [];
-  for (let p = 0; p < totalPages; p++) {
-    const start = p * GROUPS_PER_PAGE;
-    const pageGroups = groups.slice(start, start + GROUPS_PER_PAGE);
+  let firstRowNumber = 1;
+
+  for (let p = 0; p < pagedGroups.length; p++) {
+    const pageGroups = pagedGroups[p];
     pages.push(
       <BaoGiaPage
         key={p}
         item={item}
         page={p}
-        totalPages={totalPages}
+        totalPages={pagedGroups.length}
         pageGroups={pageGroups}
+        firstRowNumber={firstRowNumber}
         customerInfo={customerInfo}
       />,
+    );
+    firstRowNumber += pageGroups.reduce(
+      (total, group) => total + group.tiers.length + (group.cylinder ? 1 : 0),
+      0,
     );
   }
 

@@ -9,6 +9,10 @@ import type {
 } from "./types";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { boSoCauTruc, buildStructureFromLayers } from "./format-structure";
+import {
+  estimateQuoteGroupHeight,
+  paginateQuoteGroupsByPageHeight,
+} from "./bao-gia-pagination";
 
 function dinhDangSo(n: number) {
   return n.toLocaleString("vi-VN");
@@ -255,13 +259,28 @@ function buildBaoGiaHtmlV2(
           tiers: item.tiers || [],
         } as QuoteProductLine,
       ];
-
   const groups = buildGroups(products);
-  const totalPages = Math.ceil(groups.length / GROUPS_PER_PAGE);
+  const pagedGroups = paginateQuoteGroupsByPageHeight(
+    groups.map((group, index) => ({
+      ...group,
+      id: String(index),
+      height: estimateQuoteGroupHeight({
+        productName: group.productName,
+        description: group.description,
+        tierCount: group.tiers.length,
+        hasCylinder: Boolean(group.cylinder),
+        cylinderDescription: group.cylinder
+          ? `${group.cylinder.name}\n${group.cylinder.dims}`
+          : "",
+      }),
+    })),
+    (pageIndex) =>
+      pageIndex === 0
+        ? FIRST_PAGE_GROUP_HEIGHT
+        : CONTINUATION_PAGE_GROUP_HEIGHT,
+  );
   const vat = layVatThucTe(item.terms);
   const vatTruc = layVatTruc(item.terms);
-
-  // ═══ Column widths (% of total) — mirrors DOCX DXA proportions ═══
   const W = {
     stt: "6%",
     name: "18%",
@@ -273,12 +292,12 @@ function buildBaoGiaHtmlV2(
   };
 
   let pagesHtml = "";
+  let firstRowNumber = 1;
 
-  for (let page = 0; page < totalPages; page++) {
-    const start = page * GROUPS_PER_PAGE;
-    const pageGroups = groups.slice(start, start + GROUPS_PER_PAGE);
-    const isLast = page === totalPages - 1;
-    let sttBase = start + 1;
+  for (let page = 0; page < pagedGroups.length; page++) {
+    const pageGroups = pagedGroups[page];
+    const isLast = page === pagedGroups.length - 1;
+    let rowNum = firstRowNumber - 1;
 
     // ── Table rows ──
     let tbody = "";
@@ -286,10 +305,7 @@ function buildBaoGiaHtmlV2(
     // Header
     tbody += `<tr><th style="width:${W.stt}">STT</th><th style="width:${W.name}">Tên hàng</th><th style="width:${W.desc}">Mô tả</th><th style="width:${W.unit}">ĐVT</th><th style="width:${W.qty}">Số lượng</th><th style="width:${W.price}">Đơn giá VNĐ</th><th style="width:${W.total}">Thành tiền VNĐ</th></tr>`;
 
-    let rowNum = 0;
-
     for (const g of pageGroups) {
-      const stt = sttBase++;
       const tierCount = g.tiers.length;
       const cylRows = g.cylinder ? 1 : 0;
       const groupRows = tierCount + cylRows;
@@ -366,11 +382,8 @@ function buildBaoGiaHtmlV2(
       tbody += `<tr><td colspan="7" class="xem-tiep">── Xem tiếp trang sau ──</td></tr>`;
     }
 
-    // ── Build page ──
-    const titleText = page === 0 ? "BẢNG BÁO GIÁ" : "BẢNG BÁO GIÁ (tiếp theo)";
     let pageHtml = "";
 
-    // Company header — layout B: logo trái + chữ cạnh
     pageHtml += `<div class="co-header">`;
     pageHtml += `<img class="co-logo" src="/logo-LTS-LA.jpg" alt="LTS" />`;
     pageHtml += `<div class="co-text">`;
@@ -379,16 +392,15 @@ function buildBaoGiaHtmlV2(
     pageHtml += `<div class="co-tax">MST: 1101904518&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Mail: baobilaitruongson.la@gmail.com</div>`;
     pageHtml += `</div></div>`;
 
-    // Title
-    pageHtml += `<div class="title">${escHtml(titleText)}</div>`;
-    pageHtml += `<div class="title-date">Ngày ${item.date}</div>`;
-
-    // Customer info
-    pageHtml += `<div class="cust-line" style="margin-top:6px">Kính gửi: ${escHtml(item.customer || "")}</div>`;
-    pageHtml += `<div class="cust-line">Địa chỉ: ${escHtml(customerInfo?.address || "")}</div>`;
-    pageHtml += `<div class="cust-line">MST: ${escHtml(customerInfo?.taxCode || "")}</div>`;
-    pageHtml += `<div class="cust-line">Điện thoại: ${escHtml(customerInfo?.phone || "")}&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Fax: ${escHtml(customerInfo?.fax || "")}</div>`;
-    pageHtml += `<div class="cust-intro">Chúng tôi xin trân trọng gửi đến quý khách hàng bảng báo giá bao bì chi tiết như sau:</div>`;
+    if (page === 0) {
+      pageHtml += `<div class="title">BẢNG BÁO GIÁ</div>`;
+      pageHtml += `<div class="title-date">Ngày ${item.date}</div>`;
+      pageHtml += `<div class="cust-line" style="margin-top:6px">Kính gửi: ${escHtml(item.customer || "")}</div>`;
+      pageHtml += `<div class="cust-line">Địa chỉ: ${escHtml(customerInfo?.address || "")}</div>`;
+      pageHtml += `<div class="cust-line">MST: ${escHtml(customerInfo?.taxCode || "")}</div>`;
+      pageHtml += `<div class="cust-line">Điện thoại: ${escHtml(customerInfo?.phone || "")}&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Fax: ${escHtml(customerInfo?.fax || "")}</div>`;
+      pageHtml += `<div class="cust-intro">Chúng tôi xin trân trọng gửi đến quý khách hàng bảng báo giá bao bì chi tiết như sau:</div>`;
+    }
 
     // Table
     pageHtml += `<table class="bbg"><tbody>${tbody}</tbody></table>`;
@@ -417,6 +429,10 @@ function buildBaoGiaHtmlV2(
     }
 
     pagesHtml += `<div class="page">${pageHtml}</div>`;
+    firstRowNumber += pageGroups.reduce(
+      (total, group) => total + group.tiers.length + (group.cylinder ? 1 : 0),
+      0,
+    );
   }
 
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Bảng báo giá ${item.quoteCode || ""}</title><style>${CSS}</style></head><body class="pdf-viewer">
@@ -473,7 +489,8 @@ export async function exportBaoGiaToPDF(
 // DOCX export — đa sản phẩm, phân trang 4 group/trang
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const GROUPS_PER_PAGE = 4;
+const FIRST_PAGE_GROUP_HEIGHT = 430;
+const CONTINUATION_PAGE_GROUP_HEIGHT = 570;
 
 interface ProductGroup {
   productName: string;
@@ -612,7 +629,25 @@ export async function exportBaoGiaToDocx(
       ];
 
   const groups = buildGroups(products);
-  const totalPages = Math.ceil(groups.length / GROUPS_PER_PAGE);
+  const pagedGroups = paginateQuoteGroupsByPageHeight(
+    groups.map((group, index) => ({
+      ...group,
+      id: String(index),
+      height: estimateQuoteGroupHeight({
+        productName: group.productName,
+        description: group.description,
+        tierCount: group.tiers.length,
+        hasCylinder: Boolean(group.cylinder),
+        cylinderDescription: group.cylinder
+          ? `${group.cylinder.name}\n${group.cylinder.dims}`
+          : "",
+      }),
+    })),
+    (pageIndex) =>
+      pageIndex === 0
+        ? FIRST_PAGE_GROUP_HEIGHT
+        : CONTINUATION_PAGE_GROUP_HEIGHT,
+  );
   const vat = layVatThucTe(item.terms);
   const vatTruc = layVatTruc(item.terms);
 
@@ -693,12 +728,12 @@ export async function exportBaoGiaToDocx(
   const emptyCell = (w: number, opts?: { colSpan?: number }) =>
     tc("", w, { colSpan: opts?.colSpan });
   const sections: any[] = [];
+  let firstRowNumber = 1;
 
-  for (let page = 0; page < totalPages; page++) {
-    const start = page * GROUPS_PER_PAGE;
-    const pageGroups = groups.slice(start, start + GROUPS_PER_PAGE);
-    const isLast = page === totalPages - 1;
-    let sttBase = start + 1;
+  for (let page = 0; page < pagedGroups.length; page++) {
+    const pageGroups = pagedGroups[page];
+    const isLast = page === pagedGroups.length - 1;
+    let rowNum = firstRowNumber - 1;
 
     // ── Table rows for this page ──
     const rows: any[] = [];
@@ -718,10 +753,7 @@ export async function exportBaoGiaToDocx(
       }),
     );
 
-    let rowNum = 0;
-
     for (const g of pageGroups) {
-      const stt = sttBase++;
       const tierCount = g.tiers.length;
       const cylRows = g.cylinder ? 1 : 0;
       const groupRows = tierCount + cylRows;
@@ -1023,85 +1055,67 @@ export async function exportBaoGiaToDocx(
       }) as any,
     );
 
-    // Title
-    const titleText = page === 0 ? "BẢNG BÁO GIÁ" : "BẢNG BÁO GIÁ (tiếp theo)";
-    pageChildren.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: titleText, bold: true, font: FONT, size: 32 }),
-        ],
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 100, after: 140 },
-      }),
-    );
-    pageChildren.push(
-      new Paragraph({
-        children: [
-          new TextRun({ text: `Ngày ${item.date}`, font: FONT, size: 22 }),
-        ],
-        alignment: AlignmentType.CENTER,
-        spacing: { before: 40, after: 100 },
-      }),
-    );
-
-    // Customer info
-    pageChildren.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: `Kính gửi: ${item.customer || ""}`,
-            font: FONT,
-            size: 22,
-          }),
-        ],
-        spacing: { before: 100 },
-      }),
-    );
-    pageChildren.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: `Địa chỉ: ${customerInfo?.address || ""}`,
-            font: FONT,
-            size: 22,
-          }),
-        ],
-      }),
-    );
-    pageChildren.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: `MST: ${customerInfo?.taxCode || ""}`,
-            font: FONT,
-            size: 22,
-          }),
-        ],
-      }),
-    );
-    pageChildren.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: `Điện thoại: ${customerInfo?.phone || ""}                    Fax: ${customerInfo?.fax || ""}`,
-            font: FONT,
-            size: 22,
-          }),
-        ],
-      }),
-    );
-    pageChildren.push(
-      new Paragraph({
-        children: [
-          new TextRun({
-            text: "Chúng tôi xin trân trọng gửi đến quý khách hàng bảng báo giá bao bì chi tiết như sau:",
-            font: FONT,
-            size: 22,
-          }),
-        ],
-        spacing: { after: 100 },
-      }),
-    );
+    if (page === 0) {
+      pageChildren.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: "BẢNG BÁO GIÁ", bold: true, font: FONT, size: 32 }),
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 100, after: 140 },
+        }),
+      );
+      pageChildren.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: `Ngày ${item.date}`, font: FONT, size: 22 }),
+          ],
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 40, after: 100 },
+        }),
+      );
+      pageChildren.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: `Kính gửi: ${item.customer || ""}`, font: FONT, size: 22 }),
+          ],
+          spacing: { before: 100 },
+        }),
+      );
+      pageChildren.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: `Địa chỉ: ${customerInfo?.address || ""}`, font: FONT, size: 22 }),
+          ],
+        }),
+      );
+      pageChildren.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: `MST: ${customerInfo?.taxCode || ""}`, font: FONT, size: 22 }),
+          ],
+        }),
+      );
+      pageChildren.push(
+        new Paragraph({
+          children: [
+            new TextRun({ text: `Điện thoại: ${customerInfo?.phone || ""}                    Fax: ${customerInfo?.fax || ""}`, font: FONT, size: 22 }),
+          ],
+        }),
+      );
+      pageChildren.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: "Chúng tôi xin trân trọng gửi đến quý khách hàng bảng báo giá bao bì chi tiết như sau:",
+              font: FONT,
+              size: 22,
+            }),
+          ],
+          spacing: { after: 100 },
+        }),
+      );
+    }
 
     // Product table
     pageChildren.push(table);
@@ -1172,6 +1186,10 @@ export async function exportBaoGiaToDocx(
       },
       children: pageChildren,
     });
+    firstRowNumber += pageGroups.reduce(
+      (total, group) => total + group.tiers.length + (group.cylinder ? 1 : 0),
+      0,
+    );
   }
 
   // Remove page breaks between sections (docx puts them automatically per section)
