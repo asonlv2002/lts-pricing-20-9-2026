@@ -21,6 +21,7 @@ import {
   formatLsxLamSupplyLine,
   type LsxDocxTemplateKey,
 } from './lsxExport';
+import { formatLsxHeaderDate } from './lsx-header-format';
 
 
 function v(val: string | number | null | undefined, suffix = ''): string {
@@ -108,15 +109,16 @@ const CSS = `
     vertical-align: middle;
   }
   .lsx-html-page .iso-logo img {
-    display: block;
-    margin: 0 auto;
-    max-width: 88px;
-    max-height: 70px;
-    object-fit: contain;
-  }
-  .lsx-html-page .iso-co { width: 40.2%; text-align: center; vertical-align: middle; font-size: 11pt; }
-  .lsx-html-page .iso-lbl { width: 17.7%; font-style: italic; vertical-align: middle; font-size: 10pt; }
-  .lsx-html-page .iso-val { width: 21.6%; text-align: center; vertical-align: middle; font-size: 10pt; }
+     display: block;
+     margin: 0 auto;
+     max-width: 120px;
+     max-height: 150px;
+     object-fit: contain;
+   }
+   .lsx-html-page .iso-co { width: 40.2%; text-align: center; vertical-align: middle; font-size: 11pt; }
+   .lsx-html-page .iso-title { width: 40.2%; text-align: center; vertical-align: middle; font-size: 16pt; font-weight: 700; }
+   .lsx-html-page .iso-lbl { width: 17.7%; font-style: italic; vertical-align: middle; font-size: 10pt; }
+   .lsx-html-page .iso-val { width: 21.6%; text-align: center; vertical-align: middle; font-size: 10pt; }
   .lsx-html-page .footer-cell { text-align: center; padding: 12px 4px; vertical-align: top; }
   .lsx-html-page .page-num {
     text-align: center;
@@ -270,6 +272,8 @@ function renderBagFieldRow(spec: BagRow, useLeftDivideCol: boolean): string {
 // ── ISO header (ref mang-in / cat-seal header3) ───────────────────────────────
 function isoHeaderHtml(order: ProductionOrder): string {
   const m = order.manual;
+  const lsxNumber = m.lsxNumber || order.id;
+  const issuedDate = formatLsxHeaderDate(m.issuedDate);
   return `
   <table>
     <colgroup>
@@ -277,8 +281,8 @@ function isoHeaderHtml(order: ProductionOrder): string {
       <col style="width:17.7%" /><col style="width:21.6%" />
     </colgroup>
     <tr>
-      <td class="iso-logo" rowspan="5"><img src="/logo_lts.png" alt="LTS" /></td>
-      <td class="iso-co" rowspan="3">Công Ty CP TM và SX Bao Bì Lai Trường Sơn- Long An</td>
+      <td class="iso-logo" rowspan="4"><img src="/logo-LTS-LA.jpg" alt="LTS Long An" /></td>
+      <td class="iso-co" rowspan="2">Công Ty CP TM và SX Bao Bì<br/>Lai Trường Sơn- Long An</td>
       <td class="iso-lbl">Ký mã hiệu</td>
       <td class="iso-val">QT.ISO-22-BM02</td>
     </tr>
@@ -287,18 +291,13 @@ function isoHeaderHtml(order: ProductionOrder): string {
       <td class="iso-val">02</td>
     </tr>
     <tr>
-      <td class="iso-lbl">Ngày ban hành</td>
-      <td class="iso-val">01/03/2025</td>
+      <td class="iso-title" rowspan="2">LỆNH SẢN XUẤT</td>
+      <td class="iso-lbl">Số:</td>
+      <td class="iso-val">${esc(lsxNumber)}</td>
     </tr>
     <tr>
-      <td class="iso-co b" style="font-size:16pt">LỆNH SẢN XUẤT</td>
-      <td class="iso-lbl">Số LSX:</td>
-      <td class="iso-val red">${esc(m.lsxNumber || order.id)}</td>
-    </tr>
-    <tr>
-      <td class="iso-co"></td>
-      <td class="iso-lbl">Ngày xuống LSX:</td>
-      <td class="iso-val red">${esc(m.issuedDate || '…/…./20…')}</td>
+      <td class="iso-lbl">Ngày:</td>
+      <td class="iso-val">${esc(issuedDate)}</td>
     </tr>
   </table>`;
 }

@@ -7,6 +7,7 @@ import {
   View,
   StyleSheet,
   Font,
+  Image,
 } from "@react-pdf/renderer";
 import type { ProductionOrder, LSXManualFields } from "../lib/types";
 import {
@@ -23,6 +24,7 @@ import {
   formatLsxLamSupplyLine,
   type LsxDocxTemplateKey,
 } from "../lib/lsxExport";
+import { formatLsxHeaderDate } from "../lib/lsx-header-format";
 import { lsxExportBaseName } from "../lib/lsx-msp";
 
 // Times New Roman — same as BaoGiaPdfDocument / DOCX ground truth
@@ -50,19 +52,17 @@ const styles = StyleSheet.create({
     paddingRight: 32,
     lineHeight: 1.25,
   },
-  isoTable: { width: "100%", borderLeft: BORDER, borderTop: BORDER, marginBottom: 6 },
-  isoRow: { flexDirection: "row" },
-  isoCell: {
-    borderRight: BORDER,
-    borderBottom: BORDER,
-    padding: 5,
-    fontSize: 9,
-  },
-  isoLogo: { width: "22%", justifyContent: "center", alignItems: "center" },
-  isoCo: { width: "36%", justifyContent: "center" },
-  isoLbl: { width: "20%" },
-  isoVal: { width: "22%", textAlign: "center" },
-  isoTitle: { width: "36%", textAlign: "center", fontWeight: 700, fontSize: 12 },
+  isoTable: { width: "100%", flexDirection: "row", border: BORDER, marginBottom: 6 },
+  isoLeft: { width: "22%", borderRight: BORDER, justifyContent: "center", alignItems: "center", padding: 5 },
+  isoMiddle: { width: "36%", borderRight: BORDER },
+  isoRight: { width: "42%" },
+  isoCompany: { height: 72, justifyContent: "center", borderBottom: BORDER, padding: 5 },
+  isoTitle: { flex: 1, justifyContent: "center", alignItems: "center", padding: 5 },
+  isoRightRow: { flexDirection: "row", flex: 1, borderBottom: BORDER },
+  isoRightRowLast: { flexDirection: "row", flex: 1 },
+  isoLbl: { width: "47%", borderRight: BORDER, justifyContent: "center", padding: 5 },
+  isoVal: { width: "53%", justifyContent: "center", alignItems: "center", padding: 5, textAlign: "center" },
+  isoLogoImage: { width: 86, height: 86, objectFit: "contain" },
   red: { color: "#ff0000" },
   secGreen: {
     backgroundColor: GREEN,
@@ -149,65 +149,43 @@ function isSingleLayer(s: ProductionOrder["snapshot"], m: LSXManualFields) {
 
 function IsoHeader({ order }: { order: ProductionOrder }) {
   const m = order.manual;
+  const lsxNumber = m.lsxNumber || order.id;
+  const issuedDate = formatLsxHeaderDate(m.issuedDate);
+  const rightRow = (
+    label: string,
+    value: string,
+    last = false,
+  ) => (
+    <View style={last ? styles.isoRightRowLast : styles.isoRightRow}>
+      <View style={styles.isoLbl}>
+        <Text style={{ fontStyle: "italic", fontSize: 9 }}>{label}</Text>
+      </View>
+      <View style={styles.isoVal}>
+        <Text style={{ fontSize: 9 }}>{value}</Text>
+      </View>
+    </View>
+  );
+
   return (
     <View style={styles.isoTable}>
-      <View style={styles.isoRow}>
-        <View style={[styles.isoCell, styles.isoLogo]}>
-          <Text style={{ fontWeight: 700, fontSize: 14 }}>LTS</Text>
-        </View>
-        <View style={[styles.isoCell, styles.isoCo]}>
+      <View style={styles.isoLeft}>
+        <Image src="/logo-LTS-LA.jpg" style={styles.isoLogoImage} />
+      </View>
+      <View style={styles.isoMiddle}>
+        <View style={styles.isoCompany}>
           <Text style={{ fontSize: 10, textAlign: "center" }}>
-            Công Ty CP TM và SX Bao Bì Lai Trường Sơn- Long An
+            Công Ty CP TM và SX Bao Bì{"\n"}Lai Trường Sơn- Long An
           </Text>
         </View>
-        <View style={[styles.isoCell, styles.isoLbl]}>
-          <Text style={{ fontStyle: "italic" }}>Ký mã hiệu</Text>
-        </View>
-        <View style={[styles.isoCell, styles.isoVal]}>
-          <Text>QT.ISO-22-BM02</Text>
+        <View style={styles.isoTitle}>
+          <Text style={{ fontWeight: 700, fontSize: 12 }}>LỆNH SẢN XUẤT</Text>
         </View>
       </View>
-      <View style={styles.isoRow}>
-        <View style={[styles.isoCell, styles.isoLogo]} />
-        <View style={[styles.isoCell, styles.isoCo]} />
-        <View style={[styles.isoCell, styles.isoLbl]}>
-          <Text style={{ fontStyle: "italic" }}>Lần ban hành</Text>
-        </View>
-        <View style={[styles.isoCell, styles.isoVal]}>
-          <Text>02</Text>
-        </View>
-      </View>
-      <View style={styles.isoRow}>
-        <View style={[styles.isoCell, styles.isoLogo]} />
-        <View style={[styles.isoCell, styles.isoCo]} />
-        <View style={[styles.isoCell, styles.isoLbl]}>
-          <Text style={{ fontStyle: "italic" }}>Ngày ban hành</Text>
-        </View>
-        <View style={[styles.isoCell, styles.isoVal]}>
-          <Text>01/03/2025</Text>
-        </View>
-      </View>
-      <View style={styles.isoRow}>
-        <View style={[styles.isoCell, styles.isoLogo]} />
-        <View style={[styles.isoCell, styles.isoTitle]}>
-          <Text style={{ fontWeight: 700, fontSize: 12, textAlign: "center" }}>LỆNH SẢN XUẤT</Text>
-        </View>
-        <View style={[styles.isoCell, styles.isoLbl]}>
-          <Text style={{ fontStyle: "italic" }}>Số LSX:</Text>
-        </View>
-        <View style={[styles.isoCell, styles.isoVal]}>
-          <Text style={styles.red}>{m.lsxNumber || order.id}</Text>
-        </View>
-      </View>
-      <View style={styles.isoRow}>
-        <View style={[styles.isoCell, styles.isoLogo]} />
-        <View style={[styles.isoCell, styles.isoCo]} />
-        <View style={[styles.isoCell, styles.isoLbl]}>
-          <Text style={{ fontStyle: "italic" }}>Ngày xuống LSX:</Text>
-        </View>
-        <View style={[styles.isoCell, styles.isoVal]}>
-          <Text style={styles.red}>{m.issuedDate || "…/…./20…"}</Text>
-        </View>
+      <View style={styles.isoRight}>
+        {rightRow("Ký mã hiệu", "QT.ISO-22-BM02")}
+        {rightRow("Lần ban hành", "02")}
+        {rightRow("Số:", lsxNumber)}
+        {rightRow("Ngày:", issuedDate, true)}
       </View>
     </View>
   );

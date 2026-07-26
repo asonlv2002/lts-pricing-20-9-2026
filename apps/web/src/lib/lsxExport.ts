@@ -18,6 +18,7 @@ import {
   type LsxStageLayout,
 } from './lsx-bag-classification';
 import { lsxExportBaseName } from './lsx-msp';
+import { formatLsxHeaderDate } from './lsx-header-format';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function v(val: string | number | null | undefined, suffix = ''): string {
@@ -280,7 +281,7 @@ function withTimeout<T>(p: Promise<T>, ms: number, lbl: string): Promise<T> {
 // ── Load logo ─────────────────────────────────────────────────────────────────
 async function loadLogoBytes(): Promise<Uint8Array | null> {
   try {
-    const resp = await fetch('/logo_lts.png');
+    const resp = await fetch('/logo-LTS-LA.jpg');
     if (!resp.ok) return null;
     const buf = await resp.arrayBuffer();
     return new Uint8Array(buf);
@@ -330,6 +331,10 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
     left:   { style: BorderStyle.SINGLE, size: 4, color: '000000' },
     right:  { style: BorderStyle.SINGLE, size: 4, color: '000000' },
   };
+  const noBorder = { style: BorderStyle.NONE, size: 0, color: 'ffffff' };
+  const mergeStartBorders = { ...bdr, bottom: noBorder };
+  const mergeMiddleBorders = { top: noBorder, bottom: noBorder, left: bdr.left, right: bdr.right };
+  const mergeEndBorders = { ...bdr, top: noBorder };
 
   const run = (text: string, o: { b?: boolean; i?: boolean; sz?: number; clr?: string } = {}) =>
     new TextRun({ text, bold: o.b, italics: o.i, font: TNR, size: o.sz ?? 22, color: o.clr });
@@ -346,7 +351,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
 
   const cell = (children: any[], o: {
     bg?: string; cs?: number; w?: number;
-    va?: 'top' | 'center'; vm?: string;
+    va?: 'top' | 'center'; vm?: string; borders?: any;
   } = {}) => new TableCell({
     columnSpan: o.cs,
     verticalMerge: o.vm as any,
@@ -355,55 +360,51 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
     verticalAlign: o.va === 'center' ? VerticalAlign.CENTER : VerticalAlign.TOP,
     margins: CELL_MARGINS,
     children: children.length ? children : [para([])],
-    borders: bdr,
+    borders: o.borders ?? bdr,
   });
 
   const rowH = (h: number, ...cells: any[]) => new TableRow({
     children: cells,
-    height: { value: Math.round(h * 1.05), rule: HeightRule.ATLEAST },
+    height: { value: Math.round(h * 1.05), rule: HeightRule.EXACT },
   });
 
   // ── Header ISO ──────────────────────────────────────────────────────
+  const headerNumber = m.lsxNumber || order.id;
+  const headerDate = formatLsxHeaderDate(m.issuedDate);
   const logoCell = logoBytes
-    ? [para([new ImageRun({ data: logoBytes, transformation: { width: 100, height: 80 }, type: 'png' })], AlignmentType.CENTER)]
-    : [para([run('LTS', { b: true, sz: 28 })], AlignmentType.CENTER)];
+    ? [para([new ImageRun({ data: logoBytes, transformation: { width: 78, height: 78 }, type: 'jpg' })], AlignmentType.CENTER)]
+    : [para([run('LTS\nLONG AN', { b: true, sz: 28 })], AlignmentType.CENTER)];
 
   const hdrT1 = new Table({
     width: { size: 9907, type: WidthType.DXA },
     layout: TableLayoutType.FIXED,
-    columnWidths: [2242, 3567, 2039, 2059],
+    columnWidths: [2010, 3870, 1700, 2327],
     rows: [
-      rowH(567,
-        cell(logoCell, { vm: VM_START, w: 2242, va: 'center' }),
-        cell([para([run('Công Ty CP TM và SX Bao Bì Lai Trường Sơn- Long An', { sz: 28 })],
-          AlignmentType.CENTER)], { vm: VM_START, w: 3567, va: 'center' }),
+      rowH(580,
+        cell(logoCell, { vm: VM_START, w: 2010, va: 'center', borders: mergeStartBorders }),
+        cell([para([run('Công Ty CP TM và SX Bao Bì\nLai Trường Sơn- Long An', { sz: 26 })],
+          AlignmentType.CENTER)], { vm: VM_START, w: 3870, va: 'center', borders: mergeStartBorders }),
         cell([para([run('Ký mã hiệu', { i: true, sz: 24 })])], { va: 'center' }),
         cell([para([run('QT.ISO-22-BM02', { sz: 24 })], AlignmentType.CENTER)], { va: 'center' }),
       ),
-      rowH(567,
-        cell([para([])], { vm: VM_CONTINUE }),
-        cell([para([])], { vm: VM_CONTINUE }),
+      rowH(500,
+        cell([para([])], { vm: VM_CONTINUE, borders: mergeMiddleBorders }),
+        cell([para([])], { vm: VM_CONTINUE, borders: mergeEndBorders }),
         cell([para([run('Lần ban hành', { i: true, sz: 24 })])], { va: 'center' }),
         cell([para([run('02', { sz: 24 })], AlignmentType.CENTER)], { va: 'center' }),
       ),
-      rowH(567,
-        cell([para([])], { vm: VM_CONTINUE }),
-        cell([para([])], { vm: VM_CONTINUE }),
-        cell([para([run('Ngày ban hành', { i: true, sz: 24 })])], { va: 'center' }),
-        cell([para([run('01/03/2025', { sz: 24 })], AlignmentType.CENTER)], { va: 'center' }),
-      ),
-      rowH(338,
-        cell([para([])], { vm: VM_CONTINUE }),
+      rowH(500,
+        cell([para([])], { vm: VM_CONTINUE, borders: mergeMiddleBorders }),
         cell([para([run('LỆNH SẢN XUẤT', { b: true, sz: 32 })], AlignmentType.CENTER)],
-          { vm: VM_START, va: 'center' }),
-        cell([para([run('Số LSX:', { i: true, sz: 24 })])], { va: 'center' }),
-        cell([para([run(m.lsxNumber || order.id, { sz: 24, clr: 'ff0000' })], AlignmentType.CENTER)], { va: 'center' }),
+          { vm: VM_START, va: 'center', borders: mergeStartBorders }),
+        cell([para([run('Số:', { i: true, sz: 24 })])], { va: 'center' }),
+        cell([para([run(headerNumber, { sz: 22 })], AlignmentType.CENTER)], { va: 'center' }),
       ),
-      rowH(338,
-        cell([para([])], { vm: VM_CONTINUE }),
-        cell([para([])], { vm: VM_CONTINUE }),
-        cell([para([run('Ngày xuống LSX:', { i: true, sz: 24 })])], { va: 'center' }),
-        cell([para([run(m.issuedDate || '…/…./20…', { sz: 24, clr: 'ff0000' })], AlignmentType.CENTER)], { va: 'center' }),
+      rowH(500,
+        cell([para([])], { vm: VM_CONTINUE, borders: mergeEndBorders }),
+        cell([para([])], { vm: VM_CONTINUE, borders: mergeEndBorders }),
+        cell([para([run('Ngày:', { i: true, sz: 24 })])], { va: 'center' }),
+        cell([para([run(headerDate, { sz: 22 })], AlignmentType.CENTER)], { va: 'center' }),
       ),
     ],
   });
