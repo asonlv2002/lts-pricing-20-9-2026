@@ -66,6 +66,26 @@ function layHasHalfMoonBottom(entry: Record<string, unknown> | null): boolean {
   return entry.bagSpec.hasHalfMoonBottom === true;
 }
 
+function layLsxBagMetadata(entry: Record<string, unknown> | null): {
+  bagWidthMm?: number;
+  bagLengthMm?: number;
+  bottomFollows?: 'front' | 'back';
+  structureSwapped?: boolean;
+} {
+  if (!entry || !laObject(entry.bagSpec)) return {};
+  const widthMm = entry.bagSpec.widthMm;
+  const lengthMm = entry.bagSpec.lengthMm;
+  const bottomFollows = entry.bagSpec.bottomFollows;
+  return {
+    bagWidthMm: typeof widthMm === 'number' && widthMm > 0 ? widthMm : undefined,
+    bagLengthMm: typeof lengthMm === 'number' && lengthMm > 0 ? lengthMm : undefined,
+    bottomFollows: bottomFollows === 'front' || bottomFollows === 'back'
+      ? bottomFollows
+      : undefined,
+    structureSwapped: entry.bagSpec.structureSwapped === true,
+  };
+}
+
 function cauTrucNhuBaoGia(
   input: Partial<CalculateInput>,
   bagSpec: ChatLieuBagSpecLite | null,
@@ -94,6 +114,7 @@ function tuPricingSheet(
   });
   const bagSpec = layBagSpecLite(entry);
   const hasHalfMoonBottom = layHasHalfMoonBottom(entry);
+  const bagMetadata = layLsxBagMetadata(entry);
 
   return {
     id: `${quotationId}:${sheet.id}`,
@@ -104,6 +125,7 @@ function tuPricingSheet(
     chotGia: rawInput.chotGia || undefined,
     input: rawInput as CalculateInput,
     hasHalfMoonBottom: hasHalfMoonBottom || undefined,
+    ...bagMetadata,
   };
 }
 
@@ -118,6 +140,7 @@ function tuInputValueTrucTiep(
   const entry = layProductBagSpecEntry(productBagSpecs, { index: 0 });
   const bagSpec = layBagSpecLite(entry);
   const hasHalfMoonBottom = layHasHalfMoonBottom(entry);
+  const bagMetadata = layLsxBagMetadata(entry);
 
   return {
     id: quotationId,
@@ -128,6 +151,7 @@ function tuInputValueTrucTiep(
     chotGia: rawInput.chotGia || undefined,
     input: rawInput as CalculateInput,
     hasHalfMoonBottom: hasHalfMoonBottom || undefined,
+    ...bagMetadata,
   };
 }
 

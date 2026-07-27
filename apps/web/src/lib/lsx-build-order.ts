@@ -16,12 +16,15 @@ import type {
 import { calculate } from './engine';
 import { normalizeMaterialBaseName } from './format-structure';
 import { buildLsxLamBtpNote, toCylMm } from './lsxExport';
+import { formatLsxOrderQuantity } from './lsx-quantity';
+import { LSX_TOLERANCE_DEFAULT_MM } from './lsx-quy-cach';
 import { genMsp } from './lsx-msp';
 import {
   applyBagDefaults,
   classifyLsxBagType,
   type LsxBagTypeInfo,
 } from './lsx-bag-classification';
+import { formatLsxStructure } from './lsx-structure';
 
 export type LamLayerPart = { name: string; widthMm: number };
 export type LamLayerRow = {
@@ -30,6 +33,44 @@ export type LamLayerRow = {
   parts: LamLayerPart[];
   wasteMeters: number;
 };
+
+/**
+ * Khổ lớp 2 dành RIÊNG cho LSX túi đáy đứng hai cấu trúc.
+ * Mặt thường = rộng túi; mặt đi cùng đáy = phần khổ trải còn lại.
+ * Không mutate source.input và không thay input truyền vào engine tính giá.
+ */
+export function resolveLsxDualStandupLayer2Lengths(
+  source: Pick<
+    LsxSourceData,
+    'input' | 'bagWidthMm' | 'bottomFollows' | 'structureSwapped'
+  >,
+): { mat1: number; mat2: number } | undefined {
+  const i = source.input;
+  if (
+    i.productType === 'mang' ||
+    i.bagType !== 'dayDung' ||
+    !i.layer2Id ||
+    !i.layer2AltId ||
+    !source.bagWidthMm ||
+    source.bagWidthMm <= 0 ||
+    (source.bottomFollows !== 'front' && source.bottomFollows !== 'back')
+  ) {
+    return undefined;
+  }
+
+  const toMetersAtMmPrecision = (meters: number) => Math.round(meters * 1000) / 1000;
+  const normalWidth = toMetersAtMmPrecision(source.bagWidthMm / 1000);
+  const bottomWidth = toMetersAtMmPrecision((i.spreadWidth || 0) - normalWidth);
+  if (normalWidth <= 0 || bottomWidth <= 0) return undefined;
+
+  const bottomIsMain = source.structureSwapped
+    ? source.bottomFollows === 'back'
+    : source.bottomFollows === 'front';
+
+  return bottomIsMain
+    ? { mat1: bottomWidth, mat2: normalWidth }
+    : { mat1: normalWidth, mat2: bottomWidth };
+}
 
 export function todayStr(): string {
   return new Date().toLocaleDateString('vi-VN');
@@ -85,8 +126,9 @@ export function buildLaminateNotesChecklist(layers: LamLayerRow[]): string {
 
 /**
  * Dựng các dòng ghép từ input BG.
- * - Lớp in (layer1) = Màng ghép 1 (khổ full).
- * - L2…Ln = các pass tiếp; dual-structure = nhiều parts trong cùng 1 row (ô gộp).
+ * - Lớp in (layer1) KHÔNG phải màng ghép: nó chỉ thuộc MÁY IN.
+ * - L2…Ln = các pass ghép, đánh số Màng ghép 1…n; dual-structure = nhiều parts
+ *   trong cùng 1 row (ô gộp).
  */
 export function buildLaminateLayersFromInput(
   i: LsxSourceData['input'],
@@ -113,16 +155,7 @@ export function buildLaminateLayersFromInput(
     });
   };
 
-  // Pass 1: màng in (layer1) — user muốn ghi vào máy ghép làm Màng ghép 1
-  if (i.layer1Id) {
-    pushPass(1, [
-      {
-        name: getMaterialLabel(materials, i.layer1Id, mic.layer1Id),
-        widthMm: defaultW,
-      },
-    ]);
-  }
-
+  // Lớp in (layer1) không vào máy ghép — pass ghép đầu tiên là layer2.
   if (i.layer2Id && i.layer2AltId) {
     const w1 = i.layer2Lengths?.mat1
       ? Math.round(i.layer2Lengths.mat1 * 1000)
@@ -254,6 +287,9 @@ export function defaultManual(lsxNumber: string, preparedBy: string): LSXManualF
     quyCachCuon: '',
     chieuRaCuonSP: '',
     soLuongDHNote: '',
+    quantityTolerancePercent: 10,
+    quyCachToleranceWidthMm: LSX_TOLERANCE_DEFAULT_MM,
+    quyCachToleranceLengthMm: LSX_TOLERANCE_DEFAULT_MM,
     printFilmName: '',
     printWastePercent: 0,
     printProductQty: 0,
@@ -338,7 +374,11 @@ export function buildManualFromSource(
   const productCode = (i as { productCode?: string }).productCode?.trim();
   m.msp = productCode || genMsp(ctx.productionOrders);
   m.printFilmName = getMaterialLabel(ctx.materials, i.layer1Id, i.micOverrides?.layer1Id);
-  let layers = buildLaminateLayersFromInput(i, ctx.materials);
+  const lsxLayer2Lengths = resolveLsxDualStandupLayer2Lengths(source);
+  const inputForLsxLayers = lsxLayer2Lengths
+    ? { ...i, layer2Lengths: lsxLayer2Lengths }
+    : i;
+  let layers = buildLaminateLayersFromInput(inputForLsxLayers, ctx.materials);
   layers = prefillFromEngine(
     m,
     layers,
@@ -354,7 +394,13 @@ export function buildManualFromSource(
     m.laminateNotes = buildLaminateNotesChecklist(layers);
   }
   m.numCylinders = (i.numColors || 0) as number;
-  m.soLuongDHNote = `${i.quantity.toLocaleString('vi-VN')} ${tui ? 'túi' : 'm²'}`;
+  const unit = tui ? 'túi' : 'm²';
+  const tolerance = m.quantityTolerancePercent ?? 10;
+  m.quantityTolerancePercent = tolerance;
+  m.soLuongDHNote = formatLsxOrderQuantity(
+    `${i.quantity.toLocaleString('vi-VN')} ${unit}`,
+    tolerance,
+  );
   if (i.divideWidthMm && i.divideWidthMm > 0) {
     m.divideWidth = i.divideWidthMm;
   }
@@ -378,14 +424,22 @@ export function buildSnapshotFromSource(
   const inp = source.input;
   const khoMM = Math.round((inp.spreadWidth || 0) * 1000);
   const area = (inp.quantity || 0) * (inp.spreadWidth || 0) * (inp.cutStep || 0);
+  const lsxStructure = formatLsxStructure(materials, inp, {
+    bottomFollows: source.bottomFollows,
+    structureSwapped: source.structureSwapped,
+  });
   return {
     customer: source.customer,
     productName: source.productName,
     productType: inp.productType,
-    structure: source.structure,
+    structure: lsxStructure || source.structure,
     quantity: inp.quantity,
     spreadWidth: inp.spreadWidth,
     cutStep: inp.cutStep,
+    bagWidthMm: source.bagWidthMm,
+    bagLengthMm: source.bagLengthMm,
+    bottomFollows: source.bottomFollows,
+    structureSwapped: source.structureSwapped,
     numColors: inp.numColors,
     bagType: inp.bagType,
     hasZipper: inp.hasZipper || false,

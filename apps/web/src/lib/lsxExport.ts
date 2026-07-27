@@ -18,6 +18,10 @@ import {
   type LsxStageLayout,
 } from './lsx-bag-classification';
 import { lsxExportBaseName } from './lsx-msp';
+import { formatLsxOrderQuantity } from './lsx-quantity';
+import { buildLsxQuyCachLines } from './lsx-quy-cach';
+import { buildLsxBagFieldRows, splitLsxBagBlockWidths } from './lsx-bag-fields';
+import { buildLsxLamGridRows, splitLsxLamBlockWidths } from './lsx-lam-rows';
 import { formatLsxHeaderDate } from './lsx-header-format';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -368,6 +372,12 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
     height: { value: Math.round(h * 1.05), rule: HeightRule.EXACT },
   });
 
+  /** Hàng cao tối thiểu — dùng cho ô chứa bảng con để không bị kẹp/hở mép. */
+  const rowMin = (h: number, ...cells: any[]) => new TableRow({
+    children: cells,
+    height: { value: Math.round(h * 1.05), rule: HeightRule.ATLEAST },
+  });
+
   // ── Header ISO ──────────────────────────────────────────────────────
   const headerNumber = m.lsxNumber || order.id;
   const headerDate = formatLsxHeaderDate(m.issuedDate);
@@ -438,10 +448,12 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
           para([run('Khổ màng:', { b: true }), run(khoMM ? ` K${khoMM}mm` : ' ...')]),
         ]),
         cell([
-          para([run(isTui ? 'Kiểu túi:' : 'Quy cách:', { b: true }),
-            run(' ' + (isTui ? bagLabel : (m.quyCachNote || '')))]),
-          para([run('Quy cách:', { b: true }),
-            run(' ' + (m.quyCachNote || (isTui && khoMM && dlMM ? `R:${khoMM}mm x D:${dlMM}mm` : '')))]),
+          ...(isTui ? [para([run('Kiểu túi:', { b: true }), run(' ' + bagLabel)])] : []),
+          ...buildLsxQuyCachLines(m, s).map((line) => {
+            const idx = line.indexOf(': ');
+            if (idx < 0) return para([run(line)]);
+            return para([run(line.slice(0, idx + 1), { b: true }), run(' ' + line.slice(idx + 2))]);
+          }),
           ...(!isTui ? [
             para([run('Quy cách cuộn:', { b: true }), run(' ' + (m.quyCachCuon || ''))]),
             para([run('Chiều ra cuộn:', { b: true }), run(' ' + (m.chieuRaCuonSP || ''))]),
@@ -451,7 +463,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
       rowH(556,
         cell([para([run('Số màu:', { b: true }), run(` ${vd(s.numColors)} màu`)])], { va: 'center' }),
         cell([para([run('Số lượng đơn hàng:', { b: true }),
-          run(' ' + (m.soLuongDHNote || qty(s.quantity) + (isTui ? ' túi' : ' m²')))])], { va: 'center' }),
+          run(' ' + formatLsxOrderQuantity(m.soLuongDHNote || qty(s.quantity) + (isTui ? ' túi' : ' m²'), m.quantityTolerancePercent ?? 10))])], { va: 'center' }),
       ),
     ],
   });
@@ -567,7 +579,6 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
           para([run(`Thành phẩm in: ${formatLsxPrintProductLine(m, '…')}`)]),
           para([run('Ghi chú: ', { b: true }), run(m.printNotes || '')]),
           para([run('- Màu sắc: duyệt màu theo '), run(v(m.maMucNhu) || '…')]),
-          para([run('- Chiều xả: '), run(v(m.printDirection) || '…')]),
         ], { cs: 2 }),
         cell([
           para([run('Ghi chú chia: ', { b: true })]),
@@ -577,58 +588,90 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
 
     } else {
       const lamRows = resolveLsxLaminateRows(order);
-      const lam0 = lamRows[0];
-      const lam1 = lamRows[1];
       tR.push(rowH(280,
         cell([para([run('MÁY IN', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' }),
         cell([para([run('MÁY GHÉP', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 3, bg: 'fabf8f', va: 'center' }),
       ));
-      const lamPassParas = (lr: LsxLamExportRow | undefined, fallbackLabel: string) => {
-        if (!lr) return [para([run(`${fallbackLabel}: `, { b: true })])];
-        const parts = lr.parts?.length ? lr.parts : [{ name: lr.name, widthMm: lr.widthMm }];
-        if (parts.length <= 1) {
-          return [para([run(`${lr.label}: `, { b: true }), run(parts[0]?.name || lr.name || '')])];
-        }
-        return [
-          para([run(`${lr.label}:`, { b: true })]),
-          ...parts.map((p) =>
-            para([run(`  · ${p.name || ''}${p.widthMm ? `  Khổ ${p.widthMm}mm` : ''}`)]),
+
+      // ── Hai nửa 50/50, mỗi nửa là bảng con nên không cần ô rỗng đệm chiều cao ──
+      const PRINT_HALF_WIDTH = 5069;  // cột 1+2 (2943 + 2126)
+      const LAM_HALF_WIDTH = 5069;    // cột 3+4+5 (2410 + 567 + 2092)
+      const printW = { name: 2943, kho: 2126 };
+      const lamW = splitLsxLamBlockWidths(LAM_HALF_WIDTH);
+
+      // Nửa MÁY IN: 2 cột liền khối, KHÔNG kẻ ngang bên trong. Nửa GHÉP có số
+      // hàng khác nên nếu cả hai bên đều kẻ ngang thì các vạch không gặp nhau
+      // ở vạch chia giữa → nhìn như đường kẻ bị đứt đoạn.
+      const printHalfTable = new Table({
+        width: { size: PRINT_HALF_WIDTH, type: WidthType.DXA },
+        layout: TableLayoutType.FIXED,
+        columnWidths: [printW.name, printW.kho],
+        rows: [
+          rowMin(640,
+            cell([
+              para([run('Màng in: ', { b: true }), run(m.printFilmName || s.layer1Name || '')]),
+              para([run('Trục in: ', { b: true }), run(formatLsxCylText(m, s) || '')]),
+              para([run('Mã Số Trục: ', { b: true }), run(v(m.printMST) || '…')]),
+            ], { w: printW.name }),
+            cell([
+              para([run('Khổ: ', { b: true }), run(khoMM ? `${khoMM}mm` : '…')]),
+              para([run('Số trục: ', { b: true }), run(formatLsxNumCylinders(m))]),
+              para([run('Chiều ra cuộn: ', { b: true }), run(v(m.printDirection) || '…')]),
+            ], { w: printW.kho }),
           ),
-        ];
-      };
-      const lamPassKho = (lr: LsxLamExportRow | undefined) => {
-        if (!lr) return '';
-        if (lr.parts && lr.parts.length > 1) {
-          return lr.parts.map((p) => (p.widthMm ? `${p.widthMm}` : '…')).join(' / ') + 'mm';
+        ],
+      });
+
+      // Dòng đơn = 2 ô (label+tên gộp | khổ); dual = label gộp dọc + mỗi vật liệu 1 hàng
+      const lamHalfRows: any[] = [];
+      for (const row of buildLsxLamGridRows(lamRows, khoMM)) {
+        if (row.kind === 'dual') {
+          row.parts.forEach((p, pi) => {
+            const isFirst = pi === 0;
+            const isLast = pi === row.parts.length - 1;
+            lamHalfRows.push(rowMin(280,
+              cell(
+                isFirst ? [para([run(row.label, { b: true })])] : [],
+                {
+                  w: lamW.label,
+                  vm: isFirst ? VM_START : VM_CONTINUE,
+                  va: 'center',
+                  borders: isFirst
+                    ? mergeStartBorders
+                    : isLast ? mergeEndBorders : mergeMiddleBorders,
+                },
+              ),
+              cell([para([run(p.name)])], { w: lamW.name }),
+              cell([para([run('Khổ ', { b: true }), run(p.khoText)])], { w: lamW.kho }),
+            ));
+          });
+        } else {
+          // colspan 2 gộp cột label+tên; khổ giữ đúng cột 3 để thẳng hàng với dòng dual
+          lamHalfRows.push(rowMin(280,
+            cell([para([run(`${row.label}: `, { b: true }), run(row.name)])], { cs: 2 }),
+            cell([para([run('Khổ ', { b: true }), run(row.khoText)])], { w: lamW.kho }),
+          ));
         }
-        return vd(lr.widthMm || khoMM, 'mm');
-      };
-      tR.push(rowH(280,
-        cell([para([run('Màng in: ', { b: true }), run(m.printFilmName || s.layer1Name || '')])]),
-        cell([para([run('Khổ: ', { b: true }), run(khoMM ? `${khoMM}mm` : '')])]),
-        cell(lamPassParas(lam0, 'Màng ghép 1'), { cs: 2 }),
-        cell([para([run('Khổ: ', { b: true }), run(lam0 ? lamPassKho(lam0) : '')])]),
-      ));
-      tR.push(rowH(360,
-        cell([
-          para([run('Trục in: ', { b: true }), run(formatLsxCylText(m, s) || '')]),
-          para([run('Mã Số Trục: ', { b: true }), run(v(m.printMST) || '…')]),
-        ]),
-        cell([
-          para([run('Số trục: ', { b: true }), run(formatLsxNumCylinders(m))]),
-          para([run('Chiều ra cuộn: ', { b: true }), run(v(m.printDirection) || '…')]),
-        ]),
-        cell(lamPassParas(lam1, 'Màng ghép 2'), { cs: 2 }),
-        cell([para([run('Khổ: ', { b: true }), run(lam1 ? lamPassKho(lam1) : '')])]),
-      ));
-      for (let i = 2; i < lamRows.length; i++) {
-        const lr = lamRows[i];
-        tR.push(rowH(280,
-          cell([para([])], { cs: 2 }),
-          cell(lamPassParas(lr, lr.label), { cs: 2 }),
-          cell([para([run('Khổ: ', { b: true }), run(lamPassKho(lr))])]),
-        ));
       }
+      if (lamHalfRows.length === 0) {
+        lamHalfRows.push(rowMin(280, cell([para([])], { cs: 3 })));
+      }
+
+      const lamHalfTable = new Table({
+        width: { size: LAM_HALF_WIDTH, type: WidthType.DXA },
+        layout: TableLayoutType.FIXED,
+        columnWidths: [lamW.label, lamW.name, lamW.kho],
+        rows: lamHalfRows,
+      });
+
+      tR.push(new TableRow({
+        children: [
+          cell([printHalfTable], { cs: 2, va: 'top' }),
+          cell([lamHalfTable], { cs: 3, va: 'top' }),
+        ],
+        height: { value: Math.round(640 * 1.05), rule: HeightRule.ATLEAST },
+      }));
+
       const wasteText = formatLsxLamWasteText(lamRows);
       tR.push(rowH(1100,
         cell([
@@ -636,7 +679,6 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
           para([run(`Thành phẩm yêu cầu: ${formatLsxPrintProductLine(m, '…')}`)]),
           para([run('Ghi chú: ', { b: true }), run(m.printNotes || '')]),
           para([run('- Màu sắc: duyệt màu theo '), run(v(m.maMucNhu) || '…')]),
-          para([run('- Chiều xả: '), run(v(m.printDirection) || '…')]),
           ...(m.cylInfo ? [para([run('Trục in: ', { b: true }), run(m.cylInfo)])] : []),
         ], { cs: 2 }),
         cell([
@@ -664,7 +706,6 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
     }
 
     const useLeftDivideCol = showDivide && !singleLayer;
-    // Colspan for bag-machine cells: layout A keeps 3-col right; B uses full 5 cols
     const rcs = (n: number) => (useLeftDivideCol ? n : n === 3 ? 5 : n === 2 ? 3 : n === 1 ? 2 : n);
     const leftDivideParas = useLeftDivideCol
       ? [
@@ -676,9 +717,69 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
         ]
       : [];
 
-    const bagFieldRows: Array<{ h: number; cells: any[] }> = [];
+    // min = true → hàng cao tối thiểu (ô chứa bảng con phải tự giãn)
+    const bagFieldRows: Array<{ h: number; cells: any[]; min?: boolean }> = [];
 
-    if (useLeftDivideCol) {
+    // ── MÁY LÀM TÚI: bảng con 3 cột — ghi chú | 2 ô lưới đều nhau ──
+    // Bề rộng chia từ splitLsxBagBlockWidths để kẻ dọc trùng trục giữa trang.
+    const bagBlockWidth = useLeftDivideCol ? 5069 : 10138;
+    const bagW = splitLsxBagBlockWidths(bagBlockWidth);
+    const noteCell = (vm: string) =>
+      cell(
+        vm === VM_START
+          ? [para([run('Ghi chú:', { b: true })]), para([run(m.bagLuuY || '', { b: true })])]
+          : [],
+        { w: bagW.note, vm, va: 'top' },
+      );
+
+    const bagGridRows: any[] = [];
+    bagGridRows.push(rowMin(340,
+      noteCell(VM_START),
+      cell([para([run('Kiểu túi: ', { b: true }), run(bagLabel)], AlignmentType.CENTER)], { cs: 2 }),
+    ));
+    bagGridRows.push(rowMin(300,
+      noteCell(VM_CONTINUE),
+      cell([para([run('Chiều rộng: ', { b: true }), run(khoMM ? `${khoMM}mm` : '…')])], { w: bagW.cellLeft }),
+      cell([para([run('Chiều dài: ', { b: true }), run(dlMM ? `${dlMM}mm` : '…')])], { w: bagW.cellRight }),
+    ));
+    for (const row of buildLsxBagFieldRows(templateKey, m, !!s.hasZipper)) {
+      if (row.kind === 'pair') {
+        bagGridRows.push(rowMin(300,
+          noteCell(VM_CONTINUE),
+          cell([para([run(row.left.label, { b: true }), run(row.left.value)])], { w: bagW.cellLeft }),
+          cell([para([run(row.right.label, { b: true }), run(row.right.value)])], { w: bagW.cellRight }),
+        ));
+      } else {
+        bagGridRows.push(rowMin(300,
+          noteCell(VM_CONTINUE),
+          cell([para([run(row.field.label, { b: true }), run(row.field.value)])], { cs: 2 }),
+        ));
+      }
+    }
+    bagGridRows.push(rowMin(560,
+      noteCell(VM_CONTINUE),
+      cell([
+        para([run(`Định mức phi hao: ${vd(m.bagWasteMeters, 'm')}`, { b: true })]),
+        para([run('Ghi chú: ', { b: true }), run(m.bagMachineNotes || m.bagLuuY || 'chạy theo mẫu đã sản xuất')]),
+      ], { cs: 2 }),
+    ));
+
+    const bagBlockTable = new Table({
+      width: { size: bagBlockWidth, type: WidthType.DXA },
+      layout: TableLayoutType.FIXED,
+      columnWidths: [bagW.note, bagW.cellLeft, bagW.cellRight],
+      rows: bagGridRows,
+    });
+
+    bagFieldRows.push({
+      h: 1500,
+      min: true,
+      cells: useLeftDivideCol
+        ? [cell(leftDivideParas, { cs: 2, va: 'top' }), cell([bagBlockTable], { cs: 3, va: 'top' })]
+        : [cell([bagBlockTable], { cs: 5, va: 'top' })],
+    });
+
+    if (false) {
       bagFieldRows.push({
         h: 340,
         cells: [
@@ -839,50 +940,13 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
         break;
     }
 
-    // Footer bag rows — left col only when layout A (chia | túi)
-    if (useLeftDivideCol) {
-      bagFieldRows.push({
-        h: 360,
-        cells: [
-          cell([para([])], { cs: 2, vm: VM_CONTINUE }),
-          cell([
-            para([run(`Định mức phi hao: ${vd(m.bagWasteMeters, 'm')}`, { b: true })]),
-            para([run('Ghi chú: ', { b: true }), run(m.bagLuuY || m.bagMachineNotes || 'chạy theo mẫu đã sản xuất')]),
-          ], { cs: 3 }),
-        ],
-      });
-      bagFieldRows.push({
-        h: 600,
-        cells: [
-          cell([para([])], { cs: 2, vm: VM_CONTINUE }),
-          cell([
-            para([run('Ghi chú: ', { b: true }), run(m.bagMachineNotes || 'chạy theo mẫu đã sản xuất', { clr: 'cc0000' })]),
-            ...(m.packagingInfo ? [para([run(`SL đóng gói: ${m.packagingInfo}`)])] : []),
-            ...(m.soLuongDHNote ? [para([run('Số lượng: ', { b: true }), run(m.soLuongDHNote)])] : []),
-            para([run('Yêu cầu giao hàng: ', { b: true })]),
-            para([run(m.deliveryNotes || m.bagDeliveryReq || '')]),
-          ], { cs: 3 }),
-        ],
-      });
-    } else {
+    if (false) {
       bagFieldRows.push({
         h: 360,
         cells: [
           cell([
             para([run(`Định mức phi hao: ${vd(m.bagWasteMeters, 'm')}`, { b: true })]),
             para([run('Ghi chú: ', { b: true }), run(m.bagLuuY || m.bagMachineNotes || 'chạy theo mẫu đã sản xuất')]),
-          ], { cs: 5 }),
-        ],
-      });
-      bagFieldRows.push({
-        h: 600,
-        cells: [
-          cell([
-            para([run('Ghi chú: ', { b: true }), run(m.bagMachineNotes || 'chạy theo mẫu đã sản xuất', { clr: 'cc0000' })]),
-            ...(m.packagingInfo ? [para([run(`SL đóng gói: ${m.packagingInfo}`)])] : []),
-            ...(m.soLuongDHNote ? [para([run('Số lượng: ', { b: true }), run(m.soLuongDHNote)])] : []),
-            para([run('Yêu cầu giao hàng: ', { b: true })]),
-            para([run(m.deliveryNotes || m.bagDeliveryReq || '')]),
           ], { cs: 5 }),
         ],
       });
@@ -897,7 +961,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
     });
 
     for (const r of bagFieldRows) {
-      tR.push(rowH(r.h, ...r.cells));
+      tR.push(r.min ? rowMin(r.h, ...r.cells) : rowH(r.h, ...r.cells));
     }
 
     bodyTable = new Table({

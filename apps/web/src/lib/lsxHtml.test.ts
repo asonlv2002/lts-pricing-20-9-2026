@@ -145,7 +145,7 @@ function order(opts: {
 console.log('buildLsxHtml layout B (túi không chia)');
 
 {
-  const html = buildLsxHtml(order({ hasDivide: false }));
+  const html = buildLsxHtml(order({ hasDivide: false, hasZipper: true }));
 
   // Layout B: no left vMerge notes column — bag fields full width
   assert(
@@ -170,13 +170,90 @@ console.log('buildLsxHtml layout B (túi không chia)');
     (html.match(/Định mức phi hao: 140m/g) || []).length >= 1,
   );
   assert(
-    'B: YC giao / packaging in full-width bag footer (not left col)',
-    html.includes('Yêu cầu giao hàng') && html.includes('100 túi/thùng'),
+    'B: bag section không còn Yêu cầu giao hàng',
+    !html.includes('Yêu cầu giao hàng'),
   );
   assert(
-    'B: soLuong in full-width footer',
-    html.includes('5.000 túi'),
+    'B: bag section không còn dòng Số lượng / SL đóng gói',
+    !html.includes('Số lượng: ') && !html.includes('SL đóng gói'),
   );
+  assert(
+    'B: bag chia trái ghi chú | phải lưới thông số',
+    html.includes('data-lsx-bag-note') && html.includes('data-lsx-bag-grid'),
+  );
+  assert(
+    'B: bag machine note appears once',
+    (html.match(/Ghi chú: (?:<\/span>)?chạy theo mẫu/g) || []).length === 1,
+  );
+  assert(
+    'B: zipper detail nằm trong lưới thông số',
+    html.includes('data-lsx-bag-grid') && html.includes('Nhấn xé'),
+  );
+}
+
+console.log('\nbuildLsxHtml MÁY LÀM TÚI — chia đều 50/50 + lưới 2 ô');
+
+{
+  const html = buildLsxHtml(
+    order({
+      bagType: 'dayDung',
+      hasZipper: true,
+      manual: {
+        bagLuuY: 'Phát hiện lỗi báo KINH DOANH để phân loại.',
+        bagMachineNotes: 'chạy theo mẫu',
+        tamZipperCachMieng: 30,
+        foldBottom: '100mm',
+        sealEdge: '10mm',
+        tearNotch: '2 bên cách miệng 15mm',
+      },
+    }),
+  );
+
+  assert(
+    'cột trái là ghi chú bagLuuY',
+    /data-lsx-bag-note[\s\S]*?Phát hiện lỗi báo KINH DOANH/.test(html),
+  );
+  assert('bag-note rộng 50%', /\.bag-note\s*\{[^}]*width:\s*50%/.test(html));
+  assert('bag-grid rộng 50%', /\.bag-grid\s*\{[^}]*width:\s*50%/.test(html));
+  assert(
+    'Kiểu túi gộp cả hàng lưới',
+    /<td colspan="2"[^>]*>\s*<span class="b">Kiểu túi:/.test(html),
+  );
+  assert(
+    'Chiều rộng | Chiều dài cùng một hàng',
+    /<tr><td[^>]*>[^<]*<span class="b">Chiều rộng: <\/span>[\s\S]*?<td[^>]*>[^<]*<span class="b">Chiều dài: <\/span>[\s\S]*?<\/tr>/.test(html),
+  );
+  assert(
+    'Tâm zipper | Nhấn xé cùng một hàng',
+    /<tr><td[^>]*>[\s\S]*?Tâm zipper[\s\S]*?<td[^>]*>[\s\S]*?Nhấn xé[\s\S]*?<\/tr>/.test(html),
+  );
+  assert(
+    'Dán biên | Xếp đáy cùng một hàng',
+    /<tr><td[^>]*>[\s\S]*?Dán biên[\s\S]*?<td[^>]*>[\s\S]*?Xếp đáy[\s\S]*?<\/tr>/.test(html),
+  );
+}
+
+console.log('\nbuildLsxHtml khối Quy cách (mục I)');
+
+{
+  const html = buildLsxHtml(
+    order({
+      bagType: 'dayDung',
+      hasZipper: true,
+      manual: {
+        tamZipperCachMieng: 30,
+        foldBottom: '100mm',
+        sealEdge: '10mm',
+        tearNotch: '2 bên cách miệng 15mm',
+      },
+    }),
+  );
+
+  assert('Quy cách kèm dung sai ±2mm hai chiều', html.includes('R:500mm (±2mm) x D:300mm (±2mm)'));
+  assert('có dòng Zipper cách miệng', html.includes('Zipper cách miệng: </span>30mm'));
+  assert('Xếp đáy tự chia mỗi bên', html.includes('100mm (50mm / Bên)'));
+  assert('có dòng Dán biên', html.includes('Dán biên: </span>10mm'));
+  assert('có dòng Nhấn xé "v"', html.includes('Nhấn xé &quot;v&quot; 2 bên cách miệng 15mm'));
 }
 
 console.log('\nbuildLsxHtml layout A (túi + chia, nhiều lớp)');
@@ -218,10 +295,71 @@ console.log('\nbuildLsxHtml layout A (túi + chia, nhiều lớp)');
     'A: right has bag ĐM phi hao 140m',
     html.includes('Định mức phi hao: 140m') || html.includes('Định mức phi hao: 140'),
   );
-  assert('A: packaging / YC on bag right footer', html.includes('100 túi/thùng') && html.includes('Yêu cầu giao hàng'));
+  assert(
+    'A: bag section bỏ packaging / YC giao hàng (đã có ở mục I)',
+    !html.includes('100 túi/thùng') && !html.includes('Yêu cầu giao hàng'),
+  );
   assert(
     'A: has left rowspan for divide col',
     /rowspan="\d+"/.test(html),
+  );
+}
+
+console.log('\nbuildLsxHtml MÁY IN | MÁY GHÉP — dual label gộp dọc, không ô rỗng');
+
+{
+  const html = buildLsxHtml(
+    order({
+      manual: {
+        laminateLayers: [
+          {
+            layerIndex: 2,
+            label: 'Màng ghép 1',
+            parts: [
+              { name: 'PET12', widthMm: 280 },
+              { name: 'MPET12', widthMm: 280 },
+            ],
+            wasteMeters: 0,
+          },
+          {
+            layerIndex: 3,
+            label: 'Màng ghép 2',
+            parts: [{ name: 'LLDPE125', widthMm: 560 }],
+            wasteMeters: 60,
+          },
+        ],
+      },
+    }),
+  );
+
+  assert(
+    'GHÉP: hai nửa 50/50 có wrapper riêng',
+    html.includes('data-lsx-lam-grid'),
+  );
+  assert(
+    'GHÉP: dual label gộp dọc bằng rowspan=2',
+    /rowspan="2"[^>]*>\s*<span class="b">Màng ghép 1<\/span>/.test(html)
+      || /rowspan="2"[^>]*>\s*Màng ghép 1/.test(html),
+  );
+  assert(
+    'GHÉP: mỗi vật liệu dual một hàng riêng',
+    /PET12[\s\S]{0,120}Khổ 280[\s\S]{0,200}MPET12[\s\S]{0,120}Khổ 280/.test(html),
+  );
+  assert(
+    'GHÉP: không còn khổ gộp kiểu "280 / 280mm"',
+    !html.includes('280 / 280mm'),
+  );
+  assert(
+    'GHÉP: dòng đơn vẫn dạng "Màng ghép 2: LLDPE125"',
+    html.includes('Màng ghép 2: </span>LLDPE125') || html.includes('Màng ghép 2:</span> LLDPE125'),
+  );
+  assert(
+    'GHÉP: không còn bullet "· PET12"',
+    !html.includes('· PET12'),
+  );
+  assert(
+    'IN: không còn ô rỗng đệm chiều cao',
+    !/<td colspan="2"><\/td>/.test(html),
   );
 }
 

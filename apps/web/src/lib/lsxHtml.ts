@@ -21,6 +21,9 @@ import {
   formatLsxLamSupplyLine,
   type LsxDocxTemplateKey,
 } from './lsxExport';
+import { buildLsxLamGridRows } from './lsx-lam-rows';
+import { formatLsxOrderQuantity } from './lsx-quantity';
+import { buildLsxQuyCachLines } from './lsx-quy-cach';
 import { formatLsxHeaderDate } from './lsx-header-format';
 
 
@@ -81,6 +84,69 @@ const CSS = `
     vertical-align: top;
     font-size: 11pt;
     word-wrap: break-word;
+  }
+  .lsx-html-page .bag-split {
+    display: flex;
+    align-items: stretch;
+  }
+  .lsx-html-page .bag-note {
+    width: 50%;
+    padding-right: 8px;
+    border-right: 1px solid #000;
+  }
+  .lsx-html-page .bag-grid {
+    width: 50%;
+  }
+  .lsx-html-page .bag-note > div {
+    margin-bottom: 2px;
+  }
+  .lsx-html-page .bag-grid table {
+    margin-bottom: 0;
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+  }
+  .lsx-html-page .bag-grid td {
+    border: 0;
+    border-top: 1px solid #000;
+  }
+  .lsx-html-page .bag-grid tr:first-child td {
+    border-top: 0;
+  }
+  .lsx-html-page .bag-grid td + td {
+    border-left: 1px solid #000;
+  }
+  .lsx-html-page .bag-split .red-note {
+    color: #000;
+  }
+  /* IN | GHÉP: ô ngoài chỉ là khung, lưới con tự kẻ bên trong */
+  .lsx-html-page td.lam-half {
+    padding: 0;
+  }
+  .lsx-html-page td.lam-half > table {
+    margin-bottom: 0;
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+    height: 100%;
+  }
+  .lsx-html-page td.lam-half td {
+    border: 0;
+    border-top: 1px solid #000;
+  }
+  .lsx-html-page td.lam-half tr:first-child td {
+    border-top: 0;
+  }
+  .lsx-html-page td.lam-half td + td {
+    border-left: 1px solid #000;
+  }
+  /* Nửa MÁY IN: bỏ kẻ ngang trong để đường kẻ không gãy khúc giữa hai nửa */
+  .lsx-html-page td.lam-half--print td {
+    border-top: 0;
+  }
+  /* Dual: hàng thứ 2+ là ô đầu tiên của hàng nên phải tự kẻ tiếp vạch dọc label */
+  .lsx-html-page td.lam-half td.lam-part-first {
+    border-left: 1px solid #000;
   }
   .lsx-html-page .sec-green {
     background: #c2d69b;
@@ -242,32 +308,7 @@ function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields, hasZ
  * useLeftDivideCol=true (layout A): right block is 3 cols (1 + 2, or 3 full).
  * useLeftDivideCol=false (layout B): expand to full 5 cols (2 + 3, or 5 full).
  */
-function renderBagFieldRow(spec: BagRow, useLeftDivideCol: boolean): string {
-  if (spec.kind === 'pair') {
-    if (useLeftDivideCol) {
-      return `
-    <tr>
-      <td style="width:24%">${spec.left}</td>
-      <td colspan="2" style="width:26%">${spec.right}</td>
-    </tr>`;
-    }
-    return `
-    <tr>
-      <td colspan="2" style="width:50%">${spec.left}</td>
-      <td colspan="3" style="width:50%">${spec.right}</td>
-    </tr>`;
-  }
-  if (useLeftDivideCol) {
-    return `
-    <tr>
-      <td colspan="3">${spec.text}</td>
-    </tr>`;
-  }
-  return `
-    <tr>
-      <td colspan="5">${spec.text}</td>
-    </tr>`;
-}
+
 
 // ── ISO header (ref mang-in / cat-seal header3) ───────────────────────────────
 function isoHeaderHtml(order: ProductionOrder): string {
@@ -302,6 +343,15 @@ function isoHeaderHtml(order: ProductionOrder): string {
   </table>`;
 }
 
+/** 1 dòng khối Quy cách: in đậm nhãn trước ": ", giữ nguyên dòng không nhãn. */
+function quyCachLineHtml(line: string): string {
+  const idx = line.indexOf(': ');
+  if (idx < 0) return `<div>${esc(line)}</div>`;
+  const label = line.slice(0, idx + 2);
+  const value = line.slice(idx + 2);
+  return `<div><span class="b">${esc(label)}</span>${esc(value)}</div>`;
+}
+
 // ── I. THÔNG TIN SẢN PHẨM ────────────────────────────────────────────────────
 function productInfoHtml(order: ProductionOrder): string {
   const { snapshot: s, manual: m } = order;
@@ -313,10 +363,8 @@ function productInfoHtml(order: ProductionOrder): string {
       : bagInfo.label
     : '';
   const khoMM = Math.round((s.spreadWidth || 0) * 1000);
-  const dlMM = Math.round((s.cutStep || 0) * 1000);
-  const quyCach =
-    m.quyCachNote ||
-    (isTui && khoMM && dlMM ? `R:${khoMM}mm x D:${dlMM}mm` : '');
+  const quyCachLines = buildLsxQuyCachLines(m, s);
+  const quyCachHtml = quyCachLines.map(quyCachLineHtml).join('');
 
   return `
   <table>
@@ -338,7 +386,7 @@ function productInfoHtml(order: ProductionOrder): string {
       </td>
       <td>
         ${isTui ? `<div><span class="b">Kiểu túi: </span>${esc(bagLabel)}</div>` : ''}
-        <div><span class="b">Quy cách: </span>${esc(quyCach)}</div>
+        ${quyCachHtml}
         ${!isTui ? `
           <div><span class="b">Quy cách cuộn: </span>${esc(m.quyCachCuon || '')}</div>
           <div><span class="b">Chiều ra cuộn: </span>${esc(m.chieuRaCuonSP || '')}</div>
@@ -347,7 +395,7 @@ function productInfoHtml(order: ProductionOrder): string {
     </tr>
     <tr>
       <td><span class="b">Số màu: </span>${esc(vd(s.numColors))} màu</td>
-      <td><span class="b">Số lượng đơn hàng: </span>${esc(m.soLuongDHNote || qty(s.quantity) + (isTui ? ' túi' : ' m²'))}</td>
+      <td><span class="b">Số lượng đơn hàng: </span>${esc(formatLsxOrderQuantity(m.soLuongDHNote || qty(s.quantity) + (isTui ? ' túi' : ' m²'), m.quantityTolerancePercent ?? 10))}</td>
     </tr>
   </table>`;
 }
@@ -434,18 +482,49 @@ function divideLeftColHtml(order: ProductionOrder): string {
     `;
 }
 
-/** Footer notes under bag fields — khớp DOCX (right cs3 layout A / full cs5 layout B). */
+/** Ghi chú vận hành cuối lưới túi — chỉ định mức phi hao + ghi chú máy. */
 function bagFooterNotesHtml(order: ProductionOrder): string {
   const m = order.manual;
+  return `<div class="b">Định mức phi hao: ${esc(vd(m.bagWasteMeters, 'm'))}</div><div><span class="b">Ghi chú: </span>${esc(m.bagMachineNotes || m.bagLuuY || 'chạy theo mẫu đã sản xuất')}</div>`;
+}
+
+/**
+ * MÁY LÀM TÚI — trái: ghi chú tự do (bagLuuY); phải: lưới thông số 2 ô đều nhau.
+ * Hai nửa 50/50 để đường kẻ dọc thẳng trục với MÁY IN | MÁY GHÉP.
+ */
+function bagSplitHtml(
+  bagLabel: string,
+  khoMM: number,
+  dlMM: number,
+  fieldSpecs: BagRow[],
+  order: ProductionOrder,
+): string {
+  const m = order.manual;
+  const rows: string[] = [];
+  rows.push(`<tr><td colspan="2" class="ac"><span class="b">Kiểu túi: </span>${esc(bagLabel)}</td></tr>`);
+  rows.push(
+    `<tr><td><span class="b">Chiều rộng: </span>${khoMM ? `${khoMM}mm` : '…'}</td>` +
+      `<td><span class="b">Chiều dài: </span>${dlMM ? `${dlMM}mm` : '…'}</td></tr>`,
+  );
+  for (const spec of fieldSpecs) {
+    if (spec.kind === 'pair') {
+      rows.push(`<tr><td>${spec.left}</td><td>${spec.right}</td></tr>`);
+    } else {
+      rows.push(`<tr><td colspan="2">${spec.text}</td></tr>`);
+    }
+  }
+  rows.push(`<tr><td colspan="2">${bagFooterNotesHtml(order)}</td></tr>`);
+
   return `
-        <div class="b">Định mức phi hao: ${esc(vd(m.bagWasteMeters, 'm'))}</div>
-        <div><span class="b">Ghi chú: </span>${esc(m.bagLuuY || m.bagMachineNotes || 'chạy theo mẫu đã sản xuất')}</div>
-        <div class="red-note">Ghi chú: ${esc(m.bagMachineNotes || 'chạy theo mẫu đã sản xuất')}</div>
-        ${m.packagingInfo ? `<div>SL đóng gói: ${esc(m.packagingInfo)}</div>` : ''}
-        ${m.soLuongDHNote ? `<div><span class="b">Số lượng: </span>${esc(m.soLuongDHNote)}</div>` : ''}
-        <div><span class="b">Yêu cầu giao hàng: </span></div>
-        <div>${esc(m.deliveryNotes || m.bagDeliveryReq || '')}</div>
-    `;
+    <div class="bag-split">
+      <div class="bag-note" data-lsx-bag-note>
+        <div><span class="b">Ghi chú:</span></div>
+        <div class="b">${esc(m.bagLuuY || '')}</div>
+      </div>
+      <div class="bag-grid" data-lsx-bag-grid>
+        <table><colgroup><col style="width:50%" /><col style="width:50%" /></colgroup>${rows.join('')}</table>
+      </div>
+    </div>`;
 }
 
 // ── Túi body — 5-col layout A (chia|túi) / B (túi full) ──────────────────────
@@ -464,8 +543,8 @@ function tuiBodyHtml(order: ProductionOrder): string {
   const fieldSpecs = bagFieldSpecs(templateKey, m, !!s.hasZipper);
 
 
-  // Left vMerge spans: kiểu túi + R/D + field rows + footer notes (layout A only)
-  const leftRowspan = 1 + 1 + fieldSpecs.length + 1;
+  const bagContent = bagSplitHtml(bagLabel, khoMM, dlMM, fieldSpecs, order);
+  const leftRowspan = 1;
 
   let html = `<table>${COLS5}
     <tr><td colspan="5" class="sec-green">II. CÔNG VIỆC CẦN THỰC HIỆN</td></tr>`;
@@ -502,72 +581,70 @@ function tuiBodyHtml(order: ProductionOrder): string {
         <div>Thành phẩm in: ${esc(formatLsxPrintProductLine(m, '…'))}</div>
         <div><span class="b">Ghi chú: </span>${esc(m.printNotes || '')}</div>
         <div>- Màu sắc: duyệt màu theo ${esc(v(m.maMucNhu) || '…')}</div>
-        <div>- Chiều xả: ${esc(v(m.printDirection) || '…')}</div>
       </td>
       <td colspan="3">
         <div><span class="b">Ghi chú chia: </span>${esc(m.divideDeliveryReq || '')}</div>
       </td>
     </tr>`;
   } else {
-    // ── IN | GHÉP ──
+    // ── IN | GHÉP — hai nửa 50/50, mỗi nửa có lưới riêng nên không cần ô rỗng ──
     const lamRows = resolveLsxLaminateRows(order);
-    const lam0 = lamRows[0];
-    const lam1 = lamRows[1];
     const wasteText = formatLsxLamWasteText(lamRows);
-    const lamPassHtml = (lr: typeof lam0, fallbackLabel: string) => {
-      if (!lr) return `<span class="b">${esc(fallbackLabel)}: </span>`;
-      const parts = lr.parts?.length ? lr.parts : [{ name: lr.name, widthMm: lr.widthMm }];
-      if (parts.length <= 1) {
-        return `<span class="b">${esc(lr.label)}: </span>${esc(parts[0]?.name || lr.name || '')}`;
-      }
-      const lines = parts
-        .map(
-          (p) =>
-            `<div>· ${esc(p.name || '')}${p.widthMm ? `  Khổ ${p.widthMm}mm` : ''}</div>`,
-        )
-        .join('');
-      return `<div><span class="b">${esc(lr.label)}:</span></div>${lines}`;
-    };
-    const lamPassKho = (lr: typeof lam0) => {
-      if (!lr) return '';
-      if (lr.parts && lr.parts.length > 1) {
-        return lr.parts.map((p) => (p.widthMm ? String(p.widthMm) : '…')).join(' / ') + 'mm';
-      }
-      return vd(lr.widthMm || khoMM, 'mm');
-    };
-    let extraLam = '';
-    for (let i = 2; i < lamRows.length; i++) {
-      const lr = lamRows[i];
-      extraLam += `
-    <tr>
-      <td colspan="2"></td>
-      <td colspan="2">${lamPassHtml(lr, lr.label)}</td>
-      <td><span class="b">Khổ: </span>${esc(lamPassKho(lr))}</td>
-    </tr>`;
-    }
+    const gridRows = buildLsxLamGridRows(lamRows, khoMM);
+
+    // Nửa MÁY IN: 2 cột liền khối, KHÔNG kẻ ngang bên trong để mọi đường
+    // kẻ dọc chạy liền hết chiều cao (nửa GHÉP có số hàng khác nên nếu kẻ
+    // ngang cả hai bên thì các vạch không gặp nhau → trông như đứt đoạn).
+    const printGrid = `
+        <table><colgroup><col style="width:58%" /><col style="width:42%" /></colgroup>
+          <tr>
+            <td>
+              <div><span class="b">Màng in: </span>${esc(m.printFilmName || s.layer1Name || '')}</div>
+              <div><span class="b">Trục in: </span>${esc(formatLsxCylText(m, s))}</div>
+              <div><span class="b">MST: </span>${esc(v(m.printMST) || '…')}</div>
+            </td>
+            <td>
+              <div><span class="b">Khổ: </span>${khoMM ? `${khoMM}mm` : '…'}</div>
+              <div><span class="b">Số trục: </span>${esc(formatLsxNumCylinders(m))}</div>
+              ${m.printDirection ? `<div><span class="b">Chiều ra cuộn: </span>${esc(m.printDirection)}</div>` : ''}
+            </td>
+          </tr>
+        </table>`;
+
+    // Nửa MÁY GHÉP: dòng đơn = 2 ô; dòng dual = label gộp dọc + mỗi vật liệu 1 hàng
+    const lamGridRowsHtml = gridRows
+      .map((row) => {
+        if (row.kind === 'dual') {
+          return row.parts
+            .map((p, pi) =>
+              pi === 0
+                ? `<tr><td rowspan="${row.parts.length}" class="vm"><span class="b">${esc(row.label)}</span></td>` +
+                  `<td>${esc(p.name)}</td><td>Khổ ${esc(p.khoText)}</td></tr>`
+                : `<tr><td class="lam-part-first">${esc(p.name)}</td><td>Khổ ${esc(p.khoText)}</td></tr>`,
+            )
+            .join('');
+        }
+        return (
+          `<tr><td colspan="2"><span class="b">${esc(row.label)}: </span>${esc(row.name)}</td>` +
+          `<td>Khổ ${esc(row.khoText)}</td></tr>`
+        );
+      })
+      .join('');
+
+    const lamGrid = `
+        <table><colgroup><col style="width:36%" /><col style="width:38%" /><col style="width:26%" /></colgroup>
+          ${lamGridRowsHtml || '<tr><td colspan="3"></td></tr>'}
+        </table>`;
+
     html += `
     <tr>
       <td colspan="2" class="sec-orange" style="width:50%">MÁY IN</td>
       <td colspan="3" class="sec-orange" style="width:50%">MÁY GHÉP</td>
     </tr>
     <tr>
-      <td style="width:29%"><span class="b">Màng in: </span>${esc(m.printFilmName || s.layer1Name || '')}</td>
-      <td style="width:21%"><span class="b">Khổ: </span>${khoMM ? `${khoMM}mm` : ''}</td>
-      <td colspan="2" style="width:29.5%">${lamPassHtml(lam0, 'Màng ghép 1')}</td>
-      <td style="width:20.5%"><span class="b">Khổ: </span>${esc(lam0 ? lamPassKho(lam0) : '')}</td>
+      <td colspan="2" class="lam-half lam-half--print" data-lsx-print-grid>${printGrid}</td>
+      <td colspan="3" class="lam-half" data-lsx-lam-grid>${lamGrid}</td>
     </tr>
-    <tr>
-      <td>
-        <div><span class="b">Trục in: </span>${esc(formatLsxCylText(m, s))}</div>
-        <div><span class="b">MST: </span>${esc(v(m.printMST) || '…')}</div>
-      </td>
-      <td>
-        <div><span class="b">Số trục: </span>${esc(formatLsxNumCylinders(m))}</div>
-        ${m.printDirection ? `<div><span class="b">Chiều: </span>${esc(m.printDirection)}</div>` : ''}
-      </td>
-      <td colspan="2">${lamPassHtml(lam1, 'Màng ghép 2')}</td>
-      <td><span class="b">Khổ: </span>${esc(lam1 ? lamPassKho(lam1) : '')}</td>
-    </tr>${extraLam}
     <tr>
       <td colspan="2">
         <div>Định mức phi hao: ${esc(formatLsxPrintWasteLine(m, '…'))}</div>
@@ -575,7 +652,6 @@ function tuiBodyHtml(order: ProductionOrder): string {
         <div><span class="b">Ghi chú:</span></div>
         <div>${esc(m.printNotes || '')}</div>
         <div>- Màu sắc: duyệt màu theo ${esc(v(m.maMucNhu) || '…')}</div>
-        <div>- Chiều xả: ${esc(v(m.printDirection) || '…')}</div>
         ${m.cylInfo ? `<div><span class="b">Trục in: </span>${esc(m.cylInfo)}</div>` : ''}
       </td>
       <td colspan="3">
@@ -601,41 +677,18 @@ function tuiBodyHtml(order: ProductionOrder): string {
     <tr><td colspan="5" class="sec-orange">MÁY LÀM TÚI</td></tr>`;
   }
 
-  // ── Bag fields: layout A (left divide vMerge) vs B (full 5 cols) ──
+  // ── Bag fields: split specification | operation in the bag area ──
   if (useLeftDivideCol) {
     const leftNotes = divideLeftColHtml(order);
     html += `
     <tr>
       <td colspan="2" rowspan="${leftRowspan}">${leftNotes}</td>
-      <td colspan="3" class="ac"><span class="b">Kiểu túi: </span>${esc(bagLabel)}</td>
-    </tr>
-    <tr>
-      <td style="width:24%"><span class="b">Chiều rộng: </span>${khoMM ? `${khoMM}mm` : '…'}</td>
-      <td colspan="2" style="width:26%"><span class="b">Chiều dài: </span>${dlMM ? `${dlMM}mm` : '…'}</td>
-    </tr>`;
-    for (const spec of fieldSpecs) {
-      html += renderBagFieldRow(spec, true);
-    }
-    html += `
-    <tr>
-      <td colspan="3">${bagFooterNotesHtml(order)}</td>
+      <td colspan="3">${bagContent}</td>
     </tr>`;
   } else {
-    // Layout B: full width — khớp DOCX rcs expand
     html += `
     <tr>
-      <td colspan="5" class="ac"><span class="b">Kiểu túi: </span>${esc(bagLabel)}</td>
-    </tr>
-    <tr>
-      <td colspan="2"><span class="b">Chiều rộng: </span>${khoMM ? `${khoMM}mm` : '…'}</td>
-      <td colspan="3"><span class="b">Chiều dài: </span>${dlMM ? `${dlMM}mm` : '…'}</td>
-    </tr>`;
-    for (const spec of fieldSpecs) {
-      html += renderBagFieldRow(spec, false);
-    }
-    html += `
-    <tr>
-      <td colspan="5">${bagFooterNotesHtml(order)}</td>
+      <td colspan="5">${bagContent}</td>
     </tr>`;
   }
 

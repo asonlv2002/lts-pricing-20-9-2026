@@ -702,6 +702,12 @@ export interface LsxSourceData {
   input: CalculateInput;
   /** Từ bagSpec báo giá — prefill khuôn đáy bán nguyệt trên LSX */
   hasHalfMoonBottom?: boolean;
+  /** Kích thước thành phẩm túi từ bagSpec báo giá (không phải khổ trải/bước cắt). */
+  bagWidthMm?: number;
+  bagLengthMm?: number;
+  /** Mặt nào đi cùng đáy và trạng thái đảo mặt từ bagSpec báo giá. */
+  bottomFollows?: 'front' | 'back';
+  structureSwapped?: boolean;
 }
 
 // ── Production Order (Lệnh Sản Xuất) ─────────────────────────────────────────
@@ -735,6 +741,9 @@ export interface LSXManualFields {
   quyCachCuon: string;          // Quy cách cuộn (vd: "K500mm x 1000m") — chỉ dùng cho màng
   chieuRaCuonSP: string;        // Chiều ra cuộn (section thông tin SP) — chỉ dùng cho màng
   soLuongDHNote: string;        // Ghi chú số lượng đơn hàng (vd: 5.400 túi -6.000 túi)
+  quantityTolerancePercent?: number; // Dung sai số lượng đơn hàng (%)
+  quyCachToleranceWidthMm?: number;  // Dung sai chiều rộng quy cách (mm)
+  quyCachToleranceLengthMm?: number; // Dung sai chiều dài quy cách (mm)
 
   // Máy In
   printFilmName: string;        // Tên màng in
@@ -833,6 +842,11 @@ export interface ProductionOrder {
     quantity: number;
     spreadWidth: number;        // Khổ trải (m → hiển thị mm)
     cutStep: number;            // Bước cắt (m → hiển thị mm)
+    /** Rộng/dài thành phẩm từ bagSpec báo giá; optional để đọc LSX legacy. */
+    bagWidthMm?: number;
+    bagLengthMm?: number;
+    bottomFollows?: 'front' | 'back';
+    structureSwapped?: boolean;
     numColors: number | null;
     bagType: string;
     hasZipper: boolean;          // Có zipper hay không (để phân loại LSX khi export)

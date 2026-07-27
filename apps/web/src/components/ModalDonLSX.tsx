@@ -15,6 +15,7 @@ import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, resolve
 import { exportLSXtoDOCX } from '../lib/lsxExport';
 import { exportLSXtoPDF } from './LsxPdfDocument';
 import { genMsp } from '../lib/lsx-msp';
+import { formatLsxFoldBottom } from '../lib/lsx-quy-cach';
 import {
   buildManualFromSource,
   buildSnapshotFromSource,
@@ -150,6 +151,13 @@ const styles = {
     flexWrap: 'wrap' as const,
     alignItems: 'center',
     gap: 4,
+    minWidth: 0,
+  },
+  // Giá trị chỉ đọc trong Máy làm túi — nhập ở khối Quy cách (mục I)
+  roVal: {
+    fontWeight: 700 as const,
+    fontSize: '11px',
+    flex: 1,
     minWidth: 0,
   },
 };
@@ -517,8 +525,8 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
               </tr>
               <tr>
                 <td style={styles.lbl}>Quy cách:</td>
-                <td style={styles.td}>
-                  <TI value={manual.quyCachNote || `R:${khoMM}mm x D:${dlMM}mm`} onChange={v => upd('quyCachNote', v)} placeholder="R:250mm x D:500mm (±2mm)" />
+                <td style={styles.td} colSpan={isTui ? 3 : 1}>
+                  <TI value={manual.quyCachNote} onChange={v => upd('quyCachNote', v)} placeholder={`R:${khoMM}mm x D:${dlMM}mm`} />
                 </td>
                 {isMang && (
                   <>
@@ -528,8 +536,59 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                     </td>
                   </>
                 )}
-                {isTui && <td style={styles.td} colSpan={6}></td>}
+                {isTui && (
+                  <>
+                    <td style={styles.lbl}>Dung sai R:</td>
+                    <td style={styles.td}>
+                      <div style={styles.cellRow}>
+                        <NI value={manual.quyCachToleranceWidthMm ?? 2} onChange={v => upd('quyCachToleranceWidthMm', v)} placeholder="2" style={{ width: '44px', maxWidth: '44px' }} />
+                        <span>mm</span>
+                      </div>
+                    </td>
+                    <td style={styles.lbl}>Dung sai D:</td>
+                    <td style={styles.td}>
+                      <div style={styles.cellRow}>
+                        <NI value={manual.quyCachToleranceLengthMm ?? 2} onChange={v => upd('quyCachToleranceLengthMm', v)} placeholder="2" style={{ width: '44px', maxWidth: '44px' }} />
+                        <span>mm</span>
+                      </div>
+                    </td>
+                  </>
+                )}
               </tr>
+              {isTui && (
+                <>
+                  <tr>
+                    <td style={styles.lbl}>Zipper cách miệng:</td>
+                    <td style={styles.td} colSpan={3}>
+                      <div style={styles.cellRow}>
+                        <NI value={manual.tamZipperCachMieng} onChange={v => upd('tamZipperCachMieng', v)} placeholder="30" style={{ width: '50px', maxWidth: '50px' }} />
+                        <span>mm</span>
+                      </div>
+                    </td>
+                    <td style={styles.lbl}>Nhấn xé &quot;v&quot;:</td>
+                    <td style={styles.td} colSpan={3}>
+                      <TI value={manual.tearNotch} onChange={v => upd('tearNotch', v)} placeholder="2 bên cách miệng 15mm" />
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style={styles.lbl}>Dán biên:</td>
+                    <td style={styles.td} colSpan={3}>
+                      <TI value={manual.sealEdge} onChange={v => upd('sealEdge', v)} placeholder="10mm" />
+                    </td>
+                    <td style={styles.lbl}>Xếp đáy:</td>
+                    <td style={styles.td} colSpan={3}>
+                      <div style={styles.cellRow}>
+                        <TI value={manual.foldBottom} onChange={v => upd('foldBottom', v)} placeholder="100mm" style={{ flex: 1, minWidth: 0 }} />
+                        {!!formatLsxFoldBottom(manual.foldBottom) && (
+                          <span style={{ fontSize: '10px', color: '#555', whiteSpace: 'nowrap' }}>
+                            {formatLsxFoldBottom(manual.foldBottom)}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                </>
+              )}
               {isMang && (
                 <tr>
                   <td style={styles.lbl}>Chiều ra cuộn:</td>
@@ -545,8 +604,15 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                   {inp.numColors ? `${String(inp.numColors).padStart(2, '0')} màu` : 'Không in'}
                 </td>
                 <td style={styles.lbl} colSpan={2}>Số lượng ĐH:</td>
-                <td colSpan={4} style={styles.td}>
-                  <TI value={manual.soLuongDHNote} onChange={v => upd('soLuongDHNote', v)} placeholder="5.400 túi -6.000 túi" style={{ ...styles.boldVal }} />
+                <td colSpan={2} style={styles.td}>
+                  <TI value={manual.soLuongDHNote} onChange={v => upd('soLuongDHNote', v)} placeholder="5.400 túi" style={{ ...styles.boldVal }} />
+                </td>
+                <td style={styles.lbl}>Dung sai:</td>
+                <td style={styles.td}>
+                  <div style={styles.cellRow}>
+                    <NI value={manual.quantityTolerancePercent ?? 10} onChange={v => upd('quantityTolerancePercent', v)} placeholder="10" style={{ width: '50px', maxWidth: '50px' }} />
+                    <span>%</span>
+                  </div>
                 </td>
               </tr>
               <tr>
@@ -1059,8 +1125,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                         {isFieldVisible('tamZipperCachMieng') && (
                           <div style={styles.cellRow}>
                             <span style={{ fontWeight: 700, fontSize: '11px' }}>Tâm zipper:</span>
-                            <NI value={manual.tamZipperCachMieng} onChange={v => upd('tamZipperCachMieng', v)} placeholder="30" style={{ width: '50px', maxWidth: '50px' }} />
-                            <span>mm</span>
+                            <span style={styles.roVal}>{manual.tamZipperCachMieng ? `${manual.tamZipperCachMieng}mm` : '—'}</span>
                           </div>
                         )}
                         {isFieldVisible('holePunchInfo') && (
@@ -1075,7 +1140,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                         {isFieldVisible('tearNotch') && (
                           <div style={styles.cellRow}>
                             <span style={{ fontSize: '11px' }}>Nhấn xé V:</span>
-                            <TI value={manual.tearNotch} onChange={v => upd('tearNotch', v)} placeholder="2 bên cách miệng 15mm" style={{ flex: 1, minWidth: 0 }} />
+                            <span style={styles.roVal}>{manual.tearNotch || '—'}</span>
                           </div>
                         )}
                         {isFieldVisible('loTreoInfo') && (
@@ -1087,13 +1152,13 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                         {isFieldVisible('sealEdge') && (
                           <div style={styles.cellRow}>
                             <span style={{ fontSize: '11px' }}>Dán biên:</span>
-                            <TI value={manual.sealEdge} onChange={v => upd('sealEdge', v)} placeholder="10mm" style={{ flex: 1, minWidth: 0 }} />
+                            <span style={styles.roVal}>{manual.sealEdge || '—'}</span>
                           </div>
                         )}
                         {isFieldVisible('foldBottom') && (
                           <div style={styles.cellRow}>
                             <span style={{ fontSize: '11px' }}>Xếp đáy:</span>
-                            <TI value={manual.foldBottom} onChange={v => upd('foldBottom', v)} placeholder="100mm" style={{ flex: 1, minWidth: 0 }} />
+                            <span style={styles.roVal}>{formatLsxFoldBottom(manual.foldBottom) || '—'}</span>
                           </div>
                         )}
                         <div style={styles.cellRow}>
@@ -1220,8 +1285,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                           {isFieldVisible('tamZipperCachMieng') && (
                             <div style={styles.cellRow}>
                               <span style={{ fontWeight: 700, fontSize: '11px' }}>Tâm zipper:</span>
-                              <NI value={manual.tamZipperCachMieng} onChange={v => upd('tamZipperCachMieng', v)} placeholder="30" style={{ width: '50px', maxWidth: '50px' }} />
-                              <span>mm</span>
+                              <span style={styles.roVal}>{manual.tamZipperCachMieng ? `${manual.tamZipperCachMieng}mm` : '—'}</span>
                             </div>
                           )}
                           {isFieldVisible('holePunchInfo') && (
@@ -1236,7 +1300,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                           {isFieldVisible('tearNotch') && (
                             <div style={styles.cellRow}>
                               <span style={{ fontSize: '11px' }}>Nhấn xé V:</span>
-                              <TI value={manual.tearNotch} onChange={v => upd('tearNotch', v)} placeholder="2 bên cách miệng 15mm" style={{ flex: 1, minWidth: 0 }} />
+                              <span style={styles.roVal}>{manual.tearNotch || '—'}</span>
                             </div>
                           )}
                           {isFieldVisible('loTreoInfo') && (
@@ -1248,13 +1312,13 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                           {isFieldVisible('sealEdge') && (
                             <div style={styles.cellRow}>
                               <span style={{ fontSize: '11px' }}>Dán biên:</span>
-                              <TI value={manual.sealEdge} onChange={v => upd('sealEdge', v)} placeholder="10mm" style={{ flex: 1, minWidth: 0 }} />
+                              <span style={styles.roVal}>{manual.sealEdge || '—'}</span>
                             </div>
                           )}
                           {isFieldVisible('foldBottom') && (
                             <div style={styles.cellRow}>
                               <span style={{ fontSize: '11px' }}>Xếp đáy:</span>
-                              <TI value={manual.foldBottom} onChange={v => upd('foldBottom', v)} placeholder="100mm" style={{ flex: 1, minWidth: 0 }} />
+                              <span style={styles.roVal}>{formatLsxFoldBottom(manual.foldBottom) || '—'}</span>
                             </div>
                           )}
                           <div style={styles.cellRow}>

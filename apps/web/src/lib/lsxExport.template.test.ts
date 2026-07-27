@@ -22,7 +22,13 @@ import {
   buildLsxLamBtpNote,
 } from './lsxExport';
 
-import { resolveLsxHasDivide, resolveLsxStageLayout } from './lsx-bag-classification';
+import {
+  classifyLsxBagType,
+  resolveLsxBagVisibleFields,
+  resolveLsxHasDivide,
+  resolveLsxStageLayout,
+  ZIPPER_ACCESSORY_FIELDS,
+} from './lsx-bag-classification';
 
 let passed = 0;
 let failed = 0;
@@ -240,18 +246,30 @@ console.log('\nresolveLsxLaminateRows / formatLsxLamWasteText');
 
 {
   const o = order('tui', '3bien', false);
+  // Dual L2 gộp 1 pass (2 parts) + L3
   o.manual.laminateLayers = [
-    { layerIndex: 2, label: 'Màng ghép 1', parts: [{ name: 'PET12', widthMm: 325 }], wasteMeters: 100 },
-    { layerIndex: 2, label: 'Màng ghép 2', parts: [{ name: 'MPET12', widthMm: 325 }], wasteMeters: 0 },
-    { layerIndex: 3, label: 'Màng ghép 3', parts: [{ name: 'LLDPE', widthMm: 325 }], wasteMeters: 60 },
+    {
+      layerIndex: 2,
+      label: 'Màng ghép 1',
+      parts: [
+        { name: 'PET12', widthMm: 240 },
+        { name: 'MPET12', widthMm: 240 },
+      ],
+      wasteMeters: 100,
+    },
+    { layerIndex: 3, label: 'Màng ghép 2', parts: [{ name: 'LLDPE', widthMm: 480 }], wasteMeters: 60 },
   ];
   const rows = resolveLsxLaminateRows(o);
-  assert('3 màng ghép rows', rows.length === 3);
-  assert('row1 name', rows[0].name === 'PET12');
-  assert('row2 name', rows[1].name === 'MPET12');
-  assert('row3 name', rows[2].name === 'LLDPE');
+  assert('2 màng ghép passes', rows.length === 2);
+  assert('dual parts in pass 1', rows[0].parts.length === 2);
   assert(
-    'waste L1 L2 only non-zero passes',
+    'dual name joined',
+    rows[0].name.includes('PET12') && rows[0].name.includes('MPET12'),
+    rows[0].name,
+  );
+  assert('row2 name', rows[1].name === 'LLDPE');
+  assert(
+    'waste L1 L2 by pass',
     formatLsxLamWasteText(rows) === 'L1: 100m, L2: 60m',
   );
   assert('has laminate stage', orderStageLayout(o) === 'B');
@@ -313,6 +331,18 @@ assert(
   'btp note',
   buildLsxLamBtpNote(3300).includes('ghép hết BTP in') && buildLsxLamBtpNote(3300).includes('3'),
 );
+
+console.log('\nuseSemicircularMold visibility (not zipper-only)');
+const dayDung = classifyLsxBagType('dayDung');
+const visNoZip = resolveLsxBagVisibleFields(dayDung, false);
+const visZip = resolveLsxBagVisibleFields(dayDung, true);
+assert('mold visible without zipper', visNoZip.includes('useSemicircularMold'));
+assert('mold visible with zipper', visZip.includes('useSemicircularMold'));
+assert(
+  'mold not in ZIPPER_ACCESSORY_FIELDS',
+  !ZIPPER_ACCESSORY_FIELDS.includes('useSemicircularMold'),
+);
+assert('dual cutter still zipper-only', !visNoZip.includes('useDualCutter') && visZip.includes('useDualCutter'));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
