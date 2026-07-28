@@ -23,6 +23,7 @@ import ModulePhanQuyen from "../ModulePhanQuyen";
 import ModuleTaoLenhSanXuat from "../ModuleTaoLenhSanXuat";
 import ModuleDanhSachLSX from "../ModuleDanhSachLSX";
 import ModuleNhatKy from "../ModuleNhatKy";
+import ModuleTaiNguyenHeThong from "../ModuleTaiNguyenHeThong";
 import {
   coTheXemNhomMenu,
   coTheXemMucMenu,
@@ -93,6 +94,7 @@ import {
   ChevronUp,
   CheckCheck,
   ImagePlus,
+  Activity,
 } from "lucide-react";
 
 // ── Mock thông báo (phase 1) ────────────────────────────────────────────────
@@ -157,7 +159,8 @@ type MaModule =
   | "customers"
   | "settings"
   | "users"
-  | "audit_log";
+  | "audit_log"
+  | "system_metrics";
 
 interface MucMenu {
   key: string;
@@ -372,6 +375,12 @@ const CAC_NHOM_MENU: NhomMenu[] = [
         vaiTros: ["admin"],
       },
       {
+        key: "system.system_resources",
+        id: "system_metrics",
+        label: "Quản lý tài nguyên hệ thống",
+        vaiTros: ["admin"],
+      },
+      {
         key: "system.audit_log",
         id: "audit_log",
         label: "Nhật ký hệ thống",
@@ -438,6 +447,7 @@ const TIEU_DE_MODULE: Record<MaModule, string> = {
   users: "Tài khoản & quyền",
   settings: "Cài đặt hệ thống",
   audit_log: "Nhật ký thao tác",
+  system_metrics: "Quản lý tài nguyên hệ thống",
 };
 
 const MOBILE_HUBS: Record<string, MobileHubConfig> = {
@@ -727,6 +737,17 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
           type: "module",
           key: "system.company_settings",
           module: "settings",
+        },
+      },
+      {
+        title: "Quản lý tài nguyên hệ thống",
+        subtitle: "Theo dõi CPU, RAM, ổ đĩa và container VPS.",
+        tone: "sky",
+        icon: <Activity size={30} />,
+        action: {
+          type: "module",
+          key: "system.system_resources",
+          module: "system_metrics",
         },
       },
       {
@@ -1282,9 +1303,11 @@ function ThanhBen({
 function MobileHubScreen({
   hub,
   onAction,
+  policies,
 }: {
   hub: MobileHubConfig;
   onAction: (action: MobileHubAction) => void;
+  policies: PolicyCode[];
 }) {
   const laTongQuanBiKhoa = hub.id === "overview";
 
@@ -1313,7 +1336,9 @@ function MobileHubScreen({
       </header>
 
       <div className="lts-mobile-hub-content">
-        {hub.cards.map((card) => (
+        {hub.cards
+          .filter((card) => card.action.type !== "module" || coTheXemMucMenu(policies, card.action.key))
+          .map((card) => (
           <button
             key={card.title}
             type="button"
@@ -1522,6 +1547,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const sessionChecked = dungCuaHangTinhGia((s) => s.sessionChecked);
   const accessToken = dungCuaHangTinhGia((s) => s.accessToken);
   const lamMoiPhien = dungCuaHangTinhGia((s) => s.lamMoiPhien);
+  const batDauTheoDoiMetricHeThong = dungCuaHangTinhGia((s) => s.batDauTheoDoiMetricHeThong);
+  const dungTheoDoiMetricHeThong = dungCuaHangTinhGia((s) => s.dungTheoDoiMetricHeThong);
   const kiemTraVaKhoiPhucPhien = dungCuaHangTinhGia(
     (s) => s.kiemTraVaKhoiPhucPhien,
   );
@@ -1590,6 +1617,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       window.removeEventListener("pageshow", refreshIfNeeded);
     };
   }, [accessToken, isAuthenticated, lamMoiPhien]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !nguoiDung?.policies.includes("SYSTEM_MONITOR")) {
+      dungTheoDoiMetricHeThong();
+      return;
+    }
+    batDauTheoDoiMetricHeThong();
+  }, [
+    isAuthenticated,
+    nguoiDung?.policies,
+    batDauTheoDoiMetricHeThong,
+    dungTheoDoiMetricHeThong,
+  ]);
 
   // Sync user info to UISlice when authenticated / policies change (login, restore, grant/revoke)
   useEffect(() => {
@@ -2140,6 +2180,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <MobileHubScreen
               hub={hubMobileDangMo}
               onAction={xuLyMobileHubAction}
+              policies={policies}
             />
           ) : (
             <>
@@ -2221,6 +2262,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   </div>
                 </div>
               )}
+              {moduleDangMo === "system_metrics" && <ModuleTaiNguyenHeThong />}
               {moduleDangMo === "audit_log" && (
                 <ModuleNhatKy menuDangChon={menuDangChon} />
               )}

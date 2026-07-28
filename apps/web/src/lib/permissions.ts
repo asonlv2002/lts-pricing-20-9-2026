@@ -23,11 +23,14 @@ const MUC_MENU_POLICIES: Record<string, PolicyCode[]> = {
   'config.interest': ['PRICE_CONFIG_MANAGER'],
   'config.waste_norms': ['PRICE_CONFIG_MANAGER'],
   'config.formulas': ['PRICE_CONFIG_MANAGER'],
+  'system.system_resources': ['SYSTEM_MONITOR'],
 };
 
 export function coTheXemNhomMenu(policies: PolicyCode[], nhomId: string): boolean {
   if (nhomId === 'system') {
-    return policies.includes('ACTIVITY_MONITOR') || policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
+    return policies.includes('ACTIVITY_MONITOR')
+      || policies.includes('SYSTEM_MONITOR')
+      || policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
   }
   const requiredPolicies = NHOM_MENU_POLICIES[nhomId];
   if (!requiredPolicies || requiredPolicies.length === 0) return true;
@@ -39,7 +42,11 @@ export function coTheXemMucMenu(policies: PolicyCode[], menuKey: string): boolea
   if (required && required.length > 0) return required.every(p => policies.includes(p));
   // Nhật ký: ai cũng xem được (server tự filter theo actorId)
   if (menuKey.endsWith('.audit_log')) return true;
-  if (menuKey.startsWith('system.')) return policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
+  if (menuKey === 'system.system_resources') return policies.includes('SYSTEM_MONITOR');
+  if (menuKey.startsWith('system.')) {
+    return policies.includes('SYSTEM_MONITOR')
+      || policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
+  }
   return true;
 }
 
@@ -61,7 +68,7 @@ export function vaiTroTuPolicies(policies: PolicyCode[]): 'admin' | 'sale' | 'pu
   if (policies.length === 0) return 'sale';
   const laAdmin = policies.some(p =>
     p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY')
-    || p === 'ACTIVITY_MONITOR' || p === 'PRICE_CONFIG_MANAGER'
+    || p === 'ACTIVITY_MONITOR' || p === 'SYSTEM_MONITOR' || p === 'PRICE_CONFIG_MANAGER'
   );
   return laAdmin ? 'admin' : 'sale';
 }

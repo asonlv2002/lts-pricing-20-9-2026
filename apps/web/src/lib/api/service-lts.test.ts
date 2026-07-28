@@ -5,6 +5,7 @@
 
 import {
   layAnhDaiDienService,
+  layMetricHeThongService,
   luuNguoiPhuTrachKhachHangService,
   taiAnhDaiDienService,
 } from './service-lts';
@@ -68,6 +69,12 @@ async function main() {
     assert('calls current avatar endpoint', capturedUrl.endsWith('/auth/me/avatar'), capturedUrl);
     assert('uses GET for current avatar', !capturedInit?.method || capturedInit.method === 'GET', String(capturedInit?.method));
     assert('sends bearer token for current avatar', avatarGetHeaders.get('Authorization') === 'Bearer token-789', avatarGetHeaders.get('Authorization') ?? '');
+
+    await layMetricHeThongService('token-sys');
+    const metricHeaders = new Headers(capturedInit?.headers);
+    assert('calls system metric collect endpoint', capturedUrl.endsWith('/system/metric/collect'), capturedUrl);
+    assert('uses GET for system metrics', !capturedInit?.method || capturedInit.method === 'GET', String(capturedInit?.method));
+    assert('sends bearer token for system metrics', metricHeaders.get('Authorization') === 'Bearer token-sys', metricHeaders.get('Authorization') ?? '');
   } finally {
     globalThis.fetch = originalFetch;
   }

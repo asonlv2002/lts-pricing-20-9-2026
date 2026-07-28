@@ -28,7 +28,8 @@ export type PolicyCode =
   | "PRODUCT_MANAGER"
   | "PRICING_SHEET_ADVISOR"
   | "PRICE_CONFIG_MANAGER"
-  | "ACTIVITY_MONITOR";
+  | "ACTIVITY_MONITOR"
+  | "SYSTEM_MONITOR";
 
 export interface Policy {
   code: PolicyCode;
@@ -155,6 +156,13 @@ export const POLICY_CATALOG: Policy[] = [
     code: "ACTIVITY_MONITOR",
     ten: "Xem nhật ký thao tác toàn hệ thống",
     moTa: "Cho phép đọc nhật ký thao tác của tất cả người dùng (không có policy này chỉ xem được log của chính mình).",
+    nhom: "Quản trị",
+    rui_ro: "trung",
+  },
+  {
+    code: "SYSTEM_MONITOR",
+    ten: "Quản lý tài nguyên hệ thống",
+    moTa: "Cho phép theo dõi tài nguyên VPS và container theo thời gian thực.",
     nhom: "Quản trị",
     rui_ro: "trung",
   },
@@ -1413,6 +1421,42 @@ export async function layNhatKyHeThongService(
     token,
   );
   return Array.isArray(data) ? data : [];
+}
+
+export interface SystemMetricSnapshotApi {
+  timestamp: string;
+  host: {
+    cpuUsagePercent: number | null;
+    memoryTotalBytes: number | null;
+    memoryAvailableBytes: number | null;
+    memoryUsedBytes: number | null;
+    memoryUsedPercent: number | null;
+    filesystemSizeBytes: number | null;
+    filesystemAvailableBytes: number | null;
+    filesystemUsedBytes: number | null;
+    filesystemUsedPercent: number | null;
+    loadAverage1m: number | null;
+  };
+  containers: {
+    running: number | null;
+    cpuUsagePercent: number | null;
+    memoryWorkingSetBytes: number | null;
+    memoryWorkingSetPercentOfHost: number | null;
+  };
+  exporters: {
+    cadvisor: { url: string; up: boolean };
+    nodeExporter: { url: string; up: boolean };
+  };
+}
+
+export async function layMetricHeThongService(
+  token?: string,
+): Promise<SystemMetricSnapshotApi> {
+  return goiService<SystemMetricSnapshotApi>(
+    "/system/metric/collect",
+    {},
+    token,
+  );
 }
 
 // ── Transform ────────────────────────────────────────────────────────────

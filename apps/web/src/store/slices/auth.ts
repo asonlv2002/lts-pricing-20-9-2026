@@ -65,7 +65,10 @@ let dangKiemTraPhien: Promise<void> | null = null;
 
 function resetPhienHetHan(set: Parameters<StateCreator<CuaHangTinhGia, [], [], AuthSlice>>[0], get?: () => CuaHangTinhGia) {
   xoaToken();
-  if (get) thuHoiAnhDaiDien(get().nguoiDungHienTai);
+  if (get) {
+    get().dungTheoDoiMetricHeThong();
+    thuHoiAnhDaiDien(get().nguoiDungHienTai);
+  }
   set({
     accessToken: null,
     refreshToken: null,
@@ -171,6 +174,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       });
 
       get().setRole(vaiTroTuPolicies(userPolicies));
+      get().batDauTheoDoiMetricHeThong();
       get().taiLaiAnhDaiDien().catch(() => {});
       // Tải danh sách lịch sử từ server sau khi đăng nhập thành công
       get().taiLichSuTuServer().catch(() => {});
@@ -193,6 +197,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
   },
 
   logout: () => {
+    get().dungTheoDoiMetricHeThong();
     thuHoiAnhDaiDien(get().nguoiDungHienTai);
     xoaToken();
     set({
@@ -293,6 +298,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       });
 
       get().setRole(vaiTroTuPolicies(userProfile?.policies ?? fallbackPolicies));
+      get().batDauTheoDoiMetricHeThong();
       get().taiLaiAnhDaiDien().catch(() => {});
       // Tải danh sách lịch sử từ server sau khi khôi phục phiên
       get().taiLichSuTuServer().catch(() => {});
@@ -327,8 +333,9 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
           sessionChecked: true,
         });
 
-        get().setRole(vaiTroTuPolicies(userPolicies));
-        get().taiLaiAnhDaiDien().catch(() => {});
+          get().setRole(vaiTroTuPolicies(userPolicies));
+          get().batDauTheoDoiMetricHeThong();
+          get().taiLaiAnhDaiDien().catch(() => {});
         // Tải danh sách lịch sử từ server sau khi làm mới phiên
         get().taiLichSuTuServer().catch(() => {});
       } catch {

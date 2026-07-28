@@ -4,7 +4,7 @@ import type { BaoGiaApi } from '../../lib/api/service-lts';
 
 export interface UISlice {
   activeView: 'manager' | 'tech' | 'history' | 'config' | 'bento';
-  activeModule: 'calculator' | 'quotations' | 'create_lsx' | 'lsx_list' | 'history_db' | 'master_data' | 'customers' | 'settings' | 'users' | 'audit_log';
+  activeModule: 'calculator' | 'quotations' | 'create_lsx' | 'lsx_list' | 'history_db' | 'master_data' | 'customers' | 'settings' | 'users' | 'audit_log' | 'system_metrics';
   /** pick = landing chọn mode (ẩn form); form = đang nhập liệu */
   pricingEntry: 'pick' | 'form';
   layoutType: 'default' | 'stacked' | 'wide' | 'bento';

@@ -87,6 +87,22 @@ assert(
   'ACTIVITY_MONITOR alone -> admin',
   vaiTroTuPolicies(['ACTIVITY_MONITOR'] as PolicyCode[]) === 'admin',
 );
+assert(
+  'system.system_resources hidden without SYSTEM_MONITOR',
+  coTheXemMucMenu(['ACCOUNT_READ'] as PolicyCode[], 'system.system_resources') === false,
+);
+assert(
+  'system.system_resources visible with SYSTEM_MONITOR',
+  coTheXemMucMenu(['SYSTEM_MONITOR'] as PolicyCode[], 'system.system_resources') === true,
+);
+assert(
+  'system group visible with SYSTEM_MONITOR alone',
+  coTheXemNhomMenu(['SYSTEM_MONITOR'] as PolicyCode[], 'system') === true,
+);
+assert(
+  'SYSTEM_MONITOR alone -> admin',
+  vaiTroTuPolicies(['SYSTEM_MONITOR'] as PolicyCode[]) === 'admin',
+);
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);
 if (failed > 0) process.exit(1);

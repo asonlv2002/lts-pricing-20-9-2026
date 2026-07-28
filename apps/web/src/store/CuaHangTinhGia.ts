@@ -9,8 +9,9 @@ import { createVersioningSlice, VersioningSlice } from './slices/versioning';
 import { createConfigVersioningSlice, ConfigVersioningSlice } from './slices/configVersioning';
 import { createQuoteCodeSlice, QuoteCodeSlice } from './slices/quote-code';
 import { createAuthSlice, AuthSlice } from './slices/auth';
+import { createSystemMetricsSlice, SystemMetricsSlice } from './slices/system-metrics';
 
-export type CuaHangTinhGia = UISlice & CalculationSlice & HistorySlice & OverrideSlice & ProductionOrderSlice & AuditSlice & VersioningSlice & ConfigVersioningSlice & QuoteCodeSlice & AuthSlice;
+export type CuaHangTinhGia = UISlice & CalculationSlice & HistorySlice & OverrideSlice & ProductionOrderSlice & AuditSlice & VersioningSlice & ConfigVersioningSlice & QuoteCodeSlice & AuthSlice & SystemMetricsSlice;
 
 export const dungCuaHangTinhGia = create<CuaHangTinhGia>((...a) => ({
   ...createUISlice(...a),
@@ -23,6 +24,7 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((...a) => ({
   ...createConfigVersioningSlice(...a),
   ...createQuoteCodeSlice(...a),
   ...createAuthSlice(...a),
+  ...createSystemMetricsSlice(...a),
 }));
 
 export const useCalculatorStore = dungCuaHangTinhGia;
