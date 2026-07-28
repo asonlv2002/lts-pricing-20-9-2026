@@ -8,6 +8,8 @@ import {
   lamMoiTokenService,
   lamMoiTokenQuaQuanLyPhien,
   layTaiKhoanService,
+  layAnhDaiDienService,
+  taiAnhDaiDienService,
   doiMatKhauService,
   chuyenTaiKhoanApi,
   LS_ACCESS_TOKEN,
@@ -29,6 +31,8 @@ export interface AuthSlice {
     account: string;
     fullName: string;
     policies: PolicyCode[];
+    avatarUrl: string | null;
+    avatarBlobUrl: string | null;
   } | null;
   isAuthenticated: boolean;
   authLoading: boolean;
@@ -42,6 +46,8 @@ export interface AuthSlice {
   kiemTraVaKhoiPhucPhien: () => Promise<void>;
   datAuthError: (error: string | null) => void;
   doiMatKhau: (currentPassword: string, newPassword: string) => Promise<void>;
+  taiAnhDaiDien: (file: File) => Promise<void>;
+  taiLaiAnhDaiDien: () => Promise<void>;
 }
 
 function luuToken(accessToken: string, refreshToken: string) {
@@ -57,8 +63,9 @@ function xoaToken() {
 const THONG_BAO_HET_PHIEN = 'Hết phiên đăng nhập.';
 let dangKiemTraPhien: Promise<void> | null = null;
 
-function resetPhienHetHan(set: Parameters<StateCreator<CuaHangTinhGia, [], [], AuthSlice>>[0]) {
+function resetPhienHetHan(set: Parameters<StateCreator<CuaHangTinhGia, [], [], AuthSlice>>[0], get?: () => CuaHangTinhGia) {
   xoaToken();
+  if (get) thuHoiAnhDaiDien(get().nguoiDungHienTai);
   set({
     accessToken: null,
     refreshToken: null,
@@ -87,6 +94,26 @@ function normalizeUserDisplayName(value?: string | null, fallback?: string): str
   return normalizeDisplayText(value || fallback || '');
 }
 
+function taoNguoiDungHienTai(
+  user: {
+    id: string;
+    account: string;
+    fullName: string;
+    policies: PolicyCode[];
+    avatarUrl?: string | null;
+  },
+) {
+  return {
+    ...user,
+    avatarUrl: user.avatarUrl ?? null,
+    avatarBlobUrl: null,
+  };
+}
+
+function thuHoiAnhDaiDien(user: AuthSlice['nguoiDungHienTai']) {
+  if (user?.avatarBlobUrl) URL.revokeObjectURL(user.avatarBlobUrl);
+}
+
 export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = (set, get) => {
   caiDatQuanLyPhien({
     layTokenHienTai: () => {
@@ -99,7 +126,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       set({ accessToken, refreshToken, isAuthenticated: true });
     },
     xuLyPhienKhongHopLe: () => {
-      resetPhienHetHan(set);
+      resetPhienHetHan(set, get);
     },
   });
 
@@ -135,15 +162,16 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       set({
         accessToken: data.accessToken,
         refreshToken: data.refreshToken,
-          nguoiDungHienTai: userProfile
-          ? { id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userPolicies }
-          : { id: data.user.id, account: data.user.account, fullName: normalizeUserDisplayName(data.user.fullName, data.user.account), policies: userPolicies },
+        nguoiDungHienTai: userProfile
+          ? taoNguoiDungHienTai({ id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userPolicies, avatarUrl: userProfile.avatarUrl })
+          : taoNguoiDungHienTai({ id: data.user.id, account: data.user.account, fullName: normalizeUserDisplayName(data.user.fullName, data.user.account), policies: userPolicies, avatarUrl: data.user.avatarUrl }),
         isAuthenticated: true,
         authLoading: false,
         sessionChecked: true,
       });
 
       get().setRole(vaiTroTuPolicies(userPolicies));
+      get().taiLaiAnhDaiDien().catch(() => {});
       // Tải danh sách lịch sử từ server sau khi đăng nhập thành công
       get().taiLichSuTuServer().catch(() => {});
     } catch (error) {
@@ -165,6 +193,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
   },
 
   logout: () => {
+    thuHoiAnhDaiDien(get().nguoiDungHienTai);
     xoaToken();
     set({
       accessToken: null,
@@ -197,7 +226,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       });
     } catch (error) {
       if (laLoiRefreshHetPhien(error)) {
-        resetPhienHetHan(set);
+        resetPhienHetHan(set, get);
       } else {
         console.warn('Không làm mới được phiên đăng nhập, sẽ thử lại sau:', error);
       }
@@ -254,9 +283,9 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       set({
         ...actTokens,
         nguoiDungHienTai: userProfile
-          ? { id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userProfile.policies }
+          ? taoNguoiDungHienTai({ id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userProfile.policies, avatarUrl: userProfile.avatarUrl })
           : payload
-            ? { id: payload.sub, account: payload.account, fullName: normalizeUserDisplayName(payload.fullName, payload.account), policies: fallbackPolicies }
+            ? taoNguoiDungHienTai({ id: payload.sub, account: payload.account, fullName: normalizeUserDisplayName(payload.fullName, payload.account), policies: fallbackPolicies })
             : null,
         isAuthenticated: true,
         authLoading: false,
@@ -264,6 +293,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       });
 
       get().setRole(vaiTroTuPolicies(userProfile?.policies ?? fallbackPolicies));
+      get().taiLaiAnhDaiDien().catch(() => {});
       // Tải danh sách lịch sử từ server sau khi khôi phục phiên
       get().taiLichSuTuServer().catch(() => {});
     } catch {
@@ -290,18 +320,19 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
           accessToken: data.accessToken,
           refreshToken: data.refreshToken,
           nguoiDungHienTai: userProfile
-            ? { id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userPolicies }
-            : { id: data.user.id, account: data.user.account, fullName: normalizeUserDisplayName(data.user.fullName, data.user.account), policies: userPolicies },
+            ? taoNguoiDungHienTai({ id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userPolicies, avatarUrl: userProfile.avatarUrl })
+            : taoNguoiDungHienTai({ id: data.user.id, account: data.user.account, fullName: normalizeUserDisplayName(data.user.fullName, data.user.account), policies: userPolicies, avatarUrl: data.user.avatarUrl }),
           isAuthenticated: true,
           authLoading: false,
           sessionChecked: true,
         });
 
         get().setRole(vaiTroTuPolicies(userPolicies));
+        get().taiLaiAnhDaiDien().catch(() => {});
         // Tải danh sách lịch sử từ server sau khi làm mới phiên
         get().taiLichSuTuServer().catch(() => {});
       } catch {
-        resetPhienHetHan(set);
+        resetPhienHetHan(set, get);
       }
     }
       })().finally(() => {
@@ -316,15 +347,52 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
   doiMatKhau: async (currentPassword, newPassword) => {
     const token = get().accessToken;
     if (!token) throw new Error('Chưa đăng nhập.');
-    const user = get().nguoiDungHienTai;
     const data = await doiMatKhauService(token, currentPassword, newPassword);
-    // Server returns new token pair — update session
     luuToken(data.accessToken, data.refreshToken);
     set({
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
       isAuthenticated: true,
     });
+  },
+
+  taiAnhDaiDien: async (file) => {
+    const token = get().accessToken;
+    const user = get().nguoiDungHienTai;
+    if (!token || !user) throw new Error('Chưa đăng nhập.');
+
+    const data = await taiAnhDaiDienService(file, token);
+    const blob = await layAnhDaiDienService();
+    const avatarBlobUrl = URL.createObjectURL(blob);
+    thuHoiAnhDaiDien(user);
+    set({
+      nguoiDungHienTai: {
+        ...user,
+        avatarUrl: data.avatarUrl,
+        avatarBlobUrl,
+      },
+    });
+  },
+
+  taiLaiAnhDaiDien: async () => {
+    const user = get().nguoiDungHienTai;
+    if (!user) return;
+
+    try {
+      const blob = await layAnhDaiDienService();
+      const avatarBlobUrl = URL.createObjectURL(blob);
+      thuHoiAnhDaiDien(user);
+      set({
+        nguoiDungHienTai: {
+          ...user,
+          avatarUrl: user.avatarUrl ?? '/auth/me/avatar',
+          avatarBlobUrl,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Không tìm thấy')) return;
+      throw error;
+    }
   },
 });
 };

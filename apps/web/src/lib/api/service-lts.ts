@@ -168,6 +168,7 @@ export interface TaiKhoanApi {
   isActive: boolean;
   isSystem?: boolean;
   is_system?: boolean;
+  avatarUrl?: string | null;
   createdAt: string;
   updatedAt?: string;
   policies: Array<{
@@ -187,6 +188,7 @@ export interface DangNhapApi {
     id: string;
     account: string;
     fullName?: string | null;
+    avatarUrl?: string | null;
   };
 }
 
@@ -196,9 +198,19 @@ export interface TaiKhoan {
   fullName: string;
   isActive: boolean;
   isSystem?: boolean;
+  avatarUrl?: string | null;
   policies: PolicyCode[];
   createdAt: string;
   lastLogin?: string;
+}
+
+export interface AnhDaiDienUploadApi {
+  id: string;
+  account: string;
+  fullName: string | null;
+  isActive: boolean;
+  avatarUrl: string | null;
+  createdAt: string;
 }
 
 export interface VaiTro {
@@ -300,7 +312,9 @@ async function goiRaw(
   token?: string,
 ): Promise<Response> {
   const headers = new Headers(options.headers);
-  if (options.body && !headers.has("Content-Type")) {
+  const isFormData =
+    typeof FormData !== "undefined" && options.body instanceof FormData;
+  if (options.body && !headers.has("Content-Type") && !isFormData) {
     headers.set("Content-Type", "application/json");
   }
   if (token) headers.set("Authorization", `Bearer ${token}`);
@@ -439,6 +453,56 @@ export async function doiMatKhauService(
     },
     token,
   );
+}
+
+export async function taiAnhDaiDienService(
+  file: Blob,
+  token?: string,
+): Promise<AnhDaiDienUploadApi> {
+  const formData = new FormData();
+  formData.append("avatar", file);
+  return goiService<AnhDaiDienUploadApi>(
+    "/auth/me/avatar",
+    {
+      method: "POST",
+      body: formData,
+    },
+    token,
+  );
+}
+
+export async function layAnhDaiDienService(token?: string): Promise<Blob> {
+  const firstToken = token ?? layTokenHienTai?.()?.accessToken;
+  let res: Response;
+  try {
+    res = await goiRaw("/auth/me/avatar", {}, firstToken);
+  } catch {
+    throw new LoiServiceLts("Không kết nối được tới máy chủ.");
+  }
+
+  if (res.status === 401) {
+    try {
+      const tokens = await lamMoiTokenTuHeThong();
+      try {
+        res = await goiRaw("/auth/me/avatar", {}, tokens.accessToken);
+      } catch {
+        throw new LoiServiceLts("Không kết nối được tới máy chủ.");
+      }
+    } catch (error) {
+      if (error instanceof LoiServiceLts && error.status === 401) {
+        xuLyPhienKhongHopLe?.();
+        throw new LoiServiceLts("Hết phiên đăng nhập.", 401);
+      }
+      throw error;
+    }
+  }
+
+  if (!res.ok) {
+    const body = await docJson(res);
+    throw new LoiServiceLts(layLoiTuResponse(res.status, body), res.status);
+  }
+
+  return res.blob();
 }
 
 export async function datLaiMatKhauTaiKhoanService(
@@ -1359,6 +1423,7 @@ export function chuyenTaiKhoanApi(user: TaiKhoanApi): TaiKhoan {
     fullName: normalizeDisplayText(user.fullName || user.account),
     isActive: user.isActive,
     isSystem: Boolean(user.isSystem ?? user.is_system),
+    avatarUrl: user.avatarUrl ?? null,
     policies: (Array.isArray(user.policies) ? user.policies : [])
       .map((p) => p.code)
       .filter((code): code is PolicyCode =>

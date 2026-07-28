@@ -12,6 +12,7 @@ import { getPricingDisplayMeta } from "../../lib/pricing-display";
 import { normalizeDisplayText } from "../../lib/text-codec";
 import DangNhapModal from "../auth/DangNhapModal";
 import DoiMatKhauModal from "../auth/DoiMatKhauModal";
+import DoiAnhDaiDienModal from "../auth/DoiAnhDaiDienModal";
 import ModuleKhachHang from "../ModuleKhachHang";
 import ModuleBaoGia from "../ModuleBaoGia";
 import ModuleDuyetBaoGia from "../ModuleDuyetBaoGia";
@@ -91,6 +92,7 @@ import {
   Bell,
   ChevronUp,
   CheckCheck,
+  ImagePlus,
 } from "lucide-react";
 
 // ── Mock thông báo (phase 1) ────────────────────────────────────────────────
@@ -394,6 +396,7 @@ type MobileHubId = (typeof CAC_NHOM_MENU)[number]["id"];
 
 type MobileHubAction =
   | { type: "module"; key: string; module: MaModule }
+  | { type: "changeAvatar" }
   | { type: "changePassword" }
   | { type: "logout" };
 
@@ -745,6 +748,13 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         action: { type: "changePassword" },
       },
       {
+        title: "Đổi ảnh đại diện",
+        subtitle: "Cập nhật ảnh hiển thị cho tài khoản.",
+        tone: "sky",
+        icon: <ImagePlus size={30} />,
+        action: { type: "changeAvatar" },
+      },
+      {
         title: "Đăng xuất",
         subtitle: "Kết thúc phiên làm việc trên thiết bị này.",
         tone: "slate",
@@ -768,6 +778,7 @@ interface ThuocTinhThanhBen {
   laMobile: boolean;
   policies: PolicyCode[];
   datHienDoiMatKhau: () => void;
+  datHienDoiAnhDaiDien: () => void;
   /** Intercept "Tạo bảng tính giá" → wizard mode (nội bộ / gia công) */
   onTaoBangTinhGia?: () => void;
 }
@@ -839,6 +850,7 @@ function ThanhBen({
   laMobile,
   policies,
   datHienDoiMatKhau,
+  datHienDoiAnhDaiDien,
   onTaoBangTinhGia,
 }: ThuocTinhThanhBen) {
   const [cacNhomDangMo, datCacNhomDangMo] = useState<string[]>(() => [
@@ -872,6 +884,9 @@ function ThanhBen({
   const accountHienThi =
     dungCuaHangTinhGia.getState().nguoiDungHienTai?.account || "—";
   const avatarChu = tenHienThi.slice(0, 2).toUpperCase();
+  const avatarBlobUrl = dungCuaHangTinhGia(
+    (s) => s.nguoiDungHienTai?.avatarBlobUrl ?? null,
+  );
 
   useEffect(() => {
     datPortalSanSang(true);
@@ -1014,6 +1029,19 @@ function ThanhBen({
             <div className="lts-account-menu-sep" />
             <button
               type="button"
+              className="lts-account-menu-item"
+              role="menuitem"
+              onClick={() => {
+                datMenuTaiKhoanMo(false);
+                datHienDoiAnhDaiDien();
+              }}
+            >
+              <ImagePlus size={14} />
+              <span>Đổi ảnh đại diện</span>
+            </button>
+            <div className="lts-account-menu-sep" />
+            <button
+              type="button"
               className="lts-account-menu-item lts-account-menu-item--danger"
               role="menuitem"
               onClick={() => {
@@ -1140,7 +1168,7 @@ function ThanhBen({
                 key={nhom.id}
                 className={`lts-nav-group ${laNhomDangChon ? "active" : ""} ${laNhomDangMo ? "open" : ""}`}
               >
-                <button
+            <button
                   type="button"
                   className="lts-nav-group-title"
                   title={!dangMo && !laMobile ? nhom.label : undefined}
@@ -1199,7 +1227,11 @@ function ThanhBen({
                 aria-haspopup="menu"
                 title={hienTextUser ? undefined : tenHienThi}
               >
-                <div className="lts-sidebar-user-avatar">{avatarChu}</div>
+                <div className="lts-sidebar-user-avatar">
+                  {avatarBlobUrl ? (
+                    <img src={avatarBlobUrl} alt="Ảnh đại diện" />
+                  ) : avatarChu}
+                </div>
                 {hienTextUser && (
                   <div className="lts-sidebar-user-info">
                     <div className="lts-sidebar-user-name">{tenHienThi}</div>
@@ -1482,6 +1514,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     "pricing.create_calculation",
   );
   const [hienDoiMatKhau, datHienDoiMatKhau] = useState(false);
+  const [hienDoiAnhDaiDien, datHienDoiAnhDaiDien] = useState(false);
   const [daKhoiTaoHubMobile, datDaKhoiTaoHubMobile] = useState(false);
 
   const nguoiDung = dungCuaHangTinhGia((s) => s.nguoiDungHienTai);
@@ -1924,6 +1957,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const xuLyMobileHubAction = (action: MobileHubAction) => {
+    if (action.type === "changeAvatar") {
+      datHienDoiAnhDaiDien(true);
+      return;
+    }
     if (action.type === "changePassword") {
       datHienDoiMatKhau(true);
       return;
@@ -2037,6 +2074,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           laMobile={false}
           policies={policies}
           datHienDoiMatKhau={() => datHienDoiMatKhau(true)}
+          datHienDoiAnhDaiDien={() => datHienDoiAnhDaiDien(true)}
           onTaoBangTinhGia={moLandingTaoBangTinh}
         />
       )}
@@ -2198,6 +2236,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           datModuleDangMo={datModuleDangMo}
           policies={policies}
         />
+      )}
+      {hienDoiAnhDaiDien && (
+        <DoiAnhDaiDienModal dong={() => datHienDoiAnhDaiDien(false)} />
       )}
       {hienDoiMatKhau && (
         <DoiMatKhauModal dong={() => datHienDoiMatKhau(false)} />
