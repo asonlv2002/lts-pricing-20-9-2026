@@ -320,6 +320,7 @@ export function defaultManual(lsxNumber: string, preparedBy: string): LSXManualF
     lamBTPNote: '',
     laminateLayers: [],
     divideElements: 0,
+    divideWidths: undefined,
     packagingInfo: '',
     packagingNotes: '',
     deliveryNotes: '',
@@ -404,7 +405,9 @@ export function buildManualFromSource(
   if (i.divideWidthMm && i.divideWidthMm > 0) {
     m.divideWidth = i.divideWidthMm;
   }
-  m.divideElements = i.divideElements || 0;
+  if (i.divideElements && i.divideElements > 0) {
+    m.divideElements = i.divideElements;
+  }
   const bag = bagInfo ?? classifyLsxBagType(i.bagType, !!i.hasZipper);
   if (tui) {
     const next = applyBagDefaults(m, bag, !!i.hasZipper);
@@ -445,7 +448,7 @@ export function buildSnapshotFromSource(
     hasZipper: inp.hasZipper || false,
     hasDivide: !!inp.hasDivide || (inp.divideWidthMm ?? 0) > 0 || (manual.divideWidth ?? 0) > 0,
     divideWidthMm: inp.divideWidthMm || manual.divideWidth || undefined,
-    originalWidthMm: khoMM || undefined,
+    originalWidthMm: inp.originalWidthMm || khoMM || undefined,
     numImages: inp.numImages || undefined,
     cylLength: inp.cylLength,
     cylCircum: inp.cylCircum,

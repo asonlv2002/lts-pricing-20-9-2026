@@ -30,6 +30,7 @@ import { buildLsxBagFieldRows, hasLsxZipperDetails } from "../lib/lsx-bag-fields
 import { buildLsxLamGridRows } from "../lib/lsx-lam-rows";
 import { formatLsxHeaderDate } from "../lib/lsx-header-format";
 import { lsxExportBaseName } from "../lib/lsx-msp";
+import { formatLsxDivideSummary, resolveLsxDivideSpec } from "../lib/lsx-divide";
 
 // Times New Roman — same as BaoGiaPdfDocument / DOCX ground truth
 Font.register({
@@ -207,6 +208,33 @@ function Line({ label, value, boldLabel = true }: { label: string; value?: strin
       {boldLabel ? <Text style={styles.bold}>{label}</Text> : label}
       {value ?? ""}
     </Text>
+  );
+}
+
+function DivideDetails({ order, includeFilmWidth = true }: { order: ProductionOrder; includeFilmWidth?: boolean }) {
+  const spec = resolveLsxDivideSpec(order);
+  if (!spec.valid) return null;
+  return (
+    <>
+      {includeFilmWidth && (
+        <Line label="Khổ màng: " value={spec.filmWidthMm ? `K${spec.filmWidthMm}mm` : "…"} />
+      )}
+      {spec.elementCount > 0 && (
+        <Line label="Số phần tử chia: " value={`${spec.elementCount} phần tử`} />
+      )}
+      <Line
+        label="Khổ chia: "
+        value={spec.elementCount > 0 ? formatLsxDivideSummary(spec) : vd(spec.defaultWidthMm, "mm")}
+      />
+      {spec.elementCount > 0 && spec.widths.length === spec.elementCount && (
+        <>
+          <Line label="Tổng khổ chia: " value={`${spec.totalWidthMm} / ${spec.filmWidthMm}mm`} />
+          {spec.widths.map((width, index) => (
+            <Line key={index} label={`Phần tử ${index + 1}: `} value={vd(width, "mm")} />
+          ))}
+        </>
+      )}
+    </>
   );
 }
 
@@ -406,21 +434,7 @@ function MangBody({ order }: { order: ProductionOrder }) {
             </View>
           </View>
           <View style={styles.row}>
-            <Cell w="50%">
-              <Line
-                label="Khổ màng: "
-                value={
-                  khoMM
-                    ? `K${khoMM}mm`
-                    : s.originalWidthMm
-                      ? `K${s.originalWidthMm}mm`
-                      : ""
-                }
-              />
-            </Cell>
-            <Cell w="50%">
-              <Line label="Khổ chia: " value={vd(m.divideWidth || s.divideWidthMm, "mm")} />
-            </Cell>
+            <Cell w="100%"><DivideDetails order={order} /></Cell>
           </View>
           <View style={styles.row}>
             <Cell w="50%">
@@ -554,10 +568,7 @@ function TuiBody({ order }: { order: ProductionOrder }) {
               <Line label="Chiều ra cuộn: " value={v(m.printDirection) || "…"} />
             </Cell>
             <Cell w="50%">
-              <Line
-                label="Thành phẩm chia: "
-                value={vd(m.divideWidth || s.divideWidthMm, "mm")}
-              />
+              <DivideDetails order={order} />
               {!!m.rollLength && <Text>{` × ${v(m.rollLength)}m`}</Text>}
             </Cell>
           </View>
@@ -693,17 +704,7 @@ function TuiBody({ order }: { order: ProductionOrder }) {
       <View style={styles.row}>
         {useLeftDivide && (
           <Cell w="50%">
-            <Line
-              label="Khổ màng: "
-              value={
-                khoMM
-                  ? `${khoMM}mm`
-                  : s.originalWidthMm
-                    ? `${s.originalWidthMm}mm`
-                    : "…"
-              }
-            />
-            <Line label="Khổ chia: " value={vd(m.divideWidth || s.divideWidthMm, "mm")} />
+            <DivideDetails order={order} />
             {!!m.rollLength && <Line label="Chiều dài: " value={vd(m.rollLength, "m")} />}
             <Text>Định mức phi hao chia: 0m</Text>
             <Text>{m.divideNotes || ""}</Text>

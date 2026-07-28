@@ -101,6 +101,7 @@ function order(opts: {
   hasZipper?: boolean;
   hasDivide?: boolean;
   divideWidthMm?: number;
+  originalWidthMm?: number;
   layer2Name?: string;
   layer3Name?: string;
   manual?: Partial<LSXManualFields>;
@@ -128,6 +129,7 @@ function order(opts: {
       hasZipper: opts.hasZipper ?? false,
       hasDivide: opts.hasDivide ?? false,
       divideWidthMm: opts.divideWidthMm,
+      originalWidthMm: opts.originalWidthMm,
       cylLength: 0.75,
       cylCircum: 0.5,
       filmRollLength: 0,
@@ -265,6 +267,7 @@ console.log('\nbuildLsxHtml layout A (túi + chia, nhiều lớp)');
       divideWidthMm: 250,
       manual: {
         divideWidth: 250,
+        divideElements: 2,
         rollLength: 1000,
         divideNotes: 'Chia theo khổ',
         bagWasteMeters: 140,
@@ -303,6 +306,62 @@ console.log('\nbuildLsxHtml layout A (túi + chia, nhiều lớp)');
     'A: has left rowspan for divide col',
     /rowspan="\d+"/.test(html),
   );
+}
+
+console.log('\nbuildLsxHtml thông tin phần tử chia');
+
+{
+  const html = buildLsxHtml(
+    order({
+      hasDivide: true,
+      divideWidthMm: 200,
+      originalWidthMm: 820,
+      manual: {
+        divideWidth: 200,
+        divideElements: 4,
+      },
+    }),
+  );
+
+  assert('CHIA: hiện khổ màng nguồn K820mm', html.includes('Khổ màng: </span>K820mm'));
+  assert('CHIA: hiện số phần tử', html.includes('Số phần tử chia: </span>4 phần tử'));
+  assert('CHIA: hiện khổ chia đều', html.includes('Khổ chia: </span>200mm × 4'));
+  assert('CHIA: hiện tổng khổ chia', html.includes('Tổng khổ chia: </span>800 / 820mm'));
+  assert('CHIA: hiện từng phần tử', html.includes('Phần tử 1: </span>200mm') && html.includes('Phần tử 4: </span>200mm'));
+  assert('CHIA: không hiện chế độ chia', !html.includes('Chế độ chia:'));
+  assert('CHIA: không hiện số con hình', !html.includes('Số con hình:'));
+  assert('CHIA: không hiện khổ in trong Máy Chia', !html.includes('Khổ in:'));
+}
+
+{
+  const html = buildLsxHtml(
+    order({
+      hasDivide: true,
+      divideWidthMm: 200,
+      originalWidthMm: 820,
+      manual: {
+        divideWidth: 200,
+        divideElements: 4,
+        divideWidths: [195, 205, 200, 200],
+      },
+    }),
+  );
+
+  assert('CHIA tuỳ chỉnh: hiện đủ các khổ riêng', html.includes('Phần tử 1: </span>195mm') && html.includes('Phần tử 2: </span>205mm'));
+  assert('CHIA tuỳ chỉnh: tổng vẫn là 800/820mm', html.includes('Tổng khổ chia: </span>800 / 820mm'));
+}
+
+{
+  const html = buildLsxHtml(
+    order({
+      hasDivide: true,
+      originalWidthMm: 820,
+      manual: { divideWidth: 0, divideElements: 0 },
+    }),
+  );
+
+  assert('CHIA mới chưa nhập chi tiết không in khổ 0mm', !html.includes('0mm × 0'));
+  assert('CHIA mới chưa nhập chi tiết không in placeholder khổ chia', !html.includes('Khổ chia: </span>…'));
 }
 
 console.log('\nbuildLsxHtml MÁY IN | MÁY GHÉP — dual label gộp dọc, không ô rỗng');

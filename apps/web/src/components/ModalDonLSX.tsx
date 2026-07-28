@@ -16,6 +16,7 @@ import { exportLSXtoDOCX } from '../lib/lsxExport';
 import { exportLSXtoPDF } from './LsxPdfDocument';
 import { genMsp } from '../lib/lsx-msp';
 import { formatLsxFoldBottom } from '../lib/lsx-quy-cach';
+import { resolveLsxDivideSpec } from '../lib/lsx-divide';
 import {
   buildManualFromSource,
   buildSnapshotFromSource,
@@ -236,6 +237,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
   const isMang = inp.productType === 'mang';
   const isTui = !isMang;
   const khoMM = Math.round(inp.spreadWidth * 1000);
+  const khoMangMM = Math.round(inp.originalWidthMm || khoMM);
   const dlMM = Math.round(inp.cutStep * 1000);
 
   const autoBagType = useMemo(() => classifyLsxBagType(inp.bagType, inp.hasZipper), [inp.bagType, inp.hasZipper]);
@@ -339,6 +341,135 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
     setManual(prev => ({ ...prev, [key]: val }));
   }, []);
 
+  const divideOrderForValidation = useMemo<ProductionOrder>(() => ({
+    id: 'lsx-form-preview',
+    quoteId: sourceData.id,
+    createdAt: '',
+    status: 'created',
+    manual,
+    snapshot: buildSnapshotFromSource(sourceData, manual, materials),
+  }), [manual, materials, sourceData]);
+  const divideSpec = useMemo(
+    () => resolveLsxDivideSpec(divideOrderForValidation),
+    [divideOrderForValidation],
+  );
+
+  function setDivideMode(custom: boolean) {
+    setManual(prev => ({
+      ...prev,
+      divideWidths: custom
+        ? Array.from(
+            { length: Math.max(0, Math.round(prev.divideElements || 0)) },
+            (_, index) => prev.divideWidths?.[index] ?? (prev.divideWidth || inp.divideWidthMm || 0),
+          )
+        : undefined,
+    }));
+  }
+
+  function updateDividePart(index: number, width: number) {
+    setManual(prev => {
+      const widths = Array.from(
+        { length: Math.max(0, Math.round(prev.divideElements || 0)) },
+        (_, itemIndex) => prev.divideWidths?.[itemIndex] ?? (prev.divideWidth || inp.divideWidthMm || 0),
+      );
+      widths[index] = width;
+      return { ...prev, divideWidths: widths };
+    });
+  }
+
+  function divideControls(compact = false) {
+    const custom = divideSpec.custom;
+    const validColor = divideSpec.valid ? '#2e7d32' : '#c62828';
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>Khổ màng:</span>
+          <span>{khoMangMM}mm</span>
+        </div>
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>Số phần tử chia:</span>
+          <NI
+            value={manual.divideElements || 0}
+            onChange={v => {
+              const n = Math.max(0, Math.round(v));
+              setManual(prev => {
+                const next: LSXManualFields = { ...prev, divideElements: n };
+                if (Array.isArray(prev.divideWidths) && prev.divideWidths.length > 0) {
+                  next.divideWidths = Array.from(
+                    { length: n },
+                    (_, index) => prev.divideWidths?.[index] ?? (prev.divideWidth || inp.divideWidthMm || 0),
+                  );
+                }
+                return next;
+              });
+            }}
+            placeholder="vd: 4"
+            style={{ width: '50px', maxWidth: '50px' }}
+          />
+        </div>
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setDivideMode(false)}
+            style={{
+              border: `1px solid ${!custom ? '#1565c0' : '#bbb'}`,
+              background: !custom ? '#e3f2fd' : '#fff',
+              color: !custom ? '#0d47a1' : '#555',
+              borderRadius: 3,
+              padding: '3px 9px',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            Chia đều
+          </button>
+          <button
+            type="button"
+            onClick={() => setDivideMode(true)}
+            disabled={(manual.divideElements || 0) <= 0}
+            style={{
+              border: `1px solid ${custom ? '#1565c0' : '#bbb'}`,
+              background: custom ? '#e3f2fd' : '#fff',
+              color: custom ? '#0d47a1' : '#555',
+              borderRadius: 3,
+              padding: '3px 9px',
+              fontSize: 11,
+              fontWeight: 700,
+              cursor: (manual.divideElements || 0) > 0 ? 'pointer' : 'not-allowed',
+              opacity: (manual.divideElements || 0) > 0 ? 1 : 0.5,
+            }}
+          >
+            Tuỳ chỉnh
+          </button>
+        </div>
+        {!custom ? (
+          <div style={styles.cellRow}>
+            <span style={{ fontWeight: 700, fontSize: '11px' }}>Khổ chia:</span>
+            <NI value={manual.divideWidth} onChange={v => upd('divideWidth', v)} placeholder="mm" style={{ width: '70px', maxWidth: '70px' }} />
+            <span>mm × {manual.divideElements || 0}</span>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: compact ? '1fr' : 'repeat(2, minmax(0, 1fr))', gap: 5 }}>
+            {divideSpec.widths.map((width, index) => (
+              <label key={index} style={{ ...styles.cellRow, flexWrap: 'nowrap' }}>
+                <span style={{ fontSize: 11, whiteSpace: 'nowrap' }}>Phần tử {index + 1}:</span>
+                <NI value={width} onChange={v => updateDividePart(index, v)} placeholder="mm" style={{ width: '64px', maxWidth: '64px' }} />
+                <span>mm</span>
+              </label>
+            ))}
+          </div>
+        )}
+        <div style={{ fontSize: 11, fontWeight: 700, color: validColor }}>
+          {(manual.divideElements || 0) > 0
+            ? `Tổng khổ chia: ${divideSpec.totalWidthMm} / ${khoMangMM}mm`
+            : 'Chưa nhập chi tiết chia'}
+          {!divideSpec.valid && <div style={{ marginTop: 2 }}>{divideSpec.error}</div>}
+        </div>
+      </div>
+    );
+  }
+
   async function handleSubmit(format: 'docx' | 'pdf' = 'docx') {
     if (!sourceData.customer?.trim()) {
       alert('Vui lòng có Khách hàng trước khi lưu LSX.');
@@ -346,6 +477,10 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
     }
     if (!manual.tenSP?.trim() && !sourceData.productName?.trim()) {
       alert('Vui lòng nhập Tên sản phẩm.');
+      return;
+    }
+    if (showChia && !divideSpec.valid) {
+      alert(divideSpec.error);
       return;
     }
     setLoading(true);
@@ -965,23 +1100,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                 {showChia && !showTui && (
                   <>
                     <tr>
-                      <td style={styles.lbl}>Khổ ban đầu:</td>
-                      <td style={styles.td}>{khoMM}mm</td>
-                      <td style={styles.lbl}>Khổ chia:</td>
-                      <td style={styles.td}>
-                        <div style={styles.cellRow}>
-                          <NI value={manual.divideWidth} onChange={v => upd('divideWidth', v)} placeholder="mm" />
-                          <span>mm</span>
-                        </div>
-                      </td>
-                      <td style={styles.lbl}>Số phần tử:</td>
-                      <td style={styles.td} colSpan={3}>
-                        <NI
-                          value={manual.divideElements || 0}
-                          onChange={v => upd('divideElements', v)}
-                          placeholder="2"
-                        />
-                      </td>
+                      <td colSpan={8} style={{ ...styles.td, verticalAlign: 'top' }}>{divideControls()}</td>
                     </tr>
                     <tr>
                       <td style={styles.lbl}>Chiều dài cuộn:</td>
@@ -1021,24 +1140,7 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
                   <tr>
                     <td colSpan={4} style={{ ...styles.td, verticalAlign: 'top' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
-                        <div style={styles.cellRow}>
-                          <span style={{ fontWeight: 700, fontSize: '11px' }}>Khổ ban đầu:</span>
-                          <span>{khoMM}mm</span>
-                        </div>
-                        <div style={styles.cellRow}>
-                          <span style={{ fontWeight: 700, fontSize: '11px' }}>Khổ chia:</span>
-                          <NI value={manual.divideWidth} onChange={v => upd('divideWidth', v)} placeholder="mm" style={{ width: '70px', maxWidth: '70px' }} />
-                          <span>mm</span>
-                        </div>
-                        <div style={styles.cellRow}>
-                          <span style={{ fontWeight: 700, fontSize: '11px' }}>Số phần tử:</span>
-                          <NI
-                            value={manual.divideElements || 0}
-                            onChange={v => upd('divideElements', v)}
-                            placeholder="2"
-                            style={{ width: '50px', maxWidth: '50px' }}
-                          />
-                        </div>
+                        {divideControls(true)}
                         <div style={styles.cellRow}>
                           <span style={{ fontWeight: 700, fontSize: '11px' }}>Chiều dài:</span>
                           <NI value={manual.rollLength} onChange={v => upd('rollLength', v)} placeholder="m" style={{ width: '70px', maxWidth: '70px' }} />

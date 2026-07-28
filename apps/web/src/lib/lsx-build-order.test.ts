@@ -129,6 +129,34 @@ const orderWithBagSize = buildProductionOrderFromSource(sourceWithBagSize, empty
 assert('snapshot giữ rộng thành phẩm báo giá', orderWithBagSize.snapshot.bagWidthMm === 250, String(orderWithBagSize.snapshot.bagWidthMm));
 assert('snapshot giữ dài thành phẩm báo giá', orderWithBagSize.snapshot.bagLengthMm === 180, String(orderWithBagSize.snapshot.bagLengthMm));
 
+const sourceWithOriginalWidth: LsxSourceData = {
+  ...makeSource('q1:divide-width', 'TUI CO CHIA', 'LLDPE'),
+  input: baseInput({
+    spreadWidth: 0.8,
+    originalWidthMm: 820,
+    hasDivide: true,
+    divideWidthMm: 200,
+    divideElements: 4,
+  }),
+};
+const orderWithOriginalWidth = buildProductionOrderFromSource(sourceWithOriginalWidth, emptyCtx());
+assert('snapshot giữ khổ màng 820 từ tính giá', orderWithOriginalWidth.snapshot.originalWidthMm === 820, String(orderWithOriginalWidth.snapshot.originalWidthMm));
+assert('pricing sheet legacy prefill khổ chia', orderWithOriginalWidth.manual.divideWidth === 200, String(orderWithOriginalWidth.manual.divideWidth));
+assert('pricing sheet legacy prefill số phần tử', orderWithOriginalWidth.manual.divideElements === 4, String(orderWithOriginalWidth.manual.divideElements));
+
+const sourceWithDivideFlagOnly: LsxSourceData = {
+  ...makeSource('q1:divide-flag', 'TUI CO CHIA MOI', 'LLDPE'),
+  input: baseInput({
+    spreadWidth: 0.8,
+    originalWidthMm: 820,
+    hasDivide: true,
+  }),
+};
+const orderWithDivideFlagOnly = buildProductionOrderFromSource(sourceWithDivideFlagOnly, emptyCtx());
+assert('pricing sheet mới giữ cờ có chia', orderWithDivideFlagOnly.snapshot.hasDivide === true);
+assert('pricing sheet mới không prefill khổ chia', orderWithDivideFlagOnly.manual.divideWidth === 0, String(orderWithDivideFlagOnly.manual.divideWidth));
+assert('pricing sheet mới không prefill số phần tử', orderWithDivideFlagOnly.manual.divideElements === 0, String(orderWithDivideFlagOnly.manual.divideElements));
+
 console.log('\n=== khổ ghép túi đáy đứng hai cấu trúc (chỉ LSX) ===');
 
 function dualStandupSource(

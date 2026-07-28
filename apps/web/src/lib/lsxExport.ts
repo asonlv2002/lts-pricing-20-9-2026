@@ -23,6 +23,7 @@ import { buildLsxQuyCachLines } from './lsx-quy-cach';
 import { buildLsxBagFieldRows, splitLsxBagBlockWidths } from './lsx-bag-fields';
 import { buildLsxLamGridRows, splitLsxLamBlockWidths } from './lsx-lam-rows';
 import { formatLsxHeaderDate } from './lsx-header-format';
+import { formatLsxDivideSummary, resolveLsxDivideSpec } from './lsx-divide';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function v(val: string | number | null | undefined, suffix = ''): string {
@@ -349,6 +350,30 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
       spacing: spacing ?? { after: PARA_AFTER, line: PARA_LINE.line, lineRule: PARA_LINE.type },
       children,
     });
+  const divideSpec = resolveLsxDivideSpec(order);
+  const divideParas = (includeFilmWidth = true) => {
+    if (!divideSpec.valid) return [];
+    return [
+      ...(includeFilmWidth
+        ? [para([run('Khổ màng: ', { b: true }), run(divideSpec.filmWidthMm ? `K${divideSpec.filmWidthMm}mm` : '…')])]
+        : []),
+      ...(divideSpec.elementCount > 0
+        ? [para([run('Số phần tử chia: ', { b: true }), run(`${divideSpec.elementCount} phần tử`)])]
+        : []),
+      para([
+        run('Khổ chia: ', { b: true }),
+        run(formatLsxDivideSummary(divideSpec)),
+      ]),
+      ...(divideSpec.elementCount > 0 && divideSpec.widths.length === divideSpec.elementCount
+        ? [
+            para([run('Tổng khổ chia: ', { b: true }), run(`${divideSpec.totalWidthMm} / ${divideSpec.filmWidthMm}mm`)]),
+            ...divideSpec.widths.map((width, index) =>
+              para([run(`Phần tử ${index + 1}: `, { b: true }), run(vd(width, 'mm'))]),
+            ),
+          ]
+        : []),
+    ];
+  };
 
   const VM_START    = VerticalMergeType.RESTART;
   const VM_CONTINUE = VerticalMergeType.CONTINUE;
@@ -502,10 +527,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
 
     if (hasDivide) {
       mR.push(rowH(300, cell([para([run('MÁY CHIA', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' })));
-      mR.push(rowH(280,
-        cell([para([run('Khổ màng: ', { b: true }), run(khoMM ? `K${khoMM}mm` : (s.originalWidthMm ? `K${s.originalWidthMm}mm` : ''))])]),
-        cell([para([run('Khổ chia: ', { b: true }), run(vd(m.divideWidth || s.divideWidthMm, 'mm'))])]),
-      ));
+      mR.push(rowMin(900, cell(divideParas(), { cs: 2 })));
       mR.push(rowH(360,
         cell([
           para([run('Chiều dài quấn cuộn: ', { b: true }), run(vd(m.rollLength, ' m'))]),
@@ -559,7 +581,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
           para([run(m.divideNotes || (khoMM ? `${m.printFilmName || s.layer1Name || 'PE'} × ${khoMM} × ${vd(m.printProductQty)}m` : ''))]),
         ], { cs: 3 }),
       ));
-      tR.push(rowH(360,
+      tR.push(rowMin(900,
         cell([
           para([run('Trục in: ', { b: true }), run(formatLsxCylText(m, s) || '')]),
           para([run('Mã Số Trục: ', { b: true }), run(v(m.printMST) || '…')]),
@@ -569,8 +591,8 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
           para([run('Chiều ra cuộn: ', { b: true }), run(v(m.printDirection) || '…')]),
         ]),
         cell([
-          para([run('Thành phẩm chia: ', { b: true }), run(vd(m.divideWidth || s.divideWidthMm, 'mm'))]),
-          para([run(v(m.rollLength) ? ` × ${v(m.rollLength)}m` : '')]),
+          ...divideParas(),
+          ...(m.rollLength ? [para([run('Chiều dài: ', { b: true }), run(v(m.rollLength, 'm'))])] : []),
         ], { cs: 3 }),
       ));
       tR.push(rowH(1000,
@@ -709,8 +731,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
     const rcs = (n: number) => (useLeftDivideCol ? n : n === 3 ? 5 : n === 2 ? 3 : n === 1 ? 2 : n);
     const leftDivideParas = useLeftDivideCol
       ? [
-          para([run('Khổ màng: ', { b: true }), run(khoMM ? `${khoMM}mm` : (s.originalWidthMm ? `${s.originalWidthMm}mm` : '…'))]),
-          para([run('Khổ chia: ', { b: true }), run(vd(m.divideWidth || s.divideWidthMm, 'mm'))]),
+          ...divideParas(),
           ...(m.rollLength ? [para([run('Chiều dài: ', { b: true }), run(vd(m.rollLength, 'm'))])] : []),
           para([run('Định mức phi hao chia: 0m')]),
           para([run(m.divideNotes || '')]),

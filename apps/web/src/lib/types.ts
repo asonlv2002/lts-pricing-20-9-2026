@@ -787,6 +787,8 @@ export interface LSXManualFields {
   }>;
   /** Số phần tử chia (sửa trên form LSX). */
   divideElements?: number;
+  /** Khổ riêng từng phần tử (mm); không có nghĩa là dùng chia đều legacy. */
+  divideWidths?: number[];
 
 
   // Phần giữa — SL đóng gói & yêu cầu giao hàng
