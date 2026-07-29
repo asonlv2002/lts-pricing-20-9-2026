@@ -61,6 +61,7 @@ export const DEFAULT_PRINT_PRESS_LABOR: PrintPressLabor = {
   mealMorning: 30000,
   mealEvening: 65000,
   otFactor: 1.5,
+  shiftDivisor: 2,
 };
 
 export const DEFAULT_PRINT_PRESS_ELECTRIC: PrintPressElectric = {
@@ -205,7 +206,9 @@ export const DEFAULT_BAG_PRESS_TIME: BagPressTime = {
   speedRules: DEFAULT_BAG_PRESS_SPEED_RULES.map((r) => ({ ...r })),
 };
 
-const rawPrintPressLabor = (rawConstants as { printPressLabor?: PrintPressLabor }).printPressLabor;
+const rawPrintPressLabor = (rawConstants as unknown as {
+  printPressLabor?: Partial<PrintPressLabor>;
+}).printPressLabor;
 const printPressLabor: PrintPressLabor = {
   wages: Array.isArray(rawPrintPressLabor?.wages) && (rawPrintPressLabor?.wages.length ?? 0) > 0
     ? (rawPrintPressLabor?.wages ?? []).map((w) => Number(w) || 0)
@@ -215,6 +218,9 @@ const printPressLabor: PrintPressLabor = {
   otFactor: Number(rawPrintPressLabor?.otFactor) > 0
     ? Number(rawPrintPressLabor?.otFactor)
     : DEFAULT_PRINT_PRESS_LABOR.otFactor,
+  shiftDivisor: Number(rawPrintPressLabor?.shiftDivisor) > 0
+    ? Number(rawPrintPressLabor?.shiftDivisor)
+    : DEFAULT_PRINT_PRESS_LABOR.shiftDivisor,
 };
 
 const rawPrintPressElectric = (rawConstants as { printPressElectric?: PrintPressElectric }).printPressElectric;

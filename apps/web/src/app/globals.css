@@ -2660,6 +2660,92 @@ body {
   color: var(--accent);
 }
 
+/* Lương máy in: công thức chỉnh trực tiếp, đồng bộ kiểu trình bày CP Màng in */
+.config-print-press-labor__inline {
+  max-width: 760px;
+}
+.config-print-press-labor__workers {
+  display: grid;
+  grid-template-columns: minmax(0, 520px);
+  gap: 8px;
+}
+.config-print-press-labor__formula-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  color: var(--text);
+  font-size: 0.86rem;
+  flex-wrap: wrap;
+}
+.config-print-press-labor__worker-row {
+  flex-wrap: nowrap;
+}
+.config-print-press-labor__formula-label {
+  min-width: 142px;
+  font-weight: 600;
+}
+.config-print-press-labor__formula-input {
+  width: 104px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.config-print-press-labor__factor-input,
+.config-print-press-labor__divisor-input {
+  width: 64px;
+  text-align: center;
+}
+.config-print-press-labor__unit {
+  color: var(--muted);
+  white-space: nowrap;
+}
+.config-print-press-labor__delete {
+  width: 34px;
+  height: 34px;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 150ms ease, border-color 150ms ease, background 150ms ease;
+}
+.config-print-press-labor__delete:hover:not(:disabled) {
+  color: var(--danger, #dc2626);
+  border-color: color-mix(in srgb, var(--danger, #dc2626) 35%, var(--border));
+  background: color-mix(in srgb, var(--danger, #dc2626) 7%, transparent);
+}
+.config-print-press-labor__delete:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.config-print-press-labor__delete:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.config-print-press-labor__add {
+  margin-top: 10px;
+}
+.config-print-press-labor__formulas {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--border);
+  display: grid;
+  gap: 4px;
+}
+.config-print-press-labor__formula-row strong {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.config-print-press-labor__formula-row--wrap .config-print-press-labor__formula-label {
+  min-width: 0;
+}
+
 .config-print-press-electric__split {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -11300,6 +11386,52 @@ body {
 }
 
 @media (max-width: 767px) {
+  .lts-shell--mobile .config-page .config-print-press-labor__workers,
+  html.in-config-page .config-page .config-print-press-labor__workers {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .lts-shell--mobile .config-page .config-print-press-labor__formula-row,
+  html.in-config-page .config-page .config-print-press-labor__formula-row {
+    gap: 6px;
+  }
+
+  .lts-shell--mobile .config-page .config-print-press-labor__formula-label,
+  html.in-config-page .config-page .config-print-press-labor__formula-label {
+    flex: 0 0 100%;
+    min-width: 0;
+  }
+
+  .lts-shell--mobile .config-page .config-print-press-labor__worker-row,
+  html.in-config-page .config-page .config-print-press-labor__worker-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+  }
+
+  .lts-shell--mobile
+    .config-page
+    .config-print-press-labor__worker-row
+    .config-print-press-labor__formula-label,
+  html.in-config-page
+    .config-page
+    .config-print-press-labor__worker-row
+    .config-print-press-labor__formula-label {
+    grid-column: 1 / -1;
+  }
+
+  .lts-shell--mobile .config-page .config-print-press-labor__formula-input,
+  html.in-config-page .config-page .config-print-press-labor__formula-input {
+    min-height: 38px;
+    font-size: 0.88rem;
+  }
+
+  .lts-shell--mobile .config-page .config-print-press-labor__delete,
+  html.in-config-page .config-page .config-print-press-labor__delete {
+    width: 44px;
+    height: 44px;
+  }
+
   .lts-shell--mobile .config-page .config-print-press-labor__split,
   .lts-shell--mobile .config-page .config-print-press-electric__split,
   html.in-config-page .config-page .config-print-press-labor__split,

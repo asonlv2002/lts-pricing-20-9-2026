@@ -97,6 +97,8 @@ export interface PrintPressLabor {
   mealMorning: number;
   mealEvening: number;
   otFactor: number;
+  /** Mẫu số chia số công nhân theo ca, dùng chung trong các công thức lương */
+  shiftDivisor: number;
 }
 
 /** Điện máy in (đ/phút) — cấu hình UI; chưa nối engine */
