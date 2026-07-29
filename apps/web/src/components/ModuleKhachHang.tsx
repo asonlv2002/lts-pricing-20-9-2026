@@ -36,12 +36,13 @@ import {
   taoMaKhachHangService,
 } from '../lib/api/service-lts';
 import {
-  docKhachHangIdTuSearchParams,
+  docKhachHangIdTuPathname,
   dongBoUrlKhachHang,
   khopMaKhachHang,
   chuanHoaMaKhachHang,
   taoUrlChiaSeKhachHang,
 } from '../lib/khach-hang-route';
+import { dieuHuongModuleApp, type MaModuleMenu } from '../lib/menu-route';
 import { tieuDeKhongTimThay } from '../lib/support-route';
 import { CustomerManagersPicker } from './customer/CustomerManagersPicker';
 import ImportKhachHangPanel from './customer/ImportKhachHangPanel';
@@ -686,7 +687,6 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
   const [activeTab, setActiveTab] = useState<'info' | 'versions'>('info');
   const history = dungCuaHangTinhGia(s => s.history);
   const loadHistoryItem = dungCuaHangTinhGia(s => s.loadHistoryItem);
-  const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
   const auditLog = dungCuaHangTinhGia(s => s.nhatKyHeThong);
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -1601,7 +1601,7 @@ export default function ModuleKhachHang({
   role: Role;
   currentSellerId?: string;
   menuDangChon?: string;
-  /** Mã KH từ /?khach-hang= — VoTrang truyền xuống để tránh race parse URL + list refresh */
+  /** Mã KH từ /khach-hang/<code> — VoTrang truyền xuống để tránh race parse URL + list refresh */
   deepLinkCode?: string | null;
 }) {
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -1619,7 +1619,6 @@ export default function ModuleKhachHang({
   const searchRef = useRef<HTMLInputElement>(null);
   const deepLinkKhachHangDaXuLy = useRef<string | null>(null);
   const customersRef = useRef<Customer[]>([]);
-  const setActiveModule = dungCuaHangTinhGia(s => s.setActiveModule);
   customersRef.current = customers;
   const [crmThresholds, setCrmThresholds] = useState<CrmThresholds>(() => loadCrmThresholds());
   const [showThresholdSettings, setShowThresholdSettings] = useState(false);
@@ -1652,7 +1651,7 @@ export default function ModuleKhachHang({
     dongPanelChiTiet();
     // Pass customer name as pre-fill filter to target module
     try { localStorage.setItem('lts_navigate_filter', JSON.stringify({ module: quoteMode ? 'quote' : module, customerName: filter, ts: Date.now() })); } catch {}
-    setActiveModule(module as Parameters<typeof setActiveModule>[0]);
+    dieuHuongModuleApp(module as MaModuleMenu);
   };
 
   const updateCustomerLocal = (customer: Customer) => {
@@ -1696,17 +1695,17 @@ export default function ModuleKhachHang({
     try { await ensureManagers(customer); } catch (error) { console.warn('Không tải được người phụ trách:', error); }
   };
 
-  // Deep-link /?khach-hang=<codeName>:
+  // Deep-link /khach-hang/<codeName>:
   // 1) chờ list load xong (daTaiList)
   // 2) mở panel từ item trên list
   // 3) không có trên list → GET by code; fail → empty panel
   useEffect(() => {
-    if (menuDangChon === 'customers.audit_log') return;
+    if (menuDangChon === 'nhat-ky-khach-hang') return;
 
     const maTuUrl = (
       deepLinkCode?.trim()
-      || docKhachHangIdTuSearchParams(
-        typeof window !== 'undefined' ? window.location.search : null,
+      || docKhachHangIdTuPathname(
+        typeof window !== 'undefined' ? window.location.pathname : null,
       )
       || ''
     ).trim() || null;
@@ -2040,7 +2039,7 @@ export default function ModuleKhachHang({
 
   const activeCount = visible.filter(c => c.status === 'active' && !c.isLocked).length;
   const lockedCount = visible.filter(c => c.isLocked).length;
-  const showingAuditLog = menuDangChon === 'customers.audit_log';
+  const showingAuditLog = menuDangChon === 'nhat-ky-khach-hang';
 
   const statusChips: { key: CustomerFilters['status']; label: string; count?: number }[] = [
     { key: 'all', label: 'Tất cả', count: visible.length },

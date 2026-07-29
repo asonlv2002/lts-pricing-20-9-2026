@@ -114,9 +114,30 @@ export function dongBoUrlQueryExclusive(
   window.history.replaceState(window.history.state, '', next);
 }
 
-/** Clear mọi deep-link query trên URL. */
+/**
+ * Clear deep-link: bỏ query entity cũ (nếu còn) và về root path
+ * khi đang đứng trên path entity /tinh-gia|/bao-gia|/khach-hang.
+ * Menu path giữ nguyên.
+ */
 export function dongBoUrlDeepLinkClear(): void {
-  dongBoUrlQueryExclusive(null);
+  if (typeof window === 'undefined') return;
+  const path = window.location.pathname.replace(/\/+$/, '') || '/';
+  const segs = path === '/' ? [] : path.slice(1).split('/');
+  const entityRoots = new Set(['tinh-gia', 'bao-gia', 'khach-hang']);
+  let nextPath = path;
+  if (segs.length >= 1 && entityRoots.has(segs[0])) {
+    // rời entity → root; caller thường gọi dieuHuongMenu ngay sau
+    nextPath = '/';
+  }
+  // Xóa query deep-link legacy
+  const url = new URL(window.location.href);
+  for (const key of DEEP_LINK_QUERY_KEYS) {
+    url.searchParams.delete(key);
+  }
+  const next = `${nextPath}${url.search}${url.hash}`;
+  const current = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+  if (next === current) return;
+  window.history.replaceState(window.history.state, '', next);
 }
 
 /** URL tuyệt đối để copy/chia sẻ (origin + path + query exclusive). */

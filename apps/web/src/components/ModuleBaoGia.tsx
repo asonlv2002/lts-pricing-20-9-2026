@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, {
   useState,
   useMemo,
@@ -38,6 +38,7 @@ import {
   Check,
 } from "lucide-react";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
+import { dieuHuongModuleApp } from "../lib/menu-route";
 import ComboBoxDieuKhoan from "./ComboBoxDieuKhoan";
 import { normalizeDisplayText } from "../lib/text-codec";
 import {
@@ -4035,7 +4036,7 @@ function TaoBaoGiaWizard({
     (dungCuaHangTinhGia as any)
       .getState()
       .loadHistoryItem(product.historyItem.id);
-    (dungCuaHangTinhGia as any).getState().setActiveModule("calculator");
+    dieuHuongModuleApp("calculator");
   };
 
   const handleCustomerSelect = (c: Customer) => {
@@ -5708,7 +5709,6 @@ export default function QuotationModule({
   const {
     history,
     loadHistoryItem: taiLichSu,
-    setActiveModule: datPhan,
     updateQuoteStatus: capNhatTrangThaiLocal,
     currentSellerId: hienTaiSellerId,
     saoChepBangTinh,
@@ -5737,7 +5737,7 @@ export default function QuotationModule({
     kiemTraHetHan();
   }, [kiemTraHetHan]);
   React.useEffect(() => {
-    if (menuDangChon === "pricing.create_quote") setShowWizard(true);
+    if (menuDangChon === "tao-bao-gia") setShowWizard(true);
   }, [menuDangChon]);
   React.useEffect(() => {
     try {
@@ -5749,16 +5749,16 @@ export default function QuotationModule({
   }, []);
 
   const isAdmin = role === "admin";
-  const laLichSuBaoGiaTheoKhach = menuDangChon === "customers.quote_history";
+  const laLichSuBaoGiaTheoKhach = menuDangChon === "lich-su-bao-gia-theo-khach";
 
   const myItems = useMemo(() => {
     let items = isAdmin
       ? history
       : history.filter((h) => h.sellerId === hienTaiSellerId);
     items = items.filter(laBanGhiBaoGia);
-    if (menuDangChon === "overview.quotes_pending")
+    if (menuDangChon === "tong-quan-bao-gia-cho-duyet")
       items = items.filter((h) => layTrangThai(h) === "pending_approval");
-    if (menuDangChon === "pricing.create_quote")
+    if (menuDangChon === "tao-bao-gia")
       items = items.filter((h) => layTrangThai(h) === "drafted");
     if (laLichSuBaoGiaTheoKhach) {
       items = items.filter(
@@ -5850,7 +5850,7 @@ export default function QuotationModule({
   if (showWizard) {
     const handleBackFromWizard = () => {
       if (wizardNguon === 'duyet') {
-        khiDieuHuong?.("pricing.quote_review");
+        khiDieuHuong?.("danh-sach-bao-gia");
       } else {
         setShowWizard(false);
       }
@@ -5859,7 +5859,7 @@ export default function QuotationModule({
     return (
       <TaoBaoGiaWizard
         onClose={handleBackFromWizard}
-        onSavedNavigate={() => { datNguonWizard(null); khiDieuHuong?.("pricing.quote_review"); }}
+        onSavedNavigate={() => { datNguonWizard(null); khiDieuHuong?.("danh-sach-bao-gia"); }}
       />
     );
   }
@@ -5966,7 +5966,7 @@ export default function QuotationModule({
           onClose={() => setSelectedItem(null)}
           onLoadCalc={(id) => {
             taiLichSu(id);
-            datPhan("calculator");
+            dieuHuongModuleApp("calculator");
           }}
           onPatch={(id, patch) => {
             patchHistoryItem(id, patch);

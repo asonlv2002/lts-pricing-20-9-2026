@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React, {
   useState,
   useMemo,
@@ -37,6 +37,7 @@ import {
   getAuditFieldLabel,
 } from "../lib/customer-audit-format";
 import { diffManagerLists } from "../lib/activity-log-mapper";
+import { dieuHuongModuleApp } from "../lib/menu-route";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -619,7 +620,6 @@ export default function ModuleNhatKy({
     loiNhatKy,
     xuatNhatKyCsv,
     taiNhatKyHeThong,
-    setActiveModule,
     loadHistoryItem,
     history,
     nguoiDungHienTai,
@@ -644,7 +644,7 @@ export default function ModuleNhatKy({
   }, [taiNhatKyHeThong]);
 
   const auditLog = useMemo(() => {
-    if (menuDangChon === "pricing.audit_log") {
+    if (menuDangChon === "nhat-ky-tinh-gia") {
       return nhatKyHeThong.filter(
         (e) =>
           e.targetType === "history" ||
@@ -652,10 +652,10 @@ export default function ModuleNhatKy({
           e.targetType === "order",
       );
     }
-    if (menuDangChon === "customers.audit_log") {
+    if (menuDangChon === "nhat-ky-khach-hang") {
       return nhatKyHeThong.filter((e) => e.targetType === "customer");
     }
-    if (menuDangChon === "system.audit_log") {
+    if (menuDangChon === "nhat-ky-he-thong") {
       return nhatKyHeThong.filter(
         (e) =>
           e.targetType === "config" ||
@@ -830,14 +830,14 @@ export default function ModuleNhatKy({
       );
       if (entry.targetType === "history" && item && !item.isQuote) {
         loadHistoryItem(item.id);
-        setActiveModule("calculator");
+        dieuHuongModuleApp("calculator");
         return;
       }
       // Bảng tính giá từ server không có trong local → fetch rồi mở thẳng calculator
       if (entry.targetType === "history" && !item && accessToken) {
         const ok = await taiBangTinhTuServer(entry.targetId);
         if (ok) {
-          setActiveModule("calculator");
+          dieuHuongModuleApp("calculator");
           return;
         }
       }
@@ -854,7 +854,7 @@ export default function ModuleNhatKy({
           }),
         );
       } catch {}
-      setActiveModule("history_db");
+      dieuHuongModuleApp("history_db");
       return;
     }
     if (entry.targetType === "customer") {
@@ -868,7 +868,7 @@ export default function ModuleNhatKy({
           }),
         );
       } catch {}
-      setActiveModule("customers");
+      dieuHuongModuleApp("customers");
       return;
     }
     if (entry.targetType === "order") {
@@ -883,11 +883,11 @@ export default function ModuleNhatKy({
           }),
         );
       } catch {}
-      setActiveModule("history_db");
+      dieuHuongModuleApp("history_db");
       return;
     }
-    if (entry.targetType === "config") setActiveModule("master_data");
-    if (entry.targetType === "permission") setActiveModule("users");
+    if (entry.targetType === "config") dieuHuongModuleApp("master_data");
+    if (entry.targetType === "permission") dieuHuongModuleApp("users");
   };
 
   const activeChips: Array<{ label: string; clear: () => void }> = [];

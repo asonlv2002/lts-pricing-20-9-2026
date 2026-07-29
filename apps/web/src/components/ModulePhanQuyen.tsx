@@ -740,13 +740,13 @@ function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: VaiTro[] }) {
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
-// 9. MODULE ROOT — chuyển view theo menu (system.users / .roles / .permissions)
+// 9. MODULE ROOT — chuyển view theo menu (tai-khoan / .roles / .permissions)
 // ═════════════════════════════════════════════════════════════════════════════
 type ViewKey = 'users' | 'roles' | 'matrix';
 
 function viewTuMenu(menuDangChon?: string): ViewKey {
-  if (menuDangChon === 'system.roles')       return 'roles';
-  if (menuDangChon === 'system.permissions') return 'matrix';
+  if (menuDangChon === 'vai-tro')       return 'roles';
+  if (menuDangChon === 'phan-quyen') return 'matrix';
   return 'users';
 }
 

@@ -2,8 +2,10 @@ import {
   KHACH_HANG_QUERY,
   chuanHoaMaKhachHang,
   khopMaKhachHang,
+  docKhachHangIdTuPathname,
   docKhachHangIdTuSearchParams,
   ghepUrlKhachHang,
+  taoUrlChiaSeKhachHang,
 } from './khach-hang-route';
 
 let passed = 0;
@@ -37,25 +39,34 @@ assert(
 );
 
 assert(
-  'docKhachHangIdTuSearchParams',
-  docKhachHangIdTuSearchParams('?khach-hang=ACME_01') === 'ACME_01',
+  'docKhachHangIdTuPathname',
+  docKhachHangIdTuPathname('/khach-hang/ACME_01') === 'ACME_01',
 );
 assert(
-  'docKhachHangIdTuSearchParams empty',
-  docKhachHangIdTuSearchParams('?tinh-gia=1') === null,
-);
-assert(
-  'docKhachHangIdTuSearchParams blank',
-  docKhachHangIdTuSearchParams('?khach-hang=%20') === null,
+  'docKhachHangIdTuPathname empty',
+  docKhachHangIdTuPathname('/danh-sach-khach-hang') === null,
 );
 
 assert(
-  'ghepUrlKhachHang set clears other deep links',
-  ghepUrlKhachHang('https://x.com/?tinh-gia=old', 'ACME_01') === '/?khach-hang=ACME_01',
+  'docKhachHangIdTuSearchParams legacy',
+  docKhachHangIdTuSearchParams('?khach-hang=ACME_01') === 'ACME_01',
+);
+
+assert(
+  'ghepUrlKhachHang set',
+  ghepUrlKhachHang('https://x.com/?tinh-gia=old', 'ACME_01') === '/khach-hang/ACME_01',
 );
 assert(
-  'ghepUrlKhachHang clear keeps other params',
-  ghepUrlKhachHang('https://x.com/?khach-hang=old&foo=1', null) === '/?foo=1',
+  'ghepUrlKhachHang clear → menu',
+  ghepUrlKhachHang('https://x.com/?khach-hang=old&foo=1', null) === '/danh-sach-khach-hang',
+);
+
+assert(
+  'taoUrlChiaSeKhachHang path',
+  (() => {
+    const u = taoUrlChiaSeKhachHang('ACME_01');
+    return !!u && u.includes('/khach-hang/ACME_01') && !u.includes('m=');
+  })(),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

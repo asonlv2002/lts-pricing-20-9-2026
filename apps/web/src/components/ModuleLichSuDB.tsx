@@ -750,7 +750,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
     setPendingTargetId(null);
   }, [pendingTargetId, lichSu, productionOrders, mode]);
 
-  const laLichSuSanPhamTheoKhach = menuDangChon === 'customers.product_history';
+  const laLichSuSanPhamTheoKhach = menuDangChon === 'lich-su-tinh-gia-theo-khach';
 
   const customerRecords = useMemo(() => loadCustomers(), []);
 

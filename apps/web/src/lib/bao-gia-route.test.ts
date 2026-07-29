@@ -1,7 +1,9 @@
 import {
   BAO_GIA_QUERY,
+  docBaoGiaIdTuPathname,
   docBaoGiaIdTuSearchParams,
   ghepUrlBaoGia,
+  taoUrlChiaSeBaoGia,
 } from './bao-gia-route';
 
 let passed = 0;
@@ -22,30 +24,34 @@ console.log('bao-gia-route');
 assert('query key', BAO_GIA_QUERY === 'bao-gia');
 
 assert(
-  'docBaoGiaIdTuSearchParams',
-  docBaoGiaIdTuSearchParams('?bao-gia=q-99') === 'q-99',
+  'docBaoGiaIdTuPathname',
+  docBaoGiaIdTuPathname('/bao-gia/q-99') === 'q-99',
 );
 assert(
-  'docBaoGiaIdTuSearchParams empty',
-  docBaoGiaIdTuSearchParams('?tinh-gia=1') === null,
-);
-assert(
-  'docBaoGiaIdTuSearchParams blank',
-  docBaoGiaIdTuSearchParams('?bao-gia=%20') === null,
+  'docBaoGiaIdTuPathname empty',
+  docBaoGiaIdTuPathname('/tao-bao-gia') === null,
 );
 
 assert(
-  'ghepUrlBaoGia set id clears tinh-gia',
-  ghepUrlBaoGia('https://x.com/?tinh-gia=old', 'Q1') === '/?bao-gia=Q1',
+  'docBaoGiaIdTuSearchParams legacy',
+  docBaoGiaIdTuSearchParams('?bao-gia=q-99') === 'q-99',
+);
+
+assert(
+  'ghepUrlBaoGia set id',
+  ghepUrlBaoGia('https://x.com/?tinh-gia=old', 'Q1') === '/bao-gia/Q1',
 );
 assert(
-  'ghepUrlBaoGia clear keeps other params',
-  ghepUrlBaoGia('https://x.com/?bao-gia=old&foo=1', null) === '/?foo=1',
+  'ghepUrlBaoGia clear → menu',
+  ghepUrlBaoGia('https://x.com/?bao-gia=old&foo=1', null) === '/tao-bao-gia',
 );
+
 assert(
-  'ghepUrlBaoGia set with other params',
-  ghepUrlBaoGia('https://x.com/?foo=1', 'Q2') === '/?foo=1&bao-gia=Q2'
-    || ghepUrlBaoGia('https://x.com/?foo=1', 'Q2') === '/?bao-gia=Q2&foo=1',
+  'taoUrlChiaSeBaoGia path',
+  (() => {
+    const u = taoUrlChiaSeBaoGia('Q9');
+    return !!u && u.includes('/bao-gia/Q9') && !u.includes('m=');
+  })(),
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

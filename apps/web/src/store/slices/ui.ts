@@ -50,6 +50,7 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   quoteWizardSnapshot: null as any,
 
   setActiveView:    (v) => set({ activeView: v }),
+  /** Chỉ set state. Điều hướng + URL: dùng dieuHuongModuleApp / dieuHuongMenuApp. */
   setActiveModule:  (v) => set({ activeModule: v }),
   setPricingEntry:  (v) => set({ pricingEntry: v }),
   setLayoutType:    (v) => set({ layoutType: v }),

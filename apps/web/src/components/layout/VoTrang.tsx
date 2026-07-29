@@ -34,7 +34,6 @@ import {
   tokenCanLamMoiNgay,
 } from "../../lib/auth-session";
 import {
-  docDeepLinkTuSearchParams,
   dongBoUrlDeepLinkClear,
   laLoiDeepLink,
   tieuDeDeepLinkLoi,
@@ -42,20 +41,29 @@ import {
   type TrangThaiDeepLink,
 } from "../../lib/support-route";
 import {
-  TINH_GIA_QUERY,
-  docIdTuSearchParams,
+  docIdTuPathname,
   dongBoUrlTinhGia,
   idChiaSeBangTinh,
 } from "../../lib/tinh-gia-route";
 import {
-  BAO_GIA_QUERY,
-  docBaoGiaIdTuSearchParams,
+  docBaoGiaIdTuPathname,
   dongBoUrlBaoGia,
 } from "../../lib/bao-gia-route";
 import {
-  KHACH_HANG_QUERY,
-  docKhachHangIdTuSearchParams,
+  docKhachHangIdTuPathname,
 } from "../../lib/khach-hang-route";
+import {
+  LTS_NAVIGATE_EVENT,
+  docDeepLinkTuPathname,
+  docMenuKeyTuPathname,
+  dongBoUrlMenu,
+  laMobileHubMenuKey,
+  menuKeyTuModule,
+  moduleTuMenuKey,
+  type CheDoLichSu,
+  type LtsNavigateDetail,
+  type MaModuleMenu,
+} from "../../lib/menu-route";
 import { timMucLichSuTheoId } from "../../lib/history-identity";
 import {
   layBaoGiaTheoIdService,
@@ -189,37 +197,37 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     vaiTros: ["admin", "sale", "purchase"],
     mucCon: [
       {
-        key: "overview.quotes_created",
+        key: "tong-quan-bao-gia-da-tao",
         id: "quotations",
         label: "Số báo giá đã tạo",
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "overview.quotes_pending",
+        key: "tong-quan-bao-gia-cho-duyet",
         id: "quotations",
         label: "Báo giá chờ duyệt",
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "overview.new_customers",
+        key: "tong-quan-khach-hang-moi",
         id: "customers",
         label: "Khách hàng mới",
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "overview.recent_products",
+        key: "tong-quan-san-pham-gan-day",
         id: "history_db",
         label: "Sản phẩm đã tính giá gần đây",
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "overview.expected_revenue",
+        key: "tong-quan-doanh-thu-du-kien",
         id: "quotations",
         label: "Doanh thu dự kiến",
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "overview.recent_activity",
+        key: "tong-quan-hoat-dong-gan-day",
         id: "history_db",
         label: "Hoạt động gần đây",
         vaiTros: ["admin", "sale", "purchase"],
@@ -234,43 +242,43 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     vaiTros: ["admin", "sale"],
     mucCon: [
       {
-        key: "pricing.create_calculation",
+        key: "tao-tinh-gia",
         id: "calculator",
         label: "Tạo bảng tính giá",
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "pricing.create_quote",
+        key: "tao-bao-gia",
         id: "quotations",
         label: "Tạo bảng báo giá",
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "pricing.create_lsx",
+        key: "tao-lsx",
         id: "create_lsx",
         label: "Tạo LSX",
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "pricing.history",
+        key: "danh-sach-tinh-gia",
         id: "history_db",
         label: "Danh sách tính giá",
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "pricing.quote_review",
+        key: "danh-sach-bao-gia",
         id: "quotations",
         label: "Danh sách báo giá",
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "pricing.lsx_list",
+        key: "danh-sach-lsx",
         id: "lsx_list",
         label: "Danh sách LSX",
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "pricing.audit_log",
+        key: "nhat-ky-tinh-gia",
         id: "audit_log",
         label: "Nhật ký thao tác",
         vaiTros: ["admin", "sale"],
@@ -285,13 +293,13 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     vaiTros: ["admin", "sale"],
     mucCon: [
       {
-        key: "customers.list",
+        key: "danh-sach-khach-hang",
         id: "customers",
         label: "Danh sách khách hàng",
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "customers.audit_log",
+        key: "nhat-ky-khach-hang",
         id: "audit_log",
         label: "Nhật ký thao tác",
         vaiTros: ["admin", "sale"],
@@ -306,37 +314,37 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     vaiTros: [],
     mucCon: [
       {
-        key: "config.materials",
+        key: "cau-hinh-vat-tu",
         id: "master_data",
         label: "Vật tư / nguyên vật liệu",
         vaiTros: [],
       },
       {
-        key: "config.production_costs",
+        key: "cau-hinh-chi-phi-sx",
         id: "master_data",
         label: "Chi phí sản xuất",
         vaiTros: [],
       },
       {
-        key: "config.outsource_costs",
+        key: "cau-hinh-gia-cong-ngoai",
         id: "master_data",
         label: "Chi phí gia công ngoài",
         vaiTros: [],
       },
       {
-        key: "config.profit_margin",
+        key: "cau-hinh-loi-nhuan",
         id: "master_data",
         label: "Biên lợi nhuận",
         vaiTros: [],
       },
       {
-        key: "config.surcharges",
+        key: "cau-hinh-phu-phi",
         id: "master_data",
         label: "Phụ phí",
         vaiTros: [],
       },
       {
-        key: "config.interest",
+        key: "cau-hinh-lai-vay",
         id: "master_data",
         label: "Lãi vay công nợ",
         vaiTros: [],
@@ -351,37 +359,37 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     vaiTros: ["admin"],
     mucCon: [
       {
-        key: "system.users",
+        key: "tai-khoan",
         id: "users",
         label: "Tài khoản & quyền",
         vaiTros: ["admin"],
       },
       {
-        key: "system.roles",
+        key: "vai-tro",
         id: "users",
         label: "Vai trò",
         vaiTros: ["admin"],
       },
       {
-        key: "system.permissions",
+        key: "phan-quyen",
         id: "users",
         label: "Bảng phân quyền",
         vaiTros: ["admin"],
       },
       {
-        key: "system.company_settings",
+        key: "cai-dat-he-thong",
         id: "settings",
         label: "Cài đặt hệ thống",
         vaiTros: ["admin"],
       },
       {
-        key: "system.system_resources",
+        key: "tai-nguyen-he-thong",
         id: "system_metrics",
         label: "Quản lý tài nguyên hệ thống",
         vaiTros: ["admin"],
       },
       {
-        key: "system.audit_log",
+        key: "nhat-ky-he-thong",
         id: "audit_log",
         label: "Nhật ký hệ thống",
         vaiTros: ["admin"],
@@ -391,6 +399,27 @@ const CAC_NHOM_MENU: NhomMenu[] = [
 ];
 
 const CAC_MUC_MENU: MucMenu[] = CAC_NHOM_MENU.flatMap((nhom) => nhom.mucCon);
+
+/** Menu key tổng quan — slug VN, không còn prefix `overview.`. */
+const MENU_KEYS_OVERVIEW = new Set([
+  "tong-quan-bao-gia-da-tao",
+  "tong-quan-bao-gia-cho-duyet",
+  "tong-quan-khach-hang-moi",
+  "tong-quan-san-pham-gan-day",
+  "tong-quan-doanh-thu-du-kien",
+  "tong-quan-hoat-dong-gan-day",
+]);
+
+/** Menu key cấu hình tính giá — slug VN, không còn prefix `config.`. */
+const MENU_KEYS_CONFIG = new Set([
+  "cau-hinh-vat-tu",
+  "cau-hinh-chi-phi-sx",
+  "cau-hinh-gia-cong-ngoai",
+  "cau-hinh-loi-nhuan",
+  "cau-hinh-phu-phi",
+  "cau-hinh-lai-vay",
+]);
+
 const MOBILE_HUB_PREFIX = "mobile.hub.";
 
 const MOBILE_TAB_FALLBACK: Record<string, string> = {
@@ -463,7 +492,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <BarChart3 size={30} />,
         action: {
           type: "module",
-          key: "overview.quotes_created",
+          key: "tong-quan-bao-gia-da-tao",
           module: "quotations",
         },
       },
@@ -474,7 +503,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <Clock3 size={30} />,
         action: {
           type: "module",
-          key: "overview.quotes_pending",
+          key: "tong-quan-bao-gia-cho-duyet",
           module: "quotations",
         },
       },
@@ -485,7 +514,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <UserPlus size={30} />,
         action: {
           type: "module",
-          key: "overview.new_customers",
+          key: "tong-quan-khach-hang-moi",
           module: "customers",
         },
       },
@@ -496,7 +525,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <History size={30} />,
         action: {
           type: "module",
-          key: "overview.recent_products",
+          key: "tong-quan-san-pham-gan-day",
           module: "history_db",
         },
       },
@@ -507,7 +536,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <TrendingUp size={30} />,
         action: {
           type: "module",
-          key: "overview.expected_revenue",
+          key: "tong-quan-doanh-thu-du-kien",
           module: "quotations",
         },
       },
@@ -518,7 +547,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <ClipboardList size={30} />,
         action: {
           type: "module",
-          key: "overview.recent_activity",
+          key: "tong-quan-hoat-dong-gan-day",
           module: "history_db",
         },
       },
@@ -536,7 +565,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <FileText size={30} />,
         action: {
           type: "module",
-          key: "pricing.create_calculation",
+          key: "tao-tinh-gia",
           module: "calculator",
         },
       },
@@ -547,7 +576,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <FileText size={30} />,
         action: {
           type: "module",
-          key: "pricing.create_quote",
+          key: "tao-bao-gia",
           module: "quotations",
         },
       },
@@ -558,7 +587,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <PackageCheck size={30} />,
         action: {
           type: "module",
-          key: "pricing.create_lsx",
+          key: "tao-lsx",
           module: "create_lsx",
         },
       },
@@ -569,7 +598,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <History size={30} />,
         action: {
           type: "module",
-          key: "pricing.history",
+          key: "danh-sach-tinh-gia",
           module: "history_db",
         },
       },
@@ -580,7 +609,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <ClipboardList size={30} />,
         action: {
           type: "module",
-          key: "pricing.quote_review",
+          key: "danh-sach-bao-gia",
           module: "quotations",
         },
       },
@@ -589,7 +618,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         subtitle: "Theo dõi các LSX đã tạo.",
         tone: "slate",
         icon: <ListChecks size={30} />,
-        action: { type: "module", key: "pricing.lsx_list", module: "lsx_list" },
+        action: { type: "module", key: "danh-sach-lsx", module: "lsx_list" },
       },
       {
         title: "Nhật ký thao tác",
@@ -598,7 +627,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <ClipboardList size={30} />,
         action: {
           type: "module",
-          key: "pricing.audit_log",
+          key: "nhat-ky-tinh-gia",
           module: "audit_log",
         },
       },
@@ -614,7 +643,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         subtitle: "Quản lý hồ sơ, liên hệ và phân công.",
         tone: "sky",
         icon: <Users size={30} />,
-        action: { type: "module", key: "customers.list", module: "customers" },
+        action: { type: "module", key: "danh-sach-khach-hang", module: "customers" },
       },
       {
         title: "Nhật ký thao tác",
@@ -623,7 +652,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <ClipboardList size={30} />,
         action: {
           type: "module",
-          key: "customers.audit_log",
+          key: "nhat-ky-khach-hang",
           module: "customers",
         },
       },
@@ -641,7 +670,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <PackageCheck size={30} />,
         action: {
           type: "module",
-          key: "config.materials",
+          key: "cau-hinh-vat-tu",
           module: "master_data",
         },
       },
@@ -652,7 +681,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <Factory size={30} />,
         action: {
           type: "module",
-          key: "config.production_costs",
+          key: "cau-hinh-chi-phi-sx",
           module: "master_data",
         },
       },
@@ -663,7 +692,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <Wrench size={30} />,
         action: {
           type: "module",
-          key: "config.outsource_costs",
+          key: "cau-hinh-gia-cong-ngoai",
           module: "master_data",
         },
       },
@@ -674,7 +703,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <Percent size={30} />,
         action: {
           type: "module",
-          key: "config.profit_margin",
+          key: "cau-hinh-loi-nhuan",
           module: "master_data",
         },
       },
@@ -685,7 +714,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <Settings2 size={30} />,
         action: {
           type: "module",
-          key: "config.surcharges",
+          key: "cau-hinh-phu-phi",
           module: "master_data",
         },
       },
@@ -696,7 +725,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <Coins size={30} />,
         action: {
           type: "module",
-          key: "config.interest",
+          key: "cau-hinh-lai-vay",
           module: "master_data",
         },
       },
@@ -712,21 +741,21 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         subtitle: "Quản lý người dùng và quyền truy cập.",
         tone: "violet",
         icon: <Shield size={30} />,
-        action: { type: "module", key: "system.users", module: "users" },
+        action: { type: "module", key: "tai-khoan", module: "users" },
       },
       {
         title: "Vai trò",
         subtitle: "Thiết lập nhóm vai trò trong hệ thống.",
         tone: "emerald",
         icon: <Users size={30} />,
-        action: { type: "module", key: "system.roles", module: "users" },
+        action: { type: "module", key: "vai-tro", module: "users" },
       },
       {
         title: "Bảng phân quyền",
         subtitle: "Kiểm tra ma trận quyền theo chức năng.",
         tone: "orange",
         icon: <ListChecks size={30} />,
-        action: { type: "module", key: "system.permissions", module: "users" },
+        action: { type: "module", key: "phan-quyen", module: "users" },
       },
       {
         title: "Cài đặt hệ thống",
@@ -735,7 +764,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <Settings2 size={30} />,
         action: {
           type: "module",
-          key: "system.company_settings",
+          key: "cai-dat-he-thong",
           module: "settings",
         },
       },
@@ -746,7 +775,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <Activity size={30} />,
         action: {
           type: "module",
-          key: "system.system_resources",
+          key: "tai-nguyen-he-thong",
           module: "system_metrics",
         },
       },
@@ -757,7 +786,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         icon: <ClipboardList size={30} />,
         action: {
           type: "module",
-          key: "system.audit_log",
+          key: "nhat-ky-he-thong",
           module: "audit_log",
         },
       },
@@ -990,11 +1019,12 @@ function ThanhBen({
   };
 
   const xuLyDieuHuong = (item: MucMenu) => {
-    if (item.key === "pricing.create_calculation" && onTaoBangTinhGia) {
+    if (item.key === "tao-tinh-gia" && onTaoBangTinhGia) {
       onTaoBangTinhGia();
       if (laMobile) datDangMo(false);
       return;
     }
+    // datMenuDangChon + datModuleDangMo được shell bọc URL qua callback
     datMenuDangChon(item.key);
     datModuleDangMo(item.id);
     if (laMobile) datDangMo(false);
@@ -1211,7 +1241,7 @@ function ThanhBen({
                     {nhom.mucCon
                       .filter((item) => coTheXemMucMenu(policies, item.key))
                       .map((item) => {
-                        const laMucTongQuan = item.key.startsWith("overview.");
+                        const laMucTongQuan = MENU_KEYS_OVERVIEW.has(item.key);
                         return (
                           <button
                             key={item.key}
@@ -1536,7 +1566,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [thanhBenDangMo, datThanhBenDangMo] = useState(true);
   const [laMobile, datLaMobile] = useState(false);
   const [menuDangChon, datMenuDangChon] = useState(
-    "pricing.create_calculation",
+    "tao-tinh-gia",
   );
   const [hienDoiMatKhau, datHienDoiMatKhau] = useState(false);
   const [hienDoiAnhDaiDien, datHienDoiAnhDaiDien] = useState(false);
@@ -1574,10 +1604,57 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const policies = nguoiDung?.policies ?? [];
   const deepLinkDaXuLy = useRef<string | null>(null);
+  const dangDongBoTuUrl = useRef(false);
   const [deepLinkLoai, datDeepLinkLoai] = useState<LoaiDeepLink | null>(null);
   const [deepLinkTrangThai, datDeepLinkTrangThai] =
     useState<TrangThaiDeepLink>("idle");
   const [deepLinkRetryDem, datDeepLinkRetryDem] = useState(0);
+
+  /** Điều hướng menu + URL. push khi user đổi màn; replace khi bootstrap/popstate. */
+  const dieuHuongMenu = useCallback(
+    (menuKey: string, mode: CheDoLichSu = "push") => {
+      const key = menuKey.trim();
+      if (!key) return;
+
+      if (laMobileHubMenuKey(key) || laMobileHubKey(key)) {
+        datMenuDangChon(key);
+        if (!dangDongBoTuUrl.current) dongBoUrlMenu(key, mode);
+        return;
+      }
+
+      const module =
+        moduleTuMenuKey(key, CAC_MUC_MENU) ??
+        (CAC_MUC_MENU.find((m) => m.key === key)?.id as MaModuleMenu | undefined);
+
+      datMenuDangChon(key);
+      if (module) datModuleDangMo(module);
+      if (!dangDongBoTuUrl.current) dongBoUrlMenu(key, mode);
+    },
+    [datModuleDangMo],
+  );
+
+  const apDungMenuTuUrl = useCallback(
+    (pathname?: string) => {
+      const key = docMenuKeyTuPathname(
+        pathname ?? (typeof window !== "undefined" ? window.location.pathname : "/"),
+      );
+      if (!key) return false;
+      dangDongBoTuUrl.current = true;
+      try {
+        if (laMobileHubMenuKey(key) || laMobileHubKey(key)) {
+          datMenuDangChon(key);
+          return true;
+        }
+        const module = moduleTuMenuKey(key, CAC_MUC_MENU);
+        datMenuDangChon(key);
+        if (module) datModuleDangMo(module);
+        return true;
+      } finally {
+        dangDongBoTuUrl.current = false;
+      }
+    },
+    [datModuleDangMo],
+  );
 
   // Restore session on mount
   useEffect(() => {
@@ -1645,11 +1722,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     const coQuyenConfig = policies.includes("PRICE_CONFIG_MANAGER");
     const dangOConfig =
-      moduleDangMo === "master_data" || menuDangChon.startsWith("config.");
+      moduleDangMo === "master_data" || MENU_KEYS_CONFIG.has(menuDangChon);
 
     if (!coQuyenConfig && dangOConfig) {
-      datMenuDangChon("pricing.create_calculation");
-      datModuleDangMo("calculator");
+      dieuHuongMenu("tao-tinh-gia", "replace");
     }
   }, [
     isAuthenticated,
@@ -1657,8 +1733,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     policies,
     moduleDangMo,
     menuDangChon,
-    datMenuDangChon,
-    datModuleDangMo,
+    dieuHuongMenu,
   ]);
 
   // Detect mobile on mount and resize
@@ -1709,33 +1784,68 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!laMobile || daKhoiTaoHubMobile) return;
-    datMenuDangChon(MOBILE_TAB_FALLBACK.pricing_quote);
+    // Hub mặc định khi URL root / chưa có path menu
+    if (!docMenuKeyTuPathname(window.location.pathname)) {
+      dieuHuongMenu(MOBILE_TAB_FALLBACK.pricing_quote, "replace");
+    }
     datDaKhoiTaoHubMobile(true);
-  }, [laMobile, daKhoiTaoHubMobile]);
+  }, [laMobile, daKhoiTaoHubMobile, dieuHuongMenu]);
 
   // Sync menuDangChon when moduleDangMo changes programmatically
   useEffect(() => {
     if (laMobile && laMobileHubKey(menuDangChon)) return;
-    // Kiểm tra xem menuDangChon hiện tại có thuộc module đang mở không
     const mucHienTai = CAC_MUC_MENU.find((m) => m.key === menuDangChon);
-    if (mucHienTai && mucHienTai.id === moduleDangMo) return; // đã đồng bộ
+    if (mucHienTai && mucHienTai.id === moduleDangMo) return;
 
-    // Tìm mục menu đầu tiên thuộc module đang mở, ưu tiên menu nghiệp vụ thay vì thẻ tổng quan.
     const mucMoi =
       CAC_MUC_MENU.find(
-        (m) => m.id === moduleDangMo && !m.key.startsWith("overview."),
+        (m) => m.id === moduleDangMo && !MENU_KEYS_OVERVIEW.has(m.key),
       ) ?? CAC_MUC_MENU.find((m) => m.id === moduleDangMo);
-    if (mucMoi) datMenuDangChon(mucMoi.key);
+    if (mucMoi) {
+      dangDongBoTuUrl.current = true;
+      datMenuDangChon(mucMoi.key);
+      dongBoUrlMenu(mucMoi.key, "replace");
+      dangDongBoTuUrl.current = false;
+    }
   }, [moduleDangMo, laMobile, menuDangChon]);
 
-  // Deep-link: /?tinh-gia=<id> | /?bao-gia=<id> | /?khach-hang=<code>
+  // Bootstrap path → state + popstate + event điều hướng chéo
   useEffect(() => {
     if (!isAuthenticated || !sessionChecked) return;
-    const deep = docDeepLinkTuSearchParams(window.location.search, [
-      { loai: "tinh-gia", key: TINH_GIA_QUERY },
-      { loai: "bao-gia", key: BAO_GIA_QUERY },
-      { loai: "khach-hang", key: KHACH_HANG_QUERY },
-    ]);
+
+    const bootstrap = () => {
+      const key = docMenuKeyTuPathname(window.location.pathname);
+      if (key) apDungMenuTuUrl(window.location.pathname);
+    };
+
+    bootstrap();
+
+    const onPop = () => {
+      apDungMenuTuUrl(window.location.pathname);
+    };
+    const onNavigate = (ev: Event) => {
+      const detail = (ev as CustomEvent<LtsNavigateDetail>).detail;
+      if (!detail?.menuKey) return;
+      dieuHuongMenu(detail.menuKey, detail.mode ?? "push");
+    };
+
+    window.addEventListener("popstate", onPop);
+    window.addEventListener(LTS_NAVIGATE_EVENT, onNavigate);
+    return () => {
+      window.removeEventListener("popstate", onPop);
+      window.removeEventListener(LTS_NAVIGATE_EVENT, onNavigate);
+    };
+  }, [
+    isAuthenticated,
+    sessionChecked,
+    apDungMenuTuUrl,
+    dieuHuongMenu,
+  ]);
+
+  // Deep-link path: /tinh-gia/<id> | /bao-gia/<id> | /khach-hang/<code>
+  useEffect(() => {
+    if (!isAuthenticated || !sessionChecked) return;
+    const deep = docDeepLinkTuPathname(window.location.pathname);
     if (!deep) {
       deepLinkDaXuLy.current = null;
       datDeepLinkLoai(null);
@@ -1764,8 +1874,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const moDeepLink = async () => {
       if (deep.loai === "khach-hang") {
         if (huy) return;
-        datMenuDangChon("customers.list");
-        datModuleDangMo("customers");
+        dieuHuongMenu("danh-sach-khach-hang", "replace");
         deepLinkDaXuLy.current = keyXuLy;
         datDeepLinkTrangThai("ok");
         return;
@@ -1781,7 +1890,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             if (huy) return;
             await moBangTinhVoiPin(local.id);
             if (huy) return;
-            datModuleDangMo("calculator");
+            dieuHuongMenu("tao-tinh-gia", "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
             return;
@@ -1797,7 +1906,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           if (sauTai && !sauTai.isQuote) {
             await moBangTinhVoiPin(sauTai.id);
             if (huy) return;
-            datModuleDangMo("calculator");
+            dieuHuongMenu("tao-tinh-gia", "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
             return;
@@ -1806,7 +1915,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           const ok = await taiBangTinhTuServer(deep.id);
           if (huy) return;
           if (ok) {
-            datModuleDangMo("calculator");
+            dieuHuongMenu("tao-tinh-gia", "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
             return;
@@ -1830,8 +1939,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           if (huy) return;
           datBaoGiaDangSua(bg);
           datNguonWizard("list");
-          datMenuDangChon("pricing.create_quote");
-          datModuleDangMo("quotations");
+          dieuHuongMenu("tao-bao-gia", "replace");
           deepLinkDaXuLy.current = keyXuLy;
           datDeepLinkTrangThai("ok");
         } catch (error) {
@@ -1855,15 +1963,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     datModuleDangMo,
     datBaoGiaDangSua,
     datNguonWizard,
+    dieuHuongMenu,
     deepLinkRetryDem,
   ]);
 
-  // Đồng bộ URL (copy-share): tính giá / báo giá — khách hàng do ModuleKhachHang giữ
+  // Đồng bộ path URL (copy-share): /tinh-gia/<id> · /bao-gia/<id> — KH do ModuleKhachHang
   useEffect(() => {
     if (!isAuthenticated || !sessionChecked) return;
     if (deepLinkTrangThai === "loading" || laLoiDeepLink(deepLinkTrangThai))
       return;
-    // Panel KH tự sync ?khach-hang= — không đụng ở đây
+    // Panel KH tự sync /khach-hang/ — không đụng ở đây
     if (moduleDangMo === "customers") return;
 
     if (moduleDangMo === "calculator" && loadedHistoryId) {
@@ -1875,18 +1984,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
     if (
       moduleDangMo === "quotations" &&
-      menuDangChon === "pricing.create_quote" &&
+      menuDangChon === "tao-bao-gia" &&
       baoGiaDangSua?.id
     ) {
       dongBoUrlBaoGia(baoGiaDangSua.id);
       return;
     }
 
+    // Rời entity path khi không còn entity đang mở
     if (
-      docIdTuSearchParams(window.location.search) ||
-      docBaoGiaIdTuSearchParams(window.location.search)
+      docIdTuPathname(window.location.pathname) ||
+      docBaoGiaIdTuPathname(window.location.pathname)
     ) {
-      dongBoUrlDeepLinkClear();
+      dongBoUrlMenu(menuDangChon, "replace");
     }
   }, [
     isAuthenticated,
@@ -1992,8 +2102,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const moLandingTaoBangTinh = () => {
     resetInput();
     dungCuaHangTinhGia.getState().setPricingEntry("pick");
-    datMenuDangChon("pricing.create_calculation");
-    datModuleDangMo("calculator");
+    dieuHuongMenu("tao-tinh-gia", "push");
   };
 
   const xuLyMobileHubAction = (action: MobileHubAction) => {
@@ -2009,18 +2118,18 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       dungCuaHangTinhGia.getState().logout();
       return;
     }
-    if (action.key === "pricing.create_calculation") {
+    if (action.key === "tao-tinh-gia") {
       moLandingTaoBangTinh();
       return;
     }
-    datMenuDangChon(action.key);
-    datModuleDangMo(action.module);
+    dieuHuongMenu(action.key, "push");
   };
 
   const quayLaiHubMobile = () => {
     const hubId = layMobileHubId(menuDangChon);
-    datMenuDangChon(
+    dieuHuongMenu(
       MOBILE_TAB_FALLBACK[hubId] ?? MOBILE_TAB_FALLBACK.pricing_quote,
+      "push",
     );
   };
 
@@ -2039,8 +2148,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   const veDanhSachTinhGia = () => {
     dongDeepLinkLoi();
-    datMenuDangChon("pricing.history");
-    datModuleDangMo("history_db");
+    dieuHuongMenu("danh-sach-tinh-gia", "push");
   };
 
   const taoBangTinhMoi = () => {
@@ -2051,16 +2159,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const veDanhSachBaoGia = () => {
     dongDeepLinkLoi();
     datBaoGiaDangSua(null);
-    datMenuDangChon("pricing.quote_review");
-    datModuleDangMo("quotations");
+    dieuHuongMenu("danh-sach-bao-gia", "push");
   };
 
   const taoBaoGiaMoi = () => {
     dongDeepLinkLoi();
     datBaoGiaDangSua(null);
     datNguonWizard(null);
-    datMenuDangChon("pricing.create_quote");
-    datModuleDangMo("quotations");
+    dieuHuongMenu("tao-bao-gia", "push");
   };
 
   const coTheThuLaiDeepLink =
@@ -2107,7 +2213,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <ThanhBen
           moduleDangMo={moduleDangMo}
           menuDangChon={menuDangChon}
-          datMenuDangChon={datMenuDangChon}
+          datMenuDangChon={(key) => dieuHuongMenu(key, "push")}
           datModuleDangMo={datModuleDangMo}
           dangMo={thanhBenDangMo}
           datDangMo={datThanhBenDangMo}
@@ -2202,33 +2308,31 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               )}
               {moduleDangMo === "calculator" && children}
               {moduleDangMo === "quotations" &&
-                (menuDangChon === "pricing.quote_review" ? (
+                (menuDangChon === "danh-sach-bao-gia" ? (
                   <ModuleDuyetBaoGia
-                    khiDieuHuong={(key) => {
-                      datMenuDangChon(key);
-                      datModuleDangMo("quotations");
-                    }}
+                    khiDieuHuong={(key) => dieuHuongMenu(key, "push")}
                   />
                 ) : (
                   <ModuleBaoGia
                     role={vaiTroHienTai}
                     menuDangChon={menuDangChon}
-                    khiDieuHuong={(key) => {
-                      datMenuDangChon(key);
-                      datModuleDangMo("quotations");
-                    }}
+                    khiDieuHuong={(key) => dieuHuongMenu(key, "push")}
                   />
                 ))}
               {moduleDangMo === "create_lsx" && <ModuleTaoLenhSanXuat />}
               {moduleDangMo === "lsx_list" && <ModuleDanhSachLSX />}
               {moduleDangMo === "history_db" &&
-                (menuDangChon === "pricing.history" ? (
+                (menuDangChon === "danh-sach-tinh-gia" ? (
                   <ModuleDanhSachTinhGia
-                    khiDieuHuong={(m) => datModuleDangMo(m)}
+                    khiDieuHuong={(m) =>
+                      dieuHuongMenu(menuKeyTuModule(m), "push")
+                    }
                   />
                 ) : (
                   <ModuleLichSuDB
-                    khiDieuHuong={datModuleDangMo}
+                    khiDieuHuong={(m) =>
+                      dieuHuongMenu(menuKeyTuModule(m), "push")
+                    }
                     menuDangChon={menuDangChon}
                   />
                 ))}
@@ -2237,9 +2341,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                   role={vaiTroHienTai}
                   currentSellerId={idNhanVienHienTai}
                   menuDangChon={menuDangChon}
-                  deepLinkCode={docKhachHangIdTuSearchParams(
+                  deepLinkCode={docKhachHangIdTuPathname(
                     typeof window !== "undefined"
-                      ? window.location.search
+                      ? window.location.pathname
                       : null,
                   )}
                 />
@@ -2274,7 +2378,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {laMobile && (
         <MobileBottomTabs
           menuDangChon={menuDangChon}
-          datMenuDangChon={datMenuDangChon}
+          datMenuDangChon={(key) => dieuHuongMenu(key, "push")}
           datModuleDangMo={datModuleDangMo}
           policies={policies}
         />

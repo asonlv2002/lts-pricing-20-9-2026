@@ -12,19 +12,36 @@ const NHOM_MENU_POLICIES: Record<string, PolicyCode[]> = {
 };
 
 // Policy bắt buộc cho từng mục menu cụ thể (gate ở cấp item).
-// Lưu ý: "pricing.quote_review" KHÔNG gate ở menu — admin/sale đều xem được danh sách báo giá.
+// Lưu ý: "danh-sach-bao-gia" KHÔNG gate ở menu — admin/sale đều xem được danh sách báo giá.
 // Chức năng Duyệt/Từ chối bên trong trang vẫn gate theo QUOTATION_REVIEWER (coQuyenDuyetBaoGia).
 const MUC_MENU_POLICIES: Record<string, PolicyCode[]> = {
-  'config.materials': ['PRICE_CONFIG_MANAGER'],
-  'config.production_costs': ['PRICE_CONFIG_MANAGER'],
-  'config.outsource_costs': ['PRICE_CONFIG_MANAGER'],
-  'config.profit_margin': ['PRICE_CONFIG_MANAGER'],
-  'config.surcharges': ['PRICE_CONFIG_MANAGER'],
-  'config.interest': ['PRICE_CONFIG_MANAGER'],
-  'config.waste_norms': ['PRICE_CONFIG_MANAGER'],
-  'config.formulas': ['PRICE_CONFIG_MANAGER'],
-  'system.system_resources': ['SYSTEM_MONITOR'],
+  'cau-hinh-vat-tu': ['PRICE_CONFIG_MANAGER'],
+  'cau-hinh-chi-phi-sx': ['PRICE_CONFIG_MANAGER'],
+  'cau-hinh-gia-cong-ngoai': ['PRICE_CONFIG_MANAGER'],
+  'cau-hinh-loi-nhuan': ['PRICE_CONFIG_MANAGER'],
+  'cau-hinh-phu-phi': ['PRICE_CONFIG_MANAGER'],
+  'cau-hinh-lai-vay': ['PRICE_CONFIG_MANAGER'],
+  'cau-hinh-dinh-muc-hao-hut': ['PRICE_CONFIG_MANAGER'],
+  'cau-hinh-cong-thuc': ['PRICE_CONFIG_MANAGER'],
+  'tai-nguyen-he-thong': ['SYSTEM_MONITOR'],
 };
+
+/** Menu key nhật ký — slug VN, không còn suffix `.audit_log`. */
+const MENU_KEYS_AUDIT_LOG = new Set([
+  'nhat-ky-tinh-gia',
+  'nhat-ky-khach-hang',
+  'nhat-ky-he-thong',
+]);
+
+/** Menu key nhóm quản trị hệ thống. */
+const MENU_KEYS_SYSTEM = new Set([
+  'tai-khoan',
+  'vai-tro',
+  'phan-quyen',
+  'cai-dat-he-thong',
+  'tai-nguyen-he-thong',
+  'nhat-ky-he-thong',
+]);
 
 export function coTheXemNhomMenu(policies: PolicyCode[], nhomId: string): boolean {
   if (nhomId === 'system') {
@@ -41,9 +58,9 @@ export function coTheXemMucMenu(policies: PolicyCode[], menuKey: string): boolea
   const required = MUC_MENU_POLICIES[menuKey];
   if (required && required.length > 0) return required.every(p => policies.includes(p));
   // Nhật ký: ai cũng xem được (server tự filter theo actorId)
-  if (menuKey.endsWith('.audit_log')) return true;
-  if (menuKey === 'system.system_resources') return policies.includes('SYSTEM_MONITOR');
-  if (menuKey.startsWith('system.')) {
+  if (MENU_KEYS_AUDIT_LOG.has(menuKey)) return true;
+  if (menuKey === 'tai-nguyen-he-thong') return policies.includes('SYSTEM_MONITOR');
+  if (MENU_KEYS_SYSTEM.has(menuKey)) {
     return policies.includes('SYSTEM_MONITOR')
       || policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
   }

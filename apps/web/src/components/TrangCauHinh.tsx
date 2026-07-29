@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import React from "react";
 import { Eye, Copy, Trash2, Save } from "lucide-react";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
@@ -468,21 +468,21 @@ type NhomCauHinh =
   | "formulas";
 const layNhomCauHinh = (menuDangChon?: string): NhomCauHinh => {
   switch (menuDangChon) {
-    case "config.materials":
+    case "cau-hinh-vat-tu":
       return "materials";
-    case "config.waste_norms":
+    case "cau-hinh-dinh-muc-hao-hut":
       return "waste";
-    case "config.production_costs":
+    case "cau-hinh-chi-phi-sx":
       return "production";
-    case "config.outsource_costs":
+    case "cau-hinh-gia-cong-ngoai":
       return "outsource";
-    case "config.profit_margin":
+    case "cau-hinh-loi-nhuan":
       return "profit";
-    case "config.surcharges":
+    case "cau-hinh-phu-phi":
       return "surcharges";
-    case "config.interest":
+    case "cau-hinh-lai-vay":
       return "interest";
-    case "config.formulas":
+    case "cau-hinh-cong-thuc":
       return "formulas";
     default:
       return "materials";

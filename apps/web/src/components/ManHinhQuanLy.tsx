@@ -23,6 +23,7 @@ import { LS_CUSTOMERS, loadCustomers } from '../store/helpers';
 import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override-display';
 import { tinhNhapPhanBoChotGia } from '../lib/chot-gia-allocation';
 import { timMucLichSuTheoId } from '../lib/history-identity';
+import { dieuHuongModuleApp } from '../lib/menu-route';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
 // Mỗi lần render với resetKey mới → luôn bắt đầu ở trạng thái ĐÓNG
@@ -706,7 +707,7 @@ async function syncPricingSheetToServer(
 }
 
 export default function ManHinhQuanLy() {
-  const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, capNhatHienTaiVaoLichSu: capNhatVaoLichSu, setActiveModule: datPhan,
+  const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, capNhatHienTaiVaoLichSu: capNhatVaoLichSu,
     role,   loadedHistoryId: loadedHistoryId,
   originalCustomerLoaded: originalCustomerLoaded, history: lichSu, materials,
     currentSellerId: idNhanVienHienTai,
@@ -1270,7 +1271,7 @@ const buttonLabel = loadedItem
                       const toast = document.createElement('div');
                       toast.className = 'toast toast-clickable';
                       toast.innerHTML = '🔄 Đã cập nhật bảng tính giá! <span style="text-decoration:underline;margin-left:6px;">Xem lịch sử →</span>';
-                      toast.addEventListener('click', () => { datPhan('history_db'); toast.remove(); });
+                      toast.addEventListener('click', () => { dieuHuongModuleApp('history_db'); toast.remove(); });
                       container.appendChild(toast);
                       setTimeout(() => toast.remove(), 5000);
                     }}
@@ -1298,7 +1299,7 @@ const buttonLabel = loadedItem
                       const toast = document.createElement('div');
                       toast.className = 'toast toast-clickable';
                       toast.innerHTML = '💾 Đã lưu báo giá mới! <span style="text-decoration:underline;margin-left:6px;">Xem lịch sử →</span>';
-                      toast.addEventListener('click', () => { datPhan('history_db'); toast.remove(); });
+                      toast.addEventListener('click', () => { dieuHuongModuleApp('history_db'); toast.remove(); });
                       container.appendChild(toast);
                       setTimeout(() => toast.remove(), 5000);
                     }}
@@ -1327,7 +1328,7 @@ const buttonLabel = loadedItem
                     const toast = document.createElement('div');
                     toast.className = 'toast toast-clickable';
                     toast.innerHTML = '💾 Đã lưu báo giá! <span style="text-decoration:underline;margin-left:6px;">Xem lịch sử →</span>';
-                    toast.addEventListener('click', () => { datPhan('history_db'); toast.remove(); });
+                    toast.addEventListener('click', () => { dieuHuongModuleApp('history_db'); toast.remove(); });
                     container.appendChild(toast);
                     setTimeout(() => toast.remove(), 5000);
                   }}

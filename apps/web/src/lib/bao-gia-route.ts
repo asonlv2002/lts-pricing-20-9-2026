@@ -1,11 +1,13 @@
+import { docQueryParam } from './support-route';
 import {
-  docQueryParam,
-  dongBoUrlQueryExclusive,
-  ghepUrlQueryExclusive,
-  taoUrlChiaSeTuyetDoi,
-} from './support-route';
+  dongBoUrlEntity,
+  dongBoUrlMenu,
+  MENU_MAC_DINH_KHI_DEEP_LINK,
+  parsePathname,
+  taoPathEntity,
+} from './menu-route';
 
-/** Query param deep-link mở báo giá: /?bao-gia=<id> */
+/** Path deep-link: /bao-gia/<id> */
 export const BAO_GIA_QUERY = 'bao-gia';
 
 export function docBaoGiaIdTuSearchParams(
@@ -14,27 +16,36 @@ export function docBaoGiaIdTuSearchParams(
   return docQueryParam(search, BAO_GIA_QUERY);
 }
 
+export function docBaoGiaIdTuPathname(
+  pathname: string | null | undefined,
+): string | null {
+  const p = parsePathname(pathname);
+  if (p.loai === 'entity' && p.entity === 'bao-gia') return p.id;
+  return null;
+}
+
 export function ghepUrlBaoGia(
   href: string,
   id: string | null | undefined,
 ): string {
-  if (id && id.trim()) {
-    return ghepUrlQueryExclusive(href, { key: BAO_GIA_QUERY, id });
-  }
-  return ghepUrlQueryExclusive(href, null);
+  void href;
+  if (id && id.trim()) return taoPathEntity('bao-gia', id);
+  return `/${MENU_MAC_DINH_KHI_DEEP_LINK['bao-gia']}`;
 }
 
 export function dongBoUrlBaoGia(id: string | null | undefined): void {
   if (id && id.trim()) {
-    dongBoUrlQueryExclusive({ key: BAO_GIA_QUERY, id });
+    dongBoUrlEntity('bao-gia', id, 'replace');
   } else {
-    dongBoUrlQueryExclusive(null);
+    dongBoUrlMenu(MENU_MAC_DINH_KHI_DEEP_LINK['bao-gia'], 'replace');
   }
 }
 
-/** URL tuyệt đối /?bao-gia=<id> để copy chia sẻ. */
+/** URL tuyệt đối /bao-gia/<id> để copy chia sẻ. */
 export function taoUrlChiaSeBaoGia(id: string | null | undefined): string | null {
   const shareId = id?.trim();
   if (!shareId) return null;
-  return taoUrlChiaSeTuyetDoi({ key: BAO_GIA_QUERY, id: shareId });
+  const path = taoPathEntity('bao-gia', shareId);
+  if (typeof window === 'undefined') return path;
+  return `${window.location.origin}${path}`;
 }

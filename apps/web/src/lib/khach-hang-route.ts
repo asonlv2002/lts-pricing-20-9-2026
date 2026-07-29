@@ -1,14 +1,15 @@
+import { docQueryParam } from './support-route';
 import {
-  docQueryParam,
-  dongBoUrlQueryExclusive,
-  ghepUrlQueryExclusive,
-  taoUrlChiaSeTuyetDoi,
-} from './support-route';
+  dongBoUrlEntity,
+  dongBoUrlMenu,
+  MENU_MAC_DINH_KHI_DEEP_LINK,
+  parsePathname,
+  taoPathEntity,
+} from './menu-route';
 
-/** Query param deep-link panel khách hàng: /?khach-hang=<codeName> */
+/** Path deep-link: /khach-hang/<codeName> */
 export const KHACH_HANG_QUERY = 'khach-hang';
 
-/** Chuẩn hoá mã KH để so khớp list ↔ URL (trim + hoa). */
 export function chuanHoaMaKhachHang(value: string | null | undefined): string {
   return (value ?? '').trim().toUpperCase();
 }
@@ -28,29 +29,38 @@ export function docKhachHangIdTuSearchParams(
   return docQueryParam(search, KHACH_HANG_QUERY);
 }
 
+export function docKhachHangIdTuPathname(
+  pathname: string | null | undefined,
+): string | null {
+  const p = parsePathname(pathname);
+  if (p.loai === 'entity' && p.entity === 'khach-hang') return p.id;
+  return null;
+}
+
 export function ghepUrlKhachHang(
   href: string,
   codeName: string | null | undefined,
 ): string {
-  if (codeName && codeName.trim()) {
-    return ghepUrlQueryExclusive(href, { key: KHACH_HANG_QUERY, id: codeName });
-  }
-  return ghepUrlQueryExclusive(href, null);
+  void href;
+  if (codeName && codeName.trim()) return taoPathEntity('khach-hang', codeName);
+  return `/${MENU_MAC_DINH_KHI_DEEP_LINK['khach-hang']}`;
 }
 
 export function dongBoUrlKhachHang(codeName: string | null | undefined): void {
   if (codeName && codeName.trim()) {
-    dongBoUrlQueryExclusive({ key: KHACH_HANG_QUERY, id: codeName });
+    dongBoUrlEntity('khach-hang', codeName, 'replace');
   } else {
-    dongBoUrlQueryExclusive(null);
+    dongBoUrlMenu(MENU_MAC_DINH_KHI_DEEP_LINK['khach-hang'], 'replace');
   }
 }
 
-/** URL tuyệt đối /?khach-hang=<codeName> để copy chia sẻ. */
+/** URL tuyệt đối /khach-hang/<codeName> để copy chia sẻ. */
 export function taoUrlChiaSeKhachHang(
   codeName: string | null | undefined,
 ): string | null {
   const ma = codeName?.trim();
   if (!ma) return null;
-  return taoUrlChiaSeTuyetDoi({ key: KHACH_HANG_QUERY, id: ma });
+  const path = taoPathEntity('khach-hang', ma);
+  if (typeof window === 'undefined') return path;
+  return `${window.location.origin}${path}`;
 }

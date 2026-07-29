@@ -436,7 +436,7 @@ export default function ModuleDuyetBaoGia({
         const fresh = await layBaoGiaTheoIdService(bg.id, accessToken);
         datBaoGiaDangSua(fresh);
         datNguonWizard(nguon === "review" ? "duyet" : "list");
-        khiDieuHuong?.("pricing.create_quote");
+        khiDieuHuong?.("tao-bao-gia");
       } catch (error) {
         datLoi(
           error instanceof Error

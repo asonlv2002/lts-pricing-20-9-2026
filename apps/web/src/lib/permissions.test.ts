@@ -23,24 +23,24 @@ function assert(name: string, condition: boolean, detail = '') {
 console.log('\n== Permissions menu filtering ==');
 
 assert(
-  'system.audit_log visible without ACTIVITY_MONITOR (own logs only)',
-  coTheXemMucMenu(['ACCOUNT_READ'], 'system.audit_log') === true,
-  'ACCOUNT_READ should open system.audit_log (server filters to own logs)',
+  'nhat-ky-he-thong visible without ACTIVITY_MONITOR (own logs only)',
+  coTheXemMucMenu(['ACCOUNT_READ'], 'nhat-ky-he-thong') === true,
+  'ACCOUNT_READ should open nhat-ky-he-thong (server filters to own logs)',
 );
 assert(
-  'system.audit_log visible with ACTIVITY_MONITOR',
-  coTheXemMucMenu(['ACTIVITY_MONITOR'], 'system.audit_log') === true,
-  'ACTIVITY_MONITOR must open system.audit_log',
+  'nhat-ky-he-thong visible with ACTIVITY_MONITOR',
+  coTheXemMucMenu(['ACTIVITY_MONITOR'], 'nhat-ky-he-thong') === true,
+  'ACTIVITY_MONITOR must open nhat-ky-he-thong',
 );
 assert(
-  'system.users still respects system group access',
-  coTheXemMucMenu(['ACCOUNT_READ'], 'system.users') === true,
-  'ACCOUNT_READ should keep system.users visible',
+  'tai-khoan still respects system group access',
+  coTheXemMucMenu(['ACCOUNT_READ'], 'tai-khoan') === true,
+  'ACCOUNT_READ should keep tai-khoan visible',
 );
 assert(
-  'pricing.audit_log visible without ACTIVITY_MONITOR (own logs only)',
-  coTheXemMucMenu(['ACCOUNT_READ'], 'pricing.audit_log') === true,
-  'pricing.audit_log should open (server filters to own logs)',
+  'nhat-ky-tinh-gia visible without ACTIVITY_MONITOR (own logs only)',
+  coTheXemMucMenu(['ACCOUNT_READ'], 'nhat-ky-tinh-gia') === true,
+  'nhat-ky-tinh-gia should open (server filters to own logs)',
 );
 assert(
   'system group gating still requires account or role access',
@@ -61,9 +61,9 @@ assert(
   coTheXemNhomMenu(['PRICE_CONFIG_MANAGER'] as PolicyCode[], 'pricing_config') === true,
 );
 assert(
-  'config.materials item requires PRICE_CONFIG_MANAGER',
-  coTheXemMucMenu(['ACCOUNT_READ'] as PolicyCode[], 'config.materials') === false
-    && coTheXemMucMenu(['PRICE_CONFIG_MANAGER'] as PolicyCode[], 'config.materials') === true,
+  'cau-hinh-vat-tu item requires PRICE_CONFIG_MANAGER',
+  coTheXemMucMenu(['ACCOUNT_READ'] as PolicyCode[], 'cau-hinh-vat-tu') === false
+    && coTheXemMucMenu(['PRICE_CONFIG_MANAGER'] as PolicyCode[], 'cau-hinh-vat-tu') === true,
 );
 
 console.log('\n== vaiTroTuPolicies ==');
@@ -88,12 +88,12 @@ assert(
   vaiTroTuPolicies(['ACTIVITY_MONITOR'] as PolicyCode[]) === 'admin',
 );
 assert(
-  'system.system_resources hidden without SYSTEM_MONITOR',
-  coTheXemMucMenu(['ACCOUNT_READ'] as PolicyCode[], 'system.system_resources') === false,
+  'tai-nguyen-he-thong hidden without SYSTEM_MONITOR',
+  coTheXemMucMenu(['ACCOUNT_READ'] as PolicyCode[], 'tai-nguyen-he-thong') === false,
 );
 assert(
-  'system.system_resources visible with SYSTEM_MONITOR',
-  coTheXemMucMenu(['SYSTEM_MONITOR'] as PolicyCode[], 'system.system_resources') === true,
+  'tai-nguyen-he-thong visible with SYSTEM_MONITOR',
+  coTheXemMucMenu(['SYSTEM_MONITOR'] as PolicyCode[], 'tai-nguyen-he-thong') === true,
 );
 assert(
   'system group visible with SYSTEM_MONITOR alone',
