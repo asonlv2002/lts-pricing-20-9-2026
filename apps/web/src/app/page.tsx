@@ -359,8 +359,9 @@ export default function TrangChinh() {
     <>
       <div className="toast-container" id="toastContainer" />
 
-      {dangTuBaoGia && (
+      {!laMobile && dangTuBaoGia && (
         <div
+          className="quote-context-banner"
           style={{
             background: "linear-gradient(135deg, rgba(8,145,178,0.08), rgba(8,145,178,0.03))",
             border: "1px solid rgba(8,145,178,0.25)",
