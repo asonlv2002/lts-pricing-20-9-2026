@@ -8,6 +8,7 @@ export const ENTITY_PATH_PREFIX: Record<LoaiDeepLink, string> = {
   'tinh-gia': 'tinh-gia',
   'bao-gia': 'bao-gia',
   'khach-hang': 'khach-hang',
+  lsx: 'lsx',
 };
 
 export type CheDoLichSu = 'push' | 'replace';
@@ -45,6 +46,7 @@ export const MENU_MAC_DINH_KHI_DEEP_LINK: Record<LoaiDeepLink, string> = {
   'tinh-gia': 'tao-tinh-gia',
   'bao-gia': 'tao-bao-gia',
   'khach-hang': 'danh-sach-khach-hang',
+  lsx: 'danh-sach-lsx',
 };
 
 export interface MucMenuRoute {

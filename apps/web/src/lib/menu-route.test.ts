@@ -110,6 +110,17 @@ assert(
   })(),
 );
 assert(
+  'parse entity lsx',
+  (() => {
+    const p = parsePathname('/lsx/order-1');
+    return p.loai === 'entity' && p.entity === 'lsx' && p.id === 'order-1' && p.menuKey === 'danh-sach-lsx';
+  })(),
+);
+assert(
+  'taoPathEntity lsx',
+  taoPathEntity('lsx', 'ord-9') === '/lsx/ord-9',
+);
+assert(
   'docMenuKeyTuPathname menu',
   docMenuKeyTuPathname('/tao-tinh-gia') === 'tao-tinh-gia',
 );

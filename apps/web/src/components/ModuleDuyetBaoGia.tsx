@@ -20,6 +20,7 @@ import {
   Trash2,
   ChevronDown,
   ChevronRight,
+  Factory,
 } from "lucide-react";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { normalizeDisplayText } from "../lib/text-codec";
@@ -201,6 +202,8 @@ export default function ModuleDuyetBaoGia({
   const nguoiDung = dungCuaHangTinhGia((s) => s.nguoiDungHienTai);
   const datBaoGiaDangSua = dungCuaHangTinhGia((s) => s.datBaoGiaDangSua);
   const datNguonWizard = dungCuaHangTinhGia((s) => s.datNguonWizard);
+  const datLsxTaoTuSheet = dungCuaHangTinhGia((s) => s.datLsxTaoTuSheet);
+  const datLsxDangSua = dungCuaHangTinhGia((s) => s.datLsxDangSua);
   const policies = nguoiDung?.policies ?? [];
   const laNguoiDuyet = coQuyenDuyetBaoGia(policies);
 
@@ -519,6 +522,15 @@ export default function ModuleDuyetBaoGia({
       }
     },
     [accessToken, datBaoGiaDangSua, datNguonWizard, khiDieuHuong, nguon],
+  );
+
+  const taoLsxTuSheet = useCallback(
+    (bg: BaoGiaApi, sheet: PricingSheetApi) => {
+      datLsxDangSua(null);
+      datLsxTaoTuSheet({ baoGia: bg, sheet });
+      khiDieuHuong?.("tao-lsx");
+    },
+    [datLsxDangSua, datLsxTaoTuSheet, khiDieuHuong],
   );
 
   const chonChip = (key: BoLoc) => {
@@ -853,6 +865,20 @@ export default function ModuleDuyetBaoGia({
                                     )}
                                     {hienTai === "cho" && (
                                       <span style={{ color: "#6b7280" }}>⏳ Chờ khách</span>
+                                    )}
+                                    {hienTai === "da_duyet" && trangThai === "approved" && (
+                                      <button
+                                        type="button"
+                                        className="qrev-btn qrev-btn--primary"
+                                        style={{ fontSize: "0.74rem", padding: "3px 10px", display: "inline-flex", alignItems: "center", gap: 4 }}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          taoLsxTuSheet(bg, sheet);
+                                        }}
+                                        title="Tạo lệnh sản xuất từ sheet này"
+                                      >
+                                        <Factory size={13} /> Tạo LSX
+                                      </button>
                                     )}
                                     {canEdit && (
                                       <div style={{ display: "flex", gap: 4 }}>

@@ -743,6 +743,29 @@ export const LSX_STATUS_CONFIG: Record<LSXStatus, {
   cancelled:     { label: 'Đã huỷ',      color: '#dc2626', bg: 'rgba(220,38,38,0.1)'   },
 };
 
+// ── LSX status rút gọn từ server (hasAdvisorApproved) ────────────────────────
+// Server chỉ có 1 boolean `hasAdvisorApproved`. Theo Q15: bỏ "Từ chối", chỉ 2 status.
+// Theo Q16: sau khi user edit + cập nhật form, status reset về 'pending'.
+//
+// Ánh xạ server → local:
+//   hasAdvisorApproved === true  → 'approved'  (● Đã duyệt)
+//   hasAdvisorApproved === false → 'pending'   (● Chờ duyệt)
+export type LsxLocalStatus = 'pending' | 'approved';
+
+export const LSX_LOCAL_STATUS_CONFIG: Record<LsxLocalStatus, {
+  label: string;
+  color: string;
+  bg: string;
+}> = {
+  pending:  { label: 'Chờ duyệt', color: '#c2410c', bg: '#fff7ed' },
+  approved: { label: 'Đã duyệt',  color: '#047857', bg: '#ecfdf5' },
+};
+
+export const NHAN_LSX_LOCAL_STATUS: Record<LsxLocalStatus, string> = {
+  pending: 'Chờ duyệt',
+  approved: 'Đã duyệt',
+};
+
 export interface LSXManualFields {
   // Chung (cả màng và túi)
   lsxNumber: string;            // Số LSX (auto-generated, có thể sửa)

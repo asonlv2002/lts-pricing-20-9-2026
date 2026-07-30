@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import type { BaoGiaApi } from '../../lib/api/service-lts';
+import type { QuotationPricingSheetOrderApi, QuotationPricingSheetOrdersByQuotationApi, PricingSheetApi } from '../../lib/api/service-lts';
 
 export interface UISlice {
   activeView: 'manager' | 'tech' | 'history' | 'config' | 'bento';
@@ -17,6 +18,11 @@ export interface UISlice {
   baoGiaDangSua: BaoGiaApi | null;
   wizardNguon: 'list' | 'duyet' | null;
   quoteWizardSnapshot: any;
+  lsxDangSua: { order: QuotationPricingSheetOrderApi; quotation: QuotationPricingSheetOrdersByQuotationApi } | null;
+  lsxTaoTuSheet: {
+    baoGia: BaoGiaApi;
+    sheet: PricingSheetApi;
+  } | null;
 
   setActiveView: (v: UISlice['activeView']) => void;
   setActiveModule: (v: UISlice['activeModule']) => void;
@@ -29,6 +35,8 @@ export interface UISlice {
   setRole: (r: string) => void;
   datBaoGiaDangSua: (bg: BaoGiaApi | null) => void;
   datNguonWizard: (nguon: 'list' | 'duyet' | null) => void;
+  datLsxDangSua: (payload: UISlice['lsxDangSua']) => void;
+  datLsxTaoTuSheet: (payload: UISlice['lsxTaoTuSheet']) => void;
   datManHinhDangMo: UISlice['setActiveView'];
   datPhanHeDangMo: UISlice['setActiveModule'];
   datQuoteWizardSnapshot: (s: any) => void;
@@ -48,6 +56,8 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   baoGiaDangSua: null,
   wizardNguon: null,
   quoteWizardSnapshot: null as any,
+  lsxDangSua: null,
+  lsxTaoTuSheet: null,
 
   setActiveView:    (v) => set({ activeView: v }),
   /** Chỉ set state. Điều hướng + URL: dùng dieuHuongModuleApp / dieuHuongMenuApp. */
@@ -61,6 +71,8 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   setRole:          (r) => set({ role: r }),
   datBaoGiaDangSua: (bg) => set({ baoGiaDangSua: bg }),
   datNguonWizard: (nguon) => set({ wizardNguon: nguon }),
+  datLsxDangSua: (payload) => set({ lsxDangSua: payload }),
+  datLsxTaoTuSheet: (payload) => set({ lsxTaoTuSheet: payload }),
   datManHinhDangMo: (v) => set({ activeView: v }),
   datPhanHeDangMo:  (v) => set({ activeModule: v }),
   datQuoteWizardSnapshot: (s) => set({ quoteWizardSnapshot: s }),

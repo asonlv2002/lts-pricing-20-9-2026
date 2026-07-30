@@ -1560,6 +1560,145 @@ export async function layMetricHeThongService(
   );
 }
 
+// ── Quotation Pricing Sheet Orders (LSX) ──────────────────────────────
+// Server endpoint: /quotations/orders và /quotations/orders/{id} và /quotations/{id}/create-orders
+// Bảng: quotation_pricing_sheet_order. Mỗi order = 1 LSX tạo từ 1 pricing sheet đã KH-duyệt.
+
+/** Một order (LSX) trong response server. */
+export interface QuotationPricingSheetOrderApi {
+  id: string;
+  quotationId: string;
+  pricingSheetId: string;
+  hasPrintedOrder: boolean;
+  hasAdvisorApproved: boolean;
+  inputValue: unknown | null;
+  createdBy: string;
+  approvedBy: string | null;
+  createdAt: string;
+  pricingSheet?: PricingSheetApi | null;
+}
+
+/** Một quotation gom các orders của nó. Dùng cho list view. */
+export interface QuotationPricingSheetOrdersByQuotationApi {
+  id: string;
+  customerId: string;
+  description?: string | null;
+  inputValue?: unknown | null;
+  updateStatus: string;
+  createdBy: string;
+  reviewerId?: string | null;
+  creator?: { id: string; account?: string; fullName?: string } | null;
+  createdAt: string;
+  updatedAt: string;
+  orders: QuotationPricingSheetOrderApi[];
+  original?: { actorName?: string | null; deletable?: boolean; canUpdate?: boolean } | null;
+}
+
+/** Response của POST /quotations/{id}/create-orders. */
+export interface CreateQuotationPricingSheetOrdersResponseApi {
+  quotationId: string;
+  createdCount: number;
+  orders: QuotationPricingSheetOrderApi[];
+}
+
+// GET /quotations/orders — danh sách orders gom theo quotation.
+// User thường: chỉ customers họ manage. ORDER_REVIEWER: tất cả.
+export async function listQuotationPricingSheetOrdersService(
+  token?: string,
+): Promise<QuotationPricingSheetOrdersByQuotationApi[]> {
+  const data = await goiService<QuotationPricingSheetOrdersByQuotationApi[]>(
+    "/quotations/orders",
+    {},
+    token,
+  );
+  return Array.isArray(data) ? data : [];
+}
+
+// GET /quotations/orders/{id} — 1 order (deep-link /lsx/<id>).
+export async function getQuotationPricingSheetOrderService(
+  orderId: string,
+  token?: string,
+): Promise<QuotationPricingSheetOrderApi> {
+  return goiService<QuotationPricingSheetOrderApi>(
+    `/quotations/orders/${encodeURIComponent(orderId)}`,
+    {},
+    token,
+  );
+}
+
+/** Shell quotation tối thiểu từ 1 order (hydrate wizard sửa khi deep-link). */
+export function shellQuotationFromOrder(
+  order: QuotationPricingSheetOrderApi,
+): QuotationPricingSheetOrdersByQuotationApi {
+  const sheet = order.pricingSheet;
+  const customerCode =
+    sheet?.customerCodeName || sheet?.customer?.codeName || '';
+  return {
+    id: order.quotationId,
+    customerId: customerCode,
+    description: null,
+    inputValue: null,
+    updateStatus: 'APPROVED',
+    createdBy: order.createdBy,
+    createdAt: order.createdAt,
+    updatedAt: order.createdAt,
+    orders: [order],
+  };
+}
+
+// POST /quotations/{id}/create-orders — tạo orders từ các pricing sheet đã KH-duyệt.
+// Server tự bỏ qua sheet đã có order; response trả TẤT CẢ orders (cả cũ + mới) sort createdAt desc.
+export async function createQuotationPricingSheetOrdersService(
+  quotationId: string,
+  token?: string,
+): Promise<CreateQuotationPricingSheetOrdersResponseApi> {
+  return goiService<CreateQuotationPricingSheetOrdersResponseApi>(
+    `/quotations/${encodeURIComponent(quotationId)}/create-orders`,
+    {
+      method: "POST",
+    },
+    token,
+  );
+}
+
+// PATCH /quotations/orders/{id} — cập nhật inputValue (form LSX).
+// inputValue: unknown — server lưu dưới dạng Prisma.Json. null = clear.
+export interface UpdateQuotationPricingSheetOrderInput {
+  inputValue: unknown;
+}
+
+export async function updateQuotationPricingSheetOrderService(
+  orderId: string,
+  data: UpdateQuotationPricingSheetOrderInput,
+  token?: string,
+): Promise<QuotationPricingSheetOrderApi> {
+  return goiService<QuotationPricingSheetOrderApi>(
+    `/quotations/orders/${encodeURIComponent(orderId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    },
+    token,
+  );
+}
+
+// PATCH /quotations/orders/{id}/approval — advisor duyệt / từ chối order.
+// Yêu cầu policy ORDER_REVIEWER. Set hasAdvisorApproved = true | false + approvedBy = actor.
+export async function updateOrderApprovalService(
+  orderId: string,
+  hasAdvisorApproved: boolean,
+  token?: string,
+): Promise<QuotationPricingSheetOrderApi> {
+  return goiService<QuotationPricingSheetOrderApi>(
+    `/quotations/orders/${encodeURIComponent(orderId)}/approval`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ hasAdvisorApproved }),
+    },
+    token,
+  );
+}
+
 // ── Transform ────────────────────────────────────────────────────────────
 export function chuyenTaiKhoanApi(user: TaiKhoanApi): TaiKhoan {
   return {

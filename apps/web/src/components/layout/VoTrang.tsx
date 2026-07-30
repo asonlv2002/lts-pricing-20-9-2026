@@ -53,6 +53,7 @@ import {
 import {
   docKhachHangIdTuPathname,
 } from "../../lib/khach-hang-route";
+import { dongBoUrlLsx } from "../../lib/lsx-route";
 import {
   LTS_NAVIGATE_EVENT,
   docDeepLinkTuPathname,
@@ -67,8 +68,10 @@ import {
 } from "../../lib/menu-route";
 import { timMucLichSuTheoId } from "../../lib/history-identity";
 import {
+  getQuotationPricingSheetOrderService,
   layBaoGiaTheoIdService,
   LoiServiceLts,
+  shellQuotationFromOrder,
   type PolicyCode,
 } from "../../lib/api/service-lts";
 import {
@@ -1603,6 +1606,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     baoGiaDangSua,
     datBaoGiaDangSua,
     datNguonWizard,
+    datLsxDangSua,
   } = dungCuaHangTinhGia();
 
   const policies = nguoiDung?.policies ?? [];
@@ -1943,6 +1947,26 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           datBaoGiaDangSua(bg);
           datNguonWizard("list");
           dieuHuongMenu("tao-bao-gia", "replace");
+          deepLinkDaXuLy.current = keyXuLy;
+          datDeepLinkTrangThai("ok");
+        } catch (error) {
+          if (huy) return;
+          ganLoiDeepLink(error);
+        }
+      }
+
+      if (deep.loai === "lsx") {
+        try {
+          const order = await getQuotationPricingSheetOrderService(
+            deep.id,
+            accessToken ?? undefined,
+          );
+          if (huy) return;
+          datLsxDangSua({
+            order,
+            quotation: shellQuotationFromOrder(order),
+          });
+          dieuHuongMenu("tao-lsx", "replace");
           deepLinkDaXuLy.current = keyXuLy;
           datDeepLinkTrangThai("ok");
         } catch (error) {
@@ -2326,8 +2350,16 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     khiDieuHuong={(key) => dieuHuongMenu(key, "push")}
                   />
                 ))}
-              {moduleDangMo === "create_lsx" && <ModuleTaoLenhSanXuat />}
-              {moduleDangMo === "lsx_list" && <ModuleDanhSachLSX />}
+              {moduleDangMo === "create_lsx" && (
+                <ModuleTaoLenhSanXuat
+                  khiDieuHuong={(key) => dieuHuongMenu(key, "push")}
+                />
+              )}
+              {moduleDangMo === "lsx_list" && (
+                <ModuleDanhSachLSX
+                  khiDieuHuong={(key) => dieuHuongMenu(key, "push")}
+                />
+              )}
               {moduleDangMo === "history_db" &&
                 (menuDangChon === "danh-sach-tinh-gia" ? (
                   <ModuleDanhSachTinhGia
