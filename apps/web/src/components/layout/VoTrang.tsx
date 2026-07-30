@@ -7,6 +7,7 @@ import React, {
   useRef,
 } from "react";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 import { dungCuaHangTinhGia } from "../../store/CuaHangTinhGia";
 import { getPricingDisplayMeta } from "../../lib/pricing-display";
 import { normalizeDisplayText } from "../../lib/text-codec";
@@ -77,6 +78,7 @@ import {
   Factory,
   X,
   ChevronRight,
+  ChevronLeft,
   Plus,
   FileText,
   History,
@@ -1571,6 +1573,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [hienDoiMatKhau, datHienDoiMatKhau] = useState(false);
   const [hienDoiAnhDaiDien, datHienDoiAnhDaiDien] = useState(false);
   const [daKhoiTaoHubMobile, datDaKhoiTaoHubMobile] = useState(false);
+  const router = useRouter();
 
   const nguoiDung = dungCuaHangTinhGia((s) => s.nguoiDungHienTai);
   const isAuthenticated = dungCuaHangTinhGia((s) => s.isAuthenticated);
@@ -2126,11 +2129,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   };
 
   const quayLaiHubMobile = () => {
-    const hubId = layMobileHubId(menuDangChon);
-    dieuHuongMenu(
-      MOBILE_TAB_FALLBACK[hubId] ?? MOBILE_TAB_FALLBACK.pricing_quote,
-      "push",
-    );
+    if (window.history.length > 1) {
+      router.back();
+    } else {
+      const hubId = layMobileHubId(menuDangChon);
+      dieuHuongMenu(
+        MOBILE_TAB_FALLBACK[hubId] ?? MOBILE_TAB_FALLBACK.pricing_quote,
+        "replace",
+      );
+    }
   };
 
   const dongDeepLinkLoi = () => {
@@ -2297,7 +2304,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     className="lts-mobile-module-back"
                     onClick={quayLaiHubMobile}
                   >
-                    Quay lại
+                    <ChevronLeft size={22} strokeWidth={2.5} />
                   </button>
                   <div className="lts-mobile-module-title-stack">
                     <h1>{tieuDeManHinhMobile}</h1>

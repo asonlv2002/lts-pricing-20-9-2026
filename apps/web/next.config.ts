@@ -42,6 +42,7 @@ const SPA_PATHS = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  devIndicators: false,
   async rewrites() {
     const menuRewrites = SPA_PATHS.map((slug) => ({
       source: `/${slug}`,

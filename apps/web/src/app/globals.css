@@ -4543,14 +4543,19 @@ body {
 .lts-mobile-module-back {
   justify-self: start;
   min-height: 44px;
-  padding: 0 4px;
+  min-width: 44px;
+  padding: 0;
   border: 0;
   background: transparent;
   color: #ffffff;
   font: inherit;
-  font-size: 12px;
-  font-weight: 750;
+  font-size: 22px;
+  font-weight: 700;
   cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
 }
 
 @media (max-width: 390px) {
