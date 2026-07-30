@@ -403,8 +403,25 @@ export interface CalculateInput {
   outsource?: OutsourceConfig;
 }
 
-// ── Quote Status (luồng báo giá 7 bước) ──────────────────────────────────────
-export type QuoteStatus = 'drafted' | 'pending_approval' | 'approved' | 'sent' | 'rejected' | 'cancelled' | 'completed' | 'expired';
+// ── Quote Status (luồng báo giá local + server) ──────────────────────────────
+// Server chi co 4 trang thai: draft | submitted | approved | rejected (xem
+// backend/src/quotations/quotation_status.ts va schema.prisma).
+//
+// 4 gia tri local-only (sent/cancelled/completed/expired) la cac trang thai
+// lifecycle cua luong local-engine: "gui cho khach", "huy", "da tao LSX",
+// "het han". Chung KHONG dong bo len server; chi dung cho UI va store local.
+//
+// Khi goi server (submit/duyet/tao/sua), luon mapping ve 4 gia tri server
+// qua `quoteStatusToServer` trong lib/api/service-lts.ts.
+export type QuoteStatus =
+  | 'drafted'
+  | 'pending_approval'  // local: mapping sang 'submitted' khi goi server
+  | 'approved'
+  | 'sent'              // local-only: "da gui cho khach"
+  | 'rejected'
+  | 'cancelled'         // local-only: "da huy"
+  | 'completed'         // local-only: "da tao LSX"
+  | 'expired';          // local-only: "het han"
 
 export const QUOTE_STATUS_CONFIG: Record<QuoteStatus, {
   label: string;

@@ -53,7 +53,10 @@ assert('translates active status', formatAuditValue('status', 'active') === 'Đa
 assert('translates isLocked false', formatAuditValue('isLocked', false) === 'Chưa khóa');
 assert('translates quoteStatus pending approval', formatAuditValue('quoteStatus', 'pending_approval') === 'Chờ duyệt');
 assert('translates quoteStatus completed', formatAuditValue('quoteStatus', 'completed') === 'Đã chốt đơn SX');
-assert('translates updateStatus customer approved', formatAuditValue('updateStatus', 'customer approved') === 'Khách đã duyệt');
+// Server không trả 'customer approved' làm updateStatus của quotation nữa
+// (phản hồi khách nằm ở pricing_sheets.hasCustomerApproved). Nếu gặp giá trị lạ,
+// trình audit phải trả về nguyên xi, KHÔNG tự ý dịch.
+assert('updateStatus la giu nguyen (khong dich)', formatAuditValue('updateStatus', 'customer approved') === 'customer approved');
 assert('translates lsx status in production', formatAuditValue('status', 'in_production') === 'Đang SX');
 assert('translates lsx status created', formatAuditValue('status', 'created') === 'Mới tạo');
 assert('translates finalPrice field label', getAuditFieldLabel('finalPrice') === 'Giá cuối cùng');

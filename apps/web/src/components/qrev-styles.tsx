@@ -198,7 +198,7 @@ export const QREV_STYLES = `
 .qrev-btn--danger:hover { background: #991b1b; }
 
 @media (max-width: 767px) {
-  .lts-shell--mobile .qrev-root { padding: 14px 12px; }
+  .lts-shell--mobile .qrev-root { padding: 12px 10px; }
   .lts-shell--mobile .qrev-title { font-size: 18px; }
   .lts-shell--mobile .qrev-chips { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 4px; }
   .lts-shell--mobile .qrev-chip { flex-shrink: 0; }
@@ -206,17 +206,84 @@ export const QREV_STYLES = `
   .lts-shell--mobile .qrev-table { min-width: 0; }
   .lts-shell--mobile .qrev-table thead { display: none; }
   .lts-shell--mobile .qrev-table-wrap { border: 0; background: transparent; overflow: visible; }
-  .lts-shell--mobile .qrev-table, .lts-shell--mobile .qrev-table tbody { display: block; }
+  .lts-shell--mobile .qrev-table,
+  .lts-shell--mobile .qrev-table tbody { display: block; }
+
+  /* Card 2 dòng:  [ checkbox | avatar | tên SP ]  [ giá ]
+                    [ khách                  ]  [ actions ] */
   .lts-shell--mobile .qrev-row {
-    display: flex; flex-direction: column; gap: 10px;
-    border: 1px solid var(--border, #e5e7eb); border-radius: 14px;
-    padding: 14px; margin-bottom: 10px; background: var(--surface, #fff);
-    box-shadow: 0 2px 8px rgba(15,23,42,0.04);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+    align-items: center;
+    border: 1px solid var(--border, #e5e7eb);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: var(--surface, #fff);
+    box-shadow: 0 1px 4px rgba(15,23,42,0.05);
   }
   .lts-shell--mobile .qrev-row td { display: block; padding: 0; border: 0; }
-  .lts-shell--mobile .qrev-cell-sale::before { content: 'Sale: '; color: var(--muted, #9ca3af); font-weight: 500; }
-  .lts-shell--mobile .qrev-cell-date::before { content: 'Cập nhật: '; color: var(--muted, #9ca3af); }
-  .lts-shell--mobile .qrev-row-actions { justify-content: flex-end; }
+
+  /* Vùng trên-trái (dòng 1, cột 1): gộp checkbox + avatar + tên SP bằng flex */
+  .lts-shell--mobile .qrev-row td:nth-child(1) {
+    grid-column: 1; grid-row: 1;
+    display: inline-flex; align-items: center;
+    width: auto; margin-right: 8px;
+  }
+  .lts-shell--mobile .qrev-row td:nth-child(2) {
+    grid-column: 1; grid-row: 1;
+    display: inline-flex; align-items: center;
+  }
+  .lts-shell--mobile .qrev-cell-quote { gap: 8px; }
+  .lts-shell--mobile .qrev-avatar { width: 28px; height: 28px; border-radius: 7px; }
+  .lts-shell--mobile .qrev-cell-name { font-size: 14px; }
+  .lts-shell--mobile .qrev-cell-sub { display: none; }
+
+  /* Vùng trên-phải (dòng 1, cột 2): giá */
+  .lts-shell--mobile .qrev-row td:nth-child(5) {
+    grid-column: 2; grid-row: 1;
+    text-align: right; white-space: nowrap;
+    font-size: 14px; font-weight: 700; color: var(--accent, #0891b2);
+  }
+
+  /* Vùng dưới-trái (dòng 2, cột 1): khách */
+  .lts-shell--mobile .qrev-row td:nth-child(3) {
+    grid-column: 1; grid-row: 2;
+    font-size: 12.5px; color: var(--muted, #6b7280);
+    font-weight: 500;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  /* Vùng dưới-phải (dòng 2, cột 2): actions */
+  .lts-shell--mobile .qrev-row td:nth-child(7) {
+    grid-column: 2; grid-row: 2;
+    display: flex; justify-content: flex-end; gap: 4px;
+  }
+  .lts-shell--mobile .qrev-btn-icon { width: 30px; height: 30px; border-radius: 7px; }
+
+  /* Checkbox tạo báo giá: bỏ viền button, to icon, màu accent nổi bật */
+  .lts-shell--mobile .qrev-row td:nth-child(1) .qrev-btn-icon {
+    border: 0;
+    background: transparent;
+    color: var(--accent, #0891b2);
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+  }
+  .lts-shell--mobile .qrev-row td:nth-child(1) .qrev-btn-icon:hover,
+  .lts-shell--mobile .qrev-row td:nth-child(1) .qrev-btn-icon:active {
+    background: rgba(8, 145, 178, 0.10);
+  }
+  .lts-shell--mobile .qrev-row td:nth-child(1) .qrev-btn-icon svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  /* Ẩn: ngày (đã có dòng meta ở desktop) và status badge (vẫn có chips filter) */
+  .lts-shell--mobile .qrev-row td:nth-child(4) { display: none; }
+  .lts-shell--mobile .qrev-row td:nth-child(6) { display: none; }
+
   .lts-shell--mobile .qrev-slide-panel { width: 100vw; }
 }
 `;

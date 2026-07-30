@@ -18,6 +18,8 @@ import {
   FileText,
   Inbox,
   Trash2,
+  ChevronDown,
+  ChevronRight,
 } from "lucide-react";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { normalizeDisplayText } from "../lib/text-codec";
@@ -39,10 +41,12 @@ import {
   layTaiKhoanService,
   nopBaoGiaService,
   duyetBaoGiaService,
+  customerDecideBaoGiaService,
   xoaBaoGiaService,
   chuyenTrangThaiBaoGia,
   NHAN_TRANG_THAI_BAO_GIA,
   type BaoGiaApi,
+  type PricingSheetApi,
   type TaiKhoanApi,
   type TrangThaiBaoGiaServer,
 } from "../lib/api/service-lts";
@@ -66,6 +70,8 @@ function dinhDangSo(n: number): string {
 }
 
 // Màu badge theo từng trạng thái chi tiết của server.
+// Server chỉ trả 4 trạng thái (draft/submitted/approved/rejected); phản hồi khách nằm
+// ở pricing_sheets.hasCustomerApproved, không phải status quotation.
 const MAU_TRANG_THAI: Record<
   TrangThaiBaoGiaServer,
   { bg: string; fg: string }
@@ -74,8 +80,6 @@ const MAU_TRANG_THAI: Record<
   submitted: { bg: "#fff7ed", fg: "#c2410c" },
   approved: { bg: "#ecfdf5", fg: "#047857" },
   rejected: { bg: "#fef2f2", fg: "#b91c1c" },
-  customer_approved: { bg: "#f0fdf4", fg: "#15803d" },
-  customer_rejected: { bg: "#fef2f2", fg: "#9f1239" },
   unknown: { bg: "#f3f4f6", fg: "#6b7280" },
 };
 
@@ -89,7 +93,7 @@ function HuyHieuTrangThai({ trangThai }: { trangThai: TrangThaiBaoGiaServer }) {
   );
 }
 
-// ── Bộ lọc chip: gộp 2 trạng thái "khách ..." vào nhóm tương ứng ──────────────
+// ── Bộ lọc chip: 1-1 với 4 status server (không có 'customer_*') ────────────
 type BoLoc = "all" | "drafted" | "submitted" | "approved" | "rejected";
 
 function thuocBoLoc(trangThai: TrangThaiBaoGiaServer, loc: BoLoc): boolean {
@@ -101,9 +105,9 @@ function thuocBoLoc(trangThai: TrangThaiBaoGiaServer, loc: BoLoc): boolean {
     case "submitted":
       return trangThai === "submitted";
     case "approved":
-      return trangThai === "approved" || trangThai === "customer_approved";
+      return trangThai === "approved";
     case "rejected":
-      return trangThai === "rejected" || trangThai === "customer_rejected";
+      return trangThai === "rejected";
     default:
       return true;
   }
@@ -239,6 +243,9 @@ export default function ModuleDuyetBaoGia({
     message: string;
     onConfirm: () => void;
   } | null>(null);
+  // Expand dropdown cho tung BG de xem/duyet tung pricing sheet.
+  // Set lai ve null sau khi luu de dong dropdown.
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const lamMoi = useCallback(async () => {
     if (!isAuthenticated || !accessToken) {
@@ -401,6 +408,70 @@ export default function ModuleDuyetBaoGia({
       });
     },
     [accessToken, lamMoi, hienThongBao],
+  );
+
+  // Customer (creator) danh dau duyet/bo cho tung pricing sheet.
+  // Chi cho phep khi:
+  //   - quotation o trang thai 'approved' (server yeu cau)
+  //   - actor la createdBy (server yeu cau)
+  // Phan hoi KH nam o pricing_sheets.hasCustomerApproved, KHONG doi quotation.updateStatus.
+  const customerDecideSheet = useCallback(
+    async (
+      bg: BaoGiaApi,
+      sheet: PricingSheetApi,
+      quyetDinh: "duyet" | "bo",
+    ) => {
+      if (!accessToken) return;
+      const sheetLabel = sheet.pricingSheetName || sheet.id;
+      const hanhDongText = quyetDinh === "duyet" ? "duyệt" : "bỏ";
+      setConfirm({
+        bg,
+        title: `Xác nhận phản hồi khách`,
+        message: `Đánh dấu khách đã ${hanhDongText} bảng tính "${sheetLabel}"?`,
+        onConfirm: async () => {
+          setConfirm(null);
+          datDangXuLyId(bg.id);
+          datLoi("");
+          try {
+            await customerDecideBaoGiaService(
+              bg.id,
+              [{ pricingSheetId: sheet.id, hasCustomerApproved: quyetDinh === "duyet" }],
+              accessToken,
+            );
+            hienThongBao(`Đã ghi nhận khách ${hanhDongText} bảng tính.`);
+            // Reload row de cap nhat hasCustomerApproved + updatedAt.
+            const fresh = await layBaoGiaTheoIdService(bg.id, accessToken);
+            datDanhSach((prev) =>
+              prev.map((b) => (b.id === fresh.id ? fresh : b)),
+            );
+          } catch (error) {
+            datLoi(
+              error instanceof Error
+                ? error.message
+                : `Không ghi nhận được phản hồi khách.`,
+            );
+          } finally {
+            datDangXuLyId(null);
+          }
+        },
+      });
+    },
+    [accessToken, hienThongBao],
+  );
+
+  // Tinh so luong sheet da duyet / bo / cho theo trang thai hien tai.
+  const demPhanHoiKhach = useCallback(
+    (sheets: PricingSheetApi[] | undefined) => {
+      const dem = { daDuyet: 0, bo: 0, cho: 0 };
+      if (!sheets) return dem;
+      for (const s of sheets) {
+        if (s.hasCustomerApproved === true) dem.daDuyet += 1;
+        else if (s.hasCustomerApproved === false) dem.bo += 1;
+        else dem.cho += 1;
+      }
+      return dem;
+    },
+    [],
   );
 
   const moChiTietBaoGia = useCallback(
@@ -642,14 +713,31 @@ export default function ModuleDuyetBaoGia({
                 {ketQua.map((bg) => {
                   const trangThai = chuyenTrangThaiBaoGia(bg.updateStatus);
                   const saleName = nguoiTaoBaoGia(bg);
+                  const isExpanded = expandedId === bg.id;
+                  const laCreator = bg.createdBy === nguoiDung?.id;
+                  const sheets = bg.pricingSheets ?? [];
+                  const phanHoi = demPhanHoiKhach(sheets);
+                  const coThePhanHoi = trangThai === "approved" && laCreator;
                   return (
+                    <React.Fragment key={bg.id}>
                     <tr
-                      key={bg.id}
                       className="qrev-row"
                       onClick={() => void moChiTietBaoGia(bg)}
                     >
                       <td>
                         <div className="qrev-cell-quote">
+                          <button
+                            className="qrev-btn-icon"
+                            aria-label={isExpanded ? "Thu gọn" : "Mở rộng"}
+                            title={isExpanded ? "Thu gọn" : "Mở rộng"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setExpandedId((cur) => (cur === bg.id ? null : bg.id));
+                            }}
+                            style={{ flexShrink: 0 }}
+                          >
+                            {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </button>
                           <div
                             className="qrev-avatar"
                             style={{ background: mauAvatar(bg.id) }}
@@ -709,12 +797,12 @@ export default function ModuleDuyetBaoGia({
                             </button>
                           </div>
                         )}
-                        {(trangThai === "approved" || trangThai === "customer_approved") && (
+                        {trangThai === "approved" && (
                           <span title="Đã duyệt" aria-label="Đã duyệt">
                             <CheckCircle2 size={16} style={{ color: "#16a34a" }} />
                           </span>
                         )}
-                        {(trangThai === "rejected" || trangThai === "customer_rejected") && (
+                        {trangThai === "rejected" && (
                           <span title="Đã từ chối" aria-label="Đã từ chối">
                             <XCircle size={16} style={{ color: "#dc2626" }} />
                           </span>
@@ -722,6 +810,98 @@ export default function ModuleDuyetBaoGia({
 
                       </td>
                     </tr>
+                    {isExpanded && (
+                      <tr style={{ background: "#f0f9ff" }}>
+                        <td colSpan={6} style={{ padding: "12px 16px" }}>
+                          {sheets.length === 0 ? (
+                            <div style={{ fontSize: "0.82rem", color: "var(--muted)" }}>
+                              Báo giá này không có bảng tính nào.
+                            </div>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                              {sheets.map((sheet) => {
+                                const isPending = dangXuLyId === bg.id;
+                                const canEdit = coThePhanHoi && !isPending;
+                                const hienTai =
+                                  sheet.hasCustomerApproved === true
+                                    ? "da_duyet"
+                                    : sheet.hasCustomerApproved === false
+                                    ? "bo"
+                                    : "cho";
+                                return (
+                                  <div
+                                    key={sheet.id}
+                                    style={{
+                                      display: "flex", alignItems: "center", gap: 10,
+                                      padding: "6px 10px", borderRadius: 6,
+                                      background: "#fff", border: "1px solid #e2e8f0",
+                                      fontSize: "0.82rem", flexWrap: "wrap",
+                                    }}
+                                  >
+                                    <span style={{ flex: 1, minWidth: 200, fontWeight: 500 }}>
+                                      {sheet.pricingSheetName || sheet.id}
+                                    </span>
+                                    {hienTai === "da_duyet" && (
+                                      <span style={{ color: "#047857", fontWeight: 600 }}>
+                                        ✅ Khách đã duyệt
+                                      </span>
+                                    )}
+                                    {hienTai === "bo" && (
+                                      <span style={{ color: "#9f1239", fontWeight: 600 }}>
+                                        ❌ Khách bỏ
+                                      </span>
+                                    )}
+                                    {hienTai === "cho" && (
+                                      <span style={{ color: "#6b7280" }}>⏳ Chờ khách</span>
+                                    )}
+                                    {canEdit && (
+                                      <div style={{ display: "flex", gap: 4 }}>
+                                        {hienTai !== "da_duyet" && (
+                                          <button
+                                            className="qrev-btn qrev-btn--ok"
+                                            style={{ fontSize: "0.74rem", padding: "3px 8px" }}
+                                            disabled={isPending}
+                                            onClick={() => void customerDecideSheet(bg, sheet, "duyet")}
+                                          >
+                                            ✓ Duyệt
+                                          </button>
+                                        )}
+                                        {hienTai !== "bo" && (
+                                          <button
+                                            className="qrev-btn qrev-btn--danger"
+                                            style={{ fontSize: "0.74rem", padding: "3px 8px" }}
+                                            disabled={isPending}
+                                            onClick={() => void customerDecideSheet(bg, sheet, "bo")}
+                                          >
+                                            ✕ Bỏ
+                                          </button>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                              <div
+                                style={{
+                                  fontSize: "0.74rem", color: "var(--muted)",
+                                  paddingTop: 4, borderTop: "1px dashed #e2e8f0",
+                                }}
+                              >
+                                Tóm tắt: {phanHoi.daDuyet}/{sheets.length} đã duyệt
+                                {" • "}{phanHoi.bo}/{sheets.length} khách bỏ
+                                {" • "}{phanHoi.cho}/{sheets.length} chờ
+                                {!coThePhanHoi && trangThai === "approved" && (
+                                  <span style={{ marginLeft: 6, fontStyle: "italic" }}>
+                                    (Chỉ người tạo báo giá mới có thể cập nhật phản hồi khách.)
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </React.Fragment>
                   );
                 })}
               </tbody>

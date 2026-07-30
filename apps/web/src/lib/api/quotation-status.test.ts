@@ -8,7 +8,7 @@ import {
   NHAN_TRANG_THAI_BAO_GIA,
   nopBaoGiaService,
   duyetBaoGiaService,
-  taoBanSuaBaoGiaService,
+  customerDecideBaoGiaService,
   kiemTraLechPolicy,
   POLICY_CATALOG,
 } from './service-lts';
@@ -32,21 +32,27 @@ assert('draft/drafted -> drafted', chuyenTrangThaiBaoGia('draft') === 'drafted' 
 assert('submitted -> submitted', chuyenTrangThaiBaoGia('submitted') === 'submitted');
 assert('approved -> approved', chuyenTrangThaiBaoGia('approved') === 'approved');
 assert('rejected -> rejected', chuyenTrangThaiBaoGia('rejected') === 'rejected');
-assert('customer approved -> customer_approved', chuyenTrangThaiBaoGia('customer approved') === 'customer_approved');
-assert('customer rejected -> customer_rejected', chuyenTrangThaiBaoGia('customer rejected') === 'customer_rejected');
+// Backend chỉ có 4 status (draft/submitted/approved/rejected); "customer approved/rejected"
+// là field hasCustomerApproved trên pricing_sheet, KHÔNG phải status quotation.
+// → Server không trả về những giá trị này; mapping phải fallback về 'unknown'.
+assert('"customer approved" khong map (server khong tra) -> unknown', chuyenTrangThaiBaoGia('customer approved') === 'unknown');
+assert('"customer rejected" khong map (server khong tra) -> unknown', chuyenTrangThaiBaoGia('customer rejected') === 'unknown');
 assert('khong map pending/in_review (backend khong dung)',
   chuyenTrangThaiBaoGia('pending') === 'unknown' && chuyenTrangThaiBaoGia('in_review') === 'unknown');
 assert('gia tri la -> unknown', chuyenTrangThaiBaoGia('something_else') === 'unknown');
-assert('co nhan tieng Viet cho moi trang thai',
+assert('NHAN co 4 status + unknown (khong co customer_*)',
   Boolean(NHAN_TRANG_THAI_BAO_GIA.drafted && NHAN_TRANG_THAI_BAO_GIA.submitted
     && NHAN_TRANG_THAI_BAO_GIA.approved && NHAN_TRANG_THAI_BAO_GIA.rejected
-    && NHAN_TRANG_THAI_BAO_GIA.customer_approved && NHAN_TRANG_THAI_BAO_GIA.customer_rejected
-    && NHAN_TRANG_THAI_BAO_GIA.unknown));
+    && NHAN_TRANG_THAI_BAO_GIA.unknown
+    && (NHAN_TRANG_THAI_BAO_GIA as Record<string, unknown>).customer_approved === undefined
+    && (NHAN_TRANG_THAI_BAO_GIA as Record<string, unknown>).customer_rejected === undefined));
 
 console.log('\n== Policy catalog dong bo ==');
 const catalogCodes = POLICY_CATALOG.map(p => p.code);
 assert('catalog co QUOTATION_REVIEWER', catalogCodes.includes('QUOTATION_REVIEWER'));
-assert('catalog co PRODUCT_MANAGER', catalogCodes.includes('PRODUCT_MANAGER'));
+assert('catalog co PRODUCT_MANAGER (legacy, server khong ho tro)', catalogCodes.includes('PRODUCT_MANAGER'));
+assert('catalog co CUSTOMER_MANAGER', catalogCodes.includes('CUSTOMER_MANAGER'));
+assert('catalog co ORDER_REVIEWER', catalogCodes.includes('ORDER_REVIEWER'));
 {
   // Server co policy moi -> phai bao thieu trong catalog
   const lech = kiemTraLechPolicy([{ code: 'BRAND_NEW_POLICY', name: 'x', description: 'y' }]);
@@ -87,12 +93,30 @@ async function main() {
          body?.quotationId === undefined && body?.updateStatus === 'rejected', JSON.stringify(body));
      }
 
-    await taoBanSuaBaoGiaService({ quotationId: 'q3', quotationName: 'ban sua', inputValue: { a: 1 } }, 'token');
-    assert('tao ban sua dung PATCH /quotations', capturedUrl.endsWith('/quotations') && capturedInit?.method === 'PATCH', `${capturedUrl} ${capturedInit?.method}`);
-    {
-      const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
-      assert('tao ban sua gui quotationId', body?.quotationId === 'q3', JSON.stringify(body));
-    }
+     await customerDecideBaoGiaService('q4',
+       [
+         { pricingSheetId: 's1', hasCustomerApproved: true },
+         { pricingSheetId: 's2', hasCustomerApproved: false },
+       ],
+       'token',
+     );
+     assert('customer decide goi /quotations/{id}/customer-decide', capturedUrl.endsWith('/quotations/q4/customer-decide'), capturedUrl);
+     assert('customer decide dung PATCH', capturedInit?.method === 'PATCH', String(capturedInit?.method));
+     {
+       // Server mong body LA array truc tiep (xem quotations.controller.ts @Body() customerDecisions: CustomerDecidePricingSheetDto[]).
+       // KHONG duoc wrap thanh object { decisions: [...] }.
+       const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as unknown[] : null;
+       assert('customer decide body LA array truc tiep (khong wrap object)',
+         Array.isArray(body), JSON.stringify(body));
+       assert('customer decide body co 2 phan tu',
+         Array.isArray(body) && body.length === 2, JSON.stringify(body));
+       const first = Array.isArray(body) ? body[0] as { pricingSheetId: string; hasCustomerApproved: boolean } : undefined;
+       assert('customer decide item[0] co pricingSheetId + hasCustomerApproved',
+         first?.pricingSheetId === 's1' && first?.hasCustomerApproved === true, JSON.stringify(first));
+       const second = Array.isArray(body) ? body[1] as { pricingSheetId: string; hasCustomerApproved: boolean } : undefined;
+       assert('customer decide item[1] co pricingSheetId + hasCustomerApproved',
+         second?.pricingSheetId === 's2' && second?.hasCustomerApproved === false, JSON.stringify(second));
+     }
   } finally {
     globalThis.fetch = originalFetch;
   }

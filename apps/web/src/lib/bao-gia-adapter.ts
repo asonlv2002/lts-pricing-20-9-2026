@@ -175,9 +175,74 @@ export function mapBaoGiaToLsxSources(baoGia: BaoGiaApi): LsxSourceData[] {
 
 export function laBaoGiaDaDuyet(updateStatus?: string | null): boolean {
   const tt = chuyenTrangThaiBaoGia(updateStatus);
-  return tt === 'approved' || tt === 'customer_approved';
+  // Server chỉ trả 4 status; chỉ 'approved' được coi là đã duyệt.
+  return tt === 'approved';
 }
 
 export function layNhanTrangThai(updateStatus?: string | null): TrangThaiBaoGiaServer {
   return chuyenTrangThaiBaoGia(updateStatus);
+}
+
+// ── Sort + filter cho tab "Tạo LSX" ────────────────────────────────────────
+// Tách riêng để test được và tránh phình to component.
+
+// 3 chip lọc: 'all' = tất cả, 'co-the-tao' = approved + có sheet khách duyệt,
+// 'dang-cho' = ngược lại (chưa admin duyệt HOẶC approved nhưng 0 sheet khả dụng).
+export type BoLocKhaDung = 'all' | 'co-the-tao' | 'dang-cho';
+
+// 2 lựa chọn sắp xếp theo createdAt của quotation.
+export type SapXepLsx = 'moi-nhat' | 'cu-nhat';
+
+export interface SortFilterOptions {
+  boLoc: BoLocKhaDung;
+  sapXep: SapXepLsx;
+}
+
+/** Kiem tra 1 BG co "san sang tao LSX" hay khong. */
+export function laBgKhaDungChoLsx(
+  bg: BaoGiaApi,
+  helpers: {
+    laDaDuyet: (s: string | null | undefined) => boolean;
+    mapBaoGiaToLsxSources: (q: BaoGiaApi) => LsxSourceData[];
+  },
+): boolean {
+  if (!helpers.laDaDuyet(bg.updateStatus)) return false;
+  const sources = helpers.mapBaoGiaToLsxSources(bg);
+  if (sources.length === 0) return false;
+  const sheets = bg.pricingSheets ?? [];
+  // source.id co dinh dang `${quotationId}:${sheet.id}` (xem tuPricingSheet).
+  return sources.some((source) => {
+    const sheetId = source.id.includes(':') ? source.id.split(':').slice(1).join(':') : source.id;
+    const sheet = sheets.find((s) => s.id === sheetId);
+    return sheet?.hasCustomerApproved === true;
+  });
+}
+
+/**
+ * Sort theo createdAt + filter theo kha dung.
+ * Tra ve mang moi (khong mutate input).
+ */
+export function sortAndFilterQuotationsForLsx(
+  quotations: BaoGiaApi[],
+  options: SortFilterOptions,
+  helpers: {
+    laDaDuyet: (s: string | null | undefined) => boolean;
+    mapBaoGiaToLsxSources: (q: BaoGiaApi) => LsxSourceData[];
+  },
+): BaoGiaApi[] {
+  // Filter
+  const filtered = quotations.filter((q) => {
+    if (options.boLoc === 'all') return true;
+    const isReady = laBgKhaDungChoLsx(q, helpers);
+    return options.boLoc === 'co-the-tao' ? isReady : !isReady;
+  });
+
+  // Sort theo createdAt; fallback 0 khi Date.parse tra NaN.
+  const sorted = [...filtered].sort((a, b) => {
+    const ta = Date.parse(a.createdAt) || 0;
+    const tb = Date.parse(b.createdAt) || 0;
+    return options.sapXep === 'moi-nhat' ? tb - ta : ta - tb;
+  });
+
+  return sorted;
 }

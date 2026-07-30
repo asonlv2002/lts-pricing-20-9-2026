@@ -11,11 +11,12 @@ import { layDanhSachBaoGiaService, layTaiKhoanService, NHAN_TRANG_THAI_BAO_GIA }
 import type { LsxSourceData, ProductionOrder, HistoryItem } from '../lib/types';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import LSXFormModal from './ModalDonLSX';
-import { mapBaoGiaToLsxSources, laBaoGiaDaDuyet, layNhanTrangThai } from '../lib/bao-gia-adapter';
+import { mapBaoGiaToLsxSources, laBaoGiaDaDuyet, layNhanTrangThai, sortAndFilterQuotationsForLsx, laBgKhaDungChoLsx, type BoLocKhaDung, type SapXepLsx } from '../lib/bao-gia-adapter';
 import BaoGiaPreviewModal from './BaoGiaPreviewModal';
 
 import LsxPreviewModal from './LsxPreviewModal';
 import LsxPdfPreviewModal from './LsxPdfPreviewModal';
+import { QrevStyleInjector } from './qrev-styles';
 import { exportLSXtoDOCX } from '../lib/lsxExport';
 import { exportLSXtoPDF } from './LsxPdfDocument';
 import { buildHistoryItemFromServerData } from '../lib/baoGiaExport';
@@ -30,6 +31,9 @@ interface DisplayRow {
   allSources: LsxSourceData[];
   sourceIndex: number;
   quotation: BaoGiaApi;
+  khaDungCount: number;
+  tongSheet: number;
+  soChoKhachDuyet: number;
 }
 
 function layKhachHangLocal(): Array<{ companyName?: string; customerCode?: string; address?: string; invoiceAddress?: string; taxCode?: string; phone?: string }> {
@@ -65,6 +69,10 @@ export default function ModuleTaoLenhSanXuat() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [tuKhoa, setTuKhoa] = useState('');
+  // Filter chip "kha dung cho LSX" (mac dinh: tat ca).
+  const [boLoc, setBoLoc] = useState<BoLocKhaDung>('all');
+  // Sap xep theo createdAt (mac dinh: moi nhat truoc).
+  const [sapXep, setSapXep] = useState<SapXepLsx>('moi-nhat');
   const [modalData, setModalData] = useState<{ sources: LsxSourceData[]; activeIndex: number } | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
@@ -114,42 +122,97 @@ export default function ModuleTaoLenhSanXuat() {
     return bg.original?.actorName ?? banDoTaiKhoan.get(bg.createdBy ?? '') ?? '—';
   }, [banDoTaiKhoan]);
 
+  // Dem so BG theo tung chip loc (de hien thi count badge).
+  // Tinh tren toan bo `quotations` (truoc khi search), vi search la bo loc tiep theo.
+  const demTheoChip = useMemo(() => {
+    const dem: Record<BoLocKhaDung, number> = {
+      'all': quotations.length,
+      'co-the-tao': 0,
+      'dang-cho': 0,
+    };
+    for (const q of quotations) {
+      if (laBgKhaDungChoLsx(q, { laDaDuyet: laBaoGiaDaDuyet, mapBaoGiaToLsxSources })) {
+        dem['co-the-tao'] += 1;
+      } else {
+        dem['dang-cho'] += 1;
+      }
+    }
+    return dem;
+  }, [quotations]);
+
   const displayRows = useMemo(() => {
     const lower = tuKhoa.trim().toLowerCase();
     const rows: DisplayRow[] = [];
 
-    for (const q of quotations) {
-      if (!laBaoGiaDaDuyet(q.updateStatus)) continue;
+    // Sort + filter theo chip (boLoc, sapXep) TRUOC khi build row.
+    // Helper da test o bao-gia-adapter-sort-filter.test.ts (10/10 pass).
+    const sortedFiltered = sortAndFilterQuotationsForLsx(
+      quotations,
+      { boLoc, sapXep },
+      { laDaDuyet: laBaoGiaDaDuyet, mapBaoGiaToLsxSources },
+    );
+
+    for (const q of sortedFiltered) {
+      const daDuyet = laBaoGiaDaDuyet(q.updateStatus);
       const nguoiTao = tenNguoiTao(q);
       const trangThai = layNhanTrangThai(q.updateStatus);
 
-      const sources = mapBaoGiaToLsxSources(q);
-      if (sources.length === 0) continue;
+      const allSources = mapBaoGiaToLsxSources(q);
+      // Phan biet sheet "kha dung" (khach da duyet) vs "chua kha dung" de hien thi dung giao dien.
+      // source.id co dinh dang `${quotationId}:${sheet.id}` (xem bao-gia-adapter.ts).
+      const sheetsTheoSourceId = new Map<string, NonNullable<BaoGiaApi["pricingSheets"]>[number]>();
+      for (const sheet of q.pricingSheets ?? []) {
+        sheetsTheoSourceId.set(sheet.id, sheet);
+      }
+      const sourceVoiSheet = allSources.map((source) => {
+        const sheetId = source.id.includes(':') ? source.id.split(':').slice(1).join(':') : source.id;
+        return { source, sheet: sheetsTheoSourceId.get(sheetId) };
+      });
+      const khaDungSources = sourceVoiSheet
+        .filter(({ sheet }) => sheet?.hasCustomerApproved === true)
+        .map(({ source }) => source);
+      const tongSheet = q.pricingSheets?.length ?? 0;
+      const soChoKhachDuyet = tongSheet - khaDungSources.length;
 
+      // Loc theo tu khoa tren tat ca source (ke ca chua kha dung) de admin tim BG nhanh.
       if (lower) {
         const haystack = [
           q.quotationName,
           nguoiTao,
-          ...sources.flatMap(s => [s.customer, s.productName, s.structure]),
+          ...allSources.flatMap(s => [s.customer, s.productName, s.structure]),
         ].filter(Boolean).map(v => String(v).toLowerCase());
         if (!haystack.some(v => v.includes(lower))) continue;
       }
 
+      // BG chua admin duyet: van hien thi, nhung chi de xem (khong co nut tao LSX).
+      // sources cho UI hien thi = khaDungSources neu approved, [] neu khong approved.
+      const sourcesForUi = daDuyet ? khaDungSources : [];
+
+      // Lay source dau tien de hien thi thong tin co ban tren row (KH, san pham, gia...).
+      // Uu tien source kha dung; neu khong co thi dung source dau tien (truong hop BG approved nhung chua co sheet nao kha dung).
+      const sourceHienThi = khaDungSources[0] ?? allSources[0];
+
+      // Bo qua BG khong co source nao de hien thi (vd: BG nhap lieu thu, hoac BG approved
+      // nhung tat ca pricing sheet loi mapping). Tranh row.source = undefined gay crash o sort.
+      if (!sourceHienThi) continue;
+
       rows.push({
-        source: sources[0],
+        source: sourceHienThi,
         quotationName: q.quotationName,
         createdAt: q.createdAt,
         trangThai,
         nguoiTao,
-        allSources: sources,
+        allSources: sourcesForUi,
         sourceIndex: 0,
         quotation: q,
+        khaDungCount: khaDungSources.length,
+        tongSheet,
+        soChoKhachDuyet,
       });
     }
 
-    rows.sort((a, b) => b.source.id.localeCompare(a.source.id));
     return rows;
-  }, [quotations, tuKhoa, tenNguoiTao]);
+  }, [quotations, tuKhoa, tenNguoiTao, boLoc, sapXep]);
 
   function findOrdersForSource(sourceId: string): ProductionOrder[] {
     return productionOrders.filter(o => o.quoteId === sourceId);
@@ -255,7 +318,9 @@ export default function ModuleTaoLenhSanXuat() {
   };
 
   return (
-    <div className="crm-root quote-root">
+    <div className="qrev-root">
+      <QrevStyleInjector />
+
       {modalData && (
         <LSXFormModal
           sources={modalData.sources}
@@ -286,42 +351,93 @@ export default function ModuleTaoLenhSanXuat() {
         />
       )}
 
-      <div className="crm-toolbar">
-        <div className="crm-search-box">
-          <Search size={15} className="crm-search-icon" />
-          <input
-            className="crm-search-input"
-            placeholder="Tìm khách hàng, tên báo giá, sản phẩm..."
-            value={tuKhoa}
-            onChange={e => setTuKhoa(e.target.value)}
-          />
-          {tuKhoa && <button className="crm-search-clear" onClick={() => setTuKhoa('')}>✕</button>}
+      <header className="qrev-header">
+        <div className="qrev-header-left">
+          <h1 className="qrev-title">
+            Tạo lệnh sản xuất
+            <span className="qrev-title-count"> ({displayRows.length})</span>
+          </h1>
         </div>
-        <div className="crm-toolbar-right" style={{ gap: 8 }}>
-          <button className="btn btn-sm btn-outline" onClick={() => { setTuKhoa(''); fetchQuotations(); }} disabled={loading}>
-            <RefreshCw size={13} /> Làm mới
+        <div className="qrev-header-right">
+          <button
+            className="qrev-btn qrev-btn--ghost"
+            onClick={() => { setTuKhoa(''); setBoLoc('all'); setSapXep('moi-nhat'); fetchQuotations(); }}
+            disabled={loading}
+          >
+            <RefreshCw size={15} /> Làm mới
           </button>
         </div>
+      </header>
+
+      <div className="qrev-search-bar">
+        <Search size={16} className="qrev-search-icon" />
+        <input
+          className="qrev-search-input"
+          aria-label="Tìm kiếm báo giá"
+          placeholder="Tìm theo khách hàng, tên báo giá, sản phẩm..."
+          value={tuKhoa}
+          onChange={(e) => setTuKhoa(e.target.value)}
+        />
+        {tuKhoa && (
+          <button
+            className="qrev-btn-icon qrev-search-clear"
+            aria-label="Xóa từ khóa"
+            onClick={() => setTuKhoa('')}
+          >
+            ✕
+          </button>
+        )}
+      </div>
+
+      {/* Bo loc theo kha dung: 3 chip, moi chip co count badge (giong ModuleDuyetBaoGia) */}
+      <div className="qrev-chips">
+        {([
+          { key: 'all' as const, label: 'Tất cả' },
+          { key: 'co-the-tao' as const, label: 'Sẵn sàng tạo LSX' },
+          { key: 'dang-cho' as const, label: 'Đang chờ' },
+        ]).map((chip) => (
+          <button
+            key={chip.key}
+            className={boLoc === chip.key ? 'qrev-chip qrev-chip--active' : 'qrev-chip'}
+            onClick={() => setBoLoc(chip.key)}
+          >
+            {chip.label} <span className="qrev-chip-count">{demTheoChip[chip.key]}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Sap xep: 2 chip, rieng 1 hang (van dung qrev-chips de wrap mobile) */}
+      <div className="qrev-chips">
+        {([
+          { key: 'moi-nhat' as const, label: 'Mới nhất' },
+          { key: 'cu-nhat' as const, label: 'Cũ nhất' },
+        ]).map((chip) => (
+          <button
+            key={chip.key}
+            className={sapXep === chip.key ? 'qrev-chip qrev-chip--active' : 'qrev-chip'}
+            onClick={() => setSapXep(chip.key)}
+          >
+            {chip.label}
+          </button>
+        ))}
       </div>
 
       {error && (
-        <div style={{ padding: '10px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, marginBottom: 12, fontSize: '0.85rem', color: '#dc2626' }}>
-          {error}
-        </div>
+        <div className="qrev-alert qrev-alert--err">{error}</div>
       )}
 
       {loading ? (
-        <div className="crm-empty" style={{ padding: '40px' }}>
+        <div className="qrev-empty" style={{ padding: '40px' }}>
           <Loader2 size={32} className="um-spin" />
           <p style={{ marginTop: 12 }}>Đang tải báo giá...</p>
         </div>
       ) : displayRows.length === 0 ? (
-        <div className="crm-empty" style={{ padding: '56px 20px' }}>
+        <div className="qrev-empty" style={{ padding: '56px 20px' }}>
           <PackageCheck size={40} />
-          <p>{tuKhoa || quotations.length === 0 ? 'Chưa có báo giá đã duyệt.' : 'Không tìm thấy báo giá phù hợp.'}</p>
-          <p style={{ fontSize: '0.82rem', color: 'var(--muted)', marginTop: 4 }}>
-            {tuKhoa ? 'Thử từ khóa khác.' : 'Báo giá cần được admin duyệt trước khi có thể tạo LSX.'}
-          </p>
+          <p>{tuKhoa ? 'Không tìm thấy báo giá phù hợp.' : 'Chưa có báo giá nào.'}</p>
+          <span>
+            {tuKhoa ? 'Thử từ khóa khác.' : 'Tạo báo giá mới từ menu "Báo giá" trước.'}
+          </span>
         </div>
       ) : (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
@@ -343,15 +459,15 @@ export default function ModuleTaoLenhSanXuat() {
               </thead>
               <tbody>
                 {displayRows.map(row => {
-                  const { source, quotationName, createdAt, trangThai, nguoiTao, allSources } = row;
+                  const { source, quotationName, createdAt, trangThai, nguoiTao, allSources, khaDungCount, tongSheet, soChoKhachDuyet } = row;
                   const sourcesCount = allSources.length;
-                  const existed = hasAnyLsx(allSources);
+                  const daDuyet = laBaoGiaDaDuyet(row.quotation.updateStatus);
+                  const existed = sourcesCount > 0 && hasAnyLsx(allSources);
                   const isExpanded = expandedIds.has(row.quotation.id);
                   const meta = getPricingDisplayMeta(source.input);
                   const shownPrice = source.chotGia ?? source.finalPrice;
                   const mauTrangThai: Record<string, { fg: string; bg: string }> = {
                     approved: { fg: '#047857', bg: '#ecfdf5' },
-                    customer_approved: { fg: '#15803d', bg: '#f0fdf4' },
                   };
                   const mau = mauTrangThai[trangThai] || { fg: '#6b7280', bg: '#f3f4f6' };
 
@@ -363,7 +479,7 @@ export default function ModuleTaoLenhSanXuat() {
                       }}>
 
                         <td style={{ padding: '9px 12px', verticalAlign: 'middle' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                             <FileText size={14} style={{ color: '#2563eb', flexShrink: 0 }} />
                             <span style={{ fontWeight: 600, fontSize: '0.84rem' }}>{quotationName || 'Chưa đặt tên'}</span>
                             {existed && (
@@ -371,6 +487,21 @@ export default function ModuleTaoLenhSanXuat() {
                                 fontSize: '0.68rem', fontWeight: 700, padding: '1px 6px', borderRadius: 999,
                                 background: '#ecfdf5', color: '#047857',
                               }}>Đã có LSX</span>
+                            )}
+                            {/* Badge so sheet kha dung (chi hien thi khi admin da duyet) */}
+                            {daDuyet && tongSheet > 0 && (
+                              <span
+                                title={`${khaDungCount}/${tongSheet} sheet khách đã duyệt`}
+                                style={{
+                                  fontSize: '0.68rem', fontWeight: 700, padding: '1px 6px', borderRadius: 999,
+                                  background: khaDungCount > 0 ? '#ecfdf5' : '#f3f4f6',
+                                  color: khaDungCount > 0 ? '#047857' : '#6b7280',
+                                }}
+                              >
+                                {khaDungCount > 0
+                                  ? `${khaDungCount}/${tongSheet} sheet khả dụng`
+                                  : `${khaDungCount}/${tongSheet} sheet khả dụng`}
+                              </span>
                             )}
                           </div>
                         </td>
@@ -427,29 +558,31 @@ export default function ModuleTaoLenhSanXuat() {
                               {isExpanded ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
                               {isExpanded ? 'Thu gọn' : 'Chi tiết'}
                             </button>
-                            <button
-                              className="btn btn-sm"
-                              style={{
-                                ...btnSm,
-                                background: '#2563eb',
-                                color: '#fff',
-                                padding: '4px 8px',
-                                opacity: batchProgress && batchProgress.quoteId !== row.quotation.id ? 0.5 : 1,
-                              }}
-                              disabled={!!batchProgress}
-                              title={
-                                batchProgress?.quoteId === row.quotation.id
-                                  ? `Đang tạo ${batchProgress.current}/${batchProgress.total}`
-                                  : `Tạo ${sourcesCount} LSX và tải ${sourcesCount} PDF`
-                              }
-                              aria-label={`Tạo tất cả ${sourcesCount} LSX`}
-                              onClick={() => handleTaoTatCa(row.quotation.id, allSources)}
-                            >
-                              {batchProgress?.quoteId === row.quotation.id
-                                ? <Loader2 size={14} className="um-spin" />
-                                : <Download size={14} />
-                              }
-                            </button>
+                            {daDuyet && khaDungCount > 0 && (
+                              <button
+                                className="btn btn-sm"
+                                style={{
+                                  ...btnSm,
+                                  background: '#2563eb',
+                                  color: '#fff',
+                                  padding: '4px 8px',
+                                  opacity: batchProgress && batchProgress.quoteId !== row.quotation.id ? 0.5 : 1,
+                                }}
+                                disabled={!!batchProgress}
+                                title={
+                                  batchProgress?.quoteId === row.quotation.id
+                                    ? `Đang tạo ${batchProgress.current}/${batchProgress.total}`
+                                    : `Tạo ${khaDungCount} LSX và tải ${khaDungCount} PDF`
+                                }
+                                aria-label={`Tạo tất cả ${khaDungCount} LSX`}
+                                onClick={() => handleTaoTatCa(row.quotation.id, allSources)}
+                              >
+                                {batchProgress?.quoteId === row.quotation.id
+                                  ? <Loader2 size={14} className="um-spin" />
+                                  : <Download size={14} />
+                                }
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -458,6 +591,24 @@ export default function ModuleTaoLenhSanXuat() {
                         <tr style={{ borderBottom: '1px solid var(--border)', background: '#dbeafe' }}>
                           <td colSpan={10} style={{ padding: '8px 16px 12px' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              {/* 3 trang thai: chua admin duyet / da duyet nhung chua co sheet kha dung / co sheet kha dung */}
+                              {!daDuyet && (
+                                <div style={{
+                                  border: '1px solid #fde68a', background: '#fffbeb', borderRadius: 8,
+                                  padding: '10px 12px', fontSize: '0.82rem', color: '#92400e',
+                                }}>
+                                  🔒 Báo giá đang chờ duyệt nội bộ.
+                                </div>
+                              )}
+                              {daDuyet && khaDungCount === 0 && tongSheet > 0 && (
+                                <div style={{
+                                  border: '1px solid #fed7aa', background: '#fff7ed', borderRadius: 8,
+                                  padding: '10px 12px', fontSize: '0.82rem', color: '#9a3412',
+                                }}>
+                                  ⚠ Chưa có bảng tính nào được khách duyệt
+                                  {soChoKhachDuyet > 0 && ` (${soChoKhachDuyet} sheet chờ khách)`}.
+                                </div>
+                              )}
                               {allSources.map((sp, spIdx) => {
                                 const spMeta = getPricingDisplayMeta(sp.input);
                                 const orders = findOrdersForSource(sp.id);
@@ -475,7 +626,7 @@ export default function ModuleTaoLenhSanXuat() {
                                     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'flex-start' }}>
                                       <div style={{ flex: 1, minWidth: 200 }}>
                                         <div style={{ fontWeight: 700, fontSize: '0.84rem' }}>
-                                          SP{spIdx + 1}. {sp.productName || '—'}
+                                          ✅ {sp.productName || '—'}
                                         </div>
                                         <div style={{ fontSize: '0.78rem', color: 'var(--muted)', marginTop: 2 }}>
                                           {sp.structure || '—'}
@@ -501,8 +652,7 @@ export default function ModuleTaoLenhSanXuat() {
                                         <button
                                           className="btn btn-sm"
                                           style={{ ...btnSm, background: '#059669', color: '#fff' }}
-                                          onClick={() => openTaoLsx([allSources[spIdx]], 0)}
-
+                                          onClick={() => openTaoLsx([sp], 0)}
                                         >
                                           <PackageCheck size={13} /> Tạo LSX
                                         </button>

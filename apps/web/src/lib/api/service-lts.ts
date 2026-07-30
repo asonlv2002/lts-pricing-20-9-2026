@@ -25,9 +25,10 @@ export type PolicyCode =
   | "USER_POLICY_GRANT"
   | "USER_POLICY_REVOKE"
   | "QUOTATION_REVIEWER"
-  | "PRODUCT_MANAGER"
+  | "PRODUCT_MANAGER" // legacy, server không hỗ trợ
   | "PRICING_SHEET_ADVISOR"
   | "PRICE_CONFIG_MANAGER"
+  | "ORDER_REVIEWER"
   | "ACTIVITY_MONITOR"
   | "SYSTEM_MONITOR";
 
@@ -132,9 +133,18 @@ export const POLICY_CATALOG: Policy[] = [
     rui_ro: "cao",
   },
   {
+    code: "ORDER_REVIEWER",
+    ten: "Duyệt đơn sản xuất",
+    moTa:
+      "Cho phép xem toàn bộ đơn sản xuất (QuotationPricingSheetOrder) và duyệt quyết định cố vấn (hasAdvisorApproved).",
+    nhom: "Báo giá",
+    rui_ro: "cao",
+  },
+  {
     code: "PRODUCT_MANAGER",
-    ten: "Quản lý sản phẩm",
-    moTa: "Cho phép xóa sản phẩm và quản lý danh mục sản phẩm.",
+    ten: "Quản lý sản phẩm (legacy)",
+    moTa:
+      "Legacy policy từ web, server không còn cung cấp. Giữ trong catalog để không phá policy cũ đã cấp; UI nên bỏ qua khi so khớp quyền thực tế.",
     nhom: "Sản phẩm",
     rui_ro: "trung",
   },
@@ -947,6 +957,7 @@ export interface PricingSheetApi {
   saleResult?: unknown | null;
   masterResult?: unknown | null;
   quotationId?: string | null;
+  hasCustomerApproved?: boolean | null;
   note?: string | null;
   createdBy?: string | null;
   updatedBy?: string | null;
@@ -1203,7 +1214,7 @@ export interface BaoGiaApi {
   createdBy?: string | null;
   reviewerId?: string | null;
   pricingSheets?: PricingSheetApi[];
-  original?: { actorName?: string | null; deletable?: boolean; canUpdate?: boolean; canAdminUpdate?: boolean } | null;
+  original?: { actorName?: string | null; deletable?: boolean; canUpdate?: boolean } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -1222,25 +1233,71 @@ export async function taoBaoGiaService(
   );
 }
 
+// ── Mapping giữa local QuoteStatus (8 gia tri) và server TrangThaiBaoGiaServer (4) ──
+//
+// Local QuoteStatus (lib/types.ts) co 8 gia tri de phan biet lifecycle UI
+// (sent/cancelled/completed/expired). Server chi co 4 gia tri (drafted/submitted/
+// approved/rejected). Khi goi server, can mapping ve 4 gia tri.
+//
+// Local state có the giu 8 gia tri de hien thi lich su lifecycle; API sync thi
+// mapping 8 -> 4.
+
+import type { QuoteStatus as QuoteStatusLocal } from '../types';
+
+const MAP_LOCAL_TO_SERVER: Partial<Record<QuoteStatusLocal, TrangThaiBaoGiaServer>> = {
+  drafted: 'drafted',
+  pending_approval: 'submitted',
+  approved: 'approved',
+  sent: 'approved',       // local "da gui khach" = server "approved" (admin da duyet)
+  rejected: 'rejected',
+  // cancelled / completed / expired: khong co tuong duong server
+  // (xem ghi chu ben duoi).
+};
+
+const MAP_SERVER_TO_LOCAL: Record<TrangThaiBaoGiaServer, QuoteStatusLocal> = {
+  drafted: 'drafted',
+  submitted: 'pending_approval',
+  approved: 'approved',
+  rejected: 'rejected',
+  unknown: 'drafted',      // fallback an toan
+};
+
+/** Mapping local QuoteStatus (UI) sang server updateStatus (API). */
+export function quoteStatusToServer(s: QuoteStatusLocal): TrangThaiBaoGiaServer | null {
+  // cancelled / completed / expired khong the dong bo len server.
+  // Nguoi goi nen xu ly rieng (vi du: "huy bao gia" can goi endpoint rieng, khong phai doi status).
+  return MAP_LOCAL_TO_SERVER[s] ?? null;
+}
+
+/** Mapping server updateStatus (API) sang local QuoteStatus (UI). */
+export function serverToQuoteStatus(s: TrangThaiBaoGiaServer | string | null | undefined): QuoteStatusLocal {
+  const v = chuyenTrangThaiBaoGia(typeof s === 'string' ? s : null);
+  return MAP_SERVER_TO_LOCAL[v];
+}
+
+/** Tra ve true neu trang thai local co the dong bo len server. */
+export function coTheDongBoStatus(s: QuoteStatusLocal): boolean {
+  return MAP_LOCAL_TO_SERVER[s] != null;
+}
+
 // Trạng thái báo giá theo server thật (xem backend quotation_status.ts).
-// Enum server: draft | submitted | approved | rejected | customer approved | customer rejected
-// - 'drafted'           : báo giá nháp, chưa nộp duyệt
-// - 'submitted'         : đã nộp, đang chờ người duyệt xử lý
-// - 'approved'          : đã duyệt nội bộ
-// - 'rejected'          : bị từ chối nội bộ
-// - 'customer_approved' : khách hàng đã duyệt
-// - 'customer_rejected' : khách hàng từ chối
-// - 'unknown'           : giá trị server lạ, chưa ánh xạ được
+// Enum server chỉ có 4 giá trị: draft | submitted | approved | rejected.
+// - 'drafted'  : báo giá nháp, chưa nộp duyệt
+// - 'submitted': đã nộp, đang chờ người duyệt xử lý
+// - 'approved' : đã duyệt nội bộ (sau đó khách phản hồi từng sheet qua /customer-decide)
+// - 'rejected' : bị từ chối nội bộ
+// - 'unknown'  : giá trị server lạ, chưa ánh xạ được
+// (Trước đây có 'customer_approved'/'customer_rejected' nhưng server không trả:
+//  phản hồi của khách nằm ở pricing_sheets.hasCustomerApproved, không phải status quotation.)
 export type TrangThaiBaoGiaServer =
   | "drafted"
   | "submitted"
   | "approved"
   | "rejected"
-  | "customer_approved"
-  | "customer_rejected"
   | "unknown";
 
 // Backend phơi updateStatus dạng string; hàm này quy đổi về tập trạng thái UI dùng.
+// Server chỉ trả 4 giá trị; mọi giá trị khác (kể cả 'customer approved' cũ) đều về 'unknown'.
 export function chuyenTrangThaiBaoGia(
   updateStatus?: string | null,
 ): TrangThaiBaoGiaServer {
@@ -1249,8 +1306,6 @@ export function chuyenTrangThaiBaoGia(
   if (value === "submitted") return "submitted";
   if (value === "approved") return "approved";
   if (value === "rejected") return "rejected";
-  if (value === "customer approved") return "customer_approved";
-  if (value === "customer rejected") return "customer_rejected";
   return "unknown";
 }
 
@@ -1259,8 +1314,6 @@ export const NHAN_TRANG_THAI_BAO_GIA: Record<TrangThaiBaoGiaServer, string> = {
   submitted: "Chờ duyệt",
   approved: "Đã duyệt",
   rejected: "Bị từ chối",
-  customer_approved: "Khách đã duyệt",
-  customer_rejected: "Khách từ chối",
   unknown: "Không xác định",
 };
 
@@ -1332,6 +1385,54 @@ export interface CapNhatBaoGiaInput {
   moTa?: string;
   duLieuDauVao?: unknown;
   dsPricingSheetId?: string[];
+}
+
+// PATCH /quotations/{id}/customer-decide — khách (creator) đánh dấu duyệt/bỏ từng pricing sheet.
+export interface CustomerDecideItem {
+  pricingSheetId: string;
+  hasCustomerApproved: boolean;
+}
+
+// PATCH /quotations/{id}/customer-decide
+// Chỉ creator được gọi, chỉ khi quotation đang ở trạng thái 'approved'.
+// Phản hồi của khách nằm ở pricing_sheets.hasCustomerApproved, KHÔNG đổi updateStatus quotation.
+//
+// Body PHẢI là mảng trực tiếp, KHÔNG wrap thành object (xem quotations.controller.ts
+// @Body() customerDecisions: CustomerDecidePricingSheetDto[]). Nếu wrap, server
+// sẽ ép về array rỗng → 400 "At least one pricing sheet decision is required".
+export async function customerDecideBaoGiaService(
+  idBaoGia: string,
+  decisions: CustomerDecideItem[],
+  token?: string,
+): Promise<BaoGiaApi> {
+  return goiService<BaoGiaApi>(
+    `/quotations/${encodeURIComponent(idBaoGia)}/customer-decide`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(decisions),
+    },
+    token,
+  );
+}
+
+// Helper: lấy các pricing sheet đã được khách duyệt (hasCustomerApproved = true)
+// từ danh sách quotations approved. Dùng cho tab "Tạo LSX".
+export function locSheetKhaDungChoLSX(
+  quotations: BaoGiaApi[],
+): Array<{ quotation: BaoGiaApi; sheet: NonNullable<BaoGiaApi["pricingSheets"]>[number] }> {
+  const ketQua: Array<{
+    quotation: BaoGiaApi;
+    sheet: NonNullable<BaoGiaApi["pricingSheets"]>[number];
+  }> = [];
+  for (const quotation of quotations) {
+    if (chuyenTrangThaiBaoGia(quotation.updateStatus) !== "approved") continue;
+    for (const sheet of quotation.pricingSheets ?? []) {
+      if (sheet.hasCustomerApproved === true) {
+        ketQua.push({ quotation, sheet });
+      }
+    }
+  }
+  return ketQua;
 }
 
 // PATCH /quotations/{id}/update — cập nhật báo giá nháp / bị từ chối và gửi lại duyệt.

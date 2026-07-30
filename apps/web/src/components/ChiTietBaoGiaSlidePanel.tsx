@@ -55,13 +55,11 @@ function dinhDangSo(n: number): string {
 }
 
 const MAU_TRANG_THAI: Record<TrangThaiBaoGiaServer, { bg: string; fg: string }> = {
-  drafted:           { bg: '#eef2ff', fg: '#4338ca' },
-  submitted:         { bg: '#fff7ed', fg: '#c2410c' },
-  approved:          { bg: '#ecfdf5', fg: '#047857' },
-  rejected:          { bg: '#fef2f2', fg: '#b91c1c' },
-  customer_approved: { bg: '#f0fdf4', fg: '#15803d' },
-  customer_rejected: { bg: '#fef2f2', fg: '#9f1239' },
-  unknown:           { bg: '#f3f4f6', fg: '#6b7280' },
+  drafted:    { bg: '#eef2ff', fg: '#4338ca' },
+  submitted:  { bg: '#fff7ed', fg: '#c2410c' },
+  approved:   { bg: '#ecfdf5', fg: '#047857' },
+  rejected:   { bg: '#fef2f2', fg: '#b91c1c' },
+  unknown:    { bg: '#f3f4f6', fg: '#6b7280' },
 };
 
 function HuyHieuTrangThai({ trangThai }: { trangThai: TrangThaiBaoGiaServer }) {

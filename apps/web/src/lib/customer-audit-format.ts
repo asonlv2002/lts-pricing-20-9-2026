@@ -122,10 +122,9 @@ const UPDATE_STATUS_LABELS: Record<string, string> = {
   submitted: "Chờ duyệt",
   approved: "Đã duyệt",
   rejected: "Bị từ chối",
-  "customer approved": "Khách đã duyệt",
-  "customer rejected": "Khách từ chối",
-  customer_approved: "Khách đã duyệt",
-  customer_rejected: "Khách từ chối",
+  // Server chỉ trả 5 giá trị trên cho quotations; phản hồi khách nằm ở
+  // pricing_sheets.hasCustomerApproved (không phải status quotation) nên
+  // 'customer approved'/'customer rejected' không còn xuất hiện ở đây.
 };
 
 const LSX_STATUS_LABELS: Record<string, string> = {
