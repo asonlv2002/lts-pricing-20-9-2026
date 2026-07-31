@@ -1,12 +1,14 @@
 import {
   chuanHoaPathname,
   docDeepLinkTuPathname,
+  docIdChiTietDanhSachBaoGia,
   docMenuKeyTuPathname,
   laMobileHubMenuKey,
   menuKeyTuModule,
   menuMacDinhKhiDeepLink,
   moduleTuMenuKey,
   parsePathname,
+  taoPathChiTietDanhSachBaoGia,
   taoPathEntity,
   taoPathMenu,
   type MucMenuRoute,
@@ -134,6 +136,41 @@ assert(
 assert(
   'docDeepLinkTuPathname null on menu',
   docDeepLinkTuPathname('/danh-sach-tinh-gia') === null,
+);
+assert(
+  'parse menu-detail danh-sach-bao-gia',
+  (() => {
+    const p = parsePathname('/danh-sach-bao-gia/Q-123');
+    return (
+      p.loai === 'menu-detail' &&
+      p.menuKey === 'danh-sach-bao-gia' &&
+      p.id === 'Q-123'
+    );
+  })(),
+);
+assert(
+  'docMenuKeyTuPathname menu-detail',
+  docMenuKeyTuPathname('/danh-sach-bao-gia/Q-123') === 'danh-sach-bao-gia',
+);
+assert(
+  'docIdChiTietDanhSachBaoGia',
+  docIdChiTietDanhSachBaoGia('/danh-sach-bao-gia/Q-123') === 'Q-123',
+);
+assert(
+  'docIdChiTietDanhSachBaoGia null on list',
+  docIdChiTietDanhSachBaoGia('/danh-sach-bao-gia') === null,
+);
+assert(
+  'taoPathChiTietDanhSachBaoGia with id',
+  taoPathChiTietDanhSachBaoGia('Q-123') === '/danh-sach-bao-gia/Q-123',
+);
+assert(
+  'taoPathChiTietDanhSachBaoGia empty',
+  taoPathChiTietDanhSachBaoGia('') === '/danh-sach-bao-gia',
+);
+assert(
+  'docDeepLinkTuPathname null on menu-detail',
+  docDeepLinkTuPathname('/danh-sach-bao-gia/Q-123') === null,
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

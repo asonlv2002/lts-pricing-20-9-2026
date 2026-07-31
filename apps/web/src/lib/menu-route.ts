@@ -54,10 +54,13 @@ export interface MucMenuRoute {
   id: MaModuleMenu;
 }
 
+export const MENU_DANH_SACH_BAO_GIA = 'danh-sach-bao-gia';
+
 export type KetQuaParsePath =
   | { loai: 'menu'; menuKey: string }
   | { loai: 'hub'; menuKey: string; hubId: string }
   | { loai: 'entity'; entity: LoaiDeepLink; id: string; menuKey: string }
+  | { loai: 'menu-detail'; menuKey: string; id: string }
   | { loai: 'root' }
   | { loai: 'unknown' };
 
@@ -156,6 +159,15 @@ export function parsePathname(pathname: string | null | undefined): KetQuaParseP
     }
   }
 
+  // /danh-sach-bao-gia/<id> — chi tiết báo giá trong màn danh sách
+  if (segs[0] === MENU_DANH_SACH_BAO_GIA && segs.length === 2 && segs[1]) {
+    return {
+      loai: 'menu-detail',
+      menuKey: MENU_DANH_SACH_BAO_GIA,
+      id: segs[1],
+    };
+  }
+
   // /<menuKey> — một segment (slug kebab)
   if (segs.length === 1 && segs[0]) {
     return { loai: 'menu', menuKey: segs[0] };
@@ -173,15 +185,49 @@ export function docDeepLinkTuPathname(
   return { loai: p.entity, id: p.id };
 }
 
-/** Menu key từ pathname (menu / hub / entity). */
+/** Menu key từ pathname (menu / hub / entity / menu-detail). */
 export function docMenuKeyTuPathname(
   pathname: string | null | undefined,
 ): string | null {
   const p = parsePathname(pathname);
-  if (p.loai === 'menu' || p.loai === 'hub' || p.loai === 'entity') {
+  if (
+    p.loai === 'menu' ||
+    p.loai === 'hub' ||
+    p.loai === 'entity' ||
+    p.loai === 'menu-detail'
+  ) {
     return p.menuKey;
   }
   return null;
+}
+
+/** Id chi tiết báo giá từ /danh-sach-bao-gia/<id>. */
+export function docIdChiTietDanhSachBaoGia(
+  pathname: string | null | undefined,
+): string | null {
+  const p = parsePathname(pathname);
+  if (p.loai === 'menu-detail' && p.menuKey === MENU_DANH_SACH_BAO_GIA) {
+    return p.id;
+  }
+  return null;
+}
+
+/** Path list hoặc /danh-sach-bao-gia/<id>. */
+export function taoPathChiTietDanhSachBaoGia(
+  id: string | null | undefined,
+): string {
+  const raw = id?.trim() ?? '';
+  if (!raw) return taoPathMenu(MENU_DANH_SACH_BAO_GIA);
+  return `/${MENU_DANH_SACH_BAO_GIA}/${encodeURIComponent(raw)}`;
+}
+
+/** Đồng bộ URL chi tiết trong màn danh sách báo giá. */
+export function dongBoUrlChiTietDanhSachBaoGia(
+  id: string | null | undefined,
+  mode: CheDoLichSu = 'push',
+): void {
+  if (typeof window === 'undefined') return;
+  apDungUrl(taoPathChiTietDanhSachBaoGia(id), mode);
 }
 
 /** @deprecated Dùng docMenuKeyTuPathname — giữ alias tạm nếu còn import. */

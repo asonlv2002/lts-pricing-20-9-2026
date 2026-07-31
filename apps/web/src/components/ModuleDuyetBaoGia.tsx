@@ -25,10 +25,13 @@ import {
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { normalizeDisplayText } from "../lib/text-codec";
 import { taoUrlChiaSeBaoGia } from "../lib/bao-gia-route";
+import {
+  docIdChiTietDanhSachBaoGia,
+  dongBoUrlChiTietDanhSachBaoGia,
+} from "../lib/menu-route";
 import { QrevStyleInjector } from "./qrev-styles";
 import { coQuyenDuyetBaoGia } from "../lib/permissions";
 import type { CalculateInput, HistoryItem } from "../lib/types";
-import ChiTietBaoGiaSlidePanel from "./ChiTietBaoGiaSlidePanel";
 import ConfirmDialog from "./ConfirmDialog";
 import {
   buildHistoryItemFromServerData,
@@ -39,7 +42,6 @@ import {
   layDanhSachBaoGiaService,
   layBaoGiaChoDuyetService,
   layBaoGiaTheoIdService,
-  layTaiKhoanService,
   nopBaoGiaService,
   duyetBaoGiaService,
   customerDecideBaoGiaService,
@@ -48,7 +50,6 @@ import {
   NHAN_TRANG_THAI_BAO_GIA,
   type BaoGiaApi,
   type PricingSheetApi,
-  type TaiKhoanApi,
   type TrangThaiBaoGiaServer,
 } from "../lib/api/service-lts";
 
@@ -190,6 +191,18 @@ function nguoiTaoBaoGia(bg: BaoGiaApi): string | undefined {
   return bg.original?.actorName ?? undefined;
 }
 
+/** Đếm phản hồi khách theo từng pricing sheet. */
+function demPhanHoiKhach(sheets: PricingSheetApi[] | undefined) {
+  const dem = { daDuyet: 0, bo: 0, cho: 0 };
+  if (!sheets) return dem;
+  for (const s of sheets) {
+    if (s.hasCustomerApproved === true) dem.daDuyet += 1;
+    else if (s.hasCustomerApproved === false) dem.bo += 1;
+    else dem.cho += 1;
+  }
+  return dem;
+}
+
 type Nguon = "list" | "review";
 
 export default function ModuleDuyetBaoGia({
@@ -207,28 +220,10 @@ export default function ModuleDuyetBaoGia({
   const policies = nguoiDung?.policies ?? [];
   const laNguoiDuyet = coQuyenDuyetBaoGia(policies);
 
-  const [danhSachTaiKhoan, datDanhSachTaiKhoan] = useState<TaiKhoanApi[]>([]);
   const [previewState, setPreviewState] = useState<{
     item: HistoryItem;
     customerInfo: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string };
   } | null>(null);
-  const daTaiTaiKhoan = useRef(false);
-
-  useEffect(() => {
-    if (!accessToken || daTaiTaiKhoan.current) return;
-    daTaiTaiKhoan.current = true;
-    layTaiKhoanService(accessToken)
-      .then(datDanhSachTaiKhoan)
-      .catch(() => {});
-  }, [accessToken]);
-
-  const banDoTaiKhoan = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const tk of danhSachTaiKhoan) {
-      if (tk.fullName) map.set(tk.id, tk.fullName);
-    }
-    return map;
-  }, [danhSachTaiKhoan]);
 
   // Nguồn dữ liệu: 'list' = GET /quotations; 'review' = quotation-in-review (chỉ reviewer)
   const [nguon, datNguon] = useState<Nguon>("list");
@@ -239,16 +234,18 @@ export default function ModuleDuyetBaoGia({
   const [loi, datLoi] = useState("");
   const [thongBao, datThongBao] = useState("");
   const [dangXuLyId, datDangXuLyId] = useState<string | null>(null);
-  const [chiTiet, datChiTiet] = useState<BaoGiaApi | null>(null);
   const [confirm, setConfirm] = useState<{
     bg: BaoGiaApi;
     title: string;
     message: string;
     onConfirm: () => void;
   } | null>(null);
-  // Expand dropdown cho tung BG de xem/duyet tung pricing sheet.
-  // Set lai ve null sau khi luu de dong dropdown.
+  // Expand dropdown cho từng BG để xem/duyệt từng pricing sheet.
+  // URL /danh-sach-bao-gia/<id> = auto-expand hàng đó.
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const expandedIdRef = useRef<string | null>(null);
+  /** Bỏ qua 1 lần sync URL sau khi state tự cập nhật. */
+  const urlDangDongBo = useRef(false);
 
   const lamMoi = useCallback(async () => {
     if (!isAuthenticated || !accessToken) {
@@ -462,45 +459,6 @@ export default function ModuleDuyetBaoGia({
     [accessToken, hienThongBao],
   );
 
-  // Tinh so luong sheet da duyet / bo / cho theo trang thai hien tai.
-  const demPhanHoiKhach = useCallback(
-    (sheets: PricingSheetApi[] | undefined) => {
-      const dem = { daDuyet: 0, bo: 0, cho: 0 };
-      if (!sheets) return dem;
-      for (const s of sheets) {
-        if (s.hasCustomerApproved === true) dem.daDuyet += 1;
-        else if (s.hasCustomerApproved === false) dem.bo += 1;
-        else dem.cho += 1;
-      }
-      return dem;
-    },
-    [],
-  );
-
-  const moChiTietBaoGia = useCallback(
-    async (bg: BaoGiaApi) => {
-      if (!accessToken) {
-        datChiTiet(bg);
-        return;
-      }
-      datDangXuLyId(bg.id);
-      datLoi("");
-      try {
-        const fresh = await layBaoGiaTheoIdService(bg.id, accessToken);
-        datChiTiet(fresh);
-      } catch (error) {
-        datLoi(
-          error instanceof Error
-            ? error.message
-            : "Không tải được chi tiết báo giá.",
-        );
-      } finally {
-        datDangXuLyId(null);
-      }
-    },
-    [accessToken],
-  );
-
   const capNhatBaoGia = useCallback(
     async (bg: BaoGiaApi) => {
       if (!accessToken) return;
@@ -532,6 +490,33 @@ export default function ModuleDuyetBaoGia({
     },
     [datLsxDangSua, datLsxTaoTuSheet, khiDieuHuong],
   );
+
+  // Toggle expand: đồng thời đồng bộ URL /danh-sach-bao-gia/<id> ↔ danh sách thu gọn.
+  const toggleExpand = useCallback((bg: BaoGiaApi) => {
+    const seExpand = expandedIdRef.current !== bg.id;
+    expandedIdRef.current = seExpand ? bg.id : null;
+    setExpandedId(seExpand ? bg.id : null);
+    urlDangDongBo.current = true;
+    dongBoUrlChiTietDanhSachBaoGia(seExpand ? bg.id : null, "push");
+  }, []);
+
+  // Đồng bộ khi popstate / F5: URL có <id> → expand đúng hàng; URL base → collapse.
+  useEffect(() => {
+    const dongBoTuUrl = () => {
+      if (urlDangDongBo.current) {
+        urlDangDongBo.current = false;
+        return;
+      }
+      const id = docIdChiTietDanhSachBaoGia(window.location.pathname);
+      if (id !== expandedIdRef.current) {
+        expandedIdRef.current = id;
+        setExpandedId(id);
+      }
+    };
+    dongBoTuUrl();
+    window.addEventListener("popstate", dongBoTuUrl);
+    return () => window.removeEventListener("popstate", dongBoTuUrl);
+  }, []);
 
   const chonChip = (key: BoLoc) => {
     datNguon("list");
@@ -734,7 +719,7 @@ export default function ModuleDuyetBaoGia({
                     <React.Fragment key={bg.id}>
                     <tr
                       className="qrev-row"
-                      onClick={() => void moChiTietBaoGia(bg)}
+                      onClick={() => toggleExpand(bg)}
                     >
                       <td>
                         <div className="qrev-cell-quote">
@@ -744,7 +729,7 @@ export default function ModuleDuyetBaoGia({
                             title={isExpanded ? "Thu gọn" : "Mở rộng"}
                             onClick={(e) => {
                               e.stopPropagation();
-                              setExpandedId((cur) => (cur === bg.id ? null : bg.id));
+                              toggleExpand(bg);
                             }}
                             style={{ flexShrink: 0 }}
                           >
@@ -936,32 +921,6 @@ export default function ModuleDuyetBaoGia({
           </div>
         )}
       </div>
-
-      {chiTiet && (
-        <ChiTietBaoGiaSlidePanel
-          baoGia={chiTiet}
-          onClose={() => datChiTiet(null)}
-          banDoTaiKhoan={banDoTaiKhoan}
-          laNguoiDuyet={laNguoiDuyet}
-          dangXuLy={dangXuLyId === chiTiet.id}
-          onNop={(bg) => {
-            datChiTiet(null);
-            void nopBaoGia(bg);
-          }}
-          onDuyet={(bg, quyetDinh) => {
-            datChiTiet(null);
-            void duyetBaoGia(bg, quyetDinh);
-          }}
-          onCapNhat={
-            chiTiet.createdBy === nguoiDung?.id
-              ? (bg: BaoGiaApi) => {
-                  datChiTiet(null);
-                  void capNhatBaoGia(bg);
-                }
-              : undefined
-          }
-        />
-      )}
 
       <ConfirmDialog
         open={!!confirm}
