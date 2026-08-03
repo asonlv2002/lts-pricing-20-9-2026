@@ -1,0 +1,192 @@
+import type {
+  DinhMucGhep,
+  DinhMucInRow,
+  InkPriceSource,
+  MucInRow,
+  MucInTable,
+  SolventAdhesiveRow,
+  SolventAdhesiveTable,
+} from './types';
+
+/** TB cộng: bỏ dòng donGia<=0, lấy trung bình đơn giá */
+export function tinhGiaMucTbCong(rows: MucInRow[]): number {
+  const ds = rows.filter((r) => Number(r.donGia) > 0);
+  if (!ds.length) return 0;
+  const sum = ds.reduce((s, r) => s + (Number(r.donGia) || 0), 0);
+  return sum / ds.length;
+}
+
+/** TB trọng số: Σ(đơn giá × SL dùng) / Σ(SL dùng) — bỏ dòng donGia<=0 hoặc slDung<=0 */
+export function tinhGiaMucTbTrongSo(rows: MucInRow[]): number {
+  let weightSum = 0;
+  let weighted = 0;
+  for (const r of rows) {
+    const d = Number(r.donGia) || 0;
+    const s = Number(r.slDung) || 0;
+    if (d <= 0 || s <= 0) continue;
+    weightSum += s;
+    weighted += d * s;
+  }
+  if (weightSum <= 0) return 0;
+  return weighted / weightSum;
+}
+
+export function giaMucTheoNguon(
+  source: InkPriceSource,
+  rows: MucInRow[],
+  manualPrice: number | null,
+): number | null {
+  if (source === 'average') return tinhGiaMucTbCong(rows);
+  if (source === 'weighted') return tinhGiaMucTbTrongSo(rows);
+  if (source === 'manual') {
+    if (manualPrice == null || !Number.isFinite(manualPrice)) return null;
+    return manualPrice;
+  }
+  return null;
+}
+
+/** Sau khi sửa rows: nếu source là average/weighted → tự recompute appliedPrice. */
+export function dongBoGiaMucDangApSauSuaRow(state: MucInTable): MucInTable {
+  if (state.appliedSource === 'average' || state.appliedSource === 'weighted') {
+    return { ...state, appliedPrice: giaMucTheoNguon(state.appliedSource, state.rows, null) };
+  }
+  return state;
+}
+
+function chuanHoaRow(raw: Partial<MucInRow>, i: number): MucInRow {
+  return {
+    ma: String(raw?.ma ?? `row_${i + 1}`),
+    ten: String(raw?.ten ?? ''),
+    dvt: String(raw?.dvt ?? 'kg'),
+    donGia: Number(raw?.donGia) > 0 ? Number(raw.donGia) : 0,
+    slDung: Number(raw?.slDung) >= 0 ? Number(raw.slDung) : 0,
+  };
+}
+
+export function chuanHoaMucInTable(
+  raw: Partial<MucInTable> | undefined,
+  fallback: MucInTable,
+): MucInTable {
+  const rows =
+    Array.isArray(raw?.rows) && raw!.rows!.length > 0
+      ? raw!.rows!.map((r, i) => chuanHoaRow(r, i))
+      : fallback.rows.map((r) => ({ ...r }));
+
+  const src = raw?.appliedSource;
+  let appliedSource: InkPriceSource =
+    src === 'average' || src === 'weighted' || src === 'manual'
+      ? src
+      : (fallback.appliedSource ?? 'average');
+
+  let appliedPrice: number | null =
+    raw?.appliedPrice == null
+      ? null
+      : Number.isFinite(Number(raw.appliedPrice))
+        ? Number(raw.appliedPrice)
+        : null;
+
+  if (appliedSource === 'average' || appliedSource === 'weighted') {
+    appliedPrice = giaMucTheoNguon(appliedSource, rows, null);
+  } else if (appliedSource === 'manual' && (appliedPrice == null || !Number.isFinite(appliedPrice))) {
+    appliedPrice = tinhGiaMucTbCong(rows);
+  }
+
+  return { rows, appliedSource, appliedPrice };
+}
+
+export function chuanHoaCpsxUpgradeInk(
+  raw: Partial<{
+    opp: MucInTable;
+    pet: MucInTable;
+    solventAdhesive: SolventAdhesiveTable;
+    dinhMucIn: DinhMucInRow[];
+    dinhMucGhep: DinhMucGhep;
+  }> | undefined,
+  fallbackOpp: MucInTable,
+  fallbackPet: MucInTable,
+  fallbackSolvent: SolventAdhesiveTable,
+  fallbackDinhMucIn: DinhMucInRow[],
+  fallbackDinhMucGhep: DinhMucGhep,
+): {
+  opp: MucInTable;
+  pet: MucInTable;
+  solventAdhesive: SolventAdhesiveTable;
+  dinhMucIn: DinhMucInRow[];
+  dinhMucGhep: DinhMucGhep;
+} {
+  return {
+    opp: chuanHoaMucInTable(raw?.opp, fallbackOpp),
+    pet: chuanHoaMucInTable(raw?.pet, fallbackPet),
+    solventAdhesive: chuanHoaBangDungMoiKeo(raw?.solventAdhesive, fallbackSolvent),
+    dinhMucIn: chuanHoaDinhMucIn(raw?.dinhMucIn, fallbackDinhMucIn),
+    dinhMucGhep: chuanHoaDinhMucGhep(raw?.dinhMucGhep, fallbackDinhMucGhep),
+  };
+}
+
+const SO_MAU_LIST: Array<1 | 2 | 3 | 4 | 5 | 6 | 7 | 8> = [1, 2, 3, 4, 5, 6, 7, 8];
+
+/** Luôn đủ 8 dòng soMau 1–8; merge raw theo soMau, thiếu → fallback. */
+export function chuanHoaDinhMucIn(
+  raw: DinhMucInRow[] | undefined,
+  fallback: DinhMucInRow[],
+): DinhMucInRow[] {
+  const byMau = new Map<number, DinhMucInRow>();
+  if (Array.isArray(raw)) {
+    for (const r of raw) {
+      const m = Number(r?.soMau);
+      if (m >= 1 && m <= 8) {
+        byMau.set(m, {
+          soMau: m as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8,
+          dmMucG: Number(r.dmMucG) >= 0 ? Number(r.dmMucG) : 0,
+          dmDungMoiG: Number(r.dmDungMoiG) >= 0 ? Number(r.dmDungMoiG) : 0,
+        });
+      }
+    }
+  }
+  return SO_MAU_LIST.map((soMau) => {
+    const hit = byMau.get(soMau);
+    if (hit) return hit;
+    const fb = fallback.find((x) => x.soMau === soMau);
+    return fb
+      ? { ...fb }
+      : { soMau, dmMucG: soMau * 4, dmDungMoiG: 3 + soMau * 1.5 };
+  });
+}
+
+export function chuanHoaDinhMucGhep(
+  raw: Partial<DinhMucGhep> | undefined,
+  fallback: DinhMucGhep,
+): DinhMucGhep {
+  return {
+    keoKhoG:
+      raw?.keoKhoG != null && Number.isFinite(Number(raw.keoKhoG)) && Number(raw.keoKhoG) >= 0
+        ? Number(raw.keoKhoG)
+        : fallback.keoKhoG,
+    dungMoiPhaKeoG:
+      raw?.dungMoiPhaKeoG != null &&
+      Number.isFinite(Number(raw.dungMoiPhaKeoG)) &&
+      Number(raw.dungMoiPhaKeoG) >= 0
+        ? Number(raw.dungMoiPhaKeoG)
+        : fallback.dungMoiPhaKeoG,
+  };
+}
+
+function chuanHoaSolventRow(raw: Partial<SolventAdhesiveRow>, i: number): SolventAdhesiveRow {
+  return {
+    ma: raw?.ma ? String(raw.ma) : `row_${i + 1}`,
+    ten: String(raw?.ten ?? ''),
+    dvt: String(raw?.dvt ?? 'kg'),
+    donGia: Number(raw?.donGia) > 0 ? Number(raw.donGia) : 0,
+    ghiChu: String(raw?.ghiChu ?? ''),
+  };
+}
+
+export function chuanHoaBangDungMoiKeo(
+  raw: Partial<SolventAdhesiveTable> | undefined,
+  fallback: SolventAdhesiveTable,
+): SolventAdhesiveTable {
+  if (Array.isArray(raw?.rows) && raw!.rows!.length > 0) {
+    return { rows: raw!.rows!.map((r, i) => chuanHoaSolventRow(r, i)) };
+  }
+  return { rows: fallback.rows.map((r) => ({ ...r })) };
+}

@@ -44,6 +44,9 @@ import {
   commitProfitThresholdDraft,
   removeLastAddedProfitRow,
 } from "../lib/profit-table-editor";
+import CpsxNangCapDien from "./cau-hinh/CpsxNangCapDien";
+import CpsxNangCapLuong from "./cau-hinh/CpsxNangCapLuong";
+import CpsxNangCapTrang from "./cau-hinh/CpsxNangCapTrang";
 
 let boDemLuuBangLoiNhuan: ReturnType<typeof setTimeout>;
 const luuBangLoiNhuanTre = () => {
@@ -461,6 +464,7 @@ type NhomCauHinh =
   | "materials"
   | "waste"
   | "production"
+  | "cpsx-upgrade"
   | "outsource"
   | "profit"
   | "surcharges"
@@ -474,6 +478,8 @@ const layNhomCauHinh = (menuDangChon?: string): NhomCauHinh => {
       return "waste";
     case "cau-hinh-chi-phi-sx":
       return "production";
+    case "cau-hinh-chi-phi-sx-nang-cap":
+      return "cpsx-upgrade";
     case "cau-hinh-gia-cong-ngoai":
       return "outsource";
     case "cau-hinh-loi-nhuan":
@@ -529,6 +535,7 @@ export default function TrangCauHinh({
   const hienVatTu = nhomCauHinh === "materials";
   const hienHaoHut = nhomCauHinh === "waste";
   const hienSanXuat = nhomCauHinh === "production";
+  const hienCpsxNangCap = nhomCauHinh === "cpsx-upgrade";
   const hienGiaCongNgoai = nhomCauHinh === "outsource";
   const hienLoiNhuan = nhomCauHinh === "profit";
   const hienPhuPhi = nhomCauHinh === "surcharges";
@@ -1434,6 +1441,12 @@ export default function TrangCauHinh({
     <div className={`config-page${dangXemPhienBan ? ' config-page--readonly' : ''}`} id="configPage" style={{ display: "block" }}>
       <div className="config-page-inner">
         <div className="config-content">
+          {hienCpsxNangCap && (
+            <>
+              <KhoiPhienBan scope="production" />
+              <CpsxNangCapTrang />
+            </>
+          )}
           {hienVatTu && (
             <>
               <KhoiPhienBan scope="materials" />

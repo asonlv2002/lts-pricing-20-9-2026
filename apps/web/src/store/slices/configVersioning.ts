@@ -62,6 +62,7 @@ const SCOPE_CONSTANT_KEYS: Record<ConfigScope, (keyof AppConstants)[]> = {
     'laminatePressLabor', 'laminatePressElectric', 'laminatePressTime',
     'slitPressLabor', 'slitPressElectric', 'slitPressTime',
     'bagPressLabor', 'bagPressElectric', 'bagPressTime',
+    'cpsxUpgradeElectric', 'cpsxUpgradeLabor', 'cpsxUpgradeInk',
     'ghepCPSX', 'cutBase', 'cutThreshold1', 'cutThreshold2',
     'cutMult1', 'cutMult2', 'cutMult3', 'cutRules', 'cylinderPricePerUnit', 'cylPriceA', 'cylPriceB',
     'nhuPrice', 'moPrice', 'colorSetup',

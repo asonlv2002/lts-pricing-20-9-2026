@@ -2796,6 +2796,530 @@ body {
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
 }
 
+/* ═══════════ CPSX NÂNG CẤP — ĐIỆN ═══════════ */
+.config-cpsx-upgrade-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.config-cpsx-upgrade__subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 14px;
+  padding: 4px;
+  background: var(--surface2, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  width: fit-content;
+}
+.config-cpsx-upgrade__pill {
+  min-height: 34px;
+  padding: 6px 16px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.88rem;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.config-cpsx-upgrade__pill:hover:not(:disabled) {
+  color: var(--text);
+  background: rgba(79, 70, 229, 0.06);
+}
+.config-cpsx-upgrade__pill.is-active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 2px 6px rgba(79, 70, 229, 0.3);
+}
+.config-cpsx-upgrade__pill:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.config-cpsx-upgrade__content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.config-cpsx-upgrade__placeholder {
+  padding: 24px;
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  background: var(--surface2, var(--bg));
+  color: var(--muted);
+  text-align: center;
+  font-style: italic;
+}
+.config-cpsx-upgrade-accordion {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg, #fff);
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.config-cpsx-upgrade-accordion__head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: var(--text);
+  font-family: var(--font-sans), "Inter", sans-serif;
+  transition: background 0.15s ease;
+}
+.config-cpsx-upgrade-accordion__head:hover {
+  background: rgba(79, 70, 229, 0.04);
+}
+.config-cpsx-upgrade-accordion__head:focus-visible {
+  outline: 2px solid rgba(79, 70, 229, 0.45);
+  outline-offset: -2px;
+}
+.config-cpsx-upgrade-accordion__chev {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.12);
+  color: var(--accent);
+  font-size: 0.6rem;
+  font-weight: 800;
+}
+.config-cpsx-upgrade-accordion__title {
+  flex: 1 1 auto;
+  letter-spacing: 0.01em;
+}
+.config-cpsx-upgrade-accordion__summary {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 0.82rem;
+  color: var(--accent);
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.config-cpsx-upgrade-accordion__body {
+  padding: 6px 16px 14px;
+  border-top: 1px solid var(--border);
+}
+.config-cpsx-upgrade__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 14px;
+}
+.config-cpsx-upgrade__hints {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 4px;
+  padding: 12px 14px;
+  line-height: 1.55;
+  font-size: 0.85rem;
+  color: var(--muted);
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface2, var(--bg));
+}
+.config-cpsx-upgrade__meta-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px 16px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface2, var(--bg));
+}
+.config-cpsx-upgrade__meta-grid--two {
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+}
+.config-cpsx-upgrade__meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.config-cpsx-upgrade__meta-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+  line-height: 1.3;
+}
+.config-cpsx-upgrade__meta-value {
+  display: block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.3;
+}
+.config-cpsx-upgrade__meta-hint {
+  font-size: 0.7rem;
+  color: var(--muted);
+  font-weight: 500;
+  margin-left: 4px;
+}
+.config-cpsx-upgrade__formulas {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface2, var(--bg));
+}
+.config-cpsx-upgrade__formula-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  font-size: 0.88rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+.config-cpsx-upgrade__formula-label {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.config-cpsx-upgrade__formula-op {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+.config-cpsx-upgrade__formula-result {
+  flex: 0 0 auto;
+  font-variant-numeric: tabular-nums;
+  color: var(--primary, #0f766e);
+  font-weight: 700;
+  white-space: nowrap;
+}
+.config-cpsx-upgrade__formula-input {
+  width: 110px;
+  min-height: 34px;
+  flex: 0 0 auto;
+}
+.config-cpsx-upgrade__applied-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--primary, #0f766e);
+  font-variant-numeric: tabular-nums;
+}
+@media (max-width: 767px) {
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__meta-grid,
+  html.in-config-page .config-page .config-cpsx-upgrade__meta-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__formula-row,
+  html.in-config-page .config-page .config-cpsx-upgrade__formula-row {
+    gap: 6px 8px;
+  }
+}
+.config-cpsx-upgrade {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.config-cpsx-upgrade__lead {
+  margin: 4px 0 18px;
+  line-height: 1.55;
+}
+.config-cpsx-upgrade-card {
+  margin-bottom: 20px;
+  padding: 18px 20px 20px;
+}
+.config-cpsx-upgrade-card .config-section-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.config-cpsx-upgrade__head {
+  justify-content: space-between;
+  font-weight: 500;
+}
+.config-cpsx-upgrade__head > span:first-child {
+  font-weight: 500;
+}
+.config-cpsx-upgrade__head-meta {
+  margin-left: auto;
+  font-weight: 600;
+  color: var(--primary, #0f766e);
+  font-variant-numeric: tabular-nums;
+}
+.config-cpsx-upgrade__toggle {
+  margin-left: 0;
+}
+.config-cpsx-upgrade__notices {
+  margin-top: 16px;
+  padding: 12px 14px;
+  background: var(--bg-subtle, #f1f5f9);
+  border-left: 3px solid var(--primary, #0f766e);
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text, #334155);
+  line-height: 1.5;
+}
+.config-cpsx-upgrade__notices p {
+  margin: 0;
+}
+.config-cpsx-upgrade__notices strong {
+  color: var(--primary, #0f766e);
+}
+.config-cpsx-upgrade-card .config-note {
+  margin: 10px 0 14px;
+  line-height: 1.5;
+}
+.config-cpsx-upgrade__table-wrap {
+  margin-bottom: 14px;
+}
+.config-cpsx-upgrade__table th,
+.config-cpsx-upgrade__table td {
+  padding: 12px 14px;
+  vertical-align: middle;
+}
+.config-cpsx-upgrade__table .config-inline-input {
+  width: 100%;
+  min-width: 88px;
+  max-width: 160px;
+  min-height: 36px;
+}
+.config-cpsx-upgrade__del {
+  min-width: 36px;
+  padding-inline: 8px;
+}
+.config-cpsx-upgrade__add {
+  margin-bottom: 4px;
+}
+.config-cpsx-upgrade__total-label {
+  text-align: right;
+  font-weight: 600;
+  color: var(--text, #334155);
+  background: var(--bg-subtle, #f8fafc);
+}
+.config-cpsx-upgrade__total {
+  font-weight: 700;
+  color: var(--primary, #0f766e);
+  background: var(--bg-subtle, #f8fafc);
+}
+.config-cpsx-upgrade__sources {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 16px 0 8px;
+  padding: 12px 12px 10px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface2, var(--bg));
+  min-width: 0;
+}
+.config-cpsx-upgrade__sources-legend {
+  padding: 0 4px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.config-cpsx-upgrade__source-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 12px 16px;
+  min-height: 36px;
+}
+.config-cpsx-upgrade__source-opt {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px 12px;
+  min-height: 40px;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.config-cpsx-upgrade__source-opt:hover {
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
+}
+.config-cpsx-upgrade__source-opt.is-selected {
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface, var(--bg)));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.config-cpsx-upgrade__source-opt:has(input:disabled) {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.config-cpsx-upgrade__source-opt input[type="radio"] {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: inherit;
+}
+.config-cpsx-upgrade__source-label {
+  flex: 0 1 220px;
+  min-width: 140px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.config-cpsx-upgrade__source-row .config-cpsx-upgrade__source-label {
+  flex: 0 0 180px;
+  min-width: 140px;
+  color: var(--muted);
+}
+.config-cpsx-upgrade__source-value {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  font-weight: 700;
+  color: var(--text);
+}
+.config-cpsx-upgrade__source-opt.is-selected .config-cpsx-upgrade__source-value {
+  color: var(--accent);
+}
+.config-cpsx-upgrade__source-action {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+.config-cpsx-upgrade__manual {
+  flex: 0 0 auto !important;
+  width: 120px;
+  max-width: 140px;
+  min-height: 34px;
+  margin-left: auto;
+  text-align: right;
+  font-weight: 700;
+}
+.config-cpsx-upgrade__applied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 14px;
+  margin: 14px 0 8px;
+}
+.config-cpsx-upgrade__applied label {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 200px;
+}
+.config-cpsx-upgrade__applied-input {
+  max-width: 160px;
+  min-height: 36px;
+  font-weight: 700;
+  text-align: right;
+}
+.config-cpsx-upgrade__applied-empty {
+  min-width: 140px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1.5px dashed var(--border);
+  color: var(--muted);
+  font-size: 0.88rem;
+  background: var(--surface2, var(--bg));
+}
+.config-cpsx-upgrade__applied-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  color: var(--accent);
+}
+.config-cpsx-upgrade__unit {
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.config-cpsx-upgrade__lock {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+.config-cpsx-upgrade .highlight {
+  color: var(--accent);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 767px) {
+  .lts-shell--mobile .config-page .config-cpsx-upgrade-card,
+  html.in-config-page .config-page .config-cpsx-upgrade-card {
+    padding: 14px 14px 16px;
+  }
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__source-row,
+  html.in-config-page .config-page .config-cpsx-upgrade__source-row {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__source-opt,
+  html.in-config-page .config-page .config-cpsx-upgrade__source-opt {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    min-height: 44px;
+    padding: 8px 10px;
+  }
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__source-label,
+  html.in-config-page .config-page .config-cpsx-upgrade__source-label {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__source-value,
+  html.in-config-page .config-page .config-cpsx-upgrade__source-value {
+    flex-basis: calc(100% - 28px);
+    margin-left: 28px;
+    text-align: left;
+  }
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__manual,
+  html.in-config-page .config-page .config-cpsx-upgrade__manual {
+    margin-left: 28px;
+    width: min(160px, 100%);
+    max-width: none;
+  }
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__source-action,
+  html.in-config-page .config-page .config-cpsx-upgrade__source-action {
+    margin-left: auto;
+  }
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__table .config-inline-input,
+  html.in-config-page .config-page .config-cpsx-upgrade__table .config-inline-input {
+    max-width: none;
+    min-height: 38px;
+  }
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__table th,
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__table td,
+  html.in-config-page .config-page .config-cpsx-upgrade__table th,
+  html.in-config-page .config-page .config-cpsx-upgrade__table td {
+    padding: 10px 8px;
+  }
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__applied,
+  html.in-config-page .config-page .config-cpsx-upgrade__applied {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__applied label,
+  html.in-config-page .config-page .config-cpsx-upgrade__applied label {
+    min-width: 0;
+  }
+}
+
 /* ═══════════ CONFIG GROUP HEADERS ═══════════ */
 .config-group-header {
   font-size: 1.1rem;

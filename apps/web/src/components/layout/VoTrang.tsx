@@ -331,6 +331,12 @@ const CAC_NHOM_MENU: NhomMenu[] = [
         vaiTros: [],
       },
       {
+        key: "cau-hinh-chi-phi-sx-nang-cap",
+        id: "master_data",
+        label: "Chi phí sản xuất (nâng cấp)",
+        vaiTros: [],
+      },
+      {
         key: "cau-hinh-gia-cong-ngoai",
         id: "master_data",
         label: "Chi phí gia công ngoài",
@@ -419,6 +425,7 @@ const MENU_KEYS_OVERVIEW = new Set([
 const MENU_KEYS_CONFIG = new Set([
   "cau-hinh-vat-tu",
   "cau-hinh-chi-phi-sx",
+  "cau-hinh-chi-phi-sx-nang-cap",
   "cau-hinh-gia-cong-ngoai",
   "cau-hinh-loi-nhuan",
   "cau-hinh-phu-phi",
@@ -687,6 +694,17 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         action: {
           type: "module",
           key: "cau-hinh-chi-phi-sx",
+          module: "master_data",
+        },
+      },
+      {
+        title: "Chi phí sản xuất (nâng cấp)",
+        subtitle: "Giá điện khung giờ và điện/phút theo máy.",
+        tone: "orange",
+        icon: <Factory size={30} />,
+        action: {
+          type: "module",
+          key: "cau-hinh-chi-phi-sx-nang-cap",
           module: "master_data",
         },
       },

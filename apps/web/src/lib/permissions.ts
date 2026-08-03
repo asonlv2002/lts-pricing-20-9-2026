@@ -17,6 +17,7 @@ const NHOM_MENU_POLICIES: Record<string, PolicyCode[]> = {
 const MUC_MENU_POLICIES: Record<string, PolicyCode[]> = {
   'cau-hinh-vat-tu': ['PRICE_CONFIG_MANAGER'],
   'cau-hinh-chi-phi-sx': ['PRICE_CONFIG_MANAGER'],
+  'cau-hinh-chi-phi-sx-nang-cap': ['PRICE_CONFIG_MANAGER'],
   'cau-hinh-gia-cong-ngoai': ['PRICE_CONFIG_MANAGER'],
   'cau-hinh-loi-nhuan': ['PRICE_CONFIG_MANAGER'],
   'cau-hinh-phu-phi': ['PRICE_CONFIG_MANAGER'],

@@ -203,6 +203,121 @@ export interface BagPressTime {
   speedRules: BagPressSpeedRule[];
 }
 
+/** CPSX nâng cấp — khung giờ giá điện */
+export interface ElectricTimeSlot {
+  id: string;
+  label: string;
+  hours: number;
+  pricePerKwh: number;
+}
+
+export type ElectricPriceSource = 'average' | 'weighted' | 'manual' | null;
+
+/** Máy trong mục Điện CPSX nâng cấp (không có pricePerKwh riêng — dùng giá đang áp) */
+export interface CpsxElectricMachine {
+  powerKw: number;
+  efficiency: number;
+}
+
+/** CPSX nâng cấp — mục Điện (phase 1); độc lập printPressElectric cũ */
+export interface CpsxUpgradeElectric {
+  slots: ElectricTimeSlot[];
+  appliedSource: ElectricPriceSource;
+  appliedPricePerKwh: number | null;
+  machines: {
+    print: CpsxElectricMachine;
+    laminate: CpsxElectricMachine;
+    slit: CpsxElectricMachine;
+    bag: CpsxElectricMachine;
+  };
+}
+
+/** CPSX nâng cấp — Lương 1 máy (In/Ghép/Chia): auto ca = cố định */
+export interface CpsxUpgradeLabor1May {
+  /** Mỗi dòng là 1 CN, lương mỗi ca (₫) */
+  wages: number[];
+  mealMorning: number;
+  mealEvening: number;
+  otFactor: number;
+  /** Số ca cố định (1 hoặc 2) — không cho sửa */
+  shiftCount: 1 | 2;
+}
+
+/** CPSX nâng cấp — Lương Làm túi (nhiều máy): SL/ca sửa được, có làm tròn */
+export interface CpsxUpgradeLaborTui {
+  wages: number[]; // pool lương (vd 10–12 dòng)
+  mealMorning: number; // cơm sáng / người
+  mealEvening: number; // cơm tối / người
+  otFactor: number;
+  peoplePerShift: number; // SL người / ca (user nhập vì nhiều máy)
+  /** Giá làm tròn áp dụng — sale thấy số này; nếu null thì dùng giá tính */
+  roundedPerMin: number | null;
+}
+
+/** CPSX nâng cấp — gom cả 4 máy (phase 2) */
+export interface CpsxUpgradeLabor {
+  print: CpsxUpgradeLabor1May;
+  laminate: CpsxUpgradeLabor1May;
+  slit: CpsxUpgradeLabor1May;
+  bag: CpsxUpgradeLaborTui;
+}
+
+/** CPSX nâng cấp — mục 3: Mực in (1 dòng trong bảng giá mực) */
+export interface MucInRow {
+  /** Mã vật tư (vd MUCMD60) — khóa để phân biệt dòng */
+  ma: string;
+  ten: string;
+  dvt: string;
+  donGia: number; // đơn giá mới nhất (₫/đơn vị)
+  slDung: number; // số lượng dùng (read-only = tổng T1..T6, nhưng ở phase 1 user nhập trực tiếp)
+}
+
+/** Nguồn giá mực đang áp dụng */
+export type InkPriceSource = 'average' | 'weighted' | 'manual';
+
+/** CPSX nâng cấp — 1 bảng giá mực (OPP hoặc PET) */
+export interface MucInTable {
+  rows: MucInRow[];
+  appliedSource: InkPriceSource;
+  appliedPrice: number | null; // giá đang áp dụng (₫/kg)
+}
+
+/** CPSX nâng cấp — 1 dòng trong bảng dung môi / keo ghép */
+export interface SolventAdhesiveRow {
+  ma: string; // mã vật tư (sheet để trống, user tự đặt)
+  ten: string;
+  dvt: string;
+  donGia: number; // đơn giá cố định (₫/đơn vị)
+  ghiChu: string; // ghi chú (vd "xài cho khâu in")
+}
+
+/** CPSX nâng cấp — bảng dung môi + keo ghép (đơn giá cố định, không TB/Áp dụng) */
+export interface SolventAdhesiveTable {
+  rows: SolventAdhesiveRow[];
+}
+
+/** CPSX nâng cấp — định mức mực in + dung môi in theo số màu (1–8) */
+export interface DinhMucInRow {
+  soMau: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  dmMucG: number; // g/m²
+  dmDungMoiG: number; // g/m²
+}
+
+/** CPSX nâng cấp — định mức keo + dung môi ghép (cố định 2 hạng mục) */
+export interface DinhMucGhep {
+  keoKhoG: number; // g/m² — Keo khô (dry coat weight)
+  dungMoiPhaKeoG: number; // g/m² — Dung môi pha keo
+}
+
+/** CPSX nâng cấp — mục 3: bảng mực OPP + PET + dung môi/keo + định mức */
+export interface CpsxUpgradeInk {
+  opp: MucInTable;
+  pet: MucInTable;
+  solventAdhesive: SolventAdhesiveTable;
+  dinhMucIn: DinhMucInRow[];
+  dinhMucGhep: DinhMucGhep;
+}
+
 export interface AppConstants {
   zipperPrice: number;
   zipperWeight: number;
@@ -284,6 +399,12 @@ export interface AppConstants {
   bagPressElectric?: BagPressElectric;
   /** Thời gian SX cắt — chỉ lưu cấu hình, engine chưa dùng */
   bagPressTime?: BagPressTime;
+  /** CPSX nâng cấp — mục Điện; độc lập CPSX cũ, engine chưa dùng */
+  cpsxUpgradeElectric?: CpsxUpgradeElectric;
+  /** CPSX nâng cấp — mục Lương; độc lập CPSX cũ, engine chưa dùng */
+  cpsxUpgradeLabor?: CpsxUpgradeLabor;
+  /** CPSX nâng cấp — mục Mực; độc lập CPSX cũ, engine chưa dùng */
+  cpsxUpgradeInk?: CpsxUpgradeInk;
 }
 
 export type PricingMode = 'internal' | 'outsource';
