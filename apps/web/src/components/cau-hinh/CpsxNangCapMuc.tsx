@@ -181,6 +181,17 @@ function BangMuc({ loai, state, onChange }: BangMucProps) {
                 </td>
               </tr>
             ))}
+            <tr className="config-cpsx-upgrade__add-row">
+              <td colSpan={7}>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline config-cpsx-upgrade__add"
+                  onClick={themRow}
+                >
+                  + Thêm vật tư
+                </button>
+              </td>
+            </tr>
           </tbody>
           <tfoot>
             <tr>
@@ -195,14 +206,6 @@ function BangMuc({ loai, state, onChange }: BangMucProps) {
           </tfoot>
         </table>
       </div>
-
-      <button
-        type="button"
-        className="btn btn-sm btn-outline config-cpsx-upgrade__add"
-        onClick={themRow}
-      >
-        + Thêm dòng
-      </button>
 
       <fieldset className="config-cpsx-upgrade__sources">
         <legend className="config-cpsx-upgrade__sources-legend">

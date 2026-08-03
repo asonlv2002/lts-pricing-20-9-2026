@@ -3102,6 +3102,19 @@ body {
 .config-cpsx-upgrade__add {
   margin-bottom: 4px;
 }
+.config-cpsx-upgrade__add-row td {
+  text-align: left !important;
+  padding: 8px 14px;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+}
+.config-cpsx-upgrade__add-row .config-cpsx-upgrade__add {
+  margin: 0;
+  display: inline-flex;
+}
+.config-cpsx-upgrade__table tbody tr.config-cpsx-upgrade__add-row:hover {
+  background: transparent;
+}
 .config-cpsx-upgrade__total-label {
   text-align: right;
   font-weight: 600;
