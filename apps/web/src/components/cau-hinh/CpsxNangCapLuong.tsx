@@ -18,12 +18,11 @@ import {
   luongTbTui,
   soCongNhanTui,
   soNguoiMoiCa1May,
-  tangCa1May,
+  tangCaTheoTongLuong,
   tangCaTui,
+  tienComMoiMay,
   tienComSangTui,
-  tienComTBTui,
   tienComToiTui,
-  tongCom1May,
   tongLuong,
 } from "../../lib/cpsx-upgrade-labor";
 
@@ -33,6 +32,59 @@ function dinhDangVnd(n: number) {
 
 function docSoVnd(value: string) {
   return Number(value.replace(/\D/g, "")) || 0;
+}
+
+function dongCongThuc(
+  tongL: number,
+  com: number,
+  tc: number,
+  soGio: number,
+  tongCN: number,
+  cn1Ca: number,
+  ketQua: number,
+): string {
+  return `(${dinhDangVnd(tongL)} + ${dinhDangVnd(com)} + ${dinhDangVnd(tc)}) ÷ ${soGio} ÷ 60 ÷ ${tongCN} × ${cn1Ca} = ${dinhDangVnd(ketQua)} ₫/phút`;
+}
+
+function NumberVndInput({
+  value,
+  onChange,
+  ariaLabel,
+  className,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  ariaLabel: string;
+  className?: string;
+}) {
+  const inputRef = React.useRef<HTMLInputElement | null>(null);
+  const [text, setText] = React.useState<string>(
+    value === 0 ? "0" : dinhDangVnd(value),
+  );
+
+  React.useEffect(() => {
+    if (document.activeElement !== inputRef.current) {
+      setText(value === 0 ? "0" : dinhDangVnd(value));
+    }
+  }, [value]);
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      inputMode="numeric"
+      className={className}
+      aria-label={ariaLabel}
+      value={text}
+      onChange={(e) => {
+        setText(e.target.value);
+        onChange(docSoVnd(e.target.value));
+      }}
+      onBlur={() => {
+        setText(value === 0 ? "0" : dinhDangVnd(value));
+      }}
+    />
+  );
 }
 
 type May1Key = "print" | "laminate" | "slit";
@@ -77,7 +129,12 @@ export default function CpsxNangCapLuong() {
   const tomTat1May = (key: May1Key, loai1Ca?: boolean) => {
     const g = state[key];
     const v = loai1Ca
-      ? luongMoiPhut1May1Ca(g.wages, g.mealMorning, g.mealEvening)
+      ? luongMoiPhut1May1Ca(
+          g.wages,
+          g.mealMorning,
+          g.mealEvening,
+          g.otFactor,
+        )
       : luongMoiPhut1MayTrenNgay(
           g.wages,
           g.shiftCount,
@@ -117,6 +174,7 @@ export default function CpsxNangCapLuong() {
           tenMay="Máy in"
           giaTri={state.print}
           capNhat={(patch) => capNhat1May("print", patch)}
+          soGio={24}
         />
       ),
     },
@@ -129,6 +187,7 @@ export default function CpsxNangCapLuong() {
           tenMay="Máy ghép"
           giaTri={state.laminate}
           capNhat={(patch) => capNhat1May("laminate", patch)}
+          soGio={24}
         />
       ),
     },
@@ -142,6 +201,7 @@ export default function CpsxNangCapLuong() {
           giaTri={state.slit}
           capNhat={(patch) => capNhat1May("slit", patch)}
           loai1Ca
+          soGio={12}
         />
       ),
     },
@@ -188,21 +248,27 @@ function May1May({
   giaTri,
   capNhat,
   loai1Ca,
+  soGio,
 }: {
   tenMay: string;
   giaTri: CpsxUpgradeLabor1May;
   capNhat: (patch: Partial<CpsxUpgradeLabor1May>) => void;
   loai1Ca?: boolean;
+  soGio: number;
 }) {
   const soCN = giaTri.wages.length;
   const soNguoiMoiCa = soNguoiMoiCa1May(giaTri.wages, giaTri.shiftCount);
   const tongL = tongLuong(giaTri.wages);
-  const tangCa = tangCa1May(giaTri.wages, giaTri.shiftCount, giaTri.otFactor);
+  const tienComSang = (Number(giaTri.mealMorning) || 0) * soCN / 2;
+  const tienComToi = (Number(giaTri.mealEvening) || 0) * soCN / 2;
+  const tongCom = tienComMoiMay(giaTri.mealMorning, giaTri.mealEvening, soCN);
+  const tangCa = tangCaTheoTongLuong(giaTri.wages, giaTri.otFactor);
   const ketQua = loai1Ca
     ? luongMoiPhut1May1Ca(
         giaTri.wages,
         giaTri.mealMorning,
         giaTri.mealEvening,
+        giaTri.otFactor,
       )
     : luongMoiPhut1MayTrenNgay(
         giaTri.wages,
@@ -309,76 +375,68 @@ function May1May({
           <span className="config-cpsx-upgrade__formula-label">
             Tiền cơm ca sáng =
           </span>
-          <input
-            type="text"
-            inputMode="numeric"
+          <NumberVndInput
             className="config-inline-input config-cpsx-upgrade__formula-input"
-            aria-label="Cơm sáng mỗi người"
-            value={dinhDangVnd(giaTri.mealMorning)}
-            onChange={(e) =>
-              capNhat({ mealMorning: docSoVnd(e.target.value) })
-            }
+            ariaLabel="Cơm sáng mỗi người"
+            value={giaTri.mealMorning}
+            onChange={(v) => capNhat({ mealMorning: v })}
           />
           <span className="config-cpsx-upgrade__formula-op">
-            × {soCN} / {giaTri.shiftCount} =
+            × {soCN} / 2 =
           </span>
           <strong className="config-cpsx-upgrade__formula-result">
-            {dinhDangVnd(
-              ((Number(giaTri.mealMorning) || 0) * soCN) / giaTri.shiftCount,
-            )}{" "}
-            ₫
+            {dinhDangVnd(tienComSang)} ₫
           </strong>
         </div>
         <div className="config-cpsx-upgrade__formula-row">
           <span className="config-cpsx-upgrade__formula-label">
             Tiền cơm ca tối =
           </span>
-          <input
-            type="text"
-            inputMode="numeric"
+          <NumberVndInput
             className="config-inline-input config-cpsx-upgrade__formula-input"
-            aria-label="Cơm tối mỗi người"
-            value={dinhDangVnd(giaTri.mealEvening)}
-            onChange={(e) =>
-              capNhat({ mealEvening: docSoVnd(e.target.value) })
-            }
+            ariaLabel="Cơm tối mỗi người"
+            value={giaTri.mealEvening}
+            onChange={(v) => capNhat({ mealEvening: v })}
           />
           <span className="config-cpsx-upgrade__formula-op">
-            × {soCN} / {giaTri.shiftCount} =
+            × {soCN} / 2 =
           </span>
           <strong className="config-cpsx-upgrade__formula-result">
-            {dinhDangVnd(
-              ((Number(giaTri.mealEvening) || 0) * soCN) / giaTri.shiftCount,
-            )}{" "}
-            ₫
+            {dinhDangVnd(tienComToi)} ₫
           </strong>
         </div>
-        {!loai1Ca && (
-          <div className="config-cpsx-upgrade__formula-row">
-            <span className="config-cpsx-upgrade__formula-label">
-              Tăng ca = Tổng lương / {giaTri.shiftCount} ×
-            </span>
-            <input
-              type="number"
-              className="config-inline-input config-cpsx-upgrade__formula-input"
-              aria-label="Hệ số tăng ca"
-              min={0}
-              step={0.1}
-              value={giaTri.otFactor}
-              onChange={(e) => {
-                const v = parseFloat(e.target.value);
-                capNhat({
-                  otFactor:
-                    Number.isFinite(v) && v > 0 ? v : giaTri.otFactor,
-                });
-              }}
-            />
-            <span className="config-cpsx-upgrade__formula-op">=</span>
-            <strong className="config-cpsx-upgrade__formula-result">
-              {dinhDangVnd(tangCa)} ₫
-            </strong>
-          </div>
-        )}
+        <div className="config-cpsx-upgrade__formula-row">
+          <span className="config-cpsx-upgrade__formula-label">
+            Tăng ca = Tổng lương ×
+          </span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            aria-label="Hệ số tăng ca"
+            min={0}
+            step={0.1}
+            value={giaTri.otFactor}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              capNhat({
+                otFactor:
+                  Number.isFinite(v) && v > 0 ? v : giaTri.otFactor,
+              });
+            }}
+          />
+          <span className="config-cpsx-upgrade__formula-op">÷ 2 =</span>
+          <strong className="config-cpsx-upgrade__formula-result">
+            {dinhDangVnd(tangCa)} ₫
+          </strong>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row">
+          <span className="config-cpsx-upgrade__formula-label">
+            Lương nhân công mỗi phút =
+          </span>
+          <strong className="config-cpsx-upgrade__formula-result">
+            {dongCongThuc(tongL, tongCom, tangCa, soGio, soCN, soNguoiMoiCa, ketQua)}
+          </strong>
+        </div>
       </div>
 
       <div className="config-cpsx-upgrade__applied">
@@ -402,14 +460,10 @@ function MayTui({
   const tongL = tongLuong(giaTri.wages);
   const soCN = soCongNhanTui(giaTri.wages);
   const tbCa = luongTbTui(giaTri.wages, giaTri.peoplePerShift);
-  const tangCa = tangCaTui(
-    giaTri.wages,
-    giaTri.peoplePerShift,
-    giaTri.otFactor,
-  );
+  const tangCa = tangCaTui(giaTri.wages, giaTri.otFactor);
   const tienComSang = tienComSangTui(giaTri.mealMorning, soCN);
   const tienComToi = tienComToiTui(giaTri.mealEvening, soCN);
-  const tienComTB = tienComTBTui(tienComSang, tienComToi, soCN);
+  const tongCom = tienComMoiMay(giaTri.mealMorning, giaTri.mealEvening, soCN);
   const tinh = luongMoiPhutTuiTinh(
     giaTri.wages,
     giaTri.peoplePerShift,
@@ -525,15 +579,11 @@ function MayTui({
           <span className="config-cpsx-upgrade__formula-label">
             Tiền cơm ca sáng =
           </span>
-          <input
-            type="text"
-            inputMode="numeric"
+          <NumberVndInput
             className="config-inline-input config-cpsx-upgrade__formula-input"
-            aria-label="Cơm sáng mỗi người"
-            value={dinhDangVnd(giaTri.mealMorning)}
-            onChange={(e) =>
-              capNhat({ mealMorning: docSoVnd(e.target.value) })
-            }
+            ariaLabel="Cơm sáng mỗi người"
+            value={giaTri.mealMorning}
+            onChange={(v) => capNhat({ mealMorning: v })}
           />
           <span className="config-cpsx-upgrade__formula-op">
             × {soCN} / 2 =
@@ -546,15 +596,11 @@ function MayTui({
           <span className="config-cpsx-upgrade__formula-label">
             Tiền cơm ca tối =
           </span>
-          <input
-            type="text"
-            inputMode="numeric"
+          <NumberVndInput
             className="config-inline-input config-cpsx-upgrade__formula-input"
-            aria-label="Cơm tối mỗi người"
-            value={dinhDangVnd(giaTri.mealEvening)}
-            onChange={(e) =>
-              capNhat({ mealEvening: docSoVnd(e.target.value) })
-            }
+            ariaLabel="Cơm tối mỗi người"
+            value={giaTri.mealEvening}
+            onChange={(v) => capNhat({ mealEvening: v })}
           />
           <span className="config-cpsx-upgrade__formula-op">
             × {soCN} / 2 =
@@ -565,15 +611,7 @@ function MayTui({
         </div>
         <div className="config-cpsx-upgrade__formula-row">
           <span className="config-cpsx-upgrade__formula-label">
-            Tiền cơm TB = (cơm sáng + cơm tối) / {soCN} =
-          </span>
-          <strong className="config-cpsx-upgrade__formula-result">
-            {dinhDangVnd(tienComTB)} ₫
-          </strong>
-        </div>
-        <div className="config-cpsx-upgrade__formula-row">
-          <span className="config-cpsx-upgrade__formula-label">
-            Tăng ca = Lương TB / ca ×
+            Tăng ca = Tổng lương ×
           </span>
           <input
             type="number"
@@ -589,7 +627,7 @@ function MayTui({
               });
             }}
           />
-          <span className="config-cpsx-upgrade__formula-op">=</span>
+          <span className="config-cpsx-upgrade__formula-op">÷ 2 =</span>
           <strong className="config-cpsx-upgrade__formula-result">
             {dinhDangVnd(tangCa)} ₫
           </strong>
@@ -615,6 +653,14 @@ function MayTui({
               });
             }}
           />
+        </div>
+        <div className="config-cpsx-upgrade__formula-row">
+          <span className="config-cpsx-upgrade__formula-label">
+            Lương nhân công mỗi phút =
+          </span>
+          <strong className="config-cpsx-upgrade__formula-result">
+            {dongCongThuc(tongL, tongCom, tangCa, 24, soCN, giaTri.peoplePerShift, tinh)}
+          </strong>
         </div>
       </div>
 
