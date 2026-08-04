@@ -319,6 +319,30 @@ export interface CpsxUpgradeInk {
   dinhMucGhep: DinhMucGhep;
 }
 
+/** CPSX nâng cấp — mục 4: cấu hình máy in (film) cho thời gian sản xuất */
+export interface CpsxThoiGianMayIn {
+  tocDoMetPerHour: number;
+  phutSetupMoiMau: number;
+  mauSoGioSetup: number;
+  nguongMet: number;
+  tocDoNganMetPerHour: number;
+}
+
+/** CPSX nâng cấp — mục 4: cấu hình máy chạy (ghép/chia/làm túi) */
+export interface CpsxThoiGianMayChay {
+  tocDoPerHour: number;
+  phutSetup: number;
+  donVi: 'met' | 'chiec';
+}
+
+/** CPSX nâng cấp — mục 4: gom cả 4 máy */
+export interface CpsxUpgradeThoiGian {
+  print: CpsxThoiGianMayIn;
+  laminate: CpsxThoiGianMayChay;
+  slit: CpsxThoiGianMayChay;
+  bag: CpsxThoiGianMayChay;
+}
+
 export interface AppConstants {
   zipperPrice: number;
   zipperWeight: number;
@@ -406,6 +430,8 @@ export interface AppConstants {
   cpsxUpgradeLabor?: CpsxUpgradeLabor;
   /** CPSX nâng cấp — mục Mực; độc lập CPSX cũ, engine chưa dùng */
   cpsxUpgradeInk?: CpsxUpgradeInk;
+  /** CPSX nâng cấp — mục Thời gian SX; độc lập CPSX cũ, engine chưa dùng */
+  cpsxUpgradeThoiGian?: CpsxUpgradeThoiGian;
 }
 
 export type PricingMode = 'internal' | 'outsource';

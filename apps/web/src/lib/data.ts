@@ -1,7 +1,8 @@
-import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate, PrintPressLabor, PrintPressElectric, PrintPressTime, LaminatePressLabor, LaminatePressElectric, LaminatePressTime, SlitPressLabor, SlitPressElectric, SlitPressTime, SlitPressTimeRule, BagPressLabor, BagPressElectric, BagPressTime, BagPressSetupRule, BagPressSpeedRule, CpsxUpgradeElectric, CpsxUpgradeLabor, CpsxUpgradeLabor1May, CpsxUpgradeLaborTui, CpsxUpgradeInk, MucInTable, MucInRow, SolventAdhesiveTable, SolventAdhesiveRow, DinhMucInRow, DinhMucGhep } from './types';
+import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate, PrintPressLabor, PrintPressElectric, PrintPressTime, LaminatePressLabor, LaminatePressElectric, LaminatePressTime, SlitPressLabor, SlitPressElectric, SlitPressTime, SlitPressTimeRule, BagPressLabor, BagPressElectric, BagPressTime, BagPressSetupRule, BagPressSpeedRule, CpsxUpgradeElectric, CpsxUpgradeLabor, CpsxUpgradeLabor1May, CpsxUpgradeLaborTui, CpsxUpgradeInk, CpsxUpgradeThoiGian, MucInTable, MucInRow, SolventAdhesiveTable, SolventAdhesiveRow, DinhMucInRow, DinhMucGhep } from './types';
 import { chuanHoaCpsxUpgradeElectric } from './cpsx-upgrade-electric';
 import { chuanHoaCpsxUpgradeLabor } from './cpsx-upgrade-labor';
 import { chuanHoaCpsxUpgradeInk } from './cpsx-upgrade-ink';
+import { chuanHoaCpsxUpgradeThoiGian } from './cpsx-upgrade-thoigian';
 // Single source of truth: /data ở root repo (dùng chung cho web + Flutter)
 import materialsJson  from '@data/materials.json';
 import constantsJson  from '@data/constants.json';
@@ -387,6 +388,19 @@ export const DEFAULT_CPSX_UPGRADE_INK: CpsxUpgradeInk = {
   dinhMucGhep: DEFAULT_DINH_MUC_GHEP,
 };
 
+export const DEFAULT_CPSX_UPGRADE_THOIGIAN: CpsxUpgradeThoiGian = {
+  print: {
+    tocDoMetPerHour: 7500,
+    phutSetupMoiMau: 20,
+    mauSoGioSetup: 60,
+    nguongMet: 40000,
+    tocDoNganMetPerHour: 7500,
+  },
+  laminate: { tocDoPerHour: 6000, phutSetup: 15, donVi: 'met' },
+  slit:     { tocDoPerHour: 8000, phutSetup: 10, donVi: 'met' },
+  bag:      { tocDoPerHour: 5000, phutSetup: 30, donVi: 'chiec' },
+};
+
 const rawPrintPressLabor = (rawConstants as unknown as {
   printPressLabor?: Partial<PrintPressLabor>;
 }).printPressLabor;
@@ -589,6 +603,14 @@ const cpsxUpgradeInk: CpsxUpgradeInk = chuanHoaCpsxUpgradeInk(
   DEFAULT_CPSX_UPGRADE_INK.dinhMucGhep,
 );
 
+const rawCpsxUpgradeThoiGian = (rawConstants as unknown as {
+  cpsxUpgradeThoiGian?: Partial<CpsxUpgradeThoiGian>;
+}).cpsxUpgradeThoiGian;
+const cpsxUpgradeThoiGian: CpsxUpgradeThoiGian = chuanHoaCpsxUpgradeThoiGian(
+  rawCpsxUpgradeThoiGian,
+  DEFAULT_CPSX_UPGRADE_THOIGIAN,
+);
+
 export const INITIAL_CONSTANTS: AppConstants = {
   ...rawConstants,
   boxOptions: rawConstants.boxOptions?.length ? rawConstants.boxOptions : fallbackBoxOptions,
@@ -611,6 +633,7 @@ export const INITIAL_CONSTANTS: AppConstants = {
   cpsxUpgradeElectric,
   cpsxUpgradeLabor,
   cpsxUpgradeInk,
+  cpsxUpgradeThoiGian,
   // JSON stores colorSetup keys as strings → convert back to number keys
   colorSetup: Object.fromEntries(
     Object.entries(rawConstants.colorSetup).map(([k, v]) => [Number(k), v])

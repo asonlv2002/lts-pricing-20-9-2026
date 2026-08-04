@@ -4,6 +4,7 @@ import React from "react";
 import CpsxNangCapDien from "./CpsxNangCapDien";
 import CpsxNangCapLuong from "./CpsxNangCapLuong";
 import CpsxNangCapMuc from "./CpsxNangCapMuc";
+import CpsxNangCapThoiGian from "./CpsxNangCapThoiGian";
 
 function TieuDe({ children }: { children: React.ReactNode }) {
   return <div className="config-group-header">{children}</div>;
@@ -20,6 +21,9 @@ export default function CpsxNangCapTrang() {
 
       <TieuDe>3. Mực · Dung môi · Keo ghép</TieuDe>
       <CpsxNangCapMuc />
+
+      <TieuDe>4. Thời gian sản xuất</TieuDe>
+      <CpsxNangCapThoiGian />
     </div>
   );
 }
