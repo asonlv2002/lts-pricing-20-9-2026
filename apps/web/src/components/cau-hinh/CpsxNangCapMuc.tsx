@@ -15,11 +15,12 @@ import {
   tinhGiaMucTbTrongSo,
 } from "../../lib/cpsx-upgrade-ink";
 
-type LoaiBang = "opp" | "pet";
+type LoaiBang = "opp" | "pet" | "pe";
 
 const LABEL: Record<LoaiBang, string> = {
   opp: "Bảng giá mực in OPP",
   pet: "Bảng giá mực in PET",
+  pe: "Bảng giá mực in PE (LLDPE)",
 };
 
 function dinhDangVnd(n: number) {
@@ -307,6 +308,7 @@ export default function CpsxNangCapMuc() {
         hangSo.cpsxUpgradeInk,
         DEFAULT_CPSX_UPGRADE_INK.opp,
         DEFAULT_CPSX_UPGRADE_INK.pet,
+        DEFAULT_CPSX_UPGRADE_INK.pe,
         DEFAULT_CPSX_UPGRADE_INK.solventAdhesive,
         DEFAULT_CPSX_UPGRADE_INK.dinhMucIn,
         DEFAULT_CPSX_UPGRADE_INK.dinhMucGhep,
@@ -329,6 +331,7 @@ export default function CpsxNangCapMuc() {
   const [openMap, setOpenMap] = React.useState<Record<LoaiBang, boolean>>({
     opp: true,
     pet: true,
+    pe: false,
   });
   const toggle = (loai: LoaiBang) =>
     setOpenMap((m) => ({ ...m, [loai]: !m[loai] }));

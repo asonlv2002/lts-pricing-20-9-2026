@@ -309,10 +309,11 @@ export interface DinhMucGhep {
   dungMoiPhaKeoG: number; // g/m² — Dung môi pha keo
 }
 
-/** CPSX nâng cấp — mục 3: bảng mực OPP + PET + dung môi/keo + định mức */
+/** CPSX nâng cấp — mục 3: bảng mực OPP + PET + PE + dung môi/keo + định mức */
 export interface CpsxUpgradeInk {
   opp: MucInTable;
   pet: MucInTable;
+  pe: MucInTable;
   solventAdhesive: SolventAdhesiveTable;
   dinhMucIn: DinhMucInRow[];
   dinhMucGhep: DinhMucGhep;

@@ -335,6 +335,21 @@ const DEFAULT_MUC_PET_TABLE: MucInTable = {
   appliedPrice: 0,
 };
 
+/** CPSX nâng cấp — bảng mực PE (dùng khi in trên LLDPE) */
+const DEFAULT_MUC_PE_ROWS: MucInRow[] = [
+  { ma: 'MUCPE2585',  ten: 'MỰC TÍM (P267C) Q-Surf V-Z05', dvt: 'kg', donGia: 115000, slDung: 17 },
+  { ma: 'MUCPE2587',  ten: 'MỰC CAM (P165C).Q-Surf O-Z09', dvt: 'kg', donGia:  79000, slDung: 17 },
+  { ma: 'MUCPE501',   ten: 'Mực đen Q-Surf BL501/FE',      dvt: 'kg', donGia:  80000, slDung: 17 },
+  { ma: 'MUCPEGXZ17', ten: 'Mực Xám Q-Surf GX-Z17',        dvt: 'kg', donGia:  96000, slDung: 17 },
+  { ma: 'MUCPEW001',  ten: 'Mực trắng Q-Surf W001/FE',     dvt: 'kg', donGia:  76000, slDung: 40 },
+  { ma: 'MUCPEYZ18',  ten: 'Mực Vàng Q-Surf Y-Z18',        dvt: 'kg', donGia:  96000, slDung: 17 },
+];
+const DEFAULT_MUC_PE_TABLE: MucInTable = {
+  rows: DEFAULT_MUC_PE_ROWS,
+  appliedSource: 'weighted',
+  appliedPrice: 0,
+};
+
 /** CPSX nâng cấp — mục 3: bảng dung môi + keo ghép mặc định */
 const DEFAULT_SOLVENT_ROWS: SolventAdhesiveRow[] = [
   { ma: 'DM_OPP', ten: 'DUNG MÔI OPP', dvt: 'kg', donGia: 40000, ghiChu: 'xài cho khâu in' },
@@ -366,6 +381,7 @@ export const DEFAULT_DINH_MUC_GHEP: DinhMucGhep = {
 export const DEFAULT_CPSX_UPGRADE_INK: CpsxUpgradeInk = {
   opp: DEFAULT_MUC_OPP_TABLE,
   pet: DEFAULT_MUC_PET_TABLE,
+  pe: DEFAULT_MUC_PE_TABLE,
   solventAdhesive: DEFAULT_SOLVENT_TABLE,
   dinhMucIn: DEFAULT_DINH_MUC_IN,
   dinhMucGhep: DEFAULT_DINH_MUC_GHEP,
@@ -567,6 +583,7 @@ const cpsxUpgradeInk: CpsxUpgradeInk = chuanHoaCpsxUpgradeInk(
   rawCpsxUpgradeInk,
   DEFAULT_CPSX_UPGRADE_INK.opp,
   DEFAULT_CPSX_UPGRADE_INK.pet,
+  DEFAULT_CPSX_UPGRADE_INK.pe,
   DEFAULT_CPSX_UPGRADE_INK.solventAdhesive,
   DEFAULT_CPSX_UPGRADE_INK.dinhMucIn,
   DEFAULT_CPSX_UPGRADE_INK.dinhMucGhep,

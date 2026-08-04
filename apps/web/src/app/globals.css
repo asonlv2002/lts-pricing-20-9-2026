@@ -3008,6 +3008,23 @@ body {
   min-height: 34px;
   flex: 0 0 auto;
 }
+.config-cpsx-upgrade__highlight {
+  color: #7c3aed;
+  font-weight: 700;
+}
+.config-cpsx-upgrade__formula-head {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--fg);
+  padding: 10px 14px;
+  background: var(--surface, rgba(0, 0, 0, 0.04));
+  border-left: 3px solid var(--primary, #0f766e);
+  border-radius: 6px;
+  line-height: 1.5;
+}
+.config-cpsx-upgrade__formula-indent {
+  margin-left: 18px;
+}
 .config-cpsx-upgrade__applied-value {
   font-size: 1.05rem;
   font-weight: 700;

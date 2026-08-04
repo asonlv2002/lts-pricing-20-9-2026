@@ -73,7 +73,7 @@ export function chuanHoaMucInTable(
       : fallback.rows.map((r) => ({ ...r }));
 
   const src = raw?.appliedSource;
-  let appliedSource: InkPriceSource =
+  const appliedSource: InkPriceSource =
     src === 'average' || src === 'weighted' || src === 'manual'
       ? src
       : (fallback.appliedSource ?? 'average');
@@ -98,18 +98,21 @@ export function chuanHoaCpsxUpgradeInk(
   raw: Partial<{
     opp: MucInTable;
     pet: MucInTable;
+    pe: MucInTable;
     solventAdhesive: SolventAdhesiveTable;
     dinhMucIn: DinhMucInRow[];
     dinhMucGhep: DinhMucGhep;
   }> | undefined,
   fallbackOpp: MucInTable,
   fallbackPet: MucInTable,
+  fallbackPe: MucInTable,
   fallbackSolvent: SolventAdhesiveTable,
   fallbackDinhMucIn: DinhMucInRow[],
   fallbackDinhMucGhep: DinhMucGhep,
 ): {
   opp: MucInTable;
   pet: MucInTable;
+  pe: MucInTable;
   solventAdhesive: SolventAdhesiveTable;
   dinhMucIn: DinhMucInRow[];
   dinhMucGhep: DinhMucGhep;
@@ -117,6 +120,7 @@ export function chuanHoaCpsxUpgradeInk(
   return {
     opp: chuanHoaMucInTable(raw?.opp, fallbackOpp),
     pet: chuanHoaMucInTable(raw?.pet, fallbackPet),
+    pe: chuanHoaMucInTable(raw?.pe, fallbackPe),
     solventAdhesive: chuanHoaBangDungMoiKeo(raw?.solventAdhesive, fallbackSolvent),
     dinhMucIn: chuanHoaDinhMucIn(raw?.dinhMucIn, fallbackDinhMucIn),
     dinhMucGhep: chuanHoaDinhMucGhep(raw?.dinhMucGhep, fallbackDinhMucGhep),

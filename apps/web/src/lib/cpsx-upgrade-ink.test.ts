@@ -169,12 +169,14 @@ const fbDinhMucGhep: DinhMucGhep = { keoKhoG: 3.5, dungMoiPhaKeoG: 7 };
     undefined,
     fbTable,
     fbTable,
+    fbTable,
     fbSolvent,
     fbDinhMucIn,
     fbDinhMucGhep,
   );
   eq(out.opp.rows.length, fbTable.rows.length, 'opp fallback rows');
   eq(out.pet.rows.length, fbTable.rows.length, 'pet fallback rows');
+  eq(out.pe.rows.length, fbTable.rows.length, 'pe fallback rows');
   eq(out.solventAdhesive.rows.length, fbSolvent.rows.length, 'solvent fallback rows');
   eq(out.dinhMucIn.length, 8, 'dinhMucIn 8 dòng');
   eq(out.dinhMucGhep.keoKhoG, 3.5, 'dinhMucGhep keo');
@@ -182,6 +184,7 @@ const fbDinhMucGhep: DinhMucGhep = { keoKhoG: 3.5, dungMoiPhaKeoG: 7 };
 {
   const out = chuanHoaCpsxUpgradeInk(
     { opp: { rows: oppRows, appliedSource: 'manual', appliedPrice: 999 } },
+    fbTable,
     fbTable,
     fbTable,
     fbSolvent,
@@ -194,11 +197,44 @@ const fbDinhMucGhep: DinhMucGhep = { keoKhoG: 3.5, dungMoiPhaKeoG: 7 };
     tinhGiaMucTbTrongSo(out.pet.rows),
     'pet weighted → recompute',
   );
+  approx(
+    out.pe.appliedPrice as number,
+    tinhGiaMucTbTrongSo(out.pe.rows),
+    'pe weighted → recompute',
+  );
   eq(
     out.solventAdhesive.rows.length,
     fbSolvent.rows.length,
     'solvent fallback vì raw trống',
   );
+}
+
+// 8b. PE — 6 dòng mặc định từ bảng mực LLDPE
+const peRows: MucInRow[] = [
+  { ma: 'MUCPE2585',  ten: 'MỰC TÍM (P267C) Q-Surf V-Z05', dvt: 'kg', donGia: 115000, slDung: 17 },
+  { ma: 'MUCPE2587',  ten: 'MỰC CAM (P165C).Q-Surf O-Z09', dvt: 'kg', donGia:  79000, slDung: 17 },
+  { ma: 'MUCPE501',   ten: 'Mực đen Q-Surf BL501/FE',      dvt: 'kg', donGia:  80000, slDung: 17 },
+  { ma: 'MUCPEGXZ17', ten: 'Mực Xám Q-Surf GX-Z17',        dvt: 'kg', donGia:  96000, slDung: 17 },
+  { ma: 'MUCPEW001',  ten: 'Mực trắng Q-Surf W001/FE',     dvt: 'kg', donGia:  76000, slDung: 40 },
+  { ma: 'MUCPEYZ18',  ten: 'Mực Vàng Q-Surf Y-Z18',        dvt: 'kg', donGia:  96000, slDung: 17 },
+];
+{
+  const tbTrongSoPe = tinhGiaMucTbTrongSo(peRows);
+  const tongPe = peRows.reduce((s, r) => s + r.slDung, 0);
+  eq(tongPe, 125, 'PE tổng SL dùng = 125');
+  approx(tbTrongSoPe, 87_696, 'PE TB trọng số = 87.696');
+  const fbPe: MucInTable = { rows: peRows, appliedSource: 'weighted', appliedPrice: 0 };
+  const out = chuanHoaCpsxUpgradeInk(
+    undefined,
+    fbTable,
+    fbTable,
+    fbPe,
+    fbSolvent,
+    fbDinhMucIn,
+    fbDinhMucGhep,
+  );
+  eq(out.pe.rows.length, 6, 'pe fallback 6 dòng');
+  approx(out.pe.appliedPrice as number, 87_696, 'pe appliedPrice = 87.696');
 }
 
 // 9. chuanHoaBangDungMoiKeo
