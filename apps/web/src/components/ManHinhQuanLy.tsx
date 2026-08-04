@@ -24,6 +24,7 @@ import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override
 import { tinhNhapPhanBoChotGia } from '../lib/chot-gia-allocation';
 import { timMucLichSuTheoId } from '../lib/history-identity';
 import { dieuHuongModuleApp } from '../lib/menu-route';
+import BangDacTaNangCao from './BangDacTaNangCao';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
 // Mỗi lần render với resetKey mới → luôn bắt đầu ở trạng thái ĐÓNG
@@ -1652,6 +1653,21 @@ const buttonLabel = loadedItem
             );
           })()}
 
+          </TheThuGon>
+
+          {/* ═══ SECTION: Đặc tả kỹ thuật & nguyên liệu (nâng cao) ═══ */}
+          <div id="sect-tech-advanced" className="manager-section-anchor"></div>
+          <TheThuGon
+            resetKey={khoaKetQua}
+            style={{marginBottom: '14px', marginTop: '14px'}}
+            title={<><span className="icon">🔬</span> Đặc tả kỹ thuật &amp; nguyên liệu (nâng cao)</>}
+          >
+            <BangDacTaNangCao
+              result={r}
+              uniRows={cacDongSanXuat}
+              constants={hangSo}
+              materials={materials}
+            />
           </TheThuGon>
 
           {/* ═══ SECTION: Bảng giá theo số lượng (MOQ) ═══ */}

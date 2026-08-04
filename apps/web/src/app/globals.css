@@ -8917,6 +8917,18 @@ body {
     white-space: normal;
   }
 
+  /* Bảng đặc tả nâng cao: giữ min-width riêng, không bị ép về 560px */
+  #resultArea #m-t-advanced-material {
+    min-width: 1180px;
+  }
+  #resultArea #m-t-advanced-labor {
+    min-width: 680px;
+  }
+  #resultArea #m-t-advanced-material th,
+  #resultArea #m-t-advanced-labor th {
+    white-space: normal;
+  }
+
   /* Config table */
   .config-table {
     min-width: 420px;
@@ -12693,3 +12705,168 @@ body {
 .sysmon-footer { margin-top: 16px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 13px; background: var(--surface); display: flex; flex-wrap: wrap; gap: 14px 24px; color: var(--muted); font-size: 12px; } .sysmon-footer span { display: inline-flex; align-items: center; gap: 7px; } .sysmon-footer b { color: var(--text); } .sysmon-footer .is-up { color: #059669; } .sysmon-footer .is-down { color: var(--red); }
 
 @media (max-width: 767px) { .lts-shell--mobile .lts-avatar-modal { width: min(100% - 24px, 440px); } .lts-shell--mobile .lts-avatar-file-button { min-height: 48px; } .lts-shell--mobile .sysmon-root { padding: 16px 12px 92px; } .lts-shell--mobile .sysmon-header { align-items: stretch; flex-direction: column; } .lts-shell--mobile .sysmon-header h1 { font-size: 20px; } .lts-shell--mobile .sysmon-refresh { justify-content: center; min-height: 44px; } .lts-shell--mobile .sysmon-summary-grid, .lts-shell--mobile .sysmon-chart-grid-wrap { grid-template-columns: 1fr; } .lts-shell--mobile .sysmon-stat-card { min-height: auto; } .lts-shell--mobile .sysmon-chart { min-height: 280px; } }
+
+/* ═══════════ ĐẶC TẢ KỸ THUẬT & NGUYÊN LIỆU (NÂNG CAO) ═══════════ */
+.dac-ta-nang-cao__stage {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+.dac-ta-nang-cao__muc {
+  background: rgba(217, 119, 6, 0.05);
+}
+[data-theme="dark"] .dac-ta-nang-cao__muc {
+  background: rgba(251, 191, 36, 0.07);
+}
+/* Bảng 11 cột cần rộng — ghi đè min-width 560px của #resultArea .data-table.
+   Thiếu chỗ thì .table-responsive scroll ngang, KHÔNG bóp cột. */
+#m-t-advanced-material {
+  min-width: 1180px;
+}
+#m-t-advanced-labor {
+  min-width: 680px;
+}
+/* Header nhiều chữ → cho wrap 2 dòng thay vì bị nowrap cắt */
+#m-t-advanced-material th,
+#m-t-advanced-labor th {
+  white-space: normal;
+  line-height: 1.35;
+  vertical-align: bottom;
+}
+
+/* container query: đo #resultArea (container thật), KHÔNG đo viewport.
+   Media query sai ở đây vì #resultArea chỉ chiếm ~50-60% viewport. */
+.dac-ta-nang-cao__split {
+  display: flex;
+  gap: 14px;
+  align-items: stretch;
+  margin-top: 14px;
+  container-type: inline-size;
+}
+.dac-ta-nang-cao__split-table {
+  flex: 1 1 62%;
+  min-width: 0;
+}
+.dac-ta-nang-cao__totals {
+  flex: 0 0 34%;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+}
+.dac-ta-nang-cao__total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+}
+.dac-ta-nang-cao__total-row:last-child {
+  border-bottom: 0;
+}
+/* 3 dòng chia đều chiều cao dư → chân box khớp chân bảng, tự động theo số dòng bảng */
+.dac-ta-nang-cao__totals .dac-ta-nang-cao__total-row {
+  flex: 1 1 0;
+  min-height: 0;
+}
+.dac-ta-nang-cao__total-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.dac-ta-nang-cao__total-label small {
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-weight: 400;
+}
+.dac-ta-nang-cao__total-value {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  white-space: nowrap;
+  color: var(--text);
+}
+.dac-ta-nang-cao__total-row--grand {
+  background: rgba(79, 70, 229, 0.07);
+  border-top: 2px solid var(--accent);
+}
+[data-theme="dark"] .dac-ta-nang-cao__total-row--grand {
+  background: rgba(129, 140, 248, 0.1);
+}
+.dac-ta-nang-cao__total-row--grand .dac-ta-nang-cao__total-label {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  font-size: 0.78rem;
+}
+.dac-ta-nang-cao__total-row--grand .dac-ta-nang-cao__total-value {
+  color: var(--accent);
+  font-weight: 800;
+  font-size: 1.05rem;
+}
+.dac-ta-nang-cao__note {
+  margin-top: 12px;
+  padding: 10px 12px;
+  background: rgba(79, 70, 229, 0.04);
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
+/* Container ≥900px → 2 cột (Table 2 | cụm tổng). Hẹp hơn → xếp dọc. */
+@container (max-width: 900px) {
+  .dac-ta-nang-cao__split {
+    flex-direction: column;
+  }
+  .dac-ta-nang-cao__split-table,
+  .dac-ta-nang-cao__totals {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+  /* Xếp dọc: không còn bảng cạnh bên để khớp → về chiều cao tự nhiên */
+  .dac-ta-nang-cao__totals .dac-ta-nang-cao__total-row {
+    flex: 0 0 auto;
+  }
+}
+
+/* Fallback cho browser chưa hỗ trợ @container */
+@supports not (container-type: inline-size) {
+  @media (max-width: 1600px) {
+    .dac-ta-nang-cao__split {
+      flex-direction: column;
+    }
+    .dac-ta-nang-cao__split-table,
+    .dac-ta-nang-cao__totals {
+      flex: 1 1 auto;
+      width: 100%;
+    }
+    .dac-ta-nang-cao__totals .dac-ta-nang-cao__total-row {
+      flex: 0 0 auto;
+    }
+  }
+}
+
+@media (max-width: 767px) {
+  .lts-shell--mobile .dac-ta-nang-cao__split {
+    flex-direction: column;
+    gap: 12px;
+  }
+  .lts-shell--mobile .dac-ta-nang-cao__split-table,
+  .lts-shell--mobile .dac-ta-nang-cao__totals {
+    flex: 1 1 auto;
+    width: 100%;
+  }
+  .lts-shell--mobile .dac-ta-nang-cao__total-row {
+    padding: 10px 12px;
+  }
+  .lts-shell--mobile .dac-ta-nang-cao__totals .dac-ta-nang-cao__total-row {
+    flex: 0 0 auto;
+  }
+  .lts-shell--mobile .dac-ta-nang-cao__total-label {
+    font-size: 0.78rem;
+  }
+  .lts-shell--mobile .dac-ta-nang-cao__total-row--grand .dac-ta-nang-cao__total-value {
+    font-size: 1rem;
+  }
+}
