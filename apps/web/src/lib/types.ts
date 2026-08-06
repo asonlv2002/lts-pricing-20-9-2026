@@ -248,6 +248,8 @@ export interface CpsxUpgradeLabor1May {
   shiftCount: 1 | 2;
   /** Số giờ máy hoạt động / ngày (In/Ghép 24, Chia 12) — tham số sửa được */
   hoursPerDay: number;
+  /** Tỉ lệ CN có tăng ca 4h (0–1, mặc định 0.5) — chỉ số CN tăng ca mới tính */
+  tyLeTangCa: number;
 }
 
 /** CPSX nâng cấp — Lương Làm túi (nhiều máy): SL/ca sửa được, có làm tròn */
@@ -261,6 +263,8 @@ export interface CpsxUpgradeLaborTui {
   roundedPerMin: number | null;
   /** Số giờ máy hoạt động / ngày (mặc định 24) — tham số sửa được */
   hoursPerDay: number;
+  /** Tỉ lệ CN có tăng ca 4h (0–1, mặc định 0.5) — chỉ số CN tăng ca mới tính */
+  tyLeTangCa: number;
 }
 
 /** CPSX nâng cấp — gom cả 4 máy (phase 2) */

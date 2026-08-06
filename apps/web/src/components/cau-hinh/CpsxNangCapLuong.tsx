@@ -18,7 +18,6 @@ import {
   soNguoiMoiCa1May,
   tangCaTheoTongLuong,
   tangCaTui,
-  tienComMoiMay,
   tienComSangTui,
   tienComToiTui,
   tongLuong,
@@ -120,6 +119,8 @@ export default function CpsxNangCapLuong() {
       g.mealMorning,
       g.mealEvening,
       g.otFactor,
+      undefined,
+      g.tyLeTangCa,
     );
     return `${dinhDangVnd(v)} ₫/phút`;
   };
@@ -135,6 +136,7 @@ export default function CpsxNangCapLuong() {
           g.mealEvening,
           g.otFactor,
           soCongNhanTui(g.wages),
+          g.tyLeTangCa,
         ),
         g.roundedPerMin,
       ),
@@ -235,14 +237,15 @@ function May1May({
   const tongL = tongLuong(giaTri.wages);
   const tienComSang = (Number(giaTri.mealMorning) || 0) * soCN / 2;
   const tienComToi = (Number(giaTri.mealEvening) || 0) * soCN / 2;
-  const tongCom = tienComMoiMay(giaTri.mealMorning, giaTri.mealEvening, soCN);
-  const tangCa = tangCaTheoTongLuong(giaTri.wages, giaTri.otFactor);
+  const tangCa = tangCaTheoTongLuong(giaTri.wages, giaTri.otFactor, giaTri.tyLeTangCa);
   const ketQua = luongMoiPhutTinh(
     giaTri.wages,
     giaTri.hoursPerDay,
     giaTri.mealMorning,
     giaTri.mealEvening,
     giaTri.otFactor,
+    undefined,
+    giaTri.tyLeTangCa,
   );
 
   const suaLuong = (idx: number, val: string) => {
@@ -374,35 +377,60 @@ function May1May({
         </div>
         <div className="config-cpsx-upgrade__formula-row">
           <span className="config-cpsx-upgrade__formula-label">
-            Tăng ca = Tổng lương ×
+            Tổng tiền tăng ca = (Tổng lương ÷ 2) × Hệ số tăng ca × Tỉ lệ
+            tăng ca
           </span>
-          <input
-            type="number"
-            className="config-inline-input config-cpsx-upgrade__formula-input"
-            aria-label="Hệ số tăng ca"
-            min={0}
-            step={0.1}
-            value={giaTri.otFactor}
-            onChange={(e) => {
-              const v = parseFloat(e.target.value);
-              capNhat({
-                otFactor:
-                  Number.isFinite(v) && v > 0 ? v : giaTri.otFactor,
-              });
-            }}
-          />
-          <span className="config-cpsx-upgrade__formula-op">÷ 2 =</span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
           <strong className="config-cpsx-upgrade__formula-result">
-            {dinhDangVnd(tangCa)} ₫
+            ({dinhDangVnd(tongL)} ÷ 2) ×{" "}
+            <input
+              type="number"
+              className="config-inline-input config-cpsx-upgrade__formula-input"
+              aria-label="Hệ số tăng ca"
+              min={0}
+              step={0.1}
+              value={giaTri.otFactor}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                capNhat({
+                  otFactor:
+                    Number.isFinite(v) && v > 0 ? v : giaTri.otFactor,
+                });
+              }}
+            />{" "}
+            ×{" "}
+            <input
+              type="number"
+              className="config-inline-input config-cpsx-upgrade__formula-input"
+              aria-label="Tỉ lệ tăng ca (%)"
+              min={0}
+              max={100}
+              step={1}
+              value={Math.round(giaTri.tyLeTangCa * 100)}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                capNhat({
+                  tyLeTangCa:
+                    Number.isFinite(v) && v >= 0 && v <= 100
+                      ? v / 100
+                      : giaTri.tyLeTangCa,
+                });
+              }}
+            />{" "}
+            % = {dinhDangVnd(tangCa)} ₫
           </strong>
         </div>
         <div className="config-cpsx-upgrade__formula-row">
           <span className="config-cpsx-upgrade__formula-label">
-            Lương nhân công mỗi phút =
+            Lương CN mỗi phút = (Tổng lương + Tăng ca + Cơm sáng + Cơm tối)
+            ÷ Số giờ/ngày ÷ 60
           </span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
           <strong className="config-cpsx-upgrade__formula-result">
-            ({dinhDangVnd(tongL)} + {dinhDangVnd(tongCom)} +{" "}
-            {dinhDangVnd(tangCa)}) ÷{" "}
+            ({dinhDangVnd(tongL)} + {dinhDangVnd(tangCa)} +{" "}
+            {dinhDangVnd(tienComSang)} + {dinhDangVnd(tienComToi)}) ÷{" "}
             <input
               type="number"
               className="config-inline-input config-cpsx-upgrade__formula-input"
@@ -447,10 +475,9 @@ function MayTui({
   const tongL = tongLuong(giaTri.wages);
   const soCN = soCongNhanTui(giaTri.wages);
   const tbCa = luongTbTui(giaTri.wages, giaTri.peoplePerShift);
-  const tangCa = tangCaTui(giaTri.wages, giaTri.otFactor);
+  const tangCa = tangCaTui(giaTri.wages, giaTri.otFactor, giaTri.tyLeTangCa);
   const tienComSang = tienComSangTui(giaTri.mealMorning, soCN);
   const tienComToi = tienComToiTui(giaTri.mealEvening, soCN);
-  const tongCom = tienComMoiMay(giaTri.mealMorning, giaTri.mealEvening, soCN);
   const tinh = luongMoiPhutTinh(
     giaTri.wages,
     giaTri.hoursPerDay,
@@ -458,6 +485,7 @@ function MayTui({
     giaTri.mealEvening,
     giaTri.otFactor,
     soCongNhanTui(giaTri.wages),
+    giaTri.tyLeTangCa,
   );
   const apDungGia = luongMoiPhutAp(tinh, giaTri.roundedPerMin);
 
@@ -592,25 +620,47 @@ function MayTui({
         </div>
         <div className="config-cpsx-upgrade__formula-row">
           <span className="config-cpsx-upgrade__formula-label">
-            Tăng ca = Tổng lương ×
+            Tổng tiền tăng ca = (Tổng lương ÷ 2) × Hệ số tăng ca × Tỉ lệ
+            tăng ca
           </span>
-          <input
-            type="number"
-            className="config-inline-input config-cpsx-upgrade__formula-input"
-            aria-label="Hệ số tăng ca"
-            min={0}
-            step={0.1}
-            value={giaTri.otFactor}
-            onChange={(e) => {
-              const v = parseFloat(e.target.value);
-              capNhat({
-                otFactor: Number.isFinite(v) && v > 0 ? v : giaTri.otFactor,
-              });
-            }}
-          />
-          <span className="config-cpsx-upgrade__formula-op">÷ 2 =</span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
           <strong className="config-cpsx-upgrade__formula-result">
-            {dinhDangVnd(tangCa)} ₫
+            ({dinhDangVnd(tongL)} ÷ 2) ×{" "}
+            <input
+              type="number"
+              className="config-inline-input config-cpsx-upgrade__formula-input"
+              aria-label="Hệ số tăng ca"
+              min={0}
+              step={0.1}
+              value={giaTri.otFactor}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                capNhat({
+                  otFactor: Number.isFinite(v) && v > 0 ? v : giaTri.otFactor,
+                });
+              }}
+            />{" "}
+            ×{" "}
+            <input
+              type="number"
+              className="config-inline-input config-cpsx-upgrade__formula-input"
+              aria-label="Tỉ lệ tăng ca (%)"
+              min={0}
+              max={100}
+              step={1}
+              value={Math.round(giaTri.tyLeTangCa * 100)}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                capNhat({
+                  tyLeTangCa:
+                    Number.isFinite(v) && v >= 0 && v <= 100
+                      ? v / 100
+                      : giaTri.tyLeTangCa,
+                });
+              }}
+            />{" "}
+            % = {dinhDangVnd(tangCa)} ₫
           </strong>
         </div>
         <div className="config-cpsx-upgrade__formula-row">
@@ -637,11 +687,14 @@ function MayTui({
         </div>
         <div className="config-cpsx-upgrade__formula-row">
           <span className="config-cpsx-upgrade__formula-label">
-            Lương nhân công mỗi phút =
+            Lương CN mỗi phút = (Tổng lương + Tăng ca + Cơm sáng + Cơm tối)
+            ÷ Số giờ/ngày ÷ 60
           </span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
           <strong className="config-cpsx-upgrade__formula-result">
-            ({dinhDangVnd(tongL)} + {dinhDangVnd(tongCom)} +{" "}
-            {dinhDangVnd(tangCa)}) ÷{" "}
+            ({dinhDangVnd(tongL)} + {dinhDangVnd(tangCa)} +{" "}
+            {dinhDangVnd(tienComSang)} + {dinhDangVnd(tienComToi)}) ÷{" "}
             <input
               type="number"
               className="config-inline-input config-cpsx-upgrade__formula-input"

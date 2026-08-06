@@ -236,6 +236,7 @@ const DEFAULT_CPSX_LUONG_IN: CpsxUpgradeLabor1May = {
   otFactor: 1.5,
   shiftCount: 2,
   hoursPerDay: 24,
+  tyLeTangCa: 0.5,
 };
 const DEFAULT_CPSX_LUONG_GHEP: CpsxUpgradeLabor1May = {
   wages: [800000, 550000, 800000, 550000],
@@ -244,6 +245,7 @@ const DEFAULT_CPSX_LUONG_GHEP: CpsxUpgradeLabor1May = {
   otFactor: 1.5,
   shiftCount: 2,
   hoursPerDay: 24,
+  tyLeTangCa: 0.5,
 };
 const DEFAULT_CPSX_LUONG_CHIA: CpsxUpgradeLabor1May = {
   wages: [550000],
@@ -252,6 +254,7 @@ const DEFAULT_CPSX_LUONG_CHIA: CpsxUpgradeLabor1May = {
   otFactor: 1.5,
   shiftCount: 1,
   hoursPerDay: 12,
+  tyLeTangCa: 0.5,
 };
 const DEFAULT_CPSX_LUONG_TUI: CpsxUpgradeLaborTui = {
   wages: [
@@ -266,6 +269,7 @@ const DEFAULT_CPSX_LUONG_TUI: CpsxUpgradeLaborTui = {
   peoplePerShift: 3,
   roundedPerMin: null,
   hoursPerDay: 24,
+  tyLeTangCa: 0.5,
 };
 export const DEFAULT_CPSX_UPGRADE_LABOR: CpsxUpgradeLabor = {
   print: DEFAULT_CPSX_LUONG_IN,

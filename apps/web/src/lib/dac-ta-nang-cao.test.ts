@@ -90,9 +90,9 @@ const thoiGian: CpsxUpgradeThoiGian = {
 };
 
 const labor: CpsxUpgradeLabor = {
-  print: { wages: [500000, 400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, hoursPerDay: 24 },
-  laminate: { wages: [450000, 350000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, hoursPerDay: 24 },
-  slit: { wages: [400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 1, hoursPerDay: 12 },
+  print: { wages: [500000, 400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, hoursPerDay: 24, tyLeTangCa: 0.5 },
+  laminate: { wages: [450000, 350000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, hoursPerDay: 24, tyLeTangCa: 0.5 },
+  slit: { wages: [400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 1, hoursPerDay: 12, tyLeTangCa: 0.5 },
   bag: {
     wages: [300000, 300000],
     mealMorning: 30000,
@@ -101,6 +101,7 @@ const labor: CpsxUpgradeLabor = {
     peoplePerShift: 2,
     roundedPerMin: 1000,
     hoursPerDay: 24,
+    tyLeTangCa: 0.5,
   },
 };
 
@@ -565,14 +566,14 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(dongIn.thanhTienDien, dongIn.thoiGianPhut! * 4000, 'in: thành tiền điện = phút × ₫/phút');
   approx(dongIn.thanhTienNhanCong, dongIn.thoiGianPhut! * dongIn.cpNhanCongPerPhut!, 'in: thành tiền NC');
 
-  // NC/phút mới (bỏ ÷ tổngCN × CN1ca, làm tròn nguyên):
-  // in: (900k + 60k + 450k) ÷ 24 ÷ 60 = 979,17 → 979
-  approx(dongIn.cpNhanCongPerPhut!, 979, 'in: 979 ₫/phút');
-  // ghép: (800k + 60k + 400k) ÷ 24 ÷ 60 = 875
-  approx(rows[1].cpNhanCongPerPhut!, 875, 'ghép: 875 ₫/phút');
-  // chia: (400k + 30k + 200k) ÷ 12 ÷ 60 = 875
-  approx(rows[2].cpNhanCongPerPhut!, 875, 'chia: 875 ₫/phút');
-  // túi: (600k + 60k + 300k) ÷ 24 ÷ 60 = 666,67 → 667; rounded 1000 → 1000
+  // NC/phút mới (bỏ ÷ tổngCN × CN1ca, tăng ca × tỉ lệ 50%, làm tròn nguyên):
+  // in: TC = 900k ÷ 2 × 1 × 0.5 = 225.000 → (900k + 60k + 225k) ÷ 24 ÷ 60 = 822,92 → 823
+  approx(dongIn.cpNhanCongPerPhut!, 823, 'in: 823 ₫/phút');
+  // ghép: TC = 200.000 → (800k + 60k + 200k) ÷ 24 ÷ 60 = 736,11 → 736
+  approx(rows[1].cpNhanCongPerPhut!, 736, 'ghép: 736 ₫/phút');
+  // chia: TC = 100.000 → (400k + 30k + 100k) ÷ 12 ÷ 60 = 736,11 → 736
+  approx(rows[2].cpNhanCongPerPhut!, 736, 'chia: 736 ₫/phút');
+  // túi: TC = 150.000 → (600k + 60k + 150k) ÷ 24 ÷ 60 = 562,5 → 563; rounded 1000 → 1000
   approx(rows[3].cpNhanCongPerPhut!, 1000, 'làm túi: dùng roundedPerMin');
 
   // ghép: setup 15/60 + 8770/6000

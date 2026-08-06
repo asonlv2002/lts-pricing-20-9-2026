@@ -424,6 +424,7 @@ export function lapDongNhanCongDien(
     luongMoiPhutTinh(
       lab.print.wages, lab.print.hoursPerDay,
       lab.print.mealMorning, lab.print.mealEvening, lab.print.otFactor,
+      undefined, lab.print.tyLeTangCa,
     ),
     el?.machines?.print,
   ));
@@ -435,6 +436,7 @@ export function lapDongNhanCongDien(
     luongMoiPhutTinh(
       lab.laminate.wages, lab.laminate.hoursPerDay,
       lab.laminate.mealMorning, lab.laminate.mealEvening, lab.laminate.otFactor,
+      undefined, lab.laminate.tyLeTangCa,
     ),
     el?.machines?.laminate,
   ));
@@ -446,6 +448,7 @@ export function lapDongNhanCongDien(
     luongMoiPhutTinh(
       lab.slit.wages, lab.slit.hoursPerDay,
       lab.slit.mealMorning, lab.slit.mealEvening, lab.slit.otFactor,
+      undefined, lab.slit.tyLeTangCa,
     ),
     el?.machines?.slit,
   ));
@@ -459,7 +462,7 @@ export function lapDongNhanCongDien(
         luongMoiPhutTinh(
           lab.bag.wages, lab.bag.hoursPerDay,
           lab.bag.mealMorning, lab.bag.mealEvening, lab.bag.otFactor,
-          soCongNhanTui(lab.bag.wages),
+          soCongNhanTui(lab.bag.wages), lab.bag.tyLeTangCa,
         ),
         lab.bag.roundedPerMin,
       ),

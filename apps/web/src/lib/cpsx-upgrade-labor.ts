@@ -33,12 +33,17 @@ export function tienComMoiMay(
   return ((Number(mealMorning) || 0) + (Number(mealEvening) || 0)) * n / 2;
 }
 
-/** Tăng ca theo tổng lương: L × otFactor ÷ 2 (4h TC = ½ ca × hệ số) */
+/**
+ * Tăng ca theo tổng lương: (L ÷ 2) × hệ số × tỉ lệ CN tăng ca.
+ * ÷2 = 4h tăng ca = nửa ca; tỉ lệ = % CN thực sự tăng ca (mặc định 50%).
+ */
 export function tangCaTheoTongLuong(
   wages: number[],
   otFactor: number,
+  tyLeTangCa = 1,
 ): number {
-  return tongLuong(wages) * (Number(otFactor) || 0) / 2;
+  const tyLe = Math.max(0, Math.min(1, Number(tyLeTangCa) || 0));
+  return tongLuong(wages) * (Number(otFactor) || 0) / 2 * tyLe;
 }
 
 /** Phân bổ theo ca: tổng ÷ tổng CN × số CN 1 ca */
@@ -97,12 +102,13 @@ export function tienComTBTui(
   return ((Number(tienComSang) || 0) + (Number(tienComToi) || 0)) / n;
 }
 
-/** Tăng ca túi: tổng lương × otFactor ÷ 2 (4h TC = ½ ca × hệ số) */
+/** Tăng ca túi: (tổng lương ÷ 2) × hệ số × tỉ lệ CN tăng ca */
 export function tangCaTui(
   wages: number[],
   otFactor: number,
+  tyLeTangCa = 1,
 ): number {
-  return tangCaTheoTongLuong(wages, otFactor);
+  return tangCaTheoTongLuong(wages, otFactor, tyLeTangCa);
 }
 
 // ── ₫/phút (In/Ghép/Chia/Túi) ───────────────────────────────────────
@@ -120,12 +126,13 @@ export function luongMoiPhutTinh(
   mealEvening: number,
   otFactor: number,
   soCN?: number,
+  tyLeTangCa = 1,
 ): number {
   const gio = Number(hoursPerDay) > 0 ? Number(hoursPerDay) : 24;
   const n = soCN != null ? Math.max(0, Math.floor(Number(soCN))) : wages.length;
   const tong = tongLuong(wages)
     + tienComMoiMay(mealMorning, mealEvening, n)
-    + tangCaTheoTongLuong(wages, otFactor);
+    + tangCaTheoTongLuong(wages, otFactor, tyLeTangCa);
   return Math.round(tong / gio / 60);
 }
 
@@ -171,7 +178,19 @@ export function chuanHoa1May(
       Number(raw?.hoursPerDay) > 0
         ? Number(raw?.hoursPerDay)
         : fallback.hoursPerDay,
+    tyLeTangCa: chuanHoaTyLeTangCa(raw?.tyLeTangCa, fallback.tyLeTangCa),
   };
+}
+
+/** Tỉ lệ tăng ca (0–1); data cũ thiếu → fallback (mặc định 0.5) */
+function chuanHoaTyLeTangCa(
+  raw: number | undefined,
+  fallback: number,
+): number {
+  const v = Number(raw);
+  if (Number.isFinite(v) && v >= 0 && v <= 1) return v;
+  const fb = Number(fallback);
+  return Number.isFinite(fb) && fb >= 0 && fb <= 1 ? fb : 0.5;
 }
 
 export function chuanHoaTui(
@@ -204,6 +223,7 @@ export function chuanHoaTui(
       Number(raw?.hoursPerDay) > 0
         ? Number(raw?.hoursPerDay)
         : fallback.hoursPerDay,
+    tyLeTangCa: chuanHoaTyLeTangCa(raw?.tyLeTangCa, fallback.tyLeTangCa),
   };
 }
 
