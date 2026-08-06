@@ -105,69 +105,42 @@ export function tangCaTui(
   return tangCaTheoTongLuong(wages, otFactor);
 }
 
-/** ₫/phút 1 máy (In/Ghép): ((L + cơm + TC) ÷ 24 ÷ 60) ÷ tổng CN × CN 1 ca */
-export function luongMoiPhut1MayTrenNgay(
+// ── ₫/phút (In/Ghép/Chia/Túi) ───────────────────────────────────────
+
+/**
+ * ₫/phút = (L + cơm + TC) ÷ giờ/ngày ÷ 60 — làm tròn nguyên ₫.
+ *
+ * Bỏ bước "÷ tổng CN × số CN 1 ca" (theo PM). `soCN` chỉ dùng cho tiền cơm:
+ * mặc định đếm mọi dòng lương; Làm túi truyền số CN có lương > 0.
+ */
+export function luongMoiPhutTinh(
   wages: number[],
-  shiftCount: 1 | 2,
+  hoursPerDay: number,
   mealMorning: number,
   mealEvening: number,
   otFactor: number,
+  soCN?: number,
 ): number {
-  const soCN = wages.length;
-  const cn1Ca = soNguoiMoiCa1May(wages, shiftCount);
+  const gio = Number(hoursPerDay) > 0 ? Number(hoursPerDay) : 24;
+  const n = soCN != null ? Math.max(0, Math.floor(Number(soCN))) : wages.length;
   const tong = tongLuong(wages)
-    + tienComMoiMay(mealMorning, mealEvening, soCN)
+    + tienComMoiMay(mealMorning, mealEvening, n)
     + tangCaTheoTongLuong(wages, otFactor);
-  return phanBoTheoCa(tong / 24 / 60, soCN, cn1Ca);
+  return Math.round(tong / gio / 60);
 }
 
-/** ₫/phút 1 máy (Chia): ((L + cơm + TC) ÷ 12 ÷ 60) ÷ tổng CN × CN 1 ca */
-export function luongMoiPhut1May1Ca(
-  wages: number[],
-  mealMorning: number,
-  mealEvening: number,
-  otFactor: number,
+/** Giá áp dụng: roundedPerMin nếu hợp lệ (> 0), ngược lại giá tính ra. */
+export function luongMoiPhutAp(
+  giaTinh: number,
+  roundedPerMin: number | null | undefined,
 ): number {
-  const soCN = wages.length;
-  const tong = tongLuong(wages)
-    + tienComMoiMay(mealMorning, mealEvening, soCN)
-    + tangCaTheoTongLuong(wages, otFactor);
-  return phanBoTheoCa(tong / 12 / 60, soCN, soCN);
-}
-
-/** ₫/phút tính ra (chưa làm tròn) cho Làm túi */
-export function luongMoiPhutTuiTinh(
-  wages: number[],
-  peoplePerShift: number,
-  mealMorning: number,
-  mealEvening: number,
-  otFactor: number,
-): number {
-  const tongCN = soCongNhanTui(wages);
-  const cn1Ca = Math.max(0, Math.floor(Number(peoplePerShift) || 0));
-  const tong = tongLuong(wages)
-    + tienComMoiMay(mealMorning, mealEvening, tongCN)
-    + tangCaTheoTongLuong(wages, otFactor);
-  return phanBoTheoCa(tong / 24 / 60, tongCN, cn1Ca);
-}
-
-/** Giá áp dụng: roundedPerMin nếu hợp lệ, ngược lại giá tính */
-export function luongMoiPhutTuiAp(
-  wages: number[],
-  peoplePerShift: number,
-  mealMorning: number,
-  mealEvening: number,
-  otFactor: number,
-  roundedPerMin: number | null,
-): number {
-  const tinh = luongMoiPhutTuiTinh(
-    wages,
-    peoplePerShift,
-    mealMorning,
-    mealEvening,
-    otFactor,
-  );
-  if (roundedPerMin == null || !Number.isFinite(roundedPerMin)) return tinh;
+  if (
+    roundedPerMin == null ||
+    !Number.isFinite(roundedPerMin) ||
+    roundedPerMin <= 0
+  ) {
+    return giaTinh;
+  }
   return roundedPerMin;
 }
 
@@ -194,6 +167,10 @@ export function chuanHoa1May(
     otFactor:
       Number(raw?.otFactor) > 0 ? Number(raw?.otFactor) : fallback.otFactor,
     shiftCount,
+    hoursPerDay:
+      Number(raw?.hoursPerDay) > 0
+        ? Number(raw?.hoursPerDay)
+        : fallback.hoursPerDay,
   };
 }
 
@@ -223,6 +200,10 @@ export function chuanHoaTui(
         ? Math.floor(Number(raw?.peoplePerShift))
         : fallback.peoplePerShift,
     roundedPerMin: rounded != null && rounded > 0 ? rounded : null,
+    hoursPerDay:
+      Number(raw?.hoursPerDay) > 0
+        ? Number(raw?.hoursPerDay)
+        : fallback.hoursPerDay,
   };
 }
 

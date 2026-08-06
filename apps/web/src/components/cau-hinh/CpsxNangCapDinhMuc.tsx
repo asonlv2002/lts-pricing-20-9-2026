@@ -3,11 +3,14 @@
 import React from "react";
 import { dungCuaHangTinhGia } from "../../store/CuaHangTinhGia";
 import { DEFAULT_CPSX_UPGRADE_INK } from "../../lib/data";
-import type { DinhMucGhep, DinhMucInRow, SolventAdhesiveTable } from "../../lib/types";
+import type { DinhMucGhep, DinhMucInRow } from "../../lib/types";
 import {
+  chuanHoaCpsxUpgradeInk,
   chuanHoaDinhMucGhep,
   chuanHoaDinhMucIn,
+  tinhCpMucInChiTiet,
 } from "../../lib/cpsx-upgrade-ink";
+import { tinhCpKeoDungMoiGhep } from "../../lib/dac-ta-nang-cao";
 
 function docSoThapPhan(value: string): number {
   const n = Number(value.replace(",", ".").replace(/[^\d.-]/g, ""));
@@ -22,15 +25,6 @@ function dinhDangSo(n: number): string {
   return n.toLocaleString("vi-VN");
 }
 
-function donGiaTheoMa(
-  bang: SolventAdhesiveTable | undefined,
-  ma: string,
-): number {
-  if (!bang?.rows) return 0;
-  const row = bang.rows.find((r) => r.ma === ma);
-  return row ? Number(row.donGia) || 0 : 0;
-}
-
 function clampSoMau(n: number): number {
   if (!Number.isFinite(n)) return 1;
   return Math.max(1, Math.min(8, Math.floor(n)));
@@ -39,6 +33,20 @@ function clampSoMau(n: number): number {
 export default function CpsxNangCapDinhMuc() {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
+
+  const ink = React.useMemo(
+    () =>
+      chuanHoaCpsxUpgradeInk(
+        hangSo.cpsxUpgradeInk,
+        DEFAULT_CPSX_UPGRADE_INK.opp,
+        DEFAULT_CPSX_UPGRADE_INK.pet,
+        DEFAULT_CPSX_UPGRADE_INK.pe,
+        DEFAULT_CPSX_UPGRADE_INK.solventAdhesive,
+        DEFAULT_CPSX_UPGRADE_INK.dinhMucIn,
+        DEFAULT_CPSX_UPGRADE_INK.dinhMucGhep,
+      ),
+    [hangSo.cpsxUpgradeInk],
+  );
 
   const dinhMucIn = React.useMemo(
     () =>
@@ -64,40 +72,11 @@ export default function CpsxNangCapDinhMuc() {
   const [soMauPET, setSoMauPET] = React.useState(1);
   const [soMauOPP, setSoMauOPP] = React.useState(1);
 
-  const giaMucPET =
-    Number(hangSo.cpsxUpgradeInk?.pet?.appliedPrice) || 0;
-  const giaMucOPP =
-    Number(hangSo.cpsxUpgradeInk?.opp?.appliedPrice) || 0;
-  const giaDMPET = donGiaTheoMa(
-    hangSo.cpsxUpgradeInk?.solventAdhesive,
-    "DM_PET",
-  );
-  const giaDMOPP = donGiaTheoMa(
-    hangSo.cpsxUpgradeInk?.solventAdhesive,
-    "DM_OPP",
-  );
-
-  const solventRows = hangSo.cpsxUpgradeInk?.solventAdhesive?.rows ?? [];
-  const keoRows = solventRows.filter((r) => r.ma.startsWith("KEO_"));
-  const giaKeo =
-    keoRows.length > 0
-      ? keoRows.reduce((s, r) => s + (Number(r.donGia) || 0), 0) /
-        keoRows.length
-      : 0;
-  const giaDMGhep = donGiaTheoMa(
-    hangSo.cpsxUpgradeInk?.solventAdhesive,
-    "DM_EA",
-  );
-  const tongGhep = dinhMucGhep.keoKhoG * giaKeo + dinhMucGhep.dungMoiPhaKeoG * giaDMGhep;
-
-  const dmPET = dinhMucIn.find((r) => r.soMau === soMauPET);
-  const dmOPP = dinhMucIn.find((r) => r.soMau === soMauOPP);
-  const cpMucPET = dmPET ? soMauPET * dmPET.dmMucG * giaMucPET : 0;
-  const cpDMPET = dmPET ? soMauPET * dmPET.dmDungMoiG * giaDMPET : 0;
-  const tongPET = cpMucPET + cpDMPET;
-  const cpMucOPP = dmOPP ? soMauOPP * dmOPP.dmMucG * giaMucOPP : 0;
-  const cpDMOPP = dmOPP ? soMauOPP * dmOPP.dmDungMoiG * giaDMOPP : 0;
-  const tongOPP = cpMucOPP + cpDMOPP;
+  // CP mực in + DM in (₫/m²) — dùng chung helper đã test với engine đặc tả
+  const chiTietPET = tinhCpMucInChiTiet(soMauPET, "pet", ink);
+  const chiTietOPP = tinhCpMucInChiTiet(soMauOPP, "opp", ink);
+  // CP keo + dung môi ghép (₫/m²) — helper engine đặc tả
+  const chiTietKeo = tinhCpKeoDungMoiGhep(ink);
 
   const luuPatch = (patch: {
     dinhMucIn?: DinhMucInRow[];
@@ -148,17 +127,26 @@ export default function CpsxNangCapDinhMuc() {
           <div id="cpsx-dinhmuc-in-body" className="config-cpsx-upgrade__panel">
             <div className="config-cpsx-upgrade__formulas">
               <div className="config-cpsx-upgrade__formula-head">
-                Công thức áp dụng: CP mực in + DM in = (Số màu × ĐM mực × Giá
-                mực) + (Số màu × ĐM DM × Giá DM)
+                Công thức áp dụng: CP mực in + DM in = (ĐM mực × Giá mực + ĐM
+                DM × Giá DM) ÷ 1000 → ₫/m²
+              </div>
+              <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+                <span className="config-cpsx-upgrade__formula-note">
+                  ĐM mực đã là tổng cho n màu (1 màu = 4g, 8 màu = 32g) — không
+                  nhân lại số màu
+                </span>
               </div>
 
               <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
                 <span className="config-cpsx-upgrade__formula-label">
                   PET  ·  Giá mực{" "}
                   <strong className="config-cpsx-upgrade__highlight">
-                    {dinhDangVnd(giaMucPET)} ₫
+                    {dinhDangVnd(chiTietPET.giaMuc)} ₫/kg
                   </strong>{" "}
-                  ·  Giá DM {dinhDangVnd(giaDMPET)} ₫
+                  ·  Giá DM{" "}
+                  <strong className="config-cpsx-upgrade__highlight">
+                    {dinhDangVnd(chiTietPET.giaDm)} ₫/kg
+                  </strong>
                 </span>
               </div>
               <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
@@ -179,13 +167,15 @@ export default function CpsxNangCapDinhMuc() {
                 />
                 <span className="config-cpsx-upgrade__formula-op">→</span>
                 <strong className="config-cpsx-upgrade__formula-result">
-                  ({soMauPET} × {dmPET ? dinhDangSo(dmPET.dmMucG) : "?"} ×{" "}
+                  ({dinhDangSo(chiTietPET.dmMucG)}g ×{" "}
                   <span className="config-cpsx-upgrade__highlight">
-                    {dinhDangVnd(giaMucPET)}
-                  </span>
-                  ) + ({soMauPET} ×{" "}
-                  {dmPET ? dinhDangSo(dmPET.dmDungMoiG) : "?"} ×{" "}
-                  {dinhDangVnd(giaDMPET)}) = {dinhDangVnd(tongPET)} ₫
+                    {dinhDangVnd(chiTietPET.giaMuc)}
+                  </span>{" "}
+                  ₫/kg + {dinhDangSo(chiTietPET.dmDungMoiG)}g ×{" "}
+                  <span className="config-cpsx-upgrade__highlight">
+                    {dinhDangVnd(chiTietPET.giaDm)}
+                  </span>{" "}
+                  ₫/kg) ÷ 1000 = {dinhDangVnd(chiTietPET.tong)} ₫/m²
                 </strong>
               </div>
 
@@ -193,9 +183,12 @@ export default function CpsxNangCapDinhMuc() {
                 <span className="config-cpsx-upgrade__formula-label">
                   OPP  ·  Giá mực{" "}
                   <strong className="config-cpsx-upgrade__highlight">
-                    {dinhDangVnd(giaMucOPP)} ₫
+                    {dinhDangVnd(chiTietOPP.giaMuc)} ₫/kg
                   </strong>{" "}
-                  ·  Giá DM {dinhDangVnd(giaDMOPP)} ₫
+                  ·  Giá DM{" "}
+                  <strong className="config-cpsx-upgrade__highlight">
+                    {dinhDangVnd(chiTietOPP.giaDm)} ₫/kg
+                  </strong>
                 </span>
               </div>
               <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
@@ -216,13 +209,15 @@ export default function CpsxNangCapDinhMuc() {
                 />
                 <span className="config-cpsx-upgrade__formula-op">→</span>
                 <strong className="config-cpsx-upgrade__formula-result">
-                  ({soMauOPP} × {dmOPP ? dinhDangSo(dmOPP.dmMucG) : "?"} ×{" "}
+                  ({dinhDangSo(chiTietOPP.dmMucG)}g ×{" "}
                   <span className="config-cpsx-upgrade__highlight">
-                    {dinhDangVnd(giaMucOPP)}
-                  </span>
-                  ) + ({soMauOPP} ×{" "}
-                  {dmOPP ? dinhDangSo(dmOPP.dmDungMoiG) : "?"} ×{" "}
-                  {dinhDangVnd(giaDMOPP)}) = {dinhDangVnd(tongOPP)} ₫
+                    {dinhDangVnd(chiTietOPP.giaMuc)}
+                  </span>{" "}
+                  ₫/kg + {dinhDangSo(chiTietOPP.dmDungMoiG)}g ×{" "}
+                  <span className="config-cpsx-upgrade__highlight">
+                    {dinhDangVnd(chiTietOPP.giaDm)}
+                  </span>{" "}
+                  ₫/kg) ÷ 1000 = {dinhDangVnd(chiTietOPP.tong)} ₫/m²
                 </strong>
               </div>
             </div>
@@ -309,34 +304,34 @@ export default function CpsxNangCapDinhMuc() {
           >
             <div className="config-cpsx-upgrade__formulas">
               <div className="config-cpsx-upgrade__formula-head">
-                Công thức áp dụng: CP dung môi + keo ghép = (ĐM KEO × Giá KEO) +
-                (ĐM DM ghép × Giá DM ghép)
+                Công thức áp dụng: CP dung môi + keo ghép = (ĐM KEO × Giá KEO +
+                ĐM DM ghép × Giá DM ghép) ÷ 1000 → ₫/m²
               </div>
 
               <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
                 <span className="config-cpsx-upgrade__formula-label">
                   KEO  ·  Giá KEO{" "}
                   <strong className="config-cpsx-upgrade__highlight">
-                    {dinhDangVnd(giaKeo)} ₫
+                    {dinhDangVnd(chiTietKeo.giaKeo)} ₫/kg
                   </strong>{" "}
                   (TB 319+766)  ·  Giá DM ghép{" "}
                   <strong className="config-cpsx-upgrade__highlight">
-                    {dinhDangVnd(giaDMGhep)} ₫
+                    {dinhDangVnd(chiTietKeo.giaDungMoi)} ₫/kg
                   </strong>{" "}
                   (DUNG MÔI EA)
                 </span>
               </div>
               <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
                 <strong className="config-cpsx-upgrade__formula-result">
-                  → ({dinhDangSo(dinhMucGhep.keoKhoG)} ×{" "}
+                  → ({dinhDangSo(chiTietKeo.keoKhoG)}g ×{" "}
                   <span className="config-cpsx-upgrade__highlight">
-                    {dinhDangVnd(giaKeo)}
-                  </span>
-                  ) + ({dinhDangSo(dinhMucGhep.dungMoiPhaKeoG)} ×{" "}
+                    {dinhDangVnd(chiTietKeo.giaKeo)}
+                  </span>{" "}
+                  ₫/kg + {dinhDangSo(chiTietKeo.dungMoiPhaKeoG)}g ×{" "}
                   <span className="config-cpsx-upgrade__highlight">
-                    {dinhDangVnd(giaDMGhep)}
-                  </span>
-                  ) = {dinhDangVnd(tongGhep)} ₫
+                    {dinhDangVnd(chiTietKeo.giaDungMoi)}
+                  </span>{" "}
+                  ₫/kg) ÷ 1000 = {dinhDangVnd(chiTietKeo.donGia)} ₫/m²
                 </strong>
               </div>
             </div>

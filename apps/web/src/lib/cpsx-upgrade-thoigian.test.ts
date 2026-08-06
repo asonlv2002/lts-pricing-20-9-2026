@@ -37,40 +37,43 @@ const cfgIn: CpsxThoiGianMayIn = {
   tocDoNganMetPerHour: 7500,
 };
 
+// IN 4080m · 4 màu — quy toàn bộ ra phút
+// setup = 4 × 20 × 60 ÷ 60 = 80 phút; chay = 4080/7500 × 60 = 32,64 phút
 const r1 = tinhThoiGianMayIn(4080, 4, cfgIn);
-assert('IN 4 màu 4080m — tongGio ≈ 1.877', approx(r1.tongGio, 1.8773));
-assert('IN 4 màu 4080m — tongPhut ≈ 112.6', approx(r1.tongPhut, 112.64));
-assert('IN 4 màu 4080m — setup ≈ 1.333', approx(r1.chiTiet.setup, 1.3333));
-assert('IN 4 màu 4080m — chay ≈ 0.544', approx(r1.chiTiet.chay, 0.544));
-assert('IN 4 màu 4080m — bonus = 0 (dưới ngưỡng)', r1.chiTiet.bonus === 0);
+assert('IN 4 màu 4080m — tongPhut ≈ 112.64', approx(r1.tongPhut, 112.64));
+assert('IN 4 màu 4080m — setupPhut = 80', approx(r1.chiTiet.setupPhut, 80));
+assert('IN 4 màu 4080m — chayPhut ≈ 32.64', approx(r1.chiTiet.chayPhut, 32.64));
+assert('IN 4 màu 4080m — bonusPhut = 0 (dưới ngưỡng)', r1.chiTiet.bonusPhut === 0);
 
+// IN 50000m · 4 màu — có bonus: 50000/40000 × 60 = 75 phút; chay = 50000/7500 × 60 = 400
 const r2 = tinhThoiGianMayIn(50000, 4, cfgIn);
-assert('IN 50000m — bonus = 50000/40000 = 1.25', approx(r2.chiTiet.bonus, 1.25));
-assert('IN 50000m — tongGio ≈ 1.333 + 6.667 + 1.25', approx(r2.tongGio, 9.25));
+assert('IN 50000m — bonusPhut = 75', approx(r2.chiTiet.bonusPhut, 75));
+assert('IN 50000m — chayPhut = 400', approx(r2.chiTiet.chayPhut, 400));
+assert('IN 50000m — tongPhut = 80 + 400 + 75 = 555', approx(r2.tongPhut, 555));
 
 const r3 = tinhThoiGianMayIn(0, 0, cfgIn);
-assert('IN 0 màu 0m — tongGio = 0', r3.tongGio === 0);
 assert('IN 0 màu 0m — tongPhut = 0', r3.tongPhut === 0);
 
 const r4 = tinhThoiGianMayIn(4080, 4, { ...cfgIn, tocDoMetPerHour: 0, tocDoNganMetPerHour: 0 });
-assert('IN tocDo = 0 → fallback chia 1 (tránh 0/0)', Number.isFinite(r4.chiTiet.chay));
+assert('IN tocDo = 0 → fallback chia 1 (tránh 0/0)', Number.isFinite(r4.chiTiet.chayPhut));
 
 const cfgChayMet: CpsxThoiGianMayChay = { tocDoPerHour: 6000, phutSetup: 15, donVi: 'met' };
+// GHEP 4102m — setup = 15 phút; chay = 4102/6000 × 60 = 41,02 phút
 const r5 = tinhThoiGianMayChay(4102, cfgChayMet);
-assert('GHEP 4102m — setup = 0.25 giờ', approx(r5.chiTiet.setup, 0.25));
-assert('GHEP 4102m — chay ≈ 0.6837', approx(r5.chiTiet.chay, 0.6837));
-assert('GHEP 4102m — tongGio ≈ 0.9337', approx(r5.tongGio, 0.9337));
+assert('GHEP 4102m — setupPhut = 15', approx(r5.chiTiet.setupPhut, 15));
+assert('GHEP 4102m — chayPhut ≈ 41.02', approx(r5.chiTiet.chayPhut, 41.02));
 assert('GHEP 4102m — tongPhut ≈ 56.02', approx(r5.tongPhut, 56.02));
 
 const cfgChayChiec: CpsxThoiGianMayChay = { tocDoPerHour: 5000, phutSetup: 30, donVi: 'chiec' };
+// TÚI 4000 chiếc — setup = 30 phút; chay = 4000/5000 × 60 = 48 phút
 const r6 = tinhThoiGianMayChay(4000, cfgChayChiec);
-assert('TÚI 4000 chiếc — setup = 0.5', approx(r6.chiTiet.setup, 0.5));
-assert('TÚI 4000 chiếc — chay = 0.8', approx(r6.chiTiet.chay, 0.8));
-assert('TÚI 4000 chiếc — tongGio = 1.3', approx(r6.tongGio, 1.3));
+assert('TÚI 4000 chiếc — setupPhut = 30', approx(r6.chiTiet.setupPhut, 30));
+assert('TÚI 4000 chiếc — chayPhut = 48', approx(r6.chiTiet.chayPhut, 48));
 assert('TÚI 4000 chiếc — tongPhut = 78', approx(r6.tongPhut, 78));
 
 const r7 = tinhThoiGianMayChay(0, { ...cfgChayMet, tocDoPerHour: 0 });
-assert('CHAY tocDo = 0 → chay = 0 (tránh 0/0)', r7.chiTiet.chay === 0);
+assert('CHAY tocDo = 0 → chayPhut = 0 (tránh 0/0)', r7.chiTiet.chayPhut === 0);
+assert('CHAY tocDo = 0 → setupPhut vẫn 15', r7.chiTiet.setupPhut === 15);
 
 const defaults: CpsxUpgradeThoiGian = {
   print: cfgIn,

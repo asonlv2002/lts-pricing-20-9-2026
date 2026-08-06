@@ -39,7 +39,7 @@ function docSoThapPhan(value: string): number {
 
 function tomTatThoiGian(kq: KetQuaThoiGian | null, coInput: boolean): string {
   if (!coInput || !kq) return "—";
-  return `${dinhDangSo(kq.tongGio, 2)} giờ · ${dinhDangSo(kq.tongPhut, 0)} phút`;
+  return `${dinhDangSo(kq.tongPhut, 0)} phút`;
 }
 
 export default function CpsxNangCapThoiGian() {
@@ -218,8 +218,8 @@ function MayInPanel({
     <div className="config-cpsx-upgrade__panel">
       <div className="config-cpsx-upgrade__formulas">
         <div className="config-cpsx-upgrade__formula-head">
-          Công thức: TG (giờ) = (số màu × phút setup) ÷ số màu-trong-giờ
-          + (mét vào ÷ tốc độ) + (nếu ≥ ngưỡng: + mét ÷ ngưỡng)
+          Công thức: TG (phút) = (số màu × phút setup × 60) ÷ số màu-trong-giờ
+          + (mét ÷ tốc độ) × 60 + (nếu ≥ ngưỡng: mét ÷ ngưỡng × 60)
         </div>
       </div>
 
@@ -305,29 +305,30 @@ function MayInPanel({
           </div>
           <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
             <span className="config-cpsx-upgrade__formula-label">
-              Setup = {soMau} màu × {giaTri.phutSetupMoiMau} phút ÷ {giaTri.mauSoGioSetup} ={" "}
-              <strong>{dinhDangSo(kq.chiTiet.setup, 3)} giờ</strong>
+              Setup = {soMau} màu × {giaTri.phutSetupMoiMau} phút × 60 ÷{" "}
+              {giaTri.mauSoGioSetup} ={" "}
+              <strong>{dinhDangSo(kq.chiTiet.setupPhut, 3)} phút</strong>
             </span>
           </div>
           <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
             <span className="config-cpsx-upgrade__formula-label">
-              Chạy = {dinhDangSo(metIn, 0)}m ÷ {giaTri.tocDoMetPerHour} ={" "}
-              <strong>{dinhDangSo(kq.chiTiet.chay, 3)} giờ</strong>
+              Chạy = {dinhDangSo(metIn, 0)}m ÷ {giaTri.tocDoMetPerHour} × 60 ={" "}
+              <strong>{dinhDangSo(kq.chiTiet.chayPhut, 3)} phút</strong>
             </span>
           </div>
           <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
             <span className="config-cpsx-upgrade__formula-label">
               Bonus ={" "}
               {metIn >= giaTri.nguongMet && giaTri.nguongMet > 0
-                ? `${dinhDangSo(metIn, 0)}m ÷ ${dinhDangSo(giaTri.nguongMet, 0)} = ${dinhDangSo(kq.chiTiet.bonus, 3)} giờ`
-                : `dưới ngưỡng → 0 giờ`}
+                ? `${dinhDangSo(metIn, 0)}m ÷ ${dinhDangSo(giaTri.nguongMet, 0)} × 60 = ${dinhDangSo(kq.chiTiet.bonusPhut, 3)} phút`
+                : `dưới ngưỡng → 0 phút`}
             </span>
           </div>
           <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
             <span className="config-cpsx-upgrade__formula-label">
               Tổng ={" "}
               <strong className="config-cpsx-upgrade__highlight">
-                {dinhDangSo(kq.tongGio, 3)} giờ = {dinhDangSo(kq.tongPhut, 0)} phút
+                {dinhDangSo(kq.tongPhut, 0)} phút
               </strong>
             </span>
           </div>
@@ -368,7 +369,7 @@ function MayChayPanel({
     <div className="config-cpsx-upgrade__panel">
       <div className="config-cpsx-upgrade__formulas">
         <div className="config-cpsx-upgrade__formula-head">
-          Công thức: TG (giờ) = setup (phút) ÷ 60 + ({donVi} ÷ tốc độ)
+          Công thức: TG (phút) = setup (phút) + ({donVi} ÷ tốc độ) × 60
         </div>
       </div>
 
@@ -420,21 +421,20 @@ function MayChayPanel({
           </div>
           <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
             <span className="config-cpsx-upgrade__formula-label">
-              Setup = {giaTri.phutSetup} phút ÷ 60 ={" "}
-              <strong>{dinhDangSo(kq.chiTiet.setup, 3)} giờ</strong>
+              Setup = {giaTri.phutSetup} phút
             </span>
           </div>
           <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
             <span className="config-cpsx-upgrade__formula-label">
-              Chạy = {dinhDangSo(met, 0)} {donVi} ÷ {giaTri.tocDoPerHour} ={" "}
-              <strong>{dinhDangSo(kq.chiTiet.chay, 3)} giờ</strong>
+              Chạy = {dinhDangSo(met, 0)} {donVi} ÷ {giaTri.tocDoPerHour} × 60 ={" "}
+              <strong>{dinhDangSo(kq.chiTiet.chayPhut, 3)} phút</strong>
             </span>
           </div>
           <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
             <span className="config-cpsx-upgrade__formula-label">
               Tổng ={" "}
               <strong className="config-cpsx-upgrade__highlight">
-                {dinhDangSo(kq.tongGio, 3)} giờ = {dinhDangSo(kq.tongPhut, 0)} phút
+                {dinhDangSo(kq.tongPhut, 0)} phút
               </strong>
             </span>
           </div>

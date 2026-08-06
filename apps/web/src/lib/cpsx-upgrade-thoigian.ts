@@ -4,13 +4,22 @@ import type {
   CpsxUpgradeThoiGian,
 } from './types';
 
+/**
+ * Kết quả thời gian SX — QUY TOÀN BỘ RA PHÚT (không dùng giờ).
+ * Công thức máy in:
+ *   setup (phút) = (số màu × phút setup × 60) ÷ số màu-trong-giờ
+ *   chay  (phút) = mét ÷ tốc độ (m/giờ) × 60
+ *   bonus (phút) = mét ÷ ngưỡng × 60 (nếu mét ≥ ngưỡng)
+ * Công thức máy chạy (ghép/chia/làm túi):
+ *   setup (phút) = phút setup
+ *   chay  (phút) = số lượng ÷ tốc độ (đv/giờ) × 60
+ */
 export interface KetQuaThoiGian {
-  tongGio: number;
   tongPhut: number;
   chiTiet: {
-    setup: number;
-    chay: number;
-    bonus: number;
+    setupPhut: number;
+    chayPhut: number;
+    bonusPhut: number;
   };
 }
 
@@ -26,34 +35,30 @@ export function tinhThoiGianMayIn(
   const tocDo = Number(cfg.tocDoMetPerHour) || Number(cfg.tocDoNganMetPerHour) || 1;
   const nguong = Math.max(0, Number(cfg.nguongMet) || 0);
 
-  const setup = mauSoGio > 0 ? (mau * phutMoiMau) / mauSoGio : 0;
-  const chay = met / tocDo;
-  const bonus = nguong > 0 && met >= nguong ? met / nguong : 0;
-  const tongGio = setup + chay + bonus;
+  const setupPhut = mauSoGio > 0 ? (mau * phutMoiMau * 60) / mauSoGio : 0;
+  const chayPhut = (met / tocDo) * 60;
+  const bonusPhut = nguong > 0 && met >= nguong ? (met / nguong) * 60 : 0;
 
   return {
-    tongGio,
-    tongPhut: tongGio * 60,
-    chiTiet: { setup, chay, bonus },
+    tongPhut: setupPhut + chayPhut + bonusPhut,
+    chiTiet: { setupPhut, chayPhut, bonusPhut },
   };
 }
 
 export function tinhThoiGianMayChay(
-  met: number,
+  soLuong: number,
   cfg: CpsxThoiGianMayChay,
 ): KetQuaThoiGian {
-  const soLuong = Math.max(0, Number(met) || 0);
+  const sl = Math.max(0, Number(soLuong) || 0);
   const phut = Math.max(0, Number(cfg.phutSetup) || 0);
   const tocDo = Math.max(0, Number(cfg.tocDoPerHour) || 0);
 
-  const setup = phut / 60;
-  const chay = tocDo > 0 ? soLuong / tocDo : 0;
-  const tongGio = setup + chay;
+  const setupPhut = phut;
+  const chayPhut = tocDo > 0 ? (sl / tocDo) * 60 : 0;
 
   return {
-    tongGio,
-    tongPhut: tongGio * 60,
-    chiTiet: { setup, chay, bonus: 0 },
+    tongPhut: setupPhut + chayPhut,
+    chiTiet: { setupPhut, chayPhut, bonusPhut: 0 },
   };
 }
 

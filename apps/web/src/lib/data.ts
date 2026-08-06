@@ -1,4 +1,4 @@
-import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate, PrintPressLabor, PrintPressElectric, PrintPressTime, LaminatePressLabor, LaminatePressElectric, LaminatePressTime, SlitPressLabor, SlitPressElectric, SlitPressTime, SlitPressTimeRule, BagPressLabor, BagPressElectric, BagPressTime, BagPressSetupRule, BagPressSpeedRule, CpsxUpgradeElectric, CpsxUpgradeLabor, CpsxUpgradeLabor1May, CpsxUpgradeLaborTui, CpsxUpgradeInk, CpsxUpgradeThoiGian, MucInTable, MucInRow, SolventAdhesiveTable, SolventAdhesiveRow, DinhMucInRow, DinhMucGhep } from './types';
+import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate, PrintPressLabor, PrintPressElectric, PrintPressTime, LaminatePressLabor, LaminatePressElectric, LaminatePressTime, SlitPressLabor, SlitPressElectric, SlitPressTime, SlitPressTimeRule, BagPressLabor, BagPressElectric, BagPressTime, BagPressSetupRule, BagPressSpeedRule, CpsxUpgradeElectric, CpsxUpgradeLabor, CpsxUpgradeLabor1May, CpsxUpgradeLaborTui, CpsxUpgradeInk, CpsxUpgradeThoiGian, MucInTable, MucInRow, SolventAdhesiveTable, SolventAdhesiveRow, KeoRow, DinhMucInRow, DinhMucGhep } from './types';
 import { chuanHoaCpsxUpgradeElectric } from './cpsx-upgrade-electric';
 import { chuanHoaCpsxUpgradeLabor } from './cpsx-upgrade-labor';
 import { chuanHoaCpsxUpgradeInk } from './cpsx-upgrade-ink';
@@ -213,9 +213,9 @@ export const DEFAULT_BAG_PRESS_TIME: BagPressTime = {
 /** CPSX nâng cấp — mục Điện; độc lập pricePerKwh CPSX cũ; mặc định TB cộng */
 export const DEFAULT_CPSX_UPGRADE_ELECTRIC: CpsxUpgradeElectric = {
   slots: [
-    { id: 'slot_0_6', label: '0h-6h', hours: 6, pricePerKwh: 3000 },
-    { id: 'slot_6_17', label: '6h-17h', hours: 10, pricePerKwh: 4000 },
-    { id: 'slot_17_24', label: '17h-24h', hours: 8, pricePerKwh: 5000 },
+    { id: 'slot_0_6', label: '0h-6h', start: '00:00', end: '06:00', hours: 6, pricePerKwh: 3000 },
+    { id: 'slot_6_17', label: '6h-17h', start: '06:00', end: '17:00', hours: 11, pricePerKwh: 4000 },
+    { id: 'slot_17_0', label: '17h-0h', start: '17:00', end: '00:00', hours: 7, pricePerKwh: 5000 },
   ],
   appliedSource: 'average',
   appliedPricePerKwh: 4000,
@@ -235,6 +235,7 @@ const DEFAULT_CPSX_LUONG_IN: CpsxUpgradeLabor1May = {
   mealEvening: 65000,
   otFactor: 1.5,
   shiftCount: 2,
+  hoursPerDay: 24,
 };
 const DEFAULT_CPSX_LUONG_GHEP: CpsxUpgradeLabor1May = {
   wages: [800000, 550000, 800000, 550000],
@@ -242,6 +243,7 @@ const DEFAULT_CPSX_LUONG_GHEP: CpsxUpgradeLabor1May = {
   mealEvening: 65000,
   otFactor: 1.5,
   shiftCount: 2,
+  hoursPerDay: 24,
 };
 const DEFAULT_CPSX_LUONG_CHIA: CpsxUpgradeLabor1May = {
   wages: [550000],
@@ -249,6 +251,7 @@ const DEFAULT_CPSX_LUONG_CHIA: CpsxUpgradeLabor1May = {
   mealEvening: 65000,
   otFactor: 1.5,
   shiftCount: 1,
+  hoursPerDay: 12,
 };
 const DEFAULT_CPSX_LUONG_TUI: CpsxUpgradeLaborTui = {
   wages: [
@@ -261,7 +264,8 @@ const DEFAULT_CPSX_LUONG_TUI: CpsxUpgradeLaborTui = {
   mealEvening: 97500,
   otFactor: 1.5,
   peoplePerShift: 3,
-  roundedPerMin: 4500,
+  roundedPerMin: null,
+  hoursPerDay: 24,
 };
 export const DEFAULT_CPSX_UPGRADE_LABOR: CpsxUpgradeLabor = {
   print: DEFAULT_CPSX_LUONG_IN,
@@ -351,15 +355,20 @@ const DEFAULT_MUC_PE_TABLE: MucInTable = {
   appliedPrice: 0,
 };
 
-/** CPSX nâng cấp — mục 3: bảng dung môi + keo ghép mặc định */
-const DEFAULT_SOLVENT_ROWS: SolventAdhesiveRow[] = [
-  { ma: 'DM_OPP', ten: 'DUNG MÔI OPP', dvt: 'kg', donGia: 40000, ghiChu: 'xài cho khâu in' },
-  { ma: 'DM_PET', ten: 'DUNG MÔI PET', dvt: 'kg', donGia: 40000, ghiChu: '' },
-  { ma: 'KEO_319', ten: 'KEO GHÉP 319', dvt: 'kg', donGia: 40000, ghiChu: 'xài cho khâu ghép' },
-  { ma: 'KEO_766', ten: 'KEO GHÉP 766', dvt: 'kg', donGia: 40000, ghiChu: '' },
-  { ma: 'DM_EA', ten: 'DUNG MÔI EA', dvt: 'kg', donGia: 40000, ghiChu: '' },
+/** CPSX nâng cấp — mục 3: bảng dung môi + keo ghép mặc định (tách 2 bảng) */
+const DEFAULT_DUNG_MOI_ROWS: SolventAdhesiveRow[] = [
+  { ma: 'DM_OPP', ten: 'DUNG MÔI OPP', dvt: 'kg', donGia: 40000, ghiChu: 'In màng OPP, màng MattOPP' },
+  { ma: 'DM_PET', ten: 'DUNG MÔI PET', dvt: 'kg', donGia: 40000, ghiChu: 'In toàn bộ màng còn lại' },
+  { ma: 'DM_EA', ten: 'DUNG MÔI EA', dvt: 'kg', donGia: 40000, ghiChu: 'Ghép toàn bộ màng' },
 ];
-const DEFAULT_SOLVENT_TABLE: SolventAdhesiveTable = { rows: DEFAULT_SOLVENT_ROWS };
+const DEFAULT_KEO_ROWS: KeoRow[] = [
+  { ma: 'KEO_319', ten: 'KEO GHÉP 319', dvt: 'kg', donGia: 40000, ghiChu: 'Dùng cho mọi loại màng tại khâu GHÉP', slDung: 1 },
+  { ma: 'KEO_766', ten: 'KEO GHÉP 766', dvt: 'kg', donGia: 40000, ghiChu: 'Dùng cho mọi loại màng tại khâu GHÉP', slDung: 1 },
+];
+const DEFAULT_SOLVENT_TABLE: SolventAdhesiveTable = {
+  dungMoi: { rows: DEFAULT_DUNG_MOI_ROWS },
+  keo: { rows: DEFAULT_KEO_ROWS, appliedSource: 'average', appliedPrice: 40000 },
+};
 
 /** CPSX nâng cấp — định mức mực in + dung môi in theo số màu (sheet) */
 export const DEFAULT_DINH_MUC_IN: DinhMucInRow[] = [

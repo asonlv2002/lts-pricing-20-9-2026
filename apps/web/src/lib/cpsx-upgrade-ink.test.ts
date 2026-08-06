@@ -6,15 +6,21 @@ import {
   chuanHoaMucInTable,
   chuanHoaCpsxUpgradeInk,
   chuanHoaBangDungMoiKeo,
+  chuanHoaKeoTable,
+  dongBoGiaKeoSauSuaRow,
+  tinhGiaKeoTbCong,
+  tinhGiaKeoTbTrongSo,
   chuanHoaDinhMucIn,
   chuanHoaDinhMucGhep,
   tinhCpMucInMoiM2,
+  tinhCpMucInChiTiet,
   lapBangGiaInTheoMau,
 } from './cpsx-upgrade-ink';
 import type {
   CpsxUpgradeInk,
   DinhMucGhep,
   DinhMucInRow,
+  KeoTable,
   MucInRow,
   MucInTable,
   SolventAdhesiveTable,
@@ -50,13 +56,21 @@ const fbTable: MucInTable = {
 };
 
 const fbSolvent: SolventAdhesiveTable = {
-  rows: [
-    { ma: 'DM_OPP', ten: 'DUNG MÔI OPP', dvt: 'kg', donGia: 40000, ghiChu: 'xài cho khâu in' },
-    { ma: 'DM_PET', ten: 'DUNG MÔI PET', dvt: 'kg', donGia: 40000, ghiChu: '' },
-    { ma: 'KEO_319', ten: 'KEO GHÉP 319', dvt: 'kg', donGia: 40000, ghiChu: 'xài cho khâu ghép' },
-    { ma: 'KEO_766', ten: 'KEO GHÉP 766', dvt: 'kg', donGia: 40000, ghiChu: '' },
-    { ma: 'DM_EA', ten: 'DUNG MÔI EA', dvt: 'kg', donGia: 40000, ghiChu: '' },
-  ],
+  dungMoi: {
+    rows: [
+      { ma: 'DM_OPP', ten: 'DUNG MÔI OPP', dvt: 'kg', donGia: 40000, ghiChu: 'In màng OPP, màng MattOPP' },
+      { ma: 'DM_PET', ten: 'DUNG MÔI PET', dvt: 'kg', donGia: 40000, ghiChu: 'In toàn bộ màng còn lại' },
+      { ma: 'DM_EA', ten: 'DUNG MÔI EA', dvt: 'kg', donGia: 40000, ghiChu: 'Ghép toàn bộ màng' },
+    ],
+  },
+  keo: {
+    rows: [
+      { ma: 'KEO_319', ten: 'KEO GHÉP 319', dvt: 'kg', donGia: 40000, ghiChu: 'Dùng cho mọi loại màng tại khâu GHÉP', slDung: 1 },
+      { ma: 'KEO_766', ten: 'KEO GHÉP 766', dvt: 'kg', donGia: 40000, ghiChu: 'Dùng cho mọi loại màng tại khâu GHÉP', slDung: 1 },
+    ],
+    appliedSource: 'average',
+    appliedPrice: 40000,
+  },
 };
 
 const fbDinhMucIn: DinhMucInRow[] = [
@@ -180,7 +194,8 @@ const fbDinhMucGhep: DinhMucGhep = { keoKhoG: 3.5, dungMoiPhaKeoG: 7 };
   eq(out.opp.rows.length, fbTable.rows.length, 'opp fallback rows');
   eq(out.pet.rows.length, fbTable.rows.length, 'pet fallback rows');
   eq(out.pe.rows.length, fbTable.rows.length, 'pe fallback rows');
-  eq(out.solventAdhesive.rows.length, fbSolvent.rows.length, 'solvent fallback rows');
+  eq(out.solventAdhesive.dungMoi.rows.length, fbSolvent.dungMoi.rows.length, 'dung môi fallback rows');
+  eq(out.solventAdhesive.keo.rows.length, fbSolvent.keo.rows.length, 'keo fallback rows');
   eq(out.dinhMucIn.length, 8, 'dinhMucIn 8 dòng');
   eq(out.dinhMucGhep.keoKhoG, 3.5, 'dinhMucGhep keo');
 }
@@ -206,9 +221,14 @@ const fbDinhMucGhep: DinhMucGhep = { keoKhoG: 3.5, dungMoiPhaKeoG: 7 };
     'pe weighted → recompute',
   );
   eq(
-    out.solventAdhesive.rows.length,
-    fbSolvent.rows.length,
-    'solvent fallback vì raw trống',
+    out.solventAdhesive.dungMoi.rows.length,
+    fbSolvent.dungMoi.rows.length,
+    'dung môi fallback vì raw trống',
+  );
+  eq(
+    out.solventAdhesive.keo.rows.length,
+    fbSolvent.keo.rows.length,
+    'keo fallback vì raw trống',
   );
 }
 
@@ -240,29 +260,153 @@ const peRows: MucInRow[] = [
   approx(out.pe.appliedPrice as number, 87_696, 'pe appliedPrice = 87.696');
 }
 
-// 9. chuanHoaBangDungMoiKeo
+// 9. chuanHoaBangDungMoiKeo — tách 2 bảng + migrate shape cũ
 {
   const out = chuanHoaBangDungMoiKeo(undefined, fbSolvent);
-  eq(out.rows.length, fbSolvent.rows.length, 'undefined → fallback');
-  eq(out.rows[0].ma, 'DM_OPP', 'fallback ma');
+  eq(out.dungMoi.rows.length, 3, 'undefined → dung môi fallback 3 dòng');
+  eq(out.keo.rows.length, 2, 'undefined → keo fallback 2 dòng');
+  eq(out.dungMoi.rows[0].ma, 'DM_OPP', 'fallback ma');
+  eq(out.keo.appliedSource, 'average', 'keo default average');
+  approx(out.keo.appliedPrice as number, 40000, 'keo average → TB 40.000');
 }
 {
-  const raw: SolventAdhesiveTable = {
+  // shape mới: giữ nguyên, chuẩn hóa từng dòng; keo average → recompute
+  const raw = {
+    dungMoi: {
+      rows: [
+        { ma: '', ten: 'X', dvt: 'kg', donGia: -10, ghiChu: '' },
+        { ma: 'OK', ten: 'OK', dvt: 'L', donGia: 50000, ghiChu: 'note' },
+      ],
+    },
+    keo: {
+      rows: [
+        { ma: 'KEO_1', ten: 'k1', dvt: 'kg', donGia: 30000, ghiChu: '' },
+        { ma: 'KEO_2', ten: 'k2', dvt: 'kg', donGia: 50000, ghiChu: '' },
+      ],
+      appliedSource: 'average' as const,
+      appliedPrice: 999,
+    },
+  };
+  const out = chuanHoaBangDungMoiKeo(raw, fbSolvent);
+  eq(out.dungMoi.rows.length, 2, 'giữ 2 dòng dung môi');
+  eq(out.dungMoi.rows[0].ma, 'row_1', 'ma trống → row_1');
+  assert(out.dungMoi.rows[0].donGia === 0, 'donGia âm → 0');
+  eq(out.dungMoi.rows[1].ghiChu, 'note', 'giữ ghiChu');
+  approx(out.keo.appliedPrice as number, 40000, 'keo average → recompute TB');
+}
+{
+  // shape cũ (rows phẳng) → migrate tách DM_* / KEO_*
+  const raw = {
     rows: [
-      { ma: '', ten: 'X', dvt: 'kg', donGia: -10, ghiChu: '' },
-      { ma: 'OK', ten: 'OK', dvt: 'L', donGia: 50000, ghiChu: 'note' },
+      { ma: 'DM_OPP', ten: 'op', dvt: 'kg', donGia: 45000, ghiChu: '' },
+      { ma: 'KEO_319', ten: 'k1', dvt: 'kg', donGia: 30000, ghiChu: '' },
+      { ma: 'DM_EA', ten: 'ea', dvt: 'kg', donGia: 42000, ghiChu: '' },
+      { ma: 'KEO_766', ten: 'k2', dvt: 'kg', donGia: 50000, ghiChu: '' },
     ],
   };
   const out = chuanHoaBangDungMoiKeo(raw, fbSolvent);
-  eq(out.rows.length, 2, 'giữ 2 dòng');
-  eq(out.rows[0].ma, 'row_1', 'ma trống → row_1');
-  assert(out.rows[0].donGia === 0, 'donGia âm → 0');
-  eq(out.rows[1].ghiChu, 'note', 'giữ ghiChu');
+  eq(out.dungMoi.rows.map((r) => r.ma), ['DM_OPP', 'DM_EA'], 'migrate: DM_* → dungMoi');
+  eq(out.keo.rows.map((r) => r.ma), ['KEO_319', 'KEO_766'], 'migrate: KEO_* → keo');
+  approx(out.dungMoi.rows[0].donGia, 45000, 'giữ giá DM_OPP');
+  eq(out.keo.appliedSource, 'average', 'keo migrate → average');
+  approx(out.keo.appliedPrice as number, 40000, 'keo migrate → TB 30k+50k');
+  assert(out.keo.rows[0].slDung === 1, 'keo cũ không có slDung → default 1');
 }
 {
-  const raw: SolventAdhesiveTable = { rows: [] };
-  const out = chuanHoaBangDungMoiKeo(raw, fbSolvent);
-  eq(out.rows.length, fbSolvent.rows.length, 'rỗng → fallback');
+  // shape cũ rỗng → fallback
+  const out = chuanHoaBangDungMoiKeo({ rows: [] }, fbSolvent);
+  eq(out.dungMoi.rows.length, 3, 'cũ rỗng → dung môi fallback');
+  eq(out.keo.rows.length, 2, 'cũ rỗng → keo fallback');
+}
+
+// 9b. chuanHoaKeoTable + tinhGiaKeoTbCong + dongBoGiaKeoSauSuaRow
+{
+  approx(
+    tinhGiaKeoTbCong([
+      { ma: 'A', ten: 'a', dvt: 'kg', donGia: 30000, ghiChu: '' },
+      { ma: 'B', ten: 'b', dvt: 'kg', donGia: 50000, ghiChu: '' },
+      { ma: 'C', ten: 'c', dvt: 'kg', donGia: 0, ghiChu: '' },
+    ]),
+    40000,
+    'TB cộng bỏ dòng giá 0',
+  );
+  assert(tinhGiaKeoTbCong([]) === 0, 'TB cộng rỗng = 0');
+}
+{
+  // TB trọng số keo: (30k×2 + 70k×1) / 3 = 43.333; bỏ slDung 0 hoặc donGia 0
+  approx(
+    tinhGiaKeoTbTrongSo([
+      { ma: 'A', ten: 'a', dvt: 'kg', donGia: 30000, ghiChu: '', slDung: 2 },
+      { ma: 'B', ten: 'b', dvt: 'kg', donGia: 70000, ghiChu: '', slDung: 1 },
+      { ma: 'C', ten: 'c', dvt: 'kg', donGia: 90000, ghiChu: '', slDung: 0 },
+      { ma: 'D', ten: 'd', dvt: 'kg', donGia: 0, ghiChu: '', slDung: 5 },
+    ]),
+    30000 * 2 / 3 + 70000 / 3,
+    'TB trọng số bỏ dòng slDung 0 / giá 0',
+  );
+  assert(tinhGiaKeoTbTrongSo([]) === 0, 'TB trọng số rỗng = 0');
+}
+{
+  const out = chuanHoaKeoTable(undefined, fbSolvent.keo);
+  eq(out.rows.length, 2, 'undefined → fallback rows');
+  eq(out.appliedSource, 'average', 'fallback source');
+  assert(out.rows[0].slDung === 1, 'fallback rows có slDung 1');
+}
+{
+  const raw = {
+    rows: [
+      { ma: 'K1', ten: 'k1', dvt: 'kg', donGia: 30000, ghiChu: '' },
+      { ma: 'K2', ten: 'k2', dvt: 'kg', donGia: 70000, ghiChu: '' },
+    ],
+    appliedSource: 'manual' as const,
+    appliedPrice: 55000,
+  };
+  const out = chuanHoaKeoTable(raw, fbSolvent.keo);
+  eq(out.appliedSource, 'manual', 'giữ manual');
+  approx(out.appliedPrice as number, 55000, 'manual giữ giá');
+  assert(out.rows[0].slDung === 1, 'thiếu slDung → default 1');
+}
+{
+  // weighted: (30k×2 + 70k×1)/3 = 43.333
+  const raw = {
+    rows: [
+      { ma: 'K1', ten: 'k1', dvt: 'kg', donGia: 30000, ghiChu: '', slDung: 2 },
+      { ma: 'K2', ten: 'k2', dvt: 'kg', donGia: 70000, ghiChu: '', slDung: 1 },
+    ],
+    appliedSource: 'weighted' as const,
+    appliedPrice: 999,
+  };
+  const out = chuanHoaKeoTable(raw, fbSolvent.keo);
+  eq(out.appliedSource, 'weighted', 'giữ weighted');
+  approx(out.appliedPrice as number, 30000 * 2 / 3 + 70000 / 3, 'weighted → TB trọng số');
+}
+{
+  const raw = {
+    rows: [
+      { ma: 'K1', ten: 'k1', dvt: 'kg', donGia: 30000, ghiChu: '' },
+      { ma: 'K2', ten: 'k2', dvt: 'kg', donGia: 50000, ghiChu: '' },
+    ],
+    appliedSource: 'garbage' as unknown as KeoTable['appliedSource'],
+    appliedPrice: null as number | null,
+  };
+  const out = chuanHoaKeoTable(raw, fbSolvent.keo);
+  eq(out.appliedSource, 'average', 'source rác → fallback average');
+  approx(out.appliedPrice as number, 40000, 'source rác → TB recompute');
+}
+{
+  const t: KeoTable = {
+    rows: [
+      { ma: 'K1', ten: 'k1', dvt: 'kg', donGia: 30000, ghiChu: '', slDung: 2 },
+      { ma: 'K2', ten: 'k2', dvt: 'kg', donGia: 70000, ghiChu: '', slDung: 1 },
+    ],
+    appliedSource: 'average',
+    appliedPrice: 0,
+  };
+  approx(dongBoGiaKeoSauSuaRow(t).appliedPrice as number, 50000, 'average → tự recompute');
+  const tw: KeoTable = { ...t, appliedSource: 'weighted', appliedPrice: 0 };
+  approx(dongBoGiaKeoSauSuaRow(tw).appliedPrice as number, 30000 * 2 / 3 + 70000 / 3, 'weighted → tự recompute');
+  const t2: KeoTable = { ...t, appliedSource: 'manual', appliedPrice: 55000 };
+  assert(dongBoGiaKeoSauSuaRow(t2).appliedPrice === 55000, 'manual giữ nguyên');
 }
 
 // 10. chuanHoaDinhMucIn — luôn 8 dòng
@@ -340,7 +484,37 @@ const inkFixture: CpsxUpgradeInk = {
   );
 }
 
-// 13. lapBangGiaInTheoMau — đủ 8 dòng, khớp giá trị tay
+// 13b. tinhCpMucInChiTiet — breakdown từng số hạng, tổng khớp tinhCpMucInMoiM2
+{
+  const ct = tinhCpMucInChiTiet(1, 'pet', inkFixture);
+  eq(ct.giaMuc, 135000, 'PET giá mực ₫/kg');
+  eq(ct.giaDm, 40000, 'PET giá DM DM_PET');
+  eq(ct.dmMucG, 4, 'PET ĐM mực g/m²');
+  eq(ct.dmDungMoiG, 4.5, 'PET ĐM DM g/m²');
+  approx(ct.cpMuc, (4 * 135000) / 1000, 'PET phần mực = 540 ₫/m²');
+  approx(ct.cpDm, (4.5 * 40000) / 1000, 'PET phần DM = 180 ₫/m²');
+  approx(ct.tong, 720, 'PET tổng = 720 ₫/m²');
+  approx(ct.tong, tinhCpMucInMoiM2(1, 'pet', inkFixture), 'tổng khớp tinhCpMucInMoiM2');
+
+  const ct8 = tinhCpMucInChiTiet(8, 'pet', inkFixture);
+  approx(ct8.dmMucG, 32, 'PET 8 màu ĐM mực = 32g (tổng, không nhân lại)');
+  approx(ct8.tong, (32 * 135000 + 15 * 40000) / 1000, 'PET 8 màu tổng');
+
+  const ctO = tinhCpMucInChiTiet(1, 'opp', inkFixture);
+  eq(ctO.giaMuc, 120000, 'OPP giá mực');
+  eq(ctO.giaDm, 40000, 'OPP dùng DM_OPP');
+  approx(ctO.tong, 660, 'OPP tổng = 660 ₫/m²');
+
+  const ctPe = tinhCpMucInChiTiet(1, 'pe', inkFixture);
+  approx(ctPe.giaMuc, 87696, 'PE giá mực');
+  eq(ctPe.giaDm, 40000, 'PE dùng DM_OPP (sheet không có DM_PE)');
+  approx(ctPe.tong, 530.784, 'PE tổng');
+
+  const ct0 = tinhCpMucInChiTiet(0, 'pet', inkFixture);
+  assert(ct0.tong === 0 && ct0.cpMuc === 0 && ct0.cpDm === 0, 'soMau 0 → 0');
+}
+
+// 14. lapBangGiaInTheoMau — đủ 8 dòng, khớp giá trị tay
 {
   const bang = lapBangGiaInTheoMau(inkFixture);
   eq(bang.length, 8, 'đủ 8 dòng');

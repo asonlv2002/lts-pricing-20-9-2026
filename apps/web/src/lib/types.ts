@@ -207,6 +207,11 @@ export interface BagPressTime {
 export interface ElectricTimeSlot {
   id: string;
   label: string;
+  /** Giờ bắt đầu (HH:mm, vd "07:00") — data cũ không có → vẫn hoạt động */
+  start?: string;
+  /** Giờ kết thúc (HH:mm, vd "17:00"; "24:00" hợp lệ) — data cũ không có */
+  end?: string;
+  /** Thời lượng (giờ) — tự tính từ start/end khi có; giữ nguyên với data cũ */
   hours: number;
   pricePerKwh: number;
 }
@@ -241,6 +246,8 @@ export interface CpsxUpgradeLabor1May {
   otFactor: number;
   /** Số ca cố định (1 hoặc 2) — không cho sửa */
   shiftCount: 1 | 2;
+  /** Số giờ máy hoạt động / ngày (In/Ghép 24, Chia 12) — tham số sửa được */
+  hoursPerDay: number;
 }
 
 /** CPSX nâng cấp — Lương Làm túi (nhiều máy): SL/ca sửa được, có làm tròn */
@@ -252,6 +259,8 @@ export interface CpsxUpgradeLaborTui {
   peoplePerShift: number; // SL người / ca (user nhập vì nhiều máy)
   /** Giá làm tròn áp dụng — sale thấy số này; nếu null thì dùng giá tính */
   roundedPerMin: number | null;
+  /** Số giờ máy hoạt động / ngày (mặc định 24) — tham số sửa được */
+  hoursPerDay: number;
 }
 
 /** CPSX nâng cấp — gom cả 4 máy (phase 2) */
@@ -288,12 +297,27 @@ export interface SolventAdhesiveRow {
   ten: string;
   dvt: string;
   donGia: number; // đơn giá cố định (₫/đơn vị)
-  ghiChu: string; // ghi chú (vd "xài cho khâu in")
+  ghiChu: string; // ghi chú (vd "xài cho khâu in") — hiển thị tooltip
 }
 
-/** CPSX nâng cấp — bảng dung môi + keo ghép (đơn giá cố định, không TB/Áp dụng) */
+/** CPSX nâng cấp — 1 dòng bảng keo ghép (giống dòng mực: có SL dùng) */
+export interface KeoRow extends SolventAdhesiveRow {
+  slDung: number; // SL dùng (kg/kỳ) — cho TB trọng số, default 1
+}
+
+/** CPSX nâng cấp — bảng keo ghép: chọn giá áp dụng (TB cộng / TB trọng số / nhập tay) */
+export interface KeoTable {
+  rows: KeoRow[];
+  appliedSource: 'average' | 'weighted' | 'manual';
+  appliedPrice: number | null;
+}
+
+/** CPSX nâng cấp — bảng dung môi + keo ghép (tách riêng 2 bảng) */
 export interface SolventAdhesiveTable {
-  rows: SolventAdhesiveRow[];
+  /** Dung môi: DM_OPP / DM_PET / DM_EA — đơn giá cố định, tra đúng mã theo khâu */
+  dungMoi: { rows: SolventAdhesiveRow[] };
+  /** Keo ghép: KEO_319 / KEO_766 — giá áp dụng như bảng mực (TB cộng / nhập tay) */
+  keo: KeoTable;
 }
 
 /** CPSX nâng cấp — định mức mực in + dung môi in theo số màu (1–8) */

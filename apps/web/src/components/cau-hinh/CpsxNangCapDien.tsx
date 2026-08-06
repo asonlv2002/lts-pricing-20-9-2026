@@ -13,10 +13,12 @@ import type {
 } from "../../lib/types";
 import {
   chuanHoaCpsxUpgradeElectric,
+  dinhDangGioMask,
   dongBoGiaDangApSauSuaSlot,
   tinhDienMoiPhut,
   tinhGiaDienTbCong,
   tinhGiaDienTbTrongSo,
+  tinhSoGioTuKhungGio,
 } from "../../lib/cpsx-upgrade-electric";
 
 type MayKey = keyof CpsxUpgradeElectric["machines"];
@@ -32,8 +34,17 @@ function dinhDangVnd(n: number) {
   return Math.round(n).toLocaleString("vi-VN");
 }
 
+function dinhDangGio(n: number) {
+  return n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
+}
+
 function docSoVnd(value: string) {
   return Number(value.replace(/\D/g, "")) || 0;
+}
+
+/** Khung có Từ/Đến hợp lệ → thời lượng tự tính */
+function gioTuKhung(slot: ElectricTimeSlot): number | null {
+  return tinhSoGioTuKhungGio(slot.start, slot.end);
 }
 
 export default function CpsxNangCapDien() {
@@ -76,12 +87,19 @@ export default function CpsxNangCapDien() {
 
   const themSlot = () => {
     const n = state.slots.length + 1;
+    // id = max slot hiện có + 1 — thuần, không dùng Date.now()
+    const maxId = state.slots.reduce((mx, s) => {
+      const m = /^slot_(\d+)$/.exec(s.id);
+      return m ? Math.max(mx, Number(m[1])) : mx;
+    }, 0);
     capNhatSlots([
       ...state.slots,
       {
-        id: `slot_${Date.now()}`,
+        id: `slot_${maxId + 1}`,
         label: `Khung ${n}`,
-        hours: 1,
+        start: "07:00",
+        end: "17:00",
+        hours: 10,
         pricePerKwh: 4000,
       },
     ]);
@@ -176,73 +194,107 @@ export default function CpsxNangCapDien() {
                   </tr>
                 </thead>
                 <tbody>
-                  {state.slots.map((slot) => (
-                    <tr key={slot.id}>
-                      <td>
-                        <input
-                          type="text"
-                          className="config-inline-input"
-                          aria-label="Khung giờ"
-                          value={slot.label}
-                          onChange={(e) =>
-                            suaSlot(slot.id, { label: e.target.value })
-                          }
-                        />
-                      </td>
-                      <td className="num">
-                        <input
-                          type="number"
-                          className="config-inline-input"
-                          aria-label="Thời lượng giờ"
-                          min={0}
-                          step={1}
-                          value={slot.hours}
-                          onChange={(e) => {
-                            const v = parseFloat(e.target.value);
-                            suaSlot(slot.id, {
-                              hours: Number.isFinite(v) && v >= 0 ? v : 0,
-                            });
-                          }}
-                        />
-                      </td>
-                      <td className="num">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          className="config-inline-input"
-                          aria-label="Giá điện kWh"
-                          value={dinhDangVnd(slot.pricePerKwh)}
-                          onChange={(e) =>
-                            suaSlot(slot.id, {
-                              pricePerKwh: docSoVnd(e.target.value),
-                            })
-                          }
-                        />
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline config-cpsx-upgrade__del"
-                          disabled={state.slots.length <= 1}
-                          onClick={() => xoaSlot(slot.id)}
-                          aria-label="Xóa khung giờ"
-                        >
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                  {state.slots.map((slot) => {
+                    const gio = gioTuKhung(slot);
+                    return (
+                      <tr key={slot.id}>
+                        <td>
+                          <span className="config-cpsx-upgrade__khung-gio">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              autoComplete="off"
+                              className="config-inline-input config-cpsx-upgrade__khung-input"
+                              placeholder="HH:MM"
+                              aria-label="Giờ bắt đầu"
+                              value={dinhDangGioMask(slot.start ?? "")}
+                              onChange={(e) =>
+                                suaSlot(slot.id, {
+                                  start: dinhDangGioMask(e.target.value),
+                                })
+                              }
+                            />
+                            <span className="config-cpsx-upgrade__khung-nghi">–</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              autoComplete="off"
+                              className="config-inline-input config-cpsx-upgrade__khung-input"
+                              placeholder="HH:MM"
+                              aria-label="Giờ kết thúc"
+                              value={dinhDangGioMask(slot.end ?? "")}
+                              onChange={(e) =>
+                                suaSlot(slot.id, {
+                                  end: dinhDangGioMask(e.target.value),
+                                })
+                              }
+                            />
+                          </span>
+                        </td>
+                        <td className="num">
+                          {gio != null ? (
+                            <span className="config-cpsx-upgrade__khung-gio-tinh">
+                              {dinhDangGio(gio)} giờ
+                            </span>
+                          ) : (
+                            <input
+                              type="number"
+                              className="config-inline-input"
+                              aria-label="Thời lượng giờ"
+                              min={0}
+                              step={1}
+                              value={slot.hours}
+                              onChange={(e) => {
+                                const v = parseFloat(e.target.value);
+                                suaSlot(slot.id, {
+                                  hours: Number.isFinite(v) && v >= 0 ? v : 0,
+                                });
+                              }}
+                            />
+                          )}
+                        </td>
+                        <td className="num">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            className="config-inline-input"
+                            aria-label="Giá điện kWh"
+                            value={dinhDangVnd(slot.pricePerKwh)}
+                            onChange={(e) =>
+                              suaSlot(slot.id, {
+                                pricePerKwh: docSoVnd(e.target.value),
+                              })
+                            }
+                          />
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            className="btn btn-sm btn-outline config-cpsx-upgrade__del"
+                            disabled={state.slots.length <= 1}
+                            onClick={() => xoaSlot(slot.id)}
+                            aria-label="Xóa khung giờ"
+                          >
+                            ✕
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="config-cpsx-upgrade__add-row">
+                    <td colSpan={4}>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline config-cpsx-upgrade__add"
+                        onClick={themSlot}
+                      >
+                        + Thêm khung giờ
+                      </button>
+                    </td>
+                  </tr>
                 </tbody>
               </table>
             </div>
-
-            <button
-              type="button"
-              className="btn btn-sm btn-outline config-cpsx-upgrade__add"
-              onClick={themSlot}
-            >
-              + Thêm khung giờ
-            </button>
 
             <fieldset className="config-cpsx-upgrade__sources">
               <legend className="config-cpsx-upgrade__sources-legend">

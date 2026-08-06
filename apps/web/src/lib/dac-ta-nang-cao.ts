@@ -8,15 +8,17 @@ import type {
   AppConstants,
   CalculateResult,
   CpsxUpgradeInk,
+  KeoRow,
   Material,
+  SolventAdhesiveRow,
   SolventAdhesiveTable,
 } from './types';
 import type { UniRow } from './manager-calculation';
 import { tinhThoiGianMayIn, tinhThoiGianMayChay } from './cpsx-upgrade-thoigian';
 import {
-  luongMoiPhut1May1Ca,
-  luongMoiPhut1MayTrenNgay,
-  luongMoiPhutTuiAp,
+  luongMoiPhutAp,
+  luongMoiPhutTinh,
+  soCongNhanTui,
 } from './cpsx-upgrade-labor';
 import { tinhDienMoiPhut } from './cpsx-upgrade-electric';
 import {
@@ -73,9 +75,62 @@ function so(v: unknown): number {
   return Number.isFinite(n) ? n : 0;
 }
 
+/**
+ * Tra đơn giá dung môi theo mã (DM_OPP / DM_PET / DM_EA).
+ * Shape mới: bảng dung môi riêng (`dungMoi.rows`). Shape cũ (rows phẳng) vẫn
+ * được hỗ trợ để không hỏng dữ liệu cấu hình cũ đã lưu.
+ */
 function donGiaTheoMa(bang: SolventAdhesiveTable | undefined, ma: string): number {
-  const row = bang?.rows?.find(r => r.ma === ma);
-  return row ? so(row.donGia) : 0;
+  const dm = (bang as { dungMoi?: { rows?: SolventAdhesiveRow[] } } | undefined)?.dungMoi;
+  const row = dm?.rows?.find(r => r.ma === ma);
+  if (row) return so(row.donGia);
+  const legacy = (bang as { rows?: SolventAdhesiveRow[] } | undefined)?.rows;
+  const lrow = legacy?.find(r => r.ma === ma);
+  return lrow ? so(lrow.donGia) : 0;
+}
+
+/**
+ * Giá keo áp dụng (₫/kg).
+ * Shape mới: `keo.appliedPrice` (đã chọn TB cộng / TB trọng số / nhập tay —
+ * như bảng mực), fallback tính theo `appliedSource`. Shape cũ: TB cộng các
+ * dòng mã `KEO_`.
+ */
+function layGiaKeo(ink: CpsxUpgradeInk): number {
+  const sa = ink?.solventAdhesive as
+    | SolventAdhesiveTable
+    | { rows?: SolventAdhesiveRow[] }
+    | undefined;
+
+  // Shape mới: giá đã chọn, fallback TB theo source
+  const keo = (sa as SolventAdhesiveTable | undefined)?.keo;
+  if (keo) {
+    if (keo.appliedPrice != null && Number.isFinite(Number(keo.appliedPrice))) {
+      return Math.max(0, so(keo.appliedPrice));
+    }
+    const rows = keo.rows ?? [];
+    if (keo.appliedSource === 'weighted') {
+      let weightSum = 0;
+      let weighted = 0;
+      for (const r of rows) {
+        const d = so(r.donGia);
+        const s = so((r as KeoRow).slDung);
+        if (d <= 0 || s <= 0) continue;
+        weightSum += s;
+        weighted += d * s;
+      }
+      if (weightSum > 0) return weighted / weightSum;
+    } else {
+      const ds = rows.filter((r) => so(r.donGia) > 0);
+      if (ds.length > 0) return ds.reduce((s, r) => s + so(r.donGia), 0) / ds.length;
+    }
+  }
+
+  // Shape cũ: TB cộng các dòng mã KEO_
+  const legacyRows = (sa as { rows?: SolventAdhesiveRow[] } | undefined)?.rows ?? [];
+  const keoRows = legacyRows.filter((r) => String(r.ma ?? '').startsWith('KEO_'));
+  if (keoRows.length > 0) return keoRows.reduce((s, r) => s + so(r.donGia), 0) / keoRows.length;
+
+  return 0;
 }
 
 function layInk(hangSo: AppConstants): CpsxUpgradeInk {
@@ -140,10 +195,11 @@ export function tinhCpMucDungMoiIn(
 /**
  * CP keo + dung môi ghép (₫/m²) cho MỘT lần ghép (một mặt tiếp giáp).
  *
- * `= (keoKhôG × giáKeoTB + dungMôiPhaKeoG × giáDM_EA) ÷ 1000`
+ * `= (keoKhôG × giáKeo + dungMôiPhaKeoG × giáDM_EA) ÷ 1000`
  *
- * Giá keo = trung bình cộng các dòng có mã bắt đầu `KEO_`.
- * Mỗi dòng ghép trong Table 1 áp đơn giá này 1 lần → nhiều lớp ghép = nhiều lần keo.
+ * Giá keo = giá đã chọn trong bảng keo (TB cộng / nhập tay — như bảng mực),
+ * fallback TB cộng. Mỗi dòng ghép trong Table 1 áp đơn giá này 1 lần → nhiều
+ * lớp ghép = nhiều lần keo.
  */
 export function tinhCpKeoDungMoiGhep(ink: CpsxUpgradeInk): {
   donGia: number;
@@ -152,11 +208,7 @@ export function tinhCpKeoDungMoiGhep(ink: CpsxUpgradeInk): {
   keoKhoG: number;
   dungMoiPhaKeoG: number;
 } {
-  const rows = ink?.solventAdhesive?.rows ?? [];
-  const keoRows = rows.filter(r => String(r.ma ?? '').startsWith('KEO_'));
-  const giaKeo = keoRows.length > 0
-    ? keoRows.reduce((s, r) => s + so(r.donGia), 0) / keoRows.length
-    : 0;
+  const giaKeo = layGiaKeo(ink);
   const giaDungMoi = donGiaTheoMa(ink?.solventAdhesive, 'DM_EA');
 
   const keoKhoG = so(ink?.dinhMucGhep?.keoKhoG);
@@ -340,8 +392,8 @@ export function lapDongNhanCongDien(
   rows.push(dong(
     'in',
     metIn > 0 ? tinhThoiGianMayIn(metIn, soMau, tg.print).tongPhut : null,
-    luongMoiPhut1MayTrenNgay(
-      lab.print.wages, lab.print.shiftCount,
+    luongMoiPhutTinh(
+      lab.print.wages, lab.print.hoursPerDay,
       lab.print.mealMorning, lab.print.mealEvening, lab.print.otFactor,
     ),
     el?.machines?.print,
@@ -351,8 +403,8 @@ export function lapDongNhanCongDien(
   rows.push(dong(
     'ghép',
     metGhep > 0 ? tinhThoiGianMayChay(metGhep, tg.laminate).tongPhut : null,
-    luongMoiPhut1MayTrenNgay(
-      lab.laminate.wages, lab.laminate.shiftCount,
+    luongMoiPhutTinh(
+      lab.laminate.wages, lab.laminate.hoursPerDay,
       lab.laminate.mealMorning, lab.laminate.mealEvening, lab.laminate.otFactor,
     ),
     el?.machines?.laminate,
@@ -362,21 +414,25 @@ export function lapDongNhanCongDien(
   rows.push(dong(
     'chia',
     metChia > 0 ? tinhThoiGianMayChay(metChia, tg.slit).tongPhut : null,
-    luongMoiPhut1May1Ca(
-      lab.slit.wages, lab.slit.mealMorning, lab.slit.mealEvening, lab.slit.otFactor,
+    luongMoiPhutTinh(
+      lab.slit.wages, lab.slit.hoursPerDay,
+      lab.slit.mealMorning, lab.slit.mealEvening, lab.slit.otFactor,
     ),
     el?.machines?.slit,
   ));
 
-  // làm túi — đơn vị 'chiếc', dùng giá lương làm tròn
+  // làm túi — đơn vị 'chiếc', dùng giá làm tròn nếu có
   if (!laMang) {
     rows.push(dong(
       'làm túi',
       soTui > 0 ? tinhThoiGianMayChay(soTui, tg.bag).tongPhut : null,
-      luongMoiPhutTuiAp(
-        lab.bag.wages, lab.bag.peoplePerShift,
-        lab.bag.mealMorning, lab.bag.mealEvening,
-        lab.bag.otFactor, lab.bag.roundedPerMin,
+      luongMoiPhutAp(
+        luongMoiPhutTinh(
+          lab.bag.wages, lab.bag.hoursPerDay,
+          lab.bag.mealMorning, lab.bag.mealEvening, lab.bag.otFactor,
+          soCongNhanTui(lab.bag.wages),
+        ),
+        lab.bag.roundedPerMin,
       ),
       el?.machines?.bag,
     ));

@@ -15,6 +15,7 @@ import type {
   CpsxUpgradeInk,
   CpsxUpgradeLabor,
   CpsxUpgradeThoiGian,
+  SolventAdhesiveTable,
 } from './types';
 import type { UniRow } from './manager-calculation';
 
@@ -46,13 +47,21 @@ const ink: CpsxUpgradeInk = {
   pet: { rows: [], appliedSource: 'manual', appliedPrice: 80000 },
   pe: { rows: [], appliedSource: 'manual', appliedPrice: 76000 },
   solventAdhesive: {
-    rows: [
-      { ma: 'DM_OPP', ten: 'DUNG MÔI OPP', dvt: 'kg', donGia: 40000, ghiChu: '' },
-      { ma: 'DM_PET', ten: 'DUNG MÔI PET', dvt: 'kg', donGia: 40000, ghiChu: '' },
-      { ma: 'KEO_319', ten: 'KEO GHÉP 319', dvt: 'kg', donGia: 40000, ghiChu: '' },
-      { ma: 'KEO_766', ten: 'KEO GHÉP 766', dvt: 'kg', donGia: 40000, ghiChu: '' },
-      { ma: 'DM_EA', ten: 'DUNG MÔI EA', dvt: 'kg', donGia: 40000, ghiChu: '' },
-    ],
+    dungMoi: {
+      rows: [
+        { ma: 'DM_OPP', ten: 'DUNG MÔI OPP', dvt: 'kg', donGia: 40000, ghiChu: '' },
+        { ma: 'DM_PET', ten: 'DUNG MÔI PET', dvt: 'kg', donGia: 40000, ghiChu: '' },
+        { ma: 'DM_EA', ten: 'DUNG MÔI EA', dvt: 'kg', donGia: 40000, ghiChu: '' },
+      ],
+    },
+    keo: {
+      rows: [
+        { ma: 'KEO_319', ten: 'KEO GHÉP 319', dvt: 'kg', donGia: 40000, ghiChu: '', slDung: 1 },
+        { ma: 'KEO_766', ten: 'KEO GHÉP 766', dvt: 'kg', donGia: 40000, ghiChu: '', slDung: 1 },
+      ],
+      appliedSource: 'average',
+      appliedPrice: 40000,
+    },
   },
   dinhMucIn: [
     { soMau: 1, dmMucG: 4, dmDungMoiG: 4.5 },
@@ -81,9 +90,9 @@ const thoiGian: CpsxUpgradeThoiGian = {
 };
 
 const labor: CpsxUpgradeLabor = {
-  print: { wages: [500000, 400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2 },
-  laminate: { wages: [450000, 350000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2 },
-  slit: { wages: [400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 1 },
+  print: { wages: [500000, 400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, hoursPerDay: 24 },
+  laminate: { wages: [450000, 350000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, hoursPerDay: 24 },
+  slit: { wages: [400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 1, hoursPerDay: 12 },
   bag: {
     wages: [300000, 300000],
     mealMorning: 30000,
@@ -91,6 +100,7 @@ const labor: CpsxUpgradeLabor = {
     otFactor: 1,
     peoplePerShift: 2,
     roundedPerMin: 1000,
+    hoursPerDay: 24,
   },
 };
 
@@ -253,18 +263,60 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // keo TB khác nhau: (30000 + 50000)/2 = 40000 → vẫn 420
+  // keo TB khác nhau: appliedPrice null → fallback TB (30000 + 50000)/2 = 40000 → vẫn 420
   const inkKeo: CpsxUpgradeInk = {
     ...ink,
     solventAdhesive: {
-      rows: [
-        { ma: 'KEO_319', ten: 'k1', dvt: 'kg', donGia: 30000, ghiChu: '' },
-        { ma: 'KEO_766', ten: 'k2', dvt: 'kg', donGia: 50000, ghiChu: '' },
-        { ma: 'DM_EA', ten: 'ea', dvt: 'kg', donGia: 40000, ghiChu: '' },
-      ],
+      dungMoi: { rows: ink.solventAdhesive.dungMoi.rows },
+      keo: {
+        rows: [
+          { ma: 'KEO_319', ten: 'k1', dvt: 'kg', donGia: 30000, ghiChu: '', slDung: 1 },
+          { ma: 'KEO_766', ten: 'k2', dvt: 'kg', donGia: 50000, ghiChu: '', slDung: 1 },
+        ],
+        appliedSource: 'average',
+        appliedPrice: null,
+      },
     },
   };
   approx(tinhCpKeoDungMoiGhep(inkKeo).donGia, 420, 'keo TB 30k+50k = 40k');
+}
+
+{
+  // manual: appliedPrice 35000 → (3.5×35000 + 7×40000)/1000 = 122.5 + 280 = 402.5
+  const inkManual: CpsxUpgradeInk = {
+    ...ink,
+    solventAdhesive: {
+      dungMoi: { rows: ink.solventAdhesive.dungMoi.rows },
+      keo: {
+        rows: ink.solventAdhesive.keo.rows,
+        appliedSource: 'manual',
+        appliedPrice: 35000,
+      },
+    },
+  };
+  const r = tinhCpKeoDungMoiGhep(inkManual);
+  approx(r.giaKeo, 35000, 'keo manual = 35000');
+  approx(r.donGia, 402.5, 'keo manual → 402.5 ₫/m²');
+}
+
+{
+  // weighted fallback khi appliedPrice null: (30k×2 + 50k×1)/3 = 36.667
+  const inkWeighted: CpsxUpgradeInk = {
+    ...ink,
+    solventAdhesive: {
+      dungMoi: { rows: ink.solventAdhesive.dungMoi.rows },
+      keo: {
+        rows: [
+          { ma: 'KEO_319', ten: 'k1', dvt: 'kg', donGia: 30000, ghiChu: '', slDung: 2 },
+          { ma: 'KEO_766', ten: 'k2', dvt: 'kg', donGia: 50000, ghiChu: '', slDung: 1 },
+        ],
+        appliedSource: 'weighted',
+        appliedPrice: null,
+      },
+    },
+  };
+  const r = tinhCpKeoDungMoiGhep(inkWeighted);
+  approx(r.giaKeo, 30000 * 2 / 3 + 50000 / 3, 'keo weighted fallback → TB trọng số');
 }
 
 {
@@ -272,7 +324,8 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   const inkNoKeo: CpsxUpgradeInk = {
     ...ink,
     solventAdhesive: {
-      rows: [{ ma: 'DM_EA', ten: 'ea', dvt: 'kg', donGia: 40000, ghiChu: '' }],
+      dungMoi: { rows: ink.solventAdhesive.dungMoi.rows },
+      keo: { rows: [], appliedSource: 'average', appliedPrice: null },
     },
   };
   const r = tinhCpKeoDungMoiGhep(inkNoKeo);
@@ -285,10 +338,32 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   const inkNoEa: CpsxUpgradeInk = {
     ...ink,
     solventAdhesive: {
-      rows: [{ ma: 'KEO_319', ten: 'k', dvt: 'kg', donGia: 40000, ghiChu: '' }],
+      dungMoi: {
+        rows: [{ ma: 'DM_OPP', ten: 'op', dvt: 'kg', donGia: 40000, ghiChu: '' }],
+      },
+      keo: ink.solventAdhesive.keo,
     },
   };
   approx(tinhCpKeoDungMoiGhep(inkNoEa).donGia, 140, 'không có DM_EA → chỉ keo 140');
+}
+
+{
+  // shape cũ (rows phẳng) vẫn hoạt động — dữ liệu cấu hình cũ không hỏng
+  const inkLegacy: CpsxUpgradeInk = {
+    ...ink,
+    solventAdhesive: {
+      rows: [
+        { ma: 'DM_OPP', ten: 'op', dvt: 'kg', donGia: 40000, ghiChu: '' },
+        { ma: 'KEO_319', ten: 'k1', dvt: 'kg', donGia: 30000, ghiChu: '' },
+        { ma: 'KEO_766', ten: 'k2', dvt: 'kg', donGia: 50000, ghiChu: '' },
+        { ma: 'DM_EA', ten: 'ea', dvt: 'kg', donGia: 40000, ghiChu: '' },
+      ],
+    } as unknown as SolventAdhesiveTable,
+  };
+  const r = tinhCpKeoDungMoiGhep(inkLegacy);
+  approx(r.giaKeo, 40000, 'shape cũ: TB dòng KEO_ = 40000');
+  approx(r.giaDungMoi, 40000, 'shape cũ: DM_EA vẫn tra được');
+  approx(r.donGia, 420, 'shape cũ → 420 ₫/m²');
 }
 
 // ── 4. lapDongVatLieuNangCao (Table 1) ──────────────────────────────────────
@@ -416,6 +491,16 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(dongIn.cpDienPerPhut!, 4000, 'in: 4000 ₫/phút điện');
   approx(dongIn.thanhTienDien, dongIn.thoiGianPhut! * 4000, 'in: thành tiền điện = phút × ₫/phút');
   approx(dongIn.thanhTienNhanCong, dongIn.thoiGianPhut! * dongIn.cpNhanCongPerPhut!, 'in: thành tiền NC');
+
+  // NC/phút mới (bỏ ÷ tổngCN × CN1ca, làm tròn nguyên):
+  // in: (900k + 60k + 450k) ÷ 24 ÷ 60 = 979,17 → 979
+  approx(dongIn.cpNhanCongPerPhut!, 979, 'in: 979 ₫/phút');
+  // ghép: (800k + 60k + 400k) ÷ 24 ÷ 60 = 875
+  approx(rows[1].cpNhanCongPerPhut!, 875, 'ghép: 875 ₫/phút');
+  // chia: (400k + 30k + 200k) ÷ 12 ÷ 60 = 875
+  approx(rows[2].cpNhanCongPerPhut!, 875, 'chia: 875 ₫/phút');
+  // túi: (600k + 60k + 300k) ÷ 24 ÷ 60 = 666,67 → 667; rounded 1000 → 1000
+  approx(rows[3].cpNhanCongPerPhut!, 1000, 'làm túi: dùng roundedPerMin');
 
   // ghép: setup 15/60 + 8770/6000
   approx(rows[1].thoiGianPhut!, (15 / 60 + 8770 / 6000) * 60, 'ghép: thời gian SX');

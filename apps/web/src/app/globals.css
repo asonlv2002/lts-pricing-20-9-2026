@@ -3027,6 +3027,11 @@ body {
 .config-cpsx-upgrade__formula-indent {
   margin-left: 18px;
 }
+.config-cpsx-upgrade__formula-note {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
 .config-cpsx-upgrade__applied-value {
   font-size: 1.05rem;
   font-weight: 700;
@@ -3306,6 +3311,52 @@ body {
   font-variant-numeric: tabular-nums;
   font-weight: 700;
   color: var(--accent);
+}
+.config-cpsx-upgrade__ten-vat-tu {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+}
+.config-cpsx-upgrade__tooltip {
+  flex: 0 0 auto;
+  cursor: help;
+  opacity: 0.65;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.config-cpsx-upgrade__tooltip:hover {
+  opacity: 1;
+}
+.config-cpsx-upgrade__khung-gio {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 200px;
+}
+.config-cpsx-upgrade__khung-input {
+  flex: 1 1 auto;
+  min-width: 0 !important;
+  max-width: 86px !important;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.03em;
+}
+.config-cpsx-upgrade__khung-nghi {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-weight: 600;
+}
+.config-cpsx-upgrade__khung-gio-tinh {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent, #4f46e5);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .config-cpsx-upgrade__unit {
   flex: 0 0 auto;
