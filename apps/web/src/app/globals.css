@@ -9000,18 +9000,6 @@ body {
     white-space: normal;
   }
 
-  /* Bảng đặc tả nâng cao: giữ min-width riêng, không bị ép về 560px */
-  #resultArea #m-t-advanced-material {
-    min-width: 1180px;
-  }
-  #resultArea #m-t-advanced-labor {
-    min-width: 680px;
-  }
-  #resultArea #m-t-advanced-material th,
-  #resultArea #m-t-advanced-labor th {
-    white-space: normal;
-  }
-
   /* Config table */
   .config-table {
     min-width: 420px;
@@ -12792,7 +12780,7 @@ body {
 /* ═══════════ ĐẶC TẢ KỸ THUẬT & NGUYÊN LIỆU (NÂNG CAO) ═══════════ */
 .dac-ta-nang-cao__stage {
   font-weight: 600;
-  text-transform: capitalize;
+  white-space: nowrap;
 }
 .dac-ta-nang-cao__muc {
   background: rgba(217, 119, 6, 0.05);
@@ -12800,21 +12788,9 @@ body {
 [data-theme="dark"] .dac-ta-nang-cao__muc {
   background: rgba(251, 191, 36, 0.07);
 }
-/* Bảng 11 cột cần rộng — ghi đè min-width 560px của #resultArea .data-table.
-   Thiếu chỗ thì .table-responsive scroll ngang, KHÔNG bóp cột. */
-#m-t-advanced-material {
-  min-width: 1180px;
-}
-#m-t-advanced-labor {
-  min-width: 680px;
-}
-/* Header nhiều chữ → cho wrap 2 dòng thay vì bị nowrap cắt */
-#m-t-advanced-material th,
-#m-t-advanced-labor th {
-  white-space: normal;
-  line-height: 1.35;
-  vertical-align: bottom;
-}
+/* Bảng đặc tả nâng cao dùng layout chuẩn của .data-table (width 100%, auto,
+   nowrap header) — giống bảng thường; container hẹp thì .table-responsive
+   scroll ngang. Không ép min-width riêng để tránh cột cách xa nhau. */
 
 /* container query: đo #resultArea (container thật), KHÔNG đo viewport.
    Media query sai ở đây vì #resultArea chỉ chiếm ~50-60% viewport. */

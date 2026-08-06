@@ -1771,6 +1771,74 @@ export default function TrangCauHinh({
                   </>
                 )}
               </div>
+              {/* Giá Zipper — dời từ mục Phụ phí */}
+              <div
+                className="card config-card"
+                id="sect-config-zipper"
+                style={{ scrollMarginTop: "80px" }}
+              >
+                <div className="config-section-title">
+                  <span>📦 Giá Zipper</span>
+                </div>
+                <div className="config-table-wrap">
+                  <table className="config-table">
+                    <thead>
+                      <tr>
+                        <th>Phụ kiện</th>
+                        <th>Đơn giá</th>
+                        <th>Trọng lượng</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr>
+                        <td>Zipper</td>
+                        <td>
+                          <input
+                            type="number"
+                            className="config-inline-input"
+                            style={{
+                              width: "80px",
+                              textAlign: "right",
+                              fontWeight: 700,
+                              background: "transparent",
+                            }}
+                            value={hangSo.zipperPrice}
+                            onChange={(e) =>
+                              capNhatHangSo(
+                                "zipperPrice",
+                                parseFloat(e.target.value) || 0,
+                              )
+                            }
+                          />{" "}
+                          đ/m
+                        </td>
+                        <td>
+                          <input
+                            type="number"
+                            className="config-inline-input"
+                            style={{
+                              width: "80px",
+                              textAlign: "right",
+                              fontWeight: 700,
+                              background: "transparent",
+                            }}
+                            value={hangSo.zipperWeight}
+                            step="0.1"
+                            min="0"
+                            onChange={(e) =>
+                              capNhatHangSo(
+                                "zipperWeight",
+                                parseFloat(e.target.value) || 0,
+                              )
+                            }
+                          />{" "}
+                          Gr/m
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </>
           )}
           {/* NHOM 1: CHI PHI KHAU IN */}
@@ -5266,52 +5334,6 @@ export default function TrangCauHinh({
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td>Zipper</td>
-                      <td>
-                        <input
-                          type="number"
-                          className="config-inline-input"
-                          style={{
-                            width: "80px",
-                            textAlign: "right",
-                            fontWeight: 700,
-                            background: "transparent",
-                          }}
-                          value={hangSo.zipperPrice}
-                          onChange={(e) =>
-                            capNhatHangSo(
-                              "zipperPrice",
-                              parseFloat(e.target.value) || 0,
-                            )
-                          }
-                        />{" "}
-                        đ/m
-                      </td>
-                      <td>đ/m</td>
-                      <td>
-                        <input
-                          type="number"
-                          className="config-inline-input"
-                          style={{
-                            width: "80px",
-                            textAlign: "right",
-                            fontWeight: 700,
-                            background: "transparent",
-                          }}
-                          value={hangSo.zipperWeight}
-                          step="0.1"
-                          min="0"
-                          onChange={(e) =>
-                            capNhatHangSo(
-                              "zipperWeight",
-                              parseFloat(e.target.value) || 0,
-                            )
-                          }
-                        />{" "}
-                        Gr/m
-                      </td>
-                    </tr>
                     <tr>
                       <td>Băng keo</td>
                       <td>

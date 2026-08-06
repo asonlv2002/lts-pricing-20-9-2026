@@ -370,7 +370,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 
 {
   const rows = lapDongVatLieuNangCao(taoResult(), taoUniRows(), taoHangSo());
-  eq(rows.map(r => r.congDoan), ['in', 'ghép (Lớp 2)', 'chia', 'làm túi'], 'túi: 4 dòng');
+  eq(rows.map(r => r.congDoan), ['CPSX IN', 'GHÉP (Lớp 2)', 'CẮT', 'làm túi'], 'túi: 4 dòng');
 
   const dongIn = rows[0];
   approx(dongIn.cpMucKeo!, 1640, 'dòng in: 1640 ₫/m²');
@@ -388,10 +388,20 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 
   const dongTui = rows[3];
   eq(dongTui.congDoan, 'làm túi', 'dòng làm túi tồn tại');
+  eq(dongTui.vatLieu, 'Zipper', 'làm túi: vật liệu = Zipper (không còn Khóa)');
   approx(dongTui.thanhTienNVL!, 1600000, 'làm túi: thành tiền = tổng phụ kiện');
   eq(dongTui.cpMucKeo, null, 'làm túi: mực/keo = null');
   eq(dongTui.dauVaoNVL, null, 'làm túi: đầu vào NVL = null (khác đơn vị)');
   eq(dongTui.giaNVL, null, 'làm túi: giá NVL = null');
+}
+
+{
+  // Đủ 3 phụ kiện → "Zipper + Băng keo + Quai"
+  const r = taoResult({ zipperTotal: 800000, tapeTotal: 50000, handleTotal: 30000 });
+  const rows = lapDongVatLieuNangCao(r, taoUniRows(), taoHangSo());
+  const dongTui = rows.find(x => x.congDoan === 'làm túi')!;
+  eq(dongTui.vatLieu, 'Zipper + Băng keo + Quai', 'làm túi: gộp đủ 3 phụ kiện');
+  approx(dongTui.thanhTienNVL!, 880000, 'làm túi: thành tiền = Zipper + băng keo + quai');
 }
 
 {
@@ -410,9 +420,72 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     costMat: 191000,
   });
   const rows = lapDongVatLieuNangCao(taoResult(), uni, taoHangSo());
-  const cacDongGhep = rows.filter(r => r.congDoan.startsWith('ghép'));
+  const cacDongGhep = rows.filter(r => r.congDoan.startsWith('GHÉP'));
   eq(cacDongGhep.length, 2, '2 lớp ghép → 2 dòng');
   cacDongGhep.forEach((d, i) => approx(d.cpMucKeo!, 420, `lớp ghép ${i + 2}: keo 420 mỗi dòng`));
+}
+
+{
+  // Ghép 1 lớp 2 vật liệu song song → tách 2 dòng chi tiết (như bảng cũ)
+  const uni = taoUniRows();
+  uni[1] = {
+    ...uni[1],
+    mat: '',
+    materialId: undefined,
+    matPrice: null,
+    materialDetails: [
+      { materialId: 'm-pet', name: 'MPET 12', width: 0.65, matPrice: 39.6, costMat: 216700 },
+      { materialId: 'm-ll', name: 'LLDPE 60', width: 0.5, matPrice: 144, costMat: 604000 },
+    ],
+  };
+  const rows = lapDongVatLieuNangCao(taoResult(), uni, taoHangSo(), []);
+  const ghep = rows.filter(
+    r => (r.vatLieu === 'MPET 12' && r.congDoan === 'GHÉP (Lớp 2)')
+      || (r.vatLieu === 'LLDPE 60' && r.congDoan === ''),
+  );
+  eq(ghep.length, 2, 'ghép 2 vật liệu → 2 dòng');
+  eq(ghep.map(r => r.vatLieu), ['MPET 12', 'LLDPE 60'], 'tên từng vật liệu chi tiết');
+  approx(ghep[0].khoMang!, 0.65, 'khổ chi tiết 1');
+  approx(ghep[1].khoMang!, 0.5, 'khổ chi tiết 2');
+  eq(ghep[0].congDoan, 'GHÉP (Lớp 2)', 'dòng chi tiết 1 → giữ công đoạn');
+  eq(ghep[1].congDoan, '', 'dòng chi tiết 2 → công đoạn trống (như ô gộp)');
+  approx(ghep[0].dauVaoNVL!, 8770, 'đầu vào NVL cấp lớp lặp lại dòng 1');
+  approx(ghep[1].dauVaoNVL!, 8770, 'đầu vào NVL cấp lớp lặp lại dòng 2');
+  approx(ghep[0].cpVatLieu!, 39.6, 'CP vật liệu ₫/m² chi tiết 1');
+  approx(ghep[1].cpVatLieu!, 144, 'CP vật liệu ₫/m² chi tiết 2');
+  approx(ghep[0].thanhTienNVL!, 216700, 'thành tiền NVL chi tiết 1 (engine phân bổ)');
+  approx(ghep[1].thanhTienNVL!, 604000, 'thành tiền NVL chi tiết 2');
+  approx(ghep[0].thanhTienNVL! + ghep[1].thanhTienNVL!, 820700, 'tổng NVL = dòng gộp cũ');
+  approx(ghep[0].giaNVL!, 55000, 'giá NVL MPET fallback 55.000 ₫/kg');
+  approx(ghep[1].giaNVL!, 40000, 'giá NVL LLDPE fallback 40.000 ₫/kg');
+  approx(ghep[0].cpMucKeo!, 420, 'keo ₫/m² giữ nguyên');
+  approx(ghep[0].thanhTienMucKeo!, 420 * 8770 * 0.65, 'thành tiền keo chi tiết 1');
+  approx(ghep[1].thanhTienMucKeo!, 420 * 8770 * 0.5, 'thành tiền keo chi tiết 2');
+  approx(
+    ghep[0].thanhTienMucKeo! + ghep[1].thanhTienMucKeo!,
+    420 * 8770 * 1.15,
+    'tổng keo 2 dòng = dòng gộp cũ (khổ Σ 1.15)',
+  );
+}
+
+{
+  // Vendor báo giá ₫/m² → chi tiết ghép cũng không hiện giá ₫/kg
+  const uni = taoUniRows();
+  uni[1] = {
+    ...uni[1],
+    mat: '',
+    materialId: undefined,
+    matPrice: null,
+    matPriceIsPerM2: true,
+    materialDetails: [
+      { materialId: 'm-pet', name: 'MPET 12', width: 0.65, matPrice: 39.6, costMat: 216700 },
+    ],
+  };
+  const rows = lapDongVatLieuNangCao(taoResult(), uni, taoHangSo(), []);
+  const ghep = rows.filter(r => r.congDoan === 'GHÉP (Lớp 2)');
+  eq(ghep.length, 1, '1 chi tiết → 1 dòng');
+  eq(ghep[0].giaNVL, null, 'matPriceIsPerM2 → giá ₫/kg null');
+  eq(ghep[0].donViGiaNVL, null, 'matPriceIsPerM2 → không đơn vị kg');
 }
 
 {
@@ -442,7 +515,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   const rows = lapDongVatLieuNangCao(rPk, taoUniRows(), taoHangSo());
   const dongTui = rows.find(r => r.congDoan === 'làm túi')!;
   approx(dongTui.thanhTienNVL!, 1800000, 'gộp 3 phụ kiện = 1.800.000');
-  assert(dongTui.vatLieu.includes('Khóa'), 'liệt kê Khóa');
+  assert(dongTui.vatLieu.includes('Zipper'), 'liệt kê Zipper');
   assert(dongTui.vatLieu.includes('Băng keo'), 'liệt kê Băng keo');
   assert(dongTui.vatLieu.includes('Quai'), 'liệt kê Quai');
 }

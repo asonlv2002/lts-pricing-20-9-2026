@@ -46,7 +46,6 @@ export default function BangDacTaNangCao({
     [dongVatLieu, dongNhanCongDien],
   );
 
-  const tongMucKeo = dongVatLieu.reduce((s, r) => s + (r.thanhTienMucKeo ?? 0), 0);
   const tongNhanCong = dongNhanCongDien.reduce((s, r) => s + r.thanhTienNhanCong, 0);
   const tongDien = dongNhanCongDien.reduce((s, r) => s + r.thanhTienDien, 0);
 
@@ -63,9 +62,9 @@ export default function BangDacTaNangCao({
               <th className="num">Thành phẩm (m)</th>
               <th className="num">Phi hao (m)</th>
               <th className="num">Đầu vào NVL (m)</th>
-              <th className="num">Giá NVL (đ/kg)</th>
               <th className="num">CP vật liệu (đ/m²)</th>
               <th className="num">Thành tiền CPNVL</th>
+              <th className="num">Giá NVL (đ/kg)</th>
               <th className="num" title="CP mực in, dung môi, keo ghép (đ/m²)">
                 CP mực + DM + keo (đ/m²)
               </th>
@@ -96,14 +95,14 @@ export default function BangDacTaNangCao({
                 <td className="num highlight" data-label="Đầu vào NVL (m)">
                   {dinhDangSo(row.dauVaoNVL, 0)}
                 </td>
-                <td className="num" data-label="Giá NVL (đ/kg)">
-                  {row.giaNVL != null ? `${dinhDangSo(row.giaNVL, 0)} đ/kg` : '—'}
-                </td>
                 <td className="num" data-label="CP vật liệu (đ/m²)">
                   {dinhDangSo(row.cpVatLieu, 1)}
                 </td>
                 <td className="num" data-label="Thành tiền CPNVL">
                   {dinhDangSo(row.thanhTienNVL, 0)}
+                </td>
+                <td className="num" data-label="Giá NVL (đ/kg)">
+                  {row.giaNVL != null ? `${dinhDangSo(row.giaNVL, 0)} đ/kg` : '—'}
                 </td>
                 <td
                   className="num dac-ta-nang-cao__muc"
@@ -120,14 +119,6 @@ export default function BangDacTaNangCao({
                 </td>
               </tr>
             ))}
-            <tr className="total-row">
-              <td colSpan={10}>
-                <strong>Tổng CP mực in + dung môi + keo ghép</strong>
-              </td>
-              <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>
-                {dinhDangSo(tongMucKeo, 0)} đ
-              </td>
-            </tr>
           </tbody>
         </table>
       </div>

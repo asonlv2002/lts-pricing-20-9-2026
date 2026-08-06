@@ -220,39 +220,46 @@ export function tinhCpKeoDungMoiGhep(ink: CpsxUpgradeInk): {
 
 // ── Table 1 ─────────────────────────────────────────────────────────────────
 
-/** Nhãn công đoạn thân thiện cho Table 1 */
+/** Nhãn công đoạn thân thiện cho Table 1 — dùng đúng chuẩn engine (không transform) */
 function nhanCongDoan(row: UniRow): string {
-  if (row.rowKey === 'print') return 'in';
-  if (row.rowKey === 'cut') return 'chia';
-  const m = /^lam-(\d)$/.exec(row.rowKey);
-  if (m) return `ghép (Lớp ${m[1]})`;
-  return row.stage;
+  return row.stage || '';
 }
 
 /**
- * Tra giá NVL (₫/kg) theo materialId hoặc tên — cùng logic fallback với bảng cũ
+ * Tra giá NVL (₫/kg) theo materialId + tên — cùng logic fallback với bảng cũ
  * (ManHinhQuanLy.tsx). Trả null khi vendor báo giá theo ₫/m² hoặc không có vật liệu.
  */
-function traGiaNVL(
-  row: UniRow,
+function traGiaNVLTheoIdTen(
+  materialId: string | undefined,
+  ten: string | null | undefined,
+  matPriceIsPerM2: boolean | undefined,
   materials: Material[],
 ): number | null {
-  if (row.matPriceIsPerM2) return null;
-  if (!row.mat || row.mat === '-' || row.mat === '') return null;
-  const m = row.materialId
-    ? materials.find(x => x.id === row.materialId)
-    : materials.find(x => x.name === row.mat);
+  if (matPriceIsPerM2) return null;
+  if (!ten || ten === '-' || ten === '') return null;
+  const m = materialId
+    ? materials.find(x => x.id === materialId)
+    : materials.find(x => x.name === ten);
   if (m) return so(m.pricePerKg);
-  const u = row.mat.toUpperCase();
+  const u = ten.toUpperCase();
   if (u.includes('MPET')) return 55000;
   if (u.includes('PET')) return 45000;
   if (u.includes('LLDPE') || u === 'PE') return 40000;
   return null;
 }
 
+function traGiaNVL(
+  row: UniRow,
+  materials: Material[],
+): number | null {
+  return traGiaNVLTheoIdTen(row.materialId, row.mat, row.matPriceIsPerM2, materials);
+}
+
 /**
  * Lập các dòng Table 1 từ uniRows + phụ kiện túi.
- * Ghép tách theo lớp (như bảng cũ). Dòng `làm túi` gộp toàn bộ phụ kiện.
+ * Ghép tách theo lớp (như bảng cũ). Dòng ghép có nhiều vật liệu song song
+ * (`materialDetails`) → tách 1 dòng/chi tiết; meters/phi hao lặp lại cấp lớp.
+ * Dòng `làm túi` gộp toàn bộ phụ kiện.
  */
 export function lapDongVatLieuNangCao(
   result: CalculateResult,
@@ -265,14 +272,10 @@ export function lapDongVatLieuNangCao(
   const soMau = result?.input?.numColors;
   const donGiaKeo = tinhCpKeoDungMoiGhep(ink).donGia;
 
-  const rows: DongVatLieuNangCao[] = (uniRows ?? []).map(row => {
+  const rows: DongVatLieuNangCao[] = (uniRows ?? []).flatMap(row => {
     const thanhPham = so(row.meters);
     const phiHao = so(row.waste);
     const dauVaoNVL = thanhPham + phiHao;
-    // Ghép nhiều vật liệu song song → khổ hiệu dụng = Σ khổ chi tiết
-    const khoHieuDung = row.materialDetails?.length
-      ? row.materialDetails.reduce((s, d) => s + so(d.width), 0)
-      : so(row.width);
 
     let cpMucKeo: number | null = null;
     let ghiChu: string | undefined;
@@ -286,15 +289,41 @@ export function lapDongVatLieuNangCao(
       ghiChu = `(${k.keoKhoG}g × ${k.giaKeo.toLocaleString('vi-VN')} + ${k.dungMoiPhaKeoG}g × ${k.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — keo + DM EA`;
     }
 
-    const vatLieu = row.materialDetails?.length
-      ? row.materialDetails.map(d => d.name).filter(Boolean).join(' + ')
-      : row.mat;
+    // Ghép nhiều vật liệu song song → tách 1 dòng/chi tiết (như bảng cũ);
+    // công đoạn chỉ hiện ở dòng đầu, dòng sau để trống (như ô gộp)
+    if (row.materialDetails?.length) {
+      return row.materialDetails.map((detail, idx) => {
+        const giaNVL = traGiaNVLTheoIdTen(
+          detail.materialId,
+          detail.name,
+          row.matPriceIsPerM2,
+          materials,
+        );
+        const kho = so(detail.width);
+        return {
+          congDoan: idx === 0 ? nhanCongDoan(row) : '',
+          vatLieu: detail.name || '—',
+          khoMang: kho || null,
+          thanhPham,
+          phiHao,
+          dauVaoNVL,
+          giaNVL,
+          donViGiaNVL: giaNVL != null ? 'kg' : null,
+          cpVatLieu: so(detail.matPrice),
+          thanhTienNVL: so(detail.costMat),
+          cpMucKeo,
+          thanhTienMucKeo: cpMucKeo != null ? cpMucKeo * dauVaoNVL * kho : null,
+          ghiChu,
+        };
+      });
+    }
 
+    const khoHieuDung = so(row.width);
     const giaNVL = traGiaNVL(row, materials);
 
-    return {
+    return [{
       congDoan: nhanCongDoan(row),
-      vatLieu: vatLieu || '—',
+      vatLieu: row.mat || '—',
       khoMang: khoHieuDung || null,
       thanhPham,
       phiHao,
@@ -306,7 +335,7 @@ export function lapDongVatLieuNangCao(
       cpMucKeo,
       thanhTienMucKeo: cpMucKeo != null ? cpMucKeo * dauVaoNVL * khoHieuDung : null,
       ghiChu,
-    };
+    }];
   });
 
   // Dòng `làm túi` — gộp toàn bộ phụ kiện, chỉ hiện thành tiền
@@ -317,7 +346,7 @@ export function lapDongVatLieuNangCao(
     const tongPhuKien = khoa + bangKeo + quai;
     if (tongPhuKien > 0) {
       const ten: string[] = [];
-      if (khoa > 0) ten.push('Khóa');
+      if (khoa > 0) ten.push('Zipper');
       if (bangKeo > 0) ten.push('Băng keo');
       if (quai > 0) ten.push('Quai');
       rows.push({
@@ -333,7 +362,7 @@ export function lapDongVatLieuNangCao(
         thanhTienNVL: tongPhuKien,
         cpMucKeo: null,
         thanhTienMucKeo: null,
-        ghiChu: 'Phụ kiện túi — khóa/băng keo tính ₫/m, quai tính ₫/túi',
+        ghiChu: 'Phụ kiện túi — Zipper/băng keo tính ₫/m, quai tính ₫/túi',
       });
     }
   }
