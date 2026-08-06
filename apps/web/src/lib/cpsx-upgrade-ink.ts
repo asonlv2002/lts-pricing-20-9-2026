@@ -1,4 +1,5 @@
 import type {
+  CpsxUpgradeInk,
   DinhMucGhep,
   DinhMucInRow,
   InkPriceSource,
@@ -7,6 +8,9 @@ import type {
   SolventAdhesiveRow,
   SolventAdhesiveTable,
 } from './types';
+
+/** Nhóm vật liệu lớp in cho bảng giá in (OPP / PET / PE) */
+export type NhomMucIn = 'opp' | 'pet' | 'pe';
 
 /** TB cộng: bỏ dòng donGia<=0, lấy trung bình đơn giá */
 export function tinhGiaMucTbCong(rows: MucInRow[]): number {
@@ -193,4 +197,76 @@ export function chuanHoaBangDungMoiKeo(
     return { rows: raw!.rows!.map((r, i) => chuanHoaSolventRow(r, i)) };
   }
   return { rows: fallback.rows.map((r) => ({ ...r })) };
+}
+
+function donGiaDmTheoMa(
+  bang: SolventAdhesiveTable | undefined,
+  ma: string,
+): number {
+  const row = bang?.rows?.find((r) => r.ma === ma);
+  return row ? Number(row.donGia) || 0 : 0;
+}
+
+/**
+ * CP mực in + dung môi in (₫/m²) cho 1 nhóm vật liệu.
+ *
+ * `= (ĐM mực × tỉ lệ phủ × giáMực + ĐM dung môi × giáDM) ÷ 1000`
+ *
+ * ĐM mực đã là tổng định mức cho n màu (1 màu = 4g, 8 màu = 32g) — KHÔNG nhân
+ * lại số màu (nhất quán với `tinhCpMucDungMoiIn` trong dac-ta-nang-cao.ts).
+ * Tỉ lệ phủ chỉ nhân vào phần mực; dung môi hòa tan giữ nguyên (giống engine cũ).
+ * Giá DM: PET → DM_PET; OPP/PE → DM_OPP (sheet không có DM_PE).
+ */
+export function tinhCpMucInMoiM2(
+  soMau: number,
+  nhom: NhomMucIn,
+  ink: CpsxUpgradeInk,
+  tyLePhuMuc = 1,
+): number {
+  const giaMuc = Number(ink?.[nhom]?.appliedPrice) || 0;
+  const giaDm = donGiaDmTheoMa(
+    ink?.solventAdhesive,
+    nhom === 'pet' ? 'DM_PET' : 'DM_OPP',
+  );
+
+  const mau = Math.floor(Number(soMau));
+  if (mau <= 0) return 0;
+  const dm = ink?.dinhMucIn?.find((r) => r.soMau === Math.min(8, mau));
+  if (!dm) return 0;
+
+  const tyLe = Number.isFinite(tyLePhuMuc) ? Math.max(0, tyLePhuMuc) : 1;
+  return (dm.dmMucG * tyLe * giaMuc + dm.dmDungMoiG * giaDm) / 1000;
+}
+
+/** 1 dòng của bảng giá in theo số màu (₫/m²) — 6 cột: 3 vật liệu × 2 tỉ lệ phủ */
+export interface DongGiaInTheoMau {
+  soMau: DinhMucInRow['soMau'];
+  opp100: number;
+  pet100: number;
+  pe100: number;
+  opp50: number;
+  pet50: number;
+  pe50: number;
+}
+
+/**
+ * Lập bảng giá in theo số màu 1–8 (₫/m², làm tròn nguyên) — tham chiếu tự tính
+ * từ bảng giá mực ₫/kg + bảng dung môi + định mức g/m². Chỉ hiển thị, không
+ * thay đổi engine đặc tả nâng cao.
+ */
+export function lapBangGiaInTheoMau(ink: CpsxUpgradeInk): DongGiaInTheoMau[] {
+  const bang: DongGiaInTheoMau[] = [];
+  for (let soMau = 1; soMau <= 8; soMau++) {
+    const m = soMau as DongGiaInTheoMau['soMau'];
+    bang.push({
+      soMau: m,
+      opp100: Math.round(tinhCpMucInMoiM2(m, 'opp', ink, 1)),
+      pet100: Math.round(tinhCpMucInMoiM2(m, 'pet', ink, 1)),
+      pe100: Math.round(tinhCpMucInMoiM2(m, 'pe', ink, 1)),
+      opp50: Math.round(tinhCpMucInMoiM2(m, 'opp', ink, 0.5)),
+      pet50: Math.round(tinhCpMucInMoiM2(m, 'pet', ink, 0.5)),
+      pe50: Math.round(tinhCpMucInMoiM2(m, 'pe', ink, 0.5)),
+    });
+  }
+  return bang;
 }

@@ -23,6 +23,7 @@
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.1);
   --input-bg: #f1f5f9;
   --table-stripe: rgba(0, 0, 0, 0.02);
+  --gia-in-line: rgba(15, 23, 42, 0.22);
 }
 
 /* ═══════════ DARK THEME ═══════════ */
@@ -46,6 +47,7 @@
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.35);
   --input-bg: rgba(0, 0, 0, 0.25);
   --table-stripe: rgba(255, 255, 255, 0.02);
+  --gia-in-line: rgba(148, 163, 184, 0.4);
 }
 
 *,
@@ -3142,6 +3144,36 @@ body {
   font-weight: 700;
   color: var(--primary, #0f766e);
   background: var(--bg-subtle, #f8fafc);
+}
+.config-cpsx-upgrade__gia-in {
+  border-collapse: collapse;
+}
+.config-cpsx-upgrade__gia-in th,
+.config-cpsx-upgrade__gia-in td {
+  border: 1px solid var(--gia-in-line);
+  background: transparent;
+}
+.config-cpsx-upgrade__gia-in thead tr:first-child th {
+  border-bottom-width: 2px;
+  font-weight: 700;
+}
+.config-cpsx-upgrade__gia-in tbody tr:nth-child(even),
+.config-cpsx-upgrade__gia-in tbody tr:hover,
+.config-cpsx-upgrade__gia-in thead tr:nth-child(even) {
+  background: transparent;
+}
+.config-cpsx-upgrade__gia-in td.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.config-cpsx-upgrade__gia-in th.num {
+  white-space: nowrap;
+}
+.config-cpsx-upgrade__gia-in td.config-cpsx-upgrade__lock {
+  text-align: center;
+  font-weight: 600;
+  color: var(--text, #334155);
 }
 .config-cpsx-upgrade__sources {
   display: flex;

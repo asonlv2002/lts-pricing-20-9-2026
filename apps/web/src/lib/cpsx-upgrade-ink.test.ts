@@ -8,8 +8,11 @@ import {
   chuanHoaBangDungMoiKeo,
   chuanHoaDinhMucIn,
   chuanHoaDinhMucGhep,
+  tinhCpMucInMoiM2,
+  lapBangGiaInTheoMau,
 } from './cpsx-upgrade-ink';
 import type {
+  CpsxUpgradeInk,
   DinhMucGhep,
   DinhMucInRow,
   MucInRow,
@@ -297,6 +300,66 @@ const peRows: MucInRow[] = [
   const out = chuanHoaDinhMucGhep({ keoKhoG: 4, dungMoiPhaKeoG: 8 }, fbDinhMucGhep);
   eq(out.keoKhoG, 4, 'giữ keo');
   eq(out.dungMoiPhaKeoG, 8, 'giữ DM');
+}
+
+// 12. tinhCpMucInMoiM2 — giá in (₫/m²) theo số màu + vật liệu + tỉ lệ phủ
+const inkFixture: CpsxUpgradeInk = {
+  opp: { rows: oppRows, appliedSource: 'manual', appliedPrice: 120000 },
+  pet: { rows: oppRows, appliedSource: 'manual', appliedPrice: 135000 },
+  pe: { rows: peRows, appliedSource: 'weighted', appliedPrice: 87696 },
+  solventAdhesive: fbSolvent,
+  dinhMucIn: fbDinhMucIn,
+  dinhMucGhep: fbDinhMucGhep,
+};
+{
+  // PET 1 màu: (4×135000 + 4.5×40000) ÷ 1000 = 720
+  approx(tinhCpMucInMoiM2(1, 'pet', inkFixture), 720, 'PET 1 màu 100%');
+  // PET 1 màu 50%: (4×0.5×135000 + 4.5×40000) ÷ 1000 = 450
+  approx(tinhCpMucInMoiM2(1, 'pet', inkFixture, 0.5), 450, 'PET 1 màu 50%');
+  // OPP 1 màu: (4×120000 + 4.5×40000) ÷ 1000 = 660
+  approx(tinhCpMucInMoiM2(1, 'opp', inkFixture), 660, 'OPP 1 màu 100%');
+  // OPP 8 màu: (32×120000 + 15×40000) ÷ 1000 = 4440
+  approx(tinhCpMucInMoiM2(8, 'opp', inkFixture), 4440, 'OPP 8 màu 100%');
+  // PE dùng DM_OPP: (4×87696 + 4.5×40000) ÷ 1000 = 530.784
+  approx(tinhCpMucInMoiM2(1, 'pe', inkFixture), 530.784, 'PE 1 màu 100% — DM_OPP');
+  // PE 8 màu 50%: (32×0.5×87696 + 15×40000) ÷ 1000 = 2003.136
+  approx(tinhCpMucInMoiM2(8, 'pe', inkFixture, 0.5), 2003.136, 'PE 8 màu 50%');
+  assert(tinhCpMucInMoiM2(0, 'opp', inkFixture) === 0, 'soMau 0 → 0');
+  assert(tinhCpMucInMoiM2(-2, 'opp', inkFixture) === 0, 'soMau âm → 0');
+  // soMau > 8 clamp về định mức 8 màu
+  approx(
+    tinhCpMucInMoiM2(12, 'opp', inkFixture),
+    tinhCpMucInMoiM2(8, 'opp', inkFixture),
+    'soMau > 8 → clamp 8',
+  );
+  // 50% chỉ giảm phần mực: chênh lệch = nửa phần mực
+  approx(
+    tinhCpMucInMoiM2(1, 'pet', inkFixture) - tinhCpMucInMoiM2(1, 'pet', inkFixture, 0.5),
+    (4 * 0.5 * 135000) / 1000,
+    'chênh lệch 100%-50% = nửa phần mực',
+  );
+}
+
+// 13. lapBangGiaInTheoMau — đủ 8 dòng, khớp giá trị tay
+{
+  const bang = lapBangGiaInTheoMau(inkFixture);
+  eq(bang.length, 8, 'đủ 8 dòng');
+  eq(bang.map((r) => r.soMau), [1, 2, 3, 4, 5, 6, 7, 8], 'soMau 1–8');
+  const d1 = bang[0];
+  eq(d1.opp100, 660, 'dòng 1 OPP 100%');
+  eq(d1.pet100, 720, 'dòng 1 PET 100%');
+  eq(d1.pe100, 531, 'dòng 1 PE 100% (round 530.784)');
+  eq(d1.opp50, 420, 'dòng 1 OPP 50%');
+  eq(d1.pet50, 450, 'dòng 1 PET 50%');
+  eq(d1.pe50, 355, 'dòng 1 PE 50% (round 355.392)');
+  const d8 = bang[7];
+  eq(d8.opp100, 4440, 'dòng 8 OPP 100%');
+  eq(d8.opp50, 2520, 'dòng 8 OPP 50%');
+  for (const r of bang) {
+    assert(r.opp50 <= r.opp100, `OPP 50% ≤ 100% (màu ${r.soMau})`);
+    assert(r.pet50 <= r.pet100, `PET 50% ≤ 100% (màu ${r.soMau})`);
+    assert(r.pe50 <= r.pe100, `PE 50% ≤ 100% (màu ${r.soMau})`);
+  }
 }
 
 console.log('cpsx-upgrade-ink.test.ts: OK');
