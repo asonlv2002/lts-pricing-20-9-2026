@@ -3061,6 +3061,47 @@ body {
   margin-bottom: 20px;
   padding: 18px 20px 20px;
 }
+.config-cpsx-upgrade-readonly__card {
+  margin-bottom: 20px;
+  padding: 14px 20px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.config-cpsx-upgrade-readonly__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 0;
+  border-bottom: 1px dashed var(--border, #e2e8f0);
+}
+.config-cpsx-upgrade-readonly__row:last-child {
+  border-bottom: none;
+}
+.config-cpsx-upgrade-readonly__label {
+  font-weight: 500;
+  color: var(--text, #334155);
+}
+.config-cpsx-upgrade-readonly__value {
+  font-weight: 600;
+  color: var(--primary, #0f766e);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.config-cpsx-upgrade-readonly__row--time {
+  flex-wrap: wrap;
+}
+.config-cpsx-upgrade-readonly__input-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.config-cpsx-upgrade-readonly__input-group .config-inline-input {
+  width: auto;
+  min-width: 96px;
+  max-width: 160px;
+}
 .config-cpsx-upgrade-card .config-section-title {
   display: flex;
   align-items: center;

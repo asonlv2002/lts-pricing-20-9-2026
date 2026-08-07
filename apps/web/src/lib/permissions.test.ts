@@ -51,10 +51,10 @@ assert(
 
 console.log('\n== pricing_config PRICE_CONFIG_MANAGER gate ==');
 assert(
-  'pricing_config hidden without PRICE_CONFIG_MANAGER',
-  coTheXemNhomMenu([], 'pricing_config') === false
-    && coTheXemNhomMenu(['ACCOUNT_READ'] as PolicyCode[], 'pricing_config') === false,
-  'ACCOUNT_READ alone must NOT open pricing_config',
+  'pricing_config group visible without PRICE_CONFIG_MANAGER (item-level gate)',
+  coTheXemNhomMenu([], 'pricing_config') === true
+    && coTheXemNhomMenu(['ACCOUNT_READ'] as PolicyCode[], 'pricing_config') === true,
+  'pricing_config group is not gated; items decide visibility',
 );
 assert(
   'pricing_config visible with PRICE_CONFIG_MANAGER',
@@ -65,6 +65,12 @@ assert(
   coTheXemMucMenu(['ACCOUNT_READ'] as PolicyCode[], 'cau-hinh-vat-tu') === false
     && coTheXemMucMenu(['PRICE_CONFIG_MANAGER'] as PolicyCode[], 'cau-hinh-vat-tu') === true,
 );
+assert(
+  'cau-hinh-chi-phi-sx-nang-cap visible without PRICE_CONFIG_MANAGER (read-only)',
+  coTheXemMucMenu([] as PolicyCode[], 'cau-hinh-chi-phi-sx-nang-cap') === true
+    && coTheXemMucMenu(['PRICE_CONFIG_MANAGER'] as PolicyCode[], 'cau-hinh-chi-phi-sx-nang-cap') === true,
+  'cpsx nang cap must be viewable by everyone; edit is gated in UI',
+);
 
 console.log('\n== vaiTroTuPolicies ==');
 assert(
@@ -73,7 +79,7 @@ assert(
 );
 assert(
   'sale-only policies -> sale',
-  vaiTroTuPolicies(['CUSTOMER_CREATE', 'CUSTOMER_READ'] as PolicyCode[]) === 'sale',
+  vaiTroTuPolicies(['CUSTOMER_MANAGER'] as PolicyCode[]) === 'sale',
 );
 assert(
   'no policies -> sale',
@@ -81,7 +87,7 @@ assert(
 );
 assert(
   'mixed admin+sale -> admin',
-  vaiTroTuPolicies(['CUSTOMER_CREATE', 'ACCOUNT_READ'] as PolicyCode[]) === 'admin',
+  vaiTroTuPolicies(['CUSTOMER_MANAGER', 'ACCOUNT_READ'] as PolicyCode[]) === 'admin',
 );
 assert(
   'ACTIVITY_MONITOR alone -> admin',

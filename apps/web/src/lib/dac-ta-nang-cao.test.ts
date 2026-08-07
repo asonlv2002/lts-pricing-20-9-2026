@@ -253,6 +253,35 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   eq(r.nhomMuc, 'pe', 'nhóm mực = pe');
 }
 
+{
+  // Tỉ lệ phủ 50% → chỉ nhân phần mực, dung môi giữ nguyên
+  // 4 màu PET: (16 × 0.5 × 80000 + 9 × 40000)/1000 = (640.000 + 360.000)/1000 = 1000
+  const r = tinhCpMucDungMoiIn(4, 'MPET 12', ink, 0.5);
+  approx(r.donGia, 1000, '4 màu MPET + phủ 50% → 1000 ₫/m²');
+  eq(r.tyLePhuMuc, 0.5, 'trả về tyLePhuMuc 0.5');
+}
+
+{
+  // 2 màu OPP + phủ 50%: (8 × 0.5 × 60000 + 6 × 40000)/1000 = (240.000 + 240.000)/1000 = 480
+  const r = tinhCpMucDungMoiIn(2, 'BOPP 18', ink, 0.5);
+  approx(r.donGia, 480, '2 màu BOPP + phủ 50% → 480 ₫/m²');
+}
+
+{
+  // Không in (soMau = 0) dù truyền tỉ lệ phủ → vẫn 0 (guard chạy trước phép nhân)
+  const r = tinhCpMucDungMoiIn(0, 'MPET 12', ink, 0.5);
+  approx(r.donGia, 0, 'soMau=0 + phủ 50% → vẫn 0');
+}
+
+{
+  // tyLePhuMuc không hợp lệ → fallback 100%
+  const rNaN = tinhCpMucDungMoiIn(4, 'MPET 12', ink, NaN as unknown as number);
+  approx(rNaN.donGia, 1640, 'tyLe NaN → fallback 100%');
+  const rAm = tinhCpMucDungMoiIn(4, 'MPET 12', ink, -1);
+  // chỉ còn dung môi: 9 × 40000/1000 = 360
+  approx(rAm.donGia, 360, 'tyLe âm → clamp 0, chỉ còn phần dung môi');
+}
+
 // ── 3. tinhCpKeoDungMoiGhep ─────────────────────────────────────────────────
 
 {
@@ -394,6 +423,36 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   eq(dongTui.cpMucKeo, null, 'làm túi: mực/keo = null');
   eq(dongTui.dauVaoNVL, null, 'làm túi: đầu vào NVL = null (khác đơn vị)');
   eq(dongTui.giaNVL, null, 'làm túi: giá NVL = null');
+}
+
+{
+  // coverageRatio 50% từ input → dòng in tính theo tỉ lệ phủ
+  const r50 = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, coverageRatio: 0.5 } });
+  const rows50 = lapDongVatLieuNangCao(r50, taoUniRows(), taoHangSo());
+  approx(rows50[0].cpMucKeo!, 1000, 'phủ 50% → dòng in 1000 ₫/m² (1640 × giảm phần mực)');
+  approx(rows50[0].thanhTienMucKeo!, 1000 * 8420 * 0.65, 'phủ 50% → thành tiền theo 1000 ₫/m²');
+  assert(String(rows50[0].ghiChu ?? '').includes('50%'), 'ghiChu hiển thị tỉ lệ phủ 50%');
+  approx(rows50[1].cpMucKeo!, 420, 'dòng ghép: keo không đổi theo tỉ lệ phủ');
+}
+
+{
+  // coverageRatio thiếu / không hợp lệ → fallback 100%
+  const rowsThieu = lapDongVatLieuNangCao(taoResult(), taoUniRows(), taoHangSo());
+  approx(rowsThieu[0].cpMucKeo!, 1640, 'thiếu coverageRatio → 100% (1640)');
+  const rowsSai = lapDongVatLieuNangCao(
+    taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, coverageRatio: 7 } }),
+    taoUniRows(),
+    taoHangSo(),
+  );
+  approx(rowsSai[0].cpMucKeo!, 1640, 'coverageRatio không hợp lệ → fallback 100%');
+}
+
+{
+  // Không in (numColors = 0) + phủ 50% → CP mực vẫn 0
+  const rKhongIn = taoResult({ input: { productType: 'tui', numColors: 0, quantity: 10000, coverageRatio: 0.5 } });
+  const rowsKhongIn = lapDongVatLieuNangCao(rKhongIn, taoUniRows(), taoHangSo());
+  approx(rowsKhongIn[0].cpMucKeo!, 0, 'không in → CP mực + DM = 0');
+  approx(rowsKhongIn[0].thanhTienMucKeo!, 0, 'không in → thành tiền mực 0');
 }
 
 {

@@ -512,6 +512,7 @@ export default function TrangCauHinh({
     dangXemPhienBan,
     phienBanDangXemId,
     configSnapshots: tatCaPhienBan,
+    nguoiDungHienTai,
   } = dungCuaHangTinhGia();
 
   const scopeDangXem = React.useMemo(() => {
@@ -1443,7 +1444,9 @@ export default function TrangCauHinh({
         <div className="config-content">
           {hienCpsxNangCap && (
             <>
-              <KhoiPhienBan scope="production" />
+              {!!nguoiDungHienTai?.policies.includes("PRICE_CONFIG_MANAGER") && (
+                <KhoiPhienBan scope="production" />
+              )}
               <CpsxNangCapTrang />
             </>
           )}

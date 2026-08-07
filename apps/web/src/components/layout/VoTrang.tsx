@@ -1741,13 +1741,15 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [isAuthenticated, nguoiDung?.id, policies.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Rời màn cấu hình nếu user không còn PRICE_CONFIG_MANAGER (login user khác / revoke / restore)
+  // Rời màn cấu hình nếu user không còn PRICE_CONFIG_MANAGER (login user khác / revoke / restore).
+  // Riêng "cau-hinh-chi-phi-sx-nang-cap" mở cho mọi người XEM kết quả (chỉ có quyền mới sửa).
   useEffect(() => {
     if (!isAuthenticated || !sessionChecked) return;
 
     const coQuyenConfig = policies.includes("PRICE_CONFIG_MANAGER");
     const dangOConfig =
-      moduleDangMo === "master_data" || MENU_KEYS_CONFIG.has(menuDangChon);
+      (moduleDangMo === "master_data" || MENU_KEYS_CONFIG.has(menuDangChon)) &&
+      menuDangChon !== "cau-hinh-chi-phi-sx-nang-cap";
 
     if (!coQuyenConfig && dangOConfig) {
       dieuHuongMenu("tao-tinh-gia", "replace");

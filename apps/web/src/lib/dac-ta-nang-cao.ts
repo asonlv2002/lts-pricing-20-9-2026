@@ -157,15 +157,18 @@ function maDungMoiIn(nhom: NhomMuc): string {
 /**
  * CP mực in + dung môi in (₫/m²) cho lớp in.
  *
- * `= (dmMucG × giáMực + dmDungMôiG × giáDM) ÷ 1000`
+ * `= (dmMucG × tỉ lệ phủ × giáMực + dmDungMôiG × giáDM) ÷ 1000`
  *
  * QUAN TRỌNG: KHÔNG nhân lại `soMau`. `dinhMucIn` đã là định mức tổng cho n màu
  * (1 màu = 4g, 8 màu = 32g). Nhân lại sẽ ra bình phương số màu.
+ * Tỉ lệ phủ (coverageRatio) chỉ nhân vào phần mực; dung môi hòa tan giữ nguyên.
+ * Clamp tỉ lệ phủ vào [0, 1]; giá trị không hợp lệ (NaN) → 100%.
  */
 export function tinhCpMucDungMoiIn(
   soMau: number | null | undefined,
   tenVatLieu: string | null | undefined,
   ink: CpsxUpgradeInk,
+  tyLePhuMuc = 1,
 ): {
   donGia: number;
   nhomMuc: NhomMuc;
@@ -173,14 +176,16 @@ export function tinhCpMucDungMoiIn(
   giaDungMoi: number;
   dmMucG: number;
   dmDungMoiG: number;
+  tyLePhuMuc: number;
 } {
   const nhomMuc = chonNhomMuc(tenVatLieu);
   const giaMuc = so(ink?.[nhomMuc]?.appliedPrice);
   const giaDungMoi = donGiaTheoMa(ink?.solventAdhesive, maDungMoiIn(nhomMuc));
+  const tyLe = Number.isFinite(tyLePhuMuc) ? Math.min(1, Math.max(0, tyLePhuMuc)) : 1;
 
   const mau = Math.floor(so(soMau));
   if (mau <= 0) {
-    return { donGia: 0, nhomMuc, giaMuc, giaDungMoi, dmMucG: 0, dmDungMoiG: 0 };
+    return { donGia: 0, nhomMuc, giaMuc, giaDungMoi, dmMucG: 0, dmDungMoiG: 0, tyLePhuMuc: tyLe };
   }
   const mauClamp = Math.min(8, mau);
   const dm = ink?.dinhMucIn?.find(r => r.soMau === mauClamp);
@@ -188,8 +193,8 @@ export function tinhCpMucDungMoiIn(
   const dmDungMoiG = so(dm?.dmDungMoiG);
 
   // g/m² × ₫/kg ÷ 1000 → ₫/m²
-  const donGia = (dmMucG * giaMuc + dmDungMoiG * giaDungMoi) / 1000;
-  return { donGia, nhomMuc, giaMuc, giaDungMoi, dmMucG, dmDungMoiG };
+  const donGia = (dmMucG * tyLe * giaMuc + dmDungMoiG * giaDungMoi) / 1000;
+  return { donGia, nhomMuc, giaMuc, giaDungMoi, dmMucG, dmDungMoiG, tyLePhuMuc: tyLe };
 }
 
 /**
@@ -270,6 +275,7 @@ export function lapDongVatLieuNangCao(
   const ink = layInk(hangSo);
   const laMang = result?.input?.productType === 'mang';
   const soMau = result?.input?.numColors;
+  const tyLePhuMuc = result?.input?.coverageRatio;
   const donGiaKeo = tinhCpKeoDungMoiGhep(ink).donGia;
 
   const rows: DongVatLieuNangCao[] = (uniRows ?? []).flatMap(row => {
@@ -280,9 +286,11 @@ export function lapDongVatLieuNangCao(
     let cpMucKeo: number | null = null;
     let ghiChu: string | undefined;
     if (row.rowKey === 'print') {
-      const r = tinhCpMucDungMoiIn(soMau, row.mat, ink);
+      const r = tinhCpMucDungMoiIn(soMau, row.mat, ink, tyLePhuMuc);
       cpMucKeo = r.donGia;
-      ghiChu = `(${r.dmMucG}g × ${r.giaMuc.toLocaleString('vi-VN')} + ${r.dmDungMoiG}g × ${r.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — bảng ${r.nhomMuc.toUpperCase()}`;
+      ghiChu = r.tyLePhuMuc !== 1
+        ? `(${r.dmMucG}g × ${Math.round(r.tyLePhuMuc * 100)}% × ${r.giaMuc.toLocaleString('vi-VN')} + ${r.dmDungMoiG}g × ${r.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — bảng ${r.nhomMuc.toUpperCase()}`
+        : `(${r.dmMucG}g × ${r.giaMuc.toLocaleString('vi-VN')} + ${r.dmDungMoiG}g × ${r.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — bảng ${r.nhomMuc.toUpperCase()}`;
     } else if (row.rowKey.startsWith('lam-')) {
       cpMucKeo = donGiaKeo;
       const k = tinhCpKeoDungMoiGhep(ink);
