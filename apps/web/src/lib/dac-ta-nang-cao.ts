@@ -47,6 +47,9 @@ export interface DongVatLieuNangCao {
   /** CP mực in / dung môi / keo ghép (₫/m²) — null khi công đoạn không tiêu thụ */
   cpMucKeo: number | null;
   thanhTienMucKeo: number | null;
+  /** CP in nhũ + phủ mờ (₫/m²) — khớp metallicSurcharge của engine, chỉ dòng in */
+  cpNhuMo: number | null;
+  thanhTienNhuMo: number | null;
   /** Chi tiết công thức để hiện tooltip */
   ghiChu?: string;
 }
@@ -139,14 +142,15 @@ function layInk(hangSo: AppConstants): CpsxUpgradeInk {
 
 /**
  * Chọn bảng giá mực theo tên vật liệu lớp in.
- * Thứ tự kiểm tra: MPET/PET trước PE (vì 'PET' chứa substring 'PE').
+ * Thứ tự kiểm tra: PET trước PE (vì 'PET' chứa substring 'PE').
+ * Không khớp / rỗng / PA → PET (mọi màng in còn lại — chỉ OPP/MattOPP dùng bảng OPP).
  */
 export function chonNhomMuc(tenVatLieu: string | null | undefined): NhomMuc {
   const u = String(tenVatLieu ?? '').toUpperCase();
-  if (u.includes('PET')) return 'pet';           // gồm cả MPET
-  if (u.includes('OPP')) return 'opp';           // gồm cả BOPP
+  if (u.includes('OPP')) return 'opp';           // OPP, BOPP, MattOPP
+  if (u.includes('PET')) return 'pet';           // gồm cả MPET — trước PE vì PET chứa PE
   if (u.includes('PE')) return 'pe';             // LLDPE, PE
-  return 'opp';
+  return 'pet';                                  // PA, giấy, không khớp, rỗng → PET
 }
 
 /** Mã dung môi in tương ứng nhóm mực (sheet không có DM_PE → PE dùng DM_OPP) */
@@ -284,10 +288,13 @@ export function lapDongVatLieuNangCao(
     const dauVaoNVL = thanhPham + phiHao;
 
     let cpMucKeo: number | null = null;
+    let cpNhuMo: number | null = null;
     let ghiChu: string | undefined;
     if (row.rowKey === 'print') {
       const r = tinhCpMucDungMoiIn(soMau, row.mat, ink, tyLePhuMuc);
       cpMucKeo = r.donGia;
+      const phiInBoSung = so(result?.input?.metallicSurcharge);
+      cpNhuMo = phiInBoSung > 0 ? phiInBoSung : null;
       ghiChu = r.tyLePhuMuc !== 1
         ? `(${r.dmMucG}g × ${Math.round(r.tyLePhuMuc * 100)}% × ${r.giaMuc.toLocaleString('vi-VN')} + ${r.dmDungMoiG}g × ${r.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — bảng ${r.nhomMuc.toUpperCase()}`
         : `(${r.dmMucG}g × ${r.giaMuc.toLocaleString('vi-VN')} + ${r.dmDungMoiG}g × ${r.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — bảng ${r.nhomMuc.toUpperCase()}`;
@@ -321,6 +328,8 @@ export function lapDongVatLieuNangCao(
           thanhTienNVL: so(detail.costMat),
           cpMucKeo,
           thanhTienMucKeo: cpMucKeo != null ? cpMucKeo * dauVaoNVL * kho : null,
+          cpNhuMo,
+          thanhTienNhuMo: cpNhuMo != null ? cpNhuMo * dauVaoNVL * kho : null,
           ghiChu,
         };
       });
@@ -342,6 +351,8 @@ export function lapDongVatLieuNangCao(
       thanhTienNVL: row.costMat,
       cpMucKeo,
       thanhTienMucKeo: cpMucKeo != null ? cpMucKeo * dauVaoNVL * khoHieuDung : null,
+      cpNhuMo,
+      thanhTienNhuMo: cpNhuMo != null ? cpNhuMo * dauVaoNVL * khoHieuDung : null,
       ghiChu,
     }];
   });
@@ -370,6 +381,8 @@ export function lapDongVatLieuNangCao(
         thanhTienNVL: tongPhuKien,
         cpMucKeo: null,
         thanhTienMucKeo: null,
+        cpNhuMo: null,
+        thanhTienNhuMo: null,
         ghiChu: 'Phụ kiện túi — Zipper/băng keo tính ₫/m, quai tính ₫/túi',
       });
     }
@@ -493,7 +506,7 @@ export function tinhTongNangCao(
   dongNhanCongDien: DongNhanCongDien[],
 ): TongNangCao {
   const tongVatLieu = (dongVatLieu ?? []).reduce(
-    (s, r) => s + so(r.thanhTienNVL) + so(r.thanhTienMucKeo),
+    (s, r) => s + so(r.thanhTienNVL) + so(r.thanhTienMucKeo) + so(r.thanhTienNhuMo),
     0,
   );
   const tongNhanCongDien = (dongNhanCongDien ?? []).reduce(

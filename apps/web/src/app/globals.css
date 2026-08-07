@@ -3149,6 +3149,80 @@ body {
 .config-cpsx-upgrade__table-wrap {
   margin-bottom: 14px;
 }
+.config-cpsx-upgrade__search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.config-cpsx-upgrade__search-input-wrap {
+  position: relative;
+  flex: 1;
+  max-width: 380px;
+}
+.config-cpsx-upgrade__search-input {
+  width: 100%;
+  padding: 8px 34px 8px 34px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 0.85rem;
+  outline: none;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.config-cpsx-upgrade__search-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+}
+.config-cpsx-upgrade__search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--dim);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  font-size: 0.8rem;
+}
+.config-cpsx-upgrade__search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+}
+.config-cpsx-upgrade__search-clear:hover {
+  color: var(--text);
+  background: var(--border);
+}
+.config-cpsx-upgrade__search-count {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.config-cpsx-upgrade__search-count strong {
+  color: var(--text);
+  font-weight: 700;
+}
+.config-cpsx-upgrade__search-empty td {
+  text-align: center;
+  color: var(--muted);
+  font-style: italic;
+  padding: 14px;
+}
 .config-cpsx-upgrade__table th,
 .config-cpsx-upgrade__table td {
   padding: 12px 14px;

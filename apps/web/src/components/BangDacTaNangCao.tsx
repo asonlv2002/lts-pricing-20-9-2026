@@ -74,6 +74,15 @@ export default function BangDacTaNangCao({
               >
                 Thành tiền mực + DM + keo
               </th>
+              <th
+                className="num"
+                title="CP in nhũ + phủ mờ (đ/m²) — khớp metallicSurcharge của engine"
+              >
+                CP Nhũ + Mờ (đ/m²)
+              </th>
+              <th className="num" title="Thành tiền CP in nhũ + phủ mờ (VNĐ)">
+                Thành tiền Nhũ + Mờ
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -116,6 +125,23 @@ export default function BangDacTaNangCao({
                   data-label="Thành tiền CP mực in, dung môi, keo ghép (VNĐ)"
                 >
                   {dinhDangSo(row.thanhTienMucKeo, 0)}
+                </td>
+                <td
+                  className="num dac-ta-nang-cao__muc"
+                  data-label="CP in nhũ + phủ mờ (đ/m²)"
+                  title={
+                    row.cpNhuMo != null
+                      ? `Phí in bổ sung (Nhũ + Phủ mờ + phí khác) — khớp metallicSurcharge của engine (${dinhDangSo(row.cpNhuMo, 0)} ₫/m²)`
+                      : undefined
+                  }
+                >
+                  {dinhDangSo(row.cpNhuMo, 1)}
+                </td>
+                <td
+                  className="num dac-ta-nang-cao__muc"
+                  data-label="Thành tiền CP in nhũ + phủ mờ (VNĐ)"
+                >
+                  {dinhDangSo(row.thanhTienNhuMo, 0)}
                 </td>
               </tr>
             ))}

@@ -36,6 +36,16 @@ function docSo(value: string) {
   return Number(value.replace(/\D/g, "")) || 0;
 }
 
+/** Bỏ dấu tiếng Việt + hạ thường — dùng cho tìm kiếm không phân biệt hoa thường/dấu */
+function loaiBoDau(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "d")
+    .toLowerCase();
+}
+
 interface BangMucProps {
   loai: LoaiBang;
   state: MucInTable;
@@ -55,6 +65,18 @@ function BangMuc({ loai, state, onChange }: BangMucProps) {
   const [manualDraft, setManualDraft] = React.useState<string>(() =>
     tbCong > 0 ? dinhDangVnd(tbCong) : "",
   );
+
+  // ── Tìm kiếm vật tư (theo mã / tên, không phân biệt dấu) ──
+  const [query, setQuery] = React.useState("");
+  const q = loaiBoDau(query.trim());
+  const filteredRows = state.rows
+    .map((r, i) => ({ r, i }))
+    .filter(
+      ({ r }) =>
+        !q ||
+        loaiBoDau(r.ma).includes(q) ||
+        loaiBoDau(r.ten).includes(q),
+    );
 
   React.useEffect(() => {
     if (state.appliedSource !== "manual") {
@@ -80,6 +102,7 @@ function BangMuc({ loai, state, onChange }: BangMucProps) {
 
   const themRow = () => {
     const n = state.rows.length + 1;
+    setQuery("");
     capNhatRows([
       ...state.rows,
       { ma: `NEW_${n}`, ten: "", dvt: "kg", donGia: 0, slDung: 0 },
@@ -102,6 +125,38 @@ function BangMuc({ loai, state, onChange }: BangMucProps) {
 
   return (
     <div className="config-cpsx-upgrade__panel">
+      <div className="config-cpsx-upgrade__search">
+        <div className="config-cpsx-upgrade__search-input-wrap">
+          <span className="config-cpsx-upgrade__search-icon" aria-hidden="true">
+            🔍
+          </span>
+          <input
+            type="text"
+            className="config-cpsx-upgrade__search-input"
+            placeholder="Tìm mã hoặc tên vật tư…"
+            aria-label="Tìm vật tư theo mã hoặc tên"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") setQuery("");
+            }}
+          />
+          {query && (
+            <button
+              type="button"
+              className="config-cpsx-upgrade__search-clear"
+              onClick={() => setQuery("")}
+              aria-label="Xóa tìm kiếm"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        <span className="config-cpsx-upgrade__search-count">
+          <strong>{filteredRows.length}</strong>/{state.rows.length} dòng
+        </span>
+      </div>
+
       <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
         <table className="config-table config-cpsx-upgrade__table">
           <thead>
@@ -116,73 +171,81 @@ function BangMuc({ loai, state, onChange }: BangMucProps) {
             </tr>
           </thead>
           <tbody>
-            {state.rows.map((r, i) => (
-              <tr key={`${loai}-${i}-${r.ma}`}>
-                <td className="num config-cpsx-upgrade__lock">{i + 1}</td>
-                <td>
-                  <input
-                    type="text"
-                    className="config-inline-input"
-                    aria-label="Mã vật tư"
-                    value={r.ma}
-                    onChange={(e) => suaRow(i, { ma: e.target.value })}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    className="config-inline-input"
-                    aria-label="Tên vật tư"
-                    value={r.ten}
-                    onChange={(e) => suaRow(i, { ten: e.target.value })}
-                  />
-                </td>
-                <td>
-                  <input
-                    type="text"
-                    className="config-inline-input"
-                    aria-label="Đơn vị tính"
-                    value={r.dvt}
-                    onChange={(e) => suaRow(i, { dvt: e.target.value })}
-                  />
-                </td>
-                <td className="num">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    className="config-inline-input"
-                    aria-label="Đơn giá"
-                    value={dinhDangVnd(r.donGia)}
-                    onChange={(e) =>
-                      suaRow(i, { donGia: docSo(e.target.value) })
-                    }
-                  />
-                </td>
-                <td className="num">
-                  <input
-                    type="text"
-                    inputMode="numeric"
-                    className="config-inline-input"
-                    aria-label="Số lượng dùng"
-                    value={dinhDangSo(r.slDung)}
-                    onChange={(e) =>
-                      suaRow(i, { slDung: docSo(e.target.value) })
-                    }
-                  />
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline config-cpsx-upgrade__del"
-                    disabled={state.rows.length <= 1}
-                    onClick={() => xoaRow(i)}
-                    aria-label="Xóa dòng"
-                  >
-                    ✕
-                  </button>
+            {filteredRows.length === 0 ? (
+              <tr className="config-cpsx-upgrade__search-empty">
+                <td colSpan={7}>
+                  Không tìm thấy vật tư nào khớp &quot;{query.trim()}&quot;
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredRows.map(({ r, i }) => (
+                <tr key={`${loai}-${i}-${r.ma}`}>
+                  <td className="num config-cpsx-upgrade__lock">{i + 1}</td>
+                  <td>
+                    <input
+                      type="text"
+                      className="config-inline-input"
+                      aria-label="Mã vật tư"
+                      value={r.ma}
+                      onChange={(e) => suaRow(i, { ma: e.target.value })}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      className="config-inline-input"
+                      aria-label="Tên vật tư"
+                      value={r.ten}
+                      onChange={(e) => suaRow(i, { ten: e.target.value })}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      type="text"
+                      className="config-inline-input"
+                      aria-label="Đơn vị tính"
+                      value={r.dvt}
+                      onChange={(e) => suaRow(i, { dvt: e.target.value })}
+                    />
+                  </td>
+                  <td className="num">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      className="config-inline-input"
+                      aria-label="Đơn giá"
+                      value={dinhDangVnd(r.donGia)}
+                      onChange={(e) =>
+                        suaRow(i, { donGia: docSo(e.target.value) })
+                      }
+                    />
+                  </td>
+                  <td className="num">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      className="config-inline-input"
+                      aria-label="Số lượng dùng"
+                      value={dinhDangSo(r.slDung)}
+                      onChange={(e) =>
+                        suaRow(i, { slDung: docSo(e.target.value) })
+                      }
+                    />
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline config-cpsx-upgrade__del"
+                      disabled={state.rows.length <= 1}
+                      onClick={() => xoaRow(i)}
+                      aria-label="Xóa dòng"
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
             <tr className="config-cpsx-upgrade__add-row">
               <td colSpan={7}>
                 <button
