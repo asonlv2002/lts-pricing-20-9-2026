@@ -167,8 +167,28 @@ const styles = StyleSheet.create({
   lamPartKho: { width: `${LSX_PDF_LAM_COLUMNS.partKhoWithinParts}%`, borderLeft: BORDER, paddingHorizontal: 5, paddingVertical: 4 },
   lamSingleName: { width: `${LSX_PDF_LAM_COLUMNS.singleName}%`, paddingHorizontal: 5, paddingVertical: 4 },
   lamSingleKho: { width: `${LSX_PDF_LAM_COLUMNS.singleKho}%`, borderLeft: BORDER, paddingHorizontal: 5, paddingVertical: 4 },
-  footer: { textAlign: "center", paddingVertical: 10 },
+  footer: { textAlign: "center", alignItems: "center", paddingVertical: 10 },
+  signatureImage: {
+    width: 110,
+    height: 42,
+    objectFit: "contain",
+    alignSelf: "center",
+    marginTop: 4,
+  },
 });
+
+/** Ô "Người lập" kèm ảnh chữ ký (base64 data URL snapshot lúc tạo LSX). */
+function ChuKyNguoiLap({ m }: { m: LSXManualFields }) {
+  return (
+    <>
+      <Text style={styles.bold}>Người lập:</Text>
+      <Text>{m.preparedBy || ""}</Text>
+      {m.preparedBySignature ? (
+        <Image src={m.preparedBySignature} style={styles.signatureImage} />
+      ) : null}
+    </>
+  );
+}
 
 function v(val: string | number | null | undefined, suffix = ""): string {
   if (val === null || val === undefined || val === "" || val === 0) return "";
@@ -468,8 +488,7 @@ function MangBody({ order }: { order: ProductionOrder }) {
 
       <View style={styles.row}>
         <Cell w="50%" style={styles.footer}>
-          <Text style={styles.bold}>Người lập:</Text>
-          <Text>{m.preparedBy || ""}</Text>
+          <ChuKyNguoiLap m={m} />
         </Cell>
         <Cell w="50%" style={styles.footer}>
           <Text style={styles.bold}>Người Duyệt:</Text>
@@ -751,8 +770,7 @@ function TuiBody({ order }: { order: ProductionOrder }) {
 
       <View style={styles.row}>
         <Cell w="50%" style={styles.footer}>
-          <Text style={styles.bold}>Người lập:</Text>
-          <Text>{m.preparedBy || ""}</Text>
+          <ChuKyNguoiLap m={m} />
         </Cell>
         <Cell w="50%" style={styles.footer}>
           <Text style={styles.bold}>Người duyệt:</Text>

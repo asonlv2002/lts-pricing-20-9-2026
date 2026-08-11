@@ -10,6 +10,8 @@ import {
   layTaiKhoanService,
   layAnhDaiDienService,
   taiAnhDaiDienService,
+  layChuKyService,
+  taiChuKyService,
   doiMatKhauService,
   chuyenTaiKhoanApi,
   LS_ACCESS_TOKEN,
@@ -33,6 +35,8 @@ export interface AuthSlice {
     policies: PolicyCode[];
     avatarUrl: string | null;
     avatarBlobUrl: string | null;
+    signatureUrl: string | null;
+    signatureBlobUrl: string | null;
   } | null;
   isAuthenticated: boolean;
   authLoading: boolean;
@@ -48,6 +52,8 @@ export interface AuthSlice {
   doiMatKhau: (currentPassword: string, newPassword: string) => Promise<void>;
   taiAnhDaiDien: (file: File) => Promise<void>;
   taiLaiAnhDaiDien: () => Promise<void>;
+  taiChuKy: (file: File) => Promise<void>;
+  taiLaiChuKy: () => Promise<void>;
 }
 
 function luuToken(accessToken: string, refreshToken: string) {
@@ -68,6 +74,7 @@ function resetPhienHetHan(set: Parameters<StateCreator<CuaHangTinhGia, [], [], A
   if (get) {
     get().dungTheoDoiMetricHeThong();
     thuHoiAnhDaiDien(get().nguoiDungHienTai);
+    thuHoiChuKy(get().nguoiDungHienTai);
   }
   set({
     accessToken: null,
@@ -104,17 +111,24 @@ function taoNguoiDungHienTai(
     fullName: string;
     policies: PolicyCode[];
     avatarUrl?: string | null;
+    signatureUrl?: string | null;
   },
 ) {
   return {
     ...user,
     avatarUrl: user.avatarUrl ?? null,
     avatarBlobUrl: null,
+    signatureUrl: user.signatureUrl ?? null,
+    signatureBlobUrl: null,
   };
 }
 
 function thuHoiAnhDaiDien(user: AuthSlice['nguoiDungHienTai']) {
   if (user?.avatarBlobUrl) URL.revokeObjectURL(user.avatarBlobUrl);
+}
+
+function thuHoiChuKy(user: AuthSlice['nguoiDungHienTai']) {
+  if (user?.signatureBlobUrl) URL.revokeObjectURL(user.signatureBlobUrl);
 }
 
 export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = (set, get) => {
@@ -176,6 +190,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       get().setRole(vaiTroTuPolicies(userPolicies));
       get().batDauTheoDoiMetricHeThong();
       get().taiLaiAnhDaiDien().catch(() => {});
+      get().taiLaiChuKy().catch(() => {});
       // Tải danh sách lịch sử từ server sau khi đăng nhập thành công
       get().taiLichSuTuServer().catch(() => {});
     } catch (error) {
@@ -199,6 +214,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
   logout: () => {
     get().dungTheoDoiMetricHeThong();
     thuHoiAnhDaiDien(get().nguoiDungHienTai);
+    thuHoiChuKy(get().nguoiDungHienTai);
     xoaToken();
     set({
       accessToken: null,
@@ -300,6 +316,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       get().setRole(vaiTroTuPolicies(userProfile?.policies ?? fallbackPolicies));
       get().batDauTheoDoiMetricHeThong();
       get().taiLaiAnhDaiDien().catch(() => {});
+      get().taiLaiChuKy().catch(() => {});
       // Tải danh sách lịch sử từ server sau khi khôi phục phiên
       get().taiLichSuTuServer().catch(() => {});
     } catch {
@@ -336,6 +353,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
           get().setRole(vaiTroTuPolicies(userPolicies));
           get().batDauTheoDoiMetricHeThong();
           get().taiLaiAnhDaiDien().catch(() => {});
+          get().taiLaiChuKy().catch(() => {});
         // Tải danh sách lịch sử từ server sau khi làm mới phiên
         get().taiLichSuTuServer().catch(() => {});
       } catch {
@@ -394,6 +412,45 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
           ...user,
           avatarUrl: user.avatarUrl ?? '/auth/me/avatar',
           avatarBlobUrl,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('Không tìm thấy')) return;
+      throw error;
+    }
+  },
+
+  taiChuKy: async (file) => {
+    const token = get().accessToken;
+    const user = get().nguoiDungHienTai;
+    if (!token || !user) throw new Error('Chưa đăng nhập.');
+
+    const data = await taiChuKyService(file, token);
+    const blob = await layChuKyService();
+    const signatureBlobUrl = URL.createObjectURL(blob);
+    thuHoiChuKy(user);
+    set({
+      nguoiDungHienTai: {
+        ...user,
+        signatureUrl: data.signatureUrl,
+        signatureBlobUrl,
+      },
+    });
+  },
+
+  taiLaiChuKy: async () => {
+    const user = get().nguoiDungHienTai;
+    if (!user) return;
+
+    try {
+      const blob = await layChuKyService();
+      const signatureBlobUrl = URL.createObjectURL(blob);
+      thuHoiChuKy(user);
+      set({
+        nguoiDungHienTai: {
+          ...user,
+          signatureUrl: user.signatureUrl ?? '/auth/me/signature',
+          signatureBlobUrl,
         },
       });
     } catch (error) {

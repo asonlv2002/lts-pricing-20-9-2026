@@ -450,5 +450,26 @@ console.log('\nbuildLsxHtml single-layer + chia');
   );
 }
 
+console.log('\nbuildLsxHtml chữ ký người lập');
+
+{
+  const html = buildLsxHtml(
+    order({
+      manual: { preparedBySignature: 'data:image/png;base64,iVBORw0KGgo=' },
+    }),
+  );
+  assert(
+    'HTML: có <img> chữ ký với class chu-ky-img',
+    html.includes('class="chu-ky-img"') && html.includes('data:image/png;base64,iVBORw0KGgo='),
+  );
+  assert('HTML: chữ ký nằm trong ô Người lập', /Người lập:[\s\S]*?class="chu-ky-img"/.test(html));
+
+  const htmlNoSig = buildLsxHtml(order({}));
+  assert('HTML: không có chữ ký thì không có <img>', !htmlNoSig.includes('class="chu-ky-img"'));
+
+  const htmlMang = buildLsxHtml(order({ productType: 'mang' }));
+  assert('HTML màng: không có <img> chữ ký khi chưa có', !htmlMang.includes('class="chu-ky-img"'));
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

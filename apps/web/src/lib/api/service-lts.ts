@@ -187,6 +187,7 @@ export interface TaiKhoanApi {
   isSystem?: boolean;
   is_system?: boolean;
   avatarUrl?: string | null;
+  signatureUrl?: string | null;
   createdAt: string;
   updatedAt?: string;
   policies: Array<{
@@ -207,6 +208,7 @@ export interface DangNhapApi {
     account: string;
     fullName?: string | null;
     avatarUrl?: string | null;
+    signatureUrl?: string | null;
   };
 }
 
@@ -217,6 +219,7 @@ export interface TaiKhoan {
   isActive: boolean;
   isSystem?: boolean;
   avatarUrl?: string | null;
+  signatureUrl?: string | null;
   policies: PolicyCode[];
   createdAt: string;
   lastLogin?: string;
@@ -503,6 +506,70 @@ export async function layAnhDaiDienService(token?: string): Promise<Blob> {
       const tokens = await lamMoiTokenTuHeThong();
       try {
         res = await goiRaw("/auth/me/avatar", {}, tokens.accessToken);
+      } catch {
+        throw new LoiServiceLts("Không kết nối được tới máy chủ.");
+      }
+    } catch (error) {
+      if (error instanceof LoiServiceLts && error.status === 401) {
+        xuLyPhienKhongHopLe?.();
+        throw new LoiServiceLts("Hết phiên đăng nhập.", 401);
+      }
+      throw error;
+    }
+  }
+
+  if (!res.ok) {
+    const body = await docJson(res);
+    throw new LoiServiceLts(layLoiTuResponse(res.status, body), res.status);
+  }
+
+  return res.blob();
+}
+
+export interface ChuKyUploadApi {
+  id: string;
+  account: string;
+  fullName: string | null;
+  isActive: boolean;
+  signatureUrl: string | null;
+  createdAt: string;
+}
+
+// ── Chữ ký LSX ────────────────────────────────────────────────────────────
+// Contract backend (đã implement trong service-lts):
+//   POST /auth/signatures (multipart "signature") → ChuKyUploadApi
+//   GET  /auth/me/signature → image blob
+//   GET  /auth/signatures/:fileName → image blob theo token
+export async function taiChuKyService(
+  file: Blob,
+  token?: string,
+): Promise<ChuKyUploadApi> {
+  const formData = new FormData();
+  formData.append("signature", file);
+  return goiService<ChuKyUploadApi>(
+    "/auth/signatures",
+    {
+      method: "POST",
+      body: formData,
+    },
+    token,
+  );
+}
+
+export async function layChuKyService(token?: string): Promise<Blob> {
+  const firstToken = token ?? layTokenHienTai?.()?.accessToken;
+  let res: Response;
+  try {
+    res = await goiRaw("/auth/me/signature", {}, firstToken);
+  } catch {
+    throw new LoiServiceLts("Không kết nối được tới máy chủ.");
+  }
+
+  if (res.status === 401) {
+    try {
+      const tokens = await lamMoiTokenTuHeThong();
+      try {
+        res = await goiRaw("/auth/me/signature", {}, tokens.accessToken);
       } catch {
         throw new LoiServiceLts("Không kết nối được tới máy chủ.");
       }
@@ -1708,6 +1775,7 @@ export function chuyenTaiKhoanApi(user: TaiKhoanApi): TaiKhoan {
     isActive: user.isActive,
     isSystem: Boolean(user.isSystem ?? user.is_system),
     avatarUrl: user.avatarUrl ?? null,
+    signatureUrl: user.signatureUrl ?? null,
     policies: (Array.isArray(user.policies) ? user.policies : [])
       .map((p) => p.code)
       .filter((code): code is PolicyCode =>

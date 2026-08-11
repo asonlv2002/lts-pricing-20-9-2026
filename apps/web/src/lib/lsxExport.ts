@@ -293,6 +293,37 @@ async function loadLogoBytes(): Promise<Uint8Array | null> {
   } catch { return null; }
 }
 
+/** Decode data URL (PNG chữ ký) → Uint8Array cho ImageRun (null nếu lỗi). */
+export function dataUrlSangBuffer(dataUrl: string): Uint8Array | null {
+  try {
+    const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+    if (!match) return null;
+    const binary = atob(match[1]);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return bytes;
+  } catch {
+    return null;
+  }
+}
+
+/** Paragraph ảnh chữ ký người lập (nếu có) cho DOCX — tái dùng cả 2 template. */
+export function chuKyParagraph(m: LSXManualFields, P: any, D?: any): any[] {
+  const sig = m.preparedBySignature;
+  if (!sig) return [];
+  const buffer = dataUrlSangBuffer(sig);
+  if (!buffer) return [];
+  const alignment = D?.AlignmentType?.CENTER;
+  return [new P({
+    children: [new P.ImageRun({
+      data: buffer,
+      type: 'png',
+      transformation: { width: 110, height: 110 },
+    })],
+    alignment,
+  })];
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // BUILD DOCX BLOB — 10 templates từ .claude/references
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -548,7 +579,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
       ], { cs: 2 })));
     }
     mR.push(rowH(600,
-      cell([para([run('Người lập:', { b: true })]), para([run(m.preparedBy || '')])], { va: 'center' }),
+      cell([para([run('Người lập:', { b: true })]), para([run(m.preparedBy || '')]), ...chuKyParagraph(m, D, D)], { va: 'center' }),
       cell([para([run('Người Duyệt:', { b: true })]), para([run(m.approvedBy || '')])], { va: 'center' }),
     ));
 
@@ -976,7 +1007,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
     bagFieldRows.push({
       h: 600,
       cells: [
-        cell([para([run('Người lập:', { b: true })]), para([run(m.preparedBy || '')])], { cs: 2, va: 'center' }),
+        cell([para([run('Người lập:', { b: true })]), para([run(m.preparedBy || '')]), ...chuKyParagraph(m, D, D)], { cs: 2, va: 'center' }),
         cell([para([run('Người duyệt:', { b: true })]), para([run(m.approvedBy || '')])], { cs: 3, va: 'center' }),
       ],
     });

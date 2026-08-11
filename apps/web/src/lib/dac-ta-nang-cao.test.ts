@@ -195,8 +195,9 @@ eq(chonNhomMuc('BOPP 18'), 'opp', 'BOPP → opp');
 eq(chonNhomMuc('OPP 20'), 'opp', 'OPP → opp');
 eq(chonNhomMuc('LLDPE 60'), 'pe', 'LLDPE → pe');
 eq(chonNhomMuc('PE'), 'pe', 'PE → pe');
-eq(chonNhomMuc(''), 'opp', 'rỗng → opp mặc định');
-eq(chonNhomMuc('GIẤY KRAFT'), 'opp', 'không khớp → opp mặc định');
+eq(chonNhomMuc('PA'), 'pet', 'PA → pet (màng còn lại)');
+eq(chonNhomMuc(''), 'pet', 'rỗng → pet mặc định');
+eq(chonNhomMuc('GIẤY KRAFT'), 'pet', 'không khớp → pet mặc định');
 eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 
 // ── 2. tinhCpMucDungMoiIn ───────────────────────────────────────────────────
@@ -433,6 +434,28 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(rows50[0].thanhTienMucKeo!, 1000 * 8420 * 0.65, 'phủ 50% → thành tiền theo 1000 ₫/m²');
   assert(String(rows50[0].ghiChu ?? '').includes('50%'), 'ghiChu hiển thị tỉ lệ phủ 50%');
   approx(rows50[1].cpMucKeo!, 420, 'dòng ghép: keo không đổi theo tỉ lệ phủ');
+}
+
+{
+  // Nhũ + Phủ mờ: metallicSurcharge > 0 → dòng in hiện CP + thành tiền, tổng cộng thêm
+  const rNhuMo = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, metallicSurcharge: 400 } });
+  const rowsNhuMo = lapDongVatLieuNangCao(rNhuMo, taoUniRows(), taoHangSo());
+  approx(rowsNhuMo[0].cpNhuMo!, 400, 'in nhũ/mờ: 400 ₫/m²');
+  approx(rowsNhuMo[0].thanhTienNhuMo!, 400 * 8420 * 0.65, 'in nhũ/mờ: thành tiền = ₫/m² × đầu vào × khổ');
+  eq(rowsNhuMo[1].cpNhuMo, null, 'dòng ghép: không có CP nhũ/mờ');
+  const tongNhuMo = tinhTongNangCao(rowsNhuMo, []);
+  approx(
+    tongNhuMo.tongVatLieu,
+    rowsNhuMo.reduce((s, x) => s + (x.thanhTienNVL ?? 0) + (x.thanhTienMucKeo ?? 0) + (x.thanhTienNhuMo ?? 0), 0),
+    'tổng VL gồm cả nhũ/mờ',
+  );
+}
+
+{
+  // Không nhũ/mờ → null
+  const rowsKhongNhuMo = lapDongVatLieuNangCao(taoResult(), taoUniRows(), taoHangSo());
+  eq(rowsKhongNhuMo[0].cpNhuMo, null, 'không nhũ/mờ → CP nhũ/mờ null');
+  eq(rowsKhongNhuMo[0].thanhTienNhuMo, null, 'không nhũ/mờ → thành tiền nhũ/mờ null');
 }
 
 {

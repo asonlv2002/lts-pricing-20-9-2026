@@ -948,6 +948,8 @@ export interface LSXManualFields {
   issuedDate: string;           // Ngày xuống LSX (dd/mm/yyyy)
   preparedBy: string;           // Người lập
   approvedBy: string;           // Người duyệt
+  /** Chữ ký người lập (base64 data URL) — snapshot lúc tạo LSX, dùng cho PDF. */
+  preparedBySignature?: string;
   deliveryDate: string;         // Ngày giao hàng yêu cầu
   notes: string;                // Ghi chú chung
 

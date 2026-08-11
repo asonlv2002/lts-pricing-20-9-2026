@@ -81,6 +81,11 @@ export function coQuyenDuyetLsx(policies: PolicyCode[]): boolean {
   return policies.includes('ORDER_REVIEWER');
 }
 
+// Người dùng có ít nhất 1 quyền duyệt (báo giá hoặc LSX) — dùng cho PIN duyệt.
+export function coQuyenDuyet(policies: PolicyCode[]): boolean {
+  return coQuyenDuyetBaoGia(policies) || coQuyenDuyetLsx(policies);
+}
+
 // Người dùng có quyền cố vấn bảng tính giá (chỉ sửa Admin, không sửa Sale).
 export function coQuyenCoVanBangTinh(policies: PolicyCode[]): boolean {
   return policies.includes('PRICING_SHEET_ADVISOR');

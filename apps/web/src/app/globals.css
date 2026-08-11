@@ -11607,6 +11607,11 @@ body {
   width: 440px;
 }
 
+/* Panel chữ ký rộng hơn — đủ chứa vùng vẽ 512×512 */
+.lts-signature-modal {
+  width: 600px;
+}
+
 .lts-avatar-upload-preview {
   width: 120px;
   height: 120px;
@@ -11682,6 +11687,10 @@ body {
     width: min(100% - 24px, 440px);
   }
 
+  .lts-shell--mobile .lts-signature-modal {
+    width: min(100% - 24px, 600px);
+  }
+
   .lts-shell--mobile .lts-avatar-file-button {
     min-height: 48px;
   }
@@ -11745,6 +11754,79 @@ body {
 .lts-field-hint {
   font-size: 11px;
   color: var(--dim);
+}
+
+/* ── Mã PIN duyệt ────────────────────────── */
+.lts-pin-input {
+  text-align: center;
+  letter-spacing: 0.6em;
+  font-size: 18px;
+  font-weight: 700;
+  padding: 0 12px;
+}
+.lts-pin-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--dim);
+  line-height: 1.45;
+}
+
+/* ── Chữ ký vẽ ──────────────────────────── */
+.lts-signature-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--surface2, #f3f4f6);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.lts-signature-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 9px;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.lts-signature-tab:hover {
+  color: var(--text);
+}
+.lts-signature-tab--active {
+  background: var(--surface);
+  color: var(--accent);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.lts-signature-canvas-wrap {
+  border: 2px dashed var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  aspect-ratio: 1 / 1;
+}
+.lts-signature-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.lts-signature-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 /* ── Shared buttons ──────────────────────── */

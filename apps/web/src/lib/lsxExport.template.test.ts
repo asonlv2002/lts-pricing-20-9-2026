@@ -20,6 +20,8 @@ import {
   formatLsxLamProductLine,
   formatLsxLamSupplyLine,
   buildLsxLamBtpNote,
+  dataUrlSangBuffer,
+  chuKyParagraph,
 } from './lsxExport';
 
 import {
@@ -332,8 +334,35 @@ assert(
   buildLsxLamBtpNote(3300).includes('ghép hết BTP in') && buildLsxLamBtpNote(3300).includes('3'),
 );
 
-console.log('\nuseSemicircularMold visibility (not zipper-only)');
-const dayDung = classifyLsxBagType('dayDung');
+console.log('\nchu ky DOCX (ImageRun)');
+
+const PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgo='; // bytes: 8D 04 0B 3F ... ('iVBORw0KGgo=' decodes to 8 bytes)
+{
+  const buf = dataUrlSangBuffer(PNG_DATA_URL);
+  assert('dataUrlSangBuffer decodes png data url', buf !== null && buf.length === 8, String(buf?.length));
+  assert('dataUrlSangBuffer rejects non-png', dataUrlSangBuffer('data:image/webp;base64,AAAA') === null);
+  assert('dataUrlSangBuffer rejects garbage', dataUrlSangBuffer('abc') === null);
+
+  class FakeParagraph {
+    static ImageRun = class {
+      kind = 'ImageRun';
+      constructor(public opts: any) { Object.assign(this, opts); }
+    };
+    constructor(public opts: any) { Object.assign(this, opts); }
+  }
+  const withSig = chuKyParagraph({ ...baseManual(), preparedBySignature: PNG_DATA_URL }, FakeParagraph, { AlignmentType: { CENTER: 'center' } });
+  assert('chuKyParagraph returns 1 paragraph when signature present', withSig.length === 1);
+  const p = withSig[0] as any;
+  assert('chuKyParagraph has ImageRun child', p.children?.length === 1 && p.children[0].kind === 'ImageRun');
+  assert('chuKyParagraph image is png 110x110', p.children[0].type === 'png' && p.children[0].transformation.width === 110);
+  assert('chuKyParagraph paragraph centered', p.alignment === 'center');
+  const noSig = chuKyParagraph(baseManual(), FakeParagraph, { AlignmentType: { CENTER: 'center' } });
+  assert('chuKyParagraph empty when no signature', noSig.length === 0);
+  const badSig = chuKyParagraph({ ...baseManual(), preparedBySignature: 'data:image/webp;base64,AAAA' }, FakeParagraph, { AlignmentType: { CENTER: 'center' } });
+  assert('chuKyParagraph empty on unsupported format', badSig.length === 0);
+}
+
+console.log('\nuseSemicircularMold visibility (not zipper-only)');const dayDung = classifyLsxBagType('dayDung');
 const visNoZip = resolveLsxBagVisibleFields(dayDung, false);
 const visZip = resolveLsxBagVisibleFields(dayDung, true);
 assert('mold visible without zipper', visNoZip.includes('useSemicircularMold'));

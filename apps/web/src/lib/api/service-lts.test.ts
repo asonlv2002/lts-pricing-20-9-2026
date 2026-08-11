@@ -5,9 +5,11 @@
 
 import {
   layAnhDaiDienService,
+  layChuKyService,
   layMetricHeThongService,
   luuNguoiPhuTrachKhachHangService,
   taiAnhDaiDienService,
+  taiChuKyService,
 } from './service-lts';
 
 let passed = 0;
@@ -75,6 +77,25 @@ async function main() {
     assert('calls system metric collect endpoint', capturedUrl.endsWith('/system/metric/collect'), capturedUrl);
     assert('uses GET for system metrics', !capturedInit?.method || capturedInit.method === 'GET', String(capturedInit?.method));
     assert('sends bearer token for system metrics', metricHeaders.get('Authorization') === 'Bearer token-sys', metricHeaders.get('Authorization') ?? '');
+
+    console.log('\n== Signature (chu ky LSX) service payload ==');
+
+    const signature = new File(['signature'], 'signature.png', { type: 'image/png' });
+    await taiChuKyService(signature, 'token-sig');
+
+    const sigHeaders = new Headers(capturedInit?.headers);
+    assert('calls signature upload endpoint', capturedUrl.endsWith('/auth/signatures'), capturedUrl);
+    assert('uses POST for signature upload', capturedInit?.method === 'POST', String(capturedInit?.method));
+    assert('sends signature as multipart form data', capturedInit?.body instanceof FormData, String(capturedInit?.body));
+    assert('sends signature under signature field', (capturedInit?.body as FormData).get('signature') === signature);
+    assert('sends bearer token for signature upload', sigHeaders.get('Authorization') === 'Bearer token-sig', sigHeaders.get('Authorization') ?? '');
+    assert('does not force JSON content type for signature upload', !sigHeaders.has('Content-Type'), sigHeaders.get('Content-Type') ?? '');
+
+    await layChuKyService('token-sig-get');
+    const sigGetHeaders = new Headers(capturedInit?.headers);
+    assert('calls current signature endpoint', capturedUrl.endsWith('/auth/me/signature'), capturedUrl);
+    assert('uses GET for current signature', !capturedInit?.method || capturedInit.method === 'GET', String(capturedInit?.method));
+    assert('sends bearer token for current signature', sigGetHeaders.get('Authorization') === 'Bearer token-sig-get', sigGetHeaders.get('Authorization') ?? '');
   } finally {
     globalThis.fetch = originalFetch;
   }

@@ -40,6 +40,12 @@ function qty(n: number): string {
   return n > 0 ? n.toLocaleString('vi-VN') : '…';
 }
 
+/** <img> chữ ký người lập (data URL PNG) — trống nếu chưa có. */
+function chuKyImgHtml(m: LSXManualFields): string {
+  if (!m.preparedBySignature) return '';
+  return `<img class="chu-ky-img" src="${m.preparedBySignature}" alt="Chữ ký người lập" />`;
+}
+
 function divideResultHtml(order: ProductionOrder, includeFilmWidth = true): string {
   const spec = resolveLsxDivideSpec(order);
   const rows: string[] = [];
@@ -207,6 +213,7 @@ const CSS = `
    .lsx-html-page .iso-lbl { width: 17.7%; font-style: italic; vertical-align: middle; font-size: 10pt; }
    .lsx-html-page .iso-val { width: 21.6%; text-align: center; vertical-align: middle; font-size: 10pt; }
   .lsx-html-page .footer-cell { text-align: center; padding: 12px 4px; vertical-align: top; }
+  .lsx-html-page .chu-ky-img { display: block; height: 110px; margin: 6px auto 0; object-fit: contain; }
   .lsx-html-page .page-num {
     text-align: center;
     font-size: 10pt;
@@ -482,7 +489,7 @@ function mangBodyHtml(order: ProductionOrder): string {
 
   html += `
     <tr>
-      <td class="footer-cell"><div class="b">Người lập:</div><div>${esc(m.preparedBy || '')}</div></td>
+      <td class="footer-cell"><div class="b">Người lập:</div><div>${esc(m.preparedBy || '')}</div>${chuKyImgHtml(m)}</td>
       <td class="footer-cell"><div class="b">Người Duyệt:</div><div>${esc(m.approvedBy || '')}</div></td>
     </tr>
   </table>`;
@@ -713,7 +720,7 @@ function tuiBodyHtml(order: ProductionOrder): string {
 
   html += `
     <tr>
-      <td colspan="2" class="footer-cell"><div class="b">Người lập:</div><div>${esc(m.preparedBy || '')}</div></td>
+      <td colspan="2" class="footer-cell"><div class="b">Người lập:</div><div>${esc(m.preparedBy || '')}</div>${chuKyImgHtml(m)}</td>
       <td colspan="3" class="footer-cell"><div class="b">Người duyệt:</div><div>${esc(m.approvedBy || '')}</div></td>
     </tr>
   </table>`;

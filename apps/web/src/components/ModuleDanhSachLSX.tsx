@@ -33,6 +33,7 @@ import { QrevStyleInjector } from './qrev-styles';
 import LsxPreviewModal from './LsxPreviewModal';
 import LsxPdfPreviewModal from './LsxPdfPreviewModal';
 import ConfirmDialog from './ConfirmDialog';
+import NhapPinDuyetModal from './auth/NhapPinDuyetModal';
 import NutSaoChepLienKet from './NutSaoChepLienKet';
 import { taoUrlChiaSeLsx } from '../lib/lsx-route';
 import { buildProductionOrderFromSource } from '../lib/lsx-build-order';
@@ -88,6 +89,9 @@ export default function ModuleDanhSachLSX({
   const [confirm, setConfirm] = useState<{
     title: string; message: string; onConfirm: () => void;
   } | null>(null);
+  const [nhapPin, setNhapPin] = useState<{
+    title: string; message: string; onConfirm: () => Promise<void> | void;
+  } | null>(null);
   const daTaiLanDau = useRef(false);
 
   const lamMoi = useCallback(async () => {
@@ -140,19 +144,39 @@ export default function ModuleDanhSachLSX({
     async (row: LsxRow, quyetDinh: 'approved' | 'rejected') => {
       if (!accessToken) return;
       const label = quyetDinh === 'approved' ? 'duyệt' : 'từ chối';
+      // Chỉ hành động DUYỆT cần nhập mã PIN; TỪ CHỐI giữ confirm thường.
+      if (quyetDinh === 'approved') {
+        setNhapPin({
+          title: 'Duyệt LSX',
+          message: `Bạn có chắc muốn duyệt LSX "${row.lsxNumber || row.orderId}"?`,
+          onConfirm: async () => {
+            setNhapPin(null);
+            setDangXuLyId(row.orderId);
+            setLoi('');
+            try {
+              await updateOrderApprovalService(row.orderId, true, accessToken);
+              hienThongBao('Đã duyệt LSX. Có thể in/xuất PDF/DOCX.');
+              await lamMoi();
+            } catch (error) {
+              setLoi(error instanceof Error ? error.message : 'Không cập nhật được trạng thái LSX.');
+            } finally {
+              setDangXuLyId(null);
+            }
+          },
+        });
+        return;
+      }
       setConfirm({
-        title: quyetDinh === 'approved' ? 'Duyệt LSX' : 'Từ chối LSX',
+        title: 'Từ chối LSX',
         message: `Bạn có chắc muốn ${label} LSX "${row.lsxNumber || row.orderId}"?`,
         onConfirm: async () => {
           setConfirm(null);
           setDangXuLyId(row.orderId);
           setLoi('');
           try {
-            await updateOrderApprovalService(row.orderId, quyetDinh === 'approved', accessToken);
+            await updateOrderApprovalService(row.orderId, false, accessToken);
             hienThongBao(
-              quyetDinh === 'approved'
-                ? 'Đã duyệt LSX. Có thể in/xuất PDF/DOCX.'
-                : 'Đã từ chối LSX. Vẫn ở trạng thái Chờ duyệt, có thể sửa & gửi lại.',
+              'Đã từ chối LSX. Vẫn ở trạng thái Chờ duyệt, có thể sửa & gửi lại.',
             );
             await lamMoi();
           } catch (error) {
@@ -412,6 +436,17 @@ export default function ModuleDanhSachLSX({
         message={confirm?.message || ''}
         onConfirm={() => confirm?.onConfirm()}
         onCancel={() => setConfirm(null)}
+      />
+
+      <NhapPinDuyetModal
+        open={!!nhapPin}
+        title={nhapPin?.title || ''}
+        message={nhapPin?.message || ''}
+        onConfirm={async () => {
+          if (!nhapPin) return;
+          await nhapPin.onConfirm();
+        }}
+        onClose={() => setNhapPin(null)}
       />
     </div>
   );

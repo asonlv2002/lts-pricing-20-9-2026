@@ -19,6 +19,7 @@ import { useCalculatorStore } from '../../store/CuaHangTinhGia';
 import type { LsxSourceData, LSXManualFields } from '../../lib/types';
 import { mapBaoGiaToLsxSources } from '../../lib/bao-gia-adapter';
 import { classifyLsxBagType } from '../../lib/lsx-bag-classification';
+import { themChuKyVaoManual } from '../../lib/chu-ky';
 import { buildManualFromSource, buildProductionOrderFromSource } from '../../lib/lsx-build-order';
 import { LsxFormFields } from '../lsx/LsxFormFields';
 import LsxPreviewModal from '../LsxPreviewModal';
@@ -256,7 +257,8 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
         msp: manual.msp?.trim() || (newOrder.id),
         tenSP: manual.tenSP?.trim() || source.productName || '',
       };
-      await updateQuotationPricingSheetOrderService(newOrder.id, { inputValue: finalManual }, accessToken);
+      const finalManualCoChuKy = await themChuKyVaoManual(finalManual);
+      await updateQuotationPricingSheetOrderService(newOrder.id, { inputValue: finalManualCoChuKy }, accessToken);
       datLsxTaoTuSheet(null);
       daHydrateTao.current = null;
       setToast({ kind: 'ok', msg: `Đã tạo LSX ${finalManual.lsxNumber || newOrder.id} thành công` });
@@ -278,7 +280,8 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
         ...manual,
         tenSP: manual.tenSP?.trim() || source.productName || '',
       };
-      await updateQuotationPricingSheetOrderService(editOrderId, { inputValue: finalManual }, accessToken);
+      const finalManualCoChuKy = await themChuKyVaoManual(finalManual);
+      await updateQuotationPricingSheetOrderService(editOrderId, { inputValue: finalManualCoChuKy }, accessToken);
       setToast({ kind: 'ok', msg: 'Đã cập nhật LSX. Trạng thái reset về Chờ duyệt.' });
       datLsxDangSua(null);
       setTimeout(() => onSuccessNavigate?.('danh-sach-lsx'), 600);
@@ -311,7 +314,7 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
     onSuccessNavigate?.('danh-sach-lsx');
   }
 
-  function handleXemPdf() {
+  async function handleXemPdf() {
     if (!source || !manual) return;
     try {
       const order = buildProductionOrderFromSource(source, {
@@ -319,7 +322,7 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
         productionOrders: [],
         preparedBy: currentSellerName,
       });
-      order.manual = manual;
+      order.manual = await themChuKyVaoManual(manual);
       if (editOrderId) order.id = editOrderId;
       setPreviewLsxPdf({ order });
     } catch (e) {
@@ -327,7 +330,7 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
     }
   }
 
-  function handleXemDocx() {
+  async function handleXemDocx() {
     if (!source || !manual) return;
     try {
       const order = buildProductionOrderFromSource(source, {
@@ -335,7 +338,7 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
         productionOrders: [],
         preparedBy: currentSellerName,
       });
-      order.manual = manual;
+      order.manual = await themChuKyVaoManual(manual);
       if (editOrderId) order.id = editOrderId;
       setPreviewLsx({ order });
     } catch (e) {

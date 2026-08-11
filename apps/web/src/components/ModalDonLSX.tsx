@@ -15,6 +15,7 @@ import { classifyLsxBagType } from '../lib/lsx-bag-classification';
 import { exportLSXtoDOCX } from '../lib/lsxExport';
 import { exportLSXtoPDF } from './LsxPdfDocument';
 import { genMsp } from '../lib/lsx-msp';
+import { themChuKyVaoManual } from '../lib/chu-ky';
 import {
   buildManualFromSource,
   buildSnapshotFromSource,
@@ -89,13 +90,14 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
         msp: manual.msp?.trim() || genMsp(productionOrders),
         tenSP: manual.tenSP?.trim() || sourceData.productName || '',
       };
+      const manualCoChuKy = await themChuKyVaoManual(manualToSave);
       const order: ProductionOrder = {
         id: genOrderId(),
         quoteId: sourceData.id,
         createdAt: new Date().toISOString(),
         status: 'created',
-        manual: manualToSave,
-        snapshot: buildSnapshotFromSource(sourceData, manualToSave, materials),
+        manual: manualCoChuKy,
+        snapshot: buildSnapshotFromSource(sourceData, manualCoChuKy, materials),
       };
 
       await themLSX(order);

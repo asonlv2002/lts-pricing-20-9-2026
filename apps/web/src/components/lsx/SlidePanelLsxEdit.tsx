@@ -19,6 +19,7 @@ import { LsxFormFields } from './LsxFormFields';
 import LsxPreviewModal from '../LsxPreviewModal';
 import LsxPdfPreviewModal from '../LsxPdfPreviewModal';
 import { buildProductionOrderFromSource } from '../../lib/lsx-build-order';
+import { themChuKyVaoManual } from '../../lib/chu-ky';
 
 export interface SlidePanelLsxEditProps {
   order: QuotationPricingSheetOrderApi;
@@ -151,7 +152,7 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
     };
   }, [quotation, order.pricingSheetId, order.pricingSheet]);
 
-  function handleXemPdf() {
+  async function handleXemPdf() {
     if (!source) return;
     try {
       const orderPreview = buildProductionOrderFromSource(source, {
@@ -159,7 +160,7 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
         productionOrders: [],
         preparedBy: currentSellerName,
       });
-      orderPreview.manual = manual;
+      orderPreview.manual = await themChuKyVaoManual(manual);
       orderPreview.id = order.id;
       setPreviewLsxPdf({ order: orderPreview });
     } catch (e) {
@@ -188,7 +189,8 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
     setDangXuLy(true);
     setLoi('');
     try {
-      await updateQuotationPricingSheetOrderService(order.id, { inputValue: manual }, accessToken);
+      const manualCoChuKy = await themChuKyVaoManual(manual);
+      await updateQuotationPricingSheetOrderService(order.id, { inputValue: manualCoChuKy }, accessToken);
       setThongBao('Đã cập nhật LSX. Trạng thái reset về Chờ duyệt, cần duyệt lại.');
       setTimeout(() => {
         onSaved?.();

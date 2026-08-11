@@ -14,6 +14,8 @@ import { normalizeDisplayText } from "../../lib/text-codec";
 import DangNhapModal from "../auth/DangNhapModal";
 import DoiMatKhauModal from "../auth/DoiMatKhauModal";
 import DoiAnhDaiDienModal from "../auth/DoiAnhDaiDienModal";
+import DoiChuKyModal from "../auth/DoiChuKyModal";
+import DoiPinModal from "../auth/DoiPinModal";
 import ModuleKhachHang from "../ModuleKhachHang";
 import ModuleBaoGia from "../ModuleBaoGia";
 import ModuleDuyetBaoGia from "../ModuleDuyetBaoGia";
@@ -28,6 +30,7 @@ import ModuleTaiNguyenHeThong from "../ModuleTaiNguyenHeThong";
 import {
   coTheXemNhomMenu,
   coTheXemMucMenu,
+  coQuyenDuyet,
   vaiTroTuPolicies,
 } from "../../lib/permissions";
 import {
@@ -107,6 +110,7 @@ import {
   ChevronUp,
   CheckCheck,
   ImagePlus,
+  PenLine,
   Activity,
 } from "lucide-react";
 
@@ -448,6 +452,7 @@ type MobileHubAction =
   | { type: "module"; key: string; module: MaModule }
   | { type: "changeAvatar" }
   | { type: "changePassword" }
+  | { type: "changePin" }
   | { type: "logout" };
 
 interface MobileHubCardConfig {
@@ -828,6 +833,13 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         action: { type: "changeAvatar" },
       },
       {
+        title: "Đổi mã PIN duyệt",
+        subtitle: "PIN 6 số khi duyệt báo giá / LSX.",
+        tone: "violet",
+        icon: <KeyRoundIcon size={30} />,
+        action: { type: "changePin" },
+      },
+      {
         title: "Đăng xuất",
         subtitle: "Kết thúc phiên làm việc trên thiết bị này.",
         tone: "slate",
@@ -852,6 +864,8 @@ interface ThuocTinhThanhBen {
   policies: PolicyCode[];
   datHienDoiMatKhau: () => void;
   datHienDoiAnhDaiDien: () => void;
+  datHienDoiPin: () => void;
+  datHienDoiChuKy: () => void;
   /** Intercept "Tạo bảng tính giá" → wizard mode (nội bộ / gia công) */
   onTaoBangTinhGia?: () => void;
 }
@@ -924,6 +938,8 @@ function ThanhBen({
   policies,
   datHienDoiMatKhau,
   datHienDoiAnhDaiDien,
+  datHienDoiPin,
+  datHienDoiChuKy,
   onTaoBangTinhGia,
 }: ThuocTinhThanhBen) {
   const [cacNhomDangMo, datCacNhomDangMo] = useState<string[]>(() => [
@@ -1112,6 +1128,34 @@ function ThanhBen({
             >
               <ImagePlus size={14} />
               <span>Đổi ảnh đại diện</span>
+            </button>
+            <div className="lts-account-menu-sep" />
+            {coQuyenDuyet(policies) && (
+              <button
+                type="button"
+                className="lts-account-menu-item"
+                role="menuitem"
+                onClick={() => {
+                  datMenuTaiKhoanMo(false);
+                  datHienDoiPin();
+                }}
+              >
+                <KeyRoundIcon size={14} />
+                <span>Đổi mã PIN duyệt</span>
+              </button>
+            )}
+            {coQuyenDuyet(policies) && <div className="lts-account-menu-sep" />}
+            <button
+              type="button"
+              className="lts-account-menu-item"
+              role="menuitem"
+              onClick={() => {
+                datMenuTaiKhoanMo(false);
+                datHienDoiChuKy();
+              }}
+            >
+              <PenLine size={14} />
+              <span>Đổi chữ ký LSX</span>
             </button>
             <div className="lts-account-menu-sep" />
             <button
@@ -1390,7 +1434,11 @@ function MobileHubScreen({
 
       <div className="lts-mobile-hub-content">
         {hub.cards
-          .filter((card) => card.action.type !== "module" || coTheXemMucMenu(policies, card.action.key))
+          .filter((card) =>
+            card.action.type === "changePin"
+              ? coQuyenDuyet(policies)
+              : card.action.type !== "module" || coTheXemMucMenu(policies, card.action.key),
+          )
           .map((card) => (
           <button
             key={card.title}
@@ -1593,6 +1641,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   );
   const [hienDoiMatKhau, datHienDoiMatKhau] = useState(false);
   const [hienDoiAnhDaiDien, datHienDoiAnhDaiDien] = useState(false);
+  const [hienDoiPin, datHienDoiPin] = useState(false);
+  const [hienDoiChuKy, datHienDoiChuKy] = useState(false);
   const [daKhoiTaoHubMobile, datDaKhoiTaoHubMobile] = useState(false);
   const router = useRouter();
 
@@ -2161,6 +2211,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       datHienDoiMatKhau(true);
       return;
     }
+    if (action.type === "changePin") {
+      datHienDoiPin(true);
+      return;
+    }
     if (action.type === "logout") {
       dungCuaHangTinhGia.getState().logout();
       return;
@@ -2272,6 +2326,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           policies={policies}
           datHienDoiMatKhau={() => datHienDoiMatKhau(true)}
           datHienDoiAnhDaiDien={() => datHienDoiAnhDaiDien(true)}
+          datHienDoiPin={() => datHienDoiPin(true)}
+          datHienDoiChuKy={() => datHienDoiChuKy(true)}
           onTaoBangTinhGia={moLandingTaoBangTinh}
         />
       )}
@@ -2447,6 +2503,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       )}
       {hienDoiMatKhau && (
         <DoiMatKhauModal dong={() => datHienDoiMatKhau(false)} />
+      )}
+      {hienDoiChuKy && (
+        <DoiChuKyModal dong={() => datHienDoiChuKy(false)} />
+      )}
+      {hienDoiPin && (
+        <DoiPinModal dong={() => datHienDoiPin(false)} />
       )}
     </div>
   );
