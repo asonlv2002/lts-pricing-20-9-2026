@@ -95,24 +95,23 @@ export function tinhThoiGianMayTui(
 // ── Auto-map input → rule (dùng cho preview + bảng đặc tả) ──────────────────
 
 /**
- * Chọn rule máy chia theo cấu trúc màng + số lần ghép + phủ mờ.
- * Ưu tiên: phủ mờ → matte_flip; có PET/MPET → mpet_pet; ≥2 lần ghép → laminate_3;
- * 1 lần ghép → laminate_2; còn lại → opp_mattopp / rule đầu.
+ * Chọn rule máy chia theo cấu trúc màng + số lần ghép.
+ * Ưu tiên: ghép trước (≥2 lần ghép → laminate_3, 1 lần ghép → laminate_2);
+ * 1 lớp: có MPET/PET → mpet_pet, còn lại → opp_mattopp.
+ * (matte_flip chỉ chọn tay — phủ mờ không ảnh hưởng máy chia.)
  */
 export function chonRuleMayChia(
   cfg: CpsxThoiGianMayChia,
   cauTrucMang: string,
   soLanGhep: number,
-  phuMo: boolean,
 ): CpsxThoiGianRule {
   const rules = cfg?.rules ?? [];
   const tim = (key: string) => rules.find(r => r.key === key);
-  if (phuMo) return tim('matte_flip') ?? rules[0] ?? RULE_FALLBACK;
-  const u = String(cauTrucMang ?? '').toUpperCase();
-  if (u.includes('MPET') || u.includes('PET')) return tim('mpet_pet') ?? rules[0] ?? RULE_FALLBACK;
   const lan = Math.floor(so(soLanGhep));
   if (lan >= 2) return tim('laminate_3') ?? rules[0] ?? RULE_FALLBACK;
   if (lan >= 1) return tim('laminate_2') ?? rules[0] ?? RULE_FALLBACK;
+  const u = String(cauTrucMang ?? '').toUpperCase();
+  if (u.includes('MPET') || u.includes('PET')) return tim('mpet_pet') ?? rules[0] ?? RULE_FALLBACK;
   return tim('opp_mattopp') ?? rules[0] ?? RULE_FALLBACK;
 }
 
@@ -195,9 +194,9 @@ export function chuanHoaCpsxUpgradeThoiGian(
     proofMinutes8: so(rPrint.proofMinutes8) > 0
       ? so(rPrint.proofMinutes8)
       : defaults.print.proofMinutes8,
-    matteExtraMinutes: so(rPrint.matteExtraMinutes) >= 0
-      ? so(rPrint.matteExtraMinutes)
-      : defaults.print.matteExtraMinutes,
+    matteExtraMinutes: rPrint.matteExtraMinutes == null
+      ? defaults.print.matteExtraMinutes
+      : Math.max(0, so(rPrint.matteExtraMinutes)),
     avgSpeedMPerMin: so(rPrint.avgSpeedMPerMin) > 0
       ? so(rPrint.avgSpeedMPerMin)
       : so(rPrint.tocDoMetPerHour) > 0

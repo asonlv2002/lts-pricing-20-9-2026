@@ -598,6 +598,8 @@ export interface CalculateInput {
   hasZipper: boolean;
   hasTape: boolean;
   hasHandle: boolean;
+  hasNhu?: boolean;
+  hasMo?: boolean;
   handleOptionKey?: HandleOptionKey | 'custom' | null;
   paymentDays: number;
   // paymentInterestRate đã bỏ — lãi suất nay lấy từ AppConstants (interestBase + interestSpread)

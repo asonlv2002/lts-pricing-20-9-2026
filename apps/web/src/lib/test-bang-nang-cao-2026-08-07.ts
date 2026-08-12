@@ -197,8 +197,6 @@ for (const c of CASES) {
     // Table 1 — In
     cpMucInDongIn: dongIn?.cpMucKeo ?? null,
     thanhTienMucIn: dongIn?.thanhTienMucKeo ?? null,
-    cpNhuMo: dongIn?.cpNhuMo ?? null,
-    thanhTienNhuMo: dongIn?.thanhTienNhuMo ?? null,
     ghiChuIn: dongIn?.ghiChu ?? null,
     // Table 1 — Ghép
     soDongGhep: cacGhep.length,

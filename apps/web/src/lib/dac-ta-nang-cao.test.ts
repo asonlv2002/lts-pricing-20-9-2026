@@ -476,25 +476,30 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Nhũ + Phủ mờ: metallicSurcharge > 0 → dòng in hiện CP + thành tiền, tổng cộng thêm
+  // Nhũ + Phủ mờ gộp vào dòng mực + dung môi: metallicSurcharge cộng thẳng vào CP mực
   const rNhuMo = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, metallicSurcharge: 400 } });
   const rowsNhuMo = lapDongVatLieuNangCao(rNhuMo, taoUniRows(), taoHangSo());
-  approx(rowsNhuMo[0].cpNhuMo!, 400, 'in nhũ/mờ: 400 ₫/m²');
-  approx(rowsNhuMo[0].thanhTienNhuMo!, 400 * 8420 * 0.65, 'in nhũ/mờ: thành tiền = ₫/m² × đầu vào × khổ');
-  eq(rowsNhuMo[1].cpNhuMo, null, 'dòng ghép: không có CP nhũ/mờ');
+  approx(rowsNhuMo[0].cpMucKeo!, 1640 + 400, 'in nhũ/mờ: mực + DM = 1640 + 400 = 2040 ₫/m²');
+  approx(rowsNhuMo[0].thanhTienMucKeo!, 2040 * 8420 * 0.65, 'in nhũ/mờ: thành tiền gộp cả nhũ/mờ');
+  approx(rowsNhuMo[1].cpMucKeo!, 420, 'dòng ghép: không bị cộng nhũ/mờ');
   const tongNhuMo = tinhTongNangCao(rowsNhuMo, []);
   approx(
     tongNhuMo.tongVatLieu,
-    rowsNhuMo.reduce((s, x) => s + (x.thanhTienNVL ?? 0) + (x.thanhTienMucKeo ?? 0) + (x.thanhTienNhuMo ?? 0), 0),
-    'tổng VL gồm cả nhũ/mờ',
+    rowsNhuMo.reduce((s, x) => s + (x.thanhTienNVL ?? 0) + (x.thanhTienMucKeo ?? 0), 0),
+    'tổng VL gồm cả nhũ/mờ (qua dòng mực)',
   );
 }
 
 {
-  // Không nhũ/mờ → null
-  const rowsKhongNhuMo = lapDongVatLieuNangCao(taoResult(), taoUniRows(), taoHangSo());
-  eq(rowsKhongNhuMo[0].cpNhuMo, null, 'không nhũ/mờ → CP nhũ/mờ null');
-  eq(rowsKhongNhuMo[0].thanhTienNhuMo, null, 'không nhũ/mờ → thành tiền nhũ/mờ null');
+  // Phủ mờ (hasMo + metallicSurcharge 200) → dòng in +200 ₫/m² mực + dung môi
+  const rowsThuong = lapDongVatLieuNangCao(taoResult(), taoUniRows(), taoHangSo());
+  approx(rowsThuong[0].cpMucKeo!, 1640, 'không phủ mờ → 1640 ₫/m²');
+  const rMo = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, metallicSurcharge: 200, hasMo: true } });
+  const rowsMo = lapDongVatLieuNangCao(rMo, taoUniRows(), taoHangSo());
+  approx(rowsMo[0].cpMucKeo!, 1840, 'phủ mờ → 1640 + 200 = 1840 ₫/m²');
+  approx(rowsMo[0].thanhTienMucKeo!, 1840 * 8420 * 0.65, 'phủ mờ: thành tiền theo 1840 ₫/m²');
+  assert(String(rowsMo[0].ghiChu ?? '').includes('200'), 'ghiChu nhắc phụ phí in');
+  approx(rowsMo[1].cpMucKeo!, 420, 'dòng ghép: không đổi khi phủ mờ');
 }
 
 {
@@ -675,10 +680,10 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 
 {
   const rows = lapDongNhanCongDien(taoResult(), taoHangSo());
-  eq(rows.map(r => r.congDoan), ['in', 'ghép', 'chia', 'làm túi'], 'túi: 4 dòng cứng');
+  eq(rows.map(r => r.congDoan), ['in', 'ghép', 'làm túi'], 'không Có chia → 3 dòng (không có chia)');
 
   // in: setup = 4 × (15 + 20) = 140 phút; chạy = 8420/150 = 56,13 phút
-  // tổng = 196,13 phút (không phủ mờ vì metallicSurcharge = 0)
+  // tổng = 196,13 phút (không phủ mờ vì hasMo không set)
   const dongIn = rows[0];
   approx(dongIn.thoiGianPhut!, 4 * 35 + 8420 / 150, 'in: thời gian SX');
 
@@ -692,21 +697,83 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(dongIn.cpNhanCongPerPhut!, 823, 'in: 823 ₫/phút');
   // ghép: TC = 200.000 → (800k + 60k + 200k) ÷ 24 ÷ 60 = 736,11 → 736
   approx(rows[1].cpNhanCongPerPhut!, 736, 'ghép: 736 ₫/phút');
-  // chia: TC = 100.000 → (400k + 30k + 100k) ÷ 12 ÷ 60 = 736,11 → 736
-  approx(rows[2].cpNhanCongPerPhut!, 736, 'chia: 736 ₫/phút');
   // túi: TC = 150.000 → (600k + 60k + 150k) ÷ 24 ÷ 60 = 562,5 → 563; rounded 1000 → 1000
-  approx(rows[3].cpNhanCongPerPhut!, 333, 'làm túi 3 máy: 1000 ÷ 3 = 333');
+  approx(rows[2].cpNhanCongPerPhut!, 333, 'làm túi 3 máy: 1000 ÷ 3 = 333');
 
   // ghép: 1 lần → setup 10'; chạy 8770/100 = 87,7' → tổng 97,7'
   approx(rows[1].thoiGianPhut!, 10 + 8770 / 100, 'ghép: thời gian SX');
   approx(rows[1].cpDienPerPhut!, 50 * 0.8 * 3000 / 60, 'ghép: 2000 ₫/phút điện');
 
-  // chia: cấu trúc chứa PET → rule mpet_pet (setup 20'; 90 m/phút)
-  approx(rows[2].thoiGianPhut!, 20 + 9350 / 90, 'chia: thời gian SX');
-
   // làm túi: 3 biên (90') · bước 0,4m = 400mm → ≤400mm (60 cái/phút)
-  approx(rows[3].thoiGianPhut!, 90 + 10000 / 60, 'làm túi: thời gian theo số chiếc');
-  approx(rows[3].cpNhanCongPerPhut!, 333, 'làm túi 3 máy: 1000 ÷ 3 = 333');
+  approx(rows[2].thoiGianPhut!, 90 + 10000 / 60, 'làm túi: thời gian theo số chiếc');
+  approx(rows[2].cpNhanCongPerPhut!, 333, 'làm túi 3 máy: 1000 ÷ 3 = 333');
+}
+
+{
+  // Có chia (hasDivide) → thêm dòng "chia" sau "in": mét = mét in (8420), rule theo cấu trúc
+  const rChia = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, hasDivide: true } });
+  const rowsChia = lapDongNhanCongDien(rChia, taoHangSo());
+  eq(rowsChia.map(r => r.congDoan), ['in', 'chia', 'ghép', 'làm túi'], 'Có chia → in, chia, ghép, làm túi');
+
+  // Có ghép (1 lần ghép) → ưu tiên laminate_2 (20' setup, 145 m/phút), kể cả khi chất liệu có PET
+  const dongChia = rowsChia[1];
+  approx(dongChia.thoiGianPhut!, 20 + 8420 / 145, 'chia: mét = mét in + rule laminate_2 (ghép ưu tiên)');
+  approx(dongChia.cpNhanCongPerPhut!, 736, 'chia: lương máy chia 736 ₫/phút');
+  approx(dongChia.cpDienPerPhut!, 25 * 0.8 * 3000 / 60, 'chia: điện máy chia 1000 ₫/phút');
+  approx(dongChia.thanhTienNhanCong, dongChia.thoiGianPhut! * 736, 'chia: thành tiền NC');
+  approx(dongChia.thanhTienDien, dongChia.thoiGianPhut! * 1000, 'chia: thành tiền điện');
+}
+
+{
+  // Có chia + 1 lớp (không ghép) + PET → mpet_pet (chỉ 1 lớp mới dùng theo chất liệu)
+  const rMotLop = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000, hasDivide: true },
+    layers: { print: {}, laminations: [], cut: {} },
+  });
+  const rowsMotLop = lapDongNhanCongDien(rMotLop, taoHangSo());
+  // 1 lớp PET → mpet_pet
+  approx(rowsMotLop[1].thoiGianPhut!, 20 + 8420 / 90, 'chia: 1 lớp PET → mpet_pet');
+}
+
+{
+  // Có chia + OPP 1 lớp → rule opp_mattopp (30' + 180 m/phút)
+  const rOpp = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000, hasDivide: true },
+    structureText: 'BOPP 18',  // chỉ 1 lớp OPP
+    layers: { print: {}, laminations: [], cut: {} },
+  });
+  const rowsOpp = lapDongNhanCongDien(rOpp, taoHangSo());
+  approx(rowsOpp[1].thoiGianPhut!, 30 + 8420 / 180, 'chia: 1 lớp OPP → opp_mattopp');
+}
+
+{
+  // Có chia + ≥2 lần ghép → laminate_3
+  const r3Lop = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000, hasDivide: true },
+    layers: {
+      print: {},
+      laminations: [{ layerNum: 2, meters: 8420, waste: 350 }, { layerNum: 3, meters: 8770, waste: 300 }],
+      cut: {},
+    },
+  });
+  const rows3Lop = lapDongNhanCongDien(r3Lop, taoHangSo());
+  approx(rows3Lop[1].thoiGianPhut!, 20 + 8420 / 90, 'chia: 3 lớp (2 ghép) → laminate_3');
+}
+
+{
+  // Phủ mờ (hasMo) → in + 80 phút; KHÔNG tạo dòng chia (không Có chia)
+  const rMo = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, metallicSurcharge: 200, hasMo: true } });
+  const rowsMo = lapDongNhanCongDien(rMo, taoHangSo());
+  approx(rowsMo[0].thoiGianPhut!, 4 * 35 + 8420 / 150 + 80, 'phủ mờ: in + 80 phút');
+  eq(rowsMo.map(r => r.congDoan), ['in', 'ghép', 'làm túi'], 'phủ mờ không Có chia → không có dòng chia');
+}
+
+{
+  // Nhũ (hasNhu) KHÔNG cộng 80 phút
+  const rNhu = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, metallicSurcharge: 200, hasNhu: true } });
+  const rowsNhu = lapDongNhanCongDien(rNhu, taoHangSo());
+  approx(rowsNhu[0].thoiGianPhut!, 4 * 35 + 8420 / 150, 'nhũ: không +80 phút');
+  eq(rowsNhu.map(r => r.congDoan), ['in', 'ghép', 'làm túi'], 'nhũ không Có chia → không có dòng chia');
 }
 
 {
@@ -723,10 +790,26 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Màng: ẩn dòng làm túi
+  // Màng: ẩn dòng làm túi; không Có chia → không có dòng chia
   const rMang = taoResult({ input: { productType: 'mang', numColors: 4, quantity: 10000 } });
   const rows = lapDongNhanCongDien(rMang, taoHangSo());
-  eq(rows.map(r => r.congDoan), ['in', 'ghép', 'chia'], 'màng: ẩn dòng làm túi');
+  eq(rows.map(r => r.congDoan), ['in', 'ghép'], 'màng: in + ghép, không làm túi, không chia');
+}
+
+{
+  // Màng + Có chia → có dòng chia sau in (mặc định 1 lần ghép → laminate_2)
+  const rMangChia = taoResult({ input: { productType: 'mang', numColors: 4, quantity: 10000, hasDivide: true } });
+  const rows = lapDongNhanCongDien(rMangChia, taoHangSo());
+  eq(rows.map(r => r.congDoan), ['in', 'chia', 'ghép'], 'màng + Có chia → in, chia, ghép');
+  approx(rows[1].thoiGianPhut!, 20 + 8420 / 145, 'màng chia: 1 lần ghép → laminate_2');
+
+  // Màng 1 lớp (không ghép) + Có chia → rule theo chất liệu
+  const rMang1lop = taoResult({
+    input: { productType: 'mang', numColors: 4, quantity: 10000, hasDivide: true },
+    layers: { print: {}, laminations: [], cut: {} },
+  });
+  const rows1lop = lapDongNhanCongDien(rMang1lop, taoHangSo());
+  approx(rows1lop[1].thoiGianPhut!, 20 + 8420 / 90, 'màng 1 lớp MPET → mpet_pet');
 }
 
 {

@@ -107,11 +107,13 @@ const cfgChia: CpsxThoiGianMayChia = {
     { key: 'matte_flip', label: 'Phủ mờ (lật mặt)', setupMinutes: 20, speedMPerMin: 150 },
   ],
 };
-assert('chia PET → mpet_pet', chonRuleMayChia(cfgChia, 'PET 12//LLDPE 60', 1, false).key === 'mpet_pet');
-assert('chia OPP ghép 1 lớp → laminate_2', chonRuleMayChia(cfgChia, 'BOPP 18//LLDPE 60', 1, false).key === 'laminate_2');
-assert('chia ghép 2 lớp → laminate_3', chonRuleMayChia(cfgChia, 'OPP 20//LLDPE 60//LLDPE 60', 2, false).key === 'laminate_3');
-assert('chia 1 lớp không PET → opp_mattopp', chonRuleMayChia(cfgChia, 'LLDPE 60', 0, false).key === 'opp_mattopp');
-assert('chia phủ mờ → matte_flip', chonRuleMayChia(cfgChia, 'PET 12//LLDPE 60', 1, true).key === 'matte_flip');
+assert('chia ghép 1 lớp (PET) → laminate_2', chonRuleMayChia(cfgChia, 'PET 12//LLDPE 60', 1).key === 'laminate_2');
+assert('chia ghép 1 lớp (BOPP) → laminate_2', chonRuleMayChia(cfgChia, 'BOPP 18//LLDPE 60', 1).key === 'laminate_2');
+assert('chia ghép 2 lớp → laminate_3', chonRuleMayChia(cfgChia, 'OPP 20//LLDPE 60//LLDPE 60', 2).key === 'laminate_3');
+assert('chia 1 lớp MPET/PET → mpet_pet', chonRuleMayChia(cfgChia, 'PET 12', 0).key === 'mpet_pet');
+assert('chia 1 lớp OPP/MattOPP → opp_mattopp', chonRuleMayChia(cfgChia, 'LLDPE 60', 0).key === 'opp_mattopp');
+assert('chia 1 lớp OPP/MattOPP (BOPP) → opp_mattopp', chonRuleMayChia(cfgChia, 'BOPP 18', 0).key === 'opp_mattopp');
+assert('chia không còn phủ mờ → ưu tiên cấu trúc', chonRuleMayChia(cfgChia, 'PET 12//LLDPE 60', 1).key === 'laminate_2');
 
 const cfgTui: CpsxThoiGianMayTui = {
   setupRules: [
@@ -163,6 +165,7 @@ const defaults: CpsxUpgradeThoiGian = {
 
 const r10 = chuanHoaCpsxUpgradeThoiGian(undefined, defaults);
 assert('chuanHoa undefined → dùng defaults', r10.print.avgSpeedMPerMin === 150);
+assert('chuanHoa undefined → matteExtraMinutes = default (80)', r10.print.matteExtraMinutes === 80);
 assert('chuanHoa undefined → slit có rule', r10.slit.rules.length === cfgChia.rules.length);
 assert('chuanHoa undefined → bag có setupRules', r10.bag.setupRules.length === cfgTui.setupRules.length);
 
@@ -192,6 +195,14 @@ assert('migrate cũ: túi → bảng mặc định', r12.bag.setupRules.length =
 
 const r13 = chuanHoaCpsxUpgradeThoiGian({}, defaults);
 assert('chuanHoa {} → bằng defaults', r13.print.avgSpeedMPerMin === 150 && r13.slit.rules[0].key === 'opp_mattopp');
+assert('chuanHoa {} → matteExtraMinutes = default (80', r13.print.matteExtraMinutes === 80);
+
+// matteExtraMinutes = 0 cố ý → vẫn giữ 0 (không fallback default)
+const r14 = chuanHoaCpsxUpgradeThoiGian(
+  { print: { matteExtraMinutes: 0 } as never },
+  defaults,
+);
+assert('chuanHoa { print: { matteExtraMinutes: 0 } } → giữ 0', r14.print.matteExtraMinutes === 0);
 
 console.log(`\n  CPSX Thời gian: ${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

@@ -80,15 +80,15 @@ export default function CpsxNangCapThoiGian() {
     setOpenMap((m) => ({ ...m, [key]: !m[key] }));
 
   const previewSoMau = result?.input?.numColors ?? 0;
-  const previewMetIn = (result?.printMeters ?? 0) + (result?.printWaste ?? 0);
   const soLanGhep = result?.layers?.laminations?.length ?? 0;
+  const previewMetIn = (result?.printMeters ?? 0) + (result?.printWaste ?? 0);
   const previewMetGhep = (result?.layers?.laminations ?? []).reduce(
     (sum: number, l: any) => sum + (Number(l?.meters) || 0) + (Number(l?.waste) || 0),
     0,
   );
-  const previewMetCat = (result?.cutMeters ?? 0) + (result?.cutWaste ?? 0);
   const previewSoLuongTui = result?.input?.quantity ?? 0;
-  const phuMoAuto = (result?.input?.metallicSurcharge ?? 0) > 0;
+  const phuMoAuto = result?.input?.hasMo === true;
+  const coChia = result?.input?.hasDivide === true;
   const cauTrucMang = String(result?.structureText ?? "");
   const cutStepM = result?.input?.cutStep ?? 0;
   const bagType = String(result?.input?.bagType ?? "");
@@ -97,7 +97,7 @@ export default function CpsxNangCapThoiGian() {
   const [phuMoTay, setPhuMoTay] = React.useState<boolean | null>(null);
   const phuMo = phuMoTay ?? phuMoAuto;
 
-  const autoRuleChia = chonRuleMayChia(state.slit, cauTrucMang, soLanGhep, phuMo);
+  const autoRuleChia = chonRuleMayChia(state.slit, cauTrucMang, soLanGhep);
   const [ruleChiaTay, setRuleChiaTay] = React.useState<string | null>(null);
   const ruleChia =
     state.slit.rules.find((r) => r.key === ruleChiaTay) ?? autoRuleChia;
@@ -117,8 +117,8 @@ export default function CpsxNangCapThoiGian() {
   const kqLaminate = previewMetGhep > 0
     ? tinhThoiGianMayGhep(previewMetGhep, soLanGhep, state.laminate)
     : null;
-  const kqSlit = previewMetCat > 0
-    ? tinhThoiGianMayChia(previewMetCat, ruleChia)
+  const kqSlit = coChia && previewMetIn > 0
+    ? tinhThoiGianMayChia(previewMetIn, ruleChia)
     : null;
   const kqBag = previewSoLuongTui > 0
     ? tinhThoiGianMayTui(previewSoLuongTui, setupTui, tocDoTui)
@@ -166,17 +166,17 @@ export default function CpsxNangCapThoiGian() {
     {
       key: "slit",
       title: `Thời gian SX ${MAY_LABELS.slit}`,
-      summary: tomTatThoiGian(kqSlit, previewMetCat > 0),
+      summary: tomTatThoiGian(kqSlit, coChia && previewMetIn > 0),
       body: (
         <MayChiaPanel
           giaTri={state.slit}
           capNhat={(rules) => luu({ ...state, slit: { rules } })}
           kq={kqSlit}
-          metChia={previewMetCat}
+          metChia={coChia ? previewMetIn : 0}
           ruleChon={ruleChia}
           autoKey={autoRuleChia.key}
           setRuleKey={(k) => setRuleChiaTay(k)}
-          coInput={previewMetCat > 0}
+          coInput={coChia && previewMetIn > 0}
         />
       ),
     },
@@ -357,7 +357,7 @@ function MayInPanel({
                 checked={phuMo}
                 onChange={(e) => setPhuMo(e.target.checked)}
               />
-              Phủ mờ{phuMoAuto ? " (tự nhận: có nhũ/phủ mờ)" : ""}
+              Phủ mờ{phuMoAuto ? " (tự nhận: có phủ mờ)" : ""}
             </label>
           </div>
           <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
