@@ -79,22 +79,32 @@ async function main() {
         JSON.stringify(body));
     }
 
-    // Test 5: updateOrderApprovalService (duyet)
+    // Test 5: updateOrderApprovalService (duyet + pinToken)
     console.log('\n== updateOrderApprovalService (duyet) ==');
-    await updateOrderApprovalService('ord_2', true, 'token');
+    await updateOrderApprovalService('ord_2', true, 'token', 'pin-token-abc');
     assert('approve goi /quotations/orders/{id}/approval', capturedUrl.endsWith('/quotations/orders/ord_2/approval'), capturedUrl);
     assert('approve dung PATCH', capturedInit?.method === 'PATCH', String(capturedInit?.method));
     {
       const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
       assert('approve body co hasAdvisorApproved=true', body?.hasAdvisorApproved === true, JSON.stringify(body));
     }
+    {
+      const headers = capturedInit?.headers instanceof Headers ? capturedInit.headers : new Headers(capturedInit?.headers);
+      assert('approve gui x-pin-token khi co pinToken',
+        headers.get('x-pin-token') === 'pin-token-abc', String(headers.get('x-pin-token')));
+    }
 
-    // Test 6: updateOrderApprovalService (tu choi)
+    // Test 6: updateOrderApprovalService (tu choi, khong pinToken)
     console.log('\n== updateOrderApprovalService (tu choi) ==');
     await updateOrderApprovalService('ord_3', false, 'token');
     {
       const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
       assert('reject body co hasAdvisorApproved=false', body?.hasAdvisorApproved === false, JSON.stringify(body));
+    }
+    {
+      const headers = capturedInit?.headers instanceof Headers ? capturedInit.headers : new Headers(capturedInit?.headers);
+      assert('reject khong gui x-pin-token khi thieu pinToken',
+        headers.get('x-pin-token') === null, String(headers.get('x-pin-token')));
     }
   } finally {
     globalThis.fetch = originalFetch;

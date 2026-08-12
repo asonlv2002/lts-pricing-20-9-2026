@@ -85,12 +85,24 @@ async function main() {
        assert('nop bao gia body rong (khong co quotationId)', Object.keys(body ?? {}).length === 0, JSON.stringify(body));
      }
 
-     await duyetBaoGiaService('q2', 'rejected', 'token');
+     await duyetBaoGiaService('q2', 'rejected', 'token', 'pin-token-xyz');
      assert('duyet bao gia goi /quotations/{id}/review_update_status', capturedUrl.endsWith('/quotations/q2/review_update_status'), capturedUrl);
      {
        const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
        assert('duyet bao gia chi gui updateStatus (khong co quotationId)',
          body?.quotationId === undefined && body?.updateStatus === 'rejected', JSON.stringify(body));
+     }
+     {
+       const headers = capturedInit?.headers instanceof Headers ? capturedInit.headers : new Headers(capturedInit?.headers);
+       assert('duyet bao gia gui x-pin-token khi co pinToken',
+         headers.get('x-pin-token') === 'pin-token-xyz', String(headers.get('x-pin-token')));
+     }
+
+     await duyetBaoGiaService('q3', 'approved', 'token');
+     {
+       const headers = capturedInit?.headers instanceof Headers ? capturedInit.headers : new Headers(capturedInit?.headers);
+       assert('duyet bao gia khong gui x-pin-token khi thieu pinToken',
+         headers.get('x-pin-token') === null, String(headers.get('x-pin-token')));
      }
 
      await customerDecideBaoGiaService('q4',

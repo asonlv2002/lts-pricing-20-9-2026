@@ -212,6 +212,17 @@ export interface DangNhapApi {
   };
 }
 
+/** GET /auth/me/security — trạng thái bảo mật của tài khoản đang đăng nhập. */
+export interface TrangThaiBaoMatApi {
+  hasPin: boolean;
+}
+
+/** POST /auth/pin/verify — token ngắn hạn (mặc định 1 phút) dùng để gọi route duyệt. */
+export interface XacThucPinApi {
+  pinToken: string;
+  expiresIn: number;
+}
+
 export interface TaiKhoan {
   id: string;
   account: string;
@@ -284,6 +295,16 @@ function dichLoiServer(message: string, status: number): string {
   if (lower.includes("invalid refresh token")) return "Hết phiên đăng nhập.";
   if (lower.includes("invalid credentials") || lower.includes("unauthorized"))
     return "Tài khoản hoặc mật khẩu không đúng.";
+  if (lower.includes("missing pin token"))
+    return "Vui lòng nhập mã PIN để xác nhận thao tác.";
+  if (lower.includes("pin token expired"))
+    return "Phiên xác nhận mã PIN đã hết hạn, vui lòng nhập lại mã PIN.";
+  if (lower.includes("invalid pin token"))
+    return "Mã PIN xác nhận không hợp lệ, vui lòng nhập lại.";
+  if (lower.includes("invalid pin"))
+    return "Mã PIN không đúng.";
+  if (lower.includes("pin must be exactly 6 digits"))
+    return "Mã PIN phải gồm đúng 6 chữ số.";
   if (lower.includes("forbidden"))
     return "Bạn không có quyền thực hiện thao tác này.";
   if (lower.includes("not found")) return "Không tìm thấy dữ liệu yêu cầu.";
@@ -471,6 +492,42 @@ export async function doiMatKhauService(
     {
       method: "PATCH",
       body: JSON.stringify({ currentPassword, newPassword }),
+    },
+    token,
+  );
+}
+
+// GET /auth/me/security — tài khoản có đặt mã PIN chưa (PIN lưu trên máy chủ).
+export async function layTrangThaiBaoMatService(token?: string): Promise<TrangThaiBaoMatApi> {
+  return goiService<TrangThaiBaoMatApi>("/auth/me/security", {}, token);
+}
+
+// PUT /auth/me/pin — đặt hoặc thay mã PIN 6 số (bắt buộc nhập mật khẩu hiện tại).
+export async function datPinService(
+  currentPassword: string,
+  pin: string,
+  token?: string,
+): Promise<{ pinSet: boolean }> {
+  return goiService<{ pinSet: boolean }>(
+    "/auth/me/pin",
+    {
+      method: "PUT",
+      body: JSON.stringify({ currentPassword, pin }),
+    },
+    token,
+  );
+}
+
+// POST /auth/pin/verify — xác thực mã PIN, trả pin token ngắn hạn (mặc định 1 phút).
+export async function xacThucPinService(
+  pin: string,
+  token?: string,
+): Promise<XacThucPinApi> {
+  return goiService<XacThucPinApi>(
+    "/auth/pin/verify",
+    {
+      method: "POST",
+      body: JSON.stringify({ pin }),
     },
     token,
   );
@@ -1432,16 +1489,20 @@ export async function layBaoGiaChoDuyetService(
 }
 
 // PATCH /quotations/{id}/review_update_status — duyệt hoặc từ chối báo giá đã nộp.
+// Route yêu cầu PIN (PinGuard): truyền pinToken qua header x-pin-token.
 export async function duyetBaoGiaService(
   quotationId: string,
   updateStatus: "approved" | "rejected",
   token?: string,
+  pinToken?: string,
 ): Promise<BaoGiaApi> {
+  const headers = pinToken ? { "x-pin-token": pinToken } : undefined;
   return goiService<BaoGiaApi>(
     `/quotations/${encodeURIComponent(quotationId)}/review_update_status`,
     {
       method: "PATCH",
       body: JSON.stringify({ updateStatus }),
+      headers,
     },
     token,
   );
@@ -1750,17 +1811,21 @@ export async function updateQuotationPricingSheetOrderService(
 }
 
 // PATCH /quotations/orders/{id}/approval — advisor duyệt / từ chối order.
-// Yêu cầu policy ORDER_REVIEWER. Set hasAdvisorApproved = true | false + approvedBy = actor.
+// Yêu cầu policy ORDER_REVIEWER + PIN (PinGuard): truyền pinToken qua header x-pin-token.
+// Set hasAdvisorApproved = true | false + approvedBy = actor.
 export async function updateOrderApprovalService(
   orderId: string,
   hasAdvisorApproved: boolean,
   token?: string,
+  pinToken?: string,
 ): Promise<QuotationPricingSheetOrderApi> {
+  const headers = pinToken ? { "x-pin-token": pinToken } : undefined;
   return goiService<QuotationPricingSheetOrderApi>(
     `/quotations/orders/${encodeURIComponent(orderId)}/approval`,
     {
       method: "PATCH",
       body: JSON.stringify({ hasAdvisorApproved }),
+      headers,
     },
     token,
   );

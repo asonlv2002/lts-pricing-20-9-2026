@@ -245,7 +245,7 @@ export default function ModuleDuyetBaoGia({
     bg: BaoGiaApi;
     title: string;
     message: string;
-    onConfirm: () => Promise<void> | void;
+    onConfirm: (pinToken: string) => Promise<void> | void;
   } | null>(null);
   // Expand dropdown cho từng BG để xem/duyệt từng pricing sheet.
   // URL /danh-sach-bao-gia/<id> = auto-expand hàng đó.
@@ -352,44 +352,22 @@ export default function ModuleDuyetBaoGia({
     async (bg: BaoGiaApi, quyetDinh: "approved" | "rejected") => {
       if (!accessToken) return;
       const label = quyetDinh === "approved" ? "duyệt" : "từ chối";
-      // Chỉ hành động DUYỆT cần nhập mã PIN; TỪ CHỐI giữ confirm thường.
-      if (quyetDinh === "approved") {
-        setNhapPin({
-          bg,
-          title: "Duyệt báo giá",
-          message: `Bạn có chắc muốn duyệt báo giá "${tenBaoGia(bg)}"?`,
-          onConfirm: async () => {
-            setNhapPin(null);
-            datDangXuLyId(bg.id);
-            datLoi("");
-            try {
-              await duyetBaoGiaService(bg.id, "approved", accessToken);
-              hienThongBao("Đã duyệt báo giá.");
-              await lamMoi();
-            } catch (error) {
-              datLoi(
-                error instanceof Error
-                  ? error.message
-                  : "Không cập nhật được trạng thái báo giá.",
-              );
-            } finally {
-              datDangXuLyId(null);
-            }
-          },
-        });
-        return;
-      }
-      setConfirm({
+      // Duyệt VÀ Từ chối đều cần nhập mã PIN (server gắn PinGuard trên cả 2 chiều).
+      setNhapPin({
         bg,
-        title: "Từ chối báo giá",
+        title: quyetDinh === "approved" ? "Duyệt báo giá" : "Từ chối báo giá",
         message: `Bạn có chắc muốn ${label} báo giá "${tenBaoGia(bg)}"?`,
-        onConfirm: async () => {
-          setConfirm(null);
+        onConfirm: async (pinToken: string) => {
+          setNhapPin(null);
           datDangXuLyId(bg.id);
           datLoi("");
           try {
-            await duyetBaoGiaService(bg.id, "rejected", accessToken);
-            hienThongBao("Đã từ chối báo giá.");
+            await duyetBaoGiaService(bg.id, quyetDinh, accessToken, pinToken);
+            hienThongBao(
+              quyetDinh === "approved"
+                ? "Đã duyệt báo giá."
+                : "Đã từ chối báo giá.",
+            );
             await lamMoi();
           } catch (error) {
             datLoi(
@@ -964,9 +942,9 @@ export default function ModuleDuyetBaoGia({
         open={!!nhapPin}
         title={nhapPin?.title || ""}
         message={nhapPin?.message || ""}
-        onConfirm={async () => {
+        onConfirm={async (pinToken: string) => {
           if (!nhapPin) return;
-          await nhapPin.onConfirm();
+          await nhapPin.onConfirm(pinToken);
         }}
         onClose={() => setNhapPin(null)}
       />

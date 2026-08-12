@@ -11773,6 +11773,39 @@ body {
   line-height: 1.45;
 }
 
+/* ── Mã PIN 6 ô riêng biệt ─────────────── */
+.pin-6-o {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+.pin-6-o-input {
+  width: 44px;
+  height: 52px;
+  border: 1.5px solid var(--border);
+  border-radius: 11px;
+  background: var(--input-bg);
+  color: var(--text);
+  text-align: center;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  outline: none;
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
+}
+.pin-6-o-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
+  background: var(--surface);
+}
+.pin-6-o-input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 /* ── Chữ ký vẽ ──────────────────────────── */
 .lts-signature-tabs {
   display: flex;
