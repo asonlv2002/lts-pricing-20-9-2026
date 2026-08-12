@@ -278,6 +278,7 @@ const DEFAULT_CPSX_LUONG_TUI: CpsxUpgradeLaborTui = {
   peoplePerShift: 3,
   roundedPerMin: null,
   hoursPerDay: 24,
+  machinesPerDay: 3,
   otHours: 4,
   tyLeTangCa: 0.5,
 };

@@ -129,6 +129,7 @@ const labor: CpsxUpgradeLabor = {
     peoplePerShift: 2,
     roundedPerMin: 1000,
     hoursPerDay: 24,
+    machinesPerDay: 3,
     otHours: 4,
     tyLeTangCa: 0.5,
   },
@@ -694,7 +695,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   // chia: TC = 100.000 → (400k + 30k + 100k) ÷ 12 ÷ 60 = 736,11 → 736
   approx(rows[2].cpNhanCongPerPhut!, 736, 'chia: 736 ₫/phút');
   // túi: TC = 150.000 → (600k + 60k + 150k) ÷ 24 ÷ 60 = 562,5 → 563; rounded 1000 → 1000
-  approx(rows[3].cpNhanCongPerPhut!, 1000, 'làm túi: dùng roundedPerMin');
+  approx(rows[3].cpNhanCongPerPhut!, 333, 'làm túi 3 máy: 1000 ÷ 3 = 333');
 
   // ghép: 1 lần → setup 10'; chạy 8770/100 = 87,7' → tổng 97,7'
   approx(rows[1].thoiGianPhut!, 10 + 8770 / 100, 'ghép: thời gian SX');
@@ -705,7 +706,20 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 
   // làm túi: 3 biên (90') · bước 0,4m = 400mm → ≤400mm (60 cái/phút)
   approx(rows[3].thoiGianPhut!, 90 + 10000 / 60, 'làm túi: thời gian theo số chiếc');
-  approx(rows[3].cpNhanCongPerPhut!, 1000, 'làm túi: dùng roundedPerMin');
+  approx(rows[3].cpNhanCongPerPhut!, 333, 'làm túi 3 máy: 1000 ÷ 3 = 333');
+}
+
+{
+  // Làm túi nhiều máy: rounded 1000, machinesPerDay 2 → 500 ₫/phút
+  const rMay = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000 } });
+  const rows = lapDongNhanCongDien(rMay, taoHangSo({
+    cpsxUpgradeLabor: {
+      ...labor,
+      bag: { ...labor.bag, machinesPerDay: 2 },
+    } as CpsxUpgradeLabor,
+  }));
+  const dongTui = rows.find((r) => r.congDoan === 'làm túi');
+  approx(dongTui!.cpNhanCongPerPhut!, 500, 'làm túi 2 máy: 1000 ÷ 2 = 500');
 }
 
 {

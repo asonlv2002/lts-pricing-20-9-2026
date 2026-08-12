@@ -269,6 +269,8 @@ export interface CpsxUpgradeLaborTui {
   roundedPerMin: number | null;
   /** Số giờ máy hoạt động / ngày (mặc định 24) — tham số sửa được */
   hoursPerDay: number;
+  /** Số máy hoạt động / ngày — lương 1 máy chia tiếp cho số máy */
+  machinesPerDay: number;
   /** Số giờ tăng ca (n, mặc định 4) — TC = (L ÷ 8 × n) × hệ số × tỉ lệ */
   otHours: number;
   /** Tỉ lệ CN có tăng ca 4h (0–1, mặc định 0.5) — chỉ số CN tăng ca mới tính */

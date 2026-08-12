@@ -15,6 +15,7 @@ import {
   chuanHoaCpsxUpgradeLabor,
   luongMoiPhutAp,
   luongMoiPhutTinh,
+  luongMoiPhutTuiAp,
   luongTbTui,
   soCongNhanTui,
   soNguoiMoiCa1May,
@@ -178,6 +179,7 @@ export default function CpsxNangCapLuong() {
           tenMay="Máy ghép"
           giaTri={state.laminate}
           capNhat={(patch) => capNhat1May("laminate", patch)}
+          hienMayTinh
         />
       ),
     },
@@ -190,6 +192,7 @@ export default function CpsxNangCapLuong() {
           tenMay="Máy chia"
           giaTri={state.slit}
           capNhat={(patch) => capNhat1May("slit", patch)}
+          hienMayTinh
         />
       ),
     },
@@ -559,10 +562,6 @@ function MayTinhThamKhao({
 }: {
   giaTri: CpsxUpgradeLabor1May;
 }) {
-  const [donVi, setDonVi] = React.useState<string[]>([]);
-  const [cursor, setCursor] = React.useState(0);
-  const bieuThuc = donVi.join("");
-
   const tongL = tongLuong(giaTri.wages);
   const soCN = giaTri.wages.length;
   const soNguoiMoiCa = giaTri.peoplePerShift != null
@@ -592,12 +591,59 @@ function MayTinhThamKhao({
     socongnhan: soCN,
   };
 
+  return <MayTinhThamKhaoTokens soHang={soHang} />;
+}
+
+function MayTinhThamKhaoTui({
+  giaTri,
+}: {
+  giaTri: CpsxUpgradeLaborTui;
+}) {
+  const tongL = tongLuong(giaTri.wages);
+  const soCN = soCongNhanTui(giaTri.wages);
+  const tienComSang = tienComSangTui(giaTri.mealMorning, soCN);
+  const tienComToi = tienComToiTui(giaTri.mealEvening, soCN);
+  const tangCa = tangCaTui(
+    giaTri.wages,
+    giaTri.otFactor,
+    giaTri.tyLeTangCa,
+    giaTri.otHours,
+  );
+
+  const soHang: Record<string, number> = {
+    tongluong: tongL,
+    comcasang: tienComSang,
+    comcatoi: tienComToi,
+    tangca: tangCa,
+    slnguoica: giaTri.peoplePerShift,
+    sogiomayngay: giaTri.hoursPerDay,
+    somayhoatdongngay: giaTri.machinesPerDay,
+    sogiotangca: giaTri.otHours,
+    hesotangca: giaTri.otFactor,
+    tiletangca: giaTri.tyLeTangCa,
+    socongnhan: soCN,
+  };
+
+  return <MayTinhThamKhaoTokens soHang={soHang} />;
+}
+
+function MayTinhThamKhaoTokens({
+  soHang,
+}: {
+  soHang: Record<string, number>;
+}) {
+  const [donVi, setDonVi] = React.useState<string[]>([]);
+  const [cursor, setCursor] = React.useState(0);
+  const bieuThuc = donVi.join("");
+
   const nutChon: { bieuThuc: string; nhan: string }[] = [
     { bieuThuc: "Tổng lương", nhan: "Tổng lương" },
     { bieuThuc: "Cơm ca sáng", nhan: "Cơm ca sáng" },
     { bieuThuc: "Cơm ca tối", nhan: "Cơm ca tối" },
     { bieuThuc: "Tăng ca", nhan: "Tăng ca" },
-    { bieuThuc: "Số ca", nhan: "Số ca" },
+    ...(soHang.soca != null
+      ? [{ bieuThuc: "Số ca", nhan: "Số ca" } as const]
+      : []),
     { bieuThuc: "SL người / ca", nhan: "SL người / ca" },
     { bieuThuc: "Số giờ máy / ngày", nhan: "Số giờ máy / ngày" },
     { bieuThuc: "Số máy hoạt động / ngày", nhan: "Số máy hoạt động / ngày" },
@@ -778,7 +824,12 @@ function MayTui({
     giaTri.tyLeTangCa,
     giaTri.otHours,
   );
-  const apDungGia = luongMoiPhutAp(tinh, giaTri.roundedPerMin);
+  const tinhMoiMay = luongMoiPhutTuiAp(tinh, null, giaTri.machinesPerDay);
+  const apDungGia = luongMoiPhutTuiAp(
+    tinh,
+    giaTri.roundedPerMin,
+    giaTri.machinesPerDay,
+  );
 
   const suaLuong = (idx: number, val: string) => {
     const next = [...giaTri.wages];
@@ -871,6 +922,28 @@ function MayTui({
           <strong className="config-cpsx-upgrade__meta-value">
             {giaTri.peoplePerShift}
           </strong>
+        </div>
+        <div className="config-cpsx-upgrade__meta-item">
+          <span className="config-cpsx-upgrade__meta-label">
+            Số máy hoạt động / ngày
+          </span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__meta-input"
+            aria-label="Số máy hoạt động mỗi ngày — máy làm túi"
+            min={1}
+            step={1}
+            value={giaTri.machinesPerDay}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              capNhat({
+                machinesPerDay:
+                  Number.isFinite(v) && v > 0
+                    ? Math.floor(v)
+                    : giaTri.machinesPerDay,
+              });
+            }}
+          />
         </div>
       </div>
 
@@ -995,7 +1068,7 @@ function MayTui({
         <div className="config-cpsx-upgrade__formula-row">
           <span className="config-cpsx-upgrade__formula-label">
             Lương CN mỗi phút = (Tổng lương + Tăng ca + Cơm sáng + Cơm tối)
-            ÷ Số giờ/ngày ÷ 60
+            ÷ Số giờ/ngày ÷ 60{giaTri.machinesPerDay > 1 ? " ÷ Số máy/ngày" : ""}
           </span>
         </div>
         <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
@@ -1020,7 +1093,9 @@ function MayTui({
                 });
               }}
             />{" "}
-            ÷ 60 = {dinhDangVnd(tinh)} ₫/phút
+            ÷ 60{giaTri.machinesPerDay > 1 && (
+              <> ÷ {giaTri.machinesPerDay} máy</>
+            )} = {dinhDangVnd(tinhMoiMay)} ₫/phút
           </strong>
         </div>
       </div>
@@ -1062,6 +1137,8 @@ function MayTui({
         </strong>
         <span className="config-cpsx-upgrade__unit">₫/phút</span>
       </div>
+
+      <MayTinhThamKhaoTui giaTri={giaTri} />
     </div>
   );
 }

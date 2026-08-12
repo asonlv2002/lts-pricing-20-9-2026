@@ -7,6 +7,7 @@ import {
   chuanHoaCpsxUpgradeLabor,
   luongMoiPhutAp,
   luongMoiPhutTinh,
+  luongMoiPhutTuiAp,
   luongTbTui,
   phanBoTheoCa,
   soCongNhan,
@@ -129,6 +130,32 @@ assert(
 assert(
   "roundedPerMin=0 → dùng giá tính",
   luongMoiPhutAp(tinh, 0) === tinh,
+);
+
+// ── Lương túi / máy (chia số máy hoạt động / ngày) ────────────────
+assert(
+  "tuiAp máy=1 → giá 1 máy (không đổi)",
+  luongMoiPhutTuiAp(tinh, null, 1) === tinh,
+);
+assert(
+  "tuiAp máy=2 → tinh ÷ 2 (làm tròn)",
+  luongMoiPhutTuiAp(6128, null, 2) === 3064,
+);
+assert(
+  "tuiAp máy=3 → tinh ÷ 3 (làm tròn)",
+  luongMoiPhutTuiAp(10000, null, 3) === 3333,
+);
+assert(
+  "tuiAp rounded 1000, máy 2 → 500",
+  luongMoiPhutTuiAp(tinh, 1000, 2) === 500,
+);
+assert(
+  "tuiAp máy 0 → coi như 1",
+  luongMoiPhutTuiAp(tinh, 1000, 0) === 1000,
+);
+assert(
+  "tuiAp máy âm → coi như 1",
+  luongMoiPhutTuiAp(tinh, null, -2) === tinh,
 );
 
 // ── hoursPerDay là tham số đổi được ────────────────────────────────
@@ -325,7 +352,7 @@ const def: CpsxUpgradeLabor = {
   print: { wages: in6, mealMorning: 30000, mealEvening: 65000, otFactor: 1.5, shiftCount: 2, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5 },
   laminate: { wages: [800000, 550000, 800000, 550000], mealMorning: 30000, mealEvening: 65000, otFactor: 1.5, shiftCount: 2, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5 },
   slit: { wages: [550000], mealMorning: 30000, mealEvening: 65000, otFactor: 1.5, shiftCount: 1, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 12, otHours: 4, tyLeTangCa: 0.5 },
-  bag: { wages: tuiW, mealMorning: 45000, mealEvening: 97500, otFactor: 1.5, peoplePerShift: 3, roundedPerMin: null, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5 },
+  bag: { wages: tuiW, mealMorning: 45000, mealEvening: 97500, otFactor: 1.5, peoplePerShift: 3, roundedPerMin: null, hoursPerDay: 24, machinesPerDay: 3, otHours: 4, tyLeTangCa: 0.5 },
 };
 const norm = chuanHoaCpsxUpgradeLabor(undefined, def);
 assert("normalize thiếu input → dùng default", norm.print.wages.length === 6 && norm.slit.shiftCount === 1);
@@ -334,6 +361,7 @@ assert("tyLeTangCa default = 0.5 cả 4 máy", norm.print.tyLeTangCa === 0.5 && 
 assert("otHours default = 4 cả 4 máy", norm.print.otHours === 4 && norm.laminate.otHours === 4 && norm.slit.otHours === 4 && norm.bag.otHours === 4);
 assert("peoplePerShift default = null (tự tính)", norm.print.peoplePerShift === null && norm.slit.peoplePerShift === null);
 assert("túi roundedPerMin null → null", norm.bag.roundedPerMin === null);
+assert("túi machinesPerDay default = 3", norm.bag.machinesPerDay === 3);
 
 // Data cũ (thiếu hoursPerDay + tyLeTangCa) → fallback theo máy
 const normOld = chuanHoaCpsxUpgradeLabor(
@@ -351,6 +379,13 @@ assert("data cũ thiếu tyLeTangCa → 0.5", normOld.print.tyLeTangCa === 0.5 &
 assert("data cũ thiếu otHours → 4", normOld.print.otHours === 4 && normOld.bag.otHours === 4);
 assert("data cũ thiếu peoplePerShift → null (tự tính)", normOld.print.peoplePerShift === null);
 assert("data cũ túi rounded 4500 → giữ 4500", normOld.bag.roundedPerMin === 4500);
+assert("data cũ túi thiếu machinesPerDay → 3", normOld.bag.machinesPerDay === 3);
+assert("data cũ túi machinesPerDay=1 → migrate 3", chuanHoaCpsxUpgradeLabor(
+  { bag: { machinesPerDay: 1 } as never }, def,
+).bag.machinesPerDay === 3);
+assert("túi machinesPerDay 2 → giữ 2", chuanHoaCpsxUpgradeLabor(
+  { bag: { machinesPerDay: 2 } as never }, def,
+).bag.machinesPerDay === 2);
 
 // hoursPerDay sửa được → giữ giá trị user nhập
 const normHours = chuanHoaCpsxUpgradeLabor(

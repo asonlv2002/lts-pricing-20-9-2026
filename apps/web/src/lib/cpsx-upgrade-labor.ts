@@ -159,6 +159,21 @@ export function luongMoiPhutAp(
   return roundedPerMin;
 }
 
+/**
+ * Giá áp dụng cho Làm túi (nhiều máy): giá 1 máy (có thể đã làm tròn)
+ * chia tiếp cho số máy hoạt động / ngày. Số máy ≤ 0 → coi như 1.
+ */
+export function luongMoiPhutTuiAp(
+  giaTinh: number,
+  roundedPerMin: number | null | undefined,
+  machinesPerDay: number,
+): number {
+  const gia1May = luongMoiPhutAp(giaTinh, roundedPerMin);
+  const may = Math.floor(Number(machinesPerDay));
+  if (!Number.isFinite(may) || may <= 0) return gia1May;
+  return Math.round(gia1May / may);
+}
+
 // ── Normalize ───────────────────────────────────────────────────────
 
 export function chuanHoa1May(
@@ -241,10 +256,22 @@ export function chuanHoaTui(
       Number(raw?.hoursPerDay) > 0
         ? Number(raw?.hoursPerDay)
         : fallback.hoursPerDay,
+    machinesPerDay: chuanHoaMayTui(raw?.machinesPerDay, fallback.machinesPerDay),
     otHours:
       Number(raw?.otHours) > 0 ? Number(raw?.otHours) : fallback.otHours,
     tyLeTangCa: chuanHoaTyLeTangCa(raw?.tyLeTangCa, fallback.tyLeTangCa),
   };
+}
+
+/**
+ * Số máy hoạt động / ngày cho máy làm túi — mặc định mới là 3.
+ * Giá trị cũ = 1 (default trước khi thêm trường này) được migrate về
+ * mặc định mới (3); thiếu / ≤ 0 cũng dùng fallback.
+ */
+function chuanHoaMayTui(raw: number | undefined, fallback: number): number {
+  const v = Number(raw);
+  if (Number.isFinite(v) && v > 0 && v !== 1) return Math.floor(v);
+  return fallback;
 }
 
 export function chuanHoaCpsxUpgradeLabor(

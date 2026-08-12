@@ -25,8 +25,8 @@ import {
   tinhThoiGianMayTui,
 } from './cpsx-upgrade-thoigian';
 import {
-  luongMoiPhutAp,
   luongMoiPhutTinh,
+  luongMoiPhutTuiAp,
   soCongNhanTui,
 } from './cpsx-upgrade-labor';
 import { tinhDienMoiPhut } from './cpsx-upgrade-electric';
@@ -501,13 +501,14 @@ export function lapDongNhanCongDien(
     rows.push(dong(
       'làm túi',
       soTui > 0 ? tinhThoiGianMayTui(soTui, setupTui, tocDoTui).tongPhut : null,
-      luongMoiPhutAp(
+      luongMoiPhutTuiAp(
         luongMoiPhutTinh(
           lab.bag.wages, lab.bag.hoursPerDay,
           lab.bag.mealMorning, lab.bag.mealEvening, lab.bag.otFactor,
           soCongNhanTui(lab.bag.wages), lab.bag.tyLeTangCa, lab.bag.otHours,
         ),
         lab.bag.roundedPerMin,
+        lab.bag.machinesPerDay,
       ),
       el?.machines?.bag,
     ));

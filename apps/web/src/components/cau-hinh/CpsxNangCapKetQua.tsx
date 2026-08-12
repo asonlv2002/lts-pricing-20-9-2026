@@ -14,8 +14,8 @@ import {
 } from "../../lib/cpsx-upgrade-electric";
 import {
   chuanHoaCpsxUpgradeLabor,
-  luongMoiPhutAp,
   luongMoiPhutTinh,
+  luongMoiPhutTuiAp,
   soCongNhanTui,
 } from "../../lib/cpsx-upgrade-labor";
 import {
@@ -105,7 +105,7 @@ export default function CpsxNangCapKetQua() {
 
   const luongTui = () => {
     const g = luong.bag;
-    return luongMoiPhutAp(
+    return luongMoiPhutTuiAp(
       luongMoiPhutTinh(
         g.wages,
         g.hoursPerDay,
@@ -117,6 +117,7 @@ export default function CpsxNangCapKetQua() {
         g.otHours,
       ),
       g.roundedPerMin,
+      g.machinesPerDay,
     );
   };
 
