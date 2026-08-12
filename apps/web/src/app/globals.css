@@ -2966,6 +2966,11 @@ body {
   color: var(--text);
   line-height: 1.3;
 }
+.config-cpsx-upgrade__meta-input {
+  width: 100%;
+  min-height: 34px;
+  flex: 0 0 auto;
+}
 .config-cpsx-upgrade__meta-hint {
   font-size: 0.7rem;
   color: var(--muted);
@@ -3037,6 +3042,179 @@ body {
   font-weight: 700;
   color: var(--primary, #0f766e);
   font-variant-numeric: tabular-nums;
+}
+.config-cpsx-upgrade__calc {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  background: var(--surface2, var(--bg));
+}
+.config-cpsx-upgrade__calc-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.config-cpsx-upgrade__calc-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.config-cpsx-upgrade__calc-chip {
+  font-size: 0.82rem;
+  padding: 4px 10px;
+  border-radius: 8px;
+}
+.config-cpsx-upgrade__calc-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.config-cpsx-upgrade__calc-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.config-cpsx-upgrade__calc-row--eq {
+  align-items: flex-start;
+}
+.config-cpsx-upgrade__calc-row--eq .config-cpsx-upgrade__calc-label {
+  flex: 0 0 12px;
+  text-align: center;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.6;
+}
+.config-cpsx-upgrade__calc-label {
+  flex: 0 0 72px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+.config-cpsx-upgrade__calc-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+.config-cpsx-upgrade__calc-so {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.88rem;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.config-cpsx-upgrade__calc-ket-qua {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary, #0f766e);
+  font-variant-numeric: tabular-nums;
+}
+.config-cpsx-upgrade__calc-row--tokens {
+  align-items: flex-start;
+}
+.config-cpsx-upgrade__calc-tokens {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  min-height: 40px;
+  padding: 6px 8px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--surface2, var(--bg));
+}
+.config-cpsx-upgrade__calc-gap {
+  position: relative;
+  flex: 0 0 8px;
+  align-self: stretch;
+  min-height: 24px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: text;
+}
+.config-cpsx-upgrade__calc-caret {
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: 3px;
+  width: 1px;
+  border-radius: 1px;
+  background: var(--primary, #0f766e);
+}
+.config-cpsx-upgrade__calc-token {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface, #fff);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  white-space: nowrap;
+  cursor: default;
+}
+.config-cpsx-upgrade__calc-token-text {
+  font-variant-numeric: tabular-nums;
+}
+.config-cpsx-upgrade__calc-token-del {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transform: translate(50%, -50%);
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  width: 15px;
+  height: 15px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--danger, #dc2626);
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+}
+@media (hover: hover) and (pointer: fine) {
+  .config-cpsx-upgrade__calc-token-del {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.12s ease;
+  }
+  .config-cpsx-upgrade__calc-token:hover .config-cpsx-upgrade__calc-token-del,
+  .config-cpsx-upgrade__calc-token-del:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+.config-cpsx-upgrade__calc-token-del:hover {
+  background: rgba(220, 38, 38, 0.12);
+}
+@media (max-width: 767px) {
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__calc-row,
+  html.in-config-page .config-page .config-cpsx-upgrade__calc-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  .lts-shell--mobile .config-page .config-cpsx-upgrade__calc-input,
+  html.in-config-page .config-page .config-cpsx-upgrade__calc-input {
+    width: 100%;
+  }
 }
 @media (max-width: 767px) {
   .lts-shell--mobile .config-page .config-cpsx-upgrade__meta-grid,
@@ -3486,6 +3664,61 @@ body {
   color: var(--accent);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+}
+
+/* CPSX nâng cấp — mục Thời gian SX: col-title, checkbox, select auto-map */
+.config-cpsx-upgrade__col-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  margin: 10px 0 6px;
+}
+.config-cpsx-upgrade__checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-left: 12px;
+  white-space: nowrap;
+}
+.config-cpsx-upgrade__select {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin-left: 12px;
+  white-space: nowrap;
+}
+.config-cpsx-upgrade__select select {
+  padding: 4px 8px;
+  border: 1px solid var(--border, #d1d5db);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: var(--bg, #fff);
+  color: var(--text, #111827);
+  max-width: 260px;
+}
+.config-cpsx-upgrade__auto {
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+.config-cpsx-upgrade__table .config-print-press-labor__delete {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 6px;
+  font-size: 0.85rem;
+  line-height: 1;
+}
+.config-cpsx-upgrade__table .config-print-press-labor__delete:hover:not(:disabled) {
+  color: #dc2626;
+}
+.config-cpsx-upgrade__table .config-print-press-labor__delete:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }
 
 @media (max-width: 767px) {

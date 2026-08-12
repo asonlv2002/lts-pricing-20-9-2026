@@ -10,17 +10,23 @@ import type {
   CpsxUpgradeLaborTui,
 } from "../../lib/types";
 import {
+  boDau,
+  chenDonVi,
   chuanHoaCpsxUpgradeLabor,
   luongMoiPhutAp,
   luongMoiPhutTinh,
   luongTbTui,
   soCongNhanTui,
   soNguoiMoiCa1May,
+  SO_GIO_MOT_CA,
   tangCaTheoTongLuong,
   tangCaTui,
+  TEN_SO_HANG_RE,
   tienComSangTui,
   tienComToiTui,
+  tinhBieuThuc,
   tongLuong,
+  xoaDonViTai,
 } from "../../lib/cpsx-upgrade-labor";
 
 function dinhDangVnd(n: number) {
@@ -158,6 +164,8 @@ export default function CpsxNangCapLuong() {
           tenMay="Máy in"
           giaTri={state.print}
           capNhat={(patch) => capNhat1May("print", patch)}
+          hienSoMay
+          hienMayTinh
         />
       ),
     },
@@ -227,17 +235,23 @@ function May1May({
   tenMay,
   giaTri,
   capNhat,
+  hienSoMay = false,
+  hienMayTinh = false,
 }: {
   tenMay: string;
   giaTri: CpsxUpgradeLabor1May;
   capNhat: (patch: Partial<CpsxUpgradeLabor1May>) => void;
+  hienSoMay?: boolean;
+  hienMayTinh?: boolean;
 }) {
   const soCN = giaTri.wages.length;
-  const soNguoiMoiCa = soNguoiMoiCa1May(giaTri.wages, giaTri.shiftCount);
+  const soNguoiMoiCa = giaTri.peoplePerShift != null
+    ? giaTri.peoplePerShift
+    : soNguoiMoiCa1May(giaTri.wages, giaTri.shiftCount);
   const tongL = tongLuong(giaTri.wages);
   const tienComSang = (Number(giaTri.mealMorning) || 0) * soCN / 2;
   const tienComToi = (Number(giaTri.mealEvening) || 0) * soCN / 2;
-  const tangCa = tangCaTheoTongLuong(giaTri.wages, giaTri.otFactor, giaTri.tyLeTangCa);
+  const tangCa = tangCaTheoTongLuong(giaTri.wages, giaTri.otFactor, giaTri.tyLeTangCa, giaTri.otHours);
   const ketQua = luongMoiPhutTinh(
     giaTri.wages,
     giaTri.hoursPerDay,
@@ -246,6 +260,7 @@ function May1May({
     giaTri.otFactor,
     undefined,
     giaTri.tyLeTangCa,
+    giaTri.otHours,
   );
 
   const suaLuong = (idx: number, val: string) => {
@@ -327,17 +342,89 @@ function May1May({
         </div>
         <div className="config-cpsx-upgrade__meta-item">
           <span className="config-cpsx-upgrade__meta-label">Số ca</span>
-          <strong className="config-cpsx-upgrade__meta-value">
-            {giaTri.shiftCount}
-          </strong>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__meta-input"
+            aria-label={`Số ca — ${tenMay}`}
+            min={1}
+            max={2}
+            step={1}
+            value={giaTri.shiftCount}
+            onChange={(e) => {
+              const v = parseInt(e.target.value, 10);
+              capNhat({
+                shiftCount: v === 1 || v === 2 ? v : giaTri.shiftCount,
+              });
+            }}
+          />
         </div>
         <div className="config-cpsx-upgrade__meta-item">
-          <span className="config-cpsx-upgrade__meta-label">SL người / ca</span>
-          <strong className="config-cpsx-upgrade__meta-value">
-            {soNguoiMoiCa}{" "}
-            <small className="config-cpsx-upgrade__meta-hint">(tự tính)</small>
-          </strong>
+          <span className="config-cpsx-upgrade__meta-label">
+            SL người / ca
+          </span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__meta-input"
+            aria-label={`SL người mỗi ca — ${tenMay}`}
+            min={1}
+            step={1}
+            value={soNguoiMoiCa}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              capNhat({
+                peoplePerShift:
+                  Number.isFinite(v) && v > 0 ? Math.floor(v) : null,
+              });
+            }}
+          />
         </div>
+        <div className="config-cpsx-upgrade__meta-item">
+          <span className="config-cpsx-upgrade__meta-label">
+            Số giờ máy / ngày
+          </span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__meta-input"
+            aria-label={`Giờ máy hoạt động mỗi ngày — ${tenMay}`}
+            min={1}
+            max={24}
+            step={1}
+            value={giaTri.hoursPerDay}
+            onChange={(e) => {
+              const v = parseFloat(e.target.value);
+              capNhat({
+                hoursPerDay:
+                  Number.isFinite(v) && v > 0
+                    ? Math.min(24, v)
+                    : giaTri.hoursPerDay,
+              });
+            }}
+          />
+        </div>
+        {hienSoMay && (
+          <div className="config-cpsx-upgrade__meta-item">
+            <span className="config-cpsx-upgrade__meta-label">
+              Số máy hoạt động / ngày
+            </span>
+            <input
+              type="number"
+              className="config-inline-input config-cpsx-upgrade__meta-input"
+              aria-label={`Số máy hoạt động mỗi ngày — ${tenMay}`}
+              min={1}
+              step={1}
+              value={giaTri.machinesPerDay}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                capNhat({
+                  machinesPerDay:
+                    Number.isFinite(v) && v > 0
+                      ? Math.floor(v)
+                      : giaTri.machinesPerDay,
+                });
+              }}
+            />
+          </div>
+        )}
       </div>
 
       <div className="config-cpsx-upgrade__formulas">
@@ -377,13 +464,29 @@ function May1May({
         </div>
         <div className="config-cpsx-upgrade__formula-row">
           <span className="config-cpsx-upgrade__formula-label">
-            Tổng tiền tăng ca = (Tổng lương ÷ 2) × Hệ số tăng ca × Tỉ lệ
-            tăng ca
+            Tổng tiền tăng ca n giờ = (Tổng lương ÷ {SO_GIO_MOT_CA} × n) ×
+            Hệ số tăng ca × Tỉ lệ tăng ca
           </span>
         </div>
         <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
           <strong className="config-cpsx-upgrade__formula-result">
-            ({dinhDangVnd(tongL)} ÷ 2) ×{" "}
+            ({dinhDangVnd(tongL)} ÷ {SO_GIO_MOT_CA} ×{" "}
+            <input
+              type="number"
+              className="config-inline-input config-cpsx-upgrade__formula-input"
+              aria-label="Số giờ tăng ca"
+              min={0}
+              step={0.5}
+              value={giaTri.otHours}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                capNhat({
+                  otHours:
+                    Number.isFinite(v) && v >= 0 ? v : giaTri.otHours,
+                });
+              }}
+            />
+            {") × "}
             <input
               type="number"
               className="config-inline-input config-cpsx-upgrade__formula-input"
@@ -431,25 +534,7 @@ function May1May({
           <strong className="config-cpsx-upgrade__formula-result">
             ({dinhDangVnd(tongL)} + {dinhDangVnd(tangCa)} +{" "}
             {dinhDangVnd(tienComSang)} + {dinhDangVnd(tienComToi)}) ÷{" "}
-            <input
-              type="number"
-              className="config-inline-input config-cpsx-upgrade__formula-input"
-              aria-label={`Giờ máy hoạt động mỗi ngày — ${tenMay}`}
-              min={1}
-              max={24}
-              step={1}
-              value={giaTri.hoursPerDay}
-              onChange={(e) => {
-                const v = parseFloat(e.target.value);
-                capNhat({
-                  hoursPerDay:
-                    Number.isFinite(v) && v > 0
-                      ? Math.min(24, v)
-                      : giaTri.hoursPerDay,
-                });
-              }}
-            />{" "}
-            ÷ 60 = {dinhDangVnd(ketQua)} ₫/phút
+            {giaTri.hoursPerDay} ÷ 60 = {dinhDangVnd(ketQua)} ₫/phút
           </strong>
         </div>
       </div>
@@ -460,6 +545,211 @@ function May1May({
           {dinhDangVnd(ketQua)}
         </strong>
         <span className="config-cpsx-upgrade__unit">₫/phút</span>
+      </div>
+
+      {hienMayTinh && (
+        <MayTinhThamKhao giaTri={giaTri} />
+      )}
+    </div>
+  );
+}
+
+function MayTinhThamKhao({
+  giaTri,
+}: {
+  giaTri: CpsxUpgradeLabor1May;
+}) {
+  const [donVi, setDonVi] = React.useState<string[]>([]);
+  const [cursor, setCursor] = React.useState(0);
+  const bieuThuc = donVi.join("");
+
+  const tongL = tongLuong(giaTri.wages);
+  const soCN = giaTri.wages.length;
+  const soNguoiMoiCa = giaTri.peoplePerShift != null
+    ? giaTri.peoplePerShift
+    : soNguoiMoiCa1May(giaTri.wages, giaTri.shiftCount);
+  const tienComSang = (Number(giaTri.mealMorning) || 0) * soCN / 2;
+  const tienComToi = (Number(giaTri.mealEvening) || 0) * soCN / 2;
+  const tangCa = tangCaTheoTongLuong(
+    giaTri.wages,
+    giaTri.otFactor,
+    giaTri.tyLeTangCa,
+    giaTri.otHours,
+  );
+
+  const soHang: Record<string, number> = {
+    tongluong: tongL,
+    comcasang: tienComSang,
+    comcatoi: tienComToi,
+    tangca: tangCa,
+    soca: giaTri.shiftCount,
+    slnguoica: soNguoiMoiCa,
+    sogiomayngay: giaTri.hoursPerDay,
+    somayhoatdongngay: giaTri.machinesPerDay,
+    sogiotangca: giaTri.otHours,
+    hesotangca: giaTri.otFactor,
+    tiletangca: giaTri.tyLeTangCa,
+    socongnhan: soCN,
+  };
+
+  const nutChon: { bieuThuc: string; nhan: string }[] = [
+    { bieuThuc: "Tổng lương", nhan: "Tổng lương" },
+    { bieuThuc: "Cơm ca sáng", nhan: "Cơm ca sáng" },
+    { bieuThuc: "Cơm ca tối", nhan: "Cơm ca tối" },
+    { bieuThuc: "Tăng ca", nhan: "Tăng ca" },
+    { bieuThuc: "Số ca", nhan: "Số ca" },
+    { bieuThuc: "SL người / ca", nhan: "SL người / ca" },
+    { bieuThuc: "Số giờ máy / ngày", nhan: "Số giờ máy / ngày" },
+    { bieuThuc: "Số máy hoạt động / ngày", nhan: "Số máy hoạt động / ngày" },
+    { bieuThuc: "Số giờ tăng ca", nhan: "Số giờ tăng ca" },
+    { bieuThuc: "Hệ số tăng ca", nhan: "Hệ số tăng ca" },
+    { bieuThuc: "Tỉ lệ tăng ca", nhan: "Tỉ lệ tăng ca" },
+    { bieuThuc: "Số công nhân", nhan: "Số công nhân" },
+    { bieuThuc: "60", nhan: "60 phút" },
+    { bieuThuc: "24", nhan: "24 giờ" },
+  ];
+  const dauToan: string[] = ["+", "−", "×", "÷", "(", ")", "%"];
+
+  /** Chèn 1 đơn vị tại khe đang có con trỏ; con trỏ nhảy sang khe sau */
+  const them = (s: string) => {
+    const kq = chenDonVi(donVi, cursor, s);
+    setDonVi(kq.mang);
+    setCursor(kq.cursorMoi);
+  };
+
+  /** Xóa nguyên 1 đơn vị (bấm × trên box) */
+  const xoaTai = (i: number) => {
+    const kq = xoaDonViTai(donVi, i);
+    setDonVi(kq.mang);
+    setCursor(kq.cursorMoi);
+  };
+
+  /** ⌫: xóa 1 đơn vị ngay trước con trỏ */
+  const xoaPhiaTruoc = () => {
+    if (cursor === 0) return;
+    xoaTai(cursor - 1);
+  };
+
+  /** C: xóa hết */
+  const xoaHet = () => {
+    setDonVi([]);
+    setCursor(0);
+  };
+
+  const giaTriTinh = tinhBieuThuc(bieuThuc, soHang);
+  const hangSo = bieuThuc.replace(TEN_SO_HANG_RE, (ten) => {
+    const key = boDau(ten);
+    return key && key in soHang ? dinhDangVnd(soHang[key]) : ten;
+  });
+
+  return (
+    <div className="config-cpsx-upgrade__calc">
+      <div className="config-cpsx-upgrade__calc-title">Máy tính tham khảo</div>
+      <div className="config-cpsx-upgrade__calc-chips">
+        {nutChon.map(({ bieuThuc: bt, nhan }) => (
+          <button
+            key={nhan}
+            type="button"
+            className="btn btn-sm btn-outline config-cpsx-upgrade__calc-chip"
+            onClick={() => them(bt)}
+            aria-label={`Chèn ${nhan}`}
+          >
+            {nhan}
+          </button>
+        ))}
+      </div>
+      <div className="config-cpsx-upgrade__calc-chips config-cpsx-upgrade__calc-chips--ops">
+        {dauToan.map((d) => (
+          <button
+            key={d}
+            type="button"
+            className="btn btn-sm btn-outline config-cpsx-upgrade__calc-chip"
+            onClick={() => them(d)}
+            aria-label={`Chèn dấu ${d}`}
+          >
+            {d}
+          </button>
+        ))}
+        <button
+          type="button"
+          className="btn btn-sm btn-outline config-cpsx-upgrade__calc-chip"
+          onClick={xoaPhiaTruoc}
+          aria-label="Xóa 1 thành phần phía trước con trỏ"
+        >
+          ⌫
+        </button>
+        <button
+          type="button"
+          className="btn btn-sm btn-outline config-cpsx-upgrade__calc-chip"
+          onClick={xoaHet}
+          aria-label="Xóa hết biểu thức"
+        >
+          C
+        </button>
+      </div>
+      <div className="config-cpsx-upgrade__calc-rows">
+        <div className="config-cpsx-upgrade__calc-row config-cpsx-upgrade__calc-row--tokens">
+          <span className="config-cpsx-upgrade__calc-label">
+            Lương CN mỗi phút =
+          </span>
+          <div className="config-cpsx-upgrade__calc-tokens">
+            {donVi.map((dv, i) => (
+              <React.Fragment key={i}>
+                <button
+                  type="button"
+                  className="config-cpsx-upgrade__calc-gap"
+                  onClick={() => setCursor(i)}
+                  aria-label="Đặt con trỏ tại khe này"
+                >
+                  {cursor === i && (
+                    <span className="config-cpsx-upgrade__calc-caret" />
+                  )}
+                </button>
+                <span
+                  className="config-cpsx-upgrade__calc-token"
+                  onClick={() => setCursor(i + 1)}
+                >
+                  <span className="config-cpsx-upgrade__calc-token-text">
+                    {dv}
+                  </span>
+                  <button
+                    type="button"
+                    className="config-cpsx-upgrade__calc-token-del"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      xoaTai(i);
+                    }}
+                    aria-label={`Xóa ${dv}`}
+                  >
+                    ×
+                  </button>
+                </span>
+              </React.Fragment>
+            ))}
+            <button
+              type="button"
+              className="config-cpsx-upgrade__calc-gap"
+              onClick={() => setCursor(donVi.length)}
+              aria-label="Đặt con trỏ ở cuối"
+            >
+              {cursor === donVi.length && (
+                <span className="config-cpsx-upgrade__calc-caret" />
+              )}
+            </button>
+          </div>
+        </div>
+        <div className="config-cpsx-upgrade__calc-row config-cpsx-upgrade__calc-row--eq">
+          <span className="config-cpsx-upgrade__calc-label">=</span>
+          <span className="config-cpsx-upgrade__calc-so">{hangSo || "—"}</span>
+        </div>
+        <div className="config-cpsx-upgrade__calc-row config-cpsx-upgrade__calc-row--eq">
+          <span className="config-cpsx-upgrade__calc-label">=</span>
+          <strong className="config-cpsx-upgrade__calc-ket-qua">
+            {giaTriTinh == null
+              ? "—"
+              : `${dinhDangVnd(giaTriTinh)} ₫/phút`}
+          </strong>
+        </div>
       </div>
     </div>
   );
@@ -475,7 +765,7 @@ function MayTui({
   const tongL = tongLuong(giaTri.wages);
   const soCN = soCongNhanTui(giaTri.wages);
   const tbCa = luongTbTui(giaTri.wages, giaTri.peoplePerShift);
-  const tangCa = tangCaTui(giaTri.wages, giaTri.otFactor, giaTri.tyLeTangCa);
+  const tangCa = tangCaTui(giaTri.wages, giaTri.otFactor, giaTri.tyLeTangCa, giaTri.otHours);
   const tienComSang = tienComSangTui(giaTri.mealMorning, soCN);
   const tienComToi = tienComToiTui(giaTri.mealEvening, soCN);
   const tinh = luongMoiPhutTinh(
@@ -486,6 +776,7 @@ function MayTui({
     giaTri.otFactor,
     soCongNhanTui(giaTri.wages),
     giaTri.tyLeTangCa,
+    giaTri.otHours,
   );
   const apDungGia = luongMoiPhutAp(tinh, giaTri.roundedPerMin);
 
@@ -620,13 +911,29 @@ function MayTui({
         </div>
         <div className="config-cpsx-upgrade__formula-row">
           <span className="config-cpsx-upgrade__formula-label">
-            Tổng tiền tăng ca = (Tổng lương ÷ 2) × Hệ số tăng ca × Tỉ lệ
-            tăng ca
+            Tổng tiền tăng ca n giờ = (Tổng lương ÷ {SO_GIO_MOT_CA} × n) ×
+            Hệ số tăng ca × Tỉ lệ tăng ca
           </span>
         </div>
         <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
           <strong className="config-cpsx-upgrade__formula-result">
-            ({dinhDangVnd(tongL)} ÷ 2) ×{" "}
+            ({dinhDangVnd(tongL)} ÷ {SO_GIO_MOT_CA} ×{" "}
+            <input
+              type="number"
+              className="config-inline-input config-cpsx-upgrade__formula-input"
+              aria-label="Số giờ tăng ca"
+              min={0}
+              step={0.5}
+              value={giaTri.otHours}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                capNhat({
+                  otHours:
+                    Number.isFinite(v) && v >= 0 ? v : giaTri.otHours,
+                });
+              }}
+            />
+            {") × "}
             <input
               type="number"
               className="config-inline-input config-cpsx-upgrade__formula-input"

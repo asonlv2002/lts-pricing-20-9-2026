@@ -237,18 +237,24 @@ export interface CpsxUpgradeElectric {
   };
 }
 
-/** CPSX nâng cấp — Lương 1 máy (In/Ghép/Chia): auto ca = cố định */
+/** CPSX nâng cấp — Lương 1 máy (In/Ghép/Chia) */
 export interface CpsxUpgradeLabor1May {
   /** Mỗi dòng là 1 CN, lương mỗi ca (₫) */
   wages: number[];
   mealMorning: number;
   mealEvening: number;
   otFactor: number;
-  /** Số ca cố định (1 hoặc 2) — không cho sửa */
+  /** Số ca (1 hoặc 2) — người dùng nhập */
   shiftCount: 1 | 2;
-  /** Số giờ máy hoạt động / ngày (In/Ghép 24, Chia 12) — tham số sửa được */
+  /** SL người / ca — người dùng nhập; null = tự tính (wages ÷ số ca) */
+  peoplePerShift: number | null;
+  /** Số máy hoạt động / ngày — máy in; chỉ lưu cấu hình, chưa nối công thức */
+  machinesPerDay: number;
+  /** Số giờ máy hoạt động / ngày — người dùng nhập */
   hoursPerDay: number;
-  /** Tỉ lệ CN có tăng ca 4h (0–1, mặc định 0.5) — chỉ số CN tăng ca mới tính */
+  /** Số giờ tăng ca (n, mặc định 4) — TC = (L ÷ 8 × n) × hệ số × tỉ lệ */
+  otHours: number;
+  /** Tỉ lệ CN có tăng ca (0–1, mặc định 0.5) */
   tyLeTangCa: number;
 }
 
@@ -263,6 +269,8 @@ export interface CpsxUpgradeLaborTui {
   roundedPerMin: number | null;
   /** Số giờ máy hoạt động / ngày (mặc định 24) — tham số sửa được */
   hoursPerDay: number;
+  /** Số giờ tăng ca (n, mặc định 4) — TC = (L ÷ 8 × n) × hệ số × tỉ lệ */
+  otHours: number;
   /** Tỉ lệ CN có tăng ca 4h (0–1, mặc định 0.5) — chỉ số CN tăng ca mới tính */
   tyLeTangCa: number;
 }
@@ -347,28 +355,67 @@ export interface CpsxUpgradeInk {
   dinhMucGhep: DinhMucGhep;
 }
 
-/** CPSX nâng cấp — mục 4: cấu hình máy in (film) cho thời gian sản xuất */
+/** CPSX nâng cấp — mục 4: máy in (film) — giống tham số CPSX thường (printPressTime) */
 export interface CpsxThoiGianMayIn {
-  tocDoMetPerHour: number;
-  phutSetupMoiMau: number;
-  mauSoGioSetup: number;
-  nguongMet: number;
-  tocDoNganMetPerHour: number;
+  /** Lên trục (phút/màu) */
+  mountMinutesPerColor: number;
+  /** Duyệt mẫu 1–7 màu (phút) */
+  proofMinutes1to7: number;
+  /** Duyệt mẫu 8 màu (phút) */
+  proofMinutes8: number;
+  /** In phủ mờ thêm (phút) */
+  matteExtraMinutes: number;
+  /** Tốc độ trung bình (m/phút) */
+  avgSpeedMPerMin: number;
 }
 
-/** CPSX nâng cấp — mục 4: cấu hình máy chạy (ghép/chia/làm túi) */
-export interface CpsxThoiGianMayChay {
-  tocDoPerHour: number;
-  phutSetup: number;
-  donVi: 'met' | 'chiec';
+/** CPSX nâng cấp — mục 4: máy ghép — giống tham số CPSX thường (laminatePressTime) */
+export interface CpsxThoiGianMayGhep {
+  setupFirstMinutes: number;
+  setupNextMinutes: number;
+  avgSpeedMPerMin: number;
+}
+
+/** CPSX nâng cấp — mục 4: rule setup/tốc độ máy chia theo loại SP (giống slitPressTime) */
+export interface CpsxThoiGianRule {
+  key: string;
+  label: string;
+  setupMinutes: number;
+  speedMPerMin: number;
+}
+
+/** CPSX nâng cấp — mục 4: máy chia — bảng rule theo loại SP */
+export interface CpsxThoiGianMayChia {
+  rules: CpsxThoiGianRule[];
+}
+
+/** CPSX nâng cấp — mục 4: setup theo loại túi (giống bagPressTime) */
+export interface CpsxTuiSetupRule {
+  key: string;
+  label: string;
+  setupMinutes: number;
+}
+
+/** CPSX nâng cấp — mục 4: tốc độ theo bước cắt (mm → cái/phút); maxStepMm null = không trần */
+export interface CpsxTuiSpeedRule {
+  key: string;
+  label: string;
+  maxStepMm: number | null;
+  bagsPerMinute: number;
+}
+
+/** CPSX nâng cấp — mục 4: máy làm túi — bảng setup + tốc độ (giống bagPressTime) */
+export interface CpsxThoiGianMayTui {
+  setupRules: CpsxTuiSetupRule[];
+  speedRules: CpsxTuiSpeedRule[];
 }
 
 /** CPSX nâng cấp — mục 4: gom cả 4 máy */
 export interface CpsxUpgradeThoiGian {
   print: CpsxThoiGianMayIn;
-  laminate: CpsxThoiGianMayChay;
-  slit: CpsxThoiGianMayChay;
-  bag: CpsxThoiGianMayChay;
+  laminate: CpsxThoiGianMayGhep;
+  slit: CpsxThoiGianMayChia;
+  bag: CpsxThoiGianMayTui;
 }
 
 export interface AppConstants {

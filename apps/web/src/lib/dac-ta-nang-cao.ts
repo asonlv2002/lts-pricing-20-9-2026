@@ -14,7 +14,16 @@ import type {
   SolventAdhesiveTable,
 } from './types';
 import type { UniRow } from './manager-calculation';
-import { tinhThoiGianMayIn, tinhThoiGianMayChay } from './cpsx-upgrade-thoigian';
+import {
+  chonRuleMayChia,
+  chonSetupMayTui,
+  chonTocDoMayTui,
+  chuanHoaCpsxUpgradeThoiGian,
+  tinhThoiGianMayChia,
+  tinhThoiGianMayGhep,
+  tinhThoiGianMayIn,
+  tinhThoiGianMayTui,
+} from './cpsx-upgrade-thoigian';
 import {
   luongMoiPhutAp,
   luongMoiPhutTinh,
@@ -401,7 +410,10 @@ export function lapDongNhanCongDien(
   result: CalculateResult,
   hangSo: AppConstants,
 ): DongNhanCongDien[] {
-  const tg = hangSo?.cpsxUpgradeThoiGian ?? DEFAULT_CPSX_UPGRADE_THOIGIAN;
+  const tg = chuanHoaCpsxUpgradeThoiGian(
+    hangSo?.cpsxUpgradeThoiGian,
+    DEFAULT_CPSX_UPGRADE_THOIGIAN,
+  );
   const lab = hangSo?.cpsxUpgradeLabor ?? DEFAULT_CPSX_UPGRADE_LABOR;
   const el = hangSo?.cpsxUpgradeElectric ?? DEFAULT_CPSX_UPGRADE_ELECTRIC;
   const giaKwh = el?.appliedPricePerKwh ?? null;
@@ -409,12 +421,19 @@ export function lapDongNhanCongDien(
 
   const metIn = so(result?.printMeters) + so(result?.printWaste);
   const soMau = so(result?.input?.numColors);
-  const metGhep = (result?.layers?.laminations ?? []).reduce(
+  const cacLopGhep = result?.layers?.laminations ?? [];
+  const metGhep = cacLopGhep.reduce(
     (s: number, l: { meters?: number; waste?: number }) => s + so(l?.meters) + so(l?.waste),
     0,
   );
+  const soLanGhep = cacLopGhep.length;
   const metChia = so(result?.cutMeters) + so(result?.cutWaste);
   const soTui = so(result?.input?.quantity);
+  const phuMo = so(result?.input?.metallicSurcharge) > 0;
+  const cauTrucMang = String(result?.structureText ?? '');
+  const cutStepM = so(result?.input?.cutStep);
+  const bagType = String(result?.input?.bagType ?? '');
+  const hasZipper = !!result?.input?.hasZipper;
 
   const dong = (
     congDoan: string,
@@ -438,52 +457,55 @@ export function lapDongNhanCongDien(
 
   const rows: DongNhanCongDien[] = [];
 
-  // in — máy in có setup theo số màu
+  // in — setup theo số màu (lên trục + duyệt mẫu) + phủ mờ
   rows.push(dong(
     'in',
-    metIn > 0 ? tinhThoiGianMayIn(metIn, soMau, tg.print).tongPhut : null,
+    metIn > 0 ? tinhThoiGianMayIn(metIn, soMau, tg.print, phuMo).tongPhut : null,
     luongMoiPhutTinh(
       lab.print.wages, lab.print.hoursPerDay,
       lab.print.mealMorning, lab.print.mealEvening, lab.print.otFactor,
-      undefined, lab.print.tyLeTangCa,
+      undefined, lab.print.tyLeTangCa, lab.print.otHours,
     ),
     el?.machines?.print,
   ));
 
-  // ghép — gộp tất cả lớp ghép
+  // ghép — setup lần đầu + mỗi lớp ghép tiếp theo setup lại
   rows.push(dong(
     'ghép',
-    metGhep > 0 ? tinhThoiGianMayChay(metGhep, tg.laminate).tongPhut : null,
+    metGhep > 0 ? tinhThoiGianMayGhep(metGhep, soLanGhep, tg.laminate).tongPhut : null,
     luongMoiPhutTinh(
       lab.laminate.wages, lab.laminate.hoursPerDay,
       lab.laminate.mealMorning, lab.laminate.mealEvening, lab.laminate.otFactor,
-      undefined, lab.laminate.tyLeTangCa,
+      undefined, lab.laminate.tyLeTangCa, lab.laminate.otHours,
     ),
     el?.machines?.laminate,
   ));
 
-  // chia — máy chia chạy 1 ca
+  // chia — rule theo cấu trúc màng / số lần ghép / phủ mờ
+  const ruleChia = chonRuleMayChia(tg.slit, cauTrucMang, soLanGhep, phuMo);
   rows.push(dong(
     'chia',
-    metChia > 0 ? tinhThoiGianMayChay(metChia, tg.slit).tongPhut : null,
+    metChia > 0 ? tinhThoiGianMayChia(metChia, ruleChia).tongPhut : null,
     luongMoiPhutTinh(
       lab.slit.wages, lab.slit.hoursPerDay,
       lab.slit.mealMorning, lab.slit.mealEvening, lab.slit.otFactor,
-      undefined, lab.slit.tyLeTangCa,
+      undefined, lab.slit.tyLeTangCa, lab.slit.otHours,
     ),
     el?.machines?.slit,
   ));
 
-  // làm túi — đơn vị 'chiếc', dùng giá làm tròn nếu có
+  // làm túi — setup theo loại túi + tốc độ theo bước cắt
   if (!laMang) {
+    const setupTui = chonSetupMayTui(tg.bag, bagType, hasZipper, cutStepM);
+    const tocDoTui = chonTocDoMayTui(tg.bag, cutStepM);
     rows.push(dong(
       'làm túi',
-      soTui > 0 ? tinhThoiGianMayChay(soTui, tg.bag).tongPhut : null,
+      soTui > 0 ? tinhThoiGianMayTui(soTui, setupTui, tocDoTui).tongPhut : null,
       luongMoiPhutAp(
         luongMoiPhutTinh(
           lab.bag.wages, lab.bag.hoursPerDay,
           lab.bag.mealMorning, lab.bag.mealEvening, lab.bag.otFactor,
-          soCongNhanTui(lab.bag.wages), lab.bag.tyLeTangCa,
+          soCongNhanTui(lab.bag.wages), lab.bag.tyLeTangCa, lab.bag.otHours,
         ),
         lab.bag.roundedPerMin,
       ),

@@ -23,12 +23,12 @@ import {
 } from "../../lib/cpsx-upgrade-ink";
 import {
   chuanHoaCpsxUpgradeThoiGian,
-  tinhThoiGianMayChay,
-  tinhThoiGianMayIn,
 } from "../../lib/cpsx-upgrade-thoigian";
 import type {
-  CpsxThoiGianMayChay,
   CpsxThoiGianMayIn,
+  CpsxThoiGianMayGhep,
+  CpsxThoiGianMayChia,
+  CpsxThoiGianMayTui,
   CpsxUpgradeLabor1May,
 } from "../../lib/types";
 
@@ -38,11 +38,6 @@ function dinhDangVnd(n: number) {
 
 function dinhDangSo(n: number) {
   return n.toLocaleString("vi-VN", { maximumFractionDigits: 2 });
-}
-
-function docSoThapPhan(value: string): number {
-  const n = Number(value.replace(",", ".").replace(/[^\d.-]/g, ""));
-  return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
 const MAY_DIEN_ROWS: { key: "print" | "laminate" | "slit" | "bag"; label: string }[] = [
@@ -105,6 +100,7 @@ export default function CpsxNangCapKetQua() {
       g.otFactor,
       undefined,
       g.tyLeTangCa,
+      g.otHours,
     );
 
   const luongTui = () => {
@@ -118,6 +114,7 @@ export default function CpsxNangCapKetQua() {
         g.otFactor,
         soCongNhanTui(g.wages),
         g.tyLeTangCa,
+        g.otHours,
       ),
       g.roundedPerMin,
     );
@@ -194,19 +191,11 @@ export default function CpsxNangCapKetQua() {
       <div className="config-group-header">4. Thời gian sản xuất</div>
       <div className="card config-card config-cpsx-upgrade-readonly__card">
         <ThoiGianMayIn cfg={thoiGian.print} />
-        <ThoiGianMayChay
-          label="Máy ghép"
-          donVi="mét"
-          cfg={thoiGian.laminate}
-        />
-        <ThoiGianMayChay label="Máy chia" donVi="mét" cfg={thoiGian.slit} />
-        <ThoiGianMayChay
-          label="Máy làm túi"
-          donVi="chiếc"
-          cfg={thoiGian.bag}
-        />
+        <ThoiGianMayGhep cfg={thoiGian.laminate} />
+        <ThoiGianMayChia cfg={thoiGian.slit} />
+        <ThoiGianMayTui cfg={thoiGian.bag} />
         <p className="config-note">
-          Nhập số để xem thử thời gian dự kiến. Cấu hình do quản trị viên cài đặt.
+          Tham số giống Chi phí sản xuất thường. Cấu hình do quản trị viên cài đặt.
         </p>
       </div>
     </div>
@@ -223,70 +212,38 @@ function DongKetQua({ label, value }: { label: string; value: string }) {
 }
 
 function ThoiGianMayIn({ cfg }: { cfg: CpsxThoiGianMayIn }) {
-  const [met, setMet] = React.useState("");
-  const [mau, setMau] = React.useState("");
-  const m = docSoThapPhan(met);
-  const soMau = Math.floor(docSoThapPhan(mau));
-  const kq = m > 0 && soMau > 0 ? tinhThoiGianMayIn(m, soMau, cfg) : null;
   return (
-    <div className="config-cpsx-upgrade-readonly__row config-cpsx-upgrade-readonly__row--time">
-      <span className="config-cpsx-upgrade-readonly__label">Máy in</span>
-      <span className="config-cpsx-upgrade-readonly__input-group">
-        <input
-          type="text"
-          inputMode="numeric"
-          className="config-inline-input"
-          placeholder="Mét chạy"
-          aria-label="Mét chạy máy in"
-          value={met}
-          onChange={(e) => setMet(e.target.value)}
-        />
-        <input
-          type="text"
-          inputMode="numeric"
-          className="config-inline-input"
-          placeholder="Số màu"
-          aria-label="Số màu"
-          value={mau}
-          onChange={(e) => setMau(e.target.value)}
-        />
-      </span>
-      <strong className="config-cpsx-upgrade-readonly__value">
-        {kq ? `${dinhDangSo(kq.tongPhut)} phút` : "—"}
-      </strong>
-    </div>
+    <DongKetQua
+      label="Máy in"
+      value={`Lên trục ${cfg.mountMinutesPerColor}'/màu · Duyệt ${cfg.proofMinutes1to7}' (1–7 màu) / ${cfg.proofMinutes8}' (8 màu) · Tốc độ ${dinhDangSo(cfg.avgSpeedMPerMin)} m/phút · Phủ mờ ${cfg.matteExtraMinutes}'`}
+    />
   );
 }
 
-function ThoiGianMayChay({
-  label,
-  donVi,
-  cfg,
-}: {
-  label: string;
-  donVi: string;
-  cfg: CpsxThoiGianMayChay;
-}) {
-  const [so, setSo] = React.useState("");
-  const n = docSoThapPhan(so);
-  const kq = n > 0 ? tinhThoiGianMayChay(n, cfg) : null;
+function ThoiGianMayGhep({ cfg }: { cfg: CpsxThoiGianMayGhep }) {
   return (
-    <div className="config-cpsx-upgrade-readonly__row config-cpsx-upgrade-readonly__row--time">
-      <span className="config-cpsx-upgrade-readonly__label">{label}</span>
-      <span className="config-cpsx-upgrade-readonly__input-group">
-        <input
-          type="text"
-          inputMode="numeric"
-          className="config-inline-input"
-          placeholder={donVi === "chiếc" ? "Số lượng (chiếc)" : `Số ${donVi}`}
-          aria-label={`Số ${donVi} ${label}`}
-          value={so}
-          onChange={(e) => setSo(e.target.value)}
-        />
-      </span>
-      <strong className="config-cpsx-upgrade-readonly__value">
-        {kq ? `${dinhDangSo(kq.tongPhut)} phút` : "—"}
-      </strong>
-    </div>
+    <DongKetQua
+      label="Máy ghép"
+      value={`Setup ${cfg.setupFirstMinutes}' đầu · ${cfg.setupNextMinutes}' lần tiếp · Tốc độ ${dinhDangSo(cfg.avgSpeedMPerMin)} m/phút`}
+    />
+  );
+}
+
+function ThoiGianMayChia({ cfg }: { cfg: CpsxThoiGianMayChia }) {
+  const r = cfg.rules[0];
+  return (
+    <DongKetQua
+      label="Máy chia"
+      value={`${cfg.rules.length} loại SP theo bảng${r ? ` · VD ${r.label}: setup ${r.setupMinutes}' · ${dinhDangSo(r.speedMPerMin)} m/phút` : ""}`}
+    />
+  );
+}
+
+function ThoiGianMayTui({ cfg }: { cfg: CpsxThoiGianMayTui }) {
+  return (
+    <DongKetQua
+      label="Máy làm túi"
+      value={`${cfg.setupRules.length} loại túi (setup ${Math.min(...cfg.setupRules.map((x) => x.setupMinutes), 9999)}'–${Math.max(...cfg.setupRules.map((x) => x.setupMinutes), 0)}') · ${cfg.speedRules.length} bậc tốc độ bước cắt`}
+    />
   );
 }

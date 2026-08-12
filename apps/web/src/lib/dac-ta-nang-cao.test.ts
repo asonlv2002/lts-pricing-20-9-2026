@@ -78,21 +78,49 @@ const ink: CpsxUpgradeInk = {
 
 const thoiGian: CpsxUpgradeThoiGian = {
   print: {
-    tocDoMetPerHour: 7500,
-    phutSetupMoiMau: 20,
-    mauSoGioSetup: 60,
-    nguongMet: 40000,
-    tocDoNganMetPerHour: 7500,
+    mountMinutesPerColor: 15,
+    proofMinutes1to7: 20,
+    proofMinutes8: 30,
+    matteExtraMinutes: 80,
+    avgSpeedMPerMin: 150,
   },
-  laminate: { tocDoPerHour: 6000, phutSetup: 15, donVi: 'met' },
-  slit: { tocDoPerHour: 8000, phutSetup: 10, donVi: 'met' },
-  bag: { tocDoPerHour: 5000, phutSetup: 30, donVi: 'chiec' },
+  laminate: { setupFirstMinutes: 10, setupNextMinutes: 30, avgSpeedMPerMin: 100 },
+  slit: {
+    rules: [
+      { key: 'opp_mattopp', label: 'Màng OPP / MattOPP', setupMinutes: 30, speedMPerMin: 180 },
+      { key: 'mpet_pet', label: 'Màng MPET / PET', setupMinutes: 20, speedMPerMin: 90 },
+      { key: 'laminate_2', label: 'Màng ghép 2 lớp', setupMinutes: 20, speedMPerMin: 145 },
+      { key: 'laminate_3', label: 'Màng ghép 3 lớp', setupMinutes: 20, speedMPerMin: 90 },
+      { key: 'matte_flip', label: 'In phủ mờ (lật mặt)', setupMinutes: 20, speedMPerMin: 150 },
+    ],
+  },
+  bag: {
+    setupRules: [
+      { key: '3bien', label: 'Túi 3 biên', setupMinutes: 90 },
+      { key: '4bien', label: 'Túi 4 biên', setupMinutes: 90 },
+      { key: '3_4bien_gt30', label: '3/4 biên >30cm', setupMinutes: 90 },
+      { key: '3_4bien_gt40', label: '3/4 biên >40cm', setupMinutes: 90 },
+      { key: 'xephong', label: 'Xếp hông', setupMinutes: 120 },
+      { key: 'xephong_gt40', label: 'Xếp hông >40cm', setupMinutes: 120 },
+      { key: 'zipper_daydung', label: 'Zipper đáy đứng', setupMinutes: 120 },
+      { key: 'zipper_3bien', label: 'Zipper 3 biên', setupMinutes: 120 },
+      { key: 'nap_bangkeo', label: 'Nắp băng keo', setupMinutes: 120 },
+      { key: 'cut_seal', label: 'Túi cắt Seal', setupMinutes: 90 },
+    ],
+    speedRules: [
+      { key: 'le_200', label: '≤ 200 mm', maxStepMm: 200, bagsPerMinute: 80 },
+      { key: '200_300', label: '200 – ≤300 mm', maxStepMm: 300, bagsPerMinute: 70 },
+      { key: '300_400', label: '300 – ≤400 mm', maxStepMm: 400, bagsPerMinute: 60 },
+      { key: '400_550', label: '400 – ≤550 mm', maxStepMm: 550, bagsPerMinute: 50 },
+      { key: 'gt_550', label: '> 550 mm', maxStepMm: null, bagsPerMinute: 20 },
+    ],
+  },
 };
 
 const labor: CpsxUpgradeLabor = {
-  print: { wages: [500000, 400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, hoursPerDay: 24, tyLeTangCa: 0.5 },
-  laminate: { wages: [450000, 350000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, hoursPerDay: 24, tyLeTangCa: 0.5 },
-  slit: { wages: [400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 1, hoursPerDay: 12, tyLeTangCa: 0.5 },
+  print: { wages: [500000, 400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5 },
+  laminate: { wages: [450000, 350000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5 },
+  slit: { wages: [400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 1, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 12, otHours: 4, tyLeTangCa: 0.5 },
   bag: {
     wages: [300000, 300000],
     mealMorning: 30000,
@@ -101,6 +129,7 @@ const labor: CpsxUpgradeLabor = {
     peoplePerShift: 2,
     roundedPerMin: 1000,
     hoursPerDay: 24,
+    otHours: 4,
     tyLeTangCa: 0.5,
   },
 };
@@ -170,7 +199,16 @@ function taoUniRows(): UniRow[] {
 
 function taoResult(patch?: Record<string, unknown>): CalculateResult {
   return {
-    input: { productType: 'tui', numColors: 4, quantity: 10000 },
+    input: {
+      productType: 'tui',
+      numColors: 4,
+      quantity: 10000,
+      bagType: '3bien',
+      cutStep: 0.4,
+      hasZipper: false,
+      metallicSurcharge: 0,
+    },
+    structureText: 'MPET 12//LLDPE 60',
     printMeters: 8000,
     printWaste: 420,
     cutMeters: 9070,
@@ -638,10 +676,10 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   const rows = lapDongNhanCongDien(taoResult(), taoHangSo());
   eq(rows.map(r => r.congDoan), ['in', 'ghép', 'chia', 'làm túi'], 'túi: 4 dòng cứng');
 
-  // in: setup = 4 × 20 / 60 = 1.3333h; chạy = 8420/7500 = 1.1227h; bonus = 0 (< 40000)
-  // tổng = 2.456h × 60 = 147.36 phút
+  // in: setup = 4 × (15 + 20) = 140 phút; chạy = 8420/150 = 56,13 phút
+  // tổng = 196,13 phút (không phủ mờ vì metallicSurcharge = 0)
   const dongIn = rows[0];
-  approx(dongIn.thoiGianPhut!, (4 * 20 / 60 + 8420 / 7500) * 60, 'in: thời gian SX');
+  approx(dongIn.thoiGianPhut!, 4 * 35 + 8420 / 150, 'in: thời gian SX');
 
   // điện in = 100 × 0.8 × 3000 / 60 = 4000 ₫/phút
   approx(dongIn.cpDienPerPhut!, 4000, 'in: 4000 ₫/phút điện');
@@ -658,15 +696,15 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   // túi: TC = 150.000 → (600k + 60k + 150k) ÷ 24 ÷ 60 = 562,5 → 563; rounded 1000 → 1000
   approx(rows[3].cpNhanCongPerPhut!, 1000, 'làm túi: dùng roundedPerMin');
 
-  // ghép: setup 15/60 + 8770/6000
-  approx(rows[1].thoiGianPhut!, (15 / 60 + 8770 / 6000) * 60, 'ghép: thời gian SX');
+  // ghép: 1 lần → setup 10'; chạy 8770/100 = 87,7' → tổng 97,7'
+  approx(rows[1].thoiGianPhut!, 10 + 8770 / 100, 'ghép: thời gian SX');
   approx(rows[1].cpDienPerPhut!, 50 * 0.8 * 3000 / 60, 'ghép: 2000 ₫/phút điện');
 
-  // chia: setup 10/60 + 9350/8000
-  approx(rows[2].thoiGianPhut!, (10 / 60 + 9350 / 8000) * 60, 'chia: thời gian SX');
+  // chia: cấu trúc chứa PET → rule mpet_pet (setup 20'; 90 m/phút)
+  approx(rows[2].thoiGianPhut!, 20 + 9350 / 90, 'chia: thời gian SX');
 
-  // làm túi: setup 30/60 + 10000/5000, lương làm tròn 1000
-  approx(rows[3].thoiGianPhut!, (30 / 60 + 10000 / 5000) * 60, 'làm túi: thời gian theo số chiếc');
+  // làm túi: 3 biên (90') · bước 0,4m = 400mm → ≤400mm (60 cái/phút)
+  approx(rows[3].thoiGianPhut!, 90 + 10000 / 60, 'làm túi: thời gian theo số chiếc');
   approx(rows[3].cpNhanCongPerPhut!, 1000, 'làm túi: dùng roundedPerMin');
 }
 

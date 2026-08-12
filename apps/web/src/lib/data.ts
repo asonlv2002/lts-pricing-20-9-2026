@@ -235,7 +235,10 @@ const DEFAULT_CPSX_LUONG_IN: CpsxUpgradeLabor1May = {
   mealEvening: 65000,
   otFactor: 1.5,
   shiftCount: 2,
+  peoplePerShift: null,
+  machinesPerDay: 1,
   hoursPerDay: 24,
+  otHours: 4,
   tyLeTangCa: 0.5,
 };
 const DEFAULT_CPSX_LUONG_GHEP: CpsxUpgradeLabor1May = {
@@ -244,7 +247,10 @@ const DEFAULT_CPSX_LUONG_GHEP: CpsxUpgradeLabor1May = {
   mealEvening: 65000,
   otFactor: 1.5,
   shiftCount: 2,
+  peoplePerShift: null,
+  machinesPerDay: 1,
   hoursPerDay: 24,
+  otHours: 4,
   tyLeTangCa: 0.5,
 };
 const DEFAULT_CPSX_LUONG_CHIA: CpsxUpgradeLabor1May = {
@@ -253,7 +259,10 @@ const DEFAULT_CPSX_LUONG_CHIA: CpsxUpgradeLabor1May = {
   mealEvening: 65000,
   otFactor: 1.5,
   shiftCount: 1,
+  peoplePerShift: null,
+  machinesPerDay: 1,
   hoursPerDay: 12,
+  otHours: 4,
   tyLeTangCa: 0.5,
 };
 const DEFAULT_CPSX_LUONG_TUI: CpsxUpgradeLaborTui = {
@@ -269,6 +278,7 @@ const DEFAULT_CPSX_LUONG_TUI: CpsxUpgradeLaborTui = {
   peoplePerShift: 3,
   roundedPerMin: null,
   hoursPerDay: 24,
+  otHours: 4,
   tyLeTangCa: 0.5,
 };
 export const DEFAULT_CPSX_UPGRADE_LABOR: CpsxUpgradeLabor = {
@@ -401,17 +411,27 @@ export const DEFAULT_CPSX_UPGRADE_INK: CpsxUpgradeInk = {
   dinhMucGhep: DEFAULT_DINH_MUC_GHEP,
 };
 
+/** CPSX nâng cấp — mục 4: thời gian SX 4 máy — defaults bản sao CPSX thường */
 export const DEFAULT_CPSX_UPGRADE_THOIGIAN: CpsxUpgradeThoiGian = {
   print: {
-    tocDoMetPerHour: 7500,
-    phutSetupMoiMau: 20,
-    mauSoGioSetup: 60,
-    nguongMet: 40000,
-    tocDoNganMetPerHour: 7500,
+    mountMinutesPerColor: 15,
+    proofMinutes1to7: 20,
+    proofMinutes8: 30,
+    matteExtraMinutes: 80,
+    avgSpeedMPerMin: 150,
   },
-  laminate: { tocDoPerHour: 6000, phutSetup: 15, donVi: 'met' },
-  slit:     { tocDoPerHour: 8000, phutSetup: 10, donVi: 'met' },
-  bag:      { tocDoPerHour: 5000, phutSetup: 30, donVi: 'chiec' },
+  laminate: {
+    setupFirstMinutes: 10,
+    setupNextMinutes: 30,
+    avgSpeedMPerMin: 100,
+  },
+  slit: {
+    rules: DEFAULT_SLIT_PRESS_TIME_RULES.map((r) => ({ ...r })),
+  },
+  bag: {
+    setupRules: DEFAULT_BAG_PRESS_SETUP_RULES.map((r) => ({ ...r })),
+    speedRules: DEFAULT_BAG_PRESS_SPEED_RULES.map((r) => ({ ...r })),
+  },
 };
 
 const rawPrintPressLabor = (rawConstants as unknown as {
