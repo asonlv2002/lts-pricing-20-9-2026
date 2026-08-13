@@ -610,7 +610,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
 // meters/waste/inputVL ngược dòng — đúng concept bảng ghi đè cũ).
 // Bảng 2: thời gian SX × (CP nhân công + CP điện), ghi đè tay từng cột.
 // ═══════════════════════════════════════════════════════════════════════════
-function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, materials, ghiDeHienTai, duocSua, coTheLuu = true, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, soLuong, profitRatePct, khiDatProfitRate }: {
+function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, materials, ghiDeHienTai, duocSua, coTheLuu = true, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, soLuong, profitRatePct, khiDatProfitRate, engineParams }: {
   lopMau: 'sale' | 'admin';
   result: CalculateResult;
   uniRows: UniRow[];
@@ -626,6 +626,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
   soLuong: number;
   profitRatePct: number;
   khiDatProfitRate: (v: number) => void;
+  engineParams: { numColors: number; coverageRatio: number; metallicSurcharge: number; laborCost: number; isPrintFilm: boolean; printFilmInkBOPP: number; printFilmInkOther: number };
 }) {
   const { rows: dongGoc } = xuLyDongGhiDe(uniRows, {}, {});
   const { rows: dongDaXuLy } = xuLyDongGhiDe(uniRows, {}, ghiDeHienTai);
@@ -707,17 +708,17 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     <OChonVatLieuChiTiet khoaDong={row.rowKey} chiTietIndex={row.chiTietIndex}
                       giaTriGoc={{ id: goc.materialId, name: goc.vatLieu, matPrice: goc.cpVatLieu ?? 0 }}
                       giaTriGhiDe={ghiDeHienTai[row.rowKey]?.detailOverrides?.[row.chiTietIndex]}
-                      duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} engineParams={engineOverrideParams} />
+                      duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} engineParams={engineParams} />
                   ) : (
                     <OChonVatLieuDong khoaDong={row.rowKey}
                       giaTriGocId={goc?.materialId} giaTriGocTen={goc?.vatLieu ?? row.vatLieu} giaTriGocGia={goc?.cpVatLieu ?? 0}
-                      ghiDeHienTai={ghiDeHienTai} duocSua={duocSua} khiDat={khiDat} materials={materials} engineParams={engineOverrideParams} />
+                      ghiDeHienTai={ghiDeHienTai} duocSua={duocSua} khiDat={khiDat} materials={materials} engineParams={engineParams} />
                   )}
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={goc?.khoMang ?? row.khoMang ?? 0}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="meters"
                     giaTriGoc={goc?.thanhPham ?? 0}
-                    giaTriGhiDe={Math.abs((row.thanhPham ?? 0) - (goc?.thanhPham ?? 0)) > 0.001 ? row.thanhPham : ghiDeHienTai[row.rowKey]?.meters}
+                    giaTriGhiDe={Math.abs((row.thanhPham ?? 0) - (goc?.thanhPham ?? 0)) > 0.001 ? (row.thanhPham ?? undefined) : ghiDeHienTai[row.rowKey]?.meters}
                     duocSua={duocSua} khiDat={khiDat} soLe={0} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="waste"
                     giaTriGoc={goc?.phiHao ?? 0}
@@ -972,6 +973,7 @@ const buttonLabel = loadedItem
   const showBanner = loadedItem && !isSameCustomer;
   const [vatLieuCuonDangChon, datVatLieuCuonDangChon] = React.useState('');
   const [tabDangMo, datTabDangMo] = React.useState<'sale' | 'admin'>('sale');
+  const [tabDangMoNangCao, datTabDangMoNangCao] = React.useState<'sale' | 'admin'>('sale');
   const [phanBoDangNhap, datPhanBoDangNhap] = React.useState<{ field: 'company' | 'commission' | null; value: string }>({ field: null, value: '' });
 
   // Sale chỉ được lưu khi khách hàng thuộc danh sách mình quản lý (hoặc khách vừa tạo
@@ -984,6 +986,29 @@ const buttonLabel = loadedItem
       : 'Vui lòng chọn khách hàng bạn quản lý trước khi lưu.');
     return false;
   };
+
+  // Lưu ghi đè (sale/admin chung) + đẩy pricing sheet lên server.
+  const xuLyLuuGhiDe = (idLichSu: string) => {
+    luuGhiDe(idLichSu);
+    hienToastLuuGhiDe();
+    const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, idLichSu);
+    void syncPricingSheetToServer(h, isAuthenticated, accessToken)
+      .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
+  };
+
+  const xuLyLuuGhiDeMoi = () => {
+    if (!kiemTraKhachHangQuyen()) return;
+    themVaoLichSu();
+    const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
+    if (newId) xuLyLuuGhiDe(newId);
+  };
+
+  // Quyền sửa tab nâng cao — giống bảng ghi đè cũ (advisor ↔ admin/sale)
+  const coQuyenAdvisorNangCao = coQuyenCoVanBangTinh(dungCuaHangTinhGia.getState().nguoiDungHienTai?.policies ?? []);
+  const canSaleEditNangCao = !coQuyenAdvisorNangCao;
+  const canAdminEditNangCao = coQuyenAdvisorNangCao;
+  const coTheLuuSaleNangCao = loadedItem?.canUpdate !== false;
+  const coTheLuuAdminNangCao = loadedItem?.canAdminUpdate !== false;
 
   if (manHinhDangMo !== 'manager') return null;
 
@@ -1797,26 +1822,8 @@ const buttonLabel = loadedItem
             const coTheLuuSale = loadedItem?.canUpdate !== false;
             const coTheLuuAdmin = loadedItem?.canAdminUpdate !== false;
 
-            const handleSave = (idLichSu: string) => {
-              luuGhiDe(idLichSu);
-              hienToastLuuGhiDe();
-              const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, idLichSu);
-              void syncPricingSheetToServer(h, isAuthenticated, accessToken)
-    .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
-            };
-
-            const handleSaveNew = () => {
-              if (!kiemTraKhachHangQuyen()) return;
-              themVaoLichSu();
-              const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
-              if (newId) {
-                luuGhiDe(newId);
-                hienToastLuuGhiDe();
-                const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, newId);
-                void syncPricingSheetToServer(h, isAuthenticated, accessToken)
-    .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
-              }
-            };
+            const handleSave = (idLichSu: string) => xuLyLuuGhiDe(idLichSu);
+            const handleSaveNew = () => xuLyLuuGhiDeMoi();
             const emptyOv: OverrideTable = {};
             const saleCoThayDoi = countOverrideChanges(ghiDeSale) > 0;
             const adminCoThayDoi = countOverrideChanges(ghiDeAdmin) > 0;
@@ -1911,6 +1918,34 @@ const buttonLabel = loadedItem
               constants={hangSo}
               materials={materials}
             />
+
+            <div className="override-tab-wrapper" style={{ marginTop: '14px' }}>
+              <div className="override-tab-bar">
+                <button
+                  className={`override-tab ${tabDangMoNangCao === 'sale' ? 'active' : ''}`}
+                  onClick={() => datTabDangMoNangCao('sale')}
+                >
+                  💼 Sale{countOverrideChanges(ghiDeSale) > 0 ? ' ●' : ''}
+                </button>
+                <button
+                  className={`override-tab ${tabDangMoNangCao === 'admin' ? 'active' : ''}`}
+                  onClick={() => datTabDangMoNangCao('admin')}
+                >
+                  👑 Admin{countOverrideChanges(ghiDeAdmin) > 0 ? ' ●' : ''}
+                </button>
+              </div>
+              {tabDangMoNangCao === 'sale' ? (
+                <BangDacTaNangCaoGhiDe lopMau="sale" result={r} uniRows={cacDongSanXuat} constants={hangSo} materials={materials}
+                  ghiDeHienTai={ghiDeSale} duocSua={canSaleEditNangCao} coTheLuu={coTheLuuSaleNangCao}
+                  khiDat={datGhiDeSale} khiLuu={xuLyLuuGhiDe} khiLuuMoi={xuLyLuuGhiDeMoi} loadedHistoryId={loadedHistoryId}
+                  soLuong={dauVaoKq.quantity} profitRatePct={saleProfitRatePct} khiDatProfitRate={datSaleProfitRatePct} engineParams={engineOverrideParams} />
+              ) : (
+                <BangDacTaNangCaoGhiDe lopMau="admin" result={r} uniRows={cacDongSanXuat} constants={hangSo} materials={materials}
+                  ghiDeHienTai={ghiDeAdmin} duocSua={canAdminEditNangCao} coTheLuu={coTheLuuAdminNangCao}
+                  khiDat={datGhiDeAdmin} khiLuu={xuLyLuuGhiDe} khiLuuMoi={xuLyLuuGhiDeMoi} loadedHistoryId={loadedHistoryId}
+                  soLuong={dauVaoKq.quantity} profitRatePct={adminProfitRatePct} khiDatProfitRate={datAdminProfitRatePct} engineParams={engineOverrideParams} />
+              )}
+            </div>
           </TheThuGon>
 
           {/* ═══ SECTION: Bảng giá theo số lượng (MOQ) ═══ */}
