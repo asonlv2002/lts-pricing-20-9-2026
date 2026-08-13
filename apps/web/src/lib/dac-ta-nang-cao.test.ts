@@ -18,6 +18,8 @@ import type {
   SolventAdhesiveTable,
 } from './types';
 import type { UniRow } from './manager-calculation';
+import { xuLyDongGhiDe } from './manager-calculation';
+import type { OverrideTable } from './types';
 
 let soTest = 0;
 
@@ -877,6 +879,83 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     assert(Number.isFinite(r.thanhTienNhanCong), 'không NaN thành tiền NC');
     assert(Number.isFinite(r.thanhTienDien), 'không NaN thành tiền điện');
   });
+}
+
+// ── 8. Ghi đè Sale/Admin — Bảng đặc tả nâng cao ─────────────────────────────
+
+{
+  // 8.1 cpMucKeoPerM2 ghi đè tay (dòng in)
+  const ov: OverrideTable = { print: { cpMucKeoPerM2: 999 } };
+  const dong = lapDongVatLieuNangCao(taoResult(), taoUniRows(), taoHangSo(), [], ov);
+  const dongIn = dong.find(d => d.congDoan === 'CPSX IN')!;
+  approx(dongIn.cpMucKeo!, 999, 'in: ghi đè cpMucKeoPerM2');
+  const dongGhep = dong.find(d => d.congDoan === 'GHÉP (Lớp 2)')!;
+  approx(dongGhep.cpMucKeo!, 420, 'ghép: keo giữ nguyên mặc định 420');
+}
+
+{
+  // 8.2 cpMucKeoPerM2 trên dòng ghép tách nhiều vật liệu (materialDetails)
+  const uni = taoUniRows();
+  uni[1] = { ...uni[1], materialDetails: [
+    { name: 'LLDPE 60', width: 0.4, matPrice: 144, costMat: 500000 },
+    { name: 'LLDPE 30', width: 0.25, matPrice: 72, costMat: 200000 },
+  ] };
+  const ov: OverrideTable = { 'lam-2': { cpMucKeoPerM2: 555 } };
+  const dong = lapDongVatLieuNangCao(taoResult(), uni, taoHangSo(), [], ov);
+  const dongGhep = dong.filter(d => d.congDoan === 'GHÉP (Lớp 2)' || (d.congDoan === '' && d.vatLieu === 'LLDPE 30'));
+  eq(dongGhep.length, 2, 'ghép: tách 2 dòng chi tiết');
+  dongGhep.forEach(d => approx(d.cpMucKeo!, 555, 'ghép chi tiết: ghi đè cpMucKeoPerM2 áp cả 2 dòng'));
+}
+
+{
+  // 8.3 lan truyền waste qua xuLyDongGhiDe → dòng in tự cập nhật (concept cũ)
+  const ov: OverrideTable = { cut: { waste: 500 } };
+  const { rows } = xuLyDongGhiDe(taoUniRows(), {}, ov);
+  const dongInXl = rows.find(r => r.rowKey === 'print')!;
+  eq(dongInXl.meters, 9920, 'in: TP lan truyền = cut.inputVL (9070+500) → lam-2.inputVL (9570+350)');
+  const dong = lapDongVatLieuNangCao(taoResult(), rows, taoHangSo());
+  const dongInNC = dong.find(d => d.congDoan === 'CPSX IN')!;
+  eq(dongInNC.thanhPham, 9920, 'in: bảng nâng cao hiện TP đã lan truyền');
+  eq(dongInNC.dauVaoNVL, 10340, 'in: đầu vào NVL = 9920 + 420');
+}
+
+{
+  // 8.4 thoiGianPhut / cpNhanCongPerPhut / cpDienPerPhut ghi đè tay (Bảng 2)
+  const ov: OverrideTable = { print: { thoiGianPhut: 50, cpNhanCongPerPhut: 31000, cpDienPerPhut: 5000 } };
+  const dong = lapDongNhanCongDien(taoResult(), taoHangSo(), ov);
+  const dongIn = dong.find(d => d.congDoan === 'in')!;
+  eq(dongIn.thoiGianPhut, 50, 'in: TG SX ghi đè');
+  eq(dongIn.cpNhanCongPerPhut, 31000, 'in: CP NC ghi đè');
+  eq(dongIn.cpDienPerPhut, 5000, 'in: CP điện ghi đè');
+  eq(dongIn.thanhTienNhanCong, 1550000, 'in: thành tiền NC = 50×31000');
+  eq(dongIn.thanhTienDien, 250000, 'in: thành tiền điện = 50×5000');
+}
+
+{
+  // 8.5 thoiGianPhut cho làm túi (rowKey cut) + chia (rowKey chia)
+  const ov: OverrideTable = { cut: { thoiGianPhut: 200 } };
+  const dong = lapDongNhanCongDien(taoResult(), taoHangSo(), ov);
+  const dongTui = dong.find(d => d.congDoan === 'làm túi')!;
+  eq(dongTui.thoiGianPhut, 200, 'làm túi: TG SX ghi đè');
+
+  const ovChia: OverrideTable = { chia: { thoiGianPhut: 15 } };
+  const rCoChia = taoResult({ input: { ...taoResult().input, hasDivide: true } });
+  const dongChia = lapDongNhanCongDien(rCoChia, taoHangSo(), ovChia);
+  const dongChiaRow = dongChia.find(d => d.congDoan === 'chia')!;
+  eq(dongChiaRow.thoiGianPhut, 15, 'chia: TG SX ghi đè');
+}
+
+{
+  // 8.6 ghép gộp nhiều lớp — override lam-3 thắng khi lam-2 không có
+  const r3lop = taoResult({ layers: { print: {}, laminations: [
+    { layerNum: 2, meters: 8420, waste: 350 },
+    { layerNum: 3, meters: 8770, waste: 300 },
+  ], cut: {} } });
+  const ov: OverrideTable = { 'lam-3': { thoiGianPhut: 45 } };
+  const dong = lapDongNhanCongDien(r3lop, taoHangSo(), ov);
+  const dongGhep = dong.find(d => d.congDoan === 'ghép')!;
+  eq(dongGhep.thoiGianPhut, 45, 'ghép: ghi đè từ lam-3');
+  eq(dongGhep.rowKey, 'lam-3', 'ghép: rowKey hiệu lực = lam-3');
 }
 
 console.log(`✓ dac-ta-nang-cao: ${soTest} assertions passed`);

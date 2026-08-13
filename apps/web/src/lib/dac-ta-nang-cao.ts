@@ -10,6 +10,8 @@ import type {
   CpsxUpgradeInk,
   KeoRow,
   Material,
+  OverrideRowKey,
+  OverrideTable,
   SolventAdhesiveRow,
   SolventAdhesiveTable,
 } from './types';
@@ -44,6 +46,12 @@ export type NhomMuc = 'opp' | 'pet' | 'pe';
 export interface DongVatLieuNangCao {
   congDoan: string;
   vatLieu: string;
+  /** rowKey uniRows tương ứng — để UI ghi đè */
+  rowKey: OverrideRowKey;
+  /** materialId hiệu lực (đã qua ghi đè) — để UI đổi vật liệu */
+  materialId?: string;
+  /** chỉ số detail trong materialDetails (nếu là dòng tách chi tiết) */
+  chiTietIndex?: number;
   khoMang: number | null;
   thanhPham: number | null;
   phiHao: number | null;
@@ -63,6 +71,8 @@ export interface DongVatLieuNangCao {
 /** 1 dòng của Table 2 — Nhân công + điện */
 export interface DongNhanCongDien {
   congDoan: string;
+  /** rowKey ghi đè hiệu lực của dòng này */
+  rowKey: OverrideRowKey;
   thoiGianPhut: number | null;
   cpNhanCongPerPhut: number | null;
   thanhTienNhanCong: number;
@@ -281,6 +291,7 @@ export function lapDongVatLieuNangCao(
   uniRows: UniRow[],
   hangSo: AppConstants,
   materials: Material[] = [],
+  overrides?: OverrideTable,
 ): DongVatLieuNangCao[] {
   const ink = layInk(hangSo);
   const laMang = result?.input?.productType === 'mang';
@@ -313,6 +324,13 @@ export function lapDongVatLieuNangCao(
       ghiChu = `(${k.keoKhoG}g × ${k.giaKeo.toLocaleString('vi-VN')} + ${k.dungMoiPhaKeoG}g × ${k.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — keo + DM EA`;
     }
 
+    // Ghi đè tay CP mực + DM + keo (đ/m²)
+    const ov = overrides?.[row.rowKey];
+    if (ov?.cpMucKeoPerM2 !== undefined && cpMucKeo != null) {
+      cpMucKeo = Math.max(0, so(ov.cpMucKeoPerM2));
+      ghiChu = `Ghi đè tay: ${cpMucKeo.toLocaleString('vi-VN')} đ/m²`;
+    }
+
     // Ghép nhiều vật liệu song song → tách 1 dòng/chi tiết (như bảng cũ);
     // công đoạn chỉ hiện ở dòng đầu, dòng sau để trống (như ô gộp)
     if (row.materialDetails?.length) {
@@ -327,6 +345,9 @@ export function lapDongVatLieuNangCao(
         return {
           congDoan: idx === 0 ? nhanCongDoan(row) : '',
           vatLieu: detail.name || '—',
+          rowKey: row.rowKey,
+          materialId: detail.materialId,
+          chiTietIndex: idx,
           khoMang: kho || null,
           thanhPham,
           phiHao,
@@ -348,6 +369,8 @@ export function lapDongVatLieuNangCao(
     return [{
       congDoan: nhanCongDoan(row),
       vatLieu: row.mat || '—',
+      rowKey: row.rowKey,
+      materialId: row.materialId,
       khoMang: khoHieuDung || null,
       thanhPham,
       phiHao,
@@ -376,6 +399,7 @@ export function lapDongVatLieuNangCao(
       rows.push({
         congDoan: 'làm túi',
         vatLieu: ten.join(' + '),
+        rowKey: 'cut',
         khoMang: null,
         thanhPham: null,
         phiHao: null,
@@ -397,12 +421,42 @@ export function lapDongVatLieuNangCao(
 // ── Table 2 ─────────────────────────────────────────────────────────────────
 
 /**
+ * Áp ghi đè TG SX / CP NC / CP điện cho 1 dòng.
+ * rowKeys: thứ tự ưu tiên tra override (dòng ghép gộp: lam-2 → lam-5,
+ * lấy override của lớp đầu tiên có giá trị). Trả dòng mới + rowKey hiệu lực.
+ */
+function apDungGhiDeThoiGian(
+  dongNC: DongNhanCongDien,
+  rowKeys: OverrideRowKey[],
+  overrides?: OverrideTable,
+): DongNhanCongDien {
+  if (!overrides) return dongNC;
+  const ghiDe = rowKeys
+    .map(rk => ({ rk, o: overrides[rk] }))
+    .find(({ o }) => o && (o.thoiGianPhut !== undefined || o.cpNhanCongPerPhut !== undefined || o.cpDienPerPhut !== undefined));
+  if (!ghiDe) return dongNC;
+  const phut = ghiDe.o!.thoiGianPhut !== undefined ? Math.max(0, so(ghiDe.o!.thoiGianPhut)) : dongNC.thoiGianPhut;
+  const nc = ghiDe.o!.cpNhanCongPerPhut !== undefined ? Math.max(0, so(ghiDe.o!.cpNhanCongPerPhut)) : dongNC.cpNhanCongPerPhut;
+  const dien = ghiDe.o!.cpDienPerPhut !== undefined ? Math.max(0, so(ghiDe.o!.cpDienPerPhut)) : dongNC.cpDienPerPhut;
+  return {
+    ...dongNC,
+    rowKey: ghiDe.rk,
+    thoiGianPhut: phut,
+    cpNhanCongPerPhut: nc,
+    cpDienPerPhut: dien,
+    thanhTienNhanCong: (phut ?? 0) * so(nc),
+    thanhTienDien: (phut ?? 0) * so(dien),
+  };
+}
+
+/**
  * Lập các dòng Table 2: in / chia (khi Có chia) / ghép / làm túi.
  * Thành tiền = thời gian (phút) × đơn giá (₫/phút) — nhân trực tiếp, không chia số máy.
  */
 export function lapDongNhanCongDien(
   result: CalculateResult,
   hangSo: AppConstants,
+  overrides?: OverrideTable,
 ): DongNhanCongDien[] {
   const tg = chuanHoaCpsxUpgradeThoiGian(
     hangSo?.cpsxUpgradeThoiGian,
@@ -441,6 +495,7 @@ export function lapDongNhanCongDien(
     const phut = thoiGianPhut ?? 0;
     return {
       congDoan,
+      rowKey: congDoan === 'in' ? 'print' : congDoan === 'chia' ? 'chia' : congDoan === 'làm túi' ? 'cut' : 'lam-2',
       thoiGianPhut,
       cpNhanCongPerPhut,
       thanhTienNhanCong: phut * so(cpNhanCongPerPhut),
@@ -452,7 +507,7 @@ export function lapDongNhanCongDien(
   const rows: DongNhanCongDien[] = [];
 
   // in — setup theo số màu (lên trục + duyệt mẫu) + phủ mờ
-  rows.push(dong(
+  rows.push(apDungGhiDeThoiGian(dong(
     'in',
     metIn > 0 ? tinhThoiGianMayIn(metIn, soMau, tg.print, phuMo).tongPhut : null,
     luongMoiPhutTinh(
@@ -461,12 +516,12 @@ export function lapDongNhanCongDien(
       undefined, lab.print.tyLeTangCa, lab.print.otHours,
     ),
     el?.machines?.print,
-  ));
+  ), ['print'], overrides));
 
   // chia — chỉ hiện khi tick "Có chia"; mét = mét dòng in; rule theo cấu trúc màng
   if (coChia && metIn > 0) {
     const ruleChia = chonRuleMayChia(tg.slit, cauTrucMang, soLanGhep);
-    rows.push(dong(
+    rows.push(apDungGhiDeThoiGian(dong(
       'chia',
       tinhThoiGianMayChia(metIn, ruleChia).tongPhut,
       luongMoiPhutTinh(
@@ -475,11 +530,11 @@ export function lapDongNhanCongDien(
         undefined, lab.slit.tyLeTangCa, lab.slit.otHours,
       ),
       el?.machines?.slit,
-    ));
+    ), ['chia'], overrides));
   }
 
-  // ghép — setup lần đầu + mỗi lớp ghép tiếp theo setup lại
-  rows.push(dong(
+  // ghép — setup lần đầu + mỗi lớp ghép tiếp theo setup lại; ghi đè ưu tiên lam-2 → lam-5
+  rows.push(apDungGhiDeThoiGian(dong(
     'ghép',
     metGhep > 0 ? tinhThoiGianMayGhep(metGhep, soLanGhep, tg.laminate).tongPhut : null,
     luongMoiPhutTinh(
@@ -488,13 +543,13 @@ export function lapDongNhanCongDien(
       undefined, lab.laminate.tyLeTangCa, lab.laminate.otHours,
     ),
     el?.machines?.laminate,
-  ));
+  ), ['lam-2', 'lam-3', 'lam-4', 'lam-5'], overrides));
 
   // làm túi — setup theo loại túi + tốc độ theo bước cắt
   if (!laMang) {
     const setupTui = chonSetupMayTui(tg.bag, bagType, hasZipper, cutStepM);
     const tocDoTui = chonTocDoMayTui(tg.bag, cutStepM);
-    rows.push(dong(
+    rows.push(apDungGhiDeThoiGian(dong(
       'làm túi',
       soTui > 0 ? tinhThoiGianMayTui(soTui, setupTui, tocDoTui).tongPhut : null,
       luongMoiPhutTuiAp(
@@ -507,7 +562,7 @@ export function lapDongNhanCongDien(
         lab.bag.machinesPerDay,
       ),
       el?.machines?.bag,
-    ));
+    ), ['cut'], overrides));
   }
 
   return rows;
