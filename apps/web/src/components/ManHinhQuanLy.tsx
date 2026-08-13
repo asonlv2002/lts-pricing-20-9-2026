@@ -610,7 +610,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
 // meters/waste/inputVL ngược dòng — đúng concept bảng ghi đè cũ).
 // Bảng 2: thời gian SX × (CP nhân công + CP điện), ghi đè tay từng cột.
 // ═══════════════════════════════════════════════════════════════════════════
-function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, materials, ghiDeHienTai, duocSua, coTheLuu = true, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, soLuong, profitRatePct, khiDatProfitRate, engineParams }: {
+function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, materials, ghiDeHienTai, duocSua, coTheLuu = true, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, soLuong, profitRatePct, defaultProfitRatePct, khiDatProfitRate, engineParams }: {
   lopMau: 'sale' | 'admin';
   result: CalculateResult;
   uniRows: UniRow[];
@@ -625,6 +625,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
   loadedHistoryId: string | null;
   soLuong: number;
   profitRatePct: number;
+  defaultProfitRatePct: number;
   khiDatProfitRate: (v: number) => void;
   engineParams: { numColors: number; coverageRatio: number; metallicSurcharge: number; laborCost: number; isPrintFilm: boolean; printFilmInkBOPP: number; printFilmInkOther: number };
 }) {
@@ -638,10 +639,10 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
   const tong = tinhTongNangCao(dongVatLieu, dongNCD);
   const coThayDoi = countOverrideChanges(ghiDeHienTai) > 0;
   const chenhLech = tong.tongGiaThanh - tongGoc.tongGiaThanh;
-  const chenhLechText = `${chenhLech >= 0 ? '+' : ''}${dinhDangSo(chenhLech, 0)}`;
+  const chenhLechDonVi = soLuong > 0 ? chenhLech / soLuong : 0;
+  const chenhLechText = `${chenhLechDonVi >= 0 ? '+' : ''}${dinhDangSo(Math.round(chenhLechDonVi), 0)}`;
   const lopChenhLech = chenhLech > 0 ? 'override-price-delta-row--up' : chenhLech < 0 ? 'override-price-delta-row--down' : 'override-price-delta-row--flat';
   const donViChenhLech = r.input.productType === 'mang' ? 'ĐỒNG / MÉT VUÔNG' : 'ĐỒNG / TÚI';
-  const chenhLechDonVi = soLuong > 0 ? chenhLech / soLuong : 0;
   const tongNhanCong = dongNCD.reduce((s, d) => s + d.thanhTienNhanCong, 0);
   const tongDien = dongNCD.reduce((s, d) => s + d.thanhTienDien, 0);
   const effectivePct = profitRatePct > 0 ? profitRatePct : 0;
@@ -791,6 +792,32 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                   <td />
                   <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>{dinhDangSo(tongDien, 0)}</td>
                 </tr>
+                {coThayDoi && (
+                  <tr className={`override-profit-rate-row override-profit-rate-row--${lopMau}${profitRatePct > 0 ? ' override-profit-rate-row--overridden' : ''}`}>
+                    <td colSpan={3} className="override-profit-label">
+                      Tỷ lệ LN:{' '}
+                      {duocSua ? (
+                        <input
+                          className={`profit-rate-input${profitRatePct > 0 ? ' profit-rate-input--overridden' : ''}`}
+                          type="number"
+                          step="0.1"
+                          value={profitRatePct > 0 ? profitRatePct : defaultProfitRatePct}
+                          onChange={(e) => khiDatProfitRate(Number(e.target.value) || 0)}
+                          placeholder={String(defaultProfitRatePct)}
+                        />
+                      ) : (
+                        <span className="profit-rate-value">{profitRatePct}%</span>
+                      )}
+                      {duocSua && <span className="profit-rate-pct-suffix">%</span>}
+                    </td>
+                    <td colSpan={3} className="num">LN: {dinhDangSo(Math.round(ln), 0)} đ</td>
+                  </tr>
+                )}
+                <tr className={`total-row override-price-delta-row ${lopChenhLech}`}>
+                  <td colSpan={6}>
+                    CHÊNH LỆCH SO VỚI GIÁ GỐC: <strong>{chenhLechText} {donViChenhLech}</strong>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
@@ -812,26 +839,6 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
         </div>
       </div>
 
-      <div className={`override-profit-rate-row override-profit-rate-row--${lopMau}${profitRatePct > 0 ? ' override-profit-rate-row--overridden' : ''}`}>
-        <div className="override-profit-label">
-          Tỷ lệ LN:{' '}
-          {duocSua ? (
-            <input className={`profit-rate-input${profitRatePct > 0 ? ' profit-rate-input--overridden' : ''}`}
-              type="number" step="0.1" value={effectivePct}
-              onChange={(e) => khiDatProfitRate(Number(e.target.value) || 0)} />
-          ) : (
-            <span className="profit-rate-value">{effectivePct}%</span>
-          )}
-          {duocSua && <span className="profit-rate-pct-suffix">%</span>}
-        </div>
-        <div className="num" style={{ textAlign: 'right' }}>LN: {dinhDangSo(Math.round(ln), 0)} đ</div>
-      </div>
-      <div className={`total-row override-price-delta-row ${lopChenhLech}`}>
-        <div style={{ padding: '8px 10px', fontWeight: 700 }}>
-          CHÊNH LỆCH SO VỚI GIÁ GỐC: <strong>{chenhLechText} đ</strong>
-          <span style={{ fontWeight: 400, fontSize: '0.85em', marginLeft: '8px' }}>({chenhLechDonVi >= 0 ? '+' : ''}{dinhDangSo(chenhLechDonVi, 0)} {donViChenhLech})</span>
-        </div>
-      </div>
       {duocSua && coTheLuu && (
         <div className="override-save-row">
           <button className="btn btn-sm btn-green" onClick={() => loadedHistoryId ? khiLuu(loadedHistoryId) : khiLuuMoi()}>💾 Lưu thay đổi</button>
@@ -1932,12 +1939,12 @@ const buttonLabel = loadedItem
                 <BangDacTaNangCaoGhiDe lopMau="sale" result={r} uniRows={cacDongSanXuat} constants={hangSo} materials={materials}
                   ghiDeHienTai={ghiDeSale} duocSua={canSaleEditNangCao} coTheLuu={coTheLuuSaleNangCao}
                   khiDat={datGhiDeSale} khiLuu={xuLyLuuGhiDe} khiLuuMoi={xuLyLuuGhiDeMoi} loadedHistoryId={loadedHistoryId}
-                  soLuong={dauVaoKq.quantity} profitRatePct={saleProfitRatePct} khiDatProfitRate={datSaleProfitRatePct} engineParams={engineOverrideParams} />
+                  soLuong={dauVaoKq.quantity} profitRatePct={saleProfitRatePct} defaultProfitRatePct={saleDefaultPct} khiDatProfitRate={datSaleProfitRatePct} engineParams={engineOverrideParams} />
               ) : (
                 <BangDacTaNangCaoGhiDe lopMau="admin" result={r} uniRows={cacDongSanXuat} constants={hangSo} materials={materials}
                   ghiDeHienTai={ghiDeAdmin} duocSua={canAdminEditNangCao} coTheLuu={coTheLuuAdminNangCao}
                   khiDat={datGhiDeAdmin} khiLuu={xuLyLuuGhiDe} khiLuuMoi={xuLyLuuGhiDeMoi} loadedHistoryId={loadedHistoryId}
-                  soLuong={dauVaoKq.quantity} profitRatePct={adminProfitRatePct} khiDatProfitRate={datAdminProfitRatePct} engineParams={engineOverrideParams} />
+                  soLuong={dauVaoKq.quantity} profitRatePct={adminProfitRatePct} defaultProfitRatePct={adminDefaultPct} khiDatProfitRate={datAdminProfitRatePct} engineParams={engineOverrideParams} />
               )}
             </div>
           </TheThuGon>
