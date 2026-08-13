@@ -2,9 +2,10 @@
 import React, { useState } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhGiaHieuLuc, xuLyDongGhiDe, type UniRow } from '../lib/manager-calculation';
+import { lapDongVatLieuNangCao, lapDongNhanCongDien, tinhTongNangCao } from '../lib/dac-ta-nang-cao';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { TECHNICAL_TABLE_MOBILE_LABELS as MOBILE_LABELS } from '../lib/technical-table-mobile-labels';
-import type { Material, OverrideRowKey, OverrideFields, OverrideTable, HistoryItem } from '../lib/types';
+import type { AppConstants, CalculateResult, Material, OverrideRowKey, OverrideFields, OverrideTable, HistoryItem } from '../lib/types';
 import { kiemTraMaKhachHang, laKhachHangThuocQuyen, type KhachHangCoTen } from '../lib/customer-api';
 import { coQuyenCoVanBangTinh } from '../lib/permissions';
 import { 
@@ -597,6 +598,248 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
           >
             💾 Lưu thay đổi
           </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Đặc tả kỹ thuật nâng cao — Bảng ghi đè (Sale/Admin độc lập, so với GỐC)
+// Bảng 1: vật liệu + mực/DM/keo (tái sử dụng xuLyDongGhiDe để lan truyền
+// meters/waste/inputVL ngược dòng — đúng concept bảng ghi đè cũ).
+// Bảng 2: thời gian SX × (CP nhân công + CP điện), ghi đè tay từng cột.
+// ═══════════════════════════════════════════════════════════════════════════
+function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, materials, ghiDeHienTai, duocSua, coTheLuu = true, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, soLuong, profitRatePct, khiDatProfitRate }: {
+  lopMau: 'sale' | 'admin';
+  result: CalculateResult;
+  uniRows: UniRow[];
+  constants: AppConstants;
+  materials: Material[];
+  ghiDeHienTai: OverrideTable;
+  duocSua: boolean;
+  coTheLuu?: boolean;
+  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
+  khiLuu: (id: string) => void;
+  khiLuuMoi: () => void;
+  loadedHistoryId: string | null;
+  soLuong: number;
+  profitRatePct: number;
+  khiDatProfitRate: (v: number) => void;
+}) {
+  const { rows: dongGoc } = xuLyDongGhiDe(uniRows, {}, {});
+  const { rows: dongDaXuLy } = xuLyDongGhiDe(uniRows, {}, ghiDeHienTai);
+  const dongVatLieuGoc = lapDongVatLieuNangCao(r, dongGoc, hangSo, materials);
+  const dongVatLieu = lapDongVatLieuNangCao(r, dongDaXuLy, hangSo, materials, ghiDeHienTai);
+  const dongNCDGoc = lapDongNhanCongDien(r, hangSo);
+  const dongNCD = lapDongNhanCongDien(r, hangSo, ghiDeHienTai);
+  const tongGoc = tinhTongNangCao(dongVatLieuGoc, dongNCDGoc);
+  const tong = tinhTongNangCao(dongVatLieu, dongNCD);
+  const coThayDoi = countOverrideChanges(ghiDeHienTai) > 0;
+  const chenhLech = tong.tongGiaThanh - tongGoc.tongGiaThanh;
+  const chenhLechText = `${chenhLech >= 0 ? '+' : ''}${dinhDangSo(chenhLech, 0)}`;
+  const lopChenhLech = chenhLech > 0 ? 'override-price-delta-row--up' : chenhLech < 0 ? 'override-price-delta-row--down' : 'override-price-delta-row--flat';
+  const donViChenhLech = r.input.productType === 'mang' ? 'ĐỒNG / MÉT VUÔNG' : 'ĐỒNG / TÚI';
+  const chenhLechDonVi = soLuong > 0 ? chenhLech / soLuong : 0;
+  const tongNhanCong = dongNCD.reduce((s, d) => s + d.thanhTienNhanCong, 0);
+  const tongDien = dongNCD.reduce((s, d) => s + d.thanhTienDien, 0);
+  const effectivePct = profitRatePct > 0 ? profitRatePct : 0;
+  const ln = tong.tongGiaThanh * (effectivePct / 100);
+
+  const timDongGoc = (rowKey: OverrideRowKey, chiTietIndex?: number) =>
+    dongVatLieuGoc.find(d => d.rowKey === rowKey && (chiTietIndex === undefined || d.chiTietIndex === chiTietIndex));
+
+  return (
+    <div className={`override-section override-section--${lopMau}`}>
+      <div className="override-section-header">
+        <div className="override-section-title">
+          {lopMau === 'sale' ? '💼' : '👑'} {lopMau === 'sale' ? 'Thay đổi từ Sale' : 'Thay đổi từ Admin'}
+        </div>
+        {!duocSua && <span className="override-readonly-badge">Chỉ xem</span>}
+      </div>
+
+      {/* ═══ Table 1: Vật liệu + mực/dung môi/keo ═══ */}
+      <div className="table-responsive">
+        <table className="data-table" id={`m-t-advanced-override-material-${lopMau}`}>
+          <thead>
+            <tr>
+              <th>Công đoạn</th>
+              <th>Vật liệu</th>
+              <th className="num">Khổ màng (m)</th>
+              <th className="num">Thành phẩm (m)</th>
+              <th className="num">Phi hao (m)</th>
+              <th className="num">Đầu vào NVL (m)</th>
+              <th className="num">CP vật liệu (đ/m²)</th>
+              <th className="num">Thành tiền CPNVL</th>
+              <th className="num">Giá NVL (đ/kg)</th>
+              <th className="num" title="CP mực in, dung môi, keo ghép + nhũ/phủ mờ (đ/m²)">CP mực + DM + keo (đ/m²)</th>
+              <th className="num">Thành tiền mực + DM + keo</th>
+            </tr>
+          </thead>
+          <tbody>
+            {dongVatLieu.map((row, idx) => {
+              const goc = timDongGoc(row.rowKey, row.chiTietIndex);
+              const ovDong = ghiDeHienTai[row.rowKey];
+              const coDoiVL = coGhiDeDong(ovDong, ['meters', 'waste', 'inputVL']);
+              const coDoiMuc = ovDong?.cpMucKeoPerM2 !== undefined;
+              const laPhuKien = row.congDoan === 'làm túi' && row.thanhTienNVL != null;
+              if (laPhuKien) {
+                return (
+                  <tr key={`pk-${idx}`}>
+                    <td className="dac-ta-nang-cao__stage">{row.congDoan}</td>
+                    <td>{row.vatLieu}</td>
+                    <td className="num">—</td>
+                    <td className="num">—</td>
+                    <td className="num">—</td>
+                    <td className="num">—</td>
+                    <td className="num">—</td>
+                    <td className="num">{dinhDangSo(row.thanhTienNVL, 0)}</td>
+                    <td className="num">—</td>
+                    <td className="num">—</td>
+                    <td className="num">—</td>
+                  </tr>
+                );
+              }
+              return (
+                <tr key={`${row.rowKey}-${row.chiTietIndex ?? 0}`}>
+                  <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">{row.congDoan}</td>
+                  {row.chiTietIndex !== undefined && goc ? (
+                    <OChonVatLieuChiTiet khoaDong={row.rowKey} chiTietIndex={row.chiTietIndex}
+                      giaTriGoc={{ id: goc.materialId, name: goc.vatLieu, matPrice: goc.cpVatLieu ?? 0 }}
+                      giaTriGhiDe={ghiDeHienTai[row.rowKey]?.detailOverrides?.[row.chiTietIndex]}
+                      duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} engineParams={engineOverrideParams} />
+                  ) : (
+                    <OChonVatLieuDong khoaDong={row.rowKey}
+                      giaTriGocId={goc?.materialId} giaTriGocTen={goc?.vatLieu ?? row.vatLieu} giaTriGocGia={goc?.cpVatLieu ?? 0}
+                      ghiDeHienTai={ghiDeHienTai} duocSua={duocSua} khiDat={khiDat} materials={materials} engineParams={engineOverrideParams} />
+                  )}
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={goc?.khoMang ?? row.khoMang ?? 0}
+                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="meters"
+                    giaTriGoc={goc?.thanhPham ?? 0}
+                    giaTriGhiDe={Math.abs((row.thanhPham ?? 0) - (goc?.thanhPham ?? 0)) > 0.001 ? row.thanhPham : ghiDeHienTai[row.rowKey]?.meters}
+                    duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                  <OCoTheGhiDe khoaDong={row.rowKey} truong="waste"
+                    giaTriGoc={goc?.phiHao ?? 0}
+                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste}
+                    duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                  <td className={`num highlight ${coDoiVL ? 'override-changed' : ''}`} data-label="Đầu vào NVL (m)">{dinhDangSo(row.dauVaoNVL, 0)}</td>
+                  <td className="num" data-label="CP vật liệu (đ/m²)">{dinhDangSo(row.cpVatLieu, 1)}</td>
+                  <td className={`num ${coDoiVL ? 'override-changed' : ''}`} data-label="Thành tiền CPNVL">{dinhDangSo(row.thanhTienNVL, 0)}</td>
+                  <td className="num" data-label="Giá NVL (đ/kg)">
+                    {row.giaNVL != null ? (
+                      <OCoTheGhiDe khoaDong={row.rowKey} truong="rawMatPrice"
+                        giaTriGoc={goc?.giaNVL ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.rawMatPrice}
+                        duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                    ) : '—'}
+                  </td>
+                  <td className={`num dac-ta-nang-cao__muc ${coDoiMuc ? 'override-changed' : ''}`} data-label="CP mực + DM + keo (đ/m²)" title={row.ghiChu}>
+                    {row.cpMucKeo != null ? (
+                      <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
+                        giaTriGoc={goc?.cpMucKeo ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2}
+                        duocSua={duocSua} khiDat={khiDat} soLe={1} />
+                    ) : '—'}
+                  </td>
+                  <td className={`num dac-ta-nang-cao__muc ${coDoiMuc || coDoiVL ? 'override-changed' : ''}`} data-label="Thành tiền mực + DM + keo">{dinhDangSo(row.thanhTienMucKeo, 0)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      {/* ═══ Table 2 + cụm 3 dòng tổng ═══ */}
+      <div className="dac-ta-nang-cao__split">
+        <div className="dac-ta-nang-cao__split-table">
+          <div className="table-responsive">
+            <table className="data-table" id={`m-t-advanced-override-labor-${lopMau}`}>
+              <thead>
+                <tr>
+                  <th>Công đoạn</th>
+                  <th className="num">Thời gian SX (phút)</th>
+                  <th className="num">CP nhân công (đ/phút)</th>
+                  <th className="num">Thành tiền NC</th>
+                  <th className="num">CP điện (đ/phút)</th>
+                  <th className="num">Thành tiền điện</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dongNCD.map((row, idx) => {
+                  const ovDong = ghiDeHienTai[row.rowKey];
+                  const coDoiTG = coGhiDeDong(ovDong, ['thoiGianPhut', 'cpNhanCongPerPhut', 'cpDienPerPhut']);
+                  return (
+                    <tr key={`${lopMau}-ncd-${idx}`}>
+                      <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">{row.congDoan}</td>
+                      <td className="num highlight" data-label="Thời gian SX (phút)">
+                        <OCoTheGhiDe khoaDong={row.rowKey} truong="thoiGianPhut"
+                          giaTriGoc={dongNCDGoc[idx]?.thoiGianPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.thoiGianPhut}
+                          duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                      </td>
+                      <td className="num" data-label="CP nhân công (đ/phút)">
+                        <OCoTheGhiDe khoaDong={row.rowKey} truong="cpNhanCongPerPhut"
+                          giaTriGoc={dongNCDGoc[idx]?.cpNhanCongPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpNhanCongPerPhut}
+                          duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                      </td>
+                      <td className={`num ${coDoiTG ? 'override-changed' : ''}`} data-label="Thành tiền CP nhân công">{dinhDangSo(row.thanhTienNhanCong, 0)}</td>
+                      <td className="num" data-label="CP điện (đ/phút)">
+                        <OCoTheGhiDe khoaDong={row.rowKey} truong="cpDienPerPhut"
+                          giaTriGoc={dongNCDGoc[idx]?.cpDienPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpDienPerPhut}
+                          duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                      </td>
+                      <td className={`num ${coDoiTG ? 'override-changed' : ''}`} data-label="Thành tiền CP điện">{dinhDangSo(row.thanhTienDien, 0)}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="total-row">
+                  <td colSpan={3}><strong>Tổng nhân công / điện</strong></td>
+                  <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>{dinhDangSo(tongNhanCong, 0)}</td>
+                  <td />
+                  <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>{dinhDangSo(tongDien, 0)}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="dac-ta-nang-cao__totals">
+          <div className="dac-ta-nang-cao__total-row">
+            <span className="dac-ta-nang-cao__total-label">Tổng thành tiền CP Vật liệu<small>(nguyên vật liệu + dung môi + keo ghép + khác)</small></span>
+            <strong className={`dac-ta-nang-cao__total-value ${Math.abs(tong.tongVatLieu - tongGoc.tongVatLieu) > 1 ? 'override-changed' : ''}`}>{dinhDangSo(tong.tongVatLieu, 0)} đ</strong>
+          </div>
+          <div className="dac-ta-nang-cao__total-row">
+            <span className="dac-ta-nang-cao__total-label">Tổng thành tiền chi phí Nhân công + điện</span>
+            <strong className={`dac-ta-nang-cao__total-value ${Math.abs(tong.tongNhanCongDien - tongGoc.tongNhanCongDien) > 1 ? 'override-changed' : ''}`}>{dinhDangSo(tong.tongNhanCongDien, 0)} đ</strong>
+          </div>
+          <div className="dac-ta-nang-cao__total-row dac-ta-nang-cao__total-row--grand">
+            <span className="dac-ta-nang-cao__total-label">Tổng giá thành sản xuất cơ bản</span>
+            <strong className={`dac-ta-nang-cao__total-value ${coThayDoi ? 'override-changed' : ''}`}>{dinhDangSo(tong.tongGiaThanh, 0)} đ</strong>
+          </div>
+        </div>
+      </div>
+
+      <div className={`override-profit-rate-row override-profit-rate-row--${lopMau}${profitRatePct > 0 ? ' override-profit-rate-row--overridden' : ''}`}>
+        <div className="override-profit-label">
+          Tỷ lệ LN:{' '}
+          {duocSua ? (
+            <input className={`profit-rate-input${profitRatePct > 0 ? ' profit-rate-input--overridden' : ''}`}
+              type="number" step="0.1" value={effectivePct}
+              onChange={(e) => khiDatProfitRate(Number(e.target.value) || 0)} />
+          ) : (
+            <span className="profit-rate-value">{effectivePct}%</span>
+          )}
+          {duocSua && <span className="profit-rate-pct-suffix">%</span>}
+        </div>
+        <div className="num" style={{ textAlign: 'right' }}>LN: {dinhDangSo(Math.round(ln), 0)} đ</div>
+      </div>
+      <div className={`total-row override-price-delta-row ${lopChenhLech}`}>
+        <div style={{ padding: '8px 10px', fontWeight: 700 }}>
+          CHÊNH LỆCH SO VỚI GIÁ GỐC: <strong>{chenhLechText} đ</strong>
+          <span style={{ fontWeight: 400, fontSize: '0.85em', marginLeft: '8px' }}>({chenhLechDonVi >= 0 ? '+' : ''}{dinhDangSo(chenhLechDonVi, 0)} {donViChenhLech})</span>
+        </div>
+      </div>
+      {duocSua && coTheLuu && (
+        <div className="override-save-row">
+          <button className="btn btn-sm btn-green" onClick={() => loadedHistoryId ? khiLuu(loadedHistoryId) : khiLuuMoi()}>💾 Lưu thay đổi</button>
         </div>
       )}
     </div>
