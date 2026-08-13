@@ -12,6 +12,7 @@ import { dungCuaHangTinhGia } from "../../store/CuaHangTinhGia";
 import { getPricingDisplayMeta } from "../../lib/pricing-display";
 import { normalizeDisplayText } from "../../lib/text-codec";
 import DangNhapModal from "../auth/DangNhapModal";
+import BatBuocDatPin from "../auth/BatBuocDatPin";
 import DoiMatKhauModal from "../auth/DoiMatKhauModal";
 import DoiAnhDaiDienModal from "../auth/DoiAnhDaiDienModal";
 import DoiChuKyModal from "../auth/DoiChuKyModal";
@@ -2310,7 +2311,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     MOBILE_HUBS[layMobileHubId(menuDangChon)]?.title ??
     TIEU_DE_MODULE[moduleDangMo];
 
-  return (
+  const appJsx = (
     <div className={`lts-shell ${laMobile ? "lts-shell--mobile" : ""}`}>
       {/* Toast trượt từ phải — dùng chung mọi module (copy URL, v.v.) */}
       <div className="toast-container" id="toastContainer" />
@@ -2511,5 +2512,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         <DoiPinModal dong={() => datHienDoiPin(false)} />
       )}
     </div>
+  );
+
+  return (
+    <BatBuocDatPin>
+      {appJsx}
+    </BatBuocDatPin>
   );
 }

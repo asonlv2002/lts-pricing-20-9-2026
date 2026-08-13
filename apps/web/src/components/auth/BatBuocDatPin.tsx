@@ -39,7 +39,7 @@ export default function BatBuocDatPin({ children }: { children: React.ReactNode 
 
   useEffect(() => {
     kiemTra();
-  }, [accessToken]);
+  }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (buoc === 'dangTai') {
     return (
