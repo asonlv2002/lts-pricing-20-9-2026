@@ -7,6 +7,7 @@ const ROW_LABELS: Record<string, string> = {
   'lam-4': 'Ghép L4',
   'lam-5': 'Ghép L5',
   cut: 'Cắt',
+  chia: 'Chia',
 };
 
 const FIELD_LABELS: Record<string, string> = {
@@ -23,6 +24,10 @@ const FIELD_LABELS: Record<string, string> = {
   costMat: 'Thành tiền CPVL',
   materialName: 'Vật liệu',
   rawMatPrice: 'Giá NVL',
+  cpMucKeoPerM2: 'CP mực+DM+keo',
+  thoiGianPhut: 'Thời gian SX',
+  cpNhanCongPerPhut: 'CP nhân công',
+  cpDienPerPhut: 'CP điện',
 };
 
 export interface OverrideChangeDisplay {

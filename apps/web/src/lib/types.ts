@@ -668,7 +668,7 @@ export const QUOTE_STATUS_CONFIG: Record<QuoteStatus, {
   expired:          { label: 'Hết hạn',          shortLabel: 'Hết hạn',    color: '#9ca3af', bg: 'rgba(156,163,175,0.1)', step: -3, description: 'Báo giá đã hết hiệu lực' },
 };
 // ── Override Tables (Bảng 2 & 3 — Sale nhập / Admin nhập) ────────────────────
-export type OverrideRowKey = 'print' | 'lam-2' | 'lam-3' | 'lam-4' | 'lam-5' | 'cut';
+export type OverrideRowKey = 'print' | 'lam-2' | 'lam-3' | 'lam-4' | 'lam-5' | 'cut' | 'chia';
 
 export interface OverrideFields {
   stage?: string;
@@ -683,6 +683,14 @@ export interface OverrideFields {
   matPrice?: number;
   costMat?: number;
   rawMatPrice?: number;
+  /** CP mực + dung môi + keo (đ/m²) — bảng đặc tả nâng cao */
+  cpMucKeoPerM2?: number;
+  /** Thời gian sản xuất (phút) — bảng đặc tả nâng cao */
+  thoiGianPhut?: number;
+  /** CP nhân công (đ/phút) — bảng đặc tả nâng cao */
+  cpNhanCongPerPhut?: number;
+  /** CP điện (đ/phút) — bảng đặc tả nâng cao */
+  cpDienPerPhut?: number;
   detailOverrides?: Record<number, { width?: number; matPrice?: number; rawMatPrice?: number; materialId?: string; materialName?: string }>;
 }
 export type OverrideTable = Partial<Record<OverrideRowKey, Partial<OverrideFields>>>;
