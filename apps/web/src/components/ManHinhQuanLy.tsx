@@ -727,20 +727,20 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                   <td className={`num highlight ${coDoiVL ? 'override-changed' : ''}`} data-label="Đầu vào NVL (m)">{dinhDangSo(row.dauVaoNVL, 0)}</td>
                   <td className="num" data-label="CP vật liệu (đ/m²)">{dinhDangSo(row.cpVatLieu, 1)}</td>
                   <td className={`num ${coDoiVL ? 'override-changed' : ''}`} data-label="Thành tiền CPNVL">{dinhDangSo(row.thanhTienNVL, 0)}</td>
-                  <td className="num" data-label="Giá NVL (đ/kg)">
-                    {row.giaNVL != null ? (
-                      <OCoTheGhiDe khoaDong={row.rowKey} truong="rawMatPrice"
-                        giaTriGoc={goc?.giaNVL ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.rawMatPrice}
-                        duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                    ) : '—'}
-                  </td>
-                  <td className={`num dac-ta-nang-cao__muc ${coDoiMuc ? 'override-changed' : ''}`} data-label="CP mực + DM + keo (đ/m²)" title={row.ghiChu}>
-                    {row.cpMucKeo != null ? (
-                      <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
-                        giaTriGoc={goc?.cpMucKeo ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2}
-                        duocSua={duocSua} khiDat={khiDat} soLe={1} />
-                    ) : '—'}
-                  </td>
+                  {row.giaNVL != null ? (
+                    <OCoTheGhiDe khoaDong={row.rowKey} truong="rawMatPrice"
+                      giaTriGoc={goc?.giaNVL ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.rawMatPrice}
+                      duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                  ) : (
+                    <td className="num" data-label="Giá NVL (đ/kg)">—</td>
+                  )}
+                  {row.cpMucKeo != null ? (
+                    <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
+                      giaTriGoc={goc?.cpMucKeo ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2}
+                      duocSua={duocSua} khiDat={khiDat} soLe={1} />
+                  ) : (
+                    <td className="num dac-ta-nang-cao__muc" data-label="CP mực + DM + keo (đ/m²)">—</td>
+                  )}
                   <td className={`num dac-ta-nang-cao__muc ${coDoiMuc || coDoiVL ? 'override-changed' : ''}`} data-label="Thành tiền mực + DM + keo">{dinhDangSo(row.thanhTienMucKeo, 0)}</td>
                 </tr>
               );
@@ -771,22 +771,16 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                   return (
                     <tr key={`${lopMau}-ncd-${idx}`}>
                       <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">{row.congDoan}</td>
-                      <td className="num highlight" data-label="Thời gian SX (phút)">
-                        <OCoTheGhiDe khoaDong={row.rowKey} truong="thoiGianPhut"
-                          giaTriGoc={dongNCDGoc[idx]?.thoiGianPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.thoiGianPhut}
-                          duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                      </td>
-                      <td className="num" data-label="CP nhân công (đ/phút)">
-                        <OCoTheGhiDe khoaDong={row.rowKey} truong="cpNhanCongPerPhut"
-                          giaTriGoc={dongNCDGoc[idx]?.cpNhanCongPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpNhanCongPerPhut}
-                          duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                      </td>
+                      <OCoTheGhiDe khoaDong={row.rowKey} truong="thoiGianPhut"
+                        giaTriGoc={dongNCDGoc[idx]?.thoiGianPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.thoiGianPhut}
+                        duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                      <OCoTheGhiDe khoaDong={row.rowKey} truong="cpNhanCongPerPhut"
+                        giaTriGoc={dongNCDGoc[idx]?.cpNhanCongPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpNhanCongPerPhut}
+                        duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <td className={`num ${coDoiTG ? 'override-changed' : ''}`} data-label="Thành tiền CP nhân công">{dinhDangSo(row.thanhTienNhanCong, 0)}</td>
-                      <td className="num" data-label="CP điện (đ/phút)">
-                        <OCoTheGhiDe khoaDong={row.rowKey} truong="cpDienPerPhut"
-                          giaTriGoc={dongNCDGoc[idx]?.cpDienPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpDienPerPhut}
-                          duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                      </td>
+                      <OCoTheGhiDe khoaDong={row.rowKey} truong="cpDienPerPhut"
+                        giaTriGoc={dongNCDGoc[idx]?.cpDienPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpDienPerPhut}
+                        duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <td className={`num ${coDoiTG ? 'override-changed' : ''}`} data-label="Thành tiền CP điện">{dinhDangSo(row.thanhTienDien, 0)}</td>
                     </tr>
                   );
