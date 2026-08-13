@@ -171,7 +171,7 @@ export default function DoiChuKyModal({ dong }: { dong: () => void }) {
         <div className="lts-modal-head">
           <div className="lts-modal-head-icon"><PenLine size={18} /></div>
           <div>
-            <h3 id="chu-ky-modal-title">Đổi chữ ký LSX</h3>
+            <h3 id="chu-ky-modal-title">Đổi chữ ký</h3>
             <p className="lts-modal-sub">Chữ ký sẽ tự động gắn vào PDF LSX do <strong>@{nguoiDung?.account || '—'}</strong> tạo</p>
           </div>
         </div>

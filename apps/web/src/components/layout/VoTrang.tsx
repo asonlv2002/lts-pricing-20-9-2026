@@ -834,7 +834,7 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         action: { type: "changeAvatar" },
       },
       {
-        title: "Đổi mã PIN duyệt",
+        title: "Đổi mã Pin",
         subtitle: "PIN 6 số khi duyệt báo giá / LSX.",
         tone: "violet",
         icon: <KeyRoundIcon size={30} />,
@@ -1142,7 +1142,7 @@ function ThanhBen({
                 }}
               >
                 <KeyRoundIcon size={14} />
-                <span>Đổi mã PIN duyệt</span>
+                <span>Đổi mã Pin</span>
               </button>
             )}
             {coQuyenDuyet(policies) && <div className="lts-account-menu-sep" />}
@@ -1156,7 +1156,7 @@ function ThanhBen({
               }}
             >
               <PenLine size={14} />
-              <span>Đổi chữ ký LSX</span>
+              <span>Đổi chữ ký</span>
             </button>
             <div className="lts-account-menu-sep" />
             <button

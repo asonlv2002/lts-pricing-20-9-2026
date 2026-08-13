@@ -81,7 +81,7 @@ export default function DoiPinModal({ dong }: { dong: () => void }) {
                 <KeyRound size={18} />
               </div>
               <div>
-                <h3 id="doi-pin-modal-title">Đổi mã PIN duyệt</h3>
+                <h3 id="doi-pin-modal-title">Đổi mã Pin</h3>
                 <p className="lts-modal-sub">
                   Mã PIN 6 số dùng khi bạn duyệt báo giá / LSX
                 </p>
