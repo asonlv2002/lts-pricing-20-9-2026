@@ -801,9 +801,9 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                           className={`profit-rate-input${profitRatePct > 0 ? ' profit-rate-input--overridden' : ''}`}
                           type="number"
                           step="0.1"
-                          value={profitRatePct > 0 ? profitRatePct : defaultProfitRatePct}
+                          value={Number.isFinite(Number(profitRatePct)) && Number(profitRatePct) > 0 ? Number(profitRatePct) : (Number.isFinite(Number(defaultProfitRatePct)) ? Number(defaultProfitRatePct) : 0)}
                           onChange={(e) => khiDatProfitRate(Number(e.target.value) || 0)}
-                          placeholder={String(defaultProfitRatePct)}
+                          placeholder={String(Number.isFinite(Number(defaultProfitRatePct)) ? Number(defaultProfitRatePct) : 0)}
                         />
                       ) : (
                         <span className="profit-rate-value">{profitRatePct}%</span>
