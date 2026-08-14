@@ -5,13 +5,14 @@ import type { PricingMode } from '../lib/types';
 
 export function ManHinhChonCheDoTinhGia(props: {
   onChon: (mode: PricingMode) => void;
+  nangCap?: boolean;
 }) {
-  const { onChon } = props;
+  const { onChon, nangCap } = props;
 
   return (
     <div className="card" style={{ padding: '28px 24px', maxWidth: 720, margin: '0 auto' }}>
       <div className="card-title" style={{ fontSize: '1.05rem', marginBottom: 6 }}>
-        Tạo bảng tính giá
+        Tạo bảng tính giá{nangCap ? ' (nâng cấp)' : ''}
       </div>
       <p style={{ margin: '0 0 20px', color: 'var(--muted)', fontSize: '0.88rem' }}>
         Bạn muốn làm gì? Chọn một hướng để bắt đầu — form nhập sẽ hiện sau khi chọn.

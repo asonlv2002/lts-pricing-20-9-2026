@@ -258,6 +258,12 @@ const CAC_NHOM_MENU: NhomMenu[] = [
         vaiTros: ["admin", "sale"],
       },
       {
+        key: "tao-tinh-gia-nang-cap",
+        id: "calculator",
+        label: "Tạo bảng tính giá (nâng cấp)",
+        vaiTros: ["admin", "sale"],
+      },
+      {
         key: "tao-bao-gia",
         id: "quotations",
         label: "Tạo bảng báo giá",
@@ -584,6 +590,17 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         action: {
           type: "module",
           key: "tao-tinh-gia",
+          module: "calculator",
+        },
+      },
+      {
+        title: "Tạo bảng tính giá (nâng cấp)",
+        subtitle: "Tính giá theo bảng đặc tả kỹ thuật nâng cao.",
+        tone: "violet",
+        icon: <FileText size={30} />,
+        action: {
+          type: "module",
+          key: "tao-tinh-gia-nang-cap",
           module: "calculator",
         },
       },
@@ -1887,6 +1904,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     }
   }, [moduleDangMo, laMobile, menuDangChon]);
 
+  // Đồng bộ cờ "nâng cấp" vào store khi đổi menu → page.tsx biết đang ở tab nào
+  useEffect(() => {
+    dungCuaHangTinhGia.setState({
+      cheDoNangCao: menuDangChon === "tao-tinh-gia-nang-cap",
+    });
+  }, [menuDangChon]);
+
   // Bootstrap path → state + popstate + event điều hướng chéo
   useEffect(() => {
     if (!isAuthenticated || !sessionChecked) return;
@@ -1968,7 +1992,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             if (huy) return;
             await moBangTinhVoiPin(local.id);
             if (huy) return;
-            dieuHuongMenu("tao-tinh-gia", "replace");
+            dieuHuongMenu(local.isNangCap ? "tao-tinh-gia-nang-cap" : "tao-tinh-gia", "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
             return;
@@ -1984,7 +2008,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           if (sauTai && !sauTai.isQuote) {
             await moBangTinhVoiPin(sauTai.id);
             if (huy) return;
-            dieuHuongMenu("tao-tinh-gia", "replace");
+            dieuHuongMenu(sauTai.isNangCap ? "tao-tinh-gia-nang-cap" : "tao-tinh-gia", "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
             return;
@@ -1993,7 +2017,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           const ok = await taiBangTinhTuServer(deep.id);
           if (huy) return;
           if (ok) {
-            dieuHuongMenu("tao-tinh-gia", "replace");
+            const sauServer = timMucLichSuTheoId(
+              dungCuaHangTinhGia.getState().history,
+              deep.id,
+            );
+            dieuHuongMenu(sauServer?.isNangCap ? "tao-tinh-gia-nang-cap" : "tao-tinh-gia", "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
             return;

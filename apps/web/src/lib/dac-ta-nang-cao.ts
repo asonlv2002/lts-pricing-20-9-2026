@@ -12,15 +12,20 @@ import type {
   Material,
   OverrideRowKey,
   OverrideTable,
+  ProfitRow,
   SolventAdhesiveRow,
   SolventAdhesiveTable,
 } from './types';
 import type { UniRow } from './manager-calculation';
+import { xuLyDongGhiDe } from './manager-calculation';
+import { traLoiNhuanTheoBang } from './engine';
 import {
   chonRuleMayChia,
   chonSetupMayTui,
   chonTocDoMayTui,
   chuanHoaCpsxUpgradeThoiGian,
+  metChiaHoacLamTui,
+  metLamTuiTuDauVaoNVL,
   tinhThoiGianMayChia,
   tinhThoiGianMayGhep,
   tinhThoiGianMayIn,
@@ -245,8 +250,10 @@ export function tinhCpKeoDungMoiGhep(ink: CpsxUpgradeInk): {
 
 // ── Table 1 ─────────────────────────────────────────────────────────────────
 
-/** Nhãn công đoạn thân thiện cho Table 1 — dùng đúng chuẩn engine (không transform) */
+/** Nhãn công đoạn thân thiện cho Table 1 — dùng đúng chuẩn engine (không transform).
+ *  Dòng cắt (rowKey 'cut') gộp với dòng phụ kiện → nhãn "làm túi". */
 function nhanCongDoan(row: UniRow): string {
+  if (row.rowKey === 'cut') return 'làm túi';
   return row.stage || '';
 }
 
@@ -342,6 +349,8 @@ export function lapDongVatLieuNangCao(
           materials,
         );
         const kho = so(detail.width);
+        // Công đoạn gia công ngoài: CP gia công (costCPSX) gộp vào dòng vật liệu đầu tiên
+        const cpGiaCongNgoai = row.isOutsourced && idx === 0 ? so(row.costCPSX) : 0;
         return {
           congDoan: idx === 0 ? nhanCongDoan(row) : '',
           vatLieu: detail.name || '—',
@@ -355,7 +364,7 @@ export function lapDongVatLieuNangCao(
           giaNVL,
           donViGiaNVL: giaNVL != null ? 'kg' : null,
           cpVatLieu: so(detail.matPrice),
-          thanhTienNVL: so(detail.costMat),
+          thanhTienNVL: so(detail.costMat) + cpGiaCongNgoai,
           cpMucKeo,
           thanhTienMucKeo: cpMucKeo != null ? cpMucKeo * dauVaoNVL * kho : null,
           ghiChu,
@@ -365,6 +374,8 @@ export function lapDongVatLieuNangCao(
 
     const khoHieuDung = so(row.width);
     const giaNVL = traGiaNVL(row, materials);
+    // Công đoạn gia công ngoài: CP gia công (costCPSX) cộng vào thành tiền CPNVL
+    const cpGiaCongNgoai = row.isOutsourced ? so(row.costCPSX) : 0;
 
     return [{
       congDoan: nhanCongDoan(row),
@@ -378,7 +389,7 @@ export function lapDongVatLieuNangCao(
       giaNVL,
       donViGiaNVL: giaNVL != null ? 'kg' : null,
       cpVatLieu: row.matPrice,
-      thanhTienNVL: row.costMat,
+      thanhTienNVL: so(row.costMat) + cpGiaCongNgoai,
       cpMucKeo,
       thanhTienMucKeo: cpMucKeo != null ? cpMucKeo * dauVaoNVL * khoHieuDung : null,
       ghiChu,
@@ -397,7 +408,7 @@ export function lapDongVatLieuNangCao(
       if (bangKeo > 0) ten.push('Băng keo');
       if (quai > 0) ten.push('Quai');
       rows.push({
-        congDoan: 'làm túi',
+        congDoan: '',
         vatLieu: ten.join(' + '),
         rowKey: 'cut',
         khoMang: null,
@@ -475,13 +486,18 @@ export function lapDongNhanCongDien(
     0,
   );
   const soLanGhep = cacLopGhep.length;
-  const soTui = so(result?.input?.quantity);
   const phuMo = result?.input?.hasMo === true;
   const coChia = result?.input?.hasDivide === true;
   const cauTrucMang = String(result?.structureText ?? '');
   const cutStepM = so(result?.input?.cutStep);
   const bagType = String(result?.input?.bagType ?? '');
   const hasZipper = !!result?.input?.hasZipper;
+
+  // Công đoạn nào đang thuê ngoài → bỏ dòng NC + điện (CP nằm trong đơn giá gia công)
+  const cacBuocGc = result?.input?.pricingMode === 'outsource'
+    ? (result?.input?.outsource?.steps ?? [])
+    : [];
+  const laGc = (buoc: string) => (cacBuocGc as string[]).includes(buoc);
 
   const dong = (
     congDoan: string,
@@ -495,7 +511,7 @@ export function lapDongNhanCongDien(
     const phut = thoiGianPhut ?? 0;
     return {
       congDoan,
-      rowKey: congDoan === 'in' ? 'print' : congDoan === 'chia' ? 'chia' : congDoan === 'làm túi' ? 'cut' : 'lam-2',
+      rowKey: congDoan === 'in' ? 'print' : congDoan === 'chia' ? 'chia' : congDoan === 'làm túi' ? 'cut' : congDoan === 'lật mặt' ? 'matte' : 'lam-2',
       thoiGianPhut,
       cpNhanCongPerPhut,
       thanhTienNhanCong: phut * so(cpNhanCongPerPhut),
@@ -507,23 +523,57 @@ export function lapDongNhanCongDien(
   const rows: DongNhanCongDien[] = [];
 
   // in — setup theo số màu (lên trục + duyệt mẫu) + phủ mờ
-  rows.push(apDungGhiDeThoiGian(dong(
-    'in',
-    metIn > 0 ? tinhThoiGianMayIn(metIn, soMau, tg.print, phuMo).tongPhut : null,
-    luongMoiPhutTinh(
-      lab.print.wages, lab.print.hoursPerDay,
-      lab.print.mealMorning, lab.print.mealEvening, lab.print.otFactor,
-      undefined, lab.print.tyLeTangCa, lab.print.otHours,
-    ),
-    el?.machines?.print,
-  ), ['print'], overrides));
+  if (!laGc('print')) {
+    rows.push(apDungGhiDeThoiGian(dong(
+      'in',
+      metIn > 0 ? tinhThoiGianMayIn(metIn, soMau, tg.print, phuMo).tongPhut : null,
+      luongMoiPhutTinh(
+        lab.print.wages, lab.print.hoursPerDay,
+        lab.print.mealMorning, lab.print.mealEvening, lab.print.otFactor,
+        undefined, lab.print.tyLeTangCa, lab.print.otHours,
+      ),
+      el?.machines?.print,
+    ), ['print'], overrides));
+  }
 
-  // chia — chỉ hiện khi tick "Có chia"; mét = mét dòng in; rule theo cấu trúc màng
-  if (coChia && metIn > 0) {
+  // lật mặt — chỉ khi có phủ mờ; thời gian theo rule matte_flip (bảng máy chia); ẩn khi thuê ngoài chia
+  if (phuMo && metIn > 0 && !laGc('slit')) {
+    const ruleMatte = tg.slit.rules.find(r => r.key === 'matte_flip') ?? tg.slit.rules[0];
+    if (ruleMatte) {
+      rows.push(apDungGhiDeThoiGian(dong(
+        'lật mặt',
+        ruleMatte.setupMinutes + metIn / (ruleMatte.speedMPerMin || 1),
+        luongMoiPhutTinh(
+          lab.slit.wages, lab.slit.hoursPerDay,
+          lab.slit.mealMorning, lab.slit.mealEvening, lab.slit.otFactor,
+          undefined, lab.slit.tyLeTangCa, lab.slit.otHours,
+        ),
+        el?.machines?.slit,
+      ), ['matte'], overrides));
+    }
+  }
+
+  // ghép — setup lần đầu + mỗi lớp ghép tiếp theo setup lại; ghi đè ưu tiên lam-2 → lam-5
+  if (!laGc('laminate')) {
+    rows.push(apDungGhiDeThoiGian(dong(
+      'ghép',
+      metGhep > 0 ? tinhThoiGianMayGhep(metGhep, soLanGhep, tg.laminate).tongPhut : null,
+      luongMoiPhutTinh(
+        lab.laminate.wages, lab.laminate.hoursPerDay,
+        lab.laminate.mealMorning, lab.laminate.mealEvening, lab.laminate.otFactor,
+        undefined, lab.laminate.tyLeTangCa, lab.laminate.otHours,
+      ),
+      el?.machines?.laminate,
+    ), ['lam-2', 'lam-3', 'lam-4', 'lam-5'], overrides));
+  }
+
+  // chia — chỉ hiện khi tick "Có chia"; mét = metChiaHoacLamTui (ghép cuối hoặc in)
+  if (coChia && metIn > 0 && !laGc('slit')) {
     const ruleChia = chonRuleMayChia(tg.slit, cauTrucMang, soLanGhep);
+    const metInChia = metChiaHoacLamTui(result);
     rows.push(apDungGhiDeThoiGian(dong(
       'chia',
-      tinhThoiGianMayChia(metIn, ruleChia).tongPhut,
+      tinhThoiGianMayChia(metInChia, ruleChia).tongPhut,
       luongMoiPhutTinh(
         lab.slit.wages, lab.slit.hoursPerDay,
         lab.slit.mealMorning, lab.slit.mealEvening, lab.slit.otFactor,
@@ -533,25 +583,15 @@ export function lapDongNhanCongDien(
     ), ['chia'], overrides));
   }
 
-  // ghép — setup lần đầu + mỗi lớp ghép tiếp theo setup lại; ghi đè ưu tiên lam-2 → lam-5
-  rows.push(apDungGhiDeThoiGian(dong(
-    'ghép',
-    metGhep > 0 ? tinhThoiGianMayGhep(metGhep, soLanGhep, tg.laminate).tongPhut : null,
-    luongMoiPhutTinh(
-      lab.laminate.wages, lab.laminate.hoursPerDay,
-      lab.laminate.mealMorning, lab.laminate.mealEvening, lab.laminate.otFactor,
-      undefined, lab.laminate.tyLeTangCa, lab.laminate.otHours,
-    ),
-    el?.machines?.laminate,
-  ), ['lam-2', 'lam-3', 'lam-4', 'lam-5'], overrides));
-
-  // làm túi — setup theo loại túi + tốc độ theo bước cắt
-  if (!laMang) {
+  // làm túi — TG = setup + (Đầu vào NVL × số phần tử) / tốc độ
+  // mét = (cutMeters+cutWaste) × soPhanTu (Có chia). KHÔNG dùng mét ghép cuối / số túi.
+  if (!laMang && !laGc('bag')) {
     const setupTui = chonSetupMayTui(tg.bag, bagType, hasZipper, cutStepM);
     const tocDoTui = chonTocDoMayTui(tg.bag, cutStepM);
+    const metInLamTui = metLamTuiTuDauVaoNVL(result);
     rows.push(apDungGhiDeThoiGian(dong(
       'làm túi',
-      soTui > 0 ? tinhThoiGianMayTui(soTui, setupTui, tocDoTui).tongPhut : null,
+      metInLamTui > 0 ? tinhThoiGianMayTui(metInLamTui, setupTui, tocDoTui).tongPhut : null,
       luongMoiPhutTuiAp(
         luongMoiPhutTinh(
           lab.bag.wages, lab.bag.hoursPerDay,
@@ -591,5 +631,185 @@ export function tinhTongNangCao(
     tongVatLieu,
     tongNhanCongDien,
     tongGiaThanh: tongVatLieu + tongNhanCongDien,
+  };
+}
+
+// ── Kết quả hiệu lực cho tab tính giá nâng cấp ────────────────────────────────
+// Giá mỗi sản phẩm của tab nâng cấp lấy từ TỔNG bảng đặc tả nâng cao (thay thế
+// giá vốn SX của engine):
+//   tongSX = tongGiaThanh − phụ kiện (zipper/băng keo/quai) + CP thời gian in màng
+//   doanhThu = tongSX × (1 + LN%)
+//   giá vốn/đơn vị = doanhThu ÷ số lượng
+//   giá cuối = giá vốn/đơn vị + phụ kiện + thùng + vận chuyển + lãi vay + hoa hồng
+//              + trục phân bổ + phụ phí gia công
+// Override hiệu lực: Admin thắng nếu có, ngược lại Sale (giống bảng ghi đè cũ).
+export interface KetQuaNangCaoHieuLuc {
+  /** Clone của result với các field giá thay bằng giá tính từ bảng nâng cao */
+  result: CalculateResult;
+  /** Tổng bảng nâng cao (gồm phụ kiện + CP gia công ngoài) */
+  tongGiaThanh: number;
+  /** Cơ sở giá thành SX (không gồm phụ kiện, đã cộng CP thời gian in màng) */
+  tongSX: number;
+  tyLeLoiNhuan: number;
+  tienLoiNhuan: number;
+  doanhThu: number;
+  giaVonDonVi: number;
+  laiSuatPerDonVi: number;
+  hoaHongPerDonVi: number;
+  giaCuoiCung: number;
+}
+
+export function tinhKetQuaNangCaoHieuLuc(params: {
+  result: CalculateResult;
+  uniRows: UniRow[];
+  constants: AppConstants;
+  materials?: Material[];
+  saleOverrides?: OverrideTable;
+  adminOverrides?: OverrideTable;
+  saleProfitRatePct?: number;
+  adminProfitRatePct?: number;
+  profitTable: ProfitRow[];
+}): KetQuaNangCaoHieuLuc {
+  const {
+    result,
+    uniRows,
+    constants,
+    materials = [],
+    saleOverrides = {},
+    adminOverrides = {},
+    saleProfitRatePct = 0,
+    adminProfitRatePct = 0,
+    profitTable,
+  } = params;
+
+  const adminDangHoatDong = Object.keys(adminOverrides).length > 0;
+  const activeOv = adminDangHoatDong
+    ? adminOverrides
+    : Object.keys(saleOverrides).length > 0
+      ? saleOverrides
+      : {};
+  const sourceOv = adminDangHoatDong ? saleOverrides : {};
+  const hasAnyOverride = Object.keys(activeOv).length > 0;
+
+  const dongDaXuLy: UniRow[] = hasAnyOverride
+    ? xuLyDongGhiDe(uniRows, sourceOv, activeOv).rows
+    : uniRows;
+
+  const dongVatLieu = lapDongVatLieuNangCao(
+    result,
+    dongDaXuLy,
+    constants,
+    materials,
+    hasAnyOverride ? activeOv : undefined,
+  );
+  const dongNCD = lapDongNhanCongDien(
+    result,
+    constants,
+    hasAnyOverride ? activeOv : undefined,
+  );
+  const tong = tinhTongNangCao(dongVatLieu, dongNCD);
+
+  const soLuong = so(result?.input?.quantity);
+  const phuKien =
+    so(result?.zipperTotal) + so(result?.tapeTotal) + so(result?.handleTotal);
+  const printFilmCost =
+    (uniRows ?? []).find((row) => so(row.printFilmCost) > 0)?.printFilmCost ?? 0;
+  // Chi phí engine có nhưng không nằm trong uniRows (VD: bao PP gia công) —
+  // tránh bảng nâng cấp thiếu sót so với giá thành engine.
+  const tongDongUniRows = (uniRows ?? []).reduce(
+    (s, row) => s + so(row.costCPSX) + so(row.costMat),
+    0,
+  );
+  const phanChuaTrongBang = Math.max(
+    0,
+    so(result?.totalProductionCost) - tongDongUniRows - printFilmCost,
+  );
+  const tongSX = tong.tongGiaThanh - phuKien + printFilmCost + phanChuaTrongBang;
+
+  // LN% — ghi đè LN (Admin/Sale) thắng, còn lại tra bảng theo tongSX (giống engine)
+  const isPrintFilmOnly =
+    result?.input?.productType === 'mang' &&
+    result?.input?.filmType === 'mangIn' &&
+    !result.input.layer2Id &&
+    !result.input.layer2AltId &&
+    !result.input.layer3Id &&
+    !result.input.layer4Id &&
+    !result.input.layer5Id;
+  const tyLeLoiNhuan =
+    adminProfitRatePct > 0
+      ? adminProfitRatePct / 100
+      : saleProfitRatePct > 0
+        ? saleProfitRatePct / 100
+        : isPrintFilmOnly
+          ? (constants?.printFilmProfitRates ?? []).find(
+              (row) =>
+                row.customerGroup ===
+                  (result?.input?.printFilmCustomerGroup ?? 'normal') &&
+                (result?.input?.numColors ?? 0) >= row.colorFrom &&
+                (result?.input?.numColors ?? 0) <= row.colorTo,
+            )?.rate ?? result?.profitRate ?? 0
+          : traLoiNhuanTheoBang(
+              tongSX,
+              result?.input?.profitColumn ?? 2,
+              profitTable,
+              result?.input?.printFilmCustomerGroup ?? 'normal',
+            );
+
+  const tienLoiNhuan = tyLeLoiNhuan * tongSX;
+  const doanhThu = tongSX + tienLoiNhuan;
+  const giaVonDonVi = soLuong > 0 ? doanhThu / soLuong : 0;
+
+  // Lãi vay — cùng công thức engine nhưng trên giá vốn+LN mới
+  const laiSuatPerDonVi = isPrintFilmOnly
+    ? giaVonDonVi * (result?.interestBase ?? 0.01)
+    : ((so(result?.interestBase) + so(result?.interestSpread)) / 12) *
+      ((result?.input?.paymentDays ?? 30) / 30) *
+      giaVonDonVi;
+
+  // Hoa hồng — cùng công thức engine nhưng trên tongSX mới
+  const hoaHongPerDonVi =
+    soLuong > 0
+      ? (result?.input?.commissionFixedVND ?? 0) > 0
+        ? result?.input?.commissionFixedVND ?? 0
+        : (result?.input?.commissionRate ?? 0) * (tongSX / soLuong)
+      : 0;
+
+  const giaCuoiCung =
+    giaVonDonVi +
+    so(result?.zipperPerUnit) +
+    so(result?.tapePerUnit) +
+    so(result?.handlePerUnit) +
+    so(result?.boxPerUnit) +
+    so(result?.shippingPerUnit) +
+    laiSuatPerDonVi +
+    hoaHongPerDonVi +
+    so(result?.cylAllocPerUnit) +
+    so(result?.gcShippingPerUnit) +
+    so(result?.gcPackagingPerUnit) +
+    so(result?.gcOtherPerUnit);
+
+  const ketQua: CalculateResult = {
+    ...result,
+    totalProductionCost: tongSX,
+    profitRate: tyLeLoiNhuan,
+    profitAmount: tienLoiNhuan,
+    revenue: doanhThu,
+    costPerUnit: giaVonDonVi,
+    interestPerUnit: laiSuatPerDonVi,
+    commissionPerUnit: hoaHongPerDonVi,
+    finalPrice: giaCuoiCung,
+  };
+
+  return {
+    result: ketQua,
+    tongGiaThanh: tong.tongGiaThanh,
+    tongSX,
+    tyLeLoiNhuan,
+    tienLoiNhuan,
+    doanhThu,
+    giaVonDonVi,
+    laiSuatPerDonVi,
+    hoaHongPerDonVi,
+    giaCuoiCung,
   };
 }

@@ -9,6 +9,7 @@ import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { getPricingWorkflowStatus } from '../lib/history-filters';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { idChiaSeBangTinh, taoUrlChiaSeTinhGia } from '../lib/tinh-gia-route';
+import { dieuHuongMenuApp } from '../lib/menu-route';
 import { QrevStyleInjector } from './qrev-styles';
 import { xoaPricingSheetService } from '../lib/api/service-lts';
 import { exportPricingDetailToA4 } from '../lib/pricing-detail-export';
@@ -148,6 +149,13 @@ export default function ModuleDanhSachTinhGia({
   const pageItems = dsDaHienThi.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const moLaiTinhGia = (id: string) => {
+    const item = lichSu.find(h => h.id === id);
+    // Bảng tính nâng cấp → mở đúng tab "nâng cấp" (route riêng)
+    if (item?.isNangCap) {
+      dieuHuongMenuApp('tao-tinh-gia-nang-cap');
+      taiLichSu(id);
+      return;
+    }
     taiLichSu(id);
     khiDieuHuong?.('calculator');
   };
@@ -223,7 +231,14 @@ export default function ModuleDanhSachTinhGia({
               <FileText size={15} />
             </div>
             <div className="qrev-cell-quote-text">
-              <span className="qrev-cell-name">{h.productName}</span>
+              <span className="qrev-cell-name">
+                {h.productName}
+                {h.isNangCap && (
+                  <span className="qrev-badge" style={{ background: 'rgba(124,58,237,0.12)', color: '#7c3aed', marginLeft: 8, fontWeight: 600 }}>
+                    🚀 Nâng cấp
+                  </span>
+                )}
+              </span>
               <span className="qrev-cell-sub">{h.structure}</span>
             </div>
           </div>

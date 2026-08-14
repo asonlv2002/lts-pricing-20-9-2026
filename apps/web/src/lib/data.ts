@@ -1,4 +1,4 @@
-import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate, PrintPressLabor, PrintPressElectric, PrintPressTime, LaminatePressLabor, LaminatePressElectric, LaminatePressTime, SlitPressLabor, SlitPressElectric, SlitPressTime, SlitPressTimeRule, BagPressLabor, BagPressElectric, BagPressTime, BagPressSetupRule, BagPressSpeedRule, CpsxUpgradeElectric, CpsxUpgradeLabor, CpsxUpgradeLabor1May, CpsxUpgradeLaborTui, CpsxUpgradeInk, CpsxUpgradeThoiGian, MucInTable, MucInRow, SolventAdhesiveTable, SolventAdhesiveRow, KeoRow, DinhMucInRow, DinhMucGhep } from './types';
+import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate, PrintPressLabor, PrintPressElectric, PrintPressTime, LaminatePressLabor, LaminatePressElectric, LaminatePressTime, SlitPressLabor, SlitPressElectric, SlitPressTime, SlitPressTimeRule, BagPressLabor, BagPressElectric, BagPressTime, BagPressSetupRule, BagPressSpeedRule, CpsxTuiSpeedRule, CpsxUpgradeElectric, CpsxUpgradeLabor, CpsxUpgradeLabor1May, CpsxUpgradeLaborTui, CpsxUpgradeInk, CpsxUpgradeThoiGian, MucInTable, MucInRow, SolventAdhesiveTable, SolventAdhesiveRow, KeoRow, DinhMucInRow, DinhMucGhep } from './types';
 import { chuanHoaCpsxUpgradeElectric } from './cpsx-upgrade-electric';
 import { chuanHoaCpsxUpgradeLabor } from './cpsx-upgrade-labor';
 import { chuanHoaCpsxUpgradeInk } from './cpsx-upgrade-ink';
@@ -113,8 +113,8 @@ export const DEFAULT_SLIT_PRESS_ELECTRIC: SlitPressElectric = {
 };
 
 export const DEFAULT_SLIT_PRESS_TIME_RULES: SlitPressTimeRule[] = [
-  { key: 'opp_mattopp', label: 'Màng OPP / MattOPP', setupMinutes: 30, speedMPerMin: 180 },
-  { key: 'mpet_pet', label: 'Màng MPET / PET', setupMinutes: 20, speedMPerMin: 90 },
+  { key: 'opp_mattopp', label: 'Màng OPP, MattOPP', setupMinutes: 30, speedMPerMin: 180 },
+  { key: 'mpet_pet', label: 'Màng MPET, PET', setupMinutes: 20, speedMPerMin: 90 },
   { key: 'laminate_2', label: 'Màng ghép 2 lớp', setupMinutes: 20, speedMPerMin: 145 },
   { key: 'laminate_3', label: 'Màng ghép 3 lớp', setupMinutes: 20, speedMPerMin: 90 },
   { key: 'matte_flip', label: 'In phủ mờ (lật mặt)', setupMinutes: 20, speedMPerMin: 150 },
@@ -203,6 +203,14 @@ export const DEFAULT_BAG_PRESS_SPEED_RULES: BagPressSpeedRule[] = [
   { key: '300_400', label: '300 – ≤400 mm', maxStepMm: 400, bagsPerMinute: 60 },
   { key: '400_550', label: '400 – ≤550 mm', maxStepMm: 550, bagsPerMinute: 50 },
   { key: 'gt_550', label: '> 550 mm', maxStepMm: null, bagsPerMinute: 20 },
+];
+
+export const DEFAULT_CPSX_TUI_SPEED_RULES: CpsxTuiSpeedRule[] = [
+  { key: 'le_200', label: '≤ 200 mm', maxStepMm: 200, speedMPerMin: 80 },
+  { key: '200_300', label: '200 – ≤300 mm', maxStepMm: 300, speedMPerMin: 70 },
+  { key: '300_400', label: '300 – ≤400 mm', maxStepMm: 400, speedMPerMin: 60 },
+  { key: '400_550', label: '400 – ≤550 mm', maxStepMm: 550, speedMPerMin: 50 },
+  { key: 'gt_550', label: '> 550 mm', maxStepMm: null, speedMPerMin: 20 },
 ];
 
 export const DEFAULT_BAG_PRESS_TIME: BagPressTime = {
@@ -431,7 +439,7 @@ export const DEFAULT_CPSX_UPGRADE_THOIGIAN: CpsxUpgradeThoiGian = {
   },
   bag: {
     setupRules: DEFAULT_BAG_PRESS_SETUP_RULES.map((r) => ({ ...r })),
-    speedRules: DEFAULT_BAG_PRESS_SPEED_RULES.map((r) => ({ ...r })),
+    speedRules: DEFAULT_CPSX_TUI_SPEED_RULES.map((r) => ({ ...r })),
   },
 };
 

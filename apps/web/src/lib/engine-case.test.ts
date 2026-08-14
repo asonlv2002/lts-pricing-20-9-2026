@@ -121,7 +121,7 @@ console.log(`  cutMeters  = ${CS}×${QTY}     = ${fmt(cutMeters)}m  (Excel: 12.0
 console.log(`  cutWaste   = ${fmt(cutMeters)}/3000×20+100 = ${cutWasteCut.toFixed(1)}m  (Excel: 180)`);
 console.log(`  ghepMeters = ${fmt(cutMeters)}+${cutWasteCut.toFixed(0)} = ${fmt(ghepMeters)}m  (Excel: 12.180)`);
 console.log(`  ghepWaste  = ${fmt(ghepMeters)}/${cons.ghepWasteA||3000}×${cons.ghepWasteB||20}+${cons.ghepWasteC||100} = ${ghepWaste.toFixed(1)}m  (Excel: 181)`);
-console.log(`  printMeters= ${fmt(ghepMeters)}+${ghepWaste.toFixed(0)} = ${fmt(printMeters)}m  (Excel: 12.361 TP + 1282 waste = ~13.644 đầu vào)`);
+console.log(`  printMeters= ${fmt(ghepMeters)}+${ghepWaste.toFixed(0)} = ${fmt(printMeters)}m  (Excel: 12.361 TP; waste = m/6000×40 = ~82, đầu vào ~12.443)`);
 
 // Engine output
 console.log('\n═══ ENGINE OUTPUT ═══');
@@ -148,13 +148,13 @@ check('IN:   printMeters = 12.361m',  r.layers.print.meters, 12361, 2);
 console.log('\n  [PHI HAO]');
 check('CẮT:  cutWaste = 180m',        r.layers.cut.waste,    180,   2);
 if (lam) check('GHÉP: lamWaste = 181m',   lam.waste, 181, 2);
-check('IN:   printWaste = 1.282m',    r.layers.print.waste,  1282,  5);
+check('IN:   printWaste = 82m (đã bỏ colorSetup)',    r.layers.print.waste,  82,  5);
 
 console.log('\n  [ĐẦU VÀO NVL = TP + phi hao]');
 const printInputVL = r.layers.print.meters + r.layers.print.waste;
 const ghepInputVL  = lam ? lam.meters + lam.waste : 0;
 const cutInputVL   = r.layers.cut.meters + r.layers.cut.waste;
-check('IN:   đầu vào = 13.644m',  printInputVL, 13644, 2);
+check('IN:   đầu vào = 12.443m',  printInputVL, 12443, 2);
 if (lam) check('GHÉP: đầu vào = 12.361m', ghepInputVL, 12361, 2);
 check('CẮT:  đầu vào = 12.180m', cutInputVL,   12180, 2);
 

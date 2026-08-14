@@ -110,11 +110,11 @@ const thoiGian: CpsxUpgradeThoiGian = {
       { key: 'cut_seal', label: 'Túi cắt Seal', setupMinutes: 90 },
     ],
     speedRules: [
-      { key: 'le_200', label: '≤ 200 mm', maxStepMm: 200, bagsPerMinute: 80 },
-      { key: '200_300', label: '200 – ≤300 mm', maxStepMm: 300, bagsPerMinute: 70 },
-      { key: '300_400', label: '300 – ≤400 mm', maxStepMm: 400, bagsPerMinute: 60 },
-      { key: '400_550', label: '400 – ≤550 mm', maxStepMm: 550, bagsPerMinute: 50 },
-      { key: 'gt_550', label: '> 550 mm', maxStepMm: null, bagsPerMinute: 20 },
+      { key: 'le_200', label: '≤ 200 mm', maxStepMm: 200, speedMPerMin: 80 },
+      { key: '200_300', label: '200 – ≤300 mm', maxStepMm: 300, speedMPerMin: 70 },
+      { key: '300_400', label: '300 – ≤400 mm', maxStepMm: 400, speedMPerMin: 60 },
+      { key: '400_550', label: '400 – ≤550 mm', maxStepMm: 550, speedMPerMin: 50 },
+      { key: 'gt_550', label: '> 550 mm', maxStepMm: null, speedMPerMin: 20 },
     ],
   },
 };
@@ -442,7 +442,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 
 {
   const rows = lapDongVatLieuNangCao(taoResult(), taoUniRows(), taoHangSo());
-  eq(rows.map(r => r.congDoan), ['CPSX IN', 'GHÉP (Lớp 2)', 'CẮT', 'làm túi'], 'túi: 4 dòng');
+  eq(rows.map(r => r.congDoan), ['CPSX IN', 'GHÉP (Lớp 2)', 'làm túi', ''], 'túi: 4 dòng (cắt + phụ kiện gộp nhãn "làm túi")');
 
   const dongIn = rows[0];
   approx(dongIn.cpMucKeo!, 1640, 'dòng in: 1640 ₫/m²');
@@ -459,8 +459,8 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   eq(dongChia.thanhTienMucKeo, null, 'dòng chia: thành tiền mực/keo = null');
 
   const dongTui = rows[3];
-  eq(dongTui.congDoan, 'làm túi', 'dòng làm túi tồn tại');
-  eq(dongTui.vatLieu, 'Zipper', 'làm túi: vật liệu = Zipper (không còn Khóa)');
+  eq(dongTui.congDoan, '', 'dòng phụ kiện: nhãn trống (thuộc công đoạn "làm túi")');
+  eq(dongTui.vatLieu, 'Zipper', 'phụ kiện: vật liệu = Zipper');
   approx(dongTui.thanhTienNVL!, 1600000, 'làm túi: thành tiền = tổng phụ kiện');
   eq(dongTui.cpMucKeo, null, 'làm túi: mực/keo = null');
   eq(dongTui.dauVaoNVL, null, 'làm túi: đầu vào NVL = null (khác đơn vị)');
@@ -528,8 +528,8 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   // Đủ 3 phụ kiện → "Zipper + Băng keo + Quai"
   const r = taoResult({ zipperTotal: 800000, tapeTotal: 50000, handleTotal: 30000 });
   const rows = lapDongVatLieuNangCao(r, taoUniRows(), taoHangSo());
-  const dongTui = rows.find(x => x.congDoan === 'làm túi')!;
-  eq(dongTui.vatLieu, 'Zipper + Băng keo + Quai', 'làm túi: gộp đủ 3 phụ kiện');
+  const dongTui = rows.find(x => x.vatLieu?.includes('Zipper'))!;
+  eq(dongTui.vatLieu, 'Zipper + Băng keo + Quai', 'phụ kiện: gộp đủ 3 phụ kiện');
   approx(dongTui.thanhTienNVL!, 880000, 'làm túi: thành tiền = Zipper + băng keo + quai');
 }
 
@@ -632,17 +632,17 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Phụ kiện = 0 → ẩn dòng làm túi
+  // Phụ kiện = 0 → ẩn dòng phụ kiện (dòng cắt vẫn còn nhãn "làm túi")
   const r0 = taoResult({ zipperTotal: 0, tapeTotal: 0, handleTotal: 0 });
   const rows = lapDongVatLieuNangCao(r0, taoUniRows(), taoHangSo());
-  assert(!rows.some(r => r.congDoan === 'làm túi'), 'phụ kiện 0 → ẩn dòng làm túi');
+  assert(!rows.some(r => r.vatLieu?.includes('Zipper')), 'phụ kiện 0 → ẩn dòng phụ kiện');
 }
 
 {
   // Nhiều phụ kiện → gộp 1 dòng, cột Vật liệu liệt kê
   const rPk = taoResult({ zipperTotal: 1000000, tapeTotal: 500000, handleTotal: 300000 });
   const rows = lapDongVatLieuNangCao(rPk, taoUniRows(), taoHangSo());
-  const dongTui = rows.find(r => r.congDoan === 'làm túi')!;
+  const dongTui = rows.find(r => r.vatLieu?.includes('Zipper'))!;
   approx(dongTui.thanhTienNVL!, 1800000, 'gộp 3 phụ kiện = 1.800.000');
   assert(dongTui.vatLieu.includes('Zipper'), 'liệt kê Zipper');
   assert(dongTui.vatLieu.includes('Băng keo'), 'liệt kê Băng keo');
@@ -684,10 +684,10 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   const rows = lapDongNhanCongDien(taoResult(), taoHangSo());
   eq(rows.map(r => r.congDoan), ['in', 'ghép', 'làm túi'], 'không Có chia → 3 dòng (không có chia)');
 
-  // in: setup = 4 × (15 + 20) = 140 phút; chạy = 8420/150 = 56,13 phút
-  // tổng = 196,13 phút (không phủ mờ vì hasMo không set)
+  // in: setup = 4 × 15 + 20 = 80 phút; chạy = 8420/150 = 56,13 phút
+  // tổng = 136,13 phút (duyệt mẫu chỉ 1 lần, không nhân số màu)
   const dongIn = rows[0];
-  approx(dongIn.thoiGianPhut!, 4 * 35 + 8420 / 150, 'in: thời gian SX');
+  approx(dongIn.thoiGianPhut!, 4 * 15 + 20 + 8420 / 150, 'in: thời gian SX');
 
   // điện in = 100 × 0.8 × 3000 / 60 = 4000 ₫/phút
   approx(dongIn.cpDienPerPhut!, 4000, 'in: 4000 ₫/phút điện');
@@ -706,50 +706,109 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(rows[1].thoiGianPhut!, 10 + 8770 / 100, 'ghép: thời gian SX');
   approx(rows[1].cpDienPerPhut!, 50 * 0.8 * 3000 / 60, 'ghép: 2000 ₫/phút điện');
 
-  // làm túi: 3 biên (90') · bước 0,4m = 400mm → ≤400mm (60 cái/phút)
-  approx(rows[2].thoiGianPhut!, 90 + 10000 / 60, 'làm túi: thời gian theo số chiếc');
+  // làm túi: 3 biên (90') · bước 0,4m → 60 m/phút; không chia → ×1
+  // mét = cutMeters+cutWaste = 9070+280 = 9350
+  approx(rows[2].thoiGianPhut!, 90 + 9350 / 60, 'làm túi không chia: met = 9350 ÷ 60');
+  assert(
+    Math.abs(rows[2].thoiGianPhut! - (90 + 8770 / 60)) > 1,
+    'làm túi: TG ≠ setup + mét ghép cuối',
+  );
+  assert(
+    Math.abs(rows[2].thoiGianPhut! - (90 + 10000 / 60)) > 1,
+    'làm túi: TG ≠ setup + số túi÷cái/phút',
+  );
   approx(rows[2].cpNhanCongPerPhut!, 333, 'làm túi 3 máy: 1000 ÷ 3 = 333');
 }
 
 {
-  // Có chia (hasDivide) → thêm dòng "chia" sau "in": mét = mét in (8420), rule theo cấu trúc
-  const rChia = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, hasDivide: true } });
+  // Có chia (hasDivide) → thêm dòng "chia" sau "ghép": mét = đầu ra cuối ghép (lam[0].meters + waste = 8420+350 = 8770)
+  const rChia = taoResult({
+    input: {
+      productType: 'tui',
+      numColors: 4,
+      quantity: 10000,
+      bagType: '3bien',
+      cutStep: 0.4,
+      hasZipper: false,
+      hasDivide: true,
+    },
+  });
   const rowsChia = lapDongNhanCongDien(rChia, taoHangSo());
-  eq(rowsChia.map(r => r.congDoan), ['in', 'chia', 'ghép', 'làm túi'], 'Có chia → in, chia, ghép, làm túi');
+  eq(rowsChia.map(r => r.congDoan), ['in', 'ghép', 'chia', 'làm túi'], 'Có chia → in, ghép, chia, làm túi');
 
   // Có ghép (1 lần ghép) → ưu tiên laminate_2 (20' setup, 145 m/phút), kể cả khi chất liệu có PET
-  const dongChia = rowsChia[1];
-  approx(dongChia.thoiGianPhut!, 20 + 8420 / 145, 'chia: mét = mét in + rule laminate_2 (ghép ưu tiên)');
+  // metInChia = lamination[0].meters + lamination[0].waste = 8420 + 350 = 8770
+  const dongChia = rowsChia[2];
+  approx(dongChia.thoiGianPhut!, 20 + 8770 / 145, 'chia: metIn = đầu ra cuối ghép (TP + phi hao) + rule laminate_2');
   approx(dongChia.cpNhanCongPerPhut!, 736, 'chia: lương máy chia 736 ₫/phút');
   approx(dongChia.cpDienPerPhut!, 25 * 0.8 * 3000 / 60, 'chia: điện máy chia 1000 ₫/phút');
   approx(dongChia.thanhTienNhanCong, dongChia.thoiGianPhut! * 736, 'chia: thành tiền NC');
   approx(dongChia.thanhTienDien, dongChia.thoiGianPhut! * 1000, 'chia: thành tiền điện');
+
+  // làm túi + có chia nhưng không set divideElements → ×1; mét gốc cut 9350
+  const dongTuiChia = rowsChia[3];
+  approx(dongTuiChia.thoiGianPhut!, 90 + 9350 / 60, 'làm túi + có chia N mặc định 1: met = 9350');
 }
 
 {
-  // Có chia + 1 lớp (không ghép) + PET → mpet_pet (chỉ 1 lớp mới dùng theo chất liệu)
+  // Có chia × số phần tử; quantity không ảnh hưởng
+  const rN2 = taoResult({
+    cutMeters: 25000,
+    cutWaste: 267,
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000, bagType: '3bien',
+      cutStep: 0.5, hasZipper: false, hasDivide: true, divideElements: 2,
+    },
+  });
+  const rN4 = taoResult({
+    cutMeters: 25000,
+    cutWaste: 267,
+    input: {
+      productType: 'tui', numColors: 4, quantity: 50000, bagType: '3bien',
+      cutStep: 0.5, hasZipper: false, hasDivide: true, divideElements: 4,
+    },
+  });
+  const rNoChia = taoResult({
+    cutMeters: 25000,
+    cutWaste: 267,
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000, bagType: '3bien',
+      cutStep: 0.5, hasZipper: false, hasDivide: false, divideElements: 4,
+    },
+  });
+  const t2 = lapDongNhanCongDien(rN2, taoHangSo()).find(r => r.congDoan === 'làm túi')!;
+  const t4 = lapDongNhanCongDien(rN4, taoHangSo()).find(r => r.congDoan === 'làm túi')!;
+  const t0 = lapDongNhanCongDien(rNoChia, taoHangSo()).find(r => r.congDoan === 'làm túi')!;
+  // bước 0,5m → 50 m/phút
+  approx(t2.thoiGianPhut!, 90 + (25267 * 2) / 50, 'làm túi N=2: 90 + 50534/50');
+  approx(t4.thoiGianPhut!, 90 + (25267 * 4) / 50, 'làm túi N=4: 90 + 101068/50');
+  approx(t0.thoiGianPhut!, 90 + 25267 / 50, 'làm túi không chia: không × divideElements');
+}
+
+{
+  // Có chia + 1 lớp (không ghép) + PET → mpet_pet; metInChia fallback = metIn (in) = 8420
   const rMotLop = taoResult({
     input: { productType: 'tui', numColors: 4, quantity: 10000, hasDivide: true },
     layers: { print: {}, laminations: [], cut: {} },
   });
   const rowsMotLop = lapDongNhanCongDien(rMotLop, taoHangSo());
-  // 1 lớp PET → mpet_pet
-  approx(rowsMotLop[1].thoiGianPhut!, 20 + 8420 / 90, 'chia: 1 lớp PET → mpet_pet');
+  // 1 lớp PET → mpet_pet; không ghép → metIn = printMeters + printWaste = 8000+420 = 8420
+  approx(rowsMotLop[2].thoiGianPhut!, 20 + 8420 / 90, 'chia: 1 lớp PET, không ghép → metIn in → mpet_pet');
 }
 
 {
-  // Có chia + OPP 1 lớp → rule opp_mattopp (30' + 180 m/phút)
+  // Có chia + OPP 1 lớp → rule opp_mattopp; không ghép → metIn = 8420
   const rOpp = taoResult({
     input: { productType: 'tui', numColors: 4, quantity: 10000, hasDivide: true },
-    structureText: 'BOPP 18',  // chỉ 1 lớp OPP
+    structureText: 'BOPP 18',
     layers: { print: {}, laminations: [], cut: {} },
   });
   const rowsOpp = lapDongNhanCongDien(rOpp, taoHangSo());
-  approx(rowsOpp[1].thoiGianPhut!, 30 + 8420 / 180, 'chia: 1 lớp OPP → opp_mattopp');
+  approx(rowsOpp[2].thoiGianPhut!, 30 + 8420 / 180, 'chia: 1 lớp OPP, không ghép → opp_mattopp (setup 30)');
 }
 
 {
-  // Có chia + ≥2 lần ghép → laminate_3
+  // Có chia + ≥2 lần ghép → lamination cuối (lam[1]) = 8770+300 = 9070 → laminate_3
   const r3Lop = taoResult({
     input: { productType: 'tui', numColors: 4, quantity: 10000, hasDivide: true },
     layers: {
@@ -759,22 +818,30 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     },
   });
   const rows3Lop = lapDongNhanCongDien(r3Lop, taoHangSo());
-  approx(rows3Lop[1].thoiGianPhut!, 20 + 8420 / 90, 'chia: 3 lớp (2 ghép) → laminate_3');
+  approx(rows3Lop[2].thoiGianPhut!, 20 + 9070 / 90, 'chia: 2 lần ghép → metIn = lamination cuối');
 }
 
 {
-  // Phủ mờ (hasMo) → in + 80 phút; KHÔNG tạo dòng chia (không Có chia)
+  // Phủ mờ (hasMo) → in + 80 phút + thêm dòng "lật mặt" giữa in và ghép
   const rMo = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, metallicSurcharge: 200, hasMo: true } });
   const rowsMo = lapDongNhanCongDien(rMo, taoHangSo());
-  approx(rowsMo[0].thoiGianPhut!, 4 * 35 + 8420 / 150 + 80, 'phủ mờ: in + 80 phút');
-  eq(rowsMo.map(r => r.congDoan), ['in', 'ghép', 'làm túi'], 'phủ mờ không Có chia → không có dòng chia');
+  approx(rowsMo[0].thoiGianPhut!, 4 * 15 + 20 + 8420 / 150 + 80, 'phủ mờ: in + 80 phút');
+  eq(rowsMo.map(r => r.congDoan), ['in', 'lật mặt', 'ghép', 'làm túi'], 'phủ mờ → in, lật mặt, ghép, làm túi');
+
+  // lật mặt: setup matte_flip 20' + mét in ÷ 150 = 20 + 8420/150 = 76,13 phút; NC/điện theo máy chia
+  const dongLatMat = rowsMo[1];
+  approx(dongLatMat.thoiGianPhut!, 20 + 8420 / 150, 'lật mặt: setup matte_flip + mét ÷ tốc độ');
+  approx(dongLatMat.cpNhanCongPerPhut!, 736, 'lật mặt: lương máy chia 736 ₫/phút');
+  approx(dongLatMat.cpDienPerPhut!, 25 * 0.8 * 3000 / 60, 'lật mặt: điện máy chia 1000 ₫/phút');
+  approx(dongLatMat.thanhTienNhanCong, dongLatMat.thoiGianPhut! * 736, 'lật mặt: thành tiền NC');
+  approx(dongLatMat.thanhTienDien, dongLatMat.thoiGianPhut! * 1000, 'lật mặt: thành tiền điện');
 }
 
 {
   // Nhũ (hasNhu) KHÔNG cộng 80 phút
   const rNhu = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, metallicSurcharge: 200, hasNhu: true } });
   const rowsNhu = lapDongNhanCongDien(rNhu, taoHangSo());
-  approx(rowsNhu[0].thoiGianPhut!, 4 * 35 + 8420 / 150, 'nhũ: không +80 phút');
+  approx(rowsNhu[0].thoiGianPhut!, 4 * 15 + 20 + 8420 / 150, 'nhũ: không +80 phút');
   eq(rowsNhu.map(r => r.congDoan), ['in', 'ghép', 'làm túi'], 'nhũ không Có chia → không có dòng chia');
 }
 
@@ -799,19 +866,19 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Màng + Có chia → có dòng chia sau in (mặc định 1 lần ghép → laminate_2)
+  // Màng + Có chia → có dòng chia sau ghép (mặc định 1 lần ghép, lamination[0].meters+waste=8770)
   const rMangChia = taoResult({ input: { productType: 'mang', numColors: 4, quantity: 10000, hasDivide: true } });
   const rows = lapDongNhanCongDien(rMangChia, taoHangSo());
-  eq(rows.map(r => r.congDoan), ['in', 'chia', 'ghép'], 'màng + Có chia → in, chia, ghép');
-  approx(rows[1].thoiGianPhut!, 20 + 8420 / 145, 'màng chia: 1 lần ghép → laminate_2');
+  eq(rows.map(r => r.congDoan), ['in', 'ghép', 'chia'], 'màng + Có chia → in, ghép, chia');
+  approx(rows[2].thoiGianPhut!, 20 + 8770 / 145, 'màng chia: metIn = lamination cuối (8770) → laminate_2');
 
-  // Màng 1 lớp (không ghép) + Có chia → rule theo chất liệu
+  // Màng 1 lớp (không ghép) + Có chia → metIn = đầu vào in, rule theo chất liệu
   const rMang1lop = taoResult({
     input: { productType: 'mang', numColors: 4, quantity: 10000, hasDivide: true },
     layers: { print: {}, laminations: [], cut: {} },
   });
   const rows1lop = lapDongNhanCongDien(rMang1lop, taoHangSo());
-  approx(rows1lop[1].thoiGianPhut!, 20 + 8420 / 90, 'màng 1 lớp MPET → mpet_pet');
+  approx(rows1lop[2].thoiGianPhut!, 20 + 8420 / 90, 'màng 1 lớp (không ghép) → metIn in → mpet_pet');
 }
 
 {

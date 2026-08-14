@@ -110,7 +110,7 @@ export default function CpsxNangCapLuong() {
   };
 
   const [openMap, setOpenMap] = React.useState<Record<MayKey, boolean>>({
-    print: true,
+    print: false,
     laminate: false,
     slit: false,
     bag: false,

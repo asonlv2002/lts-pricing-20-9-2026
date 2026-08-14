@@ -260,10 +260,9 @@ section('4. ĐẶC TẢ KỸ THUẬT NVL');
   const printMeters = cutMeters + cutWaste;
   assertApprox('4A.8 printMeters = cutMeters + cutWaste (1 lớp, no lamWaste)', r.printMeters, printMeters, 0.1);
 
-  const cSetup = cons.colorSetup[input.numColors!] || 0;
-  const printWaste = cSetup + (printMeters / cons.printWasteA * cons.printWasteB)
+  const printWaste = (printMeters / cons.printWasteA * cons.printWasteB)
     + (printMeters > cons.printWasteC ? (printMeters - cons.printWasteC) / cons.printWasteC * cons.printWasteD : 0);
-  assertApprox('4A.9 printWaste đúng công thức', r.printWaste, printWaste, 0.5);
+  assertApprox('4A.9 printWaste đúng công thức (đã bỏ colorSetup)', r.printWaste, printWaste, 0.5);
 }
 
 // 4B. Túi 2 lớp

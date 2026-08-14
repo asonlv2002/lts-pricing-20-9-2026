@@ -1,8 +1,9 @@
 import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import { CalculateInput, HistoryItem, QuoteProductLine, QuoteStatus, QuoteTerms } from '../../lib/types';
-import { tinhBaoGia } from '../../lib/manager-calculation';
+import { tinhBaoGia, lapDongSanXuat } from '../../lib/manager-calculation';
 import { dongBoCotLoiNhuan } from '../../lib/engine';
+import { tinhKetQuaNangCaoHieuLuc } from '../../lib/dac-ta-nang-cao';
 import {
   layDanhSachPricingSheetService,
   layPricingSheetTheoIdService,
@@ -87,6 +88,22 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       // Tính mã khách hàng hiện tại
       const currentCustomerCode = timMaKhachHang(state.input.customer) || null;
 
+      // Tab nâng cấp: giá lưu theo bảng đặc tả nâng cao (có ghi đè)
+      const laNangCap = !!state.cheDoNangCao;
+      const ketQuaLuu = laNangCap
+        ? tinhKetQuaNangCaoHieuLuc({
+            result: state.result,
+            uniRows: lapDongSanXuat(state.result, state.constants).uniRows,
+            constants: state.constants,
+            materials: state.materials,
+            saleOverrides: state.saleOverrides,
+            adminOverrides: state.adminOverrides,
+            saleProfitRatePct: state.saleProfitRatePct,
+            adminProfitRatePct: state.adminProfitRatePct,
+            profitTable: state.profitTable,
+          }).result
+        : state.result;
+
       const item: HistoryItem = {
         id: String(now.getTime()),
         date: now.toLocaleDateString('vi-VN'),
@@ -94,9 +111,9 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         productName: state.input.productName || 'N/A',
         structure: state.result.structureText,
         quantity: state.input.quantity,
-        finalPrice: state.result.finalPrice,
+        finalPrice: ketQuaLuu.finalPrice,
         chotGia: state.currentChotGia || undefined,
-        profitRate: state.result.profitRate,
+        profitRate: ketQuaLuu.profitRate,
         isQuote: false,
         sellerId: state.currentSellerId,
         sellerName: state.currentSellerName,
@@ -104,7 +121,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         adminOverrides: Object.keys(state.adminOverrides).length > 0 ? state.adminOverrides : undefined,
         saleProfitRatePct: state.saleProfitRatePct || undefined,
         adminProfitRatePct: state.adminProfitRatePct || undefined,
-        input: { ...state.input },
+        isNangCap: laNangCap || undefined,
+        input: { ...state.input, isNangCap: laNangCap || undefined },
         originalCustomer: currentCustomerCode ?? undefined,
         // Lưu mới → luôn tạo sheet mới trên server (không copy pricingSheetId từ item cũ)
       };
@@ -323,6 +341,21 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const old = timMucLichSuTheoId(state.history, state.loadedHistoryId);
       if (!old) return state;
 
+      const laNangCap = !!state.cheDoNangCao;
+      const ketQuaLuu = laNangCap
+        ? tinhKetQuaNangCaoHieuLuc({
+            result: state.result,
+            uniRows: lapDongSanXuat(state.result, state.constants).uniRows,
+            constants: state.constants,
+            materials: state.materials,
+            saleOverrides: state.saleOverrides,
+            adminOverrides: state.adminOverrides,
+            saleProfitRatePct: state.saleProfitRatePct,
+            adminProfitRatePct: state.adminProfitRatePct,
+            profitTable: state.profitTable,
+          }).result
+        : state.result;
+
       const updated: HistoryItem = {
         ...old,
         date: new Date().toLocaleDateString('vi-VN'),
@@ -330,12 +363,12 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         productName: state.input.productName || old.productName,
         structure: state.result.structureText,
         quantity: state.input.quantity,
-        finalPrice: state.result.finalPrice,
+        finalPrice: ketQuaLuu.finalPrice,
         chotGia: state.currentChotGia || undefined,
-        profitRate: state.result.profitRate,
+        profitRate: ketQuaLuu.profitRate,
         saleOverrides: Object.keys(state.saleOverrides).length > 0 ? state.saleOverrides : undefined,
         adminOverrides: Object.keys(state.adminOverrides).length > 0 ? state.adminOverrides : undefined,
-        input: { ...state.input },
+        input: { ...state.input, isNangCap: laNangCap || undefined },
         sellerId: state.currentSellerId || old.sellerId,
         sellerName: state.currentSellerName || old.sellerName,
         saleProfitRatePct: state.saleProfitRatePct || undefined,

@@ -894,6 +894,22 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             </label>
           </div>
 
+          {input.hasDivide && (
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Số phần tử chia</label>
+                <input type="text" className="form-input" value={input.divideElements === 0 ? '' : input.divideElements} inputMode="numeric"
+                  onKeyDown={e => { if (e.key === '.' || e.key === ',' || e.key === 'e') e.preventDefault(); }}
+                  onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); if (raw === '') { capNhatDauVao({ divideElements: 0 }); return; } const v = parseInt(raw, 10); capNhatDauVao({ divideElements: Math.max(1, v) }); }}
+                  onBlur={() => { if (!input.divideElements) capNhatDauVao({ divideElements: 1 }); }} />
+              </div>
+              <div className="form-group">
+                <label className="form-label">Khổ chia (m)</label>
+                <ONhapSoThapPhan className="form-input" value={(input.divideWidthMm || 0) / 1000} step="0.001" min="0.001" onChange={(val: number) => capNhatDauVao({ divideWidthMm: Math.round(val * 1000) } as any)} />
+              </div>
+            </div>
+          )}
+
           {hienThiChonLop('Lớp 1', 'layer1Id', false)}
           {!(input as any).layer2AltId ? (
             <>

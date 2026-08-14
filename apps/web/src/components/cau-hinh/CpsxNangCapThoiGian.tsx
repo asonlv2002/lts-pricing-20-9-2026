@@ -14,13 +14,10 @@ import type {
   CpsxUpgradeThoiGian,
 } from "../../lib/types";
 import {
-  chonRuleMayChia,
   chonSetupMayTui,
   chonTocDoMayTui,
   chuanHoaCpsxUpgradeThoiGian,
-  tinhThoiGianMayChia,
-  tinhThoiGianMayGhep,
-  tinhThoiGianMayIn,
+  metLamTuiTuDauVaoNVL,
   tinhThoiGianMayTui,
   KetQuaThoiGian,
 } from "../../lib/cpsx-upgrade-thoigian";
@@ -71,7 +68,7 @@ export default function CpsxNangCapThoiGian() {
   };
 
   const [openMap, setOpenMap] = React.useState<Record<MayKey, boolean>>({
-    print: true,
+    print: false,
     laminate: false,
     slit: false,
     bag: false,
@@ -79,28 +76,11 @@ export default function CpsxNangCapThoiGian() {
   const toggle = (key: MayKey) =>
     setOpenMap((m) => ({ ...m, [key]: !m[key] }));
 
-  const previewSoMau = result?.input?.numColors ?? 0;
-  const soLanGhep = result?.layers?.laminations?.length ?? 0;
-  const previewMetIn = (result?.printMeters ?? 0) + (result?.printWaste ?? 0);
-  const previewMetGhep = (result?.layers?.laminations ?? []).reduce(
-    (sum: number, l: any) => sum + (Number(l?.meters) || 0) + (Number(l?.waste) || 0),
-    0,
-  );
-  const previewSoLuongTui = result?.input?.quantity ?? 0;
-  const phuMoAuto = result?.input?.hasMo === true;
-  const coChia = result?.input?.hasDivide === true;
-  const cauTrucMang = String(result?.structureText ?? "");
   const cutStepM = result?.input?.cutStep ?? 0;
   const bagType = String(result?.input?.bagType ?? "");
   const hasZipper = !!result?.input?.hasZipper;
 
-  const [phuMoTay, setPhuMoTay] = React.useState<boolean | null>(null);
-  const phuMo = phuMoTay ?? phuMoAuto;
-
-  const autoRuleChia = chonRuleMayChia(state.slit, cauTrucMang, soLanGhep);
-  const [ruleChiaTay, setRuleChiaTay] = React.useState<string | null>(null);
-  const ruleChia =
-    state.slit.rules.find((r) => r.key === ruleChiaTay) ?? autoRuleChia;
+  const metInLamTui = metLamTuiTuDauVaoNVL(result);
 
   const autoSetupTui = chonSetupMayTui(state.bag, bagType, hasZipper, cutStepM);
   const autoTocDoTui = chonTocDoMayTui(state.bag, cutStepM);
@@ -111,17 +91,8 @@ export default function CpsxNangCapThoiGian() {
   const tocDoTui =
     state.bag.speedRules.find((r) => r.key === tocDoTuiTay) ?? autoTocDoTui;
 
-  const kqIn = previewMetIn > 0 && previewSoMau > 0
-    ? tinhThoiGianMayIn(previewMetIn, previewSoMau, state.print, phuMo)
-    : null;
-  const kqLaminate = previewMetGhep > 0
-    ? tinhThoiGianMayGhep(previewMetGhep, soLanGhep, state.laminate)
-    : null;
-  const kqSlit = coChia && previewMetIn > 0
-    ? tinhThoiGianMayChia(previewMetIn, ruleChia)
-    : null;
-  const kqBag = previewSoLuongTui > 0
-    ? tinhThoiGianMayTui(previewSoLuongTui, setupTui, tocDoTui)
+  const kqBag = metInLamTui > 0
+    ? tinhThoiGianMayTui(metInLamTui, setupTui, tocDoTui)
     : null;
 
   const cards: Array<{
@@ -133,70 +104,53 @@ export default function CpsxNangCapThoiGian() {
     {
       key: "print",
       title: `Thời gian SX ${MAY_LABELS.print}`,
-      summary: tomTatThoiGian(kqIn, previewMetIn > 0 && previewSoMau > 0),
+      summary: "",
       body: (
         <MayInPanel
           giaTri={state.print}
           capNhat={(patch) => capNhatMay("print", patch)}
-          kq={kqIn}
-          soMau={previewSoMau}
-          metIn={previewMetIn}
-          phuMo={phuMo}
-          phuMoAuto={phuMoAuto}
-          setPhuMo={(v) => setPhuMoTay(v)}
-          coInput={previewMetIn > 0 && previewSoMau > 0}
         />
       ),
     },
     {
       key: "laminate",
       title: `Thời gian SX ${MAY_LABELS.laminate}`,
-      summary: tomTatThoiGian(kqLaminate, previewMetGhep > 0),
+      summary: "",
       body: (
         <MayGhepPanel
           giaTri={state.laminate}
           capNhat={(patch) => capNhatMay("laminate", patch)}
-          kq={kqLaminate}
-          metGhep={previewMetGhep}
-          soLanGhep={soLanGhep}
-          coInput={previewMetGhep > 0}
         />
       ),
     },
     {
       key: "slit",
       title: `Thời gian SX ${MAY_LABELS.slit}`,
-      summary: tomTatThoiGian(kqSlit, coChia && previewMetIn > 0),
+      summary: "",
       body: (
         <MayChiaPanel
           giaTri={state.slit}
           capNhat={(rules) => luu({ ...state, slit: { rules } })}
-          kq={kqSlit}
-          metChia={coChia ? previewMetIn : 0}
-          ruleChon={ruleChia}
-          autoKey={autoRuleChia.key}
-          setRuleKey={(k) => setRuleChiaTay(k)}
-          coInput={coChia && previewMetIn > 0}
         />
       ),
     },
     {
       key: "bag",
       title: `Thời gian SX ${MAY_LABELS.bag}`,
-      summary: tomTatThoiGian(kqBag, previewSoLuongTui > 0),
+      summary: tomTatThoiGian(kqBag, metInLamTui > 0),
       body: (
         <MayTuiPanel
           giaTri={state.bag}
           capNhat={(patch) => luu({ ...state, bag: { ...state.bag, ...patch } })}
           kq={kqBag}
-          soTui={previewSoLuongTui}
+          metInLamTui={metInLamTui}
           setupChon={setupTui}
           tocDoChon={tocDoTui}
           autoSetupKey={autoSetupTui.key}
           autoTocDoKey={autoTocDoTui.key}
           setSetupKey={(k) => setSetupTuiTay(k)}
           setTocDoKey={(k) => setTocDoTuiTay(k)}
-          coInput={previewSoLuongTui > 0}
+          coInput={metInLamTui > 0}
         />
       ),
     },
@@ -239,161 +193,90 @@ export default function CpsxNangCapThoiGian() {
 function MayInPanel({
   giaTri,
   capNhat,
-  kq,
-  soMau,
-  metIn,
-  phuMo,
-  phuMoAuto,
-  setPhuMo,
-  coInput,
 }: {
   giaTri: CpsxThoiGianMayIn;
   capNhat: (patch: Partial<CpsxThoiGianMayIn>) => void;
-  kq: KetQuaThoiGian | null;
-  soMau: number;
-  metIn: number;
-  phuMo: boolean;
-  phuMoAuto: boolean;
-  setPhuMo: (v: boolean) => void;
-  coInput: boolean;
 }) {
   const suaSo = (key: keyof CpsxThoiGianMayIn) => (raw: string) => {
     const v = docSoThapPhan(raw);
     capNhat({ [key]: v } as Partial<CpsxThoiGianMayIn>);
   };
 
-  const proof = soMau >= 8 ? giaTri.proofMinutes8 : giaTri.proofMinutes1to7;
-
   return (
     <div className="config-cpsx-upgrade__panel">
       <div className="config-cpsx-upgrade__formulas">
         <div className="config-cpsx-upgrade__formula-head">
-          Công thức: TG = Số màu × (Lên trục + Duyệt mẫu) + Mét ÷ Tốc độ + (Phủ mờ ? Phút phủ mờ : 0)
+          Công thức: TG = Số màu in × Thời gian lên trục + Thời gian duyệt mẫu + (Số mét phi hao + Số mét thành phẩm in) ÷ Tốc độ trung bình
         </div>
       </div>
 
-      <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
-        <table className="config-table config-cpsx-upgrade__table">
-          <thead>
-            <tr>
-              <th className="num">Lên trục (phút/màu)</th>
-              <th className="num">Duyệt 1–7 màu (phút)</th>
-              <th className="num">Duyệt 8 màu (phút)</th>
-              <th className="num">Phủ mờ thêm (phút)</th>
-              <th className="num">Tốc độ (m/phút)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="num">
-                <input
-                  type="number"
-                  className="config-inline-input"
-                  min={0}
-                  step={1}
-                  aria-label="Lên trục mỗi màu"
-                  value={giaTri.mountMinutesPerColor}
-                  onChange={(e) => suaSo("mountMinutesPerColor")(e.target.value)}
-                />
-              </td>
-              <td className="num">
-                <input
-                  type="number"
-                  className="config-inline-input"
-                  min={0}
-                  step={1}
-                  aria-label="Duyệt mẫu 1 đến 7 màu"
-                  value={giaTri.proofMinutes1to7}
-                  onChange={(e) => suaSo("proofMinutes1to7")(e.target.value)}
-                />
-              </td>
-              <td className="num">
-                <input
-                  type="number"
-                  className="config-inline-input"
-                  min={0}
-                  step={1}
-                  aria-label="Duyệt mẫu 8 màu"
-                  value={giaTri.proofMinutes8}
-                  onChange={(e) => suaSo("proofMinutes8")(e.target.value)}
-                />
-              </td>
-              <td className="num">
-                <input
-                  type="number"
-                  className="config-inline-input"
-                  min={0}
-                  step={1}
-                  aria-label="In phủ mờ thêm"
-                  value={giaTri.matteExtraMinutes}
-                  onChange={(e) => suaSo("matteExtraMinutes")(e.target.value)}
-                />
-              </td>
-              <td className="num">
-                <input
-                  type="number"
-                  className="config-inline-input"
-                  min={0}
-                  step={1}
-                  aria-label="Tốc độ máy in"
-                  value={giaTri.avgSpeedMPerMin}
-                  onChange={(e) => suaSo("avgSpeedMPerMin")(e.target.value)}
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      {coInput && kq ? (
-        <div className="config-cpsx-upgrade__formulas">
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Input hiện tại: {dinhDangSo(metIn, 0)}m · {soMau} màu
-            </span>
-            <label className="config-cpsx-upgrade__checkbox">
-              <input
-                type="checkbox"
-                checked={phuMo}
-                onChange={(e) => setPhuMo(e.target.checked)}
-              />
-              Phủ mờ{phuMoAuto ? " (tự nhận: có phủ mờ)" : ""}
-            </label>
-          </div>
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Setup = {soMau} màu × ({giaTri.mountMinutesPerColor} + {proof}) ={" "}
-              <strong>{dinhDangSo(kq.chiTiet.setupPhut, 3)} phút</strong>
-            </span>
-          </div>
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Chạy = {dinhDangSo(metIn, 0)}m ÷ {giaTri.avgSpeedMPerMin} ={" "}
-              <strong>{dinhDangSo(kq.chiTiet.chayPhut, 3)} phút</strong>
-            </span>
-          </div>
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Phủ mờ ={" "}
-              {phuMo
-                ? `+ ${giaTri.matteExtraMinutes} phút`
-                : `0 phút (không phủ mờ)`}
-            </span>
-          </div>
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Tổng ={" "}
-              <strong className="config-cpsx-upgrade__highlight">
-                {dinhDangSo(kq.tongPhut, 0)} phút
-              </strong>
-            </span>
-          </div>
+      <div className="config-cpsx-upgrade__formulas">
+        <div className="config-cpsx-upgrade__formula-row">
+          <span className="config-cpsx-upgrade__formula-label">Thời gian lên trục:</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="Lên trục mỗi màu"
+            value={giaTri.mountMinutesPerColor}
+            onChange={(e) => suaSo("mountMinutesPerColor")(e.target.value)}
+          />
+          <span className="config-cpsx-upgrade__formula-label">phút/màu</span>
         </div>
-      ) : (
-        <p className="config-note">
-          Chưa có kết quả tính giá — nhập form khách để xem preview thời gian SX.
-        </p>
-      )}
+        <div className="config-cpsx-upgrade__formula-row">
+          <span className="config-cpsx-upgrade__formula-label">Thời gian duyệt mẫu:</span>
+          <span className="config-cpsx-upgrade__formula-label">từ 1–7 màu:</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="Duyệt mẫu 1 đến 7 màu"
+            value={giaTri.proofMinutes1to7}
+            onChange={(e) => suaSo("proofMinutes1to7")(e.target.value)}
+          />
+          <span className="config-cpsx-upgrade__formula-label">phút,</span>
+          <span className="config-cpsx-upgrade__formula-label">8 màu:</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="Duyệt mẫu 8 màu"
+            value={giaTri.proofMinutes8}
+            onChange={(e) => suaSo("proofMinutes8")(e.target.value)}
+          />
+          <span className="config-cpsx-upgrade__formula-label">phút</span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row">
+          <span className="config-cpsx-upgrade__formula-label">Nếu có in phủ mờ:</span>
+          <span className="config-cpsx-upgrade__formula-op">+</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="In phủ mờ thêm"
+            value={giaTri.matteExtraMinutes}
+            onChange={(e) => suaSo("matteExtraMinutes")(e.target.value)}
+          />
+          <span className="config-cpsx-upgrade__formula-label">phút</span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row">
+          <span className="config-cpsx-upgrade__formula-label">Tốc độ trung bình:</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="Tốc độ máy in"
+            value={giaTri.avgSpeedMPerMin}
+            onChange={(e) => suaSo("avgSpeedMPerMin")(e.target.value)}
+          />
+          <span className="config-cpsx-upgrade__formula-label">m/phút</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -403,115 +286,62 @@ function MayInPanel({
 function MayGhepPanel({
   giaTri,
   capNhat,
-  kq,
-  metGhep,
-  soLanGhep,
-  coInput,
 }: {
   giaTri: CpsxThoiGianMayGhep;
   capNhat: (patch: Partial<CpsxThoiGianMayGhep>) => void;
-  kq: KetQuaThoiGian | null;
-  metGhep: number;
-  soLanGhep: number;
-  coInput: boolean;
 }) {
   const suaSo = (key: keyof CpsxThoiGianMayGhep) => (raw: string) => {
     const v = docSoThapPhan(raw);
     capNhat({ [key]: v } as Partial<CpsxThoiGianMayGhep>);
   };
 
-  const setup = giaTri.setupFirstMinutes + Math.max(0, soLanGhep - 1) * giaTri.setupNextMinutes;
-
   return (
     <div className="config-cpsx-upgrade__panel">
       <div className="config-cpsx-upgrade__formulas">
         <div className="config-cpsx-upgrade__formula-head">
-          Công thức: TG = Setup đầu + (Số lần ghép − 1) × Setup tiếp + Mét ÷ Tốc độ
+          Công thức: TG = Thời gian setup + (Số mét phi hao + Số mét thành phẩm) ÷ Tốc độ trung bình
         </div>
       </div>
 
-      <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
-        <table className="config-table config-cpsx-upgrade__table">
-          <thead>
-            <tr>
-              <th className="num">Setup lần đầu (phút)</th>
-              <th className="num">Setup lần tiếp (phút)</th>
-              <th className="num">Tốc độ (m/phút)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td className="num">
-                <input
-                  type="number"
-                  className="config-inline-input"
-                  min={0}
-                  step={1}
-                  aria-label="Setup lần đầu máy ghép"
-                  value={giaTri.setupFirstMinutes}
-                  onChange={(e) => suaSo("setupFirstMinutes")(e.target.value)}
-                />
-              </td>
-              <td className="num">
-                <input
-                  type="number"
-                  className="config-inline-input"
-                  min={0}
-                  step={1}
-                  aria-label="Setup lần tiếp theo máy ghép"
-                  value={giaTri.setupNextMinutes}
-                  onChange={(e) => suaSo("setupNextMinutes")(e.target.value)}
-                />
-              </td>
-              <td className="num">
-                <input
-                  type="number"
-                  className="config-inline-input"
-                  min={0}
-                  step={1}
-                  aria-label="Tốc độ máy ghép"
-                  value={giaTri.avgSpeedMPerMin}
-                  onChange={(e) => suaSo("avgSpeedMPerMin")(e.target.value)}
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-
-      {coInput && kq ? (
-        <div className="config-cpsx-upgrade__formulas">
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Input hiện tại: {dinhDangSo(metGhep, 0)}m · {soLanGhep} lần ghép
-            </span>
-          </div>
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Setup = {giaTri.setupFirstMinutes} + ({soLanGhep} − 1) × {giaTri.setupNextMinutes} ={" "}
-              <strong>{dinhDangSo(setup, 3)} phút</strong>
-            </span>
-          </div>
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Chạy = {dinhDangSo(metGhep, 0)}m ÷ {giaTri.avgSpeedMPerMin} ={" "}
-              <strong>{dinhDangSo(kq.chiTiet.chayPhut, 3)} phút</strong>
-            </span>
-          </div>
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Tổng ={" "}
-              <strong className="config-cpsx-upgrade__highlight">
-                {dinhDangSo(kq.tongPhut, 0)} phút
-              </strong>
-            </span>
-          </div>
+      <div className="config-cpsx-upgrade__formulas">
+        <div className="config-cpsx-upgrade__formula-row">
+          <span className="config-cpsx-upgrade__formula-label">Thời gian set up lần 1:</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="Setup lần đầu máy ghép"
+            value={giaTri.setupFirstMinutes}
+            onChange={(e) => suaSo("setupFirstMinutes")(e.target.value)}
+          />
+          <span className="config-cpsx-upgrade__formula-label">phút,</span>
+          <span className="config-cpsx-upgrade__formula-label">các lần tiếp theo:</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="Setup lần tiếp theo máy ghép"
+            value={giaTri.setupNextMinutes}
+            onChange={(e) => suaSo("setupNextMinutes")(e.target.value)}
+          />
+          <span className="config-cpsx-upgrade__formula-label">phút</span>
         </div>
-      ) : (
-        <p className="config-note">
-          Chưa có kết quả tính giá — nhập form khách để xem preview thời gian SX.
-        </p>
-      )}
+        <div className="config-cpsx-upgrade__formula-row">
+          <span className="config-cpsx-upgrade__formula-label">Tốc độ trung bình:</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="Tốc độ máy ghép"
+            value={giaTri.avgSpeedMPerMin}
+            onChange={(e) => suaSo("avgSpeedMPerMin")(e.target.value)}
+          />
+          <span className="config-cpsx-upgrade__formula-label">m/phút</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -521,21 +351,9 @@ function MayGhepPanel({
 function MayChiaPanel({
   giaTri,
   capNhat,
-  kq,
-  metChia,
-  ruleChon,
-  autoKey,
-  setRuleKey,
-  coInput,
 }: {
   giaTri: CpsxThoiGianMayChia;
   capNhat: (rules: CpsxThoiGianRule[]) => void;
-  kq: KetQuaThoiGian | null;
-  metChia: number;
-  ruleChon: CpsxThoiGianRule;
-  autoKey: string;
-  setRuleKey: (key: string) => void;
-  coInput: boolean;
 }) {
   const suaRule = (idx: number, patch: Partial<CpsxThoiGianRule>) => {
     capNhat(giaTri.rules.map((r, i) => (i === idx ? { ...r, ...patch } : r)));
@@ -545,10 +363,13 @@ function MayChiaPanel({
     <div className="config-cpsx-upgrade__panel">
       <div className="config-cpsx-upgrade__formulas">
         <div className="config-cpsx-upgrade__formula-head">
-          Công thức: TG = Setup loại SP + Mét ÷ Tốc độ loại SP — theo bảng dưới
+          Công thức: TG = Thời gian setup + (Số mét phi hao + Số mét thành phẩm) ÷ Tốc độ trung bình
         </div>
       </div>
 
+      <div className="config-cpsx-upgrade__col-title">
+        Thời gian set up và tốc độ trung bình phụ thuộc vào từng loại sản phẩm:
+      </div>
       <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
         <table className="config-table config-cpsx-upgrade__table">
           <thead>
@@ -630,51 +451,6 @@ function MayChiaPanel({
       >
         + Thêm loại
       </button>
-
-      {coInput && kq ? (
-        <div className="config-cpsx-upgrade__formulas">
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Input hiện tại: {dinhDangSo(metChia, 0)}m
-            </span>
-            <label className="config-cpsx-upgrade__select">
-              Loại SP:
-              <select
-                value={ruleChon.key}
-                onChange={(e) => setRuleKey(e.target.value)}
-                aria-label="Chọn loại sản phẩm máy chia"
-              >
-                {giaTri.rules.map((r) => (
-                  <option key={r.key} value={r.key}>
-                    {r.label}
-                  </option>
-                ))}
-              </select>
-              {ruleChon.key === autoKey ? (
-                <span className="config-cpsx-upgrade__auto">(tự nhận)</span>
-              ) : null}
-            </label>
-          </div>
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Setup = {ruleChon.setupMinutes} phút · Chạy = {dinhDangSo(metChia, 0)}m ÷ {ruleChon.speedMPerMin} ={" "}
-              <strong>{dinhDangSo(kq.chiTiet.chayPhut, 3)} phút</strong>
-            </span>
-          </div>
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Tổng ={" "}
-              <strong className="config-cpsx-upgrade__highlight">
-                {dinhDangSo(kq.tongPhut, 0)} phút
-              </strong>
-            </span>
-          </div>
-        </div>
-      ) : (
-        <p className="config-note">
-          Chưa có kết quả tính giá — nhập form khách để xem preview thời gian SX.
-        </p>
-      )}
     </div>
   );
 }
@@ -685,7 +461,7 @@ function MayTuiPanel({
   giaTri,
   capNhat,
   kq,
-  soTui,
+  metInLamTui,
   setupChon,
   tocDoChon,
   autoSetupKey,
@@ -697,7 +473,7 @@ function MayTuiPanel({
   giaTri: CpsxThoiGianMayTui;
   capNhat: (patch: Partial<CpsxThoiGianMayTui>) => void;
   kq: KetQuaThoiGian | null;
-  soTui: number;
+  metInLamTui: number;
   setupChon: CpsxTuiSetupRule;
   tocDoChon: CpsxTuiSpeedRule;
   autoSetupKey: string;
@@ -721,11 +497,11 @@ function MayTuiPanel({
     <div className="config-cpsx-upgrade__panel">
       <div className="config-cpsx-upgrade__formulas">
         <div className="config-cpsx-upgrade__formula-head">
-          Công thức: TG = Setup loại túi + Số túi ÷ Tốc độ bước cắt
+          Công thức: TG = Setup loại túi + (Số mét phi hao + Số mét thành phẩm) ÷ Tốc độ trung bình
         </div>
       </div>
 
-      <div className="config-cpsx-upgrade__col-title">Setup theo loại túi</div>
+      <div className="config-cpsx-upgrade__col-title">Trong đó thời gian set up phụ thuộc bảng sau:</div>
       <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
         <table className="config-table config-cpsx-upgrade__table">
           <thead>
@@ -800,7 +576,7 @@ function MayTuiPanel({
       </button>
 
       <div className="config-cpsx-upgrade__col-title">
-        Tốc độ theo bước cắt (mm → cái/phút)
+        Trong đó tốc độ trung bình phụ thuộc bảng sau:
       </div>
       <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
         <table className="config-table config-cpsx-upgrade__table">
@@ -808,7 +584,7 @@ function MayTuiPanel({
             <tr>
               <th>Bậc bước cắt</th>
               <th className="num">Ngưỡng max (mm)</th>
-              <th className="num">Tốc độ (cái/phút)</th>
+              <th className="num">Tốc độ (m/phút)</th>
               <th></th>
             </tr>
           </thead>
@@ -849,8 +625,8 @@ function MayTuiPanel({
                     className="config-inline-input"
                     min={0}
                     step={1}
-                    value={rule.bagsPerMinute}
-                    onChange={(e) => suaTocDo(idx, { bagsPerMinute: docSoThapPhan(e.target.value) })}
+                    value={rule.speedMPerMin}
+                    onChange={(e) => suaTocDo(idx, { speedMPerMin: docSoThapPhan(e.target.value) })}
                     aria-label="Tốc độ bậc bước cắt"
                   />
                 </td>
@@ -887,7 +663,7 @@ function MayTuiPanel({
                 key: `speed_${Date.now()}`,
                 label: `Bậc ${giaTri.speedRules.length + 1}`,
                 maxStepMm: null,
-                bagsPerMinute: 50,
+                speedMPerMin: 50,
               },
             ],
           })
@@ -900,7 +676,7 @@ function MayTuiPanel({
         <div className="config-cpsx-upgrade__formulas">
           <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
             <span className="config-cpsx-upgrade__formula-label">
-              Input hiện tại: {dinhDangSo(soTui, 0)} chiếc
+              Input hiện tại: {dinhDangSo(metInLamTui, 0)} m (số mét phi hao + số mét thành phẩm)
             </span>
             <label className="config-cpsx-upgrade__select">
               Loại túi:
@@ -928,7 +704,7 @@ function MayTuiPanel({
               >
                 {giaTri.speedRules.map((r) => (
                   <option key={r.key} value={r.key}>
-                    {r.label} ({r.bagsPerMinute} cái/phút)
+                    {r.label} ({r.speedMPerMin} m/phút)
                   </option>
                 ))}
               </select>
@@ -939,7 +715,7 @@ function MayTuiPanel({
           </div>
           <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
             <span className="config-cpsx-upgrade__formula-label">
-              Setup = {setupChon.setupMinutes} phút · Chạy = {dinhDangSo(soTui, 0)} ÷ {tocDoChon.bagsPerMinute} ={" "}
+              Setup = {setupChon.setupMinutes} phút · Chạy = {dinhDangSo(metInLamTui, 0)}m ÷ {tocDoChon.speedMPerMin} ={" "}
               <strong>{dinhDangSo(kq.chiTiet.chayPhut, 3)} phút</strong>
             </span>
           </div>

@@ -66,8 +66,8 @@ export default function CpsxNangCapDinhMuc() {
     [hangSo.cpsxUpgradeInk],
   );
 
-  const [openIn, setOpenIn] = React.useState(true);
-  const [openGhep, setOpenGhep] = React.useState(true);
+  const [openIn, setOpenIn] = React.useState(false);
+  const [openGhep, setOpenGhep] = React.useState(false);
 
   const [soMauPET, setSoMauPET] = React.useState(1);
   const [soMauOPP, setSoMauOPP] = React.useState(1);

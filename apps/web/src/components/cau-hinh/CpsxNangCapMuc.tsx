@@ -393,8 +393,8 @@ export default function CpsxNangCapMuc() {
   };
 
   const [openMap, setOpenMap] = React.useState<Record<LoaiBang, boolean>>({
-    opp: true,
-    pet: true,
+    opp: false,
+    pet: false,
     pe: false,
   });
   const toggle = (loai: LoaiBang) =>

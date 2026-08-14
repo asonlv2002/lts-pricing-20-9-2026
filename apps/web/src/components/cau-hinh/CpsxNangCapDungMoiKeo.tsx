@@ -133,8 +133,8 @@ export default function CpsxNangCapDungMoiKeo() {
     [hangSo.cpsxUpgradeInk],
   );
 
-  const [openDm, setOpenDm] = React.useState(true);
-  const [openKeo, setOpenKeo] = React.useState(true);
+  const [openDm, setOpenDm] = React.useState(false);
+  const [openKeo, setOpenKeo] = React.useState(false);
 
   const [manualDraft, setManualDraft] = React.useState(() =>
     dinhDangVnd(tinhGiaKeoTbCong(state.keo.rows)),

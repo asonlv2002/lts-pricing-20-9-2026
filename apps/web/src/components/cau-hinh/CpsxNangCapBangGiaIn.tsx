@@ -31,7 +31,7 @@ export default function CpsxNangCapBangGiaIn() {
 
   const bang = React.useMemo(() => lapBangGiaInTheoMau(state), [state]);
 
-  const [open, setOpen] = React.useState(true);
+  const [open, setOpen] = React.useState(false);
 
   return (
     <div className="card config-card config-cpsx-upgrade-card">

@@ -148,8 +148,8 @@ export default function CpsxNangCapDien() {
   const [manualDraft, setManualDraft] = React.useState(() =>
     dinhDangVnd(tbCong),
   );
-  const [openKhungGio, setOpenKhungGio] = React.useState(true);
-  const [openMay, setOpenMay] = React.useState(true);
+  const [openKhungGio, setOpenKhungGio] = React.useState(false);
+  const [openMay, setOpenMay] = React.useState(false);
 
   React.useEffect(() => {
     if (state.appliedSource !== "manual") {

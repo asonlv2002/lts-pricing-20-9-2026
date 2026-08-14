@@ -8,6 +8,7 @@ import type { NextConfig } from "next";
 const SPA_PATHS = [
   // menu slugs (1 segment)
   "tao-tinh-gia",
+  "tao-tinh-gia-nang-cap",
   "tao-bao-gia",
   "tao-lsx",
   "danh-sach-tinh-gia",

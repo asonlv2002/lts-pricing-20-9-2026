@@ -9,6 +9,9 @@ import { ManHinhChonCheDoTinhGia } from '../components/ManHinhChonCheDoTinhGia';
 import type { PricingMode } from '../lib/types';
 import { ArrowLeft, FileText } from 'lucide-react';
 import { dieuHuongMenuApp } from '../lib/menu-route';
+import { lapDongSanXuat } from '../lib/manager-calculation';
+import { tinhKetQuaNangCaoHieuLuc } from '../lib/dac-ta-nang-cao';
+import { timMucLichSuTheoId } from '../lib/history-identity';
 
 // ── Format helper ─────────────────────────────────────────────────────────────
 function dinhDangSo(n: number, soLe = 0): string {
@@ -17,11 +20,29 @@ function dinhDangSo(n: number, soLe = 0): string {
 }
 
 // ── Thanh giá mini (mobile) ───────────────────────────────────────────────────
-function ThanhGiaMini({ onNhan }: { onNhan: () => void }) {
+function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boolean }) {
   const { result, currentChotGia } = dungCuaHangTinhGia();
   if (!result) return null;
 
-  const gia = currentChotGia > 0 ? currentChotGia : result.finalPrice;
+  // Tab nâng cấp: giá từ bảng đặc tả nâng cao (có ghi đè Sale/Admin)
+  const ketQuaHienThi = nangCap
+    ? (() => {
+        const s = dungCuaHangTinhGia.getState();
+        return tinhKetQuaNangCaoHieuLuc({
+          result,
+          uniRows: lapDongSanXuat(result, s.constants).uniRows,
+          constants: s.constants,
+          materials: s.materials,
+          saleOverrides: s.saleOverrides,
+          adminOverrides: s.adminOverrides,
+          saleProfitRatePct: s.saleProfitRatePct,
+          adminProfitRatePct: s.adminProfitRatePct,
+          profitTable: s.profitTable,
+        }).result;
+      })()
+    : result;
+
+  const gia = currentChotGia > 0 ? currentChotGia : ketQuaHienThi.finalPrice;
   const laMang = result.input.productType === 'mang';
   const donVi = laMang ? 'm²' : 'túi';
 
@@ -35,7 +56,7 @@ function ThanhGiaMini({ onNhan }: { onNhan: () => void }) {
         <span className="mps-price">{dinhDangSo(gia, 0)} đ/{donVi}</span>
       </div>
       <div className="mps-right">
-        <span className="mps-profit">LN: {dinhDangSo(result.profitRate * 100, 1)}%</span>
+        <span className="mps-profit">LN: {dinhDangSo(ketQuaHienThi.profitRate * 100, 1)}%</span>
         <span className="mps-arrow">→ Xem chi tiết</span>
       </div>
     </div>
@@ -98,6 +119,7 @@ export default function TrangChinh() {
     setPricingEntry: datPricingEntry,
     resetInput: datLaiDauVao,
     setInput: capNhatDauVao,
+    cheDoNangCao,
   } = dungCuaHangTinhGia();
 
   const [tabMobile, datTabMobile] = useState<'input' | 'result'>('input');
@@ -107,6 +129,22 @@ export default function TrangChinh() {
   const coTheAnPanelNhap = !laMobile && kieuBoTriCuc !== 'stacked' && kieuBoTriCuc !== 'bento';
 
   const dangChonCheDo = pricingEntry === 'pick';
+
+  // Mỗi tab (cũ / nâng cấp) có form nhập riêng — khi đổi tab: quay về màn
+  // hình chọn chế độ (3 lựa chọn: Nội bộ / Gia công / Thương mại) trước.
+  // Ngoại lệ: đang mở bảng tính từ lịch sử thuộc đúng tab mới → giữ nguyên.
+  const tabTruoc = useRef(cheDoNangCao);
+  useEffect(() => {
+    if (tabTruoc.current === cheDoNangCao) return;
+    tabTruoc.current = cheDoNangCao;
+    const s = dungCuaHangTinhGia.getState();
+    // Đang mở bảng tính từ lịch sử thuộc tab mới → không xóa form vừa load
+    const mucDangMo = s.loadedHistoryId ? timMucLichSuTheoId(s.history, s.loadedHistoryId) : null;
+    const vuaMoTuLichSu = !!mucDangMo && (!!mucDangMo.isNangCap === cheDoNangCao);
+    if (vuaMoTuLichSu) return;
+    datLaiDauVao();
+    datPricingEntry('pick');
+  }, [cheDoNangCao, datLaiDauVao, datPricingEntry]);
 
   const xuLyChonCheDoTinhGia = (mode: PricingMode) => {
     datLaiDauVao();
@@ -421,10 +459,10 @@ export default function TrangChinh() {
             style={dangChonCheDo ? { gridColumn: '1 / -1', maxWidth: 760, margin: '0 auto', width: '100%' } : undefined}
           >
             {!dangChonCheDo && laMobile && tabMobile === 'input' && ketQua && (
-              <ThanhGiaMini onNhan={() => datTabMobile('result')} />
+              <ThanhGiaMini onNhan={() => datTabMobile('result')} nangCap={cheDoNangCao} />
             )}
             {dangChonCheDo
-              ? <ManHinhChonCheDoTinhGia onChon={xuLyChonCheDoTinhGia} />
+              ? <ManHinhChonCheDoTinhGia onChon={xuLyChonCheDoTinhGia} nangCap={cheDoNangCao} />
               : <TheNhapLieu onCollapseInput={coTheAnPanelNhap ? () => datAnPanelNhap(true) : undefined} />}
           </div>
 
@@ -438,7 +476,7 @@ export default function TrangChinh() {
             id="resultArea"
             className={`grid-col-result ${!laMobile || (coKetQuaMobile && tabMobile === 'result') ? 'active' : ''}`}
           >
-            <ManHinhQuanLy />
+            <ManHinhQuanLy nangCap={cheDoNangCao} />
             <ManHinhKyThuat />
           </div>}
 

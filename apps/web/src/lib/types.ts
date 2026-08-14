@@ -391,22 +391,29 @@ export interface CpsxThoiGianMayChia {
   rules: CpsxThoiGianRule[];
 }
 
-/** CPSX nâng cấp — mục 4: setup theo loại túi (giống bagPressTime) */
+/** CPSX nâng cấp — mục 4: setup theo loại túi (phút) */
 export interface CpsxTuiSetupRule {
   key: string;
   label: string;
   setupMinutes: number;
 }
 
-/** CPSX nâng cấp — mục 4: tốc độ theo bước cắt (mm → cái/phút); maxStepMm null = không trần */
+/**
+ * CPSX nâng cấp — mục 4: tốc độ theo bước cắt (mm → m/phút).
+ * maxStepMm null = không trần. Dùng m/phút — không dùng cái/phút (bagsPerMinute).
+ */
 export interface CpsxTuiSpeedRule {
   key: string;
   label: string;
   maxStepMm: number | null;
-  bagsPerMinute: number;
+  speedMPerMin: number;
 }
 
-/** CPSX nâng cấp — mục 4: máy làm túi — bảng setup + tốc độ (giống bagPressTime) */
+/**
+ * CPSX nâng cấp — máy làm túi.
+ * TG = setup(loại túi) + (Đầu vào NVL làm túi × số phần tử) / speedMPerMin.
+ * Mét gốc = cutMeters+cutWaste; Có chia → × divideElements.
+ */
 export interface CpsxThoiGianMayTui {
   setupRules: CpsxTuiSetupRule[];
   speedRules: CpsxTuiSpeedRule[];
@@ -628,6 +635,8 @@ export interface CalculateInput {
   donViPhanBo?: 'vnd' | 'percent';
   pricingMode?: PricingMode;
   outsource?: OutsourceConfig;
+  /** true = bảng tính giá dùng bảng đặc tả kỹ thuật nâng cao làm nguồn giá */
+  isNangCap?: boolean;
 }
 
 // ── Quote Status (luồng báo giá local + server) ──────────────────────────────
@@ -668,7 +677,7 @@ export const QUOTE_STATUS_CONFIG: Record<QuoteStatus, {
   expired:          { label: 'Hết hạn',          shortLabel: 'Hết hạn',    color: '#9ca3af', bg: 'rgba(156,163,175,0.1)', step: -3, description: 'Báo giá đã hết hiệu lực' },
 };
 // ── Override Tables (Bảng 2 & 3 — Sale nhập / Admin nhập) ────────────────────
-export type OverrideRowKey = 'print' | 'lam-2' | 'lam-3' | 'lam-4' | 'lam-5' | 'cut' | 'chia';
+export type OverrideRowKey = 'print' | 'lam-2' | 'lam-3' | 'lam-4' | 'lam-5' | 'cut' | 'chia' | 'matte';
 
 export interface OverrideFields {
   stage?: string;
@@ -863,6 +872,7 @@ export interface HistoryItem {
   deletable?: boolean;        // Cho phép xóa trên server (từ Original.deletable)
   canUpdate?: boolean;        // Cho phép cập nhật trên server (từ Original.canUpdate)
   canAdminUpdate?: boolean;   // Cho phép admin cập nhật trên server (từ Original.canAdminUpdate)
+  isNangCap?: boolean;        // true = bảng tính giá nâng cấp (giá từ bảng đặc tả nâng cao)
   input: CalculateInput;
 }
 

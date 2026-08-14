@@ -12,6 +12,8 @@ export interface UISlice {
   density: 'compact' | 'comfortable' | 'spacious';
   theme: 'light' | 'dark';
   advancedOpen: boolean;
+  /** true = đang ở tab "Tạo bảng tính giá (nâng cấp)" — giá lấy từ bảng đặc tả nâng cao */
+  cheDoNangCao: boolean;
   currentSellerId: string;
   currentSellerName: string;
   role: string;
@@ -31,6 +33,7 @@ export interface UISlice {
   setDensity: (v: UISlice['density']) => void;
   setTheme: (v: UISlice['theme']) => void;
   setAdvancedOpen: (v: boolean) => void;
+  setCheDoNangCao: (v: boolean) => void;
   setCurrentSeller: (id: string, name: string) => void;
   setRole: (r: string) => void;
   datBaoGiaDangSua: (bg: BaoGiaApi | null) => void;
@@ -50,6 +53,7 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   density: 'comfortable',
   theme: 'light',
   advancedOpen: false,
+  cheDoNangCao: false,
   currentSellerId: 'S1',
   currentSellerName: 'Nguyễn Văn An',
   role: 'admin',
@@ -67,6 +71,7 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   setDensity:       (v) => set({ density: v }),
   setTheme:         (v) => set({ theme: v }),
   setAdvancedOpen:  (v) => set({ advancedOpen: v }),
+  setCheDoNangCao:  (v) => set({ cheDoNangCao: v }),
   setCurrentSeller: (id, name) => set({ currentSellerId: id, currentSellerName: name }),
   setRole:          (r) => set({ role: r }),
   datBaoGiaDangSua: (bg) => set({ baoGiaDangSua: bg }),

@@ -8,6 +8,7 @@ const ROW_LABELS: Record<string, string> = {
   'lam-5': 'Ghép L5',
   cut: 'Cắt',
   chia: 'Chia',
+  matte: 'Lật mặt',
 };
 
 const FIELD_LABELS: Record<string, string> = {

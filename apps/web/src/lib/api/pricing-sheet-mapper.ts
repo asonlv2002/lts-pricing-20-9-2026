@@ -21,7 +21,8 @@ import type {
   SmallWidthMaterialPrice,
 } from '../types';
 import { dongBoCotLoiNhuan } from '../engine';
-import { tinhBaoGia } from '../manager-calculation';
+import { tinhBaoGia, lapDongSanXuat } from '../manager-calculation';
+import { tinhKetQuaNangCaoHieuLuc } from '../dac-ta-nang-cao';
 import type {
   TaoPricingSheetInput,
   CapNhatPricingSheetResultInput,
@@ -135,6 +136,27 @@ export function mapPricingSheetToHistory(
   );
   if (!result) return null;
 
+  const laNangCap = !!rawInput.isNangCap;
+  const saleOverrides = unwrapOverrides(sheet.saleResult);
+  const adminOverrides = unwrapOverrides(sheet.masterResult);
+  const saleProfitRatePct = unwrapProfitRatePct(sheet.saleResult);
+  const adminProfitRatePct = unwrapProfitRatePct(sheet.masterResult);
+
+  // Bảng tính nâng cấp: giá hiển thị lấy từ bảng đặc tả nâng cao (có ghi đè)
+  const ketQuaHienThi = laNangCap
+    ? tinhKetQuaNangCaoHieuLuc({
+        result,
+        uniRows: lapDongSanXuat(result, ctx.constants).uniRows,
+        constants: ctx.constants,
+        materials: ctx.materials,
+        saleOverrides: saleOverrides ?? {},
+        adminOverrides: adminOverrides ?? {},
+        saleProfitRatePct,
+        adminProfitRatePct,
+        profitTable: ctx.profitTable,
+      }).result
+    : result;
+
   return {
     id: sheet.id,
     date: new Date(sheet.createdAt).toLocaleDateString('vi-VN'),
@@ -142,13 +164,14 @@ export function mapPricingSheetToHistory(
     productName: sheet.pricingSheetName || syncedInput.productName || '—',
     structure: result.structureText,
     quantity: syncedInput.quantity,
-    finalPrice: result.finalPrice,
-    profitRate: result.profitRate,
+    finalPrice: ketQuaHienThi.finalPrice,
+    profitRate: ketQuaHienThi.profitRate,
     chotGia: syncedInput.chotGia || undefined,
-    saleOverrides: unwrapOverrides(sheet.saleResult),
-    adminOverrides: unwrapOverrides(sheet.masterResult),
-    saleProfitRatePct: unwrapProfitRatePct(sheet.saleResult),
-    adminProfitRatePct: unwrapProfitRatePct(sheet.masterResult),
+    saleOverrides,
+    adminOverrides,
+    saleProfitRatePct,
+    adminProfitRatePct,
+    isNangCap: laNangCap || undefined,
     pricingSheetId: sheet.id,
     priceConfigIds: sheet.priceConfigIds,
     originalCustomer: sheet.customerCodeName || sheet.customer?.codeName || syncedInput.customer || undefined,

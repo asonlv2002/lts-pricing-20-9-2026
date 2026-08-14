@@ -12,11 +12,14 @@ import type {
 /**
  * Kết quả thời gian SX — QUY TOÀN BỘ RA PHÚT (không dùng giờ).
  * Mô hình giống CPSX thường:
- *   Máy in:   setup = số màu × (lên trục + duyệt mẫu);  chạy = mét ÷ tốc độ (m/phút);
+ *   Máy in:   setup = số màu × lên trục + duyệt mẫu;  chạy = mét ÷ tốc độ (m/phút);
  *             phủ mờ cộng thêm matteExtraMinutes.
  *   Máy ghép: setup = lần đầu + (số lần ghép − 1) × lần tiếp; chạy = mét ÷ tốc độ.
- *   Máy chia: setup/tốc độ theo rule loại SP; chạy = mét ÷ rule.speed.
- *   Máy túi:  setup theo rule loại túi; chạy = số chiếc ÷ rule.bagsPerMinute.
+ *   Máy chia: setup/tốc độ theo rule loại SP; chạy = mét ÷ rule.speed (ghép cuối / in).
+ *   Máy túi:  setup theo loại túi + (Đầu vào NVL làm túi × số phần tử) ÷ tốc độ TB.
+ *             Mét gốc = cutMeters + cutWaste (cột Đầu vào NVL Table 1 dòng làm túi).
+ *             Có chia → × max(1, divideElements); không chia → ×1.
+ *             KHÔNG dùng số túi, không dùng mét ghép cuối.
  */
 export interface KetQuaThoiGian {
   tongPhut: number;
@@ -33,7 +36,61 @@ function so(n: unknown): number {
 
 const RULE_FALLBACK: CpsxThoiGianRule = { key: '', label: '', setupMinutes: 20, speedMPerMin: 100 };
 const SETUP_FALLBACK: CpsxTuiSetupRule = { key: '', label: '', setupMinutes: 90 };
-const SPEED_FALLBACK: CpsxTuiSpeedRule = { key: '', label: '', maxStepMm: null, bagsPerMinute: 50 };
+const SPEED_FALLBACK: CpsxTuiSpeedRule = { key: '', label: '', maxStepMm: null, speedMPerMin: 50 };
+
+/**
+ * Mét chạy khâu chia (nâng cao):
+ *   có ghép → TP + phi hao lớp ghép cuối;
+ *   không ghép → TP + phi hao in.
+ */
+export function metChiaHoacLamTui(result: {
+  printMeters?: number;
+  printWaste?: number;
+  layers?: { laminations?: Array<{ meters?: number; waste?: number }> };
+} | null | undefined): number {
+  const lams = result?.layers?.laminations ?? [];
+  if (lams.length > 0) {
+    const cuoi = lams[lams.length - 1];
+    return Math.max(0, so(cuoi?.meters) + so(cuoi?.waste));
+  }
+  return Math.max(0, so(result?.printMeters) + so(result?.printWaste));
+}
+
+/**
+ * Số phần tử chia cho mét chạy máy túi.
+ * Có chia → max(1, divideElements); không chia / thiếu → 1.
+ */
+export function soPhanTuChiaLamTui(input: {
+  hasDivide?: boolean;
+  divideElements?: number;
+} | null | undefined): number {
+  if (!input?.hasDivide) return 1;
+  const n = Math.floor(so(input.divideElements));
+  return n >= 1 ? n : 1;
+}
+
+/**
+ * Mét chạy máy làm túi (nâng cao):
+ *   (Đầu vào NVL làm túi × số phần tử) = (cutMeters + cutWaste) × soPhanTuChiaLamTui
+ * Có chia → nhân divideElements; không chia → ×1.
+ * Không dùng mét ghép cuối / in / số túi.
+ */
+export function metLamTuiTuDauVaoNVL(result: {
+  cutMeters?: number;
+  cutWaste?: number;
+  layers?: { cut?: { meters?: number; waste?: number } };
+  input?: { hasDivide?: boolean; divideElements?: number };
+} | null | undefined): number {
+  if (!result) return 0;
+  let metGoc = 0;
+  if (result.cutMeters != null || result.cutWaste != null) {
+    metGoc = Math.max(0, so(result.cutMeters) + so(result.cutWaste));
+  } else {
+    const cut = result.layers?.cut;
+    metGoc = Math.max(0, so(cut?.meters) + so(cut?.waste));
+  }
+  return metGoc * soPhanTuChiaLamTui(result.input);
+}
 
 export function tinhThoiGianMayIn(
   metIn: number,
@@ -48,7 +105,9 @@ export function tinhThoiGianMayIn(
   const tocDo = Math.max(0, so(cfg.avgSpeedMPerMin)) || 1;
   const matte = phuMo ? Math.max(0, so(cfg.matteExtraMinutes)) : 0;
 
-  const setupPhut = mau * (mount + proof);
+  // setup = số màu × lên trục + duyệt mẫu (duyệt mẫu chỉ 1 lần, không nhân số màu);
+  // không in màu → không duyệt mẫu
+  const setupPhut = mau > 0 ? mau * mount + proof : 0;
   const chayPhut = met / tocDo;
   return { tongPhut: setupPhut + chayPhut + matte, chiTiet: { setupPhut, chayPhut } };
 }
@@ -80,15 +139,25 @@ export function tinhThoiGianMayChia(
   return { tongPhut: setupPhut + chayPhut, chiTiet: { setupPhut, chayPhut } };
 }
 
+/**
+ * TG máy làm túi (nâng cao):
+ *   TG = setup(loại túi) + Đầu vào NVL làm túi / tốc độ TB (m/phút)
+ * `metChay` = metLamTuiTuDauVaoNVL(result) = (cutMeters+cutWaste) × số phần tử.
+ * Tốc độ: speedMPerMin; fallback bagsPerMinute (data cũ) rồi 50.
+ */
 export function tinhThoiGianMayTui(
-  soTui: number,
+  metChay: number,
   setupRule: CpsxTuiSetupRule,
   speedRule: CpsxTuiSpeedRule,
 ): KetQuaThoiGian {
-  const sl = Math.max(0, so(soTui));
+  const met = Math.max(0, so(metChay));
   const setupPhut = Math.max(0, so(setupRule?.setupMinutes));
-  const tocDo = Math.max(0, so(speedRule?.bagsPerMinute)) || 1;
-  const chayPhut = sl / tocDo;
+  const raw = speedRule as CpsxTuiSpeedRule & { bagsPerMinute?: number };
+  const tocDo = Math.max(0, so(raw?.speedMPerMin))
+    || Math.max(0, so(raw?.bagsPerMinute))
+    || SPEED_FALLBACK.speedMPerMin
+    || 1;
+  const chayPhut = met / tocDo;
   return { tongPhut: setupPhut + chayPhut, chiTiet: { setupPhut, chayPhut } };
 }
 
@@ -228,10 +297,31 @@ export function chuanHoaCpsxUpgradeThoiGian(
 
   const bag: CpsxThoiGianMayTui = {
     setupRules: Array.isArray(rBag.setupRules) && rBag.setupRules.length > 0
-      ? rBag.setupRules.map((rule: CpsxTuiSetupRule) => ({ ...rule }))
+      ? rBag.setupRules.map((rule: CpsxTuiSetupRule, i: number) => {
+          const fb = defaults.bag.setupRules[i] ?? SETUP_FALLBACK;
+          return {
+            key: String(rule?.key || fb.key || `setup_${i + 1}`),
+            label: String(rule?.label || fb.label || `Loại túi ${i + 1}`),
+            setupMinutes: so(rule?.setupMinutes) > 0 ? so(rule.setupMinutes) : fb.setupMinutes,
+          };
+        })
       : defaults.bag.setupRules.map((rule) => ({ ...rule })),
+    // speedMPerMin (m/phút). Data cũ/copy từ bagPressTime có bagsPerMinute → map sang.
     speedRules: Array.isArray(rBag.speedRules) && rBag.speedRules.length > 0
-      ? rBag.speedRules.map((rule: CpsxTuiSpeedRule) => ({ ...rule }))
+      ? rBag.speedRules.map((rule: CpsxTuiSpeedRule & { bagsPerMinute?: number }, i: number) => {
+          const fb = defaults.bag.speedRules[i] ?? SPEED_FALLBACK;
+          const tocDo = so(rule?.speedMPerMin) > 0
+            ? so(rule.speedMPerMin)
+            : so(rule?.bagsPerMinute) > 0
+              ? so(rule.bagsPerMinute)
+              : fb.speedMPerMin;
+          return {
+            key: String(rule?.key || fb.key || `speed_${i + 1}`),
+            label: String(rule?.label || fb.label || `Bậc ${i + 1}`),
+            maxStepMm: rule?.maxStepMm == null ? (fb.maxStepMm ?? null) : (Number(rule.maxStepMm) || null),
+            speedMPerMin: tocDo,
+          };
+        })
       : defaults.bag.speedRules.map((rule) => ({ ...rule })),
   };
 

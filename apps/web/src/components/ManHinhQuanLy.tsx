@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhGiaHieuLuc, xuLyDongGhiDe, type UniRow } from '../lib/manager-calculation';
-import { lapDongVatLieuNangCao, lapDongNhanCongDien, tinhTongNangCao } from '../lib/dac-ta-nang-cao';
+import { lapDongVatLieuNangCao, lapDongNhanCongDien, tinhTongNangCao, tinhKetQuaNangCaoHieuLuc } from '../lib/dac-ta-nang-cao';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { TECHNICAL_TABLE_MOBILE_LABELS as MOBILE_LABELS } from '../lib/technical-table-mobile-labels';
 import type { AppConstants, CalculateResult, Material, OverrideRowKey, OverrideFields, OverrideTable, HistoryItem } from '../lib/types';
@@ -952,7 +952,7 @@ async function syncPricingSheetToServer(
   }
 }
 
-export default function ManHinhQuanLy() {
+export default function ManHinhQuanLy({ nangCap = false }: { nangCap?: boolean }) {
   const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, capNhatHienTaiVaoLichSu: capNhatVaoLichSu,
     role,   loadedHistoryId: loadedHistoryId,
   originalCustomerLoaded: originalCustomerLoaded, history: lichSu, materials,
@@ -1048,15 +1048,32 @@ const buttonLabel = loadedItem
 
   const { uniRows: cacDongSanXuat, totalCPSX: tongCPSX, totalCPVL: tongCPVL, grandTotal: tongCong } = lapDongSanXuat(r, hangSo);
   const cpTheoThoiGianIn = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
+
+  // ── Tab nâng cấp: giá mỗi sản phẩm lấy từ TỔNG bảng đặc tả nâng cao ──
+  const ketQuaNangCao = nangCap
+    ? tinhKetQuaNangCaoHieuLuc({
+        result: r,
+        uniRows: cacDongSanXuat,
+        constants: hangSo,
+        materials,
+        saleOverrides: ghiDeSale,
+        adminOverrides: ghiDeAdmin,
+        saleProfitRatePct,
+        adminProfitRatePct,
+        profitTable: bangLoiNhuan,
+      })
+    : null;
+  const rHieuLuc = ketQuaNangCao ? ketQuaNangCao.result : r;
+
   // Giá trị gốc từ engine (không bị ảnh hưởng bởi admin/sale override)
-  const tongChiPhiSXHieuLuc = r.totalProductionCost;
-  const tyLeLoiNhuanHieuLuc = r.profitRate;
-  const tienLoiNhuanHieuLuc = r.profitAmount;
-  const giaVonDonViHieuLuc = r.costPerUnit;
+  const tongChiPhiSXHieuLuc = rHieuLuc.totalProductionCost;
+  const tyLeLoiNhuanHieuLuc = rHieuLuc.profitRate;
+  const tienLoiNhuanHieuLuc = rHieuLuc.profitAmount;
+  const giaVonDonViHieuLuc = rHieuLuc.costPerUnit;
 
   // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
   // (dùng giaVonDonViHieuLuc tạm, effFinalPriceWithComm sẽ được tính ở phần breakdown bên dưới)
-  const khoaKetQua = `${giaVonDonViHieuLuc}|${dauVaoKq.quantity}|${r.totalThickness}|${dauVaoKq.spreadWidth}|${dauVaoKq.cutStep}`;
+  const khoaKetQua = `${giaVonDonViHieuLuc}|${dauVaoKq.quantity}|${rHieuLuc.totalThickness}|${dauVaoKq.spreadWidth}|${dauVaoKq.cutStep}`;
   const chieuDaiCuonMang = (dauVaoKq as any).chieuDaiCuonMang || (dauVaoKq as any).filmRollLength || 6000;
   const nhanDonVi = hienThiGia.unit; // đơn vị hiển thị
   const dienTichMoiCuonMang = laMang ? (dauVaoKq.spreadWidth || 0) * chieuDaiCuonMang : 0;
@@ -1092,48 +1109,48 @@ const buttonLabel = loadedItem
     chuoiLoaiTui = tenLoaiMang[dauVaoKq.filmType] || 'Màng cuộn';
   }
 
-  const cylPerUnit = r.cylinderCostPerUnit;
+  const cylPerUnit = rHieuLuc.cylinderCostPerUnit;
   const numTr = dauVaoKq.numColors || 0;
-  const cylTotal = r.cylinderCost;
+  const cylTotal = rHieuLuc.cylinderCost;
   const laMangIn = hienThiGia.isPrintFilm;
 
   // Commission từ engine gốc (không bị ảnh hưởng bởi admin/sale override)
-  const effCommissionPerUnit = r.commissionPerUnit;
+  const effCommissionPerUnit = rHieuLuc.commissionPerUnit;
 
   // ── Breakdown items ──
   const breakdownItems: [string, string][] = [
     [`${hienThiGia.initialPriceLabel} (Vốn + ${dinhDangPhanTram(tyLeLoiNhuanHieuLuc)} LN)`, dinhDangSo(giaVonDonViHieuLuc, 1) + ' đ'],
   ];
-  if (dauVaoKq.hasZipper) breakdownItems.push(['Chi phí Zipper', dinhDangSo(r.zipperPerUnit, 1) + ' đ']);
-  if (dauVaoKq.hasTape) breakdownItems.push(['Chi phí Băng keo', dinhDangSo(r.tapePerUnit, 1) + ' đ']);
-  if (dauVaoKq.hasHandle) breakdownItems.push(['Chi phí Quai', dinhDangSo(r.handlePerUnit, 1) + ' đ']);
+  if (dauVaoKq.hasZipper) breakdownItems.push(['Chi phí Zipper', dinhDangSo(rHieuLuc.zipperPerUnit, 1) + ' đ']);
+  if (dauVaoKq.hasTape) breakdownItems.push(['Chi phí Băng keo', dinhDangSo(rHieuLuc.tapePerUnit, 1) + ' đ']);
+  if (dauVaoKq.hasHandle) breakdownItems.push(['Chi phí Quai', dinhDangSo(rHieuLuc.handlePerUnit, 1) + ' đ']);
   breakdownItems.push(
-    [laMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSo(r.boxPerUnit, 1) + ' đ'],
-    [hienThiGia.shippingLabel, laMangIn ? `${dinhDangSo(r.shippingTotal, 0)} đ · ${dinhDangSo(r.shippingPerUnit, 1)} đ/${nhanDonVi}` : dinhDangSo(r.shippingPerUnit, 1) + ' đ'],
-    [hienThiGia.interestLabel(r.interestBase || 0, r.paymentDays ?? dauVaoKq.paymentDays ?? 30), dinhDangSo(r.interestPerUnit, 1) + ` đ${laMangIn ? `/${nhanDonVi}` : ''}`],
+    [laMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSo(rHieuLuc.boxPerUnit, 1) + ' đ'],
+    [hienThiGia.shippingLabel, laMangIn ? `${dinhDangSo(rHieuLuc.shippingTotal, 0)} đ · ${dinhDangSo(rHieuLuc.shippingPerUnit, 1)} đ/${nhanDonVi}` : dinhDangSo(rHieuLuc.shippingPerUnit, 1) + ' đ'],
+    [hienThiGia.interestLabel(rHieuLuc.interestBase || 0, rHieuLuc.paymentDays ?? dauVaoKq.paymentDays ?? 30), dinhDangSo(rHieuLuc.interestPerUnit, 1) + ` đ${laMangIn ? `/${nhanDonVi}` : ''}`],
     ['Hoa hồng kinh doanh', dinhDangSo(effCommissionPerUnit, 1) + ' đ']
   );
   
-  if ((r.gcShippingPerUnit ?? 0) > 0) {
-    breakdownItems.push(['Vận chuyển (gia công)', dinhDangSo(r.gcShippingPerUnit ?? 0, 1) + ' đ']);
+  if ((rHieuLuc.gcShippingPerUnit ?? 0) > 0) {
+    breakdownItems.push(['Vận chuyển (gia công)', dinhDangSo(rHieuLuc.gcShippingPerUnit ?? 0, 1) + ' đ']);
   }
-  if ((r.gcPackagingPerUnit ?? 0) > 0) {
-    breakdownItems.push(['Đóng gói (gia công)', dinhDangSo(r.gcPackagingPerUnit ?? 0, 1) + ' đ']);
+  if ((rHieuLuc.gcPackagingPerUnit ?? 0) > 0) {
+    breakdownItems.push(['Đóng gói (gia công)', dinhDangSo(rHieuLuc.gcPackagingPerUnit ?? 0, 1) + ' đ']);
   }
-  if ((r.gcOtherPerUnit ?? 0) > 0) {
-    breakdownItems.push(['Phụ phí khác (gia công)', dinhDangSo(r.gcOtherPerUnit ?? 0, 1) + ' đ']);
+  if ((rHieuLuc.gcOtherPerUnit ?? 0) > 0) {
+    breakdownItems.push(['Phụ phí khác (gia công)', dinhDangSo(rHieuLuc.gcOtherPerUnit ?? 0, 1) + ' đ']);
   }
-  if (dauVaoKq.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
-    breakdownItems.push([`Trục in phân bổ (bao trục / 200k m²)`, dinhDangSo(r.cylAllocPerUnit ?? 0, 2) + ' đ']);
+  if (dauVaoKq.cylIncluded && (rHieuLuc.cylAllocPerUnit ?? 0) > 0) {
+    breakdownItems.push([`Trục in phân bổ (bao trục / 200k m²)`, dinhDangSo(rHieuLuc.cylAllocPerUnit ?? 0, 2) + ' đ']);
   }
 
-  const cylAllocTotal = dauVaoKq.cylIncluded ? ((r.cylAllocPerUnit ?? 0) * dauVaoKq.quantity) : 0;
+  const cylAllocTotal = dauVaoKq.cylIncluded ? ((rHieuLuc.cylAllocPerUnit ?? 0) * dauVaoKq.quantity) : 0;
   const totalCommission = effCommissionPerUnit * dauVaoKq.quantity;
   const commissionPct = tongChiPhiSXHieuLuc > 0 ? (effCommissionPerUnit * dauVaoKq.quantity / tongChiPhiSXHieuLuc) : 0;
   const chotGiaNum = giaChotHienTai || 0;
   const hasChotGia = chotGiaNum > 0;
   // Giá cuối cùng từ engine gốc
-  const effFinalPriceWithComm = r.finalPrice;
+  const effFinalPriceWithComm = rHieuLuc.finalPrice;
   const shownPrice = hasChotGia ? chotGiaNum : effFinalPriceWithComm;
   const diff = hasChotGia ? chotGiaNum - effFinalPriceWithComm : 0;
   const hienThiPhanBoChotGia = tinhNhapPhanBoChotGia({
@@ -1159,7 +1176,7 @@ const buttonLabel = loadedItem
   const newCommissionPerUnit = Math.max(0, rawNewCommission);
   const doanhThuChot = shownPrice * dauVaoKq.quantity;
   const tongHoaHongChot = newCommissionPerUnit * dauVaoKq.quantity;
-  const tongChiPhi = tongChiPhiSXHieuLuc + r.zipperTotal + r.tapeTotal + r.handleTotal + r.boxTotal + r.shippingTotal + (r.interestPerUnit * dauVaoKq.quantity) + cylAllocTotal + (r.gcShippingTotal ?? 0) + (r.gcPackagingTotal ?? 0) + (r.gcOtherTotal ?? 0);
+  const tongChiPhi = tongChiPhiSXHieuLuc + rHieuLuc.zipperTotal + rHieuLuc.tapeTotal + rHieuLuc.handleTotal + rHieuLuc.boxTotal + rHieuLuc.shippingTotal + (rHieuLuc.interestPerUnit * dauVaoKq.quantity) + cylAllocTotal + (rHieuLuc.gcShippingTotal ?? 0) + (rHieuLuc.gcPackagingTotal ?? 0) + (rHieuLuc.gcOtherTotal ?? 0);
   const loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
   const pctLoiNhuanCongTyChot = tongChiPhiSXHieuLuc > 0 ? (loiNhuanCongTyChot / tongChiPhiSXHieuLuc) : 0;
   const commissionPctShown = tongChiPhiSXHieuLuc > 0 ? (newCommissionPerUnit * dauVaoKq.quantity / tongChiPhiSXHieuLuc) : 0;
@@ -1178,10 +1195,10 @@ const buttonLabel = loadedItem
       ? dauVaoKq.commissionFixedVND
       : dauVaoKq.commissionRate * (dauVaoKq.quantity > 0 ? effTotalProdCost / dauVaoKq.quantity : 0);
     const giaDonVi = effCostPerUnit
-      + r.zipperPerUnit + r.tapePerUnit + r.handlePerUnit
-      + r.boxPerUnit + r.shippingPerUnit + r.interestPerUnit + hoaHongDonVi
-      + (r.cylAllocPerUnit ?? 0)
-      + (r.gcShippingPerUnit ?? 0) + (r.gcPackagingPerUnit ?? 0) + (r.gcOtherPerUnit ?? 0);
+      + rHieuLuc.zipperPerUnit + rHieuLuc.tapePerUnit + rHieuLuc.handlePerUnit
+      + rHieuLuc.boxPerUnit + rHieuLuc.shippingPerUnit + rHieuLuc.interestPerUnit + hoaHongDonVi
+      + (rHieuLuc.cylAllocPerUnit ?? 0)
+      + (rHieuLuc.gcShippingPerUnit ?? 0) + (rHieuLuc.gcPackagingPerUnit ?? 0) + (rHieuLuc.gcOtherPerUnit ?? 0);
     return { giaDonVi, tongChiPhiSX: effTotalProdCost };
   };
   const saleResult = tinhGiaSauGhiDeDonVi(ghiDeSale, {}, saleProfitRatePct, 0);
@@ -1191,18 +1208,32 @@ const buttonLabel = loadedItem
   const giaSauGhiDeAdminDonVi = adminResult.giaDonVi;
   const tongCPSXAdmin = adminResult.tongChiPhiSX;
   const donViChenhLechGia = laMang ? 'm2' : 'tui';
-  const { effProfitRate: saleBaseRate } = tinhGiaHieuLuc({
-    result: r, uniRows: cacDongSanXuat,
-    saleOverrides: ghiDeSale, adminOverrides: {},
-    saleProfitRatePct: 0, adminProfitRatePct: 0,
-    profitTable: bangLoiNhuan, constants: hangSo,
-  });
-  const { effProfitRate: adminBaseRate } = tinhGiaHieuLuc({
-    result: r, uniRows: cacDongSanXuat,
-    saleOverrides: {}, adminOverrides: ghiDeAdmin,
-    saleProfitRatePct: 0, adminProfitRatePct: 0,
-    profitTable: bangLoiNhuan, constants: hangSo,
-  });
+  const saleBaseRate = nangCap
+    ? tinhKetQuaNangCaoHieuLuc({
+        result: r, uniRows: cacDongSanXuat, constants: hangSo, materials,
+        saleOverrides: ghiDeSale, adminOverrides: {},
+        saleProfitRatePct: 0, adminProfitRatePct: 0,
+        profitTable: bangLoiNhuan,
+      }).tyLeLoiNhuan
+    : tinhGiaHieuLuc({
+        result: r, uniRows: cacDongSanXuat,
+        saleOverrides: ghiDeSale, adminOverrides: {},
+        saleProfitRatePct: 0, adminProfitRatePct: 0,
+        profitTable: bangLoiNhuan, constants: hangSo,
+      }).effProfitRate;
+  const adminBaseRate = nangCap
+    ? tinhKetQuaNangCaoHieuLuc({
+        result: r, uniRows: cacDongSanXuat, constants: hangSo, materials,
+        saleOverrides: {}, adminOverrides: ghiDeAdmin,
+        saleProfitRatePct: 0, adminProfitRatePct: 0,
+        profitTable: bangLoiNhuan,
+      }).tyLeLoiNhuan
+    : tinhGiaHieuLuc({
+        result: r, uniRows: cacDongSanXuat,
+        saleOverrides: {}, adminOverrides: ghiDeAdmin,
+        saleProfitRatePct: 0, adminProfitRatePct: 0,
+        profitTable: bangLoiNhuan, constants: hangSo,
+      }).effProfitRate;
   const saleDefaultPct = +(saleBaseRate * 100).toFixed(1);
   const adminDefaultPct = +(adminBaseRate * 100).toFixed(1);
 
@@ -1215,9 +1246,9 @@ const buttonLabel = loadedItem
   }
 
   const matCols: any[] = [];
-  if (r.layers.print && r.layers.print.material) matCols.push({ type: 'print', name: r.layers.print.material.name.split(' ')[0], fullName: r.layers.print.material.name });
-  if (r.layers.laminations) {
-    r.layers.laminations.forEach((lam: any) => {
+  if (rHieuLuc.layers.print && rHieuLuc.layers.print.material) matCols.push({ type: 'print', name: rHieuLuc.layers.print.material.name.split(' ')[0], fullName: rHieuLuc.layers.print.material.name });
+  if (rHieuLuc.layers.laminations) {
+    rHieuLuc.layers.laminations.forEach((lam: any) => {
       if (!lam.material) return;
       const label = lam.materials?.length > 1 ? lam.materials.map((m: any) => m.name.split(' ')[0]).join('+') : lam.material.name.split(' ')[0];
       const full = lam.materials?.length > 1 ? lam.materials.map((m: any) => m.name).join(' + ') : lam.material.name;
@@ -1282,7 +1313,22 @@ const buttonLabel = loadedItem
   const moqResults = moqLevels.map(qty => {
     const inp = { ...dauVaoKq, quantity: qty };
     const res = calculateForInput(inp);
-    return { qty, res, isCurrent: qty === currentQty };
+    if (!res) return { qty, res, isCurrent: qty === currentQty };
+    // Tab nâng cấp: mỗi mức SL tính lại bảng đặc tả nâng cao → giá mới
+    const resHieuLuc = nangCap
+      ? tinhKetQuaNangCaoHieuLuc({
+          result: res,
+          uniRows: lapDongSanXuat(res, hangSo).uniRows,
+          constants: hangSo,
+          materials,
+          saleOverrides: ghiDeSale,
+          adminOverrides: ghiDeAdmin,
+          saleProfitRatePct,
+          adminProfitRatePct,
+          profitTable: bangLoiNhuan,
+        }).result
+      : res;
+    return { qty, res: resHieuLuc, isCurrent: qty === currentQty };
   }).filter(x => x.res);
 
   // ── Roll MOQ Table ──
@@ -1358,13 +1404,13 @@ const buttonLabel = loadedItem
 
   // ── Weight items ──
   const weightItems: [string, string][] = [
-    [laMang ? 'Diện tích băng (m²/m dài)' : 'Diện tích 1 túi', dinhDangM2(r.bagArea)],
-    ['Tổng diện tích đơn hàng', dinhDangSo(r.totalArea, 1) + ' m²'],
+    [laMang ? 'Diện tích băng (m²/m dài)' : 'Diện tích 1 túi', dinhDangM2(rHieuLuc.bagArea)],
+    ['Tổng diện tích đơn hàng', dinhDangSo(rHieuLuc.totalArea, 1) + ' m²'],
     ...(!laMang ? [
-      ['Trọng lượng / túi (Tare)', dinhDangSo(r.tareWeight, 2) + ' gr'] as [string, string],
+      ['Trọng lượng / túi (Tare)', dinhDangSo(rHieuLuc.tareWeight, 2) + ' gr'] as [string, string],
       ['Khối lượng thùng quy đổi', dinhDangSo((dauVaoKq.boxWeight || 0) / (dauVaoKq.bagsPerBox || 1), 2) + ' gr/túi'] as [string, string],
-      ['Tổng trọng lượng', dinhDangSo(r.tareWeight * dauVaoKq.quantity / 1000, 1) + ' kg'] as [string, string],
-      ['Trọng lượng (tấn)', dinhDangSo(r.tareWeight * dauVaoKq.quantity / 1000000, 3) + ' tấn'] as [string, string],
+      ['Tổng trọng lượng', dinhDangSo(rHieuLuc.tareWeight * dauVaoKq.quantity / 1000, 1) + ' kg'] as [string, string],
+      ['Trọng lượng (tấn)', dinhDangSo(rHieuLuc.tareWeight * dauVaoKq.quantity / 1000000, 3) + ' tấn'] as [string, string],
     ] : [
       ['Chiều dài cuộn TP', dinhDangSo(chieuDaiCuonMang) + ' m/cuộn'] as [string, string],
       ['Số lượng cuộn', dinhDangSo(soLuongCuonMang, 2) + ' cuộn'] as [string, string],
@@ -1391,20 +1437,20 @@ const buttonLabel = loadedItem
                   (giá đề xuất {dinhDangSo(effFinalPriceWithComm, 0)} đ/{nhanDonVi})
                 </div>
               )}
-              {dauVaoKq.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0 && (
+              {dauVaoKq.cylIncluded && (rHieuLuc.cylAllocPerUnit ?? 0) > 0 && (
                 <div style={{fontSize:'0.78rem', color:'var(--primary)', marginTop:'2px', fontWeight:600}}>
-                  📌 Có bao trục (+{dinhDangSo(r.cylAllocPerUnit ?? 0, 2)} đ/{nhanDonVi})
+                  📌 Có bao trục (+{dinhDangSo(rHieuLuc.cylAllocPerUnit ?? 0, 2)} đ/{nhanDonVi})
                 </div>
               )}
               <div className="unit">(chưa VAT)</div>
 
               {/* Giá cuộn cho màng — gộp giá cuộn + DT cuộn vào 1 ô */}
-              {laMang && r.filmRollArea > 0 && (
+              {laMang && rHieuLuc.filmRollArea > 0 && (
                 <div style={{display:'flex', flexWrap:'wrap', justifyContent:'center', gap:'12px 24px', marginTop:'12px', fontSize:'0.92rem'}}>
                   <div style={{background:'var(--surface2)', border:'1px solid var(--border)', borderRadius:'8px', padding:'8px 16px', textAlign:'center'}}>
                     <div style={{fontSize:'0.72rem', color:'var(--muted)', fontWeight:600, textTransform:'uppercase', letterSpacing:'0.03em'}}>Giá / cuộn ({dinhDangSo(khoTraiMm)}mm × {dinhDangSo(chieuDaiCuonMang)}m)</div>
-                    <div style={{fontWeight:700, color:'var(--green)', fontSize:'1.1rem'}}>{dinhDangSo(Math.round(shownPrice) * r.filmRollArea, 0)} đ</div>
-                    <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px'}}>DT cuộn: {dinhDangSo(r.filmRollArea, 1)} m² · {dinhDangSo(Math.round(shownPrice), 0)} đ/m²</div>
+                    <div style={{fontWeight:700, color:'var(--green)', fontSize:'1.1rem'}}>{dinhDangSo(Math.round(shownPrice) * rHieuLuc.filmRollArea, 0)} đ</div>
+                    <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px'}}>DT cuộn: {dinhDangSo(rHieuLuc.filmRollArea, 1)} m² · {dinhDangSo(Math.round(shownPrice), 0)} đ/m²</div>
                   </div>
                 </div>
               )}
@@ -1412,7 +1458,7 @@ const buttonLabel = loadedItem
               <div className="sub" id="s-structure">
                 <div style={{fontWeight:600, color:'var(--text)', fontSize:'1.05rem', marginBottom:'12px'}}>{dauVaoKq.customer} — {dauVaoKq.productName}</div>
                 <div style={{display:'flex', flexWrap:'wrap', justifyContent:'center', gap:'8px 20px', fontSize:'0.9rem', margin:'0 auto', maxWidth:'600px'}}>
-                  <div><strong>Chất liệu:</strong> {r.structureText}</div>
+                  <div><strong>Chất liệu:</strong> {rHieuLuc.structureText}</div>
                   {laMang ? (
                     <>
                       <div><strong>Diện tích:</strong> {dinhDangSo(dauVaoKq.quantity)} m²</div>
@@ -1423,15 +1469,15 @@ const buttonLabel = loadedItem
                   )}
                   <div><strong>Số màu:</strong> {chuSoMau}</div>
                   <div><strong>Kích thước:</strong> KT {khoTraiMm} mm x BC {buocCatMm} mm</div>
-                  <div><strong>Độ dày:</strong> {r.totalThickness} mic</div>
-                  <div><strong>Diện tích {laMang ? 'băng' : '1 túi'}:</strong> {dinhDangM2(r.bagArea)}</div>
-                  {!laMang && <div><strong>Trọng lượng:</strong> {dinhDangSo(r.tareWeight, 2)} gr</div>}
+                  <div><strong>Độ dày:</strong> {rHieuLuc.totalThickness} mic</div>
+                  <div><strong>Diện tích {laMang ? 'băng' : '1 túi'}:</strong> {dinhDangM2(rHieuLuc.bagArea)}</div>
+                  {!laMang && <div><strong>Trọng lượng:</strong> {dinhDangSo(rHieuLuc.tareWeight, 2)} gr</div>}
                   <div><strong>Loại {laMang ? 'màng' : 'túi'}:</strong> {chuoiLoaiTui}</div>
                   {laMang && (
-                    <div><strong>Cuộn màng TP:</strong> {dinhDangSo(chieuDaiCuonMang)} m/cuộn ({dinhDangSo(r.filmRollArea, 1)} m²/cuộn)</div>
+                    <div><strong>Cuộn màng TP:</strong> {dinhDangSo(chieuDaiCuonMang)} m/cuộn ({dinhDangSo(rHieuLuc.filmRollArea, 1)} m²/cuộn)</div>
                   )}
                   {numTr > 0 && (
-                    <div><strong>Trục in:</strong> D {dinhDangSo(r.cylLength * 1000)} mm x CV {dinhDangSo(r.cylCircum * 1000)} mm - {dinhDangSo(cylPerUnit)} đ/trục * {numTr} trục = {dinhDangSo(cylTotal)} đ</div>
+                    <div><strong>Trục in:</strong> D {dinhDangSo(rHieuLuc.cylLength * 1000)} mm x CV {dinhDangSo(rHieuLuc.cylCircum * 1000)} mm - {dinhDangSo(cylPerUnit)} đ/trục * {numTr} trục = {dinhDangSo(cylTotal)} đ</div>
                   )}
                 </div>
               </div>
@@ -1653,7 +1699,7 @@ const buttonLabel = loadedItem
               </div>
               <div className="stat-card cyan">
                 <div className="stat-label">Doanh thu</div>
-                <div className="stat-value">{dinhDangSo(r.finalPrice * dauVaoKq.quantity)} đ</div>
+                <div className="stat-value">{dinhDangSo(rHieuLuc.finalPrice * dauVaoKq.quantity)} đ</div>
               </div>
               <div className="stat-card orange">
                 <div className="stat-label">{hienThiGia.salePriceTitle}</div>
@@ -1700,6 +1746,7 @@ const buttonLabel = loadedItem
           </div>
 
           {/* ═══ SECTION: Đặc tả kỹ thuật & nguyên liệu ═══ */}
+          {!nangCap && (<>
           <div id="sect-tech" className="manager-section-anchor"></div>
           <TheThuGon
             resetKey={khoaKetQua}
@@ -1836,7 +1883,7 @@ const buttonLabel = loadedItem
                 cacDongSanXuat={cacDongSanXuat}
                 ghiDeNguon={emptyOv}
                 ghiDeHienTai={ghiDeSale}
-                chenhLechGiaGocDonVi={giaSauGhiDeSaleDonVi - r.finalPrice}
+                chenhLechGiaGocDonVi={giaSauGhiDeSaleDonVi - rHieuLuc.finalPrice}
                 donViChenhLech={donViChenhLechGia}
                 duocSua={canSaleEdit}
                 coTheLuu={coTheLuuSale}
@@ -1863,7 +1910,7 @@ const buttonLabel = loadedItem
                 cacDongSanXuat={cacDongSanXuat}
                 ghiDeNguon={emptyOv}
                 ghiDeHienTai={ghiDeAdmin}
-                chenhLechGiaGocDonVi={giaSauGhiDeAdminDonVi - r.finalPrice}
+                chenhLechGiaGocDonVi={giaSauGhiDeAdminDonVi - rHieuLuc.finalPrice}
                 donViChenhLech={donViChenhLechGia}
                 duocSua={canAdminEdit}
                 coTheLuu={coTheLuuAdmin}
@@ -1905,8 +1952,10 @@ const buttonLabel = loadedItem
           })()}
 
           </TheThuGon>
+          </>)}
 
           {/* ═══ SECTION: Đặc tả kỹ thuật & nguyên liệu (nâng cao) ═══ */}
+          {nangCap && (<>
           <div id="sect-tech-advanced" className="manager-section-anchor"></div>
           <TheThuGon
             resetKey={khoaKetQua}
@@ -1948,6 +1997,7 @@ const buttonLabel = loadedItem
               )}
             </div>
           </TheThuGon>
+          </>)}
 
           {/* ═══ SECTION: Bảng giá theo số lượng (MOQ) ═══ */}
           <div id="sect-moq" className="manager-section-anchor"></div>
