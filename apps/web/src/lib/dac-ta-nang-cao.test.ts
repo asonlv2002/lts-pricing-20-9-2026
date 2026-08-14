@@ -151,6 +151,7 @@ const electric: CpsxUpgradeElectric = {
 
 function taoHangSo(patch?: Partial<AppConstants>): AppConstants {
   return {
+    zipperPrice: 378,
     cpsxUpgradeInk: ink,
     cpsxUpgradeThoiGian: thoiGian,
     cpsxUpgradeLabor: labor,
@@ -441,8 +442,10 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 // ── 4. lapDongVatLieuNangCao (Table 1) ──────────────────────────────────────
 
 {
+  // zipperTotal > 0 → coi có Zipper; gộp vào dòng Làm túi (không tách)
+  // cut 9070+280=9350; không chia → N=1; zipperPrice 378 → 9350×1×378
   const rows = lapDongVatLieuNangCao(taoResult(), taoUniRows(), taoHangSo());
-  eq(rows.map(r => r.congDoan), ['CPSX IN', 'GHÉP (Lớp 2)', 'làm túi', ''], 'túi: 4 dòng (cắt + phụ kiện gộp nhãn "làm túi")');
+  eq(rows.map(r => r.congDoan), ['In', 'GHÉP (Lớp 2)', 'Làm túi'], 'túi: 3 dòng (Zipper gộp vào Làm túi)');
 
   const dongIn = rows[0];
   approx(dongIn.cpMucKeo!, 1640, 'dòng in: 1640 ₫/m²');
@@ -454,17 +457,14 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(dongGhep.cpMucKeo!, 420, 'dòng ghép: 420 ₫/m²');
   approx(dongGhep.thanhTienMucKeo!, 420 * 8770 * 0.65, 'dòng ghép: thành tiền');
 
-  const dongChia = rows[2];
-  eq(dongChia.cpMucKeo, null, 'dòng chia: mực/keo = null');
-  eq(dongChia.thanhTienMucKeo, null, 'dòng chia: thành tiền mực/keo = null');
-
-  const dongTui = rows[3];
-  eq(dongTui.congDoan, '', 'dòng phụ kiện: nhãn trống (thuộc công đoạn "làm túi")');
-  eq(dongTui.vatLieu, 'Zipper', 'phụ kiện: vật liệu = Zipper');
-  approx(dongTui.thanhTienNVL!, 1600000, 'làm túi: thành tiền = tổng phụ kiện');
+  const dongTui = rows[2];
+  eq(dongTui.congDoan, 'Làm túi', 'dòng Làm túi giữ nhãn');
+  eq(dongTui.vatLieu, 'Zipper', 'vật liệu gộp = Zipper');
+  approx(dongTui.dauVaoNVL!, 9350, 'làm túi: giữ Đầu vào NVL cắt');
+  approx(dongTui.thanhTienNVL!, 9350 * 1 * 378, 'làm túi: Đầu vào × N × giá zipper 378');
   eq(dongTui.cpMucKeo, null, 'làm túi: mực/keo = null');
-  eq(dongTui.dauVaoNVL, null, 'làm túi: đầu vào NVL = null (khác đơn vị)');
-  eq(dongTui.giaNVL, null, 'làm túi: giá NVL = null');
+  eq(dongTui.giaNVL, null, 'làm túi: giá NVL kg = null');
+  assert(!rows.some(r => r.congDoan === '' && r.vatLieu?.includes('Zipper')), 'không còn dòng Zipper tách');
 }
 
 {
@@ -525,12 +525,14 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Đủ 3 phụ kiện → "Zipper + Băng keo + Quai"
+  // Đủ 3 phụ kiện → gộp 1 dòng Làm túi: "Zipper + Băng keo + Quai"
+  // Zipper NC = 9350×1×378 + tape 50k + handle 30k
   const r = taoResult({ zipperTotal: 800000, tapeTotal: 50000, handleTotal: 30000 });
   const rows = lapDongVatLieuNangCao(r, taoUniRows(), taoHangSo());
-  const dongTui = rows.find(x => x.vatLieu?.includes('Zipper'))!;
-  eq(dongTui.vatLieu, 'Zipper + Băng keo + Quai', 'phụ kiện: gộp đủ 3 phụ kiện');
-  approx(dongTui.thanhTienNVL!, 880000, 'làm túi: thành tiền = Zipper + băng keo + quai');
+  const dongTui = rows.find(x => x.congDoan === 'Làm túi')!;
+  eq(dongTui.vatLieu, 'Zipper + Băng keo + Quai', 'phụ kiện: gộp đủ 3 tên trên 1 dòng');
+  approx(dongTui.thanhTienNVL!, 9350 * 378 + 50000 + 30000, 'làm túi: zipper NC + tape + quai engine');
+  eq(rows.filter(x => x.rowKey === 'cut').length, 1, 'chỉ 1 dòng cut/Làm túi');
 }
 
 {
@@ -627,26 +629,47 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     handleTotal: 0,
   });
   const rows = lapDongVatLieuNangCao(rMang, uniMang, taoHangSo());
-  assert(!rows.some(r => r.congDoan === 'làm túi'), 'màng: ẩn dòng làm túi');
+  assert(!rows.some(r => r.congDoan === 'Làm túi' || r.congDoan === 'làm túi'), 'màng: ẩn dòng Làm túi');
   assert(!rows.some(r => r.congDoan === 'chia'), 'màng: không có dòng chia');
 }
 
 {
-  // Phụ kiện = 0 → ẩn dòng phụ kiện (dòng cắt vẫn còn nhãn "làm túi")
-  const r0 = taoResult({ zipperTotal: 0, tapeTotal: 0, handleTotal: 0 });
+  // Phụ kiện = 0 → Làm túi vẫn có, vật liệu "-", thành tiền 0
+  const r0 = taoResult({ zipperTotal: 0, tapeTotal: 0, handleTotal: 0, input: { productType: 'tui', numColors: 4, quantity: 10000, hasZipper: false } });
   const rows = lapDongVatLieuNangCao(r0, taoUniRows(), taoHangSo());
-  assert(!rows.some(r => r.vatLieu?.includes('Zipper')), 'phụ kiện 0 → ẩn dòng phụ kiện');
+  const dongTui = rows.find(r => r.congDoan === 'Làm túi')!;
+  eq(dongTui.vatLieu, '-', 'không phụ kiện → vật liệu -');
+  approx(dongTui.thanhTienNVL!, 0, 'không phụ kiện → thành tiền 0');
+  approx(dongTui.dauVaoNVL!, 9350, 'vẫn giữ Đầu vào NVL');
 }
 
 {
-  // Nhiều phụ kiện → gộp 1 dòng, cột Vật liệu liệt kê
+  // Có chia N=2 → zipper ×2 phần tử
+  const rN2 = taoResult({
+    zipperTotal: 1,
+    tapeTotal: 0,
+    handleTotal: 0,
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000, hasZipper: true,
+      hasDivide: true, divideElements: 2,
+    },
+  });
+  const rowsN2 = lapDongVatLieuNangCao(rN2, taoUniRows(), taoHangSo());
+  const dongTuiN2 = rowsN2.find(r => r.congDoan === 'Làm túi')!;
+  eq(dongTuiN2.vatLieu, 'Zipper', 'N=2: vật liệu Zipper');
+  approx(dongTuiN2.thanhTienNVL!, 9350 * 2 * 378, 'N=2: Đầu vào × 2 × giá zipper 378');
+}
+
+{
+  // Nhiều phụ kiện → gộp 1 dòng Làm túi, cột Vật liệu liệt kê
   const rPk = taoResult({ zipperTotal: 1000000, tapeTotal: 500000, handleTotal: 300000 });
   const rows = lapDongVatLieuNangCao(rPk, taoUniRows(), taoHangSo());
-  const dongTui = rows.find(r => r.vatLieu?.includes('Zipper'))!;
-  approx(dongTui.thanhTienNVL!, 1800000, 'gộp 3 phụ kiện = 1.800.000');
+  const dongTui = rows.find(r => r.congDoan === 'Làm túi')!;
+  approx(dongTui.thanhTienNVL!, 9350 * 378 + 500000 + 300000, 'gộp zipper NC + tape + quai');
   assert(dongTui.vatLieu.includes('Zipper'), 'liệt kê Zipper');
   assert(dongTui.vatLieu.includes('Băng keo'), 'liệt kê Băng keo');
   assert(dongTui.vatLieu.includes('Quai'), 'liệt kê Quai');
+  eq(rows.filter(r => r.rowKey === 'cut').length, 1, '1 dòng Làm túi duy nhất');
 }
 
 {
@@ -954,7 +977,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   // 8.1 cpMucKeoPerM2 ghi đè tay (dòng in)
   const ov: OverrideTable = { print: { cpMucKeoPerM2: 999 } };
   const dong = lapDongVatLieuNangCao(taoResult(), taoUniRows(), taoHangSo(), [], ov);
-  const dongIn = dong.find(d => d.congDoan === 'CPSX IN')!;
+  const dongIn = dong.find(d => d.congDoan === 'In' || d.congDoan === 'CPSX IN')!;
   approx(dongIn.cpMucKeo!, 999, 'in: ghi đè cpMucKeoPerM2');
   const dongGhep = dong.find(d => d.congDoan === 'GHÉP (Lớp 2)')!;
   approx(dongGhep.cpMucKeo!, 420, 'ghép: keo giữ nguyên mặc định 420');
@@ -981,7 +1004,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   const dongInXl = rows.find(r => r.rowKey === 'print')!;
   eq(dongInXl.meters, 9920, 'in: TP lan truyền = cut.inputVL (9070+500) → lam-2.inputVL (9570+350)');
   const dong = lapDongVatLieuNangCao(taoResult(), rows, taoHangSo());
-  const dongInNC = dong.find(d => d.congDoan === 'CPSX IN')!;
+  const dongInNC = dong.find(d => d.congDoan === 'In' || d.congDoan === 'CPSX IN')!;
   eq(dongInNC.thanhPham, 9920, 'in: bảng nâng cao hiện TP đã lan truyền');
   eq(dongInNC.dauVaoNVL, 10340, 'in: đầu vào NVL = 9920 + 420');
 }

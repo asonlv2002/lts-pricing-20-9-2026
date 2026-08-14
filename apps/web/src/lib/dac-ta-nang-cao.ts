@@ -26,6 +26,7 @@ import {
   chuanHoaCpsxUpgradeThoiGian,
   metChiaHoacLamTui,
   metLamTuiTuDauVaoNVL,
+  soPhanTuChiaLamTui,
   tinhThoiGianMayChia,
   tinhThoiGianMayGhep,
   tinhThoiGianMayIn,
@@ -250,10 +251,10 @@ export function tinhCpKeoDungMoiGhep(ink: CpsxUpgradeInk): {
 
 // ── Table 1 ─────────────────────────────────────────────────────────────────
 
-/** Nhãn công đoạn thân thiện cho Table 1 — dùng đúng chuẩn engine (không transform).
- *  Dòng cắt (rowKey 'cut') gộp với dòng phụ kiện → nhãn "làm túi". */
+/** Nhãn công đoạn Table 1: CPSX IN → In; cắt → Làm túi; còn lại giữ stage engine. */
 function nhanCongDoan(row: UniRow): string {
-  if (row.rowKey === 'cut') return 'làm túi';
+  if (row.rowKey === 'cut') return 'Làm túi';
+  if (row.rowKey === 'print' || row.stage === 'CPSX IN') return 'In';
   return row.stage || '';
 }
 
@@ -288,10 +289,29 @@ function traGiaNVL(
 }
 
 /**
+ * Thành tiền Zipper (nâng cao) = Đầu vào NVL làm túi × số phần tử × giá zipper (đ/m).
+ * Đầu vào NVL = TP cắt + phi hao (cột Table 1), không dùng qty × bước cắt engine.
+ */
+export function tinhTienZipperNangCao(
+  dauVaoNvlLamTui: number,
+  input: { hasDivide?: boolean; divideElements?: number; hasZipper?: boolean } | null | undefined,
+  hangSo: AppConstants,
+  coZipper: boolean,
+): number {
+  if (!coZipper) return 0;
+  const met = Math.max(0, so(dauVaoNvlLamTui));
+  const n = soPhanTuChiaLamTui(input);
+  // Mặc định vật tư Zipper = 378 đ/m khi cấu hình thiếu / 0
+  const gia = Math.max(0, so(hangSo?.zipperPrice)) || 378;
+  return met * n * gia;
+}
+
+/**
  * Lập các dòng Table 1 từ uniRows + phụ kiện túi.
  * Ghép tách theo lớp (như bảng cũ). Dòng ghép có nhiều vật liệu song song
  * (`materialDetails`) → tách 1 dòng/chi tiết; meters/phi hao lặp lại cấp lớp.
- * Dòng `làm túi` gộp toàn bộ phụ kiện.
+ * Dòng Làm túi: gộp Zipper/Băng keo/Quai vào cùng hàng (không tách dòng).
+ * Zipper: Đầu vào NVL × số phần tử × giá zipper; băng keo/quai: tổng engine.
  */
 export function lapDongVatLieuNangCao(
   result: CalculateResult,
@@ -305,6 +325,17 @@ export function lapDongVatLieuNangCao(
   const soMau = result?.input?.numColors;
   const tyLePhuMuc = result?.input?.coverageRatio;
   const donGiaKeo = tinhCpKeoDungMoiGhep(ink).donGia;
+
+  const coZipper = !!result?.input?.hasZipper || so(result?.zipperTotal) > 0;
+  const coBangKeo = !!result?.input?.hasTape || so(result?.tapeTotal) > 0;
+  const coQuai = !!result?.input?.hasHandle || so(result?.handleTotal) > 0;
+  const tenPhuKien: string[] = [];
+  if (coZipper) tenPhuKien.push('Zipper');
+  if (coBangKeo) tenPhuKien.push('Băng keo');
+  if (coQuai) tenPhuKien.push('Quai');
+  const nhanVatLieuTui = tenPhuKien.length > 0 ? tenPhuKien.join(' + ') : null;
+  const tienBangKeo = coBangKeo ? so(result?.tapeTotal) : 0;
+  const tienQuai = coQuai ? so(result?.handleTotal) : 0;
 
   const rows: DongVatLieuNangCao[] = (uniRows ?? []).flatMap(row => {
     const thanhPham = so(row.meters);
@@ -377,6 +408,45 @@ export function lapDongVatLieuNangCao(
     // Công đoạn gia công ngoài: CP gia công (costCPSX) cộng vào thành tiền CPNVL
     const cpGiaCongNgoai = row.isOutsourced ? so(row.costCPSX) : 0;
 
+    // Làm túi: gộp phụ kiện vào cùng dòng (Vật liệu = Zipper + Băng keo + …)
+    if (row.rowKey === 'cut' && !laMang) {
+      const tienZipper = tinhTienZipperNangCao(
+        dauVaoNVL,
+        result?.input,
+        hangSo,
+        coZipper,
+      );
+      const thanhTienPhuKien = tienZipper + tienBangKeo + tienQuai;
+      const soPt = soPhanTuChiaLamTui(result?.input);
+      const giaZ = Math.max(0, so(hangSo?.zipperPrice)) || 378;
+      let ghiChuTui: string | undefined;
+      if (coZipper) {
+        ghiChuTui = `Zipper = Đầu vào NVL ${dauVaoNVL.toLocaleString('vi-VN')} × ${soPt} phần tử × ${giaZ.toLocaleString('vi-VN')} đ/m`;
+        if (tienBangKeo > 0 || tienQuai > 0) {
+          ghiChuTui += ' · Băng keo/quai theo tổng engine';
+        }
+      } else if (thanhTienPhuKien > 0) {
+        ghiChuTui = 'Băng keo/quai theo tổng engine';
+      }
+      return [{
+        congDoan: nhanCongDoan(row),
+        vatLieu: nhanVatLieuTui ?? (row.mat && row.mat !== '-' ? row.mat : '-'),
+        rowKey: row.rowKey,
+        materialId: row.materialId,
+        khoMang: khoHieuDung || null,
+        thanhPham,
+        phiHao,
+        dauVaoNVL,
+        giaNVL: null,
+        donViGiaNVL: null,
+        cpVatLieu: null,
+        thanhTienNVL: thanhTienPhuKien,
+        cpMucKeo: null,
+        thanhTienMucKeo: null,
+        ghiChu: ghiChuTui,
+      }];
+    }
+
     return [{
       congDoan: nhanCongDoan(row),
       vatLieu: row.mat || '—',
@@ -395,36 +465,6 @@ export function lapDongVatLieuNangCao(
       ghiChu,
     }];
   });
-
-  // Dòng `làm túi` — gộp toàn bộ phụ kiện, chỉ hiện thành tiền
-  if (!laMang) {
-    const khoa = so(result?.zipperTotal);
-    const bangKeo = so(result?.tapeTotal);
-    const quai = so(result?.handleTotal);
-    const tongPhuKien = khoa + bangKeo + quai;
-    if (tongPhuKien > 0) {
-      const ten: string[] = [];
-      if (khoa > 0) ten.push('Zipper');
-      if (bangKeo > 0) ten.push('Băng keo');
-      if (quai > 0) ten.push('Quai');
-      rows.push({
-        congDoan: '',
-        vatLieu: ten.join(' + '),
-        rowKey: 'cut',
-        khoMang: null,
-        thanhPham: null,
-        phiHao: null,
-        dauVaoNVL: null,
-        giaNVL: null,
-        donViGiaNVL: null,
-        cpVatLieu: null,
-        thanhTienNVL: tongPhuKien,
-        cpMucKeo: null,
-        thanhTienMucKeo: null,
-        ghiChu: 'Phụ kiện túi — Zipper/băng keo tính ₫/m, quai tính ₫/túi',
-      });
-    }
-  }
 
   return rows;
 }
@@ -710,8 +750,10 @@ export function tinhKetQuaNangCaoHieuLuc(params: {
   const tong = tinhTongNangCao(dongVatLieu, dongNCD);
 
   const soLuong = so(result?.input?.quantity);
-  const phuKien =
-    so(result?.zipperTotal) + so(result?.tapeTotal) + so(result?.handleTotal);
+  // Phụ kiện đã gộp vào dòng Làm túi (thanhTienNVL) — trừ đúng số trên bảng NC
+  const phuKien = dongVatLieu
+    .filter((r) => r.rowKey === 'cut')
+    .reduce((s, r) => s + so(r.thanhTienNVL), 0);
   const printFilmCost =
     (uniRows ?? []).find((row) => so(row.printFilmCost) > 0)?.printFilmCost ?? 0;
   // Chi phí engine có nhưng không nằm trong uniRows (VD: bao PP gia công) —

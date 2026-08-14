@@ -684,24 +684,8 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
               const ovDong = ghiDeHienTai[row.rowKey];
               const coDoiVL = coGhiDeDong(ovDong, ['meters', 'waste', 'inputVL']);
               const coDoiMuc = ovDong?.cpMucKeoPerM2 !== undefined;
-              const laPhuKien = row.congDoan === 'làm túi' && row.thanhTienNVL != null;
-              if (laPhuKien) {
-                return (
-                  <tr key={`pk-${idx}`}>
-                    <td className="dac-ta-nang-cao__stage">{row.congDoan}</td>
-                    <td>{row.vatLieu}</td>
-                    <td className="num">—</td>
-                    <td className="num">—</td>
-                    <td className="num">—</td>
-                    <td className="num">—</td>
-                    <td className="num">—</td>
-                    <td className="num">{dinhDangSo(row.thanhTienNVL, 0)}</td>
-                    <td className="num">—</td>
-                    <td className="num">—</td>
-                    <td className="num">—</td>
-                  </tr>
-                );
-              }
+              // Bảng đặc tả Sale/Admin NC: chỉ cho sửa Thời gian SX (Table 2) — Table 1 chỉ xem
+              // Phụ kiện (Zipper/…) đã gộp vào dòng Làm túi
               return (
                 <tr key={`${row.rowKey}-${row.chiTietIndex ?? 0}`}>
                   <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">{row.congDoan}</td>
@@ -709,36 +693,36 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     <OChonVatLieuChiTiet khoaDong={row.rowKey} chiTietIndex={row.chiTietIndex}
                       giaTriGoc={{ id: goc.materialId, name: goc.vatLieu, matPrice: goc.cpVatLieu ?? 0 }}
                       giaTriGhiDe={ghiDeHienTai[row.rowKey]?.detailOverrides?.[row.chiTietIndex]}
-                      duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} engineParams={engineParams} />
+                      duocSua={false} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} engineParams={engineParams} />
                   ) : (
                     <OChonVatLieuDong khoaDong={row.rowKey}
                       giaTriGocId={goc?.materialId} giaTriGocTen={goc?.vatLieu ?? row.vatLieu} giaTriGocGia={goc?.cpVatLieu ?? 0}
-                      ghiDeHienTai={ghiDeHienTai} duocSua={duocSua} khiDat={khiDat} materials={materials} engineParams={engineParams} />
+                      ghiDeHienTai={ghiDeHienTai} duocSua={false} khiDat={khiDat} materials={materials} engineParams={engineParams} />
                   )}
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={goc?.khoMang ?? row.khoMang ?? 0}
-                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
+                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={false} khiDat={khiDat} soLe={3} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="meters"
                     giaTriGoc={goc?.thanhPham ?? 0}
                     giaTriGhiDe={Math.abs((row.thanhPham ?? 0) - (goc?.thanhPham ?? 0)) > 0.001 ? (row.thanhPham ?? undefined) : ghiDeHienTai[row.rowKey]?.meters}
-                    duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                    duocSua={false} khiDat={khiDat} soLe={0} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="waste"
                     giaTriGoc={goc?.phiHao ?? 0}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste}
-                    duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                    duocSua={false} khiDat={khiDat} soLe={0} />
                   <td className={`num highlight ${coDoiVL ? 'override-changed' : ''}`} data-label="Đầu vào NVL (m)">{dinhDangSo(row.dauVaoNVL, 0)}</td>
                   <td className="num" data-label="CP vật liệu (đ/m²)">{dinhDangSo(row.cpVatLieu, 1)}</td>
                   <td className={`num ${coDoiVL ? 'override-changed' : ''}`} data-label="Thành tiền CPNVL">{dinhDangSo(row.thanhTienNVL, 0)}</td>
                   {row.giaNVL != null ? (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="rawMatPrice"
                       giaTriGoc={goc?.giaNVL ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.rawMatPrice}
-                      duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                      duocSua={false} khiDat={khiDat} soLe={0} />
                   ) : (
                     <td className="num" data-label="Giá NVL (đ/kg)">—</td>
                   )}
                   {row.cpMucKeo != null ? (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
                       giaTriGoc={goc?.cpMucKeo ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2}
-                      duocSua={duocSua} khiDat={khiDat} soLe={1} />
+                      duocSua={false} khiDat={khiDat} soLe={1} />
                   ) : (
                     <td className="num dac-ta-nang-cao__muc" data-label="CP mực + DM + keo (đ/m²)">—</td>
                   )}
@@ -768,7 +752,8 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
               <tbody>
                 {dongNCD.map((row, idx) => {
                   const ovDong = ghiDeHienTai[row.rowKey];
-                  const coDoiTG = coGhiDeDong(ovDong, ['thoiGianPhut', 'cpNhanCongPerPhut', 'cpDienPerPhut']);
+                  // Chỉ cho sửa Thời gian SX; CP NC / điện chỉ xem
+                  const coDoiTG = coGhiDeDong(ovDong, ['thoiGianPhut']);
                   return (
                     <tr key={`${lopMau}-ncd-${idx}`}>
                       <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">{row.congDoan}</td>
@@ -777,11 +762,11 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                         duocSua={duocSua} khiDat={khiDat} soLe={0} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="cpNhanCongPerPhut"
                         giaTriGoc={dongNCDGoc[idx]?.cpNhanCongPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpNhanCongPerPhut}
-                        duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                        duocSua={false} khiDat={khiDat} soLe={0} />
                       <td className={`num ${coDoiTG ? 'override-changed' : ''}`} data-label="Thành tiền CP nhân công">{dinhDangSo(row.thanhTienNhanCong, 0)}</td>
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="cpDienPerPhut"
                         giaTriGoc={dongNCDGoc[idx]?.cpDienPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpDienPerPhut}
-                        duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                        duocSua={false} khiDat={khiDat} soLe={0} />
                       <td className={`num ${coDoiTG ? 'override-changed' : ''}`} data-label="Thành tiền CP điện">{dinhDangSo(row.thanhTienDien, 0)}</td>
                     </tr>
                   );
@@ -796,19 +781,11 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                   <tr className={`override-profit-rate-row override-profit-rate-row--${lopMau}${profitRatePct > 0 ? ' override-profit-rate-row--overridden' : ''}`}>
                     <td colSpan={3} className="override-profit-label">
                       Tỷ lệ LN:{' '}
-                      {duocSua ? (
-                        <input
-                          className={`profit-rate-input${profitRatePct > 0 ? ' profit-rate-input--overridden' : ''}`}
-                          type="number"
-                          step="0.1"
-                          value={Number.isFinite(Number(profitRatePct)) && Number(profitRatePct) > 0 ? Number(profitRatePct) : (Number.isFinite(Number(defaultProfitRatePct)) ? Number(defaultProfitRatePct) : 0)}
-                          onChange={(e) => khiDatProfitRate(Number(e.target.value) || 0)}
-                          placeholder={String(Number.isFinite(Number(defaultProfitRatePct)) ? Number(defaultProfitRatePct) : 0)}
-                        />
-                      ) : (
-                        <span className="profit-rate-value">{profitRatePct}%</span>
-                      )}
-                      {duocSua && <span className="profit-rate-pct-suffix">%</span>}
+                      <span className="profit-rate-value">
+                        {Number.isFinite(Number(profitRatePct)) && Number(profitRatePct) > 0
+                          ? Number(profitRatePct)
+                          : (Number.isFinite(Number(defaultProfitRatePct)) ? Number(defaultProfitRatePct) : 0)}%
+                      </span>
                     </td>
                     <td colSpan={3} className="num">LN: {dinhDangSo(Math.round(ln), 0)} đ</td>
                   </tr>

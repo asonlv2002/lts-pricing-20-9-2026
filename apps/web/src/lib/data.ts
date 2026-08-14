@@ -655,6 +655,8 @@ const cpsxUpgradeThoiGian: CpsxUpgradeThoiGian = chuanHoaCpsxUpgradeThoiGian(
 
 export const INITIAL_CONSTANTS: AppConstants = {
   ...rawConstants,
+  // Mặc định Zipper 378 đ/m (vật tư / phụ kiện)
+  zipperPrice: Number(rawConstants.zipperPrice) > 0 ? Number(rawConstants.zipperPrice) : 378,
   boxOptions: rawConstants.boxOptions?.length ? rawConstants.boxOptions : fallbackBoxOptions,
   handleOptions: rawConstants.handleOptions?.length ? rawConstants.handleOptions : fallbackHandleOptions,
   cutRules: rawConstants.cutRules?.length ? rawConstants.cutRules : fallbackCutRules,

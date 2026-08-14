@@ -173,10 +173,9 @@ for (const c of CASES) {
   const dongNCD = lapDongNhanCongDien(result, cons);
   const tong = tinhTongNangCao(dongVL, dongNCD);
 
-  const dongIn = dongVL.find((r) => r.congDoan === 'CPSX IN');
-  const cacGhep = dongVL.filter((r) => r.cpMucKeo != null && r.congDoan !== 'CPSX IN');
-  const dongChia = dongVL.find((r) => r.congDoan === 'CẮT');
-  const dongTui = dongVL.find((r) => r.congDoan === 'làm túi');
+  const dongIn = dongVL.find((r) => r.congDoan === 'In' || r.congDoan === 'CPSX IN');
+  const cacGhep = dongVL.filter((r) => r.cpMucKeo != null && r.congDoan !== 'In' && r.congDoan !== 'CPSX IN');
+  const dongTui = dongVL.find((r) => r.congDoan === 'Làm túi' || r.congDoan === 'làm túi');
 
   const tgIn = dongNCD.find((r) => r.congDoan === 'in');
   const tgGhep = dongNCD.find((r) => r.congDoan === 'ghép');
