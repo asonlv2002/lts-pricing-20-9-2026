@@ -202,8 +202,8 @@ for (const c of CASES) {
     vatLieuGhep: cacGhep.map((r) => r.vatLieu).join(' | '),
     cpKeoDongGhep: cacGhep[0]?.cpMucKeo ?? null,
     tongTienKeo: cacGhep.reduce((s, r) => s + so(r.thanhTienMucKeo), 0),
-    // Table 1 — Chia / Làm túi
-    coDongChia: !!dongChia,
+    // Table 2 có dòng chia; Table 1 gộp phụ kiện vào Làm túi
+    coDongChia: !!tgChia,
     coDongLamTui: !!dongTui,
     lamTuiTienNVL: dongTui?.thanhTienNVL ?? null,
     // Table 2
