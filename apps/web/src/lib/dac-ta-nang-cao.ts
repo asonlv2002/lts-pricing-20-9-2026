@@ -33,6 +33,7 @@ import {
   tinhThoiGianMayTui,
 } from './cpsx-upgrade-thoigian';
 import {
+  luongMoiPhutAp,
   luongMoiPhutTinh,
   luongMoiPhutTuiAp,
   soCongNhanTui,
@@ -567,10 +568,13 @@ export function lapDongNhanCongDien(
     rows.push(apDungGhiDeThoiGian(dong(
       'in',
       metIn > 0 ? tinhThoiGianMayIn(metIn, soMau, tg.print, phuMo).tongPhut : null,
-      luongMoiPhutTinh(
-        lab.print.wages, lab.print.hoursPerDay,
-        lab.print.mealMorning, lab.print.mealEvening, lab.print.otFactor,
-        undefined, lab.print.tyLeTangCa, lab.print.otHours,
+      luongMoiPhutAp(
+        luongMoiPhutTinh(
+          lab.print.wages, lab.print.hoursPerDay,
+          lab.print.mealMorning, lab.print.mealEvening, lab.print.otFactor,
+          undefined, lab.print.tyLeTangCa, lab.print.otHours,
+        ),
+        lab.print.roundedPerMin,
       ),
       el?.machines?.print,
     ), ['print'], overrides));
@@ -583,10 +587,13 @@ export function lapDongNhanCongDien(
       rows.push(apDungGhiDeThoiGian(dong(
         'lật mặt',
         ruleMatte.setupMinutes + metIn / (ruleMatte.speedMPerMin || 1),
-        luongMoiPhutTinh(
-          lab.slit.wages, lab.slit.hoursPerDay,
-          lab.slit.mealMorning, lab.slit.mealEvening, lab.slit.otFactor,
-          undefined, lab.slit.tyLeTangCa, lab.slit.otHours,
+        luongMoiPhutAp(
+          luongMoiPhutTinh(
+            lab.slit.wages, lab.slit.hoursPerDay,
+            lab.slit.mealMorning, lab.slit.mealEvening, lab.slit.otFactor,
+            undefined, lab.slit.tyLeTangCa, lab.slit.otHours,
+          ),
+          lab.slit.roundedPerMin,
         ),
         el?.machines?.slit,
       ), ['matte'], overrides));
@@ -598,10 +605,13 @@ export function lapDongNhanCongDien(
     rows.push(apDungGhiDeThoiGian(dong(
       'ghép',
       metGhep > 0 ? tinhThoiGianMayGhep(metGhep, soLanGhep, tg.laminate).tongPhut : null,
-      luongMoiPhutTinh(
-        lab.laminate.wages, lab.laminate.hoursPerDay,
-        lab.laminate.mealMorning, lab.laminate.mealEvening, lab.laminate.otFactor,
-        undefined, lab.laminate.tyLeTangCa, lab.laminate.otHours,
+      luongMoiPhutAp(
+        luongMoiPhutTinh(
+          lab.laminate.wages, lab.laminate.hoursPerDay,
+          lab.laminate.mealMorning, lab.laminate.mealEvening, lab.laminate.otFactor,
+          undefined, lab.laminate.tyLeTangCa, lab.laminate.otHours,
+        ),
+        lab.laminate.roundedPerMin,
       ),
       el?.machines?.laminate,
     ), ['lam-2', 'lam-3', 'lam-4', 'lam-5'], overrides));
@@ -614,10 +624,13 @@ export function lapDongNhanCongDien(
     rows.push(apDungGhiDeThoiGian(dong(
       'chia',
       tinhThoiGianMayChia(metInChia, ruleChia).tongPhut,
-      luongMoiPhutTinh(
-        lab.slit.wages, lab.slit.hoursPerDay,
-        lab.slit.mealMorning, lab.slit.mealEvening, lab.slit.otFactor,
-        undefined, lab.slit.tyLeTangCa, lab.slit.otHours,
+      luongMoiPhutAp(
+        luongMoiPhutTinh(
+          lab.slit.wages, lab.slit.hoursPerDay,
+          lab.slit.mealMorning, lab.slit.mealEvening, lab.slit.otFactor,
+          undefined, lab.slit.tyLeTangCa, lab.slit.otHours,
+        ),
+        lab.slit.roundedPerMin,
       ),
       el?.machines?.slit,
     ), ['chia'], overrides));

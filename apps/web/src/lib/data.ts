@@ -248,6 +248,7 @@ const DEFAULT_CPSX_LUONG_IN: CpsxUpgradeLabor1May = {
   hoursPerDay: 24,
   otHours: 4,
   tyLeTangCa: 0.5,
+  roundedPerMin: null,
 };
 const DEFAULT_CPSX_LUONG_GHEP: CpsxUpgradeLabor1May = {
   wages: [800000, 550000, 800000, 550000],
@@ -260,6 +261,7 @@ const DEFAULT_CPSX_LUONG_GHEP: CpsxUpgradeLabor1May = {
   hoursPerDay: 24,
   otHours: 4,
   tyLeTangCa: 0.5,
+  roundedPerMin: null,
 };
 const DEFAULT_CPSX_LUONG_CHIA: CpsxUpgradeLabor1May = {
   wages: [550000],
@@ -272,6 +274,7 @@ const DEFAULT_CPSX_LUONG_CHIA: CpsxUpgradeLabor1May = {
   hoursPerDay: 12,
   otHours: 4,
   tyLeTangCa: 0.5,
+  roundedPerMin: null,
 };
 const DEFAULT_CPSX_LUONG_TUI: CpsxUpgradeLaborTui = {
   wages: [

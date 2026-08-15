@@ -256,6 +256,8 @@ export interface CpsxUpgradeLabor1May {
   otHours: number;
   /** Tỉ lệ CN có tăng ca (0–1, mặc định 0.5) */
   tyLeTangCa: number;
+  /** Giá làm tròn / áp từ Công thức — null = dùng giá tính bảng lương */
+  roundedPerMin: number | null;
 }
 
 /** CPSX nâng cấp — Lương Làm túi (nhiều máy): SL/ca sửa được, có làm tròn */

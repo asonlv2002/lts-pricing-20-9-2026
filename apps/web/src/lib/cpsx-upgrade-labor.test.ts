@@ -2,13 +2,24 @@
  * Run: pnpm exec tsx src/lib/cpsx-upgrade-labor.test.ts  (cwd: apps/web)
  */
 import {
+  bieuThucTuDonVi,
   boDau,
+  capNhatDonViSo,
   chenDonVi,
   chuanHoaCpsxUpgradeLabor,
+  donViChuoi,
+  donViSo,
+  gopSoHang,
+  hopLeTenCongThuc,
+  hopLeTenThamSo,
+  keyThamSo,
+  laSoHopLe,
+  locNhapSoThuc,
   luongMoiPhutAp,
   luongMoiPhutTinh,
   luongMoiPhutTuiAp,
   luongTbTui,
+  parseGiaTriThamSo,
   phanBoTheoCa,
   soCongNhan,
   soNguoiMoiCa1May,
@@ -17,6 +28,7 @@ import {
   tienComSangTui,
   tienComToiTui,
   tinhBieuThuc,
+  tinhDsCongThuc,
   tokenHoaBieuThuc,
   tongLuong,
   xoaDonViTai,
@@ -347,11 +359,296 @@ assert(
     "Số ca÷SL người / ca",
 );
 
+// ── Ô số thực (DonViCalc) ──────────────────────────────────────────
+assert("laSoHopLe '0' → true", laSoHopLe("0") === true);
+assert("laSoHopLe '1.5' → true", laSoHopLe("1.5") === true);
+assert("laSoHopLe '' → false", laSoHopLe("") === false);
+assert("laSoHopLe '12.' → false", laSoHopLe("12.") === false);
+assert("laSoHopLe '.5' → false", laSoHopLe(".5") === false);
+assert("laSoHopLe '-1' → false", laSoHopLe("-1") === false);
+assert("laSoHopLe '1.2.3' → false", laSoHopLe("1.2.3") === false);
+assert("locNhapSoThuc '12a.3b.4' → '12.34'", locNhapSoThuc("12a.3b.4") === "12.34");
+assert("locNhapSoThuc '12.' → '12.'", locNhapSoThuc("12.") === "12.");
+
+const donViSoTest = [
+  donViChuoi("Tổng lương"),
+  donViChuoi("÷"),
+  donViSo("8"),
+];
+assert(
+  "bieuThucTuDonVi Tổng lương÷8",
+  bieuThucTuDonVi(donViSoTest) === "Tổng lương÷8",
+);
+assert(
+  "bieuThucTuDonVi ô rỗng → null",
+  bieuThucTuDonVi([donViChuoi("2"), donViChuoi("×"), donViSo("")]) === null,
+);
+assert(
+  "bieuThucTuDonVi '12.' → null",
+  bieuThucTuDonVi([donViSo("12.")]) === null,
+);
+assert(
+  "tinhBieuThuc qua bieuThucTuDonVi 2×1.5 = 3",
+  tinhBieuThuc(
+    bieuThucTuDonVi([donViChuoi("2"), donViChuoi("×"), donViSo("1.5")])!,
+  ) === 3,
+);
+assert(
+  "chenDonVi donViSo tại cuối",
+  chenDonVi([donViChuoi("2"), donViChuoi("×")], 2, donViSo("")).mang.length ===
+    3,
+);
+assert(
+  "capNhatDonViSo index 2 → '1.5'",
+  (() => {
+    const m = capNhatDonViSo(
+      [donViChuoi("2"), donViChuoi("×"), donViSo("")],
+      2,
+      "1.5",
+    );
+    return m[2].loai === "so" && m[2].giaTri === "1.5";
+  })(),
+);
+assert(
+  "capNhatDonViSo lọc ký tự lạ",
+  (() => {
+    const m = capNhatDonViSo([donViSo("")], 0, "3a.1b");
+    return m[0].loai === "so" && m[0].giaTri === "3.1";
+  })(),
+);
+assert(
+  "xoaDonViTai ô số giữa",
+  bieuThucTuDonVi(
+    xoaDonViTai(
+      [donViChuoi("2"), donViSo("9"), donViChuoi("×"), donViSo("3")],
+      1,
+    ).mang,
+  ) === "2×3",
+);
+
+// ── Tham số tùy chỉnh ──────────────────────────────────────────────
+const builtInTs = { tongluong: 100, comcasang: 50 };
+assert("keyThamSo 'Phụ cấp ăn' → 'phucapan'", keyThamSo("Phụ cấp ăn") === "phucapan");
+assert(
+  "hopLeTenThamSo 'Phụ cấp ăn' → ok",
+  hopLeTenThamSo("Phụ cấp ăn", builtInTs, []).ok === true,
+);
+assert(
+  "hopLeTenThamSo trim + chuẩn hóa khoảng trắng",
+  (() => {
+    const r = hopLeTenThamSo("  Hệ   số X  ", builtInTs, []);
+    return r.ok && r.ten === "Hệ số X" && r.key === "hesox";
+  })(),
+);
+assert(
+  "hopLeTenThamSo trống → false",
+  hopLeTenThamSo("   ", builtInTs, []).ok === false,
+);
+assert(
+  "hopLeTenThamSo trùng built-in → false",
+  hopLeTenThamSo("Tổng lương", builtInTs, []).ok === false,
+);
+assert(
+  "hopLeTenThamSo trùng custom → false",
+  hopLeTenThamSo("Phụ cấp ăn", builtInTs, [{ ten: "Phụ cấp ăn" }]).ok === false,
+);
+assert(
+  "hopLeTenThamSo ký tự lạ → false",
+  hopLeTenThamSo("a+b", builtInTs, []).ok === false,
+);
+assert(
+  "hopLeTenThamSo có / → ok",
+  hopLeTenThamSo("SL ca / ngày", builtInTs, []).ok === true,
+);
+assert("parseGiaTriThamSo '1.5' → 1.5", parseGiaTriThamSo("1.5") === 1.5);
+assert("parseGiaTriThamSo '12.' → null", parseGiaTriThamSo("12.") === null);
+assert("parseGiaTriThamSo '' → null", parseGiaTriThamSo("") === null);
+assert(
+  "gopSoHang merge custom",
+  gopSoHang(builtInTs, [
+    { id: "1", ten: "Phụ cấp ăn", giaTri: 50000 },
+    { id: "2", ten: "Hệ số X", giaTri: 1.2 },
+  ]).phucapan === 50000 &&
+    gopSoHang(builtInTs, [
+      { id: "1", ten: "Phụ cấp ăn", giaTri: 50000 },
+      { id: "2", ten: "Hệ số X", giaTri: 1.2 },
+    ]).hesox === 1.2,
+);
+assert(
+  "tinhBieuThuc với gopSoHang",
+  tinhBieuThuc(
+    "Tổng lương + Phụ cấp ăn",
+    gopSoHang(builtInTs, [{ id: "1", ten: "Phụ cấp ăn", giaTri: 50 }]),
+  ) === 150,
+);
+
+// ── Công thức đặt tên ──────────────────────────────────────────────
+assert(
+  "hopLeTenCongThuc ok",
+  hopLeTenCongThuc("Lương CN mỗi phút", builtInTs, [], []).ok === true,
+);
+assert(
+  "hopLeTenCongThuc trùng tham số → false",
+  hopLeTenCongThuc(
+    "Phụ cấp ăn",
+    builtInTs,
+    [{ ten: "Phụ cấp ăn" }],
+    [],
+  ).ok === false,
+);
+assert(
+  "hopLeTenCongThuc trùng CT khác → false",
+  hopLeTenCongThuc(
+    "Hệ số X",
+    builtInTs,
+    [],
+    [{ id: "a", ten: "Hệ số X" }],
+  ).ok === false,
+);
+assert(
+  "hopLeTenCongThuc excludeId cho phép giữ tên",
+  hopLeTenCongThuc(
+    "Hệ số X",
+    builtInTs,
+    [],
+    [{ id: "a", ten: "Hệ số X" }],
+    "a",
+  ).ok === true,
+);
+assert(
+  "hopLeTenThamSo chặn trùng tên CT",
+  hopLeTenThamSo(
+    "Hệ số X",
+    builtInTs,
+    [],
+    [{ ten: "Hệ số X" }],
+  ).ok === false,
+);
+
+const baseCt = gopSoHang(builtInTs, [
+  { id: "p1", ten: "Phụ cấp ăn", giaTri: 50 },
+]);
+assert(
+  "tinhDsCongThuc 1 CT",
+  (() => {
+    const kq = tinhDsCongThuc(
+      [
+        {
+          id: "c1",
+          ten: "Lương CN mỗi phút",
+          donVi: [
+            donViChuoi("Tổng lương"),
+            donViChuoi("+"),
+            donViChuoi("Phụ cấp ăn"),
+          ],
+        },
+      ],
+      baseCt,
+    );
+    return kq.c1 === 150;
+  })(),
+);
+assert(
+  "tinhDsCongThuc lồng B = A × 2",
+  (() => {
+    const kq = tinhDsCongThuc(
+      [
+        {
+          id: "a",
+          ten: "Cơ sở",
+          donVi: [donViChuoi("Tổng lương")],
+        },
+        {
+          id: "b",
+          ten: "Gấp đôi",
+          donVi: [donViChuoi("Cơ sở"), donViChuoi("×"), donViSo("2")],
+        },
+      ],
+      builtInTs,
+    );
+    return kq.a === 100 && kq.b === 200;
+  })(),
+);
+assert(
+  "tinhDsCongThuc lồng bất kể thứ tự list",
+  (() => {
+    const kq = tinhDsCongThuc(
+      [
+        {
+          id: "b",
+          ten: "Gấp đôi",
+          donVi: [donViChuoi("Cơ sở"), donViChuoi("×"), donViSo("2")],
+        },
+        {
+          id: "a",
+          ten: "Cơ sở",
+          donVi: [donViChuoi("Tổng lương")],
+        },
+      ],
+      builtInTs,
+    );
+    return kq.a === 100 && kq.b === 200;
+  })(),
+);
+assert(
+  "tinhDsCongThuc chu trình → null",
+  (() => {
+    const kq = tinhDsCongThuc(
+      [
+        {
+          id: "a",
+          ten: "A",
+          donVi: [donViChuoi("B"), donViChuoi("+"), donViSo("1")],
+        },
+        {
+          id: "b",
+          ten: "B",
+          donVi: [donViChuoi("A"), donViChuoi("+"), donViSo("1")],
+        },
+      ],
+      builtInTs,
+    );
+    return kq.a === null && kq.b === null;
+  })(),
+);
+assert(
+  "tinhDsCongThuc số invalid → null",
+  (() => {
+    const kq = tinhDsCongThuc(
+      [
+        {
+          id: "c1",
+          ten: "X",
+          donVi: [donViSo("12.")],
+        },
+      ],
+      builtInTs,
+    );
+    return kq.c1 === null;
+  })(),
+);
+assert(
+  "tinhDsCongThuc tên trống → null",
+  (() => {
+    const kq = tinhDsCongThuc(
+      [
+        {
+          id: "c1",
+          ten: "  ",
+          donVi: [donViSo("10")],
+        },
+      ],
+      builtInTs,
+    );
+    return kq.c1 === null;
+  })(),
+);
+
 // ── Normalize ──────────────────────────────────────────────────────
 const def: CpsxUpgradeLabor = {
-  print: { wages: in6, mealMorning: 30000, mealEvening: 65000, otFactor: 1.5, shiftCount: 2, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5 },
-  laminate: { wages: [800000, 550000, 800000, 550000], mealMorning: 30000, mealEvening: 65000, otFactor: 1.5, shiftCount: 2, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5 },
-  slit: { wages: [550000], mealMorning: 30000, mealEvening: 65000, otFactor: 1.5, shiftCount: 1, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 12, otHours: 4, tyLeTangCa: 0.5 },
+  print: { wages: in6, mealMorning: 30000, mealEvening: 65000, otFactor: 1.5, shiftCount: 2, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5, roundedPerMin: null },
+  laminate: { wages: [800000, 550000, 800000, 550000], mealMorning: 30000, mealEvening: 65000, otFactor: 1.5, shiftCount: 2, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5, roundedPerMin: null },
+  slit: { wages: [550000], mealMorning: 30000, mealEvening: 65000, otFactor: 1.5, shiftCount: 1, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 12, otHours: 4, tyLeTangCa: 0.5, roundedPerMin: null },
   bag: { wages: tuiW, mealMorning: 45000, mealEvening: 97500, otFactor: 1.5, peoplePerShift: 3, roundedPerMin: null, hoursPerDay: 24, machinesPerDay: 3, otHours: 4, tyLeTangCa: 0.5 },
 };
 const norm = chuanHoaCpsxUpgradeLabor(undefined, def);

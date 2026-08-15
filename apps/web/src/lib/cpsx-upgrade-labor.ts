@@ -184,6 +184,11 @@ export function chuanHoa1May(
   const shiftCount: 1 | 2 = raw?.shiftCount === 1 || raw?.shiftCount === 2
     ? raw.shiftCount
     : fallback.shiftCount;
+  const roundedRaw = raw?.roundedPerMin;
+  const rounded =
+    roundedRaw == null || !Number.isFinite(Number(roundedRaw))
+      ? null
+      : Number(roundedRaw);
   return {
     wages: wages.length > 0 ? wages : [...fallback.wages],
     mealMorning:
@@ -212,6 +217,7 @@ export function chuanHoa1May(
     otHours:
       Number(raw?.otHours) > 0 ? Number(raw?.otHours) : fallback.otHours,
     tyLeTangCa: chuanHoaTyLeTangCa(raw?.tyLeTangCa, fallback.tyLeTangCa),
+    roundedPerMin: rounded != null && rounded > 0 ? rounded : null,
   };
 }
 
@@ -441,15 +447,81 @@ export function tinhBieuThuc(
 
 // ── Máy tính tham khảo — thao tác token box (1 bấm = 1 cái) ───────
 
+/** 1 đơn vị trong biểu thức token box (số hạng / toán tử / ô số thực). */
+export type DonViCalc =
+  | { loai: "chuoi"; s: string }
+  | { loai: "so"; giaTri: string };
+
+export function donViChuoi(s: string): DonViCalc {
+  return { loai: "chuoi", s };
+}
+
+export function donViSo(giaTri = ""): DonViCalc {
+  return { loai: "so", giaTri };
+}
+
+/**
+ * Số hợp lệ để đưa vào parser: chỉ chữ số + tối đa một dấu chấm thập phân.
+ * Không cho số âm trong ô (dùng toán tử −). Chuỗi rỗng / "12." → false.
+ */
+export function laSoHopLe(s: string): boolean {
+  return /^\d+(?:\.\d+)?$/.test(s ?? "");
+}
+
+/**
+ * Ghép token → chuỗi biểu thức cho `tinhBieuThuc`.
+ * Có ô số rỗng/invalid → null (UI hiện —).
+ */
+export function bieuThucTuDonVi(donVi: DonViCalc[]): string | null {
+  let out = "";
+  for (const d of donVi) {
+    if (d.loai === "chuoi") {
+      out += d.s;
+      continue;
+    }
+    if (!laSoHopLe(d.giaTri)) return null;
+    out += d.giaTri;
+  }
+  return out;
+}
+
+/**
+ * Lọc ký tự khi gõ ô số: chỉ 0-9 và một dấu `.`.
+ * Cho phép intermediate `"12."` (invalid cho tính, nhưng giữ trong input).
+ */
+export function locNhapSoThuc(raw: string): string {
+  const s = (raw ?? "").replace(/[^\d.]/g, "");
+  const i = s.indexOf(".");
+  if (i < 0) return s;
+  return s.slice(0, i + 1) + s.slice(i + 1).replace(/\./g, "");
+}
+
+/** Cập nhật `giaTri` của token số tại `i` (không-op nếu không phải ô số). */
+export function capNhatDonViSo(
+  donVi: DonViCalc[],
+  i: number,
+  giaTri: string,
+): DonViCalc[] {
+  const idx = Math.floor(i);
+  if (idx < 0 || idx >= donVi.length) return donVi;
+  const cur = donVi[idx];
+  if (cur.loai !== "so") return donVi;
+  const next = locNhapSoThuc(giaTri);
+  if (cur.giaTri === next) return donVi;
+  const mang = donVi.slice();
+  mang[idx] = { loai: "so", giaTri: next };
+  return mang;
+}
+
 /**
  * Chèn 1 đơn vị tại khe `cursor` (0..donVi.length).
  * Trả về mảng mới + khe mới (sau đơn vị vừa chèn).
  */
-export function chenDonVi(
-  donVi: string[],
+export function chenDonVi<T>(
+  donVi: T[],
   cursor: number,
-  s: string,
-): { mang: string[]; cursorMoi: number } {
+  s: T,
+): { mang: T[]; cursorMoi: number } {
   const viTri = Math.max(0, Math.min(donVi.length, Math.floor(cursor)));
   const mang = [...donVi.slice(0, viTri), s, ...donVi.slice(viTri)];
   return { mang, cursorMoi: viTri + 1 };
@@ -459,11 +531,173 @@ export function chenDonVi(
  * Xóa đơn vị tại chỉ số `i`. Trả về mảng mới + khe mới
  * (khe trước vị trí vừa xóa, không vượt quá độ dài mới).
  */
-export function xoaDonViTai(
-  donVi: string[],
+export function xoaDonViTai<T>(
+  donVi: T[],
   i: number,
-): { mang: string[]; cursorMoi: number } {
+): { mang: T[]; cursorMoi: number } {
+  if (donVi.length === 0) return { mang: [], cursorMoi: 0 };
   const idx = Math.max(0, Math.min(donVi.length - 1, Math.floor(i)));
   const mang = [...donVi.slice(0, idx), ...donVi.slice(idx + 1)];
   return { mang, cursorMoi: Math.min(idx, mang.length) };
+}
+
+// ── Máy tính tham khảo — tham số tùy chỉnh (phiên) ────────────────
+
+/** 1 tham số user tự tạo trong máy tính tham khảo (không persist). */
+export type ThamSoTuyChinh = {
+  id: string;
+  ten: string;
+  giaTri: number;
+};
+
+/** Key nội bộ = boDau(tên), dùng trong soHang / tinhBieuThuc. */
+export function keyThamSo(ten: string): string {
+  return boDau(ten);
+}
+
+/**
+ * Tên hợp lệ để làm số hạng: trim, khớp TEN_SO_HANG_RE toàn chuỗi,
+ * key không rỗng, không trùng built-in / tham số / công thức (dsTenThem).
+ */
+export function hopLeTenThamSo(
+  ten: string,
+  soHangBuiltIn: Record<string, number>,
+  dsThamSo: readonly { ten: string }[],
+  dsTenThem: readonly { ten: string }[] = [],
+): { ok: true; ten: string; key: string } | { ok: false; lyDo: string } {
+  const tenTrim = (ten ?? "").trim().replace(/\s+/g, " ");
+  if (!tenTrim) return { ok: false, lyDo: "Tên trống" };
+
+  TEN_SO_HANG_RE.lastIndex = 0;
+  const m = TEN_SO_HANG_RE.exec(tenTrim);
+  if (!m || m[0] !== tenTrim || m.index !== 0) {
+    return { ok: false, lyDo: "Tên không hợp lệ" };
+  }
+
+  const key = keyThamSo(tenTrim);
+  if (!key) return { ok: false, lyDo: "Tên không hợp lệ" };
+
+  if (Object.prototype.hasOwnProperty.call(soHangBuiltIn, key)) {
+    return { ok: false, lyDo: "Trùng số hạng có sẵn" };
+  }
+  for (const t of dsThamSo) {
+    if (keyThamSo(t.ten) === key) {
+      return { ok: false, lyDo: "Trùng tham số đã thêm" };
+    }
+  }
+  for (const t of dsTenThem) {
+    if (keyThamSo(t.ten) === key) {
+      return { ok: false, lyDo: "Trùng tên đã dùng" };
+    }
+  }
+  return { ok: true, ten: tenTrim, key };
+}
+
+/** Merge built-in + tham số tùy chỉnh → soHang hiệu lực. */
+export function gopSoHang(
+  soHangBuiltIn: Record<string, number>,
+  dsThamSo: readonly ThamSoTuyChinh[],
+): Record<string, number> {
+  const out: Record<string, number> = { ...soHangBuiltIn };
+  for (const t of dsThamSo) {
+    const key = keyThamSo(t.ten);
+    if (!key) continue;
+    const n = Number(t.giaTri);
+    if (!Number.isFinite(n)) continue;
+    out[key] = n;
+  }
+  return out;
+}
+
+/**
+ * Parse giá trị tham số từ chuỗi nhập (dấu `.`).
+ * Hợp lệ → number; không → null.
+ */
+export function parseGiaTriThamSo(raw: string): number | null {
+  const s = locNhapSoThuc(raw);
+  if (!laSoHopLe(s)) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+// ── Máy tính tham khảo — công thức đặt tên (phiên) ────────────────
+
+/** 1 công thức user đặt tên trong máy tính tham khảo (không persist). */
+export type CongThucTuyChinh = {
+  id: string;
+  ten: string;
+  donVi: DonViCalc[];
+};
+
+/**
+ * Tên công thức hợp lệ: cùng rule số hạng, không trùng built-in /
+ * tham số / công thức khác (excludeId bỏ qua chính nó khi đổi tên).
+ */
+export function hopLeTenCongThuc(
+  ten: string,
+  soHangBuiltIn: Record<string, number>,
+  dsThamSo: readonly { ten: string }[],
+  dsCongThuc: readonly { id: string; ten: string }[],
+  excludeId?: string,
+): { ok: true; ten: string; key: string } | { ok: false; lyDo: string } {
+  const khac = dsCongThuc.filter((c) => c.id !== excludeId);
+  const r = hopLeTenThamSo(ten, soHangBuiltIn, dsThamSo, khac);
+  if (!r.ok) {
+    if (r.lyDo === "Trùng tham số đã thêm") {
+      return { ok: false, lyDo: "Trùng tham số đã thêm" };
+    }
+    if (r.lyDo === "Trùng tên đã dùng") {
+      return { ok: false, lyDo: "Trùng tính toán phụ đã có" };
+    }
+    return r;
+  }
+  return r;
+}
+
+/**
+ * Tính toàn bộ công thức (hỗ trợ lồng nhau theo phụ thuộc tên).
+ * Chu trình / thiếu tên / cú pháp sai → `null` cho CT đó.
+ * Key kết quả = `id` công thức.
+ */
+export function tinhDsCongThuc(
+  ds: readonly CongThucTuyChinh[],
+  soHangBase: Record<string, number>,
+): Record<string, number | null> {
+  const out: Record<string, number | null> = {};
+  type Muc = { id: string; key: string; bieuThuc: string };
+  const hangDoi: Muc[] = [];
+
+  for (const ct of ds) {
+    const bt = bieuThucTuDonVi(ct.donVi);
+    const tenTrim = (ct.ten ?? "").trim().replace(/\s+/g, " ");
+    const key = tenTrim ? keyThamSo(tenTrim) : "";
+    if (bt == null || !key) {
+      out[ct.id] = null;
+      continue;
+    }
+    hangDoi.push({ id: ct.id, key, bieuThuc: bt });
+  }
+
+  const soHang: Record<string, number> = { ...soHangBase };
+  let tienBo = true;
+  while (tienBo && hangDoi.length > 0) {
+    tienBo = false;
+    const conLai: Muc[] = [];
+    for (const m of hangDoi) {
+      const gtri = tinhBieuThuc(m.bieuThuc, soHang);
+      if (gtri == null || !Number.isFinite(gtri)) {
+        conLai.push(m);
+        continue;
+      }
+      out[m.id] = gtri;
+      soHang[m.key] = gtri;
+      tienBo = true;
+    }
+    hangDoi.length = 0;
+    hangDoi.push(...conLai);
+  }
+  for (const m of hangDoi) {
+    out[m.id] = null;
+  }
+  return out;
 }

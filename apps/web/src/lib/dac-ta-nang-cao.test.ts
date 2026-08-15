@@ -120,9 +120,9 @@ const thoiGian: CpsxUpgradeThoiGian = {
 };
 
 const labor: CpsxUpgradeLabor = {
-  print: { wages: [500000, 400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5 },
-  laminate: { wages: [450000, 350000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5 },
-  slit: { wages: [400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 1, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 12, otHours: 4, tyLeTangCa: 0.5 },
+  print: { wages: [500000, 400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5, roundedPerMin: null },
+  laminate: { wages: [450000, 350000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 2, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 24, otHours: 4, tyLeTangCa: 0.5, roundedPerMin: null },
+  slit: { wages: [400000], mealMorning: 30000, mealEvening: 30000, otFactor: 1, shiftCount: 1, peoplePerShift: null, machinesPerDay: 1, hoursPerDay: 12, otHours: 4, tyLeTangCa: 0.5, roundedPerMin: null },
   bag: {
     wages: [300000, 300000],
     mealMorning: 30000,
