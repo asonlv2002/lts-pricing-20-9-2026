@@ -35,8 +35,46 @@ function so(n: unknown): number {
 }
 
 const RULE_FALLBACK: CpsxThoiGianRule = { key: '', label: '', setupMinutes: 20, speedMPerMin: 100 };
-const SETUP_FALLBACK: CpsxTuiSetupRule = { key: '', label: '', setupMinutes: 90 };
+const SETUP_FALLBACK: CpsxTuiSetupRule = {
+  key: '',
+  label: '',
+  setupMinutes: 90,
+  maxStepMm: null,
+  stepOp: null,
+};
 const SPEED_FALLBACK: CpsxTuiSpeedRule = { key: '', label: '', maxStepMm: null, speedMPerMin: 50 };
+
+/** Rule 3/4 biên có bậc bước cắt (UI bảng 1). */
+export function laSetupBienCoSize(r: CpsxTuiSetupRule): boolean {
+  const k = String(r?.key ?? '');
+  if (k.startsWith('3bien') || k.startsWith('4bien') || k.startsWith('3_4bien')) return true;
+  return r?.stepOp === 'lte' || r?.stepOp === 'gt';
+}
+
+function nhomBienTuKey(key: string): '3bien' | '4bien' | null {
+  const k = String(key ?? '').toLowerCase();
+  if (k.startsWith('3bien') || k.includes('3_4bien') || k === '3bien') return '3bien';
+  // 3_4bien cũ gộp cả hai — map sang 3bien khi không rõ; 4bien riêng
+  if (k.startsWith('4bien')) return '4bien';
+  return null;
+}
+
+function nhomBienTuBagType(bagType: string): '3bien' | '4bien' | null {
+  const bt = String(bagType ?? '').toLowerCase();
+  if (bt === '3bien' || bt.includes('3bien')) return '3bien';
+  if (bt === '4bien' || bt.includes('4bien')) return '4bien';
+  return null;
+}
+
+function ruleKhopSize(r: CpsxTuiSetupRule, mm: number): boolean {
+  const op = r.stepOp;
+  const max = r.maxStepMm;
+  if (op == null || max == null || !Number.isFinite(Number(max))) return false;
+  const m = Number(max);
+  if (op === 'lte') return mm <= m;
+  if (op === 'gt') return mm > m;
+  return false;
+}
 
 /**
  * Mét chạy khâu chia (nâng cao):
@@ -186,10 +224,9 @@ export function chonRuleMayChia(
 
 /**
  * Chọn rule setup máy túi theo loại túi + zipper + bước cắt (m).
- * Zipper: đáy đứng → zipper_daydung, còn lại → zipper_3bien.
- * Xếp hông: > 40cm → xephong_gt40, còn lại → xephong.
- * Cut seal: → cut_seal. 3/4 biên: > 40cm → 3_4bien_gt40, > 30cm → 3_4bien_gt30,
- * còn lại → 3bien.
+ * Zipper / xếp hông / cut seal: key cố định (bảng loại khác, không size).
+ * 3 biên / 4 biên: tách hàng; match stepOp + maxStepMm (≤30cm / >30cm).
+ * Data cũ: 3bien / 3_4bien_gt30 / 3_4bien_gt40 vẫn fallback được.
  */
 export function chonSetupMayTui(
   cfg: CpsxThoiGianMayTui,
@@ -198,22 +235,68 @@ export function chonSetupMayTui(
   cutStepM: number,
 ): CpsxTuiSetupRule {
   const rules = cfg?.setupRules ?? [];
-  const tim = (key: string) => rules.find(r => r.key === key);
-  const bt = String(bagType ?? '').toLowerCase();
+  const tim = (key: string) => rules.find((r) => r.key === key);
+  const bt = String(bagType ?? "").toLowerCase();
   const buoc = so(cutStepM);
+  const mm = buoc * 1000;
 
   if (hasZipper) {
-    if (bt.includes('daydung')) return tim('zipper_daydung') ?? tim('zipper_3bien') ?? rules[0] ?? SETUP_FALLBACK;
-    return tim('zipper_3bien') ?? rules[0] ?? SETUP_FALLBACK;
+    if (bt.includes("daydung")) {
+      return (
+        tim("zipper_daydung") ??
+        tim("zipper_3bien") ??
+        rules[0] ??
+        SETUP_FALLBACK
+      );
+    }
+    return tim("zipper_3bien") ?? rules[0] ?? SETUP_FALLBACK;
   }
-  if (bt.includes('xephong')) {
-    if (buoc > 0.4) return tim('xephong_gt40') ?? tim('xephong') ?? rules[0] ?? SETUP_FALLBACK;
-    return tim('xephong') ?? rules[0] ?? SETUP_FALLBACK;
+  if (bt.includes("xephong")) {
+    if (buoc > 0.4) {
+      return tim("xephong_gt40") ?? tim("xephong") ?? rules[0] ?? SETUP_FALLBACK;
+    }
+    return tim("xephong") ?? rules[0] ?? SETUP_FALLBACK;
   }
-  if (bt.includes('cutseal')) return tim('cut_seal') ?? rules[0] ?? SETUP_FALLBACK;
-  if (buoc > 0.4) return tim('3_4bien_gt40') ?? tim('3bien') ?? tim('4bien') ?? rules[0] ?? SETUP_FALLBACK;
-  if (buoc > 0.3) return tim('3_4bien_gt30') ?? tim('3bien') ?? tim('4bien') ?? rules[0] ?? SETUP_FALLBACK;
-  return tim('3bien') ?? tim('4bien') ?? rules[0] ?? SETUP_FALLBACK;
+  if (bt.includes("cutseal")) {
+    return tim("cut_seal") ?? rules[0] ?? SETUP_FALLBACK;
+  }
+
+  const nhom = nhomBienTuBagType(bagType) ?? "3bien";
+  const bienRules = rules.filter((r) => {
+    if (!laSetupBienCoSize(r)) return false;
+    const n = nhomBienTuKey(r.key);
+    if (n === nhom) return true;
+    // Key cũ 3_4bien_* áp cho cả 3 và 4 biên
+    if (String(r.key).startsWith("3_4bien")) return true;
+    // Key phẳng "3bien" / "4bien" không có suffix size
+    if (r.key === nhom) return true;
+    return false;
+  });
+
+  const theoSize = bienRules.find((r) => ruleKhopSize(r, mm));
+  if (theoSize) return theoSize;
+
+  // Fallback key mới
+  if (mm <= 300) {
+    return (
+      tim(`${nhom}_le30`) ??
+      tim(nhom) ??
+      (nhom === "4bien" ? tim("4bien") : tim("3bien")) ??
+      bienRules[0] ??
+      rules[0] ??
+      SETUP_FALLBACK
+    );
+  }
+  // > 30cm: ưu tiên gt30; data cũ gt40 cũng >30
+  return (
+    tim(`${nhom}_gt30`) ??
+    tim("3_4bien_gt30") ??
+    tim("3_4bien_gt40") ??
+    tim(nhom) ??
+    bienRules[0] ??
+    rules[0] ??
+    SETUP_FALLBACK
+  );
 }
 
 /**
@@ -235,6 +318,143 @@ export function chonTocDoMayTui(
 }
 
 // ── Chuẩn hoá / migrate dữ liệu cũ ──────────────────────────────────────────
+
+function cloneSetupRule(r: CpsxTuiSetupRule): CpsxTuiSetupRule {
+  return {
+    key: r.key,
+    label: r.label,
+    setupMinutes: r.setupMinutes,
+    maxStepMm: r.maxStepMm === undefined ? null : r.maxStepMm,
+    stepOp: r.stepOp === undefined ? null : r.stepOp,
+  };
+}
+
+/**
+ * Chuẩn hoá setupRules túi.
+ * - Đã có stepOp (lte/gt) trên dòng 3/4 biên → giữ + clamp.
+ * - Data cũ (3bien, 4bien, 3_4bien_gt30, 3_4bien_gt40 không stepOp) →
+ *   bung thành 4 dòng le30/gt30 cho 3 biên và 4 biên (phút lấy từ dòng tương ứng).
+ * - Loại khác: maxStepMm/stepOp = null.
+ */
+export function chuanHoaSetupRulesTui(
+  raw: CpsxTuiSetupRule[] | undefined,
+  defaults: CpsxTuiSetupRule[],
+): CpsxTuiSetupRule[] {
+  if (!Array.isArray(raw) || raw.length === 0) {
+    return defaults.map(cloneSetupRule);
+  }
+
+  const mapped: CpsxTuiSetupRule[] = raw.map((rule, i) => {
+    const fb = defaults[i] ?? SETUP_FALLBACK;
+    const key = String(rule?.key || fb.key || `setup_${i + 1}`);
+    const label = String(rule?.label || fb.label || `Loại túi ${i + 1}`);
+    const setupMinutes =
+      so(rule?.setupMinutes) > 0 ? so(rule.setupMinutes) : fb.setupMinutes;
+    let stepOp: CpsxTuiSetupRule["stepOp"] =
+      rule?.stepOp === "lte" || rule?.stepOp === "gt" ? rule.stepOp : null;
+    let maxStepMm: number | null =
+      rule?.maxStepMm == null || rule?.maxStepMm === undefined
+        ? null
+        : Number(rule.maxStepMm);
+    if (maxStepMm != null && !Number.isFinite(maxStepMm)) maxStepMm = null;
+
+    // Suy ra từ key mới nếu thiếu stepOp
+    if (!stepOp) {
+      if (/_le30$/i.test(key) || /_lte?30$/i.test(key)) {
+        stepOp = "lte";
+        maxStepMm = maxStepMm ?? 300;
+      } else if (/_gt30$/i.test(key) || key.includes("gt30")) {
+        stepOp = "gt";
+        maxStepMm = maxStepMm ?? 300;
+      } else if (key.includes("gt40")) {
+        // gt40 cũ → coi như >30 khi migrate bung
+        stepOp = null;
+        maxStepMm = null;
+      }
+    }
+
+    return { key, label, setupMinutes, maxStepMm, stepOp };
+  });
+
+  const hasNewBien = mapped.some(
+    (r) =>
+      (r.key.startsWith("3bien_") || r.key.startsWith("4bien_")) &&
+      (r.stepOp === "lte" || r.stepOp === "gt"),
+  );
+  if (hasNewBien) {
+    return mapped.map((r) => {
+      if (laSetupBienCoSize(r) && (r.stepOp === "lte" || r.stepOp === "gt")) {
+        return {
+          ...r,
+          maxStepMm: r.maxStepMm ?? 300,
+          stepOp: r.stepOp,
+        };
+      }
+      // Loại khác: strip size
+      if (!laSetupBienCoSize(r)) {
+        return { ...r, maxStepMm: null, stepOp: null };
+      }
+      return r;
+    });
+  }
+
+  // Migrate data cũ → bung 3/4 biên
+  const phut = (keys: string[], fallback: number) => {
+    for (const k of keys) {
+      const hit = mapped.find((r) => r.key === k);
+      if (hit && hit.setupMinutes > 0) return hit.setupMinutes;
+    }
+    return fallback;
+  };
+  const p3le = phut(["3bien", "3bien_le30"], 90);
+  const p3gt = phut(["3_4bien_gt30", "3_4bien_gt40", "3bien_gt30"], p3le);
+  const p4le = phut(["4bien", "4bien_le30"], p3le);
+  const p4gt = phut(["3_4bien_gt30", "3_4bien_gt40", "4bien_gt30"], p4le);
+
+  const bienMoi: CpsxTuiSetupRule[] = [
+    {
+      key: "3bien_le30",
+      label: "Túi 3 biên",
+      setupMinutes: p3le,
+      maxStepMm: 300,
+      stepOp: "lte",
+    },
+    {
+      key: "3bien_gt30",
+      label: "Túi 3 biên",
+      setupMinutes: p3gt,
+      maxStepMm: 300,
+      stepOp: "gt",
+    },
+    {
+      key: "4bien_le30",
+      label: "Túi 4 biên",
+      setupMinutes: p4le,
+      maxStepMm: 300,
+      stepOp: "lte",
+    },
+    {
+      key: "4bien_gt30",
+      label: "Túi 4 biên",
+      setupMinutes: p4gt,
+      maxStepMm: 300,
+      stepOp: "gt",
+    },
+  ];
+
+  const khac = mapped
+    .filter((r) => !laSetupBienCoSize(r))
+    .map((r) => ({ ...r, maxStepMm: null as number | null, stepOp: null as null }));
+
+  // Nếu migrate mất hết loại khác → lấy default phần khác
+  if (khac.length === 0) {
+    const defKhac = defaults
+      .filter((r) => !laSetupBienCoSize(r))
+      .map(cloneSetupRule);
+    return [...bienMoi, ...defKhac];
+  }
+  return [...bienMoi, ...khac];
+}
 
 /**
  * Chuẩn hoá cấu hình mục 4. Dữ liệu cũ (model cũ: tocDoMetPerHour/phutSetupMoiMau/
@@ -296,16 +516,10 @@ export function chuanHoaCpsxUpgradeThoiGian(
   };
 
   const bag: CpsxThoiGianMayTui = {
-    setupRules: Array.isArray(rBag.setupRules) && rBag.setupRules.length > 0
-      ? rBag.setupRules.map((rule: CpsxTuiSetupRule, i: number) => {
-          const fb = defaults.bag.setupRules[i] ?? SETUP_FALLBACK;
-          return {
-            key: String(rule?.key || fb.key || `setup_${i + 1}`),
-            label: String(rule?.label || fb.label || `Loại túi ${i + 1}`),
-            setupMinutes: so(rule?.setupMinutes) > 0 ? so(rule.setupMinutes) : fb.setupMinutes,
-          };
-        })
-      : defaults.bag.setupRules.map((rule) => ({ ...rule })),
+    setupRules: chuanHoaSetupRulesTui(
+      Array.isArray(rBag.setupRules) ? (rBag.setupRules as CpsxTuiSetupRule[]) : undefined,
+      defaults.bag.setupRules,
+    ),
     // speedMPerMin (m/phút). Data cũ/copy từ bagPressTime có bagsPerMinute → map sang.
     speedRules: Array.isArray(rBag.speedRules) && rBag.speedRules.length > 0
       ? rBag.speedRules.map((rule: CpsxTuiSpeedRule & { bagsPerMinute?: number }, i: number) => {

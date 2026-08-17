@@ -7,9 +7,11 @@ import {
   capNhatDonViSo,
   chenDonVi,
   chuanHoaCpsxUpgradeLabor,
+  chuanHoaMayTinh,
   donViChuoi,
   donViSo,
   gopSoHang,
+  taoMayTinhWorkspaceMacDinh,
   hopLeTenCongThuc,
   hopLeTenThamSo,
   keyThamSo,
@@ -28,9 +30,12 @@ import {
   tienComSangTui,
   tienComToiTui,
   tinhBieuThuc,
+  tinhDonVi,
   tinhDsCongThuc,
   tokenHoaBieuThuc,
   tongLuong,
+  donViSoHang,
+  hangSoTuDonVi,
   xoaDonViTai,
 } from "./cpsx-upgrade-labor";
 import type { CpsxUpgradeLabor } from "./types";
@@ -453,12 +458,30 @@ assert(
   hopLeTenThamSo("Phụ cấp ăn", builtInTs, [{ ten: "Phụ cấp ăn" }]).ok === false,
 );
 assert(
-  "hopLeTenThamSo ký tự lạ → false",
-  hopLeTenThamSo("a+b", builtInTs, []).ok === false,
+  "hopLeTenThamSo free text a+b → ok",
+  (() => {
+    const r = hopLeTenThamSo("a+b", builtInTs, []);
+    return r.ok && r.ten === "a+b" && r.key === "a+b";
+  })(),
+);
+assert(
+  "hopLeTenThamSo 'cơm 2' → ok",
+  (() => {
+    const r = hopLeTenThamSo("cơm 2", builtInTs, []);
+    return r.ok && r.ten === "cơm 2" && r.key === "com2";
+  })(),
 );
 assert(
   "hopLeTenThamSo có / → ok",
   hopLeTenThamSo("SL ca / ngày", builtInTs, []).ok === true,
+);
+assert(
+  "hopLeTenThamSo chỉ toán tử → false",
+  hopLeTenThamSo("+", builtInTs, []).ok === false,
+);
+assert(
+  "hopLeTenThamSo quá dài → false",
+  hopLeTenThamSo("x".repeat(81), builtInTs, []).ok === false,
 );
 assert("parseGiaTriThamSo '1.5' → 1.5", parseGiaTriThamSo("1.5") === 1.5);
 assert("parseGiaTriThamSo '12.' → null", parseGiaTriThamSo("12.") === null);
@@ -480,6 +503,51 @@ assert(
     "Tổng lương + Phụ cấp ăn",
     gopSoHang(builtInTs, [{ id: "1", ten: "Phụ cấp ăn", giaTri: 50 }]),
   ) === 150,
+);
+
+// ── tinhDonVi / free-text soHang token ─────────────────────────────
+assert(
+  "tinhDonVi tongluong + com2 × 2",
+  tinhDonVi(
+    [
+      donViSoHang("tongluong"),
+      donViChuoi("+"),
+      donViSoHang("com2"),
+      donViChuoi("×"),
+      donViSo("2"),
+    ],
+    { tongluong: 100, com2: 10 },
+  ) === 120,
+);
+assert(
+  "tinhDonVi soHang a+b (ký tự lạ trong key)",
+  tinhDonVi(
+    [donViSoHang("a+b"), donViChuoi("×"), donViSo("3")],
+    { "a+b": 4 },
+  ) === 12,
+);
+assert(
+  "tinhDonVi legacy chuoi tên chữ vẫn ok",
+  tinhDonVi(
+    [donViChuoi("Tổng lương"), donViChuoi("+"), donViSoHang("com2")],
+    { tongluong: 100, com2: 5 },
+  ) === 105,
+);
+assert(
+  "tinhDonVi thiếu key → null",
+  tinhDonVi([donViSoHang("khongco")], { tongluong: 1 }) === null,
+);
+assert(
+  "hangSoTuDonVi thay số hạng đã biết",
+  hangSoTuDonVi(
+    [donViSoHang("com2"), donViChuoi("×"), donViSo("2")],
+    { com2: 1500 },
+    (n) => String(n),
+  ) === "1500×2",
+);
+assert(
+  "keyThamSo 'cơm 2' → 'com2'",
+  keyThamSo("cơm 2") === "com2",
 );
 
 // ── Công thức đặt tên ──────────────────────────────────────────────
@@ -546,6 +614,29 @@ assert(
       baseCt,
     );
     return kq.c1 === 150;
+  })(),
+);
+assert(
+  "tinhDsCongThuc free-text soHang 'cơm 2'",
+  (() => {
+    const base = gopSoHang(builtInTs, [
+      { id: "p1", ten: "cơm 2", giaTri: 25 },
+    ]);
+    const kq = tinhDsCongThuc(
+      [
+        {
+          id: "c1",
+          ten: "Tổng có cơm 2",
+          donVi: [
+            donViSoHang("tongluong"),
+            donViChuoi("+"),
+            donViSoHang("com2"),
+          ],
+        },
+      ],
+      base,
+    );
+    return kq.c1 === 125;
   })(),
 );
 assert(
@@ -750,6 +841,118 @@ const normZero = chuanHoaCpsxUpgradeLabor(
 );
 assert("normalize meal=0 KHÔNG bị fallback về 65000", normZero.slit.mealMorning === 0 && normZero.slit.mealEvening === 0);
 assert("normalize meal=0 không phá máy khác", normZero.print.mealEvening === 65000 && normZero.bag.mealEvening === 97500);
+
+// ── mayTinh workspace persist ──────────────────────────────────────
+assert(
+  "chuanHoaMayTinh thiếu → default 1 CT",
+  (() => {
+    const w = chuanHoaMayTinh(undefined);
+    return (
+      w.items.length === 1 &&
+      w.items[0].id === "mt_1" &&
+      w.apSource === "formula" &&
+      w.apCtId === null
+    );
+  })(),
+);
+assert(
+  "chuanHoaMayTinh round-trip soHang + tham số cơm 2",
+  (() => {
+    const raw = {
+      items: [
+        {
+          id: "mt_x",
+          ten: "CT A",
+          open: false,
+          thamSo: [{ id: "ts1", ten: "cơm 2", giaTri: 100 }],
+          congThuc: [],
+          donViMain: [
+            { loai: "soHang", key: "tongluong" },
+            { loai: "chuoi", s: "+" },
+            { loai: "soHang", key: "com2" },
+          ],
+        },
+      ],
+      apSource: "ct",
+      apCtId: "mt_x",
+      manualDraft: "3500",
+    };
+    const w = chuanHoaMayTinh(raw);
+    return (
+      w.items.length === 1 &&
+      w.items[0].ten === "CT A" &&
+      w.items[0].open === false &&
+      w.items[0].thamSo[0]?.ten === "cơm 2" &&
+      w.items[0].donViMain[0]?.loai === "soHang" &&
+      (w.items[0].donViMain[0] as { key: string }).key === "tongluong" &&
+      w.apSource === "ct" &&
+      w.apCtId === "mt_x" &&
+      w.manualDraft === "3500"
+    );
+  })(),
+);
+assert(
+  "chuanHoaMayTinh apCtId mất → fallback formula",
+  (() => {
+    const w = chuanHoaMayTinh({
+      items: [{ id: "a", ten: "A", open: true, thamSo: [], congThuc: [], donViMain: [] }],
+      apSource: "ct",
+      apCtId: "khong-co",
+      manualDraft: "",
+    });
+    return w.apSource === "formula" && w.apCtId === null;
+  })(),
+);
+assert(
+  "chuanHoa1May thiếu mayTinh → default workspace",
+  (() => {
+    const n = chuanHoaCpsxUpgradeLabor(
+      { print: { wages: [1] } as never },
+      def,
+    );
+    return (
+      n.print.mayTinh != null &&
+      n.print.mayTinh.items.length === 1 &&
+      n.bag.mayTinh != null
+    );
+  })(),
+);
+assert(
+  "chuanHoa1May giữ mayTinh đã lưu",
+  (() => {
+    const n = chuanHoaCpsxUpgradeLabor(
+      {
+        print: {
+          mayTinh: {
+            items: [
+              {
+                id: "z",
+                ten: "Z",
+                open: true,
+                thamSo: [],
+                congThuc: [],
+                donViMain: [{ loai: "so", giaTri: "1" }],
+              },
+            ],
+            apSource: "manual",
+            apCtId: null,
+            manualDraft: "999",
+          },
+        } as never,
+      },
+      def,
+    );
+    return (
+      n.print.mayTinh?.items[0]?.ten === "Z" &&
+      n.print.mayTinh?.apSource === "manual" &&
+      n.print.mayTinh?.manualDraft === "999"
+    );
+  })(),
+);
+assert(
+  "taoMayTinhWorkspaceMacDinh có mt_1",
+  taoMayTinhWorkspaceMacDinh().items[0].id === "mt_1",
+);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

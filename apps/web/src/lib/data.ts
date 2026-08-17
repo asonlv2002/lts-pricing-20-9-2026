@@ -184,17 +184,18 @@ export const DEFAULT_BAG_PRESS_ELECTRIC: BagPressElectric = {
   pricePerKwh: 2140,
 };
 
+/** Setup túi CPSX: 3/4 biên tách hàng + bậc size; loại khác không size. */
 export const DEFAULT_BAG_PRESS_SETUP_RULES: BagPressSetupRule[] = [
-  { key: '3bien', label: 'Túi 3 biên', setupMinutes: 90 },
-  { key: '4bien', label: 'Túi 4 biên', setupMinutes: 90 },
-  { key: '3_4bien_gt30', label: 'Túi 3 biên, 4 biên (>30cm)', setupMinutes: 90 },
-  { key: '3_4bien_gt40', label: 'Túi 3 biên, 4 biên (>40cm)', setupMinutes: 90 },
-  { key: 'xephong', label: 'Xếp hông lưng lệch / lưng giữa', setupMinutes: 120 },
-  { key: 'xephong_gt40', label: 'Xếp hông lưng lệch / lưng giữa (>40cm)', setupMinutes: 120 },
-  { key: 'zipper_daydung', label: 'Zipper đáy đứng', setupMinutes: 120 },
-  { key: 'zipper_3bien', label: 'Zipper 3 biên', setupMinutes: 120 },
-  { key: 'nap_bangkeo', label: 'Nắp băng keo', setupMinutes: 120 },
-  { key: 'cut_seal', label: 'Túi cắt Seal', setupMinutes: 90 },
+  { key: '3bien_le30', label: 'Túi 3 biên', setupMinutes: 90, maxStepMm: 300, stepOp: 'lte' },
+  { key: '3bien_gt30', label: 'Túi 3 biên', setupMinutes: 90, maxStepMm: 300, stepOp: 'gt' },
+  { key: '4bien_le30', label: 'Túi 4 biên', setupMinutes: 90, maxStepMm: 300, stepOp: 'lte' },
+  { key: '4bien_gt30', label: 'Túi 4 biên', setupMinutes: 90, maxStepMm: 300, stepOp: 'gt' },
+  { key: 'xephong', label: 'Xếp hông lưng lệch / lưng giữa', setupMinutes: 120, maxStepMm: null, stepOp: null },
+  { key: 'xephong_gt40', label: 'Xếp hông lưng lệch / lưng giữa (>40cm)', setupMinutes: 120, maxStepMm: null, stepOp: null },
+  { key: 'zipper_daydung', label: 'Zipper đáy đứng', setupMinutes: 120, maxStepMm: null, stepOp: null },
+  { key: 'zipper_3bien', label: 'Zipper 3 biên', setupMinutes: 120, maxStepMm: null, stepOp: null },
+  { key: 'nap_bangkeo', label: 'Nắp băng keo', setupMinutes: 120, maxStepMm: null, stepOp: null },
+  { key: 'cut_seal', label: 'Túi cắt Seal', setupMinutes: 90, maxStepMm: null, stepOp: null },
 ];
 
 export const DEFAULT_BAG_PRESS_SPEED_RULES: BagPressSpeedRule[] = [

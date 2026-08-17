@@ -493,15 +493,51 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Phủ mờ (hasMo + metallicSurcharge 200) → dòng in +200 ₫/m² mực + dung môi
+  // Phủ mờ (hasMo + metallicSurcharge 200) → dòng in +200 ₫/m² mực + dung môi + dòng Lật mặt
   const rowsThuong = lapDongVatLieuNangCao(taoResult(), taoUniRows(), taoHangSo());
   approx(rowsThuong[0].cpMucKeo!, 1640, 'không phủ mờ → 1640 ₫/m²');
+  assert(!rowsThuong.some(r => r.congDoan === 'Lật mặt'), 'không phủ mờ → không có dòng Lật mặt Table 1');
   const rMo = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, metallicSurcharge: 200, hasMo: true } });
   const rowsMo = lapDongVatLieuNangCao(rMo, taoUniRows(), taoHangSo());
+  eq(rowsMo.map(r => r.congDoan), ['In', 'Lật mặt', 'GHÉP (Lớp 2)', 'Làm túi'], 'phủ mờ Table 1: In → Lật mặt → ghép → làm túi');
   approx(rowsMo[0].cpMucKeo!, 1840, 'phủ mờ → 1640 + 200 = 1840 ₫/m²');
   approx(rowsMo[0].thanhTienMucKeo!, 1840 * 8420 * 0.65, 'phủ mờ: thành tiền theo 1840 ₫/m²');
   assert(String(rowsMo[0].ghiChu ?? '').includes('200'), 'ghiChu nhắc phụ phí in');
-  approx(rowsMo[1].cpMucKeo!, 420, 'dòng ghép: không đổi khi phủ mờ');
+
+  const dongLatMat = rowsMo[1];
+  eq(dongLatMat.rowKey, 'matte', 'Lật mặt: rowKey matte');
+  eq(dongLatMat.vatLieu, rowsMo[0].vatLieu, 'Lật mặt: vật liệu = In');
+  eq(dongLatMat.khoMang, rowsMo[0].khoMang, 'Lật mặt: khổ = In');
+  approx(dongLatMat.thanhPham!, Number(rowsMo[0].thanhPham), 'Lật mặt: TP = TP In');
+  approx(dongLatMat.phiHao!, 0, 'Lật mặt: phi hao = 0');
+  approx(dongLatMat.dauVaoNVL!, Number(rowsMo[0].thanhPham), 'Lật mặt: đầu vào = TP In');
+  approx(dongLatMat.giaNVL!, 0, 'Lật mặt: giá NVL = 0');
+  approx(dongLatMat.cpVatLieu!, 0, 'Lật mặt: CP VL = 0');
+  approx(dongLatMat.thanhTienNVL!, 0, 'Lật mặt: thành tiền NVL = 0');
+  approx(dongLatMat.cpMucKeo!, 0, 'Lật mặt: CP mực/keo = 0');
+  approx(dongLatMat.thanhTienMucKeo!, 0, 'Lật mặt: thành tiền mực/keo = 0');
+  eq(dongLatMat.donViGiaNVL, null, 'Lật mặt: không đơn vị kg');
+
+  approx(rowsMo[2].cpMucKeo!, 420, 'dòng ghép: không đổi khi phủ mờ');
+  const tongMo = tinhTongNangCao(rowsMo, []);
+  const tongKhongLat = tinhTongNangCao(rowsMo.filter(r => r.congDoan !== 'Lật mặt'), []);
+  approx(tongMo.tongVatLieu, tongKhongLat.tongVatLieu, 'Lật mặt chi phí 0 → tổng VL không đổi');
+}
+
+{
+  // Phủ mờ + GC slit → không chèn Lật mặt Table 1 (cùng ĐK Table 2)
+  const rGc = taoResult({
+    input: {
+      productType: 'tui',
+      numColors: 4,
+      quantity: 10000,
+      hasMo: true,
+      pricingMode: 'outsource',
+      outsource: { steps: ['slit'] },
+    },
+  });
+  const rowsGc = lapDongVatLieuNangCao(rGc, taoUniRows(), taoHangSo());
+  assert(!rowsGc.some(r => r.congDoan === 'Lật mặt' || r.rowKey === 'matte'), 'GC slit → không Lật mặt Table 1');
 }
 
 {
@@ -644,20 +680,88 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Có chia N=2 → zipper ×2 phần tử
+  // Có chia N=2, khổ chia 0.3 → dòng Chia + Làm túi ĐV = TP Chia; zipper theo ĐV (đã ×N)
   const rN2 = taoResult({
     zipperTotal: 1,
     tapeTotal: 0,
     handleTotal: 0,
+    structureText: 'MPET 12//LLDPE 60',
     input: {
       productType: 'tui', numColors: 4, quantity: 10000, hasZipper: true,
-      hasDivide: true, divideElements: 2,
+      hasDivide: true, divideElements: 2, divideWidthMm: 300, spreadWidth: 0.65,
     },
   });
   const rowsN2 = lapDongVatLieuNangCao(rN2, taoUniRows(), taoHangSo());
+  eq(
+    rowsN2.map(r => r.congDoan),
+    ['In', 'GHÉP (Lớp 2)', 'Chia', 'Làm túi'],
+    'có chia Table 1: In → ghép → Chia → Làm túi',
+  );
+
+  const dongChia = rowsN2.find(r => r.congDoan === 'Chia')!;
+  eq(dongChia.rowKey, 'chia', 'Chia: rowKey chia');
+  eq(dongChia.vatLieu, 'MPET 12//LLDPE 60', 'Chia: vật liệu = structureText');
+  approx(dongChia.thanhPham!, 8420 * 2, 'Chia: TP = TP ghép × N');
+  approx(dongChia.dauVaoNVL!, 8420 * 2, 'Chia: ĐV = TP');
+  approx(dongChia.phiHao!, 0, 'Chia: phi hao = 0');
+  approx(dongChia.khoMang!, 0.3, 'Chia: khoMang = khổ chia m');
+  assert(String(dongChia.khoMangLabel ?? '').includes('→'), 'Chia: khổ label có mũi tên');
+  approx(dongChia.giaNVL!, 0, 'Chia: giá NVL = 0');
+  approx(dongChia.cpVatLieu!, 0, 'Chia: CP VL = 0');
+  approx(dongChia.thanhTienNVL!, 0, 'Chia: TT NVL = 0');
+  approx(dongChia.cpMucKeo!, 0, 'Chia: CP mực = 0');
+  approx(dongChia.thanhTienMucKeo!, 0, 'Chia: TT mực = 0');
+
   const dongTuiN2 = rowsN2.find(r => r.congDoan === 'Làm túi')!;
   eq(dongTuiN2.vatLieu, 'Zipper', 'N=2: vật liệu Zipper');
-  approx(dongTuiN2.thanhTienNVL!, 9350 * 2 * 378, 'N=2: Đầu vào × 2 × giá zipper 378');
+  approx(dongTuiN2.dauVaoNVL!, 8420 * 2, 'Làm túi có chia: ĐV = TP Chia');
+  approx(dongTuiN2.thanhPham!, 9070, 'Làm túi: TP = mét cắt engine');
+  // phi hao = ĐV/3000×20 + 100 (cutWaste mặc định)
+  approx(dongTuiN2.phiHao!, (8420 * 2) / 3000 * 20 + 100, 'Làm túi: phi hao = công thức cắt trên ĐV');
+  approx(dongTuiN2.khoMang!, 0.3, 'Làm túi có chia: khổ = khổ chia');
+  // ĐV đã = TP ghép × N → zipper = ĐV × giá (không nhân N lần nữa)
+  approx(dongTuiN2.thanhTienNVL!, 8420 * 2 * 378, 'N=2: zipper = TP Chia × giá 378');
+
+  const tongN2 = tinhTongNangCao(rowsN2, []);
+  const tongKhongChia = tinhTongNangCao(rowsN2.filter(r => r.congDoan !== 'Chia'), []);
+  approx(tongN2.tongVatLieu, tongKhongChia.tongVatLieu, 'Chia chi phí 0 → tổng VL không đổi');
+}
+
+{
+  // Có chia + GC slit → không dòng Chia; Làm túi giữ logic cũ
+  const rGc = taoResult({
+    zipperTotal: 0,
+    tapeTotal: 0,
+    handleTotal: 0,
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000, hasZipper: false,
+      hasDivide: true, divideElements: 2, divideWidthMm: 300,
+      pricingMode: 'outsource', outsource: { steps: ['slit'] },
+    },
+  });
+  const rowsGc = lapDongVatLieuNangCao(rGc, taoUniRows(), taoHangSo());
+  assert(!rowsGc.some(r => r.congDoan === 'Chia' || r.rowKey === 'chia'), 'GC slit → không Chia Table 1');
+  const dongTui = rowsGc.find(r => r.congDoan === 'Làm túi')!;
+  approx(dongTui.dauVaoNVL!, 9350, 'GC slit: Làm túi ĐV = TP+phi hao cắt');
+  approx(dongTui.phiHao!, 280, 'GC slit: phi hao cắt engine');
+}
+
+{
+  // Màng + có chia → có dòng Chia, không Làm túi
+  const uniMang = taoUniRows().filter(r => r.rowKey !== 'cut');
+  const rMangChia = taoResult({
+    input: {
+      productType: 'mang', numColors: 4, quantity: 10000,
+      hasDivide: true, divideElements: 2, divideWidthMm: 300,
+    },
+    structureText: 'MPET 12//LLDPE 60',
+    zipperTotal: 0, tapeTotal: 0, handleTotal: 0,
+  });
+  const rowsMang = lapDongVatLieuNangCao(rMangChia, uniMang, taoHangSo());
+  assert(rowsMang.some(r => r.congDoan === 'Chia'), 'màng + chia → có dòng Chia');
+  assert(!rowsMang.some(r => r.congDoan === 'Làm túi'), 'màng + chia → không Làm túi');
+  const dongChiaM = rowsMang.find(r => r.congDoan === 'Chia')!;
+  approx(dongChiaM.thanhPham!, 8420 * 2, 'màng chia: TP = TP ghép × N');
 }
 
 {

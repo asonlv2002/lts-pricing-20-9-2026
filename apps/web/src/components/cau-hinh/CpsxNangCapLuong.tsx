@@ -6,21 +6,27 @@ import { Eye, Trash2 } from "lucide-react";
 import { dungCuaHangTinhGia } from "../../store/CuaHangTinhGia";
 import { DEFAULT_CPSX_UPGRADE_LABOR } from "../../lib/data";
 import type {
+  CpsxMayTinhApSource,
+  CpsxMayTinhCongThucItem,
+  CpsxMayTinhWorkspace,
   CpsxUpgradeLabor,
   CpsxUpgradeLabor1May,
   CpsxUpgradeLaborTui,
 } from "../../lib/types";
 import {
-  bieuThucTuDonVi,
   boDau,
   capNhatDonViSo,
   chenDonVi,
   chuanHoaCpsxUpgradeLabor,
+  chuanHoaMayTinh,
   donViChuoi,
   donViSo,
+  donViSoHang,
   gopSoHang,
+  hangSoTuDonVi,
   hopLeTenCongThuc,
   hopLeTenThamSo,
+  keyThamSo,
   locNhapSoThuc,
   luongMoiPhutAp,
   luongMoiPhutTinh,
@@ -32,10 +38,9 @@ import {
   SO_GIO_MOT_CA,
   tangCaTheoTongLuong,
   tangCaTui,
-  TEN_SO_HANG_RE,
   tienComSangTui,
   tienComToiTui,
-  tinhBieuThuc,
+  tinhDonVi,
   tinhDsCongThuc,
   tongLuong,
   xoaDonViTai,
@@ -593,6 +598,7 @@ function May1May({
           onApDung={(n) =>
             capNhat({ roundedPerMin: n != null && n > 0 ? Math.round(n) : null })
           }
+          onMayTinhChange={(mayTinh) => capNhat({ mayTinh })}
         />
       )}
     </div>
@@ -604,11 +610,13 @@ function MayTinhThamKhao({
   giaMau,
   radioName,
   onApDung,
+  onMayTinhChange,
 }: {
   giaTri: CpsxUpgradeLabor1May;
   giaMau: number;
   radioName: string;
   onApDung: (n: number | null) => void;
+  onMayTinhChange: (w: CpsxMayTinhWorkspace) => void;
 }) {
   const tongL = tongLuong(giaTri.wages);
   const soCN = giaTri.wages.length;
@@ -639,12 +647,19 @@ function MayTinhThamKhao({
     socongnhan: soCN,
   };
 
+  const workspace = React.useMemo(
+    () => chuanHoaMayTinh(giaTri.mayTinh),
+    [giaTri.mayTinh],
+  );
+
   return (
     <MayTinhThamKhaoTokens
       soHang={soHang}
       giaMau={giaMau}
       radioName={radioName}
       onApDung={onApDung}
+      workspace={workspace}
+      onWorkspaceChange={onMayTinhChange}
     />
   );
 }
@@ -654,11 +669,13 @@ function MayTinhThamKhaoTui({
   giaMau,
   radioName,
   onApDung,
+  onMayTinhChange,
 }: {
   giaTri: CpsxUpgradeLaborTui;
   giaMau: number;
   radioName: string;
   onApDung: (n: number | null) => void;
+  onMayTinhChange: (w: CpsxMayTinhWorkspace) => void;
 }) {
   const tongL = tongLuong(giaTri.wages);
   const soCN = soCongNhanTui(giaTri.wages);
@@ -685,12 +702,19 @@ function MayTinhThamKhaoTui({
     socongnhan: soCN,
   };
 
+  const workspace = React.useMemo(
+    () => chuanHoaMayTinh(giaTri.mayTinh),
+    [giaTri.mayTinh],
+  );
+
   return (
     <MayTinhThamKhaoTokens
       soHang={soHang}
       giaMau={giaMau}
       radioName={radioName}
       onApDung={onApDung}
+      workspace={workspace}
+      onWorkspaceChange={onMayTinhChange}
     />
   );
 }
@@ -698,26 +722,76 @@ function MayTinhThamKhaoTui({
 /** Id ảo cho ô cố định «Lương CN mỗi phút =» (trong 1 item Công thức). */
 const MAIN_CALC_ID = "__main__";
 
-type CongThucItem = {
-  id: string;
-  ten: string;
-  open: boolean;
-  thamSo: ThamSoTuyChinh[];
-  congThuc: CongThucTuyChinh[];
-  donViMain: DonViCalc[];
-};
+type CongThucItem = CpsxMayTinhCongThucItem;
+type LuongApSource = CpsxMayTinhApSource;
+
+function workspaceTuItems(
+  items: CongThucItem[],
+  apSource: LuongApSource,
+  apCtId: string | null,
+  manualDraft: string,
+): CpsxMayTinhWorkspace {
+  return chuanHoaMayTinh({ items, apSource, apCtId, manualDraft });
+}
 
 function cloneJson<T>(v: T): T {
   return JSON.parse(JSON.stringify(v)) as T;
 }
 
+/** Nhãn hiển thị 1 token (soHang tra map key→tên nếu có). */
+function nhanDonVi(
+  d: DonViCalc,
+  tenTheoKey?: Record<string, string>,
+): string {
+  if (d.loai === "so") return d.giaTri === "" ? "?" : d.giaTri;
+  if (d.loai === "soHang") return tenTheoKey?.[d.key] ?? d.key;
+  return d.s;
+}
+
 /** Ghép token thành chuỗi hiển thị (kể cả ô số đang gõ dở). */
-function chuoiHienThiDonVi(donVi: DonViCalc[]): string {
+function chuoiHienThiDonVi(
+  donVi: DonViCalc[],
+  tenTheoKey?: Record<string, string>,
+): string {
   if (donVi.length === 0) return "";
   let out = "";
-  for (const d of donVi) {
-    if (d.loai === "chuoi") out += d.s;
-    else out += d.giaTri === "" ? "?" : d.giaTri;
+  for (const d of donVi) out += nhanDonVi(d, tenTheoKey);
+  return out;
+}
+
+function mapTenTheoKey(
+  soHang: Record<string, number>,
+  thamSo: readonly ThamSoTuyChinh[],
+  congThuc: readonly CongThucTuyChinh[],
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const k of Object.keys(soHang)) out[k] = k;
+  // Built-in labels thường dùng
+  const builtIn: Record<string, string> = {
+    tongluong: "Tổng lương",
+    comcasang: "Cơm ca sáng",
+    comcatoi: "Cơm ca tối",
+    tangca: "Tăng ca",
+    soca: "Số ca",
+    slnguoica: "SL người / ca",
+    sogiomayngay: "Số giờ máy / ngày",
+    somayhoatdongngay: "Số máy hoạt động / ngày",
+    sogiotangca: "Số giờ tăng ca",
+    hesotangca: "Hệ số tăng ca",
+    tiletangca: "Tỉ lệ tăng ca",
+    socongnhan: "Số công nhân",
+  };
+  for (const [k, v] of Object.entries(builtIn)) {
+    if (k in soHang || k in out) out[k] = v;
+  }
+  for (const t of thamSo) {
+    const key = keyThamSo(t.ten);
+    if (key) out[key] = t.ten;
+  }
+  for (const ct of congThuc) {
+    const ten = (ct.ten ?? "").trim().replace(/\s+/g, " ");
+    const key = ten ? keyThamSo(ten) : "";
+    if (key) out[key] = ten;
   }
   return out;
 }
@@ -748,9 +822,7 @@ function tinhGiaTriMainItem(
   soHang: Record<string, number>,
 ): number | null {
   const { soHangPreview } = soHangPreviewItem(item, soHang);
-  const bt = bieuThucTuDonVi(item.donViMain);
-  if (bt == null) return null;
-  return tinhBieuThuc(bt, soHangPreview);
+  return tinhDonVi(item.donViMain, soHangPreview);
 }
 
 type XemNhanhDong = {
@@ -764,24 +836,22 @@ function duLieuXemNhanh(
   soHang: Record<string, number>,
 ): { phu: XemNhanhDong[]; main: XemNhanhDong } {
   const { ketQuaCt, soHangPreview } = soHangPreviewItem(item, soHang);
+  const tenMap = mapTenTheoKey(soHang, item.thamSo, item.congThuc);
   const phu: XemNhanhDong[] = item.congThuc.map((ct) => {
-    const raw = chuoiHienThiDonVi(ct.donVi);
-    const bt = bieuThucTuDonVi(ct.donVi);
+    const raw = chuoiHienThiDonVi(ct.donVi, tenMap);
     return {
       ten: (ct.ten ?? "").trim() || "(chưa đặt tên)",
-      bieuThuc: raw || (bt ?? "—"),
+      bieuThuc: raw || "—",
       giaTri: ketQuaCt[ct.id] ?? null,
     };
   });
-  const mainRaw = chuoiHienThiDonVi(item.donViMain);
-  const mainBt = bieuThucTuDonVi(item.donViMain);
-  const mainGtri =
-    mainBt == null ? null : tinhBieuThuc(mainBt, soHangPreview);
+  const mainRaw = chuoiHienThiDonVi(item.donViMain, tenMap);
+  const mainGtri = tinhDonVi(item.donViMain, soHangPreview);
   return {
     phu,
     main: {
       ten: "Lương CN mỗi phút",
-      bieuThuc: mainRaw || (mainBt ?? "—"),
+      bieuThuc: mainRaw || "—",
       giaTri: mainGtri,
     },
   };
@@ -802,28 +872,68 @@ function taoCongThucItemMoi(
   };
 }
 
-type LuongApSource = "formula" | "ct" | "manual";
-
 function MayTinhThamKhaoTokens({
   soHang,
   giaMau,
   radioName,
   onApDung,
+  workspace,
+  onWorkspaceChange,
 }: {
   soHang: Record<string, number>;
   /** Giá tính từ bảng lương sẵn (Công thức mẫu). */
   giaMau: number;
   radioName: string;
   onApDung: (n: number | null) => void;
+  workspace: CpsxMayTinhWorkspace;
+  onWorkspaceChange: (w: CpsxMayTinhWorkspace) => void;
 }) {
+  const ws = React.useMemo(() => chuanHoaMayTinh(workspace), [workspace]);
   const idSeq = React.useRef(1);
-  /** Luôn có ≥1 item lúc mount để UI giống máy tính cũ (body hiện sẵn). */
-  const [items, setItems] = React.useState<CongThucItem[]>(() => [
-    taoCongThucItemMoi("mt_1", "Công thức 1", true),
-  ]);
-  const [apSource, setApSource] = React.useState<LuongApSource>("formula");
-  const [apCtId, setApCtId] = React.useState<string | null>(null);
-  const [manualDraft, setManualDraft] = React.useState("");
+  React.useEffect(() => {
+    let max = 1;
+    for (const it of ws.items) {
+      const m = /^mt_(\d+)$/.exec(it.id);
+      if (m) max = Math.max(max, Number(m[1]));
+    }
+    idSeq.current = Math.max(idSeq.current, max);
+  }, [ws.items]);
+
+  const items = ws.items;
+  const apSource = ws.apSource;
+  const apCtId = ws.apCtId;
+  const manualDraft = ws.manualDraft;
+
+  const onWsRef = React.useRef(onWorkspaceChange);
+  onWsRef.current = onWorkspaceChange;
+
+  const commitWs = React.useCallback((next: CpsxMayTinhWorkspace) => {
+    onWsRef.current(chuanHoaMayTinh(next));
+  }, []);
+
+  const setItems = (
+    updater: CongThucItem[] | ((prev: CongThucItem[]) => CongThucItem[]),
+  ) => {
+    const nextItems =
+      typeof updater === "function" ? updater(items) : updater;
+    commitWs(workspaceTuItems(nextItems, apSource, apCtId, manualDraft));
+  };
+
+  const setApSource = (src: LuongApSource, ctId: string | null = null) => {
+    commitWs(
+      workspaceTuItems(
+        items,
+        src,
+        src === "ct" ? ctId : null,
+        manualDraft,
+      ),
+    );
+  };
+
+  const setManualDraft = (draft: string) => {
+    commitWs(workspaceTuItems(items, apSource, apCtId, draft));
+  };
+
   const [previewId, setPreviewId] = React.useState<string | null>(null);
   const lastApRef = React.useRef<number | null | undefined>(undefined);
   const onApDungRef = React.useRef(onApDung);
@@ -866,10 +976,9 @@ function MayTinhThamKhaoTokens({
     const g = apCtId ? giaTriTheoId[apCtId] : null;
     const ok = still && g != null && Number.isFinite(g) && g > 0;
     if (!ok) {
-      setApSource("formula");
-      setApCtId(null);
+      commitWs(workspaceTuItems(items, "formula", null, manualDraft));
     }
-  }, [apSource, apCtId, items, giaTriTheoId]);
+  }, [apSource, apCtId, items, giaTriTheoId, manualDraft, commitWs]);
 
   const themItem = () => {
     idSeq.current += 1;
@@ -883,12 +992,20 @@ function MayTinhThamKhaoTokens({
   };
 
   const xoaItem = (id: string) => {
-    setItems((prev) => prev.filter((p) => p.id !== id));
+    const nextItems = items.filter((p) => p.id !== id);
     setPreviewId((cur) => (cur === id ? null : cur));
-    if (apCtId === id) {
-      setApSource("formula");
-      setApCtId(null);
-    }
+    const nextAp =
+      apCtId === id
+        ? { apSource: "formula" as const, apCtId: null as string | null }
+        : { apSource, apCtId };
+    commitWs(
+      workspaceTuItems(
+        nextItems,
+        nextAp.apSource,
+        nextAp.apCtId,
+        manualDraft,
+      ),
+    );
   };
 
   const saoChepItem = (id: string) => {
@@ -929,24 +1046,21 @@ function MayTinhThamKhaoTokens({
 
   const chonMau = () => {
     setApSource("formula");
-    setApCtId(null);
   };
 
   const chonCt = (id: string) => {
     const g = giaTriTheoId[id];
     if (g == null || !Number.isFinite(g) || g <= 0) return;
-    setApSource("ct");
-    setApCtId(id);
+    setApSource("ct", id);
   };
 
   const chonManual = () => {
-    setApSource("manual");
-    setApCtId(null);
-    if (!manualDraft.trim()) {
-      setManualDraft(
-        giaMauLamTron > 0 ? String(giaMauLamTron) : "",
-      );
-    }
+    const draft = manualDraft.trim()
+      ? manualDraft
+      : giaMauLamTron > 0
+        ? String(giaMauLamTron)
+        : "";
+    commitWs(workspaceTuItems(items, "manual", null, draft));
   };
 
   return (
@@ -970,7 +1084,6 @@ function MayTinhThamKhaoTokens({
                   type="text"
                   className="config-inline-input config-cpsx-upgrade__calc-mt-ten"
                   value={it.ten}
-                  size={Math.max(10, (it.ten || "Công thức").length + 1)}
                   onChange={(e) => suaTenItem(it.id, e.target.value)}
                   aria-label="Tên công thức"
                   placeholder="Tên công thức"
@@ -1317,38 +1430,37 @@ function CongThucItemBody({
     return out;
   }, [soHangHieuLuc, congThuc, ketQuaCt]);
 
-  const bieuThucMain = bieuThucTuDonVi(donViMain);
-  const giaTriMain =
-    bieuThucMain == null
-      ? null
-      : tinhBieuThuc(bieuThucMain, soHangPreview);
-  const hangSoMain =
-    bieuThucMain == null
-      ? ""
-      : bieuThucMain.replace(TEN_SO_HANG_RE, (ten) => {
-          const key = boDau(ten);
-          return key && key in soHangPreview
-            ? dinhDangVnd(soHangPreview[key])
-            : ten;
-        });
+  const tenMap = React.useMemo(
+    () => mapTenTheoKey(soHang, thamSo, congThuc),
+    [soHang, thamSo, congThuc],
+  );
+  const giaTriMain = tinhDonVi(donViMain, soHangPreview);
+  const hangSoMain = hangSoTuDonVi(donViMain, soHangPreview, dinhDangVnd) ?? "";
 
-  const nutChon: { bieuThuc: string; nhan: string }[] = [
-    { bieuThuc: "Tổng lương", nhan: "Tổng lương" },
-    { bieuThuc: "Cơm ca sáng", nhan: "Cơm ca sáng" },
-    { bieuThuc: "Cơm ca tối", nhan: "Cơm ca tối" },
-    { bieuThuc: "Tăng ca", nhan: "Tăng ca" },
+  type NutChen =
+    | { loai: "soHang"; key: string; nhan: string }
+    | { loai: "soLiteral"; s: string; nhan: string };
+  const nutChon: NutChen[] = [
+    { loai: "soHang", key: "tongluong", nhan: "Tổng lương" },
+    { loai: "soHang", key: "comcasang", nhan: "Cơm ca sáng" },
+    { loai: "soHang", key: "comcatoi", nhan: "Cơm ca tối" },
+    { loai: "soHang", key: "tangca", nhan: "Tăng ca" },
     ...(soHang.soca != null
-      ? [{ bieuThuc: "Số ca", nhan: "Số ca" } as const]
+      ? [{ loai: "soHang" as const, key: "soca", nhan: "Số ca" }]
       : []),
-    { bieuThuc: "SL người / ca", nhan: "SL người / ca" },
-    { bieuThuc: "Số giờ máy / ngày", nhan: "Số giờ máy / ngày" },
-    { bieuThuc: "Số máy hoạt động / ngày", nhan: "Số máy hoạt động / ngày" },
-    { bieuThuc: "Số giờ tăng ca", nhan: "Số giờ tăng ca" },
-    { bieuThuc: "Hệ số tăng ca", nhan: "Hệ số tăng ca" },
-    { bieuThuc: "Tỉ lệ tăng ca", nhan: "Tỉ lệ tăng ca" },
-    { bieuThuc: "Số công nhân", nhan: "Số công nhân" },
-    { bieuThuc: "60", nhan: "60 phút" },
-    { bieuThuc: "24", nhan: "24 giờ" },
+    { loai: "soHang", key: "slnguoica", nhan: "SL người / ca" },
+    { loai: "soHang", key: "sogiomayngay", nhan: "Số giờ máy / ngày" },
+    {
+      loai: "soHang",
+      key: "somayhoatdongngay",
+      nhan: "Số máy hoạt động / ngày",
+    },
+    { loai: "soHang", key: "sogiotangca", nhan: "Số giờ tăng ca" },
+    { loai: "soHang", key: "hesotangca", nhan: "Hệ số tăng ca" },
+    { loai: "soHang", key: "tiletangca", nhan: "Tỉ lệ tăng ca" },
+    { loai: "soHang", key: "socongnhan", nhan: "Số công nhân" },
+    { loai: "soLiteral", s: "60", nhan: "60 phút" },
+    { loai: "soLiteral", s: "24", nhan: "24 giờ" },
   ];
   const dauToan: string[] = ["+", "−", "×", "÷", "(", ")", "%"];
 
@@ -1387,7 +1499,10 @@ function CongThucItemBody({
     setActiveCtId(targetId);
   };
 
-  const them = (s: string) => themDonViVaoActive(donViChuoi(s));
+  const themToanTu = (s: string) => themDonViVaoActive(donViChuoi(s));
+  const themSoHangKey = (key: string) =>
+    themDonViVaoActive(donViSoHang(key));
+  const themSoLiteral = (s: string) => themDonViVaoActive(donViChuoi(s));
   const themSoThuc = () => themDonViVaoActive(donViSo(""), true);
 
   const xoaTai = (ctId: string, i: number) => {
@@ -1533,16 +1648,8 @@ function CongThucItemBody({
     setActiveCtId((cur) => (cur === id ? MAIN_CALC_ID : cur));
   };
 
-  const previewHangSo = (ct: CongThucTuyChinh) => {
-    const bt = bieuThucTuDonVi(ct.donVi);
-    if (bt == null) return null;
-    return bt.replace(TEN_SO_HANG_RE, (ten) => {
-      const key = boDau(ten);
-      return key && key in soHangPreview
-        ? dinhDangVnd(soHangPreview[key])
-        : ten;
-    });
-  };
+  const previewHangSo = (ct: CongThucTuyChinh) =>
+    hangSoTuDonVi(ct.donVi, soHangPreview, dinhDangVnd);
 
   return (
     <div className="config-cpsx-upgrade__calc-item-body">
@@ -1637,15 +1744,19 @@ function CongThucItemBody({
       </div>
 
       <div className="config-cpsx-upgrade__calc-chips">
-        {nutChon.map(({ bieuThuc: bt, nhan }) => (
+        {nutChon.map((nut) => (
           <button
-            key={nhan}
+            key={nut.nhan}
             type="button"
             className="btn btn-sm btn-outline config-cpsx-upgrade__calc-chip"
-            onClick={() => them(bt)}
-            aria-label={`Chèn ${nhan}`}
+            onClick={() =>
+              nut.loai === "soHang"
+                ? themSoHangKey(nut.key)
+                : themSoLiteral(nut.s)
+            }
+            aria-label={`Chèn ${nut.nhan}`}
           >
-            {nhan}
+            {nut.nhan}
           </button>
         ))}
         <button
@@ -1661,7 +1772,7 @@ function CongThucItemBody({
             key={t.id}
             type="button"
             className="btn btn-sm btn-outline config-cpsx-upgrade__calc-chip config-cpsx-upgrade__calc-chip--custom"
-            onClick={() => them(t.ten)}
+            onClick={() => themSoHangKey(keyThamSo(t.ten))}
             aria-label={`Chèn ${t.ten}`}
           >
             {t.ten}
@@ -1676,7 +1787,7 @@ function CongThucItemBody({
               type="button"
               className="btn btn-sm btn-outline config-cpsx-upgrade__calc-chip config-cpsx-upgrade__calc-chip--ct"
               disabled={targetId === ct.id}
-              onClick={() => them(ten)}
+              onClick={() => themSoHangKey(keyThamSo(ten))}
               aria-label={`Chèn tính toán phụ ${ten}`}
             >
               {ten}
@@ -1690,7 +1801,7 @@ function CongThucItemBody({
             key={d}
             type="button"
             className="btn btn-sm btn-outline config-cpsx-upgrade__calc-chip"
-            onClick={() => them(d)}
+            onClick={() => themToanTu(d)}
             aria-label={`Chèn dấu ${d}`}
           >
             {d}
@@ -1816,7 +1927,7 @@ function CongThucItemBody({
                               />
                             ) : (
                               <span className="config-cpsx-upgrade__calc-token-text">
-                                {dv.s}
+                                {nhanDonVi(dv, tenMap)}
                               </span>
                             )}
                             <button
@@ -1827,7 +1938,9 @@ function CongThucItemBody({
                                 xoaTai(ct.id, i);
                               }}
                               aria-label={
-                                dv.loai === "so" ? "Xóa ô số" : `Xóa ${dv.s}`
+                                dv.loai === "so"
+                                  ? "Xóa ô số"
+                                  : `Xóa ${nhanDonVi(dv, tenMap)}`
                               }
                             >
                               ×
@@ -1970,7 +2083,7 @@ function CongThucItemBody({
                     />
                   ) : (
                     <span className="config-cpsx-upgrade__calc-token-text">
-                      {dv.s}
+                      {nhanDonVi(dv, tenMap)}
                     </span>
                   )}
                   <button
@@ -1981,7 +2094,9 @@ function CongThucItemBody({
                       xoaTai(MAIN_CALC_ID, i);
                     }}
                     aria-label={
-                      dv.loai === "so" ? "Xóa ô số" : `Xóa ${dv.s}`
+                      dv.loai === "so"
+                        ? "Xóa ô số"
+                        : `Xóa ${nhanDonVi(dv, tenMap)}`
                     }
                   >
                     ×
@@ -2011,7 +2126,7 @@ function CongThucItemBody({
         <div className="config-cpsx-upgrade__calc-row config-cpsx-upgrade__calc-row--eq">
           <span className="config-cpsx-upgrade__calc-label">=</span>
           <span className="config-cpsx-upgrade__calc-so">
-            {bieuThucMain == null ? "—" : hangSoMain || "—"}
+            {donViMain.length === 0 ? "—" : hangSoMain || "—"}
           </span>
         </div>
         <div className="config-cpsx-upgrade__calc-row config-cpsx-upgrade__calc-row--eq">
@@ -2371,6 +2486,7 @@ function MayTui({
         onApDung={(n) =>
           capNhat({ roundedPerMin: n != null && n > 0 ? Math.round(n) : null })
         }
+        onMayTinhChange={(mayTinh) => capNhat({ mayTinh })}
       />
     </div>
   );

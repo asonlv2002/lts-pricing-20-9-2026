@@ -60,6 +60,8 @@ export interface DongVatLieuNangCao {
   /** chỉ số detail trong materialDetails (nếu là dòng tách chi tiết) */
   chiTietIndex?: number;
   khoMang: number | null;
+  /** Hiển thị khổ dạng "0,620 → 0,300" (dòng Chia); UI ưu tiên field này */
+  khoMangLabel?: string;
   thanhPham: number | null;
   phiHao: number | null;
   dauVaoNVL: number | null;
@@ -308,11 +310,109 @@ export function tinhTienZipperNangCao(
 }
 
 /**
+ * Lật mặt (Table 1) — cùng ĐK Table 2: phủ mờ, có mét in, không GC chia.
+ * TP = Đầu vào = TP khâu In; phi hao = 0; mọi cột tiền = 0.
+ */
+function taoDongLatMatTuIn(dongIn: DongVatLieuNangCao): DongVatLieuNangCao {
+  const tpIn = so(dongIn.thanhPham);
+  return {
+    congDoan: 'Lật mặt',
+    vatLieu: dongIn.vatLieu,
+    rowKey: 'matte',
+    materialId: dongIn.materialId,
+    khoMang: dongIn.khoMang,
+    thanhPham: tpIn,
+    phiHao: 0,
+    dauVaoNVL: tpIn,
+    giaNVL: 0,
+    donViGiaNVL: null,
+    cpVatLieu: 0,
+    thanhTienNVL: 0,
+    cpMucKeo: 0,
+    thanhTienMucKeo: 0,
+  };
+}
+
+function dinhDangKhoM(n: number): string {
+  return n.toLocaleString('vi-VN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
+}
+
+/** Phi hao cắt/làm túi — cùng công thức engine tinhHaoHutCat (cutWasteA/B/C). */
+function tinhPhiHaoCatTuHangSo(met: number, hangSo: AppConstants): number {
+  const a = so(hangSo?.cutWasteA) || 3000;
+  const b = so(hangSo?.cutWasteB) || 20;
+  const c = so(hangSo?.cutWasteC) || 100;
+  return Math.max(0, so(met)) / a * b + c;
+}
+
+/**
+ * Chia (Table 1) — khi Có chia, không GC slit.
+ * TP = Đầu vào = TP ghép cuối (hoặc TP In) × N; phi hao = 0; chi phí = 0.
+ * Khổ hiển thị: khổ trước → khổ chia.
+ */
+function taoDongChiaNangCao(params: {
+  vatLieu: string;
+  khoTruoc: number;
+  khoChia: number;
+  thanhPhamChia: number;
+}): DongVatLieuNangCao {
+  const tp = Math.max(0, so(params.thanhPhamChia));
+  const khoChia = Math.max(0, so(params.khoChia));
+  const khoTruoc = Math.max(0, so(params.khoTruoc));
+  return {
+    congDoan: 'Chia',
+    vatLieu: params.vatLieu || '—',
+    rowKey: 'chia',
+    khoMang: khoChia || null,
+    khoMangLabel: `${dinhDangKhoM(khoTruoc)} → ${dinhDangKhoM(khoChia)}`,
+    thanhPham: tp,
+    phiHao: 0,
+    dauVaoNVL: tp,
+    giaNVL: 0,
+    donViGiaNVL: null,
+    cpVatLieu: 0,
+    thanhTienNVL: 0,
+    cpMucKeo: 0,
+    thanhTienMucKeo: 0,
+  };
+}
+
+/** TP mét dòng nguồn chia: ghép cuối (rowKey lam-*) hoặc In. */
+function layTpVaKhoNguonChia(
+  rows: DongVatLieuNangCao[],
+  uniRows: UniRow[],
+  result: CalculateResult,
+): { tpNguon: number; khoTruoc: number } {
+  const dongGhep = [...rows].reverse().find(r => r.rowKey.startsWith('lam-') && r.congDoan !== '');
+  if (dongGhep) {
+    return { tpNguon: so(dongGhep.thanhPham), khoTruoc: so(dongGhep.khoMang) };
+  }
+  const uniGhep = [...(uniRows ?? [])].reverse().find(r => r.rowKey.startsWith('lam-'));
+  if (uniGhep) {
+    return { tpNguon: so(uniGhep.meters), khoTruoc: so(uniGhep.width) };
+  }
+  const dongIn = rows.find(r => r.rowKey === 'print' && r.congDoan !== '');
+  if (dongIn) {
+    return { tpNguon: so(dongIn.thanhPham), khoTruoc: so(dongIn.khoMang) };
+  }
+  const uniIn = (uniRows ?? []).find(r => r.rowKey === 'print');
+  if (uniIn) {
+    return { tpNguon: so(uniIn.meters), khoTruoc: so(uniIn.width) };
+  }
+  return {
+    tpNguon: so(result?.printMeters),
+    khoTruoc: so(result?.input?.spreadWidth),
+  };
+}
+
+/**
  * Lập các dòng Table 1 từ uniRows + phụ kiện túi.
  * Ghép tách theo lớp (như bảng cũ). Dòng ghép có nhiều vật liệu song song
  * (`materialDetails`) → tách 1 dòng/chi tiết; meters/phi hao lặp lại cấp lớp.
  * Dòng Làm túi: gộp Zipper/Băng keo/Quai vào cùng hàng (không tách dòng).
  * Zipper: Đầu vào NVL × số phần tử × giá zipper; băng keo/quai: tổng engine.
+ * Phủ mờ: chèn dòng Lật mặt ngay sau In (VL/khổ copy In; chi phí = 0).
+ * Có chia: chèn dòng Chia trước Làm túi; Làm túi ĐV = TP Chia, phi hao = công thức cắt(ĐV).
  */
 export function lapDongVatLieuNangCao(
   result: CalculateResult,
@@ -326,6 +426,14 @@ export function lapDongVatLieuNangCao(
   const soMau = result?.input?.numColors;
   const tyLePhuMuc = result?.input?.coverageRatio;
   const donGiaKeo = tinhCpKeoDungMoiGhep(ink).donGia;
+  const phuMo = result?.input?.hasMo === true;
+  const coChia = result?.input?.hasDivide === true;
+  const soPtChia = soPhanTuChiaLamTui(result?.input);
+  const khoChiaM = Math.max(0, so(result?.input?.divideWidthMm) / 1000);
+  const cacBuocGc = result?.input?.pricingMode === 'outsource'
+    ? (result?.input?.outsource?.steps ?? [])
+    : [];
+  const laGcSlit = (cacBuocGc as string[]).includes('slit');
 
   const coZipper = !!result?.input?.hasZipper || so(result?.zipperTotal) > 0;
   const coBangKeo = !!result?.input?.hasTape || so(result?.tapeTotal) > 0;
@@ -337,6 +445,10 @@ export function lapDongVatLieuNangCao(
   const nhanVatLieuTui = tenPhuKien.length > 0 ? tenPhuKien.join(' + ') : null;
   const tienBangKeo = coBangKeo ? so(result?.tapeTotal) : 0;
   const tienQuai = coQuai ? so(result?.handleTotal) : 0;
+
+  // TP Chia (dùng sớm cho nhánh Làm túi) — TP nguồn × N
+  const { tpNguon: tpNguonChiaSom, khoTruoc: khoTruocSom } = layTpVaKhoNguonChia([], uniRows ?? [], result);
+  const tpChiaSom = tpNguonChiaSom * soPtChia;
 
   const rows: DongVatLieuNangCao[] = (uniRows ?? []).flatMap(row => {
     const thanhPham = so(row.meters);
@@ -370,16 +482,29 @@ export function lapDongVatLieuNangCao(
       ghiChu = `Ghi đè tay: ${cpMucKeo.toLocaleString('vi-VN')} đ/m²`;
     }
 
+    const chenLatMat = (dongInList: DongVatLieuNangCao[]): DongVatLieuNangCao[] => {
+      if (row.rowKey !== 'print' || !phuMo || laGcSlit || thanhPham <= 0) return dongInList;
+      const mauIn = dongInList[0];
+      if (!mauIn) return dongInList;
+      return [...dongInList, taoDongLatMatTuIn(mauIn)];
+    };
+
     // Ghép nhiều vật liệu song song → tách 1 dòng/chi tiết (như bảng cũ);
     // công đoạn chỉ hiện ở dòng đầu, dòng sau để trống (như ô gộp)
     if (row.materialDetails?.length) {
-      return row.materialDetails.map((detail, idx) => {
-        const giaNVL = traGiaNVLTheoIdTen(
+      const dongChiTiet = row.materialDetails.map((detail, idx) => {
+        let giaNVL = traGiaNVLTheoIdTen(
           detail.materialId,
           detail.name,
           row.matPriceIsPerM2,
           materials,
         );
+        const ovDetail = ov?.detailOverrides?.[idx];
+        if (ovDetail?.rawMatPrice !== undefined && giaNVL != null) {
+          giaNVL = Math.max(0, so(ovDetail.rawMatPrice));
+        } else if (ov?.rawMatPrice !== undefined && idx === 0 && giaNVL != null) {
+          giaNVL = Math.max(0, so(ov.rawMatPrice));
+        }
         const kho = so(detail.width);
         // Công đoạn gia công ngoài: CP gia công (costCPSX) gộp vào dòng vật liệu đầu tiên
         const cpGiaCongNgoai = row.isOutsourced && idx === 0 ? so(row.costCPSX) : 0;
@@ -402,27 +527,43 @@ export function lapDongVatLieuNangCao(
           ghiChu,
         };
       });
+      return chenLatMat(dongChiTiet);
     }
 
     const khoHieuDung = so(row.width);
-    const giaNVL = traGiaNVL(row, materials);
+    let giaNVL = traGiaNVL(row, materials);
+    if (ov?.rawMatPrice !== undefined && giaNVL != null) {
+      giaNVL = Math.max(0, so(ov.rawMatPrice));
+    }
     // Công đoạn gia công ngoài: CP gia công (costCPSX) cộng vào thành tiền CPNVL
     const cpGiaCongNgoai = row.isOutsourced ? so(row.costCPSX) : 0;
 
     // Làm túi: gộp phụ kiện vào cùng dòng (Vật liệu = Zipper + Băng keo + …)
     if (row.rowKey === 'cut' && !laMang) {
+      // Có chia: ĐV = TP Chia; phi hao tính lại theo công thức cắt trên ĐV; khổ = khổ chia.
+      // ĐV đã gồm ×N → zipper chỉ × ĐV (không nhân N lần nữa).
+      const dauVaoTui = coChia && !laGcSlit ? tpChiaSom : dauVaoNVL;
+      const phiHaoTui = coChia && !laGcSlit
+        ? tinhPhiHaoCatTuHangSo(dauVaoTui, hangSo)
+        : phiHao;
+      const khoTui = coChia && !laGcSlit && khoChiaM > 0 ? khoChiaM : (khoHieuDung || null);
+      const inputZipper = coChia && !laGcSlit
+        ? { ...result?.input, hasDivide: false as const }
+        : result?.input;
       const tienZipper = tinhTienZipperNangCao(
-        dauVaoNVL,
-        result?.input,
+        dauVaoTui,
+        inputZipper,
         hangSo,
         coZipper,
       );
       const thanhTienPhuKien = tienZipper + tienBangKeo + tienQuai;
-      const soPt = soPhanTuChiaLamTui(result?.input);
+      const soPtGhiChu = coChia && !laGcSlit ? 1 : soPhanTuChiaLamTui(result?.input);
       const giaZ = Math.max(0, so(hangSo?.zipperPrice)) || 378;
       let ghiChuTui: string | undefined;
       if (coZipper) {
-        ghiChuTui = `Zipper = Đầu vào NVL ${dauVaoNVL.toLocaleString('vi-VN')} × ${soPt} phần tử × ${giaZ.toLocaleString('vi-VN')} đ/m`;
+        ghiChuTui = soPtGhiChu > 1
+          ? `Zipper = Đầu vào NVL ${dauVaoTui.toLocaleString('vi-VN')} × ${soPtGhiChu} phần tử × ${giaZ.toLocaleString('vi-VN')} đ/m`
+          : `Zipper = Đầu vào NVL ${dauVaoTui.toLocaleString('vi-VN')} × ${giaZ.toLocaleString('vi-VN')} đ/m`;
         if (tienBangKeo > 0 || tienQuai > 0) {
           ghiChuTui += ' · Băng keo/quai theo tổng engine';
         }
@@ -434,10 +575,10 @@ export function lapDongVatLieuNangCao(
         vatLieu: nhanVatLieuTui ?? (row.mat && row.mat !== '-' ? row.mat : '-'),
         rowKey: row.rowKey,
         materialId: row.materialId,
-        khoMang: khoHieuDung || null,
+        khoMang: khoTui,
         thanhPham,
-        phiHao,
-        dauVaoNVL,
+        phiHao: phiHaoTui,
+        dauVaoNVL: dauVaoTui,
         giaNVL: null,
         donViGiaNVL: null,
         cpVatLieu: null,
@@ -448,7 +589,7 @@ export function lapDongVatLieuNangCao(
       }];
     }
 
-    return [{
+    return chenLatMat([{
       congDoan: nhanCongDoan(row),
       vatLieu: row.mat || '—',
       rowKey: row.rowKey,
@@ -464,8 +605,28 @@ export function lapDongVatLieuNangCao(
       cpMucKeo,
       thanhTienMucKeo: cpMucKeo != null ? cpMucKeo * dauVaoNVL * khoHieuDung : null,
       ghiChu,
-    }];
+    }]);
   });
+
+  // Chèn dòng Chia sau ghép / trước Làm túi (cùng ĐK Table 2)
+  if (coChia && !laGcSlit) {
+    const { tpNguon, khoTruoc } = layTpVaKhoNguonChia(rows, uniRows ?? [], result);
+    const tpChia = tpNguon * soPtChia;
+    if (tpChia > 0 || tpNguon > 0) {
+      const dongChia = taoDongChiaNangCao({
+        vatLieu: String(result?.structureText ?? '').trim() || '—',
+        khoTruoc: khoTruoc || khoTruocSom,
+        khoChia: khoChiaM,
+        thanhPhamChia: tpChia,
+      });
+      const idxCut = rows.findIndex(r => r.rowKey === 'cut');
+      if (idxCut >= 0) {
+        rows.splice(idxCut, 0, dongChia);
+      } else {
+        rows.push(dongChia);
+      }
+    }
+  }
 
   return rows;
 }

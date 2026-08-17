@@ -682,9 +682,11 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
             {dongVatLieu.map((row, idx) => {
               const goc = timDongGoc(row.rowKey, row.chiTietIndex);
               const ovDong = ghiDeHienTai[row.rowKey];
-              const coDoiVL = coGhiDeDong(ovDong, ['meters', 'waste', 'inputVL']);
+              const coDoiVL = coGhiDeDong(ovDong, ['meters', 'waste', 'inputVL', 'width', 'rawMatPrice', 'matPrice', 'materialId']);
               const coDoiMuc = ovDong?.cpMucKeoPerM2 !== undefined;
-              // Bảng đặc tả Sale/Admin NC: chỉ cho sửa Thời gian SX (Table 2) — Table 1 chỉ xem
+              // Dòng synthetic Chia/Lật mặt: chi phí 0, không cho ghi đè Table 1
+              const laDongSynthetic = row.rowKey === 'matte' || row.rowKey === 'chia';
+              const suaT1 = duocSua && !laDongSynthetic;
               // Phụ kiện (Zipper/…) đã gộp vào dòng Làm túi
               return (
                 <tr key={`${row.rowKey}-${row.chiTietIndex ?? 0}`}>
@@ -693,36 +695,63 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     <OChonVatLieuChiTiet khoaDong={row.rowKey} chiTietIndex={row.chiTietIndex}
                       giaTriGoc={{ id: goc.materialId, name: goc.vatLieu, matPrice: goc.cpVatLieu ?? 0 }}
                       giaTriGhiDe={ghiDeHienTai[row.rowKey]?.detailOverrides?.[row.chiTietIndex]}
-                      duocSua={false} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} engineParams={engineParams} />
+                      duocSua={suaT1} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} engineParams={engineParams} />
                   ) : (
                     <OChonVatLieuDong khoaDong={row.rowKey}
                       giaTriGocId={goc?.materialId} giaTriGocTen={goc?.vatLieu ?? row.vatLieu} giaTriGocGia={goc?.cpVatLieu ?? 0}
-                      ghiDeHienTai={ghiDeHienTai} duocSua={false} khiDat={khiDat} materials={materials} engineParams={engineParams} />
+                      ghiDeHienTai={ghiDeHienTai} duocSua={suaT1} khiDat={khiDat} materials={materials} engineParams={engineParams} />
                   )}
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={goc?.khoMang ?? row.khoMang ?? 0}
-                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={false} khiDat={khiDat} soLe={3} />
+                  {row.khoMangLabel ? (
+                    <td className="num" data-label="Khổ màng (m)">{row.khoMangLabel}</td>
+                  ) : (
+                    <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={goc?.khoMang ?? row.khoMang ?? 0}
+                      giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={suaT1} khiDat={khiDat} soLe={3} />
+                  )}
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="meters"
                     giaTriGoc={goc?.thanhPham ?? 0}
                     giaTriGhiDe={Math.abs((row.thanhPham ?? 0) - (goc?.thanhPham ?? 0)) > 0.001 ? (row.thanhPham ?? undefined) : ghiDeHienTai[row.rowKey]?.meters}
-                    duocSua={false} khiDat={khiDat} soLe={0} />
+                    duocSua={suaT1} khiDat={khiDat} soLe={0} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="waste"
                     giaTriGoc={goc?.phiHao ?? 0}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste}
-                    duocSua={false} khiDat={khiDat} soLe={0} />
+                    duocSua={suaT1} khiDat={khiDat} soLe={0} />
                   <td className={`num highlight ${coDoiVL ? 'override-changed' : ''}`} data-label="Đầu vào NVL (m)">{dinhDangSo(row.dauVaoNVL, 0)}</td>
-                  <td className="num" data-label="CP vật liệu (đ/m²)">{dinhDangSo(row.cpVatLieu, 1)}</td>
+                  {row.cpVatLieu != null && !laDongSynthetic ? (
+                    <OCoTheGhiDe khoaDong={row.rowKey} truong="matPrice"
+                      giaTriGoc={goc?.cpVatLieu ?? 0}
+                      giaTriGhiDe={ghiDeHienTai[row.rowKey]?.matPrice}
+                      duocSua={suaT1} khiDat={khiDat} soLe={1} />
+                  ) : (
+                    <td className="num" data-label="CP vật liệu (đ/m²)">{dinhDangSo(row.cpVatLieu, 1)}</td>
+                  )}
                   <td className={`num ${coDoiVL ? 'override-changed' : ''}`} data-label="Thành tiền CPNVL">{dinhDangSo(row.thanhTienNVL, 0)}</td>
-                  {row.giaNVL != null ? (
+                  {row.giaNVL != null && !laDongSynthetic ? (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="rawMatPrice"
                       giaTriGoc={goc?.giaNVL ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.rawMatPrice}
-                      duocSua={false} khiDat={khiDat} soLe={0} />
+                      duocSua={suaT1} khiDat={khiDat} soLe={0}
+                      onAfterSet={(raw) => {
+                        if (raw === undefined) {
+                          khiDat(row.rowKey, 'matPrice', undefined);
+                          return;
+                        }
+                        const matId = ghiDeHienTai[row.rowKey]?.materialId ?? goc?.materialId ?? row.materialId;
+                        const matName = ghiDeHienTai[row.rowKey]?.mat ?? goc?.vatLieu ?? row.vatLieu;
+                        const m = matId
+                          ? materials.find(x => x.id === matId)
+                          : materials.find(x => x.name === matName);
+                        if (!m || m.thickness <= 0 || m.density <= 0) return;
+                        khiDat(row.rowKey, 'matPrice', raw * m.thickness * m.density / 1000);
+                      }}
+                    />
                   ) : (
-                    <td className="num" data-label="Giá NVL (đ/kg)">—</td>
+                    <td className="num" data-label="Giá NVL (đ/kg)">{row.giaNVL != null ? dinhDangSo(row.giaNVL, 0) : '—'}</td>
                   )}
-                  {row.cpMucKeo != null ? (
+                  {row.cpMucKeo != null && !laDongSynthetic ? (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
                       giaTriGoc={goc?.cpMucKeo ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2}
-                      duocSua={false} khiDat={khiDat} soLe={1} />
+                      duocSua={suaT1} khiDat={khiDat} soLe={1} />
+                  ) : row.cpMucKeo != null ? (
+                    <td className="num dac-ta-nang-cao__muc" data-label="CP mực + DM + keo (đ/m²)">{dinhDangSo(row.cpMucKeo, 1)}</td>
                   ) : (
                     <td className="num dac-ta-nang-cao__muc" data-label="CP mực + DM + keo (đ/m²)">—</td>
                   )}

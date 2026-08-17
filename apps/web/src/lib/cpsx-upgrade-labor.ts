@@ -1,8 +1,167 @@
 import type {
+  CpsxDonViCalc,
+  CpsxMayTinhApSource,
+  CpsxMayTinhCongThucItem,
+  CpsxMayTinhCongThucPhu,
+  CpsxMayTinhThamSo,
+  CpsxMayTinhWorkspace,
   CpsxUpgradeLabor,
   CpsxUpgradeLabor1May,
   CpsxUpgradeLaborTui,
 } from './types';
+
+/** Giới hạn workspace máy tính khi normalize / persist. */
+export const MAX_MAY_TINH_ITEMS = 20;
+export const MAX_MAY_TINH_THAM_SO = 50;
+export const MAX_MAY_TINH_CT_PHU = 30;
+export const MAX_MAY_TINH_TOKEN = 200;
+
+export function taoMayTinhWorkspaceMacDinh(): CpsxMayTinhWorkspace {
+  return {
+    items: [
+      {
+        id: "mt_1",
+        ten: "Công thức 1",
+        open: true,
+        thamSo: [],
+        congThuc: [],
+        donViMain: [],
+      },
+    ],
+    apSource: "formula",
+    apCtId: null,
+    manualDraft: "",
+  };
+}
+
+function chuanHoaDonViCalc(raw: unknown): CpsxDonViCalc | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  const o = raw as Record<string, unknown>;
+  const loai = o.loai;
+  if (loai === "chuoi" && typeof o.s === "string") {
+    return { loai: "chuoi", s: o.s };
+  }
+  if (loai === "so" && typeof o.giaTri === "string") {
+    return { loai: "so", giaTri: o.giaTri };
+  }
+  if (loai === "soHang" && typeof o.key === "string" && o.key) {
+    return { loai: "soHang", key: o.key };
+  }
+  // Legacy: chỉ chuỗi tên số hạng
+  if (typeof o.s === "string" && o.loai == null) {
+    return { loai: "chuoi", s: o.s };
+  }
+  return null;
+}
+
+function chuanHoaDsDonVi(raw: unknown): CpsxDonViCalc[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CpsxDonViCalc[] = [];
+  for (const x of raw) {
+    if (out.length >= MAX_MAY_TINH_TOKEN) break;
+    const d = chuanHoaDonViCalc(x);
+    if (d) out.push(d);
+  }
+  return out;
+}
+
+function chuanHoaThamSoMayTinh(raw: unknown): CpsxMayTinhThamSo[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CpsxMayTinhThamSo[] = [];
+  for (const x of raw) {
+    if (out.length >= MAX_MAY_TINH_THAM_SO) break;
+    if (!x || typeof x !== "object") continue;
+    const o = x as Record<string, unknown>;
+    const id = typeof o.id === "string" && o.id ? o.id : `ts_${out.length + 1}`;
+    const ten = typeof o.ten === "string" ? o.ten.trim().replace(/\s+/g, " ") : "";
+    if (!ten) continue;
+    const g = Number(o.giaTri);
+    if (!Number.isFinite(g)) continue;
+    out.push({ id, ten: ten.slice(0, 80), giaTri: g });
+  }
+  return out;
+}
+
+function chuanHoaCtPhu(raw: unknown): CpsxMayTinhCongThucPhu[] {
+  if (!Array.isArray(raw)) return [];
+  const out: CpsxMayTinhCongThucPhu[] = [];
+  for (const x of raw) {
+    if (out.length >= MAX_MAY_TINH_CT_PHU) break;
+    if (!x || typeof x !== "object") continue;
+    const o = x as Record<string, unknown>;
+    const id = typeof o.id === "string" && o.id ? o.id : `ct_${out.length + 1}`;
+    const ten = typeof o.ten === "string" ? o.ten : `Tính toán phụ ${out.length + 1}`;
+    out.push({
+      id,
+      ten: ten.slice(0, 80),
+      donVi: chuanHoaDsDonVi(o.donVi),
+    });
+  }
+  return out;
+}
+
+function chuanHoaItemMayTinh(
+  raw: unknown,
+  idx: number,
+): CpsxMayTinhCongThucItem | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  const id = typeof o.id === "string" && o.id ? o.id : `mt_${idx + 1}`;
+  const ten =
+    typeof o.ten === "string" && o.ten.trim()
+      ? o.ten.trim().slice(0, 80)
+      : `Công thức ${idx + 1}`;
+  return {
+    id,
+    ten,
+    open: o.open !== false,
+    thamSo: chuanHoaThamSoMayTinh(o.thamSo),
+    congThuc: chuanHoaCtPhu(o.congThuc),
+    donViMain: chuanHoaDsDonVi(o.donViMain),
+  };
+}
+
+/**
+ * Chuẩn hóa workspace máy tính tham khảo.
+ * Thiếu / hỏng → default 1 công thức trống. Clamp kích thước.
+ */
+export function chuanHoaMayTinh(
+  raw: unknown,
+  fallback?: CpsxMayTinhWorkspace | null,
+): CpsxMayTinhWorkspace {
+  const fb = fallback ?? taoMayTinhWorkspaceMacDinh();
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
+    return structuredClone(fb);
+  }
+  const o = raw as Record<string, unknown>;
+  const itemsRaw = Array.isArray(o.items) ? o.items : [];
+  const items: CpsxMayTinhCongThucItem[] = [];
+  for (let i = 0; i < itemsRaw.length && items.length < MAX_MAY_TINH_ITEMS; i++) {
+    const it = chuanHoaItemMayTinh(itemsRaw[i], i);
+    if (it) items.push(it);
+  }
+  if (items.length === 0) {
+    items.push(...structuredClone(fb.items));
+  }
+
+  let apSource: CpsxMayTinhApSource = "formula";
+  if (o.apSource === "ct" || o.apSource === "manual" || o.apSource === "formula") {
+    apSource = o.apSource;
+  }
+
+  let apCtId: string | null =
+    typeof o.apCtId === "string" && o.apCtId ? o.apCtId : null;
+  if (apSource === "ct" && apCtId && !items.some((it) => it.id === apCtId)) {
+    apSource = "formula";
+    apCtId = null;
+  }
+  if (apSource !== "ct") apCtId = null;
+
+  const manualDraft =
+    typeof o.manualDraft === "string" ? o.manualDraft.slice(0, 32) : "";
+
+  return { items, apSource, apCtId, manualDraft };
+}
 
 /** Tổng lương pool */
 export function tongLuong(wages: number[]): number {
@@ -218,6 +377,10 @@ export function chuanHoa1May(
       Number(raw?.otHours) > 0 ? Number(raw?.otHours) : fallback.otHours,
     tyLeTangCa: chuanHoaTyLeTangCa(raw?.tyLeTangCa, fallback.tyLeTangCa),
     roundedPerMin: rounded != null && rounded > 0 ? rounded : null,
+    mayTinh: chuanHoaMayTinh(
+      (raw as { mayTinh?: unknown } | undefined)?.mayTinh,
+      fallback.mayTinh,
+    ),
   };
 }
 
@@ -266,6 +429,10 @@ export function chuanHoaTui(
     otHours:
       Number(raw?.otHours) > 0 ? Number(raw?.otHours) : fallback.otHours,
     tyLeTangCa: chuanHoaTyLeTangCa(raw?.tyLeTangCa, fallback.tyLeTangCa),
+    mayTinh: chuanHoaMayTinh(
+      (raw as { mayTinh?: unknown } | undefined)?.mayTinh,
+      fallback.mayTinh,
+    ),
   };
 }
 
@@ -307,6 +474,7 @@ export const TEN_SO_HANG_RE = /[\p{L}]+(?:(?:\s+|\s*\/\s*)[\p{L}]+)*/gu;
 /**
  * Bỏ dấu tiếng Việt + lowercase + bỏ khoảng trắng và "/":
  * "Cơm Ca Sáng" → "comcasang", "SL người / ca" → "slnguoica".
+ * Ký tự khác (số, +, …) giữ nguyên sau khi lower.
  */
 export function boDau(str: string): string {
   return (str ?? "")
@@ -317,6 +485,12 @@ export function boDau(str: string): string {
     .toLowerCase()
     .replace(/[\/\s]/g, "");
 }
+
+/** Độ dài tối đa tên tham số / công thức tùy chỉnh. */
+export const MAX_TEN_THAM_SO = 80;
+
+/** Toán tử được phép trong token `chuoi` khi tính theo DonViCalc. */
+const TOAN_TU_CALC = new Set(["+", "−", "×", "÷", "(", ")", "%"]);
 
 /** Tách chuỗi thành token số / ký tự (0-9 . + − × ÷ ( ) %). */
 export function tokenHoaBieuThuc(raw: string): TinhToken[] | null {
@@ -450,7 +624,8 @@ export function tinhBieuThuc(
 /** 1 đơn vị trong biểu thức token box (số hạng / toán tử / ô số thực). */
 export type DonViCalc =
   | { loai: "chuoi"; s: string }
-  | { loai: "so"; giaTri: string };
+  | { loai: "so"; giaTri: string }
+  | { loai: "soHang"; key: string };
 
 export function donViChuoi(s: string): DonViCalc {
   return { loai: "chuoi", s };
@@ -458,6 +633,10 @@ export function donViChuoi(s: string): DonViCalc {
 
 export function donViSo(giaTri = ""): DonViCalc {
   return { loai: "so", giaTri };
+}
+
+export function donViSoHang(key: string): DonViCalc {
+  return { loai: "soHang", key };
 }
 
 /**
@@ -469,7 +648,8 @@ export function laSoHopLe(s: string): boolean {
 }
 
 /**
- * Ghép token → chuỗi biểu thức cho `tinhBieuThuc`.
+ * Ghép token → chuỗi biểu thức cho `tinhBieuThuc` (legacy chữ-only).
+ * Token `soHang` ghép theo key (không an toàn free-text — dùng `tinhDonVi`).
  * Có ô số rỗng/invalid → null (UI hiện —).
  */
 export function bieuThucTuDonVi(donVi: DonViCalc[]): string | null {
@@ -479,8 +659,94 @@ export function bieuThucTuDonVi(donVi: DonViCalc[]): string | null {
       out += d.s;
       continue;
     }
+    if (d.loai === "soHang") {
+      out += d.key;
+      continue;
+    }
     if (!laSoHopLe(d.giaTri)) return null;
     out += d.giaTri;
+  }
+  return out;
+}
+
+/**
+ * Tính biểu thức từ token box — không ghép chuỗi tên free-text.
+ * - `soHang` → tra `soHang[key]`
+ * - `chuoi` toán tử (+ − × ÷ ( ) %) → toán
+ * - `chuoi` khác → coi là tên legacy, `boDau` rồi tra soHang (built-in chữ)
+ * - `so` → số thực
+ */
+export function tinhDonVi(
+  donVi: readonly DonViCalc[],
+  soHang: Record<string, number> = {},
+): number | null {
+  if (donVi.length === 0) return 0;
+  const tokens: TinhToken[] = [];
+  for (const d of donVi) {
+    if (d.loai === "so") {
+      if (!laSoHopLe(d.giaTri)) return null;
+      tokens.push({ loai: "so", giaTri: Number(d.giaTri) });
+      continue;
+    }
+    if (d.loai === "soHang") {
+      const key = d.key;
+      if (!key || !(key in soHang)) return null;
+      const n = soHang[key];
+      if (!Number.isFinite(n)) return null;
+      tokens.push({ loai: "so", giaTri: n });
+      continue;
+    }
+    const s = d.s;
+    if (TOAN_TU_CALC.has(s)) {
+      tokens.push({ loai: "toan", kyTu: s });
+      continue;
+    }
+    // Legacy: literal số trong chip built-in ("60", "24")
+    if (laSoHopLe(s)) {
+      tokens.push({ loai: "so", giaTri: Number(s) });
+      continue;
+    }
+    const key = boDau(s);
+    if (!key || !(key in soHang)) return null;
+    const n = soHang[key];
+    if (!Number.isFinite(n)) return null;
+    tokens.push({ loai: "so", giaTri: n });
+  }
+  return new ParserBieuThuc(tokens).parse();
+}
+
+/**
+ * Chuỗi preview: thay số hạng đã biết bằng `fmt(value)`.
+ * Token soHang / chuoi legacy / số / toán tử.
+ */
+export function hangSoTuDonVi(
+  donVi: readonly DonViCalc[],
+  soHang: Record<string, number>,
+  fmt: (n: number) => string = String,
+): string | null {
+  if (donVi.length === 0) return "";
+  let out = "";
+  for (const d of donVi) {
+    if (d.loai === "so") {
+      if (!laSoHopLe(d.giaTri)) return null;
+      out += d.giaTri;
+      continue;
+    }
+    if (d.loai === "soHang") {
+      if (!(d.key in soHang)) {
+        out += d.key;
+        continue;
+      }
+      out += fmt(soHang[d.key]);
+      continue;
+    }
+    if (TOAN_TU_CALC.has(d.s) || laSoHopLe(d.s)) {
+      out += d.s;
+      continue;
+    }
+    const key = boDau(d.s);
+    if (key && key in soHang) out += fmt(soHang[key]);
+    else out += d.s;
   }
   return out;
 }
@@ -556,8 +822,9 @@ export function keyThamSo(ten: string): string {
 }
 
 /**
- * Tên hợp lệ để làm số hạng: trim, khớp TEN_SO_HANG_RE toàn chuỗi,
- * key không rỗng, không trùng built-in / tham số / công thức (dsTenThem).
+ * Tên hợp lệ (free text): trim, max độ dài, key (boDau) không rỗng,
+ * không trùng built-in / tham số / công thức (dsTenThem).
+ * Không còn bắt TEN_SO_HANG_RE — cho phép số và ký tự lạ ("cơm 2", "a+b").
  */
 export function hopLeTenThamSo(
   ten: string,
@@ -567,10 +834,11 @@ export function hopLeTenThamSo(
 ): { ok: true; ten: string; key: string } | { ok: false; lyDo: string } {
   const tenTrim = (ten ?? "").trim().replace(/\s+/g, " ");
   if (!tenTrim) return { ok: false, lyDo: "Tên trống" };
-
-  TEN_SO_HANG_RE.lastIndex = 0;
-  const m = TEN_SO_HANG_RE.exec(tenTrim);
-  if (!m || m[0] !== tenTrim || m.index !== 0) {
+  if (tenTrim.length > MAX_TEN_THAM_SO) {
+    return { ok: false, lyDo: "Tên quá dài" };
+  }
+  // Không cho tên trùng 1 toán tử đơn (tránh nhầm chip)
+  if (TOAN_TU_CALC.has(tenTrim)) {
     return { ok: false, lyDo: "Tên không hợp lệ" };
   }
 
@@ -657,25 +925,36 @@ export function hopLeTenCongThuc(
 /**
  * Tính toàn bộ công thức (hỗ trợ lồng nhau theo phụ thuộc tên).
  * Chu trình / thiếu tên / cú pháp sai → `null` cho CT đó.
- * Key kết quả = `id` công thức.
+ * Key kết quả = `id` công thức. Dùng `tinhDonVi` (token), không ghép chuỗi.
  */
 export function tinhDsCongThuc(
   ds: readonly CongThucTuyChinh[],
   soHangBase: Record<string, number>,
 ): Record<string, number | null> {
   const out: Record<string, number | null> = {};
-  type Muc = { id: string; key: string; bieuThuc: string };
+  type Muc = { id: string; key: string; donVi: readonly DonViCalc[] };
   const hangDoi: Muc[] = [];
 
   for (const ct of ds) {
-    const bt = bieuThucTuDonVi(ct.donVi);
     const tenTrim = (ct.ten ?? "").trim().replace(/\s+/g, " ");
     const key = tenTrim ? keyThamSo(tenTrim) : "";
-    if (bt == null || !key) {
+    if (!key || ct.donVi.length === 0) {
       out[ct.id] = null;
       continue;
     }
-    hangDoi.push({ id: ct.id, key, bieuThuc: bt });
+    // Ô số invalid → null sớm (tinhDonVi cũng bắt)
+    let soOk = true;
+    for (const d of ct.donVi) {
+      if (d.loai === "so" && !laSoHopLe(d.giaTri)) {
+        soOk = false;
+        break;
+      }
+    }
+    if (!soOk) {
+      out[ct.id] = null;
+      continue;
+    }
+    hangDoi.push({ id: ct.id, key, donVi: ct.donVi });
   }
 
   const soHang: Record<string, number> = { ...soHangBase };
@@ -684,7 +963,7 @@ export function tinhDsCongThuc(
     tienBo = false;
     const conLai: Muc[] = [];
     for (const m of hangDoi) {
-      const gtri = tinhBieuThuc(m.bieuThuc, soHang);
+      const gtri = tinhDonVi(m.donVi, soHang);
       if (gtri == null || !Number.isFinite(gtri)) {
         conLai.push(m);
         continue;

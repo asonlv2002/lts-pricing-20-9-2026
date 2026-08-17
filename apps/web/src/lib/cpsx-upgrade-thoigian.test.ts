@@ -13,6 +13,7 @@ import {
   chonSetupMayTui,
   chonTocDoMayTui,
   chuanHoaCpsxUpgradeThoiGian,
+  chuanHoaSetupRulesTui,
 } from './cpsx-upgrade-thoigian';
 import type {
   CpsxThoiGianMayIn,
@@ -202,14 +203,15 @@ assert('chia không còn phủ mờ → ưu tiên cấu trúc', chonRuleMayChia(
 
 const cfgTui: CpsxThoiGianMayTui = {
   setupRules: [
-    { key: '3bien', label: 'Túi 3 biên', setupMinutes: 90 },
-    { key: '3_4bien_gt30', label: '3/4 biên >30cm', setupMinutes: 90 },
-    { key: '3_4bien_gt40', label: '3/4 biên >40cm', setupMinutes: 90 },
-    { key: 'xephong', label: 'Xếp hông', setupMinutes: 120 },
-    { key: 'xephong_gt40', label: 'Xếp hông >40cm', setupMinutes: 120 },
-    { key: 'zipper_3bien', label: 'Zipper 3 biên', setupMinutes: 120 },
-    { key: 'zipper_daydung', label: 'Zipper đáy đứng', setupMinutes: 120 },
-    { key: 'cut_seal', label: 'Túi cắt Seal', setupMinutes: 90 },
+    { key: '3bien_le30', label: 'Túi 3 biên', setupMinutes: 90, maxStepMm: 300, stepOp: 'lte' },
+    { key: '3bien_gt30', label: 'Túi 3 biên', setupMinutes: 91, maxStepMm: 300, stepOp: 'gt' },
+    { key: '4bien_le30', label: 'Túi 4 biên', setupMinutes: 92, maxStepMm: 300, stepOp: 'lte' },
+    { key: '4bien_gt30', label: 'Túi 4 biên', setupMinutes: 93, maxStepMm: 300, stepOp: 'gt' },
+    { key: 'xephong', label: 'Xếp hông', setupMinutes: 120, maxStepMm: null, stepOp: null },
+    { key: 'xephong_gt40', label: 'Xếp hông >40cm', setupMinutes: 120, maxStepMm: null, stepOp: null },
+    { key: 'zipper_3bien', label: 'Zipper 3 biên', setupMinutes: 120, maxStepMm: null, stepOp: null },
+    { key: 'zipper_daydung', label: 'Zipper đáy đứng', setupMinutes: 120, maxStepMm: null, stepOp: null },
+    { key: 'cut_seal', label: 'Túi cắt Seal', setupMinutes: 90, maxStepMm: null, stepOp: null },
   ],
   speedRules: [
     { key: 'le_200', label: '≤ 200 mm', maxStepMm: 200, speedMPerMin: 80 },
@@ -219,14 +221,48 @@ const cfgTui: CpsxThoiGianMayTui = {
     { key: 'gt_550', label: '> 550 mm', maxStepMm: null, speedMPerMin: 20 },
   ],
 };
-assert('túi 3bien + bước 24cm → 3bien', chonSetupMayTui(cfgTui, '3bien', false, 0.24).key === '3bien');
-assert('túi 3bien + bước 35cm → 3_4bien_gt30', chonSetupMayTui(cfgTui, '3bien', false, 0.35).key === '3_4bien_gt30');
-assert('túi 3bien + bước 48cm → 3_4bien_gt40', chonSetupMayTui(cfgTui, '3bien', false, 0.48).key === '3_4bien_gt40');
+assert('túi 3 biên + 24cm → 3bien_le30', chonSetupMayTui(cfgTui, '3bien', false, 0.24).key === '3bien_le30');
+assert('túi 3 biên + 35cm → 3bien_gt30', chonSetupMayTui(cfgTui, '3bien', false, 0.35).key === '3bien_gt30');
+assert('túi 3 biên + 48cm → 3bien_gt30 (gộp >30)', chonSetupMayTui(cfgTui, '3bien', false, 0.48).key === '3bien_gt30');
+assert('túi 4 biên + 24cm → 4bien_le30', chonSetupMayTui(cfgTui, '4bien', false, 0.24).key === '4bien_le30');
+assert('túi 4 biên + 35cm → 4bien_gt30', chonSetupMayTui(cfgTui, '4bien', false, 0.35).key === '4bien_gt30');
 assert('túi xếp hông → xephong', chonSetupMayTui(cfgTui, 'xephong_lech', false, 0.24).key === 'xephong');
 assert('túi xếp hông + bước 45cm → xephong_gt40', chonSetupMayTui(cfgTui, 'xephong_giua', false, 0.45).key === 'xephong_gt40');
 assert('túi zipper → zipper_3bien', chonSetupMayTui(cfgTui, '3bien', true, 0.24).key === 'zipper_3bien');
 assert('túi zipper đáy đứng → zipper_daydung', chonSetupMayTui(cfgTui, 'dayDung', true, 0.24).key === 'zipper_daydung');
 assert('túi cut seal → cut_seal', chonSetupMayTui(cfgTui, 'cutSeal', false, 0.24).key === 'cut_seal');
+
+// Migrate data cũ → 4 dòng biên + loại khác
+const oldSetup = [
+  { key: '3bien', label: 'Túi 3 biên', setupMinutes: 90 },
+  { key: '4bien', label: 'Túi 4 biên', setupMinutes: 88 },
+  { key: '3_4bien_gt30', label: '3/4 biên >30cm', setupMinutes: 95 },
+  { key: '3_4bien_gt40', label: '3/4 biên >40cm', setupMinutes: 99 },
+  { key: 'xephong', label: 'Xếp hông', setupMinutes: 120 },
+  { key: 'cut_seal', label: 'Túi cắt Seal', setupMinutes: 90 },
+];
+const migrated = chuanHoaSetupRulesTui(oldSetup as never, cfgTui.setupRules);
+assert('migrate có 3bien_le30', migrated.some(r => r.key === '3bien_le30' && r.stepOp === 'lte'));
+assert('migrate có 4bien_gt30 phút từ gt30', migrated.find(r => r.key === '4bien_gt30')?.setupMinutes === 95);
+assert('migrate giữ xephong không size', migrated.find(r => r.key === 'xephong')?.stepOp == null);
+assert(
+  'legacy flat 3bien + 24cm → key 3bien',
+  chonSetupMayTui(
+    { setupRules: oldSetup as never, speedRules: cfgTui.speedRules },
+    '3bien',
+    false,
+    0.24,
+  ).key === '3bien',
+);
+assert(
+  'sau migrate 3bien + 24cm → 3bien_le30',
+  chonSetupMayTui(
+    { setupRules: migrated, speedRules: cfgTui.speedRules },
+    '3bien',
+    false,
+    0.24,
+  ).key === '3bien_le30',
+);
 assert('bước 15cm → 80 m/phút', chonTocDoMayTui(cfgTui, 0.15).speedMPerMin === 80);
 assert('bước 20cm → 80 m/phút (đúng ngưỡng)', chonTocDoMayTui(cfgTui, 0.2).speedMPerMin === 80);
 assert('bước 24cm → 70 m/phút (200–300mm)', chonTocDoMayTui(cfgTui, 0.24).speedMPerMin === 70);

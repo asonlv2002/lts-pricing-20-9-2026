@@ -84,7 +84,7 @@ export default function BangDacTaNangCao({
                 </td>
                 <td data-label="Vật liệu">{row.vatLieu}</td>
                 <td className="num" data-label="Khổ màng (m)">
-                  {dinhDangSo(row.khoMang, 3)}
+                  {row.khoMangLabel ?? dinhDangSo(row.khoMang, 3)}
                 </td>
                 <td className="num" data-label="Thành phẩm (m)">
                   {dinhDangSo(row.thanhPham, 0)}

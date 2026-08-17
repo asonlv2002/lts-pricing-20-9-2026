@@ -182,11 +182,18 @@ export interface BagPressElectric {
   pricePerKwh: number;
 }
 
-/** Setup theo loại túi (phút) */
+/**
+ * Setup theo loại túi (phút).
+ * 3/4 biên: maxStepMm + stepOp phân bậc bước cắt; loại khác: null.
+ */
 export interface BagPressSetupRule {
   key: string;
   label: string;
   setupMinutes: number;
+  /** Ngưỡng bước cắt (mm); null = không dùng size */
+  maxStepMm?: number | null;
+  /** lte = ≤ maxStepMm; gt = > maxStepMm; null = không filter size */
+  stepOp?: "lte" | "gt" | null;
 }
 
 /** Tốc độ theo bước cắt (mm → cái/phút); maxStepMm null = không trần */
@@ -238,6 +245,45 @@ export interface CpsxUpgradeElectric {
 }
 
 /** CPSX nâng cấp — Lương 1 máy (In/Ghép/Chia) */
+/** Token máy tính tham khảo (JSON-safe, persist trong cpsxUpgradeLabor). */
+export type CpsxDonViCalc =
+  | { loai: "chuoi"; s: string }
+  | { loai: "so"; giaTri: string }
+  | { loai: "soHang"; key: string };
+
+export type CpsxMayTinhApSource = "formula" | "ct" | "manual";
+
+export interface CpsxMayTinhThamSo {
+  id: string;
+  ten: string;
+  giaTri: number;
+}
+
+export interface CpsxMayTinhCongThucPhu {
+  id: string;
+  ten: string;
+  donVi: CpsxDonViCalc[];
+}
+
+/** 1 thẻ «Công thức» trong máy tính tham khảo. */
+export interface CpsxMayTinhCongThucItem {
+  id: string;
+  ten: string;
+  open: boolean;
+  thamSo: CpsxMayTinhThamSo[];
+  congThuc: CpsxMayTinhCongThucPhu[];
+  donViMain: CpsxDonViCalc[];
+}
+
+/** Workspace máy tính tham khảo — lưu theo từng máy (PRODUCTION). */
+export interface CpsxMayTinhWorkspace {
+  items: CpsxMayTinhCongThucItem[];
+  apSource: CpsxMayTinhApSource;
+  apCtId: string | null;
+  /** Chuỗi VND nhập tay (khi apSource = manual) */
+  manualDraft: string;
+}
+
 export interface CpsxUpgradeLabor1May {
   /** Mỗi dòng là 1 CN, lương mỗi ca (₫) */
   wages: number[];
@@ -258,6 +304,8 @@ export interface CpsxUpgradeLabor1May {
   tyLeTangCa: number;
   /** Giá làm tròn / áp từ Công thức — null = dùng giá tính bảng lương */
   roundedPerMin: number | null;
+  /** Máy tính tham khảo (công thức + tham số) — optional, thiếu = default */
+  mayTinh?: CpsxMayTinhWorkspace | null;
 }
 
 /** CPSX nâng cấp — Lương Làm túi (nhiều máy): SL/ca sửa được, có làm tròn */
@@ -277,6 +325,8 @@ export interface CpsxUpgradeLaborTui {
   otHours: number;
   /** Tỉ lệ CN có tăng ca 4h (0–1, mặc định 0.5) — chỉ số CN tăng ca mới tính */
   tyLeTangCa: number;
+  /** Máy tính tham khảo — optional */
+  mayTinh?: CpsxMayTinhWorkspace | null;
 }
 
 /** CPSX nâng cấp — gom cả 4 máy (phase 2) */
@@ -393,11 +443,18 @@ export interface CpsxThoiGianMayChia {
   rules: CpsxThoiGianRule[];
 }
 
-/** CPSX nâng cấp — mục 4: setup theo loại túi (phút) */
+/**
+ * CPSX nâng cấp — mục 4: setup theo loại túi (phút).
+ * 3/4 biên có maxStepMm + stepOp; loại khác để null.
+ */
 export interface CpsxTuiSetupRule {
   key: string;
   label: string;
   setupMinutes: number;
+  /** Ngưỡng bước cắt (mm); null = không dùng size */
+  maxStepMm?: number | null;
+  /** lte = ≤ maxStepMm; gt = > maxStepMm; null = không filter size */
+  stepOp?: "lte" | "gt" | null;
 }
 
 /**
