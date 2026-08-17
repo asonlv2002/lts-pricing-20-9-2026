@@ -55,8 +55,12 @@ const nextConfig: NextConfig = {
       { source: "/hub/:hubId", destination: "/" },
       // entity deep-links
       { source: "/tinh-gia/:id", destination: "/" },
+      { source: "/tinh-gia-nang-cao/:id", destination: "/" },
       { source: "/bao-gia/:id", destination: "/" },
       { source: "/khach-hang/:code", destination: "/" },
+      { source: "/lsx/:id", destination: "/" },
+      // chi tiết trong màn danh sách báo giá
+      { source: "/danh-sach-bao-gia/:id", destination: "/" },
     ];
   },
 };
