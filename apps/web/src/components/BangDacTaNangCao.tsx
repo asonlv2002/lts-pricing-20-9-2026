@@ -62,9 +62,10 @@ export default function BangDacTaNangCao({
               <th className="num">Thành phẩm (m)</th>
               <th className="num">Phi hao (m)</th>
               <th className="num">Đầu vào NVL (m)</th>
-              <th className="num">CP vật liệu (đ/m²)</th>
+              <th className="num" title="CP vật liệu (đ/m²); dòng phụ = giá NVL (đ/kg) nếu có">
+                CP vật liệu (đ/m²)
+              </th>
               <th className="num">Thành tiền CPNVL</th>
-              <th className="num">Giá NVL (đ/kg)</th>
               <th className="num" title="Giá mực in, dung môi, keo ghép + nhũ/phủ mờ (đ/m²)">
                 Giá mực, DM, keo (đ/m²)
               </th>
@@ -96,13 +97,19 @@ export default function BangDacTaNangCao({
                   {dinhDangSo(row.dauVaoNVL, 0)}
                 </td>
                 <td className="num" data-label="CP vật liệu (đ/m²)">
-                  {dinhDangSo(row.cpVatLieu, 1)}
+                  {row.cpVatLieu == null ? (
+                    '—'
+                  ) : (
+                    <span className="cp-vl-gop">
+                      <span className="cp-vl-gop__m2">{dinhDangSo(row.cpVatLieu, 1)}</span>
+                      {row.giaNVL != null && row.giaNVL > 0 && (
+                        <span className="cp-vl-gop__kg">({dinhDangSo(row.giaNVL, 0)}/kg)</span>
+                      )}
+                    </span>
+                  )}
                 </td>
                 <td className="num" data-label="Thành tiền CPNVL">
                   {dinhDangSo(row.thanhTienNVL, 0)}
-                </td>
-                <td className="num" data-label="Giá NVL (đ/kg)">
-                  {row.giaNVL != null ? `${dinhDangSo(row.giaNVL, 0)} đ/kg` : '—'}
                 </td>
                 <td
                   className="num dac-ta-nang-cao__muc"

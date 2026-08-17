@@ -13703,6 +13703,28 @@ body {
   font-weight: 600;
   white-space: nowrap;
 }
+/* CP VL (đ/m²) + dòng phụ giá NVL (đ/kg) gộp 1 cột */
+.cp-vl-gop {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  line-height: 1.25;
+  width: 100%;
+}
+.cp-vl-gop__m2 {
+  font-variant-numeric: tabular-nums;
+}
+.cp-vl-gop__kg {
+  font-size: 0.78em;
+  color: var(--muted, #6b7280);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cp-vl-gop .override-display,
+.cp-vl-gop .override-input {
+  max-width: 7.5rem;
+}
 .dac-ta-nang-cao__muc {
   background: rgba(217, 119, 6, 0.05);
 }

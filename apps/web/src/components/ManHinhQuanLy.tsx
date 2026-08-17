@@ -106,7 +106,7 @@ function coGhiDeChiTiet(detailOverride: NonNullable<OverrideFields['detailOverri
 }
 
 // ── Overridable Cell (click-to-edit inline) ──────────────────────────────────
-function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat, soLe = 0, onAfterSet }: {
+function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat, soLe = 0, onAfterSet, inline = false, hienThiTuyChinh }: {
   khoaDong: OverrideRowKey;
   truong: keyof OverrideFields;
   giaTriGoc: number;
@@ -115,11 +115,18 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
   khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
   soLe?: number;
   onAfterSet?: (value: number | undefined) => void;
+  /** true = chỉ nội dung (không bọc <td>) — dùng khi gộp nhiều ô trong 1 cell */
+  inline?: boolean;
+  /** Format hiển thị thay cho dinhDangSo (vd. "(40.000/kg)") */
+  hienThiTuyChinh?: (n: number) => string;
 }) {
   const giaTriHienThi = giaTriGhiDe ?? giaTriGoc;
   const daThayDoi = giaTriGhiDe !== undefined && Math.abs(giaTriGhiDe - giaTriGoc) > 0.001;
   const [dangSua, datDangSua] = React.useState(false);
   const [giaTriTam, datGiaTriTam] = React.useState('');
+  const chuHienThi = hienThiTuyChinh
+    ? hienThiTuyChinh(giaTriHienThi)
+    : dinhDangSo(giaTriHienThi, soLe);
 
   const xacNhan = () => {
     datDangSua(false);
@@ -133,12 +140,34 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
     }
   };
 
+  const noiDung = !duocSua ? (
+    <span className={daThayDoi ? 'override-changed' : undefined}
+      title={daThayDoi ? `Gốc: ${hienThiTuyChinh ? hienThiTuyChinh(giaTriGoc) : dinhDangSo(giaTriGoc, soLe)}` : undefined}>
+      {chuHienThi}
+    </span>
+  ) : dangSua ? (
+    <input className="override-input" type="number" step="any"
+      value={giaTriTam}
+      onChange={e => datGiaTriTam(e.target.value)}
+      onBlur={xacNhan}
+      onKeyDown={e => { if (e.key === 'Enter') xacNhan(); if (e.key === 'Escape') datDangSua(false); }}
+      autoFocus />
+  ) : (
+    <span className="override-display"
+      onClick={() => { datGiaTriTam(String(Math.round(giaTriHienThi * 10000) / 10000)); datDangSua(true); }}>
+      {chuHienThi}
+      <span className="override-indicator"> ✎</span>
+    </span>
+  );
+
+  if (inline) return noiDung;
+
   if (!duocSua) {
     return (
       <td className={`num ${daThayDoi ? 'override-changed' : ''}`}
           title={daThayDoi ? `Gốc: ${dinhDangSo(giaTriGoc, soLe)}` : undefined}
           data-label={truong}>
-        {dinhDangSo(giaTriHienThi, soLe)}
+        {chuHienThi}
       </td>
     );
   }
@@ -147,20 +176,7 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
     <td className={`num override-cell ${daThayDoi ? 'override-changed' : ''}`}
         title={daThayDoi ? `Gốc: ${dinhDangSo(giaTriGoc, soLe)}` : undefined}
         data-label={truong}>
-      {dangSua ? (
-        <input className="override-input" type="number" step="any"
-          value={giaTriTam}
-          onChange={e => datGiaTriTam(e.target.value)}
-          onBlur={xacNhan}
-          onKeyDown={e => { if (e.key === 'Enter') xacNhan(); if (e.key === 'Escape') datDangSua(false); }}
-          autoFocus />
-      ) : (
-        <span className="override-display"
-          onClick={() => { datGiaTriTam(String(Math.round(giaTriHienThi * 10000) / 10000)); datDangSua(true); }}>
-          {dinhDangSo(giaTriHienThi, soLe)}
-          {duocSua && <span className="override-indicator"> ✎</span>}
-        </span>
-      )}
+      {noiDung}
     </td>
   );
 }
@@ -677,9 +693,8 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
               <th className="num">Thành phẩm (m)</th>
               <th className="num">Phi hao (m)</th>
               <th className="num">Đầu vào NVL (m)</th>
-              <th className="num">CP vật liệu (đ/m²)</th>
+              <th className="num" title="CP vật liệu (đ/m²); dòng phụ = giá NVL (đ/kg) nếu có">CP vật liệu (đ/m²)</th>
               <th className="num">Thành tiền CPNVL</th>
-              <th className="num">Giá NVL (đ/kg)</th>
               <th className="num" title="Giá mực in, dung môi, keo ghép + nhũ/phủ mờ (đ/m²)">Giá mực, DM, keo (đ/m²)</th>
               <th className="num">Thành tiền mực, DM, keo</th>
             </tr>
@@ -722,36 +737,69 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste}
                     duocSua={suaT1} khiDat={khiDat} soLe={0} />
                   <td className={`num highlight ${coDoiVL ? 'override-changed' : ''}`} data-label="Đầu vào NVL (m)">{dinhDangSo(row.dauVaoNVL, 0)}</td>
-                  {row.cpVatLieu != null && !laDongSynthetic ? (
-                    <OCoTheGhiDe khoaDong={row.rowKey} truong="matPrice"
-                      giaTriGoc={goc?.cpVatLieu ?? 0}
-                      giaTriGhiDe={ghiDeHienTai[row.rowKey]?.matPrice}
-                      duocSua={suaT1} khiDat={khiDat} soLe={1} />
-                  ) : (
-                    <td className="num" data-label="CP vật liệu (đ/m²)">{dinhDangSo(row.cpVatLieu, 1)}</td>
-                  )}
+                  {(() => {
+                    const coCp = row.cpVatLieu != null;
+                    const giaKgHien = row.giaNVL != null && row.giaNVL > 0
+                      ? (ghiDeHienTai[row.rowKey]?.rawMatPrice ?? row.giaNVL)
+                      : (ghiDeHienTai[row.rowKey]?.rawMatPrice);
+                    const hienKg = giaKgHien != null && Number(giaKgHien) > 0;
+                    const coDoiCp = ovDong?.matPrice !== undefined || ovDong?.rawMatPrice !== undefined;
+                    if (!coCp && !hienKg) {
+                      return <td className="num" data-label="CP vật liệu (đ/m²)">—</td>;
+                    }
+                    if (laDongSynthetic || !suaT1) {
+                      return (
+                        <td className={`num ${coDoiCp ? 'override-changed' : ''}`} data-label="CP vật liệu (đ/m²)">
+                          <span className="cp-vl-gop">
+                            <span className="cp-vl-gop__m2">{coCp ? dinhDangSo(row.cpVatLieu, 1) : '—'}</span>
+                            {hienKg && (
+                              <span className="cp-vl-gop__kg">({dinhDangSo(Number(giaKgHien), 0)}/kg)</span>
+                            )}
+                          </span>
+                        </td>
+                      );
+                    }
+                    return (
+                      <td className={`num override-cell ${coDoiCp ? 'override-changed' : ''}`} data-label="CP vật liệu (đ/m²)">
+                        <span className="cp-vl-gop">
+                          {coCp ? (
+                            <span className="cp-vl-gop__m2">
+                              <OCoTheGhiDe khoaDong={row.rowKey} truong="matPrice"
+                                giaTriGoc={goc?.cpVatLieu ?? 0}
+                                giaTriGhiDe={ghiDeHienTai[row.rowKey]?.matPrice}
+                                duocSua={suaT1} khiDat={khiDat} soLe={1} inline />
+                            </span>
+                          ) : (
+                            <span className="cp-vl-gop__m2">—</span>
+                          )}
+                          {(hienKg || (row.giaNVL != null && row.giaNVL > 0) || goc?.giaNVL != null) && (
+                            <span className="cp-vl-gop__kg">
+                              <OCoTheGhiDe khoaDong={row.rowKey} truong="rawMatPrice"
+                                giaTriGoc={goc?.giaNVL ?? row.giaNVL ?? 0}
+                                giaTriGhiDe={ghiDeHienTai[row.rowKey]?.rawMatPrice}
+                                duocSua={suaT1} khiDat={khiDat} soLe={0} inline
+                                hienThiTuyChinh={(n) => `(${dinhDangSo(n, 0)}/kg)`}
+                                onAfterSet={(raw) => {
+                                  if (raw === undefined) {
+                                    khiDat(row.rowKey, 'matPrice', undefined);
+                                    return;
+                                  }
+                                  const matId = ghiDeHienTai[row.rowKey]?.materialId ?? goc?.materialId ?? row.materialId;
+                                  const matName = ghiDeHienTai[row.rowKey]?.mat ?? goc?.vatLieu ?? row.vatLieu;
+                                  const m = matId
+                                    ? materials.find(x => x.id === matId)
+                                    : materials.find(x => x.name === matName);
+                                  if (!m || m.thickness <= 0 || m.density <= 0) return;
+                                  khiDat(row.rowKey, 'matPrice', raw * m.thickness * m.density / 1000);
+                                }}
+                              />
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                    );
+                  })()}
                   <td className={`num ${coDoiVL ? 'override-changed' : ''}`} data-label="Thành tiền CPNVL">{dinhDangSo(row.thanhTienNVL, 0)}</td>
-                  {row.giaNVL != null && !laDongSynthetic ? (
-                    <OCoTheGhiDe khoaDong={row.rowKey} truong="rawMatPrice"
-                      giaTriGoc={goc?.giaNVL ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.rawMatPrice}
-                      duocSua={suaT1} khiDat={khiDat} soLe={0}
-                      onAfterSet={(raw) => {
-                        if (raw === undefined) {
-                          khiDat(row.rowKey, 'matPrice', undefined);
-                          return;
-                        }
-                        const matId = ghiDeHienTai[row.rowKey]?.materialId ?? goc?.materialId ?? row.materialId;
-                        const matName = ghiDeHienTai[row.rowKey]?.mat ?? goc?.vatLieu ?? row.vatLieu;
-                        const m = matId
-                          ? materials.find(x => x.id === matId)
-                          : materials.find(x => x.name === matName);
-                        if (!m || m.thickness <= 0 || m.density <= 0) return;
-                        khiDat(row.rowKey, 'matPrice', raw * m.thickness * m.density / 1000);
-                      }}
-                    />
-                  ) : (
-                    <td className="num" data-label="Giá NVL (đ/kg)">{row.giaNVL != null ? dinhDangSo(row.giaNVL, 0) : '—'}</td>
-                  )}
                   {row.cpMucKeo != null && !laDongSynthetic ? (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
                       giaTriGoc={goc?.cpMucKeo ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2}
