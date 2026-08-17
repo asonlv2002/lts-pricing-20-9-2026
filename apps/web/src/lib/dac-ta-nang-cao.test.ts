@@ -89,8 +89,8 @@ const thoiGian: CpsxUpgradeThoiGian = {
   laminate: { setupFirstMinutes: 10, setupNextMinutes: 30, avgSpeedMPerMin: 100 },
   slit: {
     rules: [
-      { key: 'opp_mattopp', label: 'Màng OPP / MattOPP', setupMinutes: 30, speedMPerMin: 180 },
-      { key: 'mpet_pet', label: 'Màng MPET / PET', setupMinutes: 20, speedMPerMin: 90 },
+      { key: 'opp_mattopp', label: 'Màng OPP, MattOPP', setupMinutes: 30, speedMPerMin: 180 },
+      { key: 'mpet_pet', label: 'Màng MPET, PET', setupMinutes: 20, speedMPerMin: 90 },
       { key: 'laminate_2', label: 'Màng ghép 2 lớp', setupMinutes: 20, speedMPerMin: 145 },
       { key: 'laminate_3', label: 'Màng ghép 3 lớp', setupMinutes: 20, speedMPerMin: 90 },
       { key: 'matte_flip', label: 'In phủ mờ (lật mặt)', setupMinutes: 20, speedMPerMin: 150 },

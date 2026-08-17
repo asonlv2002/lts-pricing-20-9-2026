@@ -201,10 +201,16 @@ export function tinhThoiGianMayTui(
 
 // ── Auto-map input → rule (dùng cho preview + bảng đặc tả) ──────────────────
 
+/** Nhãn chuẩn rule chia 1 lớp — dùng dấu phẩy, không dùng dấu /. */
+const NHAN_RULE_CHIA_1_LOP: Record<string, string> = {
+  opp_mattopp: 'Màng OPP, MattOPP',
+  mpet_pet: 'Màng MPET, PET',
+};
+
 /**
  * Chọn rule máy chia theo cấu trúc màng + số lần ghép.
  * Ưu tiên: ghép trước (≥2 lần ghép → laminate_3, 1 lần ghép → laminate_2);
- * 1 lớp: có MPET/PET → mpet_pet, còn lại → opp_mattopp.
+ * 1 lớp: có MPET, PET → mpet_pet, còn lại → opp_mattopp.
  * (matte_flip chỉ chọn tay — phủ mờ không ảnh hưởng máy chia.)
  */
 export function chonRuleMayChia(
@@ -511,7 +517,15 @@ export function chuanHoaCpsxUpgradeThoiGian(
 
   const slit: CpsxThoiGianMayChia = {
     rules: Array.isArray(rSlit.rules) && rSlit.rules.length > 0
-      ? rSlit.rules.map((rule: CpsxThoiGianRule) => ({ ...rule }))
+      ? rSlit.rules.map((rule: CpsxThoiGianRule) => {
+          const key = String(rule?.key ?? '');
+          const nhanChuan = NHAN_RULE_CHIA_1_LOP[key];
+          return {
+            ...rule,
+            // Ép nhãn 1 lớp: "Màng OPP, MattOPP" / "Màng MPET, PET" (không dùng dấu /)
+            label: nhanChuan ?? rule.label,
+          };
+        })
       : defaults.slit.rules.map((rule) => ({ ...rule })),
   };
 

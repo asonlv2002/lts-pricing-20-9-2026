@@ -186,8 +186,8 @@ assert('TÚI speed=0 — tong ≠ 25625 (bug cũ setup+mét/1)', !approx(rTuiNoS
 
 const cfgChia: CpsxThoiGianMayChia = {
   rules: [
-    { key: 'opp_mattopp', label: 'OPP / MattOPP', setupMinutes: 30, speedMPerMin: 180 },
-    { key: 'mpet_pet', label: 'MPET / PET', setupMinutes: 20, speedMPerMin: 90 },
+    { key: 'opp_mattopp', label: 'Màng OPP, MattOPP', setupMinutes: 30, speedMPerMin: 180 },
+    { key: 'mpet_pet', label: 'Màng MPET, PET', setupMinutes: 20, speedMPerMin: 90 },
     { key: 'laminate_2', label: 'Ghép 2 lớp', setupMinutes: 20, speedMPerMin: 145 },
     { key: 'laminate_3', label: 'Ghép 3 lớp', setupMinutes: 20, speedMPerMin: 90 },
     { key: 'matte_flip', label: 'Phủ mờ (lật mặt)', setupMinutes: 20, speedMPerMin: 150 },
@@ -196,9 +196,9 @@ const cfgChia: CpsxThoiGianMayChia = {
 assert('chia ghép 1 lớp (PET) → laminate_2', chonRuleMayChia(cfgChia, 'PET 12//LLDPE 60', 1).key === 'laminate_2');
 assert('chia ghép 1 lớp (BOPP) → laminate_2', chonRuleMayChia(cfgChia, 'BOPP 18//LLDPE 60', 1).key === 'laminate_2');
 assert('chia ghép 2 lớp → laminate_3', chonRuleMayChia(cfgChia, 'OPP 20//LLDPE 60//LLDPE 60', 2).key === 'laminate_3');
-assert('chia 1 lớp MPET/PET → mpet_pet', chonRuleMayChia(cfgChia, 'PET 12', 0).key === 'mpet_pet');
-assert('chia 1 lớp OPP/MattOPP → opp_mattopp', chonRuleMayChia(cfgChia, 'LLDPE 60', 0).key === 'opp_mattopp');
-assert('chia 1 lớp OPP/MattOPP (BOPP) → opp_mattopp', chonRuleMayChia(cfgChia, 'BOPP 18', 0).key === 'opp_mattopp');
+assert('chia 1 lớp MPET, PET → mpet_pet', chonRuleMayChia(cfgChia, 'PET 12', 0).key === 'mpet_pet');
+assert('chia 1 lớp OPP, MattOPP → opp_mattopp', chonRuleMayChia(cfgChia, 'LLDPE 60', 0).key === 'opp_mattopp');
+assert('chia 1 lớp OPP, MattOPP (BOPP) → opp_mattopp', chonRuleMayChia(cfgChia, 'BOPP 18', 0).key === 'opp_mattopp');
 assert('chia không còn phủ mờ → ưu tiên cấu trúc', chonRuleMayChia(cfgChia, 'PET 12//LLDPE 60', 1).key === 'laminate_2');
 
 const cfgTui: CpsxThoiGianMayTui = {
@@ -317,6 +317,32 @@ assert('migrate cũ: túi → bảng mặc định', r12.bag.setupRules.length =
 const r13 = chuanHoaCpsxUpgradeThoiGian({}, defaults);
 assert('chuanHoa {} → bằng defaults', r13.print.avgSpeedMPerMin === 150 && r13.slit.rules[0].key === 'opp_mattopp');
 assert('chuanHoa {} → matteExtraMinutes = default (80', r13.print.matteExtraMinutes === 80);
+
+// Label 1 lớp: ép bỏ dấu / → "Màng OPP, MattOPP" / "Màng MPET, PET"
+const rNhanChia = chuanHoaCpsxUpgradeThoiGian(
+  {
+    slit: {
+      rules: [
+        { key: 'opp_mattopp', label: 'Màng OPP / MattOPP', setupMinutes: 30, speedMPerMin: 180 },
+        { key: 'mpet_pet', label: 'MPET / PET', setupMinutes: 20, speedMPerMin: 90 },
+        { key: 'laminate_2', label: 'Màng ghép 2 lớp', setupMinutes: 20, speedMPerMin: 145 },
+      ],
+    },
+  } as never,
+  defaults,
+);
+assert(
+  'chuanHoa slit: opp_mattopp → Màng OPP, MattOPP',
+  rNhanChia.slit.rules.find((r) => r.key === 'opp_mattopp')?.label === 'Màng OPP, MattOPP',
+);
+assert(
+  'chuanHoa slit: mpet_pet → Màng MPET, PET',
+  rNhanChia.slit.rules.find((r) => r.key === 'mpet_pet')?.label === 'Màng MPET, PET',
+);
+assert(
+  'chuanHoa slit: laminate_2 giữ label tùy chỉnh',
+  rNhanChia.slit.rules.find((r) => r.key === 'laminate_2')?.label === 'Màng ghép 2 lớp',
+);
 
 // matteExtraMinutes = 0 cố ý → vẫn giữ 0 (không fallback default)
 const r14 = chuanHoaCpsxUpgradeThoiGian(
