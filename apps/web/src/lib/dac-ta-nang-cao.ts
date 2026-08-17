@@ -680,7 +680,8 @@ export function lapDongNhanCongDien(
   const giaKwh = el?.appliedPricePerKwh ?? null;
   const laMang = result?.input?.productType === 'mang';
 
-  const metIn = so(result?.printMeters) + so(result?.printWaste);
+  const metTpIn = so(result?.printMeters);
+  const metIn = metTpIn + so(result?.printWaste);
   const soMau = so(result?.input?.numColors);
   const cacLopGhep = result?.layers?.laminations ?? [];
   const metGhep = cacLopGhep.reduce(
@@ -741,13 +742,14 @@ export function lapDongNhanCongDien(
     ), ['print'], overrides));
   }
 
-  // lật mặt — chỉ khi có phủ mờ; thời gian theo rule matte_flip (bảng máy chia); ẩn khi thuê ngoài chia
-  if (phuMo && metIn > 0 && !laGc('slit')) {
+  // lật mặt — chỉ khi có phủ mờ; mét chạy = Thành phẩm in (không + phi hao);
+  // thời gian theo rule matte_flip (bảng máy chia); ẩn khi thuê ngoài chia
+  if (phuMo && metTpIn > 0 && !laGc('slit')) {
     const ruleMatte = tg.slit.rules.find(r => r.key === 'matte_flip') ?? tg.slit.rules[0];
     if (ruleMatte) {
       rows.push(apDungGhiDeThoiGian(dong(
         'lật mặt',
-        ruleMatte.setupMinutes + metIn / (ruleMatte.speedMPerMin || 1),
+        ruleMatte.setupMinutes + metTpIn / (ruleMatte.speedMPerMin || 1),
         luongMoiPhutAp(
           luongMoiPhutTinh(
             lab.slit.wages, lab.slit.hoursPerDay,
