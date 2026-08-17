@@ -323,9 +323,9 @@ export default function TrangChinh() {
       const store = dungCuaHangTinhGia.getState();
       if (!store.isAuthenticated || !store.accessToken) return;
 
-      // Nhường bandwidth cho deep-link path /bao-gia/ /tinh-gia/
+      // Nhường bandwidth cho deep-link path /bao-gia/ /tinh-gia/ /tinh-gia-nang-cao/
       const path = typeof window !== 'undefined' ? window.location.pathname : '';
-      const hasDeep = /\/(bao-gia|tinh-gia)\//.test(path);
+      const hasDeep = /\/(bao-gia|tinh-gia-nang-cao|tinh-gia)\//.test(path);
       if (hasDeep) {
         await new Promise((r) => setTimeout(r, 800));
       }

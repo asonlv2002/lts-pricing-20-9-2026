@@ -260,7 +260,7 @@ export default function ModuleDanhSachTinhGia({
               <Eye size={15} />
             </button>
             <NutSaoChepLienKet
-              url={taoUrlChiaSeTinhGia(idChiaSeBangTinh(h))}
+              url={taoUrlChiaSeTinhGia(idChiaSeBangTinh(h), { nangCao: !!h.isNangCap })}
               variant="qrev"
               size={15}
             />

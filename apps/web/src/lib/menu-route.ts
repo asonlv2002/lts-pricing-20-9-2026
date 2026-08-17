@@ -6,6 +6,7 @@ export const HUB_PATH_PREFIX = 'hub';
 /** Path entity (không trùng menu slug). */
 export const ENTITY_PATH_PREFIX: Record<LoaiDeepLink, string> = {
   'tinh-gia': 'tinh-gia',
+  'tinh-gia-nang-cao': 'tinh-gia-nang-cao',
   'bao-gia': 'bao-gia',
   'khach-hang': 'khach-hang',
   lsx: 'lsx',
@@ -44,6 +45,7 @@ export const MENU_MAC_DINH_THEO_MODULE: Record<MaModuleMenu, string> = {
 /** Deep-link entity → menu mặc định. */
 export const MENU_MAC_DINH_KHI_DEEP_LINK: Record<LoaiDeepLink, string> = {
   'tinh-gia': 'tao-tinh-gia',
+  'tinh-gia-nang-cao': 'tao-tinh-gia-nang-cap',
   'bao-gia': 'tao-bao-gia',
   'khach-hang': 'danh-sach-khach-hang',
   lsx: 'danh-sach-lsx',
@@ -107,7 +109,7 @@ export function tachPathSegments(pathname: string | null | undefined): string[] 
 /**
  * Path menu: /tao-tinh-gia
  * Path hub: /hub/overview  (từ menuKey mobile.hub.overview)
- * Path entity: /tinh-gia/<id>
+ * Path entity: /tinh-gia/<id> | /tinh-gia-nang-cao/<id>
  */
 export function taoPathMenu(menuKey: string | null | undefined): string {
   const key = menuKey?.trim() ?? '';
@@ -142,8 +144,11 @@ export function parsePathname(pathname: string | null | undefined): KetQuaParseP
     return { loai: 'unknown' };
   }
 
-  // /tinh-gia/<id> | /bao-gia/<id> | /khach-hang/<id>
-  const entityEntries = Object.entries(ENTITY_PATH_PREFIX) as [LoaiDeepLink, string][];
+  // /tinh-gia/<id> | /tinh-gia-nang-cao/<id> | /bao-gia/<id> | /khach-hang/<id>
+  // Sort dài → ngắn để "tinh-gia-nang-cao" không bị nuốt bởi "tinh-gia"
+  const entityEntries = (Object.entries(ENTITY_PATH_PREFIX) as [LoaiDeepLink, string][])
+    .slice()
+    .sort((a, b) => b[1].length - a[1].length);
   for (const [loai, prefix] of entityEntries) {
     if (segs[0] === prefix) {
       if (segs.length >= 2 && segs[1]) {

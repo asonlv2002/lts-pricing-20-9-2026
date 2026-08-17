@@ -955,9 +955,9 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(rowsMo[0].thoiGianPhut!, 4 * 15 + 20 + 8420 / 150 + 80, 'phủ mờ: in + 80 phút');
   eq(rowsMo.map(r => r.congDoan), ['in', 'lật mặt', 'ghép', 'làm túi'], 'phủ mờ → in, lật mặt, ghép, làm túi');
 
-  // lật mặt: setup matte_flip 20' + mét in ÷ 150 = 20 + 8420/150 = 76,13 phút; NC/điện theo máy chia
+  // lật mặt: setup matte_flip 20' + Thành phẩm in ÷ 150 = 20 + 8000/150 ≈ 73,33 phút; NC/điện theo máy chia
   const dongLatMat = rowsMo[1];
-  approx(dongLatMat.thoiGianPhut!, 20 + 8420 / 150, 'lật mặt: setup matte_flip + mét ÷ tốc độ');
+  approx(dongLatMat.thoiGianPhut!, 20 + 8000 / 150, 'lật mặt: setup matte_flip + TP in ÷ tốc độ');
   approx(dongLatMat.cpNhanCongPerPhut!, 736, 'lật mặt: lương máy chia 736 ₫/phút');
   approx(dongLatMat.cpDienPerPhut!, 25 * 0.8 * 3000 / 60, 'lật mặt: điện máy chia 1000 ₫/phút');
   approx(dongLatMat.thanhTienNhanCong, dongLatMat.thoiGianPhut! * 736, 'lật mặt: thành tiền NC');

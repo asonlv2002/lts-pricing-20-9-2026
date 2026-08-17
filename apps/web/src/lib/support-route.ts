@@ -1,6 +1,11 @@
 /** Deep-link helpers dùng chung cho các domain route (tính giá, báo giá, ...). */
 
-export type LoaiDeepLink = 'tinh-gia' | 'bao-gia' | 'khach-hang' | 'lsx';
+export type LoaiDeepLink =
+  | 'tinh-gia'
+  | 'tinh-gia-nang-cao'
+  | 'bao-gia'
+  | 'khach-hang'
+  | 'lsx';
 
 export type TrangThaiDeepLink =
   | 'idle'
@@ -16,6 +21,7 @@ export const DEEP_LINK_QUERY_KEYS = ['tinh-gia', 'bao-gia', 'khach-hang', 'lsx']
 
 export const NHAN_LOAI_DEEP_LINK: Record<LoaiDeepLink, string> = {
   'tinh-gia': 'Tính giá',
+  'tinh-gia-nang-cao': 'Tính giá nâng cao',
   'bao-gia': 'Báo giá',
   'khach-hang': 'Khách hàng',
   lsx: 'LSX',
@@ -117,14 +123,20 @@ export function dongBoUrlQueryExclusive(
 
 /**
  * Clear deep-link: bỏ query entity cũ (nếu còn) và về root path
- * khi đang đứng trên path entity /tinh-gia|/bao-gia|/khach-hang.
+ * khi đang đứng trên path entity /tinh-gia|/tinh-gia-nang-cao|/bao-gia|/khach-hang.
  * Menu path giữ nguyên.
  */
 export function dongBoUrlDeepLinkClear(): void {
   if (typeof window === 'undefined') return;
   const path = window.location.pathname.replace(/\/+$/, '') || '/';
   const segs = path === '/' ? [] : path.slice(1).split('/');
-  const entityRoots = new Set(['tinh-gia', 'bao-gia', 'khach-hang', 'lsx']);
+  const entityRoots = new Set([
+    'tinh-gia',
+    'tinh-gia-nang-cao',
+    'bao-gia',
+    'khach-hang',
+    'lsx',
+  ]);
   let nextPath = path;
   if (segs.length >= 1 && entityRoots.has(segs[0])) {
     // rời entity → root; caller thường gọi dieuHuongMenu ngay sau

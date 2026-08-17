@@ -5,6 +5,8 @@ import {
   docIdTuUrl,
   idChiaSeBangTinh,
   ghepUrlTinhGia,
+  laPathTinhGiaNangCao,
+  loaiTinhGiaTuNangCao,
   taoUrlChiaSeTinhGia,
 } from './tinh-gia-route';
 
@@ -26,8 +28,21 @@ console.log('tinh-gia-route');
 assert('query key constant kept for labels', TINH_GIA_QUERY === 'tinh-gia');
 
 assert(
+  'loaiTinhGiaTuNangCao false',
+  loaiTinhGiaTuNangCao(false) === 'tinh-gia',
+);
+assert(
+  'loaiTinhGiaTuNangCao true',
+  loaiTinhGiaTuNangCao(true) === 'tinh-gia-nang-cao',
+);
+
+assert(
   'docIdTuPathname',
   docIdTuPathname('/tinh-gia/abc-123') === 'abc-123',
+);
+assert(
+  'docIdTuPathname nang-cao',
+  docIdTuPathname('/tinh-gia-nang-cao/abc-123') === 'abc-123',
 );
 assert(
   'docIdTuPathname menu null',
@@ -35,8 +50,21 @@ assert(
 );
 
 assert(
+  'laPathTinhGiaNangCao true',
+  laPathTinhGiaNangCao('/tinh-gia-nang-cao/x') === true,
+);
+assert(
+  'laPathTinhGiaNangCao false thuong',
+  laPathTinhGiaNangCao('/tinh-gia/x') === false,
+);
+
+assert(
   'docIdTuUrl path',
   docIdTuUrl('https://app.example.com/tinh-gia/sheet-9#top') === 'sheet-9',
+);
+assert(
+  'docIdTuUrl path nang-cao',
+  docIdTuUrl('https://app.example.com/tinh-gia-nang-cao/sheet-9') === 'sheet-9',
 );
 assert(
   'docIdTuUrl no param',
@@ -67,8 +95,16 @@ assert(
   ghepUrlTinhGia('https://x.com/app?foo=1', 'A1') === '/tinh-gia/A1',
 );
 assert(
+  'ghepUrlTinhGia set id nangCao',
+  ghepUrlTinhGia('https://x.com/app', 'A1', { nangCao: true }) === '/tinh-gia-nang-cao/A1',
+);
+assert(
   'ghepUrlTinhGia clear → menu path',
   ghepUrlTinhGia('https://x.com/?tinh-gia=old&foo=1', null) === '/tao-tinh-gia',
+);
+assert(
+  'ghepUrlTinhGia clear nangCao → menu NC',
+  ghepUrlTinhGia('https://x.com/', null, { nangCao: true }) === '/tao-tinh-gia-nang-cap',
 );
 assert(
   'ghepUrlTinhGia replace id',
@@ -85,6 +121,13 @@ assert(
   (() => {
     const u = taoUrlChiaSeTinhGia('sheet-1');
     return !!u && u.includes('/tinh-gia/sheet-1') && !u.includes('m=');
+  })(),
+);
+assert(
+  'taoUrlChiaSeTinhGia path nangCao',
+  (() => {
+    const u = taoUrlChiaSeTinhGia('sheet-1', { nangCao: true });
+    return !!u && u.includes('/tinh-gia-nang-cao/sheet-1');
   })(),
 );
 

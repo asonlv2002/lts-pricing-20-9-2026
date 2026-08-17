@@ -1982,7 +1982,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (deep.loai === "tinh-gia") {
+      if (deep.loai === "tinh-gia" || deep.loai === "tinh-gia-nang-cao") {
         try {
           const local = timMucLichSuTheoId(
             dungCuaHangTinhGia.getState().history,
@@ -2093,7 +2093,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     deepLinkRetryDem,
   ]);
 
-  // Đồng bộ path URL (copy-share): /tinh-gia/<id> · /bao-gia/<id> — KH do ModuleKhachHang
+  // Đồng bộ path URL (copy-share): /tinh-gia/<id> | /tinh-gia-nang-cao/<id> · /bao-gia/<id>
   useEffect(() => {
     if (!isAuthenticated || !sessionChecked) return;
     if (deepLinkTrangThai === "loading" || laLoiDeepLink(deepLinkTrangThai))
@@ -2104,7 +2104,9 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (moduleDangMo === "calculator" && loadedHistoryId) {
       const item = timMucLichSuTheoId(lichSu, loadedHistoryId);
       const idShare = idChiaSeBangTinh(item ?? { id: loadedHistoryId });
-      dongBoUrlTinhGia(idShare);
+      const nangCao =
+        !!item?.isNangCap || menuDangChon === "tao-tinh-gia-nang-cap";
+      dongBoUrlTinhGia(idShare, { nangCao });
       return;
     }
 

@@ -43,6 +43,10 @@ assert(
   menuMacDinhKhiDeepLink('tinh-gia') === 'tao-tinh-gia',
 );
 assert(
+  'menuMacDinhKhiDeepLink tinh-gia-nang-cao',
+  menuMacDinhKhiDeepLink('tinh-gia-nang-cao') === 'tao-tinh-gia-nang-cap',
+);
+assert(
   'menuKeyTuModule calculator',
   menuKeyTuModule('calculator') === 'tao-tinh-gia',
 );
@@ -72,6 +76,10 @@ assert('taoPathMenu empty root', taoPathMenu('') === '/');
 assert(
   'taoPathEntity tinh-gia',
   taoPathEntity('tinh-gia', 'sheet-1') === '/tinh-gia/sheet-1',
+);
+assert(
+  'taoPathEntity tinh-gia-nang-cao',
+  taoPathEntity('tinh-gia-nang-cao', 'sheet-1') === '/tinh-gia-nang-cao/sheet-1',
 );
 assert(
   'taoPathEntity empty falls back menu',
@@ -105,6 +113,18 @@ assert(
   })(),
 );
 assert(
+  'parse entity tinh-gia-nang-cao',
+  (() => {
+    const p = parsePathname('/tinh-gia-nang-cao/abc-1');
+    return (
+      p.loai === 'entity' &&
+      p.entity === 'tinh-gia-nang-cao' &&
+      p.id === 'abc-1' &&
+      p.menuKey === 'tao-tinh-gia-nang-cap'
+    );
+  })(),
+);
+assert(
   'parse entity bao-gia',
   (() => {
     const p = parsePathname('/bao-gia/Q9');
@@ -131,6 +151,13 @@ assert(
   (() => {
     const d = docDeepLinkTuPathname('/khach-hang/ACME');
     return d?.loai === 'khach-hang' && d.id === 'ACME';
+  })(),
+);
+assert(
+  'docDeepLinkTuPathname tinh-gia-nang-cao',
+  (() => {
+    const d = docDeepLinkTuPathname('/tinh-gia-nang-cao/s1');
+    return d?.loai === 'tinh-gia-nang-cao' && d.id === 's1';
   })(),
 );
 assert(

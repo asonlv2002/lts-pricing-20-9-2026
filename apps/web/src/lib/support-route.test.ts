@@ -90,6 +90,10 @@ assert(
   tieuDeKhongTimThay('tinh-gia') === 'Không tìm thấy dữ liệu của Tính giá',
 );
 assert(
+  'tieuDeKhongTimThay tinh-gia-nang-cao',
+  tieuDeKhongTimThay('tinh-gia-nang-cao') === 'Không tìm thấy dữ liệu của Tính giá nâng cao',
+);
+assert(
   'tieuDeKhongTimThay bao-gia',
   tieuDeKhongTimThay('bao-gia') === 'Không tìm thấy dữ liệu của Báo giá',
 );
