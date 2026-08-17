@@ -28,21 +28,25 @@ import { dieuHuongModuleApp } from '../lib/menu-route';
 import BangDacTaNangCao from './BangDacTaNangCao';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
-// Mỗi lần render với resetKey mới → luôn bắt đầu ở trạng thái ĐÓNG
+// Mặc định đóng. resetKey đổi → đóng lại (trừ khi giuTrangThaiKhiReset).
 function TheThuGon({
   title: tieuDe,
   children,
   resetKey,
   style,
+  giuTrangThaiKhiReset = false,
 }: {
   title: React.ReactNode;
   children: React.ReactNode;
   resetKey: string | number;
   style?: React.CSSProperties;
+  /** true = không ép đóng khi kết quả tính lại (user giữ trạng thái mở/đóng) */
+  giuTrangThaiKhiReset?: boolean;
 }) {
   const [mo, datMo] = useState(false);
-  // Đặt lại về đóng khi resetKey thay đổi (tức là khi có kết quả mới)
-  React.useEffect(() => { datMo(false); }, [resetKey]);
+  React.useEffect(() => {
+    if (!giuTrangThaiKhiReset) datMo(false);
+  }, [resetKey, giuTrangThaiKhiReset]);
 
   return (
     <div className="card" style={style}>
@@ -645,7 +649,9 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
   const donViChenhLech = r.input.productType === 'mang' ? 'ĐỒNG / MÉT VUÔNG' : 'ĐỒNG / TÚI';
   const tongNhanCong = dongNCD.reduce((s, d) => s + d.thanhTienNhanCong, 0);
   const tongDien = dongNCD.reduce((s, d) => s + d.thanhTienDien, 0);
-  const effectivePct = profitRatePct > 0 ? profitRatePct : 0;
+  const effectivePct = profitRatePct > 0
+    ? profitRatePct
+    : (Number.isFinite(Number(defaultProfitRatePct)) ? Number(defaultProfitRatePct) : 0);
   const ln = tong.tongGiaThanh * (effectivePct / 100);
 
   const timDongGoc = (rowKey: OverrideRowKey, chiTietIndex?: number) =>
@@ -674,8 +680,8 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
               <th className="num">CP vật liệu (đ/m²)</th>
               <th className="num">Thành tiền CPNVL</th>
               <th className="num">Giá NVL (đ/kg)</th>
-              <th className="num" title="CP mực in, dung môi, keo ghép + nhũ/phủ mờ (đ/m²)">CP mực + DM + keo (đ/m²)</th>
-              <th className="num">Thành tiền mực + DM + keo</th>
+              <th className="num" title="Giá mực in, dung môi, keo ghép + nhũ/phủ mờ (đ/m²)">Giá mực, DM, keo (đ/m²)</th>
+              <th className="num">Thành tiền mực, DM, keo</th>
             </tr>
           </thead>
           <tbody>
@@ -751,11 +757,11 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                       giaTriGoc={goc?.cpMucKeo ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2}
                       duocSua={suaT1} khiDat={khiDat} soLe={1} />
                   ) : row.cpMucKeo != null ? (
-                    <td className="num dac-ta-nang-cao__muc" data-label="CP mực + DM + keo (đ/m²)">{dinhDangSo(row.cpMucKeo, 1)}</td>
+                    <td className="num dac-ta-nang-cao__muc" data-label="Giá mực, DM, keo (đ/m²)">{dinhDangSo(row.cpMucKeo, 1)}</td>
                   ) : (
-                    <td className="num dac-ta-nang-cao__muc" data-label="CP mực + DM + keo (đ/m²)">—</td>
+                    <td className="num dac-ta-nang-cao__muc" data-label="Giá mực, DM, keo (đ/m²)">—</td>
                   )}
-                  <td className={`num dac-ta-nang-cao__muc ${coDoiMuc || coDoiVL ? 'override-changed' : ''}`} data-label="Thành tiền mực + DM + keo">{dinhDangSo(row.thanhTienMucKeo, 0)}</td>
+                  <td className={`num dac-ta-nang-cao__muc ${coDoiMuc || coDoiVL ? 'override-changed' : ''}`} data-label="Thành tiền mực, DM, keo">{dinhDangSo(row.thanhTienMucKeo, 0)}</td>
                 </tr>
               );
             })}
@@ -772,9 +778,9 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                 <tr>
                   <th>Công đoạn</th>
                   <th className="num">Thời gian SX (phút)</th>
-                  <th className="num">CP nhân công (đ/phút)</th>
-                  <th className="num">Thành tiền NC</th>
-                  <th className="num">CP điện (đ/phút)</th>
+                  <th className="num">Giá nhân công (đ/phút)</th>
+                  <th className="num">Thành tiền nhân công (VNĐ)</th>
+                  <th className="num">Giá điện (đ/phút)</th>
                   <th className="num">Thành tiền điện</th>
                 </tr>
               </thead>
@@ -792,11 +798,11 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="cpNhanCongPerPhut"
                         giaTriGoc={dongNCDGoc[idx]?.cpNhanCongPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpNhanCongPerPhut}
                         duocSua={false} khiDat={khiDat} soLe={0} />
-                      <td className={`num ${coDoiTG ? 'override-changed' : ''}`} data-label="Thành tiền CP nhân công">{dinhDangSo(row.thanhTienNhanCong, 0)}</td>
+                      <td className={`num ${coDoiTG ? 'override-changed' : ''}`} data-label="Thành tiền nhân công (VNĐ)">{dinhDangSo(row.thanhTienNhanCong, 0)}</td>
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="cpDienPerPhut"
                         giaTriGoc={dongNCDGoc[idx]?.cpDienPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpDienPerPhut}
                         duocSua={false} khiDat={khiDat} soLe={0} />
-                      <td className={`num ${coDoiTG ? 'override-changed' : ''}`} data-label="Thành tiền CP điện">{dinhDangSo(row.thanhTienDien, 0)}</td>
+                      <td className={`num ${coDoiTG ? 'override-changed' : ''}`} data-label="Thành tiền điện">{dinhDangSo(row.thanhTienDien, 0)}</td>
                     </tr>
                   );
                 })}
@@ -806,19 +812,33 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                   <td />
                   <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>{dinhDangSo(tongDien, 0)}</td>
                 </tr>
-                {coThayDoi && (
-                  <tr className={`override-profit-rate-row override-profit-rate-row--${lopMau}${profitRatePct > 0 ? ' override-profit-rate-row--overridden' : ''}`}>
-                    <td colSpan={3} className="override-profit-label">
-                      Tỷ lệ LN:{' '}
-                      <span className="profit-rate-value">
-                        {Number.isFinite(Number(profitRatePct)) && Number(profitRatePct) > 0
-                          ? Number(profitRatePct)
-                          : (Number.isFinite(Number(defaultProfitRatePct)) ? Number(defaultProfitRatePct) : 0)}%
-                      </span>
-                    </td>
-                    <td colSpan={3} className="num">LN: {dinhDangSo(Math.round(ln), 0)} đ</td>
-                  </tr>
-                )}
+                {(duocSua || coThayDoi) && (() => {
+                  const isOverridden = profitRatePct > 0;
+                  const hienThiPct = isOverridden
+                    ? profitRatePct
+                    : (Number.isFinite(Number(defaultProfitRatePct)) ? Number(defaultProfitRatePct) : 0);
+                  return (
+                    <tr className={`override-profit-rate-row override-profit-rate-row--${lopMau}${isOverridden ? ' override-profit-rate-row--overridden' : ''}`}>
+                      <td colSpan={3} className="override-profit-label">
+                        Tỷ lệ LN:{' '}
+                        {duocSua ? (
+                          <input
+                            className={`profit-rate-input${isOverridden ? ' profit-rate-input--overridden' : ''}`}
+                            type="number"
+                            step="0.1"
+                            value={hienThiPct}
+                            onChange={(e) => khiDatProfitRate(Number(e.target.value) || 0)}
+                            placeholder={String(defaultProfitRatePct)}
+                          />
+                        ) : (
+                          <span className="profit-rate-value">{hienThiPct}%</span>
+                        )}
+                        {duocSua && <span className="profit-rate-pct-suffix">%</span>}
+                      </td>
+                      <td colSpan={3} className="num">LN: {dinhDangSo(Math.round(ln), 0)} đ</td>
+                    </tr>
+                  );
+                })()}
                 <tr className={`total-row override-price-delta-row ${lopChenhLech}`}>
                   <td colSpan={6}>
                     CHÊNH LỆCH SO VỚI GIÁ GỐC: <strong>{chenhLechText} {donViChenhLech}</strong>
@@ -1756,6 +1776,7 @@ const buttonLabel = loadedItem
           <div id="sect-tech" className="manager-section-anchor"></div>
           <TheThuGon
             resetKey={khoaKetQua}
+            giuTrangThaiKhiReset
             style={{marginBottom: '14px'}}
             title={<><span className="icon">🏭</span> Đặc tả kỹ thuật &amp; nguyên liệu</>}
           >
@@ -1965,6 +1986,7 @@ const buttonLabel = loadedItem
           <div id="sect-tech-advanced" className="manager-section-anchor"></div>
           <TheThuGon
             resetKey={khoaKetQua}
+            giuTrangThaiKhiReset
             style={{marginBottom: '14px', marginTop: '14px'}}
             title={<><span className="icon">🔬</span> Đặc tả kỹ thuật &amp; nguyên liệu (nâng cao)</>}
           >

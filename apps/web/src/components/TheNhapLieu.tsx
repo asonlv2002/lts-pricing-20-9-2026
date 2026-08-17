@@ -1141,7 +1141,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
               <>
                 <div className="advanced-sub-title">🎀 Phụ kiện</div>
                 <div className="form-row-3">
-                  <div className="form-group"><label className="form-check"><input type="checkbox" checked={input.hasZipper} onChange={e => capNhatDauVao({ hasZipper: e.target.checked })} /> Zipper (378đ/m)</label></div>
+                  <div className="form-group"><label className="form-check"><input type="checkbox" checked={input.hasZipper} onChange={e => capNhatDauVao({ hasZipper: e.target.checked })} /> Zipper ({(Number(constants.zipperPrice) > 0 ? Number(constants.zipperPrice) : 378).toLocaleString('vi-VN')}đ/m)</label></div>
                   <div className="form-group"><label className="form-check"><input type="checkbox" checked={input.hasTape} onChange={e => { const val = e.target.checked; capNhatDauVao({ hasTape: val }); }} /> Băng keo</label></div>
 
                                     <div className="form-group">

@@ -65,14 +65,14 @@ export default function BangDacTaNangCao({
               <th className="num">CP vật liệu (đ/m²)</th>
               <th className="num">Thành tiền CPNVL</th>
               <th className="num">Giá NVL (đ/kg)</th>
-              <th className="num" title="CP mực in, dung môi, keo ghép + nhũ/phủ mờ (đ/m²)">
-                CP mực + DM + keo (đ/m²)
+              <th className="num" title="Giá mực in, dung môi, keo ghép + nhũ/phủ mờ (đ/m²)">
+                Giá mực, DM, keo (đ/m²)
               </th>
               <th
                 className="num"
-                title="Thành tiền CP mực in, dung môi, keo ghép (VNĐ)"
+                title="Thành tiền mực in, dung môi, keo ghép (VNĐ)"
               >
-                Thành tiền mực + DM + keo
+                Thành tiền mực, DM, keo
               </th>
             </tr>
           </thead>
@@ -106,14 +106,14 @@ export default function BangDacTaNangCao({
                 </td>
                 <td
                   className="num dac-ta-nang-cao__muc"
-                  data-label="CP mực in, dung môi, keo ghép (đ/m²)"
+                  data-label="Giá mực, DM, keo (đ/m²)"
                   title={row.ghiChu}
                 >
                   {dinhDangSo(row.cpMucKeo, 1)}
                 </td>
                 <td
                   className="num dac-ta-nang-cao__muc"
-                  data-label="Thành tiền CP mực in, dung môi, keo ghép (VNĐ)"
+                  data-label="Thành tiền mực, DM, keo"
                 >
                   {dinhDangSo(row.thanhTienMucKeo, 0)}
                 </td>
@@ -132,12 +132,12 @@ export default function BangDacTaNangCao({
                 <tr>
                   <th>Công đoạn</th>
                   <th className="num">Thời gian SX (phút)</th>
-                  <th className="num">CP nhân công (đ/phút)</th>
-                  <th className="num" title="Thành tiền CP nhân công (VNĐ)">
-                    Thành tiền NC
+                  <th className="num">Giá nhân công (đ/phút)</th>
+                  <th className="num" title="Thành tiền nhân công (VNĐ)">
+                    Thành tiền nhân công (VNĐ)
                   </th>
-                  <th className="num">CP điện (đ/phút)</th>
-                  <th className="num" title="Thành tiền CP điện (VNĐ)">
+                  <th className="num">Giá điện (đ/phút)</th>
+                  <th className="num" title="Thành tiền điện (VNĐ)">
                     Thành tiền điện
                   </th>
                 </tr>
@@ -151,16 +151,16 @@ export default function BangDacTaNangCao({
                     <td className="num highlight" data-label="Thời gian SX (phút)">
                       {dinhDangSo(row.thoiGianPhut, 0)}
                     </td>
-                    <td className="num" data-label="CP nhân công (đ/phút)">
+                    <td className="num" data-label="Giá nhân công (đ/phút)">
                       {dinhDangSo(row.cpNhanCongPerPhut, 0)}
                     </td>
-                    <td className="num" data-label="Thành tiền CP nhân công (VNĐ)">
+                    <td className="num" data-label="Thành tiền nhân công (VNĐ)">
                       {dinhDangSo(row.thanhTienNhanCong, 0)}
                     </td>
-                    <td className="num" data-label="CP điện (đ/phút)">
+                    <td className="num" data-label="Giá điện (đ/phút)">
                       {dinhDangSo(row.cpDienPerPhut, 0)}
                     </td>
-                    <td className="num" data-label="Thành tiền CP điện (VNĐ)">
+                    <td className="num" data-label="Thành tiền điện">
                       {dinhDangSo(row.thanhTienDien, 0)}
                     </td>
                   </tr>

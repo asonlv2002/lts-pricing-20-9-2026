@@ -25,10 +25,10 @@ const FIELD_LABELS: Record<string, string> = {
   costMat: 'Thành tiền CPVL',
   materialName: 'Vật liệu',
   rawMatPrice: 'Giá NVL',
-  cpMucKeoPerM2: 'CP mực+DM+keo',
+  cpMucKeoPerM2: 'Giá mực, DM, keo',
   thoiGianPhut: 'Thời gian SX',
-  cpNhanCongPerPhut: 'CP nhân công',
-  cpDienPerPhut: 'CP điện',
+  cpNhanCongPerPhut: 'Giá nhân công',
+  cpDienPerPhut: 'Giá điện',
 };
 
 export interface OverrideChangeDisplay {
