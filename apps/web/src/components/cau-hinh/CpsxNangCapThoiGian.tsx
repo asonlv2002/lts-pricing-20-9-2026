@@ -82,13 +82,16 @@ export default function CpsxNangCapThoiGian() {
   const autoTocDoTui = chonTocDoMayTui(state.bag, cutStepM);
   const [setupTuiTay, setSetupTuiTay] = React.useState<string | null>(null);
   const [tocDoTuiTay, setTocDoTuiTay] = React.useState<string | null>(null);
+  /** null = dùng mét từ kết quả tính giá; số = override preview (không lưu engine). */
+  const [metChayTay, setMetChayTay] = React.useState<number | null>(null);
   const setupTui =
     state.bag.setupRules.find((r) => r.key === setupTuiTay) ?? autoSetupTui;
   const tocDoTui =
     state.bag.speedRules.find((r) => r.key === tocDoTuiTay) ?? autoTocDoTui;
+  const metChayPreview = metChayTay != null ? metChayTay : metInLamTui;
 
-  const kqBag = metInLamTui > 0
-    ? tinhThoiGianMayTui(metInLamTui, setupTui, tocDoTui)
+  const kqBag = metChayPreview > 0
+    ? tinhThoiGianMayTui(metChayPreview, setupTui, tocDoTui)
     : null;
 
   const cards: Array<{
@@ -139,14 +142,17 @@ export default function CpsxNangCapThoiGian() {
           giaTri={state.bag}
           capNhat={(patch) => luu({ ...state, bag: { ...state.bag, ...patch } })}
           kq={kqBag}
-          metInLamTui={metInLamTui}
+          metChay={metChayPreview}
+          metAuto={metInLamTui}
+          metTay={metChayTay != null}
+          setMetChay={(m) => setMetChayTay(m)}
           setupChon={setupTui}
           tocDoChon={tocDoTui}
           autoSetupKey={autoSetupTui.key}
           autoTocDoKey={autoTocDoTui.key}
           setSetupKey={(k) => setSetupTuiTay(k)}
           setTocDoKey={(k) => setTocDoTuiTay(k)}
-          coInput={metInLamTui > 0}
+          coInput={metChayPreview > 0}
         />
       ),
     },
@@ -457,7 +463,10 @@ function MayTuiPanel({
   giaTri,
   capNhat,
   kq,
-  metInLamTui,
+  metChay,
+  metAuto,
+  metTay,
+  setMetChay,
   setupChon,
   tocDoChon,
   autoSetupKey,
@@ -469,7 +478,10 @@ function MayTuiPanel({
   giaTri: CpsxThoiGianMayTui;
   capNhat: (patch: Partial<CpsxThoiGianMayTui>) => void;
   kq: KetQuaThoiGian | null;
-  metInLamTui: number;
+  metChay: number;
+  metAuto: number;
+  metTay: boolean;
+  setMetChay: (m: number) => void;
   setupChon: CpsxTuiSetupRule;
   tocDoChon: CpsxTuiSpeedRule;
   autoSetupKey: string;
@@ -809,20 +821,24 @@ function MayTuiPanel({
           Công thức áp dụng: TG = Setup + Mét chạy ÷ Tốc độ TB → phút
         </div>
         <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-          <span className="config-cpsx-upgrade__formula-label">
-            Input hiện tại:{" "}
-            {coInput ? (
-              <>
-                <strong className="config-cpsx-upgrade__highlight">
-                  {dinhDangSo(metInLamTui, 0)} m
-                </strong>{" "}
-                (số mét phi hao + số mét thành phẩm)
-              </>
-            ) : (
-              <span className="config-cpsx-upgrade__formula-note">
-                — (chưa có kết quả tính giá)
-              </span>
-            )}
+          <span className="config-cpsx-upgrade__formula-label">Mét chạy</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="Mét chạy"
+            value={Number.isFinite(metChay) ? metChay : 0}
+            onChange={(e) => setMetChay(docSoThapPhan(e.target.value))}
+          />
+          <span className="config-cpsx-upgrade__formula-label">m</span>
+          {!metTay && metAuto > 0 ? (
+            <span className="config-cpsx-upgrade__auto">(từ tính giá)</span>
+          ) : metTay ? (
+            <span className="config-cpsx-upgrade__formula-note">preview tay</span>
+          ) : null}
+          <span className="config-cpsx-upgrade__formula-note">
+            (TP cắt + phi hao) × phần tử chia
           </span>
         </div>
 
@@ -887,7 +903,7 @@ function MayTuiPanel({
           <span className="config-cpsx-upgrade__formula-op">→</span>
           <strong className="config-cpsx-upgrade__formula-result">
             {coInput && kq
-              ? `(${dinhDangSo(metInLamTui, 0)} m ÷ ${tocDoChon.speedMPerMin}) = ${dinhDangSo(kq.chiTiet.chayPhut, 3)} phút`
+              ? `(${dinhDangSo(metChay, 0)} m ÷ ${tocDoChon.speedMPerMin}) = ${dinhDangSo(kq.chiTiet.chayPhut, 3)} phút`
               : `(mét ÷ ${tocDoChon.speedMPerMin}) = — phút`}
           </strong>
         </div>
