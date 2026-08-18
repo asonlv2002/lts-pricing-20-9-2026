@@ -62,6 +62,10 @@ export interface DongVatLieuNangCao {
   khoMang: number | null;
   /** Hiển thị khổ dạng "0,620 → 0,300" (dòng Chia); UI ưu tiên field này */
   khoMangLabel?: string;
+  /** Hiển thị TP dạng "30.400 (0,300)" (dòng Chia); UI ưu tiên field này */
+  thanhPhamLabel?: string;
+  /** Hiển thị ĐV dạng "15.200 (0,620)" (dòng Chia); UI ưu tiên field này */
+  dauVaoNvlLabel?: string;
   thanhPham: number | null;
   phiHao: number | null;
   dauVaoNVL: number | null;
@@ -186,11 +190,11 @@ function maDungMoiIn(nhom: NhomMuc): string {
 /**
  * CP mực in + dung môi in (₫/m²) cho lớp in.
  *
- * `= (dmMucG × tỉ lệ phủ × giáMực + dmDungMôiG × giáDM) ÷ 1000`
+ * `= tỉ lệ phủ × (dmMucG × giáMực + dmDungMôiG × giáDM) ÷ 1000`
  *
  * QUAN TRỌNG: KHÔNG nhân lại `soMau`. `dinhMucIn` đã là định mức tổng cho n màu
  * (1 màu = 4g, 8 màu = 32g). Nhân lại sẽ ra bình phương số màu.
- * Tỉ lệ phủ (coverageRatio) chỉ nhân vào phần mực; dung môi hòa tan giữ nguyên.
+ * Tỉ lệ phủ (coverageRatio) nhân cả mực + dung môi → phủ 50% = nửa giá phủ 100%.
  * Clamp tỉ lệ phủ vào [0, 1]; giá trị không hợp lệ (NaN) → 100%.
  */
 export function tinhCpMucDungMoiIn(
@@ -221,8 +225,8 @@ export function tinhCpMucDungMoiIn(
   const dmMucG = so(dm?.dmMucG);
   const dmDungMoiG = so(dm?.dmDungMoiG);
 
-  // g/m² × ₫/kg ÷ 1000 → ₫/m²
-  const donGia = (dmMucG * tyLe * giaMuc + dmDungMoiG * giaDungMoi) / 1000;
+  // g/m² × ₫/kg ÷ 1000 → ₫/m²; tỉ lệ phủ nhân cả tổng
+  const donGia = (tyLe * (dmMucG * giaMuc + dmDungMoiG * giaDungMoi)) / 1000;
   return { donGia, nhomMuc, giaMuc, giaDungMoi, dmMucG, dmDungMoiG, tyLePhuMuc: tyLe };
 }
 
@@ -337,6 +341,15 @@ function dinhDangKhoM(n: number): string {
   return n.toLocaleString('vi-VN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 }
 
+/** Mét + khổ: "15.200 (0,620)" — dòng Chia Table 1 */
+function dinhDangMetKemKho(met: number, kho: number): string {
+  const m = Math.max(0, so(met)).toLocaleString('vi-VN', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
+  return `${m} (${dinhDangKhoM(Math.max(0, so(kho)))})`;
+}
+
 /** Phi hao cắt/làm túi — cùng công thức engine tinhHaoHutCat (cutWasteA/B/C). */
 function tinhPhiHaoCatTuHangSo(met: number, hangSo: AppConstants): number {
   const a = so(hangSo?.cutWasteA) || 3000;
@@ -347,15 +360,18 @@ function tinhPhiHaoCatTuHangSo(met: number, hangSo: AppConstants): number {
 
 /**
  * Chia (Table 1) — khi Có chia, không GC slit.
- * TP = Đầu vào = TP ghép cuối (hoặc TP In) × N; phi hao = 0; chi phí = 0.
- * Khổ hiển thị: khổ trước → khổ chia.
+ * Đầu vào NVL = TP nguồn (ghép cuối / In), khổ trước chia.
+ * Thành phẩm = TP nguồn × N, khổ chia.
+ * phi hao = 0; chi phí = 0. Khổ hiển thị: khổ trước → khổ chia.
  */
 function taoDongChiaNangCao(params: {
   vatLieu: string;
   khoTruoc: number;
   khoChia: number;
+  dauVaoNvl: number;
   thanhPhamChia: number;
 }): DongVatLieuNangCao {
+  const dv = Math.max(0, so(params.dauVaoNvl));
   const tp = Math.max(0, so(params.thanhPhamChia));
   const khoChia = Math.max(0, so(params.khoChia));
   const khoTruoc = Math.max(0, so(params.khoTruoc));
@@ -366,8 +382,10 @@ function taoDongChiaNangCao(params: {
     khoMang: khoChia || null,
     khoMangLabel: `${dinhDangKhoM(khoTruoc)} → ${dinhDangKhoM(khoChia)}`,
     thanhPham: tp,
+    thanhPhamLabel: dinhDangMetKemKho(tp, khoChia),
     phiHao: 0,
-    dauVaoNVL: tp,
+    dauVaoNVL: dv,
+    dauVaoNvlLabel: dinhDangMetKemKho(dv, khoTruoc),
     giaNVL: 0,
     donViGiaNVL: null,
     cpVatLieu: 0,
@@ -406,15 +424,30 @@ function layTpVaKhoNguonChia(
 }
 
 /**
- * Lập các dòng Table 1 từ uniRows + phụ kiện túi.
- * Ghép tách theo lớp (như bảng cũ). Dòng ghép có nhiều vật liệu song song
- * (`materialDetails`) → tách 1 dòng/chi tiết; meters/phi hao lặp lại cấp lớp.
- * Dòng Làm túi: gộp Zipper/Băng keo/Quai vào cùng hàng (không tách dòng).
- * Zipper: Đầu vào NVL × số phần tử × giá zipper; băng keo/quai: tổng engine.
- * Phủ mờ: chèn dòng Lật mặt ngay sau In (VL/khổ copy In; chi phí = 0).
- * Có chia: chèn dòng Chia trước Làm túi; Làm túi ĐV = TP Chia, phi hao = công thức cắt(ĐV).
- */
-export function lapDongVatLieuNangCao(
+   * Ghép nhãn cấu trúc từ dòng Table 1 hiệu lực (In + ghép), bỏ synthetic/phụ kiện.
+   * Dùng cho dòng Chia khi Sale/Admin đã đổi vật liệu lớp.
+   */
+  export function ghepCauTrucTuDongVatLieu(rows: DongVatLieuNangCao[]): string {
+    const parts: string[] = [];
+    for (const r of rows) {
+      if (r.rowKey !== 'print' && !String(r.rowKey).startsWith('lam-')) continue;
+      const ten = String(r.vatLieu ?? '').trim();
+      if (!ten || ten === '—' || ten === '-') continue;
+      parts.push(ten);
+    }
+    return parts.join('//');
+  }
+
+  /**
+   * Lập các dòng Table 1 từ uniRows + phụ kiện túi.
+   * Ghép tách theo lớp (như bảng cũ). Dòng ghép có nhiều vật liệu song song
+   * (`materialDetails`) → tách 1 dòng/chi tiết; meters/phi hao lặp lại cấp lớp.
+   * Dòng Làm túi: gộp Zipper/Băng keo/Quai vào cùng hàng (không tách dòng).
+   * Zipper: Đầu vào NVL × số phần tử × giá zipper; băng keo/quai: tổng engine.
+   * Phủ mờ: chèn dòng Lật mặt ngay sau In (VL/khổ copy In; chi phí = 0).
+   * Có chia: chèn dòng Chia trước Làm túi; Làm túi ĐV = TP Chia, phi hao = công thức cắt(ĐV).
+   */
+  export function lapDongVatLieuNangCao(
   result: CalculateResult,
   uniRows: UniRow[],
   hangSo: AppConstants,
@@ -464,7 +497,7 @@ export function lapDongVatLieuNangCao(
       const phiBoSungM2 = so(soMau) > 0 ? phiInBoSung : 0;
       cpMucKeo = r.donGia + phiBoSungM2;
       ghiChu = r.tyLePhuMuc !== 1
-        ? `(${r.dmMucG}g × ${Math.round(r.tyLePhuMuc * 100)}% × ${r.giaMuc.toLocaleString('vi-VN')} + ${r.dmDungMoiG}g × ${r.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — bảng ${r.nhomMuc.toUpperCase()}`
+        ? `${Math.round(r.tyLePhuMuc * 100)}% × (${r.dmMucG}g × ${r.giaMuc.toLocaleString('vi-VN')} + ${r.dmDungMoiG}g × ${r.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — bảng ${r.nhomMuc.toUpperCase()}`
         : `(${r.dmMucG}g × ${r.giaMuc.toLocaleString('vi-VN')} + ${r.dmDungMoiG}g × ${r.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — bảng ${r.nhomMuc.toUpperCase()}`;
       if (phiBoSungM2 > 0) {
         ghiChu += ` + ${phiBoSungM2.toLocaleString('vi-VN')} đ/m² (nhũ/phủ mờ/phí in khác)`;
@@ -613,10 +646,12 @@ export function lapDongVatLieuNangCao(
     const { tpNguon, khoTruoc } = layTpVaKhoNguonChia(rows, uniRows ?? [], result);
     const tpChia = tpNguon * soPtChia;
     if (tpChia > 0 || tpNguon > 0) {
+      const cauTrucHieuLuc = ghepCauTrucTuDongVatLieu(rows);
       const dongChia = taoDongChiaNangCao({
-        vatLieu: String(result?.structureText ?? '').trim() || '—',
+        vatLieu: cauTrucHieuLuc || String(result?.structureText ?? '').trim() || '—',
         khoTruoc: khoTruoc || khoTruocSom,
         khoChia: khoChiaM,
+        dauVaoNvl: tpNguon,
         thanhPhamChia: tpChia,
       });
       const idxCut = rows.findIndex(r => r.rowKey === 'cut');

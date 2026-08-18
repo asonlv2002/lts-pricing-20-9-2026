@@ -926,7 +926,9 @@ export interface HistoryItem {
   validUntil?: string;
   quotationId?: string;      // ID của quotation trên server (nếu đã sync)
   pricingSheetId?: string;    // ID của pricing sheet trên server (nếu đã sync)
-  priceConfigIds?: string[];   // IDs của price config đã link trên server
+  priceConfigIds?: string[];   // IDs của price config đã link trên server (pin lúc lưu)
+  /** true = sheet không có pin → giá đang tính bằng cấu hình session hiện tại */
+  thieuPin?: boolean;
   originalCustomer?: string;  // Mã khách hàng gốc khi load từ lịch sử (để so sánh)
   deletable?: boolean;        // Cho phép xóa trên server (từ Original.deletable)
   canUpdate?: boolean;        // Cho phép cập nhật trên server (từ Original.canUpdate)

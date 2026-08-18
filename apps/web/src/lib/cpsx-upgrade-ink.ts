@@ -352,11 +352,11 @@ function donGiaDmTheoMa(
 /**
  * CP mực in + dung môi in (₫/m²) cho 1 nhóm vật liệu.
  *
- * `= (ĐM mực × tỉ lệ phủ × giáMực + ĐM dung môi × giáDM) ÷ 1000`
+ * `= tỉ lệ phủ × (ĐM mực × giáMực + ĐM dung môi × giáDM) ÷ 1000`
  *
  * ĐM mực đã là tổng định mức cho n màu (1 màu = 4g, 8 màu = 32g) — KHÔNG nhân
  * lại số màu (nhất quán với `tinhCpMucDungMoiIn` trong dac-ta-nang-cao.ts).
- * Tỉ lệ phủ chỉ nhân vào phần mực; dung môi hòa tan giữ nguyên (giống engine cũ).
+ * Tỉ lệ phủ nhân cả mực + dung môi → phủ 50% = nửa giá phủ 100%.
  * Giá DM: PET → DM_PET; OPP/PE → DM_OPP (sheet không có DM_PE).
  */
 export function tinhCpMucInMoiM2(
@@ -377,7 +377,7 @@ export function tinhCpMucInMoiM2(
   if (!dm) return 0;
 
   const tyLe = Number.isFinite(tyLePhuMuc) ? Math.max(0, tyLePhuMuc) : 1;
-  return (dm.dmMucG * tyLe * giaMuc + dm.dmDungMoiG * giaDm) / 1000;
+  return (tyLe * (dm.dmMucG * giaMuc + dm.dmDungMoiG * giaDm)) / 1000;
 }
 
 /** Kết quả chi tiết CP mực in + DM in — để hiển thị công thức từng số hạng (₫/m²) */

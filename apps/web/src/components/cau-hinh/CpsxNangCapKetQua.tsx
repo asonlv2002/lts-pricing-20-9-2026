@@ -204,8 +204,8 @@ export default function CpsxNangCapKetQua() {
           </table>
         </div>
         <p className="config-note">
-          Giá in = (ĐM mực × giá mực ₫/kg + ĐM dung môi × giá DM) ÷ 1000. Cột phủ
-          50% chỉ giảm 50% phần mực; dung môi giữ nguyên.
+          Giá in = (ĐM mực × giá mực ₫/kg + ĐM dung môi × giá DM) ÷ 1000. Tỉ lệ
+          phủ 50% = nửa giá phủ 100% (nhân cả mực + dung môi).
         </p>
         <DongKetQua
           label="Giá ghép (keo + DM)"

@@ -657,17 +657,25 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
   const dongNCD = lapDongNhanCongDien(r, hangSo, ghiDeHienTai);
   const tongGoc = tinhTongNangCao(dongVatLieuGoc, dongNCDGoc);
   const tong = tinhTongNangCao(dongVatLieu, dongNCD);
-  const coThayDoi = countOverrideChanges(ghiDeHienTai) > 0;
-  const chenhLech = tong.tongGiaThanh - tongGoc.tongGiaThanh;
-  const chenhLechDonVi = soLuong > 0 ? chenhLech / soLuong : 0;
-  const chenhLechText = `${chenhLechDonVi >= 0 ? '+' : ''}${dinhDangSo(Math.round(chenhLechDonVi), 0)}`;
-  const lopChenhLech = chenhLech > 0 ? 'override-price-delta-row--up' : chenhLech < 0 ? 'override-price-delta-row--down' : 'override-price-delta-row--flat';
+  const coThayDoi = countOverrideChanges(ghiDeHienTai) > 0 || profitRatePct > 0;
   const donViChenhLech = r.input.productType === 'mang' ? 'ĐỒNG / MÉT VUÔNG' : 'ĐỒNG / TÚI';
   const tongNhanCong = dongNCD.reduce((s, d) => s + d.thanhTienNhanCong, 0);
   const tongDien = dongNCD.reduce((s, d) => s + d.thanhTienDien, 0);
   const effectivePct = profitRatePct > 0
     ? profitRatePct
     : (Number.isFinite(Number(defaultProfitRatePct)) ? Number(defaultProfitRatePct) : 0);
+  const pctGoc = Number.isFinite(Number(defaultProfitRatePct)) ? Number(defaultProfitRatePct) : 0;
+  // Chênh lệch đ/túi (hoặc đ/m²) = chênh CP SX + chênh phần LN (giống bảng ghi đè cũ)
+  const chenhCp = tong.tongGiaThanh - tongGoc.tongGiaThanh;
+  const chenhLn = tong.tongGiaThanh * (effectivePct / 100) - tongGoc.tongGiaThanh * (pctGoc / 100);
+  const chenhLech = chenhCp + chenhLn;
+  const chenhLechDonVi = soLuong > 0 ? chenhLech / soLuong : 0;
+  const chenhLechText = `${chenhLechDonVi >= 0 ? '+' : ''}${dinhDangSo(Math.round(chenhLechDonVi), 0)}`;
+  const lopChenhLech = Math.round(chenhLechDonVi) > 0
+    ? 'override-price-delta-row--up'
+    : Math.round(chenhLechDonVi) < 0
+      ? 'override-price-delta-row--down'
+      : 'override-price-delta-row--flat';
   const ln = tong.tongGiaThanh * (effectivePct / 100);
 
   const timDongGoc = (rowKey: OverrideRowKey, chiTietIndex?: number) =>
@@ -704,15 +712,19 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
               const goc = timDongGoc(row.rowKey, row.chiTietIndex);
               const ovDong = ghiDeHienTai[row.rowKey];
               const coDoiVL = coGhiDeDong(ovDong, ['meters', 'waste', 'inputVL', 'width', 'rawMatPrice', 'matPrice', 'materialId']);
-              const coDoiMuc = ovDong?.cpMucKeoPerM2 !== undefined;
               // Dòng synthetic Chia/Lật mặt: chi phí 0, không cho ghi đè Table 1
               const laDongSynthetic = row.rowKey === 'matte' || row.rowKey === 'chia';
               const suaT1 = duocSua && !laDongSynthetic;
+              const coDoiMuc = ovDong?.cpMucKeoPerM2 !== undefined
+                || (row.cpMucKeo != null && goc?.cpMucKeo != null
+                  && Math.abs(row.cpMucKeo - goc.cpMucKeo) > 0.001);
               // Phụ kiện (Zipper/…) đã gộp vào dòng Làm túi
               return (
                 <tr key={`${row.rowKey}-${row.chiTietIndex ?? 0}`}>
                   <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">{row.congDoan}</td>
-                  {row.chiTietIndex !== undefined && goc ? (
+                  {laDongSynthetic ? (
+                    <td data-label="Vật liệu">{row.vatLieu}</td>
+                  ) : row.chiTietIndex !== undefined && goc ? (
                     <OChonVatLieuChiTiet khoaDong={row.rowKey} chiTietIndex={row.chiTietIndex}
                       giaTriGoc={{ id: goc.materialId, name: goc.vatLieu, matPrice: goc.cpVatLieu ?? 0 }}
                       giaTriGhiDe={ghiDeHienTai[row.rowKey]?.detailOverrides?.[row.chiTietIndex]}
@@ -728,15 +740,21 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={goc?.khoMang ?? row.khoMang ?? 0}
                       giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={suaT1} khiDat={khiDat} soLe={3} />
                   )}
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="meters"
-                    giaTriGoc={goc?.thanhPham ?? 0}
-                    giaTriGhiDe={Math.abs((row.thanhPham ?? 0) - (goc?.thanhPham ?? 0)) > 0.001 ? (row.thanhPham ?? undefined) : ghiDeHienTai[row.rowKey]?.meters}
-                    duocSua={suaT1} khiDat={khiDat} soLe={0} />
+                  {row.thanhPhamLabel ? (
+                    <td className="num" data-label="Thành phẩm (m)">{row.thanhPhamLabel}</td>
+                  ) : (
+                    <OCoTheGhiDe khoaDong={row.rowKey} truong="meters"
+                      giaTriGoc={goc?.thanhPham ?? 0}
+                      giaTriGhiDe={Math.abs((row.thanhPham ?? 0) - (goc?.thanhPham ?? 0)) > 0.001 ? (row.thanhPham ?? undefined) : ghiDeHienTai[row.rowKey]?.meters}
+                      duocSua={suaT1} khiDat={khiDat} soLe={0} />
+                  )}
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="waste"
                     giaTriGoc={goc?.phiHao ?? 0}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste}
                     duocSua={suaT1} khiDat={khiDat} soLe={0} />
-                  <td className={`num highlight ${coDoiVL ? 'override-changed' : ''}`} data-label="Đầu vào NVL (m)">{dinhDangSo(row.dauVaoNVL, 0)}</td>
+                  <td className={`num highlight ${coDoiVL ? 'override-changed' : ''}`} data-label="Đầu vào NVL (m)">
+                    {row.dauVaoNvlLabel ?? dinhDangSo(row.dauVaoNVL, 0)}
+                  </td>
                   {(() => {
                     const coCp = row.cpVatLieu != null;
                     const giaKgHien = row.giaNVL != null && row.giaNVL > 0
@@ -802,7 +820,14 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                   <td className={`num ${coDoiVL ? 'override-changed' : ''}`} data-label="Thành tiền CPNVL">{dinhDangSo(row.thanhTienNVL, 0)}</td>
                   {row.cpMucKeo != null && !laDongSynthetic ? (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
-                      giaTriGoc={goc?.cpMucKeo ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2}
+                      giaTriGoc={goc?.cpMucKeo ?? 0}
+                      giaTriGhiDe={
+                        ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2 !== undefined
+                          ? ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2
+                          : Math.abs((row.cpMucKeo ?? 0) - (goc?.cpMucKeo ?? 0)) > 0.001
+                            ? (row.cpMucKeo ?? undefined)
+                            : undefined
+                      }
                       duocSua={suaT1} khiDat={khiDat} soLe={1} />
                   ) : row.cpMucKeo != null ? (
                     <td className="num dac-ta-nang-cao__muc" data-label="Giá mực, DM, keo (đ/m²)">{dinhDangSo(row.cpMucKeo, 1)}</td>
@@ -966,14 +991,16 @@ function hienToastCanhBao(noiDung: string) {
 
 // Đẩy 1 pricing sheet lên server (chạy ngầm, không hiện toast).
 // Bỏ qua im lặng nếu offline / chưa đăng nhập. Hiện toast nếu thiếu mã khách hàng.
+// syncAdvisor: user advisor → luôn PATCH masterResult (kể cả rỗng để xóa ghi đè Admin).
 async function syncPricingSheetToServer(
   h: HistoryItem | undefined,
   isAuthenticated: boolean,
   accessToken: string | null,
+  opts?: { syncAdvisor?: boolean },
 ): Promise<void> {
   if (!h) return;
 
-  const decision = quyetDinhPricingSheetSync(h, isAuthenticated, accessToken, h?.pricingSheetId);
+  const decision = quyetDinhPricingSheetSync(h, isAuthenticated, accessToken, h?.pricingSheetId, opts);
   if (decision.action === 'skip') return;
 
   try {
@@ -1066,8 +1093,10 @@ const buttonLabel = loadedItem
   const xuLyLuuGhiDe = (idLichSu: string) => {
     luuGhiDe(idLichSu);
     hienToastLuuGhiDe();
-    const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, idLichSu);
-    void syncPricingSheetToServer(h, isAuthenticated, accessToken)
+    const st = dungCuaHangTinhGia.getState();
+    const h = timMucLichSuTheoId(st.history, idLichSu);
+    const syncAdvisor = coQuyenCoVanBangTinh(st.nguoiDungHienTai?.policies ?? []);
+    void syncPricingSheetToServer(h, isAuthenticated, accessToken, { syncAdvisor })
       .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
   };
 
@@ -1654,7 +1683,8 @@ const buttonLabel = loadedItem
                       capNhatVaoLichSu();
                       const state = dungCuaHangTinhGia.getState();
                       const h = timMucLichSuTheoId(state.history, loadedHistoryId);
-                      void syncPricingSheetToServer(h, isAuthenticated, accessToken)
+                      const syncAdvisor = coQuyenCoVanBangTinh(state.nguoiDungHienTai?.policies ?? []);
+                      void syncPricingSheetToServer(h, isAuthenticated, accessToken, { syncAdvisor })
     .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
                       const container = document.getElementById('toastContainer');
                       if (!container) return;
@@ -1680,9 +1710,11 @@ const buttonLabel = loadedItem
                       }
                       if (!kiemTraKhachHangQuyen()) return;
                       themVaoLichSu();
-                      const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
-                      const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, newId);
-                      void syncPricingSheetToServer(h, isAuthenticated, accessToken)
+                      const stateMoi = dungCuaHangTinhGia.getState();
+                      const newId = stateMoi.loadedHistoryId;
+                      const h = timMucLichSuTheoId(stateMoi.history, newId);
+                      const syncAdvisor = coQuyenCoVanBangTinh(stateMoi.nguoiDungHienTai?.policies ?? []);
+                      void syncPricingSheetToServer(h, isAuthenticated, accessToken, { syncAdvisor })
     .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
                       const container = document.getElementById('toastContainer');
                       if (!container) return;
@@ -1709,9 +1741,11 @@ const buttonLabel = loadedItem
                     }
                     if (!kiemTraKhachHangQuyen()) return;
                     themVaoLichSu();
-                    const newId = dungCuaHangTinhGia.getState().loadedHistoryId;
-                    const h = timMucLichSuTheoId(dungCuaHangTinhGia.getState().history, newId);
-                    void syncPricingSheetToServer(h, isAuthenticated, accessToken)
+                    const stateMoi = dungCuaHangTinhGia.getState();
+                    const newId = stateMoi.loadedHistoryId;
+                    const h = timMucLichSuTheoId(stateMoi.history, newId);
+                    const syncAdvisor = coQuyenCoVanBangTinh(stateMoi.nguoiDungHienTai?.policies ?? []);
+                    void syncPricingSheetToServer(h, isAuthenticated, accessToken, { syncAdvisor })
     .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
                     const container = document.getElementById('toastContainer');
                     if (!container) return;

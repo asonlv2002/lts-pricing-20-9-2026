@@ -45,11 +45,6 @@ function docSoThapPhan(value: string): number {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
-function tomTatThoiGian(kq: KetQuaThoiGian | null, coInput: boolean): string {
-  if (!coInput || !kq) return "—";
-  return `${dinhDangSo(kq.tongPhut, 0)} phút`;
-}
-
 export default function CpsxNangCapThoiGian() {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
@@ -138,7 +133,7 @@ export default function CpsxNangCapThoiGian() {
     {
       key: "bag",
       title: `Thời gian SX ${MAY_LABELS.bag}`,
-      summary: tomTatThoiGian(kqBag, metInLamTui > 0),
+      summary: "",
       body: (
         <MayTuiPanel
           giaTri={state.bag}
@@ -791,7 +786,7 @@ function MayTuiPanel({
       <button
         type="button"
         className="btn btn-sm btn-outline"
-        style={{ marginTop: "8px" }}
+        style={{ marginTop: "8px", marginBottom: "14px" }}
         onClick={() =>
           capNhat({
             speedRules: [
@@ -809,69 +804,104 @@ function MayTuiPanel({
         + Thêm bậc
       </button>
 
-      {coInput && kq ? (
-        <div className="config-cpsx-upgrade__formulas">
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Input hiện tại: {dinhDangSo(metInLamTui, 0)} m (số mét phi hao + số mét thành phẩm)
-            </span>
-            <label className="config-cpsx-upgrade__select">
-              Loại túi:
-              <select
-                value={setupChon.key}
-                onChange={(e) => setSetupKey(e.target.value)}
-                aria-label="Chọn loại túi"
-              >
-                {giaTri.setupRules.map((r) => (
-                  <option key={r.key} value={r.key}>
-                    {laSetupBienCoSize(r) && r.stepOp
-                      ? `${r.label} (${r.stepOp === "lte" ? "≤" : ">"}${((r.maxStepMm ?? 300) / 10)}cm)`
-                      : r.label}
-                  </option>
-                ))}
-              </select>
-              {setupChon.key === autoSetupKey ? (
-                <span className="config-cpsx-upgrade__auto">(tự nhận)</span>
-              ) : null}
-            </label>
-            <label className="config-cpsx-upgrade__select">
-              Bước cắt:
-              <select
-                value={tocDoChon.key}
-                onChange={(e) => setTocDoKey(e.target.value)}
-                aria-label="Chọn bậc bước cắt"
-              >
-                {giaTri.speedRules.map((r) => (
-                  <option key={r.key} value={r.key}>
-                    {r.label} ({r.speedMPerMin} m/phút)
-                  </option>
-                ))}
-              </select>
-              {tocDoChon.key === autoTocDoKey ? (
-                <span className="config-cpsx-upgrade__auto">(tự nhận)</span>
-              ) : null}
-            </label>
-          </div>
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Setup = {setupChon.setupMinutes} phút · Chạy = {dinhDangSo(metInLamTui, 0)}m ÷ {tocDoChon.speedMPerMin} ={" "}
-              <strong>{dinhDangSo(kq.chiTiet.chayPhut, 3)} phút</strong>
-            </span>
-          </div>
-          <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-            <span className="config-cpsx-upgrade__formula-label">
-              Tổng ={" "}
-              <strong className="config-cpsx-upgrade__highlight">
-                {dinhDangSo(kq.tongPhut, 0)} phút
-              </strong>
-            </span>
-          </div>
+      <div className="config-cpsx-upgrade__formulas">
+        <div className="config-cpsx-upgrade__formula-head">
+          Công thức áp dụng: TG = Setup + Mét chạy ÷ Tốc độ TB → phút
         </div>
-      ) : (
-        <p className="config-note">
-          Chưa có kết quả tính giá — nhập form khách để xem preview thời gian SX.
-        </p>
-      )}
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">
+            Input hiện tại:{" "}
+            {coInput ? (
+              <>
+                <strong className="config-cpsx-upgrade__highlight">
+                  {dinhDangSo(metInLamTui, 0)} m
+                </strong>{" "}
+                (số mét phi hao + số mét thành phẩm)
+              </>
+            ) : (
+              <span className="config-cpsx-upgrade__formula-note">
+                — (chưa có kết quả tính giá)
+              </span>
+            )}
+          </span>
+        </div>
+
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">
+            Loại túi · Setup{" "}
+            <strong className="config-cpsx-upgrade__highlight">
+              {setupChon.setupMinutes} phút
+            </strong>
+          </span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <label className="config-cpsx-upgrade__select">
+            <select
+              value={setupChon.key}
+              onChange={(e) => setSetupKey(e.target.value)}
+              aria-label="Chọn loại túi"
+            >
+              {giaTri.setupRules.map((r) => (
+                <option key={r.key} value={r.key}>
+                  {laSetupBienCoSize(r) && r.stepOp
+                    ? `${r.label} (${r.stepOp === "lte" ? "≤" : ">"}${((r.maxStepMm ?? 300) / 10)}cm)`
+                    : r.label}
+                </option>
+              ))}
+            </select>
+            {setupChon.key === autoSetupKey ? (
+              <span className="config-cpsx-upgrade__auto">(tự nhận)</span>
+            ) : null}
+          </label>
+          <span className="config-cpsx-upgrade__formula-op">→</span>
+          <strong className="config-cpsx-upgrade__formula-result">
+            Setup = {setupChon.setupMinutes} phút
+          </strong>
+        </div>
+
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">
+            Bước cắt ·{" "}
+            <strong className="config-cpsx-upgrade__highlight">
+              {tocDoChon.speedMPerMin} m/phút
+            </strong>
+          </span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <label className="config-cpsx-upgrade__select">
+            <select
+              value={tocDoChon.key}
+              onChange={(e) => setTocDoKey(e.target.value)}
+              aria-label="Chọn bậc bước cắt"
+            >
+              {giaTri.speedRules.map((r) => (
+                <option key={r.key} value={r.key}>
+                  {r.label} ({r.speedMPerMin} m/phút)
+                </option>
+              ))}
+            </select>
+            {tocDoChon.key === autoTocDoKey ? (
+              <span className="config-cpsx-upgrade__auto">(tự nhận)</span>
+            ) : null}
+          </label>
+          <span className="config-cpsx-upgrade__formula-op">→</span>
+          <strong className="config-cpsx-upgrade__formula-result">
+            {coInput && kq
+              ? `(${dinhDangSo(metInLamTui, 0)} m ÷ ${tocDoChon.speedMPerMin}) = ${dinhDangSo(kq.chiTiet.chayPhut, 3)} phút`
+              : `(mét ÷ ${tocDoChon.speedMPerMin}) = — phút`}
+          </strong>
+        </div>
+
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">Tổng</span>
+          <span className="config-cpsx-upgrade__formula-op">→</span>
+          <strong className="config-cpsx-upgrade__formula-result">
+            <span className="config-cpsx-upgrade__highlight">
+              {coInput && kq ? `${dinhDangSo(kq.tongPhut, 0)} phút` : "— phút"}
+            </span>
+          </strong>
+        </div>
+      </div>
     </div>
   );
 }

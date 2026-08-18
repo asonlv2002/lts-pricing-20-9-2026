@@ -5,7 +5,6 @@ import { dungCuaHangTinhGia } from "../../store/CuaHangTinhGia";
 import { DEFAULT_CPSX_UPGRADE_INK } from "../../lib/data";
 import CpsxNangCapDungMoiKeo from "./CpsxNangCapDungMoiKeo";
 import CpsxNangCapDinhMuc from "./CpsxNangCapDinhMuc";
-import CpsxNangCapBangGiaIn from "./CpsxNangCapBangGiaIn";
 import type { CpsxUpgradeInk, InkPriceSource, MucInRow, MucInTable } from "../../lib/types";
 import {
   chuanHoaCpsxUpgradeInk,
@@ -440,7 +439,6 @@ export default function CpsxNangCapMuc() {
       })}
       <CpsxNangCapDungMoiKeo />
       <CpsxNangCapDinhMuc />
-      <CpsxNangCapBangGiaIn />
     </div>
   );
 }

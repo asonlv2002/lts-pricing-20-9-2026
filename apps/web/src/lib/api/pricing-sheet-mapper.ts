@@ -28,7 +28,9 @@ import type {
   CapNhatPricingSheetResultInput,
   CapNhatPricingSheetAdvisorInput,
   PricingSheetApi,
+  PriceConfigApi,
 } from './service-lts';
+import { xayEngineCtxTuPriceConfigs } from './price-config-mapper';
 
 // ── Result payload wrapper ─────────────────────────────────────────────────
 
@@ -96,27 +98,48 @@ export function mapHistoryToResultPatch(
   };
 }
 
-// Map HistoryItem → payload cho PATCH /pricing-sheet/{id}/advisor-result
+// Map HistoryItem → payload cho PATCH /pricing-sheet/{id}/advisor-result.
+// Rỗng → {} để BE ghi đè masterResult (xóa ghi đè Admin cũ, vd. gỡ 900 phút).
 export function mapHistoryToAdvisorPatch(
   h: HistoryItem,
 ): CapNhatPricingSheetAdvisorInput {
   return {
-    result: wrapResult(h.adminOverrides, h.adminProfitRatePct),
+    result: wrapResult(h.adminOverrides, h.adminProfitRatePct) ?? {},
   };
 }
 
 // ═════════════════════════════════════════════════════════════════════════════
 // Mapper đảo ngược: PricingSheetApi (server) → HistoryItem (local)
 // ═════════════════════════════════════════════════════════════════════════════
-// Server chỉ lưu inputValue (blob). Frontend tự tính lại finalPrice/profitRate/
-// structureText bằng engine hiện tại. Override (saleResult/masterResult) là quyết
-// định thủ công nên lấy nguyên, không tính lại.
+// Server lưu inputValue + priceConfigIds (pin). Frontend tính lại finalPrice bằng
+// engine + constants ĐÃ GHIM (không dùng CPSX/session latest toàn app).
+// Override (saleResult/masterResult) lấy nguyên, không tính lại.
 
 export interface MapPricingSheetCtx {
   materials: Material[];
   constants: AppConstants;
   profitTable: ProfitRow[];
   smallWidthPrices: SmallWidthMaterialPrice[];
+}
+
+/** Ctx engine cho 1 sheet: ưu tiên pin priceConfigIds, không có pin → fallback session. */
+export function layCtxChoPricingSheet(
+  sheet: Pick<PricingSheetApi, 'priceConfigIds'>,
+  fallback: MapPricingSheetCtx,
+  configsById: Map<string, PriceConfigApi> | PriceConfigApi[],
+): MapPricingSheetCtx {
+  const pinIds = (sheet.priceConfigIds ?? []).map((id) => String(id).trim()).filter(Boolean);
+  if (!pinIds.length) return fallback;
+
+  const byId =
+    configsById instanceof Map
+      ? configsById
+      : new Map(configsById.filter((c) => c?.id).map((c) => [c.id, c]));
+
+  const pinned = pinIds.map((id) => byId.get(id)).filter((c): c is PriceConfigApi => !!c);
+  if (!pinned.length) return fallback;
+
+  return xayEngineCtxTuPriceConfigs(pinned, fallback, pinIds);
 }
 
 export function mapPricingSheetToHistory(
@@ -143,6 +166,7 @@ export function mapPricingSheetToHistory(
   const adminProfitRatePct = unwrapProfitRatePct(sheet.masterResult);
 
   // Bảng tính nâng cấp: giá hiển thị lấy từ bảng đặc tả nâng cao (có ghi đè)
+  // constants/materials = ctx đã pin (CPSX nâng cao lúc lưu), không phải latest session
   const ketQuaHienThi = laNangCap
     ? tinhKetQuaNangCaoHieuLuc({
         result,
@@ -156,6 +180,9 @@ export function mapPricingSheetToHistory(
         profitTable: ctx.profitTable,
       }).result
     : result;
+
+  const pinIds = (sheet.priceConfigIds ?? []).filter(Boolean);
+  const thieuPin = pinIds.length === 0;
 
   return {
     id: sheet.id,
@@ -174,6 +201,7 @@ export function mapPricingSheetToHistory(
     isNangCap: laNangCap || undefined,
     pricingSheetId: sheet.id,
     priceConfigIds: sheet.priceConfigIds,
+    thieuPin: thieuPin || undefined,
     originalCustomer: sheet.customerCodeName || sheet.customer?.codeName || syncedInput.customer || undefined,
     sellerId: sheet.createdBy ?? undefined,
     sellerName: sheet.original?.actorName ?? undefined,
@@ -182,4 +210,35 @@ export function mapPricingSheetToHistory(
     canAdminUpdate: sheet.original?.canAdminUpdate,
     input: syncedInput,
   };
+}
+
+/**
+ * Map nhiều sheet: mỗi sheet dùng constants/materials theo pin riêng.
+ * `configs` = toàn bộ PriceConfig đã fetch theo union priceConfigIds.
+ */
+export function mapPricingSheetsToHistory(
+  sheets: PricingSheetApi[],
+  fallback: MapPricingSheetCtx,
+  configs: PriceConfigApi[] = [],
+): HistoryItem[] {
+  const byId = new Map(configs.filter((c) => c?.id).map((c) => [c.id, c]));
+  const out: HistoryItem[] = [];
+  for (const sheet of sheets) {
+    const ctx = layCtxChoPricingSheet(sheet, fallback, byId);
+    const item = mapPricingSheetToHistory(sheet, ctx);
+    if (item) out.push(item);
+  }
+  return out;
+}
+
+/** Gom unique priceConfigIds từ list sheet (để batch fetch). */
+export function gomPriceConfigIdsTuSheets(sheets: PricingSheetApi[]): string[] {
+  const ids = new Set<string>();
+  for (const s of sheets) {
+    for (const id of s.priceConfigIds ?? []) {
+      const t = String(id ?? '').trim();
+      if (t) ids.add(t);
+    }
+  }
+  return [...ids];
 }

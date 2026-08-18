@@ -8,6 +8,7 @@ import {
   chuanHoaCpsxUpgradeInk,
   chuanHoaDinhMucGhep,
   chuanHoaDinhMucIn,
+  lapBangGiaInTheoMau,
   tinhCpMucInChiTiet,
 } from "../../lib/cpsx-upgrade-ink";
 import { tinhCpKeoDungMoiGhep } from "../../lib/dac-ta-nang-cao";
@@ -77,6 +78,7 @@ export default function CpsxNangCapDinhMuc() {
   const chiTietOPP = tinhCpMucInChiTiet(soMauOPP, "opp", ink);
   // CP keo + dung môi ghép (₫/m²) — helper engine đặc tả
   const chiTietKeo = tinhCpKeoDungMoiGhep(ink);
+  const bangGiaIn = React.useMemo(() => lapBangGiaInTheoMau(ink), [ink]);
 
   const luuPatch = (patch: {
     dinhMucIn?: DinhMucInRow[];
@@ -275,6 +277,49 @@ export default function CpsxNangCapDinhMuc() {
             <p className="config-note">
               Số màu lấy từ form khách lúc tính giá (ẩn ở đây). Lookup ĐM theo
               số màu — không nhân lại số màu.
+            </p>
+
+            <div className="config-cpsx-upgrade__col-title">
+              Bảng giá in theo số màu (VNĐ/m²)
+            </div>
+            <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
+              <table className="config-table config-cpsx-upgrade__table config-cpsx-upgrade__gia-in">
+                <thead>
+                  <tr>
+                    <th rowSpan={2}>Số màu</th>
+                    <th colSpan={3}>Tỉ lệ phủ 100%</th>
+                    <th colSpan={3}>Tỉ lệ phủ 50%</th>
+                  </tr>
+                  <tr>
+                    <th className="num">OPP</th>
+                    <th className="num">PET</th>
+                    <th className="num">PE</th>
+                    <th className="num">OPP</th>
+                    <th className="num">PET</th>
+                    <th className="num">PE</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bangGiaIn.map((r) => (
+                    <tr key={`gia-in-${r.soMau}`}>
+                      <td className="config-cpsx-upgrade__lock">
+                        In {r.soMau} màu
+                      </td>
+                      <td className="num">{dinhDangVnd(r.opp100)}</td>
+                      <td className="num">{dinhDangVnd(r.pet100)}</td>
+                      <td className="num">{dinhDangVnd(r.pe100)}</td>
+                      <td className="num">{dinhDangVnd(r.opp50)}</td>
+                      <td className="num">{dinhDangVnd(r.pet50)}</td>
+                      <td className="num">{dinhDangVnd(r.pe50)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="config-note">
+              Giá in = (ĐM mực × giá mực ₫/kg + ĐM dung môi × giá DM) ÷ 1000 —
+              tự tính từ bảng giá mực + bảng dung môi + định mức g/m². Tỉ lệ
+              phủ 50% = nửa giá phủ 100% (nhân cả mực + dung môi).
             </p>
           </div>
         )}

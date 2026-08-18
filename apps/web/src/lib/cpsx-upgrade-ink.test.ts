@@ -458,16 +458,16 @@ const inkFixture: CpsxUpgradeInk = {
 {
   // PET 1 màu: (4×135000 + 4.5×40000) ÷ 1000 = 720
   approx(tinhCpMucInMoiM2(1, 'pet', inkFixture), 720, 'PET 1 màu 100%');
-  // PET 1 màu 50%: (4×0.5×135000 + 4.5×40000) ÷ 1000 = 450
-  approx(tinhCpMucInMoiM2(1, 'pet', inkFixture, 0.5), 450, 'PET 1 màu 50%');
+  // PET 1 màu 50%: 0.5 × 720 = 360
+  approx(tinhCpMucInMoiM2(1, 'pet', inkFixture, 0.5), 360, 'PET 1 màu 50%');
   // OPP 1 màu: (4×120000 + 4.5×40000) ÷ 1000 = 660
   approx(tinhCpMucInMoiM2(1, 'opp', inkFixture), 660, 'OPP 1 màu 100%');
   // OPP 8 màu: (32×120000 + 15×40000) ÷ 1000 = 4440
   approx(tinhCpMucInMoiM2(8, 'opp', inkFixture), 4440, 'OPP 8 màu 100%');
   // PE dùng DM_OPP: (4×87696 + 4.5×40000) ÷ 1000 = 530.784
   approx(tinhCpMucInMoiM2(1, 'pe', inkFixture), 530.784, 'PE 1 màu 100% — DM_OPP');
-  // PE 8 màu 50%: (32×0.5×87696 + 15×40000) ÷ 1000 = 2003.136
-  approx(tinhCpMucInMoiM2(8, 'pe', inkFixture, 0.5), 2003.136, 'PE 8 màu 50%');
+  // PE 8 màu 50%: 0.5 × (32×87696 + 15×40000) ÷ 1000 = 1703.136
+  approx(tinhCpMucInMoiM2(8, 'pe', inkFixture, 0.5), 1703.136, 'PE 8 màu 50%');
   assert(tinhCpMucInMoiM2(0, 'opp', inkFixture) === 0, 'soMau 0 → 0');
   assert(tinhCpMucInMoiM2(-2, 'opp', inkFixture) === 0, 'soMau âm → 0');
   // soMau > 8 clamp về định mức 8 màu
@@ -476,11 +476,11 @@ const inkFixture: CpsxUpgradeInk = {
     tinhCpMucInMoiM2(8, 'opp', inkFixture),
     'soMau > 8 → clamp 8',
   );
-  // 50% chỉ giảm phần mực: chênh lệch = nửa phần mực
+  // 50% = nửa tổng 100% (mực + dung môi)
   approx(
-    tinhCpMucInMoiM2(1, 'pet', inkFixture) - tinhCpMucInMoiM2(1, 'pet', inkFixture, 0.5),
-    (4 * 0.5 * 135000) / 1000,
-    'chênh lệch 100%-50% = nửa phần mực',
+    tinhCpMucInMoiM2(1, 'pet', inkFixture, 0.5),
+    tinhCpMucInMoiM2(1, 'pet', inkFixture) / 2,
+    'phủ 50% = phủ 100% ÷ 2',
   );
 }
 
@@ -523,16 +523,23 @@ const inkFixture: CpsxUpgradeInk = {
   eq(d1.opp100, 660, 'dòng 1 OPP 100%');
   eq(d1.pet100, 720, 'dòng 1 PET 100%');
   eq(d1.pe100, 531, 'dòng 1 PE 100% (round 530.784)');
-  eq(d1.opp50, 420, 'dòng 1 OPP 50%');
-  eq(d1.pet50, 450, 'dòng 1 PET 50%');
-  eq(d1.pe50, 355, 'dòng 1 PE 50% (round 355.392)');
+  eq(d1.opp50, 330, 'dòng 1 OPP 50% = 660/2');
+  eq(d1.pet50, 360, 'dòng 1 PET 50% = 720/2');
+  eq(d1.pe50, 265, 'dòng 1 PE 50% (round 265.392)');
   const d8 = bang[7];
   eq(d8.opp100, 4440, 'dòng 8 OPP 100%');
-  eq(d8.opp50, 2520, 'dòng 8 OPP 50%');
+  eq(d8.opp50, 2220, 'dòng 8 OPP 50% = 4440/2');
   for (const r of bang) {
     assert(r.opp50 <= r.opp100, `OPP 50% ≤ 100% (màu ${r.soMau})`);
     assert(r.pet50 <= r.pet100, `PET 50% ≤ 100% (màu ${r.soMau})`);
     assert(r.pe50 <= r.pe100, `PE 50% ≤ 100% (màu ${r.soMau})`);
+    // 50% = round(nửa giá trị thô); so với round(100%)/2 có thể lệch 1đ do làm tròn 2 lần
+    eq(r.opp50, Math.round(tinhCpMucInMoiM2(r.soMau, 'opp', inkFixture, 0.5)), `OPP 50% thô màu ${r.soMau}`);
+    eq(r.pet50, Math.round(tinhCpMucInMoiM2(r.soMau, 'pet', inkFixture, 0.5)), `PET 50% thô màu ${r.soMau}`);
+    eq(r.pe50, Math.round(tinhCpMucInMoiM2(r.soMau, 'pe', inkFixture, 0.5)), `PE 50% thô màu ${r.soMau}`);
+    approx(r.opp50, r.opp100 / 2, `OPP 50% ≈ 100%/2 màu ${r.soMau}`, 1);
+    approx(r.pet50, r.pet100 / 2, `PET 50% ≈ 100%/2 màu ${r.soMau}`, 1);
+    approx(r.pe50, r.pe100 / 2, `PE 50% ≈ 100%/2 màu ${r.soMau}`, 1);
   }
 }
 

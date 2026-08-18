@@ -232,9 +232,6 @@ export default function CpsxNangCapDungMoiKeo() {
       <div className="card config-card config-cpsx-upgrade-card">
         <div className="config-section-title config-cpsx-upgrade__head">
           <span>Bảng giá dung môi</span>
-          <span className="config-cpsx-upgrade__head-meta">
-            {state.dungMoi.rows.length} dòng
-          </span>
           <button
             type="button"
             className="btn btn-sm btn-outline config-cpsx-upgrade__toggle"

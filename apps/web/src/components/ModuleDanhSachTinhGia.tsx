@@ -238,6 +238,15 @@ export default function ModuleDanhSachTinhGia({
                     🚀 Nâng cấp
                   </span>
                 )}
+                {h.thieuPin && (
+                  <span
+                    className="qrev-badge"
+                    title="Chưa ghim cấu hình lúc lưu — giá đang tính theo CPSX/cấu hình hiện tại trên máy"
+                    style={{ background: 'rgba(217,119,6,0.12)', color: '#b45309', marginLeft: 8, fontWeight: 600 }}
+                  >
+                    Chưa ghim CH
+                  </span>
+                )}
               </span>
               <span className="qrev-cell-sub">{h.structure}</span>
             </div>

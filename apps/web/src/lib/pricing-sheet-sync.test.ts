@@ -153,5 +153,29 @@ console.log('\n== quyetDinhPricingSheetSync ==');
   assert('pricingSheetId null -> postCreate', decision.action === 'postCreate');
 }
 
+// 10. Chỉ adminProfitRatePct (không opts) -> includeAdvisor = true (legacy)
+{
+  const item = makeItem({ adminOverrides: {}, adminProfitRatePct: 10 });
+  const decision = quyetDinhPricingSheetSync(item, true, 'token', 'sheet-123');
+  assert('chi LN admin (legacy) -> includeAdvisor', decision.action === 'patch' && decision.includeAdvisor);
+}
+
+// 11. Advisor syncAdvisor=true dù overrides rỗng + không LN -> includeAdvisor (clear master)
+{
+  const item = makeItem({ adminOverrides: {}, adminProfitRatePct: 0 });
+  const decision = quyetDinhPricingSheetSync(item, true, 'token', 'sheet-123', { syncAdvisor: true });
+  assert('syncAdvisor clear master -> includeAdvisor', decision.action === 'patch' && decision.includeAdvisor);
+}
+
+// 12. Sale syncAdvisor=false dù history còn adminOverrides -> không advisor (tránh 403)
+{
+  const item = makeItem({
+    adminOverrides: { cut: { thoiGianPhut: 900 } },
+    adminProfitRatePct: 10,
+  });
+  const decision = quyetDinhPricingSheetSync(item, true, 'token', 'sheet-123', { syncAdvisor: false });
+  assert('sale syncAdvisor false -> no includeAdvisor', decision.action === 'patch' && !decision.includeAdvisor);
+}
+
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);
 if (failed > 0) process.exit(1);

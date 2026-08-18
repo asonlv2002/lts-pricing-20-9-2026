@@ -38,12 +38,22 @@ function timMaKhachHang(tenKhach: string): string | null {
   }
 }
 
+export type PricingSheetSyncOpts = {
+  /**
+   * User có quyền advisor/admin → luôn PATCH masterResult (kể cả rỗng để xóa
+   * ghi đè cũ trên server, vd. gỡ 900 phút / chỉ đổi LN%).
+   * Sale thường để false — tránh 403 khi gọi advisor-result.
+   */
+  syncAdvisor?: boolean;
+};
+
 // Quyết định đồng bộ pricing sheet
 export function quyetDinhPricingSheetSync(
   h: HistoryItem | undefined,
   isAuthenticated: boolean,
   accessToken: string | null,
   pricingSheetId?: string | null,
+  opts?: PricingSheetSyncOpts,
 ): SyncDecision {
   if (!h) return { action: 'skip', includeAdvisor: false, reason: 'không có history item' };
   if (!isAuthenticated || !accessToken) return { action: 'skip', includeAdvisor: false, reason: 'chưa đăng nhập' };
@@ -58,11 +68,22 @@ export function quyetDinhPricingSheetSync(
   }
 
   // Có pricingSheetId → dùng PATCH
-  // includeAdvisor: chỉ patch masterResult nếu adminOverrides có dữ liệu
+  // includeAdvisor:
+  // - syncAdvisor true (user advisor): luôn PATCH master (kể cả {} để xóa 900 phút / chỉ LN)
+  // - syncAdvisor false (sale): không gọi advisor-result (tránh 403)
+  // - không truyền opts: legacy — có adminOverrides hoặc admin LN%
   const hasAdminOverrides = !!h.adminOverrides && Object.keys(h.adminOverrides).length > 0;
+  const hasAdminProfit = (h.adminProfitRatePct ?? 0) > 0;
+  const hasAdminData = hasAdminOverrides || hasAdminProfit;
+  const includeAdvisor =
+    opts?.syncAdvisor === true
+      ? true
+      : opts?.syncAdvisor === false
+        ? false
+        : hasAdminData;
   return {
     action: 'patch',
-    includeAdvisor: hasAdminOverrides,
+    includeAdvisor,
     reason: 'có pricingSheetId, sẽ PATCH',
   };
 }

@@ -8,7 +8,12 @@ import {
   layDanhSachPricingSheetService,
   layPricingSheetTheoIdService,
 } from '../../lib/api/service-lts';
-import { mapPricingSheetToHistory } from '../../lib/api/pricing-sheet-mapper';
+import {
+  mapPricingSheetToHistory,
+  mapPricingSheetsToHistory,
+  gomPriceConfigIdsTuSheets,
+  layCtxChoPricingSheet,
+} from '../../lib/api/pricing-sheet-mapper';
 import { xayEngineCtxTuPriceConfigs } from '../../lib/api/price-config-mapper';
 import { layConfigsTheoIdsCoCache } from '../../lib/api/price-config-cache';
 import { giuMucDangMoKhiTaiServer, timMucLichSuTheoId } from '../../lib/history-identity';
@@ -155,7 +160,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     const item = timMucLichSuTheoId(state.history, id);
     if (!item) return false;
 
-    const pinIds = (item.priceConfigIds ?? []).filter(Boolean);
+    // Apply pin TRƯỚC khi tính result — nâng cao/thường cùng dùng constants đã ghim
+    const pinIds = (item.priceConfigIds ?? []).map((x) => String(x).trim()).filter(Boolean);
     if (pinIds.length && state.accessToken) {
       try {
         const configs = await layConfigsTheoIdsCoCache(pinIds, state.accessToken);
@@ -169,6 +175,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
           const ctx = xayEngineCtxTuPriceConfigs(configs, fallback, pinIds);
           get().applyPinnedConfig(ctx, pinIds);
         } else {
+          console.warn('Pin priceConfigIds không tải được config, dùng session (có thể lệch CPSX):', pinIds);
           get().restoreSessionConfig();
         }
       } catch (e) {
@@ -176,14 +183,18 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         get().restoreSessionConfig();
       }
     } else {
+      if (pinIds.length && !state.accessToken) {
+        console.warn('Có pin nhưng chưa đăng nhập — không load được CPSX lúc lưu, dùng session');
+      }
       get().restoreSessionConfig();
     }
 
     const s = get();
     const synced = dongBoCotLoiNhuan({ ...item.input }, s.materials);
+    const laNangCap = !!(item.isNangCap || item.input?.isNangCap);
     set({
       dauVao: synced,
-      input: synced,
+      input: { ...synced, isNangCap: laNangCap || undefined },
       result: tinhBaoGia(synced, s.materials, s.constants, s.profitTable, s.smallWidthPrices),
       currentChotGia: item.input?.chotGia ?? item.chotGia ?? 0,
       phanBoCongTy: item.input?.phanBoCongTy ?? 0,
@@ -192,6 +203,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       pricingEntry: 'form' as const,
       isDirty: false,
       loadedHistoryId: item.id,
+      cheDoNangCao: laNangCap,
       saleOverrides: item.saleOverrides ?? {},
       adminOverrides: item.adminOverrides ?? {},
       saleProfitRatePct: item.saleProfitRatePct ?? 0,
@@ -219,20 +231,22 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const rawInput = sheet.inputValue as CalculateInput | null | undefined;
       if (!rawInput || typeof rawInput !== 'object' || !rawInput.productType) return false;
 
-      const pinIds = (sheet.priceConfigIds ?? []).filter(Boolean);
+      const fallback = {
+        materials: state.sessionConfigSnapshot?.materials ?? state.materials,
+        constants: state.sessionConfigSnapshot?.constants ?? state.constants,
+        profitTable: state.sessionConfigSnapshot?.profitTable ?? state.profitTable,
+        smallWidthPrices: state.sessionConfigSnapshot?.smallWidthPrices ?? state.smallWidthPrices,
+      };
+      const pinIds = (sheet.priceConfigIds ?? []).map((x) => String(x).trim()).filter(Boolean);
+      let configs: Awaited<ReturnType<typeof layConfigsTheoIdsCoCache>> = [];
       if (pinIds.length) {
         try {
-          const configs = await layConfigsTheoIdsCoCache(pinIds, token);
+          configs = await layConfigsTheoIdsCoCache(pinIds, token);
           if (configs.length) {
-            const fallback = {
-              materials: state.sessionConfigSnapshot?.materials ?? state.materials,
-              constants: state.sessionConfigSnapshot?.constants ?? state.constants,
-              profitTable: state.sessionConfigSnapshot?.profitTable ?? state.profitTable,
-              smallWidthPrices: state.sessionConfigSnapshot?.smallWidthPrices ?? state.smallWidthPrices,
-            };
             const ctx = xayEngineCtxTuPriceConfigs(configs, fallback, pinIds);
             get().applyPinnedConfig(ctx, pinIds);
           } else {
+            console.warn('Pin sheet không resolve được config, dùng session:', pinIds);
             get().restoreSessionConfig();
           }
         } catch (e) {
@@ -244,13 +258,11 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       }
 
       const s = get();
-      const syncedInput = dongBoCotLoiNhuan({ ...rawInput }, s.materials);
-      const mapped = mapPricingSheetToHistory(sheet, {
-        materials: s.materials,
-        constants: s.constants,
-        profitTable: s.profitTable,
-        smallWidthPrices: s.smallWidthPrices,
-      });
+      // Map history + giá bằng ctx pin (không dùng latest session)
+      const ctxMap = layCtxChoPricingSheet(sheet, fallback, configs);
+      const syncedInput = dongBoCotLoiNhuan({ ...rawInput }, ctxMap.materials);
+      const mapped = mapPricingSheetToHistory(sheet, ctxMap);
+      const laNangCap = !!(mapped?.isNangCap || rawInput.isNangCap);
 
       set((prev) => {
         let nextHistory = prev.history;
@@ -266,7 +278,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         return {
           history: nextHistory,
           dauVao: syncedInput,
-          input: syncedInput,
+          input: { ...syncedInput, isNangCap: laNangCap || undefined },
           result: tinhBaoGia(syncedInput, s.materials, s.constants, s.profitTable, s.smallWidthPrices),
           currentChotGia: syncedInput.chotGia || 0,
           phanBoCongTy: syncedInput.phanBoCongTy ?? 0,
@@ -275,6 +287,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
           pricingEntry: 'form' as const,
           isDirty: false,
           loadedHistoryId: sheet.id,
+          cheDoNangCao: laNangCap,
           originalCustomerLoaded: sheet.customerCodeName || sheet.customer?.codeName || null,
           saleOverrides: mapped?.saleOverrides ?? {},
           adminOverrides: mapped?.adminOverrides ?? {},
@@ -298,15 +311,18 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       if (!token) return false;
       try {
         const sheets = await layDanhSachPricingSheetService(token);
-        const ctx = {
-          materials: state.materials,
-          constants: state.constants,
-          profitTable: state.profitTable,
-          smallWidthPrices: state.smallWidthPrices,
+        // Session = fallback khi sheet không pin; mỗi sheet pin → constants lúc lưu
+        const fallback = {
+          materials: state.sessionConfigSnapshot?.materials ?? state.materials,
+          constants: state.sessionConfigSnapshot?.constants ?? state.constants,
+          profitTable: state.sessionConfigSnapshot?.profitTable ?? state.profitTable,
+          smallWidthPrices: state.sessionConfigSnapshot?.smallWidthPrices ?? state.smallWidthPrices,
         };
-        const mapped = sheets
-          .map(s => mapPricingSheetToHistory(s, ctx))
-          .filter((h): h is HistoryItem => h !== null);
+        const pinIds = gomPriceConfigIdsTuSheets(sheets);
+        const configs = pinIds.length
+          ? await layConfigsTheoIdsCoCache(pinIds, token)
+          : [];
+        const mapped = mapPricingSheetsToHistory(sheets, fallback, configs);
         set({ history: giuMucDangMoKhiTaiServer(mapped, state.history, state.loadedHistoryId) });
         return true;
       } catch {

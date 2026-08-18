@@ -11,8 +11,14 @@ import {
   getPriceConfigFromCache,
   layConfigsTheoIdsCoCache,
 } from './price-config-cache';
-import { mapHistoryToResultPatch } from './pricing-sheet-mapper';
+import {
+  mapHistoryToResultPatch,
+  layCtxChoPricingSheet,
+  mapPricingSheetsToHistory,
+  gomPriceConfigIdsTuSheets,
+} from './pricing-sheet-mapper';
 import type { HistoryItem } from '../types';
+import type { PricingSheetApi } from './service-lts';
 
 let passed = 0;
 let failed = 0;
@@ -168,6 +174,117 @@ check(
   'patch uses latest when no priceConfigIds',
   mapHistoryToResultPatch(itemNew).useLatestPriceConfigs === true,
 );
+
+// layCtxChoPricingSheet: PRODUCTION pin labor ≠ session latest
+const prodOld: PriceConfigApi = {
+  id: 'id-prod-old',
+  configName: 'PRODUCTION',
+  version: 1,
+  inputValue: {
+    laborCost: 3731,
+    cpsxUpgradeLabor: {
+      print: { wages: 1, hoursPerDay: 8, mealMorning: 0, mealEvening: 0, otFactor: 1, roundedPerMin: 3731 },
+    },
+  },
+  createdBy: null,
+  createdAt: '2026-08-15T00:00:00.000Z',
+};
+const prodNew: PriceConfigApi = {
+  id: 'id-prod-new',
+  configName: 'PRODUCTION',
+  version: 2,
+  inputValue: {
+    laborCost: 4684,
+    cpsxUpgradeLabor: {
+      print: { wages: 1, hoursPerDay: 8, mealMorning: 0, mealEvening: 0, otFactor: 1, roundedPerMin: 4684 },
+    },
+  },
+  createdBy: null,
+  createdAt: '2026-08-17T22:12:00.000Z',
+};
+const sessionLatest = {
+  ...fallback,
+  constants: { ...fallbackConstants, laborCost: 5000 } as AppConstants,
+};
+const ctxPinnedOld = layCtxChoPricingSheet(
+  { priceConfigIds: ['id-prod-old'] },
+  sessionLatest,
+  [prodOld, prodNew],
+);
+check(
+  'pin PRODUCTION old → laborCost 3731 not session 5000',
+  (ctxPinnedOld.constants as { laborCost?: number }).laborCost === 3731,
+);
+const ctxPinnedNew = layCtxChoPricingSheet(
+  { priceConfigIds: ['id-prod-new'] },
+  sessionLatest,
+  [prodOld, prodNew],
+);
+check(
+  'pin PRODUCTION new → laborCost 4684',
+  (ctxPinnedNew.constants as { laborCost?: number }).laborCost === 4684,
+);
+const ctxNoPin = layCtxChoPricingSheet({ priceConfigIds: [] }, sessionLatest, [prodOld, prodNew]);
+check(
+  'no pin → session laborCost 5000',
+  (ctxNoPin.constants as { laborCost?: number }).laborCost === 5000,
+);
+
+const sheetA = {
+  id: 's-old',
+  pricingSheetName: 'Cu',
+  createdAt: '2026-08-16T10:00:00.000Z',
+  priceConfigIds: ['id-prod-old'],
+  inputValue: {
+    productType: 'tui',
+    customer: 'KH',
+    productName: 'Tui cu',
+    quantity: 1000,
+    bagType: '3bien',
+    filmType: '',
+    numColors: 0,
+    numImages: 1,
+    spreadWidth: 0.2,
+    cutStep: 0.3,
+    metallicSurcharge: 0,
+    coverageRatio: 1,
+    handleWeight: 0,
+    zipperWeight: 0,
+    tapeWeight: 0,
+    hasZipper: false,
+    hasTape: false,
+    hasHandle: false,
+    paymentDays: 30,
+    profitColumn: 2,
+    commissionRate: 0,
+    commissionFixedVND: 0,
+    layer1Id: 'm1',
+    // isNangCap false — tránh engine NC đầy đủ; pin ctx đã assert laborCost ở trên
+  },
+} as unknown as PricingSheetApi;
+const sheetB = {
+  ...sheetA,
+  id: 's-new',
+  pricingSheetName: 'Moi',
+  priceConfigIds: ['id-prod-new'],
+} as unknown as PricingSheetApi;
+
+check(
+  'gom pin ids unique',
+  gomPriceConfigIdsTuSheets([sheetA, sheetB]).sort().join(',') === 'id-prod-new,id-prod-old',
+);
+
+const mappedList = mapPricingSheetsToHistory(
+  [sheetA, sheetB],
+  sessionLatest,
+  [prodOld, prodNew],
+);
+check('map list 2 sheets', mappedList.length === 2);
+check('sheet old has pin ids', (mappedList[0]?.priceConfigIds ?? [])[0] === 'id-prod-old');
+check('sheet with pin → thieuPin undefined', mappedList[0]?.thieuPin !== true);
+const sheetNoPin = { ...sheetA, id: 's-nopin', priceConfigIds: [] } as unknown as PricingSheetApi;
+const mappedNoPin = mapPricingSheetsToHistory([sheetNoPin], sessionLatest, [prodOld]);
+check('sheet no pin → thieuPin true', mappedNoPin[0]?.thieuPin === true);
 
 // layConfigsTheoIdsCoCache with only cache (no fetch needed if all present)
 void (async () => {

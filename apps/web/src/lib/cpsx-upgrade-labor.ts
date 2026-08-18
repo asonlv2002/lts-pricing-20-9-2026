@@ -90,10 +90,14 @@ function chuanHoaCtPhu(raw: unknown): CpsxMayTinhCongThucPhu[] {
     if (!x || typeof x !== "object") continue;
     const o = x as Record<string, unknown>;
     const id = typeof o.id === "string" && o.id ? o.id : `ct_${out.length + 1}`;
-    const ten = typeof o.ten === "string" ? o.ten : `Tính toán phụ ${out.length + 1}`;
+    // Giữ khoảng trắng khi gõ (không trim) — max MAX_TEN_THAM_SO.
+    const tenRaw =
+      typeof o.ten === "string" ? o.ten.slice(0, MAX_TEN_THAM_SO) : "";
+    const ten =
+      tenRaw.length > 0 ? tenRaw : `Tính toán phụ ${out.length + 1}`;
     out.push({
       id,
-      ten: ten.slice(0, 80),
+      ten,
       donVi: chuanHoaDsDonVi(o.donVi),
     });
   }
@@ -107,10 +111,10 @@ function chuanHoaItemMayTinh(
   if (!raw || typeof raw !== "object") return null;
   const o = raw as Record<string, unknown>;
   const id = typeof o.id === "string" && o.id ? o.id : `mt_${idx + 1}`;
-  const ten =
-    typeof o.ten === "string" && o.ten.trim()
-      ? o.ten.trim().slice(0, 80)
-      : `Công thức ${idx + 1}`;
+  // Giữ nguyên khoảng trắng (kể cả trailing) khi gõ — không trim ở đây.
+  // Chỉ fallback tên mặc định khi chuỗi rỗng hoàn toàn.
+  const tenRaw = typeof o.ten === "string" ? o.ten.slice(0, MAX_TEN_THAM_SO) : "";
+  const ten = tenRaw.length > 0 ? tenRaw : `Công thức ${idx + 1}`;
   return {
     id,
     ten,

@@ -88,13 +88,13 @@ export default function BangDacTaNangCao({
                   {row.khoMangLabel ?? dinhDangSo(row.khoMang, 3)}
                 </td>
                 <td className="num" data-label="Thành phẩm (m)">
-                  {dinhDangSo(row.thanhPham, 0)}
+                  {row.thanhPhamLabel ?? dinhDangSo(row.thanhPham, 0)}
                 </td>
                 <td className="num" data-label="Phi hao (m)">
                   {dinhDangSo(row.phiHao, 0)}
                 </td>
                 <td className="num highlight" data-label="Đầu vào NVL (m)">
-                  {dinhDangSo(row.dauVaoNVL, 0)}
+                  {row.dauVaoNvlLabel ?? dinhDangSo(row.dauVaoNVL, 0)}
                 </td>
                 <td className="num" data-label="CP vật liệu (đ/m²)">
                   {row.cpVatLieu == null ? (

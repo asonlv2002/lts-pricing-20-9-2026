@@ -19,6 +19,7 @@ const SPA_PATHS = [
   "nhat-ky-khach-hang",
   "cau-hinh-vat-tu",
   "cau-hinh-chi-phi-sx",
+  "cau-hinh-chi-phi-sx-nang-cap",
   "cau-hinh-gia-cong-ngoai",
   "cau-hinh-loi-nhuan",
   "cau-hinh-phu-phi",

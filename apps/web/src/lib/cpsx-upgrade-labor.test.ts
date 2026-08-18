@@ -953,6 +953,53 @@ assert(
   "taoMayTinhWorkspaceMacDinh có mt_1",
   taoMayTinhWorkspaceMacDinh().items[0].id === "mt_1",
 );
+assert(
+  "chuanHoaMayTinh giữ khoảng trắng trailing tên CT",
+  (() => {
+    const w = chuanHoaMayTinh({
+      items: [
+        {
+          id: "mt_sp",
+          ten: "Cong thuc ",
+          open: true,
+          thamSo: [],
+          congThuc: [
+            { id: "ct1", ten: "Tinh toan phu ", donVi: [] },
+          ],
+          donViMain: [],
+        },
+      ],
+      apSource: "formula",
+      apCtId: null,
+      manualDraft: "",
+    });
+    return (
+      w.items[0]?.ten === "Cong thuc " &&
+      w.items[0]?.congThuc[0]?.ten === "Tinh toan phu "
+    );
+  })(),
+);
+assert(
+  "chuanHoaMayTinh giữ khoảng trắng giữa tên CT",
+  (() => {
+    const w = chuanHoaMayTinh({
+      items: [
+        {
+          id: "mt_sp2",
+          ten: "Luong CN moi phut",
+          open: true,
+          thamSo: [],
+          congThuc: [],
+          donViMain: [],
+        },
+      ],
+      apSource: "formula",
+      apCtId: null,
+      manualDraft: "",
+    });
+    return w.items[0]?.ten === "Luong CN moi phut";
+  })(),
+);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

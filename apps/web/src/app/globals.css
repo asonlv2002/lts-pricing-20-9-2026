@@ -3152,6 +3152,7 @@ body {
   max-width: none;
   font-weight: 650;
   field-sizing: fixed;
+  text-align: left;
 }
 .config-cpsx-upgrade__calc-mt-tomtat {
   flex: 0 0 auto;
@@ -3444,6 +3445,7 @@ body {
   box-sizing: border-box;
   font-weight: 650;
   field-sizing: content;
+  text-align: left;
 }
 .config-cpsx-upgrade__calc-tokens--inline {
   flex: 1 1 12rem;

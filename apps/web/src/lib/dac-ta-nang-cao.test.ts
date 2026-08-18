@@ -7,6 +7,7 @@ import {
   lapDongVatLieuNangCao,
   lapDongNhanCongDien,
   tinhTongNangCao,
+  ghepCauTrucTuDongVatLieu,
 } from './dac-ta-nang-cao';
 import type {
   AppConstants,
@@ -297,17 +298,17 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Tỉ lệ phủ 50% → chỉ nhân phần mực, dung môi giữ nguyên
-  // 4 màu PET: (16 × 0.5 × 80000 + 9 × 40000)/1000 = (640.000 + 360.000)/1000 = 1000
+  // Tỉ lệ phủ 50% = nửa giá 100% (mực + dung môi)
+  // 4 màu PET 100% = 1640 → 50% = 820
   const r = tinhCpMucDungMoiIn(4, 'MPET 12', ink, 0.5);
-  approx(r.donGia, 1000, '4 màu MPET + phủ 50% → 1000 ₫/m²');
+  approx(r.donGia, 820, '4 màu MPET + phủ 50% → 820 ₫/m²');
   eq(r.tyLePhuMuc, 0.5, 'trả về tyLePhuMuc 0.5');
 }
 
 {
-  // 2 màu OPP + phủ 50%: (8 × 0.5 × 60000 + 6 × 40000)/1000 = (240.000 + 240.000)/1000 = 480
+  // 2 màu OPP 100% = 720 → 50% = 360
   const r = tinhCpMucDungMoiIn(2, 'BOPP 18', ink, 0.5);
-  approx(r.donGia, 480, '2 màu BOPP + phủ 50% → 480 ₫/m²');
+  approx(r.donGia, 360, '2 màu BOPP + phủ 50% → 360 ₫/m²');
 }
 
 {
@@ -321,8 +322,8 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   const rNaN = tinhCpMucDungMoiIn(4, 'MPET 12', ink, NaN as unknown as number);
   approx(rNaN.donGia, 1640, 'tyLe NaN → fallback 100%');
   const rAm = tinhCpMucDungMoiIn(4, 'MPET 12', ink, -1);
-  // chỉ còn dung môi: 9 × 40000/1000 = 360
-  approx(rAm.donGia, 360, 'tyLe âm → clamp 0, chỉ còn phần dung môi');
+  // clamp 0 → 0
+  approx(rAm.donGia, 0, 'tyLe âm → clamp 0 → 0 ₫/m²');
 }
 
 // ── 3. tinhCpKeoDungMoiGhep ─────────────────────────────────────────────────
@@ -468,11 +469,11 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // coverageRatio 50% từ input → dòng in tính theo tỉ lệ phủ
+  // coverageRatio 50% từ input → dòng in = nửa giá 100%
   const r50 = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000, coverageRatio: 0.5 } });
   const rows50 = lapDongVatLieuNangCao(r50, taoUniRows(), taoHangSo());
-  approx(rows50[0].cpMucKeo!, 1000, 'phủ 50% → dòng in 1000 ₫/m² (1640 × giảm phần mực)');
-  approx(rows50[0].thanhTienMucKeo!, 1000 * 8420 * 0.65, 'phủ 50% → thành tiền theo 1000 ₫/m²');
+  approx(rows50[0].cpMucKeo!, 820, 'phủ 50% → dòng in 820 ₫/m² (1640 ÷ 2)');
+  approx(rows50[0].thanhTienMucKeo!, 820 * 8420 * 0.65, 'phủ 50% → thành tiền theo 820 ₫/m²');
   assert(String(rows50[0].ghiChu ?? '').includes('50%'), 'ghiChu hiển thị tỉ lệ phủ 50%');
   approx(rows50[1].cpMucKeo!, 420, 'dòng ghép: keo không đổi theo tỉ lệ phủ');
 }
@@ -680,7 +681,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Có chia N=2, khổ chia 0.3 → dòng Chia + Làm túi ĐV = TP Chia; zipper theo ĐV (đã ×N)
+  // Có chia N=2, khổ chia 0.3 → Chia ĐV=TP nguồn, TP=×N; Làm túi ĐV = TP Chia; zipper theo ĐV
   const rN2 = taoResult({
     zipperTotal: 1,
     tapeTotal: 0,
@@ -702,10 +703,20 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   eq(dongChia.rowKey, 'chia', 'Chia: rowKey chia');
   eq(dongChia.vatLieu, 'MPET 12//LLDPE 60', 'Chia: vật liệu = structureText');
   approx(dongChia.thanhPham!, 8420 * 2, 'Chia: TP = TP ghép × N');
-  approx(dongChia.dauVaoNVL!, 8420 * 2, 'Chia: ĐV = TP');
+  approx(dongChia.dauVaoNVL!, 8420, 'Chia: ĐV = TP nguồn (không × N)');
   approx(dongChia.phiHao!, 0, 'Chia: phi hao = 0');
   approx(dongChia.khoMang!, 0.3, 'Chia: khoMang = khổ chia m');
   assert(String(dongChia.khoMangLabel ?? '').includes('→'), 'Chia: khổ label có mũi tên');
+  assert(
+    String(dongChia.dauVaoNvlLabel ?? '').includes('(0,650)') || String(dongChia.dauVaoNvlLabel ?? '').includes('(0.650)'),
+    'Chia: ĐV label kèm khổ trước',
+  );
+  assert(
+    String(dongChia.thanhPhamLabel ?? '').includes('(0,300)') || String(dongChia.thanhPhamLabel ?? '').includes('(0.300)'),
+    'Chia: TP label kèm khổ chia',
+  );
+  assert(String(dongChia.dauVaoNvlLabel ?? '').includes(' '), 'Chia: ĐV label format A có khoảng trước (');
+  assert(String(dongChia.thanhPhamLabel ?? '').includes(' '), 'Chia: TP label format A có khoảng trước (');
   approx(dongChia.giaNVL!, 0, 'Chia: giá NVL = 0');
   approx(dongChia.cpVatLieu!, 0, 'Chia: CP VL = 0');
   approx(dongChia.thanhTienNVL!, 0, 'Chia: TT NVL = 0');
@@ -1150,6 +1161,78 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   const dongGhep = dong.find(d => d.congDoan === 'ghép')!;
   eq(dongGhep.thoiGianPhut, 45, 'ghép: ghi đè từ lam-3');
   eq(dongGhep.rowKey, 'lam-3', 'ghép: rowKey hiệu lực = lam-3');
+}
+
+// ── 9. Đổi vật liệu lớp In — Lật mặt / Chia / mực theo VL hiệu lực ───────────
+
+{
+  // 9.1 PA → PET: Lật mặt + Chia nhãn theo override; mực PET
+  const r = taoResult({
+    structureText: 'PA 15//LLDPE thường',
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000,
+      hasMo: true, metallicSurcharge: 0,
+      hasDivide: true, divideElements: 2, divideWidthMm: 300, spreadWidth: 0.65,
+      coverageRatio: 1,
+    },
+  });
+  const uni = taoUniRows();
+  uni[0] = { ...uni[0], rowKey: 'print', mat: 'PA 15', materialId: 'PA15' };
+  uni[1] = { ...uni[1], mat: 'LLDPE thường', materialId: 'LLDPE' };
+  const ov: OverrideTable = {
+    print: { materialId: 'PET12', mat: 'PET 12', matPrice: 50, rawMatPrice: 45000 },
+  };
+  const { rows: dongOv } = xuLyDongGhiDe(uni, {}, ov);
+  const rows = lapDongVatLieuNangCao(r, dongOv, taoHangSo(), [], ov);
+
+  const dongIn = rows.find(x => x.rowKey === 'print' && x.congDoan === 'In')!;
+  eq(dongIn.vatLieu, 'PET 12', 'In override: vatLieu PET 12');
+
+  const lat = rows.find(x => x.rowKey === 'matte')!;
+  eq(lat.vatLieu, 'PET 12', 'Lật mặt copy VL In sau override');
+  eq(lat.materialId, 'PET12', 'Lật mặt materialId = In');
+
+  const chia = rows.find(x => x.rowKey === 'chia')!;
+  assert(String(chia.vatLieu).includes('PET 12'), 'Chia chứa PET 12');
+  assert(!String(chia.vatLieu).includes('PA'), 'Chia không còn PA');
+  eq(chia.vatLieu, 'PET 12//LLDPE thường', 'Chia = cấu trúc hiệu lực');
+
+  const mucPet = tinhCpMucDungMoiIn(4, 'PET 12', ink, 1).donGia;
+  approx(dongIn.cpMucKeo!, mucPet, 'In: mực theo PET sau đổi VL');
+}
+
+{
+  // 9.2 In → BOPP 18: nhóm mực OPP auto (không cần cpMucKeoPerM2)
+  const r = taoResult({
+    structureText: 'PET 12//LLDPE 60',
+    input: { productType: 'tui', numColors: 4, quantity: 10000, coverageRatio: 1 },
+  });
+  const uni = taoUniRows();
+  uni[0] = { ...uni[0], rowKey: 'print', mat: 'PET 12', materialId: 'PET12' };
+  const ov: OverrideTable = {
+    print: { materialId: 'BOPP18', mat: 'BOPP 18' },
+  };
+  const { rows: dongOv } = xuLyDongGhiDe(uni, {}, ov);
+  const rows = lapDongVatLieuNangCao(r, dongOv, taoHangSo(), [], ov);
+  const dongIn = rows.find(x => x.rowKey === 'print')!;
+  const mucOpp = tinhCpMucDungMoiIn(4, 'BOPP 18', ink, 1);
+  eq(mucOpp.nhomMuc, 'opp', 'BOPP → nhom opp');
+  approx(dongIn.cpMucKeo!, mucOpp.donGia, 'In: đơn giá mực OPP auto');
+  const dv = Number(dongIn.dauVaoNVL);
+  const kho = Number(dongIn.khoMang);
+  approx(dongIn.thanhTienMucKeo!, mucOpp.donGia * dv * kho, 'thành tiền mực khớp đơn giá OPP');
+}
+
+{
+  // 9.3 ghepCauTrucTuDongVatLieu — bỏ cut/matte/chia
+  const parts = ghepCauTrucTuDongVatLieu([
+    { congDoan: 'In', vatLieu: 'PET 12', rowKey: 'print', khoMang: 0.6, thanhPham: 1, phiHao: 0, dauVaoNVL: 1, giaNVL: null, donViGiaNVL: null, cpVatLieu: null, thanhTienNVL: null, cpMucKeo: null, thanhTienMucKeo: null },
+    { congDoan: 'Lật mặt', vatLieu: 'PET 12', rowKey: 'matte', khoMang: 0.6, thanhPham: 1, phiHao: 0, dauVaoNVL: 1, giaNVL: 0, donViGiaNVL: null, cpVatLieu: 0, thanhTienNVL: 0, cpMucKeo: 0, thanhTienMucKeo: 0 },
+    { congDoan: 'GHÉP (Lớp 2)', vatLieu: 'LLDPE 60', rowKey: 'lam-2', khoMang: 0.6, thanhPham: 1, phiHao: 0, dauVaoNVL: 1, giaNVL: null, donViGiaNVL: null, cpVatLieu: null, thanhTienNVL: null, cpMucKeo: null, thanhTienMucKeo: null },
+    { congDoan: 'Chia', vatLieu: 'x', rowKey: 'chia', khoMang: 0.3, thanhPham: 1, phiHao: 0, dauVaoNVL: 1, giaNVL: 0, donViGiaNVL: null, cpVatLieu: 0, thanhTienNVL: 0, cpMucKeo: 0, thanhTienMucKeo: 0 },
+    { congDoan: 'Làm túi', vatLieu: 'Zipper', rowKey: 'cut', khoMang: null, thanhPham: 1, phiHao: 0, dauVaoNVL: 1, giaNVL: null, donViGiaNVL: null, cpVatLieu: null, thanhTienNVL: 0, cpMucKeo: null, thanhTienMucKeo: null },
+  ]);
+  eq(parts, 'PET 12//LLDPE 60', 'ghepCauTruc chỉ In + ghép');
 }
 
 console.log(`✓ dac-ta-nang-cao: ${soTest} assertions passed`);
