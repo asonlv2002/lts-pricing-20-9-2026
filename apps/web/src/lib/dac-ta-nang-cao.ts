@@ -18,7 +18,7 @@ import type {
 } from './types';
 import type { UniRow } from './manager-calculation';
 import { xuLyDongGhiDe } from './manager-calculation';
-import { traLoiNhuanTheoBang } from './engine';
+import { layCotLoiNhuanTuDong, traLoiNhuanTheoBang } from './engine';
 import {
   chonRuleMayChia,
   chonSetupMayTui,
@@ -579,6 +579,8 @@ function layTpVaKhoNguonChia(
       const phiHaoTui = coChia && !laGcSlit
         ? tinhPhiHaoCatTuHangSo(dauVaoTui, hangSo)
         : phiHao;
+      // TP = ĐV − PH (bất biến NVL; có chia: ĐV = TP Chia nên TP ≠ cutMeters engine)
+      const thanhPhamTui = Math.max(0, dauVaoTui - phiHaoTui);
       const khoTui = coChia && !laGcSlit && khoChiaM > 0 ? khoChiaM : (khoHieuDung || null);
       const inputZipper = coChia && !laGcSlit
         ? { ...result?.input, hasDivide: false as const }
@@ -609,7 +611,7 @@ function layTpVaKhoNguonChia(
         rowKey: row.rowKey,
         materialId: row.materialId,
         khoMang: khoTui,
-        thanhPham,
+        thanhPham: thanhPhamTui,
         phiHao: phiHaoTui,
         dauVaoNVL: dauVaoTui,
         giaNVL: null,
@@ -1003,7 +1005,11 @@ export function tinhKetQuaNangCaoHieuLuc(params: {
             )?.rate ?? result?.profitRate ?? 0
           : traLoiNhuanTheoBang(
               tongSX,
-              result?.input?.profitColumn ?? 2,
+              // Luôn chọn lại cột theo SP hiện tại (đáy đứng/zipper/≥3 lớp/MPET…)
+              // — không tin profitColumn lưu sẵn (có thể stale khi đổi loại túi).
+              materials.length > 0 && result?.input
+                ? layCotLoiNhuanTuDong(result.input, materials)
+                : (result?.input?.profitColumn ?? 2),
               profitTable,
               result?.input?.printFilmCustomerGroup ?? 'normal',
             );

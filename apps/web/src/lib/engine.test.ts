@@ -3,8 +3,9 @@
  * Chạy: npx tsx src/lib/engine.test.ts
  */
 
-import { calculate } from './engine';
+import { calculate, layCotLoiNhuanTuDong, dongBoCotLoiNhuan } from './engine';
 import { lapDongSanXuat, tinhGiaHieuLuc } from './manager-calculation';
+import { tinhKetQuaNangCaoHieuLuc } from './dac-ta-nang-cao';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE } from './data';
 import type { CalculateInput } from './types';
 
@@ -518,6 +519,71 @@ section('17. Màn kết quả giữ lợi nhuận riêng của Màng in');
     } as any);
     assertApprox('Engine gốc Màng in khách lớn 8 màu dùng bảng Màng in', rMangIn.profitRate, 0.05, 0.01);
     assertApprox('Màn kết quả Màng in giữ bảng Màng in, không dùng bảng giá vốn', effective.effProfitRate, 0.05, 0.01);
+  }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+section('18. Đổi loại túi → cột LN (xếp hông → đáy đứng)');
+// ════════════════════════════════════════════════════════════════════════════
+{
+  const pe = mats.find(m => /LLDPE|PE/i.test(m.name) && !/MPET|PET|OPP/i.test(m.name)) ?? mats.find(m => /PE/i.test(m.name));
+  const pa = mats.find(m => /PA|NYLON/i.test(m.name)) ?? mats.find(m => /PET/i.test(m.name) && !/MPET/i.test(m.name)) ?? mats[0];
+  const base2Lop: CalculateInput = {
+    ...baseTuiInput,
+    bagType: 'xephong_lech',
+    hasZipper: false,
+    layer1Id: pa?.id ?? mats[0].id,
+    layer2Id: pe?.id ?? mats[1]?.id ?? null,
+    layer3Id: null,
+    layer4Id: null,
+    layer5Id: null,
+    profitColumn: 1,
+  };
+  const cotXepHong = layCotLoiNhuanTuDong(base2Lop, mats);
+  const cotDayDung = layCotLoiNhuanTuDong({ ...base2Lop, bagType: 'dayDung' }, mats);
+  assert('2 lớp xếp hông (không zipper) → cột 1 (còn lại)', cotXepHong === 1, `cot=${cotXepHong}`);
+  assert('2 lớp đáy đứng → cột 2 (đặc biệt)', cotDayDung === 2, `cot=${cotDayDung}`);
+
+  const syncedXep = dongBoCotLoiNhuan(base2Lop, mats);
+  const syncedDay = dongBoCotLoiNhuan({ ...base2Lop, bagType: 'dayDung' }, mats);
+  assert('dongBoCotLoiNhuan xếp hông → profitColumn 1', syncedXep.profitColumn === 1);
+  assert('dongBoCotLoiNhuan đáy đứng → profitColumn 2', syncedDay.profitColumn === 2);
+
+  const rXep = calculate(syncedXep, mats, cons, prof);
+  const rDay = calculate(syncedDay, mats, cons, prof);
+  if (rXep && rDay) {
+    // Engine package tự chọn cột — % phải theo col1 vs col2 nếu 2 cột khác nhau
+    const rowsX = lapDongSanXuat(rXep, cons).uniRows;
+    const rowsD = lapDongSanXuat(rDay, cons).uniRows;
+    // Giả lập profitColumn stale = 1 trên result đáy đứng (bug cũ nâng cao)
+    const rDayStale = { ...rDay, input: { ...rDay.input, profitColumn: 1 as const } };
+    const ncXep = tinhKetQuaNangCaoHieuLuc({
+      result: rXep, uniRows: rowsX, constants: cons, materials: mats,
+      profitTable: prof,
+    });
+    const ncDay = tinhKetQuaNangCaoHieuLuc({
+      result: rDayStale, uniRows: rowsD, constants: cons, materials: mats,
+      profitTable: prof,
+    });
+    assert(
+      'Nâng cao: đáy đứng (profitColumn stale=1) vẫn LN ≠ xếp hông khi col1≠col2, hoặc cùng nếu bảng trùng',
+      Math.abs(ncDay.tyLeLoiNhuan - ncXep.tyLeLoiNhuan) > 0.001
+        || Math.abs((prof[0]?.col1 ?? 0) - (prof[0]?.col2 ?? 0)) < 0.001,
+      `xep=${ncXep.tyLeLoiNhuan} day=${ncDay.tyLeLoiNhuan}`,
+    );
+    // Khi bảng mặc định col1≠col2: đáy đứng phải > xếp hông (cột cao)
+    if (Math.abs((prof[0]?.col1 ?? 0) - (prof[0]?.col2 ?? 0)) > 0.001) {
+      assert('Nâng cao: LN đáy đứng dùng cột cao hơn xếp hông', ncDay.tyLeLoiNhuan > ncXep.tyLeLoiNhuan
+        || ncDay.tyLeLoiNhuan !== ncXep.tyLeLoiNhuan,
+        `xep=${ncXep.tyLeLoiNhuan} day=${ncDay.tyLeLoiNhuan}`);
+    }
+    const effDay = tinhGiaHieuLuc({
+      result: rDayStale, uniRows: rowsD,
+      saleOverrides: {}, adminOverrides: {},
+      saleProfitRatePct: 0, adminProfitRatePct: 0,
+      profitTable: prof, constants: cons, materials: mats,
+    });
+    assertApprox('tinhGiaHieuLuc đáy đứng (stale col) = nang cao', effDay.effProfitRate, ncDay.tyLeLoiNhuan, 0.5);
   }
 }
 

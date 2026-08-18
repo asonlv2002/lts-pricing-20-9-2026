@@ -712,13 +712,40 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
             {dongVatLieu.map((row, idx) => {
               const goc = timDongGoc(row.rowKey, row.chiTietIndex);
               const ovDong = ghiDeHienTai[row.rowKey];
-              const coDoiVL = coGhiDeDong(ovDong, ['meters', 'waste', 'inputVL', 'width', 'rawMatPrice', 'matPrice', 'materialId']);
+              const ovChiTiet = row.chiTietIndex !== undefined
+                ? ovDong?.detailOverrides?.[row.chiTietIndex]
+                : undefined;
+              // Mét/khổ/phi hao — riêng khỏi đổi VL (giá/mã) để ô ĐV không cam khi chỉ đổi vật liệu
+              const coDoiMetOv = coGhiDeDong(ovDong, ['meters', 'waste', 'inputVL', 'width']);
+              const coDoiGiaVL = coGhiDeDong(ovDong, ['rawMatPrice', 'matPrice', 'materialId'])
+                || coGhiDeChiTiet(ovChiTiet, ['rawMatPrice', 'matPrice', 'materialId', 'materialName']);
               // Dòng synthetic Chia/Lật mặt: chi phí 0, không cho ghi đè Table 1
               const laDongSynthetic = row.rowKey === 'matte' || row.rowKey === 'chia';
               const suaT1 = duocSua && !laDongSynthetic;
               const coDoiMuc = ovDong?.cpMucKeoPerM2 !== undefined
                 || (row.cpMucKeo != null && goc?.cpMucKeo != null
                   && Math.abs(row.cpMucKeo - goc.cpMucKeo) > 0.001);
+              // Dòng Chia/synthetic: so với gốc (label hoặc số) vì không có ghi đè trực tiếp
+              const coDoiKhoLabel = !!(row.khoMangLabel && goc
+                && (row.khoMangLabel !== (goc.khoMangLabel ?? '')
+                  || Math.abs((row.khoMang ?? 0) - (goc.khoMang ?? 0)) > 0.0005));
+              const coDoiTpLabel = !!(row.thanhPhamLabel && goc
+                && (row.thanhPhamLabel !== (goc.thanhPhamLabel ?? '')
+                  || Math.abs((row.thanhPham ?? 0) - (goc.thanhPham ?? 0)) > 0.001));
+              const coDoiDvLabel = !!(row.dauVaoNvlLabel && goc
+                && (row.dauVaoNvlLabel !== (goc.dauVaoNvlLabel ?? '')
+                  || Math.abs((row.dauVaoNVL ?? 0) - (goc.dauVaoNVL ?? 0)) > 0.001));
+              const coDoiMetSo = !!goc && (
+                Math.abs((row.thanhPham ?? 0) - (goc.thanhPham ?? 0)) > 0.001
+                || Math.abs((row.phiHao ?? 0) - (goc.phiHao ?? 0)) > 0.001
+                || Math.abs((row.dauVaoNVL ?? 0) - (goc.dauVaoNVL ?? 0)) > 0.001
+                || Math.abs((row.khoMang ?? 0) - (goc.khoMang ?? 0)) > 0.0005
+              );
+              const coDoiMet = coDoiMetOv || coDoiMetSo || coDoiKhoLabel || coDoiTpLabel || coDoiDvLabel;
+              // Thành tiền: đổi mét HOẶC đổi VL/giá
+              const coDoiVL = coDoiMet || coDoiGiaVL;
+              // Đầu vào NVL: chỉ cam khi mét/ĐV thật sự đổi — không theo materialId/giá
+              const coDoiDauVao = coDoiMet;
               // Phụ kiện (Zipper/…) đã gộp vào dòng Làm túi
               return (
                 <tr key={`${row.rowKey}-${row.chiTietIndex ?? 0}`}>
@@ -736,13 +763,13 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                       ghiDeHienTai={ghiDeHienTai} duocSua={suaT1} khiDat={khiDat} materials={materials} engineParams={engineParams} />
                   )}
                   {row.khoMangLabel ? (
-                    <td className="num" data-label="Khổ màng (m)">{row.khoMangLabel}</td>
+                    <td className={`num ${coDoiKhoLabel ? 'override-changed' : ''}`} data-label="Khổ màng (m)">{row.khoMangLabel}</td>
                   ) : (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={goc?.khoMang ?? row.khoMang ?? 0}
                       giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={suaT1} khiDat={khiDat} soLe={3} />
                   )}
                   {row.thanhPhamLabel ? (
-                    <td className="num" data-label="Thành phẩm (m)">{row.thanhPhamLabel}</td>
+                    <td className={`num ${coDoiTpLabel ? 'override-changed' : ''}`} data-label="Thành phẩm (m)">{row.thanhPhamLabel}</td>
                   ) : (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="meters"
                       giaTriGoc={goc?.thanhPham ?? 0}
@@ -753,7 +780,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     giaTriGoc={goc?.phiHao ?? 0}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste}
                     duocSua={suaT1} khiDat={khiDat} soLe={0} />
-                  <td className={`num highlight ${coDoiVL ? 'override-changed' : ''}`} data-label="Đầu vào NVL (m)">
+                  <td className={`num highlight ${coDoiDauVao ? 'override-changed' : ''}`} data-label="Đầu vào NVL (m)">
                     {row.dauVaoNvlLabel ?? dinhDangSo(row.dauVaoNVL, 0)}
                   </td>
                   {(() => {
@@ -926,7 +953,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
         <div className="dac-ta-nang-cao__totals">
           <div className="dac-ta-nang-cao__total-row">
             <span className="dac-ta-nang-cao__total-label">Tổng thành tiền CP Vật liệu<small>(nguyên vật liệu + dung môi + keo ghép + khác)</small></span>
-            <strong className={`dac-ta-nang-cao__total-value ${Math.abs(tong.tongVatLieu - tongGoc.tongVatLieu) > 1 ? 'override-changed' : ''}`}>{dinhDangSo(tong.tongVatLieu, 0)} đ</strong>
+            <strong className="dac-ta-nang-cao__total-value">{dinhDangSo(tong.tongVatLieu, 0)} đ</strong>
           </div>
           <div className="dac-ta-nang-cao__total-row">
             <span className="dac-ta-nang-cao__total-label">Tổng thành tiền chi phí Nhân công + điện</span>
@@ -1298,6 +1325,7 @@ const buttonLabel = loadedItem
       adminProfitRatePct: apPct,
       profitTable: bangLoiNhuan,
       constants: hangSoNc,
+      materials,
     });
     const hoaHongDonVi = dauVaoKq.commissionFixedVND > 0
       ? dauVaoKq.commissionFixedVND
@@ -1327,7 +1355,7 @@ const buttonLabel = loadedItem
         result: r, uniRows: cacDongSanXuat,
         saleOverrides: ghiDeSale, adminOverrides: {},
         saleProfitRatePct: 0, adminProfitRatePct: 0,
-        profitTable: bangLoiNhuan, constants: hangSo,
+        profitTable: bangLoiNhuan, constants: hangSo, materials,
       }).effProfitRate;
   const adminBaseRate = nangCap
     ? tinhKetQuaNangCaoHieuLuc({
@@ -1340,7 +1368,7 @@ const buttonLabel = loadedItem
         result: r, uniRows: cacDongSanXuat,
         saleOverrides: {}, adminOverrides: ghiDeAdmin,
         saleProfitRatePct: 0, adminProfitRatePct: 0,
-        profitTable: bangLoiNhuan, constants: hangSo,
+        profitTable: bangLoiNhuan, constants: hangSo, materials,
       }).effProfitRate;
   const saleDefaultPct = +(saleBaseRate * 100).toFixed(1);
   const adminDefaultPct = +(adminBaseRate * 100).toFixed(1);

@@ -166,7 +166,26 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
         }
       }
 
-      return { dauVao: dauVaoMoi, input: dauVaoMoi, result: tinhBaoGia(dauVaoMoi, state.materials, state.constants, state.profitTable, state.smallWidthPrices), isDirty: true };
+      // Đổi loại túi / zipper / lớp → bỏ ghim % LN Sale/Admin để LN theo lại bảng (cột đúng SP)
+      const doiCotLoiNhuan =
+        'bagType' in partial
+        || 'hasZipper' in partial
+        || 'productType' in partial
+        || 'filmType' in partial
+        || 'layer1Id' in partial
+        || 'layer2Id' in partial
+        || 'layer2AltId' in partial
+        || 'layer3Id' in partial
+        || 'layer4Id' in partial
+        || 'layer5Id' in partial;
+
+      return {
+        dauVao: dauVaoMoi,
+        input: dauVaoMoi,
+        result: tinhBaoGia(dauVaoMoi, state.materials, state.constants, state.profitTable, state.smallWidthPrices),
+        isDirty: true,
+        ...(doiCotLoiNhuan ? { saleProfitRatePct: 0, adminProfitRatePct: 0 } : {}),
+      };
     });
   },
 

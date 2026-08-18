@@ -726,9 +726,10 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   const dongTuiN2 = rowsN2.find(r => r.congDoan === 'Làm túi')!;
   eq(dongTuiN2.vatLieu, 'Zipper', 'N=2: vật liệu Zipper');
   approx(dongTuiN2.dauVaoNVL!, 8420 * 2, 'Làm túi có chia: ĐV = TP Chia');
-  approx(dongTuiN2.thanhPham!, 9070, 'Làm túi: TP = mét cắt engine');
   // phi hao = ĐV/3000×20 + 100 (cutWaste mặc định)
-  approx(dongTuiN2.phiHao!, (8420 * 2) / 3000 * 20 + 100, 'Làm túi: phi hao = công thức cắt trên ĐV');
+  const phiHaoTuiN2 = (8420 * 2) / 3000 * 20 + 100;
+  approx(dongTuiN2.phiHao!, phiHaoTuiN2, 'Làm túi: phi hao = công thức cắt trên ĐV');
+  approx(dongTuiN2.thanhPham!, 8420 * 2 - phiHaoTuiN2, 'Làm túi: TP = ĐV − PH');
   approx(dongTuiN2.khoMang!, 0.3, 'Làm túi có chia: khổ = khổ chia');
   // ĐV đã = TP ghép × N → zipper = ĐV × giá (không nhân N lần nữa)
   approx(dongTuiN2.thanhTienNVL!, 8420 * 2 * 378, 'N=2: zipper = TP Chia × giá 378');

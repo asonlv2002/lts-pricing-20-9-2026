@@ -4884,12 +4884,12 @@ export default function TrangCauHinh({
                       <th>Từ</th>
                       <th>Đến</th>
                       <th>
-                        Con lai (mang in, mang ghep 2 lop, tui 1-2 lop cut
-                        seal...)
-                      </th>
-                      <th>
                         Tui/mang &gt;= 3 lop; tui day dung/zipper; co
                         MPET/AL/giay
+                      </th>
+                      <th>
+                        Con lai (mang in, mang ghep 2 lop, tui 1-2 lop cut
+                        seal...)
                       </th>
                       <th></th>
                     </tr>
@@ -4956,7 +4956,7 @@ export default function TrangCauHinh({
                             step="0.5"
                             value={
                               +(
-                                (row[cotLoiNhuanTheoNhom.col1] ?? 0) * 100
+                                (row[cotLoiNhuanTheoNhom.col2] ?? 0) * 100
                               ).toFixed(2)
                             }
                             onChange={(e) => {
@@ -4965,7 +4965,7 @@ export default function TrangCauHinh({
                               const bangMoi = [...cuaHang.profitTable];
                               bangMoi[i] = {
                                 ...bangMoi[i],
-                                [cotLoiNhuanTheoNhom.col1]: val / 100,
+                                [cotLoiNhuanTheoNhom.col2]: val / 100,
                               };
                               dungCuaHangTinhGia.setState({
                                 profitTable: bangMoi,
@@ -4984,7 +4984,7 @@ export default function TrangCauHinh({
                             step="0.5"
                             value={
                               +(
-                                (row[cotLoiNhuanTheoNhom.col2] ?? 0) * 100
+                                (row[cotLoiNhuanTheoNhom.col1] ?? 0) * 100
                               ).toFixed(2)
                             }
                             onChange={(e) => {
@@ -4993,7 +4993,7 @@ export default function TrangCauHinh({
                               const bangMoi = [...cuaHang.profitTable];
                               bangMoi[i] = {
                                 ...bangMoi[i],
-                                [cotLoiNhuanTheoNhom.col2]: val / 100,
+                                [cotLoiNhuanTheoNhom.col1]: val / 100,
                               };
                               dungCuaHangTinhGia.setState({
                                 profitTable: bangMoi,

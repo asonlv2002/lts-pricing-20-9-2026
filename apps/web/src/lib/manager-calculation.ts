@@ -1,4 +1,4 @@
-﻿import { tinhGiaWeb, traLoiNhuanTheoBang, toiUuDoDayTheoVatLieu } from './engine';
+﻿import { tinhGiaWeb, traLoiNhuanTheoBang, layCotLoiNhuanTuDong, toiUuDoDayTheoVatLieu } from './engine';
 import type { AppConstants, CalculateInput, CalculateResult, Material, OverrideRowKey, OverrideTable, ProfitRow, SmallWidthMaterialPrice } from './types';
 
 export { toiUuDoDayTheoVatLieu, toiUuDoDayTheoVatLieu as optimizeThickness };
@@ -231,8 +231,9 @@ export function tinhGiaHieuLuc(params: {
   adminProfitRatePct: number;
   profitTable: ProfitRow[];
   constants: AppConstants;
+  materials?: Material[];
 }) {
-  const { result, uniRows, saleOverrides, adminOverrides, saleProfitRatePct, adminProfitRatePct, profitTable, constants } = params;
+  const { result, uniRows, saleOverrides, adminOverrides, saleProfitRatePct, adminProfitRatePct, profitTable, constants, materials = [] } = params;
   const activeOverrideOv = Object.keys(adminOverrides).length > 0 ? adminOverrides : Object.keys(saleOverrides).length > 0 ? saleOverrides : {};
   const sourceForActive = Object.keys(adminOverrides).length > 0 ? saleOverrides : {};
   const hasAnyOverride = Object.keys(activeOverrideOv).length > 0;
@@ -247,6 +248,7 @@ export function tinhGiaHieuLuc(params: {
     && !result.input.layer5Id;
   const hasAdminProfitOverride = adminProfitRatePct > 0;
   const hasSaleProfitOverride = saleProfitRatePct > 0;
+  const cotLoiNhuan = layCotLoiNhuanTuDong(result.input, materials);
   const effProfitRate = hasAdminProfitOverride
     ? adminProfitRatePct / 100
     : hasSaleProfitOverride
@@ -257,7 +259,12 @@ export function tinhGiaHieuLuc(params: {
           && (result.input.numColors ?? 0) >= row.colorFrom
           && (result.input.numColors ?? 0) <= row.colorTo
         )?.rate ?? result.profitRate
-        : traLoiNhuanTheoBang(effTotalProdCost, result.input.profitColumn, profitTable, result.input.printFilmCustomerGroup ?? 'normal');
+        : traLoiNhuanTheoBang(
+            effTotalProdCost,
+            cotLoiNhuan,
+            profitTable,
+            result.input.printFilmCustomerGroup ?? 'normal',
+          );
   const effProfitAmount = effProfitRate * effTotalProdCost;
   const effRevenue = effTotalProdCost + effProfitAmount;
   const effCostPerUnit = result.input.quantity > 0 ? effRevenue / result.input.quantity : 0;
