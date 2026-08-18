@@ -59,6 +59,7 @@ const luuBangLoiNhuanTre = () => {
 const SCOPE_LABEL: Record<ConfigScope, string> = {
   materials: "vật liệu & giá",
   production: "chi phí sản xuất",
+  productionUpgrade: "CPSX nâng cao",
   profit: "bảng lợi nhuận",
   surcharges: "phụ phí & phụ kiện",
   interest: "lãi vay công nợ",
@@ -1445,7 +1446,7 @@ export default function TrangCauHinh({
           {hienCpsxNangCap && (
             <>
               {!!nguoiDungHienTai?.policies.includes("PRICE_CONFIG_MANAGER") && (
-                <KhoiPhienBan scope="production" />
+                <KhoiPhienBan scope="productionUpgrade" />
               )}
               <CpsxNangCapTrang />
             </>

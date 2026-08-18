@@ -2,6 +2,9 @@ import { strict as assert } from 'assert';
 import {
   xayEngineCtxTuPriceConfigs,
   configNameToScope,
+  trichXuatDuLieuScope,
+  gopCpsxUpgradeChoMigrate,
+  scopeToConfigName,
 } from './price-config-mapper';
 import type { PriceConfigApi } from './service-lts';
 import type { AppConstants, Material, ProfitRow, SmallWidthMaterialPrice } from '../types';
@@ -66,7 +69,42 @@ const fallback = {
 console.log('price-config-pin');
 
 check('configNameToScope MATERIALS', configNameToScope('MATERIALS') === 'materials');
+check('configNameToScope PRODUCTION_UPGRADE', configNameToScope('PRODUCTION_UPGRADE') === 'productionUpgrade');
+check('scopeToConfigName productionUpgrade', scopeToConfigName('productionUpgrade') === 'PRODUCTION_UPGRADE');
 check('configNameToScope unknown null', configNameToScope('FOO') === null);
+
+const trichProd = trichXuatDuLieuScope('production', {
+  ...fallback,
+  constants: {
+    ...fallbackConstants,
+    laborCost: 100,
+    cpsxUpgradeLabor: { print: { roundedPerMin: 1 } },
+  } as unknown as AppConstants,
+});
+check('trich production không có cpsxUpgradeLabor', !('cpsxUpgradeLabor' in trichProd));
+check('trich production có laborCost', trichProd.laborCost === 100);
+
+const trichUp = trichXuatDuLieuScope('productionUpgrade', {
+  ...fallback,
+  constants: {
+    ...fallbackConstants,
+    laborCost: 100,
+    cpsxUpgradeLabor: { print: { roundedPerMin: 2 } },
+    cpsxUpgradeElectric: { appliedPricePerKwh: 3 },
+  } as unknown as AppConstants,
+});
+check('trich productionUpgrade có cpsxUpgradeLabor', !!(trichUp as { cpsxUpgradeLabor?: unknown }).cpsxUpgradeLabor);
+check('trich productionUpgrade không có laborCost', !('laborCost' in trichUp));
+
+const mig = gopCpsxUpgradeChoMigrate(
+  { cpsxUpgradeLabor: { print: { roundedPerMin: 11 } }, laborCost: 1 },
+  { ...fallbackConstants, cpsxUpgradeElectric: { appliedPricePerKwh: 22 } } as unknown as AppConstants,
+);
+check(
+  'migrate gộp labor từ PRODUCTION + electric từ session',
+  !!(mig && (mig as { cpsxUpgradeLabor?: { print?: { roundedPerMin?: number } } }).cpsxUpgradeLabor?.print?.roundedPerMin === 11
+    && (mig as { cpsxUpgradeElectric?: { appliedPricePerKwh?: number } }).cpsxUpgradeElectric?.appliedPricePerKwh === 22),
+);
 
 const configs: PriceConfigApi[] = [
   {
@@ -182,6 +220,7 @@ const prodOld: PriceConfigApi = {
   version: 1,
   inputValue: {
     laborCost: 3731,
+    // Legacy blob: CPSX NC còn nằm trong PRODUCTION (trước khi tách)
     cpsxUpgradeLabor: {
       print: { wages: 1, hoursPerDay: 8, mealMorning: 0, mealEvening: 0, otFactor: 1, roundedPerMin: 3731 },
     },
@@ -195,6 +234,27 @@ const prodNew: PriceConfigApi = {
   version: 2,
   inputValue: {
     laborCost: 4684,
+  },
+  createdBy: null,
+  createdAt: '2026-08-17T22:12:00.000Z',
+};
+const upgradeOld: PriceConfigApi = {
+  id: 'id-upgrade-old',
+  configName: 'PRODUCTION_UPGRADE',
+  version: 1,
+  inputValue: {
+    cpsxUpgradeLabor: {
+      print: { wages: 1, hoursPerDay: 8, mealMorning: 0, mealEvening: 0, otFactor: 1, roundedPerMin: 3731 },
+    },
+  },
+  createdBy: null,
+  createdAt: '2026-08-15T00:00:00.000Z',
+};
+const upgradeNew: PriceConfigApi = {
+  id: 'id-upgrade-new',
+  configName: 'PRODUCTION_UPGRADE',
+  version: 2,
+  inputValue: {
     cpsxUpgradeLabor: {
       print: { wages: 1, hoursPerDay: 8, mealMorning: 0, mealEvening: 0, otFactor: 1, roundedPerMin: 4684 },
     },
@@ -204,7 +264,13 @@ const prodNew: PriceConfigApi = {
 };
 const sessionLatest = {
   ...fallback,
-  constants: { ...fallbackConstants, laborCost: 5000 } as AppConstants,
+  constants: {
+    ...fallbackConstants,
+    laborCost: 5000,
+    cpsxUpgradeLabor: {
+      print: { wages: 1, hoursPerDay: 8, mealMorning: 0, mealEvening: 0, otFactor: 1, roundedPerMin: 9999 },
+    },
+  } as unknown as AppConstants,
 };
 const ctxPinnedOld = layCtxChoPricingSheet(
   { priceConfigIds: ['id-prod-old'] },
@@ -215,6 +281,11 @@ check(
   'pin PRODUCTION old → laborCost 3731 not session 5000',
   (ctxPinnedOld.constants as { laborCost?: number }).laborCost === 3731,
 );
+check(
+  'legacy PRODUCTION blob → cpsxUpgradeLabor 3731 (fallback)',
+  (ctxPinnedOld.constants as { cpsxUpgradeLabor?: { print?: { roundedPerMin?: number } } })
+    .cpsxUpgradeLabor?.print?.roundedPerMin === 3731,
+);
 const ctxPinnedNew = layCtxChoPricingSheet(
   { priceConfigIds: ['id-prod-new'] },
   sessionLatest,
@@ -223,6 +294,20 @@ const ctxPinnedNew = layCtxChoPricingSheet(
 check(
   'pin PRODUCTION new → laborCost 4684',
   (ctxPinnedNew.constants as { laborCost?: number }).laborCost === 4684,
+);
+const ctxUpgrade = layCtxChoPricingSheet(
+  { priceConfigIds: ['id-prod-new', 'id-upgrade-new'] },
+  sessionLatest,
+  [prodOld, prodNew, upgradeOld, upgradeNew],
+);
+check(
+  'pin PRODUCTION_UPGRADE → cpsxUpgradeLabor 4684 not session 9999',
+  (ctxUpgrade.constants as { cpsxUpgradeLabor?: { print?: { roundedPerMin?: number } } })
+    .cpsxUpgradeLabor?.print?.roundedPerMin === 4684,
+);
+check(
+  'pin PRODUCTION + UPGRADE → laborCost from PRODUCTION',
+  (ctxUpgrade.constants as { laborCost?: number }).laborCost === 4684,
 );
 const ctxNoPin = layCtxChoPricingSheet({ priceConfigIds: [] }, sessionLatest, [prodOld, prodNew]);
 check(

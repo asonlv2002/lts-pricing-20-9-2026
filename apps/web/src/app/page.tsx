@@ -12,6 +12,7 @@ import { dieuHuongMenuApp } from '../lib/menu-route';
 import { lapDongSanXuat } from '../lib/manager-calculation';
 import { tinhKetQuaNangCaoHieuLuc } from '../lib/dac-ta-nang-cao';
 import { timMucLichSuTheoId } from '../lib/history-identity';
+import { apCpsxNangCaoVaoHangSo } from '../lib/cpsx-nang-cao-pin';
 
 // ── Format helper ─────────────────────────────────────────────────────────────
 function dinhDangSo(n: number, soLe = 0): string {
@@ -25,13 +26,18 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
   if (!result) return null;
 
   // Tab nâng cấp: giá từ bảng đặc tả nâng cao (có ghi đè Sale/Admin)
+  // Sheet đã lưu: overlay CPSX NC từ pin — không bám constants đang sửa trên màn CPSX
   const ketQuaHienThi = nangCap
     ? (() => {
         const s = dungCuaHangTinhGia.getState();
+        const item = timMucLichSuTheoId(s.history, s.loadedHistoryId);
+        const hangSoNc = item?.pinnedCpsxNangCao
+          ? apCpsxNangCaoVaoHangSo(s.constants, item.pinnedCpsxNangCao)
+          : s.constants;
         return tinhKetQuaNangCaoHieuLuc({
           result,
-          uniRows: lapDongSanXuat(result, s.constants).uniRows,
-          constants: s.constants,
+          uniRows: lapDongSanXuat(result, hangSoNc).uniRows,
+          constants: hangSoNc,
           materials: s.materials,
           saleOverrides: s.saleOverrides,
           adminOverrides: s.adminOverrides,

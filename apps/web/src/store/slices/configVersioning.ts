@@ -14,13 +14,14 @@ import {
   scopeToConfigName,
   configNameToScope,
   trichXuatDuLieuScope,
-  apDungDuLieuScope,
   priceConfigToSnapshot,
+  gopCpsxUpgradeChoMigrate,
+  layConstantKeysTheoScope,
 } from '../../lib/api/price-config-mapper';
 import { seedPriceConfigCache } from '../../lib/api/price-config-cache';
 
 const CAC_SCOPE_CAU_HINH: ConfigScope[] = [
-  'materials', 'production', 'profit', 'surcharges', 'interest', 'waste', 'outsource',
+  'materials', 'production', 'productionUpgrade', 'profit', 'surcharges', 'interest', 'waste', 'outsource',
 ];
 
 export interface ConfigVersioningSlice {
@@ -37,7 +38,7 @@ export interface ConfigVersioningSlice {
   saoChepPhienBanDinhMuc: (id: string) => void;
   thoatXemPhienBan: () => void;
   taiLichSuPhienBanTuServer: (scope: ConfigScope) => Promise<void>;
-  /** Bootstrap: 1 request latest-version thay vì 7× history. */
+  /** Bootstrap: 1 request latest-version thay vì N× history. */
   taiCauHinhMoiNhatTuServer: () => Promise<void>;
 }
 
@@ -48,6 +49,7 @@ const sapXepTheoHieuLuc = (snapshots: ConfigSnapshot[]) =>
 const SCOPE_LABEL: Record<ConfigScope, string> = {
   materials: 'Vat lieu & gia kho nho',
   production: 'Chi phi san xuat',
+  productionUpgrade: 'CPSX nang cao',
   profit: 'Bang loi nhuan',
   surcharges: 'Phu phi & phu kien',
   interest: 'Lai vay cong no',
@@ -55,28 +57,15 @@ const SCOPE_LABEL: Record<ConfigScope, string> = {
   outsource: 'Gia cong ngoai',
 };
 
+/** Mirror price-config-mapper — xem/phien ban apply theo key scope */
 const SCOPE_CONSTANT_KEYS: Record<ConfigScope, (keyof AppConstants)[]> = {
   materials: [],
-  production: [
-    'laborCost', 'printPressLabor', 'printPressElectric', 'printPressTime',
-    'laminatePressLabor', 'laminatePressElectric', 'laminatePressTime',
-    'slitPressLabor', 'slitPressElectric', 'slitPressTime',
-    'bagPressLabor', 'bagPressElectric', 'bagPressTime',
-    'cpsxUpgradeElectric', 'cpsxUpgradeLabor', 'cpsxUpgradeInk', 'cpsxUpgradeThoiGian',
-    'ghepCPSX', 'cutBase', 'cutThreshold1', 'cutThreshold2',
-    'cutMult1', 'cutMult2', 'cutMult3', 'cutRules', 'cylinderPricePerUnit', 'cylPriceA', 'cylPriceB',
-    'nhuPrice', 'moPrice', 'colorSetup',
-  ],
+  production: layConstantKeysTheoScope('production'),
+  productionUpgrade: layConstantKeysTheoScope('productionUpgrade'),
   profit: [],
-  surcharges: [
-    'zipperPrice', 'zipperWeight', 'tapePrice', 'tapeWeight',
-    'handlePrice', 'handleWeight', 'handleOptions',
-    'boxPriceDefault', 'bagsPerBoxDefault', 'boxOptions',
-    'shippingPerKmDefault', 'shippingKmDefault',
-  ],
-  interest: ['interestBase', 'interestSpread', 'paymentDays', 'customPaymentDays'],
-  waste: ['printWasteA', 'printWasteB', 'printWasteC', 'printWasteD', 'colorSetup',
-          'ghepWasteA', 'ghepWasteB', 'ghepWasteC', 'cutWasteA', 'cutWasteB', 'cutWasteC'],
+  surcharges: layConstantKeysTheoScope('surcharges'),
+  interest: layConstantKeysTheoScope('interest'),
+  waste: layConstantKeysTheoScope('waste'),
   outsource: [],
 };
 
@@ -195,7 +184,38 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
 
     set({ dangTaiPhienBan: true });
     try {
-      const list = await layPriceConfigMoiNhatService(token);
+      let list = await layPriceConfigMoiNhatService(token);
+
+      // Migrate-on-read: chưa có PRODUCTION_UPGRADE → tách 4 key CPSX NC từ PRODUCTION (+ session)
+      const coUpgrade = list.some((pc) => pc.configName === 'PRODUCTION_UPGRADE');
+      if (!coUpgrade) {
+        const prodLatest = list.find((pc) => pc.configName === 'PRODUCTION');
+        const payload = gopCpsxUpgradeChoMigrate(
+          prodLatest?.inputValue,
+          state.constants,
+        );
+        if (payload) {
+          try {
+            const nowMonth = new Date().toISOString().slice(0, 7);
+            const created = await upsertPriceConfigService(
+              {
+                configName: 'PRODUCTION_UPGRADE',
+                inputValue: {
+                  name: 'Migrate tu PRODUCTION',
+                  effectiveMode: 'month',
+                  effectiveFrom: nowMonth,
+                  ...payload,
+                },
+              },
+              token,
+            );
+            list = [...list.filter((pc) => pc.configName !== 'PRODUCTION_UPGRADE'), created];
+          } catch (migErr) {
+            console.warn('Migrate PRODUCTION_UPGRADE that bai (tiep tuc khong UPGRADE):', migErr);
+          }
+        }
+      }
+
       seedPriceConfigCache(list);
       const fallback = {
         materials: state.materials,

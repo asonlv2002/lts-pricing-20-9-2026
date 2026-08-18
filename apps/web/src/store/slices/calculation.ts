@@ -252,8 +252,20 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
     set((state) => {
       const constants = { ...state.constants, [key]: val };
       const input = dongBoPhuPhiIn(state.input, constants);
+      // Session draft luôn theo constants mới (kể cả khi đang mở sheet pin —
+      // sheet NC đọc overlay pin từ HistoryItem, không phụ thuộc constants live).
+      const snap = state.sessionConfigSnapshot;
+      const sessionConfigSnapshot = snap
+        ? { ...snap, constants: structuredClone(constants) }
+        : snap;
       luuConfigVaoLS(state.materials, constants, state.profitTable, state.smallWidthPrices);
-      return { constants, input, dauVao: input, result: tinhBaoGia(dongBoCotLoiNhuan(input, state.materials), state.materials, constants, state.profitTable, state.smallWidthPrices) };
+      return {
+        constants,
+        input,
+        dauVao: input,
+        sessionConfigSnapshot,
+        result: tinhBaoGia(dongBoCotLoiNhuan(input, state.materials), state.materials, constants, state.profitTable, state.smallWidthPrices),
+      };
     });
   },
 

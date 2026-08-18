@@ -25,6 +25,7 @@ import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override
 import { tinhNhapPhanBoChotGia } from '../lib/chot-gia-allocation';
 import { timMucLichSuTheoId } from '../lib/history-identity';
 import { dieuHuongModuleApp } from '../lib/menu-route';
+import { apCpsxNangCaoVaoHangSo } from '../lib/cpsx-nang-cao-pin';
 import BangDacTaNangCao from './BangDacTaNangCao';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
@@ -1068,6 +1069,10 @@ export default function ManHinhQuanLy({ nangCap = false }: { nangCap?: boolean }
 // Tính toán trạng thái nút Lưu và banner
 const currentCustomerCode = timMaKhachHang(input.customer);
 const loadedItem = timMucLichSuTheoId(lichSu, loadedHistoryId) ?? null;
+// Sheet NC đã lưu: 4 key CPSX NC từ pin lúc lưu — không bám store.constants đang sửa
+const hangSoNc = (nangCap && loadedItem?.pinnedCpsxNangCao)
+  ? apCpsxNangCaoVaoHangSo(hangSo, loadedItem.pinnedCpsxNangCao)
+  : hangSo;
 const isSameCustomer = loadedItem && originalCustomerLoaded && currentCustomerCode && originalCustomerLoaded === currentCustomerCode;
 const buttonLabel = loadedItem
   ? (isSameCustomer ? "🔄 Cập nhật" : "📄 Tạo bảng tính mới")
@@ -1149,7 +1154,7 @@ const buttonLabel = loadedItem
     laborPerHr: hangSo.printFilmLaborCostPerHour ?? 1200000,
   } : undefined;
 
-  const { uniRows: cacDongSanXuat, totalCPSX: tongCPSX, totalCPVL: tongCPVL, grandTotal: tongCong } = lapDongSanXuat(r, hangSo);
+  const { uniRows: cacDongSanXuat, totalCPSX: tongCPSX, totalCPVL: tongCPVL, grandTotal: tongCong } = lapDongSanXuat(r, hangSoNc);
   const cpTheoThoiGianIn = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
 
   // ── Tab nâng cấp: giá mỗi sản phẩm lấy từ TỔNG bảng đặc tả nâng cao ──
@@ -1157,7 +1162,7 @@ const buttonLabel = loadedItem
     ? tinhKetQuaNangCaoHieuLuc({
         result: r,
         uniRows: cacDongSanXuat,
-        constants: hangSo,
+        constants: hangSoNc,
         materials,
         saleOverrides: ghiDeSale,
         adminOverrides: ghiDeAdmin,
@@ -1292,7 +1297,7 @@ const buttonLabel = loadedItem
       saleProfitRatePct: spPct,
       adminProfitRatePct: apPct,
       profitTable: bangLoiNhuan,
-      constants: hangSo,
+      constants: hangSoNc,
     });
     const hoaHongDonVi = dauVaoKq.commissionFixedVND > 0
       ? dauVaoKq.commissionFixedVND
@@ -1313,7 +1318,7 @@ const buttonLabel = loadedItem
   const donViChenhLechGia = laMang ? 'm2' : 'tui';
   const saleBaseRate = nangCap
     ? tinhKetQuaNangCaoHieuLuc({
-        result: r, uniRows: cacDongSanXuat, constants: hangSo, materials,
+        result: r, uniRows: cacDongSanXuat, constants: hangSoNc, materials,
         saleOverrides: ghiDeSale, adminOverrides: {},
         saleProfitRatePct: 0, adminProfitRatePct: 0,
         profitTable: bangLoiNhuan,
@@ -1326,7 +1331,7 @@ const buttonLabel = loadedItem
       }).effProfitRate;
   const adminBaseRate = nangCap
     ? tinhKetQuaNangCaoHieuLuc({
-        result: r, uniRows: cacDongSanXuat, constants: hangSo, materials,
+        result: r, uniRows: cacDongSanXuat, constants: hangSoNc, materials,
         saleOverrides: {}, adminOverrides: ghiDeAdmin,
         saleProfitRatePct: 0, adminProfitRatePct: 0,
         profitTable: bangLoiNhuan,
@@ -1421,8 +1426,8 @@ const buttonLabel = loadedItem
     const resHieuLuc = nangCap
       ? tinhKetQuaNangCaoHieuLuc({
           result: res,
-          uniRows: lapDongSanXuat(res, hangSo).uniRows,
-          constants: hangSo,
+          uniRows: lapDongSanXuat(res, hangSoNc).uniRows,
+          constants: hangSoNc,
           materials,
           saleOverrides: ghiDeSale,
           adminOverrides: ghiDeAdmin,
@@ -2075,7 +2080,7 @@ const buttonLabel = loadedItem
             <BangDacTaNangCao
               result={r}
               uniRows={cacDongSanXuat}
-              constants={hangSo}
+              constants={hangSoNc}
               materials={materials}
             />
 
@@ -2095,12 +2100,12 @@ const buttonLabel = loadedItem
                 </button>
               </div>
               {tabDangMoNangCao === 'sale' ? (
-                <BangDacTaNangCaoGhiDe lopMau="sale" result={r} uniRows={cacDongSanXuat} constants={hangSo} materials={materials}
+                <BangDacTaNangCaoGhiDe lopMau="sale" result={r} uniRows={cacDongSanXuat} constants={hangSoNc} materials={materials}
                   ghiDeHienTai={ghiDeSale} duocSua={canSaleEditNangCao} coTheLuu={coTheLuuSaleNangCao}
                   khiDat={datGhiDeSale} khiLuu={xuLyLuuGhiDe} khiLuuMoi={xuLyLuuGhiDeMoi} loadedHistoryId={loadedHistoryId}
                   soLuong={dauVaoKq.quantity} profitRatePct={saleProfitRatePct} defaultProfitRatePct={saleDefaultPct} khiDatProfitRate={datSaleProfitRatePct} engineParams={engineOverrideParams} />
               ) : (
-                <BangDacTaNangCaoGhiDe lopMau="admin" result={r} uniRows={cacDongSanXuat} constants={hangSo} materials={materials}
+                <BangDacTaNangCaoGhiDe lopMau="admin" result={r} uniRows={cacDongSanXuat} constants={hangSoNc} materials={materials}
                   ghiDeHienTai={ghiDeAdmin} duocSua={canAdminEditNangCao} coTheLuu={coTheLuuAdminNangCao}
                   khiDat={datGhiDeAdmin} khiLuu={xuLyLuuGhiDe} khiLuuMoi={xuLyLuuGhiDeMoi} loadedHistoryId={loadedHistoryId}
                   soLuong={dauVaoKq.quantity} profitRatePct={adminProfitRatePct} defaultProfitRatePct={adminDefaultPct} khiDatProfitRate={datAdminProfitRatePct} engineParams={engineOverrideParams} />

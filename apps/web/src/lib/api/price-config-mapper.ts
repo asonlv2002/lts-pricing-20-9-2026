@@ -2,7 +2,7 @@
 // Mapper: ConfigScope (frontend) <-> configName (backend price-config)
 // ═════════════════════════════════════════════════════════════════════════════
 //
-// Frontend có 7 scope cấu hình. Backend lưu mỗi scope dưới 1 PriceConfig
+// Frontend có 8 scope cấu hình. Backend lưu mỗi scope dưới 1 PriceConfig
 // record với configName tuỳ ý (free-form, regex ^[A-Z][A-Z0-9]*(_[A-Z0-9]+)*$).
 // Mapper này chuyển đổi giữa hai hệ và trích/xáp dữ liệu từng scope.
 
@@ -10,10 +10,19 @@ import type { ConfigScope } from '../types';
 import type { AppConstants, Material, ProfitRow, SmallWidthMaterialPrice } from '../types';
 import type { PriceConfigApi } from './service-lts';
 
+/** 4 key CPSX nâng cao — scope productionUpgrade / PRODUCTION_UPGRADE */
+export const CPSX_UPGRADE_CONSTANT_KEYS: (keyof AppConstants)[] = [
+  'cpsxUpgradeElectric',
+  'cpsxUpgradeLabor',
+  'cpsxUpgradeInk',
+  'cpsxUpgradeThoiGian',
+];
+
 // ── Scope <-> configName ──────────────────────────────────────────────────
 const SCOPE_TO_CONFIG_NAME: Record<ConfigScope, string> = {
   materials: 'MATERIALS',
   production: 'PRODUCTION',
+  productionUpgrade: 'PRODUCTION_UPGRADE',
   profit: 'PROFIT',
   surcharges: 'SURCHARGES',
   interest: 'INTEREST',
@@ -39,11 +48,11 @@ const SCOPE_CONSTANT_KEYS: Record<ConfigScope, (keyof AppConstants)[]> = {
     'laminatePressLabor', 'laminatePressElectric', 'laminatePressTime',
     'slitPressLabor', 'slitPressElectric', 'slitPressTime',
     'bagPressLabor', 'bagPressElectric', 'bagPressTime',
-    'cpsxUpgradeElectric', 'cpsxUpgradeLabor', 'cpsxUpgradeInk', 'cpsxUpgradeThoiGian',
     'ghepCPSX', 'cutBase', 'cutThreshold1', 'cutThreshold2',
     'cutMult1', 'cutMult2', 'cutMult3', 'cutRules', 'cylinderPricePerUnit', 'cylPriceA', 'cylPriceB',
     'nhuPrice', 'moPrice', 'colorSetup',
   ],
+  productionUpgrade: [...CPSX_UPGRADE_CONSTANT_KEYS],
   profit: [],
   surcharges: [
     'zipperPrice', 'zipperWeight', 'tapePrice', 'tapeWeight',
@@ -56,6 +65,10 @@ const SCOPE_CONSTANT_KEYS: Record<ConfigScope, (keyof AppConstants)[]> = {
           'ghepWasteA', 'ghepWasteB', 'ghepWasteC', 'cutWasteA', 'cutWasteB', 'cutWasteC'],
   outsource: [],
 };
+
+export function layConstantKeysTheoScope(scope: ConfigScope): (keyof AppConstants)[] {
+  return SCOPE_CONSTANT_KEYS[scope] ?? [];
+}
 
 // ── Trích xuất dữ liệu 1 scope từ store -> inputValue cho API ──────────────
 export interface StoreDataForScope {
@@ -84,6 +97,45 @@ export function trichXuatDuLieuScope(
   }
 
   return result;
+}
+
+/**
+ * Lấy 4 key CPSX NC từ blob bất kỳ (PRODUCTION legacy hoặc PRODUCTION_UPGRADE).
+ * Trả null nếu không có key nào.
+ */
+export function trichCpsxUpgradeTuInputValue(
+  inputValue: unknown,
+): Partial<AppConstants> | null {
+  if (typeof inputValue !== 'object' || inputValue === null || Array.isArray(inputValue)) {
+    return null;
+  }
+  const data = inputValue as Record<string, unknown>;
+  const out: Partial<AppConstants> = {};
+  for (const key of CPSX_UPGRADE_CONSTANT_KEYS) {
+    if (key as string in data && data[key as string] != null) {
+      (out as Record<string, unknown>)[key as string] = structuredClone(data[key as string]);
+    }
+  }
+  return Object.keys(out).length > 0 ? out : null;
+}
+
+/** Gộp CPSX NC từ PRODUCTION blob + session (ưu tiên blob) — dùng migrate-on-read. */
+export function gopCpsxUpgradeChoMigrate(
+  productionInputValue: unknown,
+  sessionConstants: AppConstants,
+): Record<string, unknown> | null {
+  const fromProd = trichCpsxUpgradeTuInputValue(productionInputValue) ?? {};
+  const merged: Record<string, unknown> = {};
+  for (const key of CPSX_UPGRADE_CONSTANT_KEYS) {
+    const k = key as string;
+    if (k in fromProd && (fromProd as Record<string, unknown>)[k] != null) {
+      merged[k] = structuredClone((fromProd as Record<string, unknown>)[k]);
+      continue;
+    }
+    const sessionVal = (sessionConstants as unknown as Record<string, unknown>)[k];
+    if (sessionVal != null) merged[k] = structuredClone(sessionVal);
+  }
+  return Object.keys(merged).length > 0 ? merged : null;
 }
 
 // ── Áp dụng inputValue từ server vào store fields ──────────────────────────
@@ -143,6 +195,9 @@ export interface ConfigSnapshotLike {
  * Gộp nhiều PriceConfig (theo order id ưu tiên) thành 1 engine ctx.
  * Cùng scope: bản xuất hiện trước trong `uuTienIds` thắng; nếu không có list
  * thì giữ bản apply sau cùng trong mảng configs.
+ *
+ * Legacy: sheet chỉ pin PRODUCTION (blob còn cpsxUpgrade*) mà không có
+ * PRODUCTION_UPGRADE → vẫn merge 4 key NC từ blob PRODUCTION.
  */
 export function xayEngineCtxTuPriceConfigs(
   configs: PriceConfigApi[],
@@ -171,14 +226,26 @@ export function xayEngineCtxTuPriceConfigs(
   let constants = structuredClone(fallback.constants);
   let profitTable = structuredClone(fallback.profitTable);
 
+  let daApProductionUpgrade = false;
+
   for (const pc of applyOrder) {
     const scope = configNameToScope(pc.configName);
     if (!scope) continue;
+    if (scope === 'productionUpgrade') daApProductionUpgrade = true;
     const applied = apDungDuLieuScope(scope, pc.inputValue);
     if (applied.materials) materials = applied.materials;
     if (applied.smallWidthPrices) smallWidthPrices = applied.smallWidthPrices;
     if (applied.profitTable) profitTable = applied.profitTable;
     if (applied.constants) constants = { ...constants, ...applied.constants };
+  }
+
+  // Sheet cũ: pin PRODUCTION có CPSX NC trong blob, chưa có PRODUCTION_UPGRADE
+  if (!daApProductionUpgrade) {
+    for (const pc of applyOrder) {
+      if (pc.configName !== 'PRODUCTION') continue;
+      const legacy = trichCpsxUpgradeTuInputValue(pc.inputValue);
+      if (legacy) constants = { ...constants, ...legacy };
+    }
   }
 
   return { materials, smallWidthPrices, constants, profitTable };

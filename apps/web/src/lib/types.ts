@@ -789,7 +789,8 @@ export interface AuditEntry {
 
 export type ConfigScope =
   | 'materials'    // Vật tư: materials + smallWidthPrices
-  | 'production'   // Chi phí SX: laborCost, ghep, cat, trục, mực
+  | 'production'   // Chi phí SX: laborCost, ghep, cat, trục, mực (CPSX cũ)
+  | 'productionUpgrade' // CPSX nâng cao: lương/điện/mực/TG → PRODUCTION_UPGRADE
   | 'profit'       // Biên lợi nhuận: profitTable
   | 'surcharges'   // Phụ phí: phụ kiện, thùng
   | 'interest'     // Lãi vay: interestBase, interestSpread
@@ -929,6 +930,16 @@ export interface HistoryItem {
   priceConfigIds?: string[];   // IDs của price config đã link trên server (pin lúc lưu)
   /** true = sheet không có pin → giá đang tính bằng cấu hình session hiện tại */
   thieuPin?: boolean;
+  /**
+   * Snapshot CPSX nâng cao (lương/điện/mực/TG) lúc lưu sheet NC.
+   * Sheet đã lưu dùng cái này — không bám store.constants đang sửa trên màn CPSX.
+   */
+  pinnedCpsxNangCao?: {
+    cpsxUpgradeLabor?: CpsxUpgradeLabor;
+    cpsxUpgradeElectric?: CpsxUpgradeElectric;
+    cpsxUpgradeInk?: CpsxUpgradeInk;
+    cpsxUpgradeThoiGian?: CpsxUpgradeThoiGian;
+  };
   originalCustomer?: string;  // Mã khách hàng gốc khi load từ lịch sử (để so sánh)
   deletable?: boolean;        // Cho phép xóa trên server (từ Original.deletable)
   canUpdate?: boolean;        // Cho phép cập nhật trên server (từ Original.canUpdate)

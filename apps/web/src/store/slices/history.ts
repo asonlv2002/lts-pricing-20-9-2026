@@ -17,6 +17,7 @@ import {
 import { xayEngineCtxTuPriceConfigs } from '../../lib/api/price-config-mapper';
 import { layConfigsTheoIdsCoCache } from '../../lib/api/price-config-cache';
 import { giuMucDangMoKhiTaiServer, timMucLichSuTheoId } from '../../lib/history-identity';
+import { trichCpsxNangCao, apCpsxNangCaoVaoHangSo } from '../../lib/cpsx-nang-cao-pin';
 
 export interface HistorySlice {
   history: HistoryItem[];
@@ -127,6 +128,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         saleProfitRatePct: state.saleProfitRatePct || undefined,
         adminProfitRatePct: state.adminProfitRatePct || undefined,
         isNangCap: laNangCap || undefined,
+        // Sheet NC: đóng băng CPSX nâng cao lúc lưu — không bám session đang sửa sau này
+        pinnedCpsxNangCao: laNangCap ? trichCpsxNangCao(state.constants) : undefined,
         input: { ...state.input, isNangCap: laNangCap || undefined },
         originalCustomer: currentCustomerCode ?? undefined,
         // Lưu mới → luôn tạo sheet mới trên server (không copy pricingSheetId từ item cũ)
@@ -190,12 +193,17 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     }
 
     const s = get();
+    // Sheet NC đã lưu: 4 key CPSX NC từ snapshot item (không bám session đang sửa)
+    const hangSoSheet = item.pinnedCpsxNangCao
+      ? apCpsxNangCaoVaoHangSo(s.constants, item.pinnedCpsxNangCao)
+      : s.constants;
     const synced = dongBoCotLoiNhuan({ ...item.input }, s.materials);
     const laNangCap = !!(item.isNangCap || item.input?.isNangCap);
     set({
       dauVao: synced,
       input: { ...synced, isNangCap: laNangCap || undefined },
-      result: tinhBaoGia(synced, s.materials, s.constants, s.profitTable, s.smallWidthPrices),
+      constants: hangSoSheet,
+      result: tinhBaoGia(synced, s.materials, hangSoSheet, s.profitTable, s.smallWidthPrices),
       currentChotGia: item.input?.chotGia ?? item.chotGia ?? 0,
       phanBoCongTy: item.input?.phanBoCongTy ?? 0,
       donViPhanBo: item.input?.donViPhanBo ?? 'vnd',
@@ -358,11 +366,18 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       if (!old) return state;
 
       const laNangCap = !!state.cheDoNangCao;
+      // Giữ CPSX NC lúc lưu; sheet legacy chưa pin → ghim lần cập nhật đầu
+      const pinCpsx = laNangCap
+        ? (old.pinnedCpsxNangCao ?? trichCpsxNangCao(state.constants))
+        : old.pinnedCpsxNangCao;
+      const hangSoLuu = laNangCap
+        ? apCpsxNangCaoVaoHangSo(state.constants, pinCpsx)
+        : state.constants;
       const ketQuaLuu = laNangCap
         ? tinhKetQuaNangCaoHieuLuc({
             result: state.result,
-            uniRows: lapDongSanXuat(state.result, state.constants).uniRows,
-            constants: state.constants,
+            uniRows: lapDongSanXuat(state.result, hangSoLuu).uniRows,
+            constants: hangSoLuu,
             materials: state.materials,
             saleOverrides: state.saleOverrides,
             adminOverrides: state.adminOverrides,
@@ -389,6 +404,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         sellerName: state.currentSellerName || old.sellerName,
         saleProfitRatePct: state.saleProfitRatePct || undefined,
         adminProfitRatePct: state.adminProfitRatePct || undefined,
+        pinnedCpsxNangCao: pinCpsx,
+        isNangCap: laNangCap || undefined,
       };
       const history = state.history.map(h => h.id === old.id ? updated : h);
 
