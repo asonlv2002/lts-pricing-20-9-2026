@@ -187,9 +187,25 @@ export function mapPricingSheetToHistory(
   // Đóng băng CPSX NC từ ctx pin — ManHinhQuanLy/page không bám session latest
   const pinnedCpsxNangCao = laNangCap ? trichCpsxNangCao(ctx.constants) : undefined;
 
+  const createdAt = sheet.createdAt || undefined;
+  const updatedAt = sheet.updatedAt || sheet.createdAt || undefined;
+  const ngayHienThi = createdAt
+    ? new Date(createdAt).toLocaleString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      })
+    : new Date().toLocaleDateString('vi-VN');
+
   return {
     id: sheet.id,
-    date: new Date(sheet.createdAt).toLocaleDateString('vi-VN'),
+    date: ngayHienThi,
+    createdAt,
+    updatedAt,
     customer: sheet.original?.customerName || syncedInput.customer || sheet.customerCodeName || '—',
     productName: sheet.pricingSheetName || syncedInput.productName || '—',
     structure: result.structureText,

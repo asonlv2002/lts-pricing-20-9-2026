@@ -15,19 +15,13 @@ import { xoaPricingSheetService } from '../lib/api/service-lts';
 import { exportPricingDetailToA4 } from '../lib/pricing-detail-export';
 import NutSaoChepLienKet from './NutSaoChepLienKet';
 import type { HistoryItem } from '../lib/types';
+import { dinhDangNgayTaoLichSu, msSapXepLichSu } from '../lib/history-datetime';
 
 const boDau = (chuoi: string) =>
   chuoi.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
 
 function dinhDangSo(n: number): string {
   return Math.round(n || 0).toLocaleString('vi-VN');
-}
-
-function dinhDangNgay(date?: string): string {
-  if (!date) return '—';
-  const [day, month, year] = date.split('/').map(Number);
-  if (!day || !month || !year) return date;
-  return new Date(year, month - 1, day).toLocaleDateString('vi-VN');
 }
 
 type BoLocTinhGia = 'all' | 'draft' | 'saved' | 'used';
@@ -119,13 +113,7 @@ export default function ModuleDanhSachTinhGia({
         if (!text.includes(q)) return false;
       }
       return true;
-    }).sort((a, b) => {
-      const [da, ma, ya] = a.date.split('/').map(Number);
-      const [db, mb, yb] = b.date.split('/').map(Number);
-      const maMs = new Date(ya ?? 0, (ma ?? 1) - 1, da ?? 1).getTime();
-      const mbMs = new Date(yb ?? 0, (mb ?? 1) - 1, db ?? 1).getTime();
-      return mbMs - maMs;
-    });
+    }).sort((a, b) => msSapXepLichSu(b) - msSapXepLichSu(a));
     if (quoteDraftCustomer) {
       filtered = filtered.filter(h =>
         h.customer === quoteDraftCustomer || selectedQuoteHistoryIds.has(h.id)
@@ -253,7 +241,9 @@ export default function ModuleDanhSachTinhGia({
           </div>
         </td>
         <td className="qrev-cell-sale">{h.customer}</td>
-        <td className="qrev-cell-date">{dinhDangNgay(h.date)}</td>
+        <td className="qrev-cell-date" title={h.updatedAt && h.createdAt && h.updatedAt !== h.createdAt ? `Cập nhật: ${dinhDangNgayTaoLichSu({ ...h, createdAt: h.updatedAt })}` : undefined}>
+          {dinhDangNgayTaoLichSu(h)}
+        </td>
         <td className="qrev-cell-sale" style={{ textAlign: 'right' }}>
           {dinhDangSo(giaHienThi)} ₫/{meta.unit}
         </td>
@@ -363,7 +353,7 @@ export default function ModuleDanhSachTinhGia({
                   <th style={{ width: 40 }}></th>
                   <th>Sản phẩm</th>
                   <th>Khách hàng</th>
-                  <th>Ngày</th>
+                  <th>Ngày tạo</th>
                   <th style={{ textAlign: 'right' }}>Giá</th>
                   <th>Trạng thái</th>
                   <th>Thao tác</th>

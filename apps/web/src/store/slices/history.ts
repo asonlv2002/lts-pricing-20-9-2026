@@ -22,6 +22,7 @@ import {
 import { layConfigsTheoIdsCoCache } from '../../lib/api/price-config-cache';
 import { giuMucDangMoKhiTaiServer, timMucLichSuTheoId } from '../../lib/history-identity';
 import { trichCpsxNangCao, apCpsxNangCaoVaoHangSo } from '../../lib/cpsx-nang-cao-pin';
+import { dinhDangDateLegacy } from '../../lib/history-datetime';
 
 export interface HistorySlice {
   history: HistoryItem[];
@@ -114,9 +115,12 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
           }).result
         : state.result;
 
+      const isoNow = now.toISOString();
       const item: HistoryItem = {
         id: String(now.getTime()),
-        date: now.toLocaleDateString('vi-VN'),
+        date: dinhDangDateLegacy(now),
+        createdAt: isoNow,
+        updatedAt: isoNow,
         customer: state.input.customer || 'N/A',
         productName: state.input.productName || 'N/A',
         structure: state.result.structureText,
@@ -445,9 +449,13 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
           }).result
         : state.result;
 
+      const now = new Date();
+      const isoNow = now.toISOString();
       const updated: HistoryItem = {
         ...old,
-        date: new Date().toLocaleDateString('vi-VN'),
+        date: dinhDangDateLegacy(now),
+        createdAt: old.createdAt ?? isoNow,
+        updatedAt: isoNow,
         customer: state.input.customer || old.customer,
         productName: state.input.productName || old.productName,
         structure: state.result.structureText,
@@ -465,7 +473,15 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         pinnedCpsxNangCao: pinCpsx,
         isNangCap: laNangCap || undefined,
       };
-      const history = state.history.map(h => h.id === old.id ? updated : h);
+      // Cập nhật → đưa lên đầu danh sách
+      const history = [
+        updated,
+        ...state.history.filter((h) => {
+          if (h.id === old.id) return false;
+          if (old.pricingSheetId && h.pricingSheetId === old.pricingSheetId) return false;
+          return true;
+        }),
+      ].slice(0, 200);
 
       return { history, isDirty: false };
     });
@@ -477,10 +493,15 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       if (!item) return state;
 
       const now = new Date();
+      const isoNow = now.toISOString();
       const clone: HistoryItem = {
         ...structuredClone(item),
         id: String(now.getTime()),
-        date: now.toLocaleDateString('vi-VN'),
+        date: dinhDangDateLegacy(now),
+        createdAt: isoNow,
+        updatedAt: isoNow,
+        pricingSheetId: undefined,
+        priceConfigIds: undefined,
         quoteStatus: undefined,
         quoteCode: undefined,
         isQuote: false,

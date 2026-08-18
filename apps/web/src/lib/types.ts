@@ -901,7 +901,12 @@ export interface QuoteProductLine {
 // ── History ───────────────────────────────────────────────────────────────────
 export interface HistoryItem {
   id: string;
+  /** Hiển thị ngày (legacy / fallback) — ưu tiên createdAt/updatedAt ISO */
   date: string;
+  /** ISO lúc tạo sheet (server hoặc local) */
+  createdAt?: string;
+  /** ISO lúc cập nhật gần nhất — sort list + đưa lên đầu */
+  updatedAt?: string;
   customer: string;
   productName: string;
   structure: string;
