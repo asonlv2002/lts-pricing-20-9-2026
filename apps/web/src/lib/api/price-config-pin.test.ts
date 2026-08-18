@@ -5,6 +5,9 @@ import {
   trichXuatDuLieuScope,
   gopCpsxUpgradeChoMigrate,
   scopeToConfigName,
+  lietKePinIdThieu,
+  coProductionUpgradeTrongConfigs,
+  xoaCpsxUpgradeKhoiHangSo,
 } from './price-config-mapper';
 import type { PriceConfigApi } from './service-lts';
 import type { AppConstants, Material, ProfitRow, SmallWidthMaterialPrice } from '../types';
@@ -18,8 +21,10 @@ import {
   mapHistoryToResultPatch,
   layCtxChoPricingSheet,
   mapPricingSheetsToHistory,
+  mapPricingSheetToHistory,
   gomPriceConfigIdsTuSheets,
 } from './pricing-sheet-mapper';
+import { trichCpsxNangCao } from '../cpsx-nang-cao-pin';
 import type { HistoryItem } from '../types';
 import type { PricingSheetApi } from './service-lts';
 
@@ -309,10 +314,45 @@ check(
   'pin PRODUCTION + UPGRADE → laborCost from PRODUCTION',
   (ctxUpgrade.constants as { laborCost?: number }).laborCost === 4684,
 );
+// Pin chỉ PRODUCTION (không NC blob) + session latest 9999 → KHÔNG lấy 9999
+const prodNewNoNc: PriceConfigApi = {
+  id: 'id-prod-new-nonc',
+  configName: 'PRODUCTION',
+  version: 2,
+  inputValue: { laborCost: 4684 },
+  createdBy: null,
+  createdAt: '2026-08-17T22:12:00.000Z',
+};
+const ctxPinProdOnlyNoNc = layCtxChoPricingSheet(
+  { priceConfigIds: ['id-prod-new-nonc'] },
+  sessionLatest,
+  [prodNewNoNc],
+);
+check(
+  'pin PRODUCTION không NC → cpsxUpgradeLabor KHÔNG phải session 9999',
+  (ctxPinProdOnlyNoNc.constants as { cpsxUpgradeLabor?: { print?: { roundedPerMin?: number } } })
+    .cpsxUpgradeLabor?.print?.roundedPerMin !== 9999,
+);
+// Pin UPGRADE v1 (3731) dù cache có v2 (4684) + session 9999
+const ctxUpgradeOldOnly = layCtxChoPricingSheet(
+  { priceConfigIds: ['id-prod-new', 'id-upgrade-old'] },
+  sessionLatest,
+  [prodNew, upgradeOld, upgradeNew],
+);
+check(
+  'pin UPGRADE v1 → 3731 không phải v2 4684 hay session 9999',
+  (ctxUpgradeOldOnly.constants as { cpsxUpgradeLabor?: { print?: { roundedPerMin?: number } } })
+    .cpsxUpgradeLabor?.print?.roundedPerMin === 3731,
+);
 const ctxNoPin = layCtxChoPricingSheet({ priceConfigIds: [] }, sessionLatest, [prodOld, prodNew]);
 check(
   'no pin → session laborCost 5000',
   (ctxNoPin.constants as { laborCost?: number }).laborCost === 5000,
+);
+check(
+  'no pin → session cpsxUpgradeLabor 9999 (fallback giữ latest)',
+  (ctxNoPin.constants as { cpsxUpgradeLabor?: { print?: { roundedPerMin?: number } } })
+    .cpsxUpgradeLabor?.print?.roundedPerMin === 9999,
 );
 
 const sheetA = {
@@ -370,6 +410,46 @@ check('sheet with pin → thieuPin undefined', mappedList[0]?.thieuPin !== true)
 const sheetNoPin = { ...sheetA, id: 's-nopin', priceConfigIds: [] } as unknown as PricingSheetApi;
 const mappedNoPin = mapPricingSheetsToHistory([sheetNoPin], sessionLatest, [prodOld]);
 check('sheet no pin → thieuPin true', mappedNoPin[0]?.thieuPin === true);
+
+// Helpers pin thiếu / UPGRADE
+check(
+  'lietKePinIdThieu',
+  lietKePinIdThieu(['id-a', 'id-b'], [{ id: 'id-a' } as PriceConfigApi]).join() === 'id-b',
+);
+check(
+  'coProductionUpgradeTrongConfigs true',
+  coProductionUpgradeTrongConfigs([upgradeOld]) === true,
+);
+check(
+  'coProductionUpgradeTrongConfigs false',
+  coProductionUpgradeTrongConfigs([prodNew]) === false,
+);
+const cleared = xoaCpsxUpgradeKhoiHangSo(sessionLatest.constants);
+check(
+  'xoaCpsxUpgradeKhoiHangSo',
+  (cleared as { cpsxUpgradeLabor?: unknown }).cpsxUpgradeLabor === undefined,
+);
+
+// Pin UPGRADE v1 → ctx.constants có NC 3731 (snapshot dùng cho pinnedCpsxNangCao)
+const ctxNc = layCtxChoPricingSheet(
+  { priceConfigIds: ['id-prod-new', 'id-upgrade-old'] },
+  sessionLatest,
+  [prodNew, upgradeOld, upgradeNew],
+);
+const snapNc = trichCpsxNangCao(ctxNc.constants);
+check(
+  'pin UPGRADE → trichCpsxNangCao labor 3731 (source pinnedCpsxNangCao)',
+  snapNc?.cpsxUpgradeLabor?.print?.roundedPerMin === 3731,
+);
+// map sheet thường (không isNangCap) vẫn không bắt buộc snapshot NC
+const mappedThuong = mapPricingSheetToHistory(
+  { ...sheetA, priceConfigIds: ['id-prod-new', 'id-upgrade-old'] } as PricingSheetApi,
+  ctxNc,
+);
+check(
+  'sheet không isNangCap → không gán pinnedCpsxNangCao',
+  mappedThuong?.pinnedCpsxNangCao === undefined,
+);
 
 // layConfigsTheoIdsCoCache with only cache (no fetch needed if all present)
 void (async () => {

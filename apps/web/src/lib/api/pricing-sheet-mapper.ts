@@ -31,6 +31,7 @@ import type {
   PriceConfigApi,
 } from './service-lts';
 import { xayEngineCtxTuPriceConfigs } from './price-config-mapper';
+import { trichCpsxNangCao } from '../cpsx-nang-cao-pin';
 
 // ── Result payload wrapper ─────────────────────────────────────────────────
 
@@ -183,6 +184,8 @@ export function mapPricingSheetToHistory(
 
   const pinIds = (sheet.priceConfigIds ?? []).filter(Boolean);
   const thieuPin = pinIds.length === 0;
+  // Đóng băng CPSX NC từ ctx pin — ManHinhQuanLy/page không bám session latest
+  const pinnedCpsxNangCao = laNangCap ? trichCpsxNangCao(ctx.constants) : undefined;
 
   return {
     id: sheet.id,
@@ -202,6 +205,7 @@ export function mapPricingSheetToHistory(
     pricingSheetId: sheet.id,
     priceConfigIds: sheet.priceConfigIds,
     thieuPin: thieuPin || undefined,
+    pinnedCpsxNangCao,
     originalCustomer: sheet.customerCodeName || sheet.customer?.codeName || syncedInput.customer || undefined,
     sellerId: sheet.createdBy ?? undefined,
     sellerName: sheet.original?.actorName ?? undefined,

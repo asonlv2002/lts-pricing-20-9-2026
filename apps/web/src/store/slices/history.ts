@@ -14,7 +14,11 @@ import {
   gomPriceConfigIdsTuSheets,
   layCtxChoPricingSheet,
 } from '../../lib/api/pricing-sheet-mapper';
-import { xayEngineCtxTuPriceConfigs } from '../../lib/api/price-config-mapper';
+import {
+  xayEngineCtxTuPriceConfigs,
+  lietKePinIdThieu,
+  coProductionUpgradeTrongConfigs,
+} from '../../lib/api/price-config-mapper';
 import { layConfigsTheoIdsCoCache } from '../../lib/api/price-config-cache';
 import { giuMucDangMoKhiTaiServer, timMucLichSuTheoId } from '../../lib/history-identity';
 import { trichCpsxNangCao, apCpsxNangCaoVaoHangSo } from '../../lib/cpsx-nang-cao-pin';
@@ -163,11 +167,20 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     const item = timMucLichSuTheoId(state.history, id);
     if (!item) return false;
 
+    const laNangCap = !!(item.isNangCap || item.input?.isNangCap);
     // Apply pin TRƯỚC khi tính result — nâng cao/thường cùng dùng constants đã ghim
     const pinIds = (item.priceConfigIds ?? []).map((x) => String(x).trim()).filter(Boolean);
+    let pinCpsxTuCtx = item.pinnedCpsxNangCao;
     if (pinIds.length && state.accessToken) {
       try {
         const configs = await layConfigsTheoIdsCoCache(pinIds, state.accessToken);
+        const thieuIds = lietKePinIdThieu(pinIds, configs);
+        if (thieuIds.length) {
+          console.warn(
+            'Pin priceConfigIds thiếu bản ghi (không hydrate đủ — tránh CPSX session latest):',
+            thieuIds,
+          );
+        }
         if (configs.length) {
           const fallback = {
             materials: state.sessionConfigSnapshot?.materials ?? state.materials,
@@ -177,6 +190,16 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
           };
           const ctx = xayEngineCtxTuPriceConfigs(configs, fallback, pinIds);
           get().applyPinnedConfig(ctx, pinIds);
+          // Snapshot NC từ ctx pin (server sheet có thể chưa có pinnedCpsxNangCao)
+          // Pin hydrate thành công → snapshot NC từ ctx (source of truth, không giữ local stale)
+          const snapNc = trichCpsxNangCao(ctx.constants);
+          if (snapNc) pinCpsxTuCtx = snapNc;
+          if (laNangCap && !coProductionUpgradeTrongConfigs(configs) && !snapNc) {
+            console.warn(
+              'Sheet NC: pin không có PRODUCTION_UPGRADE / CPSX NC — giá có thể thiếu mực/NC/điện ghim',
+              pinIds,
+            );
+          }
         } else {
           console.warn('Pin priceConfigIds không tải được config, dùng session (có thể lệch CPSX):', pinIds);
           get().restoreSessionConfig();
@@ -193,13 +216,22 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     }
 
     const s = get();
-    // Sheet NC đã lưu: 4 key CPSX NC từ snapshot item (không bám session đang sửa)
-    const hangSoSheet = item.pinnedCpsxNangCao
-      ? apCpsxNangCaoVaoHangSo(s.constants, item.pinnedCpsxNangCao)
+    // Sheet NC: 4 key CPSX NC từ snapshot item hoặc vừa hydrate từ pin
+    const hangSoSheet = pinCpsxTuCtx
+      ? apCpsxNangCaoVaoHangSo(s.constants, pinCpsxTuCtx)
       : s.constants;
     const synced = dongBoCotLoiNhuan({ ...item.input }, s.materials);
-    const laNangCap = !!(item.isNangCap || item.input?.isNangCap);
+    // Ghi snapshot NC vào history nếu thiếu (mở lại sheet server)
+    const nextHistory =
+      laNangCap && pinCpsxTuCtx && !item.pinnedCpsxNangCao
+        ? s.history.map((h) =>
+            h.id === item.id || h.pricingSheetId === item.pricingSheetId
+              ? { ...h, pinnedCpsxNangCao: pinCpsxTuCtx }
+              : h,
+          )
+        : s.history;
     set({
+      history: nextHistory,
       dauVao: synced,
       input: { ...synced, isNangCap: laNangCap || undefined },
       constants: hangSoSheet,
@@ -250,6 +282,13 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       if (pinIds.length) {
         try {
           configs = await layConfigsTheoIdsCoCache(pinIds, token);
+          const thieuIds = lietKePinIdThieu(pinIds, configs);
+          if (thieuIds.length) {
+            console.warn(
+              'Pin sheet thiếu bản ghi price-config (tránh CPSX session latest):',
+              thieuIds,
+            );
+          }
           if (configs.length) {
             const ctx = xayEngineCtxTuPriceConfigs(configs, fallback, pinIds);
             get().applyPinnedConfig(ctx, pinIds);
@@ -265,12 +304,21 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         get().restoreSessionConfig();
       }
 
-      const s = get();
       // Map history + giá bằng ctx pin (không dùng latest session)
       const ctxMap = layCtxChoPricingSheet(sheet, fallback, configs);
       const syncedInput = dongBoCotLoiNhuan({ ...rawInput }, ctxMap.materials);
       const mapped = mapPricingSheetToHistory(sheet, ctxMap);
       const laNangCap = !!(mapped?.isNangCap || rawInput.isNangCap);
+      if (laNangCap && pinIds.length && !coProductionUpgradeTrongConfigs(configs) && !mapped?.pinnedCpsxNangCao) {
+        console.warn(
+          'Sheet NC từ server: pin không hydrate CPSX nâng cao — kiểm tra PRODUCTION_UPGRADE trong priceConfigIds',
+          pinIds,
+        );
+      }
+      // hangSo = ctx pin (+ snapshot NC nếu có) — không lấy s.constants session
+      const hangSoSheet = mapped?.pinnedCpsxNangCao
+        ? apCpsxNangCaoVaoHangSo(ctxMap.constants, mapped.pinnedCpsxNangCao)
+        : ctxMap.constants;
 
       set((prev) => {
         let nextHistory = prev.history;
@@ -285,9 +333,19 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         }
         return {
           history: nextHistory,
+          materials: ctxMap.materials,
+          constants: hangSoSheet,
+          profitTable: ctxMap.profitTable,
+          smallWidthPrices: ctxMap.smallWidthPrices,
           dauVao: syncedInput,
           input: { ...syncedInput, isNangCap: laNangCap || undefined },
-          result: tinhBaoGia(syncedInput, s.materials, s.constants, s.profitTable, s.smallWidthPrices),
+          result: tinhBaoGia(
+            syncedInput,
+            ctxMap.materials,
+            hangSoSheet,
+            ctxMap.profitTable,
+            ctxMap.smallWidthPrices,
+          ),
           currentChotGia: syncedInput.chotGia || 0,
           phanBoCongTy: syncedInput.phanBoCongTy ?? 0,
           donViPhanBo: syncedInput.donViPhanBo ?? 'vnd',

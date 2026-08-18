@@ -192,9 +192,39 @@ export interface ConfigSnapshotLike {
 }
 
 /**
+ * Xóa 4 key CPSX NC khỏi constants — tránh session latest lọt khi pin
+ * thiếu / fail load PRODUCTION_UPGRADE.
+ */
+export function xoaCpsxUpgradeKhoiHangSo(hangSo: AppConstants): AppConstants {
+  const next = { ...hangSo } as AppConstants & Record<string, unknown>;
+  for (const key of CPSX_UPGRADE_CONSTANT_KEYS) {
+    delete next[key as string];
+  }
+  return next;
+}
+
+/** pinIds có id không resolve được trong configs đã fetch. */
+export function lietKePinIdThieu(
+  pinIds: string[],
+  configs: PriceConfigApi[],
+): string[] {
+  const have = new Set(configs.map((c) => c.id).filter(Boolean));
+  return pinIds.map((id) => String(id).trim()).filter((id) => id && !have.has(id));
+}
+
+/** Trong configs đã load có bản PRODUCTION_UPGRADE không. */
+export function coProductionUpgradeTrongConfigs(configs: PriceConfigApi[]): boolean {
+  return configs.some((c) => c.configName === 'PRODUCTION_UPGRADE');
+}
+
+/**
  * Gộp nhiều PriceConfig (theo order id ưu tiên) thành 1 engine ctx.
  * Cùng scope: bản xuất hiện trước trong `uuTienIds` thắng; nếu không có list
  * thì giữ bản apply sau cùng trong mảng configs.
+ *
+ * Khi có pin (uuTienIds): **xóa** cpsxUpgrade* khỏi fallback trước khi merge
+ * — chỉ lấy NC từ PRODUCTION_UPGRADE pin hoặc legacy blob PRODUCTION.
+ * Tránh session latest “dính” khi UPGRADE fail/thiếu.
  *
  * Legacy: sheet chỉ pin PRODUCTION (blob còn cpsxUpgrade*) mà không có
  * PRODUCTION_UPGRADE → vẫn merge 4 key NC từ blob PRODUCTION.
@@ -223,7 +253,10 @@ export function xayEngineCtxTuPriceConfigs(
 
   let materials = structuredClone(fallback.materials);
   let smallWidthPrices = structuredClone(fallback.smallWidthPrices);
-  let constants = structuredClone(fallback.constants);
+  // Có pin → không mang cpsxUpgrade* từ session latest
+  let constants = uuTienIds?.length
+    ? xoaCpsxUpgradeKhoiHangSo(structuredClone(fallback.constants))
+    : structuredClone(fallback.constants);
   let profitTable = structuredClone(fallback.profitTable);
 
   let daApProductionUpgrade = false;
