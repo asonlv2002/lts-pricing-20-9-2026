@@ -1848,10 +1848,10 @@ const buttonLabel = loadedItem
                    type="button"
                    className="btn btn-sm btn-outline"
                    style={{ marginBottom: 0, height: '40px' }}
-                   title="Xuất chi tiết bảng tính nâng cấp (giá + đặc tả NC)"
+                   title="Xem chi tiết bảng tính nâng cấp"
                    onClick={xuLyXuatChiTietNangCap}
                  >
-                   📥 Xuất file
+                   👁 Xem
                  </button>
                )}
              </div>
