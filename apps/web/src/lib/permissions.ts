@@ -10,7 +10,7 @@ const NHOM_MENU_POLICIES: Record<string, PolicyCode[]> = {
   // pricing_config: không gate ở cấp nhóm — mục "chi-phí-sx-nâng-cấp" mở cho mọi
   // người xem kết quả (read-only); các mục khác vẫn gate từng item PRICE_CONFIG_MANAGER.
   pricing_config: [],
-  system: ['ACCOUNT_MANAGER', 'ROLE_MANAGER', 'ACCOUNT_READ', 'ROLE_READ'],
+  system: ['ACCOUNT_MANAGER', 'ROLE_MANAGER'],
 };
 
 // Policy bắt buộc cho từng mục menu cụ thể (gate ở cấp item).
@@ -48,14 +48,17 @@ const MENU_KEYS_SYSTEM = new Set([
   'nhat-ky-he-thong',
 ]);
 
+function coQuyenHeThong(policies: PolicyCode[]): boolean {
+  return policies.includes('ACTIVITY_MONITOR')
+    || policies.includes('SYSTEM_MONITOR')
+    || policies.includes('ACCOUNT_MANAGER')
+    || policies.includes('ROLE_MANAGER')
+    || policies.includes('USER_POLICY_GRANT')
+    || policies.includes('USER_POLICY_REVOKE');
+}
+
 export function coTheXemNhomMenu(policies: PolicyCode[], nhomId: string): boolean {
-  if (nhomId === 'system') {
-    return policies.includes('ACTIVITY_MONITOR')
-      || policies.includes('SYSTEM_MONITOR')
-      || policies.includes('ACCOUNT_MANAGER')
-      || policies.includes('ROLE_MANAGER')
-      || policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
-  }
+  if (nhomId === 'system') return coQuyenHeThong(policies);
   const requiredPolicies = NHOM_MENU_POLICIES[nhomId];
   if (!requiredPolicies || requiredPolicies.length === 0) return true;
   return requiredPolicies.every(p => policies.includes(p));
@@ -68,12 +71,8 @@ export function coTheXemMucMenu(policies: PolicyCode[], menuKey: string): boolea
   if (MENU_KEYS_AUDIT_LOG.has(menuKey)) return true;
   if (menuKey === 'tai-nguyen-he-thong') return policies.includes('SYSTEM_MONITOR');
   if (menuKey === 'yeu-cau-mat-khau') return policies.includes('ACCOUNT_MANAGER');
-  if (MENU_KEYS_SYSTEM.has(menuKey)) {
-    return policies.includes('SYSTEM_MONITOR')
-      || policies.includes('ACCOUNT_MANAGER')
-      || policies.includes('ROLE_MANAGER')
-      || policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
-  }
+  if (menuKey === 'vai-tro') return policies.includes('ROLE_MANAGER');
+  if (MENU_KEYS_SYSTEM.has(menuKey)) return coQuyenHeThong(policies);
   return true;
 }
 
@@ -109,9 +108,13 @@ export function laAdmin(policies: PolicyCode[]): boolean {
 export function vaiTroTuPolicies(policies: PolicyCode[]): 'admin' | 'sale' | 'purchase' {
   if (policies.length === 0) return 'sale';
   const laAdmin = policies.some(p =>
-    p === 'ACCOUNT_MANAGER' || p === 'ROLE_MANAGER'
-    || p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY')
-    || p === 'ACTIVITY_MONITOR' || p === 'SYSTEM_MONITOR' || p === 'PRICE_CONFIG_MANAGER'
+    p === 'ACCOUNT_MANAGER'
+    || p === 'ROLE_MANAGER'
+    || p === 'USER_POLICY_GRANT'
+    || p === 'USER_POLICY_REVOKE'
+    || p === 'ACTIVITY_MONITOR'
+    || p === 'SYSTEM_MONITOR'
+    || p === 'PRICE_CONFIG_MANAGER'
   );
   return laAdmin ? 'admin' : 'sale';
 }

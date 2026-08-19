@@ -7,6 +7,7 @@ import {
   layTrangThaiBaoMatService,
   datPinService,
   xacThucPinService,
+  LoiServiceLts,
 } from '../../lib/api/service-lts';
 import NhapMaPin from './NhapMaPin';
 
@@ -133,12 +134,18 @@ export default function NhapPinDuyetModal({
       reset();
       onClose();
     } catch (err) {
-      soLanSai += 1;
-      if (soLanSai >= SO_LAN_SAI_TOI_DA) {
-        khoaDen = Date.now() + THOI_GIAN_KHOA_MS;
-        soLanSai = 0;
+      const msg = err instanceof Error ? err.message : 'Duyệt thất bại.';
+      const laHetPhien =
+        err instanceof LoiServiceLts && err.status === 401 && /hết phiên/i.test(msg);
+      const laSaiPin = !laHetPhien && /mã pin|pin không|invalid pin/i.test(msg);
+      if (laSaiPin) {
+        soLanSai += 1;
+        if (soLanSai >= SO_LAN_SAI_TOI_DA) {
+          khoaDen = Date.now() + THOI_GIAN_KHOA_MS;
+          soLanSai = 0;
+        }
       }
-      setLoi(err instanceof Error ? err.message : 'Duyệt thất bại.');
+      setLoi(msg);
       setPinNhap('');
       setDangXuLy(false);
     }

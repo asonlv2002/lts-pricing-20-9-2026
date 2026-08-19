@@ -10,19 +10,13 @@ export const SERVICE_LTS_DIRECT_URL =
   process.env.NEXT_PUBLIC_SERVICE_LTS_URL ?? "http://localhost:3001";
 export const LS_ACCESS_TOKEN = "lts_service_access_token";
 export const LS_REFRESH_TOKEN = "lts_service_refresh_token";
+/** Cache policies theo userId — JWT không chứa policies; tránh gọi GET /auth/accounts lúc login. */
+export const LS_USER_POLICIES = "lts_service_user_policies";
 
 // ── Policy catalog ───────────────────────────────────────────────────────
 export type PolicyCode =
   | "ACCOUNT_MANAGER"
   | "ROLE_MANAGER"
-  | "ACCOUNT_READ" // legacy FE
-  | "ACCOUNT_CREATE" // legacy FE
-  | "ACCOUNT_ACTIVATE" // legacy FE
-  | "ACCOUNT_PASSWORD_UPDATE_ALL" // legacy FE — admin set MK trực tiếp đã gỡ
-  | "ROLE_CREATE" // legacy FE
-  | "ROLE_UPDATE" // legacy FE
-  | "ROLE_DELETE" // legacy FE
-  | "ROLE_READ" // legacy FE
   | "CUSTOMER_MANAGER"
   | "USER_POLICY_GRANT"
   | "USER_POLICY_REVOKE"

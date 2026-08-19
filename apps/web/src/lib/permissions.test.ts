@@ -24,8 +24,8 @@ console.log('\n== Permissions menu filtering ==');
 
 assert(
   'nhat-ky-he-thong visible without ACTIVITY_MONITOR (own logs only)',
-  coTheXemMucMenu(['ACCOUNT_READ'], 'nhat-ky-he-thong') === true,
-  'ACCOUNT_READ should open nhat-ky-he-thong (server filters to own logs)',
+  coTheXemMucMenu(['ACCOUNT_MANAGER'], 'nhat-ky-he-thong') === true,
+  'ACCOUNT_MANAGER should open nhat-ky-he-thong (server filters to own logs)',
 );
 assert(
   'nhat-ky-he-thong visible with ACTIVITY_MONITOR',
@@ -34,17 +34,17 @@ assert(
 );
 assert(
   'tai-khoan still respects system group access',
-  coTheXemMucMenu(['ACCOUNT_READ'], 'tai-khoan') === true,
-  'ACCOUNT_READ should keep tai-khoan visible',
+  coTheXemMucMenu(['ACCOUNT_MANAGER'], 'tai-khoan') === true,
+  'ACCOUNT_MANAGER should keep tai-khoan visible',
 );
 assert(
   'nhat-ky-tinh-gia visible without ACTIVITY_MONITOR (own logs only)',
-  coTheXemMucMenu(['ACCOUNT_READ'], 'nhat-ky-tinh-gia') === true,
+  coTheXemMucMenu(['ACCOUNT_MANAGER'], 'nhat-ky-tinh-gia') === true,
   'nhat-ky-tinh-gia should open (server filters to own logs)',
 );
 assert(
   'system group gating still requires account or role access',
-  coTheXemNhomMenu(['ACCOUNT_READ'], 'system') === true
+  coTheXemNhomMenu(['ACCOUNT_MANAGER'], 'system') === true
     && coTheXemNhomMenu([], 'system') === false,
   'group-level rule must remain intact for account/role access',
 );
@@ -53,7 +53,7 @@ console.log('\n== pricing_config PRICE_CONFIG_MANAGER gate ==');
 assert(
   'pricing_config group visible without PRICE_CONFIG_MANAGER (item-level gate)',
   coTheXemNhomMenu([], 'pricing_config') === true
-    && coTheXemNhomMenu(['ACCOUNT_READ'] as PolicyCode[], 'pricing_config') === true,
+    && coTheXemNhomMenu(['ACCOUNT_MANAGER'] as PolicyCode[], 'pricing_config') === true,
   'pricing_config group is not gated; items decide visibility',
 );
 assert(
@@ -62,7 +62,7 @@ assert(
 );
 assert(
   'cau-hinh-vat-tu item requires PRICE_CONFIG_MANAGER',
-  coTheXemMucMenu(['ACCOUNT_READ'] as PolicyCode[], 'cau-hinh-vat-tu') === false
+  coTheXemMucMenu(['ACCOUNT_MANAGER'] as PolicyCode[], 'cau-hinh-vat-tu') === false
     && coTheXemMucMenu(['PRICE_CONFIG_MANAGER'] as PolicyCode[], 'cau-hinh-vat-tu') === true,
 );
 assert(
@@ -75,7 +75,7 @@ assert(
 console.log('\n== vaiTroTuPolicies ==');
 assert(
   'admin policies -> admin',
-  vaiTroTuPolicies(['ACCOUNT_READ', 'ROLE_READ'] as PolicyCode[]) === 'admin',
+  vaiTroTuPolicies(['ACCOUNT_MANAGER', 'ROLE_MANAGER'] as PolicyCode[]) === 'admin',
 );
 assert(
   'sale-only policies -> sale',
@@ -87,7 +87,7 @@ assert(
 );
 assert(
   'mixed admin+sale -> admin',
-  vaiTroTuPolicies(['CUSTOMER_MANAGER', 'ACCOUNT_READ'] as PolicyCode[]) === 'admin',
+  vaiTroTuPolicies(['CUSTOMER_MANAGER', 'ACCOUNT_MANAGER'] as PolicyCode[]) === 'admin',
 );
 assert(
   'ACTIVITY_MONITOR alone -> admin',
@@ -95,7 +95,7 @@ assert(
 );
 assert(
   'tai-nguyen-he-thong hidden without SYSTEM_MONITOR',
-  coTheXemMucMenu(['ACCOUNT_READ'] as PolicyCode[], 'tai-nguyen-he-thong') === false,
+  coTheXemMucMenu(['ACCOUNT_MANAGER'] as PolicyCode[], 'tai-nguyen-he-thong') === false,
 );
 assert(
   'tai-nguyen-he-thong visible with SYSTEM_MONITOR',
@@ -115,8 +115,13 @@ assert(
 );
 assert(
   'yeu-cau-mat-khau requires ACCOUNT_MANAGER',
-  coTheXemMucMenu(['ACCOUNT_READ'] as PolicyCode[], 'yeu-cau-mat-khau') === false
+  coTheXemMucMenu(['ROLE_MANAGER'] as PolicyCode[], 'yeu-cau-mat-khau') === false
     && coTheXemMucMenu(['ACCOUNT_MANAGER'] as PolicyCode[], 'yeu-cau-mat-khau') === true,
+);
+assert(
+  'vai-tro requires ROLE_MANAGER',
+  coTheXemMucMenu(['ACCOUNT_MANAGER'] as PolicyCode[], 'vai-tro') === false
+    && coTheXemMucMenu(['ROLE_MANAGER'] as PolicyCode[], 'vai-tro') === true,
 );
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);

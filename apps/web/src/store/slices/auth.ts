@@ -8,6 +8,7 @@ import {
   lamMoiTokenService,
   lamMoiTokenQuaQuanLyPhien,
   layTaiKhoanService,
+  layTrangThaiBaoMatService,
   layAnhDaiDienService,
   taiAnhDaiDienService,
   layChuKyService,
@@ -16,8 +17,10 @@ import {
   chuyenTaiKhoanApi,
   LS_ACCESS_TOKEN,
   LS_REFRESH_TOKEN,
+  LS_USER_POLICIES,
   POLICY_CATALOG,
   caiDatQuanLyPhien,
+  LoiServiceLts,
   type PolicyCode,
 } from '../../lib/api/service-lts';
 import { laLoiRefreshHetPhien } from '../../lib/auth-session';
@@ -78,6 +81,52 @@ function xoaToken() {
   try { window.localStorage.removeItem(LS_REFRESH_TOKEN); } catch {}
 }
 
+type PolicyCache = {
+  userId: string;
+  account?: string;
+  fullName?: string;
+  policies: PolicyCode[];
+};
+
+function locPolicyHopLe(codes: unknown): PolicyCode[] {
+  if (!Array.isArray(codes)) return [];
+  return codes.filter((code): code is PolicyCode =>
+    typeof code === 'string' && POLICY_CATALOG.some(p => p.code === code),
+  );
+}
+
+function docCachePolicies(userId: string): PolicyCode[] {
+  try {
+    const raw = window.localStorage.getItem(LS_USER_POLICIES);
+    if (!raw) return [];
+    const data = JSON.parse(raw) as PolicyCache;
+    if (data?.userId !== userId) return [];
+    return locPolicyHopLe(data.policies);
+  } catch {
+    return [];
+  }
+}
+
+function luuCachePolicies(userId: string, policies: PolicyCode[], meta?: { account?: string; fullName?: string }) {
+  try {
+    const payload: PolicyCache = {
+      userId,
+      account: meta?.account,
+      fullName: meta?.fullName,
+      policies: locPolicyHopLe(policies),
+    };
+    window.localStorage.setItem(LS_USER_POLICIES, JSON.stringify(payload));
+  } catch {}
+}
+
+function policiesChoUser(userId: string, account: string): PolicyCode[] {
+  const cached = docCachePolicies(userId);
+  if (cached.length > 0) return cached;
+  // Fallback admin gốc khi chưa từng cache (JWT không chứa policies).
+  if (account === 'admin') return POLICY_CATALOG.map(p => p.code);
+  return [];
+}
+
 const THONG_BAO_HET_PHIEN = 'Hết phiên đăng nhập.';
 let dangKiemTraPhien: Promise<void> | null = null;
 
@@ -98,7 +147,7 @@ function resetPhienHetHan(set: Parameters<StateCreator<CuaHangTinhGia, [], [], A
     sessionChecked: true,
     role: 'sale',
     activeModule: 'calculator',
-      pricingEntry: 'pick' as const,
+    pricingEntry: 'pick' as const,
   });
 }
 
@@ -143,6 +192,52 @@ function thuHoiChuKy(user: AuthSlice['nguoiDungHienTai']) {
   if (user?.signatureBlobUrl) URL.revokeObjectURL(user.signatureBlobUrl);
 }
 
+/**
+ * Làm giàu policies từ GET /auth/accounts khi user có ACCOUNT_MANAGER.
+ * 403 / lỗi khác → bỏ qua, không coi là hết phiên.
+ */
+async function lamGiauPoliciesTuDanhSachTaiKhoan(
+  get: () => CuaHangTinhGia,
+  set: Parameters<StateCreator<CuaHangTinhGia, [], [], AuthSlice>>[0],
+  accessToken: string,
+  userId: string,
+) {
+  try {
+    const accounts = await layTaiKhoanService(accessToken);
+    const self = accounts.find(a => a.id === userId);
+    if (!self) return;
+    const profile = chuyenTaiKhoanApi(self);
+    const policies = locPolicyHopLe(profile.policies);
+    luuCachePolicies(userId, policies, {
+      account: profile.account,
+      fullName: profile.fullName,
+    });
+    const current = get().nguoiDungHienTai;
+    if (!current || current.id !== userId) return;
+    set({
+      nguoiDungHienTai: {
+        ...current,
+        account: profile.account,
+        fullName: normalizeUserDisplayName(profile.fullName, profile.account),
+        policies,
+        avatarUrl: profile.avatarUrl ?? current.avatarUrl,
+        signatureUrl: profile.signatureUrl ?? current.signatureUrl,
+      },
+    });
+    get().setRole(vaiTroTuPolicies(policies));
+  } catch (error) {
+    // 403 = không có ACCOUNT_MANAGER — bình thường với sale.
+    if (error instanceof LoiServiceLts && (error.status === 403 || error.status === 401)) return;
+  }
+}
+
+function chaySideEffectSauDangNhap(get: () => CuaHangTinhGia) {
+  get().batDauTheoDoiMetricHeThong();
+  get().taiLaiAnhDaiDien().catch(() => {});
+  get().taiLaiChuKy().catch(() => {});
+  get().taiLichSuTuServer().catch(() => {});
+}
+
 export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = (set, get) => {
   caiDatQuanLyPhien({
     layTokenHienTai: () => {
@@ -171,39 +266,23 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
   apDungPhienTuDangNhap: async (data) => {
     luuToken(data.accessToken, data.refreshToken);
 
-    let userProfile: ReturnType<typeof chuyenTaiKhoanApi> | null = null;
-    try {
-      const accounts = await layTaiKhoanService(data.accessToken);
-      const self = accounts.find(a => a.id === data.user.id);
-      if (self) userProfile = chuyenTaiKhoanApi(self);
-    } catch {}
-
-    const fallbackPolicies = data.user.account === 'admin'
-      ? POLICY_CATALOG.map(policy => policy.code)
-      : [];
-
-    const userPolicies = userProfile?.policies ?? fallbackPolicies;
+    const userPolicies = policiesChoUser(data.user.id, data.user.account);
+    luuCachePolicies(data.user.id, userPolicies, {
+      account: data.user.account,
+      fullName: data.user.fullName ?? undefined,
+    });
 
     set({
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,
-      nguoiDungHienTai: userProfile
-        ? taoNguoiDungHienTai({
-            id: userProfile.id,
-            account: userProfile.account,
-            fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account),
-            policies: userPolicies,
-            avatarUrl: userProfile.avatarUrl,
-            signatureUrl: userProfile.signatureUrl,
-          })
-        : taoNguoiDungHienTai({
-            id: data.user.id,
-            account: data.user.account,
-            fullName: normalizeUserDisplayName(data.user.fullName, data.user.account),
-            policies: userPolicies,
-            avatarUrl: data.user.avatarUrl,
-            signatureUrl: data.user.signatureUrl,
-          }),
+      nguoiDungHienTai: taoNguoiDungHienTai({
+        id: data.user.id,
+        account: data.user.account,
+        fullName: normalizeUserDisplayName(data.user.fullName, data.user.account),
+        policies: userPolicies,
+        avatarUrl: data.user.avatarUrl,
+        signatureUrl: data.user.signatureUrl,
+      }),
       isAuthenticated: true,
       authLoading: false,
       authError: null,
@@ -211,10 +290,10 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
     });
 
     get().setRole(vaiTroTuPolicies(userPolicies));
-    get().batDauTheoDoiMetricHeThong();
-    get().taiLaiAnhDaiDien().catch(() => {});
-    get().taiLaiChuKy().catch(() => {});
-    get().taiLichSuTuServer().catch(() => {});
+    chaySideEffectSauDangNhap(get);
+
+    // Nền: enrich policies nếu user có quyền list accounts (không block UI).
+    void lamGiauPoliciesTuDanhSachTaiKhoan(get, set, data.accessToken, data.user.id);
   },
 
   login: async (account, password) => {
@@ -234,7 +313,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
         sessionChecked: true,
         role: 'sale',
         activeModule: 'calculator',
-      pricingEntry: 'pick' as const,
+        pricingEntry: 'pick' as const,
       });
       throw error;
     }
@@ -245,6 +324,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
     thuHoiAnhDaiDien(get().nguoiDungHienTai);
     thuHoiChuKy(get().nguoiDungHienTai);
     xoaToken();
+    // Giữ cache policies theo user để F5/login sau vẫn có menu đúng.
     set({
       accessToken: null,
       refreshToken: null,
@@ -294,104 +374,102 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
 
       set({ authLoading: true });
 
-    let savedAccess: string | null = null;
-    let savedRefresh: string | null = null;
-    try {
-      savedAccess = window.localStorage.getItem(LS_ACCESS_TOKEN);
-      savedRefresh = window.localStorage.getItem(LS_REFRESH_TOKEN);
-    } catch {}
-
-    if (!savedAccess || !savedRefresh) {
-      set({
-        accessToken: null,
-        refreshToken: null,
-        isAuthenticated: false,
-        authLoading: false,
-        sessionChecked: true,
-      });
-      return;
-    }
-
-    // Hydrate tokens before validation so the 401 auto-refresh path can use the saved refresh token.
-    set({ accessToken: savedAccess, refreshToken: savedRefresh });
-
-    // Validate the saved token by making a request
-    try {
-      const accounts = await layTaiKhoanService(savedAccess);
-      const payload = docJwtPayload(savedAccess);
-      const self = payload ? accounts.find(a => a.id === payload.sub) : undefined;
-      const userProfile = self ? chuyenTaiKhoanApi(self) : null;
-      const fallbackPolicies = payload?.account === 'admin'
-        ? POLICY_CATALOG.map(policy => policy.code)
-        : [];
-
-      const currentState = get();
-      const actTokens = currentState.accessToken && currentState.refreshToken
-        ? { accessToken: currentState.accessToken, refreshToken: currentState.refreshToken }
-        : { accessToken: savedAccess, refreshToken: savedRefresh };
-
-      set({
-        ...actTokens,
-        nguoiDungHienTai: userProfile
-          ? taoNguoiDungHienTai({ id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userProfile.policies, avatarUrl: userProfile.avatarUrl })
-          : payload
-            ? taoNguoiDungHienTai({ id: payload.sub, account: payload.account, fullName: normalizeUserDisplayName(payload.fullName, payload.account), policies: fallbackPolicies })
-            : null,
-        isAuthenticated: true,
-        authLoading: false,
-        sessionChecked: true,
-      });
-
-      get().setRole(vaiTroTuPolicies(userProfile?.policies ?? fallbackPolicies));
-      get().batDauTheoDoiMetricHeThong();
-      get().taiLaiAnhDaiDien().catch(() => {});
-      get().taiLaiChuKy().catch(() => {});
-      // Tải danh sách lịch sử từ server sau khi khôi phục phiên
-      get().taiLichSuTuServer().catch(() => {});
-    } catch {
-      // Token might be expired, try refresh
+      let savedAccess: string | null = null;
+      let savedRefresh: string | null = null;
       try {
-        const data = await lamMoiTokenService(savedRefresh);
-        luuToken(data.accessToken, data.refreshToken);
+        savedAccess = window.localStorage.getItem(LS_ACCESS_TOKEN);
+        savedRefresh = window.localStorage.getItem(LS_REFRESH_TOKEN);
+      } catch {}
 
-        // Fetch full user profile with policies after refresh
-        let userProfile: ReturnType<typeof chuyenTaiKhoanApi> | null = null;
-        try {
-          const accounts = await layTaiKhoanService(data.accessToken);
-          const self = accounts.find(a => a.id === data.user.id);
-          if (self) userProfile = chuyenTaiKhoanApi(self);
-        } catch {}
-
-        const fallbackPolicies = data.user.account === 'admin'
-          ? POLICY_CATALOG.map(policy => policy.code)
-          : [];
-
-        const userPolicies = userProfile?.policies ?? fallbackPolicies;
-
+      if (!savedAccess || !savedRefresh) {
         set({
-          accessToken: data.accessToken,
-          refreshToken: data.refreshToken,
-          nguoiDungHienTai: userProfile
-            ? taoNguoiDungHienTai({ id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userPolicies, avatarUrl: userProfile.avatarUrl })
-            : taoNguoiDungHienTai({ id: data.user.id, account: data.user.account, fullName: normalizeUserDisplayName(data.user.fullName, data.user.account), policies: userPolicies, avatarUrl: data.user.avatarUrl }),
+          accessToken: null,
+          refreshToken: null,
+          isAuthenticated: false,
+          authLoading: false,
+          sessionChecked: true,
+        });
+        return;
+      }
+
+      // Hydrate tokens trước để 401 auto-refresh dùng được refresh token.
+      set({ accessToken: savedAccess, refreshToken: savedRefresh });
+
+      const apDungUserTuToken = (
+        accessToken: string,
+        refreshToken: string,
+        user: { id: string; account: string; fullName?: string | null; avatarUrl?: string | null; signatureUrl?: string | null },
+      ) => {
+        const userPolicies = policiesChoUser(user.id, user.account);
+        set({
+          accessToken,
+          refreshToken,
+          nguoiDungHienTai: taoNguoiDungHienTai({
+            id: user.id,
+            account: user.account,
+            fullName: normalizeUserDisplayName(user.fullName, user.account),
+            policies: userPolicies,
+            avatarUrl: user.avatarUrl,
+            signatureUrl: user.signatureUrl,
+          }),
           isAuthenticated: true,
           authLoading: false,
           sessionChecked: true,
         });
+        get().setRole(vaiTroTuPolicies(userPolicies));
+        chaySideEffectSauDangNhap(get);
+        void lamGiauPoliciesTuDanhSachTaiKhoan(get, set, accessToken, user.id);
+      };
 
-          get().setRole(vaiTroTuPolicies(userPolicies));
-          get().batDauTheoDoiMetricHeThong();
-          get().taiLaiAnhDaiDien().catch(() => {});
-          get().taiLaiChuKy().catch(() => {});
-        // Tải danh sách lịch sử từ server sau khi làm mới phiên
-        get().taiLichSuTuServer().catch(() => {});
-      } catch {
-        resetPhienHetHan(set, get);
+      try {
+        // Validate phiên bằng API JWT-only (không cần ACCOUNT_MANAGER).
+        await layTrangThaiBaoMatService(savedAccess);
+        const payload = docJwtPayload(get().accessToken || savedAccess);
+        if (!payload?.sub || !payload.account) {
+          throw new Error('Invalid token payload');
+        }
+        const act = get();
+        apDungUserTuToken(
+          act.accessToken || savedAccess,
+          act.refreshToken || savedRefresh,
+          {
+            id: payload.sub,
+            account: payload.account,
+            fullName: payload.fullName,
+          },
+        );
+      } catch (error) {
+        // Chỉ refresh khi 401; 403/khác không được coi là hết phiên.
+        const canRefresh =
+          error instanceof LoiServiceLts && error.status === 401
+          || (error instanceof Error && /hết phiên|unauthorized|bearer token/i.test(error.message));
+
+        if (!canRefresh) {
+          // Lỗi mạng / 5xx: vẫn hydrate JWT + cache, không logout.
+          const payload = docJwtPayload(savedAccess);
+          if (payload?.sub && payload.account) {
+            apDungUserTuToken(savedAccess, savedRefresh, {
+              id: payload.sub,
+              account: payload.account,
+              fullName: payload.fullName,
+            });
+            return;
+          }
+          resetPhienHetHan(set, get);
+          return;
+        }
+
+        try {
+          const data = await lamMoiTokenService(savedRefresh);
+          luuToken(data.accessToken, data.refreshToken);
+          apDungUserTuToken(data.accessToken, data.refreshToken, data.user);
+        } catch {
+          resetPhienHetHan(set, get);
+        }
       }
-    }
-      })().finally(() => {
-        dangKiemTraPhien = null;
-      });
+    })().finally(() => {
+      dangKiemTraPhien = null;
+    });
 
     return dangKiemTraPhien;
   },
@@ -488,4 +566,4 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
     }
   },
 });
-};
+}

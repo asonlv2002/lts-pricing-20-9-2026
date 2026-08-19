@@ -13,6 +13,7 @@ type Buoc = 'dangTai' | 'chuaDat' | 'daDat';
 
 export default function BatBuocDatPin({ children }: { children: React.ReactNode }) {
   const accessToken = dungCuaHangTinhGia((s) => s.accessToken);
+  const isAuthenticated = dungCuaHangTinhGia((s) => s.isAuthenticated);
   const logout = dungCuaHangTinhGia((s) => s.logout);
 
   const [buoc, setBuoc] = useState<Buoc>('dangTai');
@@ -23,8 +24,8 @@ export default function BatBuocDatPin({ children }: { children: React.ReactNode 
   const [dangXuLy, setDangXuLy] = useState(false);
 
   const kiemTra = () => {
-    if (!accessToken) {
-      logout();
+    if (!isAuthenticated || !accessToken) {
+      setBuoc('dangTai');
       return;
     }
     setBuoc('dangTai');
@@ -32,14 +33,24 @@ export default function BatBuocDatPin({ children }: { children: React.ReactNode 
     layTrangThaiBaoMatService(accessToken)
       .then((tt) => setBuoc(tt.hasPin ? 'daDat' : 'chuaDat'))
       .catch((err) => {
+        // 401 đã được goiService xử lý refresh / hết phiên — không logout tay ở đây.
+        const msg = err instanceof Error ? err.message : 'Không kiểm tra được mã PIN.';
+        setLoi(msg);
+        // Giữ dangTai + nút Thử lại; không ép logout khi lỗi mạng tạm thời.
         setBuoc('dangTai');
-        setLoi(err instanceof Error ? err.message : 'Không kiểm tra được mã PIN.');
       });
   };
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setBuoc('dangTai');
+      setLoi(null);
+      return;
+    }
     kiemTra();
-  }, [accessToken]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [accessToken, isAuthenticated]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!isAuthenticated) return <>{children}</>;
 
   if (buoc === 'dangTai') {
     return (
@@ -57,6 +68,16 @@ export default function BatBuocDatPin({ children }: { children: React.ReactNode 
           {loi && (
             <button type="button" className="lts-login-btn" style={{ marginTop: 12 }} onClick={kiemTra}>
               Thử lại
+            </button>
+          )}
+          {loi && (
+            <button
+              type="button"
+              className="lts-login-btn"
+              style={{ background: 'transparent', color: '#8a8f98', border: '1px solid #d5d9e0', marginTop: 8 }}
+              onClick={logout}
+            >
+              Đăng xuất
             </button>
           )}
         </div>
