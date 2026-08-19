@@ -109,6 +109,15 @@ assert(
   'SYSTEM_MONITOR alone -> admin',
   vaiTroTuPolicies(['SYSTEM_MONITOR'] as PolicyCode[]) === 'admin',
 );
+assert(
+  'ACCOUNT_MANAGER alone -> admin',
+  vaiTroTuPolicies(['ACCOUNT_MANAGER'] as PolicyCode[]) === 'admin',
+);
+assert(
+  'yeu-cau-mat-khau requires ACCOUNT_MANAGER',
+  coTheXemMucMenu(['ACCOUNT_READ'] as PolicyCode[], 'yeu-cau-mat-khau') === false
+    && coTheXemMucMenu(['ACCOUNT_MANAGER'] as PolicyCode[], 'yeu-cau-mat-khau') === true,
+);
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);
 if (failed > 0) process.exit(1);

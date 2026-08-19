@@ -10,7 +10,7 @@ const NHOM_MENU_POLICIES: Record<string, PolicyCode[]> = {
   // pricing_config: không gate ở cấp nhóm — mục "chi-phí-sx-nâng-cấp" mở cho mọi
   // người xem kết quả (read-only); các mục khác vẫn gate từng item PRICE_CONFIG_MANAGER.
   pricing_config: [],
-  system: ['ACCOUNT_READ', 'ROLE_READ'],
+  system: ['ACCOUNT_MANAGER', 'ROLE_MANAGER', 'ACCOUNT_READ', 'ROLE_READ'],
 };
 
 // Policy bắt buộc cho từng mục menu cụ thể (gate ở cấp item).
@@ -40,6 +40,7 @@ const MENU_KEYS_AUDIT_LOG = new Set([
 /** Menu key nhóm quản trị hệ thống. */
 const MENU_KEYS_SYSTEM = new Set([
   'tai-khoan',
+  'yeu-cau-mat-khau',
   'vai-tro',
   'phan-quyen',
   'cai-dat-he-thong',
@@ -51,6 +52,8 @@ export function coTheXemNhomMenu(policies: PolicyCode[], nhomId: string): boolea
   if (nhomId === 'system') {
     return policies.includes('ACTIVITY_MONITOR')
       || policies.includes('SYSTEM_MONITOR')
+      || policies.includes('ACCOUNT_MANAGER')
+      || policies.includes('ROLE_MANAGER')
       || policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
   }
   const requiredPolicies = NHOM_MENU_POLICIES[nhomId];
@@ -64,8 +67,11 @@ export function coTheXemMucMenu(policies: PolicyCode[], menuKey: string): boolea
   // Nhật ký: ai cũng xem được (server tự filter theo actorId)
   if (MENU_KEYS_AUDIT_LOG.has(menuKey)) return true;
   if (menuKey === 'tai-nguyen-he-thong') return policies.includes('SYSTEM_MONITOR');
+  if (menuKey === 'yeu-cau-mat-khau') return policies.includes('ACCOUNT_MANAGER');
   if (MENU_KEYS_SYSTEM.has(menuKey)) {
     return policies.includes('SYSTEM_MONITOR')
+      || policies.includes('ACCOUNT_MANAGER')
+      || policies.includes('ROLE_MANAGER')
       || policies.some(p => p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY'));
   }
   return true;
@@ -91,6 +97,11 @@ export function coQuyenCoVanBangTinh(policies: PolicyCode[]): boolean {
   return policies.includes('PRICING_SHEET_ADVISOR');
 }
 
+/** Duyệt yêu cầu đặt lại mật khẩu + quản lý account credentials. */
+export function coQuyenQuanLyTaiKhoan(policies: PolicyCode[]): boolean {
+  return policies.includes('ACCOUNT_MANAGER');
+}
+
 export function laAdmin(policies: PolicyCode[]): boolean {
   return policies.length > 0;
 }
@@ -98,7 +109,8 @@ export function laAdmin(policies: PolicyCode[]): boolean {
 export function vaiTroTuPolicies(policies: PolicyCode[]): 'admin' | 'sale' | 'purchase' {
   if (policies.length === 0) return 'sale';
   const laAdmin = policies.some(p =>
-    p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY')
+    p === 'ACCOUNT_MANAGER' || p === 'ROLE_MANAGER'
+    || p.startsWith('ACCOUNT') || p.startsWith('ROLE') || p.startsWith('USER_POLICY')
     || p === 'ACTIVITY_MONITOR' || p === 'SYSTEM_MONITOR' || p === 'PRICE_CONFIG_MANAGER'
   );
   return laAdmin ? 'admin' : 'sale';

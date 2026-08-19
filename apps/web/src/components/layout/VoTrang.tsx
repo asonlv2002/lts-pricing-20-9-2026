@@ -387,6 +387,12 @@ const CAC_NHOM_MENU: NhomMenu[] = [
         vaiTros: ["admin"],
       },
       {
+        key: "yeu-cau-mat-khau",
+        id: "users",
+        label: "Yêu cầu đặt lại MK",
+        vaiTros: ["admin"],
+      },
+      {
         key: "vai-tro",
         id: "users",
         label: "Vai trò",

@@ -45,6 +45,18 @@ export interface AuthSlice {
 
   // ── Actions ────────────────────────────────────────────────────────────
   login: (account: string, password: string) => Promise<void>;
+  /** Áp token + profile sau login / consume password-reset (cùng shape DangNhapApi). */
+  apDungPhienTuDangNhap: (data: {
+    accessToken: string;
+    refreshToken: string;
+    user: {
+      id: string;
+      account: string;
+      fullName?: string | null;
+      avatarUrl?: string | null;
+      signatureUrl?: string | null;
+    };
+  }) => Promise<void>;
   logout: () => void;
   lamMoiPhien: () => Promise<void>;
   kiemTraVaKhoiPhucPhien: () => Promise<void>;
@@ -156,43 +168,60 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
   authError: null,
   sessionChecked: false,
 
+  apDungPhienTuDangNhap: async (data) => {
+    luuToken(data.accessToken, data.refreshToken);
+
+    let userProfile: ReturnType<typeof chuyenTaiKhoanApi> | null = null;
+    try {
+      const accounts = await layTaiKhoanService(data.accessToken);
+      const self = accounts.find(a => a.id === data.user.id);
+      if (self) userProfile = chuyenTaiKhoanApi(self);
+    } catch {}
+
+    const fallbackPolicies = data.user.account === 'admin'
+      ? POLICY_CATALOG.map(policy => policy.code)
+      : [];
+
+    const userPolicies = userProfile?.policies ?? fallbackPolicies;
+
+    set({
+      accessToken: data.accessToken,
+      refreshToken: data.refreshToken,
+      nguoiDungHienTai: userProfile
+        ? taoNguoiDungHienTai({
+            id: userProfile.id,
+            account: userProfile.account,
+            fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account),
+            policies: userPolicies,
+            avatarUrl: userProfile.avatarUrl,
+            signatureUrl: userProfile.signatureUrl,
+          })
+        : taoNguoiDungHienTai({
+            id: data.user.id,
+            account: data.user.account,
+            fullName: normalizeUserDisplayName(data.user.fullName, data.user.account),
+            policies: userPolicies,
+            avatarUrl: data.user.avatarUrl,
+            signatureUrl: data.user.signatureUrl,
+          }),
+      isAuthenticated: true,
+      authLoading: false,
+      authError: null,
+      sessionChecked: true,
+    });
+
+    get().setRole(vaiTroTuPolicies(userPolicies));
+    get().batDauTheoDoiMetricHeThong();
+    get().taiLaiAnhDaiDien().catch(() => {});
+    get().taiLaiChuKy().catch(() => {});
+    get().taiLichSuTuServer().catch(() => {});
+  },
+
   login: async (account, password) => {
     set({ authLoading: true, authError: null });
     try {
       const data = await dangNhapService(account, password);
-      luuToken(data.accessToken, data.refreshToken);
-
-      // Fetch user's own profile to get policies
-      let userProfile: ReturnType<typeof chuyenTaiKhoanApi> | null = null;
-      try {
-        const accounts = await layTaiKhoanService(data.accessToken);
-        const self = accounts.find(a => a.id === data.user.id);
-        if (self) userProfile = chuyenTaiKhoanApi(self);
-      } catch {}
-
-      const fallbackPolicies = data.user.account === 'admin'
-        ? POLICY_CATALOG.map(policy => policy.code)
-        : [];
-
-      const userPolicies = userProfile?.policies ?? fallbackPolicies;
-
-      set({
-        accessToken: data.accessToken,
-        refreshToken: data.refreshToken,
-        nguoiDungHienTai: userProfile
-          ? taoNguoiDungHienTai({ id: userProfile.id, account: userProfile.account, fullName: normalizeUserDisplayName(userProfile.fullName, userProfile.account), policies: userPolicies, avatarUrl: userProfile.avatarUrl })
-          : taoNguoiDungHienTai({ id: data.user.id, account: data.user.account, fullName: normalizeUserDisplayName(data.user.fullName, data.user.account), policies: userPolicies, avatarUrl: data.user.avatarUrl }),
-        isAuthenticated: true,
-        authLoading: false,
-        sessionChecked: true,
-      });
-
-      get().setRole(vaiTroTuPolicies(userPolicies));
-      get().batDauTheoDoiMetricHeThong();
-      get().taiLaiAnhDaiDien().catch(() => {});
-      get().taiLaiChuKy().catch(() => {});
-      // Tải danh sách lịch sử từ server sau khi đăng nhập thành công
-      get().taiLichSuTuServer().catch(() => {});
+      await get().apDungPhienTuDangNhap(data);
     } catch (error) {
       xoaToken();
       set({

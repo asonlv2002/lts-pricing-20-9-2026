@@ -1850,3 +1850,123 @@
   border: 1px solid rgba(245,158,11,0.25);
   color: #92400e;
 }
+
+/* ── Password reset requests (ACCOUNT_MANAGER) ──────────────────────────── */
+.pq-reset-req {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.pq-reset-req__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.pq-reset-req__stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.pq-reset-req__stats span {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border, #e5e7eb);
+  background: var(--card, #fff);
+  font-size: 13px;
+}
+.pq-reset-req__table-wrap {
+  overflow: auto;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: var(--pq-radius, 12px);
+  background: var(--card, #fff);
+}
+.pq-reset-req__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.pq-reset-req__table th,
+.pq-reset-req__table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--border, #e5e7eb);
+  white-space: nowrap;
+}
+.pq-reset-req__table th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted, #6b7280);
+  background: color-mix(in srgb, var(--border, #e5e7eb) 35%, transparent);
+}
+.pq-reset-req__table tr:last-child td { border-bottom: none; }
+.pq-reset-req__empty {
+  text-align: center;
+  color: var(--muted, #6b7280);
+  padding: 28px 14px !important;
+}
+.pq-reset-req__actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.pq-reset-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.pq-reset-badge--pending {
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+}
+.pq-reset-badge--accepted {
+  background: rgba(8, 145, 178, 0.12);
+  color: #0e7490;
+}
+.pq-reset-badge--verified {
+  background: rgba(5, 150, 105, 0.12);
+  color: #047857;
+}
+.pq-reset-exp--bad { color: #dc2626; font-weight: 600; }
+.pq-reset-code-modal .pq-modal__body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.pq-reset-code-modal .pq-modal__body > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+.pq-reset-code-hint {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted, #6b7280);
+  line-height: 1.5;
+}
+.pq-reset-code-display {
+  font-family: var(--pq-mono);
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.28em;
+  text-align: center;
+  padding: 18px 12px;
+  border-radius: 12px;
+  border: 1px dashed color-mix(in srgb, var(--accent, #4f46e5) 45%, var(--border));
+  background: color-mix(in srgb, var(--accent, #4f46e5) 8%, transparent);
+}
+.pq-reset-code-exp {
+  margin: 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--muted, #6b7280);
+}

@@ -13,14 +13,16 @@ export const LS_REFRESH_TOKEN = "lts_service_refresh_token";
 
 // ── Policy catalog ───────────────────────────────────────────────────────
 export type PolicyCode =
-  | "ACCOUNT_READ"
-  | "ACCOUNT_CREATE"
-  | "ACCOUNT_ACTIVATE"
-  | "ACCOUNT_PASSWORD_UPDATE_ALL"
-  | "ROLE_CREATE"
-  | "ROLE_UPDATE"
-  | "ROLE_DELETE"
-  | "ROLE_READ"
+  | "ACCOUNT_MANAGER"
+  | "ROLE_MANAGER"
+  | "ACCOUNT_READ" // legacy FE
+  | "ACCOUNT_CREATE" // legacy FE
+  | "ACCOUNT_ACTIVATE" // legacy FE
+  | "ACCOUNT_PASSWORD_UPDATE_ALL" // legacy FE — admin set MK trực tiếp đã gỡ
+  | "ROLE_CREATE" // legacy FE
+  | "ROLE_UPDATE" // legacy FE
+  | "ROLE_DELETE" // legacy FE
+  | "ROLE_READ" // legacy FE
   | "CUSTOMER_MANAGER"
   | "USER_POLICY_GRANT"
   | "USER_POLICY_REVOKE"
@@ -48,58 +50,16 @@ export interface Policy {
 
 export const POLICY_CATALOG: Policy[] = [
   {
-    code: "ACCOUNT_READ",
-    ten: "Xem tài khoản",
-    moTa: "Cho phép đọc danh sách tài khoản và quyền đã cấp.",
-    nhom: "Tài khoản",
-    rui_ro: "thap",
-  },
-  {
-    code: "ACCOUNT_CREATE",
-    ten: "Tạo tài khoản",
-    moTa: "Cho phép tạo mới tài khoản người dùng.",
-    nhom: "Tài khoản",
-    rui_ro: "trung",
-  },
-  {
-    code: "ACCOUNT_ACTIVATE",
-    ten: "Kích hoạt / vô hiệu tài khoản",
-    moTa: "Cho phép kích hoạt hoặc vô hiệu tài khoản người dùng.",
-    nhom: "Tài khoản",
-    rui_ro: "trung",
-  },
-  {
-    code: "ACCOUNT_PASSWORD_UPDATE_ALL",
-    ten: "Đặt lại mật khẩu tài khoản",
-    moTa: "Cho phép cập nhật mật khẩu cho tài khoản khác.",
+    code: "ACCOUNT_MANAGER",
+    ten: "Quản lý tài khoản",
+    moTa: "Quản lý tài khoản, duyệt yêu cầu đặt lại mật khẩu và thông tin đăng nhập.",
     nhom: "Tài khoản",
     rui_ro: "cao",
   },
   {
-    code: "ROLE_READ",
-    ten: "Xem vai trò",
-    moTa: "Cho phép đọc các mẫu vai trò.",
-    nhom: "Vai trò",
-    rui_ro: "thap",
-  },
-  {
-    code: "ROLE_CREATE",
-    ten: "Tạo vai trò",
-    moTa: "Cho phép tạo mẫu vai trò mới.",
-    nhom: "Vai trò",
-    rui_ro: "trung",
-  },
-  {
-    code: "ROLE_UPDATE",
-    ten: "Sửa vai trò",
-    moTa: "Cho phép cập nhật mẫu vai trò.",
-    nhom: "Vai trò",
-    rui_ro: "trung",
-  },
-  {
-    code: "ROLE_DELETE",
-    ten: "Xóa vai trò",
-    moTa: "Cho phép xóa mẫu vai trò.",
+    code: "ROLE_MANAGER",
+    ten: "Quản lý vai trò",
+    moTa: "Đọc, tạo, sửa và xóa mẫu vai trò.",
     nhom: "Vai trò",
     rui_ro: "cao",
   },
@@ -305,6 +265,16 @@ function dichLoiServer(message: string, status: number): string {
     return "Mã PIN không đúng.";
   if (lower.includes("pin must be exactly 6 digits"))
     return "Mã PIN phải gồm đúng 6 chữ số.";
+  if (lower.includes("password reset code must be exactly 6 digits"))
+    return "Mã đặt lại mật khẩu phải gồm đúng 6 chữ số.";
+  if (lower.includes("invalid password reset code"))
+    return "Mã đặt lại mật khẩu không đúng.";
+  if (lower.includes("invalid password reset request"))
+    return "Yêu cầu đặt lại mật khẩu không hợp lệ hoặc đã hết hạn.";
+  if (lower.includes("password reset request expired"))
+    return "Yêu cầu đặt lại mật khẩu đã hết hạn.";
+  if (lower.includes("password reset request was already reviewed"))
+    return "Yêu cầu này đã được xử lý trước đó.";
   if (lower.includes("forbidden"))
     return "Bạn không có quyền thực hiện thao tác này.";
   if (lower.includes("not found")) return "Không tìm thấy dữ liệu yêu cầu.";
@@ -419,11 +389,14 @@ async function goiService<T>(
     throw new LoiServiceLts("Không kết nối được tới máy chủ.");
   }
 
-  if (
-    res.status === 401 &&
-    path !== "/auth/login" &&
-    path !== "/auth/refresh"
-  ) {
+  const laAuthPublic =
+    path === "/auth/login" ||
+    path === "/auth/refresh" ||
+    path === "/auth/password-reset-requests" ||
+    path === "/auth/password-reset-requests/verify" ||
+    path === "/auth/password-reset-requests/consume";
+
+  if (res.status === 401 && !laAuthPublic) {
     try {
       const tokens = await lamMoiTokenTuHeThong();
       try {
@@ -495,6 +468,114 @@ export async function doiMatKhauService(
     },
     token,
   );
+}
+
+// ── Password reset request (public + ACCOUNT_MANAGER) ───────────────────
+export type PasswordResetStatus = "pending" | "accepted" | "verified";
+
+export interface PasswordResetRequestApi {
+  id: string;
+  userId: string;
+  status: PasswordResetStatus;
+  expiresAt: string;
+  createdAt: string;
+  user?: {
+    id: string;
+    account: string;
+    fullName: string | null;
+    isActive: boolean;
+  };
+}
+
+export interface PasswordResetReviewApi {
+  id: string;
+  decision: "accepted" | "rejected";
+  code?: string;
+  expiresAt?: string;
+}
+
+export interface PasswordResetVerifyApi {
+  id: string;
+  status: PasswordResetStatus;
+  expiresAt: string;
+}
+
+/** POST /auth/password-reset-requests — public, body { account }. Luôn { ok: true }. */
+export async function taoYeuCauDatLaiMatKhauService(
+  account: string,
+): Promise<{ ok: true }> {
+  return goiService<{ ok: true }>("/auth/password-reset-requests", {
+    method: "POST",
+    body: JSON.stringify({ account: account.trim() }),
+  });
+}
+
+/** GET /auth/me/password-reset-requests — JWT, request hiện tại hoặc null. */
+export async function layYeuCauDatLaiMatKhauCuaToiService(
+  token: string,
+): Promise<PasswordResetRequestApi | null> {
+  return goiService<PasswordResetRequestApi | null>(
+    "/auth/me/password-reset-requests",
+    {},
+    token,
+  );
+}
+
+/** GET /auth/password-reset-requests — ACCOUNT_MANAGER. */
+export async function danhSachYeuCauDatLaiMatKhauService(
+  token: string,
+): Promise<PasswordResetRequestApi[]> {
+  return goiService<PasswordResetRequestApi[]>(
+    "/auth/password-reset-requests",
+    {},
+    token,
+  );
+}
+
+/** PATCH /auth/password-reset-requests/:id/review — ACCOUNT_MANAGER. */
+export async function duyetYeuCauDatLaiMatKhauService(
+  token: string,
+  requestId: string,
+  decision: "accepted" | "rejected",
+): Promise<PasswordResetReviewApi> {
+  return goiService<PasswordResetReviewApi>(
+    `/auth/password-reset-requests/${encodeURIComponent(requestId)}/review`,
+    {
+      method: "PATCH",
+      body: JSON.stringify({ decision }),
+    },
+    token,
+  );
+}
+
+/** POST /auth/password-reset-requests/verify — public. */
+export async function xacThucMaDatLaiMatKhauService(
+  account: string,
+  code: string,
+): Promise<PasswordResetVerifyApi> {
+  return goiService<PasswordResetVerifyApi>(
+    "/auth/password-reset-requests/verify",
+    {
+      method: "POST",
+      body: JSON.stringify({ account: account.trim(), code: code.trim() }),
+    },
+  );
+}
+
+/** POST /auth/password-reset-requests/consume — public → tokens như login. */
+export async function datMatKhauMoiTuYeuCauService(
+  account: string,
+  requestId: string,
+  newPassword: string,
+): Promise<DangNhapApi> {
+  return goiService<DangNhapApi>("/auth/password-reset-requests/consume", {
+    method: "POST",
+    body: JSON.stringify({
+      account: account.trim(),
+      id: requestId,
+      newPassword,
+    }),
+  });
 }
 
 // GET /auth/me/security — tài khoản có đặt mã PIN chưa (PIN lưu trên máy chủ).
@@ -645,21 +726,6 @@ export async function layChuKyService(token?: string): Promise<Blob> {
   }
 
   return res.blob();
-}
-
-export async function datLaiMatKhauTaiKhoanService(
-  token: string,
-  userId: string,
-  newPassword: string,
-): Promise<TaiKhoanApi> {
-  return goiService<TaiKhoanApi>(
-    `/auth/${encodeURIComponent(userId)}/password`,
-    {
-      method: "PATCH",
-      body: JSON.stringify({ newPassword }),
-    },
-    token,
-  );
 }
 
 // ── Accounts ─────────────────────────────────────────────────────────────

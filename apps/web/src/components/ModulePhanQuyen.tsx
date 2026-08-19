@@ -5,9 +5,9 @@
 // 11 policies, role templates, user policies. Master-detail layout.
 // Sử dụng shared auth store thay vì inline auth state.
 // ─────────────────────────────────────────────────────────────────────────────
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Search, Plus, Shield, Lock,
+  Search, Plus, Shield, Copy, RefreshCw,
   ChevronRight, Check, X, Trash2, Pencil, UserCircle2,
   ScrollText, Sparkles, FileKey2, ListChecks, Filter, Info,
 } from 'lucide-react';
@@ -19,11 +19,12 @@ import {
   type TaiKhoanApi,
   type TaiKhoan,
   type VaiTro,
+  type PasswordResetRequestApi,
+  type PasswordResetReviewApi,
   POLICY_CATALOG,
   layTaiKhoanService,
   taoTaiKhoanService,
   kichHoatTaiKhoanService,
-  datLaiMatKhauTaiKhoanService,
   capQuyenService,
   thuHoiQuyenService,
   luuVaiTroService,
@@ -31,6 +32,8 @@ import {
   layVaiTroService,
   chuyenTaiKhoanApi,
   canhBaoLechPolicyService,
+  danhSachYeuCauDatLaiMatKhauService,
+  duyetYeuCauDatLaiMatKhauService,
 } from '../lib/api/service-lts';
 import { normalizeDisplayText } from '../lib/text-codec';
 import {
@@ -38,6 +41,7 @@ import {
   collapseRolePoliciesToFormChoiceIds,
   expandRoleFormPolicyChoiceCodes,
 } from '../lib/role-policy-form';
+import { coQuyenQuanLyTaiKhoan } from '../lib/permissions';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SAMPLE DATA  — chỉ dùng làm placeholder khi đang tải dữ liệu từ service-lts
@@ -46,15 +50,15 @@ const TAI_KHOAN_MAU: TaiKhoan[] = [
   { id: '1', account: 'admin',       fullName: 'Quản trị hệ thống', isActive: true,
     policies: POLICY_CATALOG.map(p => p.code), createdAt: '2025-08-12', lastLogin: '2026-05-25 08:42' },
   { id: '2', account: 'thu.lts',     fullName: 'Lê Thị Thu',         isActive: true,
-    policies: ['ACCOUNT_READ','ACCOUNT_CREATE','ROLE_READ','USER_POLICY_GRANT'], createdAt: '2025-09-03', lastLogin: '2026-05-24 17:21' },
+    policies: ['ACCOUNT_MANAGER','ROLE_MANAGER','USER_POLICY_GRANT'], createdAt: '2025-09-03', lastLogin: '2026-05-24 17:21' },
   { id: '3', account: 'nguyen.an',   fullName: 'Nguyễn Văn An',      isActive: true,
-    policies: ['ACCOUNT_READ','ROLE_READ'], createdAt: '2025-10-19', lastLogin: '2026-05-25 09:05' },
+    policies: ['ACCOUNT_MANAGER'], createdAt: '2025-10-19', lastLogin: '2026-05-25 09:05' },
   { id: '4', account: 'phuong.kt',   fullName: 'Trần Thanh Phương',  isActive: false,
-    policies: ['ACCOUNT_READ'], createdAt: '2025-11-08' },
+    policies: [], createdAt: '2025-11-08' },
   { id: '5', account: 'quan.bd',     fullName: 'Lý Hoài Quân',       isActive: true,
-    policies: ['ACCOUNT_READ','ROLE_READ','ROLE_CREATE','ROLE_UPDATE'], createdAt: '2026-01-22', lastLogin: '2026-05-23 14:11' },
+    policies: ['ROLE_MANAGER'], createdAt: '2026-01-22', lastLogin: '2026-05-23 14:11' },
   { id: '6', account: 'mai.nv',      fullName: 'Phạm Hương Mai',     isActive: true,
-    policies: ['ACCOUNT_READ'], createdAt: '2026-02-17', lastLogin: '2026-05-22 11:00' },
+    policies: [], createdAt: '2026-02-17', lastLogin: '2026-05-22 11:00' },
 ];
 
 const VAI_TRO_MAU: VaiTro[] = [
@@ -70,7 +74,7 @@ const VAI_TRO_MAU: VaiTro[] = [
     code: 'HR_MANAGER',
     name: 'Quản lý nhân sự',
     description: 'Tạo & quản lý tài khoản nhân viên, không động đến cấu hình quyền.',
-    policies: ['ACCOUNT_READ','ACCOUNT_CREATE','ACCOUNT_ACTIVATE'],
+    policies: ['ACCOUNT_MANAGER'],
     granterName: 'Nguyễn Văn An',
     updatedAt: '2026-03-04',
   },
@@ -78,7 +82,7 @@ const VAI_TRO_MAU: VaiTro[] = [
     code: 'ROLE_DESIGNER',
     name: 'Thiết kế vai trò',
     description: 'Tạo & sửa mẫu vai trò, không gán cho user.',
-    policies: ['ROLE_READ','ROLE_CREATE','ROLE_UPDATE'],
+    policies: ['ROLE_MANAGER'],
     granterName: 'Lê Thị Thu',
     updatedAt: '2026-04-18',
   },
@@ -86,7 +90,7 @@ const VAI_TRO_MAU: VaiTro[] = [
     code: 'AUDITOR',
     name: 'Kiểm toán nội bộ',
     description: 'Chỉ đọc — phục vụ kiểm tra phân quyền & tài khoản.',
-    policies: ['ACCOUNT_READ','ROLE_READ'],
+    policies: ['ACTIVITY_MONITOR'],
     granterName: 'Lê Thị Thu',
     updatedAt: '2026-05-09',
   },
@@ -191,6 +195,219 @@ function HangTaiKhoan({ user, daChon, onClick }: { user: TaiKhoan; daChon: boole
 // ═════════════════════════════════════════════════════════════════════════════
 // 6. INSPECTOR — chi tiết tài khoản + cấp/thu hồi policy
 // ═════════════════════════════════════════════════════════════════════════════
+function demNguocDen(expiresAt: string, nowMs: number): string {
+  const ms = new Date(expiresAt).getTime() - nowMs;
+  if (!Number.isFinite(ms) || ms <= 0) return 'Đã hết hạn';
+  const totalSec = Math.floor(ms / 1000);
+  const m = Math.floor(totalSec / 60);
+  const s = totalSec % 60;
+  return `${m}p ${String(s).padStart(2, '0')}s`;
+}
+
+function nhanTrangThaiReset(status: PasswordResetRequestApi['status']): string {
+  if (status === 'pending') return 'Chờ duyệt';
+  if (status === 'accepted') return 'Đã duyệt';
+  return 'Đã xác thực mã';
+}
+
+function ViewYeuCauMatKhau({
+  accessToken,
+  coQuyen,
+}: {
+  accessToken: string | null;
+  coQuyen: boolean;
+}) {
+  const [items, setItems] = useState<PasswordResetRequestApi[]>([]);
+  const [dangTai, setDangTai] = useState(false);
+  const [loi, setLoi] = useState<string | null>(null);
+  const [dangXuLyId, setDangXuLyId] = useState<string | null>(null);
+  const [maDaDuyet, setMaDaDuyet] = useState<PasswordResetReviewApi | null>(null);
+  const [userDaDuyet, setUserDaDuyet] = useState<PasswordResetRequestApi['user'] | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  const nap = useCallback(async () => {
+    if (!accessToken || !coQuyen) return;
+    setDangTai(true);
+    setLoi(null);
+    try {
+      const data = await danhSachYeuCauDatLaiMatKhauService(accessToken);
+      setItems(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setLoi(error instanceof Error ? error.message : 'Không tải được danh sách yêu cầu.');
+    } finally {
+      setDangTai(false);
+    }
+  }, [accessToken, coQuyen]);
+
+  useEffect(() => {
+    void nap();
+  }, [nap]);
+
+  useEffect(() => {
+    if (!accessToken || !coQuyen) return;
+    const t = window.setInterval(() => void nap(), 12_000);
+    return () => window.clearInterval(t);
+  }, [accessToken, coQuyen, nap]);
+
+  const xuLyReview = async (row: PasswordResetRequestApi, decision: 'accepted' | 'rejected') => {
+    if (!accessToken) return;
+    setDangXuLyId(row.id);
+    setLoi(null);
+    try {
+      const res = await duyetYeuCauDatLaiMatKhauService(accessToken, row.id, decision);
+      if (decision === 'accepted' && res.code) {
+        setMaDaDuyet(res);
+        setUserDaDuyet(row.user ?? null);
+        setCopied(false);
+      }
+      await nap();
+    } catch (error) {
+      setLoi(error instanceof Error ? error.message : 'Không xử lý được yêu cầu.');
+    } finally {
+      setDangXuLyId(null);
+    }
+  };
+
+  const copyMa = async () => {
+    if (!maDaDuyet?.code) return;
+    try {
+      await navigator.clipboard.writeText(maDaDuyet.code);
+      setCopied(true);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  if (!coQuyen) {
+    return (
+      <div className="pq-empty">
+        Bạn cần quyền <b>Quản lý tài khoản (ACCOUNT_MANAGER)</b> để xem và duyệt yêu cầu đặt lại mật khẩu.
+      </div>
+    );
+  }
+
+  const pendingCount = items.filter(i => i.status === 'pending').length;
+
+  return (
+    <div className="pq-reset-req">
+      <div className="pq-reset-req__toolbar">
+        <div className="pq-reset-req__stats">
+          <span><b>{items.length}</b> yêu cầu</span>
+          <span><b>{pendingCount}</b> chờ duyệt</span>
+        </div>
+        <button type="button" className="pq-btn pq-btn--ghost" onClick={() => void nap()} disabled={dangTai}>
+          <RefreshCw size={14} className={dangTai ? 'um-spin' : undefined} /> Làm mới
+        </button>
+      </div>
+
+      {loi && <div className="pq-api-error">{loi}</div>}
+
+      <div className="pq-reset-req__table-wrap">
+        <table className="pq-reset-req__table">
+          <thead>
+            <tr>
+              <th>Tài khoản</th>
+              <th>Họ tên</th>
+              <th>Trạng thái</th>
+              <th>Gửi lúc</th>
+              <th>Hết hạn</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {items.length === 0 ? (
+              <tr>
+                <td colSpan={6} className="pq-reset-req__empty">
+                  {dangTai ? 'Đang tải...' : 'Chưa có yêu cầu đặt lại mật khẩu.'}
+                </td>
+              </tr>
+            ) : (
+              items.map(row => {
+                const hetHan = new Date(row.expiresAt).getTime() <= nowMs;
+                return (
+                  <tr key={row.id}>
+                    <td className="pq-mono">@{row.user?.account ?? '—'}</td>
+                    <td>{normalizeDisplayText(row.user?.fullName || row.user?.account || '—')}</td>
+                    <td>
+                      <span className={`pq-reset-badge pq-reset-badge--${row.status}`}>
+                        {nhanTrangThaiReset(row.status)}
+                      </span>
+                    </td>
+                    <td>{dinhDangNgay(row.createdAt)}</td>
+                    <td className={hetHan ? 'pq-reset-exp--bad' : ''}>
+                      {demNguocDen(row.expiresAt, nowMs)}
+                    </td>
+                    <td className="pq-reset-req__actions">
+                      {row.status === 'pending' && (
+                        <>
+                          <button
+                            type="button"
+                            className="pq-btn pq-btn--primary pq-btn--sm"
+                            disabled={dangXuLyId === row.id || hetHan}
+                            onClick={() => void xuLyReview(row, 'accepted')}
+                          >
+                            Duyệt
+                          </button>
+                          <button
+                            type="button"
+                            className="pq-btn pq-btn--ghost pq-btn--sm"
+                            disabled={dangXuLyId === row.id}
+                            onClick={() => void xuLyReview(row, 'rejected')}
+                          >
+                            Từ chối
+                          </button>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {maDaDuyet?.code && (
+        <div className="pq-modal-backdrop" onClick={() => setMaDaDuyet(null)}>
+          <div className="pq-modal pq-reset-code-modal" onClick={e => e.stopPropagation()}>
+            <div className="pq-modal__head">
+              <h3>Đã duyệt — mã xác thực</h3>
+              <button type="button" className="pq-btn pq-btn--ghost pq-btn--sm" onClick={() => setMaDaDuyet(null)}>
+                <X size={13} /> Đóng
+              </button>
+            </div>
+            <div className="pq-modal__body">
+              <div><b>Tài khoản</b><span className="pq-mono">@{userDaDuyet?.account ?? '—'}</span></div>
+              <div><b>Họ tên</b><span>{normalizeDisplayText(userDaDuyet?.fullName || userDaDuyet?.account || '—')}</span></div>
+              <p className="pq-reset-code-hint">
+                Mã chỉ hiện một lần. Chuyển cho user qua kênh ngoài app (chat / gọi điện).
+              </p>
+              <div className="pq-reset-code-display">{maDaDuyet.code}</div>
+              {maDaDuyet.expiresAt && (
+                <p className="pq-reset-code-exp">
+                  Hết hạn sau: <strong>{demNguocDen(maDaDuyet.expiresAt, nowMs)}</strong>
+                </p>
+              )}
+            </div>
+            <div className="pq-modal__foot">
+              <button type="button" className="pq-btn pq-btn--ghost" onClick={() => setMaDaDuyet(null)}>Đóng</button>
+              <button type="button" className="pq-btn pq-btn--primary" onClick={() => void copyMa()}>
+                <Copy size={14} /> {copied ? 'Đã sao chép' : 'Sao chép mã'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function InspectorTaiKhoan({
   user,
   draftPolicies,
@@ -199,10 +416,8 @@ function InspectorTaiKhoan({
   onCancelPolicyChanges,
   onApplyTemplate,
   onToggleActive,
-  onResetPassword,
   templates,
   coQuyenPhanQuyen,
-  coQuyenDatLaiMatKhau,
   dangLuuQuyen,
 }: {
   user?: TaiKhoan;
@@ -212,10 +427,8 @@ function InspectorTaiKhoan({
   onCancelPolicyChanges: () => void;
   onApplyTemplate: (template: VaiTro) => void;
   onToggleActive: () => void;
-  onResetPassword: () => void;
   templates: VaiTro[];
   coQuyenPhanQuyen: boolean;
-  coQuyenDatLaiMatKhau: boolean;
   dangLuuQuyen: boolean;
 }) {
   const [tab, setTab] = useState<'policy' | 'template'>('policy');
@@ -276,12 +489,6 @@ function InspectorTaiKhoan({
           <button className="pq-btn pq-btn--ghost" title={user.isActive ? 'Vô hiệu tài khoản' : 'Kích hoạt tài khoản'} onClick={onToggleActive}>
             <UserCircle2 size={14} /> {user.isActive ? 'Vô hiệu' : 'Kích hoạt'}
           </button>
-
-          {coQuyenDatLaiMatKhau && (
-            <button className="pq-btn pq-btn--ghost" title="Đặt lại mật khẩu tài khoản" onClick={onResetPassword}>
-              <Lock size={14} /> Đặt lại MK
-            </button>
-          )}
         </div>
       </div>
 
@@ -742,11 +949,12 @@ function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: VaiTro[] }) {
 // ═════════════════════════════════════════════════════════════════════════════
 // 9. MODULE ROOT — chuyển view theo menu (tai-khoan / .roles / .permissions)
 // ═════════════════════════════════════════════════════════════════════════════
-type ViewKey = 'users' | 'roles' | 'matrix';
+type ViewKey = 'users' | 'roles' | 'matrix' | 'password_resets';
 
 function viewTuMenu(menuDangChon?: string): ViewKey {
-  if (menuDangChon === 'vai-tro')       return 'roles';
+  if (menuDangChon === 'vai-tro') return 'roles';
   if (menuDangChon === 'phan-quyen') return 'matrix';
+  if (menuDangChon === 'yeu-cau-mat-khau') return 'password_resets';
   return 'users';
 }
 
@@ -759,7 +967,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     nguoiDungHienTai?.policies.includes('USER_POLICY_GRANT') &&
     nguoiDungHienTai?.policies.includes('USER_POLICY_REVOKE')
   );
-  const coQuyenDatLaiMatKhau = !!nguoiDungHienTai?.policies.includes('ACCOUNT_PASSWORD_UPDATE_ALL');
+  const coQuyenAccountManager = coQuyenQuanLyTaiKhoan(nguoiDungHienTai?.policies ?? []);
 
   const [users, setUsers]     = useState<TaiKhoan[]>([]);
   const [roles, setRoles]      = useState<VaiTro[]>(VAI_TRO_MAU);
@@ -772,9 +980,6 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   const [moFormTaoTaiKhoan, setMoFormTaoTaiKhoan] = useState(false);
   const [taiKhoanMoi, setTaiKhoanMoi] = useState({ account: '', fullName: '', password: '', anhDaiDien: '', ngaySinh: '', gioiTinh: '', soDienThoai: '', email: '' });
   const [draftPolicies, setDraftPolicies] = useState<PolicyCode[]>([]);
-  const [resetPasswordUser, setResetPasswordUser] = useState<TaiKhoan | null>(null);
-  const [matKhauDatLai, setMatKhauDatLai] = useState({ password: '', confirm: '' });
-  const [dangDatLaiMatKhau, setDangDatLaiMatKhau] = useState(false);
 
   const userDangChon = users.find(u => u.id === chonId) ?? users[0];
 
@@ -980,35 +1185,6 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     setLoiApi(null);
   };
 
-  const xuLyDatLaiMatKhau = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!resetPasswordUser || !accessToken) return;
-    if (!matKhauDatLai.password || !matKhauDatLai.confirm) {
-      setLoiApi('Vui lòng nhập đầy đủ mật khẩu mới.');
-      return;
-    }
-    if (matKhauDatLai.password.length < 6) {
-      setLoiApi('Mật khẩu mới phải có ít nhất 6 ký tự.');
-      return;
-    }
-    if (matKhauDatLai.password !== matKhauDatLai.confirm) {
-      setLoiApi('Mật khẩu xác nhận không khớp.');
-      return;
-    }
-    setDangDatLaiMatKhau(true);
-    setLoiApi(null);
-    try {
-      const updated = await datLaiMatKhauTaiKhoanService(accessToken, resetPasswordUser.id, matKhauDatLai.password);
-      luuUserTuApi(updated);
-      setResetPasswordUser(null);
-      setMatKhauDatLai({ password: '', confirm: '' });
-    } catch (error) {
-      setLoiApi(error instanceof Error ? error.message : 'Không đặt lại được mật khẩu.');
-    } finally {
-      setDangDatLaiMatKhau(false);
-    }
-  };
-
   // Tổng quan top
   const tongQuan = useMemo(() => ({
     tongUser:    users.length,
@@ -1016,6 +1192,15 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     tongRole:    roles.length,
     tongPolicy:  POLICY_CATALOG.length,
   }), [users, roles]);
+
+  const tieuDeView =
+    view === 'roles'
+      ? 'Vai trò'
+      : view === 'matrix'
+        ? 'Bảng phân quyền'
+        : view === 'password_resets'
+          ? 'Yêu cầu đặt lại MK'
+          : 'Tài khoản';
 
   return (
     <div className="pq-root">
@@ -1025,9 +1210,9 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
             <div className="pq-crm-breadcrumb">
               <span>Hệ thống</span>
               <ChevronRight size={12}/>
-              <span className="pq-crm-breadcrumb-current">{view === 'roles' ? 'Vai trò' : 'Bảng phân quyền'}</span>
+              <span className="pq-crm-breadcrumb-current">{tieuDeView}</span>
             </div>
-            <h1 className="pq-crm-title">{view === 'roles' ? 'Vai trò' : 'Bảng phân quyền'}</h1>
+            <h1 className="pq-crm-title">{tieuDeView}</h1>
           </div>
         </header>
       )}
@@ -1103,10 +1288,8 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
                 onCancelPolicyChanges={huyThayDoiQuyen}
                 onApplyTemplate={applyTemplate}
                 onToggleActive={xuLyToggleActive}
-                onResetPassword={() => { if (userDangChon) setResetPasswordUser(userDangChon); }}
                 templates={roles}
                 coQuyenPhanQuyen={coQuyenPhanQuyen}
-                coQuyenDatLaiMatKhau={coQuyenDatLaiMatKhau}
                 dangLuuQuyen={dangLuuQuyen}
               />
             </div>
@@ -1123,6 +1306,13 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
       )}
 
       {view === 'matrix' && <ViewMaTran users={users} roles={roles} />}
+
+      {view === 'password_resets' && (
+        <ViewYeuCauMatKhau
+          accessToken={accessToken}
+          coQuyen={coQuyenAccountManager}
+        />
+      )}
 
       {moFormTaoTaiKhoan && (
         <div className="pq-modal-backdrop" onClick={() => setMoFormTaoTaiKhoan(false)}>
@@ -1181,26 +1371,6 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
         </div>
       )}
 
-      {resetPasswordUser && (
-        <div className="pq-modal-backdrop" onClick={() => { setResetPasswordUser(null); setMatKhauDatLai({ password: '', confirm: '' }); }}>
-          <form className="pq-modal" onSubmit={xuLyDatLaiMatKhau} onClick={e => e.stopPropagation()}>
-            <div className="pq-modal__head">
-              <h3>Đặt lại mật khẩu</h3>
-              <button type="button" className="pq-btn pq-btn--ghost pq-btn--sm" onClick={() => { setResetPasswordUser(null); setMatKhauDatLai({ password: '', confirm: '' }); }}><X size={13} /> Đóng</button>
-            </div>
-            <div className="pq-modal__body">
-              <div><b>Tài khoản</b><span className="pq-mono">@{resetPasswordUser.account}</span></div>
-              <div><b>Họ tên</b><span>{normalizeDisplayText(resetPasswordUser.fullName)}</span></div>
-              <label className="pq-modal__field"><b>Mật khẩu mới</b><input type="password" value={matKhauDatLai.password} onChange={e => setMatKhauDatLai(prev => ({ ...prev, password: e.target.value }))} autoFocus /></label>
-              <label className="pq-modal__field"><b>Xác nhận mật khẩu mới</b><input type="password" value={matKhauDatLai.confirm} onChange={e => setMatKhauDatLai(prev => ({ ...prev, confirm: e.target.value }))} /></label>
-            </div>
-            <div className="pq-modal__foot">
-              <button type="button" className="pq-btn pq-btn--ghost" onClick={() => { setResetPasswordUser(null); setMatKhauDatLai({ password: '', confirm: '' }); }}>Hủy</button>
-              <button type="submit" className="pq-btn pq-btn--primary" disabled={dangDatLaiMatKhau}>{dangDatLaiMatKhau ? 'Đang cập nhật...' : 'Cập nhật'}</button>
-            </div>
-          </form>
-        </div>
-      )}
     </div>
   );
 }
