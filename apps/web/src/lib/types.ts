@@ -319,7 +319,7 @@ export interface CpsxUpgradeLaborTui {
   roundedPerMin: number | null;
   /** Số giờ máy hoạt động / ngày (mặc định 24) — tham số sửa được */
   hoursPerDay: number;
-  /** Số máy hoạt động / ngày — lương 1 máy chia tiếp cho số máy */
+  /** Số máy hoạt động / ngày — chỉ lưu cấu hình, không chia vào giá NC */
   machinesPerDay: number;
   /** Số giờ tăng ca (n, mặc định 4) — TC = (L ÷ 8 × n) × hệ số × tỉ lệ */
   otHours: number;
@@ -801,6 +801,8 @@ export interface ConfigSnapshot {
   id: string;
   scope: ConfigScope;
   name?: string;
+  /** Version server (PriceConfig.version) — tiêu chí chính chọn «mới nhất». */
+  version?: number;
   effectiveMode: 'date' | 'month';
   effectiveFrom: string;
   createdAt: string;

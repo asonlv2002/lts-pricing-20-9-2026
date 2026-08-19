@@ -339,11 +339,14 @@ export default function TrangChinh() {
     })();
   }, []);
 
-  // ── Tải lịch sử từ server khi đăng nhập thành công ──────────────────────────
+  // ── Tải lịch sử + cấu hình mới nhất khi đăng nhập thành công ───────────────
+  // Auth hydrate async: mount-time check thường chưa login → phải gọi lại ở đây.
   const daDangNhapTruoc = useRef(false);
   useEffect(() => {
     if (daDangNhap && !daDangNhapTruoc.current) {
-      dungCuaHangTinhGia.getState().taiLichSuTuServer().catch(() => {});
+      const st = dungCuaHangTinhGia.getState();
+      st.taiLichSuTuServer().catch(() => {});
+      st.taiCauHinhMoiNhatTuServer().catch(() => {});
     }
     daDangNhapTruoc.current = daDangNhap;
   }, [daDangNhap]);
@@ -371,6 +374,10 @@ export default function TrangChinh() {
         customCylTypes: hangSo.customCylTypes,
         customPaymentDays: hangSo.customPaymentDays,
         customAccessories: hangSo.customAccessories,
+        cpsxUpgradeElectric: hangSo.cpsxUpgradeElectric,
+        cpsxUpgradeLabor: hangSo.cpsxUpgradeLabor,
+        cpsxUpgradeInk: hangSo.cpsxUpgradeInk,
+        cpsxUpgradeThoiGian: hangSo.cpsxUpgradeThoiGian,
       },
       packaging: {
         boxOptions: hangSo.boxOptions,

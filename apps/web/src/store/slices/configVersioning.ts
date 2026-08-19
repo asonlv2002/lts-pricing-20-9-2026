@@ -17,6 +17,7 @@ import {
   priceConfigToSnapshot,
   gopCpsxUpgradeChoMigrate,
   layConstantKeysTheoScope,
+  chonPhienBanMoiNhat,
 } from '../../lib/api/price-config-mapper';
 import { seedPriceConfigCache } from '../../lib/api/price-config-cache';
 
@@ -42,8 +43,17 @@ export interface ConfigVersioningSlice {
   taiCauHinhMoiNhatTuServer: () => Promise<void>;
 }
 
+/** Sort list UI: version server trước, rồi thời điểm, rồi tháng hiệu lực. */
 const sapXepTheoHieuLuc = (snapshots: ConfigSnapshot[]) =>
-  [...snapshots].sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || b.updatedAt.localeCompare(a.updatedAt));
+  [...snapshots].sort((a, b) => {
+    const va = Number(a.version) || 0;
+    const vb = Number(b.version) || 0;
+    if (vb !== va) return vb - va;
+    const ta = String(a.updatedAt || a.createdAt || '');
+    const tb = String(b.updatedAt || b.createdAt || '');
+    if (tb !== ta) return tb.localeCompare(ta);
+    return b.effectiveFrom.localeCompare(a.effectiveFrom);
+  });
 
 // Scope labels (ASCII-safe for server logs)
 const SCOPE_LABEL: Record<ConfigScope, string> = {
@@ -127,9 +137,20 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
 
         await get().taiLichSuPhienBanTuServer(scope);
 
-        set((s) => ({
-          dangLuuPhienBan: false,
-        }));
+        // Chốt working config = bản vừa lưu / mới nhất theo version server
+        const afterSave = get();
+        const sameScope = afterSave.configSnapshots.filter(
+          (sn) => (sn.scope ?? 'materials') === scope,
+        );
+        const moiNhat =
+          sameScope.find((sn) => sn.id === priceConfig.id) ??
+          chonPhienBanMoiNhat(sameScope);
+        if (moiNhat) {
+          afterSave.saoChepPhienBanDinhMuc(moiNhat.id);
+          get().luuSessionConfigSnapshot();
+        }
+
+        set({ dangLuuPhienBan: false });
 
         return;
       } catch (e) {
@@ -248,12 +269,7 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
         const candidates = after.configSnapshots.filter(
           (sn) => (sn.scope ?? 'materials') === scope,
         );
-        if (!candidates.length) continue;
-        const latest = [...candidates].sort(
-          (a, b) =>
-            b.effectiveFrom.localeCompare(a.effectiveFrom) ||
-            b.updatedAt.localeCompare(a.updatedAt),
-        )[0];
+        const latest = chonPhienBanMoiNhat(candidates);
         if (latest) after.saoChepPhienBanDinhMuc(latest.id);
       }
       // Snapshot session sau khi apply latest — pin sheet restore về đây
@@ -371,12 +387,13 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
 
     const snapshot = state.configSnapshots.find(s => s.id === phienBanDangXemId);
     const scope = snapshot?.scope ?? 'materials';
-    const candidates = state.configSnapshots
-      .filter(s => (s.scope ?? 'materials') === scope)
-      .sort((a, b) => b.effectiveFrom.localeCompare(a.effectiveFrom) || b.updatedAt.localeCompare(a.updatedAt));
-    const latest = candidates[0];
+    const candidates = state.configSnapshots.filter(
+      (s) => (s.scope ?? 'materials') === scope,
+    );
+    const latest = chonPhienBanMoiNhat(candidates);
     if (latest) {
       get().saoChepPhienBanDinhMuc(latest.id);
+      get().luuSessionConfigSnapshot();
     } else {
       set({ dangXemPhienBan: false, phienBanDangXemId: null });
     }

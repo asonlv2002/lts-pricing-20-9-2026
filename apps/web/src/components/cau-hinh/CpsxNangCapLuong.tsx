@@ -2166,12 +2166,8 @@ function MayTui({
     giaTri.tyLeTangCa,
     giaTri.otHours,
   );
-  const tinhMoiMay = luongMoiPhutTuiAp(tinh, null, giaTri.machinesPerDay);
-  const apDungGia = luongMoiPhutTuiAp(
-    tinh,
-    giaTri.roundedPerMin,
-    giaTri.machinesPerDay,
-  );
+  const tinhMoiMay = luongMoiPhutTuiAp(tinh, null);
+  const apDungGia = luongMoiPhutTuiAp(tinh, giaTri.roundedPerMin);
 
   const suaLuong = (idx: number, val: string) => {
     const next = [...giaTri.wages];
@@ -2435,7 +2431,6 @@ function MayTui({
               <span className="config-cpsx-upgrade__formula-label">
                 Lương CN mỗi phút = (Tổng lương + Tăng ca + Cơm sáng + Cơm
                 tối) ÷ Số giờ/ngày ÷ 60
-                {giaTri.machinesPerDay > 1 ? " ÷ Số máy/ngày" : ""}
               </span>
             </div>
             <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
@@ -2460,11 +2455,7 @@ function MayTui({
                     });
                   }}
                 />{" "}
-                ÷ 60
-                {giaTri.machinesPerDay > 1 && (
-                  <> ÷ {giaTri.machinesPerDay} máy</>
-                )}{" "}
-                = {dinhDangVnd(tinhMoiMay)} ₫/phút
+                ÷ 60 = {dinhDangVnd(tinhMoiMay)} ₫/phút
               </strong>
             </div>
           </div>

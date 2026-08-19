@@ -2334,13 +2334,55 @@ body {
   width: 100%;
 }
 
-/* Read-only overlay khi đang xem phiên bản */
+/* Read-only khi đang xem phiên bản: khóa sửa, vẫn mở/thu gọn được */
 .config-page--readonly
   .config-content
   .card.config-card:not(.config-version-card) {
-  pointer-events: none;
-  opacity: 0.55;
+  opacity: 0.72;
   user-select: none;
+}
+.config-page--readonly
+  .config-content
+  .card.config-card:not(.config-version-card)
+  :is(input, select, textarea, [contenteditable="true"]) {
+  pointer-events: none !important;
+  cursor: default;
+}
+.config-page--readonly
+  .config-content
+  .card.config-card:not(.config-version-card)
+  button {
+  pointer-events: none;
+  cursor: default;
+}
+.config-page--readonly
+  .config-content
+  .card.config-card:not(.config-version-card)
+  :is(
+    button.config-cpsx-upgrade__toggle,
+    button.config-accordion__header,
+    button[aria-expanded],
+    .config-section-title.collapsible,
+    .card-title.collapsible,
+    .config-version-title.collapsible
+  ) {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  user-select: none;
+}
+/* Accordion HopThuGon nằm trong card — header phải bấm được */
+.config-page--readonly
+  .config-content
+  .config-accordion__header {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
+.config-version-exit-view {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 /* removed config toc custom classes */
@@ -3705,6 +3747,15 @@ body {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+.config-cpsx-upgrade-readonly__card--tg {
+  gap: 10px;
+}
+.config-cpsx-upgrade-readonly__card--tg .config-cpsx-upgrade__formulas {
+  margin-bottom: 0;
+}
+.config-cpsx-upgrade-readonly__card--tg .config-cpsx-upgrade__col-title {
+  margin-top: 8px;
 }
 .config-cpsx-upgrade-readonly__row {
   display: flex;
@@ -14063,6 +14114,30 @@ body {
 .dac-ta-nang-cao__stage {
   font-weight: 600;
   white-space: nowrap;
+}
+/* Mét + khổ dòng Chia — 2 dòng (mét / khổ), giống cp-vl-gop */
+.dac-ta-met-kho {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  line-height: 1.25;
+  width: 100%;
+  white-space: normal;
+}
+.dac-ta-met-kho__met {
+  font-variant-numeric: tabular-nums;
+}
+.dac-ta-met-kho__kho {
+  font-size: 0.85em;
+  color: var(--muted, #6b7280);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Thắng #resultArea .data-table td { white-space: nowrap } */
+#resultArea .data-table td.dac-ta-met-kho-cell,
+.data-table td.dac-ta-met-kho-cell {
+  white-space: normal;
 }
 /* CP VL (đ/m²) + dòng phụ giá NVL (đ/kg) gộp 1 cột */
 .cp-vl-gop {

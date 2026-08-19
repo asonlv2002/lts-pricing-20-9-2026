@@ -11,6 +11,7 @@ import {
   gopCpsxUpgradeChoMigrate,
   trichCpsxUpgradeTuInputValue,
   layConstantKeysTheoScope,
+  chonPhienBanMoiNhat,
 } from './price-config-mapper';
 import type { AppConstants, Material, ProfitRow, SmallWidthMaterialPrice } from '../types';
 import type { PriceConfigApi } from './service-lts';
@@ -152,6 +153,47 @@ check(
 check(
   'PRODUCTION vẫn set laborCost',
   (ctxBoth.constants as { laborCost?: number }).laborCost === 3731,
+);
+
+// ── chonPhienBanMoiNhat: version server thắng tháng hiệu lực ──────────────
+const moiNhat = chonPhienBanMoiNhat([
+  {
+    id: 'old',
+    version: 2,
+    effectiveFrom: '2026-12',
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'new',
+    version: 5,
+    effectiveFrom: '2026-01',
+    createdAt: '2026-08-19T00:00:00.000Z',
+    updatedAt: '2026-08-19T00:00:00.000Z',
+  },
+]);
+check(
+  'chonPhienBanMoiNhat ưu tiên version cao hơn effectiveFrom',
+  moiNhat?.id === 'new',
+);
+
+const moiNhatKhongVersion = chonPhienBanMoiNhat([
+  {
+    id: 'a',
+    effectiveFrom: '2026-06',
+    createdAt: '2026-06-01T00:00:00.000Z',
+    updatedAt: '2026-06-01T00:00:00.000Z',
+  },
+  {
+    id: 'b',
+    effectiveFrom: '2026-03',
+    createdAt: '2026-08-01T00:00:00.000Z',
+    updatedAt: '2026-08-01T00:00:00.000Z',
+  },
+]);
+check(
+  'chonPhienBanMoiNhat không version → updatedAt mới hơn',
+  moiNhatKhongVersion?.id === 'b',
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

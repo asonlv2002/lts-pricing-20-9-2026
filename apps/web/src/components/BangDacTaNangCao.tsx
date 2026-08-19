@@ -22,6 +22,18 @@ function dinhDangSo(n: number | null | undefined, soLe = 0): string {
   });
 }
 
+/** Label Chia "30.400\n(0,300)" → 2 dòng UI */
+function HienThiMetKho({ label }: { label: string }) {
+  const i = label.indexOf('\n');
+  if (i < 0) return <>{label}</>;
+  return (
+    <span className="dac-ta-met-kho">
+      <span className="dac-ta-met-kho__met">{label.slice(0, i)}</span>
+      <span className="dac-ta-met-kho__kho">{label.slice(i + 1)}</span>
+    </span>
+  );
+}
+
 export default function BangDacTaNangCao({
   result,
   uniRows,
@@ -87,14 +99,14 @@ export default function BangDacTaNangCao({
                 <td className="num" data-label="Khổ màng (m)">
                   {row.khoMangLabel ?? dinhDangSo(row.khoMang, 3)}
                 </td>
-                <td className="num" data-label="Thành phẩm (m)">
-                  {row.thanhPhamLabel ?? dinhDangSo(row.thanhPham, 0)}
+                <td className={`num${row.thanhPhamLabel ? ' dac-ta-met-kho-cell' : ''}`} data-label="Thành phẩm (m)">
+                  {row.thanhPhamLabel ? <HienThiMetKho label={row.thanhPhamLabel} /> : dinhDangSo(row.thanhPham, 0)}
                 </td>
                 <td className="num" data-label="Phi hao (m)">
                   {dinhDangSo(row.phiHao, 0)}
                 </td>
-                <td className="num highlight" data-label="Đầu vào NVL (m)">
-                  {row.dauVaoNvlLabel ?? dinhDangSo(row.dauVaoNVL, 0)}
+                <td className={`num highlight${row.dauVaoNvlLabel ? ' dac-ta-met-kho-cell' : ''}`} data-label="Đầu vào NVL (m)">
+                  {row.dauVaoNvlLabel ? <HienThiMetKho label={row.dauVaoNvlLabel} /> : dinhDangSo(row.dauVaoNVL, 0)}
                 </td>
                 <td className="num" data-label="CP vật liệu (đ/m²)">
                   {row.cpVatLieu == null ? (

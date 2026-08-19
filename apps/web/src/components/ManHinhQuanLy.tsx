@@ -71,6 +71,17 @@ function dinhDangSo(n: number | null | undefined, soLe = 0): string {
   if (n == null || isNaN(n)) return '—';
   return n.toLocaleString('vi-VN', { minimumFractionDigits: soLe, maximumFractionDigits: soLe });
 }
+/** Label Chia "30.400\n(0,300)" → 2 dòng UI */
+function HienThiMetKho({ label }: { label: string }) {
+  const i = label.indexOf('\n');
+  if (i < 0) return <>{label}</>;
+  return (
+    <span className="dac-ta-met-kho">
+      <span className="dac-ta-met-kho__met">{label.slice(0, i)}</span>
+      <span className="dac-ta-met-kho__kho">{label.slice(i + 1)}</span>
+    </span>
+  );
+}
 function dinhDangVND(n: number) { return dinhDangSo(n) + ' đ'; }
 function dinhDangPhanTram(n: number) {
   const val = n * 100;
@@ -769,7 +780,9 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                       giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={suaT1} khiDat={khiDat} soLe={3} />
                   )}
                   {row.thanhPhamLabel ? (
-                    <td className={`num ${coDoiTpLabel ? 'override-changed' : ''}`} data-label="Thành phẩm (m)">{row.thanhPhamLabel}</td>
+                    <td className={`num dac-ta-met-kho-cell ${coDoiTpLabel ? 'override-changed' : ''}`} data-label="Thành phẩm (m)">
+                      <HienThiMetKho label={row.thanhPhamLabel} />
+                    </td>
                   ) : (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="meters"
                       giaTriGoc={goc?.thanhPham ?? 0}
@@ -780,8 +793,8 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     giaTriGoc={goc?.phiHao ?? 0}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste}
                     duocSua={suaT1} khiDat={khiDat} soLe={0} />
-                  <td className={`num highlight ${coDoiDauVao ? 'override-changed' : ''}`} data-label="Đầu vào NVL (m)">
-                    {row.dauVaoNvlLabel ?? dinhDangSo(row.dauVaoNVL, 0)}
+                  <td className={`num highlight${row.dauVaoNvlLabel ? ' dac-ta-met-kho-cell' : ''} ${coDoiDauVao ? 'override-changed' : ''}`} data-label="Đầu vào NVL (m)">
+                    {row.dauVaoNvlLabel ? <HienThiMetKho label={row.dauVaoNvlLabel} /> : dinhDangSo(row.dauVaoNVL, 0)}
                   </td>
                   {(() => {
                     const coCp = row.cpVatLieu != null;

@@ -194,27 +194,41 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
               type="month"
               value={mocHieuLuc}
               onChange={(e) => datMocHieuLuc(e.target.value)}
+              disabled={dangXemPhienBan}
             />
           </div>
           <div
             className="config-cpsx-item config-version-save"
             style={{ justifyContent: "flex-end" }}
           >
-            <button
-              className="btn btn-primary"
-              onClick={xuLyLuu}
-              disabled={!mocHieuLuc || dangLuuPhienBan}
-              aria-label="Lưu phiên bản"
-            >
-              <Save
-                className="config-version-save-icon"
-                size={15}
-                aria-hidden="true"
-              />
-              <span className="config-version-save-text">
-                {dangLuuPhienBan ? "Đang lưu..." : "Lưu"}
-              </span>
-            </button>
+            {dangXemPhienBan ? (
+              <div className="config-version-exit-view">
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => thoatXemPhienBan()}
+                  aria-label="Thoát xem phiên bản"
+                >
+                  Thoát xem
+                </button>
+              </div>
+            ) : (
+              <button
+                className="btn btn-primary"
+                onClick={xuLyLuu}
+                disabled={!mocHieuLuc || dangLuuPhienBan}
+                aria-label="Lưu phiên bản"
+              >
+                <Save
+                  className="config-version-save-icon"
+                  size={15}
+                  aria-hidden="true"
+                />
+                <span className="config-version-save-text">
+                  {dangLuuPhienBan ? "Đang lưu..." : "Lưu"}
+                </span>
+              </button>
+            )}
           </div>
         </div>
         <button
@@ -397,31 +411,6 @@ function KhoiPhienBan({ scope }: { scope: ConfigScope }) {
         )}
       </div>
     </div>
-    {dangXemPhienBan && phienBan.find(s => s.id === phienBanDangXemId) && (
-      <div
-        style={{
-          background: 'var(--accent-subtle, rgba(59,130,246,0.08))',
-          border: '1px solid var(--accent, rgba(59,130,246,0.3))',
-          borderRadius: '10px',
-          padding: '10px 16px',
-          marginBottom: '12px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-        }}
-      >
-        <span style={{ fontSize: '0.85rem', color: 'var(--accent, #3b82f6)', fontWeight: 500 }}>
-          ⚠ Đang xem dữ liệu của phiên bản — các trường chỉ đọc
-        </span>
-        <button
-          className="btn btn-sm btn-outline"
-          onClick={() => thoatXemPhienBan()}
-        >
-          Thoát xem
-        </button>
-      </div>
-    )}
     {xacNhanXoaId && (
       <div className="lts-confirm-backdrop" onClick={() => datXacNhanXoaId(null)}>
         <div className="lts-confirm-dialog" onClick={e => e.stopPropagation()}>

@@ -181,6 +181,7 @@ export interface ConfigSnapshotLike {
   id: string;
   scope: ConfigScope;
   name?: string;
+  version?: number;
   effectiveMode: 'date' | 'month';
   effectiveFrom: string;
   createdAt: string;
@@ -189,6 +190,29 @@ export interface ConfigSnapshotLike {
   smallWidthPrices: SmallWidthMaterialPrice[];
   constants: AppConstants;
   profitTable: ProfitRow[];
+}
+
+/**
+ * Chọn phiên bản «mới nhất» trong 1 scope.
+ * Ưu tiên: version server (desc) → createdAt/updatedAt → effectiveFrom.
+ * Tránh chọn sai khi tháng hiệu lực của bản cũ > bản vừa lưu.
+ */
+export function chonPhienBanMoiNhat<T extends {
+  version?: number;
+  createdAt?: string;
+  updatedAt?: string;
+  effectiveFrom?: string;
+}>(list: T[]): T | undefined {
+  if (!list.length) return undefined;
+  return [...list].sort((a, b) => {
+    const va = Number(a.version) || 0;
+    const vb = Number(b.version) || 0;
+    if (vb !== va) return vb - va;
+    const ta = String(a.updatedAt || a.createdAt || '');
+    const tb = String(b.updatedAt || b.createdAt || '');
+    if (tb !== ta) return tb.localeCompare(ta);
+    return String(b.effectiveFrom || '').localeCompare(String(a.effectiveFrom || ''));
+  })[0];
 }
 
 /**
@@ -306,6 +330,7 @@ export function priceConfigToSnapshot(
     id: pc.id,
     scope,
     name,
+    version: typeof pc.version === 'number' ? pc.version : undefined,
     effectiveMode,
     effectiveFrom,
     createdAt: pc.createdAt,

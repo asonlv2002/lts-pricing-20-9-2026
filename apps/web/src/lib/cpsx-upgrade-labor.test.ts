@@ -149,29 +149,29 @@ assert(
   luongMoiPhutAp(tinh, 0) === tinh,
 );
 
-// ── Lương túi / máy (chia số máy hoạt động / ngày) ────────────────
+// ── Lương túi — không chia số máy (giá áp dụng = giá cuối) ────────
 assert(
-  "tuiAp máy=1 → giá 1 máy (không đổi)",
+  "tuiAp máy=1 → giá tính (không đổi)",
   luongMoiPhutTuiAp(tinh, null, 1) === tinh,
 );
 assert(
-  "tuiAp máy=2 → tinh ÷ 2 (làm tròn)",
-  luongMoiPhutTuiAp(6128, null, 2) === 3064,
+  "tuiAp máy=2 → không chia, giữ giá tính",
+  luongMoiPhutTuiAp(6128, null, 2) === 6128,
 );
 assert(
-  "tuiAp máy=3 → tinh ÷ 3 (làm tròn)",
-  luongMoiPhutTuiAp(10000, null, 3) === 3333,
+  "tuiAp máy=3 → không chia, giữ giá tính",
+  luongMoiPhutTuiAp(10000, null, 3) === 10000,
 );
 assert(
-  "tuiAp rounded 1000, máy 2 → 500",
-  luongMoiPhutTuiAp(tinh, 1000, 2) === 500,
+  "tuiAp rounded 1000, máy 2 → 1000 (không ÷ máy)",
+  luongMoiPhutTuiAp(tinh, 1000, 2) === 1000,
 );
 assert(
-  "tuiAp máy 0 → coi như 1",
+  "tuiAp máy 0 → vẫn áp rounded",
   luongMoiPhutTuiAp(tinh, 1000, 0) === 1000,
 );
 assert(
-  "tuiAp máy âm → coi như 1",
+  "tuiAp máy âm → giá tính (không chia)",
   luongMoiPhutTuiAp(tinh, null, -2) === tinh,
 );
 

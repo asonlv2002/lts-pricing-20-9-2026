@@ -26,6 +26,10 @@ import {
 import {
   chuanHoaCpsxUpgradeThoiGian,
   laSetupBienCoSize,
+  tinhThoiGianMayIn,
+  tinhThoiGianMayGhep,
+  tinhThoiGianMayChia,
+  tinhThoiGianMayTui,
 } from "../../lib/cpsx-upgrade-thoigian";
 import { tinhCpKeoDungMoiGhep } from "../../lib/dac-ta-nang-cao";
 import type {
@@ -33,6 +37,9 @@ import type {
   CpsxThoiGianMayGhep,
   CpsxThoiGianMayChia,
   CpsxThoiGianMayTui,
+  CpsxThoiGianRule,
+  CpsxTuiSetupRule,
+  CpsxTuiSpeedRule,
   CpsxUpgradeLabor1May,
 } from "../../lib/types";
 
@@ -45,6 +52,21 @@ function dinhDangSo(n: number, decimals = 2) {
     maximumFractionDigits: decimals,
     minimumFractionDigits: 0,
   });
+}
+
+function docSoThapPhan(value: string): number {
+  const n = Number(value.replace(",", ".").replace(/[^\d.-]/g, ""));
+  return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+function clampSoMau(n: number): number {
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, Math.min(8, Math.floor(n)));
+}
+
+function clampSoLanGhep(n: number): number {
+  if (!Number.isFinite(n)) return 1;
+  return Math.max(1, Math.min(10, Math.floor(n)));
 }
 
 const MAY_DIEN_ROWS: { key: "print" | "laminate" | "slit" | "bag"; label: string }[] = [
@@ -130,7 +152,6 @@ export default function CpsxNangCapKetQua() {
         g.otHours,
       ),
       g.roundedPerMin,
-      g.machinesPerDay,
     );
   };
 
@@ -218,16 +239,14 @@ export default function CpsxNangCapKetQua() {
         </p>
       </div>
 
-      <div className="config-group-header">4. Thời gian sản xuất</div>
-      <div className="card config-card config-cpsx-upgrade-readonly__card">
-        <ThoiGianMayInDayDu cfg={thoiGian.print} />
-        <ThoiGianMayGhepDayDu cfg={thoiGian.laminate} />
-        <ThoiGianMayChiaDayDu cfg={thoiGian.slit} />
-        <ThoiGianMayTuiDayDu cfg={thoiGian.bag} />
-        <p className="config-note" style={{ marginBottom: 0 }}>
-          Tham số giống Chi phí sản xuất thường. Cấu hình do quản trị viên cài đặt.
-        </p>
-      </div>
+      <CardThoiGianMayIn cfg={thoiGian.print} />
+      <CardThoiGianMayGhep cfg={thoiGian.laminate} />
+      <CardThoiGianMayChia cfg={thoiGian.slit} />
+      <CardThoiGianMayTui cfg={thoiGian.bag} />
+      <p className="config-note" style={{ marginBottom: 0 }}>
+        Tham số setup/tốc độ do quản trị viên cài. Ô nhập trên chỉ để thử tính tại
+        chỗ — không lưu cấu hình.
+      </p>
     </div>
   );
 }
@@ -241,64 +260,10 @@ function DongKetQua({ label, value }: { label: string; value: string }) {
   );
 }
 
-function TieuDeKhoi({ children }: { children: React.ReactNode }) {
+function TieuDeCard({ children }: { children: React.ReactNode }) {
   return (
-    <div className="config-cpsx-upgrade__col-title" style={{ marginTop: 12 }}>
+    <div className="config-cpsx-upgrade__col-title" style={{ marginTop: 0 }}>
       {children}
-    </div>
-  );
-}
-
-function ThoiGianMayInDayDu({ cfg }: { cfg: CpsxThoiGianMayIn }) {
-  return (
-    <div>
-      <TieuDeKhoi>Máy in</TieuDeKhoi>
-      <DongKetQua label="Lên trục" value={`${dinhDangSo(cfg.mountMinutesPerColor, 0)} phút/màu`} />
-      <DongKetQua
-        label="Duyệt mẫu"
-        value={`1–7 màu: ${dinhDangSo(cfg.proofMinutes1to7, 0)} phút · 8 màu: ${dinhDangSo(cfg.proofMinutes8, 0)} phút`}
-      />
-      <DongKetQua label="Tốc độ trung bình" value={`${dinhDangSo(cfg.avgSpeedMPerMin, 0)} m/phút`} />
-      <DongKetQua label="In phủ mờ thêm" value={`${dinhDangSo(cfg.matteExtraMinutes, 0)} phút`} />
-    </div>
-  );
-}
-
-function ThoiGianMayGhepDayDu({ cfg }: { cfg: CpsxThoiGianMayGhep }) {
-  return (
-    <div>
-      <TieuDeKhoi>Máy ghép</TieuDeKhoi>
-      <DongKetQua label="Setup lần 1" value={`${dinhDangSo(cfg.setupFirstMinutes, 0)} phút`} />
-      <DongKetQua label="Setup lần tiếp" value={`${dinhDangSo(cfg.setupNextMinutes, 0)} phút`} />
-      <DongKetQua label="Tốc độ trung bình" value={`${dinhDangSo(cfg.avgSpeedMPerMin, 0)} m/phút`} />
-    </div>
-  );
-}
-
-function ThoiGianMayChiaDayDu({ cfg }: { cfg: CpsxThoiGianMayChia }) {
-  return (
-    <div>
-      <TieuDeKhoi>Máy chia — theo loại sản phẩm</TieuDeKhoi>
-      <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
-        <table className="config-table config-cpsx-upgrade__table">
-          <thead>
-            <tr>
-              <th>Loại sản phẩm</th>
-              <th className="num">Setup (phút)</th>
-              <th className="num">Tốc độ (m/phút)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {cfg.rules.map((rule, idx) => (
-              <tr key={rule.key || `chia-${idx}`}>
-                <td>{rule.label || "—"}</td>
-                <td className="num">{dinhDangSo(rule.setupMinutes, 0)}</td>
-                <td className="num">{dinhDangSo(rule.speedMPerMin, 0)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }
@@ -314,7 +279,10 @@ function nhanBuocCatSetup(rule: {
   return `≤ ${cm} cm`;
 }
 
-function nhanBuocCatTocDo(rule: { label?: string; maxStepMm?: number | null }): string {
+function nhanBuocCatTocDo(rule: {
+  label?: string;
+  maxStepMm?: number | null;
+}): string {
   if (rule.label?.trim()) return rule.label.trim();
   if (rule.maxStepMm != null && rule.maxStepMm > 0) {
     return `≤ ${rule.maxStepMm / 10} cm`;
@@ -322,13 +290,463 @@ function nhanBuocCatTocDo(rule: { label?: string; maxStepMm?: number | null }): 
   return "Không trần";
 }
 
-function ThoiGianMayTuiDayDu({ cfg }: { cfg: CpsxThoiGianMayTui }) {
-  const dsBien = cfg.setupRules.filter((r) => laSetupBienCoSize(r));
-  const dsKhac = cfg.setupRules.filter((r) => !laSetupBienCoSize(r));
+function nhanSetupTui(rule: CpsxTuiSetupRule): string {
+  if (laSetupBienCoSize(rule) && rule.stepOp) {
+    const cm = (rule.maxStepMm ?? 300) / 10;
+    return `${rule.label || "—"} (${rule.stepOp === "lte" ? "≤" : ">"}${cm}cm)`;
+  }
+  return rule.label || "—";
+}
+
+function CardThoiGianMayIn({ cfg }: { cfg: CpsxThoiGianMayIn }) {
+  const [soMau, setSoMau] = React.useState(1);
+  const [metIn, setMetIn] = React.useState(0);
+  const [phuMo, setPhuMo] = React.useState(false);
+
+  const kq = React.useMemo(
+    () => tinhThoiGianMayIn(metIn, soMau, cfg, phuMo),
+    [metIn, soMau, cfg, phuMo],
+  );
+  const proof =
+    soMau >= 8 ? cfg.proofMinutes8 : cfg.proofMinutes1to7;
+  const setupPhut = soMau > 0 ? soMau * cfg.mountMinutesPerColor + proof : 0;
+  const matte = phuMo ? cfg.matteExtraMinutes : 0;
 
   return (
-    <div>
-      <TieuDeKhoi>Máy làm túi — setup 3/4 biên (theo bước cắt)</TieuDeKhoi>
+    <div className="card config-card config-cpsx-upgrade-readonly__card config-cpsx-upgrade-readonly__card--tg">
+      <TieuDeCard>Máy in</TieuDeCard>
+      <div className="config-cpsx-upgrade__formulas">
+        <div className="config-cpsx-upgrade__formula-head">
+          Công thức áp dụng: TG = số màu × lên trục + duyệt mẫu + mét ÷ tốc độ
+          [+ phủ mờ nếu có] → phút
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">
+            Lên trục{" "}
+            <strong className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(cfg.mountMinutesPerColor, 0)} phút/màu
+            </strong>
+            {" · "}Duyệt 1–7:{" "}
+            <strong className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(cfg.proofMinutes1to7, 0)}p
+            </strong>
+            {" · "}8 màu:{" "}
+            <strong className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(cfg.proofMinutes8, 0)}p
+            </strong>
+            {" · "}Tốc độ{" "}
+            <strong className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(cfg.avgSpeedMPerMin, 0)} m/phút
+            </strong>
+            {" · "}Phủ mờ +
+            <strong className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(cfg.matteExtraMinutes, 0)}p
+            </strong>
+          </span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">Số màu in</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={1}
+            max={8}
+            step={1}
+            aria-label="Số màu in preview"
+            value={soMau}
+            onChange={(e) =>
+              setSoMau(clampSoMau(docSoThapPhan(e.target.value)))
+            }
+          />
+          <span className="config-cpsx-upgrade__formula-label">Mét in</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="Mét in preview"
+            value={metIn}
+            onChange={(e) => setMetIn(docSoThapPhan(e.target.value))}
+          />
+          <span className="config-cpsx-upgrade__formula-label">m</span>
+          <span className="config-cpsx-upgrade__formula-label">Phủ mờ</span>
+          <select
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            aria-label="Có phủ mờ"
+            value={phuMo ? "1" : "0"}
+            onChange={(e) => setPhuMo(e.target.value === "1")}
+          >
+            <option value="0">Không</option>
+            <option value="1">Có</option>
+          </select>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-op">→</span>
+          <strong className="config-cpsx-upgrade__formula-result">
+            ({dinhDangSo(soMau, 0)} × {dinhDangSo(cfg.mountMinutesPerColor, 0)}{" "}
+            + {dinhDangSo(proof, 0)}) + ({dinhDangSo(metIn, 0)} ÷{" "}
+            {dinhDangSo(cfg.avgSpeedMPerMin, 0)})
+            {matte > 0 ? ` + ${dinhDangSo(matte, 0)}` : ""} ={" "}
+            <span className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(kq.tongPhut, 0)} phút
+            </span>
+            <span className="config-cpsx-upgrade__formula-note">
+              {" "}
+              (setup {dinhDangSo(setupPhut, 0)}p · chạy{" "}
+              {dinhDangSo(kq.chiTiet.chayPhut, 1)}p)
+            </span>
+          </strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CardThoiGianMayGhep({ cfg }: { cfg: CpsxThoiGianMayGhep }) {
+  const [soLan, setSoLan] = React.useState(1);
+  const [metGhep, setMetGhep] = React.useState(0);
+
+  const kq = React.useMemo(
+    () => tinhThoiGianMayGhep(metGhep, soLan, cfg),
+    [metGhep, soLan, cfg],
+  );
+
+  return (
+    <div className="card config-card config-cpsx-upgrade-readonly__card config-cpsx-upgrade-readonly__card--tg">
+      <TieuDeCard>Máy ghép</TieuDeCard>
+      <div className="config-cpsx-upgrade__formulas">
+        <div className="config-cpsx-upgrade__formula-head">
+          Công thức áp dụng: TG = setup lần 1 + (n − 1) × setup lần tiếp + mét ÷
+          tốc độ → phút
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">
+            Setup lần 1{" "}
+            <strong className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(cfg.setupFirstMinutes, 0)} phút
+            </strong>
+            {" · "}lần tiếp{" "}
+            <strong className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(cfg.setupNextMinutes, 0)} phút
+            </strong>
+            {" · "}Tốc độ{" "}
+            <strong className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(cfg.avgSpeedMPerMin, 0)} m/phút
+            </strong>
+          </span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">Số lần ghép</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={1}
+            max={10}
+            step={1}
+            aria-label="Số lần ghép preview"
+            value={soLan}
+            onChange={(e) =>
+              setSoLan(clampSoLanGhep(docSoThapPhan(e.target.value)))
+            }
+          />
+          <span className="config-cpsx-upgrade__formula-label">Mét ghép</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="Mét ghép preview"
+            value={metGhep}
+            onChange={(e) => setMetGhep(docSoThapPhan(e.target.value))}
+          />
+          <span className="config-cpsx-upgrade__formula-label">m</span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-op">→</span>
+          <strong className="config-cpsx-upgrade__formula-result">
+            {dinhDangSo(cfg.setupFirstMinutes, 0)} + ({dinhDangSo(soLan, 0)} −
+            1) × {dinhDangSo(cfg.setupNextMinutes, 0)} + (
+            {dinhDangSo(metGhep, 0)} ÷ {dinhDangSo(cfg.avgSpeedMPerMin, 0)}) ={" "}
+            <span className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(kq.tongPhut, 0)} phút
+            </span>
+            <span className="config-cpsx-upgrade__formula-note">
+              {" "}
+              (setup {dinhDangSo(kq.chiTiet.setupPhut, 0)}p · chạy{" "}
+              {dinhDangSo(kq.chiTiet.chayPhut, 1)}p)
+            </span>
+          </strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function CardThoiGianMayChia({ cfg }: { cfg: CpsxThoiGianMayChia }) {
+  const rules = cfg.rules ?? [];
+  const [ruleKey, setRuleKey] = React.useState(() => rules[0]?.key ?? "");
+  const [metChia, setMetChia] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!rules.some((r) => r.key === ruleKey) && rules[0]) {
+      setRuleKey(rules[0].key);
+    }
+  }, [rules, ruleKey]);
+
+  const rule: CpsxThoiGianRule =
+    rules.find((r) => r.key === ruleKey) ??
+    rules[0] ?? {
+      key: "",
+      label: "—",
+      setupMinutes: 0,
+      speedMPerMin: 1,
+    };
+
+  const kq = React.useMemo(
+    () => tinhThoiGianMayChia(metChia, rule),
+    [metChia, rule],
+  );
+
+  return (
+    <div className="card config-card config-cpsx-upgrade-readonly__card config-cpsx-upgrade-readonly__card--tg">
+      <TieuDeCard>Máy chia</TieuDeCard>
+      <div className="config-cpsx-upgrade__formulas">
+        <div className="config-cpsx-upgrade__formula-head">
+          Công thức áp dụng: TG = setup(loại SP) + mét ÷ tốc độ(loại SP) → phút
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">Loại SP</span>
+          <label className="config-cpsx-upgrade__select">
+            <select
+              value={rule.key}
+              onChange={(e) => setRuleKey(e.target.value)}
+              aria-label="Loại sản phẩm máy chia"
+            >
+              {rules.length === 0 ? (
+                <option value="">—</option>
+              ) : (
+                rules.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    {r.label || r.key} ({dinhDangSo(r.setupMinutes, 0)}p ·{" "}
+                    {dinhDangSo(r.speedMPerMin, 0)} m/phút)
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+          <span className="config-cpsx-upgrade__formula-label">Mét chia</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="Mét chia preview"
+            value={metChia}
+            onChange={(e) => setMetChia(docSoThapPhan(e.target.value))}
+          />
+          <span className="config-cpsx-upgrade__formula-label">m</span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-op">→</span>
+          <strong className="config-cpsx-upgrade__formula-result">
+            setup {dinhDangSo(rule.setupMinutes, 0)}p + (
+            {dinhDangSo(metChia, 0)} ÷ {dinhDangSo(rule.speedMPerMin, 0)}) ={" "}
+            <span className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(kq.tongPhut, 0)} phút
+            </span>
+            <span className="config-cpsx-upgrade__formula-note">
+              {" "}
+              (setup {dinhDangSo(kq.chiTiet.setupPhut, 0)}p · chạy{" "}
+              {dinhDangSo(kq.chiTiet.chayPhut, 1)}p)
+            </span>
+          </strong>
+        </div>
+      </div>
+
+      <div className="config-cpsx-upgrade__col-title">Bảng rule (chỉ xem)</div>
+      <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
+        <table className="config-table config-cpsx-upgrade__table">
+          <thead>
+            <tr>
+              <th>Loại sản phẩm</th>
+              <th className="num">Setup (phút)</th>
+              <th className="num">Tốc độ (m/phút)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rules.length === 0 ? (
+              <tr>
+                <td colSpan={3}>—</td>
+              </tr>
+            ) : (
+              rules.map((r, idx) => (
+                <tr key={r.key || `chia-${idx}`}>
+                  <td>{r.label || "—"}</td>
+                  <td className="num">{dinhDangSo(r.setupMinutes, 0)}</td>
+                  <td className="num">{dinhDangSo(r.speedMPerMin, 0)}</td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function CardThoiGianMayTui({ cfg }: { cfg: CpsxThoiGianMayTui }) {
+  const setupRules = cfg.setupRules ?? [];
+  const speedRules = cfg.speedRules ?? [];
+  const [setupKey, setSetupKey] = React.useState(
+    () => setupRules[0]?.key ?? "",
+  );
+  const [tocDoKey, setTocDoKey] = React.useState(
+    () => speedRules[0]?.key ?? "",
+  );
+  const [metChay, setMetChay] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!setupRules.some((r) => r.key === setupKey) && setupRules[0]) {
+      setSetupKey(setupRules[0].key);
+    }
+  }, [setupRules, setupKey]);
+
+  React.useEffect(() => {
+    if (!speedRules.some((r) => r.key === tocDoKey) && speedRules[0]) {
+      setTocDoKey(speedRules[0].key);
+    }
+  }, [speedRules, tocDoKey]);
+
+  const setupChon: CpsxTuiSetupRule =
+    setupRules.find((r) => r.key === setupKey) ??
+    setupRules[0] ?? {
+      key: "",
+      label: "—",
+      setupMinutes: 0,
+      maxStepMm: null,
+      stepOp: null,
+    };
+  const tocDoChon: CpsxTuiSpeedRule =
+    speedRules.find((r) => r.key === tocDoKey) ??
+    speedRules[0] ?? {
+      key: "",
+      label: "—",
+      maxStepMm: null,
+      speedMPerMin: 50,
+    };
+
+  const kq = React.useMemo(
+    () => tinhThoiGianMayTui(metChay, setupChon, tocDoChon),
+    [metChay, setupChon, tocDoChon],
+  );
+
+  const dsBien = setupRules.filter((r) => laSetupBienCoSize(r));
+  const dsKhac = setupRules.filter((r) => !laSetupBienCoSize(r));
+
+  return (
+    <div className="card config-card config-cpsx-upgrade-readonly__card config-cpsx-upgrade-readonly__card--tg">
+      <TieuDeCard>Máy làm túi</TieuDeCard>
+      <div className="config-cpsx-upgrade__formulas">
+        <div className="config-cpsx-upgrade__formula-head">
+          Công thức áp dụng: TG = setup(loại túi) + mét ÷ tốc độ(bậc) → phút
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">Mét chạy</span>
+          <input
+            type="number"
+            className="config-inline-input config-cpsx-upgrade__formula-input"
+            min={0}
+            step={1}
+            aria-label="Mét chạy máy túi preview"
+            value={metChay}
+            onChange={(e) => setMetChay(docSoThapPhan(e.target.value))}
+          />
+          <span className="config-cpsx-upgrade__formula-label">m</span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">
+            Loại túi · Setup{" "}
+            <strong className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(setupChon.setupMinutes, 0)} phút
+            </strong>
+          </span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <label className="config-cpsx-upgrade__select">
+            <select
+              value={setupChon.key}
+              onChange={(e) => setSetupKey(e.target.value)}
+              aria-label="Chọn loại túi preview"
+            >
+              {setupRules.length === 0 ? (
+                <option value="">—</option>
+              ) : (
+                setupRules.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    {nhanSetupTui(r)}
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+          <span className="config-cpsx-upgrade__formula-op">→</span>
+          <strong className="config-cpsx-upgrade__formula-result">
+            Setup = {dinhDangSo(setupChon.setupMinutes, 0)} phút
+          </strong>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">
+            Bậc bước cắt ·{" "}
+            <strong className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(tocDoChon.speedMPerMin, 0)} m/phút
+            </strong>
+          </span>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <label className="config-cpsx-upgrade__select">
+            <select
+              value={tocDoChon.key}
+              onChange={(e) => setTocDoKey(e.target.value)}
+              aria-label="Chọn bậc bước cắt preview"
+            >
+              {speedRules.length === 0 ? (
+                <option value="">—</option>
+              ) : (
+                speedRules.map((r) => (
+                  <option key={r.key} value={r.key}>
+                    {nhanBuocCatTocDo(r)} ({dinhDangSo(r.speedMPerMin, 0)}{" "}
+                    m/phút)
+                  </option>
+                ))
+              )}
+            </select>
+          </label>
+          <span className="config-cpsx-upgrade__formula-op">→</span>
+          <strong className="config-cpsx-upgrade__formula-result">
+            ({dinhDangSo(metChay, 0)} m ÷{" "}
+            {dinhDangSo(tocDoChon.speedMPerMin, 0)}) ={" "}
+            {dinhDangSo(kq.chiTiet.chayPhut, 1)} phút
+          </strong>
+        </div>
+        <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
+          <span className="config-cpsx-upgrade__formula-label">Tổng</span>
+          <span className="config-cpsx-upgrade__formula-op">→</span>
+          <strong className="config-cpsx-upgrade__formula-result">
+            <span className="config-cpsx-upgrade__highlight">
+              {dinhDangSo(kq.tongPhut, 0)} phút
+            </span>
+            <span className="config-cpsx-upgrade__formula-note">
+              {" "}
+              (setup {dinhDangSo(kq.chiTiet.setupPhut, 0)}p · chạy{" "}
+              {dinhDangSo(kq.chiTiet.chayPhut, 1)}p)
+            </span>
+          </strong>
+        </div>
+      </div>
+
+      <div className="config-cpsx-upgrade__col-title">
+        Setup 3/4 biên (theo bước cắt) — chỉ xem
+      </div>
       <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
         <table className="config-table config-cpsx-upgrade__table">
           <thead>
@@ -340,7 +758,9 @@ function ThoiGianMayTuiDayDu({ cfg }: { cfg: CpsxThoiGianMayTui }) {
           </thead>
           <tbody>
             {dsBien.length === 0 ? (
-              <tr><td colSpan={3}>—</td></tr>
+              <tr>
+                <td colSpan={3}>—</td>
+              </tr>
             ) : (
               dsBien.map((rule, idx) => (
                 <tr key={rule.key || `setup-bien-${idx}`}>
@@ -354,7 +774,9 @@ function ThoiGianMayTuiDayDu({ cfg }: { cfg: CpsxThoiGianMayTui }) {
         </table>
       </div>
 
-      <TieuDeKhoi>Máy làm túi — setup loại khác</TieuDeKhoi>
+      <div className="config-cpsx-upgrade__col-title">
+        Setup loại khác — chỉ xem
+      </div>
       <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
         <table className="config-table config-cpsx-upgrade__table">
           <thead>
@@ -365,7 +787,9 @@ function ThoiGianMayTuiDayDu({ cfg }: { cfg: CpsxThoiGianMayTui }) {
           </thead>
           <tbody>
             {dsKhac.length === 0 ? (
-              <tr><td colSpan={2}>—</td></tr>
+              <tr>
+                <td colSpan={2}>—</td>
+              </tr>
             ) : (
               dsKhac.map((rule, idx) => (
                 <tr key={rule.key || `setup-khac-${idx}`}>
@@ -378,7 +802,9 @@ function ThoiGianMayTuiDayDu({ cfg }: { cfg: CpsxThoiGianMayTui }) {
         </table>
       </div>
 
-      <TieuDeKhoi>Máy làm túi — tốc độ theo bước cắt</TieuDeKhoi>
+      <div className="config-cpsx-upgrade__col-title">
+        Tốc độ theo bước cắt — chỉ xem
+      </div>
       <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
         <table className="config-table config-cpsx-upgrade__table">
           <thead>
@@ -388,10 +814,12 @@ function ThoiGianMayTuiDayDu({ cfg }: { cfg: CpsxThoiGianMayTui }) {
             </tr>
           </thead>
           <tbody>
-            {(cfg.speedRules ?? []).length === 0 ? (
-              <tr><td colSpan={2}>—</td></tr>
+            {speedRules.length === 0 ? (
+              <tr>
+                <td colSpan={2}>—</td>
+              </tr>
             ) : (
-              cfg.speedRules.map((rule, idx) => (
+              speedRules.map((rule, idx) => (
                 <tr key={rule.key || `speed-${idx}`}>
                   <td>{nhanBuocCatTocDo(rule)}</td>
                   <td className="num">{dinhDangSo(rule.speedMPerMin, 0)}</td>

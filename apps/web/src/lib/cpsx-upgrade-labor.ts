@@ -323,18 +323,16 @@ export function luongMoiPhutAp(
 }
 
 /**
- * Giá áp dụng cho Làm túi (nhiều máy): giá 1 máy (có thể đã làm tròn)
- * chia tiếp cho số máy hoạt động / ngày. Số máy ≤ 0 → coi như 1.
+ * Giá áp dụng cho Làm túi = giá cuối (rounded nếu có, không thì giá tính).
+ * Không chia số máy — `machinesPerDay` chỉ còn lưu cấu hình, không vào giá.
+ * Tham số 3 giữ để tương thích call site cũ.
  */
 export function luongMoiPhutTuiAp(
   giaTinh: number,
   roundedPerMin: number | null | undefined,
-  machinesPerDay: number,
+  _machinesPerDay?: number,
 ): number {
-  const gia1May = luongMoiPhutAp(giaTinh, roundedPerMin);
-  const may = Math.floor(Number(machinesPerDay));
-  if (!Number.isFinite(may) || may <= 0) return gia1May;
-  return Math.round(gia1May / may);
+  return luongMoiPhutAp(giaTinh, roundedPerMin);
 }
 
 // ── Normalize ───────────────────────────────────────────────────────

@@ -715,8 +715,8 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     String(dongChia.thanhPhamLabel ?? '').includes('(0,300)') || String(dongChia.thanhPhamLabel ?? '').includes('(0.300)'),
     'Chia: TP label kèm khổ chia',
   );
-  assert(String(dongChia.dauVaoNvlLabel ?? '').includes(' '), 'Chia: ĐV label format A có khoảng trước (');
-  assert(String(dongChia.thanhPhamLabel ?? '').includes(' '), 'Chia: TP label format A có khoảng trước (');
+  assert(String(dongChia.dauVaoNvlLabel ?? '').includes('\n('), 'Chia: ĐV label khổ xuống hàng sau mét');
+  assert(String(dongChia.thanhPhamLabel ?? '').includes('\n('), 'Chia: TP label khổ xuống hàng sau mét');
   approx(dongChia.giaNVL!, 0, 'Chia: giá NVL = 0');
   approx(dongChia.cpVatLieu!, 0, 'Chia: CP VL = 0');
   approx(dongChia.thanhTienNVL!, 0, 'Chia: TT NVL = 0');
@@ -838,8 +838,8 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(dongIn.cpNhanCongPerPhut!, 823, 'in: 823 ₫/phút');
   // ghép: TC = 200.000 → (800k + 60k + 200k) ÷ 24 ÷ 60 = 736,11 → 736
   approx(rows[1].cpNhanCongPerPhut!, 736, 'ghép: 736 ₫/phút');
-  // túi: TC = 150.000 → (600k + 60k + 150k) ÷ 24 ÷ 60 = 562,5 → 563; rounded 1000 → 1000
-  approx(rows[2].cpNhanCongPerPhut!, 333, 'làm túi 3 máy: 1000 ÷ 3 = 333');
+  // túi: TC = 150.000 → (600k + 60k + 150k) ÷ 24 ÷ 60 = 562,5 → 563; rounded 1000 → 1000 (không ÷ máy)
+  approx(rows[2].cpNhanCongPerPhut!, 1000, 'làm túi: rounded 1000 (không chia máy)');
 
   // ghép: 1 lần → setup 10'; chạy 8770/100 = 87,7' → tổng 97,7'
   approx(rows[1].thoiGianPhut!, 10 + 8770 / 100, 'ghép: thời gian SX');
@@ -856,7 +856,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     Math.abs(rows[2].thoiGianPhut! - (90 + 10000 / 60)) > 1,
     'làm túi: TG ≠ setup + số túi÷cái/phút',
   );
-  approx(rows[2].cpNhanCongPerPhut!, 333, 'làm túi 3 máy: 1000 ÷ 3 = 333');
+  approx(rows[2].cpNhanCongPerPhut!, 1000, 'làm túi: rounded 1000 (không chia máy)');
 }
 
 {
@@ -985,7 +985,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Làm túi nhiều máy: rounded 1000, machinesPerDay 2 → 500 ₫/phút
+  // Làm túi: machinesPerDay không còn chia vào giá NC — rounded 1000 giữ 1000
   const rMay = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000 } });
   const rows = lapDongNhanCongDien(rMay, taoHangSo({
     cpsxUpgradeLabor: {
@@ -994,7 +994,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     } as CpsxUpgradeLabor,
   }));
   const dongTui = rows.find((r) => r.congDoan === 'làm túi');
-  approx(dongTui!.cpNhanCongPerPhut!, 500, 'làm túi 2 máy: 1000 ÷ 2 = 500');
+  approx(dongTui!.cpNhanCongPerPhut!, 1000, 'làm túi machinesPerDay=2: vẫn 1000 (không chia)');
 }
 
 {

@@ -33,6 +33,10 @@ export function luuConfigVaoLS(materials: Material[], constants: AppConstants, p
       customPaymentDays: constants.customPaymentDays,
       customAccessories: constants.customAccessories,
       customPrintSurcharges: constants.customPrintSurcharges,
+      cpsxUpgradeElectric: constants.cpsxUpgradeElectric,
+      cpsxUpgradeLabor: constants.cpsxUpgradeLabor,
+      cpsxUpgradeInk: constants.cpsxUpgradeInk,
+      cpsxUpgradeThoiGian: constants.cpsxUpgradeThoiGian,
     },
     packaging: {
       boxOptions: constants.boxOptions,

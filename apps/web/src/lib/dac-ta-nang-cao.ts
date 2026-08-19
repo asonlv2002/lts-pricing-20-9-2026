@@ -341,13 +341,13 @@ function dinhDangKhoM(n: number): string {
   return n.toLocaleString('vi-VN', { minimumFractionDigits: 3, maximumFractionDigits: 3 });
 }
 
-/** Mét + khổ: "15.200 (0,620)" — dòng Chia Table 1 */
+/** Mét + khổ 2 dòng: "15.200\n(0,620)" — dòng Chia Table 1 (UI: white-space pre-line) */
 function dinhDangMetKemKho(met: number, kho: number): string {
   const m = Math.max(0, so(met)).toLocaleString('vi-VN', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   });
-  return `${m} (${dinhDangKhoM(Math.max(0, so(kho)))})`;
+  return `${m}\n(${dinhDangKhoM(Math.max(0, so(kho)))})`;
 }
 
 /** Phi hao cắt/làm túi — cùng công thức engine tinhHaoHutCat (cutWasteA/B/C). */
