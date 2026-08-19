@@ -70,6 +70,27 @@ export function layConstantKeysTheoScope(scope: ConfigScope): (keyof AppConstant
   return SCOPE_CONSTANT_KEYS[scope] ?? [];
 }
 
+/**
+ * Gán key scope từ snapshot lên constants working — bỏ qua null/undefined
+ * để bản BE thiếu field không xóa data mẫu/local đã có.
+ */
+export function ganKeysScopeTuSnapshot(
+  base: AppConstants,
+  snapshotConstants: AppConstants,
+  keys: (keyof AppConstants)[],
+): AppConstants {
+  const next = { ...base } as AppConstants & Record<string, unknown>;
+  const src = snapshotConstants as unknown as Record<string, unknown>;
+  for (const key of keys) {
+    const k = key as string;
+    const v = src[k];
+    if (v !== undefined && v !== null) {
+      next[k] = structuredClone(v);
+    }
+  }
+  return next;
+}
+
 // ── Trích xuất dữ liệu 1 scope từ store -> inputValue cho API ──────────────
 export interface StoreDataForScope {
   materials: Material[];
@@ -119,23 +140,19 @@ export function trichCpsxUpgradeTuInputValue(
   return Object.keys(out).length > 0 ? out : null;
 }
 
-/** Gộp CPSX NC từ PRODUCTION blob + session (ưu tiên blob) — dùng migrate-on-read. */
+/**
+ * Payload migrate PRODUCTION → PRODUCTION_UPGRADE.
+ * CHỈ lấy key CPSX NC có thật trong blob PRODUCTION — không gộp session/DEFAULT
+ * (tránh lần đầu login đẩy mẫu hardcode lên BE rồi F5 “load BE” vẫn ra mẫu).
+ * Tham số session giữ để tương thích call site cũ, bị bỏ qua.
+ */
 export function gopCpsxUpgradeChoMigrate(
   productionInputValue: unknown,
-  sessionConstants: AppConstants,
+  _sessionConstants?: AppConstants,
 ): Record<string, unknown> | null {
-  const fromProd = trichCpsxUpgradeTuInputValue(productionInputValue) ?? {};
-  const merged: Record<string, unknown> = {};
-  for (const key of CPSX_UPGRADE_CONSTANT_KEYS) {
-    const k = key as string;
-    if (k in fromProd && (fromProd as Record<string, unknown>)[k] != null) {
-      merged[k] = structuredClone((fromProd as Record<string, unknown>)[k]);
-      continue;
-    }
-    const sessionVal = (sessionConstants as unknown as Record<string, unknown>)[k];
-    if (sessionVal != null) merged[k] = structuredClone(sessionVal);
-  }
-  return Object.keys(merged).length > 0 ? merged : null;
+  const fromProd = trichCpsxUpgradeTuInputValue(productionInputValue);
+  if (!fromProd) return null;
+  return structuredClone(fromProd) as Record<string, unknown>;
 }
 
 // ── Áp dụng inputValue từ server vào store fields ──────────────────────────
@@ -166,8 +183,10 @@ export function apDungDuLieuScope(
     const keys = SCOPE_CONSTANT_KEYS[scope];
     const constants: Partial<AppConstants> = {};
     for (const key of keys) {
-      if (key as string in data) {
-        (constants as Record<string, unknown>)[key as string] = data[key as string];
+      const k = key as string;
+      // Bỏ null/undefined — key thiếu trên BE không được coi là “đã có”
+      if (k in data && data[k] != null) {
+        (constants as Record<string, unknown>)[k] = data[k];
       }
     }
     if (Object.keys(constants).length > 0) result.constants = constants;
@@ -326,6 +345,18 @@ export function priceConfigToSnapshot(
   // Áp dụng scope data lên fallback để có full snapshot
   const applied = apDungDuLieuScope(scope, pc.inputValue);
 
+  // productionUpgrade: không nhét 4 key CPSX NC từ session/DEFAULT vào snapshot.
+  // Snapshot chỉ mang key BE thật có → ganKeysScopeTuSnapshot không ghi đè nhầm bằng mẫu.
+  let constantsMerged: AppConstants;
+  if (scope === 'productionUpgrade') {
+    constantsMerged = {
+      ...xoaCpsxUpgradeKhoiHangSo(fallbackData.constants),
+      ...(applied.constants ?? {}),
+    };
+  } else {
+    constantsMerged = { ...fallbackData.constants, ...(applied.constants ?? {}) };
+  }
+
   return {
     id: pc.id,
     scope,
@@ -337,7 +368,7 @@ export function priceConfigToSnapshot(
     updatedAt: pc.createdAt,
     materials: applied.materials ?? structuredClone(fallbackData.materials),
     smallWidthPrices: applied.smallWidthPrices ?? structuredClone(fallbackData.smallWidthPrices),
-    constants: { ...fallbackData.constants, ...(applied.constants ?? {}) },
+    constants: constantsMerged,
     profitTable: applied.profitTable ?? structuredClone(fallbackData.profitTable),
   };
 }

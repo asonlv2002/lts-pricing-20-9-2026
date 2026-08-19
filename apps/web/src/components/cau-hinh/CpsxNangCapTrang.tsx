@@ -12,11 +12,35 @@ function TieuDe({ children }: { children: React.ReactNode }) {
   return <div className="config-group-header">{children}</div>;
 }
 
+function DangTaiCpsxNangCao() {
+  return (
+    <div
+      className="config-cpsx-upgrade-shell config-cpsx-upgrade-shell--loading"
+      role="status"
+      aria-busy="true"
+      aria-live="polite"
+      style={{
+        padding: "48px 24px",
+        textAlign: "center",
+        color: "var(--dim)",
+      }}
+    >
+      <p style={{ margin: 0 }}>Đang tải cấu hình CPSX nâng cao từ server...</p>
+    </div>
+  );
+}
+
 export default function CpsxNangCapTrang() {
   const nguoiDungHienTai = dungCuaHangTinhGia((s) => s.nguoiDungHienTai);
+  const daDangNhap = dungCuaHangTinhGia((s) => s.isAuthenticated);
+  const dangTai = dungCuaHangTinhGia((s) => s.dangTaiCauHinhMoiNhat);
   const coQuyenSua = !!nguoiDungHienTai?.policies.includes(
     "PRICE_CONFIG_MANAGER",
   );
+
+  if (daDangNhap && dangTai) {
+    return <DangTaiCpsxNangCao />;
+  }
 
   if (!coQuyenSua) {
     return (

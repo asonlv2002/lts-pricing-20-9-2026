@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { lapDongSanXuat, tinhGiaHieuLuc, xuLyDongGhiDe, type UniRow } from '../lib/manager-calculation';
-import { lapDongVatLieuNangCao, lapDongNhanCongDien, tinhTongNangCao, tinhKetQuaNangCaoHieuLuc } from '../lib/dac-ta-nang-cao';
+import { chuanHoaMetCatUniRows, lapDongVatLieuNangCao, lapDongNhanCongDien, layLanNguocMetTuResult, tinhTongNangCao, tinhKetQuaNangCaoHieuLuc } from '../lib/dac-ta-nang-cao';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { TECHNICAL_TABLE_MOBILE_LABELS as MOBILE_LABELS } from '../lib/technical-table-mobile-labels';
 import type { AppConstants, CalculateResult, Material, OverrideRowKey, OverrideFields, OverrideTable, HistoryItem } from '../lib/types';
@@ -661,8 +661,16 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
   khiDatProfitRate: (v: number) => void;
   engineParams: { numColors: number; coverageRatio: number; metallicSurcharge: number; laborCost: number; isPrintFilm: boolean; printFilmInkBOPP: number; printFilmInkOther: number };
 }) {
+  // Gốc: In/Ghép engine; Làm túi neo trong lapDong.
+  // Chỉ khi ✎ mét/PH túi: neo cut (khổ hẹp) + lan ÷N. Đổi VL/giá: không ÷N.
   const { rows: dongGoc } = xuLyDongGhiDe(uniRows, {}, {});
-  const { rows: dongDaXuLy } = xuLyDongGhiDe(uniRows, {}, ghiDeHienTai);
+  const coGhiDeMetCat =
+    ghiDeHienTai.cut?.meters !== undefined || ghiDeHienTai.cut?.waste !== undefined;
+  const uniChoGhiDe = coGhiDeMetCat
+    ? chuanHoaMetCatUniRows(uniRows, r, hangSo, ghiDeHienTai)
+    : uniRows;
+  const lanNguoc = coGhiDeMetCat ? layLanNguocMetTuResult(r) : undefined;
+  const { rows: dongDaXuLy } = xuLyDongGhiDe(uniChoGhiDe, {}, ghiDeHienTai, undefined, lanNguoc);
   const dongVatLieuGoc = lapDongVatLieuNangCao(r, dongGoc, hangSo, materials);
   const dongVatLieu = lapDongVatLieuNangCao(r, dongDaXuLy, hangSo, materials, ghiDeHienTai);
   const dongNCDGoc = lapDongNhanCongDien(r, hangSo);

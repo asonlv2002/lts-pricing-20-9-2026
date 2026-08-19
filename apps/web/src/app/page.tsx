@@ -240,11 +240,18 @@ export default function TrangChinh() {
       }
 
       // Phiên bản bảng định mức
+      // Đã login: bỏ snapshot local scope productionUpgrade — F5 lấy full history BE (như nút Xem).
       const rawConfigSnapshots = window.localStorage.getItem('lts_config_snapshots');
       if (rawConfigSnapshots) {
         try {
           const parsed = JSON.parse(rawConfigSnapshots);
-          if (Array.isArray(parsed)) dungCuaHangTinhGia.setState({ configSnapshots: parsed });
+          if (Array.isArray(parsed)) {
+            const coToken = !!window.localStorage.getItem('lts_service_access_token');
+            const list = coToken
+              ? parsed.filter((s: { scope?: string }) => (s?.scope ?? 'materials') !== 'productionUpgrade')
+              : parsed;
+            dungCuaHangTinhGia.setState({ configSnapshots: list });
+          }
         } catch {}
       }
 
@@ -295,7 +302,17 @@ export default function TrangChinh() {
               return { ...p, widthThresholdMm: saved.widthThresholdMm, thickness: saved.thickness ?? material.thickness, pricePerKg: saved.pricePerKg, pricePerM2: saved.pricePerKg * (saved.thickness ?? material.thickness) * material.density / 1000 };
             });
           }
-          const hangSoMoi = { ...s.constants, ...(cfg.cpsx || {}) };
+          // cpsx từ LS có 4 key CPSX NC — khi đã login bỏ chúng, chờ bootstrap BE
+          // (tránh F5 hiện mẫu/local rồi user tưởng đã load xong).
+          const cpsxRaw = { ...(cfg.cpsx || {}) } as Record<string, unknown>;
+          const coToken = !!window.localStorage.getItem('lts_service_access_token');
+          if (coToken) {
+            delete cpsxRaw.cpsxUpgradeElectric;
+            delete cpsxRaw.cpsxUpgradeLabor;
+            delete cpsxRaw.cpsxUpgradeInk;
+            delete cpsxRaw.cpsxUpgradeThoiGian;
+          }
+          const hangSoMoi = { ...s.constants, ...cpsxRaw };
           if (cfg.packaging) {
             if (cfg.packaging.boxOptions?.length) hangSoMoi.boxOptions = cfg.packaging.boxOptions;
             if (cfg.packaging.boxPriceDefault != null) hangSoMoi.boxPriceDefault = cfg.packaging.boxPriceDefault;

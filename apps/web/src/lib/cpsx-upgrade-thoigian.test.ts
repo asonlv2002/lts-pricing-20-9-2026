@@ -118,28 +118,48 @@ assert(
 );
 assert('metChia: null → 0', metChiaHoacLamTui(null) === 0);
 
-// metLamTuiTuDauVaoNVL: (cutMeters+cutWaste) × số phần tử
+// metLamTuiTuDauVaoNVL: TP+PH (TP = SL×bước÷hình hoặc cutMeters); không × divideElements
 assert('soPhanTu: không chia → 1', soPhanTuChiaLamTui({ hasDivide: false, divideElements: 4 }) === 1);
 assert('soPhanTu: có chia N=2 → 2', soPhanTuChiaLamTui({ hasDivide: true, divideElements: 2 }) === 2);
 assert('soPhanTu: có chia N=0 → 1', soPhanTuChiaLamTui({ hasDivide: true, divideElements: 0 }) === 1);
 assert(
-  'metTui: không chia = cutMeters+cutWaste',
+  'metTui: cutMeters+cutWaste khi khớp TP',
   metLamTuiTuDauVaoNVL({ cutMeters: 25000, cutWaste: 267 }) === 25267,
 );
 assert(
-  'metTui: có chia ×2',
+  'metTui: có chia không ×N (ĐV = TP+PH)',
   metLamTuiTuDauVaoNVL({
     cutMeters: 25000,
     cutWaste: 267,
     input: { hasDivide: true, divideElements: 2 },
-  }) === 50534,
+  }) === 25267,
+);
+assert(
+  'metTui: neo SL×bước÷hình + PH định mức',
+  metLamTuiTuDauVaoNVL({
+    input: { productType: 'tui', quantity: 10000, cutStep: 0.4, numImages: 1 },
+  }) === 4000 + (4000 / 3000 * 20 + 100),
+);
+assert(
+  'metTui: có chia không ÷ numImages (SL×bước thuần)',
+  metLamTuiTuDauVaoNVL({
+    input: {
+      productType: 'tui', quantity: 10000, cutStep: 0.4, numImages: 2,
+      hasDivide: true, divideElements: 2,
+    },
+  }) === 4000 + (4000 / 3000 * 20 + 100),
+);
+assert(
+  'metTui: không chia vẫn ÷ numImages',
+  metLamTuiTuDauVaoNVL({
+    input: { productType: 'tui', quantity: 10000, cutStep: 0.4, numImages: 2 },
+  }) === 2000 + (2000 / 3000 * 20 + 100),
 );
 assert(
   'metTui: fallback layers.cut khi thiếu cutMeters',
   metLamTuiTuDauVaoNVL({ layers: { cut: { meters: 9000, waste: 100 } } }) === 9100,
 );
 assert('metTui: null → 0', metLamTuiTuDauVaoNVL(null) === 0);
-// Case ảnh: setup 90 + (25267×2)/50
 const rTuiCut = tinhThoiGianMayTui(
   metLamTuiTuDauVaoNVL({
     cutMeters: 25000,
@@ -149,7 +169,7 @@ const rTuiCut = tinhThoiGianMayTui(
   setup3bien,
   { key: '400_550', label: '400–550', maxStepMm: 550, speedMPerMin: 50 },
 );
-assert('TÚI 25267×2 /50 +90 ≈ 1100.68', approx(rTuiCut.tongPhut, 90 + 50534 / 50));
+assert('TÚI 25267/50 +90', approx(rTuiCut.tongPhut, 90 + 25267 / 50));
 
 // Migrate bagsPerMinute → speedMPerMin (data copy từ bagPressTime cũ)
 const rBagBags = chuanHoaCpsxUpgradeThoiGian(

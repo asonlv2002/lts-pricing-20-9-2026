@@ -16,9 +16,9 @@ import type {
  *             phủ mờ cộng thêm matteExtraMinutes.
  *   Máy ghép: setup = lần đầu + (số lần ghép − 1) × lần tiếp; chạy = mét ÷ tốc độ.
  *   Máy chia: setup/tốc độ theo rule loại SP; chạy = mét ÷ rule.speed (ghép cuối / in).
- *   Máy túi:  setup theo loại túi + (Đầu vào NVL làm túi × số phần tử) ÷ tốc độ TB.
- *             Mét gốc = cutMeters + cutWaste (cột Đầu vào NVL Table 1 dòng làm túi).
- *             Có chia → × max(1, divideElements); không chia → ×1.
+ *   Máy túi:  setup theo loại túi + Đầu vào NVL làm túi ÷ tốc độ TB.
+ *             ĐV = TP + PH; TP = có chia ? SL×bước : (SL×bước)÷hình.
+ *             Không × divideElements.
  *             KHÔNG dùng số túi, không dùng mét ghép cuối.
  */
 export interface KetQuaThoiGian {
@@ -108,26 +108,65 @@ export function soPhanTuChiaLamTui(input: {
 }
 
 /**
- * Mét chạy máy làm túi (nâng cao):
- *   (Đầu vào NVL làm túi × số phần tử) = (cutMeters + cutWaste) × soPhanTuChiaLamTui
- * Có chia → nhân divideElements; không chia → ×1.
- * Không dùng mét ghép cuối / in / số túi.
+ * Mét chạy máy làm túi (nâng cao) = Đầu vào NVL làm túi = TP + PH.
+ * TP: có chia → SL×bước; không chia → (SL×bước)÷hình (fallback cutMeters).
+ * PH = cutWasteA/B/C trên TP (fallback cutWaste / layers.cut.waste).
+ * Không nhân divideElements. Không dùng mét ghép cuối / in / số túi.
  */
 export function metLamTuiTuDauVaoNVL(result: {
   cutMeters?: number;
   cutWaste?: number;
   layers?: { cut?: { meters?: number; waste?: number } };
-  input?: { hasDivide?: boolean; divideElements?: number };
+  input?: {
+    hasDivide?: boolean;
+    divideElements?: number;
+    quantity?: number;
+    cutStep?: number;
+    numImages?: number;
+    productType?: string;
+  };
+  /** Hằng số phi hao cắt (tùy chọn; thiếu → 3000/20/100) */
+  cutWasteA?: number;
+  cutWasteB?: number;
+  cutWasteC?: number;
 } | null | undefined): number {
   if (!result) return 0;
-  let metGoc = 0;
-  if (result.cutMeters != null || result.cutWaste != null) {
-    metGoc = Math.max(0, so(result.cutMeters) + so(result.cutWaste));
+  const input = result.input;
+  const qty = so(input?.quantity);
+  const buoc = so(input?.cutStep);
+  const soHinh = Math.max(1, so(input?.numImages) || 1);
+  let tp = 0;
+  if (input?.productType !== 'mang' && qty > 0 && buoc > 0) {
+    tp = input?.hasDivide === true ? qty * buoc : (qty * buoc) / soHinh;
+  } else if (result.cutMeters != null) {
+    tp = Math.max(0, so(result.cutMeters));
   } else {
-    const cut = result.layers?.cut;
-    metGoc = Math.max(0, so(cut?.meters) + so(cut?.waste));
+    tp = Math.max(0, so(result.layers?.cut?.meters));
   }
-  return metGoc * soPhanTuChiaLamTui(result.input);
+  if (tp <= 0) {
+    // fallback cũ: TP+PH đã cộng sẵn
+    if (result.cutMeters != null || result.cutWaste != null) {
+      return Math.max(0, so(result.cutMeters) + so(result.cutWaste));
+    }
+    const cut = result.layers?.cut;
+    return Math.max(0, so(cut?.meters) + so(cut?.waste));
+  }
+  const a = so(result.cutWasteA) || 3000;
+  const b = so(result.cutWasteB) || 20;
+  const c = so(result.cutWasteC) || 100;
+  // Nếu có cutWaste tường minh và TP = cutMeters → dùng waste engine; không thì định mức trên TP
+  let ph = tp / a * b + c;
+  if (result.cutMeters != null && Math.abs(so(result.cutMeters) - tp) < 0.001 && result.cutWaste != null) {
+    ph = Math.max(0, so(result.cutWaste));
+  } else if (
+    result.cutMeters == null
+    && result.layers?.cut?.meters != null
+    && Math.abs(so(result.layers.cut.meters) - tp) < 0.001
+    && result.layers?.cut?.waste != null
+  ) {
+    ph = Math.max(0, so(result.layers.cut.waste));
+  }
+  return tp + ph;
 }
 
 export function tinhThoiGianMayIn(

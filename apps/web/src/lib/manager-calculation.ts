@@ -149,14 +149,30 @@ export function lapDongSanXuat(result: CalculateResult, constants: AppConstants)
   return { uniRows, totalCPSX, totalCPVL, grandTotal: totalCPSX + totalCPVL + printFilmCost };
 }
 
+/** Tuỳ chọn lan ngược mét (đặc tả NC — có chia). */
+export type LanNguocMetOpts = {
+  /** Có chia: sau cut, lan lên In/Ghép = ĐV_túi ÷ N (khổ hẹp → khổ rộng) */
+  hasDivide?: boolean;
+  divideElements?: number;
+  /** GC slit: không ÷ N */
+  laGcSlit?: boolean;
+};
+
 export function xuLyDongGhiDe(
   uniRows: UniRow[],
   sourceOverrides: OverrideTable,
   currentOverrides: OverrideTable,
   printFilmParams?: { numColors: number; setupMin: number; setupDiv: number; threshold: number; speed: number; laborPerHr: number },
+  lanNguoc?: LanNguocMetOpts,
 ): { rows: ResolvedOverrideRow[]; totalCPSX: number; totalCPVL: number; grandTotal: number; printFilmCost: number } {
   const resolved: ResolvedOverrideRow[] = [];
   let propagatedInputVL = 0;
+  const coChiaLan =
+    !!lanNguoc?.hasDivide && !lanNguoc?.laGcSlit;
+  const soPtChia = (() => {
+    const n = Math.floor(Number(lanNguoc?.divideElements));
+    return n >= 1 ? n : 1;
+  })();
 
   for (let i = uniRows.length - 1; i >= 0; i--) {
     const row = uniRows[i];
@@ -169,7 +185,9 @@ export function xuLyDongGhiDe(
     const waste = cur.waste ?? src.waste ?? row.waste;
     const meters = cur.meters ?? (propagatedInputVL || (src.meters ?? row.meters));
     const inputVL = cur.inputVL ?? (meters + waste);
-    propagatedInputVL = inputVL;
+    // Có chia: ĐV làm túi (khổ hẹp) → TP ghép (khổ rộng) = ĐV ÷ N
+    propagatedInputVL =
+      rk === 'cut' && coChiaLan ? inputVL / soPtChia : inputVL;
     const cpsx = cur.cpsx ?? src.cpsx ?? row.cpsx;
     const matPrice = cur.matPrice ?? src.matPrice ?? row.matPrice;
     const srcWidth = src.width ?? row.width;

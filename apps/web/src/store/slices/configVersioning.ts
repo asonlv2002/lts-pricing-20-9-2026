@@ -18,6 +18,7 @@ import {
   gopCpsxUpgradeChoMigrate,
   layConstantKeysTheoScope,
   chonPhienBanMoiNhat,
+  ganKeysScopeTuSnapshot,
 } from '../../lib/api/price-config-mapper';
 import { seedPriceConfigCache } from '../../lib/api/price-config-cache';
 
@@ -25,10 +26,15 @@ const CAC_SCOPE_CAU_HINH: ConfigScope[] = [
   'materials', 'production', 'productionUpgrade', 'profit', 'surcharges', 'interest', 'waste', 'outsource',
 ];
 
+/** Dedupe mount + login effect cùng lúc gọi bootstrap. */
+let bootstrapCauHinhInFlight: Promise<void> | null = null;
+
 export interface ConfigVersioningSlice {
   configSnapshots: ConfigSnapshot[];
   dangLuuPhienBan: boolean;
   dangTaiPhienBan: boolean;
+  /** Bootstrap latest-version (CPSX NC + scopes khác) — tách khỏi dangTaiPhienBan. */
+  dangTaiCauHinhMoiNhat: boolean;
   dangXemPhienBan: boolean;
   phienBanDangXemId: string | null;
 
@@ -106,6 +112,7 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
   configSnapshots: INITIAL_CONFIG_SNAPSHOTS,
   dangLuuPhienBan: false,
   dangTaiPhienBan: false,
+  dangTaiCauHinhMoiNhat: false,
   dangXemPhienBan: false,
   phienBanDangXemId: null,
 
@@ -199,85 +206,139 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
   },
 
   taiCauHinhMoiNhatTuServer: async () => {
-    const state = get();
-    const token = state.accessToken;
-    if (!state.isAuthenticated || !token) return;
+    if (bootstrapCauHinhInFlight) return bootstrapCauHinhInFlight;
 
-    set({ dangTaiPhienBan: true });
-    try {
-      let list = await layPriceConfigMoiNhatService(token);
+    const run = async () => {
+      const state = get();
+      const token = state.accessToken;
+      if (!state.isAuthenticated || !token) {
+        set({ dangTaiCauHinhMoiNhat: false });
+        return;
+      }
 
-      // Migrate-on-read: chưa có PRODUCTION_UPGRADE → tách 4 key CPSX NC từ PRODUCTION (+ session)
-      const coUpgrade = list.some((pc) => pc.configName === 'PRODUCTION_UPGRADE');
-      if (!coUpgrade) {
-        const prodLatest = list.find((pc) => pc.configName === 'PRODUCTION');
-        const payload = gopCpsxUpgradeChoMigrate(
-          prodLatest?.inputValue,
-          state.constants,
-        );
-        if (payload) {
-          try {
-            const nowMonth = new Date().toISOString().slice(0, 7);
-            const created = await upsertPriceConfigService(
-              {
-                configName: 'PRODUCTION_UPGRADE',
-                inputValue: {
-                  name: 'Migrate tu PRODUCTION',
-                  effectiveMode: 'month',
-                  effectiveFrom: nowMonth,
-                  ...payload,
+      set({ dangTaiCauHinhMoiNhat: true });
+      try {
+        // Parallel: latest 1 bản/scope + full history CPSX NC (cùng nguồn nút Xem)
+        const [listRaw, upgradeHistoryRaw] = await Promise.all([
+          layPriceConfigMoiNhatService(token),
+          layLichSuPriceConfigService('PRODUCTION_UPGRADE', token).catch((err) => {
+            console.warn('Tai lich su PRODUCTION_UPGRADE that bai:', err);
+            return null as PriceConfigApi[] | null;
+          }),
+        ]);
+        let list = listRaw;
+        const upgradeHistoryOk = Array.isArray(upgradeHistoryRaw);
+        let upgradeHistory: PriceConfigApi[] = upgradeHistoryOk ? upgradeHistoryRaw! : [];
+
+        // Migrate-on-read: chưa có PRODUCTION_UPGRADE (latest + history rỗng)
+        // → chỉ tách key NC CÓ TRONG blob PRODUCTION (không gộp session/DEFAULT).
+        const coUpgrade =
+          list.some((pc) => pc.configName === 'PRODUCTION_UPGRADE')
+          || upgradeHistory.length > 0;
+        if (!coUpgrade) {
+          const prodLatest = list.find((pc) => pc.configName === 'PRODUCTION');
+          const payload = gopCpsxUpgradeChoMigrate(prodLatest?.inputValue);
+          if (payload) {
+            try {
+              const nowMonth = new Date().toISOString().slice(0, 7);
+              const created = await upsertPriceConfigService(
+                {
+                  configName: 'PRODUCTION_UPGRADE',
+                  inputValue: {
+                    name: 'Migrate tu PRODUCTION',
+                    effectiveMode: 'month',
+                    effectiveFrom: nowMonth,
+                    ...payload,
+                  },
                 },
-              },
-              token,
-            );
-            list = [...list.filter((pc) => pc.configName !== 'PRODUCTION_UPGRADE'), created];
-          } catch (migErr) {
-            console.warn('Migrate PRODUCTION_UPGRADE that bai (tiep tuc khong UPGRADE):', migErr);
+                token,
+              );
+              list = [...list.filter((pc) => pc.configName !== 'PRODUCTION_UPGRADE'), created];
+              upgradeHistory = [created];
+            } catch (migErr) {
+              console.warn('Migrate PRODUCTION_UPGRADE that bai (tiep tuc khong UPGRADE):', migErr);
+            }
           }
         }
+
+        // Cache: latest + toàn bộ history UPGRADE (pin sheet / by-ids)
+        const cacheList = [
+          ...list,
+          ...upgradeHistory.filter((u) => !list.some((l) => l.id === u.id)),
+        ];
+        seedPriceConfigCache(cacheList);
+
+        const live = get();
+        const fallback = {
+          materials: live.materials,
+          smallWidthPrices: live.smallWidthPrices,
+          constants: live.constants,
+          profitTable: live.profitTable,
+        };
+
+        // Scopes khác: 1 bản latest. CPSX NC: full history (giống Xem).
+        const snapshotsKhac = list
+          .filter((pc) => pc.configName !== 'PRODUCTION_UPGRADE')
+          .map((pc) => {
+            const scope = configNameToScope(pc.configName);
+            if (!scope) return null;
+            return priceConfigToSnapshot(pc, scope, fallback) as ConfigSnapshot;
+          })
+          .filter((s): s is ConfigSnapshot => s !== null);
+
+        const snapshotsUpgrade = (
+          upgradeHistoryOk || upgradeHistory.length > 0
+            ? upgradeHistory
+            : list.filter((pc) => pc.configName === 'PRODUCTION_UPGRADE')
+        ).map(
+          (pc) =>
+            priceConfigToSnapshot(pc, 'productionUpgrade', fallback) as ConfigSnapshot,
+        );
+
+        // Scope đã có data server → thay hẳn, không giữ local stale cùng scope
+        const serverScopes = new Set<ConfigScope>();
+        for (const sn of snapshotsKhac) {
+          serverScopes.add((sn.scope ?? 'materials') as ConfigScope);
+        }
+        if (upgradeHistoryOk || snapshotsUpgrade.length > 0) {
+          serverScopes.add('productionUpgrade');
+        }
+
+        set((s) => {
+          const others = s.configSnapshots.filter(
+            (sn) => !serverScopes.has((sn.scope ?? 'materials') as ConfigScope),
+          );
+          const merged = sapXepTheoHieuLuc([
+            ...snapshotsKhac,
+            ...snapshotsUpgrade,
+            ...others,
+          ]);
+          luuLocalStorage(LS_CONFIG_SNAPSHOTS, merged);
+          return { configSnapshots: merged };
+        });
+
+        const after = get();
+        // Apply theo thứ tự: production trước, productionUpgrade sau (4 key NC)
+        for (const scope of CAC_SCOPE_CAU_HINH) {
+          const candidates = after.configSnapshots.filter(
+            (sn) => (sn.scope ?? 'materials') === scope,
+          );
+          const latest = chonPhienBanMoiNhat(candidates);
+          if (latest) after.saoChepPhienBanDinhMuc(latest.id);
+        }
+        // Snapshot session sau khi apply latest — pin sheet restore về đây
+        get().luuSessionConfigSnapshot();
+      } catch (e) {
+        console.warn('Tải cấu hình mới nhất thất bại:', e);
+      } finally {
+        set({ dangTaiCauHinhMoiNhat: false });
       }
+    };
 
-      seedPriceConfigCache(list);
-      const fallback = {
-        materials: state.materials,
-        smallWidthPrices: state.smallWidthPrices,
-        constants: state.constants,
-        profitTable: state.profitTable,
-      };
-      const snapshots = list
-        .map((pc) => {
-          const scope = configNameToScope(pc.configName);
-          if (!scope) return null;
-          return priceConfigToSnapshot(pc, scope, fallback) as ConfigSnapshot;
-        })
-        .filter((s): s is ConfigSnapshot => s !== null);
-
-      set((s) => {
-        const byScopeLatest = new Map(
-          snapshots.map((sn) => [sn.scope ?? 'materials', sn] as const),
-        );
-        const others = s.configSnapshots.filter(
-          (sn) => !byScopeLatest.has(sn.scope ?? 'materials'),
-        );
-        const merged = sapXepTheoHieuLuc([...snapshots, ...others]);
-        luuLocalStorage(LS_CONFIG_SNAPSHOTS, merged);
-        return { configSnapshots: merged, dangTaiPhienBan: false };
-      });
-
-      const after = get();
-      for (const scope of CAC_SCOPE_CAU_HINH) {
-        const candidates = after.configSnapshots.filter(
-          (sn) => (sn.scope ?? 'materials') === scope,
-        );
-        const latest = chonPhienBanMoiNhat(candidates);
-        if (latest) after.saoChepPhienBanDinhMuc(latest.id);
-      }
-      // Snapshot session sau khi apply latest — pin sheet restore về đây
-      get().luuSessionConfigSnapshot();
-    } catch (e) {
-      console.warn('Tải cấu hình mới nhất thất bại:', e);
-      set({ dangTaiPhienBan: false });
-    }
+    bootstrapCauHinhInFlight = run().finally(() => {
+      bootstrapCauHinhInFlight = null;
+    });
+    return bootstrapCauHinhInFlight;
   },
 
   xoaPhienBanDinhMuc: async (id) => {
@@ -327,10 +388,7 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
         profitTable: structuredClone(snapshot.profitTable),
       });
     } else if (keys.length > 0) {
-      const constantsMoi = { ...state.constants };
-      for (const key of keys) {
-        (constantsMoi as any)[key] = structuredClone((snapshot.constants as any)[key]);
-      }
+      const constantsMoi = ganKeysScopeTuSnapshot(state.constants, snapshot.constants, keys);
       state.replaceFullConfig({
         materials: state.materials,
         smallWidthPrices: state.smallWidthPrices,
@@ -365,10 +423,7 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
         profitTable: structuredClone(snapshot.profitTable),
       });
     } else if (keys.length > 0) {
-      const constantsMoi = { ...state.constants };
-      for (const key of keys) {
-        (constantsMoi as any)[key] = structuredClone((snapshot.constants as any)[key]);
-      }
+      const constantsMoi = ganKeysScopeTuSnapshot(state.constants, snapshot.constants, keys);
       state.replaceFullConfig({
         materials: state.materials,
         smallWidthPrices: state.smallWidthPrices,

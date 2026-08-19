@@ -106,9 +106,9 @@ const mig = gopCpsxUpgradeChoMigrate(
   { ...fallbackConstants, cpsxUpgradeElectric: { appliedPricePerKwh: 22 } } as unknown as AppConstants,
 );
 check(
-  'migrate gộp labor từ PRODUCTION + electric từ session',
+  'migrate chỉ PRODUCTION — không gộp session electric',
   !!(mig && (mig as { cpsxUpgradeLabor?: { print?: { roundedPerMin?: number } } }).cpsxUpgradeLabor?.print?.roundedPerMin === 11
-    && (mig as { cpsxUpgradeElectric?: { appliedPricePerKwh?: number } }).cpsxUpgradeElectric?.appliedPricePerKwh === 22),
+    && !('cpsxUpgradeElectric' in (mig ?? {}))),
 );
 
 const configs: PriceConfigApi[] = [
