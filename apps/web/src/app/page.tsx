@@ -341,23 +341,41 @@ export default function TrangChinh() {
       }
     } catch { /* localStorage lỗi */ }
 
-    // ── Auto-apply phiên bản định mức mới nhất từ server (1 request) ───────
+    // Bootstrap config: chờ token/auth (F5 thường mount trước khi hydrate JWT xong).
     void (async () => {
-      const store = dungCuaHangTinhGia.getState();
-      if (!store.isAuthenticated || !store.accessToken) return;
-
-      // Nhường bandwidth cho deep-link path /bao-gia/ /tinh-gia/ /tinh-gia-nang-cao/
       const path = typeof window !== 'undefined' ? window.location.pathname : '';
       const hasDeep = /\/(bao-gia|tinh-gia-nang-cao|tinh-gia)\//.test(path);
       if (hasDeep) {
         await new Promise((r) => setTimeout(r, 800));
       }
-      await dungCuaHangTinhGia.getState().taiCauHinhMoiNhatTuServer();
+
+      // Có token LS → bật loading sớm (UI CPSX không flash DEFAULT)
+      const coTokenLs =
+        typeof window !== 'undefined' &&
+        !!window.localStorage.getItem('lts_service_access_token');
+      if (coTokenLs) {
+        dungCuaHangTinhGia.setState({ dangTaiCauHinhMoiNhat: true });
+      }
+
+      for (let i = 0; i < 50; i++) {
+        const st = dungCuaHangTinhGia.getState();
+        if (st.isAuthenticated && st.accessToken) {
+          await st.taiCauHinhMoiNhatTuServer();
+          return;
+        }
+        // sessionChecked + không auth → guest, tắt loading
+        if (st.sessionChecked && !st.isAuthenticated) {
+          dungCuaHangTinhGia.setState({ dangTaiCauHinhMoiNhat: false });
+          return;
+        }
+        await new Promise((r) => setTimeout(r, 100));
+      }
+      dungCuaHangTinhGia.setState({ dangTaiCauHinhMoiNhat: false });
     })();
   }, []);
 
   // ── Tải lịch sử + cấu hình mới nhất khi đăng nhập thành công ───────────────
-  // Auth hydrate async: mount-time check thường chưa login → phải gọi lại ở đây.
+  // Auth hydrate async / login form: mount-time có thể chưa auth → gọi lại ở đây.
   const daDangNhapTruoc = useRef(false);
   useEffect(() => {
     if (daDangNhap && !daDangNhapTruoc.current) {

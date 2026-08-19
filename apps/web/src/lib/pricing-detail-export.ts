@@ -1,5 +1,16 @@
 import type { AppConstants, CalculateResult, HistoryItem, Material, OverrideTable, ProfitRow } from './types';
 import { tinhBaoGia, lapDongSanXuat, xuLyDongGhiDe, tinhGiaHieuLuc } from './manager-calculation';
+import {
+  chuanHoaMetCatUniRows,
+  lapDongNhanCongDien,
+  lapDongVatLieuNangCao,
+  layLanNguocMetTuResult,
+  tinhKetQuaNangCaoHieuLuc,
+  tinhTongNangCao,
+  type DongNhanCongDien,
+  type DongVatLieuNangCao,
+} from './dac-ta-nang-cao';
+import { apCpsxNangCaoVaoHangSo } from './cpsx-nang-cao-pin';
 import { countOverrideChanges } from './override-display';
 import { getPricingDisplayMeta, isPrintFilm } from './pricing-display';
 import { tinhNhapPhanBoChotGia } from './chot-gia-allocation';
@@ -51,9 +62,9 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; font-size: 10.5pt; color:
 .pdf-toolbar-actions { display: flex; gap: 8px; }
 .btn-print { padding: 6px 18px; background: #0891b2; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 10.5pt; }
 .btn-close { padding: 6px 12px; background: #e2e8f0; color: #475569; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 10.5pt; }
-.pdf-pages { max-width: 210mm; margin: 24px auto; }
+.pdf-pages { max-width: 210mm; margin: 24px auto; overflow-x: hidden; }
 
-.page { background: #fff; padding: 18mm 15mm; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-radius: 4px; }
+.page { background: #fff; padding: 18mm 15mm; margin-bottom: 16px; box-shadow: 0 1px 4px rgba(0,0,0,.08); border-radius: 4px; overflow-x: hidden; }
 .page-title { text-align: center; font-size: 9pt; color: #94a3b8; margin-bottom: 8px; font-style: italic; }
 @media print {
   @page { size: A4; margin: 15mm; }
@@ -112,9 +123,60 @@ td.left { text-align: left; }
 .override-price-delta-row--up td { color: #059669; background: #f0fdf4; }
 .override-price-delta-row--down td { color: #dc2626; background: #fef2f2; }
 
+.hero-price { text-align: center; padding: 16px 12px 8px; }
+.hero-price .hp-label { font-size: 9pt; font-weight: 700; text-transform: uppercase; color: #64748b; letter-spacing: 0.04em; }
+.hero-price .hp-value { font-size: 28pt; font-weight: 800; color: #0f172a; line-height: 1.1; margin: 4px 0; }
+.hero-price .hp-value.chot { color: #059669; }
+.hero-price .hp-sub { font-size: 9pt; color: #64748b; }
+.hero-price .hp-meta { margin-top: 12px; font-size: 9.5pt; color: #334155; }
+.hero-price .hp-name { font-weight: 700; font-size: 11pt; color: #0f172a; margin-bottom: 8px; }
+.nc-badge { display: inline-block; background: rgba(124,58,237,0.12); color: #7c3aed; font-weight: 700; font-size: 8pt; padding: 2px 8px; border-radius: 999px; margin-left: 6px; vertical-align: middle; }
+.dac-ta-note { font-size: 8pt; color: #64748b; margin: 6px 0 0; font-style: italic; }
+.totals-nc { margin-top: 10px; border: 1px solid #c7d2fe; border-radius: 8px; overflow: hidden; }
+.totals-nc .tr { display: flex; justify-content: space-between; padding: 8px 12px; border-bottom: 1px solid #e0e7ff; font-size: 9pt; }
+.totals-nc .tr:last-child { border-bottom: none; background: #eef2ff; font-weight: 800; }
+.totals-nc .tr .lbl small { display: block; font-weight: 400; color: #64748b; font-size: 7.5pt; }
+.met-kho { white-space: pre-line; line-height: 1.25; font-size: inherit; }
+
+/* Bảng NC 10 cột — ép vừa khổ A4, không tràn ngang */
+.page--nc { padding: 12mm 8mm; overflow-x: hidden; }
+.table-wrap-nc { width: 100%; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table.table-nc {
+  width: 100%;
+  max-width: 100%;
+  table-layout: fixed;
+  font-size: 6.5pt;
+  margin-top: 6px;
+}
+table.table-nc th {
+  white-space: normal;
+  word-break: break-word;
+  hyphens: auto;
+  font-size: 5.8pt;
+  line-height: 1.15;
+  padding: 3px 2px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+table.table-nc td {
+  padding: 3px 2px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  font-size: 6.5pt;
+  line-height: 1.2;
+}
+table.table-nc td.left { word-break: break-word; }
+table.table-nc-ncd { table-layout: auto; }
+table.table-nc-ncd th { white-space: nowrap; font-size: 6.5pt; text-transform: uppercase; }
+
 @media print {
   td, th { font-size: 7pt; }
   .section { page-break-inside: avoid; }
+  .page--nc { padding: 0; }
+  table.table-nc { font-size: 6pt; }
+  table.table-nc th { font-size: 5.5pt; padding: 2px 1px; }
+  table.table-nc td { font-size: 6pt; padding: 2px 1px; }
+  .table-wrap-nc { overflow: visible; }
 }
 `;
 
@@ -445,6 +507,273 @@ function buildOverrideTable(
     </div>`;
 }
 
+// ── Nâng cao: đặc tả + xuất ───────────────────────────────────────────────────
+
+function ovCoData(ov?: OverrideTable | null): boolean {
+  return !!ov && Object.keys(ov).length > 0;
+}
+
+/** Admin > Sale > Gốc — khớp giá hiệu lực NC + chữ user (ưu tiên bảng sửa). */
+function chonOverrideDacTaNangCao(item: HistoryItem): {
+  activeOv: OverrideTable;
+  sourceOv: OverrideTable;
+  nhanNguon: string;
+} {
+  if (ovCoData(item.adminOverrides)) {
+    return {
+      activeOv: item.adminOverrides ?? {},
+      sourceOv: item.saleOverrides ?? {},
+      nhanNguon: '👑 Theo bảng Admin',
+    };
+  }
+  if (ovCoData(item.saleOverrides)) {
+    return {
+      activeOv: item.saleOverrides ?? {},
+      sourceOv: {},
+      nhanNguon: '💼 Theo bảng Sale',
+    };
+  }
+  return { activeOv: {}, sourceOv: {}, nhanNguon: 'Bảng gốc' };
+}
+
+function dinhDangOMet(n: number | null | undefined, label?: string, soLe = 0): string {
+  if (label) return `<span class="met-kho">${label.replace(/\n/g, '<br/>')}</span>`;
+  if (n == null || !Number.isFinite(n)) return '—';
+  return n.toLocaleString('vi-VN', { maximumFractionDigits: soLe, minimumFractionDigits: soLe > 0 ? Math.min(soLe, 3) : 0 });
+}
+
+function buildDacTaNangCaoHtml(
+  dongVL: DongVatLieuNangCao[],
+  dongNCD: DongNhanCongDien[],
+  tong: { tongVatLieu: number; tongNhanCongDien: number; tongGiaThanh: number },
+  nhanNguon: string,
+): string {
+  let t1 = '';
+  for (const row of dongVL) {
+    const cpVl = row.cpVatLieu != null
+      ? `${dinhDangSoLe(row.cpVatLieu, 1)}${row.giaNVL != null && row.giaNVL > 0 ? `<br/><small>(${dinhDangSo(row.giaNVL)}/kg)</small>` : ''}`
+      : (row.giaNVL != null && row.giaNVL > 0 ? `(${dinhDangSo(row.giaNVL)}/kg)` : '—');
+    t1 += `<tr>
+      <td class="left">${row.congDoan || ''}</td>
+      <td class="left">${row.vatLieu || '—'}</td>
+      <td>${row.khoMangLabel ?? (row.khoMang != null ? dinhDangSoLe(row.khoMang, 3) : '—')}</td>
+      <td>${dinhDangOMet(row.thanhPham, row.thanhPhamLabel, 0)}</td>
+      <td>${row.phiHao != null ? dinhDangSo(row.phiHao) : '—'}</td>
+      <td>${dinhDangOMet(row.dauVaoNVL, row.dauVaoNvlLabel, 0)}</td>
+      <td>${cpVl}</td>
+      <td>${row.thanhTienNVL != null ? dinhDangSo(row.thanhTienNVL) : '—'}</td>
+      <td>${row.cpMucKeo != null ? dinhDangSoLe(row.cpMucKeo, 1) : '—'}</td>
+      <td>${row.thanhTienMucKeo != null ? dinhDangSo(row.thanhTienMucKeo) : '—'}</td>
+    </tr>`;
+  }
+
+  let t2 = '';
+  let tongNc = 0;
+  let tongDien = 0;
+  for (const row of dongNCD) {
+    tongNc += row.thanhTienNhanCong;
+    tongDien += row.thanhTienDien;
+    t2 += `<tr>
+      <td class="left">${row.congDoan}</td>
+      <td>${row.thoiGianPhut != null ? dinhDangSo(row.thoiGianPhut) : '—'}</td>
+      <td>${row.cpNhanCongPerPhut != null ? dinhDangSo(row.cpNhanCongPerPhut) : '—'}</td>
+      <td>${dinhDangSo(row.thanhTienNhanCong)}</td>
+      <td>${row.cpDienPerPhut != null ? dinhDangSo(row.cpDienPerPhut) : '—'}</td>
+      <td>${dinhDangSo(row.thanhTienDien)}</td>
+    </tr>`;
+  }
+  t2 += `<tr class="total-row">
+    <td class="left" colspan="3">Tổng nhân công / điện</td>
+    <td>${dinhDangSo(tongNc)}</td>
+    <td></td>
+    <td>${dinhDangSo(tongDien)}</td>
+  </tr>`;
+
+  return `
+    <div class="section">
+      <div class="section-title"><span class="icon">🔬</span> ĐẶC TẢ KỸ THUẬT &amp; NGUYÊN LIỆU (NÂNG CAO)
+        <span class="nc-badge">${nhanNguon}</span>
+      </div>
+      <div class="table-wrap-nc">
+      <table class="table-nc">
+        <colgroup>
+          <col style="width:9%"/><col style="width:11%"/><col style="width:9%"/>
+          <col style="width:9%"/><col style="width:7%"/><col style="width:9%"/>
+          <col style="width:10%"/><col style="width:11%"/><col style="width:12%"/><col style="width:13%"/>
+        </colgroup>
+        <thead><tr>
+          <th class="left">C.đoạn</th><th class="left">Vật liệu</th>
+          <th>Khổ (m)</th><th>TP (m)</th><th>PH (m)</th><th>ĐV NVL (m)</th>
+          <th>CP VL (đ/m²)</th><th>TT CPNVL</th>
+          <th>Mực/DM/keo (đ/m²)</th><th>TT mực/DM/keo</th>
+        </tr></thead>
+        <tbody>${t1}</tbody>
+      </table>
+      </div>
+      <div class="table-wrap-nc">
+      <table class="table-nc table-nc-ncd" style="margin-top:12px">
+        <thead><tr>
+          <th class="left">Công đoạn</th><th>TG SX (phút)</th>
+          <th>Giá NC (đ/phút)</th><th>TT nhân công</th>
+          <th>Giá điện (đ/phút)</th><th>TT điện</th>
+        </tr></thead>
+        <tbody>${t2}</tbody>
+      </table>
+      </div>
+      <div class="totals-nc">
+        <div class="tr"><span class="lbl">Tổng thành tiền CP Vật liệu<small>(nguyên vật liệu + dung môi + keo ghép + khác)</small></span><span>${dinhDangSo(tong.tongVatLieu)} đ</span></div>
+        <div class="tr"><span class="lbl">Tổng thành tiền chi phí Nhân công + điện</span><span>${dinhDangSo(tong.tongNhanCongDien)} đ</span></div>
+        <div class="tr"><span class="lbl">TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN</span><span>${dinhDangSo(tong.tongGiaThanh)} đ</span></div>
+      </div>
+      <p class="dac-ta-note">Giá mỗi sản phẩm tab nâng cấp lấy từ tổng giá thành sản xuất cơ bản ở trên (sau ghi đè hiệu lực).</p>
+    </div>`;
+}
+
+function buildHeroNangCao(r: CalculateResult, item: HistoryItem, giaHieuLuc: number): string {
+  const i = item.input;
+  const laMang = i.productType === 'mang';
+  const meta = getPricingDisplayMeta(i);
+  const coChot = typeof item.chotGia === 'number' && item.chotGia > 0;
+  const chot = coChot ? item.chotGia! : 0;
+  const deXuat = giaHieuLuc;
+  const shown = coChot ? chot : deXuat;
+  const soMau = i.numColors && i.numColors > 0 ? `${i.numColors} màu` : 'Không in';
+  const khoMm = Math.round(i.spreadWidth * 1000);
+  const buocMm = Math.round(i.cutStep * 1000);
+  let loai = laMang
+    ? (TEN_LOAI_MANG[i.filmType] || 'Màng cuộn')
+    : (TEN_LOAI_TUI[i.bagType] || '');
+  if (!laMang && loai) {
+    if (i.hasTape && i.bagType === 'cutSeal') loai = 'Cut seal mở miệng có nắp keo';
+    if (i.hasZipper) loai = 'Zipper ' + loai;
+  }
+  let trucIn = '';
+  if (i.numColors && i.numColors > 0 && r.cylLength > 0) {
+    const d = Math.round(r.cylLength * 1000);
+    const cv = Math.round(r.cylCircum * 1000);
+    trucIn = `<div><strong>Trục in:</strong> D ${dinhDangSo(d)} mm x CV ${dinhDangSo(cv)} mm — ${dinhDangSo(r.cylinderCostPerUnit)} đ/trục × ${i.numColors} = ${dinhDangSo(r.cylinderCost)} đ</div>`;
+  }
+
+  return `
+    <div class="hero-price">
+      <div class="hp-label">${coChot ? `Giá chốt / ${meta.unit}` : `Giá đề xuất / ${meta.unit}`}</div>
+      <div class="hp-value${coChot ? ' chot' : ''}">${dinhDangSo(shown)}</div>
+      ${coChot ? `<div class="hp-sub">(giá đề xuất ${dinhDangSo(deXuat)} đ/${meta.unit})</div>` : ''}
+      <div class="hp-sub">(chưa VAT)</div>
+      <div class="hp-meta">
+        <div class="hp-name">${item.customer} — ${item.productName}</div>
+        <div class="info-grid" style="justify-content:center">
+          <div class="info-item"><strong>Chất liệu:</strong> ${r.structureText}</div>
+          <div class="info-item"><strong>${laMang ? 'Diện tích' : 'Số lượng'}:</strong> ${dinhDangSo(i.quantity)} ${laMang ? 'm²' : 'túi'}</div>
+          <div class="info-item"><strong>Số màu:</strong> ${soMau}</div>
+          <div class="info-item"><strong>Kích thước:</strong> KT ${khoMm} mm x BC ${buocMm} mm</div>
+          <div class="info-item"><strong>Độ dày:</strong> ${r.totalThickness} mic</div>
+          <div class="info-item"><strong>Diện tích ${laMang ? 'băng' : '1 túi'}:</strong> ${dinhDangM2(r.bagArea)}</div>
+          ${!laMang ? `<div class="info-item"><strong>Trọng lượng:</strong> ${dinhDangSoLe(r.tareWeight, 2)} gr</div>` : ''}
+          <div class="info-item"><strong>Loại ${laMang ? 'màng' : 'túi'}:</strong> ${loai}</div>
+        </div>
+        ${trucIn}
+      </div>
+    </div>`;
+}
+
+function moCuaSoHtml(title: string, toolbarTitle: string, pagesHtml: string): void {
+  const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>${title}</title><style>${CSS}</style></head><body>
+<div class="pdf-toolbar">
+  <span class="pdf-toolbar-title">${toolbarTitle}</span>
+  <div class="pdf-toolbar-actions">
+    <button class="btn-print" onclick="window.print()">🖨 In PDF</button>
+    <button class="btn-close" onclick="window.close()">✕ Đóng</button>
+  </div>
+</div>
+<div class="pdf-pages">
+  ${pagesHtml}
+</div>
+</body></html>`;
+  const win = window.open('', '_blank', 'width=1100,height=900');
+  if (!win) { alert('Trình duyệt chặn popup. Vui lòng cho phép popup.'); return; }
+  win.document.write(fullHtml);
+  win.document.close();
+}
+
+function exportPricingDetailNangCaoToA4(
+  item: HistoryItem,
+  materials: Material[],
+  constants: AppConstants,
+  profitTable: ProfitRow[],
+): void {
+  const hangSo = apCpsxNangCaoVaoHangSo(constants, item.pinnedCpsxNangCao);
+  const r0 = tinhBaoGia(item.input, materials, hangSo, profitTable);
+  if (!r0) {
+    alert('Không thể tính lại bảng giá nâng cao. Dữ liệu có thể không hợp lệ.');
+    return;
+  }
+  const { uniRows } = lapDongSanXuat(r0, hangSo);
+  const saleOv = item.saleOverrides ?? {};
+  const adminOv = item.adminOverrides ?? {};
+  const kq = tinhKetQuaNangCaoHieuLuc({
+    result: r0,
+    uniRows,
+    constants: hangSo,
+    materials,
+    saleOverrides: saleOv,
+    adminOverrides: adminOv,
+    saleProfitRatePct: item.saleProfitRatePct ?? 0,
+    adminProfitRatePct: item.adminProfitRatePct ?? 0,
+    profitTable,
+  });
+  const r = kq.result;
+  const itemGia: HistoryItem = {
+    ...item,
+    finalPrice: r.finalPrice,
+    profitRate: r.profitRate,
+  };
+
+  const { activeOv, sourceOv, nhanNguon } = chonOverrideDacTaNangCao(item);
+  const coGhiDeMetCat =
+    activeOv.cut?.meters !== undefined || activeOv.cut?.waste !== undefined;
+  const hasAnyOv = ovCoData(activeOv);
+  const uniCho = coGhiDeMetCat
+    ? chuanHoaMetCatUniRows(uniRows, r0, hangSo, activeOv)
+    : uniRows;
+  const lanNguoc = coGhiDeMetCat ? layLanNguocMetTuResult(r0) : undefined;
+  const dongXuLy = hasAnyOv
+    ? xuLyDongGhiDe(uniCho, sourceOv, activeOv, undefined, lanNguoc).rows
+    : uniRows;
+  const dongVL = lapDongVatLieuNangCao(
+    r0,
+    dongXuLy,
+    hangSo,
+    materials,
+    hasAnyOv ? activeOv : undefined,
+  );
+  const dongNCD = lapDongNhanCongDien(
+    r0,
+    hangSo,
+    hasAnyOv ? activeOv : undefined,
+  );
+  const tong = tinhTongNangCao(dongVL, dongNCD);
+
+  let pagesHtml = '';
+  pagesHtml += `<div class="page">
+    <h1>CHI TIẾT BẢNG TÍNH GIÁ <span class="nc-badge">NÂNG CẤP</span></h1>
+    <div style="text-align:center;font-size:9pt;color:#64748b;margin-bottom:8px;">Ngày ${item.date}</div>
+    ${buildHeroNangCao(r, itemGia, r.finalPrice)}
+    ${buildGia(r, itemGia, hangSo, profitTable)}
+  </div>`;
+
+  pagesHtml += `<div class="page page--nc">
+    <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName}</div>
+    ${buildDacTaNangCaoHtml(dongVL, dongNCD, tong, nhanNguon)}
+  </div>`;
+
+  moCuaSoHtml(
+    `Chi tiết NC ${item.productName}`,
+    `Chi tiết bảng tính giá nâng cấp — ${item.productName}`,
+    pagesHtml,
+  );
+}
+
 // ── Main export ─────────────────────────────────────────────────────────────────
 export function exportPricingDetailToA4(
   item: HistoryItem,
@@ -452,6 +781,11 @@ export function exportPricingDetailToA4(
   constants: AppConstants,
   profitTable: ProfitRow[],
 ): void {
+  if (item.isNangCap || item.input?.isNangCap) {
+    exportPricingDetailNangCaoToA4(item, materials, constants, profitTable);
+    return;
+  }
+
   const r = tinhBaoGia(item.input, materials, constants, profitTable);
   if (!r) {
     alert('Không thể tính lại bảng giá này. Dữ liệu có thể không hợp lệ.');
@@ -469,7 +803,6 @@ export function exportPricingDetailToA4(
 
   let pagesHtml = '';
 
-  // Page 1: Tiêu đề + Thông tin chung + Giá
   pagesHtml += `<div class="page">
     <h1>CHI TIẾT BẢNG TÍNH GIÁ</h1>
     <div style="text-align:center;font-size:9pt;color:#64748b;margin-bottom:12px;">Ngày ${item.date}</div>
@@ -477,13 +810,11 @@ export function exportPricingDetailToA4(
     ${buildGia(r, item, constants, profitTable)}
   </div>`;
 
-  // Page 2: Bảng CPSX
   pagesHtml += `<div class="page">
     <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ — ${item.productName} (tiếp theo)</div>
     ${buildCPSXTable(r, constants)}
   </div>`;
 
-  // Page 3: Sale override (if any)
   if (Object.keys(saleOv).length > 0) {
     const saleTable = buildOverrideTable('THAY ĐỔI TỪ SALE', '💼', uniRows, emptyOv, saleOv,
       item.saleProfitRatePct ?? 0, saleDefaultPct, r, constants, profitTable, item.quantity);
@@ -493,7 +824,6 @@ export function exportPricingDetailToA4(
     </div>`;
   }
 
-  // Page 4: Admin override (if any)
   if (Object.keys(adminOv).length > 0) {
     const adminTable = buildOverrideTable('THAY ĐỔI TỪ ADMIN', '👑', uniRows, saleOv, adminOv,
       item.adminProfitRatePct ?? 0, adminDefaultPct, r, constants, profitTable, item.quantity);
@@ -503,21 +833,9 @@ export function exportPricingDetailToA4(
     </div>`;
   }
 
-  const fullHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Chi tiết ${item.productName}</title><style>${CSS}</style></head><body>
-<div class="pdf-toolbar">
-  <span class="pdf-toolbar-title">Chi tiết bảng tính giá — ${item.productName}</span>
-  <div class="pdf-toolbar-actions">
-    <button class="btn-print" onclick="window.print()">🖨 In PDF</button>
-    <button class="btn-close" onclick="window.close()">✕ Đóng</button>
-  </div>
-</div>
-<div class="pdf-pages">
-  ${pagesHtml}
-</div>
-</body></html>`;
-
-  const win = window.open('', '_blank', 'width=1100,height=900');
-  if (!win) { alert('Trình duyệt chặn popup. Vui lòng cho phép popup.'); return; }
-  win.document.write(fullHtml);
-  win.document.close();
+  moCuaSoHtml(
+    `Chi tiết ${item.productName}`,
+    `Chi tiết bảng tính giá — ${item.productName}`,
+    pagesHtml,
+  );
 }

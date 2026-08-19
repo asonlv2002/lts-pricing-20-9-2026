@@ -28,3 +28,9 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((...a) => ({
 }));
 
 export const useCalculatorStore = dungCuaHangTinhGia;
+
+/** Debug / Playwright — đọc store live */
+if (typeof window !== 'undefined') {
+  (window as unknown as { __LTS_STORE__?: typeof dungCuaHangTinhGia }).__LTS_STORE__ =
+    dungCuaHangTinhGia;
+}

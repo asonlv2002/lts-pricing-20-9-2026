@@ -184,12 +184,14 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
       const configName = scopeToConfigName(scope);
       const versions = await layLichSuPriceConfigService(configName, token);
 
+      // fallback live — tránh gộp constants stale vào snapshot
+      const live = get();
       const snapshots = versions.map((pc: PriceConfigApi) =>
         priceConfigToSnapshot(pc, scope, {
-          materials: state.materials,
-          smallWidthPrices: state.smallWidthPrices,
-          constants: state.constants,
-          profitTable: state.profitTable,
+          materials: live.materials,
+          smallWidthPrices: live.smallWidthPrices,
+          constants: live.constants,
+          profitTable: live.profitTable,
         }),
       );
 
@@ -199,6 +201,21 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
         luuLocalStorage(LS_CONFIG_SNAPSHOTS, merged);
         return { configSnapshots: merged, dangTaiPhienBan: false };
       });
+
+      // Giống nút Xem bản mới nhất: history load xong → apply working config
+      // (F5/bootstrap race thường để constants = DEFAULT trong khi list đã đúng BE)
+      if (!get().dangXemPhienBan) {
+        const sameScope = get().configSnapshots.filter(
+          (sn) => (sn.scope ?? 'materials') === scope,
+        );
+        const latest = chonPhienBanMoiNhat(sameScope);
+        if (latest) {
+          get().saoChepPhienBanDinhMuc(latest.id);
+          if (scope === 'productionUpgrade') {
+            get().luuSessionConfigSnapshot();
+          }
+        }
+      }
     } catch (e) {
       console.warn('Tai lich su phien ban tu server that bai:', e);
       set({ dangTaiPhienBan: false });

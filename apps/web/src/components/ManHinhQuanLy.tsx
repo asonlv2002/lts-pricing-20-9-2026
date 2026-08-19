@@ -25,7 +25,8 @@ import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override
 import { tinhNhapPhanBoChotGia } from '../lib/chot-gia-allocation';
 import { timMucLichSuTheoId } from '../lib/history-identity';
 import { dieuHuongModuleApp } from '../lib/menu-route';
-import { apCpsxNangCaoVaoHangSo } from '../lib/cpsx-nang-cao-pin';
+import { apCpsxNangCaoVaoHangSo, trichCpsxNangCao } from '../lib/cpsx-nang-cao-pin';
+import { exportPricingDetailToA4 } from '../lib/pricing-detail-export';
 import BangDacTaNangCao from './BangDacTaNangCao';
 
 // ── Collapsible card dùng trong phần kết quả ────────────────────────────────
@@ -1160,6 +1161,34 @@ const buttonLabel = loadedItem
     if (newId) xuLyLuuGhiDe(newId);
   };
 
+  /** Xuất A4: snapshot màn tạo BT (giá chốt + đặc tả NC; Admin > Sale > Gốc). */
+  const xuLyXuatChiTietNangCap = () => {
+    if (!ketQua) return;
+    const st = dungCuaHangTinhGia.getState();
+    const loaded = timMucLichSuTheoId(st.history, st.loadedHistoryId);
+    const pin = loaded?.pinnedCpsxNangCao ?? trichCpsxNangCao(hangSoNc);
+    const item: HistoryItem = {
+      id: loaded?.id ?? 'draft-export',
+      date: loaded?.date ?? new Date().toLocaleString('vi-VN'),
+      customer: input.customer || '—',
+      productName: input.productName || '—',
+      structure: ketQua.structureText,
+      quantity: input.quantity,
+      finalPrice: ketQua.finalPrice,
+      profitRate: ketQua.profitRate,
+      chotGia: giaChotHienTai > 0 ? giaChotHienTai : undefined,
+      saleOverrides: ghiDeSale,
+      adminOverrides: ghiDeAdmin,
+      saleProfitRatePct: saleProfitRatePct || undefined,
+      adminProfitRatePct: adminProfitRatePct || undefined,
+      isNangCap: true,
+      pinnedCpsxNangCao: pin,
+      input: { ...input, isNangCap: true },
+      sellerName: loaded?.sellerName,
+    };
+    exportPricingDetailToA4(item, materials, hangSoNc, bangLoiNhuan);
+  };
+
   // Quyền sửa tab nâng cao — giống bảng ghi đè cũ (advisor ↔ admin/sale)
   const coQuyenAdvisorNangCao = coQuyenCoVanBangTinh(dungCuaHangTinhGia.getState().nguoiDungHienTai?.policies ?? []);
   const canSaleEditNangCao = !coQuyenAdvisorNangCao;
@@ -1811,11 +1840,22 @@ const buttonLabel = loadedItem
                     setTimeout(() => toast.remove(), 5000);
                   }}
                 >
-                  💾 Lưu báo giá
-                </button>
-              )}
-            </div>
-            <div id="chotAnalysis">
+                   💾 Lưu báo giá
+                 </button>
+               )}
+               {nangCap && (
+                 <button
+                   type="button"
+                   className="btn btn-sm btn-outline"
+                   style={{ marginBottom: 0, height: '40px' }}
+                   title="Xuất chi tiết bảng tính nâng cấp (giá + đặc tả NC)"
+                   onClick={xuLyXuatChiTietNangCap}
+                 >
+                   📥 Xuất file
+                 </button>
+               )}
+             </div>
+             <div id="chotAnalysis">
               {hasChotGia ? (
                 <div className={`chot-analysis ${diff >= 0 ? 'positive' : 'negative'}`}>
                   <div className="chot-row">
