@@ -45,6 +45,7 @@ import {
   tinhThoiGianMayIn,
   tinhThoiGianMayTui,
 } from './cpsx-upgrade-thoigian';
+import { layDonGiaDungMoi } from './cpsx-upgrade-ink';
 import {
   luongMoiPhutAp,
   luongMoiPhutTinh,
@@ -195,11 +196,6 @@ export function chonNhomMuc(tenVatLieu: string | null | undefined): NhomMuc {
   return 'pet';                                  // PA, giấy, không khớp, rỗng → PET
 }
 
-/** Mã dung môi in tương ứng nhóm mực (sheet không có DM_PE → PE dùng DM_OPP) */
-function maDungMoiIn(nhom: NhomMuc): string {
-  return nhom === 'pet' ? 'DM_PET' : 'DM_OPP';
-}
-
 /**
  * CP mực in + dung môi in (₫/m²) cho lớp in.
  *
@@ -209,6 +205,7 @@ function maDungMoiIn(nhom: NhomMuc): string {
  * (1 màu = 4g, 8 màu = 32g). Nhân lại sẽ ra bình phương số màu.
  * Tỉ lệ phủ (coverageRatio) nhân cả mực + dung môi → phủ 50% = nửa giá phủ 100%.
  * Clamp tỉ lệ phủ vào [0, 1]; giá trị không hợp lệ (NaN) → 100%.
+ * Giá DM: match bảng dung môi (công đoạn In + loại màng).
  */
 export function tinhCpMucDungMoiIn(
   soMau: number | null | undefined,
@@ -226,7 +223,7 @@ export function tinhCpMucDungMoiIn(
 } {
   const nhomMuc = chonNhomMuc(tenVatLieu);
   const giaMuc = so(ink?.[nhomMuc]?.appliedPrice);
-  const giaDungMoi = donGiaTheoMa(ink?.solventAdhesive, maDungMoiIn(nhomMuc));
+  const giaDungMoi = layDonGiaDungMoi(ink?.solventAdhesive, 'in', tenVatLieu);
   const tyLe = Number.isFinite(tyLePhuMuc) ? Math.min(1, Math.max(0, tyLePhuMuc)) : 1;
 
   const mau = Math.floor(so(soMau));
@@ -246,13 +243,17 @@ export function tinhCpMucDungMoiIn(
 /**
  * CP keo + dung môi ghép (₫/m²) cho MỘT lần ghép (một mặt tiếp giáp).
  *
- * `= (keoKhôG × giáKeo + dungMôiPhaKeoG × giáDM_EA) ÷ 1000`
+ * `= (keoKhôG × giáKeo + dungMôiPhaKeoG × giáDM) ÷ 1000`
  *
  * Giá keo = giá đã chọn trong bảng keo (TB cộng / nhập tay — như bảng mực),
  * fallback TB cộng. Mỗi dòng ghép trong Table 1 áp đơn giá này 1 lần → nhiều
  * lớp ghép = nhiều lần keo.
+ * Giá DM ghép: match bảng dung môi công đoạn Ghép (+ loại màng nếu có).
  */
-export function tinhCpKeoDungMoiGhep(ink: CpsxUpgradeInk): {
+export function tinhCpKeoDungMoiGhep(
+  ink: CpsxUpgradeInk,
+  tenVatLieu?: string | null,
+): {
   donGia: number;
   giaKeo: number;
   giaDungMoi: number;
@@ -260,7 +261,7 @@ export function tinhCpKeoDungMoiGhep(ink: CpsxUpgradeInk): {
   dungMoiPhaKeoG: number;
 } {
   const giaKeo = layGiaKeo(ink);
-  const giaDungMoi = donGiaTheoMa(ink?.solventAdhesive, 'DM_EA');
+  const giaDungMoi = layDonGiaDungMoi(ink?.solventAdhesive, 'ghep', tenVatLieu ?? '*');
 
   const keoKhoG = so(ink?.dinhMucGhep?.keoKhoG);
   const dungMoiPhaKeoG = so(ink?.dinhMucGhep?.dungMoiPhaKeoG);

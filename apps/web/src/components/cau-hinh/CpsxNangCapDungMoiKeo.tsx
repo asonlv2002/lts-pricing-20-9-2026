@@ -3,10 +3,15 @@
 import React from "react";
 import { dungCuaHangTinhGia } from "../../store/CuaHangTinhGia";
 import { DEFAULT_CPSX_UPGRADE_INK } from "../../lib/data";
-import type { KeoRow, KeoTable, SolventAdhesiveRow } from "../../lib/types";
+import type {
+  DungMoiCongDoan,
+  KeoRow,
+  KeoTable,
+  Material,
+  SolventAdhesiveRow,
+} from "../../lib/types";
 import {
   chuanHoaBangDungMoiKeo,
-  chuanHoaKeoTable,
   dongBoGiaKeoSauSuaRow,
   tinhGiaKeoTbCong,
   tinhGiaKeoTbTrongSo,
@@ -24,34 +29,263 @@ function docSo(value: string) {
   return Number(value.replace(/\D/g, "")) || 0;
 }
 
-/** ⓘ tooltip ghi chú ứng dụng (DM_OPP/DM_PET/DM_EA/KEO) */
-function TooltipGhiChu({ ghiChu }: { ghiChu: string }) {
-  if (!ghiChu) return null;
+/** Token gợi ý khi list VL trống / bổ sung match engine */
+const TOKEN_MANG_GOI_Y = [
+  "OPP",
+  "MattOPP",
+  "BOPP",
+  "PET",
+  "MPET",
+  "PE",
+  "LLDPE",
+  "LDPE",
+  "HDPE",
+  "PA",
+] as const;
+
+type LuaChonMang = { key: string; label: string };
+
+function dsLuaChonMang(materials: Material[]): LuaChonMang[] {
+  // Dedup theo upper-case; ưu tiên key = id vật liệu, label = tên (nếu khác id)
+  // tránh add trùng khi tên === id
+  const seenKey = new Set<string>();
+  const seenLabel = new Set<string>();
+  const out: LuaChonMang[] = [];
+  const add = (key: string, label: string) => {
+    const k = String(key || "").trim();
+    if (!k) return;
+    const ku = k.toUpperCase();
+    const lu = String(label || k).trim().toUpperCase();
+    if (seenKey.has(ku) && seenLabel.has(lu)) return;
+    if (!seenKey.has(ku)) seenKey.add(ku);
+    if (!seenLabel.has(lu)) seenLabel.add(lu);
+    out.push({ key: k, label: label || k });
+  };
+  for (const m of materials) {
+    const id = String(m.id || "").trim();
+    const name = String(m.name || "").trim();
+    if (name && name.toUpperCase() !== id.toUpperCase()) {
+      add(name, name);
+    } else if (id) {
+      add(id, name || id);
+    }
+  }
+  for (const t of TOKEN_MANG_GOI_Y) add(t, t);
+  return out;
+}
+
+function nhanTomTatLoaiMang(keys: string[]): string {
+  if (!keys?.length) return "Chọn màng";
+  if (keys.includes("*")) return "Tất cả";
+  if (keys.length <= 2) return keys.join(", ");
+  return `${keys.length} đã chọn`;
+}
+
+function useChieuMoDropdown(
+  open: boolean,
+  rootRef: React.RefObject<HTMLDivElement | null>,
+  popupRef: React.RefObject<HTMLDivElement | null>,
+): "up" | "down" {
+  const [dir, setDir] = React.useState<"up" | "down">("up");
+  React.useEffect(() => {
+    if (!open) return;
+    const r = rootRef.current?.getBoundingClientRect();
+    const p = popupRef.current?.getBoundingClientRect();
+    const popupH = p?.height ?? 240;
+    if (!r) return;
+    const spaceBelow = window.innerHeight - r.bottom;
+    const spaceAbove = r.top;
+    if (spaceBelow < popupH + 8 && spaceAbove > popupH + 8) {
+      setDir("up");
+    } else {
+      setDir("down");
+    }
+  }, [open, rootRef, popupRef]);
+  return dir;
+}
+
+/** Ô tóm tắt read-only trong bảng — chỉ hiện n đã chọn, không popup. */
+function TomTatLoaiMang({ keys }: { keys: string[] }) {
   return (
     <span
-      className="config-cpsx-upgrade__tooltip"
-      title={ghiChu}
-      aria-label={ghiChu}
+      style={{
+        display: "inline-block",
+        padding: "3px 8px",
+        borderRadius: 999,
+        background: "var(--surface-2, #eef2f7)",
+        fontSize: 12,
+        color: "var(--text, #0f172a)",
+        fontWeight: 500,
+        maxWidth: "100%",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+      }}
+      title={
+        keys?.includes("*")
+          ? "Mọi loại màng"
+          : (keys ?? []).join(", ") || "Chưa chọn"
+      }
     >
-      ⓘ
+      {nhanTomTatLoaiMang(keys ?? [])}
     </span>
   );
 }
 
-interface BangRowProps {
+/** Panel chọn loại màng nằm ngoài bảng; áp cho 1 dòng được chọn. */
+function PanelChonLoaiMang({
+  row,
+  index,
+  label,
+  options,
+  onChange,
+  isSelected,
+  onSelect,
+}: {
+  row: SolventAdhesiveRow;
+  index: number;
+  label: string;
+  options: LuaChonMang[];
+  onChange: (loaiMangKeys: string[]) => void;
+  isSelected: boolean;
+  onSelect: () => void;
+}) {
+  const keys = Array.isArray(row.loaiMangKeys) ? row.loaiMangKeys : [];
+  const all = keys.includes("*");
+
+  const toggleAll = () => {
+    onChange(all ? [] : ["*"]);
+  };
+
+  const toggleKey = (key: string) => {
+    if (all) {
+      onChange([key]);
+      return;
+    }
+    const has = keys.some((k) => k.toUpperCase() === key.toUpperCase());
+    if (has) {
+      onChange(keys.filter((k) => k.toUpperCase() !== key.toUpperCase()));
+    } else {
+      onChange([...keys.filter((k) => k !== "*"), key]);
+    }
+  };
+
+  return (
+    <div
+      role="group"
+      aria-label={`Chọn loại màng cho dòng ${label}`}
+      onClick={onSelect}
+      onFocus={onSelect}
+      style={{
+        padding: 10,
+        borderRadius: 8,
+        border: isSelected
+          ? "1.5px solid var(--accent, #2563eb)"
+          : "1px solid var(--border, #e5e7eb)",
+        background: isSelected ? "var(--surface-accent, #eff6ff)" : "var(--surface, #fff)",
+        cursor: "pointer",
+        transition: "all 120ms ease",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          marginBottom: 6,
+        }}
+      >
+        <span style={{ fontWeight: 600, fontSize: 13 }}>
+          Dòng {index + 1}: {label || "—"}
+        </span>
+        <span style={{ fontSize: 12, color: "var(--muted, #64748b)" }}>
+          ({nhanTomTatLoaiMang(keys)})
+        </span>
+      </div>
+      {isSelected && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+            gap: 4,
+            marginTop: 4,
+          }}
+        >
+          <label
+            style={{
+              display: "flex",
+              gap: 6,
+              alignItems: "center",
+              padding: "3px 4px",
+              cursor: "pointer",
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+          >
+            <input type="checkbox" checked={all} onChange={toggleAll} />
+            Tất cả
+          </label>
+          {options.map((opt) => {
+            const checked =
+              all ||
+              keys.some((k) => k.toUpperCase() === opt.key.toUpperCase());
+            return (
+              <label
+                key={opt.key}
+                style={{
+                  display: "flex",
+                  gap: 6,
+                  alignItems: "center",
+                  padding: "3px 4px",
+                  cursor: "pointer",
+                  fontSize: 13,
+                }}
+                title={opt.label}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleKey(opt.key)}
+                />
+                <span
+                  style={{
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {opt.label}
+                </span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface BangKeoRowProps {
   row: SolventAdhesiveRow;
   index: number;
   canXoa: boolean;
   suaRow: (i: number, patch: Partial<SolventAdhesiveRow>) => void;
   xoaRow: (i: number) => void;
-  /** Bảng keo: hiện cột SL dùng */
   slDung?: number;
   suaSlDung?: (i: number, v: number) => void;
 }
 
-function DongVatTu({ row, index, canXoa, suaRow, xoaRow, slDung, suaSlDung }: BangRowProps) {
+function DongKeo({
+  row,
+  index,
+  canXoa,
+  suaRow,
+  xoaRow,
+  slDung,
+  suaSlDung,
+}: BangKeoRowProps) {
   return (
-    <tr key={`${index}-${row.ma}`}>
+    <tr>
       <td className="num config-cpsx-upgrade__lock">{index + 1}</td>
       <td>
         <input
@@ -63,16 +297,13 @@ function DongVatTu({ row, index, canXoa, suaRow, xoaRow, slDung, suaSlDung }: Ba
         />
       </td>
       <td>
-        <span className="config-cpsx-upgrade__ten-vat-tu">
-          <input
-            type="text"
-            className="config-inline-input"
-            aria-label="Tên vật tư"
-            value={row.ten}
-            onChange={(e) => suaRow(index, { ten: e.target.value })}
-          />
-          <TooltipGhiChu ghiChu={row.ghiChu} />
-        </span>
+        <input
+          type="text"
+          className="config-inline-input"
+          aria-label="Tên vật tư"
+          value={row.ten}
+          onChange={(e) => suaRow(index, { ten: e.target.value })}
+        />
       </td>
       <td>
         <input
@@ -122,6 +353,7 @@ function DongVatTu({ row, index, canXoa, suaRow, xoaRow, slDung, suaSlDung }: Ba
 
 export default function CpsxNangCapDungMoiKeo() {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
+  const materials = dungCuaHangTinhGia((s) => s.materials);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
 
   const state = React.useMemo(
@@ -133,8 +365,15 @@ export default function CpsxNangCapDungMoiKeo() {
     [hangSo.cpsxUpgradeInk],
   );
 
+  const mangOptions = React.useMemo(
+    () => dsLuaChonMang(materials ?? []),
+    [materials],
+  );
+
   const [openDm, setOpenDm] = React.useState(false);
   const [openKeo, setOpenKeo] = React.useState(false);
+  const [openLmPanel, setOpenLmPanel] = React.useState(true);
+  const [dmRowChon, setDmRowChon] = React.useState<number | null>(null);
 
   const [manualDraft, setManualDraft] = React.useState(() =>
     dinhDangVnd(tinhGiaKeoTbCong(state.keo.rows)),
@@ -154,7 +393,6 @@ export default function CpsxNangCapDungMoiKeo() {
     } as never);
   };
 
-  // ── Bảng dung môi ────────────────────────────────────────────────────────
   const suaDmRow = (i: number, patch: Partial<SolventAdhesiveRow>) => {
     luu({
       ...state,
@@ -179,13 +417,20 @@ export default function CpsxNangCapDungMoiKeo() {
       dungMoi: {
         rows: [
           ...state.dungMoi.rows,
-          { ma: `NEW_${n}`, ten: "", dvt: "kg", donGia: 0, ghiChu: "" },
+          {
+            ma: `NEW_${n}`,
+            ten: "",
+            dvt: "kg",
+            donGia: 0,
+            ghiChu: "",
+            congDoan: "in" as DungMoiCongDoan,
+            loaiMangKeys: [],
+          },
         ],
       },
     });
   };
 
-  // ── Bảng keo ghép ────────────────────────────────────────────────────────
   const suaKeoRow = (i: number, patch: Partial<KeoRow>) => {
     const next = dongBoGiaKeoSauSuaRow({
       ...state.keo,
@@ -209,7 +454,16 @@ export default function CpsxNangCapDungMoiKeo() {
       ...state.keo,
       rows: [
         ...state.keo.rows,
-        { ma: `NEW_${n}`, ten: "", dvt: "kg", donGia: 0, ghiChu: "", slDung: 1 },
+        {
+          ma: `NEW_${n}`,
+          ten: "",
+          dvt: "kg",
+          donGia: 0,
+          ghiChu: "",
+          slDung: 1,
+          congDoan: "ghep",
+          loaiMangKeys: ["*"],
+        },
       ],
     });
     luu({ ...state, keo: next });
@@ -249,45 +503,181 @@ export default function CpsxNangCapDungMoiKeo() {
               <table className="config-table config-cpsx-upgrade__table">
                 <thead>
                   <tr>
-                    <th className="num" style={{ width: 48 }}>STT</th>
-                    <th style={{ minWidth: 110 }}>Mã vật tư</th>
+                    <th style={{ minWidth: 100 }}>Mã vật tư</th>
                     <th>Tên vật tư</th>
-                    <th className="num" style={{ width: 70 }}>ĐVT</th>
-                    <th className="num" style={{ width: 120 }}>
-                      Đơn giá (₫/kg)
+                    <th className="num" style={{ width: 64 }}>
+                      ĐVT
                     </th>
+                    <th className="num" style={{ width: 110 }}>
+                      Đơn giá
+                    </th>
+                    <th style={{ width: 100 }}>Công đoạn</th>
+                    <th style={{ minWidth: 160 }}>Loại màng</th>
                     <th style={{ width: 40 }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {state.dungMoi.rows.map((r, i) => (
-                    <DongVatTu
-                      key={`dm-${i}-${r.ma}`}
-                      row={r}
-                      index={i}
-                      canXoa={state.dungMoi.rows.length > 1}
-                      suaRow={suaDmRow}
-                      xoaRow={xoaDmRow}
-                    />
+                    <tr key={`dm-${i}-${r.ma}`}>
+                      <td>
+                        <input
+                          type="text"
+                          className="config-inline-input"
+                          aria-label="Mã vật tư"
+                          value={r.ma}
+                          onChange={(e) => suaDmRow(i, { ma: e.target.value })}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          className="config-inline-input"
+                          aria-label="Tên vật tư"
+                          value={r.ten}
+                          onChange={(e) => suaDmRow(i, { ten: e.target.value })}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          className="config-inline-input"
+                          aria-label="Đơn vị tính"
+                          value={r.dvt}
+                          onChange={(e) => suaDmRow(i, { dvt: e.target.value })}
+                        />
+                      </td>
+                      <td className="num">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          className="config-inline-input"
+                          aria-label="Đơn giá"
+                          value={dinhDangVnd(r.donGia)}
+                          onChange={(e) =>
+                            suaDmRow(i, { donGia: docSo(e.target.value) })
+                          }
+                        />
+                      </td>
+                      <td>
+                        <select
+                          className="config-inline-input"
+                          aria-label="Công đoạn"
+                          value={r.congDoan === "ghep" ? "ghep" : "in"}
+                          onChange={(e) =>
+                            suaDmRow(i, {
+                              congDoan:
+                                e.target.value === "ghep" ? "ghep" : "in",
+                            })
+                          }
+                        >
+                          <option value="in">In</option>
+                          <option value="ghep">Ghép</option>
+                        </select>
+                      </td>
+                      <td
+                        onClick={() => setDmRowChon(i)}
+                        style={{ cursor: "pointer" }}
+                        aria-label={`Chọn loại màng cho dòng ${i + 1}`}
+                      >
+                        <TomTatLoaiMang keys={r.loaiMangKeys ?? []} />
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline config-cpsx-upgrade__del"
+                          disabled={state.dungMoi.rows.length <= 1}
+                          onClick={() => xoaDmRow(i)}
+                          aria-label="Xóa dòng"
+                        >
+                          ✕
+                        </button>
+                      </td>
+                    </tr>
                   ))}
                   <tr className="config-cpsx-upgrade__add-row">
-                    <td colSpan={6}>
+                    <td colSpan={7}>
                       <button
                         type="button"
                         className="btn btn-sm btn-outline config-cpsx-upgrade__add"
                         onClick={themDmRow}
                       >
-                        + Thêm vật tư
+                        + Thêm
                       </button>
                     </td>
                   </tr>
                 </tbody>
               </table>
             </div>
+            <div
+              className="config-cpsx-upgrade__loai-mang-panel"
+              style={{
+                marginTop: 12,
+                padding: openLmPanel ? 10 : 0,
+                borderRadius: 8,
+                border: openLmPanel
+                  ? "1px solid var(--border, #e5e7eb)"
+                  : "1px solid transparent",
+                background: openLmPanel ? "var(--surface-1, #f8fafc)" : "transparent",
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 600,
+                  fontSize: 13,
+                  marginBottom: openLmPanel ? 6 : 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 8,
+                }}
+              >
+                <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  Chọn loại màng áp dụng
+                  {openLmPanel && (
+                    <span style={{ fontSize: 12, color: "var(--muted, #64748b)", fontWeight: 400 }}>
+                      (click 1 dòng trong bảng để chỉnh)
+                    </span>
+                  )}
+                </span>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-outline"
+                  onClick={() => setOpenLmPanel((o) => !o)}
+                  aria-expanded={openLmPanel}
+                  aria-label={openLmPanel ? "Ẩn bảng chọn loại màng" : "Hiện bảng chọn loại màng"}
+                >
+                  {openLmPanel ? "Ẩn" : "Hiện"}
+                </button>
+              </div>
+              {openLmPanel && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr",
+                  gap: 6,
+                }}
+              >
+                {state.dungMoi.rows.map((r, i) => (
+                  <PanelChonLoaiMang
+                    key={`lm-${i}-${r.ma}`}
+                    row={r}
+                    index={i}
+                    label={`${r.ma} · ${r.ten}`.trim()}
+                    options={mangOptions}
+                    onChange={(loaiMangKeys) =>
+                      suaDmRow(i, { loaiMangKeys })
+                    }
+                    isSelected={dmRowChon === i}
+                    onSelect={() => setDmRowChon(i)}
+                  />
+                ))}
+              </div>
+              )}
+            </div>
             <p className="config-note">
-              ⓘ Di chuột vào ⓘ cạnh tên vật tư để xem ứng dụng: DM_OPP — in
-              màng OPP, màng MattOPP · DM_PET — in toàn bộ màng còn lại ·
-              DM_EA — ghép toàn bộ màng.
+              Engine chọn dòng theo <strong>công đoạn</strong> +{" "}
+              <strong>loại màng</strong> (first match). «Tất cả» = mọi màng.
+              Thứ tự dòng trên bảng quyết định ưu tiên khi nhiều dòng khớp.
             </p>
           </div>
         )}
@@ -319,20 +709,26 @@ export default function CpsxNangCapDungMoiKeo() {
               <table className="config-table config-cpsx-upgrade__table">
                 <thead>
                   <tr>
-                    <th className="num" style={{ width: 48 }}>STT</th>
+                    <th className="num" style={{ width: 48 }}>
+                      STT
+                    </th>
                     <th style={{ minWidth: 110 }}>Mã vật tư</th>
                     <th>Tên vật tư</th>
-                    <th className="num" style={{ width: 70 }}>ĐVT</th>
+                    <th className="num" style={{ width: 70 }}>
+                      ĐVT
+                    </th>
                     <th className="num" style={{ width: 120 }}>
                       Đơn giá (₫/kg)
                     </th>
-                    <th className="num" style={{ width: 100 }}>SL dùng</th>
+                    <th className="num" style={{ width: 100 }}>
+                      SL dùng
+                    </th>
                     <th style={{ width: 40 }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {state.keo.rows.map((r, i) => (
-                    <DongVatTu
+                    <DongKeo
                       key={`keo-${i}-${r.ma}`}
                       row={r}
                       index={i}
@@ -340,9 +736,7 @@ export default function CpsxNangCapDungMoiKeo() {
                       suaRow={suaKeoRow}
                       xoaRow={xoaKeoRow}
                       slDung={r.slDung}
-                      suaSlDung={(idx, v) =>
-                        suaKeoRow(idx, { slDung: v })
-                      }
+                      suaSlDung={(idx, v) => suaKeoRow(idx, { slDung: v })}
                     />
                   ))}
                   <tr className="config-cpsx-upgrade__add-row">
@@ -445,7 +839,8 @@ export default function CpsxNangCapDungMoiKeo() {
                   </>
                 ) : (
                   <strong className="config-cpsx-upgrade__source-value">
-                    {manualDraft || (tbCongKeo > 0 ? dinhDangVnd(tbCongKeo) : "—")}
+                    {manualDraft ||
+                      (tbCongKeo > 0 ? dinhDangVnd(tbCongKeo) : "—")}
                     {manualDraft || tbCongKeo > 0 ? " ₫/kg" : ""}
                   </strong>
                 )}
@@ -455,8 +850,8 @@ export default function CpsxNangCapDungMoiKeo() {
             <p className="config-note">
               2 loại keo dùng được cho mọi loại màng tại khâu GHÉP. SL dùng =
               số kg keo tiêu thụ trong kỳ (mặc định 1), dùng cho cách tính TB
-              trọng số. Giá sau (engine): keo = giá đã chọn · DM pha keo = DUNG
-              MÔI EA · quy g → ₫/m² ÷ 1000.
+              trọng số. Giá sau (engine): keo = giá đã chọn · DM pha keo = dòng
+              dung môi công đoạn Ghép · quy g → ₫/m² ÷ 1000.
             </p>
           </div>
         )}

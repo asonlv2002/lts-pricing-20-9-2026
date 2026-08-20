@@ -15,6 +15,9 @@ import {
   tinhCpMucInMoiM2,
   tinhCpMucInChiTiet,
   lapBangGiaInTheoMau,
+  chonDongDungMoi,
+  layDonGiaDungMoi,
+  loaiMangKhopTen,
 } from './cpsx-upgrade-ink';
 import type {
   CpsxUpgradeInk,
@@ -58,15 +61,57 @@ const fbTable: MucInTable = {
 const fbSolvent: SolventAdhesiveTable = {
   dungMoi: {
     rows: [
-      { ma: 'DM_OPP', ten: 'DUNG MÔI OPP', dvt: 'kg', donGia: 40000, ghiChu: 'In màng OPP, màng MattOPP' },
-      { ma: 'DM_PET', ten: 'DUNG MÔI PET', dvt: 'kg', donGia: 40000, ghiChu: 'In toàn bộ màng còn lại' },
-      { ma: 'DM_EA', ten: 'DUNG MÔI EA', dvt: 'kg', donGia: 40000, ghiChu: 'Ghép toàn bộ màng' },
+      {
+        ma: 'DM_OPP',
+        ten: 'DUNG MÔI OPP',
+        dvt: 'kg',
+        donGia: 40000,
+        ghiChu: 'In màng OPP, màng MattOPP',
+        congDoan: 'in',
+        loaiMangKeys: ['OPP', 'MattOPP', 'BOPP', 'PE', 'LLDPE', 'LDPE', 'HDPE'],
+      },
+      {
+        ma: 'DM_PET',
+        ten: 'DUNG MÔI PET',
+        dvt: 'kg',
+        donGia: 40000,
+        ghiChu: 'In toàn bộ màng còn lại',
+        congDoan: 'in',
+        loaiMangKeys: ['*'],
+      },
+      {
+        ma: 'DM_EA',
+        ten: 'DUNG MÔI EA',
+        dvt: 'kg',
+        donGia: 40000,
+        ghiChu: 'Ghép toàn bộ màng',
+        congDoan: 'ghep',
+        loaiMangKeys: ['*'],
+      },
     ],
   },
   keo: {
     rows: [
-      { ma: 'KEO_319', ten: 'KEO GHÉP 319', dvt: 'kg', donGia: 40000, ghiChu: 'Dùng cho mọi loại màng tại khâu GHÉP', slDung: 1 },
-      { ma: 'KEO_766', ten: 'KEO GHÉP 766', dvt: 'kg', donGia: 40000, ghiChu: 'Dùng cho mọi loại màng tại khâu GHÉP', slDung: 1 },
+      {
+        ma: 'KEO_319',
+        ten: 'KEO GHÉP 319',
+        dvt: 'kg',
+        donGia: 40000,
+        ghiChu: 'Dùng cho mọi loại màng tại khâu GHÉP',
+        slDung: 1,
+        congDoan: 'ghep',
+        loaiMangKeys: ['*'],
+      },
+      {
+        ma: 'KEO_766',
+        ten: 'KEO GHÉP 766',
+        dvt: 'kg',
+        donGia: 40000,
+        ghiChu: 'Dùng cho mọi loại màng tại khâu GHÉP',
+        slDung: 1,
+        congDoan: 'ghep',
+        loaiMangKeys: ['*'],
+      },
     ],
     appliedSource: 'average',
     appliedPrice: 40000,
@@ -266,6 +311,9 @@ const peRows: MucInRow[] = [
   eq(out.dungMoi.rows.length, 3, 'undefined → dung môi fallback 3 dòng');
   eq(out.keo.rows.length, 2, 'undefined → keo fallback 2 dòng');
   eq(out.dungMoi.rows[0].ma, 'DM_OPP', 'fallback ma');
+  eq(out.dungMoi.rows[0].congDoan, 'in', 'fallback congDoan in');
+  assert(Array.isArray(out.dungMoi.rows[0].loaiMangKeys), 'fallback loaiMangKeys');
+  eq(out.dungMoi.rows[2].congDoan, 'ghep', 'DM_EA → ghep');
   eq(out.keo.appliedSource, 'average', 'keo default average');
   approx(out.keo.appliedPrice as number, 40000, 'keo average → TB 40.000');
 }
@@ -308,9 +356,57 @@ const peRows: MucInRow[] = [
   eq(out.dungMoi.rows.map((r) => r.ma), ['DM_OPP', 'DM_EA'], 'migrate: DM_* → dungMoi');
   eq(out.keo.rows.map((r) => r.ma), ['KEO_319', 'KEO_766'], 'migrate: KEO_* → keo');
   approx(out.dungMoi.rows[0].donGia, 45000, 'giữ giá DM_OPP');
+  eq(out.dungMoi.rows[0].congDoan, 'in', 'migrate DM_OPP → in');
+  eq(out.dungMoi.rows[1].congDoan, 'ghep', 'migrate DM_EA → ghep');
   eq(out.keo.appliedSource, 'average', 'keo migrate → average');
   approx(out.keo.appliedPrice as number, 40000, 'keo migrate → TB 30k+50k');
   assert(out.keo.rows[0].slDung === 1, 'keo cũ không có slDung → default 1');
+}
+
+// 9b. chonDongDungMoi / loaiMangKhopTen
+{
+  assert(loaiMangKhopTen(['*'], 'PET 12'), '* khớp mọi tên');
+  assert(loaiMangKhopTen(['OPP'], 'BOPP 20'), 'OPP token khớp BOPP');
+  assert(loaiMangKhopTen(['PE'], 'LLDPE 60'), 'PE khớp LLDPE');
+  assert(!loaiMangKhopTen(['PE'], 'PET 12'), 'PE không khớp PET');
+  assert(loaiMangKhopTen(['PET'], 'PET 12'), 'PET khớp PET');
+
+  const dOpp = chonDongDungMoi(fbSolvent, 'in', 'OPP 20');
+  eq(dOpp?.ma, 'DM_OPP', 'in OPP → DM_OPP');
+  const dPet = chonDongDungMoi(fbSolvent, 'in', 'PET 12');
+  eq(dPet?.ma, 'DM_PET', 'in PET → DM_PET (* sau OPP)');
+  const dPe = chonDongDungMoi(fbSolvent, 'in', 'LLDPE 50');
+  eq(dPe?.ma, 'DM_OPP', 'in PE → DM_OPP');
+  const dGhep = chonDongDungMoi(fbSolvent, 'ghep', 'PET 12');
+  eq(dGhep?.ma, 'DM_EA', 'ghep → DM_EA');
+  eq(layDonGiaDungMoi(fbSolvent, 'in', 'OPP'), 40000, 'giá DM in OPP');
+
+  // User đổi: gắn PET vào dòng giá khác
+  const custom: SolventAdhesiveTable = {
+    dungMoi: {
+      rows: [
+        {
+          ma: 'DM_X',
+          ten: 'X',
+          dvt: 'kg',
+          donGia: 99000,
+          congDoan: 'in',
+          loaiMangKeys: ['PET'],
+        },
+        {
+          ma: 'DM_PET',
+          ten: 'PET',
+          dvt: 'kg',
+          donGia: 40000,
+          congDoan: 'in',
+          loaiMangKeys: ['*'],
+        },
+      ],
+    },
+    keo: fbSolvent.keo,
+  };
+  eq(chonDongDungMoi(custom, 'in', 'PET 12')?.ma, 'DM_X', 'first match PET → DM_X');
+  eq(layDonGiaDungMoi(custom, 'in', 'PET 12'), 99000, 'giá theo list mới');
 }
 {
   // shape cũ rỗng → fallback

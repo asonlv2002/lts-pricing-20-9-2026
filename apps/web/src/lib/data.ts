@@ -389,13 +389,38 @@ const DEFAULT_MUC_PE_TABLE: MucInTable = {
 
 /** CPSX nâng cấp — mục 3: bảng dung môi + keo ghép mặc định (tách 2 bảng) */
 const DEFAULT_DUNG_MOI_ROWS: SolventAdhesiveRow[] = [
-  { ma: 'DM_OPP', ten: 'DUNG MÔI OPP', dvt: 'kg', donGia: 40000, ghiChu: 'In màng OPP, màng MattOPP' },
-  { ma: 'DM_PET', ten: 'DUNG MÔI PET', dvt: 'kg', donGia: 40000, ghiChu: 'In toàn bộ màng còn lại' },
-  { ma: 'DM_EA', ten: 'DUNG MÔI EA', dvt: 'kg', donGia: 40000, ghiChu: 'Ghép toàn bộ màng' },
+  {
+    ma: 'DM_OPP',
+    ten: 'DUNG MÔI OPP',
+    dvt: 'kg',
+    donGia: 40000,
+    ghiChu: 'In màng OPP, màng MattOPP, PE',
+    congDoan: 'in',
+    // PE/LLDPE dùng chung DM_OPP (rule cũ sheet)
+    loaiMangKeys: ['OPP', 'MattOPP', 'BOPP', 'PE', 'LLDPE', 'LDPE', 'HDPE'],
+  },
+  {
+    ma: 'DM_PET',
+    ten: 'DUNG MÔI PET',
+    dvt: 'kg',
+    donGia: 40000,
+    ghiChu: 'In toàn bộ màng còn lại',
+    congDoan: 'in',
+    loaiMangKeys: ['*'],
+  },
+  {
+    ma: 'DM_EA',
+    ten: 'DUNG MÔI EA',
+    dvt: 'kg',
+    donGia: 40000,
+    ghiChu: 'Ghép toàn bộ màng',
+    congDoan: 'ghep',
+    loaiMangKeys: ['*'],
+  },
 ];
 const DEFAULT_KEO_ROWS: KeoRow[] = [
-  { ma: 'KEO_319', ten: 'KEO GHÉP 319', dvt: 'kg', donGia: 40000, ghiChu: 'Dùng cho mọi loại màng tại khâu GHÉP', slDung: 1 },
-  { ma: 'KEO_766', ten: 'KEO GHÉP 766', dvt: 'kg', donGia: 40000, ghiChu: 'Dùng cho mọi loại màng tại khâu GHÉP', slDung: 1 },
+  { ma: 'KEO_319', ten: 'KEO GHÉP 319', dvt: 'kg', donGia: 40000, ghiChu: 'Dùng cho mọi loại màng tại khâu GHÉP', slDung: 1, congDoan: 'ghep', loaiMangKeys: ['*'] },
+  { ma: 'KEO_766', ten: 'KEO GHÉP 766', dvt: 'kg', donGia: 40000, ghiChu: 'Dùng cho mọi loại màng tại khâu GHÉP', slDung: 1, congDoan: 'ghep', loaiMangKeys: ['*'] },
 ];
 const DEFAULT_SOLVENT_TABLE: SolventAdhesiveTable = {
   dungMoi: { rows: DEFAULT_DUNG_MOI_ROWS },

@@ -2,6 +2,7 @@ import type {
   CpsxUpgradeInk,
   DinhMucGhep,
   DinhMucInRow,
+  DungMoiCongDoan,
   InkPriceSource,
   KeoRow,
   KeoTable,
@@ -181,14 +182,133 @@ export function chuanHoaDinhMucGhep(
   };
 }
 
+function suyCongDoanTuRaw(raw: Partial<SolventAdhesiveRow>): DungMoiCongDoan {
+  if (raw?.congDoan === 'in' || raw?.congDoan === 'ghep') return raw.congDoan;
+  const ma = String(raw?.ma ?? '').toUpperCase();
+  const ghi = String(raw?.ghiChu ?? '').toLowerCase();
+  const ten = String(raw?.ten ?? '').toLowerCase();
+  if (ma.includes('EA') || ma.startsWith('DM_EA') || ghi.includes('ghép') || ghi.includes('ghep') || ten.includes('ea')) {
+    return 'ghep';
+  }
+  return 'in';
+}
+
+function suyLoaiMangTuRaw(
+  raw: Partial<SolventAdhesiveRow>,
+  congDoan: DungMoiCongDoan,
+): string[] {
+  if (Array.isArray(raw?.loaiMangKeys) && raw.loaiMangKeys.length > 0) {
+    return raw.loaiMangKeys.map((k) => String(k)).filter(Boolean);
+  }
+  const ma = String(raw?.ma ?? '').toUpperCase();
+  if (congDoan === 'ghep') return ['*'];
+  if (ma.includes('OPP')) {
+    return ['OPP', 'MattOPP', 'BOPP', 'PE', 'LLDPE', 'LDPE', 'HDPE'];
+  }
+  // DM_PET / còn lại / mặc định in
+  return ['*'];
+}
+
 function chuanHoaSolventRow(raw: Partial<SolventAdhesiveRow>, i: number): SolventAdhesiveRow {
+  const congDoan = suyCongDoanTuRaw(raw);
   return {
     ma: raw?.ma ? String(raw.ma) : `row_${i + 1}`,
     ten: String(raw?.ten ?? ''),
     dvt: String(raw?.dvt ?? 'kg'),
     donGia: Number(raw?.donGia) > 0 ? Number(raw.donGia) : 0,
     ghiChu: String(raw?.ghiChu ?? ''),
+    congDoan,
+    loaiMangKeys: suyLoaiMangTuRaw(raw, congDoan),
   };
+}
+
+/** Token `*` = mọi loại màng. Key PE không khớp tên chỉ có PET (tránh substring). */
+export function loaiMangKhopTen(
+  loaiMangKeys: string[] | undefined | null,
+  tenVatLieu: string | null | undefined,
+): boolean {
+  const keys = Array.isArray(loaiMangKeys) ? loaiMangKeys : [];
+  if (keys.length === 0) return false;
+  if (keys.some((k) => String(k).trim() === '*')) return true;
+  const u = String(tenVatLieu ?? '').toUpperCase().trim();
+  if (!u) return false;
+  for (const k of keys) {
+    const ku = String(k ?? '').toUpperCase().trim();
+    if (!ku || ku === '*') continue;
+    if (u === ku) return true;
+    if (ku === 'PE') {
+      // Bỏ M?PET rồi mới tìm PE → "PET 12" không khớp; "LLDPE"/"PE 40" khớp
+      const boPet = u.replace(/M?PET/g, '');
+      if (boPet.includes('PE')) return true;
+      continue;
+    }
+    if (u.includes(ku)) return true;
+  }
+  return false;
+}
+
+/**
+ * Chọn dòng dung môi theo công đoạn + loại màng (first match).
+ * Fallback legacy theo mã DM_OPP / DM_PET / DM_EA nếu chưa khớp list.
+ */
+function layRowsDungMoi(bang: SolventAdhesiveTable | undefined): SolventAdhesiveRow[] {
+  const dm = bang?.dungMoi?.rows;
+  if (Array.isArray(dm) && dm.length > 0) return dm;
+  // Shape cũ: rows phẳng (DM_* + KEO_* lẫn)
+  const legacy = (bang as { rows?: SolventAdhesiveRow[] } | undefined)?.rows;
+  if (Array.isArray(legacy) && legacy.length > 0) {
+    return legacy.filter((r) => !String(r?.ma ?? '').toUpperCase().startsWith('KEO_'));
+  }
+  return [];
+}
+
+export function chonDongDungMoi(
+  bang: SolventAdhesiveTable | undefined,
+  congDoan: DungMoiCongDoan,
+  tenVatLieu?: string | null,
+): SolventAdhesiveRow | null {
+  const rows = layRowsDungMoi(bang);
+  const theoCd = rows.filter((r) => (r.congDoan ?? suyCongDoanTuRaw(r)) === congDoan);
+  const hit = theoCd.find((r) =>
+    loaiMangKhopTen(r.loaiMangKeys ?? suyLoaiMangTuRaw(r, congDoan), tenVatLieu),
+  );
+  if (hit) return hit;
+
+  // Fallback mã cố định (data cũ / cấu hình thiếu keys)
+  if (congDoan === 'ghep') {
+    return (
+      rows.find((r) => {
+        const m = String(r.ma).toUpperCase();
+        return m === 'DM_EA' || m.includes('DM_EA') || m.endsWith('_EA') || m === 'EA';
+      }) ??
+      theoCd[0] ??
+      null
+    );
+  }
+  const u = String(tenVatLieu ?? '').toUpperCase();
+  const nhomOppPe = u.includes('OPP') || (u.includes('PE') && !u.includes('PET'));
+  if (nhomOppPe) {
+    return (
+      rows.find((r) => String(r.ma).toUpperCase().includes('DM_OPP')) ??
+      theoCd.find((r) => String(r.ma).toUpperCase().includes('OPP')) ??
+      null
+    );
+  }
+  return (
+    rows.find((r) => String(r.ma).toUpperCase().includes('DM_PET')) ??
+    theoCd.find((r) => String(r.ma).toUpperCase().includes('PET')) ??
+    theoCd[0] ??
+    null
+  );
+}
+
+export function layDonGiaDungMoi(
+  bang: SolventAdhesiveTable | undefined,
+  congDoan: DungMoiCongDoan,
+  tenVatLieu?: string | null,
+): number {
+  const dong = chonDongDungMoi(bang, congDoan, tenVatLieu);
+  return dong ? Number(dong.donGia) || 0 : 0;
 }
 
 /** TB cộng giá keo — bỏ dòng donGia<=0 */
@@ -243,6 +363,10 @@ function chuanHoaKeoRow(raw: Partial<KeoRow>, i: number): KeoRow {
     donGia: Number(raw?.donGia) > 0 ? Number(raw.donGia) : 0,
     ghiChu: String(raw?.ghiChu ?? ''),
     slDung: Number(raw?.slDung) >= 0 ? Number(raw.slDung) : 1,
+    congDoan: 'ghep',
+    loaiMangKeys: Array.isArray(raw?.loaiMangKeys) && raw.loaiMangKeys!.length > 0
+      ? raw.loaiMangKeys!.map(String)
+      : ['*'],
   };
 }
 
@@ -341,12 +465,11 @@ export function chuanHoaBangDungMoiKeo(
   return { dungMoi: { rows: dungMoiRows }, keo };
 }
 
-function donGiaDmTheoMa(
-  bang: SolventAdhesiveTable | undefined,
-  ma: string,
-): number {
-  const row = bang?.dungMoi?.rows?.find((r) => r.ma === ma);
-  return row ? Number(row.donGia) || 0 : 0;
+/** Tên VL đại diện theo nhóm mực — dùng match loaiMangKeys khi chỉ có nhom. */
+function tenDaiDienNhomMuc(nhom: NhomMucIn): string {
+  if (nhom === 'opp') return 'OPP';
+  if (nhom === 'pe') return 'LLDPE';
+  return 'PET';
 }
 
 /**
@@ -357,7 +480,7 @@ function donGiaDmTheoMa(
  * ĐM mực đã là tổng định mức cho n màu (1 màu = 4g, 8 màu = 32g) — KHÔNG nhân
  * lại số màu (nhất quán với `tinhCpMucDungMoiIn` trong dac-ta-nang-cao.ts).
  * Tỉ lệ phủ nhân cả mực + dung môi → phủ 50% = nửa giá phủ 100%.
- * Giá DM: PET → DM_PET; OPP/PE → DM_OPP (sheet không có DM_PE).
+ * Giá DM: match công đoạn In + loại màng (fallback mã DM_PET/DM_OPP).
  */
 export function tinhCpMucInMoiM2(
   soMau: number,
@@ -366,9 +489,10 @@ export function tinhCpMucInMoiM2(
   tyLePhuMuc = 1,
 ): number {
   const giaMuc = Number(ink?.[nhom]?.appliedPrice) || 0;
-  const giaDm = donGiaDmTheoMa(
+  const giaDm = layDonGiaDungMoi(
     ink?.solventAdhesive,
-    nhom === 'pet' ? 'DM_PET' : 'DM_OPP',
+    'in',
+    tenDaiDienNhomMuc(nhom),
   );
 
   const mau = Math.floor(Number(soMau));
@@ -401,9 +525,10 @@ export function tinhCpMucInChiTiet(
   ink: CpsxUpgradeInk,
 ): ChiTietCpMucIn {
   const giaMuc = Number(ink?.[nhom]?.appliedPrice) || 0;
-  const giaDm = donGiaDmTheoMa(
+  const giaDm = layDonGiaDungMoi(
     ink?.solventAdhesive,
-    nhom === 'pet' ? 'DM_PET' : 'DM_OPP',
+    'in',
+    tenDaiDienNhomMuc(nhom),
   );
 
   const mau = Math.floor(Number(soMau));

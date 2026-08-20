@@ -360,13 +360,24 @@ export interface MucInTable {
   appliedPrice: number | null; // giá đang áp dụng (₫/kg)
 }
 
+/** Công đoạn dùng dung môi: In hoặc Ghép */
+export type DungMoiCongDoan = 'in' | 'ghep';
+
 /** CPSX nâng cấp — 1 dòng trong bảng dung môi / keo ghép */
 export interface SolventAdhesiveRow {
   ma: string; // mã vật tư (sheet để trống, user tự đặt)
   ten: string;
   dvt: string;
   donGia: number; // đơn giá cố định (₫/đơn vị)
-  ghiChu: string; // ghi chú (vd "xài cho khâu in") — hiển thị tooltip
+  /** @deprecated map cũ; migrate → congDoan + loaiMangKeys */
+  ghiChu?: string;
+  /** In | Ghép — engine match theo công đoạn (thiếu → suy từ mã/ghi chú khi chuẩn hoá) */
+  congDoan?: DungMoiCongDoan;
+  /**
+   * Loại màng áp dụng: id/tên VL, token (OPP, PET…), hoặc `*` = mọi loại.
+   * Engine first-match theo thứ tự dòng trong bảng.
+   */
+  loaiMangKeys?: string[];
 }
 
 /** CPSX nâng cấp — 1 dòng bảng keo ghép (giống dòng mực: có SL dùng) */
