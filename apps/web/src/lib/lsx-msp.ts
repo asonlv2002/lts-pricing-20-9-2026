@@ -3,14 +3,22 @@ import type { ProductionOrder } from './types';
 /** Seed khi chưa có MSP dạng TP_###### trong danh sách LSX. */
 export const MSP_DEFAULT_SEED = 77020;
 
+function extractMsp(item: unknown): string {
+  if (typeof item === 'string') return item;
+  if (!item || typeof item !== 'object') return '';
+  const o = item as { manual?: { msp?: string }; msp?: string };
+  return (o.manual?.msp || o.msp || '').trim();
+}
+
 /**
  * Gen MSP dạng TP_###### từ danh sách LSX hiện có.
  * Quét manual.msp khớp /^TP_(\d+)/i, lấy max + 1, pad 6 chữ số.
+ * Nhận ProductionOrder[] | LsxRow[] | string[] (giống genLSXNumber).
  */
-export function genMsp(existing: ProductionOrder[]): string {
+export function genMsp(existing: readonly unknown[] = []): string {
   let max = MSP_DEFAULT_SEED;
-  for (const o of existing) {
-    const m = (o.manual?.msp || '').trim().match(/^TP_(\d+)/i);
+  for (const item of existing) {
+    const m = extractMsp(item).match(/^TP_(\d+)/i);
     if (m) {
       const n = parseInt(m[1], 10);
       if (!Number.isNaN(n) && n > max) max = n;
