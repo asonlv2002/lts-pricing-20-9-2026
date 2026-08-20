@@ -7,6 +7,9 @@ import {
   layTrangThaiBaoMatService,
   datPinService,
   xacThucPinService,
+  laLoiPinHttp,
+  LoiServiceLts,
+  caiDatQuanLyPhien,
 } from './service-lts';
 
 let passed = 0;
@@ -49,6 +52,59 @@ globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
 
 async function main() {
   try {
+    console.log('\n== laLoiPinHttp ==');
+    assert('Invalid PIN', laLoiPinHttp('Invalid PIN'));
+    assert('invalid pin token', laLoiPinHttp('invalid pin token'));
+    assert('khong phai het phien', !laLoiPinHttp('Unauthorized'));
+    assert('khong phai het phien JWT', !laLoiPinHttp('Hết phiên đăng nhập.'));
+
+    console.log('\n== xacThucPinService 401 Invalid PIN khong logout ==');
+    let logoutCalled = 0;
+    let refreshCalled = 0;
+    caiDatQuanLyPhien({
+      layTokenHienTai: () => ({
+        accessToken: 'access-ok',
+        refreshToken: 'refresh-ok',
+      }),
+      luuTokenMoi: () => {
+        refreshCalled += 1;
+      },
+      xuLyPhienKhongHopLe: () => {
+        logoutCalled += 1;
+      },
+    });
+    const prevFetch = globalThis.fetch;
+    globalThis.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      capturedUrl = String(input);
+      capturedInit = init;
+      if (String(input).includes('/auth/refresh')) {
+        refreshCalled += 1;
+        return new Response(JSON.stringify({ accessToken: 'a2', refreshToken: 'r2' }), {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        });
+      }
+      return new Response(
+        JSON.stringify({ message: 'Invalid PIN', error: 'Unauthorized', statusCode: 401 }),
+        { status: 401, headers: { 'Content-Type': 'application/json' } },
+      );
+    };
+    try {
+      await xacThucPinService('000000', 'access-ok');
+      assert('phai throw', false);
+    } catch (e) {
+      assert('throw LoiServiceLts', e instanceof LoiServiceLts);
+      assert(
+        'message ma pin',
+        e instanceof Error && /mã pin|pin/i.test(e.message),
+        e instanceof Error ? e.message : '',
+      );
+      assert('khong goi logout', logoutCalled === 0, String(logoutCalled));
+      assert('khong refresh token', refreshCalled === 0, String(refreshCalled));
+    } finally {
+      globalThis.fetch = prevFetch;
+    }
+
     console.log('\n== layTrangThaiBaoMatService ==');
     const tt = await layTrangThaiBaoMatService('token-a');
     assert('goi /auth/me/security', capturedUrl.endsWith('/auth/me/security'), capturedUrl);

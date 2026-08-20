@@ -358,11 +358,11 @@ export default function ModuleDuyetBaoGia({
         title: quyetDinh === "approved" ? "Duyệt báo giá" : "Từ chối báo giá",
         message: `Bạn có chắc muốn ${label} báo giá "${tenBaoGia(bg)}"?`,
         onConfirm: async (pinToken: string) => {
-          setNhapPin(null);
           datDangXuLyId(bg.id);
           datLoi("");
           try {
             await duyetBaoGiaService(bg.id, quyetDinh, accessToken, pinToken);
+            setNhapPin(null);
             hienThongBao(
               quyetDinh === "approved"
                 ? "Đã duyệt báo giá."
@@ -370,11 +370,10 @@ export default function ModuleDuyetBaoGia({
             );
             await lamMoi();
           } catch (error) {
-            datLoi(
-              error instanceof Error
-                ? error.message
-                : "Không cập nhật được trạng thái báo giá.",
-            );
+            // Ném lại để modal PIN giữ mở + hiện lỗi (không đóng sớm).
+            throw error instanceof Error
+              ? error
+              : new Error("Không cập nhật được trạng thái báo giá.");
           } finally {
             datDangXuLyId(null);
           }

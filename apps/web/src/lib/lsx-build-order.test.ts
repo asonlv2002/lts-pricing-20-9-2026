@@ -99,8 +99,40 @@ const emptyCtx = (orders: ProductionOrder[] = []): BuildLsxOrderCtx => ({
 });
 
 console.log('\n=== genLSXNumber ===');
-assert('seq from length', genLSXNumber([]).includes('-001'));
-assert('seq 2', genLSXNumber([{ id: 'a' } as ProductionOrder]).includes('-002'));
+{
+  const fixed = new Date(2026, 6, 15); // 2026-07-15 → 2607
+  assert('empty -> YYMM.01', genLSXNumber([], fixed) === '2607.01', genLSXNumber([], fixed));
+  const withSameMonth = [
+    { id: 'a', manual: { lsxNumber: '2607.01' } },
+    { id: 'b', manual: { lsxNumber: '2607.03' } },
+  ] as ProductionOrder[];
+  assert(
+    'same month max+1',
+    genLSXNumber(withSameMonth, fixed) === '2607.04',
+    genLSXNumber(withSameMonth, fixed),
+  );
+  const otherMonth = [
+    { id: 'c', manual: { lsxNumber: '2606.99' } },
+    { id: 'd', manual: { lsxNumber: 'LSX-20260715-001' } },
+  ] as ProductionOrder[];
+  assert(
+    'other month / legacy ignored -> .01',
+    genLSXNumber(otherMonth, fixed) === '2607.01',
+    genLSXNumber(otherMonth, fixed),
+  );
+  const fromStrings = genLSXNumber(['2607.01', '2607.02'] as any, fixed);
+  assert('accepts string lsxNumbers', fromStrings === '2607.03', fromStrings);
+  const fromRows = genLSXNumber(
+    [{ lsxNumber: '2607.09' }, { lsxNumber: '2607.10' }] as any,
+    fixed,
+  );
+  assert('accepts { lsxNumber } rows', fromRows === '2607.11', fromRows);
+  assert(
+    'seq >= 100 not padded to 2 only when needed',
+    genLSXNumber([{ manual: { lsxNumber: '2607.99' } }] as ProductionOrder[], fixed) === '2607.100',
+    genLSXNumber([{ manual: { lsxNumber: '2607.99' } }] as ProductionOrder[], fixed),
+  );
+}
 
 console.log('\n=== buildProductionOrderFromSource ===');
 const s1 = makeSource('q1:s1', 'TUI GAO 5KG', 'LLDPE');

@@ -27,7 +27,7 @@ import {
   searchLsxRows,
   type LsxRow,
 } from '../lib/lsx-server-adapter';
-import type { LsxLocalStatus } from '../lib/types';
+import type { LSXManualFields, LsxLocalStatus } from '../lib/types';
 import { LSX_LOCAL_STATUS_CONFIG, NHAN_LSX_LOCAL_STATUS } from '../lib/types';
 import { QrevStyleInjector } from './qrev-styles';
 import LsxPreviewModal from './LsxPreviewModal';
@@ -37,6 +37,7 @@ import NutSaoChepLienKet from './NutSaoChepLienKet';
 import { taoUrlChiaSeLsx } from '../lib/lsx-route';
 import { buildProductionOrderFromSource } from '../lib/lsx-build-order';
 import { mapBaoGiaToLsxSources } from '../lib/bao-gia-adapter';
+import { themChuKyVaoManual } from '../lib/chu-ky';
 
 type BoLoc = LsxLocalStatus | 'all';
 type Nguon = 'all' | 'review';
@@ -72,9 +73,11 @@ export default function ModuleDanhSachLSX({
   const policies = nguoiDung?.policies ?? [];
   const laNguoiDuyet = coQuyenDuyetLsx(policies);
   const datLsxDangSua = useCalculatorStore((s) => s.datLsxDangSua);
-  const {
-    materials, constants, profitTable, smallWidthPrices, currentSellerName,
-  } = useCalculatorStore();
+  const materials = useCalculatorStore((s) => s.materials);
+  const constants = useCalculatorStore((s) => s.constants);
+  const profitTable = useCalculatorStore((s) => s.profitTable);
+  const smallWidthPrices = useCalculatorStore((s) => s.smallWidthPrices);
+  const currentSellerName = useCalculatorStore((s) => s.currentSellerName);
 
   const [danhSachQuotations, setDanhSachQuotations] = useState<QuotationPricingSheetOrdersByQuotationApi[]>([]);
   const [tuKhoa, setTuKhoa] = useState('');
@@ -145,7 +148,6 @@ export default function ModuleDanhSachLSX({
         title: quyetDinh === 'approved' ? 'Duyệt LSX' : 'Từ chối LSX',
         message: `Bạn có chắc muốn ${label} LSX "${row.lsxNumber || row.orderId}"?`,
         onConfirm: async (pinToken: string) => {
-          setNhapPin(null);
           setDangXuLyId(row.orderId);
           setLoi('');
           try {
@@ -155,6 +157,7 @@ export default function ModuleDanhSachLSX({
               accessToken,
               pinToken,
             );
+            setNhapPin(null);
             hienThongBao(
               quyetDinh === 'approved'
                 ? 'Đã duyệt LSX. Có thể in/xuất PDF/DOCX.'
@@ -162,7 +165,10 @@ export default function ModuleDanhSachLSX({
             );
             await lamMoi();
           } catch (error) {
-            setLoi(error instanceof Error ? error.message : 'Không cập nhật được trạng thái LSX.');
+            // Ném lại để modal PIN giữ mở + hiện lỗi (không đóng sớm).
+            throw error instanceof Error
+              ? error
+              : new Error('Không cập nhật được trạng thái LSX.');
           } finally {
             setDangXuLyId(null);
           }
@@ -172,8 +178,8 @@ export default function ModuleDanhSachLSX({
     [accessToken, lamMoi, hienThongBao],
   );
 
-  // === Preview (click row) ===
-  const handleXemRow = useCallback((row: LsxRow) => {
+  // === Preview (click row) — parity wizard: gắn chữ ký nếu BE chưa snapshot ===
+  const handleXemRow = useCallback(async (row: LsxRow) => {
     const fakeSource = mapBaoGiaToLsxSources({
       id: row.quotationId,
       pricingSheets: [row.pricingSheet as PricingSheetApi],
@@ -186,7 +192,11 @@ export default function ModuleDanhSachLSX({
         preparedBy: currentSellerName,
       });
       orderPreview.id = row.orderId;
-      orderPreview.manual = (row.inputValue as any) || orderPreview.manual;
+      const manualTuServer =
+        row.inputValue && typeof row.inputValue === 'object'
+          ? (row.inputValue as LSXManualFields)
+          : orderPreview.manual;
+      orderPreview.manual = await themChuKyVaoManual(manualTuServer);
       setPreviewLsxPdf({ order: orderPreview });
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Lỗi preview');

@@ -45,16 +45,16 @@ export function estimateQuoteGroupHeight({
   hasCylinder,
   cylinderDescription = '',
 }: {
-  productName: string;
-  description: string;
+  productName?: string | null;
+  description?: string | null;
   tierCount: number;
   hasCylinder: boolean;
-  cylinderDescription?: string;
+  cylinderDescription?: string | null;
 }): number {
-  const textLines = (text: string, charactersPerLine: number) =>
+  const textLines = (text: string | null | undefined, charactersPerLine: number) =>
     Math.max(
       1,
-      text.split('\n').reduce(
+      String(text ?? '').split('\n').reduce(
         (count, line) => count + Math.max(1, Math.ceil(line.length / charactersPerLine)),
         0,
       ),

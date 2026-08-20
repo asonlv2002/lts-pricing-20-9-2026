@@ -25,7 +25,10 @@ import {
 } from "../../lib/cpsx-upgrade-ink";
 import {
   chuanHoaCpsxUpgradeThoiGian,
-  laSetupBienCoSize,
+  kyHieuStepOp,
+  laStepOpHopLe,
+  nhanBuocCatSetupRule,
+  nhanKhoangTocDoBuocCat,
   tinhThoiGianMayIn,
   tinhThoiGianMayGhep,
   tinhThoiGianMayChia,
@@ -268,32 +271,10 @@ function TieuDeCard({ children }: { children: React.ReactNode }) {
   );
 }
 
-function nhanBuocCatSetup(rule: {
-  key?: string;
-  stepOp?: string | null;
-  maxStepMm?: number | null;
-}): string {
-  if (!laSetupBienCoSize(rule as never)) return "—";
-  const cm = (rule.maxStepMm ?? 300) / 10;
-  if (rule.stepOp === "gt") return `> ${cm} cm`;
-  return `≤ ${cm} cm`;
-}
-
-function nhanBuocCatTocDo(rule: {
-  label?: string;
-  maxStepMm?: number | null;
-}): string {
-  if (rule.label?.trim()) return rule.label.trim();
-  if (rule.maxStepMm != null && rule.maxStepMm > 0) {
-    return `≤ ${rule.maxStepMm / 10} cm`;
-  }
-  return "Không trần";
-}
-
 function nhanSetupTui(rule: CpsxTuiSetupRule): string {
-  if (laSetupBienCoSize(rule) && rule.stepOp) {
-    const cm = (rule.maxStepMm ?? 300) / 10;
-    return `${rule.label || "—"} (${rule.stepOp === "lte" ? "≤" : ">"}${cm}cm)`;
+  if (laStepOpHopLe(rule.stepOp)) {
+    const cm = (rule.maxStepMm ?? 0) / 10;
+    return `${rule.label || "—"} (${kyHieuStepOp(rule.stepOp)}${cm}cm)`;
   }
   return rule.label || "—";
 }
@@ -631,7 +612,8 @@ function CardThoiGianMayTui({ cfg }: { cfg: CpsxThoiGianMayTui }) {
     speedRules[0] ?? {
       key: "",
       label: "—",
-      maxStepMm: null,
+      minStepMm: 0,
+      maxStepMm: 9_999_999,
       speedMPerMin: 50,
     };
 
@@ -639,9 +621,6 @@ function CardThoiGianMayTui({ cfg }: { cfg: CpsxThoiGianMayTui }) {
     () => tinhThoiGianMayTui(metChay, setupChon, tocDoChon),
     [metChay, setupChon, tocDoChon],
   );
-
-  const dsBien = setupRules.filter((r) => laSetupBienCoSize(r));
-  const dsKhac = setupRules.filter((r) => !laSetupBienCoSize(r));
 
   return (
     <div className="card config-card config-cpsx-upgrade-readonly__card config-cpsx-upgrade-readonly__card--tg">
@@ -714,7 +693,7 @@ function CardThoiGianMayTui({ cfg }: { cfg: CpsxThoiGianMayTui }) {
               ) : (
                 speedRules.map((r) => (
                   <option key={r.key} value={r.key}>
-                    {nhanBuocCatTocDo(r)} ({dinhDangSo(r.speedMPerMin, 0)}{" "}
+                    {nhanKhoangTocDoBuocCat(r)} ({dinhDangSo(r.speedMPerMin, 0)}{" "}
                     m/phút)
                   </option>
                 ))
@@ -745,7 +724,7 @@ function CardThoiGianMayTui({ cfg }: { cfg: CpsxThoiGianMayTui }) {
       </div>
 
       <div className="config-cpsx-upgrade__col-title">
-        Setup 3/4 biên (theo bước cắt) — chỉ xem
+        Setup theo bước cắt — chỉ xem
       </div>
       <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
         <table className="config-table config-cpsx-upgrade__table">
@@ -757,43 +736,15 @@ function CardThoiGianMayTui({ cfg }: { cfg: CpsxThoiGianMayTui }) {
             </tr>
           </thead>
           <tbody>
-            {dsBien.length === 0 ? (
+            {setupRules.length === 0 ? (
               <tr>
                 <td colSpan={3}>—</td>
               </tr>
             ) : (
-              dsBien.map((rule, idx) => (
-                <tr key={rule.key || `setup-bien-${idx}`}>
+              setupRules.map((rule, idx) => (
+                <tr key={rule.key || `setup-${idx}`}>
                   <td>{rule.label || "—"}</td>
-                  <td>{nhanBuocCatSetup(rule)}</td>
-                  <td className="num">{dinhDangSo(rule.setupMinutes, 0)}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="config-cpsx-upgrade__col-title">
-        Setup loại khác — chỉ xem
-      </div>
-      <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
-        <table className="config-table config-cpsx-upgrade__table">
-          <thead>
-            <tr>
-              <th>Loại túi</th>
-              <th className="num">Setup (phút)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {dsKhac.length === 0 ? (
-              <tr>
-                <td colSpan={2}>—</td>
-              </tr>
-            ) : (
-              dsKhac.map((rule, idx) => (
-                <tr key={rule.key || `setup-khac-${idx}`}>
-                  <td>{rule.label || "—"}</td>
+                  <td>{nhanBuocCatSetupRule(rule)}</td>
                   <td className="num">{dinhDangSo(rule.setupMinutes, 0)}</td>
                 </tr>
               ))
@@ -809,7 +760,7 @@ function CardThoiGianMayTui({ cfg }: { cfg: CpsxThoiGianMayTui }) {
         <table className="config-table config-cpsx-upgrade__table">
           <thead>
             <tr>
-              <th>Bậc bước cắt</th>
+              <th>Bước cắt (mm)</th>
               <th className="num">Tốc độ (m/phút)</th>
             </tr>
           </thead>
@@ -820,8 +771,8 @@ function CardThoiGianMayTui({ cfg }: { cfg: CpsxThoiGianMayTui }) {
               </tr>
             ) : (
               speedRules.map((rule, idx) => (
-                <tr key={rule.key || `speed-${idx}`}>
-                  <td>{nhanBuocCatTocDo(rule)}</td>
+                <tr key={`${rule.key || "speed"}-${idx}`}>
+                  <td>{nhanKhoangTocDoBuocCat(rule)}</td>
                   <td className="num">{dinhDangSo(rule.speedMPerMin, 0)}</td>
                 </tr>
               ))

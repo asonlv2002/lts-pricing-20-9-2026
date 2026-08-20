@@ -12908,6 +12908,23 @@ body {
   opacity: 0.55;
   cursor: not-allowed;
 }
+.pin-6-o-input--error {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12);
+  background: rgba(220, 38, 38, 0.04);
+}
+.pin-6-o-input--error:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.18);
+}
+.lts-pin-error {
+  margin: 12px 0 0;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #b91c1c;
+  line-height: 1.4;
+}
 
 /* ── Chữ ký vẽ ──────────────────────────── */
 .lts-signature-tabs {

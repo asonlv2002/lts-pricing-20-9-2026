@@ -393,7 +393,7 @@ export default function CpsxNangCapDien() {
         <div className="config-section-title config-cpsx-upgrade__head">
           <span>Điện / phút theo máy</span>
           <span className="config-cpsx-upgrade__head-meta">
-            {MAY_ROWS.length} máy · {giaDangApLabel}
+            {MAY_ROWS.length} máy
           </span>
           <button
             type="button"

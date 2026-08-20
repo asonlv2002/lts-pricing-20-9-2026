@@ -51,4 +51,22 @@ assert(
   true,
 );
 
+assert(
+  'tolerates undefined productName and description without throwing',
+  (() => {
+    try {
+      const h = estimateQuoteGroupHeight({
+        productName: undefined as unknown as string,
+        description: undefined as unknown as string,
+        tierCount: 1,
+        hasCylinder: false,
+      });
+      return typeof h === 'number' && h >= 26 && Number.isFinite(h);
+    } catch {
+      return false;
+    }
+  })(),
+  true,
+);
+
 if (failed > 0) process.exit(1);

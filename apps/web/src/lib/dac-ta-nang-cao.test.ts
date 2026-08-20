@@ -112,11 +112,11 @@ const thoiGian: CpsxUpgradeThoiGian = {
       { key: 'cut_seal', label: 'Túi cắt Seal', setupMinutes: 90 },
     ],
     speedRules: [
-      { key: 'le_200', label: '≤ 200 mm', maxStepMm: 200, speedMPerMin: 80 },
-      { key: '200_300', label: '200 – ≤300 mm', maxStepMm: 300, speedMPerMin: 70 },
-      { key: '300_400', label: '300 – ≤400 mm', maxStepMm: 400, speedMPerMin: 60 },
-      { key: '400_550', label: '400 – ≤550 mm', maxStepMm: 550, speedMPerMin: 50 },
-      { key: 'gt_550', label: '> 550 mm', maxStepMm: null, speedMPerMin: 20 },
+      { key: 'le_200', label: '0 – 200 mm', minStepMm: 0, maxStepMm: 200, speedMPerMin: 80 },
+      { key: '200_300', label: '200 – 300 mm', minStepMm: 200, maxStepMm: 300, speedMPerMin: 70 },
+      { key: '300_400', label: '300 – 400 mm', minStepMm: 300, maxStepMm: 400, speedMPerMin: 60 },
+      { key: '400_550', label: '400 – 550 mm', minStepMm: 400, maxStepMm: 550, speedMPerMin: 50 },
+      { key: 'gt_550', label: '550 – 9999999 mm', minStepMm: 550, maxStepMm: 9_999_999, speedMPerMin: 20 },
     ],
   },
 };

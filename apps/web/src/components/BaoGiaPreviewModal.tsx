@@ -1,50 +1,113 @@
 "use client";
-import React, { useEffect, useState, useCallback } from 'react';
-import { pdf, PDFViewer } from '@react-pdf/renderer';
-import { BaoGiaPdfDocument } from './BaoGiaPdfDocument';
-import type { HistoryItem } from '../lib/types';
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import { BaoGiaPdfDocument } from "./BaoGiaPdfDocument";
+import StablePdfIframe from "./pdf/StablePdfIframe";
+import type { HistoryItem } from "../lib/types";
 
 interface BaoGiaPreviewModalProps {
   open: boolean;
   onClose: () => void;
   item: HistoryItem;
-  customerInfo?: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string };
+  customerInfo?: {
+    address?: string;
+    taxCode?: string;
+    phone?: string;
+    fax?: string;
+    description?: string;
+  };
 }
 
-export default function BaoGiaPreviewModal({ open, onClose, item, customerInfo }: BaoGiaPreviewModalProps) {
+function baoGiaPdfDepsKey(
+  item: HistoryItem,
+  customerInfo?: BaoGiaPreviewModalProps["customerInfo"],
+): string {
+  const id =
+    item.id ||
+    item.quoteCode ||
+    `${item.customer || ""}|${item.productName || ""}|${item.date || ""}`;
+  const ci = customerInfo
+    ? [
+        customerInfo.address || "",
+        customerInfo.taxCode || "",
+        customerInfo.phone || "",
+        customerInfo.fax || "",
+        customerInfo.description || "",
+      ].join("|")
+    : "";
+  return `bg:${id}:${ci}`;
+}
+
+function BaoGiaPreviewModal({
+  open,
+  onClose,
+  item,
+  customerInfo,
+}: BaoGiaPreviewModalProps) {
   const [dangTai, setDangTai] = useState(false);
+  const readyRef = useRef<{ blob: Blob; url: string } | null>(null);
+  const itemRef = useRef(item);
+  const customerInfoRef = useRef(customerInfo);
+  itemRef.current = item;
+  customerInfoRef.current = customerInfo;
+
+  const depsKey = open ? baoGiaPdfDepsKey(item, customerInfo) : "";
 
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === "Escape") onClose();
     };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, [open, onClose]);
 
   useEffect(() => {
-    if (open) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
+    if (open) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => {
+      document.body.style.overflow = "";
+    };
   }, [open]);
+
+  const buildDocument = useCallback(
+    () => (
+      <BaoGiaPdfDocument
+        item={itemRef.current}
+        customerInfo={customerInfoRef.current}
+      />
+    ),
+    [],
+  );
+
+  const onReady = useCallback(
+    (payload: { blob: Blob; url: string } | null) => {
+      readyRef.current = payload;
+    },
+    [],
+  );
 
   const taiPdf = useCallback(async () => {
     setDangTai(true);
     try {
-      const blob = await pdf(<BaoGiaPdfDocument item={item} customerInfo={customerInfo} />).toBlob();
+      let blob = readyRef.current?.blob;
+      if (!blob) {
+        const { pdf } = await import("@react-pdf/renderer");
+        blob = await pdf(
+          <BaoGiaPdfDocument item={item} customerInfo={customerInfo} />,
+        ).toBlob();
+      }
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      const safeName = (item.quoteCode || item.customer || 'bao-gia').replace(/[<>:"/\\|?*\s]+/g, '_').slice(0, 60);
+      const a = document.createElement("a");
+      const safeName = (item.quoteCode || item.customer || "bao-gia")
+        .replace(/[<>:"/\\|?*\s]+/g, "_")
+        .slice(0, 60);
       a.href = url;
       a.download = `BaoGia_${safeName}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e: any) {
-      alert('Lỗi tải PDF: ' + (e.message || String(e)));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      alert("Lỗi tải PDF: " + msg);
     } finally {
       setDangTai(false);
     }
@@ -54,12 +117,15 @@ export default function BaoGiaPreviewModal({ open, onClose, item, customerInfo }
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
       <div className="relative z-10 flex flex-col w-[95vw] h-[95vh] max-w-5xl bg-white rounded-lg shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between shrink-0 px-5 py-3 bg-gray-100 border-b border-gray-300">
           <span className="text-sm font-medium text-gray-700 truncate">
-            Bảng báo giá {item.quoteCode || item.customer || ''}
+            Bảng báo giá {item.quoteCode || item.customer || ""}
           </span>
           <div className="flex items-center gap-2">
             <button
@@ -67,7 +133,7 @@ export default function BaoGiaPreviewModal({ open, onClose, item, customerInfo }
               onClick={taiPdf}
               disabled={dangTai}
             >
-              {dangTai ? 'Đang tạo PDF...' : 'Tải PDF'}
+              {dangTai ? "Đang tạo PDF..." : "Tải PDF"}
             </button>
             <button
               className="px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-200 rounded"
@@ -78,12 +144,18 @@ export default function BaoGiaPreviewModal({ open, onClose, item, customerInfo }
           </div>
         </div>
 
-        <div className="flex-1">
-          <PDFViewer showToolbar={false} width="100%" height="100%" style={{ border: 'none' }}>
-            <BaoGiaPdfDocument item={item} customerInfo={customerInfo} />
-          </PDFViewer>
+        <div className="flex-1 min-h-0">
+          <StablePdfIframe
+            active={open}
+            depsKey={depsKey}
+            buildDocument={buildDocument}
+            onReady={onReady}
+            title={`Báo giá ${item.quoteCode || item.customer || ""}`}
+          />
         </div>
       </div>
     </div>
   );
 }
+
+export default React.memo(BaoGiaPreviewModal);

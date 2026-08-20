@@ -184,34 +184,39 @@ export const DEFAULT_BAG_PRESS_ELECTRIC: BagPressElectric = {
   pricePerKwh: 2140,
 };
 
-/** Setup túi CPSX: 3/4 biên tách hàng + bậc size; loại khác không size. */
+/** Setup túi CPSX: 1 bảng — loại túi + stepOp + ngưỡng cm (lưu mm). */
 export const DEFAULT_BAG_PRESS_SETUP_RULES: BagPressSetupRule[] = [
   { key: '3bien_le30', label: 'Túi 3 biên', setupMinutes: 90, maxStepMm: 300, stepOp: 'lte' },
   { key: '3bien_gt30', label: 'Túi 3 biên', setupMinutes: 90, maxStepMm: 300, stepOp: 'gt' },
   { key: '4bien_le30', label: 'Túi 4 biên', setupMinutes: 90, maxStepMm: 300, stepOp: 'lte' },
   { key: '4bien_gt30', label: 'Túi 4 biên', setupMinutes: 90, maxStepMm: 300, stepOp: 'gt' },
-  { key: 'xephong', label: 'Xếp hông lưng lệch / lưng giữa', setupMinutes: 120, maxStepMm: null, stepOp: null },
-  { key: 'xephong_gt40', label: 'Xếp hông lưng lệch / lưng giữa (>40cm)', setupMinutes: 120, maxStepMm: null, stepOp: null },
-  { key: 'zipper_daydung', label: 'Zipper đáy đứng', setupMinutes: 120, maxStepMm: null, stepOp: null },
-  { key: 'zipper_3bien', label: 'Zipper 3 biên', setupMinutes: 120, maxStepMm: null, stepOp: null },
-  { key: 'nap_bangkeo', label: 'Nắp băng keo', setupMinutes: 120, maxStepMm: null, stepOp: null },
-  { key: 'cut_seal', label: 'Túi cắt Seal', setupMinutes: 90, maxStepMm: null, stepOp: null },
+  { key: 'xephong_le40', label: 'Xếp hông dán lưng lệch', setupMinutes: 120, maxStepMm: 400, stepOp: 'lte' },
+  { key: 'xephong_gt40', label: 'Xếp hông dán lưng lệch', setupMinutes: 120, maxStepMm: 400, stepOp: 'gt' },
+  { key: 'xephong_giua_le40', label: 'Xếp hông dán lưng giữa', setupMinutes: 120, maxStepMm: 400, stepOp: 'lte' },
+  { key: 'xephong_giua_gt40', label: 'Xếp hông dán lưng giữa', setupMinutes: 120, maxStepMm: 400, stepOp: 'gt' },
+  { key: 'zipper_daydung', label: 'Zipper đáy đứng', setupMinutes: 120, maxStepMm: 0, stepOp: 'gt' },
+  { key: 'zipper_3bien', label: 'Zipper 3 biên', setupMinutes: 120, maxStepMm: 0, stepOp: 'gt' },
+  { key: 'nap_bangkeo', label: 'Nắp băng keo', setupMinutes: 120, maxStepMm: 0, stepOp: 'gt' },
+  { key: 'cut_seal', label: 'Túi cắt Seal', setupMinutes: 90, maxStepMm: 0, stepOp: 'gt' },
 ];
 
+/** Trần mm mặc định cho bậc «không giới hạn» (thay null). */
+export const TOC_DO_BUOC_CAT_MAX_TRAN = 9_999_999;
+
 export const DEFAULT_BAG_PRESS_SPEED_RULES: BagPressSpeedRule[] = [
-  { key: 'le_200', label: '≤ 200 mm', maxStepMm: 200, bagsPerMinute: 80 },
-  { key: '200_300', label: '200 – ≤300 mm', maxStepMm: 300, bagsPerMinute: 70 },
-  { key: '300_400', label: '300 – ≤400 mm', maxStepMm: 400, bagsPerMinute: 60 },
-  { key: '400_550', label: '400 – ≤550 mm', maxStepMm: 550, bagsPerMinute: 50 },
-  { key: 'gt_550', label: '> 550 mm', maxStepMm: null, bagsPerMinute: 20 },
+  { key: 'le_200', label: '0 – 200 mm', minStepMm: 0, maxStepMm: 200, bagsPerMinute: 80 },
+  { key: '200_300', label: '200 – 300 mm', minStepMm: 200, maxStepMm: 300, bagsPerMinute: 70 },
+  { key: '300_400', label: '300 – 400 mm', minStepMm: 300, maxStepMm: 400, bagsPerMinute: 60 },
+  { key: '400_550', label: '400 – 550 mm', minStepMm: 400, maxStepMm: 550, bagsPerMinute: 50 },
+  { key: 'gt_550', label: '550 – 9999999 mm', minStepMm: 550, maxStepMm: TOC_DO_BUOC_CAT_MAX_TRAN, bagsPerMinute: 20 },
 ];
 
 export const DEFAULT_CPSX_TUI_SPEED_RULES: CpsxTuiSpeedRule[] = [
-  { key: 'le_200', label: '≤ 200 mm', maxStepMm: 200, speedMPerMin: 80 },
-  { key: '200_300', label: '200 – ≤300 mm', maxStepMm: 300, speedMPerMin: 70 },
-  { key: '300_400', label: '300 – ≤400 mm', maxStepMm: 400, speedMPerMin: 60 },
-  { key: '400_550', label: '400 – ≤550 mm', maxStepMm: 550, speedMPerMin: 50 },
-  { key: 'gt_550', label: '> 550 mm', maxStepMm: null, speedMPerMin: 20 },
+  { key: 'le_200', label: '0 – 200 mm', minStepMm: 0, maxStepMm: 200, speedMPerMin: 80 },
+  { key: '200_300', label: '200 – 300 mm', minStepMm: 200, maxStepMm: 300, speedMPerMin: 70 },
+  { key: '300_400', label: '300 – 400 mm', minStepMm: 300, maxStepMm: 400, speedMPerMin: 60 },
+  { key: '400_550', label: '400 – 550 mm', minStepMm: 400, maxStepMm: 550, speedMPerMin: 50 },
+  { key: 'gt_550', label: '550 – 9999999 mm', minStepMm: 550, maxStepMm: TOC_DO_BUOC_CAT_MAX_TRAN, speedMPerMin: 20 },
 ];
 
 export const DEFAULT_BAG_PRESS_TIME: BagPressTime = {
@@ -599,7 +604,13 @@ const bagPressElectric: BagPressElectric = {
 const rawBagPressTime = (rawConstants as unknown as {
   bagPressTime?: {
     setupRules?: Array<{ key?: string; label?: string; setupMinutes?: number }>;
-    speedRules?: Array<{ key?: string; label?: string; maxStepMm?: number | null; bagsPerMinute?: number }>;
+    speedRules?: Array<{
+      key?: string;
+      label?: string;
+      minStepMm?: number;
+      maxStepMm?: number | null;
+      bagsPerMinute?: number;
+    }>;
   };
 }).bagPressTime;
 const bagPressTime: BagPressTime = {
@@ -611,12 +622,26 @@ const bagPressTime: BagPressTime = {
       }))
     : DEFAULT_BAG_PRESS_TIME.setupRules.map((r) => ({ ...r })),
   speedRules: Array.isArray(rawBagPressTime?.speedRules) && (rawBagPressTime?.speedRules?.length ?? 0) > 0
-    ? (rawBagPressTime?.speedRules ?? []).map((r, i) => ({
-        key: r.key || `speed_${i + 1}`,
-        label: r.label || `Bậc ${i + 1}`,
-        maxStepMm: r.maxStepMm == null ? null : (Number(r.maxStepMm) || null),
-        bagsPerMinute: Number(r.bagsPerMinute) > 0 ? Number(r.bagsPerMinute) : 50,
-      }))
+    ? (() => {
+        const rows = rawBagPressTime?.speedRules ?? [];
+        let prevMax = 0;
+        return rows.map((r, i) => {
+          const maxStepMm =
+            r.maxStepMm == null ? TOC_DO_BUOC_CAT_MAX_TRAN : (Number(r.maxStepMm) || TOC_DO_BUOC_CAT_MAX_TRAN);
+          const minStepMm =
+            r.minStepMm != null && Number.isFinite(Number(r.minStepMm))
+              ? Math.max(0, Number(r.minStepMm))
+              : prevMax;
+          prevMax = maxStepMm;
+          return {
+            key: r.key || `speed_${i + 1}`,
+            label: r.label || `${minStepMm} – ${maxStepMm} mm`,
+            minStepMm,
+            maxStepMm,
+            bagsPerMinute: Number(r.bagsPerMinute) > 0 ? Number(r.bagsPerMinute) : 50,
+          };
+        });
+      })()
     : DEFAULT_BAG_PRESS_TIME.speedRules.map((r) => ({ ...r })),
 };
 

@@ -187,8 +187,9 @@ const styles = StyleSheet.create({
 // HELPERS
 // ═══════════════════════════════════════════════════════════════════════════════
 
-function dinhDangSo(n: number) {
-  return n.toLocaleString("vi-VN");
+function dinhDangSo(n: number | null | undefined) {
+  const v = Number(n);
+  return (Number.isFinite(v) ? v : 0).toLocaleString("vi-VN");
 }
 function escHtml(s: string): string {
   return (s || "")
@@ -417,19 +418,21 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
     const tiers: { quantity: number; unitPrice: number; total: number }[] = [];
     if (p.tiers && p.tiers.length > 0) {
       for (const t of p.tiers) {
-        const up = Math.round(t.chotGia || t.finalPrice);
+        const qty = Number(t.quantity) || 0;
+        const up = Math.round(Number(t.chotGia || t.finalPrice) || 0);
         tiers.push({
-          quantity: t.quantity,
+          quantity: qty,
           unitPrice: up,
-          total: up * t.quantity,
+          total: up * qty,
         });
       }
     } else {
-      const up = Math.round(p.chotGia || p.finalPrice);
+      const qty = Number(p.quantity) || 0;
+      const up = Math.round(Number(p.chotGia || p.finalPrice) || 0);
       tiers.push({
-        quantity: p.quantity,
+        quantity: qty,
         unitPrice: up,
-        total: up * p.quantity,
+        total: up * qty,
       });
     }
     const isBag = input.productType !== "mang";
@@ -474,7 +477,13 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
         note: (spec as any).cylinderNote || undefined,
       };
     }
-    return { productName: p.productName, tiers: finalTiers, description, isBag, cylinder };
+    return {
+      productName: p.productName || "",
+      tiers: finalTiers,
+      description: description || "",
+      isBag,
+      cylinder,
+    };
     })
     .filter((g) => g.tiers.length > 0 || g.cylinder);
 }

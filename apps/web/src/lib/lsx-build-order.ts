@@ -76,11 +76,48 @@ export function todayStr(): string {
   return new Date().toLocaleDateString('vi-VN');
 }
 
-export function genLSXNumber(existing: ProductionOrder[]): string {
-  const date = new Date();
-  const ymd = `${date.getFullYear()}${String(date.getMonth() + 1).padStart(2, '0')}${String(date.getDate()).padStart(2, '0')}`;
-  const seq = (existing.length + 1).toString().padStart(3, '0');
-  return `LSX-${ymd}-${seq}`;
+/** YYMM theo lịch máy (vd 7/2026 → "2607"). */
+export function currentLsxYymm(date: Date = new Date()): string {
+  const yy = String(date.getFullYear()).slice(-2);
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  return `${yy}${mm}`;
+}
+
+/** Lấy chuỗi số LSX từ ProductionOrder / LsxRow / string. */
+function extractLsxNumber(item: unknown): string {
+  if (typeof item === 'string') return item.trim();
+  if (!item || typeof item !== 'object') return '';
+  const o = item as {
+    lsxNumber?: unknown;
+    manual?: { lsxNumber?: unknown } | null;
+  };
+  if (typeof o.lsxNumber === 'string') return o.lsxNumber.trim();
+  if (typeof o.manual?.lsxNumber === 'string') return o.manual.lsxNumber.trim();
+  return '';
+}
+
+/**
+ * Sinh số LSX dạng YYMM.STT (vd 2607.01).
+ * STT = max cùng YYMM + 1, pad tối thiểu 2 chữ số; reset mỗi tháng.
+ * Bỏ qua format cũ (LSX-YYYYMMDD-XXX) và số tháng khác.
+ */
+export function genLSXNumber(
+  existing: readonly unknown[] = [],
+  date: Date = new Date(),
+): string {
+  const yymm = currentLsxYymm(date);
+  const re = new RegExp(`^${yymm}\\.(\\d+)$`);
+  let maxSeq = 0;
+  for (const item of existing) {
+    const num = extractLsxNumber(item);
+    const m = num.match(re);
+    if (!m) continue;
+    const n = parseInt(m[1], 10);
+    if (!Number.isNaN(n) && n > maxSeq) maxSeq = n;
+  }
+  const next = maxSeq + 1;
+  const stt = next < 100 ? String(next).padStart(2, '0') : String(next);
+  return `${yymm}.${stt}`;
 }
 
 export function genOrderId(): string {
@@ -358,7 +395,8 @@ export interface BuildLsxOrderCtx {
   constants: AppConstants;
   profitTable: ProfitRow[];
   smallWidthPrices: SmallWidthMaterialPrice[];
-  productionOrders: ProductionOrder[];
+  /** ProductionOrder[] | LsxRow[] | string[] lsxNumber — dùng gen số LSX / MSP. */
+  productionOrders: readonly unknown[];
   preparedBy: string;
 }
 

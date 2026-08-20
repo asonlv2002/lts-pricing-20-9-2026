@@ -7,20 +7,45 @@ interface NhapMaPinProps {
   onChange: (value: string) => void;
   disabled?: boolean;
   autoFocus?: boolean;
+  /** Viền đỏ + focus lại ô 1 khi lỗi (vd sai PIN). */
+  error?: boolean;
+  /** Enter khi đã đủ 6 số → xác nhận. */
+  onEnter?: (value: string) => void;
 }
 
 const SO_O = 6;
 
 /** Nhập mã PIN kiểu 6 ô riêng biệt — mỗi ô 1 chữ số, tự nhảy ô kế tiếp. */
-export default function NhapMaPin({ value, onChange, disabled, autoFocus }: NhapMaPinProps) {
+export default function NhapMaPin({
+  value,
+  onChange,
+  disabled,
+  autoFocus,
+  error,
+  onEnter,
+}: NhapMaPinProps) {
   const [kyTu, setKyTu] = useState<string[]>(() => Array(SO_O).fill(''));
   const refs = useRef<(HTMLInputElement | null)[]>([]);
+  const prevValue = useRef(value);
 
   useEffect(() => {
     if (value === '' && kyTu.some((ky) => ky !== '')) {
       setKyTu(Array(SO_O).fill(''));
     }
   }, [value, kyTu]);
+
+  // Khi parent clear PIN (value '' sau khi có giá trị) hoặc bật error → focus ô 1
+  useEffect(() => {
+    const vuaClear = prevValue.current !== '' && value === '';
+    prevValue.current = value;
+    if ((vuaClear || error) && !disabled) {
+      const t = window.setTimeout(() => {
+        refs.current[0]?.focus();
+        refs.current[0]?.select();
+      }, 0);
+      return () => window.clearTimeout(t);
+    }
+  }, [value, error, disabled]);
 
   const capNhat = useCallback(
     (next: string[]) => {
@@ -48,6 +73,14 @@ export default function NhapMaPin({ value, onChange, disabled, autoFocus }: Nhap
 
   const xuLyPhim = useCallback(
     (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+      if (e.key === 'Enter') {
+        const full = kyTu.join('');
+        if (/^\d{6}$/.test(full) && !disabled) {
+          e.preventDefault();
+          onEnter?.(full);
+        }
+        return;
+      }
       if (e.key === 'Backspace' && !kyTu[index] && index > 0) {
         const next = [...kyTu];
         next[index - 1] = '';
@@ -55,7 +88,7 @@ export default function NhapMaPin({ value, onChange, disabled, autoFocus }: Nhap
         refs.current[index - 1]?.focus();
       }
     },
-    [kyTu, capNhat],
+    [kyTu, capNhat, disabled, onEnter],
   );
 
   const xuLyDan = useCallback(
@@ -80,14 +113,14 @@ export default function NhapMaPin({ value, onChange, disabled, autoFocus }: Nhap
   }, []);
 
   return (
-    <div className="pin-6-o">
+    <div className={`pin-6-o${error ? ' pin-6-o--error' : ''}`}>
       {kyTu.map((ky, index) => (
         <input
           key={index}
           ref={(el) => {
             refs.current[index] = el;
           }}
-          className="pin-6-o-input"
+          className={`pin-6-o-input${error ? ' pin-6-o-input--error' : ''}`}
           type="password"
           inputMode="numeric"
           maxLength={1}
@@ -98,6 +131,7 @@ export default function NhapMaPin({ value, onChange, disabled, autoFocus }: Nhap
           onKeyDown={(e) => xuLyPhim(index, e)}
           onPaste={(e) => xuLyDan(index, e)}
           onFocus={xuLyFocus}
+          aria-invalid={error || undefined}
           aria-label={`Chữ số thứ ${index + 1} của mã PIN`}
         />
       ))}

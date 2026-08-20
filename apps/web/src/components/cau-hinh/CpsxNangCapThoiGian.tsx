@@ -14,13 +14,18 @@ import type {
   CpsxUpgradeThoiGian,
 } from "../../lib/types";
 import {
+  CATALOG_LOAI_TUI_SETUP,
   chonSetupMayTui,
   chonTocDoMayTui,
   chuanHoaCpsxUpgradeThoiGian,
-  laSetupBienCoSize,
+  kyHieuStepOp,
+  laStepOpHopLe,
   metLamTuiTuDauVaoNVL,
+  nhanKhoangTocDoBuocCat,
+  TOC_DO_MAX_TRAN_MM,
   tinhThoiGianMayTui,
-  KetQuaThoiGian,
+  type CpsxTuiStepOp,
+  type KetQuaThoiGian,
 } from "../../lib/cpsx-upgrade-thoigian";
 
 type MayKey = "print" | "laminate" | "slit" | "bag";
@@ -505,27 +510,55 @@ function MayTuiPanel({
     });
   };
 
-  const dsBien = giaTri.setupRules
-    .map((r, idx) => ({ r, idx }))
-    .filter(({ r }) => laSetupBienCoSize(r));
-  const dsKhac = giaTri.setupRules
-    .map((r, idx) => ({ r, idx }))
-    .filter(({ r }) => !laSetupBienCoSize(r));
+  const bagKeyTuSetupKey = (key: string): string => {
+    const k = String(key ?? "").toLowerCase();
+    if (k.startsWith("xephong_giua")) return "xephong_giua";
+    if (k.startsWith("xephong")) return "xephong_lech";
+    if (k.startsWith("4bien")) return "4bien";
+    if (k.startsWith("3bien") || k.startsWith("3_4bien")) return "3bien";
+    if (k.startsWith("zipper_daydung")) return "zipper_daydung";
+    if (k.startsWith("zipper")) return "zipper_3bien";
+    if (k.startsWith("nap_bangkeo")) return "nap_bangkeo";
+    if (k.includes("cut")) return "cut_seal";
+    return "3bien";
+  };
+
+  const suaLoaiTui = (idx: number, bagKey: string) => {
+    const cat = CATALOG_LOAI_TUI_SETUP.find((c) => c.bagKey === bagKey);
+    const label = cat?.label ?? "Túi 3 biên";
+    const ts = Date.now();
+    const key =
+      bagKey === "3bien"
+        ? `3bien_${ts}`
+        : bagKey === "4bien"
+          ? `4bien_${ts}`
+          : bagKey === "xephong_lech"
+            ? `xephong_${ts}`
+            : bagKey === "xephong_giua"
+              ? `xephong_giua_${ts}`
+              : `${bagKey}_${ts}`;
+    suaSetup(idx, { key, label });
+  };
+
+  const suaStepOp = (idx: number, op: CpsxTuiStepOp) => {
+    const cur = giaTri.setupRules[idx];
+    const max =
+      cur?.maxStepMm != null && Number.isFinite(Number(cur.maxStepMm))
+        ? Number(cur.maxStepMm)
+        : 300;
+    suaSetup(idx, { stepOp: op, maxStepMm: max });
+  };
+
+  const suaCmBuocCat = (idx: number, cm: number) => {
+    const v = Number.isFinite(cm) && cm >= 0 ? cm : 0;
+    suaSetup(idx, { maxStepMm: Math.round(v * 10) });
+  };
 
   const xoaSetupTai = (idx: number) => {
     if (giaTri.setupRules.length <= 1) return;
     capNhat({
       setupRules: giaTri.setupRules.filter((_, i) => i !== idx),
     });
-  };
-
-  const suaBuocCatBien = (
-    idx: number,
-    op: "lte" | "gt",
-  ) => {
-    const cur = giaTri.setupRules[idx];
-    const max = cur?.maxStepMm != null && cur.maxStepMm > 0 ? cur.maxStepMm : 300;
-    suaSetup(idx, { stepOp: op, maxStepMm: max });
   };
 
   return (
@@ -537,7 +570,7 @@ function MayTuiPanel({
       </div>
 
       <div className="config-cpsx-upgrade__col-title">
-        Trong đó thời gian set up — túi 3 biên / 4 biên (theo bước cắt):
+        Trong đó thời gian set up theo bước cắt:
       </div>
       <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
         <table className="config-table config-cpsx-upgrade__table">
@@ -550,72 +583,99 @@ function MayTuiPanel({
             </tr>
           </thead>
           <tbody>
-            {dsBien.map(({ r: rule, idx }) => (
-              <tr key={rule.key || idx}>
-                <td>
-                  <input
-                    type="text"
-                    className="config-inline-input"
-                    value={rule.label}
-                    onChange={(e) => suaSetup(idx, { label: e.target.value })}
-                    aria-label="Tên loại túi 3/4 biên"
-                  />
-                </td>
-                <td>
-                  <select
-                    className="config-inline-input"
-                    value={
-                      rule.stepOp === "gt"
-                        ? "gt"
-                        : rule.stepOp === "lte"
-                          ? "lte"
-                          : "lte"
-                    }
-                    onChange={(e) =>
-                      suaBuocCatBien(
-                        idx,
-                        e.target.value === "gt" ? "gt" : "lte",
-                      )
-                    }
-                    aria-label="Bậc bước cắt"
-                  >
-                    <option value="lte">
-                      ≤ {(rule.maxStepMm ?? 300) / 10} cm
-                    </option>
-                    <option value="gt">
-                      &gt; {(rule.maxStepMm ?? 300) / 10} cm
-                    </option>
-                  </select>
-                </td>
-                <td className="num">
-                  <input
-                    type="number"
-                    className="config-inline-input"
-                    min={0}
-                    step={1}
-                    value={rule.setupMinutes}
-                    onChange={(e) =>
-                      suaSetup(idx, {
-                        setupMinutes: docSoThapPhan(e.target.value),
-                      })
-                    }
-                    aria-label="Setup phút 3/4 biên"
-                  />
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="config-print-press-labor__delete"
-                    disabled={dsBien.length <= 1}
-                    onClick={() => xoaSetupTai(idx)}
-                    aria-label={`Xóa ${rule.label || "dòng"}`}
-                    title="Xóa dòng"
-                  >
-                    ✕
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {giaTri.setupRules.map((rule, idx) => {
+              const bagKey = bagKeyTuSetupKey(rule.key);
+              const op: CpsxTuiStepOp = laStepOpHopLe(rule.stepOp)
+                ? rule.stepOp
+                : "lte";
+              const cm =
+                rule.maxStepMm != null && Number.isFinite(Number(rule.maxStepMm))
+                  ? Number(rule.maxStepMm) / 10
+                  : 30;
+              return (
+                <tr key={`${rule.key || "setup"}-${idx}`}>
+                  <td>
+                    <select
+                      className="config-inline-input"
+                      value={bagKey}
+                      onChange={(e) => suaLoaiTui(idx, e.target.value)}
+                      aria-label="Loại túi"
+                    >
+                      {CATALOG_LOAI_TUI_SETUP.map((c) => (
+                        <option key={c.bagKey} value={c.bagKey}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <select
+                        className="config-inline-input"
+                        value={op}
+                        onChange={(e) =>
+                          suaStepOp(idx, e.target.value as CpsxTuiStepOp)
+                        }
+                        aria-label="Toán tử bước cắt"
+                        style={{ width: "4.5rem", minWidth: "4.5rem" }}
+                      >
+                        <option value="lte">≤</option>
+                        <option value="gte">≥</option>
+                        <option value="lt">&lt;</option>
+                        <option value="gt">&gt;</option>
+                      </select>
+                      <input
+                        type="number"
+                        className="config-inline-input"
+                        min={0}
+                        step={1}
+                        value={cm}
+                        onChange={(e) =>
+                          suaCmBuocCat(idx, docSoThapPhan(e.target.value))
+                        }
+                        aria-label="Ngưỡng bước cắt cm"
+                        style={{ width: "4.5rem" }}
+                      />
+                      <span className="config-cpsx-upgrade__formula-note">cm</span>
+                    </div>
+                  </td>
+                  <td className="num">
+                    <input
+                      type="number"
+                      className="config-inline-input"
+                      min={0}
+                      step={1}
+                      value={rule.setupMinutes}
+                      onChange={(e) =>
+                        suaSetup(idx, {
+                          setupMinutes: docSoThapPhan(e.target.value),
+                        })
+                      }
+                      aria-label="Setup phút"
+                    />
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="config-print-press-labor__delete"
+                      disabled={giaTri.setupRules.length <= 1}
+                      onClick={() => xoaSetupTai(idx)}
+                      aria-label={`Xóa ${rule.label || "dòng"}`}
+                      title="Xóa dòng"
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -638,85 +698,7 @@ function MayTuiPanel({
           })
         }
       >
-        + Thêm dòng 3/4 biên
-      </button>
-
-      <div className="config-cpsx-upgrade__col-title">
-        Trong đó thời gian set up — loại khác:
-      </div>
-      <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
-        <table className="config-table config-cpsx-upgrade__table">
-          <thead>
-            <tr>
-              <th>Loại túi</th>
-              <th className="num">Setup (phút)</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {dsKhac.map(({ r: rule, idx }) => (
-              <tr key={rule.key || idx}>
-                <td>
-                  <input
-                    type="text"
-                    className="config-inline-input"
-                    value={rule.label}
-                    onChange={(e) => suaSetup(idx, { label: e.target.value })}
-                    aria-label="Tên loại túi khác"
-                  />
-                </td>
-                <td className="num">
-                  <input
-                    type="number"
-                    className="config-inline-input"
-                    min={0}
-                    step={1}
-                    value={rule.setupMinutes}
-                    onChange={(e) =>
-                      suaSetup(idx, {
-                        setupMinutes: docSoThapPhan(e.target.value),
-                      })
-                    }
-                    aria-label="Setup phút loại khác"
-                  />
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="config-print-press-labor__delete"
-                    disabled={dsKhac.length <= 1 && dsBien.length === 0}
-                    onClick={() => xoaSetupTai(idx)}
-                    aria-label={`Xóa ${rule.label || "loại túi"}`}
-                    title="Xóa loại túi"
-                  >
-                    ✕
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <button
-        type="button"
-        className="btn btn-sm btn-outline"
-        style={{ marginTop: "8px", marginBottom: "14px" }}
-        onClick={() =>
-          capNhat({
-            setupRules: [
-              ...giaTri.setupRules,
-              {
-                key: `setup_${Date.now()}`,
-                label: `Loại túi ${dsKhac.length + 1}`,
-                setupMinutes: 90,
-                maxStepMm: null,
-                stepOp: null,
-              },
-            ],
-          })
-        }
-      >
-        + Thêm loại khác
+        + Thêm
       </button>
 
       <div className="config-cpsx-upgrade__col-title">
@@ -726,72 +708,106 @@ function MayTuiPanel({
         <table className="config-table config-cpsx-upgrade__table">
           <thead>
             <tr>
-              <th>Bậc bước cắt</th>
-              <th className="num">Ngưỡng max (mm)</th>
+              <th>Bước cắt (mm)</th>
               <th className="num">Tốc độ (m/phút)</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
-            {giaTri.speedRules.map((rule, idx) => (
-              <tr key={rule.key || idx}>
-                <td>
-                  <input
-                    type="text"
-                    className="config-inline-input"
-                    value={rule.label}
-                    onChange={(e) => suaTocDo(idx, { label: e.target.value })}
-                    aria-label="Tên bậc bước cắt"
-                  />
-                </td>
-                <td className="num">
-                  <input
-                    type="number"
-                    className="config-inline-input"
-                    min={0}
-                    step={1}
-                    value={rule.maxStepMm ?? ""}
-                    onChange={(e) =>
-                      suaTocDo(idx, {
-                        maxStepMm:
-                          e.target.value === ""
-                            ? null
-                            : Math.max(0, docSoThapPhan(e.target.value)),
-                      })
-                    }
-                    aria-label="Ngưỡng max bước cắt"
-                    placeholder="không trần"
-                  />
-                </td>
-                <td className="num">
-                  <input
-                    type="number"
-                    className="config-inline-input"
-                    min={0}
-                    step={1}
-                    value={rule.speedMPerMin}
-                    onChange={(e) => suaTocDo(idx, { speedMPerMin: docSoThapPhan(e.target.value) })}
-                    aria-label="Tốc độ bậc bước cắt"
-                  />
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="config-print-press-labor__delete"
-                    disabled={giaTri.speedRules.length <= 1}
-                    onClick={() =>
-                      capNhat({
-                        speedRules: giaTri.speedRules.filter((_, i) => i !== idx),
-                      })
-                    }
-                    aria-label={`Xóa bậc ${rule.label || idx + 1}`}
-                    title="Xóa bậc"
-                  >
-                    ✕
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {giaTri.speedRules.map((rule, idx) => {
+              const minMm = Number.isFinite(Number(rule.minStepMm))
+                ? Number(rule.minStepMm)
+                : 0;
+              const maxMm =
+                rule.maxStepMm == null || !Number.isFinite(Number(rule.maxStepMm))
+                  ? TOC_DO_MAX_TRAN_MM
+                  : Number(rule.maxStepMm);
+              const opGiua = minMm <= 0 ? "≤" : "<";
+              return (
+                <tr key={`${rule.key || "speed"}-${idx}`}>
+                  <td>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: 6,
+                        alignItems: "center",
+                        flexWrap: "wrap",
+                      }}
+                    >
+                      <input
+                        type="number"
+                        className="config-inline-input"
+                        min={0}
+                        step={1}
+                        value={minMm}
+                        onChange={(e) => {
+                          const v = Math.max(0, docSoThapPhan(e.target.value));
+                          suaTocDo(idx, {
+                            minStepMm: v,
+                            label: `${v} – ${maxMm} mm`,
+                          });
+                        }}
+                        aria-label="Bước cắt min mm"
+                        style={{ width: "5.5rem" }}
+                      />
+                      <span className="config-cpsx-upgrade__formula-note">
+                        {opGiua} … ≤
+                      </span>
+                      <input
+                        type="number"
+                        className="config-inline-input"
+                        min={0}
+                        step={1}
+                        value={maxMm}
+                        onChange={(e) => {
+                          const v = Math.max(0, docSoThapPhan(e.target.value));
+                          suaTocDo(idx, {
+                            maxStepMm: v,
+                            label: `${minMm} – ${v} mm`,
+                          });
+                        }}
+                        aria-label="Bước cắt max mm"
+                        style={{ width: "5.5rem" }}
+                      />
+                      <span className="config-cpsx-upgrade__formula-note">mm</span>
+                    </div>
+                  </td>
+                  <td className="num">
+                    <input
+                      type="number"
+                      className="config-inline-input"
+                      min={0}
+                      step={1}
+                      value={rule.speedMPerMin}
+                      onChange={(e) =>
+                        suaTocDo(idx, {
+                          speedMPerMin: docSoThapPhan(e.target.value),
+                        })
+                      }
+                      aria-label="Tốc độ bậc bước cắt"
+                    />
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="config-print-press-labor__delete"
+                      disabled={giaTri.speedRules.length <= 1}
+                      onClick={() =>
+                        capNhat({
+                          speedRules: giaTri.speedRules.filter(
+                            (_, i) => i !== idx,
+                          ),
+                        })
+                      }
+                      aria-label={`Xóa bậc ${rule.label || idx + 1}`}
+                      title="Xóa bậc"
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -799,19 +815,27 @@ function MayTuiPanel({
         type="button"
         className="btn btn-sm btn-outline"
         style={{ marginTop: "8px", marginBottom: "14px" }}
-        onClick={() =>
+        onClick={() => {
+          const last = giaTri.speedRules[giaTri.speedRules.length - 1];
+          const min =
+            last?.maxStepMm != null && Number.isFinite(Number(last.maxStepMm))
+              ? Number(last.maxStepMm)
+              : 0;
+          const max =
+            min >= TOC_DO_MAX_TRAN_MM ? TOC_DO_MAX_TRAN_MM : min + 100;
           capNhat({
             speedRules: [
               ...giaTri.speedRules,
               {
                 key: `speed_${Date.now()}`,
-                label: `Bậc ${giaTri.speedRules.length + 1}`,
-                maxStepMm: null,
+                label: `${min} – ${max} mm`,
+                minStepMm: min,
+                maxStepMm: max,
                 speedMPerMin: 50,
               },
             ],
-          })
-        }
+          });
+        }}
       >
         + Thêm bậc
       </button>
@@ -859,8 +883,8 @@ function MayTuiPanel({
             >
               {giaTri.setupRules.map((r) => (
                 <option key={r.key} value={r.key}>
-                  {laSetupBienCoSize(r) && r.stepOp
-                    ? `${r.label} (${r.stepOp === "lte" ? "≤" : ">"}${((r.maxStepMm ?? 300) / 10)}cm)`
+                  {laStepOpHopLe(r.stepOp)
+                    ? `${r.label} (${kyHieuStepOp(r.stepOp)}${((r.maxStepMm ?? 0) / 10)}cm)`
                     : r.label}
                 </option>
               ))}
@@ -892,7 +916,7 @@ function MayTuiPanel({
             >
               {giaTri.speedRules.map((r) => (
                 <option key={r.key} value={r.key}>
-                  {r.label} ({r.speedMPerMin} m/phút)
+                  {nhanKhoangTocDoBuocCat(r)} ({r.speedMPerMin} m/phút)
                 </option>
               ))}
             </select>

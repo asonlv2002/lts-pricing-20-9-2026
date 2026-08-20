@@ -11,6 +11,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { FileDown, FileText, Plus, Loader2, CheckCircle2, ArrowLeft } from 'lucide-react';
 import {
   createQuotationPricingSheetOrdersService,
+  listQuotationPricingSheetOrdersService,
   updateQuotationPricingSheetOrderService,
   type PricingSheetApi,
   type BaoGiaApi,
@@ -21,11 +22,14 @@ import { mapBaoGiaToLsxSources } from '../../lib/bao-gia-adapter';
 import { classifyLsxBagType } from '../../lib/lsx-bag-classification';
 import { themChuKyVaoManual } from '../../lib/chu-ky';
 import { buildManualFromSource, buildProductionOrderFromSource } from '../../lib/lsx-build-order';
+import { mapServerOrdersToLsxRows } from '../../lib/lsx-server-adapter';
 import { LsxFormFields } from '../lsx/LsxFormFields';
 import LsxPreviewModal from '../LsxPreviewModal';
 import LsxPdfPreviewModal from '../LsxPdfPreviewModal';
 import BaoGiaPreviewModal from '../BaoGiaPreviewModal';
 import ConfirmDialog from '../ConfirmDialog';
+import { buildHistoryItemFromServerData } from '../../lib/baoGiaExport';
+import type { HistoryItem } from '../../lib/types';
 import { WIZARD_STYLES } from './wizard-styles';
 import { BuocChonKhachHang } from './BuocChonKhachHang';
 import { BuocChonBaoGiaVaTinhGia } from './BuocChonBaoGiaVaTinhGia';
@@ -89,6 +93,19 @@ function customerFromSheet(sheet: PricingSheetApi | undefined, customerId: strin
     customerCode: sheet?.customerCodeName || sheet?.customer?.codeName || undefined,
     companyName,
   };
+}
+
+/** Danh sách số LSX server (để gen YYMM.STT). Lỗi / chưa login → []. */
+async function taiDanhSachSoLsx(accessToken: string | null | undefined): Promise<string[]> {
+  if (!accessToken) return [];
+  try {
+    const data = await listQuotationPricingSheetOrdersService(accessToken);
+    return mapServerOrdersToLsxRows(data)
+      .map((r) => r.lsxNumber)
+      .filter(Boolean);
+  } catch {
+    return [];
+  }
 }
 
 export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
@@ -156,13 +173,19 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
       setManual({ ...(order.inputValue as LSXManualFields) });
     } else if (src) {
       const bagType = classifyLsxBagType(src.input.bagType, src.input.hasZipper);
-      setManual(buildManualFromSource(src, {
-        materials, constants, profitTable, smallWidthPrices,
-        productionOrders: [],
-        preparedBy: currentSellerName,
-      }, bagType));
+      let cancelled = false;
+      void (async () => {
+        const soLsx = await taiDanhSachSoLsx(accessToken);
+        if (cancelled) return;
+        setManual(buildManualFromSource(src, {
+          materials, constants, profitTable, smallWidthPrices,
+          productionOrders: soLsx as any,
+          preparedBy: currentSellerName,
+        }, bagType));
+      })();
+      return () => { cancelled = true; };
     }
-  }, [lsxDangSua, materials, constants, profitTable, smallWidthPrices, currentSellerName]);
+  }, [lsxDangSua, materials, constants, profitTable, smallWidthPrices, currentSellerName, accessToken]);
 
   // Hydrate tạo LSX từ DS báo giá (1 lần / bgId:sheetId)
   useEffect(() => {
@@ -195,16 +218,21 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
 
     const sources = mapBaoGiaToLsxSources(baoGia);
     const matched = sources.find((s) => s.id.endsWith(`:${sheet.id}`)) ?? sources[0];
-    if (matched) {
-      setSource(matched);
-      const bagType = classifyLsxBagType(matched.input.bagType, matched.input.hasZipper);
+    if (!matched) return;
+    setSource(matched);
+    const bagType = classifyLsxBagType(matched.input.bagType, matched.input.hasZipper);
+    let cancelled = false;
+    void (async () => {
+      const soLsx = await taiDanhSachSoLsx(accessToken);
+      if (cancelled) return;
       setManual(buildManualFromSource(matched, {
         materials, constants, profitTable, smallWidthPrices,
-        productionOrders: [],
+        productionOrders: soLsx as any,
         preparedBy: currentSellerName,
       }, bagType));
-    }
-  }, [lsxTaoTuSheet, lsxDangSua, materials, constants, profitTable, smallWidthPrices, currentSellerName]);
+    })();
+    return () => { cancelled = true; };
+  }, [lsxTaoTuSheet, lsxDangSua, materials, constants, profitTable, smallWidthPrices, currentSellerName, accessToken]);
 
   // Mode tạo tay: khi sheet đổi → build source + manual (không ghi đè khi sửa / prefill)
   useEffect(() => {
@@ -220,16 +248,21 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
     setSource(matched);
 
     const bagType = classifyLsxBagType(matched.input.bagType, matched.input.hasZipper);
-    const initManual = buildManualFromSource(matched, {
-      materials,
-      constants,
-      profitTable,
-      smallWidthPrices,
-      productionOrders: [],
-      preparedBy: currentSellerName,
-    }, bagType);
-    setManual(initManual);
-  }, [dangSua, dangPrefillTuSheet, bgDangChon, sheetDangChon, materials, constants, profitTable, smallWidthPrices, currentSellerName]);
+    let cancelled = false;
+    void (async () => {
+      const soLsx = await taiDanhSachSoLsx(accessToken);
+      if (cancelled) return;
+      setManual(buildManualFromSource(matched, {
+        materials,
+        constants,
+        profitTable,
+        smallWidthPrices,
+        productionOrders: soLsx as any,
+        preparedBy: currentSellerName,
+      }, bagType));
+    })();
+    return () => { cancelled = true; };
+  }, [dangSua, dangPrefillTuSheet, bgDangChon, sheetDangChon, materials, constants, profitTable, smallWidthPrices, currentSellerName, accessToken]);
 
   const coTheTao = !!(khachHang && bgDangChon && sheetDangChon && manual && source);
   const coTheXem = !!(source && manual);
@@ -348,7 +381,40 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
 
   function handleXemBg() {
     if (!bgDangChon) return;
-    setPreviewBg({ item: bgDangChon, customerInfo: {} });
+    const item = buildHistoryItemFromServerData(bgDangChon as any) as HistoryItem;
+    let customerInfo: {
+      address?: string;
+      taxCode?: string;
+      phone?: string;
+      fax?: string;
+      description?: string;
+    } = {};
+    try {
+      const customers = JSON.parse(
+        window.localStorage.getItem('lts_customers') || '[]',
+      ) as Array<{
+        companyName?: string;
+        customerCode?: string;
+        address?: string;
+        invoiceAddress?: string;
+        taxCode?: string;
+        phone?: string;
+      }>;
+      const customerName = item.customer || '';
+      const c = customers.find(
+        (kh) => kh.companyName === customerName || kh.customerCode === customerName,
+      );
+      if (c) {
+        customerInfo = {
+          address: c.address || c.invoiceAddress || '',
+          taxCode: c.taxCode || '',
+          phone: c.phone || '',
+        };
+      }
+    } catch {
+      /* ignore */
+    }
+    setPreviewBg({ item, customerInfo });
   }
 
   const subtitle = dangSua

@@ -1,8 +1,8 @@
 "use client";
-import React, { useEffect, useState, useCallback } from "react";
-import { pdf, PDFViewer } from "@react-pdf/renderer";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import type { ProductionOrder } from "../lib/types";
 import { LsxPdfDocument, lsxPdfFileName } from "./LsxPdfDocument";
+import StablePdfIframe from "./pdf/StablePdfIframe";
 
 interface LsxPdfPreviewModalProps {
   open: boolean;
@@ -10,12 +10,24 @@ interface LsxPdfPreviewModalProps {
   order: ProductionOrder;
 }
 
-export default function LsxPdfPreviewModal({
+function lsxPdfDepsKey(order: ProductionOrder): string {
+  const num = order.manual?.lsxNumber || "";
+  const updated =
+    (order as { updatedAt?: string }).updatedAt || order.createdAt || "";
+  return `lsx:${order.id}|${num}|${updated}`;
+}
+
+function LsxPdfPreviewModal({
   open,
   onClose,
   order,
 }: LsxPdfPreviewModalProps) {
   const [dangTai, setDangTai] = useState(false);
+  const readyRef = useRef<{ blob: Blob; url: string } | null>(null);
+  const orderRef = useRef(order);
+  orderRef.current = order;
+
+  const depsKey = open ? lsxPdfDepsKey(order) : "";
 
   useEffect(() => {
     if (!open) return;
@@ -34,18 +46,35 @@ export default function LsxPdfPreviewModal({
     };
   }, [open]);
 
+  const buildDocument = useCallback(
+    () => <LsxPdfDocument order={orderRef.current} />,
+    [],
+  );
+
+  const onReady = useCallback(
+    (payload: { blob: Blob; url: string } | null) => {
+      readyRef.current = payload;
+    },
+    [],
+  );
+
   const taiPdf = useCallback(async () => {
     setDangTai(true);
     try {
-      const blob = await pdf(<LsxPdfDocument order={order} />).toBlob();
+      let blob = readyRef.current?.blob;
+      if (!blob) {
+        const { pdf } = await import("@react-pdf/renderer");
+        blob = await pdf(<LsxPdfDocument order={order} />).toBlob();
+      }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = lsxPdfFileName(order);
       a.click();
       URL.revokeObjectURL(url);
-    } catch (e: any) {
-      alert("Lỗi tải PDF: " + (e.message || String(e)));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      alert("Lỗi tải PDF: " + msg);
     } finally {
       setDangTai(false);
     }
@@ -57,7 +86,10 @@ export default function LsxPdfPreviewModal({
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
       <div className="relative z-10 flex flex-col w-[95vw] h-[95vh] max-w-5xl bg-white rounded-lg shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between shrink-0 px-5 py-3 bg-gray-100 border-b border-gray-300">
@@ -81,12 +113,18 @@ export default function LsxPdfPreviewModal({
           </div>
         </div>
 
-        <div className="flex-1">
-          <PDFViewer showToolbar={false} width="100%" height="100%" style={{ border: "none" }}>
-            <LsxPdfDocument order={order} />
-          </PDFViewer>
+        <div className="flex-1 min-h-0">
+          <StablePdfIframe
+            active={open}
+            depsKey={depsKey}
+            buildDocument={buildDocument}
+            onReady={onReady}
+            title={title}
+          />
         </div>
       </div>
     </div>
   );
 }
+
+export default React.memo(LsxPdfPreviewModal);

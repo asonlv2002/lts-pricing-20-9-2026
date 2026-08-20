@@ -14,8 +14,9 @@ import {
   paginateQuoteGroupsByPageHeight,
 } from "./bao-gia-pagination";
 
-function dinhDangSo(n: number) {
-  return n.toLocaleString("vi-VN");
+function dinhDangSo(n: number | null | undefined) {
+  const v = Number(n);
+  return (Number.isFinite(v) ? v : 0).toLocaleString("vi-VN");
 }
 function safeFn(s: string): string {
   return (s || "bao-gia").replace(/[<>:"/\\|?*\s]+/g, "_").slice(0, 60);
@@ -517,19 +518,21 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
     const tiers: { quantity: number; unitPrice: number; total: number }[] = [];
     if (p.tiers && p.tiers.length > 0) {
       for (const t of p.tiers) {
-        const up = Math.round(t.chotGia || t.finalPrice);
+        const qty = Number(t.quantity) || 0;
+        const up = Math.round(Number(t.chotGia || t.finalPrice) || 0);
         tiers.push({
-          quantity: t.quantity,
+          quantity: qty,
           unitPrice: up,
-          total: up * t.quantity,
+          total: up * qty,
         });
       }
     } else {
-      const up = Math.round(p.chotGia || p.finalPrice);
+      const qty = Number(p.quantity) || 0;
+      const up = Math.round(Number(p.chotGia || p.finalPrice) || 0);
       tiers.push({
-        quantity: p.quantity,
+        quantity: qty,
         unitPrice: up,
-        total: up * p.quantity,
+        total: up * qty,
       });
     }
     const isBag = input.productType !== "mang";
@@ -569,7 +572,13 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
         note: (spec as any).cylinderNote || undefined,
       };
     }
-    return { productName: p.productName, tiers: finalTiers, description, isBag, cylinder };
+    return {
+      productName: p.productName || "",
+      tiers: finalTiers,
+      description: description || "",
+      isBag,
+      cylinder,
+    };
     })
     .filter((g) => g.tiers.length > 0 || g.cylinder);
 }
@@ -1276,10 +1285,13 @@ export function buildHistoryItemFromServerData(
     firstSheet?.customer?.codeName ||
     "";
 
-  const quoteProducts: QuoteProductLine[] = bagSpecs.map((spec) => {
-    const sheet = sheets.find((s) => s.id === spec.pricingSheetId);
+  const mapSheetToProduct = (
+    sheet: NonNullable<BaoGiaApiLoose["pricingSheets"]>[number],
+    spec?: (typeof bagSpecs)[number],
+  ): QuoteProductLine => {
     const sheetInput = (sheet?.inputValue ?? {}) as Record<string, unknown>;
-    const productName = spec.productName || sheet?.pricingSheetName || "";
+    const productName =
+      spec?.productName || sheet?.pricingSheetName || (sheetInput.productName as string) || "";
     const structure = buildStructureFromLayers(materials, [
       sheetInput?.layer1Id as string,
       sheetInput?.layer2Id as string,
@@ -1287,16 +1299,18 @@ export function buildHistoryItemFromServerData(
       sheetInput?.layer4Id as string,
       sheetInput?.layer5Id as string,
     ]);
-    const quantity = (sheetInput?.quantity as number) ?? 0;
+    const quantity = Number(sheetInput?.quantity) || 0;
     const finalPrice =
-      spec.finalPrice ??
-      (sheet?.saleResult as any)?.finalPrice ??
-      (sheet?.masterResult as any)?.finalPrice ??
-      0;
-    const chotGia = spec.chotGia ?? 0;
+      Number(
+        spec?.finalPrice ??
+          (sheet?.saleResult as any)?.finalPrice ??
+          (sheet?.masterResult as any)?.finalPrice ??
+          0,
+      ) || 0;
+    const chotGia = Number(spec?.chotGia) || 0;
     return {
       sourceHistoryItemId:
-        spec.sourceHistoryItemId || spec.pricingSheetId || "",
+        spec?.sourceHistoryItemId || spec?.pricingSheetId || sheet?.id || "",
       productName,
       structure,
       quantity,
@@ -1304,9 +1318,18 @@ export function buildHistoryItemFromServerData(
       chotGia,
       input: sheetInput as any,
       tiers: [{ quantity, chotGia, finalPrice } as QuoteTier],
-      bagSpec: spec.bagSpec as any,
+      bagSpec: (spec?.bagSpec as any) || undefined,
     } as QuoteProductLine;
-  });
+  };
+
+  const quoteProducts: QuoteProductLine[] =
+    bagSpecs.length > 0
+      ? bagSpecs.map((spec) => {
+          const sheet =
+            sheets.find((s) => s.id === spec.pricingSheetId) || sheets[0] || {};
+          return mapSheetToProduct(sheet, spec);
+        })
+      : sheets.map((sheet) => mapSheetToProduct(sheet));
 
   const mainProduct = quoteProducts[0];
   const dateStr = bg.createdAt

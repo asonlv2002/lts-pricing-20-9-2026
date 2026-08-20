@@ -242,6 +242,31 @@ export function caiDatQuanLyPhien(config: {
   xuLyPhienKhongHopLe = config.xuLyPhienKhongHopLe;
 }
 
+/** Lấy message thô từ body NestJS (string | string[]). */
+function trichMessageTuBody(body: unknown): string {
+  if (!body || typeof body !== "object") return "";
+  const message = (body as { message?: unknown }).message;
+  if (Array.isArray(message)) return message.map(String).join(", ");
+  if (typeof message === "string") return message;
+  return "";
+}
+
+/**
+ * 401 do sai PIN / pin-token — KHÔNG phải hết phiên JWT.
+ * Tránh refresh + logout khi verify PIN sai (BE trả 401 Invalid PIN).
+ */
+export function laLoiPinHttp(message: string): boolean {
+  const lower = message.trim().toLowerCase();
+  if (!lower) return false;
+  return (
+    lower.includes("invalid pin") ||
+    lower.includes("missing pin token") ||
+    lower.includes("pin token expired") ||
+    lower.includes("pin must be exactly 6 digits") ||
+    lower.includes("mã pin")
+  );
+}
+
 function dichLoiServer(message: string, status: number): string {
   const text = message.trim();
   const lower = text.toLowerCase();
@@ -391,6 +416,12 @@ async function goiService<T>(
     path === "/auth/password-reset-requests/consume";
 
   if (res.status === 401 && !laAuthPublic) {
+    // Đọc body trước: 401 Invalid PIN ≠ hết phiên JWT — không refresh/logout.
+    const body401 = await docJson(res);
+    if (laLoiPinHttp(trichMessageTuBody(body401))) {
+      throw new LoiServiceLts(layLoiTuResponse(401, body401), 401);
+    }
+
     try {
       const tokens = await lamMoiTokenTuHeThong();
       try {
@@ -399,11 +430,25 @@ async function goiService<T>(
         throw new LoiServiceLts("Không kết nối được tới máy chủ.");
       }
     } catch (error) {
+      // Pin error có thể ném từ nhánh dưới (hiếm) — không logout.
+      if (error instanceof LoiServiceLts && laLoiPinHttp(error.message)) {
+        throw error;
+      }
       if (error instanceof LoiServiceLts && error.status === 401) {
         xuLyPhienKhongHopLe?.();
         throw new LoiServiceLts("Hết phiên đăng nhập.", 401);
       }
       throw error;
+    }
+
+    // Sau refresh vẫn 401: phân biệt PIN vs phiên.
+    if (res.status === 401) {
+      const bodyRetry = await docJson(res);
+      if (laLoiPinHttp(trichMessageTuBody(bodyRetry))) {
+        throw new LoiServiceLts(layLoiTuResponse(401, bodyRetry), 401);
+      }
+      xuLyPhienKhongHopLe?.();
+      throw new LoiServiceLts("Hết phiên đăng nhập.", 401);
     }
   }
 

@@ -183,23 +183,26 @@ export interface BagPressElectric {
 }
 
 /**
- * Setup theo loại túi (phút).
- * 3/4 biên: maxStepMm + stepOp phân bậc bước cắt; loại khác: null.
+ * Setup theo loại túi (phút) + bậc bước cắt.
+ * Mọi rule (sau chuẩn hoá) có stepOp + maxStepMm; UI nhập cm, lưu mm.
  */
 export interface BagPressSetupRule {
   key: string;
   label: string;
   setupMinutes: number;
-  /** Ngưỡng bước cắt (mm); null = không dùng size */
+  /** Ngưỡng bước cắt (mm); null chỉ data cũ pre-migrate */
   maxStepMm?: number | null;
-  /** lte = ≤ maxStepMm; gt = > maxStepMm; null = không filter size */
-  stepOp?: "lte" | "gt" | null;
+  /** lte/gte/lt/gt so với maxStepMm; null chỉ data cũ pre-migrate */
+  stepOp?: "lte" | "gte" | "lt" | "gt" | null;
 }
 
-/** Tốc độ theo bước cắt (mm → cái/phút); maxStepMm null = không trần */
+/** Tốc độ theo bước cắt (mm → cái/phút); khoảng [min, max] mm */
 export interface BagPressSpeedRule {
   key: string;
   label: string;
+  /** Cận dưới mm (bậc 0 thường 0) */
+  minStepMm?: number;
+  /** Cận trên mm; null = data cũ «không trần» (migrate → 9999999) */
   maxStepMm: number | null;
   bagsPerMinute: number;
 }
@@ -444,26 +447,30 @@ export interface CpsxThoiGianMayChia {
 }
 
 /**
- * CPSX nâng cấp — mục 4: setup theo loại túi (phút).
- * 3/4 biên có maxStepMm + stepOp; loại khác để null.
+ * CPSX nâng cấp — mục 4: setup theo loại túi (phút) + bậc bước cắt.
+ * Mọi rule (sau chuẩn hoá) có stepOp + maxStepMm; UI nhập cm, lưu mm.
  */
 export interface CpsxTuiSetupRule {
   key: string;
   label: string;
   setupMinutes: number;
-  /** Ngưỡng bước cắt (mm); null = không dùng size */
+  /** Ngưỡng bước cắt (mm); null chỉ data cũ pre-migrate */
   maxStepMm?: number | null;
-  /** lte = ≤ maxStepMm; gt = > maxStepMm; null = không filter size */
-  stepOp?: "lte" | "gt" | null;
+  /** lte/gte/lt/gt so với maxStepMm; null chỉ data cũ pre-migrate */
+  stepOp?: "lte" | "gte" | "lt" | "gt" | null;
 }
 
 /**
  * CPSX nâng cấp — mục 4: tốc độ theo bước cắt (mm → m/phút).
- * maxStepMm null = không trần. Dùng m/phút — không dùng cái/phút (bagsPerMinute).
+ * Khoảng [minStepMm, maxStepMm]; bậc cuối max thường 9999999.
+ * Dùng m/phút — không dùng cái/phút (bagsPerMinute).
  */
 export interface CpsxTuiSpeedRule {
   key: string;
   label: string;
+  /** Cận dưới mm (bậc đầu 0) */
+  minStepMm: number;
+  /** Cận trên mm; null chỉ data cũ pre-migrate */
   maxStepMm: number | null;
   speedMPerMin: number;
 }
@@ -1092,7 +1099,7 @@ export const NHAN_LSX_LOCAL_STATUS: Record<LsxLocalStatus, string> = {
 
 export interface LSXManualFields {
   // Chung (cả màng và túi)
-  lsxNumber: string;            // Số LSX (auto-generated, có thể sửa)
+  lsxNumber: string;            // Số LSX dạng YYMM.STT (vd 2607.01), auto-gen theo tháng, có thể sửa
   issuedDate: string;           // Ngày xuống LSX (dd/mm/yyyy)
   preparedBy: string;           // Người lập
   approvedBy: string;           // Người duyệt
