@@ -119,7 +119,7 @@ function coGhiDeChiTiet(detailOverride: NonNullable<OverrideFields['detailOverri
 }
 
 // ── Overridable Cell (click-to-edit inline) ──────────────────────────────────
-function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat, soLe = 0, onAfterSet, inline = false, hienThiTuyChinh }: {
+function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat, soLe = 0, onAfterSet, inline = false, hienThiTuyChinh, laGiaCong = false }: {
   khoaDong: OverrideRowKey;
   truong: keyof OverrideFields;
   giaTriGoc: number;
@@ -132,6 +132,8 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
   inline?: boolean;
   /** Format hiển thị thay cho dinhDangSo (vd. "(40.000/kg)") */
   hienThiTuyChinh?: (n: number) => string;
+  /** Gia công ngoài — chấm đỏ góc ô (giống bảng gốc) */
+  laGiaCong?: boolean;
 }) {
   const giaTriHienThi = giaTriGhiDe ?? giaTriGoc;
   const daThayDoi = giaTriGhiDe !== undefined && Math.abs(giaTriGhiDe - giaTriGoc) > 0.001;
@@ -140,6 +142,9 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
   const chuHienThi = hienThiTuyChinh
     ? hienThiTuyChinh(giaTriHienThi)
     : dinhDangSo(giaTriHienThi, soLe);
+  const chamGc = laGiaCong
+    ? <span className="gc-cell__dot" title="Gia công" aria-label="Gia công" />
+    : null;
 
   const xacNhan = () => {
     datDangSua(false);
@@ -177,18 +182,20 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
 
   if (!duocSua) {
     return (
-      <td className={`num ${daThayDoi ? 'override-changed' : ''}`}
+      <td className={`num ${daThayDoi ? 'override-changed' : ''} ${laGiaCong ? 'gc-cell' : ''}`}
           title={daThayDoi ? `Gốc: ${dinhDangSo(giaTriGoc, soLe)}` : undefined}
           data-label={truong}>
+        {chamGc}
         {chuHienThi}
       </td>
     );
   }
 
   return (
-    <td className={`num override-cell ${daThayDoi ? 'override-changed' : ''}`}
+    <td className={`num override-cell ${daThayDoi ? 'override-changed' : ''} ${laGiaCong ? 'gc-cell' : ''}`}
         title={daThayDoi ? `Gốc: ${dinhDangSo(giaTriGoc, soLe)}` : undefined}
         data-label={truong}>
+      {chamGc}
       {noiDung}
     </td>
   );
@@ -741,7 +748,9 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                 || coGhiDeChiTiet(ovChiTiet, ['rawMatPrice', 'matPrice', 'materialId', 'materialName']);
               // Dòng synthetic Chia/Lật mặt: chi phí 0, không cho ghi đè Table 1
               const laDongSynthetic = row.rowKey === 'matte' || row.rowKey === 'chia';
-              const suaT1 = duocSua && !laDongSynthetic;
+              // Gia công ngoài: khóa ghi đè (CP đã nằm trong giá GC; chấm đỏ từng ô)
+              const laGc = !!row.isGiaCongNgoai;
+              const suaT1 = duocSua && !laDongSynthetic && !laGc;
               const coDoiMuc = ovDong?.cpMucKeoPerM2 !== undefined
                 || (row.cpMucKeo != null && goc?.cpMucKeo != null
                   && Math.abs(row.cpMucKeo - goc.cpMucKeo) > 0.001);
@@ -783,28 +792,34 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                       ghiDeHienTai={ghiDeHienTai} duocSua={suaT1} khiDat={khiDat} materials={materials} engineParams={engineParams} />
                   )}
                   {row.khoMangLabel ? (
-                    <td className={`num ${coDoiKhoLabel ? 'override-changed' : ''}`} data-label="Khổ màng (m)">{row.khoMangLabel}</td>
+                    oSoGc(row.khoMangLabel, laGc, { className: coDoiKhoLabel ? 'override-changed' : '', dataLabel: 'Khổ màng (m)' })
                   ) : (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={goc?.khoMang ?? row.khoMang ?? 0}
-                      giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={suaT1} khiDat={khiDat} soLe={3} />
+                      giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={suaT1} khiDat={khiDat} soLe={3} laGiaCong={laGc} />
                   )}
                   {row.thanhPhamLabel ? (
-                    <td className={`num dac-ta-met-kho-cell ${coDoiTpLabel ? 'override-changed' : ''}`} data-label="Thành phẩm (m)">
-                      <HienThiMetKho label={row.thanhPhamLabel} />
-                    </td>
+                    oSoGc(<HienThiMetKho label={row.thanhPhamLabel} />, laGc, {
+                      className: `dac-ta-met-kho-cell ${coDoiTpLabel ? 'override-changed' : ''}`,
+                      dataLabel: 'Thành phẩm (m)',
+                    })
                   ) : (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="meters"
                       giaTriGoc={goc?.thanhPham ?? 0}
                       giaTriGhiDe={Math.abs((row.thanhPham ?? 0) - (goc?.thanhPham ?? 0)) > 0.001 ? (row.thanhPham ?? undefined) : ghiDeHienTai[row.rowKey]?.meters}
-                      duocSua={suaT1} khiDat={khiDat} soLe={0} />
+                      duocSua={suaT1} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
                   )}
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="waste"
                     giaTriGoc={goc?.phiHao ?? 0}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste}
-                    duocSua={suaT1} khiDat={khiDat} soLe={0} />
-                  <td className={`num highlight${row.dauVaoNvlLabel ? ' dac-ta-met-kho-cell' : ''} ${coDoiDauVao ? 'override-changed' : ''}`} data-label="Đầu vào NVL (m)">
-                    {row.dauVaoNvlLabel ? <HienThiMetKho label={row.dauVaoNvlLabel} /> : dinhDangSo(row.dauVaoNVL, 0)}
-                  </td>
+                    duocSua={suaT1} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
+                  {oSoGc(
+                    row.dauVaoNvlLabel ? <HienThiMetKho label={row.dauVaoNvlLabel} /> : dinhDangSo(row.dauVaoNVL, 0),
+                    laGc,
+                    {
+                      className: `highlight${row.dauVaoNvlLabel ? ' dac-ta-met-kho-cell' : ''} ${coDoiDauVao ? 'override-changed' : ''}`,
+                      dataLabel: 'Đầu vào NVL (m)',
+                    },
+                  )}
                   {(() => {
                     const coCp = row.cpVatLieu != null;
                     const giaKgHien = row.giaNVL != null && row.giaNVL > 0
@@ -813,29 +828,30 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     const hienKg = giaKgHien != null && Number(giaKgHien) > 0;
                     const coDoiCp = ovDong?.matPrice !== undefined || ovDong?.rawMatPrice !== undefined;
                     if (!coCp && !hienKg) {
-                      return <td className="num" data-label="CP vật liệu (đ/m²)">—</td>;
+                      return oSoGc('—', laGc, { dataLabel: 'CP vật liệu (đ/m²)' });
                     }
                     if (laDongSynthetic || !suaT1) {
-                      return (
-                        <td className={`num ${coDoiCp ? 'override-changed' : ''}`} data-label="CP vật liệu (đ/m²)">
-                          <span className="cp-vl-gop">
-                            <span className="cp-vl-gop__m2">{coCp ? dinhDangSo(row.cpVatLieu, 1) : '—'}</span>
-                            {hienKg && (
-                              <span className="cp-vl-gop__kg">({dinhDangSo(Number(giaKgHien), 0)}/kg)</span>
-                            )}
-                          </span>
-                        </td>
+                      return oSoGc(
+                        <span className="cp-vl-gop">
+                          <span className="cp-vl-gop__m2">{coCp ? dinhDangSo(row.cpVatLieu, 1) : '—'}</span>
+                          {hienKg && (
+                            <span className="cp-vl-gop__kg">({dinhDangSo(Number(giaKgHien), 0)}/kg)</span>
+                          )}
+                        </span>,
+                        laGc,
+                        { className: coDoiCp ? 'override-changed' : '', dataLabel: 'CP vật liệu (đ/m²)' },
                       );
                     }
                     return (
-                      <td className={`num override-cell ${coDoiCp ? 'override-changed' : ''}`} data-label="CP vật liệu (đ/m²)">
+                      <td className={`num override-cell ${coDoiCp ? 'override-changed' : ''} ${laGc ? 'gc-cell' : ''}`} data-label="CP vật liệu (đ/m²)">
+                        {laGc ? <span className="gc-cell__dot" title="Gia công" aria-label="Gia công" /> : null}
                         <span className="cp-vl-gop">
                           {coCp ? (
                             <span className="cp-vl-gop__m2">
                               <OCoTheGhiDe khoaDong={row.rowKey} truong="matPrice"
                                 giaTriGoc={goc?.cpVatLieu ?? 0}
                                 giaTriGhiDe={ghiDeHienTai[row.rowKey]?.matPrice}
-                                duocSua={suaT1} khiDat={khiDat} soLe={1} inline />
+                                duocSua={suaT1} khiDat={khiDat} soLe={1} inline laGiaCong={laGc} />
                             </span>
                           ) : (
                             <span className="cp-vl-gop__m2">—</span>
@@ -845,7 +861,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                               <OCoTheGhiDe khoaDong={row.rowKey} truong="rawMatPrice"
                                 giaTriGoc={goc?.giaNVL ?? row.giaNVL ?? 0}
                                 giaTriGhiDe={ghiDeHienTai[row.rowKey]?.rawMatPrice}
-                                duocSua={suaT1} khiDat={khiDat} soLe={0} inline
+                                duocSua={suaT1} khiDat={khiDat} soLe={0} inline laGiaCong={laGc}
                                 hienThiTuyChinh={(n) => `(${dinhDangSo(n, 0)}/kg)`}
                                 onAfterSet={(raw) => {
                                   if (raw === undefined) {
@@ -867,7 +883,10 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                       </td>
                     );
                   })()}
-                  <td className={`num ${coDoiVL ? 'override-changed' : ''}`} data-label="Thành tiền CPNVL">{dinhDangSo(row.thanhTienNVL, 0)}</td>
+                  {oSoGc(dinhDangSo(row.thanhTienNVL, 0), laGc, {
+                    className: coDoiVL ? 'override-changed' : '',
+                    dataLabel: 'Thành tiền CPNVL',
+                  })}
                   {row.cpMucKeo != null && !laDongSynthetic ? (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
                       giaTriGoc={goc?.cpMucKeo ?? 0}
@@ -878,13 +897,22 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                             ? (row.cpMucKeo ?? undefined)
                             : undefined
                       }
-                      duocSua={suaT1} khiDat={khiDat} soLe={1} />
+                      duocSua={suaT1} khiDat={khiDat} soLe={1} laGiaCong={laGc} />
                   ) : row.cpMucKeo != null ? (
-                    <td className="num dac-ta-nang-cao__muc" data-label="Giá mực, DM, keo (đ/m²)">{dinhDangSo(row.cpMucKeo, 1)}</td>
+                    oSoGc(dinhDangSo(row.cpMucKeo, 1), laGc, {
+                      className: 'dac-ta-nang-cao__muc',
+                      dataLabel: 'Giá mực, DM, keo (đ/m²)',
+                    })
                   ) : (
-                    <td className="num dac-ta-nang-cao__muc" data-label="Giá mực, DM, keo (đ/m²)">—</td>
+                    oSoGc('—', laGc, {
+                      className: 'dac-ta-nang-cao__muc',
+                      dataLabel: 'Giá mực, DM, keo (đ/m²)',
+                    })
                   )}
-                  <td className={`num dac-ta-nang-cao__muc ${coDoiMuc || coDoiVL ? 'override-changed' : ''}`} data-label="Thành tiền mực, DM, keo">{dinhDangSo(row.thanhTienMucKeo, 0)}</td>
+                  {oSoGc(dinhDangSo(row.thanhTienMucKeo, 0), laGc, {
+                    className: `dac-ta-nang-cao__muc ${coDoiMuc || coDoiVL ? 'override-changed' : ''}`,
+                    dataLabel: 'Thành tiền mực, DM, keo',
+                  })}
                 </tr>
               );
             })}
@@ -912,20 +940,29 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                   const ovDong = ghiDeHienTai[row.rowKey];
                   // Chỉ cho sửa Thời gian SX; CP NC / điện chỉ xem
                   const coDoiTG = coGhiDeDong(ovDong, ['thoiGianPhut']);
+                  // Gia công ngoài: TG/CP = 0, khóa sửa + chấm đỏ
+                  const laGc = !!row.isGiaCongNgoai;
+                  const suaTg = duocSua && !laGc;
                   return (
                     <tr key={`${lopMau}-ncd-${idx}`}>
                       <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">{row.congDoan}</td>
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="thoiGianPhut"
                         giaTriGoc={dongNCDGoc[idx]?.thoiGianPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.thoiGianPhut}
-                        duocSua={duocSua} khiDat={khiDat} soLe={0} />
+                        duocSua={suaTg} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="cpNhanCongPerPhut"
                         giaTriGoc={dongNCDGoc[idx]?.cpNhanCongPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpNhanCongPerPhut}
-                        duocSua={false} khiDat={khiDat} soLe={0} />
-                      <td className={`num ${coDoiTG ? 'override-changed' : ''}`} data-label="Thành tiền nhân công (VNĐ)">{dinhDangSo(row.thanhTienNhanCong, 0)}</td>
+                        duocSua={false} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
+                      {oSoGc(dinhDangSo(row.thanhTienNhanCong, 0), laGc, {
+                        className: coDoiTG ? 'override-changed' : '',
+                        dataLabel: 'Thành tiền nhân công (VNĐ)',
+                      })}
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="cpDienPerPhut"
                         giaTriGoc={dongNCDGoc[idx]?.cpDienPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpDienPerPhut}
-                        duocSua={false} khiDat={khiDat} soLe={0} />
-                      <td className={`num ${coDoiTG ? 'override-changed' : ''}`} data-label="Thành tiền điện">{dinhDangSo(row.thanhTienDien, 0)}</td>
+                        duocSua={false} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
+                      {oSoGc(dinhDangSo(row.thanhTienDien, 0), laGc, {
+                        className: coDoiTG ? 'override-changed' : '',
+                        dataLabel: 'Thành tiền điện',
+                      })}
                     </tr>
                   );
                 })}

@@ -1489,6 +1489,33 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
+  // Chỉ Lật mặt GC (In nội bộ): vẫn cộng cpLatMatGc vào dòng In
+  const uni = taoUniRows();
+  // print KHÔNG isOutsourced
+  const r = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000, hasMo: true,
+      pricingMode: 'outsource',
+      outsource: {
+        steps: ['matte'],
+        matte: { filmSource: 'lts', gcPricePerM2: 400 },
+      },
+    },
+  });
+  const rows = lapDongVatLieuNangCao(r, uni, taoHangSo());
+  const dongIn = rows.find(x => x.rowKey === 'print')!;
+  const latMat = rows.find(x => x.congDoan === 'Lật mặt' || x.rowKey === 'matte')!;
+  assert(!dongIn.isGiaCongNgoai, 'matte-only: In không GC');
+  assert(latMat?.isGiaCongNgoai === true, 'matte-only: Lật mặt có flag GC');
+  // In nội bộ vẫn có mực
+  assert(dongIn.thanhTienMucKeo != null && dongIn.thanhTienMucKeo! > 0, 'matte-only: In vẫn có mực');
+  // cpLatMatGc = 400 × meters × width = 400 × 8000 × 0.65 = 2_080_000
+  const cpLat = 400 * 8000 * 0.65;
+  const nvlKhongLat = 216700; // costMat fixture print
+  approx(dongIn.thanhTienNVL!, nvlKhongLat + cpLat, 'matte-only: In.thanhTienNVL = costMat + cpLatMatGc');
+}
+
+{
   // Table 2: phuMo + KHÔNG matte GC → có dòng "lật mặt" NC+điện
   const r = taoResult({
     input: { productType: 'tui', numColors: 4, quantity: 10000, hasMo: true },

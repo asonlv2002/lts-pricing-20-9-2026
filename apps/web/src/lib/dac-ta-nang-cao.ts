@@ -612,10 +612,10 @@ function layTpVaKhoNguonChia(
       return [...dongInList, { ...latMat, isGiaCongNgoai: laGcMatte || undefined }];
     };
 
-    // Lật mặt GC (chỉ áp dụng cho dòng print): gộp CP lật mặt gia công
-    // vào thành tiền dòng In. Công thức giống in GC: giaGcMoiM2 × metTP × kho.
+    // Lật mặt GC: gộp CP vào dòng In (giaGcMoiM2 × metTP × kho).
+    // Không phụ thuộc In GC — chỉ Lật mặt GC vẫn phải cộng tiền thuê ngoài.
     const cpLatMatGc =
-      row.rowKey === 'print' && row.isOutsourced && laGcMatte
+      row.rowKey === 'print' && laGcMatte
         ? Math.max(0, so(result?.input?.outsource?.matte?.gcPricePerM2)) *
           thanhPham *
           so(row.width)
