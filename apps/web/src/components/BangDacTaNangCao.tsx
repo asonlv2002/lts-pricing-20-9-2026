@@ -34,6 +34,29 @@ function HienThiMetKho({ label }: { label: string }) {
   );
 }
 
+/**
+ * Render 1 ô số có chấm đỏ "Gia công" ở góc trên-phải khi `laGiaCong=true`
+ * (giống pattern `oSoGc` của tính giá cũ ở ManHinhQuanLy.tsx:93-105).
+ * CSS đã có sẵn ở `globals.css:14065-14078`.
+ */
+function oSoGcNangCao(
+  noiDung: React.ReactNode,
+  laGiaCong: boolean,
+  dataLabel: string,
+  extraClass = '',
+  title?: string,
+) {
+  const cls = ['num', extraClass, laGiaCong ? 'gc-cell' : ''].filter(Boolean).join(' ');
+  return (
+    <td className={cls} data-label={dataLabel} title={title}>
+      {laGiaCong ? (
+        <span className="gc-cell__dot" title="Gia công" aria-label="Gia công" />
+      ) : null}
+      {noiDung}
+    </td>
+  );
+}
+
 export default function BangDacTaNangCao({
   result,
   uniRows,
@@ -90,54 +113,71 @@ export default function BangDacTaNangCao({
             </tr>
           </thead>
           <tbody>
-            {dongVatLieu.map((row, idx) => (
-              <tr key={`vl-${idx}`}>
-                <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">
-                  {row.congDoan}
-                </td>
-                <td data-label="Vật liệu">{row.vatLieu}</td>
-                <td className="num" data-label="Khổ màng (m)">
-                  {row.khoMangLabel ?? dinhDangSo(row.khoMang, 3)}
-                </td>
-                <td className={`num${row.thanhPhamLabel ? ' dac-ta-met-kho-cell' : ''}`} data-label="Thành phẩm (m)">
-                  {row.thanhPhamLabel ? <HienThiMetKho label={row.thanhPhamLabel} /> : dinhDangSo(row.thanhPham, 0)}
-                </td>
-                <td className="num" data-label="Phi hao (m)">
-                  {dinhDangSo(row.phiHao, 0)}
-                </td>
-                <td className={`num highlight${row.dauVaoNvlLabel ? ' dac-ta-met-kho-cell' : ''}`} data-label="Đầu vào NVL (m)">
-                  {row.dauVaoNvlLabel ? <HienThiMetKho label={row.dauVaoNvlLabel} /> : dinhDangSo(row.dauVaoNVL, 0)}
-                </td>
-                <td className="num" data-label="CP vật liệu (đ/m²)">
-                  {row.cpVatLieu == null ? (
-                    '—'
-                  ) : (
-                    <span className="cp-vl-gop">
-                      <span className="cp-vl-gop__m2">{dinhDangSo(row.cpVatLieu, 1)}</span>
-                      {row.giaNVL != null && row.giaNVL > 0 && (
-                        <span className="cp-vl-gop__kg">({dinhDangSo(row.giaNVL, 0)}/kg)</span>
-                      )}
-                    </span>
+            {dongVatLieu.map((row, idx) => {
+              const laGc = !!row.isGiaCongNgoai;
+              return (
+                <tr key={`vl-${idx}`}>
+                  <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">
+                    {row.congDoan}
+                  </td>
+                  <td data-label="Vật liệu">{row.vatLieu}</td>
+                  {oSoGcNangCao(
+                    row.khoMangLabel ?? dinhDangSo(row.khoMang, 3),
+                    laGc,
+                    'Khổ màng (m)',
                   )}
-                </td>
-                <td className="num" data-label="Thành tiền CPNVL">
-                  {dinhDangSo(row.thanhTienNVL, 0)}
-                </td>
-                <td
-                  className="num dac-ta-nang-cao__muc"
-                  data-label="Giá mực, DM, keo (đ/m²)"
-                  title={row.ghiChu}
-                >
-                  {dinhDangSo(row.cpMucKeo, 1)}
-                </td>
-                <td
-                  className="num dac-ta-nang-cao__muc"
-                  data-label="Thành tiền mực, DM, keo"
-                >
-                  {dinhDangSo(row.thanhTienMucKeo, 0)}
-                </td>
-              </tr>
-            ))}
+                  {oSoGcNangCao(
+                    row.thanhPhamLabel ? (
+                      <HienThiMetKho label={row.thanhPhamLabel} />
+                    ) : (
+                      dinhDangSo(row.thanhPham, 0)
+                    ),
+                    laGc,
+                    'Thành phẩm (m)',
+                    row.thanhPhamLabel ? 'dac-ta-met-kho-cell' : '',
+                  )}
+                  {oSoGcNangCao(dinhDangSo(row.phiHao, 0), laGc, 'Phi hao (m)')}
+                  {oSoGcNangCao(
+                    row.dauVaoNvlLabel ? (
+                      <HienThiMetKho label={row.dauVaoNvlLabel} />
+                    ) : (
+                      dinhDangSo(row.dauVaoNVL, 0)
+                    ),
+                    laGc,
+                    'Đầu vào NVL (m)',
+                    `highlight${row.dauVaoNvlLabel ? ' dac-ta-met-kho-cell' : ''}`,
+                  )}
+                  {oSoGcNangCao(
+                    row.cpVatLieu == null ? (
+                      '—'
+                    ) : (
+                      <span className="cp-vl-gop">
+                        <span className="cp-vl-gop__m2">{dinhDangSo(row.cpVatLieu, 1)}</span>
+                        {row.giaNVL != null && row.giaNVL > 0 && (
+                          <span className="cp-vl-gop__kg">({dinhDangSo(row.giaNVL, 0)}/kg)</span>
+                        )}
+                      </span>
+                    ),
+                    laGc,
+                    'CP vật liệu (đ/m²)',
+                  )}
+                  {oSoGcNangCao(dinhDangSo(row.thanhTienNVL, 0), laGc, 'Thành tiền CPNVL')}
+                  {oSoGcNangCao(
+                    dinhDangSo(row.cpMucKeo, 1),
+                    laGc,
+                    'Giá mực, DM, keo (đ/m²)',
+                    'dac-ta-nang-cao__muc',
+                    row.ghiChu,
+                  )}
+                  {oSoGcNangCao(
+                    dinhDangSo(row.thanhTienMucKeo, 0),
+                    laGc,
+                    'Thành tiền mực, DM, keo',
+                    'dac-ta-nang-cao__muc',
+                  )}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -162,28 +202,21 @@ export default function BangDacTaNangCao({
                 </tr>
               </thead>
               <tbody>
-                {dongNhanCongDien.map((row, idx) => (
-                  <tr key={`ncd-${idx}`}>
-                    <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">
-                      {row.congDoan}
-                    </td>
-                    <td className="num highlight" data-label="Thời gian SX (phút)">
-                      {dinhDangSo(row.thoiGianPhut, 0)}
-                    </td>
-                    <td className="num" data-label="Giá nhân công (đ/phút)">
-                      {dinhDangSo(row.cpNhanCongPerPhut, 0)}
-                    </td>
-                    <td className="num" data-label="Thành tiền nhân công (VNĐ)">
-                      {dinhDangSo(row.thanhTienNhanCong, 0)}
-                    </td>
-                    <td className="num" data-label="Giá điện (đ/phút)">
-                      {dinhDangSo(row.cpDienPerPhut, 0)}
-                    </td>
-                    <td className="num" data-label="Thành tiền điện">
-                      {dinhDangSo(row.thanhTienDien, 0)}
-                    </td>
-                  </tr>
-                ))}
+                {dongNhanCongDien.map((row, idx) => {
+                  const laGc = !!row.isGiaCongNgoai;
+                  return (
+                    <tr key={`ncd-${idx}`}>
+                      <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">
+                        {row.congDoan}
+                      </td>
+                      {oSoGcNangCao(dinhDangSo(row.thoiGianPhut, 0), laGc, 'Thời gian SX (phút)', 'highlight')}
+                      {oSoGcNangCao(dinhDangSo(row.cpNhanCongPerPhut, 0), laGc, 'Giá nhân công (đ/phút)')}
+                      {oSoGcNangCao(dinhDangSo(row.thanhTienNhanCong, 0), laGc, 'Thành tiền nhân công (VNĐ)')}
+                      {oSoGcNangCao(dinhDangSo(row.cpDienPerPhut, 0), laGc, 'Giá điện (đ/phút)')}
+                      {oSoGcNangCao(dinhDangSo(row.thanhTienDien, 0), laGc, 'Thành tiền điện')}
+                    </tr>
+                  );
+                })}
                 <tr className="total-row">
                   <td colSpan={3}>
                     <strong>Tổng nhân công / điện</strong>

@@ -12,13 +12,15 @@ import type {
   NguonMangGiaCong,
 } from '@lts/kieu-du-lieu';
 
-const STEP_EN_TO_VN: Record<OutsourceStep, CongDoanGiaCong> = {
+const STEP_EN_TO_VN: Partial<Record<OutsourceStep, CongDoanGiaCong>> = {
   print: 'in',
   laminate: 'ghep',
   slit: 'chia',
   bag: 'lam_tui',
   handle: 'gan_quai',
   pp_bag: 'bao_pp',
+  // 'matte' (lật mặt) — chỉ áp dụng cho engine nâng cao, KHÔNG map sang CongDoanGiaCong.
+  // Engine cũ sẽ bỏ qua bước này.
 };
 
 export function mapPricingModeEnToVn(mode?: PricingMode): CheDoTinhGia {
@@ -49,7 +51,10 @@ function mapLayer(l?: OutsourceLayerConfig): CauHinhGiaCongLop | undefined {
 
 export function mapOutsourceEnToVn(o?: OutsourceConfig): GiaCongNgoai | undefined {
   if (!o?.steps?.length) return undefined;
-  const congDoan = o.steps.map(s => STEP_EN_TO_VN[s]);
+  const congDoan = o.steps
+    .map(s => STEP_EN_TO_VN[s])
+    .filter((cd): cd is CongDoanGiaCong => cd !== undefined);
+  if (congDoan.length === 0) return undefined;
   const result: GiaCongNgoai = { congDoan };
   if (o.print) result.in = mapLayer(o.print);
   if (o.laminate?.layers || o.laminate) {

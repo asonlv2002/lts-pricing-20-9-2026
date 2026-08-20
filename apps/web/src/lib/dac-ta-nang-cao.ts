@@ -23,12 +23,13 @@ import { xuLyDongGhiDe } from './manager-calculation';
 export function layLanNguocMetTuResult(result: CalculateResult | null | undefined): LanNguocMetOpts {
   const input = result?.input;
   const cacBuocGc = input?.pricingMode === 'outsource'
-    ? ((input?.outsource as { steps?: string[] } | undefined)?.steps ?? [])
-    : [];
+    ? (input?.outsource?.steps ?? [])
+    : [] as string[];
   return {
     hasDivide: input?.hasDivide === true,
     divideElements: so(input?.divideElements),
-    laGcSlit: (cacBuocGc as string[]).includes('slit'),
+    laGcSlit: cacBuocGc.includes('slit'),
+    laGcMatte: cacBuocGc.includes('matte'),
   };
 }
 import { layCotLoiNhuanTuDong, traLoiNhuanTheoBang } from './engine';
@@ -91,6 +92,8 @@ export interface DongVatLieuNangCao {
   /** CP mực in / dung môi / keo ghép (₫/m²) — null khi công đoạn không tiêu thụ */
   cpMucKeo: number | null;
   thanhTienMucKeo: number | null;
+  /** Bước đang thuê ngoài — UI render chấm đỏ ở từng ô số (giống tính giá cũ) */
+  isGiaCongNgoai?: boolean;
   /** Chi tiết công thức để hiện tooltip */
   ghiChu?: string;
 }
@@ -105,6 +108,8 @@ export interface DongNhanCongDien {
   thanhTienNhanCong: number;
   cpDienPerPhut: number | null;
   thanhTienDien: number;
+  /** Bước đang thuê ngoài — TG/CP = 0, UI render chấm đỏ ở từng ô số */
+  isGiaCongNgoai?: boolean;
 }
 
 /** Cụm 3 dòng tổng */
@@ -543,8 +548,9 @@ function layTpVaKhoNguonChia(
   const khoChiaM = Math.max(0, so(result?.input?.divideWidthMm) / 1000);
   const cacBuocGc = result?.input?.pricingMode === 'outsource'
     ? (result?.input?.outsource?.steps ?? [])
-    : [];
-  const laGcSlit = (cacBuocGc as string[]).includes('slit');
+    : [] as string[];
+  const laGcSlit = cacBuocGc.includes('slit');
+  const laGcMatte = cacBuocGc.includes('matte');
 
   const coZipper = !!result?.input?.hasZipper || so(result?.zipperTotal) > 0;
   const coBangKeo = !!result?.input?.hasTape || so(result?.tapeTotal) > 0;
@@ -568,21 +574,27 @@ function layTpVaKhoNguonChia(
     let cpMucKeo: number | null = null;
     let ghiChu: string | undefined;
     if (row.rowKey === 'print') {
-      const r = tinhCpMucDungMoiIn(soMau, row.mat, ink, tyLePhuMuc);
-      // Nhũ + phủ mờ + phí in khác (metallicSurcharge) gộp vào dòng mực + dung môi
-      const phiInBoSung = so(result?.input?.metallicSurcharge);
-      const phiBoSungM2 = so(soMau) > 0 ? phiInBoSung : 0;
-      cpMucKeo = r.donGia + phiBoSungM2;
-      ghiChu = r.tyLePhuMuc !== 1
-        ? `${Math.round(r.tyLePhuMuc * 100)}% × (${r.dmMucG}g × ${r.giaMuc.toLocaleString('vi-VN')} + ${r.dmDungMoiG}g × ${r.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — bảng ${r.nhomMuc.toUpperCase()}`
-        : `(${r.dmMucG}g × ${r.giaMuc.toLocaleString('vi-VN')} + ${r.dmDungMoiG}g × ${r.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — bảng ${r.nhomMuc.toUpperCase()}`;
-      if (phiBoSungM2 > 0) {
-        ghiChu += ` + ${phiBoSungM2.toLocaleString('vi-VN')} đ/m² (nhũ/phủ mờ/phí in khác)`;
+      // Khi in GC: giá GC đã gồm mực + DM + keo, KHÔNG cộng thêm cpsxUpgradeInk.
+      if (!row.isOutsourced) {
+        const r = tinhCpMucDungMoiIn(soMau, row.mat, ink, tyLePhuMuc);
+        // Nhũ + phủ mờ + phí in khác (metallicSurcharge) gộp vào dòng mực + dung môi
+        const phiInBoSung = so(result?.input?.metallicSurcharge);
+        const phiBoSungM2 = so(soMau) > 0 ? phiInBoSung : 0;
+        cpMucKeo = r.donGia + phiBoSungM2;
+        ghiChu = r.tyLePhuMuc !== 1
+          ? `${Math.round(r.tyLePhuMuc * 100)}% × (${r.dmMucG}g × ${r.giaMuc.toLocaleString('vi-VN')} + ${r.dmDungMoiG}g × ${r.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — bảng ${r.nhomMuc.toUpperCase()}`
+          : `(${r.dmMucG}g × ${r.giaMuc.toLocaleString('vi-VN')} + ${r.dmDungMoiG}g × ${r.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — bảng ${r.nhomMuc.toUpperCase()}`;
+        if (phiBoSungM2 > 0) {
+          ghiChu += ` + ${phiBoSungM2.toLocaleString('vi-VN')} đ/m² (nhũ/phủ mờ/phí in khác)`;
+        }
       }
     } else if (row.rowKey.startsWith('lam-')) {
-      cpMucKeo = donGiaKeo;
-      const k = tinhCpKeoDungMoiGhep(ink);
-      ghiChu = `(${k.keoKhoG}g × ${k.giaKeo.toLocaleString('vi-VN')} + ${k.dungMoiPhaKeoG}g × ${k.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — keo + DM EA`;
+      // Khi ghép GC: giá GC đã gồm keo + DM, KHÔNG cộng thêm.
+      if (!row.isOutsourced) {
+        cpMucKeo = donGiaKeo;
+        const k = tinhCpKeoDungMoiGhep(ink);
+        ghiChu = `(${k.keoKhoG}g × ${k.giaKeo.toLocaleString('vi-VN')} + ${k.dungMoiPhaKeoG}g × ${k.giaDungMoi.toLocaleString('vi-VN')}) ÷ 1000 — keo + DM EA`;
+      }
     }
 
     // Ghi đè tay CP mực + DM + keo (đ/m²)
@@ -593,11 +605,21 @@ function layTpVaKhoNguonChia(
     }
 
     const chenLatMat = (dongInList: DongVatLieuNangCao[]): DongVatLieuNangCao[] => {
-      if (row.rowKey !== 'print' || !phuMo || laGcSlit || thanhPham <= 0) return dongInList;
+      if (row.rowKey !== 'print' || !phuMo || thanhPham <= 0) return dongInList;
       const mauIn = dongInList[0];
       if (!mauIn) return dongInList;
-      return [...dongInList, taoDongLatMatTuIn(mauIn)];
+      const latMat = taoDongLatMatTuIn(mauIn);
+      return [...dongInList, { ...latMat, isGiaCongNgoai: laGcMatte || undefined }];
     };
+
+    // Lật mặt GC (chỉ áp dụng cho dòng print): gộp CP lật mặt gia công
+    // vào thành tiền dòng In. Công thức giống in GC: giaGcMoiM2 × metTP × kho.
+    const cpLatMatGc =
+      row.rowKey === 'print' && row.isOutsourced && laGcMatte
+        ? Math.max(0, so(result?.input?.outsource?.matte?.gcPricePerM2)) *
+          thanhPham *
+          so(row.width)
+        : 0;
 
     // Ghép nhiều vật liệu song song → tách 1 dòng/chi tiết (như bảng cũ);
     // công đoạn chỉ hiện ở dòng đầu, dòng sau để trống (như ô gộp)
@@ -631,10 +653,11 @@ function layTpVaKhoNguonChia(
           giaNVL,
           donViGiaNVL: giaNVL != null ? ('kg' as const) : null,
           cpVatLieu: so(detail.matPrice),
-          thanhTienNVL: so(detail.costMat) + cpGiaCongNgoai,
+          thanhTienNVL: so(detail.costMat) + cpGiaCongNgoai + (idx === 0 && row.rowKey === 'print' ? cpLatMatGc : 0),
           cpMucKeo,
-          thanhTienMucKeo: cpMucKeo != null ? cpMucKeo * dauVaoNVL * kho : null,
+          thanhTienMucKeo: !row.isOutsourced && cpMucKeo != null ? cpMucKeo * dauVaoNVL * kho : null,
           ghiChu,
+          isGiaCongNgoai: row.isOutsourced || undefined,
         };
       });
       return chenLatMat(dongChiTiet);
@@ -647,7 +670,6 @@ function layTpVaKhoNguonChia(
     }
     // Công đoạn gia công ngoài: CP gia công (costCPSX) cộng vào thành tiền CPNVL
     const cpGiaCongNgoai = row.isOutsourced ? so(row.costCPSX) : 0;
-
     // Làm túi: gộp phụ kiện; TP neo SL×bước÷hình (hoặc ghi đè meters); PH→ĐV.
     // Có chia: khổ = khổ chia; mét túi độc lập TP Chia (không lấy ĐV = TP Chia).
     if (row.rowKey === 'cut' && !laMang) {
@@ -711,15 +733,16 @@ function layTpVaKhoNguonChia(
       giaNVL,
       donViGiaNVL: giaNVL != null ? ('kg' as const) : null,
       cpVatLieu: row.matPrice,
-      thanhTienNVL: so(row.costMat) + cpGiaCongNgoai,
+      thanhTienNVL: so(row.costMat) + cpGiaCongNgoai + cpLatMatGc,
       cpMucKeo,
-      thanhTienMucKeo: cpMucKeo != null ? cpMucKeo * dauVaoNVL * khoHieuDung : null,
+      thanhTienMucKeo: !row.isOutsourced && cpMucKeo != null ? cpMucKeo * dauVaoNVL * khoHieuDung : null,
       ghiChu,
+      isGiaCongNgoai: row.isOutsourced || undefined,
     }]);
   });
 
   // Chèn dòng Chia sau ghép / trước Làm túi (cùng ĐK Table 2)
-  if (coChia && !laGcSlit) {
+  if (coChia) {
     const { tpNguon, khoTruoc } = layTpVaKhoNguonChia(rows, uniRows ?? [], result);
     const tpChia = tpNguon * soPtChia;
     if (tpChia > 0 || tpNguon > 0) {
@@ -732,10 +755,11 @@ function layTpVaKhoNguonChia(
         thanhPhamChia: tpChia,
       });
       const idxCut = rows.findIndex(r => r.rowKey === 'cut');
+      const dongChiaVoiFlag: DongVatLieuNangCao = { ...dongChia, isGiaCongNgoai: laGcSlit || undefined };
       if (idxCut >= 0) {
-        rows.splice(idxCut, 0, dongChia);
+        rows.splice(idxCut, 0, dongChiaVoiFlag);
       } else {
-        rows.push(dongChia);
+        rows.push(dongChiaVoiFlag);
       }
     }
   }
@@ -749,12 +773,17 @@ function layTpVaKhoNguonChia(
  * Áp ghi đè TG SX / CP NC / CP điện cho 1 dòng.
  * rowKeys: thứ tự ưu tiên tra override (dòng ghép gộp: lam-2 → lam-5,
  * lấy override của lớp đầu tiên có giá trị). Trả dòng mới + rowKey hiệu lực.
+ * Nếu isGiaCongNgoai=true → KHÔNG áp override, đảm bảo TG/CP = 0 + flag.
  */
 function apDungGhiDeThoiGian(
   dongNC: DongNhanCongDien,
   rowKeys: OverrideRowKey[],
   overrides?: OverrideTable,
+  isGiaCongNgoai?: boolean,
 ): DongNhanCongDien {
+  if (isGiaCongNgoai) {
+    return { ...dongNC, isGiaCongNgoai: true };
+  }
   if (!overrides) return dongNC;
   const ghiDe = rowKeys
     .map(rk => ({ rk, o: overrides[rk] }))
@@ -811,8 +840,9 @@ export function lapDongNhanCongDien(
   // Công đoạn nào đang thuê ngoài → bỏ dòng NC + điện (CP nằm trong đơn giá gia công)
   const cacBuocGc = result?.input?.pricingMode === 'outsource'
     ? (result?.input?.outsource?.steps ?? [])
-    : [];
-  const laGc = (buoc: string) => (cacBuocGc as string[]).includes(buoc);
+    : [] as string[];
+  const laGc = (buoc: string) => cacBuocGc.includes(buoc);
+  const laGcMatte = laGc('matte');
 
   const dong = (
     congDoan: string,
@@ -838,11 +868,12 @@ export function lapDongNhanCongDien(
   const rows: DongNhanCongDien[] = [];
 
   // in — setup theo số màu (lên trục + duyệt mẫu) + phủ mờ
-  if (!laGc('print')) {
+  {
+    const isGc = laGc('print');
     rows.push(apDungGhiDeThoiGian(dong(
       'in',
-      metIn > 0 ? tinhThoiGianMayIn(metIn, soMau, tg.print, phuMo).tongPhut : null,
-      luongMoiPhutAp(
+      isGc ? 0 : (metIn > 0 ? tinhThoiGianMayIn(metIn, soMau, tg.print, phuMo).tongPhut : null),
+      isGc ? 0 : luongMoiPhutAp(
         luongMoiPhutTinh(
           lab.print.wages, lab.print.hoursPerDay,
           lab.print.mealMorning, lab.print.mealEvening, lab.print.otFactor,
@@ -850,19 +881,20 @@ export function lapDongNhanCongDien(
         ),
         lab.print.roundedPerMin,
       ),
-      el?.machines?.print,
-    ), ['print'], overrides));
+      isGc ? undefined : el?.machines?.print,
+    ), ['print'], isGc ? undefined : overrides, isGc));
   }
 
   // lật mặt — chỉ khi có phủ mờ; mét chạy = Thành phẩm in (không + phi hao);
-  // thời gian theo rule matte_flip (bảng máy chia); ẩn khi thuê ngoài chia
-  if (phuMo && metTpIn > 0 && !laGc('slit')) {
+  // thời gian theo rule matte_flip (bảng máy chia)
+  if (phuMo && metTpIn > 0) {
+    const isGc = laGcMatte;
     const ruleMatte = tg.slit.rules.find(r => r.key === 'matte_flip') ?? tg.slit.rules[0];
     if (ruleMatte) {
       rows.push(apDungGhiDeThoiGian(dong(
         'lật mặt',
-        ruleMatte.setupMinutes + metTpIn / (ruleMatte.speedMPerMin || 1),
-        luongMoiPhutAp(
+        isGc ? 0 : ruleMatte.setupMinutes + metTpIn / (ruleMatte.speedMPerMin || 1),
+        isGc ? 0 : luongMoiPhutAp(
           luongMoiPhutTinh(
             lab.slit.wages, lab.slit.hoursPerDay,
             lab.slit.mealMorning, lab.slit.mealEvening, lab.slit.otFactor,
@@ -870,17 +902,18 @@ export function lapDongNhanCongDien(
           ),
           lab.slit.roundedPerMin,
         ),
-        el?.machines?.slit,
-      ), ['matte'], overrides));
+        isGc ? undefined : el?.machines?.slit,
+      ), ['matte'], isGc ? undefined : overrides, isGc));
     }
   }
 
   // ghép — setup lần đầu + mỗi lớp ghép tiếp theo setup lại; ghi đè ưu tiên lam-2 → lam-5
-  if (!laGc('laminate')) {
+  {
+    const isGc = laGc('laminate');
     rows.push(apDungGhiDeThoiGian(dong(
       'ghép',
-      metGhep > 0 ? tinhThoiGianMayGhep(metGhep, soLanGhep, tg.laminate).tongPhut : null,
-      luongMoiPhutAp(
+      isGc ? 0 : (metGhep > 0 ? tinhThoiGianMayGhep(metGhep, soLanGhep, tg.laminate).tongPhut : null),
+      isGc ? 0 : luongMoiPhutAp(
         luongMoiPhutTinh(
           lab.laminate.wages, lab.laminate.hoursPerDay,
           lab.laminate.mealMorning, lab.laminate.mealEvening, lab.laminate.otFactor,
@@ -888,18 +921,19 @@ export function lapDongNhanCongDien(
         ),
         lab.laminate.roundedPerMin,
       ),
-      el?.machines?.laminate,
-    ), ['lam-2', 'lam-3', 'lam-4', 'lam-5'], overrides));
+      isGc ? undefined : el?.machines?.laminate,
+    ), ['lam-2', 'lam-3', 'lam-4', 'lam-5'], isGc ? undefined : overrides, isGc));
   }
 
   // chia — chỉ hiện khi tick "Có chia"; mét = metChiaHoacLamTui (ghép cuối hoặc in)
-  if (coChia && metIn > 0 && !laGc('slit')) {
+  if (coChia && metIn > 0) {
+    const isGc = laGc('slit');
     const ruleChia = chonRuleMayChia(tg.slit, cauTrucMang, soLanGhep);
     const metInChia = metChiaHoacLamTui(result);
     rows.push(apDungGhiDeThoiGian(dong(
       'chia',
-      tinhThoiGianMayChia(metInChia, ruleChia).tongPhut,
-      luongMoiPhutAp(
+      isGc ? 0 : tinhThoiGianMayChia(metInChia, ruleChia).tongPhut,
+      isGc ? 0 : luongMoiPhutAp(
         luongMoiPhutTinh(
           lab.slit.wages, lab.slit.hoursPerDay,
           lab.slit.mealMorning, lab.slit.mealEvening, lab.slit.otFactor,
@@ -907,8 +941,8 @@ export function lapDongNhanCongDien(
         ),
         lab.slit.roundedPerMin,
       ),
-      el?.machines?.slit,
-    ), ['chia'], overrides));
+      isGc ? undefined : el?.machines?.slit,
+    ), ['chia'], isGc ? undefined : overrides, isGc));
   }
 
   // làm túi — TG = setup + ĐV NVL / tốc độ; ĐV = TP+PH (TP neo đơn, không × N chia)

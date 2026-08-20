@@ -11,6 +11,7 @@ import type {
 
 const CD_OPTIONS: { key: OutsourceStep; label: string }[] = [
   { key: 'print', label: 'In' },
+  { key: 'matte', label: 'Lật mặt' },
   { key: 'laminate', label: 'Ghép' },
   { key: 'slit', label: 'Chia' },
   { key: 'bag', label: 'Làm túi' },
@@ -20,6 +21,7 @@ const CD_OPTIONS: { key: OutsourceStep; label: string }[] = [
 
 const STEP_LABEL: Record<OutsourceStep, string> = {
   print: 'In',
+  matte: 'Lật mặt',
   laminate: 'Ghép',
   slit: 'Chia',
   bag: 'Làm túi',
@@ -667,6 +669,50 @@ export function ChiTietGiaCongNgoai(props: {
             packagingVnd={out.print?.packagingVnd}
             otherVnd={out.print?.otherVnd}
             onChange={fees => patchOut({ print: { ...(out.print ?? { filmSource: 'lts' }), ...fees } })}
+          />
+        </div>
+      )}
+
+      {steps.includes('matte') && (
+        <div style={{ order: 1.5, marginBottom: 16 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 10,
+              marginBottom: 8,
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>
+              {STEP_LABEL.matte} <span style={{ fontSize: '0.7rem', color: 'var(--muted)', fontWeight: 500 }}>(chỉ áp dụng khi tick "Phủ mờ")</span>
+            </div>
+          </div>
+          <Hang3>
+            <OSo
+              label="% phi hao"
+              value={out.matte?.wastePct}
+              onChange={v => patchOut({ matte: { ...(out.matte ?? { filmSource: 'lts' as const }), wastePct: v } })}
+            />
+            <OSo
+              label="PH setup"
+              suffix="m"
+              value={out.matte?.wasteSetupM}
+              onChange={v => patchOut({ matte: { ...(out.matte ?? { filmSource: 'lts' as const }), wasteSetupM: v } })}
+            />
+            <OSo
+              label="Giá GC lật mặt"
+              suffix="đ/m²"
+              value={out.matte?.gcPricePerM2}
+              onChange={v => patchOut({ matte: { ...(out.matte ?? { filmSource: 'lts' as const }), gcPricePerM2: v } })}
+            />
+          </Hang3>
+          <PhuPhiCd
+            shippingVnd={out.matte?.shippingVnd}
+            packagingVnd={out.matte?.packagingVnd}
+            otherVnd={out.matte?.otherVnd}
+            onChange={fees => patchOut({ matte: { ...(out.matte ?? { filmSource: 'lts' as const }), ...fees } })}
           />
         </div>
       )}

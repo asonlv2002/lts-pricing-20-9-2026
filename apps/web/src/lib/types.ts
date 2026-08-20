@@ -603,7 +603,8 @@ export type OutsourceStep =
   | 'slit'
   | 'bag'
   | 'handle'
-  | 'pp_bag';
+  | 'pp_bag'
+  | 'matte';
 
 export type OutsourceFilmSource = 'lts' | 'vendor';
 
@@ -642,6 +643,8 @@ export interface OutsourceConfig {
   } & OutsourceExtraFees;
   handle?: { wastePct: number; gcPricePerBag: number; handleUnitPrice: number } & OutsourceExtraFees;
   pp_bag?: { variant: 'pp' | 'pp_pe'; wastePct: number; wasteSetupM: number; gcPricePerUnit: number; ppMaterialPricePerUnit?: number } & OutsourceExtraFees;
+  /** Gia công lật mặt (chỉ áp dụng khi input.hasMo=true). Cùng shape với print. */
+  matte?: OutsourceLayerConfig;
 }
 
 export interface CalculateInput {

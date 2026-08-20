@@ -9,6 +9,7 @@ import {
   lapDongNhanCongDien,
   tinhTongNangCao,
   ghepCauTrucTuDongVatLieu,
+  layLanNguocMetTuResult,
 } from './dac-ta-nang-cao';
 import type {
   AppConstants,
@@ -532,7 +533,8 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Phủ mờ + GC slit → không chèn Lật mặt Table 1 (cùng ĐK Table 2)
+  // Phủ mờ + chỉ GC slit (không GC matte) → vẫn hiện Lật mặt Table 1
+  // (Lật mặt chỉ ẩn khi user tick 'matte' trong steps, không phụ thuộc slit)
   const rGc = taoResult({
     input: {
       productType: 'tui',
@@ -544,7 +546,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     },
   });
   const rowsGc = lapDongVatLieuNangCao(rGc, taoUniRows(), taoHangSo());
-  assert(!rowsGc.some(r => r.congDoan === 'Lật mặt' || r.rowKey === 'matte'), 'GC slit → không Lật mặt Table 1');
+  assert(rowsGc.some(r => r.congDoan === 'Lật mặt' || r.rowKey === 'matte'), 'chỉ GC slit: vẫn hiện Lật mặt Table 1');
 }
 
 {
@@ -777,7 +779,10 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     },
   });
   const rowsGc = lapDongVatLieuNangCao(rGc, taoUniRows(), taoHangSo());
-  assert(!rowsGc.some(r => r.congDoan === 'Chia' || r.rowKey === 'chia'), 'GC slit → không Chia Table 1');
+  // Sau fix: dòng Chia LUÔN hiện khi coChia (dù GC hay không) + isGiaCongNgoai=true khi slit GC
+  const dongChiaGc = rowsGc.find(r => r.congDoan === 'Chia' || r.rowKey === 'chia')!;
+  assert(dongChiaGc != null, 'GC slit: dòng Chia HIỆN (chỉ có isGiaCongNgoai=true)');
+  assert(dongChiaGc.isGiaCongNgoai === true, 'GC slit: dòng Chia có isGiaCongNgoai=true');
   const dongTui = rowsGc.find(r => r.congDoan === 'Làm túi')!;
   approx(dongTui.thanhPham!, tpTui, 'GC slit: TP = SL×bước');
   approx(dongTui.dauVaoNVL!, tpTui + phTui, 'GC slit: ĐV = TP+PH');
@@ -1358,6 +1363,322 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     { congDoan: 'Làm túi', vatLieu: 'Zipper', rowKey: 'cut', khoMang: null, thanhPham: 1, phiHao: 0, dauVaoNVL: 1, giaNVL: null, donViGiaNVL: null, cpVatLieu: null, thanhTienNVL: 0, cpMucKeo: null, thanhTienMucKeo: null },
   ]);
   eq(parts, 'PET 12//LLDPE 60', 'ghepCauTruc chỉ In + ghép');
+}
+
+// ── 10. BUG FIX: in/ghép GC → KHÔNG cộng mực/keo (đã nằm trong giá GC) ────
+
+{
+  // B1: In GC → thanhTienMucKeo = null, cpMucKeo = null
+  const uni = taoUniRows();
+  uni[0] = { ...uni[0], isOutsourced: true, cpsx: 1500, costCPSX: 1500 * 8000 * 0.65 };
+  const r = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000,
+      pricingMode: 'outsource',
+      outsource: { steps: ['print'] },
+    },
+  });
+  const rows = lapDongVatLieuNangCao(r, uni, taoHangSo());
+  const dongIn = rows.find(x => x.rowKey === 'print')!;
+  eq(dongIn.cpMucKeo, null, 'B1: in GC → cpMucKeo = null');
+  eq(dongIn.thanhTienMucKeo, null, 'B1: in GC → thanhTienMucKeo = null (không cộng mực)');
+}
+
+{
+  // B2: Ghép GC → thanhTienMucKeo = null, cpMucKeo = null
+  const uni = taoUniRows();
+  uni[1] = { ...uni[1], isOutsourced: true, cpsx: 800, costCPSX: 800 * 8420 * 0.65 };
+  const r = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000,
+      pricingMode: 'outsource',
+      outsource: { steps: ['laminate'] },
+    },
+  });
+  const rows = lapDongVatLieuNangCao(r, uni, taoHangSo());
+  const dongGhep = rows.find(x => x.rowKey === 'lam-2')!;
+  eq(dongGhep.cpMucKeo, null, 'B2: ghép GC → cpMucKeo = null');
+  eq(dongGhep.thanhTienMucKeo, null, 'B2: ghép GC → thanhTienMucKeo = null (không cộng keo)');
+}
+
+// ── 11. Phase 2: Gia công lật mặt (matte) ───────────────────────────────
+
+{
+  // Lật mặt GC: không hiện dòng Lật mặt, CP gộp vào thanhTienNVL dòng In
+  const uni = taoUniRows();
+  uni[0] = { ...uni[0], isOutsourced: true, cpsx: 1500, costCPSX: 1500 * 8000 * 0.65 };
+  const r = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000, hasMo: true,
+      pricingMode: 'outsource',
+      outsource: {
+        steps: ['print', 'matte'],
+        matte: { filmSource: 'lts', gcPricePerM2: 500 },
+      },
+    },
+  });
+  const rows = lapDongVatLieuNangCao(r, uni, taoHangSo());
+  // Phase 2: dòng Lật mặt LUÔN hiện khi phuMo=true (dù GC hay không) — chấm đỏ qua flag
+  const latMat = rows.find(x => x.congDoan === 'Lật mặt' || x.rowKey === 'matte')!;
+  assert(latMat != null, 'matte GC: vẫn hiện dòng Lật mặt Table 1');
+  assert(latMat.isGiaCongNgoai === true, 'matte GC: dòng Lật mặt có isGiaCongNgoai=true');
+  const dongIn = rows.find(x => x.rowKey === 'print')!;
+  assert(dongIn.isGiaCongNgoai === true, 'matte GC: dòng In có isGiaCongNgoai=true (printGc)');
+  // cpLatMatGc = 500 × 8000 × 0.65 = 2,600,000
+  const cpLatMatMong = 500 * 8000 * 0.65;
+  // costMat gốc (216700) + costCPSX (1500 × 8000 × 0.65 = 7,800,000) + cpLatMatMong (2,600,000)
+  const thanhTienMong = 216700 + 1500 * 8000 * 0.65 + cpLatMatMong;
+  approx(dongIn.thanhTienNVL!, thanhTienMong, 'matte GC: thanhTienNVL = costMat + costCPSX + cpLatMatGc');
+}
+
+{
+  // Lật mặt KHÔNG GC (chỉ in GC): vẫn hiện dòng Lật mặt Table 1
+  const uni = taoUniRows();
+  uni[0] = { ...uni[0], isOutsourced: true, cpsx: 1500, costCPSX: 1500 * 8000 * 0.65 };
+  const r = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000, hasMo: true,
+      pricingMode: 'outsource',
+      outsource: { steps: ['print'] }, // KHÔNG có 'matte'
+    },
+  });
+  const rows = lapDongVatLieuNangCao(r, uni, taoHangSo());
+  assert(rows.some(x => x.congDoan === 'Lật mặt'), 'print GC + không matte GC: vẫn có dòng Lật mặt Table 1');
+}
+
+{
+  // Lật mặt nội bộ (không GC) + phủ mờ: hiện dòng Lật mặt Table 1
+  const r = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000, hasMo: true },
+  });
+  const rows = lapDongVatLieuNangCao(r, taoUniRows(), taoHangSo());
+  assert(rows.some(x => x.congDoan === 'Lật mặt'), 'không GC + phủ mờ: có dòng Lật mặt Table 1');
+}
+
+{
+  // B1' in GC + phủ mờ: vẫn hiện dòng Lật mặt (vì không tick 'matte')
+  const uni = taoUniRows();
+  uni[0] = { ...uni[0], isOutsourced: true, cpsx: 1500, costCPSX: 1500 * 8000 * 0.65 };
+  const r = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000, hasMo: true,
+      pricingMode: 'outsource',
+      outsource: { steps: ['print', 'slit'] }, // có slit GC nhưng KHÔNG có matte
+    },
+  });
+  const rows = lapDongVatLieuNangCao(r, uni, taoHangSo());
+  assert(rows.some(x => x.congDoan === 'Lật mặt'), 'in GC + slit GC + không matte GC: vẫn có dòng Lật mặt (chỉ chia thôi)');
+}
+
+{
+  // Table 2: phuMo + matte GC → dòng "lật mặt" HIỆN với isGiaCongNgoai=true, thanhTien=0
+  const r = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000, hasMo: true,
+      pricingMode: 'outsource',
+      outsource: { steps: ['matte'] },
+    },
+  });
+  const ncDien = lapDongNhanCongDien(r, taoHangSo());
+  const latMat = ncDien.find(x => x.congDoan === 'lật mặt' || x.rowKey === 'matte')!;
+  assert(latMat != null, 'matte GC: dòng lật mặt Table 2 HIỆN (không bị ẩn)');
+  assert(latMat.isGiaCongNgoai === true, 'matte GC: lật mặt có isGiaCongNgoai=true');
+  approx(latMat.thoiGianPhut!, 0, 'matte GC: TG = 0');
+  approx(latMat.thanhTienNhanCong, 0, 'matte GC: CP NC = 0');
+  approx(latMat.thanhTienDien, 0, 'matte GC: CP điện = 0');
+}
+
+{
+  // Table 2: phuMo + KHÔNG matte GC → có dòng "lật mặt" NC+điện
+  const r = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000, hasMo: true },
+  });
+  const ncDien = lapDongNhanCongDien(r, taoHangSo());
+  assert(ncDien.some(x => x.congDoan === 'lật mặt' || x.rowKey === 'matte'), 'không matte GC: có dòng lật mặt Table 2');
+}
+
+{
+  // layLanNguocMetTuResult: laGcMatte đọc đúng từ steps
+  const rMatteGc = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000, hasMo: true,
+      pricingMode: 'outsource',
+      outsource: { steps: ['print', 'matte'] },
+    },
+  });
+  const optsMatte = layLanNguocMetTuResult(rMatteGc);
+  assert(optsMatte.laGcMatte === true, 'layLanNguoc: matte trong steps → laGcMatte=true');
+  assert(optsMatte.laGcSlit === false, 'layLanNguoc: slit không trong steps → laGcSlit=false');
+
+  const rKhongMatte = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000, hasMo: true },
+  });
+  const optsKhong = layLanNguocMetTuResult(rKhongMatte);
+  assert(optsKhong.laGcMatte === false, 'layLanNguoc: không outsource → laGcMatte=false');
+}
+
+// ── 12. isGiaCongNgoai flag (chấm đỏ UI) ─────────────────────────────────
+
+{
+  // Bảng 1: in GC → isGiaCongNgoai=true
+  const uni = taoUniRows();
+  uni[0] = { ...uni[0], isOutsourced: true, cpsx: 1500, costCPSX: 7_800_000 };
+  const r = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000,
+      pricingMode: 'outsource', outsource: { steps: ['print'] } },
+  });
+  const rows = lapDongVatLieuNangCao(r, uni, taoHangSo());
+  const inRow = rows.find(x => x.rowKey === 'print')!;
+  assert(inRow.isGiaCongNgoai === true, 'B1: in GC → isGiaCongNgoai=true');
+}
+
+{
+  // Bảng 1: ghép GC → isGiaCongNgoai=true
+  const uni = taoUniRows();
+  uni[1] = { ...uni[1], isOutsourced: true, cpsx: 800, costCPSX: 4_376_000 };
+  const r = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000,
+      pricingMode: 'outsource', outsource: { steps: ['laminate'] } },
+  });
+  const rows = lapDongVatLieuNangCao(r, uni, taoHangSo());
+  const ghepRow = rows.find(x => x.rowKey === 'lam-2')!;
+  assert(ghepRow.isGiaCongNgoai === true, 'B2: ghép GC → isGiaCongNgoai=true');
+}
+
+{
+  // Bảng 1: cắt GC (slit) → dòng minh họa Chia có isGiaCongNgoai=true
+  const r = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000,
+      hasDivide: true, divideElements: 2, divideWidthMm: 300,
+      pricingMode: 'outsource', outsource: { steps: ['slit'] },
+    },
+  });
+  const rows = lapDongVatLieuNangCao(r, taoUniRows(), taoHangSo());
+  const chiaRow = rows.find(x => x.rowKey === 'chia')!;
+  assert(chiaRow != null, 'B3: Có chia + slit GC: dòng Chia minh họa HIỆN');
+  assert(chiaRow.isGiaCongNgoai === true, 'B3: Có chia + slit GC: dòng Chia có isGiaCongNgoai=true');
+}
+
+{
+  // Bảng 1: Có chia + slit LTS → dòng Chia HIỆN nhưng isGiaCongNgoai=undefined
+  const r = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000,
+      hasDivide: true, divideElements: 2, divideWidthMm: 300,
+      pricingMode: 'outsource', outsource: { steps: ['print'] },
+    },
+  });
+  const rows = lapDongVatLieuNangCao(r, taoUniRows(), taoHangSo());
+  const chiaRow = rows.find(x => x.rowKey === 'chia')!;
+  assert(chiaRow != null, 'B3: Có chia + slit LTS: dòng Chia minh họa HIỆN');
+  assert(!chiaRow.isGiaCongNgoai, 'B3: Có chia + slit LTS: dòng Chia KHÔNG có isGiaCongNgoai');
+}
+
+{
+  // Bảng 1: Lật mặt nội bộ (không GC) → isGiaCongNgoai=undefined
+  const r = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000, hasMo: true },
+  });
+  const rows = lapDongVatLieuNangCao(r, taoUniRows(), taoHangSo());
+  const latMat = rows.find(x => x.congDoan === 'Lật mặt')!;
+  assert(latMat != null, 'B4: Lật mặt nội bộ: dòng Lật mặt HIỆN');
+  assert(!latMat.isGiaCongNgoai, 'B4: Lật mặt nội bộ: KHÔNG có isGiaCongNgoai');
+}
+
+{
+  // Bảng 1: in KHÔNG GC → isGiaCongNgoai=undefined
+  const r = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000 },
+  });
+  const rows = lapDongVatLieuNangCao(r, taoUniRows(), taoHangSo());
+  const inRow = rows.find(x => x.rowKey === 'print')!;
+  assert(!inRow.isGiaCongNgoai, 'B5: in nội bộ: KHÔNG có isGiaCongNgoai');
+}
+
+{
+  // Bảng 2: in GC → dòng "in" HIỆN với isGiaCongNgoai=true, thanhTien=0
+  const r = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000,
+      pricingMode: 'outsource', outsource: { steps: ['print'] } },
+  });
+  const ncDien = lapDongNhanCongDien(r, taoHangSo());
+  const inRow = ncDien.find(x => x.congDoan === 'in')!;
+  assert(inRow != null, 'T1: in GC: dòng in HIỆN');
+  assert(inRow.isGiaCongNgoai === true, 'T1: in GC: isGiaCongNgoai=true');
+  approx(inRow.thoiGianPhut!, 0, 'T1: in GC: TG = 0');
+  approx(inRow.thanhTienNhanCong, 0, 'T1: in GC: CP NC = 0');
+  approx(inRow.thanhTienDien, 0, 'T1: in GC: CP điện = 0');
+}
+
+{
+  // Bảng 2: ghép GC → dòng "ghép" HIỆN với isGiaCongNgoai=true
+  const r = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000,
+      pricingMode: 'outsource', outsource: { steps: ['laminate'] } },
+  });
+  const ncDien = lapDongNhanCongDien(r, taoHangSo());
+  const ghepRow = ncDien.find(x => x.congDoan === 'ghép')!;
+  assert(ghepRow != null, 'T2: ghép GC: dòng ghép HIỆN');
+  assert(ghepRow.isGiaCongNgoai === true, 'T2: ghép GC: isGiaCongNgoai=true');
+  approx(ghepRow.thanhTienNhanCong, 0, 'T2: ghép GC: CP NC = 0');
+  approx(ghepRow.thanhTienDien, 0, 'T2: ghép GC: CP điện = 0');
+}
+
+{
+  // Bảng 2: Có chia + slit GC → dòng "chia" HIỆN với isGiaCongNgoai=true
+  const r = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000,
+      hasDivide: true, divideElements: 2, divideWidthMm: 300,
+      pricingMode: 'outsource', outsource: { steps: ['slit'] },
+    },
+  });
+  const ncDien = lapDongNhanCongDien(r, taoHangSo());
+  const chiaRow = ncDien.find(x => x.congDoan === 'chia')!;
+  assert(chiaRow != null, 'T3: slit GC: dòng chia HIỆN');
+  assert(chiaRow.isGiaCongNgoai === true, 'T3: slit GC: chia isGiaCongNgoai=true');
+  approx(chiaRow.thanhTienNhanCong, 0, 'T3: slit GC: CP NC = 0');
+}
+
+{
+  // Bảng 2: Có chia + slit LTS → dòng "chia" HIỆN nhưng isGiaCongNgoai=undefined
+  const r = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 10000,
+      hasDivide: true, divideElements: 2, divideWidthMm: 300,
+      pricingMode: 'outsource', outsource: { steps: ['print'] },
+    },
+  });
+  const ncDien = lapDongNhanCongDien(r, taoHangSo());
+  const chiaRow = ncDien.find(x => x.congDoan === 'chia')!;
+  assert(chiaRow != null, 'T3: slit LTS: dòng chia HIỆN');
+  assert(!chiaRow.isGiaCongNgoai, 'T3: slit LTS: chia KHÔNG có isGiaCongNgoai');
+}
+
+{
+  // Bảng 2: dòng "làm túi" LUÔN HIỆN (không bao giờ GC) + isGiaCongNgoai=undefined
+  const r = taoResult({ input: { productType: 'tui', numColors: 4, quantity: 10000 } });
+  const ncDien = lapDongNhanCongDien(r, taoHangSo());
+  const tuiRow = ncDien.find(x => x.congDoan === 'làm túi')!;
+  assert(tuiRow != null, 'T4: dòng "làm túi" LUÔN hiện');
+  assert(!tuiRow.isGiaCongNgoai, 'T4: dòng "làm túi" KHÔNG có isGiaCongNgoai (luôn LTS)');
+}
+
+{
+  // Tổng NC+điện: in GC (0) + lật mặt GC (0) + ghép nội bộ + chia nội bộ + làm túi
+  // → tổng = sum các dòng không GC
+  const r = taoResult({
+    input: { productType: 'tui', numColors: 4, quantity: 10000,
+      hasMo: true,
+      pricingMode: 'outsource', outsource: { steps: ['print', 'matte'] } },
+  });
+  const ncDien = lapDongNhanCongDien(r, taoHangSo());
+  const tong = ncDien.reduce((s, x) => s + x.thanhTienNhanCong + x.thanhTienDien, 0);
+  // In GC + Matte GC = 0; Ghép + Chia + Làm túi vẫn tính
+  const chiKhongGc = ncDien.filter(x => !x.isGiaCongNgoai);
+  approx(tong, chiKhongGc.reduce((s, x) => s + x.thanhTienNhanCong + x.thanhTienDien, 0),
+    'T5: tổng NC+điện = sum các dòng không GC (GC = 0)');
 }
 
 console.log(`✓ dac-ta-nang-cao: ${soTest} assertions passed`);

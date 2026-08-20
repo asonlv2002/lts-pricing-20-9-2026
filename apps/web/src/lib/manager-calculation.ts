@@ -156,6 +156,8 @@ export type LanNguocMetOpts = {
   divideElements?: number;
   /** GC slit: không ÷ N */
   laGcSlit?: boolean;
+  /** GC lật mặt: không hiện dòng Lật mặt ở Table 1+2 (chỉ là metadata, không ảnh hưởng lan ngược) */
+  laGcMatte?: boolean;
 };
 
 export function xuLyDongGhiDe(
