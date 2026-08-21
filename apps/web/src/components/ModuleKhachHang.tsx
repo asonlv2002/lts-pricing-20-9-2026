@@ -397,6 +397,16 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
   const [committedAddress, setCommittedAddress] = useState<string>(customer?.address ?? '');
 
   const set = (key: keyof Customer, value: string | boolean | null) => {
+    if (key === 'customerCode' && typeof value === 'string') {
+      const checkLive = kiemTraMaKhachHang(value);
+      setForm(f => ({ ...f, [key]: checkLive.maKhachHang }));
+      setDirty(true);
+      setErrors(e => ({
+        ...e,
+        customerCode: checkLive.hopLe || !checkLive.maKhachHang ? '' : checkLive.loi ?? '',
+      }));
+      return;
+    }
     setForm(f => {
       setDirty(true);
       if (key === 'customerType') {

@@ -3,7 +3,7 @@ import React from 'react';
 import { ArrowLeftRight } from 'lucide-react';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { LS_CUSTOMERS, loadCustomers, luuLocalStorage } from '../store/helpers';
-import { taoKhachHangNhanhChoBaoGia, laNguoiPhuTrach } from '../lib/customer-api';
+import { taoKhachHangNhanhChoBaoGia, laNguoiPhuTrach, kiemTraMaKhachHang } from '../lib/customer-api';
 import { taoMaKhachHangService, layKhachHangService, luuNguoiPhuTrachKhachHangService, luuThongTinKhachHangService } from '../lib/api/service-lts';
 import { chuyenDanhSachCustomerApiSangUi } from '../lib/customer-api';
 import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
@@ -138,6 +138,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   const [dangFocusKhachHang, datDangFocusKhachHang] = React.useState(false);
   const [danhSachKhachHang, datDanhSachKhachHang] = React.useState<KhachHangGoiY[]>(() => loadCustomers() as KhachHangGoiY[]);
   const [maKhachHangMoi, datMaKhachHangMoi] = React.useState('');
+  const [canhBaoMaKhachHang, datCanhBaoMaKhachHang] = React.useState('');
  const [loiTaoKhachHang, datLoiTaoKhachHang] = React.useState('');
   const [dangTaoKhachHang, datDangTaoKhachHang] = React.useState(false);
   const quickCustomerRef = React.useRef<HTMLDivElement | null>(null);
@@ -668,13 +669,19 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                 <span style={{ fontSize:'.72rem', fontWeight:700, color:'var(--muted)' }}>Mã KH</span>
                 <input
                   className="form-input"
-                  style={{ height:32, fontSize:'.82rem', width:'100%' }}
+                  style={{ height:32, fontSize:'.82rem', width:'100%', borderColor: canhBaoMaKhachHang ? '#f59e0b' : undefined }}
                   placeholder="KH001"
                   value={maKhachHangMoi}
                   onFocus={() => datDangFocusKhachHang(true)}
                   onChange={e => {
                     datMaKhachHangMoi(e.target.value.toUpperCase());
                     datLoiTaoKhachHang('');
+                    const checkLive = kiemTraMaKhachHang(e.target.value.toUpperCase());
+                    datCanhBaoMaKhachHang(
+                      checkLive.hopLe || !checkLive.maKhachHang
+                        ? ''
+                        : checkLive.loi ?? '',
+                    );
                   }}
                   onKeyDown={e => {
                     if (e.key === 'Enter') {
@@ -683,6 +690,11 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                     }
                   }}
                 />
+                {canhBaoMaKhachHang && (
+                  <span style={{ fontSize:'.74rem', color:'#92400e', background:'#fef3c7', border:'1px solid #f59e0b', borderRadius:6, padding:'4px 8px', lineHeight:1.35 }}>
+                    ⚠️ {canhBaoMaKhachHang}
+                  </span>
+                )}
               </label>
               <button
                 type="button"
