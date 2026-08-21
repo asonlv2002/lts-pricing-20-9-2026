@@ -209,8 +209,8 @@ export const QREV_STYLES = `
   .lts-shell--mobile .qrev-table,
   .lts-shell--mobile .qrev-table tbody { display: block; }
 
-  /* Card 2 dòng:  [ checkbox | avatar | tên SP ]  [ giá ]
-                    [ khách                  ]  [ actions ] */
+/* Card 2 dòng:  [ checkbox | tên SP ]  [ giá ]
+                     [ khách | người lập ]  [ actions ] */
   .lts-shell--mobile .qrev-row {
     display: grid;
     grid-template-columns: 1fr auto;
@@ -225,7 +225,7 @@ export const QREV_STYLES = `
   }
   .lts-shell--mobile .qrev-row td { display: block; padding: 0; border: 0; }
 
-  /* Vùng trên-trái (dòng 1, cột 1): gộp checkbox + avatar + tên SP bằng flex */
+  /* Vùng trên-trái (dòng 1, cột 1): checkbox + tên SP */
   .lts-shell--mobile .qrev-row td:nth-child(1) {
     grid-column: 1; grid-row: 1;
     display: inline-flex; align-items: center;
@@ -233,30 +233,28 @@ export const QREV_STYLES = `
   }
   .lts-shell--mobile .qrev-row td:nth-child(2) {
     grid-column: 1; grid-row: 1;
-    display: inline-flex; align-items: center;
+    font-size: 14px; font-weight: 600;
   }
-  .lts-shell--mobile .qrev-cell-quote { gap: 8px; }
-  .lts-shell--mobile .qrev-avatar { width: 28px; height: 28px; border-radius: 7px; }
-  .lts-shell--mobile .qrev-cell-name { font-size: 14px; }
-  .lts-shell--mobile .qrev-cell-sub { display: none; }
 
-  /* Vùng trên-phải (dòng 1, cột 2): giá */
-  .lts-shell--mobile .qrev-row td:nth-child(5) {
+  /* Vùng trên-phải (dòng 1, cột 2): giá - cột 6 */
+  .lts-shell--mobile .qrev-row td:nth-child(6) {
     grid-column: 2; grid-row: 1;
     text-align: right; white-space: nowrap;
     font-size: 14px; font-weight: 700; color: var(--accent, #0891b2);
   }
 
-  /* Vùng dưới-trái (dòng 2, cột 1): khách */
-  .lts-shell--mobile .qrev-row td:nth-child(3) {
+  /* Vùng dưới-trái (dòng 2, cột 1): khách + người lập */
+  .lts-shell--mobile .qrev-row td:nth-child(3),
+  .lts-shell--mobile .qrev-row td:nth-child(4) {
     grid-column: 1; grid-row: 2;
     font-size: 12.5px; color: var(--muted, #6b7280);
     font-weight: 500;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    display: inline-block; max-width: 45%; margin-right: 8px;
   }
 
-  /* Vùng dưới-phải (dòng 2, cột 2): actions */
-  .lts-shell--mobile .qrev-row td:nth-child(7) {
+  /* Vùng dưới-phải (dòng 2, cột 2): actions - cột 8 */
+  .lts-shell--mobile .qrev-row td:nth-child(8) {
     grid-column: 2; grid-row: 2;
     display: flex; justify-content: flex-end; gap: 4px;
   }
@@ -280,9 +278,9 @@ export const QREV_STYLES = `
     height: 22px;
   }
 
-  /* Ẩn: ngày (đã có dòng meta ở desktop) và status badge (vẫn có chips filter) */
-  .lts-shell--mobile .qrev-row td:nth-child(4) { display: none; }
-  .lts-shell--mobile .qrev-row td:nth-child(6) { display: none; }
+  /* Ẩn: thời gian (cột 5) và trạng thái (cột 7) */
+  .lts-shell--mobile .qrev-row td:nth-child(5) { display: none; }
+  .lts-shell--mobile .qrev-row td:nth-child(7) { display: none; }
 
   .lts-shell--mobile .qrev-slide-panel { width: 100vw; }
 }

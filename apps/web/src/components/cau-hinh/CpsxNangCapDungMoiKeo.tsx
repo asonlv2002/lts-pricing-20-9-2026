@@ -29,25 +29,11 @@ function docSo(value: string) {
   return Number(value.replace(/\D/g, "")) || 0;
 }
 
-/** Token gợi ý khi list VL trống / bổ sung match engine */
-const TOKEN_MANG_GOI_Y = [
-  "OPP",
-  "MattOPP",
-  "BOPP",
-  "PET",
-  "MPET",
-  "PE",
-  "LLDPE",
-  "LDPE",
-  "HDPE",
-  "PA",
-] as const;
-
 type LuaChonMang = { key: string; label: string };
 
 function dsLuaChonMang(materials: Material[]): LuaChonMang[] {
-  // Dedup theo upper-case; ưu tiên key = id vật liệu, label = tên (nếu khác id)
-  // tránh add trùng khi tên === id
+  // Chỉ lấy từ bảng Giá NVL (không gộp token cứng) — đúng yêu cầu "chỉ lấy
+  // danh sách trong bảng Giá Nguyên Vật Liệu". Dedup theo upper-case.
   const seenKey = new Set<string>();
   const seenLabel = new Set<string>();
   const out: LuaChonMang[] = [];
@@ -70,7 +56,6 @@ function dsLuaChonMang(materials: Material[]): LuaChonMang[] {
       add(id, name || id);
     }
   }
-  for (const t of TOKEN_MANG_GOI_Y) add(t, t);
   return out;
 }
 

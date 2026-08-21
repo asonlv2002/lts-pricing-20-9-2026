@@ -1,7 +1,7 @@
 "use client";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Search, RefreshCw, Eye, X, FileText, Inbox,
+  Search, RefreshCw, Eye, X, Inbox, FileText,
   ChevronLeft, ChevronRight, CheckSquare, Square,
   Trash2, FileEdit,
 } from 'lucide-react';
@@ -46,13 +46,6 @@ const STATUS_LABELS: Record<string, string> = {
   used: 'Đã dùng',
   locked: 'Đã khóa',
 };
-
-const AVATAR_COLORS = ['#0891b2', '#7c3aed', '#db2777', '#ea580c', '#16a34a', '#2563eb', '#9333ea', '#dc2626'];
-function mauAvatar(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) & 0xffffffff;
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
 
 const QUOTE_PREFILL_STORAGE_KEY = 'lts_quote_prefill_from_history';
 
@@ -214,33 +207,26 @@ export default function ModuleDanhSachTinhGia({
           </button>
         </td>
         <td>
-          <div className="qrev-cell-quote">
-            <div className="qrev-avatar" style={{ background: mauAvatar(h.id) }}>
-              <FileText size={15} />
-            </div>
-            <div className="qrev-cell-quote-text">
-              <span className="qrev-cell-name">
-                {h.productName}
-                {h.isNangCap && (
-                  <span className="qrev-badge" style={{ background: 'rgba(124,58,237,0.12)', color: '#7c3aed', marginLeft: 8, fontWeight: 600 }}>
-                    🚀 Nâng cấp
-                  </span>
-                )}
-                {h.thieuPin && (
-                  <span
-                    className="qrev-badge"
-                    title="Chưa ghim cấu hình lúc lưu — giá đang tính theo CPSX/cấu hình hiện tại trên máy"
-                    style={{ background: 'rgba(217,119,6,0.12)', color: '#b45309', marginLeft: 8, fontWeight: 600 }}
-                  >
-                    Chưa ghim CH
-                  </span>
-                )}
+          <div className="qrev-cell-name">
+            {h.productName}
+            {h.isNangCap && (
+              <span className="qrev-badge" style={{ background: 'rgba(124,58,237,0.12)', color: '#7c3aed', marginLeft: 8, fontWeight: 600 }}>
+                🚀 Nâng cấp
               </span>
-              <span className="qrev-cell-sub">{h.structure}</span>
-            </div>
+            )}
+            {h.thieuPin && (
+              <span
+                className="qrev-badge"
+                title="Chưa ghim cấu hình lúc lưu — giá đang tính theo CPSX/cấu hình hiện tại trên máy"
+                style={{ background: 'rgba(217,119,6,0.12)', color: '#b45309', marginLeft: 8, fontWeight: 600 }}
+              >
+                Chưa ghim CH
+              </span>
+            )}
           </div>
         </td>
         <td className="qrev-cell-sale">{h.customer}</td>
+        <td className="qrev-cell-sale">{h.sellerName || '—'}</td>
         <td className="qrev-cell-date" title={h.updatedAt && h.createdAt && h.updatedAt !== h.createdAt ? `Cập nhật: ${dinhDangNgayTaoLichSu({ ...h, createdAt: h.updatedAt })}` : undefined}>
           {dinhDangNgayTaoLichSu(h)}
         </td>
@@ -353,7 +339,8 @@ export default function ModuleDanhSachTinhGia({
                   <th style={{ width: 40 }}></th>
                   <th>Sản phẩm</th>
                   <th>Khách hàng</th>
-                  <th>Ngày tạo</th>
+                  <th>Người lập</th>
+                  <th>Thời gian</th>
                   <th style={{ textAlign: 'right' }}>Giá</th>
                   <th>Trạng thái</th>
                   <th>Thao tác</th>

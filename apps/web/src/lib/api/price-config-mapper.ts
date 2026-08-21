@@ -41,8 +41,14 @@ export function configNameToScope(configName: string): ConfigScope | null {
 }
 
 // ── Các key AppConstants thuộc từng scope (mirror configVersioning) ────────
+/** 2 key zipper — thuộc scope materials (Giá Zipper trong tab Vật tư). */
+export const ZIPPER_CONSTANT_KEYS: (keyof AppConstants)[] = [
+  'zipperPrice',
+  'zipperWeight',
+];
+
 const SCOPE_CONSTANT_KEYS: Record<ConfigScope, (keyof AppConstants)[]> = {
-  materials: [],
+  materials: [...ZIPPER_CONSTANT_KEYS],
   production: [
     'laborCost', 'printPressLabor', 'printPressElectric', 'printPressTime',
     'laminatePressLabor', 'laminatePressElectric', 'laminatePressTime',
@@ -55,7 +61,7 @@ const SCOPE_CONSTANT_KEYS: Record<ConfigScope, (keyof AppConstants)[]> = {
   productionUpgrade: [...CPSX_UPGRADE_CONSTANT_KEYS],
   profit: [],
   surcharges: [
-    'zipperPrice', 'zipperWeight', 'tapePrice', 'tapeWeight',
+    'tapePrice', 'tapeWeight',
     'handlePrice', 'handleWeight', 'handleOptions',
     'boxPriceDefault', 'bagsPerBoxDefault', 'boxOptions',
     'shippingPerKmDefault', 'shippingKmDefault',
@@ -108,6 +114,10 @@ export function trichXuatDuLieuScope(
   if (scope === 'materials') {
     result.materials = structuredClone(data.materials);
     result.smallWidthPrices = structuredClone(data.smallWidthPrices);
+    // Giá Zipper thuộc scope materials (không migrate từ SURCHARGES cũ)
+    for (const key of ZIPPER_CONSTANT_KEYS) {
+      result[key] = structuredClone((data.constants as unknown as Record<string, unknown>)[key as string]);
+    }
   } else if (scope === 'profit') {
     result.profitTable = structuredClone(data.profitTable);
   } else {
@@ -177,6 +187,15 @@ export function apDungDuLieuScope(
   if (scope === 'materials') {
     if (Array.isArray(data.materials)) result.materials = data.materials as Material[];
     if (Array.isArray(data.smallWidthPrices)) result.smallWidthPrices = data.smallWidthPrices as SmallWidthMaterialPrice[];
+    // Giá Zipper — đọc từ blob MATERIALS (bỏ null/undefined như các scope khác)
+    const constants: Partial<AppConstants> = {};
+    for (const key of ZIPPER_CONSTANT_KEYS) {
+      const k = key as string;
+      if (k in data && data[k] != null) {
+        (constants as Record<string, unknown>)[k] = data[k];
+      }
+    }
+    if (Object.keys(constants).length > 0) result.constants = constants;
   } else if (scope === 'profit') {
     if (Array.isArray(data.profitTable)) result.profitTable = data.profitTable as ProfitRow[];
   } else {

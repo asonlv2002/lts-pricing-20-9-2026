@@ -42,10 +42,6 @@ import { themChuKyVaoManual } from '../lib/chu-ky';
 type BoLoc = LsxLocalStatus | 'all';
 type Nguon = 'all' | 'review';
 
-function dinhDangSo(n: number): string {
-  return (n || 0).toLocaleString('vi-VN');
-}
-
 function HuyHieuTrangThai({ trangThai }: { trangThai: LsxLocalStatus }) {
   const mau = LSX_LOCAL_STATUS_CONFIG[trangThai];
   return (
@@ -308,9 +304,9 @@ export default function ModuleDanhSachLSX({
                   <th>Số LSX</th>
                   <th>Khách hàng</th>
                   <th>Sản phẩm</th>
-                  <th style={{ textAlign: 'right' }}>SL</th>
+                  <th>Thời gian</th>
                   <th>Trạng thái</th>
-                  <th>Sửa</th>
+                  <th>Thao tác</th>
                   <th>Duyệt</th>
                 </tr>
               </thead>
@@ -341,8 +337,8 @@ export default function ModuleDanhSachLSX({
                           <div style={{ fontSize: '0.7rem', color: 'var(--muted)' }}>{row.structure}</div>
                         )}
                       </td>
-                      <td style={{ textAlign: 'right', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                        {dinhDangSo(row.quantity)}
+                      <td className="qrev-cell-date">
+                        {new Date(row.createdAt).toLocaleString('vi-VN')}
                       </td>
                       <td>
                         <HuyHieuTrangThai trangThai={row.status} />

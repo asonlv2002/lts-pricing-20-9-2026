@@ -318,6 +318,95 @@ check(
   f5Pick?.id === 'u-new',
 );
 
+// ── Zipper thuộc scope materials (không migrate từ SURCHARGES) ─────────────
+check(
+  'keys materials có zipperPrice + zipperWeight',
+  layConstantKeysTheoScope('materials').includes('zipperPrice')
+    && layConstantKeysTheoScope('materials').includes('zipperWeight'),
+);
+check(
+  'keys surcharges không còn zipper',
+  !layConstantKeysTheoScope('surcharges').includes('zipperPrice')
+    && !layConstantKeysTheoScope('surcharges').includes('zipperWeight'),
+);
+
+const trichMat = trichXuatDuLieuScope('materials', {
+  ...fallback,
+  materials: [{ id: 'm1', name: 'M1' } as Material],
+  constants: {
+    ...fallbackConstants,
+    zipperPrice: 450,
+    zipperWeight: 8,
+  } as unknown as AppConstants,
+});
+check('trich materials giữ materials', Array.isArray(trichMat.materials));
+check(
+  'trich materials có zipperPrice/Weight',
+  (trichMat as { zipperPrice?: number }).zipperPrice === 450
+    && (trichMat as { zipperWeight?: number }).zipperWeight === 8,
+);
+
+const trichSur = trichXuatDuLieuScope('surcharges', {
+  ...fallback,
+  constants: {
+    ...fallbackConstants,
+    zipperPrice: 450,
+    zipperWeight: 8,
+    tapePrice: 100,
+  } as unknown as AppConstants,
+});
+check('trich surcharges không còn zipper', !('zipperPrice' in trichSur) && !('zipperWeight' in trichSur));
+check('trich surcharges vẫn có tapePrice', (trichSur as { tapePrice?: number }).tapePrice === 100);
+
+const apMat = apDungDuLieuScope('materials', {
+  materials: [{ id: 'm1', name: 'M1' }],
+  zipperPrice: 520,
+  zipperWeight: null,
+});
+check(
+  'ap materials: zipperPrice từ blob, null bỏ qua',
+  apMat.constants?.zipperPrice === 520
+    && !('zipperWeight' in (apMat.constants ?? {})),
+);
+
+const matSnapshot = priceConfigToSnapshot(
+  {
+    id: 'mat1',
+    configName: 'MATERIALS',
+    version: 3,
+    inputValue: {
+      materials: [{ id: 'm1', name: 'M1' }],
+      zipperPrice: 600,
+    },
+    createdBy: null,
+    createdAt: '2026-08-20T00:00:00.000Z',
+  },
+  'materials',
+  {
+    ...fallback,
+    constants: {
+      ...fallbackConstants,
+      zipperPrice: 378,
+      zipperWeight: 8,
+    } as unknown as AppConstants,
+  },
+);
+check(
+  'snapshot materials: zipperPrice từ BE, zipperWeight giữ fallback',
+  (matSnapshot.constants as { zipperPrice?: number }).zipperPrice === 600
+    && (matSnapshot.constants as { zipperWeight?: number }).zipperWeight === 8,
+);
+const afterApplyMat = ganKeysScopeTuSnapshot(
+  fallbackConstants,
+  matSnapshot.constants,
+  layConstantKeysTheoScope('materials'),
+);
+check(
+  'apply snapshot materials: zipperPrice BE, zipperWeight fallback',
+  (afterApplyMat as { zipperPrice?: number }).zipperPrice === 600
+    && (afterApplyMat as { zipperWeight?: number }).zipperWeight === 8,
+);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
 assert.equal(failed, 0);

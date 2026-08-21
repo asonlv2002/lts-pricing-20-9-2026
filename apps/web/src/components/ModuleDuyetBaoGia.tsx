@@ -15,7 +15,6 @@ import {
   Eye,
   X,
   FileEdit,
-  FileText,
   Inbox,
   Trash2,
   ChevronDown,
@@ -123,24 +122,6 @@ const CHIP_LABELS: { key: BoLoc; label: string }[] = [
   { key: "approved", label: "Đã duyệt" },
   { key: "rejected", label: "Bị từ chối" },
 ];
-
-// ── Avatar màu theo id (để bảng đỡ đơn điệu) ─────────────────────────────────
-const AVATAR_COLORS = [
-  "#0891b2",
-  "#7c3aed",
-  "#db2777",
-  "#ea580c",
-  "#16a34a",
-  "#2563eb",
-  "#9333ea",
-  "#dc2626",
-];
-function mauAvatar(id: string): string {
-  let hash = 0;
-  for (let i = 0; i < id.length; i++)
-    hash = (hash * 31 + id.charCodeAt(i)) & 0xffffffff;
-  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-}
 
 function laObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
@@ -706,8 +687,8 @@ export default function ModuleDuyetBaoGia({
               <thead>
                 <tr>
                   <th>Báo giá</th>
-                  <th>Sale</th>
-                  <th>Cập nhật</th>
+                  <th>Người lập</th>
+                  <th>Thời gian</th>
                   <th>Trạng thái</th>
                   <th>Thao tác</th>
                   <th>Duyệt</th>
@@ -742,20 +723,9 @@ export default function ModuleDuyetBaoGia({
                           >
                             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                           </button>
-                          <div
-                            className="qrev-avatar"
-                            style={{ background: mauAvatar(bg.id) }}
-                          >
-                            <FileText size={15} />
-                          </div>
-                          <div className="qrev-cell-quote-text">
-                            <span className="qrev-cell-name">
-                              {tenKhachHang(bg)}
-                            </span>
-                            <span className="qrev-cell-sub">
-                              {tenSanPham(bg)}
-                            </span>
-                          </div>
+                          <span className="qrev-cell-name">
+                            {tenKhachHang(bg)}
+                          </span>
                         </div>
                       </td>
                       <td className="qrev-cell-sale">

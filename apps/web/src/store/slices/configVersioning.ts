@@ -75,7 +75,7 @@ const SCOPE_LABEL: Record<ConfigScope, string> = {
 
 /** Mirror price-config-mapper — xem/phien ban apply theo key scope */
 const SCOPE_CONSTANT_KEYS: Record<ConfigScope, (keyof AppConstants)[]> = {
-  materials: [],
+  materials: layConstantKeysTheoScope('materials'),
   production: layConstantKeysTheoScope('production'),
   productionUpgrade: layConstantKeysTheoScope('productionUpgrade'),
   profit: [],
@@ -394,7 +394,8 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
       state.replaceFullConfig({
         materials: structuredClone(snapshot.materials),
         smallWidthPrices: structuredClone(snapshot.smallWidthPrices),
-        constants: state.constants,
+        // Giá Zipper thuộc scope materials — apply theo key từ mapper
+        constants: ganKeysScopeTuSnapshot(state.constants, snapshot.constants, keys),
         profitTable: state.profitTable,
       });
     } else if (scope === 'profit') {
@@ -429,7 +430,8 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
       state.replaceFullConfig({
         materials: structuredClone(snapshot.materials),
         smallWidthPrices: structuredClone(snapshot.smallWidthPrices),
-        constants: state.constants,
+        // Giá Zipper thuộc scope materials — apply theo key từ mapper
+        constants: ganKeysScopeTuSnapshot(state.constants, snapshot.constants, keys),
         profitTable: state.profitTable,
       });
     } else if (scope === 'profit') {

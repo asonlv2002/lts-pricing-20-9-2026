@@ -14201,6 +14201,15 @@ body {
   flex: 1 1 62%;
   min-width: 0;
 }
+/* Sale override: chỉ cụm 3 dòng tổng (không Bảng 2 NC/điện) */
+.dac-ta-nang-cao__split--totals-only {
+  justify-content: flex-end;
+}
+.dac-ta-nang-cao__split--totals-only .dac-ta-nang-cao__totals {
+  flex: 1 1 auto;
+  max-width: 420px;
+  margin-left: auto;
+}
 .dac-ta-nang-cao__totals {
   flex: 0 0 34%;
   display: flex;
