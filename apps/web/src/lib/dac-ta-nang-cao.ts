@@ -317,7 +317,8 @@ function traGiaNVL(
 /**
  * Thành phẩm làm túi (mét) — neo từ đơn / ghi đè / engine.
  * Ưu tiên: override.cut.meters → neo đơn → cutMeters → uni.meters.
- * Neo đơn: có chia → SL × bước cắt; không chia → (SL × bước) ÷ số con hình.
+ * Neo đơn: có chia → (SL × bước cắt) ÷ số phần tử chia;
+ *           không chia → (SL × bước) ÷ số con hình.
  */
 export function layThanhPhamLamTui(params: {
   result?: CalculateResult | null;
@@ -333,8 +334,10 @@ export function layThanhPhamLamTui(params: {
   const buoc = so(input?.cutStep);
   const soHinh = Math.max(1, so(input?.numImages) || 1);
   if (qty > 0 && buoc > 0) {
-    // Có chia: mét máy túi theo đơn, không ÷ số con hình
-    if (input?.hasDivide === true) return qty * buoc;
+    // Có chia: TP = SL × bước / số phần tử chia (không ÷ số con hình)
+    if (input?.hasDivide === true) {
+      return (qty * buoc) / soPhanTuChiaLamTui(input);
+    }
     return (qty * buoc) / soHinh;
   }
   const cutM = so(params.result?.cutMeters);
@@ -374,6 +377,47 @@ export function chuanHoaMetCatUniRows(
     const ph = layPhiHaoLamTui({ thanhPham: tp, hangSo, overrides });
     return { ...row, meters: tp, waste: ph };
   });
+}
+
+/**
+ * Túi + có chia + không GC slit → luôn neo cut + lan ÷N lên In/Ghép
+ * (TP ghép = ĐV túi / N = ĐV Chia), kể cả khi không ✎ override.
+ */
+export function canLanChiaNangCao(result: CalculateResult | null | undefined): boolean {
+  const input = result?.input;
+  if (!input || input.productType === 'mang') return false;
+  if (input.hasDivide !== true) return false;
+  const steps = input.pricingMode === 'outsource' ? (input.outsource?.steps ?? []) : [];
+  return !steps.includes('slit');
+}
+
+/**
+ * Chuẩn bị uniRows cho bảng NC: neo cut (khi chia hoặc ✎ mét/PH túi)
+ * + xuLyDongGhiDe lan ngược (÷N khi chia).
+ */
+export function chuanBiUniRowsNangCao(params: {
+  uniRows: UniRow[];
+  result: CalculateResult;
+  hangSo: AppConstants;
+  sourceOv?: OverrideTable;
+  activeOv?: OverrideTable;
+}): UniRow[] {
+  const { uniRows, result, hangSo } = params;
+  const sourceOv = params.sourceOv ?? {};
+  const activeOv = params.activeOv ?? {};
+  const hasAnyOverride = Object.keys(activeOv).length > 0;
+  const coGhiDeMetCat =
+    activeOv.cut?.meters !== undefined || activeOv.cut?.waste !== undefined;
+  const canLan = canLanChiaNangCao(result);
+  const canNeoCut = canLan || coGhiDeMetCat;
+  const uniCho = canNeoCut
+    ? chuanHoaMetCatUniRows(uniRows, result, hangSo, hasAnyOverride ? activeOv : null)
+    : uniRows;
+  const lanNguoc = canLan ? layLanNguocMetTuResult(result) : undefined;
+  if (canNeoCut || hasAnyOverride) {
+    return xuLyDongGhiDe(uniCho, sourceOv, activeOv, undefined, lanNguoc).rows;
+  }
+  return uniRows ?? [];
 }
 
 /**
@@ -440,9 +484,9 @@ function tinhPhiHaoCatTuHangSo(met: number, hangSo: AppConstants): number {
 }
 
 /**
- * Chia (Table 1) — khi Có chia, không GC slit.
- * Đầu vào NVL = TP nguồn (ghép cuối / In), khổ trước chia.
- * Thành phẩm = TP nguồn × N, khổ chia.
+ * Chia (Table 1) — khi Có chia.
+ * Có làm túi: TP = ĐV Làm túi; ĐV = TP / N (khổ trước).
+ * Màng (không túi): TP = TP nguồn × N; ĐV = TP nguồn.
  * phi hao = 0; chi phí = 0. Khổ hiển thị: khổ trước → khổ chia.
  */
 function taoDongChiaNangCao(params: {
@@ -524,11 +568,11 @@ function layTpVaKhoNguonChia(
    * Ghép tách theo lớp (như bảng cũ). Dòng ghép có nhiều vật liệu song song
    * (`materialDetails`) → tách 1 dòng/chi tiết; meters/phi hao lặp lại cấp lớp.
    * Dòng Làm túi: gộp Zipper/Băng keo/Quai vào cùng hàng (không tách dòng).
-   * TP neo: không chia = (SL×bước)÷hình; có chia = SL×bước (không ÷ hình);
-   * hoặc ghi đè meters. PH = định mức trên TP (hoặc ghi đè waste); ĐV = TP + PH.
-   * Zipper = ĐV × giá (không × divideElements).
-   * Phủ mờ: chèn dòng Lật mặt ngay sau In (VL/khổ copy In; chi phí = 0).
-   * Có chia: chèn dòng Chia trước Làm túi; mét Làm túi độc lập TP Chia; khổ = khổ chia.
+ * TP neo: không chia = (SL×bước)÷hình; có chia = (SL×bước)÷số phần tử chia;
+ * hoặc ghi đè meters. PH = định mức trên TP (hoặc ghi đè waste); ĐV = TP + PH.
+ * Zipper = ĐV × giá (đã theo TP/N khi có chia).
+ * Phủ mờ: chèn dòng Lật mặt ngay sau In (VL/khổ copy In; chi phí = 0).
+ * Có chia: chèn dòng Chia trước Làm túi; TP Chia = ĐV túi; ĐV Chia = TP Chia/N; khổ = khổ chia.
    */
   export function lapDongVatLieuNangCao(
   result: CalculateResult,
@@ -563,7 +607,7 @@ function layTpVaKhoNguonChia(
   const tienBangKeo = coBangKeo ? so(result?.tapeTotal) : 0;
   const tienQuai = coQuai ? so(result?.handleTotal) : 0;
 
-  // TP/khổ nguồn chia (dòng Chia chèn sau; Làm túi không còn lấy ĐV = TP Chia)
+  // Khổ trước chia (fallback); mét Chia neo từ ĐV Làm túi khi có túi
   const { khoTruoc: khoTruocSom } = layTpVaKhoNguonChia([], uniRows ?? [], result);
 
   const rows: DongVatLieuNangCao[] = (uniRows ?? []).flatMap(row => {
@@ -670,8 +714,8 @@ function layTpVaKhoNguonChia(
     }
     // Công đoạn gia công ngoài: CP gia công (costCPSX) cộng vào thành tiền CPNVL
     const cpGiaCongNgoai = row.isOutsourced ? so(row.costCPSX) : 0;
-    // Làm túi: gộp phụ kiện; TP neo SL×bước÷hình (hoặc ghi đè meters); PH→ĐV.
-    // Có chia: khổ = khổ chia; mét túi độc lập TP Chia (không lấy ĐV = TP Chia).
+    // Làm túi: gộp phụ kiện; TP neo (SL×bước)÷hình hoặc ÷N khi chia; PH→ĐV.
+    // Có chia: khổ = khổ chia; sau đó dòng Chia neo TP = ĐV túi.
     if (row.rowKey === 'cut' && !laMang) {
       const thanhPhamTui = layThanhPhamLamTui({
         result,
@@ -742,16 +786,28 @@ function layTpVaKhoNguonChia(
   });
 
   // Chèn dòng Chia sau ghép / trước Làm túi (cùng ĐK Table 2)
+  // Có túi: TP Chia = ĐV Làm túi; ĐV Chia = TP Chia / N.
+  // Màng: TP = TP nguồn × N; ĐV = TP nguồn.
   if (coChia) {
     const { tpNguon, khoTruoc } = layTpVaKhoNguonChia(rows, uniRows ?? [], result);
-    const tpChia = tpNguon * soPtChia;
-    if (tpChia > 0 || tpNguon > 0) {
+    const dongTui = rows.find(r => r.rowKey === 'cut');
+    const dvTui = dongTui != null ? Math.max(0, so(dongTui.dauVaoNVL)) : 0;
+    let tpChia: number;
+    let dvChia: number;
+    if (dvTui > 0) {
+      tpChia = dvTui;
+      dvChia = tpChia / soPtChia;
+    } else {
+      tpChia = tpNguon * soPtChia;
+      dvChia = tpNguon;
+    }
+    if (tpChia > 0 || dvChia > 0 || tpNguon > 0) {
       const cauTrucHieuLuc = ghepCauTrucTuDongVatLieu(rows);
       const dongChia = taoDongChiaNangCao({
         vatLieu: cauTrucHieuLuc || String(result?.structureText ?? '').trim() || '—',
         khoTruoc: khoTruoc || khoTruocSom,
         khoChia: khoChiaM,
-        dauVaoNvl: tpNguon,
+        dauVaoNvl: dvChia,
         thanhPhamChia: tpChia,
       });
       const idxCut = rows.findIndex(r => r.rowKey === 'cut');
@@ -945,7 +1001,7 @@ export function lapDongNhanCongDien(
     ), ['chia'], isGc ? undefined : overrides, isGc));
   }
 
-  // làm túi — TG = setup + ĐV NVL / tốc độ; ĐV = TP+PH (TP neo đơn, không × N chia)
+  // làm túi — TG = setup + ĐV NVL / tốc độ; ĐV = TP+PH (TP neo đơn: có chia ÷ N)
   if (!laMang && !laGc('bag')) {
     const setupTui = chonSetupMayTui(tg.bag, bagType, hasZipper, cutStepM);
     const tocDoTui = chonTocDoMayTui(tg.bag, cutStepM);
@@ -1057,17 +1113,14 @@ export function tinhKetQuaNangCaoHieuLuc(params: {
   const sourceOv = adminDangHoatDong ? saleOverrides : {};
   const hasAnyOverride = Object.keys(activeOv).length > 0;
 
-  // Chỉ neo cut + lan ÷N khi ✎ mét/PH túi (cut đã là khổ hẹp).
-  // Đổi VL/giá thôi: giữ mét engine — không ÷N trên cut engine (~nửa).
-  const coGhiDeMetCat =
-    activeOv.cut?.meters !== undefined || activeOv.cut?.waste !== undefined;
-  const uniChoGhiDe = coGhiDeMetCat
-    ? chuanHoaMetCatUniRows(uniRows, result, constants, activeOv)
-    : uniRows;
-  const lanNguoc = coGhiDeMetCat ? layLanNguocMetTuResult(result) : undefined;
-  const dongDaXuLy: UniRow[] = hasAnyOverride
-    ? xuLyDongGhiDe(uniChoGhiDe, sourceOv, activeOv, undefined, lanNguoc).rows
-    : uniRows;
+  // Túi + chia: luôn neo cut + lan ÷N (TP ghép = ĐV túi/N). ✎ VL/giá vẫn lan.
+  const dongDaXuLy = chuanBiUniRowsNangCao({
+    uniRows,
+    result,
+    hangSo: constants,
+    sourceOv,
+    activeOv: hasAnyOverride ? activeOv : {},
+  });
 
   const dongVatLieu = lapDongVatLieuNangCao(
     result,

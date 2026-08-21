@@ -7,6 +7,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 import React from 'react';
 import {
+  chuanBiUniRowsNangCao,
   lapDongNhanCongDien,
   lapDongVatLieuNangCao,
   tinhTongNangCao,
@@ -68,10 +69,11 @@ export default function BangDacTaNangCao({
   constants: AppConstants;
   materials?: Material[];
 }) {
-  const dongVatLieu = React.useMemo(
-    () => lapDongVatLieuNangCao(result, uniRows, constants, materials),
-    [result, uniRows, constants, materials],
-  );
+  const dongVatLieu = React.useMemo(() => {
+    // Túi + chia: neo cut + lan ÷N (cùng nguồn với Sale/Admin / giá NC)
+    const uni = chuanBiUniRowsNangCao({ uniRows, result, hangSo: constants });
+    return lapDongVatLieuNangCao(result, uni, constants, materials);
+  }, [result, uniRows, constants, materials]);
   const dongNhanCongDien = React.useMemo(
     () => lapDongNhanCongDien(result, constants),
     [result, constants],

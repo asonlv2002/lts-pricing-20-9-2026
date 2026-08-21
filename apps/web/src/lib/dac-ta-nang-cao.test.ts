@@ -2,6 +2,7 @@
 // Chạy: pnpm --filter web exec tsx src/lib/dac-ta-nang-cao.test.ts
 import {
   chonNhomMuc,
+  chuanBiUniRowsNangCao,
   chuanHoaMetCatUniRows,
   tinhCpMucDungMoiIn,
   tinhCpKeoDungMoiGhep,
@@ -692,8 +693,8 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Có chia N=2: Chia vẫn TP nguồn×N; Làm túi neo SL×bước (độc lập TP Chia)
-  const tpTui = 10000 * 0.4;
+  // Có chia N=2: Làm túi neo (SL×bước)÷N; Chia TP = ĐV túi; ĐV Chia = TP/N
+  const tpTui = (10000 * 0.4) / 2;
   const phTui = tpTui / 3000 * 20 + 100;
   const dvTui = tpTui + phTui;
   const rN2 = taoResult({
@@ -713,11 +714,19 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     'có chia Table 1: In → ghép → Chia → Làm túi',
   );
 
+  const dongTuiN2 = rowsN2.find(r => r.congDoan === 'Làm túi')!;
+  eq(dongTuiN2.vatLieu, 'Zipper', 'N=2: vật liệu Zipper');
+  approx(dongTuiN2.thanhPham!, tpTui, 'Làm túi có chia: TP = SL×bước÷N');
+  approx(dongTuiN2.phiHao!, phTui, 'Làm túi: PH = định mức trên TP');
+  approx(dongTuiN2.dauVaoNVL!, dvTui, 'Làm túi: ĐV = TP + PH');
+  approx(dongTuiN2.khoMang!, 0.3, 'Làm túi có chia: khổ = khổ chia');
+  approx(dongTuiN2.thanhTienNVL!, dvTui * 378, 'N=2: zipper = ĐV × giá 378');
+
   const dongChia = rowsN2.find(r => r.congDoan === 'Chia')!;
   eq(dongChia.rowKey, 'chia', 'Chia: rowKey chia');
   eq(dongChia.vatLieu, 'MPET 12//LLDPE 60', 'Chia: vật liệu = structureText');
-  approx(dongChia.thanhPham!, 8420 * 2, 'Chia: TP = TP ghép × N');
-  approx(dongChia.dauVaoNVL!, 8420, 'Chia: ĐV = TP nguồn (không × N)');
+  approx(dongChia.thanhPham!, dvTui, 'Chia: TP = ĐV Làm túi');
+  approx(dongChia.dauVaoNVL!, dvTui / 2, 'Chia: ĐV = TP Chia / N');
   approx(dongChia.phiHao!, 0, 'Chia: phi hao = 0');
   approx(dongChia.khoMang!, 0.3, 'Chia: khoMang = khổ chia m');
   assert(String(dongChia.khoMangLabel ?? '').includes('→'), 'Chia: khổ label có mũi tên');
@@ -737,21 +746,13 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(dongChia.cpMucKeo!, 0, 'Chia: CP mực = 0');
   approx(dongChia.thanhTienMucKeo!, 0, 'Chia: TT mực = 0');
 
-  const dongTuiN2 = rowsN2.find(r => r.congDoan === 'Làm túi')!;
-  eq(dongTuiN2.vatLieu, 'Zipper', 'N=2: vật liệu Zipper');
-  approx(dongTuiN2.thanhPham!, tpTui, 'Làm túi có chia: TP = SL×bước (không = TP Chia)');
-  approx(dongTuiN2.phiHao!, phTui, 'Làm túi: PH = định mức trên TP');
-  approx(dongTuiN2.dauVaoNVL!, dvTui, 'Làm túi: ĐV = TP + PH');
-  approx(dongTuiN2.khoMang!, 0.3, 'Làm túi có chia: khổ = khổ chia');
-  approx(dongTuiN2.thanhTienNVL!, dvTui * 378, 'N=2: zipper = ĐV × giá 378 (không ×N)');
-
   const tongN2 = tinhTongNangCao(rowsN2, []);
   const tongKhongChia = tinhTongNangCao(rowsN2.filter(r => r.congDoan !== 'Chia'), []);
   approx(tongN2.tongVatLieu, tongKhongChia.tongVatLieu, 'Chia chi phí 0 → tổng VL không đổi');
 }
 
 {
-  // Có chia + numImages>1 → vẫn SL×bước (không ÷ hình)
+  // Có chia + numImages>1 → vẫn ÷N (không ÷ hình)
   const rChiaHinh = taoResult({
     zipperTotal: 0, tapeTotal: 0, handleTotal: 0,
     input: {
@@ -761,12 +762,12 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   });
   const dongTuiHinh = lapDongVatLieuNangCao(rChiaHinh, taoUniRows(), taoHangSo())
     .find(r => r.congDoan === 'Làm túi')!;
-  approx(dongTuiHinh.thanhPham!, 10000 * 0.4, 'có chia + 2 hình: TP = SL×bước (không ÷2)');
+  approx(dongTuiHinh.thanhPham!, (10000 * 0.4) / 2, 'có chia + 2 hình: TP = SL×bước÷N (không ÷ hình)');
 }
 
 {
-  // Có chia + GC slit → không dòng Chia; Làm túi vẫn neo SL×bước
-  const tpTui = 10000 * 0.4;
+  // Có chia + GC slit → dòng Chia GC; Làm túi neo (SL×bước)÷N
+  const tpTui = (10000 * 0.4) / 2;
   const phTui = tpTui / 3000 * 20 + 100;
   const rGc = taoResult({
     zipperTotal: 0,
@@ -784,7 +785,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   assert(dongChiaGc != null, 'GC slit: dòng Chia HIỆN (chỉ có isGiaCongNgoai=true)');
   assert(dongChiaGc.isGiaCongNgoai === true, 'GC slit: dòng Chia có isGiaCongNgoai=true');
   const dongTui = rowsGc.find(r => r.congDoan === 'Làm túi')!;
-  approx(dongTui.thanhPham!, tpTui, 'GC slit: TP = SL×bước');
+  approx(dongTui.thanhPham!, tpTui, 'GC slit: TP = SL×bước÷N');
   approx(dongTui.dauVaoNVL!, tpTui + phTui, 'GC slit: ĐV = TP+PH');
   approx(dongTui.phiHao!, phTui, 'GC slit: PH định mức trên TP');
 }
@@ -904,6 +905,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
       cutStep: 0.4,
       hasZipper: false,
       hasDivide: true,
+      divideElements: 2,
     },
   });
   const rowsChia = lapDongNhanCongDien(rChia, taoHangSo());
@@ -918,14 +920,14 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(dongChia.thanhTienNhanCong, dongChia.thoiGianPhut! * 736, 'chia: thành tiền NC');
   approx(dongChia.thanhTienDien, dongChia.thoiGianPhut! * 1000, 'chia: thành tiền điện');
 
-  // làm túi + có chia: met = TP neo + PH (không ×N)
-  const metTuiNeo = 4000 + 4000 / 3000 * 20 + 100;
+  // làm túi + có chia N=2: met = (SL×bước)÷N + PH
+  const metTuiNeo = 2000 + 2000 / 3000 * 20 + 100;
   const dongTuiChia = rowsChia[3];
-  approx(dongTuiChia.thoiGianPhut!, 90 + metTuiNeo / 60, 'làm túi + có chia: met = TP+PH neo');
+  approx(dongTuiChia.thoiGianPhut!, 90 + metTuiNeo / 60, 'làm túi + có chia: met = TP÷N + PH');
 }
 
 {
-  // Mét túi = TP neo (SL×bước) + PH; không × divideElements; SL khác → met khác
+  // Mét túi = TP neo (SL×bước÷N khi chia) + PH; SL/N khác → met khác
   const rN2 = taoResult({
     cutMeters: 25000,
     cutWaste: 267,
@@ -953,13 +955,14 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   const t2 = lapDongNhanCongDien(rN2, taoHangSo()).find(r => r.congDoan === 'làm túi')!;
   const t4 = lapDongNhanCongDien(rN4, taoHangSo()).find(r => r.congDoan === 'làm túi')!;
   const t0 = lapDongNhanCongDien(rNoChia, taoHangSo()).find(r => r.congDoan === 'làm túi')!;
-  // bước 0,5m → 50 m/phút; TP = qty×0.5; PH = TP/3000×20+100
-  const met10k = 10000 * 0.5 + (10000 * 0.5) / 3000 * 20 + 100;
-  const met50k = 50000 * 0.5 + (50000 * 0.5) / 3000 * 20 + 100;
-  approx(t2.thoiGianPhut!, 90 + met10k / 50, 'làm túi N=2: met = TP+PH (không ×2)');
-  approx(t4.thoiGianPhut!, 90 + met50k / 50, 'làm túi SL 50k: met theo SL×bước');
-  approx(t0.thoiGianPhut!, 90 + met10k / 50, 'làm túi không chia: cùng met 10k');
-  approx(t2.thoiGianPhut!, t0.thoiGianPhut!, 'chia N không đổi mét túi khi cùng SL×bước');
+  // bước 0,5m → 50 m/phút; có chia TP = qty×0.5÷N; không chia TP = qty×0.5
+  const met10kChia2 = (10000 * 0.5) / 2 + ((10000 * 0.5) / 2) / 3000 * 20 + 100;
+  const met50kChia4 = (50000 * 0.5) / 4 + ((50000 * 0.5) / 4) / 3000 * 20 + 100;
+  const met10kNoChia = 10000 * 0.5 + (10000 * 0.5) / 3000 * 20 + 100;
+  approx(t2.thoiGianPhut!, 90 + met10kChia2 / 50, 'làm túi N=2: met = (SL×bước)÷2 + PH');
+  approx(t4.thoiGianPhut!, 90 + met50kChia4 / 50, 'làm túi SL 50k N=4: met = (SL×bước)÷4 + PH');
+  approx(t0.thoiGianPhut!, 90 + met10kNoChia / 50, 'làm túi không chia: met = SL×bước + PH');
+  assert(t2.thoiGianPhut! < t0.thoiGianPhut!, 'có chia N=2 → mét túi nhỏ hơn không chia (cùng SL)');
 }
 
 {
@@ -1215,8 +1218,8 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(dongTui.thanhPham!, 40000, 'NC: túi TP=40000');
   approx(dongTui.dauVaoNVL!, 40000 + ph40, 'NC: túi ĐV');
   approx(dongGhep.thanhPham!, (40000 + ph40) / 2, 'NC: ghép TP = ĐV túi ÷ 2');
-  approx(dongChia.dauVaoNVL!, dongGhep.thanhPham!, 'NC: Chia ĐV = TP ghép');
-  approx(dongChia.thanhPham!, Number(dongGhep.thanhPham) * 2, 'NC: Chia TP = TP ghép × 2 (không 80k từ lan 1:1)');
+  approx(dongChia.thanhPham!, dongTui.dauVaoNVL!, 'NC: Chia TP = ĐV Làm túi');
+  approx(dongChia.dauVaoNVL!, Number(dongTui.dauVaoNVL) / 2, 'NC: Chia ĐV = TP Chia / N');
   assert(dongChia.thanhPham! < 50000, 'NC: Chia TP không ~80k');
   // In.TP = Đầu vào ghép; Lật mặt = Đầu vào ghép
   approx(dongIn.thanhPham!, dongGhep.dauVaoNVL!, 'NC: In TP = Đầu vào ghép');
@@ -1226,8 +1229,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // 8.3d có chia + chỉ đổi VL (không ✎ mét túi) → không ÷N (cut engine lan 1:1)
-  // Fixture: cut 9070+280=9350 → ghép/in theo 9350, KHÔNG 9350/2
+  // 8.3d có chia + chỉ đổi VL (không ✎ mét túi) → vẫn neo cut + lan ÷N
   const rChia = taoResult({
     input: {
       productType: 'tui', numColors: 4, quantity: 10000, cutStep: 0.4, hasZipper: false,
@@ -1236,22 +1238,58 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     zipperTotal: 0, tapeTotal: 0, handleTotal: 0,
   });
   const ovVl: OverrideTable = { print: { materialId: 'PA15', mat: 'PA 15 mic' } };
-  const { rows: uniOv } = xuLyDongGhiDe(taoUniRows(), {}, ovVl, undefined, undefined);
+  const uniOv = chuanBiUniRowsNangCao({
+    uniRows: taoUniRows(),
+    result: rChia,
+    hangSo: taoHangSo(),
+    activeOv: ovVl,
+  });
+  const tpTui = (10000 * 0.4) / 2;
+  const phTui = tpTui / 3000 * 20 + 100;
+  const dvTui = tpTui + phTui;
   const ghep = uniOv.find(r => r.rowKey === 'lam-2')!;
   const inn = uniOv.find(r => r.rowKey === 'print')!;
-  const cutDv = 9070 + 280;
-  approx(ghep.meters, cutDv, 'chỉ đổi VL: TP ghép = ĐV cut engine (1:1, không ÷2)');
-  approx(inn.meters, ghep.meters + ghep.waste, 'chỉ đổi VL: TP in = ĐV ghép (1:1)');
-  assert(ghep.meters > cutDv / 2 + 100, 'chỉ đổi VL: không bị ÷ N');
+  approx(ghep.meters, dvTui / 2, 'chỉ đổi VL + chia: TP ghép = ĐV túi ÷ N');
+  approx(inn.meters, ghep.meters + ghep.waste, 'chỉ đổi VL + chia: TP in = ĐV ghép');
 
   const dong = lapDongVatLieuNangCao(rChia, uniOv, taoHangSo(), [], ovVl);
   const dongGhep = dong.find(d => d.rowKey === 'lam-2' && d.congDoan !== '')!;
   const dongChia = dong.find(d => d.congDoan === 'Chia')!;
   const dongTui = dong.find(d => d.congDoan === 'Làm túi')!;
-  approx(dongGhep.thanhPham!, cutDv, 'NC chỉ VL: ghép theo cut engine 1:1');
-  approx(dongChia.thanhPham!, cutDv * 2, 'NC chỉ VL: Chia TP = ghép×N (không nửa)');
-  approx(dongTui.thanhPham!, 10000 * 0.4, 'NC chỉ VL: túi neo SL×bước');
-  assert(dongChia.thanhPham! > 15000, 'NC chỉ VL: Chia không ~nửa do ÷N nhầm');
+  approx(dongTui.thanhPham!, tpTui, 'NC chỉ VL: túi neo SL×bước÷N');
+  approx(dongTui.dauVaoNVL!, dvTui, 'NC chỉ VL: ĐV túi');
+  approx(dongChia.thanhPham!, dvTui, 'NC chỉ VL: Chia TP = ĐV túi');
+  approx(dongChia.dauVaoNVL!, dvTui / 2, 'NC chỉ VL: Chia ĐV = TP/N');
+  approx(dongGhep.thanhPham!, dvTui / 2, 'NC chỉ VL: ghép TP = ĐV Chia');
+  approx(dongGhep.thanhPham!, dongChia.dauVaoNVL!, 'NC chỉ VL: ghép TP === Chia ĐV');
+}
+
+{
+  // 8.3e có chia, không override → vẫn lan ÷N (mặc định bảng NC)
+  const rChia = taoResult({
+    input: {
+      productType: 'tui', numColors: 4, quantity: 100000, cutStep: 0.25, hasZipper: false,
+      hasDivide: true, divideElements: 2, divideWidthMm: 300, spreadWidth: 0.62,
+    },
+    zipperTotal: 0, tapeTotal: 0, handleTotal: 0,
+  });
+  const uni = chuanBiUniRowsNangCao({
+    uniRows: taoUniRows(),
+    result: rChia,
+    hangSo: taoHangSo(),
+  });
+  const tpTui = (100000 * 0.25) / 2;
+  const phTui = tpTui / 3000 * 20 + 100;
+  const dvTui = tpTui + phTui;
+  const dong = lapDongVatLieuNangCao(rChia, uni, taoHangSo());
+  const dongTui = dong.find(d => d.congDoan === 'Làm túi')!;
+  const dongChia = dong.find(d => d.congDoan === 'Chia')!;
+  const dongGhep = dong.find(d => d.rowKey === 'lam-2' && d.congDoan !== '')!;
+  approx(dongTui.thanhPham!, tpTui, 'mặc định chia: TP túi = SL×bước÷N');
+  approx(dongTui.dauVaoNVL!, dvTui, 'mặc định chia: ĐV túi');
+  approx(dongChia.thanhPham!, dvTui, 'mặc định chia: Chia TP = ĐV túi');
+  approx(dongChia.dauVaoNVL!, dvTui / 2, 'mặc định chia: Chia ĐV = TP/N');
+  approx(dongGhep.thanhPham!, dvTui / 2, 'mặc định chia: Ghép TP = ĐV Chia');
 }
 
 {

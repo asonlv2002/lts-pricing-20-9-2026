@@ -1,10 +1,9 @@
 import type { AppConstants, CalculateResult, HistoryItem, Material, OverrideTable, ProfitRow } from './types';
 import { tinhBaoGia, lapDongSanXuat, xuLyDongGhiDe, tinhGiaHieuLuc } from './manager-calculation';
 import {
-  chuanHoaMetCatUniRows,
+  chuanBiUniRowsNangCao,
   lapDongNhanCongDien,
   lapDongVatLieuNangCao,
-  layLanNguocMetTuResult,
   tinhKetQuaNangCaoHieuLuc,
   tinhTongNangCao,
   type DongNhanCongDien,
@@ -730,16 +729,14 @@ function exportPricingDetailNangCaoToA4(
   };
 
   const { activeOv, sourceOv, nhanNguon } = chonOverrideDacTaNangCao(item);
-  const coGhiDeMetCat =
-    activeOv.cut?.meters !== undefined || activeOv.cut?.waste !== undefined;
   const hasAnyOv = ovCoData(activeOv);
-  const uniCho = coGhiDeMetCat
-    ? chuanHoaMetCatUniRows(uniRows, r0, hangSo, activeOv)
-    : uniRows;
-  const lanNguoc = coGhiDeMetCat ? layLanNguocMetTuResult(r0) : undefined;
-  const dongXuLy = hasAnyOv
-    ? xuLyDongGhiDe(uniCho, sourceOv, activeOv, undefined, lanNguoc).rows
-    : uniRows;
+  const dongXuLy = chuanBiUniRowsNangCao({
+    uniRows,
+    result: r0,
+    hangSo,
+    sourceOv,
+    activeOv: hasAnyOv ? activeOv : {},
+  });
   const dongVL = lapDongVatLieuNangCao(
     r0,
     dongXuLy,

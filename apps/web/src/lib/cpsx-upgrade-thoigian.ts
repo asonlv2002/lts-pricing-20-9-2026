@@ -17,9 +17,8 @@ import type {
  *   Máy ghép: setup = lần đầu + (số lần ghép − 1) × lần tiếp; chạy = mét ÷ tốc độ.
  *   Máy chia: setup/tốc độ theo rule loại SP; chạy = mét ÷ rule.speed (ghép cuối / in).
  *   Máy túi:  setup theo loại túi + Đầu vào NVL làm túi ÷ tốc độ TB.
- *             ĐV = TP + PH; TP = có chia ? SL×bước : (SL×bước)÷hình.
- *             Không × divideElements.
- *             KHÔNG dùng số túi, không dùng mét ghép cuối.
+ *             ĐV = TP + PH; TP = có chia ? (SL×bước)÷N : (SL×bước)÷hình.
+ *             N = số phần tử chia. KHÔNG dùng số túi, không dùng mét ghép cuối.
  */
 export interface KetQuaThoiGian {
   tongPhut: number;
@@ -199,9 +198,9 @@ export function soPhanTuChiaLamTui(input: {
 
 /**
  * Mét chạy máy làm túi (nâng cao) = Đầu vào NVL làm túi = TP + PH.
- * TP: có chia → SL×bước; không chia → (SL×bước)÷hình (fallback cutMeters).
+ * TP: có chia → (SL×bước)÷N; không chia → (SL×bước)÷hình (fallback cutMeters).
  * PH = cutWasteA/B/C trên TP (fallback cutWaste / layers.cut.waste).
- * Không nhân divideElements. Không dùng mét ghép cuối / in / số túi.
+ * Không dùng mét ghép cuối / in / số túi.
  */
 export function metLamTuiTuDauVaoNVL(result: {
   cutMeters?: number;
@@ -227,7 +226,9 @@ export function metLamTuiTuDauVaoNVL(result: {
   const soHinh = Math.max(1, so(input?.numImages) || 1);
   let tp = 0;
   if (input?.productType !== 'mang' && qty > 0 && buoc > 0) {
-    tp = input?.hasDivide === true ? qty * buoc : (qty * buoc) / soHinh;
+    tp = input?.hasDivide === true
+      ? (qty * buoc) / soPhanTuChiaLamTui(input)
+      : (qty * buoc) / soHinh;
   } else if (result.cutMeters != null) {
     tp = Math.max(0, so(result.cutMeters));
   } else {
@@ -309,7 +310,7 @@ export function tinhThoiGianMayChia(
 /**
  * TG máy làm túi (nâng cao):
  *   TG = setup(loại túi) + Đầu vào NVL làm túi / tốc độ TB (m/phút)
- * `metChay` = metLamTuiTuDauVaoNVL(result) = (cutMeters+cutWaste) × số phần tử.
+ * `metChay` = metLamTuiTuDauVaoNVL(result) = TP+PH (có chia: TP = SL×bước÷N).
  * Tốc độ: speedMPerMin; fallback bagsPerMinute (data cũ) rồi 50.
  */
 export function tinhThoiGianMayTui(
