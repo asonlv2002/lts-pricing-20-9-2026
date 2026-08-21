@@ -11,11 +11,18 @@ import {
   PDFDownloadLink,
 } from "@react-pdf/renderer";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
+import { useCalculatorStore } from "../store/CuaHangTinhGia";
 import { boSoCauTruc } from "../lib/format-structure";
 import {
   estimateQuoteGroupHeight,
   paginateQuoteGroups,
 } from "../lib/bao-gia-pagination";
+import {
+  tinhBaoGia,
+  lapDongSanXuat,
+  xuLyDongGhiDe,
+  tinhGiaHieuLuc,
+} from "../lib/manager-calculation";
 
 const LOGO_SRC = "/logo-LTS-LA.jpg";
 
@@ -181,6 +188,63 @@ const styles = StyleSheet.create({
     borderRight: BORDER,
     borderBottom: BORDER,
   },
+  // ── Override tables ──
+  overrideSection: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTop: "2px solid #333",
+  },
+  overrideTitle: {
+    fontSize: 12,
+    fontWeight: 700,
+    marginBottom: 8,
+    textAlign: "center",
+  },
+  overrideTable: {
+    width: "100%",
+    borderLeft: BORDER,
+    borderTop: BORDER,
+  },
+  overrideHeader: {
+    flexDirection: "row",
+    backgroundColor: BLUE,
+    color: "#fff",
+  },
+  overrideHeaderCell: {
+    color: "#fff",
+    fontWeight: 700,
+    textAlign: "center",
+  },
+  overrideRow: {
+    flexDirection: "row",
+  },
+  overrideCell: {
+    padding: "2 3",
+    borderRight: BORDER,
+    borderBottom: BORDER,
+    fontSize: 9,
+  },
+  overrideTotalRow: {
+    flexDirection: "row",
+    padding: "3 4",
+    borderRight: BORDER,
+    borderBottom: BORDER,
+    fontSize: 10,
+  },
+  overrideChanged: {
+    backgroundColor: "#fef2f2",
+  },
+  overrideDeltaRow: {
+    padding: "4 6",
+    fontSize: 10,
+    fontWeight: 700,
+  },
+  overrideDeltaUp: {
+    backgroundColor: "#fef2f2",
+  },
+  overrideDeltaDown: {
+    backgroundColor: "#ecfdf5",
+  },
 });
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -314,6 +378,10 @@ interface HistoryItem {
   quoteProducts?: QuoteProductLine[];
   input: any;
   tiers?: QuoteTier[];
+  saleOverrides?: any;
+  adminOverrides?: any;
+  saleProfitRatePct?: number;
+  adminProfitRatePct?: number;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -846,8 +914,153 @@ function BaoGiaPage({
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// OVERRIDE TABLE PAGE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+function OverrideTablePage({
+  title,
+  icon,
+  rows,
+  grandTotal,
+  totalChanged,
+  profitRatePct,
+  defaultProfitRatePct,
+  chenhLech,
+  donViText,
+  lopChenhLech,
+  quantity,
+}: {
+  title: string;
+  icon: string;
+  rows: { stage: string; name: string; width: string; meters: string; waste: string; inputVL: string; cpsx: string; cpvl: string }[];
+  grandTotal: number;
+  totalChanged: boolean;
+  profitRatePct: number;
+  defaultProfitRatePct: number;
+  chenhLech: number;
+  donViText: string;
+  lopChenhLech: string;
+  quantity: number;
+}) {
+  const effectivePct = profitRatePct || defaultProfitRatePct;
+  const ln = (grandTotal / Math.max(quantity, 1)) * (effectivePct / 100) * Math.max(quantity, 1);
+  const chenhLechText = `${chenhLech >= 0 ? "+" : ""}${dinhDangSo(chenhLech)}`;
+
+  return (
+    <Page size="A4" style={styles.page}>
+      <View style={styles.coHeader}>
+        <Image src={LOGO_SRC} style={styles.coLogo} />
+        <View style={styles.coText}>
+          <Text style={styles.coName}>
+            CÔNG TY CỔ PHẦN THƯƠNG MẠI VÀ SẢN XUẤT BAO BÌ LAI TRƯỜNG SƠN- LONG AN
+          </Text>
+          <Text style={styles.coAddr}>
+            SỐ 36, ĐƯỜNG ẤP 7B, XÃ MỸ YÊN, TỈNH TÂY NINH, VIỆT NAM
+          </Text>
+        </View>
+      </View>
+
+      <View style={styles.overrideSection}>
+        <Text style={styles.overrideTitle}>
+          {icon} {title} ({rows.length} thay đổi)
+        </Text>
+        <View style={styles.overrideTable}>
+          <View style={styles.overrideHeader}>
+            <View style={[styles.overrideCell, styles.overrideHeaderCell, { width: "10%" }]}><Text>C.đoạn</Text></View>
+            <View style={[styles.overrideCell, styles.overrideHeaderCell, { width: "15%" }]}><Text>Vật liệu</Text></View>
+            <View style={[styles.overrideCell, styles.overrideHeaderCell, { width: "10%" }]}><Text>Khổ (m)</Text></View>
+            <View style={[styles.overrideCell, styles.overrideHeaderCell, { width: "10%" }]}><Text>TP (m)</Text></View>
+            <View style={[styles.overrideCell, styles.overrideHeaderCell, { width: "10%" }]}><Text>Hao (m)</Text></View>
+            <View style={[styles.overrideCell, styles.overrideHeaderCell, { width: "10%" }]}><Text>Đ.vào NVL (m)</Text></View>
+            <View style={[styles.overrideCell, styles.overrideHeaderCell, { width: "12%" }]}><Text>CPSX (đ/m²)</Text></View>
+            <View style={[styles.overrideCell, styles.overrideHeaderCell, { width: "13%" }]}><Text>CPVL (đ)</Text></View>
+          </View>
+          {rows.map((row, i) => (
+            <View key={i} style={styles.overrideRow}>
+              <View style={[styles.overrideCell, { width: "10%" }]}><Text>{row.stage}</Text></View>
+              <View style={[styles.overrideCell, { width: "15%" }]}><Text>{row.name}</Text></View>
+              <View style={[styles.overrideCell, { width: "10%" }]}><Text>{row.width}</Text></View>
+              <View style={[styles.overrideCell, { width: "10%" }]}><Text>{row.meters}</Text></View>
+              <View style={[styles.overrideCell, { width: "10%" }]}><Text>{row.waste}</Text></View>
+              <View style={[styles.overrideCell, { width: "10%" }]}><Text>{row.inputVL}</Text></View>
+              <View style={[styles.overrideCell, { width: "12%" }]}><Text>{row.cpsx}</Text></View>
+              <View style={[styles.overrideCell, { width: "13%" }]}><Text>{row.cpvl}</Text></View>
+            </View>
+          ))}
+          <View style={totalChanged ? [styles.overrideTotalRow, styles.overrideChanged] : styles.overrideTotalRow}>
+            <Text>TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN — {dinhDangSo(grandTotal)} đ</Text>
+          </View>
+          <View style={styles.overrideTotalRow}>
+            <Text>Tỷ lệ LN: {effectivePct}% — LN: {dinhDangSo(Math.round(ln))} đ</Text>
+          </View>
+          <View style={[styles.overrideTotalRow, styles.overrideDeltaRow, lopChenhLech === "override-price-delta-row--up" ? styles.overrideDeltaUp : styles.overrideDeltaDown]}>
+            <Text>
+              CHÊNH LỆCH SO VỚI GIÁ GỐC: <Text style={{ fontWeight: 700 }}>{chenhLechText} ĐỒNG / {donViText}</Text>
+            </Text>
+          </View>
+        </View>
+      </View>
+    </Page>
+  );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // MAIN DOCUMENT
 // ═══════════════════════════════════════════════════════════════════════════════
+
+function buildOverrideRows(
+  rows: Array<{
+    stage: string;
+    mat: string | null;
+    width: number;
+    meters: number;
+    waste: number;
+    inputVL: number;
+    cpsx: number;
+    costMat: number | null;
+    materialDetails?: Array<{ name: string; width: number }>;
+  }>,
+) {
+  const out: {
+    stage: string;
+    name: string;
+    width: string;
+    meters: string;
+    waste: string;
+    inputVL: string;
+    cpsx: string;
+    cpvl: string;
+  }[] = [];
+
+  for (const row of rows) {
+    if (row.materialDetails?.length) {
+      for (const detail of row.materialDetails) {
+        out.push({
+          stage: row.stage,
+          name: detail.name || '—',
+          width: detail.width.toFixed(3),
+          meters: row.meters.toFixed(0),
+          waste: row.waste.toFixed(0),
+          inputVL: row.inputVL.toFixed(0),
+          cpsx: row.cpsx.toFixed(0),
+          cpvl: row.costMat != null ? row.costMat.toLocaleString('vi-VN') : '—',
+        });
+      }
+    } else {
+      out.push({
+        stage: row.stage,
+        name: row.mat && row.mat !== '-' ? row.mat : '—',
+        width: row.width.toFixed(3),
+        meters: row.meters.toFixed(0),
+        waste: row.waste.toFixed(0),
+        inputVL: row.inputVL.toFixed(0),
+        cpsx: row.cpsx.toFixed(0),
+        cpvl: row.costMat != null ? row.costMat.toLocaleString('vi-VN') : '—',
+      });
+    }
+  }
+  return out;
+}
 
 interface BaoGiaPdfDocumentProps {
   item: HistoryItem;
@@ -864,6 +1077,9 @@ export function BaoGiaPdfDocument({
   item,
   customerInfo,
 }: BaoGiaPdfDocumentProps) {
+  const materials = useCalculatorStore((s) => s.materials);
+  const constants = useCalculatorStore((s) => s.constants);
+  const profitTable = useCalculatorStore((s) => s.profitTable);
   const products: QuoteProductLine[] = item.quoteProducts?.length
     ? item.quoteProducts
     : [
@@ -916,6 +1132,83 @@ export function BaoGiaPdfDocument({
       (total, group) => total + group.tiers.length + (group.cylinder ? 1 : 0),
       0,
     );
+  }
+
+  // ── Bảng thay đổi từ Sale / Admin (nếu có) ────────────────────────────────────
+  const coSaleOv = !!item.saleOverrides && Object.keys(item.saleOverrides).length > 0;
+  const coAdminOv = !!item.adminOverrides && Object.keys(item.adminOverrides).length > 0;
+
+  if (coSaleOv || coAdminOv) {
+    const r = tinhBaoGia(item.input, materials, constants, profitTable);
+    if (r) {
+      const { uniRows } = lapDongSanXuat(r, constants);
+      const donViText = r.input.productType === 'mang' ? 'MÉT VUÔNG' : 'TÚI';
+      const defaultPct = +(r.profitRate * 100).toFixed(1);
+      const saleOv = item.saleOverrides || {};
+      const adminOv = item.adminOverrides || {};
+
+      if (coSaleOv) {
+        const { rows, grandTotal } = xuLyDongGhiDe(uniRows, {}, saleOv);
+        const effPricing = tinhGiaHieuLuc({
+          result: r, uniRows,
+          saleOverrides: {},
+          adminOverrides: saleOv,
+          saleProfitRatePct: 0,
+          adminProfitRatePct: item.saleProfitRatePct ?? 0,
+          profitTable, constants, materials,
+        });
+        const chenhLech = effPricing.effCostPerUnit - r.costPerUnit;
+        const totalChanged = Math.abs(grandTotal - r.totalProductionCost) > 1;
+        const lopChenhLech = chenhLech >= 0 ? 'override-price-delta-row--up' : 'override-price-delta-row--down';
+        pages.push(
+          <OverrideTablePage
+            key="sale-override"
+            title="THAY ĐỔI TỪ SALE"
+            icon="💼"
+            rows={buildOverrideRows(rows)}
+            grandTotal={grandTotal}
+            totalChanged={totalChanged}
+            profitRatePct={item.saleProfitRatePct ?? 0}
+            defaultProfitRatePct={defaultPct}
+            chenhLech={Math.round(chenhLech)}
+            donViText={donViText}
+            lopChenhLech={lopChenhLech}
+            quantity={item.quantity}
+          />,
+        );
+      }
+
+      if (coAdminOv) {
+        const { rows, grandTotal } = xuLyDongGhiDe(uniRows, saleOv, adminOv);
+        const effPricing = tinhGiaHieuLuc({
+          result: r, uniRows,
+          saleOverrides: saleOv,
+          adminOverrides: adminOv,
+          saleProfitRatePct: 0,
+          adminProfitRatePct: item.adminProfitRatePct ?? 0,
+          profitTable, constants, materials,
+        });
+        const chenhLech = effPricing.effCostPerUnit - r.costPerUnit;
+        const totalChanged = Math.abs(grandTotal - r.totalProductionCost) > 1;
+        const lopChenhLech = chenhLech >= 0 ? 'override-price-delta-row--up' : 'override-price-delta-row--down';
+        pages.push(
+          <OverrideTablePage
+            key="admin-override"
+            title="THAY ĐỔI TỪ ADMIN"
+            icon="👑"
+            rows={buildOverrideRows(rows)}
+            grandTotal={grandTotal}
+            totalChanged={totalChanged}
+            profitRatePct={item.adminProfitRatePct ?? 0}
+            defaultProfitRatePct={defaultPct}
+            chenhLech={Math.round(chenhLech)}
+            donViText={donViText}
+            lopChenhLech={lopChenhLech}
+            quantity={item.quantity}
+          />,
+        );
+      }
+    }
   }
 
   return (
