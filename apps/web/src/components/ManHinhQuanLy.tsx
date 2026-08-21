@@ -7,8 +7,7 @@ import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { TECHNICAL_TABLE_MOBILE_LABELS as MOBILE_LABELS } from '../lib/technical-table-mobile-labels';
 import type { AppConstants, CalculateResult, Material, OverrideRowKey, OverrideFields, OverrideTable, HistoryItem } from '../lib/types';
 import { kiemTraMaKhachHang, laKhachHangThuocQuyen, type KhachHangCoTen } from '../lib/customer-api';
-import { coQuyenCoVanBangTinh } from '../lib/permissions';
-import { 
+import { coQuyenCoVanBangTinh, coQuyenQuanLyKhachHang, type PolicyCode } from '../lib/permissions';import { 
   LoiServiceLts,
   taoPricingSheetService, 
   capNhatPricingSheetResultService, 
@@ -1173,9 +1172,13 @@ const buttonLabel = loadedItem
   const [phanBoDangNhap, datPhanBoDangNhap] = React.useState<{ field: 'company' | 'commission' | null; value: string }>({ field: null, value: '' });
 
   // Sale chỉ được lưu khi khách hàng thuộc danh sách mình quản lý (hoặc khách vừa tạo
-  // mới — vốn đã được gán sellerId/managers của sale). Admin không bị giới hạn.
+  // mới — vốn đã được gán sellerId/managers của sale). Admin / CUSTOMER_MANAGER không bị giới hạn.
   // Trả true nếu hợp lệ, ngược lại alert + trả false.
   const kiemTraKhachHangQuyen = () => {
+    const st = dungCuaHangTinhGia.getState();
+    const policies = st.nguoiDungHienTai?.policies ?? [];
+    // CUSTOMER_MANAGER / PRICING_SHEET_ADVISOR: làm việc với mọi khách hàng.
+    if (coQuyenQuanLyKhachHang(policies) || coQuyenCoVanBangTinh(policies)) return true;
     if (laKhachHangThuocQuyen(input.customer, loadCustomers() as KhachHangCoTen[], role, idNhanVienHienTai)) return true;
     alert(input.customer.trim()
       ? 'Bạn chỉ được lưu cho khách hàng mình quản lý. Vui lòng chọn từ gợi ý hoặc tạo khách mới.'

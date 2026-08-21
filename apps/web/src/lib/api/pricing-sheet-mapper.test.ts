@@ -54,8 +54,12 @@ console.log('\n== mapHistoryToPricingSheet ==');
   assert('pricingSheetName lay tu productName', payload.pricingSheetName === 'Túi gạo ST25', payload.pricingSheetName);
   assert('customerCodeName giu nguyen tham so', payload.customerCodeName === 'ACME_01', payload.customerCodeName);
   assert('inputValue giu nguyen reference input', payload.inputValue === item.input);
-  assert('saleResult = saleOverrides', payload.saleResult === item.saleOverrides);
-  assert('masterResult = adminOverrides', payload.masterResult === item.adminOverrides);
+  assert('saleResult = { overrides: saleOverrides }',
+    (payload.saleResult as { overrides?: unknown })?.overrides === item.saleOverrides,
+    JSON.stringify(payload.saleResult));
+  assert('masterResult = { overrides: adminOverrides }',
+    (payload.masterResult as { overrides?: unknown })?.overrides === item.adminOverrides,
+    JSON.stringify(payload.masterResult));
   assert('khong gui note khi rong', payload.note === undefined);
 }
 
@@ -86,7 +90,10 @@ console.log('\n== mapHistoryToPricingSheet ==');
   // Chi mot ben co override.
   const item = makeItem({ saleOverrides: { print: { matPrice: 1 } } });
   const payload = mapHistoryToPricingSheet(item, 'ACME_01');
-  assert('chi sale co override', payload.saleResult === item.saleOverrides && payload.masterResult === undefined);
+  assert('chi sale co override',
+    (payload.saleResult as { overrides?: unknown })?.overrides === item.saleOverrides &&
+      payload.masterResult === undefined,
+    JSON.stringify(payload));
 }
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);

@@ -44,6 +44,7 @@ import {
 } from '../lib/khach-hang-route';
 import { dieuHuongModuleApp, type MaModuleMenu } from '../lib/menu-route';
 import { tieuDeKhongTimThay } from '../lib/support-route';
+import { coQuyenQuanLyKhachHang, type PolicyCode } from '../lib/permissions';
 import { CustomerManagersPicker } from './customer/CustomerManagersPicker';
 import ImportKhachHangPanel from './customer/ImportKhachHangPanel';
 import NutSaoChepLienKet from './NutSaoChepLienKet';
@@ -176,10 +177,13 @@ const statusLabel = (c: Customer) => c.isLocked ? 'Đã khóa' : c.status === 'a
 const normalize = (v?: string | null) => (v ?? '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const isAssignedSeller = (c: Customer, sellerId?: string) => !!sellerId && (c.sellerId === sellerId || c.secondarySellerId === sellerId);
 const canEdit = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || (role === 'sale' && isAssignedSeller(c, sellerId) && !c.isLocked);
-const canViewContact = (role: Role, c: Customer, sellerId?: string) => role === 'admin' || isAssignedSeller(c, sellerId);
+const canViewContact = (role: Role, c: Customer, sellerId?: string) =>
+  role === 'admin' || isAssignedSeller(c, sellerId);
 const canLock = (role: Role) => role === 'admin';
 const isCustomerManager = (c: Customer, userId?: string) => !!userId && (c.managers ?? []).some(manager => manager.userId === userId);
 const canUpdateCustomerRecord = (c: Customer, userId?: string) => isCustomerManager(c, userId);
+const canUpdateCustomerWithPolicies = (c: Customer, userId: string | undefined, policies: PolicyCode[] | undefined) =>
+  canUpdateCustomerRecord(c, userId) || coQuyenQuanLyKhachHang(policies ?? []);
 const CUSTOMER_EDITABLE_FIELDS: (keyof Customer)[] = ['customerCode', 'companyName', 'taxCode', 'contactName', 'phone', 'email', 'invoiceAddress', 'address', 'region', 'customerGroup', 'customerType', 'sellerId', 'secondarySellerId', 'status', 'crmStatus', 'isLocked', 'notes', 'contactNotes', 'assignmentNote'];
 function isCustomerFormUnchanged(form: Customer, original: Customer): boolean {
   if (JSON.stringify(form.managers ?? []) !== JSON.stringify(original.managers ?? [])) return false;
@@ -678,9 +682,9 @@ function CustomerForm({ customer, role, currentSellerId, customers = [], token, 
 }
 
 // ── Slide-in Detail Panel ────────────────────────────────────────────────────
-function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustomer, onClose, onEdit, onNavigate }: {
+function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustomer, coQuyenQuanLy, onClose, onEdit, onNavigate }: {
   customer: Customer; role: Role; currentSellerId?: string;
-  canUpdateCustomer: boolean;
+  canUpdateCustomer: boolean; coQuyenQuanLy?: boolean;
   onClose: () => void; onEdit: () => void;
   onNavigate: (module: string, filter: string, quoteMode?: boolean) => void;
 }) {
@@ -695,7 +699,7 @@ function CustomerDetailPanel({ customer, role, currentSellerId, canUpdateCustome
   const crmStatus = getCrmStatus(customer, related);
   const crmCfg = CRM_STATUS_CONFIG[crmStatus];
   const pct = Math.round((filled / total) * 100);
-  const duocXemLienHe = canViewContact(role, customer, currentSellerId);
+  const duocXemLienHe = coQuyenQuanLy || canViewContact(role, customer, currentSellerId);
   const giaTriAn = 'Ẩn do chưa được phân công';
   const summary = managerSummary(customer);
   const versions = sapXepPhienBanKhachHang(customer.versions ?? []);
@@ -902,9 +906,9 @@ function AssignSellerDialog({ customer, token, saving = false, onSave, onClose }
 }
 
 // ── Customer Card ────────────────────────────────────────────────────────────
-function CustomerCard({ customer, role, currentSellerId, canUpdateCustomer, relatedQuotes = [], onView, onEdit, onToggleLock, onAssign, txCardOpen, setTxCardOpen, onNavigate }: {
+function CustomerCard({ customer, role, currentSellerId, canUpdateCustomer, coQuyenQuanLy, relatedQuotes = [], onView, onEdit, onToggleLock, onAssign, txCardOpen, setTxCardOpen, onNavigate }: {
   customer: Customer; role: Role; currentSellerId?: string; relatedQuotes?: { quoteStatus?: string; chotGia?: number }[];
-  canUpdateCustomer: boolean;
+  canUpdateCustomer: boolean; coQuyenQuanLy?: boolean;
   onView: () => void; onEdit: () => void;
   onToggleLock: () => void; onAssign: () => void;
   txCardOpen: string | null; setTxCardOpen: (id: string | null) => void;
@@ -916,7 +920,7 @@ function CustomerCard({ customer, role, currentSellerId, canUpdateCustomer, rela
   const crmCfg = CRM_STATUS_CONFIG[crmStatus];
   const pct = Math.round((filled / total) * 100);
   const hasWarning = missing.length > 0;
-  const duocXemLienHe = canViewContact(role, customer, currentSellerId);
+  const duocXemLienHe = coQuyenQuanLy || canViewContact(role, customer, currentSellerId);
   const summary = managerSummary(customer);
 
   return (
@@ -1629,6 +1633,8 @@ export default function ModuleKhachHang({
   const isAuthenticated = dungCuaHangTinhGia(s => s.isAuthenticated);
   const nguoiDungHienTai = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
   const coQuyenQuanLyNguoiPhuTrach = !!nguoiDungHienTai?.policies.includes('CUSTOMER_MANAGER');
+  const coTheXemLienHe = (c: Customer) =>
+    coQuyenQuanLyNguoiPhuTrach || canViewContact(role, c, currentSellerId);
 
   // Close transaction dropdown on click outside
   useEffect(() => {
@@ -2058,7 +2064,8 @@ export default function ModuleKhachHang({
           customer={detail}
           role={role}
           currentSellerId={currentSellerId}
-          canUpdateCustomer={canUpdateCustomerRecord(detail, nguoiDungHienTai?.id)}
+          canUpdateCustomer={canUpdateCustomerWithPolicies(detail, nguoiDungHienTai?.id, nguoiDungHienTai?.policies)}
+          coQuyenQuanLy={coQuyenQuanLyNguoiPhuTrach}
           onClose={dongPanelChiTiet}
           onEdit={() => openEdit(detail)}
           onNavigate={handleNavigate}
@@ -2399,7 +2406,7 @@ export default function ModuleKhachHang({
               {filtered.map(c => {
                 const { missing } = getCompleteness(c);
                 const crmCfg = CRM_STATUS_CONFIG[getCrmStatus(c)];
-                const duocXemLienHe = canViewContact(role, c, currentSellerId);
+                const duocXemLienHe = coTheXemLienHe(c);
                 const managerNames = managerNamesForTable(c);
                 return (
                 <tr key={c.id} className="crm2-table-row" onClick={() => c.isDraft ? openEdit(c) : openDetail(c)}>
@@ -2451,7 +2458,7 @@ export default function ModuleKhachHang({
                         size={15}
                       />
                       {coQuyenQuanLyNguoiPhuTrach && <button className="crm2-btn-icon" title="Phân công" onClick={() => openAssign(c)}><Briefcase size={15}/></button>}
-                      {canLock(role) && (
+                      {(canLock(role) || coQuyenQuanLyNguoiPhuTrach) && (
                         <button className="crm2-btn-icon" title={c.isLocked ? 'Mở khóa' : 'Khóa'} onClick={() => setConfirm({
                           title: c.isLocked ? 'Mở khóa?' : 'Khóa?',
                           desc: c.isLocked ? `${displayName(c)} sẽ được mở khóa.` : `${displayName(c)} sẽ bị khóa.`,

@@ -3,6 +3,8 @@
 // ═══════════════════════════════════════════════════════════════════════════
 import type { PolicyCode } from './api/service-lts';
 
+export type { PolicyCode } from './api/service-lts';
+
 const NHOM_MENU_POLICIES: Record<string, PolicyCode[]> = {
   overview: [],
   pricing_quote: [],
@@ -93,6 +95,16 @@ export function coQuyenDuyet(policies: PolicyCode[]): boolean {
 
 // Người dùng có quyền cố vấn bảng tính giá (chỉ sửa Admin, không sửa Sale).
 export function coQuyenCoVanBangTinh(policies: PolicyCode[]): boolean {
+  return policies.includes('PRICING_SHEET_ADVISOR');
+}
+
+// Người dùng có quyền quản lý người phụ trách khách hàng (mọi khách hàng).
+export function coQuyenQuanLyKhachHang(policies: PolicyCode[]): boolean {
+  return policies.includes('CUSTOMER_MANAGER');
+}
+
+// Người dùng có thể xem/duyệt toàn bộ bảng tính giá trên hệ thống.
+export function coQuyenXemTatCaBangTinh(policies: PolicyCode[]): boolean {
   return policies.includes('PRICING_SHEET_ADVISOR');
 }
 

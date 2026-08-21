@@ -29,6 +29,9 @@ assert(!labels.includes('Quản lý sản phẩm'), 'product manager policy shou
 assert(!labels.includes('Quản lý sản phẩm (legacy)'), 'product manager legacy label should be hidden');
 assert(!labels.includes('Cố vấn bảng tính giá'), 'pricing advisor policy should be hidden from role form');
 
+assert(labels.includes('Quản lý người phụ trách khách hàng'), 'customer manager policy should appear in role form');
+assert(ids.includes('CUSTOMER_MANAGER'), 'CUSTOMER_MANAGER choice missing');
+
 const expanded = expandRoleFormPolicyChoiceCodes([
   'ACCOUNT_MANAGER',
   'ROLE_MANAGER',
