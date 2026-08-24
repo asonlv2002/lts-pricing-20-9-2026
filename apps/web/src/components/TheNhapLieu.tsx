@@ -641,6 +641,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
           <input
             className="form-input"
             placeholder="Tên khách hàng"
+            data-customer-input="true"
             value={input.customer}
             onFocus={() => datDangFocusKhachHang(true)}
            onBlur={xuLyRoiONhapKhachHang}
