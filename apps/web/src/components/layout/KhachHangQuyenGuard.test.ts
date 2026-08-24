@@ -3,8 +3,7 @@
  * Chay: pnpm --filter web exec tsx src/components/layout/KhachHangQuyenGuard.test.ts
  */
 
-import { shouldShowKhachHangNotice } from './KhachHangQuyenGuard';
-import type { KhachHangCoTen } from '../../lib/customer-api';
+import { shouldShowKhachHangNotice, type KhachHangForGuard } from './KhachHangQuyenGuard';
 
 let passed = 0;
 let failed = 0;
@@ -14,19 +13,17 @@ function assert(name: string, condition: boolean, detail = '') {
   else { console.error(`  FAIL ${name}${detail ? ' - ' + detail : ''}`); failed++; }
 }
 
-const KH_DO_MINH = {
-  id: 'C1',
+const KH_DO_MINH: KhachHangForGuard = {
   customerCode: 'KH001',
   companyName: 'Công ty ABC',
   managers: [{ userId: 'sale-A', fullName: 'Sale A' }],
-} as unknown as KhachHangCoTen;
+};
 
-const KH_NGUOI_KHAC = {
-  id: 'C2',
+const KH_NGUOI_KHAC: KhachHangForGuard = {
   customerCode: 'KH002',
   companyName: 'Công ty XYZ',
   managers: [{ userId: 'sale-B', fullName: 'Nguyễn Văn B' }],
-} as unknown as KhachHangCoTen;
+};
 
 const ALL_KH = [KH_DO_MINH, KH_NGUOI_KHAC];
 const ack = () => new Set<string>();
@@ -140,12 +137,11 @@ assert(
   }) === null,
 );
 
-const KH_MOI_TAO = {
-  id: 'C3',
+const KH_MOI_TAO: KhachHangForGuard = {
   customerCode: 'KH003',
   companyName: 'KH Sale A Moi',
   managers: [{ userId: 'sale-A', fullName: 'Sale A' }],
-} as unknown as KhachHangCoTen;
+};
 assert(
   '10. KH vua tao trong session (managers chua currentSellerId) -> null',
   shouldShowKhachHangNotice({
