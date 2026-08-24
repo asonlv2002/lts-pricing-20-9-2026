@@ -14334,3 +14334,190 @@ body {
     font-size: 1rem;
   }
 }
+
+/* ========================================================================
+   Popup notice khi chọn KH ngoài quyền (KhachHangQuyenGuard)
+   ======================================================================== */
+
+.lts-kh-popup-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(2px);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: lts-kh-popup-fade 0.18s ease-out;
+}
+
+.lts-kh-popup {
+  z-index: 61;
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lts-kh-popup-card {
+  width: 100%;
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: lts-kh-popup-slide 0.22s ease-out;
+}
+
+.lts-kh-popup-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.lts-kh-popup-title {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #b91c1c;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.lts-kh-popup-close {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted, #64748b);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  line-height: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lts-kh-popup-close:hover {
+  background: var(--surface-hover, rgba(15, 23, 42, 0.06));
+  color: var(--text, #0f172a);
+}
+
+.lts-kh-popup-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.lts-kh-popup-kh-card {
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: var(--surface-hover, rgba(15, 23, 42, 0.03));
+}
+
+.lts-kh-popup-kh-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.lts-kh-popup-kh-meta {
+  font-size: 0.78rem;
+  color: var(--muted, #64748b);
+  margin-top: 4px;
+}
+
+.lts-kh-popup-manager {
+  font-size: 0.86rem;
+  color: var(--text, #0f172a);
+}
+
+.lts-kh-popup-manager b {
+  color: #b45309;
+}
+
+.lts-kh-popup-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border, #e2e8f0);
+  padding-top: 14px;
+  margin-top: 4px;
+}
+
+.lts-kh-popup-btn {
+  appearance: none;
+  border: 1px solid var(--border, #e2e8f0);
+  background: var(--surface, #fff);
+  color: var(--text, #0f172a);
+  font-size: 0.88rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.lts-kh-popup-btn:hover {
+  background: var(--surface-hover, rgba(15, 23, 42, 0.05));
+}
+
+.lts-kh-popup-btn--primary {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+}
+
+.lts-kh-popup-btn--primary:hover {
+  background: #991b1b;
+  border-color: #991b1b;
+}
+
+.lts-kh-popup-btn--ghost {
+  background: transparent;
+  border-color: var(--border, #e2e8f0);
+  color: var(--text, #0f172a);
+}
+
+@keyframes lts-kh-popup-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes lts-kh-popup-slide {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+
+@media (max-width: 767px) {
+  .lts-kh-popup-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .lts-kh-popup-card {
+    border-radius: 16px 16px 0 0;
+    padding: 16px 14px 20px;
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  .lts-kh-popup-actions {
+    flex-direction: column-reverse;
+  }
+
+  .lts-kh-popup-btn {
+    width: 100%;
+  }
+}
