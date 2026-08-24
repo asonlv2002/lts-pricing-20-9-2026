@@ -1,5 +1,6 @@
 import type { AppConstants, CalculateResult, HistoryItem, Material, OverrideTable, ProfitRow } from './types';
 import { tinhBaoGia, lapDongSanXuat, xuLyDongGhiDe, tinhGiaHieuLuc } from './manager-calculation';
+import type { UniRow } from './manager-calculation';
 import {
   chuanBiUniRowsNangCao,
   lapDongNhanCongDien,
@@ -512,27 +513,38 @@ function ovCoData(ov?: OverrideTable | null): boolean {
   return !!ov && Object.keys(ov).length > 0;
 }
 
-/** Admin > Sale > Gốc — khớp giá hiệu lực NC + chữ user (ưu tiên bảng sửa). */
-function chonOverrideDacTaNangCao(item: HistoryItem): {
-  activeOv: OverrideTable;
+/**
+ * Dựng 1 khối "ĐẶC TẢ ... (NÂNG CAO)" theo cặp source/active override.
+ * Gọi riêng cho từng nguồn: BẢN GỐC ({} / {}), Sale ({} / sale), Admin (sale / admin).
+ */
+function xuatBangDacTaNangCao(params: {
+  r0: CalculateResult;
+  uniRows: UniRow[];
+  hangSo: AppConstants;
+  materials: Material[];
   sourceOv: OverrideTable;
+  activeOv: OverrideTable;
   nhanNguon: string;
-} {
-  if (ovCoData(item.adminOverrides)) {
-    return {
-      activeOv: item.adminOverrides ?? {},
-      sourceOv: item.saleOverrides ?? {},
-      nhanNguon: '👑 Theo bảng Admin',
-    };
-  }
-  if (ovCoData(item.saleOverrides)) {
-    return {
-      activeOv: item.saleOverrides ?? {},
-      sourceOv: {},
-      nhanNguon: '💼 Theo bảng Sale',
-    };
-  }
-  return { activeOv: {}, sourceOv: {}, nhanNguon: 'Bảng gốc' };
+}): string {
+  const { r0, uniRows, hangSo, materials, sourceOv, activeOv, nhanNguon } = params;
+  const hasAnyOv = ovCoData(activeOv);
+  const dongXuLy = chuanBiUniRowsNangCao({
+    uniRows,
+    result: r0,
+    hangSo,
+    sourceOv,
+    activeOv: hasAnyOv ? activeOv : {},
+  });
+  const dongVL = lapDongVatLieuNangCao(
+    r0,
+    dongXuLy,
+    hangSo,
+    materials,
+    hasAnyOv ? activeOv : undefined,
+  );
+  const dongNCD = lapDongNhanCongDien(r0, hangSo, hasAnyOv ? activeOv : undefined);
+  const tong = tinhTongNangCao(dongVL, dongNCD);
+  return buildDacTaNangCaoHtml(dongVL, dongNCD, tong, nhanNguon);
 }
 
 function dinhDangOMet(n: number | null | undefined, label?: string, soLe = 0): string {
@@ -728,29 +740,6 @@ function exportPricingDetailNangCaoToA4(
     profitRate: r.profitRate,
   };
 
-  const { activeOv, sourceOv, nhanNguon } = chonOverrideDacTaNangCao(item);
-  const hasAnyOv = ovCoData(activeOv);
-  const dongXuLy = chuanBiUniRowsNangCao({
-    uniRows,
-    result: r0,
-    hangSo,
-    sourceOv,
-    activeOv: hasAnyOv ? activeOv : {},
-  });
-  const dongVL = lapDongVatLieuNangCao(
-    r0,
-    dongXuLy,
-    hangSo,
-    materials,
-    hasAnyOv ? activeOv : undefined,
-  );
-  const dongNCD = lapDongNhanCongDien(
-    r0,
-    hangSo,
-    hasAnyOv ? activeOv : undefined,
-  );
-  const tong = tinhTongNangCao(dongVL, dongNCD);
-
   let pagesHtml = '';
   pagesHtml += `<div class="page">
     <h1>CHI TIẾT BẢNG TÍNH GIÁ <span class="nc-badge">NÂNG CẤP</span></h1>
@@ -759,10 +748,26 @@ function exportPricingDetailNangCaoToA4(
     ${buildGia(r, itemGia, hangSo, profitTable)}
   </div>`;
 
+  // Luôn có BẢN GỐC — cho đối chiếu khi có ghi đè Admin/Sale.
   pagesHtml += `<div class="page page--nc">
-    <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName}</div>
-    ${buildDacTaNangCaoHtml(dongVL, dongNCD, tong, nhanNguon)}
+    <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName} (BẢN GỐC)</div>
+    ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: {}, activeOv: {}, nhanNguon: 'BẢN GỐC' })}
   </div>`;
+
+  // Từng bảng thay đổi (giống bản cũ): Sale, rồi Admin chồng trên Sale — chỉ khi có dữ liệu.
+  if (ovCoData(saleOv)) {
+    pagesHtml += `<div class="page page--nc">
+      <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName} (SAU THAY ĐỔI SALE)</div>
+      ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: {}, activeOv: saleOv, nhanNguon: '💼 Theo bảng Sale' })}
+    </div>`;
+  }
+
+  if (ovCoData(adminOv)) {
+    pagesHtml += `<div class="page page--nc">
+      <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName} (SAU THAY ĐỔI ADMIN)</div>
+      ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: saleOv, activeOv: adminOv, nhanNguon: '👑 Theo bảng Admin' })}
+    </div>`;
+  }
 
   moCuaSoHtml(
     `Chi tiết NC ${item.productName}`,

@@ -15,13 +15,15 @@ function assert(cond: unknown, msg: string) {
 console.log('pricing-detail-export NC branch');
 
 assert(src.includes('exportPricingDetailNangCaoToA4'), 'có hàm export NC');
-assert(src.includes('chonOverrideDacTaNangCao'), 'có chọn nguồn đặc tả Admin>Sale>Gốc');
+assert(src.includes('xuatBangDacTaNangCao'), 'có hàm dựng đặc tả theo từng nguồn ghi đè');
 assert(src.includes('buildDacTaNangCaoHtml'), 'có HTML đặc tả NC');
 assert(src.includes('buildHeroNangCao'), 'có hero giá chốt/đề xuất');
 assert(src.includes('ĐẶC TẢ KỸ THUẬT'), 'nhãn đặc tả NC trong HTML');
 assert(src.includes('Làm túi') || src.includes('làm túi') || src.includes('lapDongVatLieuNangCao'), 'dùng engine NC');
 assert(src.includes("item.isNangCap || item.input?.isNangCap"), 'exportPricingDetailToA4 nhánh isNangCap');
+assert(src.includes("nhanNguon: 'BẢN GỐC'"), 'luôn có bảng BẢN GỐC khi xuất NC');
 assert(src.includes('Theo bảng Sale') && src.includes('Theo bảng Admin'), 'nhãn nguồn Sale/Admin');
+assert(src.includes('ovCoData(adminOv)'), 'xuất bảng Admin khi có ghi đè');
 assert(src.includes('tinhKetQuaNangCaoHieuLuc'), 'giá từ NC hiệu lực');
 assert(src.includes('apCpsxNangCaoVaoHangSo'), 'áp pin CPSX NC');
 assert(src.includes('table-nc') && src.includes('table-layout: fixed'), 'bảng NC fixed layout chống tràn');
