@@ -887,7 +887,7 @@ function AssignSellerDialog({ customer, token, saving = false, onSave, onClose }
   const [error, setError] = useState('');
   return (
     <div className="crm2-overlay crm2-overlay--open" onClick={onClose}>
-      <div className="crm2-confirm-dialog" style={{ maxWidth: 720 }} onClick={e => e.stopPropagation()}>
+      <div className="crm2-confirm-dialog crm2-confirm-dialog--assign" style={{ maxWidth: 720 }} onClick={e => e.stopPropagation()}>
         <h3>Phân công người phụ trách — {displayName(customer)}</h3>
         <p style={{ marginBottom: 16 }}>{customer.customerCode} · Chọn nhiều tài khoản active làm người phụ trách.</p>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -3060,6 +3060,35 @@ const CRM2_STYLES = `
 .crm2-confirm-dialog h3 { margin: 0 0 8px; font-size: 16px; }
 .crm2-confirm-dialog p { margin: 0 0 20px; font-size: 13px; color: var(--muted, #6b7280); }
 .crm2-confirm-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* Dialog Phân công — neo top vừa phải, danh sách cuộn, nút lưu dính đáy */
+.crm2-confirm-dialog--assign {
+  margin: 48px auto 0;
+  width: 100%;
+  max-height: calc(100dvh - 64px);
+  padding: 22px 22px 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.crm2-confirm-dialog--assign > h3,
+.crm2-confirm-dialog--assign > p { flex-shrink: 0; }
+.crm2-confirm-dialog--assign > div:first-of-type {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.crm2-confirm-dialog--assign .crm2-confirm-actions {
+  flex-shrink: 0;
+  margin-top: 14px;
+}
+.crm2-confirm-dialog--assign .crm2-manager-suggestions,
+.crm2-confirm-dialog--assign .crm2-manager-list {
+  max-height: 220px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
 
 /* Wizard */
 .crm2-wizard-wrap { max-width: 680px; margin: 0; }
