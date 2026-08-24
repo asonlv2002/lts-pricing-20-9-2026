@@ -174,7 +174,7 @@ export interface KhachHangCoTen extends CoNguoiPhuTrach {
 
 // Chuẩn hoá tên khách: bỏ dấu, viết thường, trim — phục vụ so khớp không phân
 // biệt dấu/hoa thường giữa `input.customer` và `customer.companyName`.
-function chuanHoaTenKhach(value: string): string {
+export function chuanHoaTenKhach(value: string): string {
   return value
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
