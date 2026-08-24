@@ -561,9 +561,10 @@ function buildDacTaNangCaoHtml(
 ): string {
   let t1 = '';
   for (const row of dongVL) {
+    const nhanDonViPhu = row.donViGiaNVL === 'm' ? ' đ/m' : row.donViGiaNVL === 'kg' ? '/kg' : '';
     const cpVl = row.cpVatLieu != null
-      ? `${dinhDangSoLe(row.cpVatLieu, 1)}${row.giaNVL != null && row.giaNVL > 0 ? `<br/><small>(${dinhDangSo(row.giaNVL)}/kg)</small>` : ''}`
-      : (row.giaNVL != null && row.giaNVL > 0 ? `(${dinhDangSo(row.giaNVL)}/kg)` : '—');
+      ? `${dinhDangSoLe(row.cpVatLieu, 1)}${row.giaNVL != null && row.giaNVL > 0 ? `<br/><small>(${dinhDangSo(row.giaNVL)}${nhanDonViPhu})</small>` : ''}`
+      : (row.giaNVL != null && row.giaNVL > 0 ? `(${dinhDangSo(row.giaNVL)}${nhanDonViPhu})` : '—');
     t1 += `<tr>
       <td class="left">${row.congDoan || ''}</td>
       <td class="left">${row.vatLieu || '—'}</td>

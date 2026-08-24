@@ -452,6 +452,21 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
     }
   };
 
+  // Local string state cho ô "Tỷ lệ LN" — cho phép hiển thị rỗng khi user xóa hết
+  const [giaTriTamPct, datGiaTriTamPct] = React.useState<string>('');
+  const phanTramHienThi = (() => {
+    if (giaTriTamPct !== '') return giaTriTamPct;
+    if (profitRatePct > 0) return String(profitRatePct);
+    return '0';
+  })();
+  const xuLyThayDoiPct = (raw: string) => {
+    datGiaTriTamPct(raw);
+    if (raw === '') { khiDatProfitRate(0); return; }
+    const so = Number(raw);
+    khiDatProfitRate(Number.isFinite(so) && so >= 0 ? so : 0);
+  };
+  React.useEffect(() => { datGiaTriTamPct(''); }, [profitRatePct]);
+
   return (
     <div className={`override-section override-section--${lopMau}`}>
       <div className="override-section-header">
@@ -603,8 +618,15 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                           className={`profit-rate-input${isOverridden ? ' profit-rate-input--overridden' : ''}`}
                           type="number"
                           step="0.1"
-                          value={profitRatePct > 0 ? profitRatePct : defaultProfitRatePct}
-                          onChange={(e) => khiDatProfitRate(Number(e.target.value) || 0)}
+                          value={phanTramHienThi}
+                          onChange={(e) => xuLyThayDoiPct(e.target.value)}
+                          onBlur={() => datGiaTriTamPct('')}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') {
+                              datGiaTriTamPct('');
+                              (e.currentTarget as HTMLInputElement).blur();
+                            }
+                          }}
                           placeholder={String(defaultProfitRatePct)}
                         />
                       ) : (
@@ -705,14 +727,26 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
   /** Sale: chỉ Bảng 1 + cụm tổng; Admin: đủ Bảng 2 (NC/điện chi tiết). */
   const hienBangNhanCongDien = lopMau === 'admin';
 
+  // Local string state cho ô "Tỷ lệ LN" — cho phép hiển thị rỗng khi user xóa hết
+  const [giaTriTamPct, datGiaTriTamPct] = React.useState<string>('');
+  const phanTramHienThi = (() => {
+    if (giaTriTamPct !== '') return giaTriTamPct;
+    if (profitRatePct > 0) return String(profitRatePct);
+    return '0';
+  })();
+  const xuLyThayDoiPct = (raw: string) => {
+    datGiaTriTamPct(raw);
+    if (raw === '') { khiDatProfitRate(0); return; }
+    const so = Number(raw);
+    khiDatProfitRate(Number.isFinite(so) && so >= 0 ? so : 0);
+  };
+  React.useEffect(() => { datGiaTriTamPct(''); }, [profitRatePct]);
+
   const timDongGoc = (rowKey: OverrideRowKey, chiTietIndex?: number) =>
     dongVatLieuGoc.find(d => d.rowKey === rowKey && (chiTietIndex === undefined || d.chiTietIndex === chiTietIndex));
 
   const hangTyLeLn = (duocSua || coThayDoi) ? (() => {
     const isOverridden = profitRatePct > 0;
-    const hienThiPct = isOverridden
-      ? profitRatePct
-      : (Number.isFinite(Number(defaultProfitRatePct)) ? Number(defaultProfitRatePct) : 0);
     return (
       <div className={`override-profit-rate-row override-profit-rate-row--${lopMau}${isOverridden ? ' override-profit-rate-row--overridden' : ''}`} style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 12px' }}>
         <span className="override-profit-label">
@@ -722,12 +756,19 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
               className={`profit-rate-input${isOverridden ? ' profit-rate-input--overridden' : ''}`}
               type="number"
               step="0.1"
-              value={hienThiPct}
-              onChange={(e) => khiDatProfitRate(Number(e.target.value) || 0)}
+              value={phanTramHienThi}
+              onChange={(e) => xuLyThayDoiPct(e.target.value)}
+              onBlur={() => datGiaTriTamPct('')}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  datGiaTriTamPct('');
+                  (e.currentTarget as HTMLInputElement).blur();
+                }
+              }}
               placeholder={String(defaultProfitRatePct)}
             />
           ) : (
-            <span className="profit-rate-value">{hienThiPct}%</span>
+            <span className="profit-rate-value">{phanTramHienThi}%</span>
           )}
           {duocSua && <span className="profit-rate-pct-suffix">%</span>}
         </span>
@@ -849,20 +890,27 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                   )}
                   {(() => {
                     const coCp = row.cpVatLieu != null;
-                    const giaKgHien = row.giaNVL != null && row.giaNVL > 0
-                      ? (ghiDeHienTai[row.rowKey]?.rawMatPrice ?? row.giaNVL)
-                      : (ghiDeHienTai[row.rowKey]?.rawMatPrice);
-                    const hienKg = giaKgHien != null && Number(giaKgHien) > 0;
+                    const donViPhu = row.donViGiaNVL;            // 'kg' | 'm' | null
+                    const giaPhuGoc = row.giaNVL;
+                    const giaPhuHien = giaPhuGoc != null && giaPhuGoc > 0
+                      ? (ghiDeHienTai[row.rowKey]?.rawMatPrice ?? giaPhuGoc)
+                      : ghiDeHienTai[row.rowKey]?.rawMatPrice;
+                    const hienPhu = giaPhuHien != null && Number(giaPhuHien) > 0;
                     const coDoiCp = ovDong?.matPrice !== undefined || ovDong?.rawMatPrice !== undefined;
-                    if (!coCp && !hienKg) {
+                    const nhanDonViPhu = donViPhu === 'm' ? ' đ/m' : donViPhu === 'kg' ? '/kg' : '';
+                    if (!coCp && !hienPhu) {
                       return oSoGc('—', laGc, { dataLabel: 'CP vật liệu (đ/m²)' });
                     }
                     if (laDongSynthetic || !suaT1) {
                       return oSoGc(
                         <span className="cp-vl-gop">
-                          <span className="cp-vl-gop__m2">{coCp ? dinhDangSo(row.cpVatLieu, 1) : '—'}</span>
-                          {hienKg && (
-                            <span className="cp-vl-gop__kg">({dinhDangSo(Number(giaKgHien), 0)}/kg)</span>
+                          {coCp && (
+                            <span className="cp-vl-gop__m2">{dinhDangSo(row.cpVatLieu, 1)}</span>
+                          )}
+                          {hienPhu && (
+                            <span className={donViPhu === 'm' ? 'cp-vl-gop__m' : 'cp-vl-gop__kg'}>
+                              ({dinhDangSo(Number(giaPhuHien), 0)}{nhanDonViPhu})
+                            </span>
                           )}
                         </span>,
                         laGc,
@@ -873,28 +921,28 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                       <td className={`num override-cell ${coDoiCp ? 'override-changed' : ''} ${laGc ? 'gc-cell' : ''}`} data-label="CP vật liệu (đ/m²)">
                         {laGc ? <span className="gc-cell__dot" title="Gia công" aria-label="Gia công" /> : null}
                         <span className="cp-vl-gop">
-                          {coCp ? (
+                          {coCp && (
                             <span className="cp-vl-gop__m2">
                               <OCoTheGhiDe khoaDong={row.rowKey} truong="matPrice"
                                 giaTriGoc={goc?.cpVatLieu ?? 0}
                                 giaTriGhiDe={ghiDeHienTai[row.rowKey]?.matPrice}
                                 duocSua={suaT1} khiDat={khiDat} soLe={1} inline laGiaCong={laGc} />
                             </span>
-                          ) : (
-                            <span className="cp-vl-gop__m2">—</span>
                           )}
-                          {(hienKg || (row.giaNVL != null && row.giaNVL > 0) || goc?.giaNVL != null) && (
-                            <span className="cp-vl-gop__kg">
+                          {hienPhu && (
+                            <span className={donViPhu === 'm' ? 'cp-vl-gop__m' : 'cp-vl-gop__kg'}>
                               <OCoTheGhiDe khoaDong={row.rowKey} truong="rawMatPrice"
                                 giaTriGoc={goc?.giaNVL ?? row.giaNVL ?? 0}
                                 giaTriGhiDe={ghiDeHienTai[row.rowKey]?.rawMatPrice}
                                 duocSua={suaT1} khiDat={khiDat} soLe={0} inline laGiaCong={laGc}
-                                hienThiTuyChinh={(n) => `(${dinhDangSo(n, 0)}/kg)`}
+                                hienThiTuyChinh={(n) => `(${dinhDangSo(n, 0)}${nhanDonViPhu})`}
                                 onAfterSet={(raw) => {
                                   if (raw === undefined) {
                                     khiDat(row.rowKey, 'matPrice', undefined);
                                     return;
                                   }
+                                  // Zipper (đ/m): chỉ lưu rawMatPrice, không quy đổi sang matPrice đ/m²
+                                  if (donViPhu === 'm') return;
                                   const matId = ghiDeHienTai[row.rowKey]?.materialId ?? goc?.materialId ?? row.materialId;
                                   const matName = ghiDeHienTai[row.rowKey]?.mat ?? goc?.vatLieu ?? row.vatLieu;
                                   const m = matId
@@ -1293,10 +1341,16 @@ const buttonLabel = loadedItem
     : null;
   const rHieuLuc = ketQuaNangCao ? ketQuaNangCao.result : r;
 
-  // Giá trị gốc từ engine (không bị ảnh hưởng bởi admin/sale override)
+  // Snapshot LN khi mở sheet đã lưu: thẻ "Lợi nhuận" phải giữ nguyên rate+amount
+  // dù admin có sửa bảng LN ở Cấu hình. Item cũ chưa có profitAmount → fallback live.
+  const laSheetDaLuu = !!loadedItem;
   const tongChiPhiSXHieuLuc = rHieuLuc.totalProductionCost;
-  const tyLeLoiNhuanHieuLuc = rHieuLuc.profitRate;
-  const tienLoiNhuanHieuLuc = rHieuLuc.profitAmount;
+  const tyLeLoiNhuanHieuLuc = laSheetDaLuu
+    ? (loadedItem!.profitRate ?? rHieuLuc.profitRate)
+    : rHieuLuc.profitRate;
+  const tienLoiNhuanHieuLuc = laSheetDaLuu
+    ? (loadedItem!.profitAmount ?? rHieuLuc.profitAmount)
+    : rHieuLuc.profitAmount;
   const giaVonDonViHieuLuc = rHieuLuc.costPerUnit;
 
   // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
@@ -1940,6 +1994,15 @@ const buttonLabel = loadedItem
                 <div className="stat-label">{hienThiGia.profitLabel}</div>
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
                   {dinhDangSo(tienLoiNhuanHieuLuc)}đ <span style={{fontSize: '0.85rem'}}>({dinhDangPhanTram(tyLeLoiNhuanHieuLuc)})</span>
+                  {laSheetDaLuu && (
+                    <span
+                      className="profit-snapshot-badge"
+                      title="Giá tại thời điểm lưu — không thay đổi khi admin sửa bảng lợi nhuận"
+                      aria-label="Snapshot lợi nhuận tại thời điểm lưu"
+                    >
+                      📌
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="stat-card cyan">

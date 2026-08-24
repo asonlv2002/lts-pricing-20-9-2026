@@ -150,13 +150,17 @@ export default function BangDacTaNangCao({
                     `highlight${row.dauVaoNvlLabel ? ' dac-ta-met-kho-cell' : ''}`,
                   )}
                   {oSoGcNangCao(
-                    row.cpVatLieu == null ? (
+                    row.cpVatLieu == null && (row.giaNVL == null || row.giaNVL <= 0) ? (
                       '—'
                     ) : (
                       <span className="cp-vl-gop">
-                        <span className="cp-vl-gop__m2">{dinhDangSo(row.cpVatLieu, 1)}</span>
+                        {row.cpVatLieu != null && (
+                          <span className="cp-vl-gop__m2">{dinhDangSo(row.cpVatLieu, 1)}</span>
+                        )}
                         {row.giaNVL != null && row.giaNVL > 0 && (
-                          <span className="cp-vl-gop__kg">({dinhDangSo(row.giaNVL, 0)}/kg)</span>
+                          <span className={row.donViGiaNVL === 'm' ? 'cp-vl-gop__m' : 'cp-vl-gop__kg'}>
+                            ({dinhDangSo(row.giaNVL, 0)}{row.donViGiaNVL === 'm' ? ' đ/m' : row.donViGiaNVL === 'kg' ? '/kg' : ''})
+                          </span>
                         )}
                       </span>
                     ),

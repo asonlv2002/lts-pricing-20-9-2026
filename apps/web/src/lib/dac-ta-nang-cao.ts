@@ -85,8 +85,8 @@ export interface DongVatLieuNangCao {
   phiHao: number | null;
   dauVaoNVL: number | null;
   giaNVL: number | null;
-  /** Đơn vị hiển thị của giaNVL — 'kg' cho vật liệu màng, null khi không áp dụng */
-  donViGiaNVL: 'kg' | null;
+  /** Đơn vị hiển thị của giaNVL — 'kg' cho vật liệu màng, 'm' cho zipper, null khi không áp dụng */
+  donViGiaNVL: 'kg' | 'm' | null;
   cpVatLieu: number | null;
   thanhTienNVL: number | null;
   /** CP mực in / dung môi / keo ghép (₫/m²) — null khi công đoạn không tiêu thụ */
@@ -755,8 +755,8 @@ function layTpVaKhoNguonChia(
         thanhPham: thanhPhamTui,
         phiHao: phiHaoTui,
         dauVaoNVL: dauVaoTui,
-        giaNVL: null,
-        donViGiaNVL: null,
+        giaNVL: coZipper ? giaZ : null,
+        donViGiaNVL: coZipper ? ('m' as const) : null,
         cpVatLieu: null,
         thanhTienNVL: thanhTienPhuKien,
         cpMucKeo: null,

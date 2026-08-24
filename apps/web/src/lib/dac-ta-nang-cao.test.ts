@@ -472,7 +472,8 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(dongTui.dauVaoNVL!, dvTui, 'làm túi: ĐV = TP + PH');
   approx(dongTui.thanhTienNVL!, dvTui * 378, 'làm túi: Đầu vào × giá zipper 378');
   eq(dongTui.cpMucKeo, null, 'làm túi: mực/keo = null');
-  eq(dongTui.giaNVL, null, 'làm túi: giá NVL kg = null');
+  approx(dongTui.giaNVL!, 378, 'làm túi có zipper: giaNVL = giá zipper 378 (đ/m)');
+  eq(dongTui.donViGiaNVL, 'm', 'làm túi có zipper: donViGiaNVL = m');
   assert(!rows.some(r => r.congDoan === '' && r.vatLieu?.includes('Zipper')), 'không còn dòng Zipper tách');
 }
 
@@ -690,6 +691,8 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   eq(dongTui.vatLieu, '-', 'không phụ kiện → vật liệu -');
   approx(dongTui.thanhTienNVL!, 0, 'không phụ kiện → thành tiền 0');
   approx(dongTui.dauVaoNVL!, dvTui, 'ĐV = TP neo + PH định mức');
+  eq(dongTui.giaNVL, null, 'không zipper → giaNVL = null');
+  eq(dongTui.donViGiaNVL, null, 'không zipper → donViGiaNVL = null');
 }
 
 {
@@ -836,10 +839,12 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 
 {
   // Không tìm thấy trong materials → fallback theo tên
+  // (rows[2] = Làm túi, vẫn có zipperTotal > 0 → giaNVL = 378, donViGiaNVL = 'm')
   const rows = lapDongVatLieuNangCao(taoResult(), taoUniRows(), taoHangSo(), []);
   approx(rows[0].giaNVL!, 55000, 'MPET fallback 55.000 ₫/kg');
   approx(rows[1].giaNVL!, 40000, 'LLDPE fallback 40.000 ₫/kg');
-  eq(rows[2].giaNVL, null, 'dòng chia (mat = "-") → giá NVL null');
+  approx(rows[2].giaNVL!, 378, 'Làm túi có zipper: giaNVL = giá zipper 378 đ/m');
+  eq(rows[2].donViGiaNVL, 'm', 'Làm túi có zipper: donViGiaNVL = m');
 }
 
 {

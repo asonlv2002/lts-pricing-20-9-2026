@@ -937,6 +937,8 @@ export interface HistoryItem {
   finalPrice: number;
   chotGia?: number;
   profitRate?: number;
+  /** Snapshot tiền lợi nhuận lúc lưu — dùng cho thẻ "Lợi nhuận" khi mở lại sheet */
+  profitAmount?: number;
   quoteStatus?: QuoteStatus;
   quoteCode?: string;
   isQuote?: boolean;
