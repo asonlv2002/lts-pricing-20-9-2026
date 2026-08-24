@@ -17,6 +17,7 @@ import DoiMatKhauModal from "../auth/DoiMatKhauModal";
 import DoiAnhDaiDienModal from "../auth/DoiAnhDaiDienModal";
 import DoiChuKyModal from "../auth/DoiChuKyModal";
 import DoiPinModal from "../auth/DoiPinModal";
+import KhachHangQuyenGuard from "./KhachHangQuyenGuard";
 import ModuleKhachHang from "../ModuleKhachHang";
 import ModuleBaoGia from "../ModuleBaoGia";
 import ModuleDuyetBaoGia from "../ModuleDuyetBaoGia";
@@ -2547,6 +2548,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {hienDoiPin && (
         <DoiPinModal dong={() => datHienDoiPin(false)} />
       )}
+      <KhachHangQuyenGuard />
     </div>
   );
 
