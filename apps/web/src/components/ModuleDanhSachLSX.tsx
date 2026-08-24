@@ -33,6 +33,7 @@ import { QrevStyleInjector } from './qrev-styles';
 import LsxPreviewModal from './LsxPreviewModal';
 import LsxPdfPreviewModal from './LsxPdfPreviewModal';
 import NhapPinDuyetModal from './auth/NhapPinDuyetModal';
+import NhapLyDoTruocPinModal from './auth/NhapLyDoTruocPinModal';
 import NutSaoChepLienKet from './NutSaoChepLienKet';
 import { taoUrlChiaSeLsx } from '../lib/lsx-route';
 import { buildProductionOrderFromSource } from '../lib/lsx-build-order';
@@ -87,6 +88,10 @@ export default function ModuleDanhSachLSX({
   const [nhapPin, setNhapPin] = useState<{
     title: string; message: string; onConfirm: (pinToken: string) => Promise<void> | void;
   } | null>(null);
+  // Bước nhập lý do trước popup PIN khi "Từ chối" (UI-only, chờ nối server sau).
+  const [nhapLyDo, setNhapLyDo] = useState<{
+    row: LsxRow;
+  } | null>(null);
   const daTaiLanDau = useRef(false);
 
   const lamMoi = useCallback(async () => {
@@ -138,27 +143,27 @@ export default function ModuleDanhSachLSX({
   const duyetLsx = useCallback(
     async (row: LsxRow, quyetDinh: 'approved' | 'rejected') => {
       if (!accessToken) return;
-      const label = quyetDinh === 'approved' ? 'duyệt' : 'từ chối';
+      // Từ chối: nhập lý do TRƯỚC (UI-only), rồi mới mở popup PIN.
+      if (quyetDinh === 'rejected') {
+        setNhapLyDo({ row });
+        return;
+      }
       // Duyệt VÀ Từ chối đều cần nhập mã PIN (server gắn PinGuard trên cả 2 chiều).
       setNhapPin({
-        title: quyetDinh === 'approved' ? 'Duyệt LSX' : 'Từ chối LSX',
-        message: `Bạn có chắc muốn ${label} LSX "${row.lsxNumber || row.orderId}"?`,
+        title: 'Duyệt LSX',
+        message: `Bạn có chắc muốn duyệt LSX "${row.lsxNumber || row.orderId}"?`,
         onConfirm: async (pinToken: string) => {
           setDangXuLyId(row.orderId);
           setLoi('');
           try {
             await updateOrderApprovalService(
               row.orderId,
-              quyetDinh === 'approved',
+              true,
               accessToken,
               pinToken,
             );
             setNhapPin(null);
-            hienThongBao(
-              quyetDinh === 'approved'
-                ? 'Đã duyệt LSX. Có thể in/xuất PDF/DOCX.'
-                : 'Đã từ chối LSX. Vẫn ở trạng thái Chờ duyệt, có thể sửa & gửi lại.',
-            );
+            hienThongBao('Đã duyệt LSX. Có thể in/xuất PDF/DOCX.');
             await lamMoi();
           } catch (error) {
             // Ném lại để modal PIN giữ mở + hiện lỗi (không đóng sớm).
@@ -172,6 +177,45 @@ export default function ModuleDanhSachLSX({
       });
     },
     [accessToken, lamMoi, hienThongBao],
+  );
+
+  // Sau khi nhập lý do → mở popup PIN kèm lý do.
+  const tiepTucTuChoiSauLyDo = useCallback(
+    (lyDo: string) => {
+      if (!nhapLyDo || !accessToken) return;
+      const row = nhapLyDo.row;
+      setNhapLyDo(null);
+      setNhapPin({
+        title: 'Từ chối LSX',
+        message: `Bạn có chắc muốn từ chối LSX "${row.lsxNumber || row.orderId}"?${
+          lyDo ? `\nLý do: ${lyDo}` : ''
+        }`,
+        onConfirm: async (pinToken: string) => {
+          setDangXuLyId(row.orderId);
+          setLoi('');
+          try {
+            await updateOrderApprovalService(
+              row.orderId,
+              false,
+              accessToken,
+              pinToken,
+            );
+            setNhapPin(null);
+            hienThongBao(
+              'Đã từ chối LSX. Vẫn ở trạng thái Chờ duyệt, có thể sửa & gửi lại.',
+            );
+            await lamMoi();
+          } catch (error) {
+            throw error instanceof Error
+              ? error
+              : new Error('Không cập nhật được trạng thái LSX.');
+          } finally {
+            setDangXuLyId(null);
+          }
+        },
+      });
+    },
+    [nhapLyDo, accessToken, lamMoi, hienThongBao],
   );
 
   // === Preview (click row) — parity wizard: gắn chữ ký nếu BE chưa snapshot ===
@@ -417,6 +461,15 @@ export default function ModuleDanhSachLSX({
           order={previewLsxPdf.order}
         />
       )}
+
+      <NhapLyDoTruocPinModal
+        open={!!nhapLyDo}
+        title="Từ chối LSX"
+        message={nhapLyDo ? `Bạn có chắc muốn từ chối LSX "${nhapLyDo.row.lsxNumber || nhapLyDo.row.orderId}"?` : ""}
+        confirmLabel="Tiếp tục"
+        onConfirm={tiepTucTuChoiSauLyDo}
+        onClose={() => setNhapLyDo(null)}
+      />
 
       <NhapPinDuyetModal
         open={!!nhapPin}

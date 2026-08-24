@@ -24,6 +24,25 @@ function dinhDangSo(n: number): string {
   return Math.round(n || 0).toLocaleString('vi-VN');
 }
 
+// Rút gọn tên khách hàng: chỉ giữ 3 cụm chữ cuối khi tên dài (>3 từ).
+function rutGonTenKhachHang(ten: string | undefined | null): string {
+  const tu = (ten ?? '').split(/\s+/).filter(Boolean);
+  if (tu.length <= 3) return ten ?? '—';
+  return `... ${tu.slice(-3).join(' ')}`;
+}
+
+// Avatar chữ cái đầu cho cột "Người lập": 2 chữ cái đầu của 2 từ cuối.
+function layChuCaiDau(s: string | undefined | null): string {
+  return (s ?? '').split(' ').filter(Boolean).slice(-2).map(w => w[0]).join('').toUpperCase();
+}
+
+const MAU_AVATAR = ['#4f46e5', '#0891b2', '#059669', '#d97706', '#db2777', '#7c3aed', '#0ea5e9', '#65a30d'];
+function layMauAvatar(s: string | undefined | null): string {
+  const chuoi = s ?? '';
+  if (!chuoi) return MAU_AVATAR[0];
+  return MAU_AVATAR[Math.abs([...chuoi].reduce((a, c) => a + c.charCodeAt(0), 0)) % MAU_AVATAR.length];
+}
+
 type BoLocTinhGia = 'all' | 'draft' | 'saved' | 'used';
 
 const CHIP_LABELS: { key: BoLocTinhGia; label: string }[] = [
@@ -32,20 +51,6 @@ const CHIP_LABELS: { key: BoLocTinhGia; label: string }[] = [
   { key: 'saved', label: 'Đã lưu' },
   { key: 'used', label: 'Đã dùng' },
 ];
-
-const STATUS_COLORS: Record<string, { bg: string; fg: string }> = {
-  draft: { bg: '#f3f4f6', fg: '#6b7280' },
-  saved: { bg: '#eef2ff', fg: '#4338ca' },
-  used: { bg: '#ecfdf5', fg: '#047857' },
-  locked: { bg: '#fef2f2', fg: '#b91c1c' },
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  draft: 'Nháp',
-  saved: 'Đã lưu',
-  used: 'Đã dùng',
-  locked: 'Đã khóa',
-};
 
 const QUOTE_PREFILL_STORAGE_KEY = 'lts_quote_prefill_from_history';
 
@@ -189,9 +194,7 @@ export default function ModuleDanhSachTinhGia({
   };
 
   const renderRow = (h: HistoryItem) => {
-    const status = getPricingWorkflowStatus(h);
     const meta = getPricingDisplayMeta(h.input);
-    const mau = STATUS_COLORS[status] ?? STATUS_COLORS.draft;
     const giaHienThi = h.chotGia && h.chotGia > 0 ? h.chotGia : h.finalPrice;
     const duocChon = selectedQuoteHistoryIds.has(h.id);
 
@@ -225,19 +228,19 @@ export default function ModuleDanhSachTinhGia({
             )}
           </div>
         </td>
-        <td className="qrev-cell-sale">{h.customer}</td>
-        <td className="qrev-cell-sale">{h.sellerName || '—'}</td>
+        <td className="qrev-cell-sale" title={h.customer}>{rutGonTenKhachHang(h.customer)}</td>
+        <td className="qrev-cell-sale">
+          {h.sellerName ? (
+            <span className="qrev-user-avatar" style={{ background: layMauAvatar(h.sellerName) }} title={h.sellerName}>
+              {layChuCaiDau(h.sellerName)}
+            </span>
+          ) : '—'}
+        </td>
         <td className="qrev-cell-date" title={h.updatedAt && h.createdAt && h.updatedAt !== h.createdAt ? `Cập nhật: ${dinhDangNgayTaoLichSu({ ...h, createdAt: h.updatedAt })}` : undefined}>
           {dinhDangNgayTaoLichSu(h)}
         </td>
         <td className="qrev-cell-sale" style={{ textAlign: 'right' }}>
           {dinhDangSo(giaHienThi)} ₫/{meta.unit}
-        </td>
-        <td>
-          <span className="qrev-badge" style={{ background: mau.bg, color: mau.fg }}>
-            <span className="qrev-badge-dot" style={{ background: mau.fg }} />
-            {STATUS_LABELS[status]}
-          </span>
         </td>
         <td>
           <div className="qrev-row-actions" onClick={e => e.stopPropagation()}>
@@ -342,7 +345,6 @@ export default function ModuleDanhSachTinhGia({
                   <th>Người lập</th>
                   <th>Thời gian</th>
                   <th style={{ textAlign: 'right' }}>Giá</th>
-                  <th>Trạng thái</th>
                   <th>Thao tác</th>
                 </tr>
               </thead>

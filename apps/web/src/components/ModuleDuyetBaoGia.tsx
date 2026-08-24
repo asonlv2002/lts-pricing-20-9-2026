@@ -33,6 +33,7 @@ import { coQuyenDuyetBaoGia } from "../lib/permissions";
 import type { CalculateInput, HistoryItem } from "../lib/types";
 import ConfirmDialog from "./ConfirmDialog";
 import NhapPinDuyetModal from "./auth/NhapPinDuyetModal";
+import NhapLyDoTruocPinModal from "./auth/NhapLyDoTruocPinModal";
 import {
   buildHistoryItemFromServerData,
 } from "../lib/baoGiaExport";
@@ -228,6 +229,11 @@ export default function ModuleDuyetBaoGia({
     message: string;
     onConfirm: (pinToken: string) => Promise<void> | void;
   } | null>(null);
+  // Bước nhập lý do trước khi mở popup PIN khi "Từ chối".
+  // UI-only: lý do sẽ được nối với server sau khi có BE.
+  const [nhapLyDo, setNhapLyDo] = useState<{
+    bg: BaoGiaApi;
+  } | null>(null);
   // Expand dropdown cho từng BG để xem/duyệt từng pricing sheet.
   // URL /danh-sach-bao-gia/<id> = auto-expand hàng đó.
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -333,22 +339,57 @@ export default function ModuleDuyetBaoGia({
     async (bg: BaoGiaApi, quyetDinh: "approved" | "rejected") => {
       if (!accessToken) return;
       const label = quyetDinh === "approved" ? "duyệt" : "từ chối";
+      // Từ chối: nhập lý do TRƯỚC (UI-only), rồi mới mở popup PIN.
+      if (quyetDinh === "rejected") {
+        setNhapLyDo({ bg });
+        return;
+      }
       // Duyệt VÀ Từ chối đều cần nhập mã PIN (server gắn PinGuard trên cả 2 chiều).
       setNhapPin({
         bg,
-        title: quyetDinh === "approved" ? "Duyệt báo giá" : "Từ chối báo giá",
-        message: `Bạn có chắc muốn ${label} báo giá "${tenBaoGia(bg)}"?`,
+        title: "Duyệt báo giá",
+        message: `Bạn có chắc muốn duyệt báo giá "${tenBaoGia(bg)}"?`,
         onConfirm: async (pinToken: string) => {
           datDangXuLyId(bg.id);
           datLoi("");
           try {
-            await duyetBaoGiaService(bg.id, quyetDinh, accessToken, pinToken);
+            await duyetBaoGiaService(bg.id, "approved", accessToken, pinToken);
             setNhapPin(null);
-            hienThongBao(
-              quyetDinh === "approved"
-                ? "Đã duyệt báo giá."
-                : "Đã từ chối báo giá.",
-            );
+            hienThongBao("Đã duyệt báo giá.");
+            await lamMoi();
+          } catch (error) {
+            // Ném lại để modal PIN giữ mở + hiện lỗi (không đóng sớm).
+            throw error instanceof Error
+              ? error
+              : new Error("Không cập nhật được trạng thái báo giá.");
+          } finally {
+            datDangXuLyId(null);
+          }
+        },
+      });
+      return;
+    },
+    [accessToken, lamMoi, hienThongBao],
+  );
+
+  // Sau khi user nhập lý do ở popup lý do → mở popup PIN kèm lý do.
+  const tiepTucTuChoiSauLyDo = useCallback(
+    (lyDo: string) => {
+      if (!nhapLyDo || !accessToken) return;
+      const bg = nhapLyDo.bg;
+      setNhapLyDo(null);
+      const muonTuChoi = `Bạn có chắc muốn từ chối báo giá "${tenBaoGia(bg)}"?`;
+      setNhapPin({
+        bg,
+        title: "Từ chối báo giá",
+        message: lyDo ? `${muonTuChoi}\nLý do: ${lyDo}` : muonTuChoi,
+        onConfirm: async (pinToken: string) => {
+          datDangXuLyId(bg.id);
+          datLoi("");
+          try {
+            await duyetBaoGiaService(bg.id, "rejected", accessToken, pinToken);
+            setNhapPin(null);
+            hienThongBao("Đã từ chối báo giá.");
             await lamMoi();
           } catch (error) {
             // Ném lại để modal PIN giữ mở + hiện lỗi (không đóng sớm).
@@ -361,7 +402,7 @@ export default function ModuleDuyetBaoGia({
         },
       });
     },
-    [accessToken, lamMoi, hienThongBao],
+    [nhapLyDo, accessToken, lamMoi, hienThongBao],
   );
 
   const xoaBaoGia = useCallback(
@@ -777,7 +818,7 @@ export default function ModuleDuyetBaoGia({
                           </span>
                         )}
                         {trangThai === "rejected" && (
-                          <span title="Đã từ chối" aria-label="Đã từ chối">
+                          <span title="Lý do: Đang chờ lý do..." aria-label="Đã từ chối">
                             <XCircle size={16} style={{ color: "#dc2626" }} />
                           </span>
                         )}
@@ -824,9 +865,6 @@ export default function ModuleDuyetBaoGia({
                                       <span style={{ color: "#9f1239", fontWeight: 600 }}>
                                         ❌ Khách bỏ
                                       </span>
-                                    )}
-                                    {hienTai === "cho" && (
-                                      <span style={{ color: "#6b7280" }}>⏳ Chờ khách</span>
                                     )}
                                     {hienTai === "da_duyet" && trangThai === "approved" && (
                                       <button
@@ -905,6 +943,15 @@ export default function ModuleDuyetBaoGia({
         message={confirm?.message || ""}
         onConfirm={() => confirm?.onConfirm()}
         onCancel={() => setConfirm(null)}
+      />
+
+      <NhapLyDoTruocPinModal
+        open={!!nhapLyDo}
+        title="Từ chối báo giá"
+        message={nhapLyDo ? `Bạn có chắc muốn từ chối báo giá "${tenBaoGia(nhapLyDo.bg)}"?` : ""}
+        confirmLabel="Tiếp tục"
+        onConfirm={tiepTucTuChoiSauLyDo}
+        onClose={() => setNhapLyDo(null)}
       />
 
       <NhapPinDuyetModal

@@ -93,6 +93,11 @@ export const QREV_STYLES = `
 .qrev-cell-sub { font-size: 12px; color: var(--muted, #6b7280); }
 .qrev-cell-sale { font-size: 12.5px; color: var(--text, #374151); font-weight: 600; white-space: nowrap; }
 .qrev-cell-date { font-size: 12.5px; color: var(--muted, #6b7280); white-space: nowrap; }
+.qrev-user-avatar {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0;
+  color: #fff; font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em;
+}
 
 .qrev-badge {
   display: inline-flex; align-items: center; gap: 6px;
@@ -253,8 +258,8 @@ export const QREV_STYLES = `
     display: inline-block; max-width: 45%; margin-right: 8px;
   }
 
-  /* Vùng dưới-phải (dòng 2, cột 2): actions - cột 8 */
-  .lts-shell--mobile .qrev-row td:nth-child(8) {
+  /* Vùng dưới-phải (dòng 2, cột 2): actions - cột 7 */
+  .lts-shell--mobile .qrev-row td:nth-child(7) {
     grid-column: 2; grid-row: 2;
     display: flex; justify-content: flex-end; gap: 4px;
   }
@@ -278,9 +283,8 @@ export const QREV_STYLES = `
     height: 22px;
   }
 
-  /* Ẩn: thời gian (cột 5) và trạng thái (cột 7) */
+  /* Ẩn thời gian (cột 5) */
   .lts-shell--mobile .qrev-row td:nth-child(5) { display: none; }
-  .lts-shell--mobile .qrev-row td:nth-child(7) { display: none; }
 
   .lts-shell--mobile .qrev-slide-panel { width: 100vw; }
 }
