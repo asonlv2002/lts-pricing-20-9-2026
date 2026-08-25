@@ -87,6 +87,104 @@ import { boSoCauTruc, buildStructureFromLayers } from "../lib/format-structure";
 import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
 import { WIZARD_STYLES } from "./wizard/wizard-styles";
 
+// ── Công đoạn sản xuất (dropdown ghi chú / mô tả khác) ──────────────────────
+const STAGE_OPTIONS: { value: 'in' | 'ghep' | 'chia' | 'lam-tui'; label: string }[] = [
+  { value: 'in', label: 'In' },
+  { value: 'ghep', label: 'Ghép' },
+  { value: 'chia', label: 'Chia' },
+  { value: 'lam-tui', label: 'Làm túi' },
+];
+
+const STAGE_LABEL: Record<string, string> = {
+  in: 'In',
+  ghep: 'Ghép',
+  chia: 'Chia',
+  'lam-tui': 'Làm túi',
+};
+
+/** Editor dòng ghi chú / mô tả công đoạn — dropdown công đoạn + text + xóa.
+ *  `single` = chỉ 1 dòng (Ghi chú công đoạn): không nút thêm, không xóa. */
+function StageNoteEditor({
+  value,
+  onChange,
+  placeholder,
+  single = false,
+}: {
+  value: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
+  onChange: (next: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[]) => void;
+  placeholder: string;
+  single?: boolean;
+}) {
+  const rows = single
+    ? [value[0] ?? { stage: 'lam-tui' as const, text: '' }]
+    : value.length
+      ? value
+      : [{ stage: 'lam-tui' as const, text: '' }];
+  const set = (i: number, patch: Partial<{ stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }>) => {
+    const next = rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r));
+    onChange(single ? next.slice(0, 1) : next);
+  };
+  const remove = (i: number) => {
+    if (single) return;
+    const next = rows.filter((_, idx) => idx !== i);
+    onChange(next.length ? next : [{ stage: 'lam-tui' as const, text: '' }]);
+  };
+  const add = () => {
+    if (single) return;
+    onChange([...rows, { stage: 'lam-tui' as const, text: '' }]);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minWidth: 0 }}>
+      {rows.map((row, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <select
+            className="wiz-spec-inline-select"
+            value={row.stage}
+            onChange={(e) => set(i, { stage: e.target.value as 'in' | 'ghep' | 'chia' | 'lam-tui' })}
+            style={{ fontSize: '0.78rem', padding: '2px 6px', width: '92px', flexShrink: 0 }}
+          >
+            {STAGE_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+          <input
+            className="wiz-spec-inline-input"
+            type="text"
+            value={row.text}
+            onChange={(e) => set(i, { text: e.target.value })}
+            placeholder={placeholder}
+            style={{ flex: 1, minWidth: 0 }}
+          />
+          {!single && (
+            <button
+              type="button"
+              className="wiz-spec-toggle"
+              style={{ padding: '2px 6px', fontSize: '0.72rem', flexShrink: 0 }}
+              onClick={() => remove(i)}
+              title="Xóa dòng"
+            >
+              🗑
+            </button>
+          )}
+        </div>
+      ))}
+      {!single && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            className="wiz-spec-toggle"
+            style={{ padding: '2px 8px', fontSize: '0.72rem' }}
+            onClick={add}
+          >
+            + Thêm
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Customer type (mirrors ModuleKhachHang) ──────────────────────────────────
 interface Customer {
   id: string;
@@ -172,6 +270,14 @@ function taoDieuKhoanThanhToan(soNgay: number): string {
   return `Thanh toán ${soNgay} ngày`;
 }
 
+/** Migrate `otherDescription` cũ (textarea báo giá cũ) → 1 dòng Mô tả khác (mặc định làm túi). */
+function migrateOtherDescription(spec: QuoteProductBagSpec): void {
+  const old = (spec.otherDescription || "").trim();
+  if (!old) return;
+  if (Array.isArray(spec.stageDescriptions) && spec.stageDescriptions.length > 0) return;
+  spec.stageDescriptions = [{ stage: 'lam-tui', text: old }];
+}
+
 function buildWizardProductFromHistoryItem(
   item: HistoryItem,
   savedBagSpec?: Partial<QuoteProductBagSpec> | null,
@@ -181,6 +287,8 @@ function buildWizardProductFromHistoryItem(
   if (savedBagSpec) {
     Object.assign(spec, savedBagSpec);
   }
+  // Migrate otherDescription cũ → 1 dòng Mô tả khác (mặc định làm túi)
+  migrateOtherDescription(spec);
   // Mặc định đơn giá trục = giá 1 trục từ engine (DT × đơn giá A/B), không dùng cylUnitPrice (đ/m²)
   // Chỉ fill khi chưa có giá từ bagSpec đã lưu
   if (!spec.cylinderUnitPrice && item.input.cylLength > 0) {
@@ -237,6 +345,8 @@ function buildWizardProductFromQuoteProductLine(
   if (qp.bagSpec) {
     Object.assign(spec, qp.bagSpec);
   }
+  // Migrate otherDescription cũ → 1 dòng Mô tả khác (mặc định làm túi)
+  migrateOtherDescription(spec);
   // Chỉ fill từ engine khi chưa có giá trục (tạo mới / bagSpec cũ thiếu field)
   if (!spec.cylinderUnitPrice && qp.input.cylLength > 0) {
     const { materials, constants, profitTable, smallWidthPrices } =
@@ -2084,6 +2194,37 @@ function BuocChonSanPham({
                           />
                         </label>
                       )}
+                      {shouldShowBagSpecField(spec.bagType, 'songSieuAm') && (
+                        <label className="wiz-bag-field">
+                          <span className="wiz-bag-label" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                            <input
+                              type="checkbox"
+                              checked={spec.hasSongSieuAm ?? false}
+                              onChange={(e) =>
+                                updateBagSpec(
+                                  pIdx,
+                                  'hasSongSieuAm',
+                                  e.target.checked,
+                                )
+                              }
+                            />
+                            Từ đầu đến sóng siêu âm (mm)
+                          </span>
+                          <input
+                            className="wiz-bag-input"
+                            type="number"
+                            min={0}
+                            value={spec.songSieuAmMm || ''}
+                            onChange={(e) =>
+                              updateBagSpec(
+                                pIdx,
+                                'songSieuAmMm',
+                                Number(e.target.value),
+                              )
+                            }
+                          />
+                        </label>
+                      )}
                     </div>
                     <div className="wiz-spec-section">
                       {hasZipper && (
@@ -2937,6 +3078,12 @@ function BuocChonSanPham({
                           <span className="wiz-desc-value">{spec.lidMm}mm</span>
                         </div>
                       )}
+                      {spec.hasSongSieuAm && spec.songSieuAmMm > 0 && (
+                        <div className="wiz-desc-row">
+                          <span className="wiz-desc-label">Từ đầu đến sóng siêu âm:</span>
+                          <span className="wiz-desc-value">{spec.songSieuAmMm}mm</span>
+                        </div>
+                      )}
                       {hasZipper && (
                         <div className="wiz-desc-row">
                           <span className="wiz-desc-label">
@@ -2973,24 +3120,19 @@ function BuocChonSanPham({
                       )}
                       <div className="wiz-desc-row" style={{ marginTop: 6 }}>
                         <span className="wiz-desc-label">Mô tả khác:</span>
-                        <textarea
-                          className="wiz-terms-textarea"
-                          rows={2}
-                          value={spec.otherDescription}
-                          onChange={(e) =>
-                            updateBagSpec(
-                              pIdx,
-                              "otherDescription",
-                              e.target.value,
-                            )
-                          }
-                          placeholder="Ghi chú thêm cho đơn hàng..."
-                          style={{
-                            flex: 1,
-                            minHeight: 42,
-                            fontSize: "0.82rem",
-                            resize: "vertical",
-                          }}
+                        <StageNoteEditor
+                          value={spec.stageDescriptions ?? []}
+                          onChange={(v) => updateBagSpec(pIdx, 'stageDescriptions', v)}
+                          placeholder="Nhập mô tả khác..."
+                        />
+                      </div>
+                      <div className="wiz-desc-row" style={{ marginTop: 6 }}>
+                        <span className="wiz-desc-label">Ghi chú công đoạn:</span>
+                        <StageNoteEditor
+                          value={spec.stageNotes ?? []}
+                          onChange={(v) => updateBagSpec(pIdx, 'stageNotes', v)}
+                          placeholder="Nhập ghi chú..."
+                          single
                         />
                       </div>
                       </div>

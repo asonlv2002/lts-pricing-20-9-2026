@@ -72,6 +72,10 @@ function layLsxBagMetadata(entry: Record<string, unknown> | null): {
   bottomFollows?: 'front' | 'back';
   structureSwapped?: boolean;
   zipperDistanceMm?: number;
+  hasSongSieuAm?: boolean;
+  songSieuAmMm?: number;
+  stageNotes?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
+  stageDescriptions?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
 } {
   if (!entry || !laObject(entry.bagSpec)) return {};
   const b = entry.bagSpec as Record<string, unknown>;
@@ -79,6 +83,8 @@ function layLsxBagMetadata(entry: Record<string, unknown> | null): {
   const lengthMm = b.lengthMm;
   const bottomFollows = b.bottomFollows;
   const zipper = b.zipperDistanceMm;
+  const saFlag = b.hasSongSieuAm;
+  const saMm = b.songSieuAmMm;
   return {
     bagWidthMm: typeof widthMm === 'number' && widthMm > 0 ? widthMm : undefined,
     bagLengthMm: typeof lengthMm === 'number' && lengthMm > 0 ? lengthMm : undefined,
@@ -87,7 +93,28 @@ function layLsxBagMetadata(entry: Record<string, unknown> | null): {
       : undefined,
     structureSwapped: b.structureSwapped === true,
     zipperDistanceMm: typeof zipper === 'number' && zipper > 0 ? zipper : undefined,
+    hasSongSieuAm: saFlag === true ? true : undefined,
+    songSieuAmMm: typeof saMm === 'number' && saMm > 0 ? saMm : undefined,
+    stageNotes: docStageNotes(b.stageNotes),
+    stageDescriptions: docStageNotes(b.stageDescriptions),
   };
+}
+
+/** Đọc mảng ghi chú công đoạn từ bagSpec — bỏ phần tử không hợp lệ. */
+function docStageNotes(raw: unknown): { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out = raw
+    .filter((x) => x && typeof x === 'object')
+    .map((x) => {
+      const o = x as Record<string, unknown>;
+      const stage = o.stage;
+      const text = typeof o.text === 'string' ? o.text.trim() : '';
+      const validStage = stage === 'in' || stage === 'ghep' || stage === 'chia' || stage === 'lam-tui';
+      return validStage ? { stage, text } : null;
+    })
+    .filter((x): x is { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string } =>
+      !!x && x.text.length > 0);
+  return out.length > 0 ? out : undefined;
 }
 
 function cauTrucNhuBaoGia(

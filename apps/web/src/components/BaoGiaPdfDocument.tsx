@@ -432,6 +432,8 @@ function buildBagSpecDescription(
   if (spec.hasBottomSeal && spec.bottomSealMm > 0)
     lines.push("Hàn đáy: " + spec.bottomSealMm + "mm.");
   if (spec.lidMm > 0) lines.push("Nắp: " + spec.lidMm + "mm.");
+  if (spec.hasSongSieuAm && spec.songSieuAmMm > 0)
+    lines.push("Từ đầu đến sóng siêu âm: " + spec.songSieuAmMm + "mm.");
   if (spec.hasZipper || input.hasZipper) {
     lines.push(
       spec.zipperDistanceMm > 0

@@ -34,6 +34,7 @@ function makeOrder(patch: Partial<ProductionOrder>): ProductionOrder {
       packagingInfo: '', packagingNotes: '', deliveryNotes: '',
       sealEdge: '', foldBottom: '', tearNotch: '', hanTruoc: 0, hanSau: 0, hanBien: 0, hanDau: 0, xepHong: 0, holePunchInfo: '', ventHoleInfo: '', bagWasteMeters: 0, bagLuuY: '', useSemicircularMold: false, useDualCutter: false, bagMachineWaste: 0, bagDeliveryReq: '', bagMachineNotes: '',
       tamZipperCachMieng: 0, loTreoInfo: '', danLung: 0, danLungLech: 0, danDay: 0, nap: 0, songSieuAm: 0, docQuaiXach: false, danKeoNap: false,
+      inDesc: '', lamDesc: '', divideDesc: '', bagDesc: '',
     },
     snapshot: {
       customer: 'Cong ty Gao Viet Xanh', productName: 'Tui gao ST25', productType: 'tui', structure: 'PET 12//MPET 12//LLDPE 120', quantity: 10000,

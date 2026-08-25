@@ -36,7 +36,7 @@ import NhapPinDuyetModal from './auth/NhapPinDuyetModal';
 import NhapLyDoTruocPinModal from './auth/NhapLyDoTruocPinModal';
 import NutSaoChepLienKet from './NutSaoChepLienKet';
 import { taoUrlChiaSeLsx } from '../lib/lsx-route';
-import { buildProductionOrderFromSource } from '../lib/lsx-build-order';
+import { buildProductionOrderFromSource, lsxSnapshotTuInputValue } from '../lib/lsx-build-order';
 import { mapBaoGiaToLsxSources } from '../lib/bao-gia-adapter';
 import { themChuKyVaoManual } from '../lib/chu-ky';
 
@@ -234,9 +234,14 @@ export default function ModuleDanhSachLSX({
       orderPreview.id = row.orderId;
       const manualTuServer =
         row.inputValue && typeof row.inputValue === 'object'
-          ? (row.inputValue as LSXManualFields)
+          ? (() => {
+              const { lsxSnapshot: _bo, ...phanManual } = row.inputValue as Record<string, unknown> & { lsxSnapshot?: unknown };
+              return phanManual as unknown as LSXManualFields;
+            })()
           : orderPreview.manual;
       orderPreview.manual = await themChuKyVaoManual(manualTuServer);
+      const snapshotLuu = lsxSnapshotTuInputValue(row.inputValue);
+      if (snapshotLuu) orderPreview.snapshot = snapshotLuu;
       setPreviewLsxPdf({ order: orderPreview });
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Lỗi preview');

@@ -21,7 +21,7 @@ import type { LsxSourceData, LSXManualFields } from '../../lib/types';
 import { mapBaoGiaToLsxSources } from '../../lib/bao-gia-adapter';
 import { classifyLsxBagType } from '../../lib/lsx-bag-classification';
 import { themChuKyVaoManual } from '../../lib/chu-ky';
-import { buildManualFromSource, buildProductionOrderFromSource } from '../../lib/lsx-build-order';
+import { buildManualFromSource, buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue } from '../../lib/lsx-build-order';
 import { mapServerOrdersToLsxRows } from '../../lib/lsx-server-adapter';
 import { LsxFormFields } from '../lsx/LsxFormFields';
 import LsxPreviewModal from '../LsxPreviewModal';
@@ -170,7 +170,8 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
     setSource(src);
 
     if (order.inputValue && typeof order.inputValue === 'object') {
-      setManual({ ...(order.inputValue as LSXManualFields) });
+      const { lsxSnapshot: _bo, ...manualTuServer } = order.inputValue as Record<string, unknown> & { lsxSnapshot?: unknown };
+      setManual(manualTuServer as unknown as LSXManualFields);
     } else if (src) {
       const bagType = classifyLsxBagType(src.input.bagType, src.input.hasZipper);
       let cancelled = false;
@@ -291,7 +292,9 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
         tenSP: manual.tenSP?.trim() || source.productName || '',
       };
       const finalManualCoChuKy = await themChuKyVaoManual(finalManual);
-      await updateQuotationPricingSheetOrderService(newOrder.id, { inputValue: finalManualCoChuKy }, accessToken);
+      const snapshot = buildSnapshotFromSource(source, finalManualCoChuKy, materials);
+      const inputValueCoSnapshot = ganLsxSnapshotVaoInputValue(finalManualCoChuKy, snapshot);
+      await updateQuotationPricingSheetOrderService(newOrder.id, { inputValue: inputValueCoSnapshot }, accessToken);
       datLsxTaoTuSheet(null);
       daHydrateTao.current = null;
       setToast({ kind: 'ok', msg: `Đã tạo LSX ${finalManual.lsxNumber || newOrder.id} thành công` });
@@ -314,7 +317,9 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
         tenSP: manual.tenSP?.trim() || source.productName || '',
       };
       const finalManualCoChuKy = await themChuKyVaoManual(finalManual);
-      await updateQuotationPricingSheetOrderService(editOrderId, { inputValue: finalManualCoChuKy }, accessToken);
+      const snapshot = buildSnapshotFromSource(source, finalManualCoChuKy, materials);
+      const inputValueCoSnapshot = ganLsxSnapshotVaoInputValue(finalManualCoChuKy, snapshot);
+      await updateQuotationPricingSheetOrderService(editOrderId, { inputValue: inputValueCoSnapshot }, accessToken);
       setToast({ kind: 'ok', msg: 'Đã cập nhật LSX. Trạng thái reset về Chờ duyệt.' });
       datLsxDangSua(null);
       setTimeout(() => onSuccessNavigate?.('danh-sach-lsx'), 600);

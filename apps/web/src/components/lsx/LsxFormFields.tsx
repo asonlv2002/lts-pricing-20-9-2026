@@ -15,7 +15,7 @@ import React, { useState, useCallback, useMemo } from 'react';
 
 import type { LsxSourceData, LSXManualFields } from '../../lib/types';
 import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, resolveLsxStageFlags, resolveLsxBagVisibleFields, type LsxBagTypeInfo } from '../../lib/lsx-bag-classification';
-import { formatLsxFoldBottom, LSX_TOLERANCE_WIDTH_DEFAULT_MM, LSX_TOLERANCE_LENGTH_DEFAULT_MM } from '../../lib/lsx-quy-cach';
+import { formatLsxFoldBottom, lsxBagSizeMm, LSX_TOLERANCE_WIDTH_DEFAULT_MM, LSX_TOLERANCE_LENGTH_DEFAULT_MM } from '../../lib/lsx-quy-cach';
 import { formatLsxOrderQuantityParts } from '../../lib/lsx-quantity';
 
 // ── CSS cho form giống mẫu thực ─────────────────────────────────────────────
@@ -191,6 +191,7 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
   const isTui = !isMang;
   const khoMM = Math.round(inp.spreadWidth * 1000);
   const dlMM = Math.round(inp.cutStep * 1000);
+  const bagSize = lsxBagSizeMm(source);
 
   const autoBagType = useMemo(
     () => classifyLsxBagType(inp.bagType, inp.hasZipper),
@@ -364,6 +365,12 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
           <NI value={manual.divideRollOutWidth} onChange={v => upd('divideRollOutWidth', v)} placeholder="mm" style={{ width: '70px', maxWidth: '70px' }} />
           <span>mm</span>
         </div>
+        {manual.divideDesc && (
+          <div style={styles.cellRow}>
+            <span style={{ fontWeight: 700, fontSize: '11px' }}>Mô tả khác:</span>
+            <TI value={manual.divideDesc} onChange={v => upd('divideDesc', v)} placeholder="Mô tả khác..." style={{ flex: 1, minWidth: 0, fontStyle: 'italic' }} />
+          </div>
+        )}
         <div style={styles.cellRow}>
           <span style={{ fontWeight: 700, fontSize: '11px' }}>Ghi chú:</span>
           <TI value={manual.divideNotes} onChange={v => upd('divideNotes', v)} placeholder="" style={{ flex: 1, minWidth: 0 }} />
@@ -466,7 +473,7 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
           <tr>
             <td style={styles.lbl}>Quy cách:</td>
             <td style={styles.td} colSpan={isTui ? 3 : 1}>
-              <TI value={manual.quyCachNote} onChange={v => upd('quyCachNote', v)} placeholder={`R:${khoMM}mm x D:${dlMM}mm`} />
+              <TI value={manual.quyCachNote} onChange={v => upd('quyCachNote', v)} placeholder={`R:${isTui ? bagSize.widthMm : khoMM}mm x D:${isTui ? bagSize.lengthMm : dlMM}mm`} />
             </td>
             {isMang && (
               <>
@@ -691,6 +698,14 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                     <TI value={manual.lamBTPNote} onChange={v => upd('lamBTPNote', v)} placeholder="BTP in 3.300m)" style={{ fontSize: '10px' }} />
                   </td>
                 </tr>
+                {manual.lamDesc && (
+                  <tr>
+                    <td style={styles.lbl}>Mô tả khác:</td>
+                    <td colSpan={7} style={styles.td}>
+                      <TI value={manual.lamDesc} onChange={v => upd('lamDesc', v)} placeholder="Mô tả khác..." style={{ flex: 1, minWidth: 0, fontStyle: 'italic' }} />
+                    </td>
+                  </tr>
+                )}
                 <tr>
                   <td style={styles.lbl}>Số lượng cấp vật tư:</td>
                   <td colSpan={3} style={styles.td}>
@@ -758,9 +773,9 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                     </div>
                     <div style={styles.cellRow}>
                       <span style={{ fontWeight: 700, fontSize: '11px' }}>R:</span>
-                      <span>{khoMM}mm</span>
+                      <span>{bagSize.widthMm}mm</span>
                       <span style={{ fontWeight: 700, fontSize: '11px', marginLeft: 8 }}>D:</span>
-                      <span>{dlMM}mm</span>
+                      <span>{bagSize.lengthMm}mm</span>
                     </div>
                     <div style={styles.cellRow}>
                       <span style={{ fontWeight: 700, fontSize: '11px' }}>Hàn biên:</span>
@@ -799,7 +814,7 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                         <span style={{ fontWeight: 700, fontSize: '11px' }}>Nắp:</span>
                         <NI value={manual.nap} onChange={v => upd('nap', v)} placeholder="35" style={{ width: '50px', maxWidth: '50px' }} />
                         <span>mm</span>
-                        <span style={{ fontWeight: 700, fontSize: '11px', marginLeft: 8 }}>Sóng SA:</span>
+                        <span style={{ fontWeight: 700, fontSize: '11px', marginLeft: 8 }}>Từ đầu đến sóng siêu âm:</span>
                         <NI value={manual.songSieuAm} onChange={v => upd('songSieuAm', v)} placeholder="32" style={{ width: '50px', maxWidth: '50px' }} />
                         <span>mm</span>
                       </div>
@@ -834,6 +849,12 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                       <NI value={manual.bagWasteMeters} onChange={v => upd('bagWasteMeters', v)} placeholder="210" style={{ width: '60px', maxWidth: '60px' }} />
                       <span>M</span>
                     </div>
+                    {manual.bagDesc && (
+                      <div style={styles.cellRow}>
+                        <span style={{ fontWeight: 700, fontSize: '11px' }}>Mô tả khác:</span>
+                        <TI value={manual.bagDesc} onChange={v => upd('bagDesc', v)} placeholder="Mô tả khác..." style={{ flex: 1, minWidth: 0, fontStyle: 'italic' }} />
+                      </div>
+                    )}
                     <div style={styles.cellRow}>
                       <span style={{ fontWeight: 700, fontSize: '11px', color: '#c00' }}>Ghi chú:</span>
                       <TI value={manual.bagMachineNotes} onChange={v => upd('bagMachineNotes', v)} placeholder="Chạy theo market" style={{ flex: 1, minWidth: 0, fontWeight: 700, color: '#c00' }} />
@@ -881,11 +902,11 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                   </td>
                   <td style={styles.lbl}>Chiều rộng:</td>
                   <td style={styles.td}>
-                    <div style={styles.cellRow}><NI value={khoMM} onChange={() => {}} placeholder="250" /><span>mm</span></div>
+                    <div style={styles.cellRow}><NI value={bagSize.widthMm} onChange={() => {}} placeholder="250" /><span>mm</span></div>
                   </td>
                   <td style={styles.lbl}>Chiều dài:</td>
                   <td style={styles.td}>
-                    <div style={styles.cellRow}><NI value={dlMM} onChange={() => {}} placeholder="500" /><span>mm</span></div>
+                    <div style={styles.cellRow}><NI value={bagSize.lengthMm} onChange={() => {}} placeholder="500" /><span>mm</span></div>
                   </td>
                 </tr>
                 <tr>
@@ -935,7 +956,7 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                           <span style={{ fontWeight: 700, fontSize: '11px' }}>Nắp:</span>
                           <NI value={manual.nap} onChange={v => upd('nap', v)} placeholder="35" style={{ width: '50px', maxWidth: '50px' }} />
                           <span>mm</span>
-                          <span style={{ fontWeight: 700, fontSize: '11px', marginLeft: 6 }}>Sóng SA:</span>
+                          <span style={{ fontWeight: 700, fontSize: '11px', marginLeft: 6 }}>Từ đầu đến sóng siêu âm:</span>
                           <NI value={manual.songSieuAm} onChange={v => upd('songSieuAm', v)} placeholder="32" style={{ width: '50px', maxWidth: '50px' }} />
                           <span>mm</span>
                         </div>
@@ -966,6 +987,12 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                         <NI value={manual.bagWasteMeters} onChange={v => upd('bagWasteMeters', v)} placeholder="210" style={{ width: '60px', maxWidth: '60px' }} />
                         <span>M</span>
                       </div>
+                      {manual.bagDesc && (
+                        <div style={styles.cellRow}>
+                          <span style={{ fontWeight: 700, fontSize: '11px' }}>Mô tả khác:</span>
+                          <TI value={manual.bagDesc} onChange={v => upd('bagDesc', v)} placeholder="Mô tả khác..." style={{ flex: 1, minWidth: 0, fontStyle: 'italic' }} />
+                        </div>
+                      )}
                       <div style={styles.cellRow}>
                         <span style={{ fontWeight: 700, fontSize: '11px', color: '#c00' }}>Ghi chú:</span>
                         <TI value={manual.bagMachineNotes} onChange={v => upd('bagMachineNotes', v)} placeholder="Chạy theo market" style={{ flex: 1, minWidth: 0, fontWeight: 700, color: '#c00' }} />

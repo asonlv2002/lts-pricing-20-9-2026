@@ -25,7 +25,7 @@ import {
   type LsxDocxTemplateKey,
 } from "../lib/lsxExport";
 import { formatLsxOrderQuantityParts } from "../lib/lsx-quantity";
-import { buildLsxQuyCachLines } from "../lib/lsx-quy-cach";
+import { buildLsxQuyCachLines, lsxBagSizeMm } from "../lib/lsx-quy-cach";
 import { buildLsxBagFieldRows, hasLsxZipperDetails } from "../lib/lsx-bag-fields";
 import { bagTypeLabelHienThi } from "../lib/lsx-bag-classification";
 import { buildLsxLamGridRows } from "../lib/lsx-lam-rows";
@@ -504,8 +504,9 @@ function bagGridRows(
   templateKey: LsxDocxTemplateKey,
   m: LSXManualFields,
   hasZipper: boolean,
+  snapshotZipperDistanceMm?: number,
 ): React.ReactNode[] {
-  return buildLsxBagFieldRows(templateKey, m, hasZipper).map((row, i) => (
+  return buildLsxBagFieldRows(templateKey, m, hasZipper, snapshotZipperDistanceMm).map((row, i) => (
     <View key={`bag-row-${i}`} style={styles.bagGridRow}>
       {row.kind === "pair"
         ? [
@@ -533,11 +534,13 @@ function TuiBody({ order }: { order: ProductionOrder }) {
   const useLeftDivide = showDivide && !singleLayer;
   const bagInfo = resolveLsxBagTypeInfo(order);
   const bagLabel =
-    bagInfo.key === "fallback" ? s.bagType || "Túi" : bagInfo.label;
+    bagInfo.key === "fallback"
+      ? s.bagType || "Túi"
+      : bagTypeLabelHienThi(bagInfo, s.bagType || "", !!s.hasZipper, !!m.lsxBagTypeOverride);
   const khoMM = Math.round((s.spreadWidth || 0) * 1000);
-  const dlMM = Math.round((s.cutStep || 0) * 1000);
+  const bagSize = lsxBagSizeMm(s);
   const templateKey = resolveLsxDocxTemplate(order);
-  const bagRows = bagGridRows(templateKey, m, !!s.hasZipper);
+  const bagRows = bagGridRows(templateKey, m, !!s.hasZipper, s.zipperDistanceMm);
 
   return (
     <View style={styles.table}>
@@ -680,6 +683,16 @@ function TuiBody({ order }: { order: ProductionOrder }) {
                     })}
                   </View>
                 </View>
+                {(!!m.inDesc || !!m.lamDesc) && (
+                  <View style={styles.row}>
+                    <Cell w="50%">
+                      {!!m.inDesc && <Text>{m.inDesc}</Text>}
+                    </Cell>
+                    <Cell w="50%">
+                      {!!m.lamDesc && <Text>{m.lamDesc}</Text>}
+                    </Cell>
+                  </View>
+                )}
                 <View style={styles.row}>
                   <Cell w="50%">
                     <Text>{`Định mức phi hao: ${formatLsxPrintWasteLine(m, "…")}`}</Text>
@@ -726,6 +739,7 @@ function TuiBody({ order }: { order: ProductionOrder }) {
             <DivideDetails order={order} />
             {!!m.rollLength && <Line label="Chiều dài: " value={vd(m.rollLength, "m")} />}
             <Text>Định mức phi hao chia: 0m</Text>
+            {!!m.divideDesc && <Text>{m.divideDesc}</Text>}
             <Text>{m.divideNotes || ""}</Text>
           </Cell>
         )}
@@ -747,10 +761,10 @@ function TuiBody({ order }: { order: ProductionOrder }) {
               </View>
               <View style={styles.bagGridRow}>
                 <View style={styles.bagGridCell}>
-                  <Line label="Chiều rộng: " value={khoMM ? `${khoMM}mm` : "…"} />
+                  <Line label="Chiều rộng: " value={bagSize.widthMm ? `${bagSize.widthMm}mm` : "…"} />
                 </View>
                 <View style={[styles.bagGridCell, styles.bagGridDivider]}>
-                  <Line label="Chiều dài: " value={dlMM ? `${dlMM}mm` : "…"} />
+                  <Line label="Chiều dài: " value={bagSize.lengthMm ? `${bagSize.lengthMm}mm` : "…"} />
                 </View>
               </View>
               {bagRows}

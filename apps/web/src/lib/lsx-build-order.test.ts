@@ -18,6 +18,8 @@ import {
   buildSnapshotFromSource,
   genLSXNumber,
   getMaterialLabel,
+  lsxSnapshotTuInputValue,
+  ganLsxSnapshotVaoInputValue,
   resolveLsxDualStandupLayer2Lengths,
   type BuildLsxOrderCtx,
 } from './lsx-build-order';
@@ -311,6 +313,22 @@ sNoHalf.input = baseInput({ productName: 'TUI THUONG', bagType: 'dayDung', layer
 const oNoHalf = buildProductionOrderFromSource(sNoHalf, emptyCtx());
 assert('prefill mold false when no flag', oNoHalf.manual.useSemicircularMold === false);
 
+console.log('\n=== hasSongSieuAm → manual.songSieuAm (cutSealNapKeo) ===');
+const sSA = makeSource('q1:sa', 'TUI NAP KEO', 'LLDPE');
+sSA.hasSongSieuAm = true;
+sSA.songSieuAmMm = 28;
+sSA.input = baseInput({ productName: 'TUI NAP KEO', bagType: 'cutSealNapKeo', layer2Id: 'LLDPE' });
+const oSA = buildProductionOrderFromSource(sSA, emptyCtx());
+assert('prefill songSieuAm = 28 từ báo giá', oSA.manual.songSieuAm === 28, String(oSA.manual.songSieuAm));
+assert('snapshot hasSongSieuAm true', oSA.snapshot.hasSongSieuAm === true);
+assert('snapshot songSieuAmMm = 28', oSA.snapshot.songSieuAmMm === 28, String(oSA.snapshot.songSieuAmMm));
+
+const sSANoTick = makeSource('q1:sa-no', 'TUI NAP KEO 2', 'LLDPE');
+sSANoTick.input = baseInput({ productName: 'TUI NAP KEO 2', bagType: 'cutSealNapKeo', layer2Id: 'LLDPE' });
+const oSANoTick = buildProductionOrderFromSource(sSANoTick, emptyCtx());
+assert('không tick → giữ default 32 từ applyBagDefaults', oSANoTick.manual.songSieuAm === 32, String(oSANoTick.manual.songSieuAm));
+assert('snapshot hasSongSieuAm falsy khi không tick', !oSANoTick.snapshot.hasSongSieuAm);
+
 console.log('\n=== dual laminate: 1 pass nhiều parts ===');
 const mats = [
   { id: 'PET12', name: 'PET', thickness: 12 },
@@ -372,6 +390,38 @@ assert(
   'mic override',
   getMaterialLabel(lldpeMats, 'LLDPE_THUONG', 100) === 'LLDPE100',
 );
+
+console.log('\n=== snapshot đóng băng trong inputValue (lsxSnapshot) ===');
+
+const snap = orderWithBagSize.snapshot;
+const manualCoSnap = ganLsxSnapshotVaoInputValue(orderWithBagSize.manual, snap) as Record<string, unknown>;
+assert('embed giữ nguyên manual fields', manualCoSnap.tenSP === orderWithBagSize.manual.tenSP, String(manualCoSnap.tenSP));
+assert('embed thêm key lsxSnapshot', manualCoSnap.lsxSnapshot !== undefined);
+const snapRut = lsxSnapshotTuInputValue(manualCoSnap);
+assert('extract trả snapshot đã lưu', snapRut !== null && snapRut.bagWidthMm === snap.bagWidthMm, JSON.stringify(snapRut));
+assert('inputValue null → snapshot null', lsxSnapshotTuInputValue(null) === null);
+assert('inputValue rỗng → snapshot null', lsxSnapshotTuInputValue({}) === null);
+assert('inputValue thiếu lsxSnapshot → null', lsxSnapshotTuInputValue({ lsxNumber: '2607.01' }) === null);
+
+console.log('\n=== stage ghi chú + mô tả khác từ báo giá → manual LSX ===');
+
+const sourceStage = (overrides?: Partial<LsxSourceData>): LsxSourceData => ({
+  ...sourceWithBagSize,
+  stageNotes: [{ stage: 'lam-tui', text: 'aaaa' }],
+  stageDescriptions: [
+    { stage: 'in', text: 'màu theo mẫu đã duyệt' },
+    { stage: 'lam-tui', text: 'Từ sóng siêu âm...' },
+  ],
+  ...overrides,
+});
+const orderStage = buildProductionOrderFromSource(sourceStage(), emptyCtx());
+const m = orderStage.manual;
+assert('ghi chú [lam-tui] → bagLuuY', m.bagLuuY === 'aaaa', m.bagLuuY);
+assert('ghi chú [in] không set → printNotes rỗng', m.printNotes === '', m.printNotes);
+assert('ghi chú [chia] không set → divideNotes rỗng', m.divideNotes === '', m.divideNotes);
+assert('mô tả [in] → inDesc', m.inDesc === 'màu theo mẫu đã duyệt', m.inDesc);
+assert('mô tả [lam-tui] → bagDesc', m.bagDesc === 'Từ sóng siêu âm...', m.bagDesc);
+assert('mô tả các stage khác để trống', m.lamDesc === '' && m.divideDesc === '', `lam=${m.lamDesc} chia=${m.divideDesc}`);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

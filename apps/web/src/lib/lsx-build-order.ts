@@ -34,6 +34,36 @@ export type LamLayerRow = {
 };
 
 /**
+ * Key dành riêng chứa snapshot LSX bên trong `inputValue` server.
+ * Lý do: server chỉ lưu `inputValue` (Prisma.Json) — không có cột snapshot riêng.
+ * Lưu snapshot kèm theo giúp preview ở Danh sách LSX hiển thị ĐÚNG bản lúc tạo,
+ * không bị pricing sheet sửa sau làm lệch.
+ */
+export const LSX_SNAPSHOT_KEY = 'lsxSnapshot';
+
+export type LsxSnapshotPayload = ProductionOrder['snapshot'];
+
+/** Lấy snapshot đã lưu (nếu có) từ inputValue server (object hoặc null). */
+export function lsxSnapshotTuInputValue(inputValue: unknown): LsxSnapshotPayload | null {
+  if (!inputValue || typeof inputValue !== 'object' || Array.isArray(inputValue)) return null;
+  const raw = (inputValue as Record<string, unknown>)[LSX_SNAPSHOT_KEY];
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  return raw as LsxSnapshotPayload;
+}
+
+/** Nhúng snapshot vào manual trước khi đẩy lên server (không mutate input). */
+export function ganLsxSnapshotVaoInputValue(
+  inputValue: unknown,
+  snapshot: LsxSnapshotPayload,
+): unknown {
+  const base =
+    inputValue && typeof inputValue === 'object' && !Array.isArray(inputValue)
+      ? { ...(inputValue as Record<string, unknown>) }
+      : {};
+  return { ...base, [LSX_SNAPSHOT_KEY]: snapshot };
+}
+
+/**
  * Khổ lớp 2 dành RIÊNG cho LSX túi đáy đứng hai cấu trúc.
  * Mặt thường = rộng túi; mặt đi cùng đáy = phần khổ trải còn lại.
  * Không mutate source.input và không thay input truyền vào engine tính giá.
@@ -386,6 +416,10 @@ export function defaultManual(lsxNumber: string, preparedBy: string): LSXManualF
     songSieuAm: 0,
     docQuaiXach: false,
     danKeoNap: false,
+    inDesc: '',
+    lamDesc: '',
+    divideDesc: '',
+    bagDesc: '',
   };
 }
 
@@ -400,6 +434,33 @@ export interface BuildLsxOrderCtx {
 }
 
 /** Prefill manual fields từ source (form + batch). */
+/** Áp dụng ghi chú công đoạn + mô tả khác từ báo giá vào manual LSX. */
+function apDungStageGhiChu(m: LSXManualFields, source: LsxSourceData): void {
+  const ghiChu = source.stageNotes ?? [];
+  for (const n of ghiChu) {
+    if (!n || !n.text) continue;
+    if (n.stage === 'in') m.printNotes = ghepText(m.printNotes, n.text);
+    else if (n.stage === 'ghep') m.laminateNotes = ghepText(m.laminateNotes, n.text);
+    else if (n.stage === 'chia') m.divideNotes = ghepText(m.divideNotes, n.text);
+    else if (n.stage === 'lam-tui') m.bagLuuY = ghepText(m.bagLuuY, n.text);
+  }
+  const moTa = source.stageDescriptions ?? [];
+  for (const d of moTa) {
+    if (!d || !d.text) continue;
+    if (d.stage === 'in') m.inDesc = ghepText(m.inDesc, d.text);
+    else if (d.stage === 'ghep') m.lamDesc = ghepText(m.lamDesc, d.text);
+    else if (d.stage === 'chia') m.divideDesc = ghepText(m.divideDesc, d.text);
+    else if (d.stage === 'lam-tui') m.bagDesc = ghepText(m.bagDesc, d.text);
+  }
+}
+
+/** Nối 2 chuỗi ghi chú — ngăn cách bằng xuống dòng nếu cả 2 đều có. */
+function ghepText(a: string, b: string): string {
+  if (!a) return b;
+  if (!b) return a;
+  return `${a}\n${b}`;
+}
+
 export function buildManualFromSource(
   source: LsxSourceData,
   ctx: BuildLsxOrderCtx,
@@ -443,6 +504,7 @@ export function buildManualFromSource(
     m.divideElements = i.divideElements;
   }
   const bag = bagInfo ?? classifyLsxBagType(i.bagType, !!i.hasZipper);
+  apDungStageGhiChu(m, source);
   if (tui) {
     const next = applyBagDefaults(m, bag, !!i.hasZipper);
     if (source.hasHalfMoonBottom) {
@@ -450,6 +512,9 @@ export function buildManualFromSource(
     }
     if (i.hasZipper && (source.zipperDistanceMm ?? 0) > 0) {
       next.tamZipperCachMieng = source.zipperDistanceMm as number;
+    }
+    if (source.hasSongSieuAm && (source.songSieuAmMm ?? 0) > 0) {
+      next.songSieuAm = source.songSieuAmMm as number;
     }
     return next;
   }
@@ -498,6 +563,8 @@ export function buildSnapshotFromSource(
     layer5Name: getMaterialName(materials, inp.layer5Id),
     chotGia: source.chotGia || source.finalPrice,
     totalArea: Math.round(area * 100) / 100,
+    hasSongSieuAm: source.hasSongSieuAm,
+    songSieuAmMm: source.songSieuAmMm,
   };
 }
 

@@ -1,6 +1,14 @@
 import type { CalculateInput, Material } from './types';
 import { boSoCauTruc } from './format-structure';
 
+/** Công đoạn sản xuất áp dụng cho ghi chú / mô tả khác. */
+export type LsxStageKey = 'in' | 'ghep' | 'chia' | 'lam-tui';
+
+export interface LsxStageNote {
+  stage: LsxStageKey;
+  text: string;
+}
+
 export interface QuoteProductBagSpec {
   bagType: string;
   widthMm: number;
@@ -31,21 +39,28 @@ export interface QuoteProductBagSpec {
   cylinderUnitPrice: number;
   cylinderNote?: string;
   otherDescription: string;
+  /** Ghi chú công đoạn — tối đa 1 dòng (dropdown công đoạn + text). */
+  stageNotes: LsxStageNote[];
+  /** Mô tả khác theo công đoạn — nhiều dòng. */
+  stageDescriptions: LsxStageNote[];
   structureBack: string;
   structureSwapped: boolean;
   hasStructureBack: boolean;
   bottomFollows: 'front' | 'back';
   hasHandle: boolean;
   handleOptionKey: string;
+  hasSongSieuAm: boolean;
+  songSieuAmMm: number;
 }
 
-export type BagSpecConditionalField = 'gusset' | 'backSeal' | 'standupBottom' | 'sideSeal' | 'lid';
+export type BagSpecConditionalField = 'gusset' | 'backSeal' | 'standupBottom' | 'sideSeal' | 'lid' | 'songSieuAm';
 
 export function shouldShowBagSpecField(bagType: string, field: BagSpecConditionalField): boolean {
   if (field === 'gusset') return ['4bien', 'xephong_lech', 'xephong_giua'].includes(bagType);
   if (field === 'backSeal') return ['xephong_lech', 'xephong_giua'].includes(bagType);
   if (field === 'sideSeal') return !['cutSeal', 'cutSealNapKeo', 'xephong_lech', 'xephong_giua'].includes(bagType);
   if (field === 'lid') return bagType === 'cutSealNapKeo';
+  if (field === 'songSieuAm') return bagType === 'cutSealNapKeo';
   return bagType === 'dayDung';
 }
 
@@ -81,12 +96,16 @@ export function buildDefaultBagSpec(input: CalculateInput): QuoteProductBagSpec 
     cylinderUnitPrice: 0,
     cylinderNote: '',
     otherDescription: '',
+    stageNotes: [],
+    stageDescriptions: [],
     structureBack: '',
     structureSwapped: false,
     hasStructureBack: Boolean(input.layer2AltId),
     bottomFollows: 'front',
     hasHandle: Boolean(input.hasHandle),
     handleOptionKey: input.handleOptionKey || '',
+    hasSongSieuAm: false,
+    songSieuAmMm: 0,
   };
 }
 

@@ -30,6 +30,24 @@ export const LSX_TOLERANCE_WIDTH_DEFAULT_MM = 2;
 /** Dung sai mặc định chiều dài (D) quy cách LSX. */
 export const LSX_TOLERANCE_LENGTH_DEFAULT_MM = 3;
 
+/** Nguồn kích thước túi: ưu tiên kích thước thành phẩm từ báo giá (bagSpec), fallback khổ trải/bước cắt (cuộn). */
+export function lsxBagSizeMm(snapshot: {
+  bagWidthMm?: number;
+  bagLengthMm?: number;
+  spreadWidth?: number;
+  cutStep?: number;
+}): { widthMm: number; lengthMm: number } {
+  const widthMm =
+    snapshot.bagWidthMm && snapshot.bagWidthMm > 0
+      ? Math.round(snapshot.bagWidthMm)
+      : Math.round((snapshot.spreadWidth || 0) * 1000);
+  const lengthMm =
+    snapshot.bagLengthMm && snapshot.bagLengthMm > 0
+      ? Math.round(snapshot.bagLengthMm)
+      : Math.round((snapshot.cutStep || 0) * 1000);
+  return { widthMm, lengthMm };
+}
+
 /** "R:220mm (±2mm) x D:320mm (±2mm)" — bỏ ngoặc khi dung sai = 0. */
 export function formatLsxQuyCach(opts: {
   widthMm: number;
@@ -62,12 +80,7 @@ export function buildLsxQuyCachLines(
   snapshot: LsxQuyCachSnapshot,
 ): string[] {
   const isTui = snapshot.productType !== 'mang';
-  const widthMm = snapshot.bagWidthMm && snapshot.bagWidthMm > 0
-    ? Math.round(snapshot.bagWidthMm)
-    : Math.round((snapshot.spreadWidth || 0) * 1000);
-  const lengthMm = snapshot.bagLengthMm && snapshot.bagLengthMm > 0
-    ? Math.round(snapshot.bagLengthMm)
-    : Math.round((snapshot.cutStep || 0) * 1000);
+  const { widthMm, lengthMm } = lsxBagSizeMm(snapshot);
   const autoSpec =
     isTui && widthMm && lengthMm
       ? formatLsxQuyCach({

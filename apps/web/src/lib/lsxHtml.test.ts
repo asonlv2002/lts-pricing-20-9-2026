@@ -91,6 +91,10 @@ function baseManual(partial: Partial<LSXManualFields> = {}): LSXManualFields {
     songSieuAm: 0,
     docQuaiXach: false,
     danKeoNap: false,
+    inDesc: '',
+    lamDesc: '',
+    divideDesc: '',
+    bagDesc: '',
     ...partial,
   };
 }

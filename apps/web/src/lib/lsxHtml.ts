@@ -23,8 +23,9 @@ import {
 } from './lsxExport';
 import { buildLsxLamGridRows } from './lsx-lam-rows';
 import { formatLsxOrderQuantity } from './lsx-quantity';
-import { buildLsxQuyCachLines } from './lsx-quy-cach';
-import { bagTypeLabelHienThi, zipperDistanceFromOrder } from './lsx-bag-classification';
+import { buildLsxQuyCachLines, lsxBagSizeMm } from './lsx-quy-cach';
+import { bagTypeLabelHienThi } from './lsx-bag-classification';
+import { buildLsxBagFieldRows } from './lsx-bag-fields';
 import { formatLsxHeaderDate } from './lsx-header-format';
 import { formatLsxDivideSummary, resolveLsxDivideSpec } from './lsx-divide';
 
@@ -229,128 +230,25 @@ type BagRow =
   | { kind: 'pair'; left: string; right: string }
   | { kind: 'full'; text: string };
 
-/** Bag-machine field rows per template — mirrors reference document.xml */
+/** Bag-machine field rows per template — maps từ nguồn CHUNG buildLsxBagFieldRows (PDF/DOCX/HTML). */
 function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields, hasZipper = false, snapshotZipperDistanceMm?: number): BagRow[] {
   const rows: BagRow[] = [];
-  const tamZipper = zipperDistanceFromOrder(
-    { manual: m, snapshot: { zipperDistanceMm: snapshotZipperDistanceMm } },
-    templateKey,
-  );
-  switch (templateKey) {
-    case 'tui-3-bien':
+  const shared = buildLsxBagFieldRows(templateKey, m, hasZipper, snapshotZipperDistanceMm);
+  for (const row of shared) {
+    if (row.kind === 'pair') {
       rows.push({
         kind: 'pair',
-        left: `<span class="b">Hàn biên: </span>${esc(v(m.sealEdge) || v(m.hanBien, 'mm') || '7mm')}`,
-        right: `<span class="b">Hàn đầu: </span>${esc(v(m.hanDau, 'mm') || '30mm')}`,
+        left: `<span class="b">${esc(row.left.label)}</span>${esc(row.left.value)}`,
+        right: `<span class="b">${esc(row.right.label)}</span>${esc(row.right.value)}`,
       });
-      rows.push({ kind: 'full', text: `<span class="b">Đục lỗ: </span>${esc(v(m.holePunchInfo) || '…')}` });
-      if (hasZipper || m.tamZipperCachMieng) {
-        rows.push({
-          kind: 'pair',
-          left: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}`,
-          right: `<span class="b">Nhấn xé "v": </span>${esc(v(m.tearNotch))}`,
-        });
-      }
-      {
-        const extras: string[] = [];
-        if (m.useDualCutter) extras.push('Sử dụng dao cắt 2 nhịp để cắt');
-        if (m.useSemicircularMold) extras.push('Sử dụng khuôn đáy đứng bán nguyệt');
-        if (extras.length) rows.push({ kind: 'full', text: `<span class="b">${esc(extras.join(' '))}</span>` });
-      }
-      break;
-    case 'tui-4-bien':
-      rows.push({
-        kind: 'pair',
-        left: `<span class="b">Hàn biên: </span>${esc(v(m.hanBien, 'mm') || '10mm')}`,
-        right: `<span class="b">Hàn đầu: </span>${esc(v(m.hanDau, 'mm') || '50mm')}`,
-      });
-      rows.push({ kind: 'full', text: `<span class="b">Xếp hông: </span>${esc(v(m.xepHong, 'mm') || '…')}` });
-      rows.push({ kind: 'full', text: esc(v(m.holePunchInfo) || 'Đục 3 lỗ tròn quai xách (Theo Market)') });
-      rows.push({ kind: 'full', text: `<span class="b">Đục lỗ thông hơi: </span>${esc(v(m.ventHoleInfo) || '…')}` });
-      if (hasZipper || m.tamZipperCachMieng) {
-        rows.push({
-          kind: 'pair',
-          left: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}`,
-          right: `<span class="b">Nhấn xé "v": </span>${esc(v(m.tearNotch))}`,
-        });
-      }
-      break;
-    case 'tui-dan-lung-giua':
-      rows.push({ kind: 'full', text: `<span class="b">Hàn đầu: </span>${esc(v(m.hanDau, 'mm') || '13mm')}` });
+    } else {
       rows.push({
         kind: 'full',
-        text: `<span class="b">Dán lưng: </span>${esc(v(m.danLung, 'mm') || '13mm')}${m.ventHoleInfo ? `. ${esc(m.ventHoleInfo)}` : ''}`,
+        text: row.field.label
+          ? `<span class="b">${esc(row.field.label)}</span>${esc(row.field.value)}`
+          : esc(row.field.value),
       });
-      if (hasZipper || m.tamZipperCachMieng) {
-        rows.push({ kind: 'full', text: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}` });
-      }
-      break;
-    case 'tui-xep-hong-lung-lech':
-      rows.push({ kind: 'full', text: `<span class="b">Xếp hông: </span>${esc(v(m.xepHong, 'mm') || '…')}` });
-      rows.push({ kind: 'full', text: `<span class="b">Dán lưng lệch: </span>${esc(v(m.danLungLech, 'mm') || '10mm')}` });
-      rows.push({ kind: 'full', text: `<span class="b">Dán đáy: </span>${esc(v(m.danDay, 'mm') || '10mm')}` });
-      if (hasZipper || m.tamZipperCachMieng) {
-        rows.push({ kind: 'full', text: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}` });
-      }
-      break;
-    case 'tui-day-dung':
-      if (hasZipper || m.tamZipperCachMieng) {
-        rows.push({
-          kind: 'pair',
-          left: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}`,
-          right: `<span class="b">Nhấn xé "v": </span>${esc(v(m.tearNotch) || '2 bên cách miệng 15mm')}`,
-        });
-      }
-      rows.push({
-        kind: 'pair',
-        left: `<span class="b">Hàn biên: </span>${esc(v(m.sealEdge) || v(m.hanBien, 'mm') || '10mm')}`,
-        right: `<span class="b">Xếp đáy: </span>${esc(v(m.foldBottom) || '100mm')}`,
-      });
-      break;
-    case 'tui-cut-seal':
-      if (hasZipper || m.tamZipperCachMieng) {
-        rows.push({
-          kind: 'full',
-          text: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}`,
-        });
-        rows.push({
-          kind: 'full',
-          text: `<span class="b">Đục treo lỗ tròn: </span>${esc(v(m.loTreoInfo) || 'Ø8mm ở giữa khoảng cách miệng túi và tâm zipper')}`,
-        });
-      }
-      break;
-    case 'tui-cut-seal-nap-keo':
-      rows.push({ kind: 'full', text: `Nắp: ${esc(v(m.nap, 'mm') || '35mm')}` });
-      rows.push({ kind: 'full', text: `Từ đầu đến sóng siêu âm : ${esc(v(m.songSieuAm, 'mm') || '32mm')}` });
-      rows.push({
-        kind: 'full',
-        text: m.docQuaiXach ? 'Đục quai xách: cây đục riêng của khách' : 'Đục quai xách: …',
-      });
-      if (m.danKeoNap) rows.push({ kind: 'full', text: 'Dán keo ở mí dưới trong nắp' });
-      if (hasZipper || m.tamZipperCachMieng) {
-        rows.push({ kind: 'full', text: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}` });
-      }
-      break;
-    default:
-      rows.push({
-        kind: 'pair',
-        left: `<span class="b">Hàn biên: </span>${esc(v(m.hanBien, 'mm') || v(m.sealEdge) || '…')}`,
-        right: `<span class="b">Hàn đầu: </span>${esc(v(m.hanDau, 'mm') || '…')}`,
-      });
-      if (m.xepHong) rows.push({ kind: 'full', text: `<span class="b">Xếp hông: </span>${esc(v(m.xepHong, 'mm'))}` });
-      if (m.foldBottom) rows.push({ kind: 'full', text: `<span class="b">Xếp đáy: </span>${esc(v(m.foldBottom))}` });
-      if (m.tamZipperCachMieng) {
-        rows.push({ kind: 'full', text: `<span class="b">Tâm zipper: </span>${esc(v(m.tamZipperCachMieng, 'mm'))}` });
-      }
-      if (m.tearNotch) rows.push({ kind: 'full', text: `<span class="b">Nhấn xé "v": </span>${esc(m.tearNotch)}` });
-      if (m.holePunchInfo) rows.push({ kind: 'full', text: esc(m.holePunchInfo) });
-      {
-        const extras: string[] = [];
-        if (m.useDualCutter) extras.push('Sử dụng dao cắt 2 nhịp để cắt');
-        if (m.useSemicircularMold) extras.push('Sử dụng khuôn đáy đứng bán nguyệt');
-        if (extras.length) rows.push({ kind: 'full', text: `<span class="b">${esc(extras.join(' '))}</span>` });
-      }
-      break;
+    }
   }
   return rows;
 }
@@ -526,6 +424,7 @@ function divideLeftColHtml(order: ProductionOrder): string {
       ${divideResultHtml(order)}
       ${m.rollLength ? `<div><span class="b">Chiều dài: </span>${esc(vd(m.rollLength, 'm'))}</div>` : ''}
       <div>Định mức phi hao chia: 0m</div>
+      ${m.divideDesc ? `<div>${esc(m.divideDesc)}</div>` : ''}
       <div>${esc(m.divideNotes || '')}</div>
     `;
 }
@@ -542,8 +441,7 @@ function bagFooterNotesHtml(order: ProductionOrder): string {
  */
 function bagSplitHtml(
   bagLabel: string,
-  khoMM: number,
-  dlMM: number,
+  bagSize: { widthMm: number; lengthMm: number },
   fieldSpecs: BagRow[],
   order: ProductionOrder,
 ): string {
@@ -551,8 +449,8 @@ function bagSplitHtml(
   const rows: string[] = [];
   rows.push(`<tr><td colspan="2" class="ac"><span class="b">Kiểu túi: </span>${esc(bagLabel)}</td></tr>`);
   rows.push(
-    `<tr><td><span class="b">Chiều rộng: </span>${khoMM ? `${khoMM}mm` : '…'}</td>` +
-      `<td><span class="b">Chiều dài: </span>${dlMM ? `${dlMM}mm` : '…'}</td></tr>`,
+    `<tr><td><span class="b">Chiều rộng: </span>${bagSize.widthMm ? `${bagSize.widthMm}mm` : '…'}</td>` +
+      `<td><span class="b">Chiều dài: </span>${bagSize.lengthMm ? `${bagSize.lengthMm}mm` : '…'}</td></tr>`,
   );
   for (const spec of fieldSpecs) {
     if (spec.kind === 'pair') {
@@ -584,14 +482,16 @@ function tuiBodyHtml(order: ProductionOrder): string {
   /** Mid-page CHIA | TÚI header (multi-layer + divide) — layout A */
   const useLeftDivideCol = showDivide && !singleLayer;
   const bagInfo = resolveLsxBagTypeInfo(order);
-  const bagLabel = bagInfo.key === 'fallback' ? s.bagType || 'Túi' : bagInfo.label;
+  const bagLabel = bagInfo.key === 'fallback'
+    ? s.bagType || 'Túi'
+    : bagTypeLabelHienThi(bagInfo, s.bagType || '', !!s.hasZipper, !!m.lsxBagTypeOverride);
   const khoMM = Math.round((s.spreadWidth || 0) * 1000);
-  const dlMM = Math.round((s.cutStep || 0) * 1000);
+  const bagSize = lsxBagSizeMm(s);
   const templateKey = resolveLsxDocxTemplate(order);
   const fieldSpecs = bagFieldSpecs(templateKey, m, !!s.hasZipper, s.zipperDistanceMm);
 
 
-  const bagContent = bagSplitHtml(bagLabel, khoMM, dlMM, fieldSpecs, order);
+  const bagContent = bagSplitHtml(bagLabel, bagSize, fieldSpecs, order);
   const leftRowspan = 1;
 
   let html = `<table>${COLS5}
@@ -628,6 +528,7 @@ function tuiBodyHtml(order: ProductionOrder): string {
       <td colspan="2">
         <div>Định mức phi hao: ${esc(formatLsxPrintWasteLine(m, '…'))}</div>
         <div>Thành phẩm in: ${esc(formatLsxPrintProductLine(m, '…'))}</div>
+        ${m.inDesc ? `<div>${esc(m.inDesc)}</div>` : ''}
         <div><span class="b">Ghi chú: </span>${esc(m.printNotes || '')}</div>
         <div>- Màu sắc: duyệt màu theo ${esc(v(m.maMucNhu) || '…')}</div>
       </td>
@@ -698,6 +599,7 @@ function tuiBodyHtml(order: ProductionOrder): string {
       <td colspan="2">
         <div>Định mức phi hao: ${esc(formatLsxPrintWasteLine(m, '…'))}</div>
         <div>Thành phẩm yêu cầu: ${esc(formatLsxPrintProductLine(m, '…'))}</div>
+        ${m.inDesc ? `<div>${esc(m.inDesc)}</div>` : ''}
         <div><span class="b">Ghi chú:</span></div>
         <div>${esc(m.printNotes || '')}</div>
         <div>- Màu sắc: duyệt màu theo ${esc(v(m.maMucNhu) || '…')}</div>
@@ -707,6 +609,7 @@ function tuiBodyHtml(order: ProductionOrder): string {
         <div>Định mức phi hao: ${esc(wasteText || '…')}</div>
         <div>Thành phẩm yêu cầu: ${esc(formatLsxLamProductLine(m, '…'))}</div>
         ${m.lamBTPNote ? `<div>${esc(m.lamBTPNote)}</div>` : ''}
+        ${m.lamDesc ? `<div>${esc(m.lamDesc)}</div>` : ''}
         <div><span class="b">Số lượng cấp vật tư: </span>${esc(formatLsxLamSupplyLine(m, '…'))}</div>
         <div><span class="b">Ghi chú: </span>${esc(m.laminateNotes || '')}</div>
       </td>

@@ -135,7 +135,7 @@ export function buildLsxBagFieldRows(
       break;
 
     case 'tui-cut-seal-nap-keo':
-      pair('Nắp: ', v(m.nap, 'mm') || '35mm', 'Sóng siêu âm: ', v(m.songSieuAm, 'mm') || '32mm');
+      pair('Nắp: ', v(m.nap, 'mm') || '35mm', 'Từ đầu đến sóng siêu âm: ', v(m.songSieuAm, 'mm') || '32mm');
       full('Đục quai xách: ', m.docQuaiXach ? 'cây đục riêng của khách' : '…');
       if (m.danKeoNap) full('', 'Dán keo ở mí dưới trong nắp');
       if (zipper) full('Tâm zipper cách đầu: ', `${tamZipper}mm`);
@@ -164,6 +164,7 @@ export function buildLsxBagFieldRows(
 
   if (m.useDualCutter) full('', 'Sử dụng dao cắt 2 nhịp để cắt');
   if (m.useSemicircularMold) full('', 'Sử dụng khuôn đáy đứng bán nguyệt');
+  if (m.bagDesc) full('', m.bagDesc);
 
   return rows;
 }

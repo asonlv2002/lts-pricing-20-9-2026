@@ -21,7 +21,7 @@ import {
 } from './lsx-bag-classification';
 import { lsxExportBaseName } from './lsx-msp';
 import { formatLsxOrderQuantity } from './lsx-quantity';
-import { buildLsxQuyCachLines } from './lsx-quy-cach';
+import { buildLsxQuyCachLines, lsxBagSizeMm } from './lsx-quy-cach';
 import { buildLsxBagFieldRows, splitLsxBagBlockWidths } from './lsx-bag-fields';
 import { buildLsxLamGridRows, splitLsxLamBlockWidths } from './lsx-lam-rows';
 import { formatLsxHeaderDate } from './lsx-header-format';
@@ -349,7 +349,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
   void orderStageLayout(order);
   const isTui = s.productType !== 'mang';
   const khoMM = Math.round((s.spreadWidth || 0) * 1000);
-  const dlMM = Math.round((s.cutStep || 0) * 1000);
+  const bagSize = lsxBagSizeMm(s);
   const bagLabel = isTui
     ? bagTypeLabelHienThi(bagInfo, s.bagType || '', !!s.hasZipper, !!m.lsxBagTypeOverride)
     : '';
@@ -631,11 +631,13 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
         cell([
           para([run(`Định mức phi hao: ${formatLsxPrintWasteLine(m, '…')}`)]),
           para([run(`Thành phẩm in: ${formatLsxPrintProductLine(m, '…')}`)]),
+          ...(m.inDesc ? [para([run(m.inDesc)])] : []),
           para([run('Ghi chú: ', { b: true }), run(m.printNotes || '')]),
           para([run('- Màu sắc: duyệt màu theo '), run(v(m.maMucNhu) || '…')]),
         ], { cs: 2 }),
         cell([
           para([run('Ghi chú chia: ', { b: true })]),
+          ...(m.divideDesc ? [para([run(m.divideDesc)])] : []),
           para([run(m.divideDeliveryReq || m.divideNotes || '')]),
         ], { cs: 3 }),
       ));
@@ -731,6 +733,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
         cell([
           para([run(`Định mức phi hao: ${formatLsxPrintWasteLine(m, '…')}`)]),
           para([run(`Thành phẩm yêu cầu: ${formatLsxPrintProductLine(m, '…')}`)]),
+          ...(m.inDesc ? [para([run(m.inDesc)])] : []),
           para([run('Ghi chú: ', { b: true }), run(m.printNotes || '')]),
           para([run('- Màu sắc: duyệt màu theo '), run(v(m.maMucNhu) || '…')]),
           ...(m.cylInfo ? [para([run('Trục in: ', { b: true }), run(m.cylInfo)])] : []),
@@ -739,6 +742,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
           para([run(`Định mức phi hao: ${wasteText || '…'}`)]),
           para([run(`Thành phẩm yêu cầu: ${formatLsxLamProductLine(m, '…')}`)]),
           ...(m.lamBTPNote ? [para([run(m.lamBTPNote)])] : []),
+          ...(m.lamDesc ? [para([run(m.lamDesc)])] : []),
           para([run('Số lượng cấp vật tư: ', { b: true }), run(formatLsxLamSupplyLine(m, '…'))]),
           para([run('Ghi chú: ', { b: true }), run(m.laminateNotes || '')]),
         ], { cs: 3 }),
@@ -766,6 +770,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
           ...divideParas(),
           ...(m.rollLength ? [para([run('Chiều dài: ', { b: true }), run(vd(m.rollLength, 'm'))])] : []),
           para([run('Định mức phi hao chia: 0m')]),
+          ...(m.divideDesc ? [para([run(m.divideDesc)])] : []),
           para([run(m.divideNotes || '')]),
         ]
       : [];
@@ -792,8 +797,8 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
     ));
     bagGridRows.push(rowMin(300,
       noteCell(VM_CONTINUE),
-      cell([para([run('Chiều rộng: ', { b: true }), run(khoMM ? `${khoMM}mm` : '…')])], { w: bagW.cellLeft }),
-      cell([para([run('Chiều dài: ', { b: true }), run(dlMM ? `${dlMM}mm` : '…')])], { w: bagW.cellRight }),
+      cell([para([run('Chiều rộng: ', { b: true }), run(bagSize.widthMm ? `${bagSize.widthMm}mm` : '…')])], { w: bagW.cellLeft }),
+      cell([para([run('Chiều dài: ', { b: true }), run(bagSize.lengthMm ? `${bagSize.lengthMm}mm` : '…')])], { w: bagW.cellRight }),
     ));
     for (const row of buildLsxBagFieldRows(templateKey, m, !!s.hasZipper, s.zipperDistanceMm)) {
       if (row.kind === 'pair') {
@@ -844,8 +849,8 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
         h: 260,
         cells: [
           cell([para([])], { cs: 2, vm: VM_CONTINUE }),
-          cell([para([run('Chiều rộng: ', { b: true }), run(khoMM ? `${khoMM}mm` : '…')])]),
-          cell([para([run('Chiều dài: ', { b: true }), run(dlMM ? `${dlMM}mm` : '…')])], { cs: 2 }),
+          cell([para([run('Chiều rộng: ', { b: true }), run(bagSize.widthMm ? `${bagSize.widthMm}mm` : '…')])]),
+          cell([para([run('Chiều dài: ', { b: true }), run(bagSize.lengthMm ? `${bagSize.lengthMm}mm` : '…')])], { cs: 2 }),
         ],
       });
     } else {
@@ -858,8 +863,8 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
       bagFieldRows.push({
         h: 260,
         cells: [
-          cell([para([run('Chiều rộng: ', { b: true }), run(khoMM ? `${khoMM}mm` : '…')])], { cs: 2 }),
-          cell([para([run('Chiều dài: ', { b: true }), run(dlMM ? `${dlMM}mm` : '…')])], { cs: 3 }),
+          cell([para([run('Chiều rộng: ', { b: true }), run(bagSize.widthMm ? `${bagSize.widthMm}mm` : '…')])], { cs: 2 }),
+          cell([para([run('Chiều dài: ', { b: true }), run(bagSize.lengthMm ? `${bagSize.lengthMm}mm` : '…')])], { cs: 3 }),
         ],
       });
     }
@@ -986,7 +991,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
       case 'tui-cut-seal-nap-keo':
         pushContinue([
           cell([para([run('Nắp: ', { b: true }), run(v(m.nap, 'mm') || '35mm')])], { cs: rcs(1) }),
-          cell([para([run('Sóng siêu âm: ', { b: true }), run(v(m.songSieuAm, 'mm') || '32mm')])], { cs: rcs(2) }),
+          cell([para([run('Từ đầu đến sóng siêu âm: ', { b: true }), run(v(m.songSieuAm, 'mm') || '32mm')])], { cs: rcs(2) }),
         ]);
         pushContinue([
           cell([

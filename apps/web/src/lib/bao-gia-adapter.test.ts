@@ -164,3 +164,45 @@ assert(
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);
+
+console.log('\n=== mapBaoGiaToLsxSources hasSongSieuAm + songSieuAmMm ===');
+
+const bgSA: BaoGiaApi = {
+  id: 'q-sa',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  inputValue: {
+    productBagSpecs: [
+      {
+        pricingSheetId: 'ps-sa',
+        productName: 'Túi SA',
+        bagSpec: {
+          hasSongSieuAm: true,
+          songSieuAmMm: 28,
+        },
+      },
+    ],
+  },
+  pricingSheets: [sheet('ps-sa', 'Túi SA')],
+};
+const sourcesSA = mapBaoGiaToLsxSources(bgSA);
+assert('ps-sa hasSongSieuAm true', sourcesSA[0]?.hasSongSieuAm === true);
+assert('ps-sa songSieuAmMm = 28', sourcesSA[0]?.songSieuAmMm === 28, String(sourcesSA[0]?.songSieuAmMm));
+
+const bgSANone: BaoGiaApi = {
+  id: 'q-sa-none',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  inputValue: {
+    productBagSpecs: [
+      { pricingSheetId: 'ps-sa-none', productName: 'Túi SA 2', bagSpec: { hasSongSieuAm: false } },
+    ],
+  },
+  pricingSheets: [sheet('ps-sa-none', 'Túi SA 2')],
+};
+const sourcesSANone = mapBaoGiaToLsxSources(bgSANone);
+assert('ps-sa-none hasSongSieuAm falsy', !sourcesSANone[0]?.hasSongSieuAm);
+assert('ps-sa-none songSieuAmMm undefined', sourcesSANone[0]?.songSieuAmMm === undefined);
+
+console.log(`\n${passed} passed, ${failed} failed`);
+if (failed > 0) process.exit(1);

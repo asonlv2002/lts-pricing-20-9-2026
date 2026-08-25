@@ -18,7 +18,7 @@ import { mapBaoGiaToLsxSources, laBaoGiaDaDuyet } from '../../lib/bao-gia-adapte
 import { LsxFormFields } from './LsxFormFields';
 import LsxPreviewModal from '../LsxPreviewModal';
 import LsxPdfPreviewModal from '../LsxPdfPreviewModal';
-import { buildProductionOrderFromSource } from '../../lib/lsx-build-order';
+import { buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue } from '../../lib/lsx-build-order';
 import { themChuKyVaoManual } from '../../lib/chu-ky';
 
 export interface SlidePanelLsxEditProps {
@@ -109,6 +109,10 @@ function defaultManual(): LSXManualFields {
     songSieuAm: 0,
     docQuaiXach: false,
     danKeoNap: false,
+    inDesc: '',
+    lamDesc: '',
+    divideDesc: '',
+    bagDesc: '',
   };
 }
 
@@ -120,7 +124,8 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
 
   const [manual, setManual] = useState<LSXManualFields>(() => {
     if (order.inputValue && typeof order.inputValue === 'object') {
-      return { ...defaultManual(), ...(order.inputValue as Partial<LSXManualFields>) };
+      const { lsxSnapshot: _bo, ...manualTuServer } = order.inputValue as Record<string, unknown> & { lsxSnapshot?: unknown };
+      return { ...defaultManual(), ...(manualTuServer as Partial<LSXManualFields>) };
     }
     return defaultManual();
   });
@@ -190,7 +195,11 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
     setLoi('');
     try {
       const manualCoChuKy = await themChuKyVaoManual(manual);
-      await updateQuotationPricingSheetOrderService(order.id, { inputValue: manualCoChuKy }, accessToken);
+      const snapshot = source ? buildSnapshotFromSource(source, manualCoChuKy, materials) : lsxSnapshotTuInputValue(order.inputValue);
+      const inputValueCoSnapshot = snapshot
+        ? ganLsxSnapshotVaoInputValue(manualCoChuKy, snapshot)
+        : manualCoChuKy;
+      await updateQuotationPricingSheetOrderService(order.id, { inputValue: inputValueCoSnapshot }, accessToken);
       setThongBao('Đã cập nhật LSX. Trạng thái reset về Chờ duyệt, cần duyệt lại.');
       setTimeout(() => {
         onSaved?.();

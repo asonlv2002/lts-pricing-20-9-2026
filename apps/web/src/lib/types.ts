@@ -911,6 +911,8 @@ export interface QuoteProductLine {
     cylinderQuantity: number;
     cylinderUnitPrice: number;
     otherDescription: string;
+    stageNotes: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
+    stageDescriptions: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
     structureBack: string;
     structureSwapped: boolean;
     hasStructureBack: boolean;
@@ -1076,6 +1078,13 @@ export interface LsxSourceData {
   structureSwapped?: boolean;
   /** Tâm zipper cách đầu (mm) từ bagSpec báo giá — prefill `manual.tamZipperCachMieng` lúc tạo LSX. */
   zipperDistanceMm?: number;
+  /** Tick "Từ đầu đến sóng siêu âm" trên báo giá — prefill `manual.songSieuAm` lúc tạo LSX (chỉ cutSealNapKeo). */
+  hasSongSieuAm?: boolean;
+  songSieuAmMm?: number;
+  /** Ghi chú công đoạn từ báo giá (dropdown công đoạn + text). */
+  stageNotes?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
+  /** Mô tả khác theo công đoạn từ báo giá. */
+  stageDescriptions?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
 }
 
 // ── Production Order (Lệnh Sản Xuất) ─────────────────────────────────────────
@@ -1220,6 +1229,12 @@ export interface LSXManualFields {
   danKeoNap: boolean;           // Dán keo nắp — cắt seal nắp băng keo
 
   lsxBagTypeOverride?: string;  // Admin override kiểu túi LSX
+
+  // Mô tả khác theo công đoạn (ô full-viền mỗi khâu) — từ báo giá + sửa tay trên LSX
+  inDesc: string;               // Mô tả khác — máy in
+  lamDesc: string;              // Mô tả khác — máy ghép
+  divideDesc: string;           // Mô tả khác — máy chia
+  bagDesc: string;              // Mô tả khác — máy làm túi
 }
 
 export interface ProductionOrder {
@@ -1247,6 +1262,9 @@ export interface ProductionOrder {
     hasZipper: boolean;          // Có zipper hay không (để phân loại LSX khi export)
     /** Khoảng cách tâm zipper đến đầu túi (mm) — từ bagSpec báo giá; prefill LSX. */
     zipperDistanceMm?: number;
+    /** Tick "Từ đầu đến sóng siêu âm" từ bagSpec báo giá (chỉ cutSealNapKeo). */
+    hasSongSieuAm?: boolean;
+    songSieuAmMm?: number;
     hasDivide: boolean;          // Báo giá bật "Có chia" → hiện MÁY CHIA trên LSX
     divideWidthMm?: number;      // Khổ chia từ báo giá (mm)
     originalWidthMm?: number;    // Khổ màng (mm) = spreadWidth×1000; giữ field cho LSX/legacy
