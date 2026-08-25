@@ -31,7 +31,13 @@ function clampSoMau(n: number): number {
   return Math.max(1, Math.min(8, Math.floor(n)));
 }
 
-export default function CpsxNangCapDinhMuc() {
+export default function CpsxNangCapDinhMuc({
+  coQuyenInRate = true,
+  coQuyenAdhesiveRate = true,
+}: {
+  coQuyenInRate?: boolean;
+  coQuyenAdhesiveRate?: boolean;
+}) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
 
@@ -72,6 +78,9 @@ export default function CpsxNangCapDinhMuc() {
 
   const [soMauPET, setSoMauPET] = React.useState(1);
   const [soMauOPP, setSoMauOPP] = React.useState(1);
+
+  const khongCoQuyenInRate = !coQuyenInRate;
+  const khongCoQuyenAdhesiveRate = !coQuyenAdhesiveRate;
 
   // CP mực in + DM in (₫/m²) — dùng chung helper đã test với engine đặc tả
   const chiTietPET = tinhCpMucInChiTiet(soMauPET, "pet", ink);
@@ -139,6 +148,8 @@ export default function CpsxNangCapDinhMuc() {
                 </span>
               </div>
 
+              {!khongCoQuyenInRate && (
+              <>
               <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
                 <span className="config-cpsx-upgrade__formula-label">
                   PET  ·  Giá mực{" "}
@@ -222,6 +233,8 @@ export default function CpsxNangCapDinhMuc() {
                   ₫/kg) ÷ 1000 = {dinhDangVnd(chiTietOPP.tong)} ₫/m²
                 </strong>
               </div>
+              </>
+              )}
             </div>
 
             <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
@@ -240,6 +253,11 @@ export default function CpsxNangCapDinhMuc() {
                         In {r.soMau} màu
                       </td>
                       <td className="num">
+                        {khongCoQuyenInRate ? (
+                          <span className="config-cpsx-upgrade__lock">
+                            {dinhDangSo(r.dmMucG)}
+                          </span>
+                        ) : (
                         <input
                           type="number"
                           className="config-inline-input"
@@ -253,8 +271,14 @@ export default function CpsxNangCapDinhMuc() {
                             })
                           }
                         />
+                        )}
                       </td>
                       <td className="num">
+                        {khongCoQuyenInRate ? (
+                          <span className="config-cpsx-upgrade__lock">
+                            {dinhDangSo(r.dmDungMoiG)}
+                          </span>
+                        ) : (
                         <input
                           type="number"
                           className="config-inline-input"
@@ -268,6 +292,7 @@ export default function CpsxNangCapDinhMuc() {
                             })
                           }
                         />
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -393,6 +418,11 @@ export default function CpsxNangCapDinhMuc() {
                   <tr>
                     <td>Keo khô (dry coat weight)</td>
                     <td className="num">
+                      {khongCoQuyenAdhesiveRate ? (
+                        <span className="config-cpsx-upgrade__lock">
+                          {dinhDangSo(dinhMucGhep.keoKhoG)}
+                        </span>
+                      ) : (
                       <input
                         type="number"
                         className="config-inline-input"
@@ -404,11 +434,17 @@ export default function CpsxNangCapDinhMuc() {
                           suaGhep({ keoKhoG: docSoThapPhan(e.target.value) })
                         }
                       />
+                      )}
                     </td>
                   </tr>
                   <tr>
                     <td>Dung môi pha keo</td>
                     <td className="num">
+                      {khongCoQuyenAdhesiveRate ? (
+                        <span className="config-cpsx-upgrade__lock">
+                          {dinhDangSo(dinhMucGhep.dungMoiPhaKeoG)}
+                        </span>
+                      ) : (
                       <input
                         type="number"
                         className="config-inline-input"
@@ -422,6 +458,7 @@ export default function CpsxNangCapDinhMuc() {
                           })
                         }
                       />
+                      )}
                     </td>
                   </tr>
                 </tbody>

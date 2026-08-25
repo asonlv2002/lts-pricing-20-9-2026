@@ -47,7 +47,13 @@ function gioTuKhung(slot: ElectricTimeSlot): number | null {
   return tinhSoGioTuKhungGio(slot.start, slot.end);
 }
 
-export default function CpsxNangCapDien() {
+export default function CpsxNangCapDien({
+  coQuyenKhungGio = true,
+  coQuyenDienMay = true,
+}: {
+  coQuyenKhungGio?: boolean;
+  coQuyenDienMay?: boolean;
+}) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
 
@@ -163,7 +169,8 @@ export default function CpsxNangCapDien() {
 
   return (
     <div className="config-cpsx-upgrade">
-      <div className="card config-card config-cpsx-upgrade-card">
+      {coQuyenKhungGio && (
+        <div className="card config-card config-cpsx-upgrade-card">
         <div className="config-section-title config-cpsx-upgrade__head">
           <span>Giá điện theo khung giờ</span>
           <span className="config-cpsx-upgrade__head-meta">
@@ -387,9 +394,11 @@ export default function CpsxNangCapDien() {
             </fieldset>
           </div>
         )}
-      </div>
+        </div>
+      )}
 
-      <div className="card config-card config-cpsx-upgrade-card">
+      {coQuyenDienMay && (
+        <div className="card config-card config-cpsx-upgrade-card">
         <div className="config-section-title config-cpsx-upgrade__head">
           <span>Điện / phút theo máy</span>
           <span className="config-cpsx-upgrade__head-meta">
@@ -490,7 +499,8 @@ export default function CpsxNangCapDien() {
             </div>
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

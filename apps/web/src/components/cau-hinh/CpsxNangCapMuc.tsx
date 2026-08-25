@@ -361,7 +361,23 @@ function BangMuc({ loai, state, onChange }: BangMucProps) {
   );
 }
 
-export default function CpsxNangCapMuc() {
+export default function CpsxNangCapMuc({
+  coQuyenOpp = true,
+  coQuyenPet = true,
+  coQuyenPe = true,
+  coQuyenDungMoi = true,
+  coQuyenKeo = true,
+  coQuyenInRate = true,
+  coQuyenAdhesiveRate = true,
+}: {
+  coQuyenOpp?: boolean;
+  coQuyenPet?: boolean;
+  coQuyenPe?: boolean;
+  coQuyenDungMoi?: boolean;
+  coQuyenKeo?: boolean;
+  coQuyenInRate?: boolean;
+  coQuyenAdhesiveRate?: boolean;
+}) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
 
@@ -399,9 +415,16 @@ export default function CpsxNangCapMuc() {
   const toggle = (loai: LoaiBang) =>
     setOpenMap((m) => ({ ...m, [loai]: !m[loai] }));
 
+  const loaiList = (Object.keys(LABEL) as LoaiBang[]).filter((loai) => {
+    if (loai === "opp") return coQuyenOpp;
+    if (loai === "pet") return coQuyenPet;
+    if (loai === "pe") return coQuyenPe;
+    return true;
+  });
+
   return (
     <div className="config-cpsx-upgrade-ink">
-      {(Object.keys(LABEL) as LoaiBang[]).map((loai) => {
+      {loaiList.map((loai) => {
         const t = state[loai];
         const open = openMap[loai];
         const summary = t.appliedPrice != null
@@ -437,8 +460,14 @@ export default function CpsxNangCapMuc() {
           </div>
         );
       })}
-      <CpsxNangCapDungMoiKeo />
-      <CpsxNangCapDinhMuc />
+      <CpsxNangCapDungMoiKeo
+        coQuyenDungMoi={coQuyenDungMoi}
+        coQuyenKeo={coQuyenKeo}
+      />
+      <CpsxNangCapDinhMuc
+        coQuyenInRate={coQuyenInRate}
+        coQuyenAdhesiveRate={coQuyenAdhesiveRate}
+      />
     </div>
   );
 }

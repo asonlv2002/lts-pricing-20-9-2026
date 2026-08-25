@@ -336,7 +336,13 @@ function DongKeo({
   );
 }
 
-export default function CpsxNangCapDungMoiKeo() {
+export default function CpsxNangCapDungMoiKeo({
+  coQuyenDungMoi = true,
+  coQuyenKeo = true,
+}: {
+  coQuyenDungMoi?: boolean;
+  coQuyenKeo?: boolean;
+}) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const materials = dungCuaHangTinhGia((s) => s.materials);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
@@ -468,6 +474,7 @@ export default function CpsxNangCapDungMoiKeo() {
   return (
     <div className="config-cpsx-upgrade-solvent">
       {/* ═══════ Bảng giá dung môi ═══════ */}
+      {coQuyenDungMoi && (
       <div className="card config-card config-cpsx-upgrade-card">
         <div className="config-section-title config-cpsx-upgrade__head">
           <span>Bảng giá dung môi</span>
@@ -666,9 +673,11 @@ export default function CpsxNangCapDungMoiKeo() {
             </p>
           </div>
         )}
-      </div>
+        </div>
+      )}
 
       {/* ═══════ Bảng giá keo ghép ═══════ */}
+      {coQuyenKeo && (
       <div className="card config-card config-cpsx-upgrade-card">
         <div className="config-section-title config-cpsx-upgrade__head">
           <span>Bảng giá keo ghép</span>
@@ -840,7 +849,8 @@ export default function CpsxNangCapDungMoiKeo() {
             </p>
           </div>
         )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

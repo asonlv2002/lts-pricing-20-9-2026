@@ -26,7 +26,31 @@ export type PolicyCode =
   | "PRICE_CONFIG_MANAGER"
   | "ORDER_REVIEWER"
   | "ACTIVITY_MONITOR"
-  | "SYSTEM_MONITOR";
+  | "SYSTEM_MONITOR"
+  // ── CPSX nâng cao ──────────────────────────────────────────
+  | "CPSX_UPGRADE_EDIT_ELECTRIC_TIME_FRAME"
+  | "CPSX_UPGRADE_EDIT_ELECTRIC_PER_MINUTE"
+  | "CPSX_UPGRADE_EDIT_LABOR_PRINT"
+  | "CPSX_UPGRADE_EDIT_LABOR_LAMINATE"
+  | "CPSX_UPGRADE_EDIT_LABOR_SLIT"
+  | "CPSX_UPGRADE_EDIT_LABOR_BAG"
+  | "CPSX_UPGRADE_EDIT_INK_OPP"
+  | "CPSX_UPGRADE_EDIT_INK_PET"
+  | "CPSX_UPGRADE_EDIT_INK_PE"
+  | "CPSX_UPGRADE_EDIT_SOLVENT"
+  | "CPSX_UPGRADE_EDIT_ADHESIVE"
+  | "CPSX_UPGRADE_EDIT_INK_RATE"
+  | "CPSX_UPGRADE_EDIT_ADHESIVE_RATE"
+  | "CPSX_UPGRADE_EDIT_TIME_PRINT"
+  | "CPSX_UPGRADE_EDIT_TIME_LAMINATE"
+  | "CPSX_UPGRADE_EDIT_TIME_SLIT"
+  | "CPSX_UPGRADE_EDIT_TIME_BAG";
+
+export const CO_QUYEN_CPSX_UPGRADE_PREFIX = "CPSX_UPGRADE_EDIT_";
+
+export function laPolicyCpsxUpgrade(code: string): boolean {
+  return code.startsWith(CO_QUYEN_CPSX_UPGRADE_PREFIX);
+}
 
 export interface Policy {
   code: PolicyCode;
@@ -38,7 +62,8 @@ export interface Policy {
     | "Cấp phát"
     | "Báo giá"
     | "Sản phẩm"
-    | "Quản trị";
+    | "Quản trị"
+    | "CPSX nâng cao";
   rui_ro: "thap" | "trung" | "cao";
 }
 
@@ -130,6 +155,126 @@ export const POLICY_CATALOG: Policy[] = [
     nhom: "Quản trị",
     rui_ro: "trung",
   },
+  // ── CPSX nâng cao ──────────────────────────────────────────
+  {
+    code: "CPSX_UPGRADE_EDIT_ELECTRIC_TIME_FRAME",
+    ten: "CPSX — Giá điện theo khung giờ",
+    moTa: "Cho phép sửa bảng giá điện theo khung giờ trong CPSX nâng cao.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_ELECTRIC_PER_MINUTE",
+    ten: "CPSX — Điện/phút mỗi máy",
+    moTa: "Cho phép sửa công suất + hiệu suất của từng máy.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_LABOR_PRINT",
+    ten: "CPSX — Lương CN máy in",
+    moTa: "Cho phép sửa lương công nhân máy in.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_LABOR_LAMINATE",
+    ten: "CPSX — Lương CN máy ghép",
+    moTa: "Cho phép sửa lương công nhân máy ghép.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_LABOR_SLIT",
+    ten: "CPSX — Lương CN máy chia",
+    moTa: "Cho phép sửa lương công nhân máy chia.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_LABOR_BAG",
+    ten: "CPSX — Lương CN máy làm túi",
+    moTa: "Cho phép sửa lương công nhân máy làm túi.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_INK_OPP",
+    ten: "CPSX — Bảng giá mực in OPP",
+    moTa: "Cho phép sửa bảng giá mực in OPP.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_INK_PET",
+    ten: "CPSX — Bảng giá mực in PET",
+    moTa: "Cho phép sửa bảng giá mực in PET.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_INK_PE",
+    ten: "CPSX — Bảng giá mực in PE",
+    moTa: "Cho phép sửa bảng giá mực in PE.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_SOLVENT",
+    ten: "CPSX — Bảng giá dung môi",
+    moTa: "Cho phép sửa bảng giá dung môi in + ghép.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_ADHESIVE",
+    ten: "CPSX — Bảng giá keo ghép",
+    moTa: "Cho phép sửa bảng giá keo ghép.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_INK_RATE",
+    ten: "CPSX — Định mức mực in + DM in",
+    moTa: "Cho phép sửa định mức mực in và dung môi in theo số màu.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_ADHESIVE_RATE",
+    ten: "CPSX — Định mức keo + DM ghép",
+    moTa: "Cho phép sửa định mức keo khô và dung môi pha keo.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_TIME_PRINT",
+    ten: "CPSX — Thời gian SX máy in",
+    moTa: "Cho phép sửa thời gian sản xuất máy in.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_TIME_LAMINATE",
+    ten: "CPSX — Thời gian SX máy ghép",
+    moTa: "Cho phép sửa thời gian sản xuất máy ghép.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_TIME_SLIT",
+    ten: "CPSX — Thời gian SX máy chia",
+    moTa: "Cho phép sửa thời gian sản xuất máy chia.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
+  {
+    code: "CPSX_UPGRADE_EDIT_TIME_BAG",
+    ten: "CPSX — Thời gian SX máy làm túi",
+    moTa: "Cho phép sửa thời gian sản xuất máy làm túi.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "cao",
+  },
 ];
 
 // ── API types ────────────────────────────────────────────────────────────
@@ -149,6 +294,10 @@ export interface TaiKhoanApi {
     code: string;
     name?: string;
     description?: string | null;
+  }>;
+  priceConfigPolicies?: Array<{
+    configName: string;
+    policies: string[];
   }>;
 }
 
@@ -186,6 +335,10 @@ export interface TaiKhoan {
   avatarUrl?: string | null;
   signatureUrl?: string | null;
   policies: PolicyCode[];
+  priceConfigPolicies?: Array<{
+    configName: string;
+    policies: string[];
+  }>;
   createdAt: string;
   lastLogin?: string;
 }
@@ -1316,6 +1469,43 @@ export interface PriceConfigApi {
   inputValue: unknown;
   createdBy: string | null;
   createdAt: string;
+  /** Policies của user đang gọi API trên config này (do BE filter theo actor). */
+  policies?: string[];
+}
+
+// ── Price Config Policies ────────────────────────────────────────────────────
+export interface PriceConfigPoliciesApi {
+  userId: string;
+  configPolicies: Array<{
+    configName: string;
+    policies: string[];
+  }>;
+}
+
+export async function replaceUserPriceConfigPoliciesService(
+  token: string,
+  userId: string,
+  configPolicies: Array<{ configName: string; policies: string[] }>,
+): Promise<PriceConfigPoliciesApi> {
+  return goiService<PriceConfigPoliciesApi>(
+    `/price-config/${encodeURIComponent(userId)}/configPolicies`,
+    {
+      method: "POST",
+      body: JSON.stringify({ configPolicies }),
+    },
+    token,
+  );
+}
+
+export async function layUserPriceConfigPoliciesService(
+  token: string,
+  userId: string,
+): Promise<PriceConfigPoliciesApi> {
+  return goiService<PriceConfigPoliciesApi>(
+    `/price-config/${encodeURIComponent(userId)}/configPolicies`,
+    {},
+    token,
+  );
 }
 
 export async function upsertPriceConfigService(
@@ -1951,6 +2141,9 @@ export function chuyenTaiKhoanApi(user: TaiKhoanApi): TaiKhoan {
       .filter((code): code is PolicyCode =>
         POLICY_CATALOG.some((policy) => policy.code === code),
       ),
+    priceConfigPolicies: Array.isArray(user.priceConfigPolicies)
+      ? user.priceConfigPolicies
+      : undefined,
     createdAt: user.createdAt,
     lastLogin: user.updatedAt,
   };

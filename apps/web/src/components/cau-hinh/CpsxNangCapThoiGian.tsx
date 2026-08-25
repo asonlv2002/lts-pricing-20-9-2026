@@ -50,7 +50,17 @@ function docSoThapPhan(value: string): number {
   return Number.isFinite(n) && n >= 0 ? n : 0;
 }
 
-export default function CpsxNangCapThoiGian() {
+export default function CpsxNangCapThoiGian({
+  coQuyenPrint = true,
+  coQuyenLaminate = true,
+  coQuyenSlit = true,
+  coQuyenBag = true,
+}: {
+  coQuyenPrint?: boolean;
+  coQuyenLaminate?: boolean;
+  coQuyenSlit?: boolean;
+  coQuyenBag?: boolean;
+}) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
   const result = dungCuaHangTinhGia((s) => s.result);
@@ -104,8 +114,9 @@ export default function CpsxNangCapThoiGian() {
     title: string;
     summary: string;
     body: React.ReactNode;
-  }> = [
-    {
+  }> = [];
+  if (coQuyenPrint) {
+    cards.push({
       key: "print",
       title: `Thời gian SX ${MAY_LABELS.print}`,
       summary: "",
@@ -115,8 +126,10 @@ export default function CpsxNangCapThoiGian() {
           capNhat={(patch) => capNhatMay("print", patch)}
         />
       ),
-    },
-    {
+    });
+  }
+  if (coQuyenLaminate) {
+    cards.push({
       key: "laminate",
       title: `Thời gian SX ${MAY_LABELS.laminate}`,
       summary: "",
@@ -126,8 +139,10 @@ export default function CpsxNangCapThoiGian() {
           capNhat={(patch) => capNhatMay("laminate", patch)}
         />
       ),
-    },
-    {
+    });
+  }
+  if (coQuyenSlit) {
+    cards.push({
       key: "slit",
       title: `Thời gian SX ${MAY_LABELS.slit}`,
       summary: "",
@@ -137,8 +152,10 @@ export default function CpsxNangCapThoiGian() {
           capNhat={(rules) => luu({ ...state, slit: { rules } })}
         />
       ),
-    },
-    {
+    });
+  }
+  if (coQuyenBag) {
+    cards.push({
       key: "bag",
       title: `Thời gian SX ${MAY_LABELS.bag}`,
       summary: "",
@@ -160,8 +177,8 @@ export default function CpsxNangCapThoiGian() {
           coInput={metChayPreview > 0}
         />
       ),
-    },
-  ];
+    });
+  }
 
   return (
     <div className="config-cpsx-upgrade-thoigian">

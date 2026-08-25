@@ -101,7 +101,17 @@ function NumberVndInput({
 type May1Key = "print" | "laminate" | "slit";
 type MayKey = May1Key | "bag";
 
-export default function CpsxNangCapLuong() {
+export default function CpsxNangCapLuong({
+  coQuyenPrint = true,
+  coQuyenLaminate = true,
+  coQuyenSlit = true,
+  coQuyenBag = true,
+}: {
+  coQuyenPrint?: boolean;
+  coQuyenLaminate?: boolean;
+  coQuyenSlit?: boolean;
+  coQuyenBag?: boolean;
+}) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
 
@@ -177,8 +187,9 @@ export default function CpsxNangCapLuong() {
     title: string;
     summary: string;
     body: React.ReactNode;
-  }> = [
-    {
+  }> = [];
+  if (coQuyenPrint) {
+    cards.push({
       key: "print",
       title: "Lương công nhân máy in",
       summary: tomTat1May("print"),
@@ -191,8 +202,10 @@ export default function CpsxNangCapLuong() {
           hienMayTinh
         />
       ),
-    },
-    {
+    });
+  }
+  if (coQuyenLaminate) {
+    cards.push({
       key: "laminate",
       title: "Lương công nhân máy ghép",
       summary: tomTat1May("laminate"),
@@ -204,8 +217,10 @@ export default function CpsxNangCapLuong() {
           hienMayTinh
         />
       ),
-    },
-    {
+    });
+  }
+  if (coQuyenSlit) {
+    cards.push({
       key: "slit",
       title: "Lương công nhân máy chia",
       summary: tomTat1May("slit"),
@@ -217,14 +232,16 @@ export default function CpsxNangCapLuong() {
           hienMayTinh
         />
       ),
-    },
-    {
+    });
+  }
+  if (coQuyenBag) {
+    cards.push({
       key: "bag",
       title: "Lương công nhân máy làm túi",
       summary: tomTatTui(),
       body: <MayTui giaTri={state.bag} capNhat={capNhatTui} />,
-    },
-  ];
+    });
+  }
 
   return (
     <div className="config-cpsx-upgrade-labor">

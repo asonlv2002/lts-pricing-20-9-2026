@@ -130,3 +130,18 @@ export function vaiTroTuPolicies(policies: PolicyCode[]): 'admin' | 'sale' | 'pu
   );
   return laAdmin ? 'admin' : 'sale';
 }
+
+// Người dùng có quyền sửa 1 mục cụ thể trong CPSX nâng cao.
+export function coQuyenSuaMucCpsxUpgrade(
+  policyCode: PolicyCode,
+  userPolicies: PolicyCode[],
+): boolean {
+  return userPolicies.includes(policyCode);
+}
+
+export function coQuyenSuaMucCpsxUpgradeTuNguoiDung(
+  policyCode: PolicyCode,
+  nguoiDung: { policies: PolicyCode[] } | null,
+): boolean {
+  return !!nguoiDung?.policies.includes(policyCode);
+}

@@ -27,6 +27,8 @@ import {
   kichHoatTaiKhoanService,
   capQuyenService,
   thuHoiQuyenService,
+  replaceUserPriceConfigPoliciesService,
+  laPolicyCpsxUpgrade,
   luuVaiTroService,
   xoaVaiTroService,
   layVaiTroService,
@@ -459,10 +461,16 @@ function InspectorTaiKhoan({
     );
   }
 
-  const savedPolicySet = new Set(user.policies);
+  const savedCpsx = new Set(
+    (user.priceConfigPolicies ?? [])
+      .find(c => c.configName === "PRODUCTION_UPGRADE")
+      ?.policies ?? []
+  );
+  const savedAll: PolicyCode[] = [...user.policies, ...Array.from(savedCpsx) as PolicyCode[]];
+  const savedPolicySet = new Set(savedAll);
   const draftPolicySet = new Set(draftPolicies);
   const soQuyenThem = draftPolicies.filter(code => !savedPolicySet.has(code)).length;
-  const soQuyenThuHoi = user.policies.filter(code => !draftPolicySet.has(code)).length;
+  const soQuyenThuHoi = savedAll.filter(code => !draftPolicySet.has(code as PolicyCode)).length;
   const coThayDoiQuyen = soQuyenThem + soQuyenThuHoi > 0;
   const displayName = normalizeDisplayText(user.fullName);
 
@@ -984,8 +992,23 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   const userDangChon = users.find(u => u.id === chonId) ?? users[0];
 
   useEffect(() => {
-    setDraftPolicies(userDangChon?.policies ?? []);
-  }, [userDangChon?.id, userDangChon?.policies]);
+    // draftPolicies = policies thường (từ user.policies) + CPSX policies (từ user.priceConfigPolicies)
+    const base = userDangChon?.policies ?? [];
+    const cpsxFromUser = (userDangChon?.priceConfigPolicies ?? [])
+      .find(c => c.configName === "PRODUCTION_UPGRADE")
+      ?.policies ?? [];
+    const cpsxCodes = cpsxFromUser.filter(
+      (c): c is PolicyCode => typeof c === 'string',
+    );
+    setDraftPolicies(prev => {
+      const merged = [
+        ...prev.filter(p => !laPolicyCpsxUpgrade(p) && base.includes(p)),
+        ...base.filter(p => !laPolicyCpsxUpgrade(p)),
+        ...cpsxCodes,
+      ];
+      return [...new Set(merged)] as PolicyCode[];
+    });
+  }, [userDangChon?.id, userDangChon?.policies, userDangChon?.priceConfigPolicies]);
 
   const napTaiKhoan = async (name?: string) => {
     if (!accessToken) return;
@@ -1130,7 +1153,9 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   ] as const;
 
   const capNhatQuyenTaiKhoan = (userId: string, policies: PolicyCode[]) => {
-    setUsers(prev => prev.map(u => u.id === userId ? { ...u, policies } : u));
+    // user.policies chỉ chứa policy thường — key CPSX nằm ở priceConfigPolicies (refresh từ server).
+    const regular = policies.filter(p => !laPolicyCpsxUpgrade(p));
+    setUsers(prev => prev.map(u => u.id === userId ? { ...u, policies: regular } : u));
   };
 
   const toggleDraftPolicy = (code: PolicyCode) => {
@@ -1144,7 +1169,14 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   };
 
   const huyThayDoiQuyen = () => {
-    setDraftPolicies(userDangChon?.policies ?? []);
+    const base = userDangChon?.policies ?? [];
+    const cpsxFromUser = (userDangChon?.priceConfigPolicies ?? [])
+      .find(c => c.configName === "PRODUCTION_UPGRADE")
+      ?.policies ?? [];
+    const cpsxCodes = cpsxFromUser.filter(
+      (c): c is PolicyCode => typeof c === 'string',
+    );
+    setDraftPolicies([...base, ...cpsxCodes]);
     setLoiApi(null);
   };
 
@@ -1155,17 +1187,52 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
       return;
     }
     const userId = userDangChon.id;
-    const saved = new Set(userDangChon.policies);
     const draft = new Set(draftPolicies);
-    const canCap = draftPolicies.filter(code => !saved.has(code));
-    const canThuHoi = userDangChon.policies.filter(code => !draft.has(code));
-    if (!canCap.length && !canThuHoi.length) return;
+
+    // ── Nguồn gốc: policy thường ở user.policies; key CPSX ở user.priceConfigPolicies ──
+    const savedRegular = new Set(userDangChon.policies);
+    const cpsxHienCo = (userDangChon.priceConfigPolicies ?? [])
+      .find(c => c.configName === "PRODUCTION_UPGRADE")
+      ?.policies ?? [];
+    const savedCpsx = new Set(cpsxHienCo);
+
+    // Policy thường: cấp = có trong draft, không có trong saved; thu hồi = ngược lại.
+    const regularCap = draftPolicies.filter(code =>
+      !laPolicyCpsxUpgrade(code) && !savedRegular.has(code),
+    );
+    const regularThuHoi = userDangChon.policies.filter(code =>
+      !laPolicyCpsxUpgrade(code) && !draft.has(code),
+    );
+
+    // Key CPSX: cấp = có trong draft, không có trong saved; thu hồi = ngược lại (từ cpsxHienCo).
+    const cpsxCap = draftPolicies.filter(code =>
+      laPolicyCpsxUpgrade(code) && !savedCpsx.has(code as PolicyCode),
+    );
+    const cpsxThuHoi = cpsxHienCo.filter(code => !draft.has(code as PolicyCode));
+
+    if (
+      !regularCap.length && !regularThuHoi.length &&
+      !cpsxCap.length && !cpsxThuHoi.length
+    ) return;
 
     setDangLuuQuyen(true);
     setLoiApi(null);
     try {
-      if (canCap.length) await capQuyenService(accessToken, userId, canCap);
-      if (canThuHoi.length) await thuHoiQuyenService(accessToken, userId, canThuHoi);
+      // 1) Policy thường qua /policies/accounts/:id
+      if (regularCap.length) await capQuyenService(accessToken, userId, regularCap);
+      if (regularThuHoi.length) await thuHoiQuyenService(accessToken, userId, regularThuHoi);
+
+      // 2) Key CPSX qua /price-config/:userId/configPolicies — REPLACE toàn bộ
+      const cpsxFinal: string[] = [
+        ...cpsxHienCo.filter(code => !cpsxThuHoi.includes(code)),
+        ...cpsxCap,
+      ];
+      if (cpsxCap.length || cpsxThuHoi.length) {
+        await replaceUserPriceConfigPoliciesService(accessToken, userId, [
+          { configName: "PRODUCTION_UPGRADE", policies: cpsxFinal },
+        ]);
+      }
+
       capNhatQuyenTaiKhoan(userId, draftPolicies);
       await napTaiKhoan(tuKhoa.trim() || undefined);
     } catch (error) {
