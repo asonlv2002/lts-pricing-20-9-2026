@@ -15,7 +15,8 @@ import React, { useState, useCallback, useMemo } from 'react';
 
 import type { LsxSourceData, LSXManualFields } from '../../lib/types';
 import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, resolveLsxStageFlags, resolveLsxBagVisibleFields, type LsxBagTypeInfo } from '../../lib/lsx-bag-classification';
-import { formatLsxFoldBottom } from '../../lib/lsx-quy-cach';
+import { formatLsxFoldBottom, LSX_TOLERANCE_WIDTH_DEFAULT_MM, LSX_TOLERANCE_LENGTH_DEFAULT_MM } from '../../lib/lsx-quy-cach';
+import { formatLsxOrderQuantityParts } from '../../lib/lsx-quantity';
 
 // ── CSS cho form giống mẫu thực ─────────────────────────────────────────────
 const styles = {
@@ -223,6 +224,13 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
   const showChia = stageFlags.showChia;
   const showTui = stageFlags.showTui;
   const laminateLayers = manual.laminateLayers ?? [];
+
+  const qtyUnit = isMang ? 'm²' : 'túi';
+  const qtyApprox = formatLsxOrderQuantityParts(
+    manual.soLuongDHNote || '',
+    manual.quantityTolerancePercent ?? 0,
+    qtyUnit,
+  );
 
   function updLamLayer(li: number, patch: { wasteMeters?: number }) {
     setManual({
@@ -473,14 +481,14 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                 <td style={styles.lbl}>Dung sai R:</td>
                 <td style={styles.td}>
                   <div style={styles.cellRow}>
-                    <NI value={manual.quyCachToleranceWidthMm ?? 2} onChange={v => upd('quyCachToleranceWidthMm', v)} placeholder="2" style={{ width: '44px', maxWidth: '44px' }} />
+                    <NI value={manual.quyCachToleranceWidthMm ?? LSX_TOLERANCE_WIDTH_DEFAULT_MM} onChange={v => upd('quyCachToleranceWidthMm', v)} placeholder="2" style={{ width: '44px', maxWidth: '44px' }} />
                     <span>mm</span>
                   </div>
                 </td>
                 <td style={styles.lbl}>Dung sai D:</td>
                 <td style={styles.td}>
                   <div style={styles.cellRow}>
-                    <NI value={manual.quyCachToleranceLengthMm ?? 2} onChange={v => upd('quyCachToleranceLengthMm', v)} placeholder="2" style={{ width: '44px', maxWidth: '44px' }} />
+                    <NI value={manual.quyCachToleranceLengthMm ?? LSX_TOLERANCE_LENGTH_DEFAULT_MM} onChange={v => upd('quyCachToleranceLengthMm', v)} placeholder="3" style={{ width: '44px', maxWidth: '44px' }} />
                     <span>mm</span>
                   </div>
                 </td>
@@ -490,7 +498,7 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
           {isTui && (
             <>
               <tr>
-                <td style={styles.lbl}>Zipper cách miệng:</td>
+                <td style={styles.lbl}>Tâm zipper cách đầu:</td>
                 <td style={styles.td} colSpan={3}>
                   <div style={styles.cellRow}>
                     <NI value={manual.tamZipperCachMieng} onChange={v => upd('tamZipperCachMieng', v)} placeholder="30" style={{ width: '50px', maxWidth: '50px' }} />
@@ -503,7 +511,7 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                 </td>
               </tr>
               <tr>
-                <td style={styles.lbl}>Dán biên:</td>
+                <td style={styles.lbl}>Hàn biên:</td>
                 <td style={styles.td} colSpan={3}>
                   <TI value={manual.sealEdge} onChange={v => upd('sealEdge', v)} placeholder="10mm" />
                 </td>
@@ -535,15 +543,20 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
             <td style={styles.td}>
               {inp.numColors ? `${String(inp.numColors).padStart(2, '0')} màu` : 'Không in'}
             </td>
-            <td style={styles.lbl} colSpan={2}>Số lượng ĐH:</td>
+            <td style={styles.lbl}>Số lượng:</td>
             <td colSpan={2} style={styles.td}>
-              <TI value={manual.soLuongDHNote} onChange={v => upd('soLuongDHNote', v)} placeholder="5.400 túi" style={{ ...styles.boldVal }} />
+              <TI value={qtyApprox.base} onChange={v => upd('soLuongDHNote', v)} placeholder="100.000 túi" style={{ ...styles.boldVal }} />
             </td>
             <td style={styles.lbl}>Dung sai:</td>
-            <td style={styles.td}>
+            <td colSpan={2} style={styles.td}>
               <div style={styles.cellRow}>
                 <NI value={manual.quantityTolerancePercent ?? 10} onChange={v => upd('quantityTolerancePercent', v)} placeholder="10" style={{ width: '50px', maxWidth: '50px' }} />
                 <span>%</span>
+                {qtyApprox.dungSai && (
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: '#047857', whiteSpace: 'nowrap' }}>
+                    ({manual.quantityTolerancePercent ?? 10}%): {qtyApprox.approx}
+                  </span>
+                )}
               </div>
             </td>
           </tr>
@@ -723,7 +736,7 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
                     <div style={styles.cellRow}>
                       <span style={{ fontWeight: 700, fontSize: '11px' }}>Số lượng:</span>
-                      <TI value={manual.soLuongDHNote} onChange={v => upd('soLuongDHNote', v)} placeholder="5.400 túi" style={{ ...styles.boldVal, flex: 1, minWidth: 0 }} />
+                      <TI value={qtyApprox.base} onChange={v => upd('soLuongDHNote', v)} placeholder="5.400 túi" style={{ ...styles.boldVal, flex: 1, minWidth: 0 }} />
                     </div>
                     <div style={styles.cellRow}>
                       <span style={{ fontWeight: 700, fontSize: '11px' }}>Kiểu túi:</span>
@@ -839,7 +852,7 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                 <tr>
                   <td style={styles.lbl}>Số lượng :</td>
                   <td colSpan={3} style={styles.td}>
-                    <TI value={manual.soLuongDHNote} onChange={v => upd('soLuongDHNote', v)} placeholder="5.400 túi -6.000 túi" style={{ ...styles.boldVal }} />
+                    <TI value={qtyApprox.base} onChange={v => upd('soLuongDHNote', v)} placeholder="5.400 túi -6.000 túi" style={{ ...styles.boldVal }} />
                   </td>
                   <td style={styles.lbl}>Kiểu túi (LSX):</td>
                   <td colSpan={3} style={styles.td}>

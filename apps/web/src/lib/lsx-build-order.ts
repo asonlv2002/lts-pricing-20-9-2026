@@ -16,8 +16,7 @@ import type {
 import { calculate } from './engine';
 import { normalizeMaterialBaseName } from './format-structure';
 import { buildLsxLamBtpNote, toCylMm } from './lsxExport';
-import { formatLsxOrderQuantity } from './lsx-quantity';
-import { LSX_TOLERANCE_DEFAULT_MM } from './lsx-quy-cach';
+import { LSX_TOLERANCE_WIDTH_DEFAULT_MM, LSX_TOLERANCE_LENGTH_DEFAULT_MM } from './lsx-quy-cach';
 import { genMsp } from './lsx-msp';
 import {
   applyBagDefaults,
@@ -325,8 +324,8 @@ export function defaultManual(lsxNumber: string, preparedBy: string): LSXManualF
     chieuRaCuonSP: '',
     soLuongDHNote: '',
     quantityTolerancePercent: 10,
-    quyCachToleranceWidthMm: LSX_TOLERANCE_DEFAULT_MM,
-    quyCachToleranceLengthMm: LSX_TOLERANCE_DEFAULT_MM,
+    quyCachToleranceWidthMm: LSX_TOLERANCE_WIDTH_DEFAULT_MM,
+    quyCachToleranceLengthMm: LSX_TOLERANCE_LENGTH_DEFAULT_MM,
     printFilmName: '',
     printWastePercent: 0,
     printProductQty: 0,
@@ -436,10 +435,7 @@ export function buildManualFromSource(
   const unit = tui ? 'túi' : 'm²';
   const tolerance = m.quantityTolerancePercent ?? 10;
   m.quantityTolerancePercent = tolerance;
-  m.soLuongDHNote = formatLsxOrderQuantity(
-    `${i.quantity.toLocaleString('vi-VN')} ${unit}`,
-    tolerance,
-  );
+  m.soLuongDHNote = `${i.quantity.toLocaleString('vi-VN')} ${unit}`;
   if (i.divideWidthMm && i.divideWidthMm > 0) {
     m.divideWidth = i.divideWidthMm;
   }
@@ -451,6 +447,9 @@ export function buildManualFromSource(
     const next = applyBagDefaults(m, bag, !!i.hasZipper);
     if (source.hasHalfMoonBottom) {
       next.useSemicircularMold = true;
+    }
+    if (i.hasZipper && (source.zipperDistanceMm ?? 0) > 0) {
+      next.tamZipperCachMieng = source.zipperDistanceMm as number;
     }
     return next;
   }
@@ -484,6 +483,7 @@ export function buildSnapshotFromSource(
     numColors: inp.numColors,
     bagType: inp.bagType,
     hasZipper: inp.hasZipper || false,
+    zipperDistanceMm: source.zipperDistanceMm,
     hasDivide: !!inp.hasDivide || (inp.divideWidthMm ?? 0) > 0 || (manual.divideWidth ?? 0) > 0,
     divideWidthMm: inp.divideWidthMm || manual.divideWidth || undefined,
     originalWidthMm: inp.originalWidthMm || khoMM || undefined,

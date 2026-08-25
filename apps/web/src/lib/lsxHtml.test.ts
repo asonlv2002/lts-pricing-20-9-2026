@@ -177,7 +177,7 @@ console.log('buildLsxHtml layout B (túi không chia)');
   );
   assert(
     'B: bag section không còn dòng Số lượng / SL đóng gói',
-    !html.includes('Số lượng: ') && !html.includes('SL đóng gói'),
+    (html.match(/Số lượng:/g) || []).length === 1 && !html.includes('SL đóng gói'),
   );
   assert(
     'B: bag chia trái ghi chú | phải lưới thông số',
@@ -230,8 +230,8 @@ console.log('\nbuildLsxHtml MÁY LÀM TÚI — chia đều 50/50 + lưới 2 ô'
     /<tr><td[^>]*>[\s\S]*?Tâm zipper[\s\S]*?<td[^>]*>[\s\S]*?Nhấn xé[\s\S]*?<\/tr>/.test(html),
   );
   assert(
-    'Dán biên | Xếp đáy cùng một hàng',
-    /<tr><td[^>]*>[\s\S]*?Dán biên[\s\S]*?<td[^>]*>[\s\S]*?Xếp đáy[\s\S]*?<\/tr>/.test(html),
+    'Hàn biên | Xếp đáy cùng một hàng',
+    /<tr><td[^>]*>[\s\S]*?Hàn biên[\s\S]*?<td[^>]*>[\s\S]*?Xếp đáy[\s\S]*?<\/tr>/.test(html),
   );
 }
 
@@ -251,10 +251,10 @@ console.log('\nbuildLsxHtml khối Quy cách (mục I)');
     }),
   );
 
-  assert('Quy cách kèm dung sai ±2mm hai chiều', html.includes('R:500mm (±2mm) x D:300mm (±2mm)'));
-  assert('có dòng Zipper cách miệng', html.includes('Zipper cách miệng: </span>30mm'));
+  assert('Quy cách kèm dung sai R ±2mm D ±3mm', html.includes('R:500mm (±2mm) x D:300mm (±3mm)'));
+  assert('có dòng Tâm zipper cách đầu', html.includes('Tâm zipper cách đầu: </span>30mm'));
   assert('Xếp đáy tự chia mỗi bên', html.includes('100mm (50mm / Bên)'));
-  assert('có dòng Dán biên', html.includes('Dán biên: </span>10mm'));
+  assert('có dòng Hàn biên', html.includes('Hàn biên: </span>10mm'));
   assert('có dòng Nhấn xé "v"', html.includes('Nhấn xé &quot;v&quot; 2 bên cách miệng 15mm'));
 }
 
@@ -469,6 +469,58 @@ console.log('\nbuildLsxHtml chữ ký người lập');
 
   const htmlMang = buildLsxHtml(order({ productType: 'mang' }));
   assert('HTML màng: không có <img> chữ ký khi chưa có', !htmlMang.includes('class="chu-ky-img"'));
+}
+
+console.log('\nbuildLsxHtml dòng Số lượng + dung sai');
+
+{
+  const html = buildLsxHtml(
+    order({
+      manual: {
+        soLuongDHNote: '100.000 túi',
+        quantityTolerancePercent: 10,
+      },
+    }),
+  );
+  assert(
+    'Số lượng: hiện base + dung sai (10%): 10.000 túi',
+    html.includes('Số lượng: </span>100.000 túi  Dung sai (10%): 10.000 túi'),
+    html.slice(html.indexOf('Số lượng:'), html.indexOf('Số lượng:') + 90),
+  );
+
+  const htmlZero = buildLsxHtml(
+    order({
+      manual: {
+        soLuongDHNote: '100.000 túi',
+        quantityTolerancePercent: 0,
+      },
+    }),
+  );
+  assert(
+    'Số lượng: dung sai 0% thì ẩn phần Dung sai',
+    htmlZero.includes('Số lượng: </span>100.000 túi') && !htmlZero.includes('Dung sai ('),
+  );
+
+  const htmlNoNum = buildLsxHtml(
+    order({
+      manual: { soLuongDHNote: 'túi', quantityTolerancePercent: 10 },
+    }),
+  );
+  assert(
+    'Số lượng: không parse được số thì ẩn phần Dung sai',
+    htmlNoNum.includes('Số lượng: </span>túi') && !htmlNoNum.includes('Dung sai ('),
+  );
+
+  const htmlMang = buildLsxHtml(
+    order({
+      productType: 'mang',
+      manual: { soLuongDHNote: '100.000 m²', quantityTolerancePercent: 5 },
+    }),
+  );
+  assert(
+    'Số lượng màng: dung sai theo m²',
+    htmlMang.includes('Số lượng: </span>100.000 m²  Dung sai (5%): 5.000 m²'),
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

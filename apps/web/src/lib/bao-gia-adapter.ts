@@ -71,18 +71,22 @@ function layLsxBagMetadata(entry: Record<string, unknown> | null): {
   bagLengthMm?: number;
   bottomFollows?: 'front' | 'back';
   structureSwapped?: boolean;
+  zipperDistanceMm?: number;
 } {
   if (!entry || !laObject(entry.bagSpec)) return {};
-  const widthMm = entry.bagSpec.widthMm;
-  const lengthMm = entry.bagSpec.lengthMm;
-  const bottomFollows = entry.bagSpec.bottomFollows;
+  const b = entry.bagSpec as Record<string, unknown>;
+  const widthMm = b.widthMm;
+  const lengthMm = b.lengthMm;
+  const bottomFollows = b.bottomFollows;
+  const zipper = b.zipperDistanceMm;
   return {
     bagWidthMm: typeof widthMm === 'number' && widthMm > 0 ? widthMm : undefined,
     bagLengthMm: typeof lengthMm === 'number' && lengthMm > 0 ? lengthMm : undefined,
     bottomFollows: bottomFollows === 'front' || bottomFollows === 'back'
       ? bottomFollows
       : undefined,
-    structureSwapped: entry.bagSpec.structureSwapped === true,
+    structureSwapped: b.structureSwapped === true,
+    zipperDistanceMm: typeof zipper === 'number' && zipper > 0 ? zipper : undefined,
   };
 }
 

@@ -178,6 +178,55 @@ export function classifyLsxFilmType(filmType?: string): LsxFilmTypeKey {
   return 'mang';
 }
 
+/**
+ * Nhãn hiển thị "Kiểu túi" ở khâu làm túi trong LSX (PDF/DOCX/HTML).
+ * - Override admin (lsxBagTypeOverride) luôn thắng → giữ nhãn kiểu đã chọn.
+ * - Tự suy + có zipper: đáy đứng → "Túi zipper đáy đứng", cắt seal → "Túi zipper cắt seal",
+ *   các kiểu còn lại → "Túi zipper 3 biên".
+ * - Không zipper → nhãn cơ sở của kiểu túi.
+ * Chỉ ảnh hưởng NHÃN; không đổi key/fields (template DOCX, lưới MÁY LÀM TÚI giữ nguyên).
+ */
+export function bagTypeLabelHienThi(
+  bagInfo: LsxBagTypeInfo,
+  bagType: string,
+  hasZipper: boolean,
+  hasOverride: boolean,
+): string {
+  if (bagInfo.key === 'fallback') return bagType || 'Túi';
+  if (hasOverride) return bagInfo.label;
+  if (!hasZipper) return bagInfo.label;
+  if (bagInfo.key === 'tui-day-dung') return 'Túi zipper đáy đứng';
+  if (bagInfo.key === 'tui-cut-seal') return 'Túi zipper cắt seal';
+  return 'Túi zipper 3 biên';
+}
+
+/** Default mm `Tâm zipper cách đầu` khi LSX không có giá trị — 30mm (zipper 3 biên/đáy đứng). */
+export const DEFAULT_TAM_ZIPPER_CACH_MIENG_MM = 30;
+/** Default mm cho túi cắt seal có zipper (LSX tham chiếu #8). */
+export const DEFAULT_TAM_ZIPPER_CUT_SEAL_MM = 25;
+
+/**
+ * Giá trị "Tâm zipper cách đầu" dùng để ghi vào LSX.
+ * Thứ tự ưu tiên: admin sửa tay trong LSX manual → snapshot từ báo giá → default theo kiểu túi.
+ * - manual > 0: thắng (kể cả admin sửa khác default).
+ * - manual = 0/null/undefined: dùng snapshot.zipperDistanceMm > 0 ? snapshot : default.
+ */
+export function zipperDistanceFromOrder(
+  source: {
+    manual: { tamZipperCachMieng: number };
+    snapshot: { zipperDistanceMm?: number };
+  },
+  templateKey?: LsxBagTypeKey | string,
+): number {
+  const m = source.manual.tamZipperCachMieng;
+  if (typeof m === 'number' && m > 0) return m;
+  const s = source.snapshot.zipperDistanceMm;
+  if (typeof s === 'number' && s > 0) return s;
+  return templateKey === 'tui-cut-seal'
+    ? DEFAULT_TAM_ZIPPER_CUT_SEAL_MM
+    : DEFAULT_TAM_ZIPPER_CACH_MIENG_MM;
+}
+
 /** Field máy túi visible: base kiểu + khuôn bán nguyệt (luôn) + zipper nếu bật. */
 export function resolveLsxBagVisibleFields(
   bagInfo: LsxBagTypeInfo,

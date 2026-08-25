@@ -1074,6 +1074,8 @@ export interface LsxSourceData {
   /** Mặt nào đi cùng đáy và trạng thái đảo mặt từ bagSpec báo giá. */
   bottomFollows?: 'front' | 'back';
   structureSwapped?: boolean;
+  /** Tâm zipper cách đầu (mm) từ bagSpec báo giá — prefill `manual.tamZipperCachMieng` lúc tạo LSX. */
+  zipperDistanceMm?: number;
 }
 
 // ── Production Order (Lệnh Sản Xuất) ─────────────────────────────────────────
@@ -1188,7 +1190,7 @@ export interface LSXManualFields {
   deliveryNotes: string;        // Yêu cầu giao hàng (vd: "PHÁT HIỆN LỖI BÁO CẤP TRÊN ĐỂ...")
 
   // Máy Làm Túi (chỉ túi)
-  sealEdge: string;             // Dán biên
+  sealEdge: string;             // Hàn biên
   foldBottom: string;           // Xếp đáy / Hàn đáy
   tearNotch: string;            // Nhấn xé vở
   hanTruoc: number;             // Hàn trước (mm)
@@ -1207,7 +1209,7 @@ export interface LSXManualFields {
   bagMachineNotes: string;      // Ghi chú máy làm túi
 
   // Field mới cho 8 kiểu túi LSX (Section 13)
-  tamZipperCachMieng: number;   // Tâm zipper cách miệng (mm) — zipper cắt seal, đáy đứng
+  tamZipperCachMieng: number;   // Tâm zipper cách đầu (mm) — zipper cắt seal, đáy đứng
   loTreoInfo: string;           // Lỗ treo (text) — zipper cắt seal
   danLung: number;              // Dán lưng (mm) — dán lưng giữa
   danLungLech: number;          // Dán lưng lệch (mm) — xếp hông lưng lệch
@@ -1243,6 +1245,8 @@ export interface ProductionOrder {
     numColors: number | null;
     bagType: string;
     hasZipper: boolean;          // Có zipper hay không (để phân loại LSX khi export)
+    /** Khoảng cách tâm zipper đến đầu túi (mm) — từ bagSpec báo giá; prefill LSX. */
+    zipperDistanceMm?: number;
     hasDivide: boolean;          // Báo giá bật "Có chia" → hiện MÁY CHIA trên LSX
     divideWidthMm?: number;      // Khổ chia từ báo giá (mm)
     originalWidthMm?: number;    // Khổ màng (mm) = spreadWidth×1000; giữ field cho LSX/legacy

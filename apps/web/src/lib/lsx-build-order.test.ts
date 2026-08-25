@@ -145,12 +145,16 @@ assert('status created', o1.status === 'created');
 assert('preparedBy', o1.manual.preparedBy === 'Tester');
 assert(
   'manual quantity note applies edited tolerance',
-  formatLsxOrderQuantity('25.000 túi', 5) === '25.000 túi (±5%)',
+  formatLsxOrderQuantity('25.000 túi', 5) === '25.000 túi  Dung sai (5%): 1.250 túi',
 );
 assert('default quantity tolerance is 10%', o1.manual.quantityTolerancePercent === 10);
 assert('default width tolerance is 2mm', o1.manual.quyCachToleranceWidthMm === 2);
-assert('default length tolerance is 2mm', o1.manual.quyCachToleranceLengthMm === 2);
-assert('order quantity includes default tolerance', o1.manual.soLuongDHNote === '1.000 túi (±10%)');
+assert('default length tolerance is 3mm', o1.manual.quyCachToleranceLengthMm === 3);
+assert('order quantity note stores base only', o1.manual.soLuongDHNote === '1.000 túi');
+assert('order quantity approx from base × 10%', formatLsxOrderQuantity('1.000 túi', 10) === '1.000 túi  Dung sai (10%): 100 túi');
+assert('hides dung sai when no number', formatLsxOrderQuantity('túi', 10) === 'túi');
+assert('hides dung sai when tolerance 0', formatLsxOrderQuantity('1.000 túi', 0) === '1.000 túi');
+assert('range note uses first number only', formatLsxOrderQuantity('5.400 túi - 6.000 túi', 10) === '5.400 túi - 6.000 túi  Dung sai (10%): 540 túi');
 
 const sourceWithBagSize: LsxSourceData = {
   ...makeSource('q1:size', 'TUI QUY CACH', 'LLDPE'),

@@ -69,9 +69,9 @@ console.log('buildLsxBagFieldRows — túi đáy đứng + zipper');
     JSON.stringify(r0),
   );
   assert(
-    'hàng 2: Dán biên | Xếp đáy',
+    'hàng 2: Hàn biên | Xếp đáy',
     r1.kind === 'pair' &&
-      r1.left.label.includes('Dán biên') && r1.left.value === '10mm' &&
+      r1.left.label.includes('Hàn biên') && r1.left.value === '10mm' &&
       r1.right.label.includes('Xếp đáy') && r1.right.value === '100mm',
     JSON.stringify(r1),
   );
@@ -83,7 +83,7 @@ console.log('\nbuildLsxBagFieldRows — không zipper thì ẩn dòng zipper');
   const rows = buildLsxBagFieldRows('tui-day-dung', manual({ sealEdge: '10mm', foldBottom: '100mm' }), false);
   const flat = JSON.stringify(rows);
   assert('không có dòng Tâm zipper', !flat.includes('Tâm zipper'), flat);
-  assert('vẫn có Dán biên | Xếp đáy', rows.length === 1 && rows[0].kind === 'pair', String(rows.length));
+  assert('vẫn có Hàn biên | Xếp đáy', rows.length === 1 && rows[0].kind === 'pair', String(rows.length));
 }
 
 console.log('\nbuildLsxBagFieldRows — túi 3 biên');
@@ -91,9 +91,9 @@ console.log('\nbuildLsxBagFieldRows — túi 3 biên');
 {
   const rows = buildLsxBagFieldRows('tui-3-bien', manual({ sealEdge: '7mm', hanDau: 30, holePunchInfo: 'Lỗ tròn Ø8mm' }), false);
   assert(
-    'hàng đầu: Dán biên | Hàn đầu',
+    'hàng đầu: Hàn biên | Hàn đầu',
     rows[0].kind === 'pair' &&
-      rows[0].left.label.includes('Dán biên') &&
+      rows[0].left.label.includes('Hàn biên') &&
       rows[0].right.label.includes('Hàn đầu'),
     JSON.stringify(rows[0]),
   );
@@ -122,6 +122,63 @@ console.log('\nbuildLsxBagFieldRows — dao 2 nhịp / khuôn bán nguyệt gộ
     'có dòng khuôn bán nguyệt',
     fulls.some(r => r.kind === 'full' && r.field.value.includes('khuôn đáy đứng bán nguyệt')),
     JSON.stringify(fulls),
+  );
+}
+
+console.log('\nbuildLsxBagFieldRows — túi 3 biên + zipper có Tâm zipper');
+
+{
+  const rows = buildLsxBagFieldRows(
+    'tui-3-bien',
+    manual({ sealEdge: '7mm', hanDau: 30, holePunchInfo: 'Lỗ tròn Ø8mm' }),
+    true,
+    30,
+  );
+  const pairZipper = rows.find(
+    r => r.kind === 'pair' && r.left.label.includes('Tâm zipper'),
+  ) as { kind: 'pair'; left: { label: string; value: string }; right: { label: string; value: string } } | undefined;
+  assert(
+    'tui-3-bien + zipper có cặp Tâm zipper | Nhấn xé',
+    !!pairZipper && pairZipper.left.value === '30mm' && pairZipper.right.label.includes('Nhấn xé'),
+    JSON.stringify(rows),
+  );
+}
+
+console.log('\nbuildLsxBagFieldRows — túi 3 biên + zipper + snapshot.zipperDistanceMm');
+
+{
+  const rows = buildLsxBagFieldRows(
+    'tui-3-bien',
+    manual({ sealEdge: '7mm', hanDau: 30 }),
+    true,
+    18,
+  );
+  const pairZipper = rows.find(
+    r => r.kind === 'pair' && r.left.label.includes('Tâm zipper'),
+  ) as { kind: 'pair'; left: { label: string; value: string } } | undefined;
+  assert(
+    'snapshot 18 thắng manual = 0',
+    !!pairZipper && pairZipper.left.value === '18mm',
+    JSON.stringify(rows),
+  );
+}
+
+console.log('\nbuildLsxBagFieldRows — túi 3 biên + zipper manual 25 thắng snapshot 18');
+
+{
+  const rows = buildLsxBagFieldRows(
+    'tui-3-bien',
+    manual({ sealEdge: '7mm', hanDau: 30, tamZipperCachMieng: 25 }),
+    true,
+    18,
+  );
+  const pairZipper = rows.find(
+    r => r.kind === 'pair' && r.left.label.includes('Tâm zipper'),
+  ) as { kind: 'pair'; left: { label: string; value: string } } | undefined;
+  assert(
+    'manual 25 thắng snapshot 18',
+    !!pairZipper && pairZipper.left.value === '25mm',
+    JSON.stringify(rows),
   );
 }
 

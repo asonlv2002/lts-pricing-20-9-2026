@@ -6,6 +6,7 @@
 
 import type { LSXManualFields } from './types';
 import type { LsxDocxTemplateKey } from './lsxExport';
+import { zipperDistanceFromOrder } from './lsx-bag-classification';
 
 export interface LsxBagField {
   label: string;
@@ -54,6 +55,7 @@ export function buildLsxBagFieldRows(
   templateKey: LsxDocxTemplateKey,
   m: LSXManualFields,
   hasZipper: boolean,
+  snapshotZipperDistanceMm?: number,
 ): LsxBagFieldRow[] {
   const rows: LsxBagFieldRow[] = [];
   const pair = (
@@ -66,39 +68,59 @@ export function buildLsxBagFieldRows(
   });
   const full = (label: string, value: string) => rows.push({ kind: 'full', field: { label, value } });
   const zipper = hasLsxZipperDetails(m, hasZipper);
+  const tamZipper = zipperDistanceFromOrder(
+    {
+      manual: m,
+      snapshot: { zipperDistanceMm: snapshotZipperDistanceMm },
+    },
+    templateKey,
+  );
 
   switch (templateKey) {
     case 'tui-3-bien':
-      pair('Dán biên: ', v(m.sealEdge) || v(m.hanBien, 'mm') || '7mm', 'Hàn đầu: ', v(m.hanDau, 'mm') || '30mm');
+      pair('Hàn biên: ', v(m.sealEdge) || v(m.hanBien, 'mm') || '7mm', 'Hàn đầu: ', v(m.hanDau, 'mm') || '30mm');
       full('Đục lỗ: ', v(m.holePunchInfo) || '…');
-      if (zipper) full('Nhấn xé "v": ', v(m.tearNotch) || '2 bên cách miệng 15mm');
+      if (zipper) {
+        pair(
+          'Tâm zipper cách đầu: ', `${tamZipper}mm`,
+          'Nhấn xé "v": ', v(m.tearNotch) || '2 bên cách miệng 15mm',
+        );
+      }
       break;
 
     case 'tui-4-bien':
       pair('Hàn biên: ', v(m.hanBien, 'mm') || '10mm', 'Hàn đầu: ', v(m.hanDau, 'mm') || '50mm');
       pair('Xếp hông: ', v(m.xepHong, 'mm') || '…', 'Đục lỗ thông hơi: ', v(m.ventHoleInfo) || '…');
       full('Đục lỗ: ', v(m.holePunchInfo) || 'Đục 3 lỗ tròn quai xách (Theo Market)');
+      if (zipper) {
+        pair(
+          'Tâm zipper cách đầu: ', `${tamZipper}mm`,
+          'Nhấn xé "v": ', v(m.tearNotch) || '2 bên cách miệng 15mm',
+        );
+      }
       break;
 
     case 'tui-dan-lung-giua':
       pair('Hàn đầu: ', v(m.hanDau, 'mm') || '13mm', 'Dán lưng: ', v(m.danLung, 'mm') || '13mm');
       if (m.ventHoleInfo) full('Đục lỗ thông hơi: ', m.ventHoleInfo);
+      if (zipper) full('Tâm zipper cách đầu: ', `${tamZipper}mm`);
       break;
 
     case 'tui-xep-hong-lung-lech':
       pair('Dán lưng lệch: ', v(m.danLungLech, 'mm') || '10mm', 'Dán đáy: ', v(m.danDay, 'mm') || '10mm');
       full('Xếp hông: ', v(m.xepHong, 'mm') || '…');
+      if (zipper) full('Tâm zipper cách đầu: ', `${tamZipper}mm`);
       break;
 
     case 'tui-day-dung':
       if (zipper) {
         pair(
-          'Tâm zipper cách miệng: ', v(m.tamZipperCachMieng, 'mm') || '30mm',
+          'Tâm zipper cách đầu: ', `${tamZipper}mm`,
           'Nhấn xé "v": ', v(m.tearNotch) || '2 bên cách miệng 15mm',
         );
       }
       pair(
-        'Dán biên: ', v(m.sealEdge) || v(m.hanBien, 'mm') || '10mm',
+        'Hàn biên: ', v(m.sealEdge) || v(m.hanBien, 'mm') || '10mm',
         'Xếp đáy: ', v(m.foldBottom) || '100mm',
       );
       break;
@@ -106,7 +128,7 @@ export function buildLsxBagFieldRows(
     case 'tui-cut-seal':
       if (zipper) {
         pair(
-          'Tâm zipper cách đầu: ', v(m.tamZipperCachMieng, 'mm') || '25mm',
+          'Tâm zipper cách đầu: ', `${tamZipper}mm`,
           'Đục treo lỗ tròn: ', v(m.loTreoInfo) || 'Ø8mm ở giữa khoảng cách miệng túi và tâm zipper',
         );
       }
@@ -116,6 +138,7 @@ export function buildLsxBagFieldRows(
       pair('Nắp: ', v(m.nap, 'mm') || '35mm', 'Sóng siêu âm: ', v(m.songSieuAm, 'mm') || '32mm');
       full('Đục quai xách: ', m.docQuaiXach ? 'cây đục riêng của khách' : '…');
       if (m.danKeoNap) full('', 'Dán keo ở mí dưới trong nắp');
+      if (zipper) full('Tâm zipper cách đầu: ', `${tamZipper}mm`);
       break;
 
     default:
@@ -131,7 +154,7 @@ export function buildLsxBagFieldRows(
       }
       if (zipper) {
         pair(
-          'Tâm zipper: ', v(m.tamZipperCachMieng, 'mm') || '30mm',
+          'Tâm zipper: ', `${tamZipper}mm`,
           'Nhấn xé "v": ', v(m.tearNotch) || '2 bên cách miệng 15mm',
         );
       }

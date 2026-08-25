@@ -24,6 +24,7 @@ import {
 import { buildLsxLamGridRows } from './lsx-lam-rows';
 import { formatLsxOrderQuantity } from './lsx-quantity';
 import { buildLsxQuyCachLines } from './lsx-quy-cach';
+import { bagTypeLabelHienThi, zipperDistanceFromOrder } from './lsx-bag-classification';
 import { formatLsxHeaderDate } from './lsx-header-format';
 import { formatLsxDivideSummary, resolveLsxDivideSpec } from './lsx-divide';
 
@@ -229,18 +230,26 @@ type BagRow =
   | { kind: 'full'; text: string };
 
 /** Bag-machine field rows per template — mirrors reference document.xml */
-function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields, hasZipper = false): BagRow[] {
+function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields, hasZipper = false, snapshotZipperDistanceMm?: number): BagRow[] {
   const rows: BagRow[] = [];
+  const tamZipper = zipperDistanceFromOrder(
+    { manual: m, snapshot: { zipperDistanceMm: snapshotZipperDistanceMm } },
+    templateKey,
+  );
   switch (templateKey) {
     case 'tui-3-bien':
       rows.push({
         kind: 'pair',
-        left: `<span class="b">Dán biên: </span>${esc(v(m.sealEdge) || v(m.hanBien, 'mm') || '7mm')}`,
+        left: `<span class="b">Hàn biên: </span>${esc(v(m.sealEdge) || v(m.hanBien, 'mm') || '7mm')}`,
         right: `<span class="b">Hàn đầu: </span>${esc(v(m.hanDau, 'mm') || '30mm')}`,
       });
       rows.push({ kind: 'full', text: `<span class="b">Đục lỗ: </span>${esc(v(m.holePunchInfo) || '…')}` });
-      if (hasZipper || m.tearNotch) {
-        rows.push({ kind: 'full', text: `<span class="b">Nhấn xé "v": </span>${esc(v(m.tearNotch))}` });
+      if (hasZipper || m.tamZipperCachMieng) {
+        rows.push({
+          kind: 'pair',
+          left: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}`,
+          right: `<span class="b">Nhấn xé "v": </span>${esc(v(m.tearNotch))}`,
+        });
       }
       {
         const extras: string[] = [];
@@ -258,6 +267,13 @@ function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields, hasZ
       rows.push({ kind: 'full', text: `<span class="b">Xếp hông: </span>${esc(v(m.xepHong, 'mm') || '…')}` });
       rows.push({ kind: 'full', text: esc(v(m.holePunchInfo) || 'Đục 3 lỗ tròn quai xách (Theo Market)') });
       rows.push({ kind: 'full', text: `<span class="b">Đục lỗ thông hơi: </span>${esc(v(m.ventHoleInfo) || '…')}` });
+      if (hasZipper || m.tamZipperCachMieng) {
+        rows.push({
+          kind: 'pair',
+          left: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}`,
+          right: `<span class="b">Nhấn xé "v": </span>${esc(v(m.tearNotch))}`,
+        });
+      }
       break;
     case 'tui-dan-lung-giua':
       rows.push({ kind: 'full', text: `<span class="b">Hàn đầu: </span>${esc(v(m.hanDau, 'mm') || '13mm')}` });
@@ -265,23 +281,29 @@ function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields, hasZ
         kind: 'full',
         text: `<span class="b">Dán lưng: </span>${esc(v(m.danLung, 'mm') || '13mm')}${m.ventHoleInfo ? `. ${esc(m.ventHoleInfo)}` : ''}`,
       });
+      if (hasZipper || m.tamZipperCachMieng) {
+        rows.push({ kind: 'full', text: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}` });
+      }
       break;
     case 'tui-xep-hong-lung-lech':
       rows.push({ kind: 'full', text: `<span class="b">Xếp hông: </span>${esc(v(m.xepHong, 'mm') || '…')}` });
       rows.push({ kind: 'full', text: `<span class="b">Dán lưng lệch: </span>${esc(v(m.danLungLech, 'mm') || '10mm')}` });
       rows.push({ kind: 'full', text: `<span class="b">Dán đáy: </span>${esc(v(m.danDay, 'mm') || '10mm')}` });
+      if (hasZipper || m.tamZipperCachMieng) {
+        rows.push({ kind: 'full', text: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}` });
+      }
       break;
     case 'tui-day-dung':
       if (hasZipper || m.tamZipperCachMieng) {
         rows.push({
           kind: 'pair',
-          left: `<span class="b">Tâm zipper cách miệng: </span>${esc(v(m.tamZipperCachMieng, 'mm') || '30mm')}`,
+          left: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}`,
           right: `<span class="b">Nhấn xé "v": </span>${esc(v(m.tearNotch) || '2 bên cách miệng 15mm')}`,
         });
       }
       rows.push({
         kind: 'pair',
-        left: `<span class="b">Dán biên: </span>${esc(v(m.sealEdge) || v(m.hanBien, 'mm') || '10mm')}`,
+        left: `<span class="b">Hàn biên: </span>${esc(v(m.sealEdge) || v(m.hanBien, 'mm') || '10mm')}`,
         right: `<span class="b">Xếp đáy: </span>${esc(v(m.foldBottom) || '100mm')}`,
       });
       break;
@@ -289,7 +311,7 @@ function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields, hasZ
       if (hasZipper || m.tamZipperCachMieng) {
         rows.push({
           kind: 'full',
-          text: `<span class="b">Tâm zipper cách đầu: </span>${esc(v(m.tamZipperCachMieng, 'mm') || '25mm')}`,
+          text: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}`,
         });
         rows.push({
           kind: 'full',
@@ -305,6 +327,9 @@ function bagFieldSpecs(templateKey: LsxDocxTemplateKey, m: LSXManualFields, hasZ
         text: m.docQuaiXach ? 'Đục quai xách: cây đục riêng của khách' : 'Đục quai xách: …',
       });
       if (m.danKeoNap) rows.push({ kind: 'full', text: 'Dán keo ở mí dưới trong nắp' });
+      if (hasZipper || m.tamZipperCachMieng) {
+        rows.push({ kind: 'full', text: `<span class="b">Tâm zipper cách đầu: </span>${esc(`${tamZipper}mm`)}` });
+      }
       break;
     default:
       rows.push({
@@ -386,9 +411,7 @@ function productInfoHtml(order: ProductionOrder): string {
   const isTui = s.productType !== 'mang';
   const bagInfo = resolveLsxBagTypeInfo(order);
   const bagLabel = isTui
-    ? bagInfo.key === 'fallback'
-      ? s.bagType || 'Túi'
-      : bagInfo.label
+    ? bagTypeLabelHienThi(bagInfo, s.bagType || '', !!s.hasZipper, !!m.lsxBagTypeOverride)
     : '';
   const khoMM = Math.round((s.spreadWidth || 0) * 1000);
   const quyCachLines = buildLsxQuyCachLines(m, s);
@@ -423,7 +446,7 @@ function productInfoHtml(order: ProductionOrder): string {
     </tr>
     <tr>
       <td><span class="b">Số màu: </span>${esc(vd(s.numColors))} màu</td>
-      <td><span class="b">Số lượng đơn hàng: </span>${esc(formatLsxOrderQuantity(m.soLuongDHNote || qty(s.quantity) + (isTui ? ' túi' : ' m²'), m.quantityTolerancePercent ?? 10))}</td>
+      <td><span class="b">Số lượng: </span>${esc(formatLsxOrderQuantity(m.soLuongDHNote || qty(s.quantity) + (isTui ? ' túi' : ' m²'), m.quantityTolerancePercent ?? 10))}</td>
     </tr>
   </table>`;
 }
@@ -565,7 +588,7 @@ function tuiBodyHtml(order: ProductionOrder): string {
   const khoMM = Math.round((s.spreadWidth || 0) * 1000);
   const dlMM = Math.round((s.cutStep || 0) * 1000);
   const templateKey = resolveLsxDocxTemplate(order);
-  const fieldSpecs = bagFieldSpecs(templateKey, m, !!s.hasZipper);
+  const fieldSpecs = bagFieldSpecs(templateKey, m, !!s.hasZipper, s.zipperDistanceMm);
 
 
   const bagContent = bagSplitHtml(bagLabel, khoMM, dlMM, fieldSpecs, order);

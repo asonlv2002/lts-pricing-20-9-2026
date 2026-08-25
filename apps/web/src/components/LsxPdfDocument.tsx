@@ -24,9 +24,10 @@ import {
   formatLsxLamSupplyLine,
   type LsxDocxTemplateKey,
 } from "../lib/lsxExport";
-import { formatLsxOrderQuantity } from "../lib/lsx-quantity";
+import { formatLsxOrderQuantityParts } from "../lib/lsx-quantity";
 import { buildLsxQuyCachLines } from "../lib/lsx-quy-cach";
 import { buildLsxBagFieldRows, hasLsxZipperDetails } from "../lib/lsx-bag-fields";
+import { bagTypeLabelHienThi } from "../lib/lsx-bag-classification";
 import { buildLsxLamGridRows } from "../lib/lsx-lam-rows";
 import { formatLsxHeaderDate } from "../lib/lsx-header-format";
 import { lsxExportBaseName } from "../lib/lsx-msp";
@@ -323,8 +324,10 @@ function formatLsxOrderQuantityForPdf(
   manual: Pick<LSXManualFields, "soLuongDHNote" | "quantityTolerancePercent">,
   snapshot: Pick<ProductionOrder["snapshot"], "quantity" | "productType">,
 ): string {
-  const base = manual.soLuongDHNote || `${qty(snapshot.quantity)}${snapshot.productType === "mang" ? " m²" : " túi"}`;
-  return formatLsxOrderQuantity(base, manual.quantityTolerancePercent ?? 10);
+  const unit = snapshot.productType === "mang" ? "m²" : "túi";
+  const base = manual.soLuongDHNote || `${qty(snapshot.quantity)} ${unit}`;
+  const parts = formatLsxOrderQuantityParts(base, manual.quantityTolerancePercent ?? 10, unit);
+  return parts.dungSai ? `${parts.base} · ${parts.dungSai}` : parts.base;
 }
 
 function ProductInfo({ order }: { order: ProductionOrder }) {
@@ -332,9 +335,7 @@ function ProductInfo({ order }: { order: ProductionOrder }) {
   const isTui = s.productType !== "mang";
   const bagInfo = resolveLsxBagTypeInfo(order);
   const bagLabel = isTui
-    ? bagInfo.key === "fallback"
-      ? s.bagType || "Túi"
-      : bagInfo.label
+    ? bagTypeLabelHienThi(bagInfo, s.bagType || "", !!s.hasZipper, !!m.lsxBagTypeOverride)
     : "";
   const khoMM = Math.round((s.spreadWidth || 0) * 1000);
 
@@ -353,7 +354,6 @@ function ProductInfo({ order }: { order: ProductionOrder }) {
       <View style={styles.row}>
         <Cell w="45%">
           <Line label="MSP:" value={" " + (m.msp || "TP_0……..")} />
-          <Line label="TSP:" value={" " + (isTui ? "TÚI" : "MÀNG")} />
         </Cell>
         <Cell w="55%">
           <Line label="Tên SP:" value={" " + (m.tenSP || s.productName || "")} />
@@ -391,7 +391,7 @@ function ProductInfo({ order }: { order: ProductionOrder }) {
         </Cell>
         <Cell w="55%">
           <Line
-            label="Số lượng đơn hàng:"
+            label="Số lượng:"
             value={" " +               (formatLsxOrderQuantityForPdf(m, s))}
           />
         </Cell>

@@ -1,6 +1,6 @@
 /**
  * Khối "Quy cách" trên LSX — nguồn nhập duy nhất cho các thông số túi
- * (dung sai R/D, zipper cách miệng, xếp đáy, dán biên, nhấn xé).
+ * (dung sai R/D, tâm zipper cách đầu, xếp đáy, dán biên, nhấn xé).
  * Máy làm túi chỉ đọc lại các giá trị này.
  */
 
@@ -21,9 +21,14 @@ export interface LsxQuyCachSnapshot {
   bagWidthMm?: number;
   bagLengthMm?: number;
   hasZipper?: boolean;
+  /** Tâm zipper cách đầu (mm) từ báo giá; prefill khi LSX admin chưa nhập. */
+  zipperDistanceMm?: number;
 }
 
-export const LSX_TOLERANCE_DEFAULT_MM = 2;
+/** Dung sai mặc định chiều rộng (R) quy cách LSX. */
+export const LSX_TOLERANCE_WIDTH_DEFAULT_MM = 2;
+/** Dung sai mặc định chiều dài (D) quy cách LSX. */
+export const LSX_TOLERANCE_LENGTH_DEFAULT_MM = 3;
 
 /** "R:220mm (±2mm) x D:320mm (±2mm)" — bỏ ngoặc khi dung sai = 0. */
 export function formatLsxQuyCach(opts: {
@@ -68,8 +73,8 @@ export function buildLsxQuyCachLines(
       ? formatLsxQuyCach({
           widthMm,
           lengthMm,
-          tolWidthMm: manual.quyCachToleranceWidthMm ?? LSX_TOLERANCE_DEFAULT_MM,
-          tolLengthMm: manual.quyCachToleranceLengthMm ?? LSX_TOLERANCE_DEFAULT_MM,
+          tolWidthMm: manual.quyCachToleranceWidthMm ?? LSX_TOLERANCE_WIDTH_DEFAULT_MM,
+          tolLengthMm: manual.quyCachToleranceLengthMm ?? LSX_TOLERANCE_LENGTH_DEFAULT_MM,
         })
       : '';
   const spec = manual.quyCachNote?.trim() || autoSpec;
@@ -78,13 +83,16 @@ export function buildLsxQuyCachLines(
   if (spec) lines.push(`Quy cách: ${spec}`);
   if (!isTui) return lines;
 
-  const showZipper = Boolean(snapshot.hasZipper || manual.tamZipperCachMieng);
-  if (showZipper && manual.tamZipperCachMieng) {
-    lines.push(`Zipper cách miệng: ${manual.tamZipperCachMieng}mm`);
+  const showZipper = Boolean(snapshot.hasZipper || manual.tamZipperCachMieng || snapshot.zipperDistanceMm);
+  if (showZipper) {
+    const tam = manual.tamZipperCachMieng > 0
+      ? manual.tamZipperCachMieng
+      : (snapshot.zipperDistanceMm && snapshot.zipperDistanceMm > 0 ? snapshot.zipperDistanceMm : 30);
+    lines.push(`Tâm zipper cách đầu: ${tam}mm`);
   }
   const foldBottom = formatLsxFoldBottom(manual.foldBottom);
   if (foldBottom) lines.push(`Xếp đáy: ${foldBottom}`);
-  if (manual.sealEdge?.trim()) lines.push(`Dán biên: ${manual.sealEdge.trim()}`);
+  if (manual.sealEdge?.trim()) lines.push(`Hàn biên: ${manual.sealEdge.trim()}`);
   if (manual.tearNotch?.trim()) lines.push(`Nhấn xé "v" ${manual.tearNotch.trim()}`);
   return lines;
 }

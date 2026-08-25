@@ -87,9 +87,9 @@ console.log('\nbuildLsxQuyCachLines');
     { productType: 'tui', spreadWidth: 0.22, cutStep: 0.32, hasZipper: true },
   );
   assert('dòng 1 là quy cách R/D kèm dung sai', lines[0] === 'Quy cách: R:220mm (±2mm) x D:320mm (±2mm)', lines[0]);
-  assert('có dòng zipper cách miệng', lines.includes('Zipper cách miệng: 30mm'), lines.join(' | '));
+  assert('có dòng zipper cách đầu', lines.includes('Tâm zipper cách đầu: 30mm'), lines.join(' | '));
   assert('xếp đáy kèm nửa mỗi bên', lines.includes('Xếp đáy: 100mm (50mm / Bên)'), lines.join(' | '));
-  assert('có dòng dán biên', lines.includes('Dán biên: 10mm'), lines.join(' | '));
+  assert('có dòng hàn biên', lines.includes('Hàn biên: 10mm'), lines.join(' | '));
   assert('có dòng nhấn xé', lines.includes('Nhấn xé "v" 2 bên cách miệng 15mm'), lines.join(' | '));
   assert('đúng 5 dòng', lines.length === 5, String(lines.length));
 }
@@ -129,6 +129,24 @@ console.log('\nbuildLsxQuyCachLines');
     { productType: 'tui', spreadWidth: 0.22, cutStep: 0.32, hasZipper: false },
   );
   assert('ưu tiên quyCachNote khi admin sửa tay', lines[0] === 'Quy cách: R:250mm x D:500mm', lines[0]);
+}
+
+{
+  const lines = buildLsxQuyCachLines(
+    {
+      quyCachNote: '',
+      tamZipperCachMieng: 0,
+      foldBottom: '',
+      sealEdge: '',
+      tearNotch: '',
+    },
+    { productType: 'tui', spreadWidth: 0.22, cutStep: 0.32, hasZipper: false },
+  );
+  assert(
+    'default tolerance R ±2mm D ±3mm',
+    lines[0] === 'Quy cách: R:220mm (±2mm) x D:320mm (±3mm)',
+    lines[0],
+  );
 }
 
 console.log(`\n${passed} passed, ${failed} failed`);

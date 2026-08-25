@@ -11,6 +11,8 @@ import type { ProductionOrder, LSXManualFields } from './types';
 import {
   classifyLsxBagType,
   classifyLsxBagTypeByKey,
+  bagTypeLabelHienThi,
+  zipperDistanceFromOrder,
   resolveLsxHasDivide,
   resolveLsxStageLayout,
   type LsxBagTypeInfo,
@@ -349,7 +351,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
   const khoMM = Math.round((s.spreadWidth || 0) * 1000);
   const dlMM = Math.round((s.cutStep || 0) * 1000);
   const bagLabel = isTui
-    ? (bagInfo.key === 'fallback' ? (s.bagType || 'Túi') : bagInfo.label)
+    ? bagTypeLabelHienThi(bagInfo, s.bagType || '', !!s.hasZipper, !!m.lsxBagTypeOverride)
     : '';
   const TNR = 'Times New Roman';
 
@@ -492,7 +494,6 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
       rowH(702,
         cell([
           para([run('MSP:', { b: true }), run(' ' + (m.msp || 'TP_0……..'))]),
-          para([run('TSP:', { b: true }), run(' ' + (isTui ? 'TÚI' : 'MÀNG'))]),
         ]),
         cell([
           para([run('Tên SP:', { b: true }), run(' ' + (m.tenSP || s.productName || ''))]),
@@ -518,7 +519,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
       ),
       rowH(556,
         cell([para([run('Số màu:', { b: true }), run(` ${vd(s.numColors)} màu`)])], { va: 'center' }),
-        cell([para([run('Số lượng đơn hàng:', { b: true }),
+        cell([para([run('Số lượng:', { b: true }),
           run(' ' + formatLsxOrderQuantity(m.soLuongDHNote || qty(s.quantity) + (isTui ? ' túi' : ' m²'), m.quantityTolerancePercent ?? 10))])], { va: 'center' }),
       ),
     ],
@@ -794,7 +795,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
       cell([para([run('Chiều rộng: ', { b: true }), run(khoMM ? `${khoMM}mm` : '…')])], { w: bagW.cellLeft }),
       cell([para([run('Chiều dài: ', { b: true }), run(dlMM ? `${dlMM}mm` : '…')])], { w: bagW.cellRight }),
     ));
-    for (const row of buildLsxBagFieldRows(templateKey, m, !!s.hasZipper)) {
+    for (const row of buildLsxBagFieldRows(templateKey, m, !!s.hasZipper, s.zipperDistanceMm)) {
       if (row.kind === 'pair') {
         bagGridRows.push(rowMin(300,
           noteCell(VM_CONTINUE),
@@ -874,17 +875,29 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
       }
     };
 
+    const tamZipper = zipperDistanceFromOrder(
+      { manual: m, snapshot: s },
+      templateKey,
+    );
+
     switch (templateKey) {
       case 'tui-3-bien':
         pushContinue([
-          cell([para([run('Dán biên: ', { b: true }), run(v(m.sealEdge) || v(m.hanBien, 'mm') || '7mm')])], { cs: rcs(1) }),
+          cell([para([run('Hàn biên: ', { b: true }), run(v(m.sealEdge) || v(m.hanBien, 'mm') || '7mm')])], { cs: rcs(1) }),
           cell([para([run('Hàn đầu: ', { b: true }), run(v(m.hanDau, 'mm') || '30mm')])], { cs: rcs(2) }),
         ]);
         pushContinue([
           cell([para([run('Đục lỗ: ', { b: true }), run(v(m.holePunchInfo) || '…')])], { cs: rcs(3) }),
         ]);
         if (s.hasZipper || m.tamZipperCachMieng || m.tearNotch || m.useDualCutter || m.useSemicircularMold) {
-          if (m.tearNotch) pushContinue([cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch))])], { cs: rcs(3) })]);
+          if (s.hasZipper || m.tamZipperCachMieng) {
+            pushContinue([
+              cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(1) }),
+              cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch) || '2 bên cách miệng 15mm')])], { cs: rcs(2) }),
+            ]);
+          } else if (m.tearNotch) {
+            pushContinue([cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch))])], { cs: rcs(3) })]);
+          }
           if (m.useDualCutter || m.useSemicircularMold) {
             pushContinue([
               cell([
@@ -910,6 +923,12 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
         pushContinue([
           cell([para([run('Đục lỗ thông hơi: ', { b: true }), run(v(m.ventHoleInfo) || '…')])], { cs: rcs(3) }),
         ]);
+        if (s.hasZipper || m.tamZipperCachMieng) {
+          pushContinue([
+            cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(1) }),
+            cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch) || '2 bên cách miệng 15mm')])], { cs: rcs(2) }),
+          ]);
+        }
         break;
 
       case 'tui-dan-lung-giua':
@@ -922,6 +941,9 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
             para([run(v(m.ventHoleInfo) ? `Đục lỗ thông hơi: ${m.ventHoleInfo}` : '')]),
           ], { cs: rcs(3) }),
         ], 340);
+        if (s.hasZipper || m.tamZipperCachMieng) {
+          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(3) })]);
+        }
         break;
 
       case 'tui-xep-hong-lung-lech':
@@ -932,17 +954,20 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
           cell([para([run('Dán lưng lệch: ', { b: true }), run(v(m.danLungLech, 'mm') || '10mm')])], { cs: rcs(1) }),
           cell([para([run('Dán đáy: ', { b: true }), run(v(m.danDay, 'mm') || '10mm')])], { cs: rcs(2) }),
         ]);
+        if (s.hasZipper || m.tamZipperCachMieng) {
+          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(3) })]);
+        }
         break;
 
       case 'tui-day-dung':
         if (s.hasZipper || m.tamZipperCachMieng) {
           pushContinue([
-            cell([para([run('Tâm zipper cách miệng: ', { b: true }), run(v(m.tamZipperCachMieng, 'mm') || '30mm')])], { cs: rcs(1) }),
+            cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(1) }),
             cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch) || '2 bên cách miệng 15mm')])], { cs: rcs(2) }),
           ]);
         }
         pushContinue([
-          cell([para([run('Dán biên: ', { b: true }), run(v(m.sealEdge) || v(m.hanBien, 'mm') || '10mm')])], { cs: rcs(1) }),
+          cell([para([run('Hàn biên: ', { b: true }), run(v(m.sealEdge) || v(m.hanBien, 'mm') || '10mm')])], { cs: rcs(1) }),
           cell([para([run('Xếp đáy: ', { b: true }), run(v(m.foldBottom) || '100mm')])], { cs: rcs(2) }),
         ]);
         break;
@@ -950,7 +975,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
       case 'tui-cut-seal':
         if (s.hasZipper || m.tamZipperCachMieng) {
           pushContinue([
-            cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(v(m.tamZipperCachMieng, 'mm') || '25mm')])], { cs: rcs(3) }),
+            cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(3) }),
           ]);
           pushContinue([
             cell([para([run('Đục treo lỗ tròn: ', { b: true }), run(v(m.loTreoInfo) || 'Ø8mm ở giữa khoảng cách miệng túi và tâm zipper')])], { cs: rcs(3) }),
@@ -969,6 +994,9 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
             para([run(m.danKeoNap ? 'Dán keo ở mé dưới trong nắp: có' : '')]),
           ], { cs: rcs(3) }),
         ], 340);
+        if (s.hasZipper || m.tamZipperCachMieng) {
+          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(3) })]);
+        }
         break;
 
       default:
@@ -978,7 +1006,9 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
         ]);
         if (m.xepHong) pushContinue([cell([para([run('Xếp hông: ', { b: true }), run(v(m.xepHong, 'mm'))])], { cs: rcs(3) })]);
         if (m.foldBottom) pushContinue([cell([para([run('Xếp đáy: ', { b: true }), run(v(m.foldBottom))])], { cs: rcs(3) })]);
-        if (m.tamZipperCachMieng) pushContinue([cell([para([run('Tâm zipper: ', { b: true }), run(v(m.tamZipperCachMieng, 'mm'))])], { cs: rcs(3) })]);
+        if (s.hasZipper || m.tamZipperCachMieng) {
+          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(3) })]);
+        }
         if (m.tearNotch) pushContinue([cell([para([run('Nhấn xé "v": ', { b: true }), run(m.tearNotch)])], { cs: rcs(3) })]);
         if (m.holePunchInfo) pushContinue([cell([para([run(m.holePunchInfo)])], { cs: rcs(3) })]);
         if (m.useDualCutter || m.useSemicircularMold) {
