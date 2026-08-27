@@ -1533,6 +1533,31 @@ export async function layPriceConfigMoiNhatService(
   return Array.isArray(data) ? data : [];
 }
 
+// GET /price-config/production-upgrade/:version — endpoint chuyên cho CPSX nâng cao
+// (BE commit 3cc0a4e, route auth-only). version = 'latest' hoặc số dương.
+export async function layProductionUpgradePriceConfigService(
+  token: string,
+  version: 'latest' | number = 'latest',
+): Promise<PriceConfigApi> {
+  return goiService<PriceConfigApi>(
+    `/price-config/production-upgrade/${version}`,
+    {},
+    token,
+  );
+}
+
+// PUT /price-config/production-upgrade — tạo version mới CPSX nâng cao.
+export async function upsertProductionUpgradePriceConfigService(
+  token: string,
+  body: { inputValue: unknown },
+): Promise<PriceConfigApi> {
+  return goiService<PriceConfigApi>(
+    '/price-config/production-upgrade',
+    { method: 'PUT', body: JSON.stringify(body) },
+    token,
+  );
+}
+
 // POST /price-config/by-ids — batch load theo id (1 request, tránh N× GET / 429).
 export async function layPriceConfigTheoIdsService(
   ids: string[],

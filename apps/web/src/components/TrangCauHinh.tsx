@@ -503,6 +503,7 @@ export default function TrangCauHinh({
     phienBanDangXemId,
     configSnapshots: tatCaPhienBan,
     nguoiDungHienTai,
+    cpsxNangCapPolicies,
   } = dungCuaHangTinhGia();
 
   const scopeDangXem = React.useMemo(() => {
@@ -1432,14 +1433,23 @@ export default function TrangCauHinh({
     <div className={`config-page${dangXemPhienBan ? ' config-page--readonly' : ''}`} id="configPage" style={{ display: "block" }}>
       <div className="config-page-inner">
         <div className="config-content">
-          {hienCpsxNangCap && (
+          {hienCpsxNangCap && (() => {
+            // BE route PUT /price-config/production-upgrade (commit 3cc0a4e) là auth-only —
+            // user có CPSX_UPGRADE_EDIT_* cũng lưu được, không bắt buộc PRICE_CONFIG_MANAGER.
+            // CpsxNangCapTrang fetch policies qua /price-config/production-upgrade/latest
+            // (mỗi user có thể có tập CPSX_UPGRADE_EDIT_* khác nhau) → lưu store cpsxNangCapPolicies.
+            const coCpsxUpgradeEdit = (cpsxNangCapPolicies ?? []).length > 0;
+            const coQuyenLuuPhienBanUpgrade =
+              !!nguoiDungHienTai?.policies.includes("PRICE_CONFIG_MANAGER") || coCpsxUpgradeEdit;
+            return (
             <>
-              {!!nguoiDungHienTai?.policies.includes("PRICE_CONFIG_MANAGER") && (
+              {coQuyenLuuPhienBanUpgrade && (
                 <KhoiPhienBan scope="productionUpgrade" />
               )}
               <CpsxNangCapTrang />
             </>
-          )}
+            );
+          })()}
           {hienVatTu && (
             <>
               <KhoiPhienBan scope="materials" />

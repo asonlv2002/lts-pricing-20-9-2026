@@ -1,10 +1,12 @@
 ﻿import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import type { ConfigSnapshot, ConfigScope, AppConstants } from '../../lib/types';
+import type { PolicyCode } from '../../lib/api/service-lts';
 import { INITIAL_CONFIG_SNAPSHOTS } from '../../lib/data';
 import { luuLocalStorage, LS_CONFIG_SNAPSHOTS } from '../helpers';
 import {
   upsertPriceConfigService,
+  upsertProductionUpgradePriceConfigService,
   layLichSuPriceConfigService,
   layPriceConfigMoiNhatService,
   xoaPriceConfigService,
@@ -37,6 +39,11 @@ export interface ConfigVersioningSlice {
   dangTaiCauHinhMoiNhat: boolean;
   dangXemPhienBan: boolean;
   phienBanDangXemId: string | null;
+  /** Policies CPSX nâng cao của user hiện tại (từ GET /price-config/production-upgrade/latest).
+   *  Share cho TrangCauHinh gate nút lưu + CpsxNangCapTrang render từng section. */
+  cpsxNangCapPolicies: PolicyCode[];
+  /** True khi đang fetch cpsxNangCapPolicies (phân biệt user không có quyền vs chưa load xong). */
+  dangTaiCpsxNangCapPolicies: boolean;
 
   taiPhienBanDinhMuc: (data: ConfigSnapshot[]) => void;
   taoPhienBanDinhMuc: (params: { scope: ConfigScope; name?: string; effectiveMode: 'date' | 'month'; effectiveFrom: string }) => Promise<void>;
@@ -47,6 +54,7 @@ export interface ConfigVersioningSlice {
   taiLichSuPhienBanTuServer: (scope: ConfigScope) => Promise<void>;
   /** Bootstrap: 1 request latest-version thay vì N× history. */
   taiCauHinhMoiNhatTuServer: () => Promise<void>;
+  datCpsxNangCapPolicies: (policies: PolicyCode[]) => void;
 }
 
 /** Sort list UI: version server trước, rồi thời điểm, rồi tháng hiệu lực. */
@@ -115,6 +123,10 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
   dangTaiCauHinhMoiNhat: false,
   dangXemPhienBan: false,
   phienBanDangXemId: null,
+  cpsxNangCapPolicies: [],
+  dangTaiCpsxNangCapPolicies: false,
+
+  datCpsxNangCapPolicies: (policies) => set({ cpsxNangCapPolicies: policies, dangTaiCpsxNangCapPolicies: false }),
 
   taiPhienBanDinhMuc: (data) => set({ configSnapshots: sapXepTheoHieuLuc(data) }),
 
@@ -140,7 +152,11 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
           ...scopeData,
         };
 
-        const priceConfig = await upsertPriceConfigService({ configName, inputValue }, token);
+        // CPSX nâng cao: route mới PUT /price-config/production-upgrade (BE 3cc0a4e, auth-only).
+        // Scope khác: giữ POST /price-config chung.
+        const priceConfig = scope === 'productionUpgrade'
+          ? await upsertProductionUpgradePriceConfigService(token, { inputValue })
+          : await upsertPriceConfigService({ configName, inputValue }, token);
 
         await get().taiLichSuPhienBanTuServer(scope);
 
@@ -258,9 +274,9 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
           if (payload) {
             try {
               const nowMonth = new Date().toISOString().slice(0, 7);
-              const created = await upsertPriceConfigService(
+              const created = await upsertProductionUpgradePriceConfigService(
+                token,
                 {
-                  configName: 'PRODUCTION_UPGRADE',
                   inputValue: {
                     name: 'Migrate tu PRODUCTION',
                     effectiveMode: 'month',
@@ -268,7 +284,6 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
                     ...payload,
                   },
                 },
-                token,
               );
               list = [...list.filter((pc) => pc.configName !== 'PRODUCTION_UPGRADE'), created];
               upgradeHistory = [created];

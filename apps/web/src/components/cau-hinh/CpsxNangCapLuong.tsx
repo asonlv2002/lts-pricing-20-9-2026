@@ -269,6 +269,23 @@ export default function CpsxNangCapLuong({
           </div>
         );
       })}
+
+      <div className="card config-card config-cpsx-upgrade-readonly__card">
+        <div className="config-cpsx-upgrade-readonly__row" style={{ fontWeight: 600, marginBottom: 8 }}>
+          Kết quả hiện tại
+        </div>
+        {[
+          { hien: coQuyenPrint, label: "Lương CN máy in", value: tomTat1May("print") },
+          { hien: coQuyenLaminate, label: "Lương CN máy ghép", value: tomTat1May("laminate") },
+          { hien: coQuyenSlit, label: "Lương CN máy chia", value: tomTat1May("slit") },
+          { hien: coQuyenBag, label: "Lương CN máy làm túi", value: tomTatTui() },
+        ].map((row) => (
+          <div key={row.label} className="config-cpsx-upgrade-readonly__row">
+            <span className="config-cpsx-upgrade-readonly__label">{row.label}</span>
+            <strong className="config-cpsx-upgrade-readonly__value">{row.value}</strong>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

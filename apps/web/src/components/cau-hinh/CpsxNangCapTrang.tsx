@@ -2,10 +2,9 @@
 
 import React from "react";
 import { dungCuaHangTinhGia } from "../../store/CuaHangTinhGia";
-import { layPriceConfigMoiNhatService } from "../../lib/api/service-lts";
+import { layProductionUpgradePriceConfigService } from "../../lib/api/service-lts";
 import type { PolicyCode } from "../../lib/api/service-lts";
 import CpsxNangCapDien from "./CpsxNangCapDien";
-import CpsxNangCapKetQua from "./CpsxNangCapKetQua";
 import CpsxNangCapLuong from "./CpsxNangCapLuong";
 import CpsxNangCapMuc from "./CpsxNangCapMuc";
 import CpsxNangCapThoiGian from "./CpsxNangCapThoiGian";
@@ -37,38 +36,32 @@ export default function CpsxNangCapTrang() {
   const daDangNhap = dungCuaHangTinhGia((s) => s.isAuthenticated);
   const dangTai = dungCuaHangTinhGia((s) => s.dangTaiCauHinhMoiNhat);
   const accessToken = dungCuaHangTinhGia((s) => s.accessToken);
-
-  const [cpsxPolicies, setCpsxPolicies] = React.useState<PolicyCode[]>([]);
-  const [dangTaiCpsxPolicy, setDangTaiCpsxPolicy] = React.useState(true);
+  const cpsxPolicies = dungCuaHangTinhGia((s) => s.cpsxNangCapPolicies);
+  const dangTaiCpsxPolicies = dungCuaHangTinhGia((s) => s.dangTaiCpsxNangCapPolicies);
+  const datCpsxPolicies = dungCuaHangTinhGia((s) => s.datCpsxNangCapPolicies);
 
   React.useEffect(() => {
     if (!daDangNhap || !accessToken) {
-      setCpsxPolicies([]);
-      setDangTaiCpsxPolicy(false);
+      datCpsxPolicies([]);
       return;
     }
-    setDangTaiCpsxPolicy(true);
-    layPriceConfigMoiNhatService(accessToken)
-      .then((list) => {
-        const upgrade = list.find(
-          (c) => c.configName === "PRODUCTION_UPGRADE",
-        );
-        const policies = (upgrade?.policies ?? []) as string[];
-        setCpsxPolicies(
+    // Bật loading trước khi fetch
+    dungCuaHangTinhGia.setState({ dangTaiCpsxNangCapPolicies: true });
+    layProductionUpgradePriceConfigService(accessToken, 'latest')
+      .then((upgrade) => {
+        const policies = (upgrade?.policies ?? []) as PolicyCode[];
+        datCpsxPolicies(
           policies.filter((p): p is PolicyCode => p.startsWith("CPSX_UPGRADE_EDIT_")),
         );
       })
       .catch(() => {
-        setCpsxPolicies([]);
-      })
-      .finally(() => {
-        setDangTaiCpsxPolicy(false);
+        datCpsxPolicies([]);
       });
-  }, [daDangNhap, accessToken]);
+  }, [daDangNhap, accessToken, datCpsxPolicies]);
 
   const coQuyen = (code: PolicyCode) => cpsxPolicies.includes(code);
 
-  if (daDangNhap && (dangTai || dangTaiCpsxPolicy)) {
+  if (daDangNhap && (dangTai || dangTaiCpsxPolicies)) {
     return <DangTaiCpsxNangCao />;
   }
 
@@ -94,20 +87,20 @@ export default function CpsxNangCapTrang() {
     coQuyen("CPSX_UPGRADE_EDIT_TIME_SLIT") ||
     coQuyen("CPSX_UPGRADE_EDIT_TIME_BAG");
 
+  // Section Điện/Lương/Mực luôn hiện (kết quả ai cũng xem được).
+  // Chỉ ẩn Thời gian nếu user không có quyền (TG không có "Kết quả hiện tại").
+  const coBatKyQuyenEdit = coQuyenDien || coQuyenLuong || coQuyenMuc || coQuyenThoiGian;
+
   return (
     <div className="config-cpsx-upgrade-shell">
-      {coQuyenDien && (
+      {coBatKyQuyenEdit && (
         <>
           <TieuDe>1. Điện</TieuDe>
           <CpsxNangCapDien
             coQuyenKhungGio={coQuyen("CPSX_UPGRADE_EDIT_ELECTRIC_TIME_FRAME")}
             coQuyenDienMay={coQuyen("CPSX_UPGRADE_EDIT_ELECTRIC_PER_MINUTE")}
           />
-        </>
-      )}
 
-      {coQuyenLuong && (
-        <>
           <TieuDe>2. Tiền lương</TieuDe>
           <CpsxNangCapLuong
             coQuyenPrint={coQuyen("CPSX_UPGRADE_EDIT_LABOR_PRINT")}
@@ -115,11 +108,7 @@ export default function CpsxNangCapTrang() {
             coQuyenSlit={coQuyen("CPSX_UPGRADE_EDIT_LABOR_SLIT")}
             coQuyenBag={coQuyen("CPSX_UPGRADE_EDIT_LABOR_BAG")}
           />
-        </>
-      )}
 
-      {coQuyenMuc && (
-        <>
           <TieuDe>3. Mực · Dung môi · Keo ghép</TieuDe>
           <CpsxNangCapMuc
             coQuyenOpp={coQuyen("CPSX_UPGRADE_EDIT_INK_OPP")}
@@ -144,8 +133,6 @@ export default function CpsxNangCapTrang() {
           />
         </>
       )}
-
-      <CpsxNangCapKetQua />
     </div>
   );
 }

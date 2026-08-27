@@ -11,6 +11,7 @@ import {
   chuanHoaMucInTable,
   dongBoGiaMucDangApSauSuaRow,
   giaMucTheoNguon,
+  lapBangGiaInTheoMau,
   tinhGiaMucTbCong,
   tinhGiaMucTbTrongSo,
 } from "../../lib/cpsx-upgrade-ink";
@@ -399,6 +400,8 @@ export default function CpsxNangCapMuc({
     capNhatHangSo("cpsxUpgradeInk", next as never);
   };
 
+  const bangGiaIn = React.useMemo(() => lapBangGiaInTheoMau(state), [state]);
+
   const suaBang = (loai: LoaiBang, table: MucInTable) => {
     const clean = chuanHoaMucInTable(
       table as Partial<MucInTable>,
@@ -468,6 +471,47 @@ export default function CpsxNangCapMuc({
         coQuyenInRate={coQuyenInRate}
         coQuyenAdhesiveRate={coQuyenAdhesiveRate}
       />
+
+      <div className="card config-card config-cpsx-upgrade-readonly__card">
+        <div className="config-cpsx-upgrade-readonly__row" style={{ fontWeight: 600, marginBottom: 8 }}>
+          Kết quả hiện tại
+        </div>
+        <div className="config-cpsx-upgrade__col-title" style={{ marginTop: 0 }}>
+          Bảng giá in theo số màu (VNĐ/m²)
+        </div>
+        <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
+          <table className="config-table config-cpsx-upgrade__table config-cpsx-upgrade__gia-in">
+            <thead>
+              <tr>
+                <th rowSpan={2}>Số màu</th>
+                <th colSpan={3}>Tỉ lệ phủ 100%</th>
+                <th colSpan={3}>Tỉ lệ phủ 50%</th>
+              </tr>
+              <tr>
+                <th className="num">OPP</th>
+                <th className="num">PET</th>
+                <th className="num">PE</th>
+                <th className="num">OPP</th>
+                <th className="num">PET</th>
+                <th className="num">PE</th>
+              </tr>
+            </thead>
+            <tbody>
+              {bangGiaIn.map((r) => (
+                <tr key={`ro-gia-in-${r.soMau}`}>
+                  <td className="config-cpsx-upgrade__lock">In {r.soMau} màu</td>
+                  <td className="num">{dinhDangVnd(r.opp100)}</td>
+                  <td className="num">{dinhDangVnd(r.pet100)}</td>
+                  <td className="num">{dinhDangVnd(r.pe100)}</td>
+                  <td className="num">{dinhDangVnd(r.opp50)}</td>
+                  <td className="num">{dinhDangVnd(r.pet50)}</td>
+                  <td className="num">{dinhDangVnd(r.pe50)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

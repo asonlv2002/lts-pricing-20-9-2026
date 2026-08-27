@@ -501,6 +501,30 @@ export default function CpsxNangCapDien({
         )}
         </div>
       )}
+
+      <div className="card config-card config-cpsx-upgrade-readonly__card">
+        <div className="config-cpsx-upgrade-readonly__row" style={{ fontWeight: 600, marginBottom: 8 }}>
+          Kết quả hiện tại
+        </div>
+        {MAY_ROWS.map(({ key, label }) => {
+          const m = state.machines[key];
+          const perMin = tinhDienMoiPhut(
+            m.powerKw,
+            m.efficiency,
+            state.appliedPricePerKwh,
+          );
+          return (
+            <div key={key} className="config-cpsx-upgrade-readonly__row">
+              <span className="config-cpsx-upgrade-readonly__label">
+                Điện {label}
+              </span>
+              <strong className="config-cpsx-upgrade-readonly__value">
+                {perMin != null ? `${dinhDangVnd(perMin)} ₫/phút` : "—"}
+              </strong>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
