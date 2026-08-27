@@ -100,7 +100,7 @@ async function main() {
       nguoiDungHienTai: {
         id: 'u1', account: 'a', fullName: 'A', policies: [],
         avatarUrl: null, avatarBlobUrl: null,
-        signatureUrl: null, signatureBlobUrl: null,
+        signatureUrl: null, signatureBlobUrl: null, chuKyDataUrl: null,
       },
     });
     const khongCo = await layChuKyDataUrl();
@@ -119,7 +119,7 @@ async function main() {
       nguoiDungHienTai: {
         id: 'u1', account: 'a', fullName: 'A', policies: [],
         avatarUrl: null, avatarBlobUrl: null,
-        signatureUrl: '/sig', signatureBlobUrl: 'blob:fake',
+        signatureUrl: '/sig', signatureBlobUrl: 'blob:fake', chuKyDataUrl: null,
       },
     });
     const coChuKy = await layChuKyDataUrl();
@@ -130,7 +130,7 @@ async function main() {
       nguoiDungHienTai: {
         id: 'u1', account: 'a', fullName: 'A', policies: [],
         avatarUrl: null, avatarBlobUrl: null,
-        signatureUrl: '/sig', signatureBlobUrl: 'blob:fake',
+        signatureUrl: '/sig', signatureBlobUrl: 'blob:fake', chuKyDataUrl: null,
       },
     });
     const ganMoi = await themChuKyVaoManual({ preparedBy: 'B' } as LSXManualFields);

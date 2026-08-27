@@ -385,7 +385,14 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
     });
   const divideSpec = resolveLsxDivideSpec(order);
   const divideParas = (includeFilmWidth = true) => {
-    if (!divideSpec.valid) return [];
+    const m = order.manual;
+    // Chi an khi user that su khong co du lieu (regression 2026-08-27:
+    // truoc do `if (!divideSpec.valid) return []` lam mat du lieu vua nhap).
+    const hasUserData =
+      (m.divideWidth ?? 0) > 0
+      || (m.divideElements ?? 0) > 0
+      || (Array.isArray(m.divideWidths) && m.divideWidths.length > 0);
+    if (!hasUserData) return [];
     return [
       ...(includeFilmWidth
         ? [para([run('Khổ màng: ', { b: true }), run(divideSpec.filmWidthMm ? `K${divideSpec.filmWidthMm}mm` : '…')])]
@@ -395,7 +402,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
         : []),
       para([
         run('Khổ chia: ', { b: true }),
-        run(formatLsxDivideSummary(divideSpec)),
+        run(divideSpec.elementCount > 0 ? formatLsxDivideSummary(divideSpec) : vd(divideSpec.defaultWidthMm, 'mm')),
       ]),
       ...(divideSpec.elementCount > 0 && divideSpec.widths.length === divideSpec.elementCount
         ? [
@@ -404,6 +411,9 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
               para([run(`Phần tử ${index + 1}: `, { b: true }), run(vd(width, 'mm'))]),
             ),
           ]
+        : []),
+      ...(!divideSpec.valid && divideSpec.error
+        ? [para([run(`⚠ ${divideSpec.error}`, { clr: 'cc0000' })])]
         : []),
     ];
   };

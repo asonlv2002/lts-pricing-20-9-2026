@@ -50,11 +50,18 @@ function chuKyImgHtml(m: LSXManualFields): string {
 
 function divideResultHtml(order: ProductionOrder, includeFilmWidth = true): string {
   const spec = resolveLsxDivideSpec(order);
+  const m = order.manual;
+  // Chi hide khi user thuc su khong co du lieu nao (regression 2026-08-27:
+  // truoc do `if (!spec.valid) return` lam mat du lieu user vua nhap).
+  const hasUserData =
+    (m.divideWidth ?? 0) > 0
+    || (m.divideElements ?? 0) > 0
+    || (Array.isArray(m.divideWidths) && m.divideWidths.length > 0);
+  if (!hasUserData) return '';
   const rows: string[] = [];
   if (includeFilmWidth) {
     rows.push(`<div><span class="b">Khổ màng: </span>${spec.filmWidthMm ? `K${spec.filmWidthMm}mm` : '…'}</div>`);
   }
-  if (!spec.valid) return rows.join('');
   if (spec.elementCount > 0) {
     rows.push(`<div><span class="b">Số phần tử chia: </span>${spec.elementCount} phần tử</div>`);
   }
@@ -64,6 +71,9 @@ function divideResultHtml(order: ProductionOrder, includeFilmWidth = true): stri
     spec.widths.forEach((width, index) => {
       rows.push(`<div><span class="b">Phần tử ${index + 1}: </span>${esc(vd(width, 'mm'))}</div>`);
     });
+  }
+  if (!spec.valid && spec.error) {
+    rows.push(`<div class="red-note">⚠ ${esc(spec.error)}</div>`);
   }
   return rows.join('');
 }

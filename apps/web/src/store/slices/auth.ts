@@ -26,6 +26,7 @@ import {
 import { laLoiRefreshHetPhien } from '../../lib/auth-session';
 import { vaiTroTuPolicies } from '../../lib/permissions';
 import { decodeBase64UrlUtf8, normalizeDisplayText } from '../../lib/text-codec';
+import { blobSangPngDataUrl } from '../../lib/chu-ky';
 
 export interface AuthSlice {
   // ── State ──────────────────────────────────────────────────────────────
@@ -40,6 +41,8 @@ export interface AuthSlice {
     avatarBlobUrl: string | null;
     signatureUrl: string | null;
     signatureBlobUrl: string | null;
+    /** Chữ ký PNG data URL (bền — không phụ thuộc blob URL sống của phiên). */
+    chuKyDataUrl: string | null;
   } | null;
   isAuthenticated: boolean;
   authLoading: boolean;
@@ -181,6 +184,7 @@ function taoNguoiDungHienTai(
     avatarBlobUrl: null,
     signatureUrl: user.signatureUrl ?? null,
     signatureBlobUrl: null,
+    chuKyDataUrl: null,
   };
 }
 
@@ -214,15 +218,23 @@ async function lamGiauPoliciesTuDanhSachTaiKhoan(
     });
     const current = get().nguoiDungHienTai;
     if (!current || current.id !== userId) return;
-    set({
-      nguoiDungHienTai: {
-        ...current,
-        account: profile.account,
-        fullName: normalizeUserDisplayName(profile.fullName, profile.account),
-        policies,
-        avatarUrl: profile.avatarUrl ?? current.avatarUrl,
-        signatureUrl: profile.signatureUrl ?? current.signatureUrl,
-      },
+    set((state) => {
+      const moi = state.nguoiDungHienTai;
+      if (!moi || moi.id !== userId) return state;
+      return {
+        ...state,
+        nguoiDungHienTai: {
+          ...moi,
+          account: profile.account,
+          fullName: normalizeUserDisplayName(profile.fullName, profile.account),
+          policies,
+          avatarUrl: profile.avatarUrl ?? moi.avatarUrl,
+          signatureUrl: profile.signatureUrl ?? moi.signatureUrl,
+          avatarBlobUrl: moi.avatarBlobUrl,
+          signatureBlobUrl: moi.signatureBlobUrl,
+          chuKyDataUrl: moi.chuKyDataUrl,
+        },
+      };
     });
     get().setRole(vaiTroTuPolicies(policies));
   } catch (error) {
@@ -535,13 +547,20 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
     const data = await taiChuKyService(file, token);
     const blob = await layChuKyService();
     const signatureBlobUrl = URL.createObjectURL(blob);
+    const chuKyDataUrl = await blobSangPngDataUrl(blob);
     thuHoiChuKy(user);
-    set({
-      nguoiDungHienTai: {
-        ...user,
-        signatureUrl: data.signatureUrl,
-        signatureBlobUrl,
-      },
+    set((state) => {
+      const moi = state.nguoiDungHienTai;
+      if (!moi || moi.id !== user.id) return state;
+      return {
+        ...state,
+        nguoiDungHienTai: {
+          ...moi,
+          signatureUrl: data.signatureUrl,
+          signatureBlobUrl,
+          chuKyDataUrl: chuKyDataUrl ?? moi.chuKyDataUrl,
+        },
+      };
     });
   },
 
@@ -552,13 +571,20 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
     try {
       const blob = await layChuKyService();
       const signatureBlobUrl = URL.createObjectURL(blob);
+      const chuKyDataUrl = await blobSangPngDataUrl(blob);
       thuHoiChuKy(user);
-      set({
-        nguoiDungHienTai: {
-          ...user,
-          signatureUrl: user.signatureUrl ?? '/auth/me/signature',
-          signatureBlobUrl,
-        },
+      set((state) => {
+        const moi = state.nguoiDungHienTai;
+        if (!moi || moi.id !== user.id) return state;
+        return {
+          ...state,
+          nguoiDungHienTai: {
+            ...moi,
+            signatureUrl: user.signatureUrl ?? '/auth/me/signature',
+            signatureBlobUrl,
+            chuKyDataUrl: chuKyDataUrl ?? moi.chuKyDataUrl,
+          },
+        };
       });
     } catch (error) {
       if (error instanceof Error && error.message.includes('Không tìm thấy')) return;

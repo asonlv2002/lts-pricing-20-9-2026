@@ -527,5 +527,71 @@ console.log('\nbuildLsxHtml dòng Số lượng + dung sai');
   );
 }
 
+console.log('\nbuildLsxHtml MÁY CHIA — dữ liệu user nhập phải hiện kể cả khi spec chưa hợp lệ');
+
+{
+  // User nhập divideWidth nhưng chưa nhập divideElements → spec.valid=false
+  // Bug 2026-08-27: "thông tin ở form nhập phần máy chia không được ghi vào file"
+  // Vẫn phải hiện khổ chia 200mm để user biết dữ liệu đã được lưu.
+  const html = buildLsxHtml(
+    order({
+      hasDivide: true,
+      divideWidthMm: 200,
+      originalWidthMm: 820,
+      manual: {
+        divideWidth: 200,
+        divideElements: 0,
+        divideWidths: undefined,
+      },
+    }),
+  );
+  assert(
+    'CHIA: nhập divideWidth=200, divideElements=0 → vẫn hiện "Khổ chia: 200mm"',
+    html.includes('Khổ chia: </span>200mm'),
+    'regression 2026-08-27: dữ liệu divideWidth bị mất khi spec.valid=false',
+  );
+}
+
+{
+  // User nhập divideWidths tuỳ chỉnh nhưng thiếu 1 phần tử
+  // Vẫn phải hiện các khổ đã nhập.
+  const html = buildLsxHtml(
+    order({
+      hasDivide: true,
+      divideWidthMm: 200,
+      originalWidthMm: 820,
+      manual: {
+        divideWidth: 200,
+        divideElements: 4,
+        divideWidths: [195, 205],
+      },
+    }),
+  );
+  assert(
+    'CHIA: tuỳ chỉnh thiếu phần tử → vẫn hiện Phần tử 1: 195mm',
+    html.includes('Phần tử 1: </span>195mm'),
+  );
+  assert(
+    'CHIA: tuỳ chỉnh thiếu phần tử → vẫn hiện Phần tử 2: 205mm',
+    html.includes('Phần tử 2: </span>205mm'),
+  );
+}
+
+console.log('\nbuildLsxHtml MÁY CHIA — không có dữ liệu chia thì ẩn hẳn');
+
+{
+  // snapshot.hasDivide=false VÀ manual không có divide data → không hiện gì
+  const html = buildLsxHtml(
+    order({
+      hasDivide: false,
+      manual: { divideWidth: 0, divideElements: 0 },
+    }),
+  );
+  assert(
+    'no-data: không có section MÁY CHIA khi không có dữ liệu',
+    !html.includes('MÁY CHIA'),
+  );
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

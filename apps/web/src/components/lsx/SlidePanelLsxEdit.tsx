@@ -173,7 +173,7 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
     }
   }
 
-  function handleXemDocx() {
+  async function handleXemDocx() {
     if (!source) return;
     try {
       const orderPreview = buildProductionOrderFromSource(source, {
@@ -181,7 +181,7 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
         productionOrders: [],
         preparedBy: currentSellerName,
       });
-      orderPreview.manual = manual;
+      orderPreview.manual = await themChuKyVaoManual(manual);
       orderPreview.id = order.id;
       setPreviewLsx({ order: orderPreview });
     } catch (e) {

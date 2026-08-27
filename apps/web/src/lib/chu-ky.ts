@@ -52,8 +52,10 @@ export function blobSangPngDataUrl(blob: Blob): Promise<string | null> {
 
 /** Chữ ký PNG base64 của user hiện tại (null nếu chưa upload / không đọc được). */
 export async function layChuKyDataUrl(): Promise<string | null> {
-  const signatureBlobUrl =
-    dungCuaHangTinhGia.getState().nguoiDungHienTai?.signatureBlobUrl ?? null;
+  const nguoiDung = dungCuaHangTinhGia.getState().nguoiDungHienTai;
+  if (!nguoiDung) return null;
+  if (nguoiDung.chuKyDataUrl) return nguoiDung.chuKyDataUrl;
+  const signatureBlobUrl = nguoiDung.signatureBlobUrl ?? null;
   if (!signatureBlobUrl) return null;
   try {
     const res = await fetch(signatureBlobUrl);

@@ -234,7 +234,14 @@ function Line({ label, value, boldLabel = true }: { label: string; value?: strin
 
 function DivideDetails({ order, includeFilmWidth = true }: { order: ProductionOrder; includeFilmWidth?: boolean }) {
   const spec = resolveLsxDivideSpec(order);
-  if (!spec.valid) return null;
+  const m = order.manual;
+  // Chi an khi user that su khong co du lieu (regression 2026-08-27:
+  // truoc do `if (!spec.valid) return null` lam mat du lieu vua nhap).
+  const hasUserData =
+    (m.divideWidth ?? 0) > 0
+    || (m.divideElements ?? 0) > 0
+    || (Array.isArray(m.divideWidths) && m.divideWidths.length > 0);
+  if (!hasUserData) return null;
   return (
     <>
       {includeFilmWidth && (
@@ -255,6 +262,9 @@ function DivideDetails({ order, includeFilmWidth = true }: { order: ProductionOr
           ))}
         </>
       )}
+      {!spec.valid && spec.error ? (
+        <Text style={styles.redNote}>{`⚠ ${spec.error}`}</Text>
+      ) : null}
     </>
   );
 }
