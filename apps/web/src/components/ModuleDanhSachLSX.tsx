@@ -38,7 +38,7 @@ import NutSaoChepLienKet from './NutSaoChepLienKet';
 import { taoUrlChiaSeLsx } from '../lib/lsx-route';
 import { buildProductionOrderFromSource, lsxSnapshotTuInputValue } from '../lib/lsx-build-order';
 import { mapBaoGiaToLsxSources } from '../lib/bao-gia-adapter';
-import { themChuKyVaoManual } from '../lib/chu-ky';
+import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../lib/chu-ky';
 
 type BoLoc = LsxLocalStatus | 'all';
 type Nguon = 'all' | 'review';
@@ -83,8 +83,8 @@ export default function ModuleDanhSachLSX({
   const [loi, setLoi] = useState('');
   const [thongBao, setThongBao] = useState('');
   const [dangXuLyId, setDangXuLyId] = useState<string | null>(null);
-  const [previewLsx, setPreviewLsx] = useState<{ order: any } | null>(null);
-  const [previewLsxPdf, setPreviewLsxPdf] = useState<{ order: any } | null>(null);
+  const [previewLsx, setPreviewLsx] = useState<{ order: any; reviewerSignatureDataUrl?: string | null } | null>(null);
+  const [previewLsxPdf, setPreviewLsxPdf] = useState<{ order: any; reviewerSignatureDataUrl?: string | null } | null>(null);
   const [nhapPin, setNhapPin] = useState<{
     title: string; message: string; onConfirm: (pinToken: string) => Promise<void> | void;
   } | null>(null);
@@ -243,10 +243,13 @@ export default function ModuleDanhSachLSX({
       const snapshotLuu = lsxSnapshotTuInputValue(row.inputValue);
       if (snapshotLuu) orderPreview.snapshot = snapshotLuu;
       setPreviewLsxPdf({ order: orderPreview });
+      const q = danhSachQuotations.find((x) => x.id === row.quotationId);
+      const dataUrl = await layChuKyReviewerDataUrl(q?.reviewerSignatureUrl);
+      setPreviewLsxPdf((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Lỗi preview');
     }
-  }, [materials, constants, profitTable, smallWidthPrices, currentSellerName]);
+  }, [materials, constants, profitTable, smallWidthPrices, currentSellerName, danhSachQuotations]);
 
   // === Edit (click 📝) → tab Tạo LSX, khóa KH/BG/sheet ===
   const handleEditRow = useCallback((row: LsxRow) => {
@@ -464,6 +467,7 @@ export default function ModuleDanhSachLSX({
           open={!!previewLsxPdf}
           onClose={() => setPreviewLsxPdf(null)}
           order={previewLsxPdf.order}
+          reviewerSignatureDataUrl={previewLsxPdf.reviewerSignatureDataUrl}
         />
       )}
 

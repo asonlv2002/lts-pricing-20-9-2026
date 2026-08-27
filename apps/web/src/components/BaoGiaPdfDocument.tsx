@@ -181,6 +181,11 @@ const styles = StyleSheet.create({
   luuYItem: { fontSize: 10, marginVertical: 1 },
   // ── Signatures ──
   sigRow: { textAlign: "center" as const, fontSize: 12, fontWeight: 700, marginTop: 30, color: "#1e293b" },
+  sigColWrap: { flexDirection: "row" as const, marginTop: 18, paddingHorizontal: 8 },
+  sigCol: { flex: 1, alignItems: "center" as const, paddingHorizontal: 4 },
+  sigColTitle: { fontSize: 12, fontWeight: 700, color: "#1e293b", textAlign: "center" as const },
+  sigColImage: { width: 130, height: 50, objectFit: "contain" as const, marginTop: 6, alignSelf: "center" as const },
+  sigColHint: { fontSize: 9, fontStyle: "italic" as const, color: "#888", textAlign: "center" as const, marginTop: 6 },
   // ── Number in words ──
   soChu: {
     fontSize: 10,
@@ -723,6 +728,7 @@ function BaoGiaPage({
   pageGroups,
   firstRowNumber,
   customerInfo,
+  reviewerSignatureDataUrl,
 }: {
   item: HistoryItem;
   page: number;
@@ -736,6 +742,7 @@ function BaoGiaPage({
     fax?: string;
     description?: string;
   };
+  reviewerSignatureDataUrl?: string | null;
 }) {
   const isLast = page === totalPages - 1;
   let rowNum = firstRowNumber - 1;
@@ -908,7 +915,24 @@ function BaoGiaPage({
               ) : null}
             </>
           ) : null}
-          <Text style={styles.sigRow}>KH XÁC NHẬN ĐẶT HÀNG                            P.KINH DOANH</Text>
+          <View style={styles.sigColWrap}>
+            <View style={styles.sigCol}>
+              <Text style={styles.sigColTitle}>KH XÁC NHẬN ĐẶT HÀNG</Text>
+              <Text style={styles.sigColHint}>(Ký, ghi rõ họ tên)</Text>
+            </View>
+            <View style={styles.sigCol}>
+              <Text style={styles.sigColTitle}>P. KINH DOANH</Text>
+              <Text style={styles.sigColHint}>(Ký, ghi rõ họ tên)</Text>
+            </View>
+            <View style={styles.sigCol}>
+              <Text style={styles.sigColTitle}>NGƯỜI DUYỆT</Text>
+              {reviewerSignatureDataUrl ? (
+                <Image src={reviewerSignatureDataUrl} style={styles.sigColImage} />
+              ) : (
+                <Text style={styles.sigColHint}>(Chưa duyệt)</Text>
+              )}
+            </View>
+          </View>
         </>
       )}
     </Page>
@@ -1073,11 +1097,13 @@ interface BaoGiaPdfDocumentProps {
     fax?: string;
     description?: string;
   };
+  reviewerSignatureDataUrl?: string | null;
 }
 
 export function BaoGiaPdfDocument({
   item,
   customerInfo,
+  reviewerSignatureDataUrl,
 }: BaoGiaPdfDocumentProps) {
   const materials = useCalculatorStore((s) => s.materials);
   const constants = useCalculatorStore((s) => s.constants);
@@ -1128,6 +1154,7 @@ export function BaoGiaPdfDocument({
         pageGroups={pageGroups}
         firstRowNumber={firstRowNumber}
         customerInfo={customerInfo}
+        reviewerSignatureDataUrl={reviewerSignatureDataUrl}
       />,
     );
     firstRowNumber += pageGroups.reduce(
@@ -1233,17 +1260,19 @@ interface BaoGiaReactPdfDownloadProps {
     fax?: string;
     description?: string;
   };
+  reviewerSignatureDataUrl?: string | null;
   className?: string;
 }
 
 export function BaoGiaReactPdfDownload({
   item,
   customerInfo,
+  reviewerSignatureDataUrl,
   className,
 }: BaoGiaReactPdfDownloadProps) {
   return (
     <PDFDownloadLink
-      document={<BaoGiaPdfDocument item={item} customerInfo={customerInfo} />}
+      document={<BaoGiaPdfDocument item={item} customerInfo={customerInfo} reviewerSignatureDataUrl={reviewerSignatureDataUrl} />}
       fileName={`BaoGia_${(item.quoteCode || item.customer || "bao-gia").replace(/[<>:"/\\|?*\s]+/g, "_").slice(0, 60)}.pdf`}
       className={className}
     >

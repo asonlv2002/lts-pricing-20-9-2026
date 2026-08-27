@@ -8,9 +8,10 @@ interface LsxPreviewModalProps {
   open: boolean;
   onClose: () => void;
   order: ProductionOrder;
+  reviewerSignatureDataUrl?: string | null;
 }
 
-export default function LsxPreviewModal({ open, onClose, order }: LsxPreviewModalProps) {
+export default function LsxPreviewModal({ open, onClose, order, reviewerSignatureDataUrl }: LsxPreviewModalProps) {
   const [dangTai, setDangTai] = useState(false);
 
   const html = useMemo(() => {
@@ -42,13 +43,13 @@ export default function LsxPreviewModal({ open, onClose, order }: LsxPreviewModa
   const taiDocx = useCallback(async () => {
     setDangTai(true);
     try {
-      await exportLSXtoDOCX(order);
+      await exportLSXtoDOCX(order, reviewerSignatureDataUrl);
     } catch (e: any) {
       alert("Lỗi tải DOCX: " + (e?.message || String(e)));
     } finally {
       setDangTai(false);
     }
-  }, [order]);
+  }, [order, reviewerSignatureDataUrl]);
 
   if (!open) return null;
 

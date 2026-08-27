@@ -19,7 +19,7 @@ import { LsxFormFields } from './LsxFormFields';
 import LsxPreviewModal from '../LsxPreviewModal';
 import LsxPdfPreviewModal from '../LsxPdfPreviewModal';
 import { buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue } from '../../lib/lsx-build-order';
-import { themChuKyVaoManual } from '../../lib/chu-ky';
+import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../../lib/chu-ky';
 
 export interface SlidePanelLsxEditProps {
   order: QuotationPricingSheetOrderApi;
@@ -31,6 +31,7 @@ export interface SlidePanelLsxEditProps {
     customerId?: string | null;
     pricingSheets?: PricingSheetApi[];
     updateStatus?: string | null;
+    reviewerSignatureUrl?: string | null;
   } | null;
   onClose: () => void;
   onSaved?: () => void;
@@ -133,8 +134,8 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
   const [loi, setLoi] = useState('');
   const [thongBao, setThongBao] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [previewLsx, setPreviewLsx] = useState<{ order: any } | null>(null);
-  const [previewLsxPdf, setPreviewLsxPdf] = useState<{ order: any } | null>(null);
+  const [previewLsx, setPreviewLsx] = useState<{ order: any; reviewerSignatureDataUrl?: string | null } | null>(null);
+  const [previewLsxPdf, setPreviewLsxPdf] = useState<{ order: any; reviewerSignatureDataUrl?: string | null } | null>(null);
 
   // Build LsxSourceData tu pricing sheet
   const source = useMemo<LsxSourceData | null>(() => {
@@ -168,6 +169,8 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
       orderPreview.manual = await themChuKyVaoManual(manual);
       orderPreview.id = order.id;
       setPreviewLsxPdf({ order: orderPreview });
+      const dataUrl = await layChuKyReviewerDataUrl(quotation?.reviewerSignatureUrl);
+      setPreviewLsxPdf((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Lỗi tạo preview');
     }
@@ -184,6 +187,8 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
       orderPreview.manual = await themChuKyVaoManual(manual);
       orderPreview.id = order.id;
       setPreviewLsx({ order: orderPreview });
+      const dataUrl = await layChuKyReviewerDataUrl(quotation?.reviewerSignatureUrl);
+      setPreviewLsx((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Lỗi tạo preview');
     }
@@ -376,6 +381,7 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
           open={!!previewLsx}
           onClose={() => setPreviewLsx(null)}
           order={previewLsx.order}
+          reviewerSignatureDataUrl={previewLsx.reviewerSignatureDataUrl}
         />
       )}
       {previewLsxPdf && (
@@ -383,6 +389,7 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
           open={!!previewLsxPdf}
           onClose={() => setPreviewLsxPdf(null)}
           order={previewLsxPdf.order}
+          reviewerSignatureDataUrl={previewLsxPdf.reviewerSignatureDataUrl}
         />
       )}
     </>

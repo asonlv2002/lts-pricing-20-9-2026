@@ -235,7 +235,11 @@ const CSS = `
   .xem-tiep { text-align: center; font-style: italic; color: #888; font-size: 10pt; }
   .luu-y { font-size: 11pt; font-weight: bold; margin: 14px 0 4px; }
   .luu-y-item { font-size: 10pt; margin: 1px 0; }
-  .sig-row { text-align: center; font-size: 12pt; font-weight: 700; color: #1e293b; margin-top: 30px; }
+  .sig-row { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-top: 30px; }
+  .sig-col { flex: 1; text-align: center; }
+  .sig-col-title { font-size: 12pt; font-weight: 700; color: #1e293b; }
+  .sig-col-hint { font-size: 9pt; font-style: italic; color: #888; margin-top: 4px; }
+  .sig-col-img { display: block; width: 130px; height: 50px; object-fit: contain; margin: 6px auto 0; }
 `;
 
 function buildBaoGiaHtmlV2(
@@ -247,6 +251,7 @@ function buildBaoGiaHtmlV2(
     fax?: string;
     description?: string;
   },
+  reviewerSignatureDataUrl?: string | null,
 ): string {
   const products: QuoteProductLine[] = item.quoteProducts?.length
     ? item.quoteProducts
@@ -428,7 +433,14 @@ function buildBaoGiaHtmlV2(
           pageHtml += `<div class="luu-y-item">- Ghi chú: ${escHtml(item.terms.notes)}</div>`;
       }
 
-      pageHtml += `<div class="sig-row">KH XÁC NHẬN ĐẶT HÀNG&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;P.KINH DOANH</div>`;
+      const reviewerBlock = reviewerSignatureDataUrl
+        ? `<img class="sig-col-img" src="${reviewerSignatureDataUrl}" alt="Chữ ký người duyệt" />`
+        : `<div class="sig-col-hint">(Chưa duyệt)</div>`;
+      pageHtml += `<div class="sig-row">`
+        + `<div class="sig-col"><div class="sig-col-title">KH XÁC NHẬN ĐẶT HÀNG</div><div class="sig-col-hint">(Ký, ghi rõ họ tên)</div></div>`
+        + `<div class="sig-col"><div class="sig-col-title">P. KINH DOANH</div><div class="sig-col-hint">(Ký, ghi rõ họ tên)</div></div>`
+        + `<div class="sig-col"><div class="sig-col-title">NGƯỜI DUYỆT</div>${reviewerBlock}</div>`
+        + `</div>`;
     }
 
     pagesHtml += `<div class="page">${pageHtml}</div>`;
@@ -477,8 +489,9 @@ export async function exportBaoGiaToPDF(
     fax?: string;
     description?: string;
   },
+  reviewerSignatureDataUrl?: string | null,
 ): Promise<void> {
-  const html = buildBaoGiaHtmlV2(item, customerInfo);
+  const html = buildBaoGiaHtmlV2(item, customerInfo, reviewerSignatureDataUrl);
   const win = window.open("", "_blank", "width=1000,height=900");
   if (!win) {
     alert("Trình duyệt chặn popup. Vui lòng cho phép popup.");
@@ -604,6 +617,7 @@ export async function exportBaoGiaToDocx(
     fax?: string;
     description?: string;
   },
+  reviewerSignatureDataUrl?: string | null,
 ): Promise<void> {
   const [docx, logoBytes] = await Promise.all([
     withTimeout(import("docx"), 10000, "import docx"),
@@ -1169,24 +1183,76 @@ export async function exportBaoGiaToDocx(
         }
       }
 
-      // Signatures
+      // Signatures — bảng 3 cột: KH / P.KD / Người duyệt
       pageChildren.push(
         new Paragraph({ children: [], spacing: { before: 400 } }),
       );
-      pageChildren.push(
+      const sigColWidth = Math.floor(9638 / 3);
+      const sigCellOpts = (w: number) => ({
+        width: { size: w, type: WidthType.DXA },
+        borders: {
+          top: { style: BorderStyle.NONE, size: 0, color: "ffffff" },
+          bottom: { style: BorderStyle.NONE, size: 0, color: "ffffff" },
+          left: { style: BorderStyle.NONE, size: 0, color: "ffffff" },
+          right: { style: BorderStyle.NONE, size: 0, color: "ffffff" },
+        },
+        margins: { top: 60, bottom: 60, left: 60, right: 60 },
+      });
+      const sigTitlePara = (text: string) =>
         new Paragraph({
-          children: [
-            new TextRun({
-              text: "KH XÁC NHẬN ĐẶT HÀNG                              P.KINH DOANH",
-              font: FONT,
-              size: 22,
-              bold: true,
-              color: "1e293b",
-            }),
-          ],
+          children: [new TextRun({ text, font: FONT, size: 22, bold: true, color: "1e293b" })],
           alignment: AlignmentType.CENTER,
-        }),
-      );
+        });
+      const sigHintPara = (text: string) =>
+        new Paragraph({
+          children: [new TextRun({ text, font: FONT, size: 18, italics: true, color: "888888" })],
+          alignment: AlignmentType.CENTER,
+        });
+      const reviewerImageParas = (() => {
+        if (!reviewerSignatureDataUrl) {
+          return [sigTitlePara("NGƯỜI DUYỆT"), sigHintPara("(Chưa duyệt)")];
+        }
+        const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(reviewerSignatureDataUrl);
+        if (!match) {
+          return [sigTitlePara("NGƯỜI DUYỆT"), sigHintPara("(Lỗi ảnh chữ ký)")];
+        }
+        const binary = atob(match[1]);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        return [
+          sigTitlePara("NGƯỜI DUYỆT"),
+          new Paragraph({
+            alignment: AlignmentType.CENTER,
+            spacing: { before: 60, after: 60 },
+            children: [
+              new ImageRun({ data: bytes, transformation: { width: 130, height: 50 }, type: "png" }),
+            ],
+          }),
+        ];
+      })();
+      const sigTable = new Table({
+        width: { size: 9638, type: WidthType.DXA },
+        columnWidths: [sigColWidth, sigColWidth, sigColWidth],
+        rows: [
+          new TableRow({
+            children: [
+              new TableCell({
+                ...sigCellOpts(sigColWidth),
+                children: [sigTitlePara("KH XÁC NHẬN ĐẶT HÀNG"), sigHintPara("(Ký, ghi rõ họ tên)")],
+              }),
+              new TableCell({
+                ...sigCellOpts(sigColWidth),
+                children: [sigTitlePara("P. KINH DOANH"), sigHintPara("(Ký, ghi rõ họ tên)")],
+              }),
+              new TableCell({
+                ...sigCellOpts(sigColWidth),
+                children: reviewerImageParas,
+              }),
+            ],
+          }),
+        ],
+      });
+      pageChildren.push(sigTable);
     }
 
     sections.push({
@@ -1227,8 +1293,9 @@ export async function previewBaoGia(
     fax?: string;
     description?: string;
   },
+  reviewerSignatureDataUrl?: string | null,
 ): Promise<void> {
-  const html = buildBaoGiaHtmlV2(item, customerInfo);
+  const html = buildBaoGiaHtmlV2(item, customerInfo, reviewerSignatureDataUrl);
   const win = window.open("", "_blank", "width=1000,height=900");
   if (!win) {
     alert("Trình duyệt chặn popup. Vui lòng cho phép popup.");

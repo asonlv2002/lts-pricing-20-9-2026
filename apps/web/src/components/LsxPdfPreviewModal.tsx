@@ -8,26 +8,37 @@ interface LsxPdfPreviewModalProps {
   open: boolean;
   onClose: () => void;
   order: ProductionOrder;
+  reviewerSignatureDataUrl?: string | null;
 }
 
-function lsxPdfDepsKey(order: ProductionOrder): string {
+export function lsxPdfDepsKey(
+  order: ProductionOrder,
+  reviewerSignatureDataUrl?: string | null,
+): string {
   const num = order.manual?.lsxNumber || "";
   const updated =
     (order as { updatedAt?: string }).updatedAt || order.createdAt || "";
-  return `lsx:${order.id}|${num}|${updated}`;
+  return `lsx:${order.id}|${num}|${updated}|sig:${reviewerSignatureDataUrl ? "1" : "0"}`;
 }
 
 function LsxPdfPreviewModal({
   open,
   onClose,
   order,
+  reviewerSignatureDataUrl,
 }: LsxPdfPreviewModalProps) {
   const [dangTai, setDangTai] = useState(false);
   const readyRef = useRef<{ blob: Blob; url: string } | null>(null);
   const orderRef = useRef(order);
-  orderRef.current = order;
+  const sigRef = useRef(reviewerSignatureDataUrl);
+  useEffect(() => {
+    orderRef.current = order;
+    sigRef.current = reviewerSignatureDataUrl;
+  }, [order, reviewerSignatureDataUrl]);
 
-  const depsKey = open ? lsxPdfDepsKey(order) : "";
+  const depsKey = open
+    ? lsxPdfDepsKey(order, reviewerSignatureDataUrl)
+    : "";
 
   useEffect(() => {
     if (!open) return;
@@ -47,7 +58,7 @@ function LsxPdfPreviewModal({
   }, [open]);
 
   const buildDocument = useCallback(
-    () => <LsxPdfDocument order={orderRef.current} />,
+    () => <LsxPdfDocument order={orderRef.current} reviewerSignatureDataUrl={sigRef.current} />,
     [],
   );
 
@@ -64,7 +75,7 @@ function LsxPdfPreviewModal({
       let blob = readyRef.current?.blob;
       if (!blob) {
         const { pdf } = await import("@react-pdf/renderer");
-        blob = await pdf(<LsxPdfDocument order={order} />).toBlob();
+        blob = await pdf(<LsxPdfDocument order={order} reviewerSignatureDataUrl={reviewerSignatureDataUrl} />).toBlob();
       }
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -78,7 +89,7 @@ function LsxPdfPreviewModal({
     } finally {
       setDangTai(false);
     }
-  }, [order]);
+  }, [order, reviewerSignatureDataUrl]);
 
   if (!open) return null;
 

@@ -920,6 +920,46 @@ export async function layChuKyService(token?: string): Promise<Blob> {
   return res.blob();
 }
 
+export async function layChuKyReviewerService(
+  urlOrPath: string,
+  token?: string,
+): Promise<Blob> {
+  const firstToken = token ?? layTokenHienTai?.()?.accessToken;
+  const path = /^https?:\/\//i.test(urlOrPath)
+    ? new URL(urlOrPath).pathname
+    : urlOrPath;
+  let res: Response;
+  try {
+    res = await goiRaw(path, {}, firstToken);
+  } catch {
+    throw new LoiServiceLts("Không kết nối được tới máy chủ.");
+  }
+
+  if (res.status === 401) {
+    try {
+      const tokens = await lamMoiTokenTuHeThong();
+      try {
+        res = await goiRaw(path, {}, tokens.accessToken);
+      } catch {
+        throw new LoiServiceLts("Không kết nối được tới máy chủ.");
+      }
+    } catch (error) {
+      if (error instanceof LoiServiceLts && error.status === 401) {
+        xuLyPhienKhongHopLe?.();
+        throw new LoiServiceLts("Hết phiên đăng nhập.", 401);
+      }
+      throw error;
+    }
+  }
+
+  if (!res.ok) {
+    const body = await docJson(res);
+    throw new LoiServiceLts(layLoiTuResponse(res.status, body), res.status);
+  }
+
+  return res.blob();
+}
+
 // ── Accounts ─────────────────────────────────────────────────────────────
 export async function layTaiKhoanService(
   token: string,
@@ -1657,6 +1697,7 @@ export interface BaoGiaApi {
   updateStatus?: string | null;
   createdBy?: string | null;
   reviewerId?: string | null;
+  reviewerSignatureUrl?: string | null;
   pricingSheets?: PricingSheetApi[];
   original?: { actorName?: string | null; deletable?: boolean; canUpdate?: boolean } | null;
   createdAt: string;
@@ -2035,6 +2076,7 @@ export interface QuotationPricingSheetOrdersByQuotationApi {
   updateStatus: string;
   createdBy: string;
   reviewerId?: string | null;
+  reviewerSignatureUrl?: string | null;
   creator?: { id: string; account?: string; fullName?: string } | null;
   createdAt: string;
   updatedAt: string;

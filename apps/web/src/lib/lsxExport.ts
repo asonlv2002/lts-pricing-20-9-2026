@@ -326,10 +326,44 @@ export function chuKyParagraph(m: LSXManualFields, P: any, D?: any): any[] {
   })];
 }
 
+/** Paragraph ảnh chữ ký người duyệt (reviewer) cho DOCX — base64 PNG đã convert.
+ *  Nếu chưa có dataUrl → trả paragraph "(Chưa duyệt)". */
+export function chuKyReviewerParagraph(
+  dataUrl: string | null | undefined,
+  P: any,
+  D?: any,
+): any[] {
+  const alignment = D?.AlignmentType?.CENTER;
+  if (!dataUrl) {
+    return [new P({
+      children: [new P.TextRun({ text: '(Chưa duyệt)', italics: true, font: 'Times New Roman', size: 22 })],
+      alignment,
+    })];
+  }
+  const buffer = dataUrlSangBuffer(dataUrl);
+  if (!buffer) {
+    return [new P({
+      children: [new P.TextRun({ text: '(Lỗi ảnh chữ ký)', italics: true, font: 'Times New Roman', size: 22 })],
+      alignment,
+    })];
+  }
+  return [new P({
+    children: [new P.ImageRun({
+      data: buffer,
+      type: 'png',
+      transformation: { width: 110, height: 110 },
+    })],
+    alignment,
+  })];
+}
+
 // ═══════════════════════════════════════════════════════════════════════════════
 // BUILD DOCX BLOB — 10 templates từ .claude/references
 // ═══════════════════════════════════════════════════════════════════════════════
-export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
+export async function buildLSXDocxBlob(
+  order: ProductionOrder,
+  reviewerSignatureDataUrl?: string | null,
+): Promise<Blob> {
 
   const [D, logoBytes] = await Promise.all([
     withTimeout(import('docx'), 10000, 'docx').catch(() => { throw new Error('Không load được thư viện docx'); }),
@@ -591,7 +625,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
     }
     mR.push(rowH(600,
       cell([para([run('Người lập:', { b: true })]), para([run(m.preparedBy || '')]), ...chuKyParagraph(m, D, D)], { va: 'center' }),
-      cell([para([run('Người Duyệt:', { b: true })]), para([run(m.approvedBy || '')])], { va: 'center' }),
+      cell([para([run('Người Duyệt:', { b: true })]), para([run(m.approvedBy || '')]), ...chuKyReviewerParagraph(reviewerSignatureDataUrl, D, D)], { va: 'center' }),
     ));
 
     bodyTable = new Table({
@@ -1053,7 +1087,7 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
       h: 600,
       cells: [
         cell([para([run('Người lập:', { b: true })]), para([run(m.preparedBy || '')]), ...chuKyParagraph(m, D, D)], { cs: 2, va: 'center' }),
-        cell([para([run('Người duyệt:', { b: true })]), para([run(m.approvedBy || '')])], { cs: 3, va: 'center' }),
+        cell([para([run('Người duyệt:', { b: true })]), para([run(m.approvedBy || '')]), ...chuKyReviewerParagraph(reviewerSignatureDataUrl, D, D)], { cs: 3, va: 'center' }),
       ],
     });
 
@@ -1092,9 +1126,12 @@ export async function buildLSXDocxBlob(order: ProductionOrder): Promise<Blob> {
 }
 
 // ── Export DOCX ───────────────────────────────────────────────────────────────
-export async function exportLSXtoDOCX(order: ProductionOrder): Promise<void> {
+export async function exportLSXtoDOCX(
+  order: ProductionOrder,
+  reviewerSignatureDataUrl?: string | null,
+): Promise<void> {
   console.log('[LSX] DOCX start:', order.id, 'template=', resolveLsxDocxTemplate(order));
-  const blob = await buildLSXDocxBlob(order);
+  const blob = await buildLSXDocxBlob(order, reviewerSignatureDataUrl);
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

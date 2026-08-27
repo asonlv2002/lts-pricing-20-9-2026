@@ -20,7 +20,7 @@ import { useCalculatorStore } from '../../store/CuaHangTinhGia';
 import type { LsxSourceData, LSXManualFields } from '../../lib/types';
 import { mapBaoGiaToLsxSources } from '../../lib/bao-gia-adapter';
 import { classifyLsxBagType } from '../../lib/lsx-bag-classification';
-import { themChuKyVaoManual } from '../../lib/chu-ky';
+import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../../lib/chu-ky';
 import { buildManualFromSource, buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue } from '../../lib/lsx-build-order';
 import { mapServerOrdersToLsxRows } from '../../lib/lsx-server-adapter';
 import { LsxFormFields } from '../lsx/LsxFormFields';
@@ -133,8 +133,8 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
   const [modalSuccess, setModalSuccess] = useState<{ lsxNumber: string; quotationId: string } | null>(null);
   const [confirmCapNhat, setConfirmCapNhat] = useState(false);
 
-  const [previewLsx, setPreviewLsx] = useState<{ order: any } | null>(null);
-  const [previewLsxPdf, setPreviewLsxPdf] = useState<{ order: any } | null>(null);
+  const [previewLsx, setPreviewLsx] = useState<{ order: any; reviewerSignatureDataUrl?: string | null } | null>(null);
+  const [previewLsxPdf, setPreviewLsxPdf] = useState<{ order: any; reviewerSignatureDataUrl?: string | null } | null>(null);
   const [previewBg, setPreviewBg] = useState<{ item: any; customerInfo?: any } | null>(null);
 
   // Hydrate mode sửa từ store (1 lần / orderId)
@@ -363,6 +363,8 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
       order.manual = await themChuKyVaoManual(manual);
       if (editOrderId) order.id = editOrderId;
       setPreviewLsxPdf({ order });
+      const dataUrl = await layChuKyReviewerDataUrl(lsxDangSua?.quotation?.reviewerSignatureUrl);
+      setPreviewLsxPdf((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
     } catch (e) {
       setToast({ kind: 'err', msg: e instanceof Error ? e.message : 'Lỗi tạo preview' });
     }
@@ -379,6 +381,8 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
       order.manual = await themChuKyVaoManual(manual);
       if (editOrderId) order.id = editOrderId;
       setPreviewLsx({ order });
+      const dataUrl = await layChuKyReviewerDataUrl(lsxDangSua?.quotation?.reviewerSignatureUrl);
+      setPreviewLsx((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
     } catch (e) {
       setToast({ kind: 'err', msg: e instanceof Error ? e.message : 'Lỗi tạo preview' });
     }
@@ -625,10 +629,10 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
       </div>
 
       {previewLsx && (
-        <LsxPreviewModal open={!!previewLsx} onClose={() => setPreviewLsx(null)} order={previewLsx.order} />
+        <LsxPreviewModal open={!!previewLsx} onClose={() => setPreviewLsx(null)} order={previewLsx.order} reviewerSignatureDataUrl={previewLsx.reviewerSignatureDataUrl} />
       )}
       {previewLsxPdf && (
-        <LsxPdfPreviewModal open={!!previewLsxPdf} onClose={() => setPreviewLsxPdf(null)} order={previewLsxPdf.order} />
+        <LsxPdfPreviewModal open={!!previewLsxPdf} onClose={() => setPreviewLsxPdf(null)} order={previewLsxPdf.order} reviewerSignatureDataUrl={previewLsxPdf.reviewerSignatureDataUrl} />
       )}
       {previewBg && (
         <BaoGiaPreviewModal

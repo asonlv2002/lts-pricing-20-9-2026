@@ -191,6 +191,28 @@ function ChuKyNguoiLap({ m }: { m: LSXManualFields }) {
   );
 }
 
+/** Ô "Người duyệt" — ảnh chữ ký từ reviewerSignatureDataUrl (live JOIN từ BE),
+ *  fallback text "(Chưa duyệt)" nếu chưa có dataUrl. */
+function ChuKyNguoiDuyet({
+  reviewerSignatureDataUrl,
+  approvedBy,
+}: {
+  reviewerSignatureDataUrl?: string | null;
+  approvedBy?: string;
+}) {
+  return (
+    <>
+      <Text style={styles.bold}>Người duyệt:</Text>
+      {reviewerSignatureDataUrl ? (
+        <Image src={reviewerSignatureDataUrl} style={styles.signatureImage} />
+      ) : (
+        <Text style={styles.small}>(Chưa duyệt)</Text>
+      )}
+      {approvedBy ? <Text>{approvedBy}</Text> : null}
+    </>
+  );
+}
+
 function v(val: string | number | null | undefined, suffix = ""): string {
   if (val === null || val === undefined || val === "" || val === 0) return "";
   return String(val) + suffix;
@@ -410,7 +432,13 @@ function ProductInfo({ order }: { order: ProductionOrder }) {
   );
 }
 
-function MangBody({ order }: { order: ProductionOrder }) {
+function MangBody({
+  order,
+  reviewerSignatureDataUrl,
+}: {
+  order: ProductionOrder;
+  reviewerSignatureDataUrl?: string | null;
+}) {
   const { snapshot: s, manual: m } = order;
   const hasDivide = orderHasDivide(order);
   const khoMM = Math.round((s.spreadWidth || 0) * 1000);
@@ -501,8 +529,10 @@ function MangBody({ order }: { order: ProductionOrder }) {
           <ChuKyNguoiLap m={m} />
         </Cell>
         <Cell w="50%" style={styles.footer}>
-          <Text style={styles.bold}>Người Duyệt:</Text>
-          <Text>{m.approvedBy || ""}</Text>
+          <ChuKyNguoiDuyet
+            reviewerSignatureDataUrl={reviewerSignatureDataUrl}
+            approvedBy={m.approvedBy}
+          />
         </Cell>
       </View>
     </View>
@@ -536,7 +566,13 @@ function bagGridRows(
   ));
 }
 
-function TuiBody({ order }: { order: ProductionOrder }) {
+function TuiBody({
+  order,
+  reviewerSignatureDataUrl,
+}: {
+  order: ProductionOrder;
+  reviewerSignatureDataUrl?: string | null;
+}) {
   const { snapshot: s, manual: m } = order;
   const hasDivide = orderHasDivide(order);
   const singleLayer = isSingleLayer(s, m);
@@ -797,15 +833,23 @@ function TuiBody({ order }: { order: ProductionOrder }) {
           <ChuKyNguoiLap m={m} />
         </Cell>
         <Cell w="50%" style={styles.footer}>
-          <Text style={styles.bold}>Người duyệt:</Text>
-          <Text>{m.approvedBy || ""}</Text>
+          <ChuKyNguoiDuyet
+            reviewerSignatureDataUrl={reviewerSignatureDataUrl}
+            approvedBy={m.approvedBy}
+          />
         </Cell>
       </View>
     </View>
   );
 }
 
-export function LsxPdfDocument({ order }: { order: ProductionOrder }) {
+export function LsxPdfDocument({
+  order,
+  reviewerSignatureDataUrl,
+}: {
+  order: ProductionOrder;
+  reviewerSignatureDataUrl?: string | null;
+}) {
   const isTui = order.snapshot.productType !== "mang";
   const title = `LSX ${order.manual.lsxNumber || order.id}`;
 
@@ -814,7 +858,11 @@ export function LsxPdfDocument({ order }: { order: ProductionOrder }) {
       <Page size="A4" style={styles.page}>
         <IsoHeader order={order} />
         <ProductInfo order={order} />
-        {isTui ? <TuiBody order={order} /> : <MangBody order={order} />}
+        {isTui ? (
+          <TuiBody order={order} reviewerSignatureDataUrl={reviewerSignatureDataUrl} />
+        ) : (
+          <MangBody order={order} reviewerSignatureDataUrl={reviewerSignatureDataUrl} />
+        )}
       </Page>
     </Document>
   );
@@ -825,9 +873,14 @@ export function lsxPdfFileName(order: ProductionOrder): string {
 }
 
 /** Download LSX PDF via @react-pdf/renderer (same engine as preview). */
-export async function exportLSXtoPDF(order: ProductionOrder): Promise<void> {
+export async function exportLSXtoPDF(
+  order: ProductionOrder,
+  reviewerSignatureDataUrl?: string | null,
+): Promise<void> {
   const { pdf } = await import("@react-pdf/renderer");
-  const blob = await pdf(<LsxPdfDocument order={order} />).toBlob();
+  const blob = await pdf(
+    <LsxPdfDocument order={order} reviewerSignatureDataUrl={reviewerSignatureDataUrl} />,
+  ).toBlob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

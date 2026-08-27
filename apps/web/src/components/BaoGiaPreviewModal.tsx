@@ -15,11 +15,13 @@ interface BaoGiaPreviewModalProps {
     fax?: string;
     description?: string;
   };
+  reviewerSignatureDataUrl?: string | null;
 }
 
-function baoGiaPdfDepsKey(
+export function baoGiaPdfDepsKey(
   item: HistoryItem,
   customerInfo?: BaoGiaPreviewModalProps["customerInfo"],
+  reviewerSignatureDataUrl?: string | null,
 ): string {
   const id =
     item.id ||
@@ -34,7 +36,7 @@ function baoGiaPdfDepsKey(
         customerInfo.description || "",
       ].join("|")
     : "";
-  return `bg:${id}:${ci}`;
+  return `bg:${id}:${ci}:sig:${reviewerSignatureDataUrl ? "1" : "0"}`;
 }
 
 function BaoGiaPreviewModal({
@@ -42,15 +44,22 @@ function BaoGiaPreviewModal({
   onClose,
   item,
   customerInfo,
+  reviewerSignatureDataUrl,
 }: BaoGiaPreviewModalProps) {
   const [dangTai, setDangTai] = useState(false);
   const readyRef = useRef<{ blob: Blob; url: string } | null>(null);
   const itemRef = useRef(item);
   const customerInfoRef = useRef(customerInfo);
-  itemRef.current = item;
-  customerInfoRef.current = customerInfo;
+  const reviewerSignatureDataUrlRef = useRef(reviewerSignatureDataUrl);
+  useEffect(() => {
+    itemRef.current = item;
+    customerInfoRef.current = customerInfo;
+    reviewerSignatureDataUrlRef.current = reviewerSignatureDataUrl;
+  }, [item, customerInfo, reviewerSignatureDataUrl]);
 
-  const depsKey = open ? baoGiaPdfDepsKey(item, customerInfo) : "";
+  const depsKey = open
+    ? baoGiaPdfDepsKey(item, customerInfo, reviewerSignatureDataUrl)
+    : "";
 
   useEffect(() => {
     if (!open) return;
@@ -74,6 +83,7 @@ function BaoGiaPreviewModal({
       <BaoGiaPdfDocument
         item={itemRef.current}
         customerInfo={customerInfoRef.current}
+        reviewerSignatureDataUrl={reviewerSignatureDataUrlRef.current}
       />
     ),
     [],
@@ -93,7 +103,7 @@ function BaoGiaPreviewModal({
       if (!blob) {
         const { pdf } = await import("@react-pdf/renderer");
         blob = await pdf(
-          <BaoGiaPdfDocument item={item} customerInfo={customerInfo} />,
+          <BaoGiaPdfDocument item={item} customerInfo={customerInfo} reviewerSignatureDataUrl={reviewerSignatureDataUrl} />,
         ).toBlob();
       }
       const url = URL.createObjectURL(blob);
@@ -111,7 +121,7 @@ function BaoGiaPreviewModal({
     } finally {
       setDangTai(false);
     }
-  }, [item, customerInfo]);
+  }, [item, customerInfo, reviewerSignatureDataUrl]);
 
   if (!open) return null;
 

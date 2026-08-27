@@ -4,7 +4,7 @@
  */
 
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
-import { blobToDataUrl, layChuKyDataUrl, themChuKyVaoManual, blobSangPngDataUrl } from './chu-ky';
+import { blobToDataUrl, layChuKyDataUrl, themChuKyVaoManual, blobSangPngDataUrl, layChuKyReviewerDataUrl } from './chu-ky';
 import type { LSXManualFields } from './types';
 
 let passed = 0;
@@ -135,6 +135,54 @@ async function main() {
     });
     const ganMoi = await themChuKyVaoManual({ preparedBy: 'B' } as LSXManualFields);
     assert('themChuKyVaoManual attaches signature when missing', !!ganMoi.preparedBySignature, ganMoi.preparedBySignature ?? 'null');
+
+    // layChuKyReviewerDataUrl: empty/null URL → null (khong fetch)
+    assert('layChuKyReviewerDataUrl null url returns null', (await layChuKyReviewerDataUrl(null)) === null);
+    assert('layChuKyReviewerDataUrl empty url returns null', (await layChuKyReviewerDataUrl('')) === null);
+    assert('layChuKyReviewerDataUrl undefined url returns null', (await layChuKyReviewerDataUrl(undefined)) === null);
+
+    // layChuKyReviewerDataUrl: fetch ok → convert blob → PNG data url
+    globalThis.fetch = async () =>
+      new Response(new Blob(['webp-data'], { type: 'image/webp' }), { status: 200 });
+    const fromUrl = await layChuKyReviewerDataUrl('/auth/signatures/reviewer.webp');
+    assert('layChuKyReviewerDataUrl fetches and converts to png', fromUrl !== null && fromUrl.startsWith('data:image/png;base64,'), fromUrl ?? 'null');
+
+    // layChuKyReviewerDataUrl: fetch fail (404) → null
+    globalThis.fetch = async () => new Response(null, { status: 404 });
+    const from404 = await layChuKyReviewerDataUrl('/auth/signatures/missing.webp');
+    assert('layChuKyReviewerDataUrl returns null on 404', from404 === null);
+
+    // layChuKyReviewerDataUrl: fetch throw → null
+    globalThis.fetch = async () => { throw new Error('network down'); };
+    const fromThrow = await layChuKyReviewerDataUrl('/auth/signatures/x.webp');
+    assert('layChuKyReviewerDataUrl returns null on fetch throw', fromThrow === null);
+
+    // layChuKyReviewerDataUrl: gọi qua goiRaw → relative path được prepend SERVICE_LTS_DIRECT_URL
+    let capturedUrl = '';
+    globalThis.fetch = async (input) => {
+      capturedUrl = String(input);
+      return new Response(new Blob(['ok'], { type: 'image/webp' }), { status: 200 });
+    };
+    const realFetched = await layChuKyReviewerDataUrl('/auth/signatures/abc.webp');
+    assert(
+      'layChuKyReviewerDataUrl prepends SERVICE_LTS_DIRECT_URL to relative path',
+      capturedUrl.includes('://') && capturedUrl.endsWith('/auth/signatures/abc.webp'),
+      capturedUrl,
+    );
+    assert('layChuKyReviewerDataUrl still returns png when goiRaw works', realFetched !== null && realFetched.startsWith('data:image/png;base64,'), realFetched ?? 'null');
+
+    // layChuKyReviewerDataUrl: absolute URL từ origin khác → chỉ lấy pathname trước khi nối SERVICE_LTS_DIRECT_URL
+    capturedUrl = '';
+    globalThis.fetch = async (input) => {
+      capturedUrl = String(input);
+      return new Response(new Blob(['ok'], { type: 'image/webp' }), { status: 200 });
+    };
+    await layChuKyReviewerDataUrl('http://otherhost:9999/auth/signatures/xyz.webp');
+    assert(
+      'layChuKyReviewerDataUrl strips foreign origin and routes via SERVICE_LTS_DIRECT_URL',
+      !capturedUrl.includes('otherhost:9999') && capturedUrl.endsWith('/auth/signatures/xyz.webp'),
+      capturedUrl,
+    );
   } finally {
     globalThis.fetch = originalFetch;
     (globalThis as any).FileReader = originalFileReader;

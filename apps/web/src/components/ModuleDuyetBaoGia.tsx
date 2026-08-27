@@ -15,6 +15,7 @@ import {
   Eye,
   X,
   FileEdit,
+  Loader2,
   Inbox,
   Trash2,
   ChevronDown,
@@ -38,6 +39,7 @@ import {
   buildHistoryItemFromServerData,
 } from "../lib/baoGiaExport";
 import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
+import { layChuKyReviewerDataUrl } from "../lib/chu-ky";
 import NutSaoChepLienKet from "./NutSaoChepLienKet";
 import {
   layDanhSachBaoGiaService,
@@ -206,6 +208,7 @@ export default function ModuleDuyetBaoGia({
   const [previewState, setPreviewState] = useState<{
     item: HistoryItem;
     customerInfo: { address?: string; taxCode?: string; phone?: string; fax?: string; description?: string };
+    reviewerSignatureDataUrl?: string | null;
   } | null>(null);
 
   // Nguồn dữ liệu: 'list' = GET /quotations; 'review' = quotation-in-review (chỉ reviewer)
@@ -217,6 +220,7 @@ export default function ModuleDuyetBaoGia({
   const [loi, datLoi] = useState("");
   const [thongBao, datThongBao] = useState("");
   const [dangXuLyId, datDangXuLyId] = useState<string | null>(null);
+  const [dangXemBgId, setDangXemBgId] = useState<string | null>(null);
   const [confirm, setConfirm] = useState<{
     bg: BaoGiaApi;
     title: string;
@@ -569,9 +573,11 @@ export default function ModuleDuyetBaoGia({
 
   const renderHanhDong = (bg: BaoGiaApi, _trangThai: TrangThaiBaoGiaServer) => {
     const dangXuLy = dangXuLyId === bg.id;
+    const dangXem = dangXemBgId === bg.id;
 
-    const handleXemBaoGia = (e: React.MouseEvent) => {
+    const handleXemBaoGia = async (e: React.MouseEvent) => {
       e.stopPropagation();
+      setDangXemBgId(bg.id);
       const item = buildHistoryItemFromServerData(bg as any);
       const customerName = (item.customer ||
         bg.pricingSheets?.[0]?.customer?.codeName ||
@@ -581,13 +587,19 @@ export default function ModuleDuyetBaoGia({
         (kh) =>
           kh.companyName === customerName || kh.customerCode === customerName,
       );
+      const customerInfo = {
+        address: c?.address || c?.invoiceAddress || "",
+        taxCode: c?.taxCode || "",
+        phone: c?.phone || "",
+      };
+      const reviewerSignatureDataUrl = await layChuKyReviewerDataUrl(
+        bg.reviewerSignatureUrl,
+      );
+      setDangXemBgId(null);
       setPreviewState({
         item: item as HistoryItem,
-        customerInfo: {
-          address: c?.address || c?.invoiceAddress || "",
-          taxCode: c?.taxCode || "",
-          phone: c?.phone || "",
-        },
+        customerInfo,
+        reviewerSignatureDataUrl,
       });
     };
 
@@ -596,9 +608,10 @@ export default function ModuleDuyetBaoGia({
         <button
           className="qrev-btn-icon"
           title="Xem PDF báo giá"
+          disabled={dangXem}
           onClick={handleXemBaoGia}
         >
-          <Eye size={15} />
+          {dangXem ? <Loader2 size={15} className="um-spin" /> : <Eye size={15} />}
         </button>
         <NutSaoChepLienKet
           url={taoUrlChiaSeBaoGia(bg.id)}
@@ -971,6 +984,7 @@ export default function ModuleDuyetBaoGia({
           onClose={() => setPreviewState(null)}
           item={previewState.item}
           customerInfo={previewState.customerInfo}
+          reviewerSignatureDataUrl={previewState.reviewerSignatureDataUrl}
         />
       )}
     </div>

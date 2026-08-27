@@ -6,6 +6,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import type { LSXManualFields } from "./types";
+import { layChuKyReviewerService } from "./api/service-lts";
 
 export function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -76,5 +77,23 @@ export async function themChuKyVaoManual(
   if (manual.preparedBySignature) return manual;
   const signature = await layChuKyDataUrl();
   return signature ? { ...manual, preparedBySignature: signature } : manual;
+}
+
+/**
+ * Fetch ảnh chữ ký reviewer (BE trả /auth/signatures/xxx qua reviewerSignatureUrl
+ * trong quotation response) → PNG base64 để nhúng @react-pdf / docx ImageRun.
+ * Trả về null nếu URL rỗng, fetch lỗi, hoặc convert WebP→PNG thất bại.
+ * Lưu ý: @react-pdf chỉ nhận PNG/JPG/SVG (không nhận WebP) — phải convert qua canvas.
+ */
+export async function layChuKyReviewerDataUrl(
+  url: string | null | undefined,
+): Promise<string | null> {
+  if (!url) return null;
+  try {
+    const blob = await layChuKyReviewerService(url);
+    return await blobSangPngDataUrl(blob);
+  } catch {
+    return null;
+  }
 }
 

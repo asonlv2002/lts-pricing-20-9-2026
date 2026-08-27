@@ -102,9 +102,9 @@ export default function LSXFormModal({ sources, activeIndex, onClose }: Props) {
 
       await themLSX(order);
       if (format === 'pdf') {
-        await exportLSXtoPDF(order);
+        await exportLSXtoPDF(order, null);
       } else {
-        await exportLSXtoDOCX(order);
+        await exportLSXtoDOCX(order, null);
       }
 
       setDone(true);
