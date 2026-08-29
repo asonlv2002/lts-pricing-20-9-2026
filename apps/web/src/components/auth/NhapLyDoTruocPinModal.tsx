@@ -8,6 +8,8 @@ interface NhapLyDoTruocPinModalProps {
   title: string;
   message?: string;
   confirmLabel?: string;
+  /** Bắt buộc nhập lý do (disable nút Tiếp tục tới khi có nội dung). */
+  batBuoc?: boolean;
   onConfirm: (lyDo: string) => void;
   onClose: () => void;
 }
@@ -21,6 +23,7 @@ export default function NhapLyDoTruocPinModal({
   title,
   message,
   confirmLabel = 'Tiếp tục',
+  batBuoc = false,
   onConfirm,
   onClose,
 }: NhapLyDoTruocPinModalProps) {
@@ -41,6 +44,9 @@ export default function NhapLyDoTruocPinModal({
     onClose();
   }
 
+  const giaTriLyDo = lyDo.trim();
+  const coTheTiepTuc = !batBuoc || giaTriLyDo.length > 0;
+
   return (
     <div className="lts-modal-overlay" onClick={dong}>
       <div
@@ -60,7 +66,9 @@ export default function NhapLyDoTruocPinModal({
 
         <div className="lts-modal-body">
           <div className="lts-field">
-            <span className="lts-field-label">Lý do (không bắt buộc)</span>
+            <span className="lts-field-label">
+              Lý do {batBuoc ? '(bắt buộc)' : '(không bắt buộc)'}
+            </span>
             <textarea
               ref={inputRef}
               className="lts-field-input lts-field-input--textarea"
@@ -80,10 +88,10 @@ export default function NhapLyDoTruocPinModal({
           <button
             type="button"
             className="lts-btn lts-btn--primary"
+            disabled={!coTheTiepTuc}
             onClick={() => {
-              const value = lyDo.trim();
               setLyDo('');
-              onConfirm(value);
+              onConfirm(giaTriLyDo);
             }}
           >
             {confirmLabel}

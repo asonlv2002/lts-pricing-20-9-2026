@@ -433,13 +433,12 @@ function buildBaoGiaHtmlV2(
           pageHtml += `<div class="luu-y-item">- Ghi chú: ${escHtml(item.terms.notes)}</div>`;
       }
 
-      const reviewerBlock = reviewerSignatureDataUrl
-        ? `<img class="sig-col-img" src="${reviewerSignatureDataUrl}" alt="Chữ ký người duyệt" />`
-        : `<div class="sig-col-hint">(Chưa duyệt)</div>`;
+      const pkdCol = reviewerSignatureDataUrl
+        ? `<div class="sig-col-title">P. KINH DOANH</div><img class="sig-col-img" src="${reviewerSignatureDataUrl}" alt="Chữ ký P. Kinh Doanh" />`
+        : `<div class="sig-col-title">P. KINH DOANH</div><div class="sig-col-hint">(Ký, ghi rõ họ tên)</div>`;
       pageHtml += `<div class="sig-row">`
         + `<div class="sig-col"><div class="sig-col-title">KH XÁC NHẬN ĐẶT HÀNG</div><div class="sig-col-hint">(Ký, ghi rõ họ tên)</div></div>`
-        + `<div class="sig-col"><div class="sig-col-title">P. KINH DOANH</div><div class="sig-col-hint">(Ký, ghi rõ họ tên)</div></div>`
-        + `<div class="sig-col"><div class="sig-col-title">NGƯỜI DUYỆT</div>${reviewerBlock}</div>`
+        + `<div class="sig-col">${pkdCol}</div>`
         + `</div>`;
     }
 
@@ -1183,11 +1182,11 @@ export async function exportBaoGiaToDocx(
         }
       }
 
-      // Signatures — bảng 3 cột: KH / P.KD / Người duyệt
+      // Signatures — bảng 2 cột: KH / P.KD (ảnh chữ ký reviewer đặt trong P.KD)
       pageChildren.push(
         new Paragraph({ children: [], spacing: { before: 400 } }),
       );
-      const sigColWidth = Math.floor(9638 / 3);
+      const sigColWidth = Math.floor(9638 / 2);
       const sigCellOpts = (w: number) => ({
         width: { size: w, type: WidthType.DXA },
         borders: {
@@ -1208,19 +1207,20 @@ export async function exportBaoGiaToDocx(
           children: [new TextRun({ text, font: FONT, size: 18, italics: true, color: "888888" })],
           alignment: AlignmentType.CENTER,
         });
-      const reviewerImageParas = (() => {
+      const pkdParas = (() => {
+        const title = sigTitlePara("P. KINH DOANH");
         if (!reviewerSignatureDataUrl) {
-          return [sigTitlePara("NGƯỜI DUYỆT"), sigHintPara("(Chưa duyệt)")];
+          return [title, sigHintPara("(Ký, ghi rõ họ tên)")];
         }
         const match = /^data:image\/png;base64,([A-Za-z0-9+/=]+)$/.exec(reviewerSignatureDataUrl);
         if (!match) {
-          return [sigTitlePara("NGƯỜI DUYỆT"), sigHintPara("(Lỗi ảnh chữ ký)")];
+          return [title, sigHintPara("(Lỗi ảnh chữ ký)")];
         }
         const binary = atob(match[1]);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
         return [
-          sigTitlePara("NGƯỜI DUYỆT"),
+          title,
           new Paragraph({
             alignment: AlignmentType.CENTER,
             spacing: { before: 60, after: 60 },
@@ -1232,7 +1232,7 @@ export async function exportBaoGiaToDocx(
       })();
       const sigTable = new Table({
         width: { size: 9638, type: WidthType.DXA },
-        columnWidths: [sigColWidth, sigColWidth, sigColWidth],
+        columnWidths: [sigColWidth, sigColWidth],
         rows: [
           new TableRow({
             children: [
@@ -1242,11 +1242,7 @@ export async function exportBaoGiaToDocx(
               }),
               new TableCell({
                 ...sigCellOpts(sigColWidth),
-                children: [sigTitlePara("P. KINH DOANH"), sigHintPara("(Ký, ghi rõ họ tên)")],
-              }),
-              new TableCell({
-                ...sigCellOpts(sigColWidth),
-                children: reviewerImageParas,
+                children: pkdParas,
               }),
             ],
           }),

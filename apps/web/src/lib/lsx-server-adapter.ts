@@ -33,6 +33,10 @@ export interface LsxRow {
   quantity: number;           // Lay tu pricingSheet inputValue
   status: LsxLocalStatus;     // 'pending' | 'approved'
   hasPrintedOrder: boolean;
+  /** Lý do advisor ghi khi từ chối (hoặc duyệt) — từ order.reason. */
+  reason: string;
+  /** Chữ ký người duyệt LSX (approver) — từ order.original.approverSignatureUrl. */
+  approverSignatureUrl: string | null;
   createdAt: string;
   createdBy: string;
   inputValue: unknown | null;
@@ -97,6 +101,8 @@ export function mapServerOrdersToLsxRows(
         quantity: docNumber(input?.quantity, 0),
         status: deriveLsxStatus(order),
         hasPrintedOrder: order.hasPrintedOrder,
+        reason: typeof order.reason === 'string' ? order.reason : '',
+        approverSignatureUrl: order.original?.approverSignatureUrl ?? null,
         createdAt: order.createdAt,
         createdBy: order.createdBy,
         inputValue: order.inputValue,

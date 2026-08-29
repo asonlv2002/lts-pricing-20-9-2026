@@ -199,6 +199,7 @@ export default function ModuleDanhSachLSX({
               false,
               accessToken,
               pinToken,
+              lyDo,
             );
             setNhapPin(null);
             hienThongBao(
@@ -215,7 +216,7 @@ export default function ModuleDanhSachLSX({
         },
       });
     },
-    [nhapLyDo, accessToken, lamMoi, hienThongBao],
+    [accessToken, lamMoi, hienThongBao],
   );
 
   // === Preview (click row) — parity wizard: gắn chữ ký nếu BE chưa snapshot ===
@@ -243,13 +244,13 @@ export default function ModuleDanhSachLSX({
       const snapshotLuu = lsxSnapshotTuInputValue(row.inputValue);
       if (snapshotLuu) orderPreview.snapshot = snapshotLuu;
       setPreviewLsxPdf({ order: orderPreview });
-      const q = danhSachQuotations.find((x) => x.id === row.quotationId);
-      const dataUrl = await layChuKyReviewerDataUrl(q?.reviewerSignatureUrl);
+      // Chữ ký người duyệt LSX (approver) — không phải người duyệt báo giá (reviewer).
+      const dataUrl = await layChuKyReviewerDataUrl(row.approverSignatureUrl);
       setPreviewLsxPdf((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Lỗi preview');
     }
-  }, [materials, constants, profitTable, smallWidthPrices, currentSellerName, danhSachQuotations]);
+  }, [materials, constants, profitTable, smallWidthPrices, currentSellerName]);
 
   // === Edit (click 📝) → tab Tạo LSX, khóa KH/BG/sheet ===
   const handleEditRow = useCallback((row: LsxRow) => {
@@ -431,7 +432,7 @@ export default function ModuleDanhSachLSX({
                             </button>
                             <button
                               className="qrev-btn-icon qrev-btn-icon--danger"
-                              title="Từ chối"
+                              title={row.reason ? `Từ chối · Lý do: ${row.reason}` : 'Từ chối'}
                               disabled={isProcessing}
                               onClick={() => void duyetLsx(row, 'rejected')}
                             >
@@ -476,6 +477,7 @@ export default function ModuleDanhSachLSX({
         title="Từ chối LSX"
         message={nhapLyDo ? `Bạn có chắc muốn từ chối LSX "${nhapLyDo.row.lsxNumber || nhapLyDo.row.orderId}"?` : ""}
         confirmLabel="Tiếp tục"
+        batBuoc
         onConfirm={tiepTucTuChoiSauLyDo}
         onClose={() => setNhapLyDo(null)}
       />

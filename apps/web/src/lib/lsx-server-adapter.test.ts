@@ -54,11 +54,13 @@ function makeOrder(overrides: Partial<QuotationPricingSheetOrderApi> = {}): Quot
     pricingSheetId: 'sheet-1',
     hasPrintedOrder: false,
     hasAdvisorApproved: false,
+    reason: null,
     inputValue: null,
     createdBy: 'user-1',
     approvedBy: null,
     createdAt: '2026-07-30T00:00:00.000Z',
     pricingSheet: makeSheet(),
+    original: { approverSignatureUrl: null },
     ...overrides,
   };
 }
@@ -119,6 +121,30 @@ console.log('\n== mapServerOrdersToLsxRows ==');
   assert('row co status', rows.every((r) => r.status === 'pending' || r.status === 'approved'));
   assert('row co inputValue (co the null)', rows.every((r) => 'inputValue' in r));
   assert('row co pricingSheet (snapshot)', rows.every((r) => r.pricingSheet !== undefined));
+}
+{
+  // Reason + approverSignatureUrl map tu order
+  const rows = mapServerOrdersToLsxRows([
+    makeQuotation({
+      orders: [
+        makeOrder({
+          id: 'ord-reject',
+          reason: 'Thieu thong so ky thuat',
+          original: { approverSignatureUrl: '/auth/signatures/duyet.webp' },
+        }),
+      ],
+    }),
+  ]);
+  assert('row map reason tu order.reason', rows[0]?.reason === 'Thieu thong so ky thuat', rows[0]?.reason);
+  assert('row map approverSignatureUrl tu order.original', rows[0]?.approverSignatureUrl === '/auth/signatures/duyet.webp', rows[0]?.approverSignatureUrl ?? 'null');
+}
+{
+  // Reason rong / khong co original -> fallback ''
+  const rows = mapServerOrdersToLsxRows([
+    makeQuotation({ orders: [makeOrder({ reason: null, original: null })] }),
+  ]);
+  assert('row reason fallback "" khi null', rows[0]?.reason === '', rows[0]?.reason);
+  assert('row approverSignatureUrl fallback null khi thieu original', rows[0]?.approverSignatureUrl === null, String(rows[0]?.approverSignatureUrl));
 }
 {
   // Empty input

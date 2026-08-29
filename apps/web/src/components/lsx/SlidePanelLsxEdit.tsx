@@ -169,7 +169,8 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
       orderPreview.manual = await themChuKyVaoManual(manual);
       orderPreview.id = order.id;
       setPreviewLsxPdf({ order: orderPreview });
-      const dataUrl = await layChuKyReviewerDataUrl(quotation?.reviewerSignatureUrl);
+      // Chữ ký người duyệt LSX (approver) — không dùng reviewer của báo giá.
+      const dataUrl = await layChuKyReviewerDataUrl(order.original?.approverSignatureUrl);
       setPreviewLsxPdf((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Lỗi tạo preview');
@@ -187,7 +188,8 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
       orderPreview.manual = await themChuKyVaoManual(manual);
       orderPreview.id = order.id;
       setPreviewLsx({ order: orderPreview });
-      const dataUrl = await layChuKyReviewerDataUrl(quotation?.reviewerSignatureUrl);
+      // Chữ ký người duyệt LSX (approver) — không dùng reviewer của báo giá.
+      const dataUrl = await layChuKyReviewerDataUrl(order.original?.approverSignatureUrl);
       setPreviewLsx((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Lỗi tạo preview');

@@ -363,7 +363,8 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
       order.manual = await themChuKyVaoManual(manual);
       if (editOrderId) order.id = editOrderId;
       setPreviewLsxPdf({ order });
-      const dataUrl = await layChuKyReviewerDataUrl(lsxDangSua?.quotation?.reviewerSignatureUrl);
+      // Chữ ký người duyệt LSX (approver) — không dùng reviewer của báo giá.
+      const dataUrl = await layChuKyReviewerDataUrl(lsxDangSua?.order.original?.approverSignatureUrl);
       setPreviewLsxPdf((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
     } catch (e) {
       setToast({ kind: 'err', msg: e instanceof Error ? e.message : 'Lỗi tạo preview' });
@@ -381,7 +382,8 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
       order.manual = await themChuKyVaoManual(manual);
       if (editOrderId) order.id = editOrderId;
       setPreviewLsx({ order });
-      const dataUrl = await layChuKyReviewerDataUrl(lsxDangSua?.quotation?.reviewerSignatureUrl);
+      // Chữ ký người duyệt LSX (approver) — không dùng reviewer của báo giá.
+      const dataUrl = await layChuKyReviewerDataUrl(lsxDangSua?.order.original?.approverSignatureUrl);
       setPreviewLsx((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
     } catch (e) {
       setToast({ kind: 'err', msg: e instanceof Error ? e.message : 'Lỗi tạo preview' });

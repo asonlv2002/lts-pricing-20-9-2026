@@ -922,14 +922,10 @@ function BaoGiaPage({
             </View>
             <View style={styles.sigCol}>
               <Text style={styles.sigColTitle}>P. KINH DOANH</Text>
-              <Text style={styles.sigColHint}>(Ký, ghi rõ họ tên)</Text>
-            </View>
-            <View style={styles.sigCol}>
-              <Text style={styles.sigColTitle}>NGƯỜI DUYỆT</Text>
               {reviewerSignatureDataUrl ? (
                 <Image src={reviewerSignatureDataUrl} style={styles.sigColImage} />
               ) : (
-                <Text style={styles.sigColHint}>(Chưa duyệt)</Text>
+                <Text style={styles.sigColHint}>(Ký, ghi rõ họ tên)</Text>
               )}
             </View>
           </View>

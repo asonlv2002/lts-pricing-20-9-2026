@@ -592,9 +592,12 @@ export default function ModuleDuyetBaoGia({
         taxCode: c?.taxCode || "",
         phone: c?.phone || "",
       };
-      const reviewerSignatureDataUrl = await layChuKyReviewerDataUrl(
-        bg.reviewerSignatureUrl,
-      );
+      // Guard FE: chỉ lấy chữ ký người duyệt khi báo giá đã duyệt (approved).
+      // Bị từ chối (rejected) → về P.Kinh Doanh, KHÔNG hiện chữ ký.
+      const laDaDuyet = chuyenTrangThaiBaoGia(bg.updateStatus) === "approved";
+      const reviewerSignatureDataUrl = laDaDuyet
+        ? await layChuKyReviewerDataUrl(bg.reviewerSignatureUrl)
+        : null;
       setDangXemBgId(null);
       setPreviewState({
         item: item as HistoryItem,

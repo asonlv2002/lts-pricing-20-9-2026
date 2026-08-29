@@ -100,11 +100,34 @@ async function main() {
     {
       const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
       assert('reject body co hasAdvisorApproved=false', body?.hasAdvisorApproved === false, JSON.stringify(body));
+      assert('reject khong co reason khi khong truyen', !('reason' in (body ?? {})), JSON.stringify(body));
     }
     {
       const headers = capturedInit?.headers instanceof Headers ? capturedInit.headers : new Headers(capturedInit?.headers);
       assert('reject khong gui x-pin-token khi thieu pinToken',
         headers.get('x-pin-token') === null, String(headers.get('x-pin-token')));
+    }
+
+    // Test 7: updateOrderApprovalService (tu choi kem ly do + pinToken)
+    console.log('\n== updateOrderApprovalService (tu choi kem ly do) ==');
+    await updateOrderApprovalService('ord_4', false, 'token', 'pin-xyz', '  Thieu thong so ky thuat  ');
+    {
+      const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
+      assert('reject body co hasAdvisorApproved=false', body?.hasAdvisorApproved === false, JSON.stringify(body));
+      assert('reject gui reason khi co ly do', body?.reason === '  Thieu thong so ky thuat  ', JSON.stringify(body));
+    }
+    {
+      const headers = capturedInit?.headers instanceof Headers ? capturedInit.headers : new Headers(capturedInit?.headers);
+      assert('reject gui x-pin-token khi co pinToken',
+        headers.get('x-pin-token') === 'pin-xyz', String(headers.get('x-pin-token')));
+    }
+
+    // Test 8: updateOrderApprovalService (duyet khong gui reason khi rong)
+    console.log('\n== updateOrderApprovalService (duyet khong reason) ==');
+    await updateOrderApprovalService('ord_5', true, 'token', 'pin-abc', '');
+    {
+      const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
+      assert('approve khong gui reason khi rong', !('reason' in (body ?? {})), JSON.stringify(body));
     }
   } finally {
     globalThis.fetch = originalFetch;

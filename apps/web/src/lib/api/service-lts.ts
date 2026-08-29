@@ -2060,11 +2060,15 @@ export interface QuotationPricingSheetOrderApi {
   pricingSheetId: string;
   hasPrintedOrder: boolean;
   hasAdvisorApproved: boolean;
+  /** Lý do từ chối/duyệt do advisor ghi (server trả qua order.reason). */
+  reason?: string | null;
   inputValue: unknown | null;
   createdBy: string;
   approvedBy: string | null;
   createdAt: string;
   pricingSheet?: PricingSheetApi | null;
+  /** Phần "original" server gắn thêm — chữ ký người duyệt LSX (approver). */
+  original?: { approverSignatureUrl?: string | null } | null;
 }
 
 /** Một quotation gom các orders của nó. Dùng cho list view. */
@@ -2175,18 +2179,24 @@ export async function updateQuotationPricingSheetOrderService(
 // PATCH /quotations/orders/{id}/approval — advisor duyệt / từ chối order.
 // Yêu cầu policy ORDER_REVIEWER + PIN (PinGuard): truyền pinToken qua header x-pin-token.
 // Set hasAdvisorApproved = true | false + approvedBy = actor.
+// reason: lý do từ chối (hoặc duyệt) — chỉ gửi khi có giá trị.
 export async function updateOrderApprovalService(
   orderId: string,
   hasAdvisorApproved: boolean,
   token?: string,
   pinToken?: string,
+  reason?: string | null,
 ): Promise<QuotationPricingSheetOrderApi> {
   const headers = pinToken ? { "x-pin-token": pinToken } : undefined;
+  const body: Record<string, unknown> = { hasAdvisorApproved };
+  if (reason) {
+    body.reason = reason;
+  }
   return goiService<QuotationPricingSheetOrderApi>(
     `/quotations/orders/${encodeURIComponent(orderId)}/approval`,
     {
       method: "PATCH",
-      body: JSON.stringify({ hasAdvisorApproved }),
+      body: JSON.stringify(body),
       headers,
     },
     token,
