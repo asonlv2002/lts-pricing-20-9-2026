@@ -1708,6 +1708,7 @@ export interface BaoGiaApi {
   quotationName?: string | null;
   inputValue?: unknown;
   updateStatus?: string | null;
+  statusReason?: string | null;
   createdBy?: string | null;
   reviewerId?: string | null;
   reviewerSignatureUrl?: string | null;
@@ -1864,18 +1865,27 @@ export async function layBaoGiaChoDuyetService(
 
 // PATCH /quotations/{id}/review_update_status — duyệt hoặc từ chối báo giá đã nộp.
 // Route yêu cầu PIN (PinGuard): truyền pinToken qua header x-pin-token.
+// statusReason: lý do từ chối/duyệt. Chỉ gửi lên BE khi có giá trị sau trim
+// (server parseOptionalStatusReason cũng trim — bỏ qua rỗng/null/undefined để
+// tránh ghi đè lý do cũ thành null).
 export async function duyetBaoGiaService(
   quotationId: string,
   updateStatus: "approved" | "rejected",
   token?: string,
   pinToken?: string,
+  statusReason?: string | null,
 ): Promise<BaoGiaApi> {
   const headers = pinToken ? { "x-pin-token": pinToken } : undefined;
+  const body: Record<string, unknown> = { updateStatus };
+  if (typeof statusReason === 'string') {
+    const trimmed = statusReason.trim();
+    if (trimmed) body.statusReason = trimmed;
+  }
   return goiService<BaoGiaApi>(
     `/quotations/${encodeURIComponent(quotationId)}/review_update_status`,
     {
       method: "PATCH",
-      body: JSON.stringify({ updateStatus }),
+      body: JSON.stringify(body),
       headers,
     },
     token,

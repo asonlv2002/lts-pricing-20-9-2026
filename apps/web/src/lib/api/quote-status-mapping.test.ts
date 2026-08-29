@@ -155,5 +155,18 @@ console.log('\n== locSheetKhaDungChoLSX (filter sheet da khach duyet) ==');
   assert('q5 truoc q6', r5[0]?.quotation.id === 'q5' && r5[1]?.quotation.id === 'q6');
 }
 
+console.log('\n== BaoGiaApi.statusReason (BE tra ve khi review rejected) ==');
+{
+  const bg = taoBaoGia('q-rej', 'rejected', [
+    { id: 's1', hasCustomerApproved: false },
+  ]) as BaoGiaApi & { statusReason?: string | null };
+  bg.statusReason = 'Bang tinh gia qua cao, can xem lai';
+  assert('factory co the gan statusReason', bg.statusReason === 'Bang tinh gia qua cao, can xem lai');
+  assert('statusReason null khi BE khong tra', (() => {
+    const bgNull = taoBaoGia('q-rej-2', 'rejected', []) as BaoGiaApi & { statusReason?: string | null };
+    return bgNull.statusReason === undefined;
+  })());
+}
+
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);
 if (failed > 0) process.exit(1);

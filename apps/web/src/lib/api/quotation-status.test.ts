@@ -98,12 +98,52 @@ async function main() {
          headers.get('x-pin-token') === 'pin-token-xyz', String(headers.get('x-pin-token')));
      }
 
-     await duyetBaoGiaService('q3', 'approved', 'token');
-     {
-       const headers = capturedInit?.headers instanceof Headers ? capturedInit.headers : new Headers(capturedInit?.headers);
-       assert('duyet bao gia khong gui x-pin-token khi thieu pinToken',
-         headers.get('x-pin-token') === null, String(headers.get('x-pin-token')));
-     }
+      await duyetBaoGiaService('q3', 'approved', 'token');
+      {
+        const headers = capturedInit?.headers instanceof Headers ? capturedInit.headers : new Headers(capturedInit?.headers);
+        assert('duyet bao gia khong gui x-pin-token khi thieu pinToken',
+          headers.get('x-pin-token') === null, String(headers.get('x-pin-token')));
+      }
+
+      // -- Gui statusReason khi tu choi --
+      await duyetBaoGiaService('q-rej-reason', 'rejected', 'token', 'pin-token-xyz', 'Bang gia qua cao, can xem lai');
+      {
+        const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
+        assert('tu choi co gui statusReason trong body',
+          body?.statusReason === 'Bang gia qua cao, can xem lai', JSON.stringify(body));
+        assert('tu choi van gui updateStatus=rejected',
+          body?.updateStatus === 'rejected', JSON.stringify(body));
+      }
+
+      // -- Ly do trong (whitespace) -> KHONG gui statusReason (server parseOptionalStatusReason tu trim, FE cung nen) --
+      await duyetBaoGiaService('q-rej-ws', 'rejected', 'token', 'pin-token-xyz', '   ');
+      {
+        const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
+        assert('ly do chi khoang trang -> KHONG co statusReason trong body',
+          !('statusReason' in (body ?? {})), JSON.stringify(body));
+      }
+
+      // -- null / undefined / '' -> KHONG gui statusReason (giong cach lsx-order gui reason) --
+      await duyetBaoGiaService('q-rej-undef', 'rejected', 'token', 'pin-token-xyz', undefined);
+      {
+        const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
+        assert('ly do undefined -> KHONG co statusReason trong body',
+          !('statusReason' in (body ?? {})), JSON.stringify(body));
+      }
+      await duyetBaoGiaService('q-rej-null', 'rejected', 'token', 'pin-token-xyz', null);
+      {
+        const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
+        assert('ly do null -> KHONG co statusReason trong body',
+          !('statusReason' in (body ?? {})), JSON.stringify(body));
+      }
+
+      // -- Trim khoang trang o dau/cuoi --
+      await duyetBaoGiaService('q-rej-trim', 'rejected', 'token', 'pin-token-xyz', '  Ly do co trim  ');
+      {
+        const body = typeof capturedInit?.body === 'string' ? JSON.parse(capturedInit.body) as Record<string, unknown> : null;
+        assert('ly do co trim dau/cuoi truoc khi gui',
+          body?.statusReason === 'Ly do co trim', JSON.stringify(body));
+      }
 
      await customerDecideBaoGiaService('q4',
        [

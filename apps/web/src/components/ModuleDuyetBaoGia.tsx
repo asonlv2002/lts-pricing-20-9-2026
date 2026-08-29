@@ -391,7 +391,13 @@ export default function ModuleDuyetBaoGia({
           datDangXuLyId(bg.id);
           datLoi("");
           try {
-            await duyetBaoGiaService(bg.id, "rejected", accessToken, pinToken);
+            await duyetBaoGiaService(
+              bg.id,
+              "rejected",
+              accessToken,
+              pinToken,
+              lyDo || null,
+            );
             setNhapPin(null);
             hienThongBao("Đã từ chối báo giá.");
             await lamMoi();
@@ -834,7 +840,10 @@ export default function ModuleDuyetBaoGia({
                           </span>
                         )}
                         {trangThai === "rejected" && (
-                          <span title="Lý do: Đang chờ lý do..." aria-label="Đã từ chối">
+                          <span
+                            title={bg.statusReason ? `Từ chối · Lý do: ${bg.statusReason}` : "Đã từ chối"}
+                            aria-label={bg.statusReason ? `Đã từ chối. Lý do: ${bg.statusReason}` : "Đã từ chối"}
+                          >
                             <XCircle size={16} style={{ color: "#dc2626" }} />
                           </span>
                         )}
