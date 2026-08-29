@@ -31,7 +31,7 @@ import { bagTypeLabelHienThi } from "../lib/lsx-bag-classification";
 import { buildLsxLamGridRows } from "../lib/lsx-lam-rows";
 import { formatLsxHeaderDate } from "../lib/lsx-header-format";
 import { lsxExportBaseName } from "../lib/lsx-msp";
-import { formatLsxDivideSummary, resolveLsxDivideSpec } from "../lib/lsx-divide";
+import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from "../lib/lsx-divide";
 
 // Times New Roman — same as BaoGiaPdfDocument / DOCX ground truth
 Font.register({
@@ -254,7 +254,7 @@ function Line({ label, value, boldLabel = true }: { label: string; value?: strin
   );
 }
 
-function DivideDetails({ order, includeFilmWidth = true }: { order: ProductionOrder; includeFilmWidth?: boolean }) {
+function DivideDetails({ order }: { order: ProductionOrder }) {
   const spec = resolveLsxDivideSpec(order);
   const m = order.manual;
   // Chi an khi user that su khong co du lieu (regression 2026-08-27:
@@ -264,29 +264,16 @@ function DivideDetails({ order, includeFilmWidth = true }: { order: ProductionOr
     || (m.divideElements ?? 0) > 0
     || (Array.isArray(m.divideWidths) && m.divideWidths.length > 0);
   if (!hasUserData) return null;
+  const filmWidth = spec.filmWidthMm ? `${spec.filmWidthMm}mm` : "…";
+  const khoChia = spec.elementCount > 0 ? formatLsxDivideSummary(spec) : vd(spec.defaultWidthMm, "mm");
   return (
     <>
-      {includeFilmWidth && (
-        <Line label="Khổ màng: " value={spec.filmWidthMm ? `K${spec.filmWidthMm}mm` : "…"} />
-      )}
-      {spec.elementCount > 0 && (
-        <Line label="Số phần tử chia: " value={`${spec.elementCount} phần tử`} />
-      )}
-      <Line
-        label="Khổ chia: "
-        value={spec.elementCount > 0 ? formatLsxDivideSummary(spec) : vd(spec.defaultWidthMm, "mm")}
-      />
-      {spec.elementCount > 0 && spec.widths.length === spec.elementCount && (
-        <>
-          <Line label="Tổng khổ chia: " value={`${spec.totalWidthMm} / ${spec.filmWidthMm}mm`} />
-          {spec.widths.map((width, index) => (
-            <Line key={index} label={`Phần tử ${index + 1}: `} value={vd(width, "mm")} />
-          ))}
-        </>
-      )}
-      {!spec.valid && spec.error ? (
-        <Text style={styles.redNote}>{`⚠ ${spec.error}`}</Text>
-      ) : null}
+      <Line label="Khổ màng: " value={filmWidth} />
+      <Line label="Khổ chia: " value={khoChia} />
+      <Line label="Chiều dài: " value={vd(m.rollLength, "m")} />
+      <Line label="Chiều ra cuộn: " value={vd(m.divideRollOutWidth, "mm")} />
+      {!!m.divideDesc && <Line label="Mô tả: " value={m.divideDesc} />}
+      {!!m.divideNotes && <Line label="Ghi chú: " value={m.divideNotes} />}
     </>
   );
 }
@@ -495,22 +482,15 @@ function MangBody({
             <Cell w="100%"><DivideDetails order={order} /></Cell>
           </View>
           <View style={styles.row}>
-            <Cell w="50%">
-              <Line label="Chiều dài quấn cuộn: " value={vd(m.rollLength, " m")} />
+            <Cell w="100%">
               <Text style={styles.redNote}>
                 (Lưu ý: Dựa vào số mét thực tế mà linh động chia cuộn hợp lý)
               </Text>
             </Cell>
-            <Cell w="50%">
-              <Line
-                label="Chiều ra cuộn: "
-                value={v(m.chieuRaCuonSP) || vd(m.divideRollOutWidth, "mm")}
-              />
-            </Cell>
           </View>
           <View style={styles.row}>
             <Cell w="100%">
-              <Text>Định mức phi hao: 0m</Text>
+              <Text>{`Định mức phi hao: ${layPhiHaoChia(order)}m`}</Text>
               <Line label="Khách hàng yêu cầu giao: " value={v(m.divideDeliveryReq)} />
               <Text>
                 {m.divideNotes ||
@@ -637,7 +617,6 @@ function TuiBody({
             </Cell>
             <Cell w="50%">
               <DivideDetails order={order} />
-              {!!m.rollLength && <Text>{` × ${v(m.rollLength)}m`}</Text>}
             </Cell>
           </View>
           <View style={styles.row}>
@@ -783,8 +762,7 @@ function TuiBody({
         {useLeftDivide && (
           <Cell w="50%">
             <DivideDetails order={order} />
-            {!!m.rollLength && <Line label="Chiều dài: " value={vd(m.rollLength, "m")} />}
-            <Text>Định mức phi hao chia: 0m</Text>
+            <Text>{`Định mức phi hao chia: ${layPhiHaoChia(order)}m`}</Text>
             {!!m.divideDesc && <Text>{m.divideDesc}</Text>}
             <Text>{m.divideNotes || ""}</Text>
           </Cell>

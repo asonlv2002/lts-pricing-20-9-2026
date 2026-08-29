@@ -25,7 +25,7 @@ import { buildLsxQuyCachLines, lsxBagSizeMm } from './lsx-quy-cach';
 import { buildLsxBagFieldRows, splitLsxBagBlockWidths } from './lsx-bag-fields';
 import { buildLsxLamGridRows, splitLsxLamBlockWidths } from './lsx-lam-rows';
 import { formatLsxHeaderDate } from './lsx-header-format';
-import { formatLsxDivideSummary, resolveLsxDivideSpec } from './lsx-divide';
+import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from './lsx-divide';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function v(val: string | number | null | undefined, suffix = ''): string {
@@ -418,7 +418,7 @@ export async function buildLSXDocxBlob(
       children,
     });
   const divideSpec = resolveLsxDivideSpec(order);
-  const divideParas = (includeFilmWidth = true) => {
+  const divideParas = () => {
     const m = order.manual;
     // Chi an khi user that su khong co du lieu (regression 2026-08-27:
     // truoc do `if (!divideSpec.valid) return []` lam mat du lieu vua nhap).
@@ -427,27 +427,20 @@ export async function buildLSXDocxBlob(
       || (m.divideElements ?? 0) > 0
       || (Array.isArray(m.divideWidths) && m.divideWidths.length > 0);
     if (!hasUserData) return [];
+    const filmWidth = divideSpec.filmWidthMm ? `${divideSpec.filmWidthMm}mm` : '…';
+    const khoChia = divideSpec.elementCount > 0
+      ? formatLsxDivideSummary(divideSpec)
+      : vd(divideSpec.defaultWidthMm, 'mm');
     return [
-      ...(includeFilmWidth
-        ? [para([run('Khổ màng: ', { b: true }), run(divideSpec.filmWidthMm ? `K${divideSpec.filmWidthMm}mm` : '…')])]
+      para([run('Khổ màng: ', { b: true }), run(filmWidth)]),
+      para([run('Khổ chia: ', { b: true }), run(khoChia)]),
+      para([run('Chiều dài: ', { b: true }), run(vd(m.rollLength, 'm'))]),
+      para([run('Chiều ra cuộn: ', { b: true }), run(vd(m.divideRollOutWidth, 'mm'))]),
+      ...(m.divideDesc
+        ? [para([run('Mô tả: ', { b: true }), run(m.divideDesc)])]
         : []),
-      ...(divideSpec.elementCount > 0
-        ? [para([run('Số phần tử chia: ', { b: true }), run(`${divideSpec.elementCount} phần tử`)])]
-        : []),
-      para([
-        run('Khổ chia: ', { b: true }),
-        run(divideSpec.elementCount > 0 ? formatLsxDivideSummary(divideSpec) : vd(divideSpec.defaultWidthMm, 'mm')),
-      ]),
-      ...(divideSpec.elementCount > 0 && divideSpec.widths.length === divideSpec.elementCount
-        ? [
-            para([run('Tổng khổ chia: ', { b: true }), run(`${divideSpec.totalWidthMm} / ${divideSpec.filmWidthMm}mm`)]),
-            ...divideSpec.widths.map((width, index) =>
-              para([run(`Phần tử ${index + 1}: `, { b: true }), run(vd(width, 'mm'))]),
-            ),
-          ]
-        : []),
-      ...(!divideSpec.valid && divideSpec.error
-        ? [para([run(`⚠ ${divideSpec.error}`, { clr: 'cc0000' })])]
+      ...(m.divideNotes
+        ? [para([run('Ghi chú: ', { b: true }), run(m.divideNotes)])]
         : []),
     ];
   };
@@ -606,13 +599,11 @@ export async function buildLSXDocxBlob(
       mR.push(rowMin(900, cell(divideParas(), { cs: 2 })));
       mR.push(rowH(360,
         cell([
-          para([run('Chiều dài quấn cuộn: ', { b: true }), run(vd(m.rollLength, ' m'))]),
           para([run('(Lưu ý: Dựa vào số mét thực tế mà linh động chia cuộn hợp lý)', { clr: 'ff0000', sz: 18 })]),
-        ]),
-        cell([para([run('Chiều ra cuộn: ', { b: true }), run(v(m.chieuRaCuonSP) || vd(m.divideRollOutWidth, 'mm'))])]),
+        ], { cs: 2 }),
       ));
       mR.push(rowH(2200, cell([
-        para([run('Định mức phi hao: 0m')]),
+        para([run(`Định mức phi hao: ${layPhiHaoChia(order)}m`)]),
         para([]),
         para([run('Khách hàng yêu cầu giao: ', { b: true }), run(v(m.divideDeliveryReq))]),
         para([]),
@@ -668,7 +659,6 @@ export async function buildLSXDocxBlob(
         ]),
         cell([
           ...divideParas(),
-          ...(m.rollLength ? [para([run('Chiều dài: ', { b: true }), run(v(m.rollLength, 'm'))])] : []),
         ], { cs: 3 }),
       ));
       tR.push(rowH(1000,
@@ -812,8 +802,7 @@ export async function buildLSXDocxBlob(
     const leftDivideParas = useLeftDivideCol
       ? [
           ...divideParas(),
-          ...(m.rollLength ? [para([run('Chiều dài: ', { b: true }), run(vd(m.rollLength, 'm'))])] : []),
-          para([run('Định mức phi hao chia: 0m')]),
+          para([run(`Định mức phi hao chia: ${layPhiHaoChia(order)}m`)]),
           ...(m.divideDesc ? [para([run(m.divideDesc)])] : []),
           para([run(m.divideNotes || '')]),
         ]

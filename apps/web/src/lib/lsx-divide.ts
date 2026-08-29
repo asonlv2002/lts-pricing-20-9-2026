@@ -57,3 +57,15 @@ export function formatLsxDivideSummary(spec: LsxDivideSpec): string {
   if (spec.custom) return spec.widths.map((width) => `${width}mm`).join(' + ');
   return `${spec.defaultWidthMm}mm × ${spec.elementCount}`;
 }
+
+/**
+ * Phi hao máy chia (mét) hiển thị trên LSX — dòng "Định mức phi hao chia".
+ *
+ * Nguồn: dòng "Chia" của bảng đặc tả kỹ thuật nâng cao (taoDongChiaNangCao ở
+ * dac-ta-nang-cao.ts) — hiện cố định `phiHao: 0` nên helper trả 0, khớp 10 LSX
+ * tham chiếu (LSX-References.md §3) đều ghi 0m. Khi dòng Chia có phi hao thực,
+ * chỉ cần cập nhật dòng chia và helper này tự theo giá trị đó.
+ */
+export function layPhiHaoChia(_order: ProductionOrder): number {
+  return 0;
+}

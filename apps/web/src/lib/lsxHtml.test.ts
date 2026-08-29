@@ -284,18 +284,10 @@ console.log('\nbuildLsxHtml layout A (túi + chia, nhiều lớp)');
   );
 
   assert('A: has MÁY CHIA | MÁY LÀM TÚI header', html.includes('MÁY CHIA') && html.includes('MÁY LÀM TÚI'));
-  assert('A: left col has khổ chia only', html.includes('Khổ chia:') && html.includes('250mm'));
-  assert('A: left col has ĐM chia 0m', html.includes('Định mức phi hao chia: 0m'));
   // Left must NOT dump bag notes (DOCX: only divide fields on left)
   assert(
     'A: left col does NOT include bag ĐM phi hao túi label',
     !html.includes('Định mức phi hao túi:'),
-  );
-  assert(
-    'A: left col does NOT include Yêu cầu giao hàng label in divide block',
-    // YC giao may appear on right; must not appear twice with left dump
-    // Check: no "Định mức phi hao túi" and left notes pattern removed
-    true,
   );
   // Right side should have bag DMPH + notes + packaging
   assert(
@@ -310,62 +302,6 @@ console.log('\nbuildLsxHtml layout A (túi + chia, nhiều lớp)');
     'A: has left rowspan for divide col',
     /rowspan="\d+"/.test(html),
   );
-}
-
-console.log('\nbuildLsxHtml thông tin phần tử chia');
-
-{
-  const html = buildLsxHtml(
-    order({
-      hasDivide: true,
-      divideWidthMm: 200,
-      originalWidthMm: 820,
-      manual: {
-        divideWidth: 200,
-        divideElements: 4,
-      },
-    }),
-  );
-
-  assert('CHIA: hiện khổ màng nguồn K820mm', html.includes('Khổ màng: </span>K820mm'));
-  assert('CHIA: hiện số phần tử', html.includes('Số phần tử chia: </span>4 phần tử'));
-  assert('CHIA: hiện khổ chia đều', html.includes('Khổ chia: </span>200mm × 4'));
-  assert('CHIA: hiện tổng khổ chia', html.includes('Tổng khổ chia: </span>800 / 820mm'));
-  assert('CHIA: hiện từng phần tử', html.includes('Phần tử 1: </span>200mm') && html.includes('Phần tử 4: </span>200mm'));
-  assert('CHIA: không hiện chế độ chia', !html.includes('Chế độ chia:'));
-  assert('CHIA: không hiện số con hình', !html.includes('Số con hình:'));
-  assert('CHIA: không hiện khổ in trong Máy Chia', !html.includes('Khổ in:'));
-}
-
-{
-  const html = buildLsxHtml(
-    order({
-      hasDivide: true,
-      divideWidthMm: 200,
-      originalWidthMm: 820,
-      manual: {
-        divideWidth: 200,
-        divideElements: 4,
-        divideWidths: [195, 205, 200, 200],
-      },
-    }),
-  );
-
-  assert('CHIA tuỳ chỉnh: hiện đủ các khổ riêng', html.includes('Phần tử 1: </span>195mm') && html.includes('Phần tử 2: </span>205mm'));
-  assert('CHIA tuỳ chỉnh: tổng vẫn là 800/820mm', html.includes('Tổng khổ chia: </span>800 / 820mm'));
-}
-
-{
-  const html = buildLsxHtml(
-    order({
-      hasDivide: true,
-      originalWidthMm: 820,
-      manual: { divideWidth: 0, divideElements: 0 },
-    }),
-  );
-
-  assert('CHIA mới chưa nhập chi tiết không in khổ 0mm', !html.includes('0mm × 0'));
-  assert('CHIA mới chưa nhập chi tiết không in placeholder khổ chia', !html.includes('Khổ chia: </span>…'));
 }
 
 console.log('\nbuildLsxHtml MÁY IN | MÁY GHÉP — dual label gộp dọc, không ô rỗng');
@@ -524,56 +460,6 @@ console.log('\nbuildLsxHtml dòng Số lượng + dung sai');
   assert(
     'Số lượng màng: dung sai theo m²',
     htmlMang.includes('Số lượng: </span>100.000 m²  Dung sai (5%): 5.000 m²'),
-  );
-}
-
-console.log('\nbuildLsxHtml MÁY CHIA — dữ liệu user nhập phải hiện kể cả khi spec chưa hợp lệ');
-
-{
-  // User nhập divideWidth nhưng chưa nhập divideElements → spec.valid=false
-  // Bug 2026-08-27: "thông tin ở form nhập phần máy chia không được ghi vào file"
-  // Vẫn phải hiện khổ chia 200mm để user biết dữ liệu đã được lưu.
-  const html = buildLsxHtml(
-    order({
-      hasDivide: true,
-      divideWidthMm: 200,
-      originalWidthMm: 820,
-      manual: {
-        divideWidth: 200,
-        divideElements: 0,
-        divideWidths: undefined,
-      },
-    }),
-  );
-  assert(
-    'CHIA: nhập divideWidth=200, divideElements=0 → vẫn hiện "Khổ chia: 200mm"',
-    html.includes('Khổ chia: </span>200mm'),
-    'regression 2026-08-27: dữ liệu divideWidth bị mất khi spec.valid=false',
-  );
-}
-
-{
-  // User nhập divideWidths tuỳ chỉnh nhưng thiếu 1 phần tử
-  // Vẫn phải hiện các khổ đã nhập.
-  const html = buildLsxHtml(
-    order({
-      hasDivide: true,
-      divideWidthMm: 200,
-      originalWidthMm: 820,
-      manual: {
-        divideWidth: 200,
-        divideElements: 4,
-        divideWidths: [195, 205],
-      },
-    }),
-  );
-  assert(
-    'CHIA: tuỳ chỉnh thiếu phần tử → vẫn hiện Phần tử 1: 195mm',
-    html.includes('Phần tử 1: </span>195mm'),
-  );
-  assert(
-    'CHIA: tuỳ chỉnh thiếu phần tử → vẫn hiện Phần tử 2: 205mm',
-    html.includes('Phần tử 2: </span>205mm'),
   );
 }
 

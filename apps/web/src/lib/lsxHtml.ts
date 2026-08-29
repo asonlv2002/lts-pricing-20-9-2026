@@ -27,7 +27,7 @@ import { buildLsxQuyCachLines, lsxBagSizeMm } from './lsx-quy-cach';
 import { bagTypeLabelHienThi } from './lsx-bag-classification';
 import { buildLsxBagFieldRows } from './lsx-bag-fields';
 import { formatLsxHeaderDate } from './lsx-header-format';
-import { formatLsxDivideSummary, resolveLsxDivideSpec } from './lsx-divide';
+import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from './lsx-divide';
 
 
 function v(val: string | number | null | undefined, suffix = ''): string {
@@ -48,7 +48,7 @@ function chuKyImgHtml(m: LSXManualFields): string {
   return `<img class="chu-ky-img" src="${m.preparedBySignature}" alt="Chữ ký người lập" />`;
 }
 
-function divideResultHtml(order: ProductionOrder, includeFilmWidth = true): string {
+function divideResultHtml(order: ProductionOrder): string {
   const spec = resolveLsxDivideSpec(order);
   const m = order.manual;
   // Chi hide khi user thuc su khong co du lieu nao (regression 2026-08-27:
@@ -58,22 +58,18 @@ function divideResultHtml(order: ProductionOrder, includeFilmWidth = true): stri
     || (m.divideElements ?? 0) > 0
     || (Array.isArray(m.divideWidths) && m.divideWidths.length > 0);
   if (!hasUserData) return '';
+  const filmWidth = spec.filmWidthMm ? `${spec.filmWidthMm}mm` : '…';
+  const khoChia = formatLsxDivideSummary(spec);
   const rows: string[] = [];
-  if (includeFilmWidth) {
-    rows.push(`<div><span class="b">Khổ màng: </span>${spec.filmWidthMm ? `K${spec.filmWidthMm}mm` : '…'}</div>`);
+  rows.push(`<div><span class="b">Khổ màng: </span>${esc(filmWidth)}</div>`);
+  rows.push(`<div><span class="b">Khổ chia: </span>${esc(khoChia)}</div>`);
+  rows.push(`<div><span class="b">Chiều dài: </span>${esc(vd(m.rollLength, 'm'))}</div>`);
+  rows.push(`<div><span class="b">Chiều ra cuộn: </span>${esc(vd(m.divideRollOutWidth, 'mm'))}</div>`);
+  if (m.divideDesc) {
+    rows.push(`<div><span class="b">Mô tả: </span>${esc(m.divideDesc)}</div>`);
   }
-  if (spec.elementCount > 0) {
-    rows.push(`<div><span class="b">Số phần tử chia: </span>${spec.elementCount} phần tử</div>`);
-  }
-  rows.push(`<div><span class="b">Khổ chia: </span>${esc(formatLsxDivideSummary(spec))}</div>`);
-  if (spec.elementCount > 0 && spec.widths.length === spec.elementCount) {
-    rows.push(`<div><span class="b">Tổng khổ chia: </span>${esc(`${spec.totalWidthMm} / ${spec.filmWidthMm}mm`)}</div>`);
-    spec.widths.forEach((width, index) => {
-      rows.push(`<div><span class="b">Phần tử ${index + 1}: </span>${esc(vd(width, 'mm'))}</div>`);
-    });
-  }
-  if (!spec.valid && spec.error) {
-    rows.push(`<div class="red-note">⚠ ${esc(spec.error)}</div>`);
+  if (m.divideNotes) {
+    rows.push(`<div><span class="b">Ghi chú: </span>${esc(m.divideNotes)}</div>`);
   }
   return rows.join('');
 }
@@ -400,15 +396,13 @@ function mangBodyHtml(order: ProductionOrder): string {
       <td colspan="2">${divideResultHtml(order)}</td>
     </tr>
     <tr>
-      <td>
-        <div><span class="b">Chiều dài quấn cuộn: </span>${esc(vd(m.rollLength, ' m'))}</div>
+      <td colspan="2">
         <div class="red-note">(Lưu ý: Dựa vào số mét thực tế mà linh động chia cuộn hợp lý)</div>
       </td>
-      <td><span class="b">Chiều ra cuộn: </span>${esc(v(m.chieuRaCuonSP) || vd(m.divideRollOutWidth, 'mm'))}</td>
     </tr>
     <tr>
       <td colspan="2">
-        <div>Định mức phi hao: 0m</div>
+        <div>Định mức phi hao: ${layPhiHaoChia(order)}m</div>
         <div><span class="b">Khách hàng yêu cầu giao: </span>${esc(v(m.divideDeliveryReq))}</div>
         <div>${esc(m.divideNotes || 'Ghi chú: Quấn cuộn đúng quy cách, cuộn lẻ không quá ……m/cuộn')}</div>
         <div>Cân ký cẩn thận, đảm bảo chính xác tránh sai lệnh quá nhiều.</div>
@@ -429,14 +423,9 @@ function mangBodyHtml(order: ProductionOrder): string {
 
 /** Left column under bag section — CHỈ thông số máy chia (layout A). */
 function divideLeftColHtml(order: ProductionOrder): string {
-  const { manual: m } = order;
   return `
-      ${divideResultHtml(order)}
-      ${m.rollLength ? `<div><span class="b">Chiều dài: </span>${esc(vd(m.rollLength, 'm'))}</div>` : ''}
-      <div>Định mức phi hao chia: 0m</div>
-      ${m.divideDesc ? `<div>${esc(m.divideDesc)}</div>` : ''}
-      <div>${esc(m.divideNotes || '')}</div>
-    `;
+    ${divideResultHtml(order)}
+  `;
 }
 
 /** Ghi chú vận hành cuối lưới túi — chỉ định mức phi hao + ghi chú máy. */
@@ -521,7 +510,6 @@ function tuiBodyHtml(order: ProductionOrder): string {
         <div><span class="b">Chia BTP thành phẩm in: </span></div>
         <div>${esc(m.divideNotes || (khoMM ? `${m.printFilmName || s.layer1Name || 'PE'} × ${khoMM} × ${vd(m.printProductQty)}m` : ''))}</div>
         ${divideResultHtml(order)}
-        ${m.rollLength ? `<div><span class="b">Chiều dài: </span>${esc(v(m.rollLength, 'm'))}</div>` : ''}
       </td>
     </tr>
     <tr>
