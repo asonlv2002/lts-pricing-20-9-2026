@@ -50,7 +50,7 @@ if (fnPdf) {
   );
   assert(
     'handleXemPdf gan vao orderPreview.manual',
-    /orderPreview\.manual\s*=\s*await\s+themChuKyVaoManual/.test(fnPdf),
+    /orderPreview\.manual\s*=\s*(?:await\s+themChuKyVaoManual|manualCoChuKy)/.test(fnPdf),
     'handleXemPdf phai gan ket qua themChuKyVaoManual vao orderPreview.manual',
   );
 }
@@ -63,7 +63,7 @@ if (fnDocx) {
   );
   assert(
     'handleXemDocx gan vao orderPreview.manual',
-    /orderPreview\.manual\s*=\s*await\s+themChuKyVaoManual/.test(fnDocx),
+    /orderPreview\.manual\s*=\s*(?:await\s+themChuKyVaoManual|manualCoChuKy)/.test(fnDocx),
     'handleXemDocx phai gan ket qua themChuKyVaoManual vao orderPreview.manual',
   );
   assert(

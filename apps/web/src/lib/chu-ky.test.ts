@@ -157,7 +157,7 @@ async function main() {
     const fromThrow = await layChuKyReviewerDataUrl('/auth/signatures/x.webp');
     assert('layChuKyReviewerDataUrl returns null on fetch throw', fromThrow === null);
 
-    // layChuKyReviewerDataUrl: gọi qua goiRaw → relative path được prepend SERVICE_LTS_DIRECT_URL
+    // layChuKyReviewerDataUrl: relative path → prepend SERVICE_LTS_SIGNATURE_BASE
     let capturedUrl = '';
     globalThis.fetch = async (input) => {
       capturedUrl = String(input);
@@ -165,13 +165,13 @@ async function main() {
     };
     const realFetched = await layChuKyReviewerDataUrl('/auth/signatures/abc.webp');
     assert(
-      'layChuKyReviewerDataUrl prepends SERVICE_LTS_DIRECT_URL to relative path',
+      'layChuKyReviewerDataUrl prepends SERVICE_LTS_SIGNATURE_BASE to relative path',
       capturedUrl.includes('://') && capturedUrl.endsWith('/auth/signatures/abc.webp'),
       capturedUrl,
     );
-    assert('layChuKyReviewerDataUrl still returns png when goiRaw works', realFetched !== null && realFetched.startsWith('data:image/png;base64,'), realFetched ?? 'null');
+    assert('layChuKyReviewerDataUrl still returns png when fetch works', realFetched !== null && realFetched.startsWith('data:image/png;base64,'), realFetched ?? 'null');
 
-    // layChuKyReviewerDataUrl: absolute URL từ origin khác → chỉ lấy pathname trước khi nối SERVICE_LTS_DIRECT_URL
+    // layChuKyReviewerDataUrl: absolute URL → dùng nguyên xi (file có thể serve qua CDN/static khác API)
     capturedUrl = '';
     globalThis.fetch = async (input) => {
       capturedUrl = String(input);
@@ -179,8 +179,8 @@ async function main() {
     };
     await layChuKyReviewerDataUrl('http://otherhost:9999/auth/signatures/xyz.webp');
     assert(
-      'layChuKyReviewerDataUrl strips foreign origin and routes via SERVICE_LTS_DIRECT_URL',
-      !capturedUrl.includes('otherhost:9999') && capturedUrl.endsWith('/auth/signatures/xyz.webp'),
+      'layChuKyReviewerDataUrl keeps absolute URL as-is (no host stripping)',
+      capturedUrl === 'http://otherhost:9999/auth/signatures/xyz.webp',
       capturedUrl,
     );
   } finally {

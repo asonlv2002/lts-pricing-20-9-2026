@@ -83,6 +83,7 @@ export default function ModuleDanhSachLSX({
   const [loi, setLoi] = useState('');
   const [thongBao, setThongBao] = useState('');
   const [dangXuLyId, setDangXuLyId] = useState<string | null>(null);
+  const [dangTaiXemId, setDangTaiXemId] = useState<string | null>(null);
   const [previewLsx, setPreviewLsx] = useState<{ order: any; reviewerSignatureDataUrl?: string | null } | null>(null);
   const [previewLsxPdf, setPreviewLsxPdf] = useState<{ order: any; reviewerSignatureDataUrl?: string | null } | null>(null);
   const [nhapPin, setNhapPin] = useState<{
@@ -219,13 +220,20 @@ export default function ModuleDanhSachLSX({
     [accessToken, lamMoi, hienThongBao],
   );
 
+  // Ref để truy cập dangTaiXemId hiện tại trong callback async (không cần thêm vào deps).
+  const dangTaiXemIdRef = useRef<string | null>(null);
+  useEffect(() => { dangTaiXemIdRef.current = dangTaiXemId; }, [dangTaiXemId]);
+
   // === Preview (click row) — parity wizard: gắn chữ ký nếu BE chưa snapshot ===
+  // Chờ CẢ chữ ký người lập + người duyệt load xong mới mở modal (tránh flash "chưa duyệt").
   const handleXemRow = useCallback(async (row: LsxRow) => {
     const fakeSource = mapBaoGiaToLsxSources({
       id: row.quotationId,
       pricingSheets: [row.pricingSheet as PricingSheetApi],
     } as any)[0];
     if (!fakeSource) return;
+    setDangTaiXemId(row.orderId);
+    setLoi('');
     try {
       const orderPreview = buildProductionOrderFromSource(fakeSource, {
         materials, constants, profitTable, smallWidthPrices,
@@ -240,15 +248,22 @@ export default function ModuleDanhSachLSX({
               return phanManual as unknown as LSXManualFields;
             })()
           : orderPreview.manual;
-      orderPreview.manual = await themChuKyVaoManual(manualTuServer);
+      const [manualCoChuKy, reviewerSignatureDataUrl] = await Promise.all([
+        themChuKyVaoManual(manualTuServer),
+        layChuKyReviewerDataUrl(row.approverSignatureUrl),
+      ]);
+      orderPreview.manual = manualCoChuKy;
       const snapshotLuu = lsxSnapshotTuInputValue(row.inputValue);
       if (snapshotLuu) orderPreview.snapshot = snapshotLuu;
-      setPreviewLsxPdf({ order: orderPreview });
-      // Chữ ký người duyệt LSX (approver) — không phải người duyệt báo giá (reviewer).
-      const dataUrl = await layChuKyReviewerDataUrl(row.approverSignatureUrl);
-      setPreviewLsxPdf((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
+      // Chỉ mở modal khi row hiện tại vẫn là row user click (tránh ghi đè LSX khác).
+      setPreviewLsxPdf((prev) => {
+        if (dangTaiXemIdRef.current !== row.orderId) return prev;
+        return { order: orderPreview, reviewerSignatureDataUrl };
+      });
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Lỗi preview');
+    } finally {
+      setDangTaiXemId((cur) => (cur === row.orderId ? null : cur));
     }
   }, [materials, constants, profitTable, smallWidthPrices, currentSellerName]);
 
@@ -366,12 +381,13 @@ export default function ModuleDanhSachLSX({
               <tbody>
                 {rowsLoc.map((row) => {
                   const isProcessing = dangXuLyId === row.orderId;
+                  const isLoadingView = dangTaiXemId === row.orderId;
                   return (
                     <tr
                       key={row.orderId}
                       className="qrev-row"
-                      onClick={() => handleXemRow(row)}
-                      style={{ cursor: 'pointer' }}
+                      onClick={() => !isLoadingView && handleXemRow(row)}
+                      style={{ cursor: isLoadingView ? 'wait' : 'pointer', opacity: isLoadingView ? 0.6 : 1 }}
                     >
                       <td>
                         <div className="qrev-cell-quote-text">
@@ -401,9 +417,10 @@ export default function ModuleDanhSachLSX({
                           <button
                             className="qrev-btn-icon"
                             title="Xem LSX"
+                            disabled={isLoadingView}
                             onClick={() => handleXemRow(row)}
                           >
-                            <Eye size={15} />
+                            {isLoadingView ? <Loader2 size={15} className="um-spin" /> : <Eye size={15} />}
                           </button>
                           <NutSaoChepLienKet
                             url={taoUrlChiaSeLsx(row.orderId)}

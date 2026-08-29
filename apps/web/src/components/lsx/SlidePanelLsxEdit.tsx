@@ -131,6 +131,7 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
     return defaultManual();
   });
   const [dangXuLy, setDangXuLy] = useState(false);
+  const [dangXem, setDangXem] = useState(false);
   const [loi, setLoi] = useState('');
   const [thongBao, setThongBao] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -160,39 +161,49 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
 
   async function handleXemPdf() {
     if (!source) return;
+    setDangXem(true);
+    setLoi('');
     try {
       const orderPreview = buildProductionOrderFromSource(source, {
         materials, constants, profitTable, smallWidthPrices,
         productionOrders: [],
         preparedBy: currentSellerName,
       });
-      orderPreview.manual = await themChuKyVaoManual(manual);
       orderPreview.id = order.id;
-      setPreviewLsxPdf({ order: orderPreview });
-      // Chữ ký người duyệt LSX (approver) — không dùng reviewer của báo giá.
-      const dataUrl = await layChuKyReviewerDataUrl(order.original?.approverSignatureUrl);
-      setPreviewLsxPdf((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
+      const [manualCoChuKy, reviewerSignatureDataUrl] = await Promise.all([
+        themChuKyVaoManual(manual),
+        layChuKyReviewerDataUrl(order.original?.approverSignatureUrl),
+      ]);
+      orderPreview.manual = manualCoChuKy;
+      setPreviewLsxPdf({ order: orderPreview, reviewerSignatureDataUrl });
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Lỗi tạo preview');
+    } finally {
+      setDangXem(false);
     }
   }
 
   async function handleXemDocx() {
     if (!source) return;
+    setDangXem(true);
+    setLoi('');
     try {
       const orderPreview = buildProductionOrderFromSource(source, {
         materials, constants, profitTable, smallWidthPrices,
         productionOrders: [],
         preparedBy: currentSellerName,
       });
-      orderPreview.manual = await themChuKyVaoManual(manual);
       orderPreview.id = order.id;
-      setPreviewLsx({ order: orderPreview });
-      // Chữ ký người duyệt LSX (approver) — không dùng reviewer của báo giá.
-      const dataUrl = await layChuKyReviewerDataUrl(order.original?.approverSignatureUrl);
-      setPreviewLsx((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
+      const [manualCoChuKy, reviewerSignatureDataUrl] = await Promise.all([
+        themChuKyVaoManual(manual),
+        layChuKyReviewerDataUrl(order.original?.approverSignatureUrl),
+      ]);
+      orderPreview.manual = manualCoChuKy;
+      setPreviewLsx({ order: orderPreview, reviewerSignatureDataUrl });
     } catch (e) {
       setLoi(e instanceof Error ? e.message : 'Lỗi tạo preview');
+    } finally {
+      setDangXem(false);
     }
   }
 
@@ -324,20 +335,20 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
           <button
             className="btn btn-outline"
             onClick={handleXemPdf}
-            disabled={!source || dangXuLy}
+            disabled={!source || dangXuLy || dangXem}
             style={{ fontSize: '0.84rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
             title="Review PDF (không lưu server)"
           >
-            <FileDown size={13} /> Review PDF
+            {dangXem ? <Loader2 size={13} className="spin" /> : <FileDown size={13} />} Review PDF
           </button>
           <button
             className="btn btn-outline"
             onClick={handleXemDocx}
-            disabled={!source || dangXuLy}
+            disabled={!source || dangXuLy || dangXem}
             style={{ fontSize: '0.84rem', display: 'inline-flex', alignItems: 'center', gap: 4 }}
             title="Review DOCX (không lưu server)"
           >
-            <FileText size={13} /> Review DOCX
+            {dangXem ? <Loader2 size={13} className="spin" /> : <FileText size={13} />} Review DOCX
           </button>
           <button
             className="btn btn-primary"

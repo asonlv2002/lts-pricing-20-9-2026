@@ -92,7 +92,13 @@ export async function layChuKyReviewerDataUrl(
   try {
     const blob = await layChuKyReviewerService(url);
     return await blobSangPngDataUrl(blob);
-  } catch {
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[layChuKyReviewerDataUrl] Khong tai duoc chu ky:",
+      url,
+      err instanceof Error ? err.message : err,
+    );
     return null;
   }
 }

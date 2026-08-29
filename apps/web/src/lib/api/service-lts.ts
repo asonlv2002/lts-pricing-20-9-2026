@@ -8,6 +8,12 @@ import { normalizeDisplayText } from "../text-codec";
 // ── Constants ────────────────────────────────────────────────────────────
 export const SERVICE_LTS_DIRECT_URL =
   process.env.NEXT_PUBLIC_SERVICE_LTS_URL ?? "http://localhost:3001";
+/** Base URL cho file chữ ký tĩnh (/auth/signatures/:fileName).
+ *  Dev server mặc định trỏ về https://lts-dev-server.zealstudiojsc.com/;
+ *  override qua NEXT_PUBLIC_SERVICE_LTS_SIGNATURE_BASE nếu deploy nơi khác. */
+export const SERVICE_LTS_SIGNATURE_BASE =
+  process.env.NEXT_PUBLIC_SERVICE_LTS_SIGNATURE_BASE
+  ?? "https://lts-dev-server.zealstudiojsc.com";
 export const LS_ACCESS_TOKEN = "lts_service_access_token";
 export const LS_REFRESH_TOKEN = "lts_service_refresh_token";
 /** Cache policies theo userId — JWT không chứa policies; tránh gọi GET /auth/accounts lúc login. */
@@ -925,12 +931,19 @@ export async function layChuKyReviewerService(
   token?: string,
 ): Promise<Blob> {
   const firstToken = token ?? layTokenHienTai?.()?.accessToken;
-  const path = /^https?:\/\//i.test(urlOrPath)
-    ? new URL(urlOrPath).pathname
-    : urlOrPath;
+  const target = /^https?:\/\//i.test(urlOrPath)
+    ? urlOrPath
+    : `${SERVICE_LTS_SIGNATURE_BASE}${urlOrPath}`;
+
+  const buildHeaders = (bearer?: string | null): Headers => {
+    const h = new Headers();
+    if (bearer) h.set("Authorization", `Bearer ${bearer}`);
+    return h;
+  };
+
   let res: Response;
   try {
-    res = await goiRaw(path, {}, firstToken);
+    res = await fetch(target, { method: "GET", headers: buildHeaders(firstToken) });
   } catch {
     throw new LoiServiceLts("Không kết nối được tới máy chủ.");
   }
@@ -939,7 +952,7 @@ export async function layChuKyReviewerService(
     try {
       const tokens = await lamMoiTokenTuHeThong();
       try {
-        res = await goiRaw(path, {}, tokens.accessToken);
+        res = await fetch(target, { method: "GET", headers: buildHeaders(tokens.accessToken) });
       } catch {
         throw new LoiServiceLts("Không kết nối được tới máy chủ.");
       }

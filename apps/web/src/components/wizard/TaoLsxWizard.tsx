@@ -129,6 +129,7 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
   const [manual, setManual] = useState<LSXManualFields | null>(null);
   const [source, setSource] = useState<LsxSourceData | null>(null);
   const [dangXuLy, setDangXuLy] = useState(false);
+  const [dangXemLsx, setDangXemLsx] = useState(false);
   const [toast, setToast] = useState<Toast>(null);
   const [modalSuccess, setModalSuccess] = useState<{ lsxNumber: string; quotationId: string } | null>(null);
   const [confirmCapNhat, setConfirmCapNhat] = useState(false);
@@ -354,39 +355,47 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
 
   async function handleXemPdf() {
     if (!source || !manual) return;
+    setDangXemLsx(true);
     try {
       const order = buildProductionOrderFromSource(source, {
         materials, constants, profitTable, smallWidthPrices,
         productionOrders: [],
         preparedBy: currentSellerName,
       });
-      order.manual = await themChuKyVaoManual(manual);
       if (editOrderId) order.id = editOrderId;
-      setPreviewLsxPdf({ order });
-      // Chữ ký người duyệt LSX (approver) — không dùng reviewer của báo giá.
-      const dataUrl = await layChuKyReviewerDataUrl(lsxDangSua?.order.original?.approverSignatureUrl);
-      setPreviewLsxPdf((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
+      const [manualCoChuKy, reviewerSignatureDataUrl] = await Promise.all([
+        themChuKyVaoManual(manual),
+        layChuKyReviewerDataUrl(lsxDangSua?.order.original?.approverSignatureUrl),
+      ]);
+      order.manual = manualCoChuKy;
+      setPreviewLsxPdf({ order, reviewerSignatureDataUrl });
     } catch (e) {
       setToast({ kind: 'err', msg: e instanceof Error ? e.message : 'Lỗi tạo preview' });
+    } finally {
+      setDangXemLsx(false);
     }
   }
 
   async function handleXemDocx() {
     if (!source || !manual) return;
+    setDangXemLsx(true);
     try {
       const order = buildProductionOrderFromSource(source, {
         materials, constants, profitTable, smallWidthPrices,
         productionOrders: [],
         preparedBy: currentSellerName,
       });
-      order.manual = await themChuKyVaoManual(manual);
       if (editOrderId) order.id = editOrderId;
-      setPreviewLsx({ order });
-      // Chữ ký người duyệt LSX (approver) — không dùng reviewer của báo giá.
-      const dataUrl = await layChuKyReviewerDataUrl(lsxDangSua?.order.original?.approverSignatureUrl);
-      setPreviewLsx((prev) => prev ? { ...prev, reviewerSignatureDataUrl: dataUrl } : prev);
+      const [manualCoChuKy, reviewerSignatureDataUrl] = await Promise.all([
+        themChuKyVaoManual(manual),
+        layChuKyReviewerDataUrl(lsxDangSua?.order.original?.approverSignatureUrl),
+      ]);
+      order.manual = manualCoChuKy;
+      setPreviewLsx({ order, reviewerSignatureDataUrl });
     } catch (e) {
       setToast({ kind: 'err', msg: e instanceof Error ? e.message : 'Lỗi tạo preview' });
+    } finally {
+      setDangXemLsx(false);
     }
   }
 
@@ -460,18 +469,18 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
           <button
             className="wiz-btn wiz-btn--secondary"
             onClick={handleXemPdf}
-            disabled={!coTheXem || dangXuLy}
+            disabled={!coTheXem || dangXuLy || dangXemLsx}
             title="Xem PDF"
           >
-            <FileDown size={14} /> Xem PDF
+            {dangXemLsx ? <Loader2 size={14} className="spin" /> : <FileDown size={14} />} Xem PDF
           </button>
           <button
             className="wiz-btn wiz-btn--secondary"
             onClick={handleXemDocx}
-            disabled={!coTheXem || dangXuLy}
+            disabled={!coTheXem || dangXuLy || dangXemLsx}
             title="Xem DOCX"
           >
-            <FileText size={14} /> Xem DOCX
+            {dangXemLsx ? <Loader2 size={14} className="spin" /> : <FileText size={14} />} Xem DOCX
           </button>
           {dangSua ? (
             <button
@@ -617,8 +626,8 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
       </div>
 
       <div className="quote-wizard-mobile-action">
-        <button className="wiz-btn wiz-btn--secondary" onClick={handleXemPdf} disabled={!coTheXem || dangXuLy}>
-          <FileDown size={14} /> Xem PDF
+        <button className="wiz-btn wiz-btn--secondary" onClick={handleXemPdf} disabled={!coTheXem || dangXuLy || dangXemLsx}>
+          {dangXemLsx ? <Loader2 size={14} className="spin" /> : <FileDown size={14} />} Xem PDF
         </button>
         <button
           className="wiz-btn wiz-btn--primary"
