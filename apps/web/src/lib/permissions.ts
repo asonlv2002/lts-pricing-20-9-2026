@@ -18,17 +18,10 @@ const NHOM_MENU_POLICIES: Record<string, PolicyCode[]> = {
 // Policy bắt buộc cho từng mục menu cụ thể (gate ở cấp item).
 // Lưu ý: "danh-sach-bao-gia" KHÔNG gate ở menu — admin/sale đều xem được danh sách báo giá.
 // Chức năng Duyệt/Từ chối bên trong trang vẫn gate theo QUOTATION_REVIEWER (coQuyenDuyetBaoGia).
+// Các mục cấu hình tính giá (vật tư, chi phí sản xuất, lợi nhuận, phụ phí, lãi vay,
+// CPSX nâng cao) KHÔNG gate ở menu — ai cũng XEM được; người không có
+// PRICE_CONFIG_MANAGER sẽ bị UI tự khóa (read-only) khi vào màn cấu hình.
 const MUC_MENU_POLICIES: Record<string, PolicyCode[]> = {
-  'cau-hinh-vat-tu': ['PRICE_CONFIG_MANAGER'],
-  'cau-hinh-chi-phi-sx': ['PRICE_CONFIG_MANAGER'],
-  // 'cau-hinh-chi-phi-sx-nang-cap': KHÔNG gate — ai cũng xem được, chỉ người có
-  // PRICE_CONFIG_MANAGER mới được SỬA (UI tự khóa khi không có quyền).
-  'cau-hinh-gia-cong-ngoai': ['PRICE_CONFIG_MANAGER'],
-  'cau-hinh-loi-nhuan': ['PRICE_CONFIG_MANAGER'],
-  'cau-hinh-phu-phi': ['PRICE_CONFIG_MANAGER'],
-  'cau-hinh-lai-vay': ['PRICE_CONFIG_MANAGER'],
-  'cau-hinh-dinh-muc-hao-hut': ['PRICE_CONFIG_MANAGER'],
-  'cau-hinh-cong-thuc': ['PRICE_CONFIG_MANAGER'],
   'tai-nguyen-he-thong': ['SYSTEM_MONITOR'],
 };
 

@@ -101,7 +101,6 @@ import {
   TrendingUp,
   PackageCheck,
   Settings2,
-  Wrench,
   Percent,
   Coins,
   UserPlus,
@@ -347,12 +346,6 @@ const CAC_NHOM_MENU: NhomMenu[] = [
         vaiTros: [],
       },
       {
-        key: "cau-hinh-gia-cong-ngoai",
-        id: "master_data",
-        label: "Chi phí gia công ngoài",
-        vaiTros: [],
-      },
-      {
         key: "cau-hinh-loi-nhuan",
         id: "master_data",
         label: "Biên lợi nhuận",
@@ -435,17 +428,6 @@ const MENU_KEYS_OVERVIEW = new Set([
   "tong-quan-san-pham-gan-day",
   "tong-quan-doanh-thu-du-kien",
   "tong-quan-hoat-dong-gan-day",
-]);
-
-/** Menu key cấu hình tính giá — slug VN, không còn prefix `config.`. */
-const MENU_KEYS_CONFIG = new Set([
-  "cau-hinh-vat-tu",
-  "cau-hinh-chi-phi-sx",
-  "cau-hinh-chi-phi-sx-nang-cap",
-  "cau-hinh-gia-cong-ngoai",
-  "cau-hinh-loi-nhuan",
-  "cau-hinh-phu-phi",
-  "cau-hinh-lai-vay",
 ]);
 
 const MOBILE_HUB_PREFIX = "mobile.hub.";
@@ -722,17 +704,6 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         action: {
           type: "module",
           key: "cau-hinh-chi-phi-sx-nang-cap",
-          module: "master_data",
-        },
-      },
-      {
-        title: "Chi phí gia công ngoài",
-        subtitle: "Quản lý đơn giá thuê ngoài.",
-        tone: "sky",
-        icon: <Wrench size={30} />,
-        action: {
-          type: "module",
-          key: "cau-hinh-gia-cong-ngoai",
           module: "master_data",
         },
       },
@@ -1803,28 +1774,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       datVaiTroStore(vaiTroTuPolicies(policies));
     }
   }, [isAuthenticated, nguoiDung?.id, policies.join("|")]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Rời màn cấu hình nếu user không còn PRICE_CONFIG_MANAGER (login user khác / revoke / restore).
-  // Riêng "cau-hinh-chi-phi-sx-nang-cap" mở cho mọi người XEM kết quả (chỉ có quyền mới sửa).
-  useEffect(() => {
-    if (!isAuthenticated || !sessionChecked) return;
-
-    const coQuyenConfig = policies.includes("PRICE_CONFIG_MANAGER");
-    const dangOConfig =
-      (moduleDangMo === "master_data" || MENU_KEYS_CONFIG.has(menuDangChon)) &&
-      menuDangChon !== "cau-hinh-chi-phi-sx-nang-cap";
-
-    if (!coQuyenConfig && dangOConfig) {
-      dieuHuongMenu("tao-tinh-gia", "replace");
-    }
-  }, [
-    isAuthenticated,
-    sessionChecked,
-    policies,
-    moduleDangMo,
-    menuDangChon,
-    dieuHuongMenu,
-  ]);
 
   // Detect mobile on mount and resize
   useEffect(() => {

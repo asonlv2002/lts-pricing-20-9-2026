@@ -2415,6 +2415,48 @@ body {
   pointer-events: auto !important;
   cursor: pointer !important;
 }
+/* Read-only khi KHÔNG có quyền PRICE_CONFIG_MANAGER: khóa nhập nhưng chừa
+   CPSX nâng cao — CpsxNangCapTrang tự khóa theo CPSX_UPGRADE_EDIT_*. */
+.config-page--semi-readonly
+  .config-content
+  .card.config-card:not(.config-version-card):not(.config-cpsx-upgrade-card):not(.config-cpsx-upgrade-readonly__card) {
+  opacity: 0.72;
+  user-select: none;
+}
+.config-page--semi-readonly
+  .config-content
+  .card.config-card:not(.config-version-card):not(.config-cpsx-upgrade-card):not(.config-cpsx-upgrade-readonly__card)
+  :is(input, select, textarea, [contenteditable="true"]) {
+  pointer-events: none !important;
+  cursor: default;
+}
+.config-page--semi-readonly
+  .config-content
+  .card.config-card:not(.config-version-card):not(.config-cpsx-upgrade-card):not(.config-cpsx-upgrade-readonly__card)
+  button {
+  pointer-events: none;
+  cursor: default;
+}
+.config-page--semi-readonly
+  .config-content
+  .card.config-card:not(.config-version-card):not(.config-cpsx-upgrade-card):not(.config-cpsx-upgrade-readonly__card)
+  :is(
+    button.config-accordion__header,
+    button[aria-expanded],
+    .config-section-title.collapsible,
+    .card-title.collapsible,
+    .config-version-title.collapsible
+  ) {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  user-select: none;
+}
+.config-page--semi-readonly
+  .config-content
+  .config-accordion__header {
+  pointer-events: auto !important;
+  cursor: pointer !important;
+}
 .config-version-exit-view {
   display: flex;
   align-items: center;

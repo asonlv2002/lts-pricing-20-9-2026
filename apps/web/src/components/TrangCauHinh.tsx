@@ -533,6 +533,15 @@ export default function TrangCauHinh({
   const hienPhuPhi = nhomCauHinh === "surcharges";
   const hienLaiVay = nhomCauHinh === "interest";
   const hienCongThuc = nhomCauHinh === "formulas";
+  // Không có quyền PRICE_CONFIG_MANAGER → chỉ xem, khóa toàn bộ nhập liệu.
+  const chiDoc = !(nguoiDungHienTai?.policies ?? []).includes(
+    "PRICE_CONFIG_MANAGER",
+  );
+  const lopReadonly = dangXemPhienBan
+    ? " config-page--readonly"
+    : chiDoc
+      ? " config-page--semi-readonly"
+      : "";
   // anCotCPSX: ẩn cột CPSX khi chỉ xem hao hụt riêng lẻ
   // anCotPhiHao: không dùng nữa (CPSX luôn hiện cả hai cột)
   const anCotCPSX = hienHaoHut && !hienSanXuat && !hienCongThuc;
@@ -1430,7 +1439,7 @@ export default function TrangCauHinh({
     luuBangLoiNhuanTre();
   };
   return (
-    <div className={`config-page${dangXemPhienBan ? ' config-page--readonly' : ''}`} id="configPage" style={{ display: "block" }}>
+    <div className={`config-page${lopReadonly}`} id="configPage" style={{ display: "block" }}>
       <div className="config-page-inner">
         <div className="config-content">
           {hienCpsxNangCap && (() => {
@@ -1452,7 +1461,7 @@ export default function TrangCauHinh({
           })()}
           {hienVatTu && (
             <>
-              <KhoiPhienBan scope="materials" />
+              {!chiDoc && <KhoiPhienBan scope="materials" />}
               {/* 1. B?ng gi? nvl */}
               <div
                 className="card config-card"
@@ -1845,11 +1854,11 @@ export default function TrangCauHinh({
             </>
           )}
           {/* NHOM 1: CHI PHI KHAU IN */}
-          {hienSanXuat && <KhoiPhienBan scope="production" />}
-          {hienHaoHut && <KhoiPhienBan scope="waste" />}
-          {hienPhuPhi && <KhoiPhienBan scope="surcharges" />}
-          {hienCongThuc && <KhoiPhienBan scope="production" />}
-          {hienCongThuc && <KhoiPhienBan scope="waste" />}
+          {hienSanXuat && !chiDoc && <KhoiPhienBan scope="production" />}
+          {hienHaoHut && !chiDoc && <KhoiPhienBan scope="waste" />}
+          {hienPhuPhi && !chiDoc && <KhoiPhienBan scope="surcharges" />}
+          {hienCongThuc && !chiDoc && <KhoiPhienBan scope="production" />}
+          {hienCongThuc && !chiDoc && <KhoiPhienBan scope="waste" />}
           {(hienSanXuat || hienHaoHut || hienCongThuc) && (
             <div
               className="config-group-header"
@@ -2921,7 +2930,7 @@ export default function TrangCauHinh({
               </p>
             </div>
           )}
-          {hienLaiVay && <KhoiPhienBan scope="interest" />}
+          {hienLaiVay && !chiDoc && <KhoiPhienBan scope="interest" />}
           {hienLaiVay && (
             <div className="card config-card config-interest-card">
               <div className="config-section-title">
@@ -4830,7 +4839,7 @@ export default function TrangCauHinh({
               )}
             </div>
           )}
-          {hienLoiNhuan && <KhoiPhienBan scope="profit" />}
+          {hienLoiNhuan && !chiDoc && <KhoiPhienBan scope="profit" />}
           {/* NHOM 4: BANG LOI NHUAN */}
           {hienLoiNhuan && (
             <div
