@@ -1291,7 +1291,7 @@ const buttonLabel = loadedItem
       input: { ...input, isNangCap: true },
       sellerName: loaded?.sellerName,
     };
-    exportPricingDetailToA4(item, materials, hangSoNc, bangLoiNhuan, st.cpsxNangCapPolicies);
+    exportPricingDetailToA4(item, materials, hangSoNc, bangLoiNhuan, st.cpsxNangCapPolicies, coQuyenCoVanBangTinh(st.nguoiDungHienTai?.policies ?? []));
   };
 
   // Quyền sửa tab nâng cao — giống bảng ghi đè cũ (advisor ↔ admin/sale)

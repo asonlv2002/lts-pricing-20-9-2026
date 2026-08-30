@@ -13,6 +13,7 @@ import { dieuHuongMenuApp } from '../lib/menu-route';
 import { QrevStyleInjector } from './qrev-styles';
 import { xoaPricingSheetService } from '../lib/api/service-lts';
 import { exportPricingDetailToA4 } from '../lib/pricing-detail-export';
+import { coQuyenCoVanBangTinh } from '../lib/permissions';
 import NutSaoChepLienKet from './NutSaoChepLienKet';
 import type { HistoryItem } from '../lib/types';
 import { dinhDangNgayTaoLichSu, msSapXepLichSu } from '../lib/history-datetime';
@@ -61,7 +62,7 @@ export default function ModuleDanhSachTinhGia({
 }: {
   khiDieuHuong?: (module: 'calculator' | 'quotations') => void;
 }) {
-  const { history: lichSu, loadHistoryItem: taiLichSu, taiLichSuTuServer, removeHistoryItem: xoaLichSu, accessToken, materials, constants, profitTable, cpsxNangCapPolicies } = dungCuaHangTinhGia();
+  const { history: lichSu, loadHistoryItem: taiLichSu, taiLichSuTuServer, removeHistoryItem: xoaLichSu, accessToken, materials, constants, profitTable, cpsxNangCapPolicies, nguoiDungHienTai } = dungCuaHangTinhGia();
 
   const [tuKhoa, datTuKhoa] = useState('');
   const [boLoc, datBoLoc] = useState<BoLocTinhGia>('all');
@@ -147,7 +148,7 @@ export default function ModuleDanhSachTinhGia({
   };
 
   const moXemA4 = (h: HistoryItem) => {
-    exportPricingDetailToA4(h, materials, constants, profitTable, cpsxNangCapPolicies);
+    exportPricingDetailToA4(h, materials, constants, profitTable, cpsxNangCapPolicies, coQuyenCoVanBangTinh(nguoiDungHienTai?.policies ?? []));
   };
 
   const xuLyXoa = async (id: string) => {

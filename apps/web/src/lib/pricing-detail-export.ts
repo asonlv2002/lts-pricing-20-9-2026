@@ -528,8 +528,9 @@ function xuatBangDacTaNangCao(params: {
   activeOv: OverrideTable;
   nhanNguon: string;
   cot: CotBang2Cpsx;
+  coQuyenCoVan: boolean;
 }): string {
-  const { r0, uniRows, hangSo, materials, sourceOv, activeOv, nhanNguon, cot } = params;
+  const { r0, uniRows, hangSo, materials, sourceOv, activeOv, nhanNguon, cot, coQuyenCoVan } = params;
   const hasAnyOv = ovCoData(activeOv);
   const dongXuLy = chuanBiUniRowsNangCao({
     uniRows,
@@ -547,7 +548,7 @@ function xuatBangDacTaNangCao(params: {
   );
   const dongNCD = lapDongNhanCongDien(r0, hangSo, hasAnyOv ? activeOv : undefined);
   const tong = tinhTongNangCao(dongVL, dongNCD);
-  return buildDacTaNangCaoHtml(dongVL, dongNCD, tong, nhanNguon, cot);
+  return buildDacTaNangCaoHtml(dongVL, dongNCD, tong, nhanNguon, cot, coQuyenCoVan);
 }
 
 function dinhDangOMet(n: number | null | undefined, label?: string, soLe = 0): string {
@@ -562,6 +563,7 @@ function buildDacTaNangCaoHtml(
   tong: { tongVatLieu: number; tongNhanCongDien: number; tongGiaThanh: number },
   nhanNguon: string,
   cot: CotBang2Cpsx,
+  coQuyenCoVan: boolean,
 ): string {
   let t1 = '';
   for (const row of dongVL) {
@@ -603,7 +605,7 @@ function buildDacTaNangCaoHtml(
     + (cot.coDien ? `<td></td><td>${dinhDangSo(tongDien)}</td>` : '')
     + `</tr>`;
 
-  const hienBang2 = cot.coLuong || cot.coDien;
+  const hienBang2 = coQuyenCoVan && (cot.coLuong || cot.coDien);
   const bang2Html = hienBang2 ? `
       <div class="table-wrap-nc">
       <table class="table-nc table-nc-ncd" style="margin-top:12px">
@@ -718,6 +720,7 @@ function exportPricingDetailNangCaoToA4(
   constants: AppConstants,
   profitTable: ProfitRow[],
   cot: CotBang2Cpsx,
+  coQuyenCoVan: boolean,
 ): void {
   const hangSo = apCpsxNangCaoVaoHangSo(constants, item.pinnedCpsxNangCao);
   const r0 = tinhBaoGia(item.input, materials, hangSo, profitTable);
@@ -757,21 +760,21 @@ function exportPricingDetailNangCaoToA4(
   // Luôn có BẢN GỐC — cho đối chiếu khi có ghi đè Admin/Sale.
   pagesHtml += `<div class="page page--nc">
     <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName} (BẢN GỐC)</div>
-    ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: {}, activeOv: {}, nhanNguon: 'BẢN GỐC', cot })}
+    ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: {}, activeOv: {}, nhanNguon: 'BẢN GỐC', cot, coQuyenCoVan })}
   </div>`;
 
   // Từng bảng thay đổi (giống bản cũ): Sale, rồi Admin chồng trên Sale — chỉ khi có dữ liệu.
   if (ovCoData(saleOv)) {
     pagesHtml += `<div class="page page--nc">
       <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName} (SAU THAY ĐỔI SALE)</div>
-      ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: {}, activeOv: saleOv, nhanNguon: '💼 Theo bảng Sale', cot })}
+      ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: {}, activeOv: saleOv, nhanNguon: '💼 Theo bảng Sale', cot, coQuyenCoVan })}
     </div>`;
   }
 
   if (ovCoData(adminOv)) {
     pagesHtml += `<div class="page page--nc">
       <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName} (SAU THAY ĐỔI ADMIN)</div>
-      ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: saleOv, activeOv: adminOv, nhanNguon: '👑 Theo bảng Admin', cot })}
+      ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: saleOv, activeOv: adminOv, nhanNguon: '👑 Theo bảng Admin', cot, coQuyenCoVan })}
     </div>`;
   }
 
@@ -789,12 +792,13 @@ export function exportPricingDetailToA4(
   constants: AppConstants,
   profitTable: ProfitRow[],
   cpsxPolicies?: PolicyCode[],
+  coQuyenCoVan?: boolean,
 ): void {
   if (item.isNangCap || item.input?.isNangCap) {
     const cot = cpsxPolicies
       ? cotBang2TheoQuyen(cpsxPolicies)
       : { coDien: true, coLuong: true, coThoiGian: true };
-    exportPricingDetailNangCaoToA4(item, materials, constants, profitTable, cot);
+    exportPricingDetailNangCaoToA4(item, materials, constants, profitTable, cot, coQuyenCoVan !== false);
     return;
   }
 
