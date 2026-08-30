@@ -9,7 +9,6 @@ import React, {
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { dungCuaHangTinhGia } from "../../store/CuaHangTinhGia";
-import { getPricingDisplayMeta } from "../../lib/pricing-display";
 import { normalizeDisplayText } from "../../lib/text-codec";
 import DangNhapModal from "../auth/DangNhapModal";
 import BatBuocDatPin from "../auth/BatBuocDatPin";
@@ -1518,19 +1517,16 @@ function MobileBottomTabs({
 // ============================================================
 interface DauTrangTrenProps {
   moduleDangMo: MaModule;
-  onExport: () => void;
   onMenuToggle: () => void;
   laMobile: boolean;
 }
 
 function DauTrangTren({
   moduleDangMo,
-  onExport,
   onMenuToggle,
   laMobile,
 }: DauTrangTrenProps) {
   const {
-    result: ketQua,
     isDirty: dangBan,
     resetInput: datLaiDauVao,
     setPricingEntry: datPricingEntry,
@@ -1600,14 +1596,6 @@ function DauTrangTren({
             </button>
           )}
         </div>
-
-        <div className="lts-topbar-actions">
-          {ketQua && !laMobile && (
-            <button className="btn btn-sm btn-outline" onClick={onExport}>
-              📥 Xuất
-            </button>
-          )}
-        </div>
       </header>
     </>
   );
@@ -1644,7 +1632,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const vaiTroHienTai = dungCuaHangTinhGia((s) => s.role);
 
   const {
-    result: ketQua,
     activeModule: moduleDangMo,
     setActiveModule: datModuleDangMo,
     setCurrentSeller: datNhanVienHienTai,
@@ -2114,58 +2101,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return <DangNhapModal />;
   }
 
-  // Export handler
-  const xuLyXuat = () => {
-    if (!ketQua) return;
-    const kq = ketQua;
-    const dinhDangSo = (n: number, d = 1) =>
-      n.toLocaleString("vi-VN", { maximumFractionDigits: d });
-    const dinhDangPhanTram = (n: number) =>
-      parseFloat((n * 100).toFixed(2)) + "%";
-    const hienThiGia = getPricingDisplayMeta(kq.input);
-    const noiDung = [
-      hienThiGia.exportTitle,
-      "═".repeat(50),
-      `Ngày: ${new Date().toLocaleDateString("vi-VN")}`,
-      `Khách hàng: ${kq.input.customer || "N/A"}`,
-      `Sản phẩm: ${kq.input.productName || "N/A"}`,
-      `Cấu trúc: ${kq.structureText}`,
-      `Số lượng: ${kq.input.quantity.toLocaleString("vi-VN")} ${hienThiGia.quantityUnit}`,
-      `Kích thước: ${+(kq.input.spreadWidth * 1000).toFixed(0)} × ${+(kq.input.cutStep * 1000).toFixed(0)} mm²`,
-      `Độ dày: ${kq.totalThickness} mic`,
-      hienThiGia.isFilm
-        ? ""
-        : `Trọng lượng: ${dinhDangSo(kq.tareWeight, 2)} gr/cái`,
-      "",
-      hienThiGia.detailTitle,
-      "─".repeat(40),
-      `Giá vốn + LN:  ${dinhDangSo(kq.costPerUnit)} đ`,
-      `Zipper:        ${dinhDangSo(kq.zipperPerUnit)} đ`,
-      `Thùng giấy:    ${dinhDangSo(kq.boxPerUnit)} đ`,
-      `${hienThiGia.shippingLabel}:    ${hienThiGia.isPrintFilm ? `${dinhDangSo(kq.shippingTotal, 0)} đ · ${dinhDangSo(kq.shippingPerUnit)} đ/${hienThiGia.unit}` : `${dinhDangSo(kq.shippingPerUnit)} đ`}`,
-      `${hienThiGia.interestLabel(kq.interestBase || 0, kq.paymentDays)}:       ${dinhDangSo(kq.interestPerUnit)} đ${hienThiGia.isPrintFilm ? `/${hienThiGia.unit}` : ""}`,
-      `Hoa hồng:      ${dinhDangSo(kq.commissionPerUnit)} đ`,
-      "─".repeat(40),
-      `GIÁ ĐỀ XUẤT:  ${Math.round(kq.finalPrice).toLocaleString("vi-VN")} đ/${hienThiGia.unit} (chưa VAT)`,
-      "",
-      `Tỉ lệ LN: ${dinhDangPhanTram(kq.profitRate)}`,
-      `Doanh thu: ${kq.revenue.toLocaleString("vi-VN")} đ`,
-      `Giá trục in: ${kq.cylinderCost.toLocaleString("vi-VN")} đ (riêng)`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    const tepBlob = new Blob(["\ufeff" + noiDung], {
-      type: "text/plain;charset=utf-8",
-    });
-    const duongDan = URL.createObjectURL(tepBlob);
-    const theTai = document.createElement("a");
-    theTai.href = duongDan;
-    theTai.download = `BaoGia_${kq.input.customer || "N_A"}_${new Date().toISOString().slice(0, 10)}.txt`;
-    theTai.click();
-    URL.revokeObjectURL(duongDan);
-  };
-
   const moLandingTaoBangTinh = () => {
     resetInput();
     dungCuaHangTinhGia.getState().setPricingEntry("pick");
@@ -2330,7 +2265,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         {!laMobile && moduleDangMo !== "quotations" && (
           <DauTrangTren
             moduleDangMo={moduleDangMo}
-            onExport={xuLyXuat}
             onMenuToggle={() => datThanhBenDangMo((v) => !v)}
             laMobile={laMobile}
           />
