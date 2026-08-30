@@ -40,6 +40,10 @@ import {
   tokenCanLamMoiNgay,
 } from "../../lib/auth-session";
 import {
+  xuLyLoiChunk,
+  xoaDanhDauLoiChunk,
+} from "../../lib/chunk-error";
+import {
   dongBoUrlDeepLinkClear,
   laLoiDeepLink,
   tieuDeDeepLinkLoi,
@@ -253,15 +257,9 @@ const CAC_NHOM_MENU: NhomMenu[] = [
     vaiTros: ["admin", "sale"],
     mucCon: [
       {
-        key: "tao-tinh-gia",
-        id: "calculator",
-        label: "Tạo bảng tính giá",
-        vaiTros: ["admin", "sale"],
-      },
-      {
         key: "tao-tinh-gia-nang-cap",
         id: "calculator",
-        label: "Tạo bảng tính giá (nâng cấp)",
+        label: "Tạo bảng tính giá",
         vaiTros: ["admin", "sale"],
       },
       {
@@ -591,17 +589,6 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
     cards: [
       {
         title: "Tạo bảng tính giá",
-        subtitle: "Tạo mới bảng tính giá nhanh chóng.",
-        tone: "violet",
-        icon: <FileText size={30} />,
-        action: {
-          type: "module",
-          key: "tao-tinh-gia",
-          module: "calculator",
-        },
-      },
-      {
-        title: "Tạo bảng tính giá (nâng cấp)",
         subtitle: "Tính giá theo bảng đặc tả kỹ thuật nâng cao.",
         tone: "violet",
         icon: <FileText size={30} />,
@@ -1669,6 +1656,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   const [hienDoiPin, datHienDoiPin] = useState(false);
   const [hienDoiChuKy, datHienDoiChuKy] = useState(false);
   const [daKhoiTaoHubMobile, datDaKhoiTaoHubMobile] = useState(false);
+  const [hienBannerChunkMoi, datHienBannerChunkMoi] = useState(false);
   const router = useRouter();
 
   const nguoiDung = dungCuaHangTinhGia((s) => s.nguoiDungHienTai);
@@ -1852,24 +1840,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     return () => window.removeEventListener("resize", kiemTraMobile);
   }, []);
 
+  // Lỗi tải chunk (sau khi deploy bản mới / mạng giật): không reload trang ngầm
+  // (sẽ phá dữ liệu đang soạn) — thay bằng banner mềm 1 lần/session.
   useEffect(() => {
-    const key = "__lts_chunk_reload_once__";
-    const xuLyLoiChunk = (error: unknown) => {
-      const msg = error instanceof Error ? error.message : String(error ?? "");
-      const laLoiChunk =
-        /ChunkLoadError|Loading chunk [\d]+ failed|Failed to fetch dynamically imported module/i.test(
-          msg,
-        );
-      if (!laLoiChunk) return;
-      if (window.sessionStorage.getItem(key) === "1") return;
-      window.sessionStorage.setItem(key, "1");
-      window.location.reload();
+    const xuLyLoiChunkToanCuc = (error: unknown) => {
+      if (xuLyLoiChunk(error, window.sessionStorage) === "hien-banner") {
+        datHienBannerChunkMoi(true);
+      }
     };
 
     const onError = (event: ErrorEvent) =>
-      xuLyLoiChunk(event.error ?? event.message);
+      xuLyLoiChunkToanCuc(event.error ?? event.message);
     const onUnhandled = (event: PromiseRejectionEvent) =>
-      xuLyLoiChunk(event.reason);
+      xuLyLoiChunkToanCuc(event.reason);
 
     window.addEventListener("error", onError);
     window.addEventListener("unhandledrejection", onUnhandled);
@@ -1881,7 +1864,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    window.sessionStorage.removeItem("__lts_chunk_reload_once__");
+    xoaDanhDauLoiChunk(window.sessionStorage);
   }, [isAuthenticated]);
 
   useEffect(() => {
@@ -2352,6 +2335,30 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className={`lts-shell ${laMobile ? "lts-shell--mobile" : ""}`}>
       {/* Toast trượt từ phải — dùng chung mọi module (copy URL, v.v.) */}
       <div className="toast-container" id="toastContainer" />
+      {hienBannerChunkMoi && (
+        <div className="lts-chunk-banner" role="status" aria-live="polite">
+          <span>
+            Có phiên bản mới của phần mềm. Bạn có thể tiếp tục làm việc — dữ
+            liệu bảng báo giá vẫn được lưu nháp tự động.
+          </span>
+          <div className="lts-chunk-banner-actions">
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={() => window.location.reload()}
+            >
+              Tải lại trang
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm btn-outline"
+              onClick={() => datHienBannerChunkMoi(false)}
+            >
+              Đóng
+            </button>
+          </div>
+        </div>
+      )}
       {!laMobile && (
         <ThanhBen
           moduleDangMo={moduleDangMo}

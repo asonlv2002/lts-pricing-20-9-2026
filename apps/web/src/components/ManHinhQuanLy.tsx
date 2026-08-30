@@ -1351,6 +1351,14 @@ const buttonLabel = loadedItem
   const tienLoiNhuanHieuLuc = laSheetDaLuu
     ? (loadedItem!.profitAmount ?? rHieuLuc.profitAmount)
     : rHieuLuc.profitAmount;
+  // LN hệ thống — thẻ LN trên cùng không bị ảnh hưởng bởi Sale/Admin
+  // (dùng engine gốc `r` theo bảng LN, không hút % ghi đè Sale/Admin)
+  const tyLeLoiNhuanGoc = laSheetDaLuu
+    ? (loadedItem!.profitRate ?? r.profitRate)
+    : r.profitRate;
+  const tienLoiNhuanGoc = laSheetDaLuu
+    ? (loadedItem!.profitAmount ?? r.profitAmount)
+    : r.profitAmount;
   const giaVonDonViHieuLuc = rHieuLuc.costPerUnit;
 
   // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
@@ -1993,7 +2001,7 @@ const buttonLabel = loadedItem
               <div className="stat-card green" style={{position: 'relative'}}>
                 <div className="stat-label">{hienThiGia.profitLabel}</div>
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
-                  {dinhDangSo(tienLoiNhuanHieuLuc)}đ <span style={{fontSize: '0.85rem'}}>({dinhDangPhanTram(tyLeLoiNhuanHieuLuc)})</span>
+                  {dinhDangSo(tienLoiNhuanGoc)}đ <span style={{fontSize: '0.85rem'}}>({dinhDangPhanTram(tyLeLoiNhuanGoc)})</span>
                   {laSheetDaLuu && (
                     <span
                       className="profit-snapshot-badge"

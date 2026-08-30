@@ -86,6 +86,12 @@ import {
 import { boSoCauTruc, buildStructureFromLayers } from "../lib/format-structure";
 import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
 import { WIZARD_STYLES } from "./wizard/wizard-styles";
+import {
+  coNhapBaoGia,
+  docNhapBaoGia,
+  luuNhapBaoGia,
+  xoaNhapBaoGia,
+} from "../lib/bao-gia-draft";
 
 // ── Công đoạn sản xuất (dropdown ghi chú / mô tả khác) ──────────────────────
 const STAGE_OPTIONS: { value: 'in' | 'ghep' | 'chia' | 'lam-tui'; label: string }[] = [
@@ -3663,6 +3669,11 @@ function TaoBaoGiaWizard({
   const pendingModuleRef = useRef<string | null>(null);
   const hasDataRef = useRef(false);
   const exitingRef = useRef(false);
+  // ── Autosave nháp bảng báo giá ──────────────────────────────────────────────
+  // prefillApplied: user chủ động tạo từ lịch sử/bảng tính → không ghi đè bằng nháp cũ.
+  const prefillApplied = useRef(false);
+  const [daKhoiPhucNhap, setDaKhoiPhucNhap] = useState(false);
+  const [savedAtNhap, setSavedAtNhap] = useState(0);
 
   const hasData = !!(state.customer || state.products.length > 0);
   useEffect(() => {
@@ -3675,6 +3686,7 @@ function TaoBaoGiaWizard({
   useEffect(() => {
     const prefill = readQuotePrefillFromHistory();
     if (!prefill) return;
+    prefillApplied.current = true;
     let prefillProducts: WizardProduct[];
     if (prefill.quoteProducts && prefill.quoteProducts.length > 0) {
       prefillProducts = prefill.quoteProducts.map((qp) =>
@@ -3878,6 +3890,55 @@ function TaoBaoGiaWizard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dangSua]);
 
+  // ── Autosave nháp bảng báo giá (kháng reload/đóng tab đột ngột) ──────────────
+  // Debounce lưu state xuống localStorage; không áp dụng khi đang sửa bản cũ.
+  const boDemNhapRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const daLuuThanhCongRef = useRef(false);
+  useEffect(() => {
+    if (dangSua) return;
+    if (boDemNhapRef.current) clearTimeout(boDemNhapRef.current);
+    const coDuLieu = !!(state.customer || state.products.length > 0);
+    if (!coDuLieu) return;
+    boDemNhapRef.current = setTimeout(() => {
+      daLuuThanhCongRef.current = false;
+      luuNhapBaoGia(window.localStorage, state);
+    }, 500);
+    return () => {
+      if (boDemNhapRef.current) clearTimeout(boDemNhapRef.current);
+    };
+  }, [state, dangSua]);
+
+  // Khôi phục nháp khi mở wizard TẠO MỚI (chưa có prefill từ lịch sử, chưa có snapshot).
+  const daXetNhapKhiMoRef = useRef(false);
+  useEffect(() => {
+    if (dangSua || daXetNhapKhiMoRef.current) return;
+    if (prefillApplied.current || daKhoiPhucSnapshot.current) return;
+    daXetNhapKhiMoRef.current = true;
+    const draft = docNhapBaoGia<WizardState>(window.localStorage);
+    if (!draft) return;
+    const h = draft.state;
+    if (!(h.customer || h.products?.length > 0)) return;
+    setState((prev) => ({
+      customer: h.customer ?? prev.customer,
+      products: h.products ?? prev.products,
+      terms: h.terms ?? prev.terms,
+    }));
+    setSavedAtNhap(draft.savedAt);
+    setDaKhoiPhucNhap(true);
+  }, [dangSua]);
+
+  // Cảnh báo trước khi reload/đóng tab còn bảng báo giá đang soạn (nháp chưa đồng bộ lên máy chủ).
+  useEffect(() => {
+    const canhBao = (e: BeforeUnloadEvent) => {
+      if (dangSua || daLuuThanhCongRef.current || !hasDataRef.current) return;
+      luuNhapBaoGia(window.localStorage, state);
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", canhBao);
+    return () => window.removeEventListener("beforeunload", canhBao);
+  }, [state, dangSua]);
+
   // Chặn chuyển tab khi wizard đang có data chưa lưu
   useEffect(() => {
     const unsub = (dungCuaHangTinhGia as any).subscribe(
@@ -3912,6 +3973,9 @@ function TaoBaoGiaWizard({
   const handleCreateNew = () => {
     setConfirmCreateNew(false);
     (dungCuaHangTinhGia as any).getState().datQuoteWizardSnapshot(null);
+    daLuuThanhCongRef.current = false;
+    xoaNhapBaoGia(window.localStorage);
+    setDaKhoiPhucNhap(false);
     setState({
       customer: null,
       products: [],
@@ -4267,6 +4331,10 @@ function TaoBaoGiaWizard({
 
         datBaoGiaDangSua(null);
         (dungCuaHangTinhGia as any).getState().datQuoteWizardSnapshot(null);
+        // Lưu thành công — xóa nháp, không cần cảnh báo trước khi đóng nữa.
+        daLuuThanhCongRef.current = true;
+        xoaNhapBaoGia(window.localStorage);
+        setDaKhoiPhucNhap(false);
         onClose();
         onSavedNavigate?.();
       } catch (error) {
@@ -4462,6 +4530,20 @@ function TaoBaoGiaWizard({
         </div>
         <button className="wiz-btn wiz-btn--ghost" onClick={onClose} style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
           <ArrowLeft size={14} /> Danh sách báo giá
+        </button>
+      </div>
+      )}
+
+      {daKhoiPhucNhap && !dangSua && (
+      <div role="status" style={{ padding: '10px 24px', borderBottom: '1px solid rgba(245, 158, 11, 0.4)', background: 'var(--surface, #fff8e1)', display: 'flex', alignItems: 'center', gap: 12, fontSize: '0.82rem', color: '#78350f' }}>
+        <AlertTriangle size={15} style={{ flexShrink: 0 }} />
+        <div style={{ flex: 1 }}>
+          Đã phục hồi bản nháp bảng báo giá{' '}
+          {savedAtNhap ? `(${new Date(savedAtNhap).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})` : ''}.
+          Bạn có thể tiếp tục chỉnh sửa hoặc bấm <strong>Tạo mới</strong> để bỏ nháp.
+        </div>
+        <button type="button" className="wiz-btn wiz-btn--ghost" onClick={() => setDaKhoiPhucNhap(false)}>
+          Ẩn
         </button>
       </div>
       )}

@@ -13,6 +13,7 @@ import { lapDongSanXuat } from '../lib/manager-calculation';
 import { tinhKetQuaNangCaoHieuLuc } from '../lib/dac-ta-nang-cao';
 import { timMucLichSuTheoId } from '../lib/history-identity';
 import { apCpsxNangCaoVaoHangSo } from '../lib/cpsx-nang-cao-pin';
+import { taiTruocThuVienNang } from '../lib/preload-heavy';
 
 // ── Format helper ─────────────────────────────────────────────────────────────
 function dinhDangSo(n: number, soLe = 0): string {
@@ -372,6 +373,13 @@ export default function TrangChinh() {
       }
       dungCuaHangTinhGia.setState({ dangTaiCauHinhMoiNhat: false });
     })();
+  }, []);
+
+  // ── Preload thư viện nặng (pdf/docx) ngay khi vào app ───────────────────────
+  // Tải sẵn để thao tác Xem trước / Xuất sau này không phải import "đúng lúc" —
+  // giảm nguy cơ lỗi tải chunk khi vừa deploy bản mới.
+  useEffect(() => {
+    void taiTruocThuVienNang();
   }, []);
 
   // ── Tải lịch sử + cấu hình mới nhất khi đăng nhập thành công ───────────────
