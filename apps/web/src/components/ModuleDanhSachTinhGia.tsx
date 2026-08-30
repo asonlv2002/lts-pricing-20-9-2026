@@ -61,7 +61,7 @@ export default function ModuleDanhSachTinhGia({
 }: {
   khiDieuHuong?: (module: 'calculator' | 'quotations') => void;
 }) {
-  const { history: lichSu, loadHistoryItem: taiLichSu, taiLichSuTuServer, removeHistoryItem: xoaLichSu, accessToken, materials, constants, profitTable } = dungCuaHangTinhGia();
+  const { history: lichSu, loadHistoryItem: taiLichSu, taiLichSuTuServer, removeHistoryItem: xoaLichSu, accessToken, materials, constants, profitTable, cpsxNangCapPolicies } = dungCuaHangTinhGia();
 
   const [tuKhoa, datTuKhoa] = useState('');
   const [boLoc, datBoLoc] = useState<BoLocTinhGia>('all');
@@ -147,7 +147,7 @@ export default function ModuleDanhSachTinhGia({
   };
 
   const moXemA4 = (h: HistoryItem) => {
-    exportPricingDetailToA4(h, materials, constants, profitTable);
+    exportPricingDetailToA4(h, materials, constants, profitTable, cpsxNangCapPolicies);
   };
 
   const xuLyXoa = async (id: string) => {

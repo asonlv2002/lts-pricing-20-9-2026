@@ -14,6 +14,8 @@ import { apCpsxNangCaoVaoHangSo } from './cpsx-nang-cao-pin';
 import { countOverrideChanges } from './override-display';
 import { getPricingDisplayMeta, isPrintFilm } from './pricing-display';
 import { tinhNhapPhanBoChotGia } from './chot-gia-allocation';
+import { cotBang2TheoQuyen, type CotBang2Cpsx } from './permissions';
+import type { PolicyCode } from './api/service-lts';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
 function dinhDangSo(n: number, d = 0): string {
@@ -525,8 +527,9 @@ function xuatBangDacTaNangCao(params: {
   sourceOv: OverrideTable;
   activeOv: OverrideTable;
   nhanNguon: string;
+  cot: CotBang2Cpsx;
 }): string {
-  const { r0, uniRows, hangSo, materials, sourceOv, activeOv, nhanNguon } = params;
+  const { r0, uniRows, hangSo, materials, sourceOv, activeOv, nhanNguon, cot } = params;
   const hasAnyOv = ovCoData(activeOv);
   const dongXuLy = chuanBiUniRowsNangCao({
     uniRows,
@@ -544,7 +547,7 @@ function xuatBangDacTaNangCao(params: {
   );
   const dongNCD = lapDongNhanCongDien(r0, hangSo, hasAnyOv ? activeOv : undefined);
   const tong = tinhTongNangCao(dongVL, dongNCD);
-  return buildDacTaNangCaoHtml(dongVL, dongNCD, tong, nhanNguon);
+  return buildDacTaNangCaoHtml(dongVL, dongNCD, tong, nhanNguon, cot);
 }
 
 function dinhDangOMet(n: number | null | undefined, label?: string, soLe = 0): string {
@@ -558,6 +561,7 @@ function buildDacTaNangCaoHtml(
   dongNCD: DongNhanCongDien[],
   tong: { tongVatLieu: number; tongNhanCongDien: number; tongGiaThanh: number },
   nhanNguon: string,
+  cot: CotBang2Cpsx,
 ): string {
   let t1 = '';
   for (const row of dongVL) {
@@ -585,21 +589,30 @@ function buildDacTaNangCaoHtml(
   for (const row of dongNCD) {
     tongNc += row.thanhTienNhanCong;
     tongDien += row.thanhTienDien;
-    t2 += `<tr>
-      <td class="left">${row.congDoan}</td>
-      <td>${row.thoiGianPhut != null ? dinhDangSo(row.thoiGianPhut) : '—'}</td>
-      <td>${row.cpNhanCongPerPhut != null ? dinhDangSo(row.cpNhanCongPerPhut) : '—'}</td>
-      <td>${dinhDangSo(row.thanhTienNhanCong)}</td>
-      <td>${row.cpDienPerPhut != null ? dinhDangSo(row.cpDienPerPhut) : '—'}</td>
-      <td>${dinhDangSo(row.thanhTienDien)}</td>
-    </tr>`;
+    t2 += `<tr>`
+      + `<td class="left">${row.congDoan}</td>`
+      + (cot.coThoiGian ? `<td>${row.thoiGianPhut != null ? dinhDangSo(row.thoiGianPhut) : '—'}</td>` : '')
+      + (cot.coLuong ? `<td>${row.cpNhanCongPerPhut != null ? dinhDangSo(row.cpNhanCongPerPhut) : '—'}</td><td>${dinhDangSo(row.thanhTienNhanCong)}</td>` : '')
+      + (cot.coDien ? `<td>${row.cpDienPerPhut != null ? dinhDangSo(row.cpDienPerPhut) : '—'}</td><td>${dinhDangSo(row.thanhTienDien)}</td>` : '')
+      + `</tr>`;
   }
-  t2 += `<tr class="total-row">
-    <td class="left" colspan="3">Tổng nhân công / điện</td>
-    <td>${dinhDangSo(tongNc)}</td>
-    <td></td>
-    <td>${dinhDangSo(tongDien)}</td>
-  </tr>`;
+  const bang2LabelColSpan = 1 + (cot.coThoiGian ? 1 : 0) + (cot.coLuong ? 1 : 0);
+  t2 += `<tr class="total-row">`
+    + `<td class="left" colspan="${bang2LabelColSpan}">Tổng nhân công / điện</td>`
+    + (cot.coLuong ? `<td>${dinhDangSo(tongNc)}</td>` : '')
+    + (cot.coDien ? `<td></td><td>${dinhDangSo(tongDien)}</td>` : '')
+    + `</tr>`;
+
+  const hienBang2 = cot.coLuong || cot.coDien;
+  const bang2Html = hienBang2 ? `
+      <div class="table-wrap-nc">
+      <table class="table-nc table-nc-ncd" style="margin-top:12px">
+        <thead><tr>
+          <th class="left">Công đoạn</th>${cot.coThoiGian ? '<th>TG SX (phút)</th>' : ''}${cot.coLuong ? '<th>Giá NC (đ/phút)</th><th>TT nhân công</th>' : ''}${cot.coDien ? '<th>Giá điện (đ/phút)</th><th>TT điện</th>' : ''}
+        </tr></thead>
+        <tbody>${t2}</tbody>
+      </table>
+      </div>` : '';
 
   return `
     <div class="section">
@@ -622,16 +635,7 @@ function buildDacTaNangCaoHtml(
         <tbody>${t1}</tbody>
       </table>
       </div>
-      <div class="table-wrap-nc">
-      <table class="table-nc table-nc-ncd" style="margin-top:12px">
-        <thead><tr>
-          <th class="left">Công đoạn</th><th>TG SX (phút)</th>
-          <th>Giá NC (đ/phút)</th><th>TT nhân công</th>
-          <th>Giá điện (đ/phút)</th><th>TT điện</th>
-        </tr></thead>
-        <tbody>${t2}</tbody>
-      </table>
-      </div>
+      ${bang2Html}
       <div class="totals-nc">
         <div class="tr"><span class="lbl">Tổng thành tiền CP Vật liệu<small>(nguyên vật liệu + dung môi + keo ghép + khác)</small></span><span>${dinhDangSo(tong.tongVatLieu)} đ</span></div>
         <div class="tr"><span class="lbl">Tổng thành tiền chi phí Nhân công + điện</span><span>${dinhDangSo(tong.tongNhanCongDien)} đ</span></div>
@@ -713,6 +717,7 @@ function exportPricingDetailNangCaoToA4(
   materials: Material[],
   constants: AppConstants,
   profitTable: ProfitRow[],
+  cot: CotBang2Cpsx,
 ): void {
   const hangSo = apCpsxNangCaoVaoHangSo(constants, item.pinnedCpsxNangCao);
   const r0 = tinhBaoGia(item.input, materials, hangSo, profitTable);
@@ -752,21 +757,21 @@ function exportPricingDetailNangCaoToA4(
   // Luôn có BẢN GỐC — cho đối chiếu khi có ghi đè Admin/Sale.
   pagesHtml += `<div class="page page--nc">
     <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName} (BẢN GỐC)</div>
-    ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: {}, activeOv: {}, nhanNguon: 'BẢN GỐC' })}
+    ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: {}, activeOv: {}, nhanNguon: 'BẢN GỐC', cot })}
   </div>`;
 
   // Từng bảng thay đổi (giống bản cũ): Sale, rồi Admin chồng trên Sale — chỉ khi có dữ liệu.
   if (ovCoData(saleOv)) {
     pagesHtml += `<div class="page page--nc">
       <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName} (SAU THAY ĐỔI SALE)</div>
-      ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: {}, activeOv: saleOv, nhanNguon: '💼 Theo bảng Sale' })}
+      ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: {}, activeOv: saleOv, nhanNguon: '💼 Theo bảng Sale', cot })}
     </div>`;
   }
 
   if (ovCoData(adminOv)) {
     pagesHtml += `<div class="page page--nc">
       <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName} (SAU THAY ĐỔI ADMIN)</div>
-      ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: saleOv, activeOv: adminOv, nhanNguon: '👑 Theo bảng Admin' })}
+      ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: saleOv, activeOv: adminOv, nhanNguon: '👑 Theo bảng Admin', cot })}
     </div>`;
   }
 
@@ -783,9 +788,13 @@ export function exportPricingDetailToA4(
   materials: Material[],
   constants: AppConstants,
   profitTable: ProfitRow[],
+  cpsxPolicies?: PolicyCode[],
 ): void {
   if (item.isNangCap || item.input?.isNangCap) {
-    exportPricingDetailNangCaoToA4(item, materials, constants, profitTable);
+    const cot = cpsxPolicies
+      ? cotBang2TheoQuyen(cpsxPolicies)
+      : { coDien: true, coLuong: true, coThoiGian: true };
+    exportPricingDetailNangCaoToA4(item, materials, constants, profitTable, cot);
     return;
   }
 

@@ -9,6 +9,7 @@ import {
   upsertProductionUpgradePriceConfigService,
   layLichSuPriceConfigService,
   layPriceConfigMoiNhatService,
+  layProductionUpgradePriceConfigService,
   xoaPriceConfigService,
   type PriceConfigApi,
 } from '../../lib/api/service-lts';
@@ -54,6 +55,8 @@ export interface ConfigVersioningSlice {
   taiLichSuPhienBanTuServer: (scope: ConfigScope) => Promise<void>;
   /** Bootstrap: 1 request latest-version thay vì N× history. */
   taiCauHinhMoiNhatTuServer: () => Promise<void>;
+  /** Nạp policies CPSX nâng cao của user (GET /price-config/production-upgrade/latest). */
+  taiCpsxNangCapPoliciesTuServer: () => Promise<void>;
   datCpsxNangCapPolicies: (policies: PolicyCode[]) => void;
 }
 
@@ -371,6 +374,27 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
       bootstrapCauHinhInFlight = null;
     });
     return bootstrapCauHinhInFlight;
+  },
+
+  taiCpsxNangCapPoliciesTuServer: async () => {
+    const state = get();
+    const token = state.accessToken;
+    if (!state.isAuthenticated || !token) {
+      set({ cpsxNangCapPolicies: [], dangTaiCpsxNangCapPolicies: false });
+      return;
+    }
+    set({ dangTaiCpsxNangCapPolicies: true });
+    try {
+      const upgrade = await layProductionUpgradePriceConfigService(token, 'latest');
+      const policies = (upgrade?.policies ?? []).filter(
+        (p): p is PolicyCode =>
+          typeof p === 'string' && p.startsWith('CPSX_UPGRADE_EDIT_'),
+      );
+      set({ cpsxNangCapPolicies: policies, dangTaiCpsxNangCapPolicies: false });
+    } catch (e) {
+      console.warn('Tai policies CPSX nang cao that bai:', e);
+      set({ cpsxNangCapPolicies: [], dangTaiCpsxNangCapPolicies: false });
+    }
   },
 
   xoaPhienBanDinhMuc: async (id) => {

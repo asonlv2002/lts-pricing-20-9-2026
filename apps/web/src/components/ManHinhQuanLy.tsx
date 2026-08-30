@@ -7,7 +7,7 @@ import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { TECHNICAL_TABLE_MOBILE_LABELS as MOBILE_LABELS } from '../lib/technical-table-mobile-labels';
 import type { AppConstants, CalculateResult, Material, OverrideRowKey, OverrideFields, OverrideTable, HistoryItem } from '../lib/types';
 import { kiemTraMaKhachHang, laKhachHangThuocQuyen, type KhachHangCoTen } from '../lib/customer-api';
-import { coQuyenCoVanBangTinh, coQuyenQuanLyKhachHang, type PolicyCode } from '../lib/permissions';import { 
+import { coQuyenCoVanBangTinh, coQuyenQuanLyKhachHang, cotBang2TheoQuyen, type PolicyCode } from '../lib/permissions';import { 
   LoiServiceLts,
   taoPricingSheetService, 
   capNhatPricingSheetResultService, 
@@ -724,8 +724,12 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
       ? 'override-price-delta-row--down'
       : 'override-price-delta-row--flat';
   const ln = tong.tongGiaThanh * (effectivePct / 100);
-  /** Sale: chỉ Bảng 1 + cụm tổng; Admin: đủ Bảng 2 (NC/điện chi tiết). */
-  const hienBangNhanCongDien = lopMau === 'admin';
+  /** Bảng 2 hiện theo quyền CPSX nâng cao (cột NC/điện/thời gian riêng biệt).
+   *  Ẩn luôn nếu không còn cột NC hoặc Điện nào (chỉ còn cột Thời gian → ẩn). */
+  const cpsxPolicies = dungCuaHangTinhGia((s) => s.cpsxNangCapPolicies);
+  const cot = cotBang2TheoQuyen(cpsxPolicies);
+  const hienBangNhanCongDien = cot.coLuong || cot.coDien;
+  const bang2LabelColSpan = 1 + (cot.coThoiGian ? 1 : 0) + (cot.coLuong ? 1 : 0);
 
   // Local string state cho ô "Tỷ lệ LN" — cho phép hiển thị rỗng khi user xóa hết
   const [giaTriTamPct, datGiaTriTamPct] = React.useState<string>('');
@@ -995,7 +999,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
         </table>
       </div>
 
-      {/* ═══ Table 2 (Admin) + cụm 3 dòng tổng (Sale + Admin) ═══ */}
+      {/* ═══ Table 2 (theo quyền CPSX NC) + cụm 3 dòng tổng ═══ */}
       <div className={`dac-ta-nang-cao__split${hienBangNhanCongDien ? '' : ' dac-ta-nang-cao__split--totals-only'}`}>
         {hienBangNhanCongDien && (
           <div className="dac-ta-nang-cao__split-table">
@@ -1004,11 +1008,11 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                 <thead>
                   <tr>
                     <th>Công đoạn</th>
-                    <th className="num">Thời gian SX (phút)</th>
-                    <th className="num">Giá nhân công (đ/phút)</th>
-                    <th className="num">Thành tiền nhân công (VNĐ)</th>
-                    <th className="num">Giá điện (đ/phút)</th>
-                    <th className="num">Thành tiền điện</th>
+                    {cot.coThoiGian && <th className="num">Thời gian SX (phút)</th>}
+                    {cot.coLuong && <th className="num">Giá nhân công (đ/phút)</th>}
+                    {cot.coLuong && <th className="num">Thành tiền nhân công (VNĐ)</th>}
+                    {cot.coDien && <th className="num">Giá điện (đ/phút)</th>}
+                    {cot.coDien && <th className="num">Thành tiền điện</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -1022,20 +1026,26 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     return (
                       <tr key={`${lopMau}-ncd-${idx}`}>
                         <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">{row.congDoan}</td>
-                        <OCoTheGhiDe khoaDong={row.rowKey} truong="thoiGianPhut"
-                          giaTriGoc={dongNCDGoc[idx]?.thoiGianPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.thoiGianPhut}
-                          duocSua={suaTg} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
-                        <OCoTheGhiDe khoaDong={row.rowKey} truong="cpNhanCongPerPhut"
-                          giaTriGoc={dongNCDGoc[idx]?.cpNhanCongPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpNhanCongPerPhut}
-                          duocSua={false} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
-                        {oSoGc(dinhDangSo(row.thanhTienNhanCong, 0), laGc, {
+                        {cot.coThoiGian && (
+                          <OCoTheGhiDe khoaDong={row.rowKey} truong="thoiGianPhut"
+                            giaTriGoc={dongNCDGoc[idx]?.thoiGianPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.thoiGianPhut}
+                            duocSua={suaTg} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
+                        )}
+                        {cot.coLuong && (
+                          <OCoTheGhiDe khoaDong={row.rowKey} truong="cpNhanCongPerPhut"
+                            giaTriGoc={dongNCDGoc[idx]?.cpNhanCongPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpNhanCongPerPhut}
+                            duocSua={false} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
+                        )}
+                        {cot.coLuong && oSoGc(dinhDangSo(row.thanhTienNhanCong, 0), laGc, {
                           className: coDoiTG ? 'override-changed' : '',
                           dataLabel: 'Thành tiền nhân công (VNĐ)',
                         })}
-                        <OCoTheGhiDe khoaDong={row.rowKey} truong="cpDienPerPhut"
-                          giaTriGoc={dongNCDGoc[idx]?.cpDienPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpDienPerPhut}
-                          duocSua={false} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
-                        {oSoGc(dinhDangSo(row.thanhTienDien, 0), laGc, {
+                        {cot.coDien && (
+                          <OCoTheGhiDe khoaDong={row.rowKey} truong="cpDienPerPhut"
+                            giaTriGoc={dongNCDGoc[idx]?.cpDienPerPhut ?? 0} giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpDienPerPhut}
+                            duocSua={false} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
+                        )}
+                        {cot.coDien && oSoGc(dinhDangSo(row.thanhTienDien, 0), laGc, {
                           className: coDoiTG ? 'override-changed' : '',
                           dataLabel: 'Thành tiền điện',
                         })}
@@ -1043,10 +1053,14 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     );
                   })}
                   <tr className="total-row">
-                    <td colSpan={3}><strong>Tổng nhân công / điện</strong></td>
-                    <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>{dinhDangSo(tongNhanCong, 0)}</td>
-                    <td />
-                    <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>{dinhDangSo(tongDien, 0)}</td>
+                    <td colSpan={bang2LabelColSpan}><strong>Tổng nhân công / điện</strong></td>
+                    {cot.coLuong && (
+                      <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>{dinhDangSo(tongNhanCong, 0)}</td>
+                    )}
+                    {cot.coDien && <td />}
+                    {cot.coDien && (
+                      <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>{dinhDangSo(tongDien, 0)}</td>
+                    )}
                   </tr>
                 </tbody>
               </table>
@@ -1277,7 +1291,7 @@ const buttonLabel = loadedItem
       input: { ...input, isNangCap: true },
       sellerName: loaded?.sellerName,
     };
-    exportPricingDetailToA4(item, materials, hangSoNc, bangLoiNhuan);
+    exportPricingDetailToA4(item, materials, hangSoNc, bangLoiNhuan, st.cpsxNangCapPolicies);
   };
 
   // Quyền sửa tab nâng cao — giống bảng ghi đè cũ (advisor ↔ admin/sale)

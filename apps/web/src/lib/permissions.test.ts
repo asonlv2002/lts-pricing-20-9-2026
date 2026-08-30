@@ -5,6 +5,7 @@
 
 import { coTheXemMucMenu, coTheXemNhomMenu } from './permissions';
 import { vaiTroTuPolicies } from './permissions';
+import { cotBang2TheoQuyen } from './permissions';
 import type { PolicyCode } from './api/service-lts';
 
 let passed = 0;
@@ -122,6 +123,56 @@ assert(
   'vai-tro requires ROLE_MANAGER',
   coTheXemMucMenu(['ACCOUNT_MANAGER'] as PolicyCode[], 'vai-tro') === false
     && coTheXemMucMenu(['ROLE_MANAGER'] as PolicyCode[], 'vai-tro') === true,
+);
+
+console.log('\n== cotBang2TheoQuyen (Bảng 2) ==');
+assert(
+  'điện: chỉ cần ELECTRIC_PER_MINUTE (không cần khung giờ)',
+  cotBang2TheoQuyen(['CPSX_UPGRADE_EDIT_ELECTRIC_PER_MINUTE']).coDien === true,
+);
+assert(
+  'điện: chỉ khung giờ (TIME_FRAME) → KHÔNG thấy cột điện',
+  cotBang2TheoQuyen(['CPSX_UPGRADE_EDIT_ELECTRIC_TIME_FRAME']).coDien === false,
+);
+assert(
+  'lương: đủ 4 code máy → coLuong true',
+  cotBang2TheoQuyen([
+    'CPSX_UPGRADE_EDIT_LABOR_PRINT',
+    'CPSX_UPGRADE_EDIT_LABOR_LAMINATE',
+    'CPSX_UPGRADE_EDIT_LABOR_SLIT',
+    'CPSX_UPGRADE_EDIT_LABOR_BAG',
+  ]).coLuong === true,
+);
+assert(
+  'lương: thiếu 1 code → coLuong false (AND)',
+  cotBang2TheoQuyen([
+    'CPSX_UPGRADE_EDIT_LABOR_PRINT',
+    'CPSX_UPGRADE_EDIT_LABOR_LAMINATE',
+    'CPSX_UPGRADE_EDIT_LABOR_SLIT',
+  ]).coLuong === false,
+);
+assert(
+  'thời gian: đủ 4 code → coThoiGian true',
+  cotBang2TheoQuyen([
+    'CPSX_UPGRADE_EDIT_TIME_PRINT',
+    'CPSX_UPGRADE_EDIT_TIME_LAMINATE',
+    'CPSX_UPGRADE_EDIT_TIME_SLIT',
+    'CPSX_UPGRADE_EDIT_TIME_BAG',
+  ]).coThoiGian === true,
+);
+assert(
+  'thời gian: thiếu 1 code → coThoiGian false (AND)',
+  cotBang2TheoQuyen([
+    'CPSX_UPGRADE_EDIT_TIME_PRINT',
+    'CPSX_UPGRADE_EDIT_TIME_LAMINATE',
+    'CPSX_UPGRADE_EDIT_TIME_SLIT',
+  ]).coThoiGian === false,
+);
+assert(
+  'trống policy → cả 3 cột đều ẩn',
+  cotBang2TheoQuyen([]).coDien === false
+    && cotBang2TheoQuyen([]).coLuong === false
+    && cotBang2TheoQuyen([]).coThoiGian === false,
 );
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);

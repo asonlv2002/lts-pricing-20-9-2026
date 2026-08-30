@@ -145,3 +145,37 @@ export function coQuyenSuaMucCpsxUpgradeTuNguoiDung(
 ): boolean {
   return !!nguoiDung?.policies.includes(policyCode);
 }
+
+// ── Quyền hiện cột Bảng 2 (đặc tả NC/điện) theo policy CPSX nâng cao ──────────
+// Cột điện: chỉ cần quyền "Điện/phút mỗi máy" (không cần quyền "giá theo khung giờ").
+// Cột nhân công + thời gian: cần đủ TẤT CẢ code máy trong mục (AND).
+
+const NHOM_CPSX_LUONG_BANG2: PolicyCode[] = [
+  'CPSX_UPGRADE_EDIT_LABOR_PRINT',
+  'CPSX_UPGRADE_EDIT_LABOR_LAMINATE',
+  'CPSX_UPGRADE_EDIT_LABOR_SLIT',
+  'CPSX_UPGRADE_EDIT_LABOR_BAG',
+];
+
+const NHOM_CPSX_THOI_GIAN_BANG2: PolicyCode[] = [
+  'CPSX_UPGRADE_EDIT_TIME_PRINT',
+  'CPSX_UPGRADE_EDIT_TIME_LAMINATE',
+  'CPSX_UPGRADE_EDIT_TIME_SLIT',
+  'CPSX_UPGRADE_EDIT_TIME_BAG',
+];
+
+export interface CotBang2Cpsx {
+  coDien: boolean;
+  coLuong: boolean;
+  coThoiGian: boolean;
+}
+
+/** Tính quyền hiện từng cụm cột của Bảng 2 từ policies CPSX nâng cao của user. */
+export function cotBang2TheoQuyen(cpsxPolicies: PolicyCode[]): CotBang2Cpsx {
+  const co = (c: PolicyCode) => cpsxPolicies.includes(c);
+  return {
+    coDien: co('CPSX_UPGRADE_EDIT_ELECTRIC_PER_MINUTE'),
+    coLuong: NHOM_CPSX_LUONG_BANG2.every(co),
+    coThoiGian: NHOM_CPSX_THOI_GIAN_BANG2.every(co),
+  };
+}

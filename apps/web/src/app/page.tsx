@@ -362,6 +362,7 @@ export default function TrangChinh() {
         const st = dungCuaHangTinhGia.getState();
         if (st.isAuthenticated && st.accessToken) {
           await st.taiCauHinhMoiNhatTuServer();
+          st.taiCpsxNangCapPoliciesTuServer().catch(() => {});
           return;
         }
         // sessionChecked + không auth → guest, tắt loading
@@ -390,6 +391,7 @@ export default function TrangChinh() {
       const st = dungCuaHangTinhGia.getState();
       st.taiLichSuTuServer().catch(() => {});
       st.taiCauHinhMoiNhatTuServer().catch(() => {});
+      st.taiCpsxNangCapPoliciesTuServer().catch(() => {});
     }
     daDangNhapTruoc.current = daDangNhap;
   }, [daDangNhap]);

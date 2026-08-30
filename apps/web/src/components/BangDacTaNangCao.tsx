@@ -14,6 +14,8 @@ import {
 } from '../lib/dac-ta-nang-cao';
 import type { AppConstants, CalculateResult, Material } from '../lib/types';
 import type { UniRow } from '../lib/manager-calculation';
+import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import { cotBang2TheoQuyen } from '../lib/permissions';
 
 function dinhDangSo(n: number | null | undefined, soLe = 0): string {
   if (n == null || !Number.isFinite(n)) return '—';
@@ -85,6 +87,12 @@ export default function BangDacTaNangCao({
 
   const tongNhanCong = dongNhanCongDien.reduce((s, r) => s + r.thanhTienNhanCong, 0);
   const tongDien = dongNhanCongDien.reduce((s, r) => s + r.thanhTienDien, 0);
+
+  const cpsxPolicies = dungCuaHangTinhGia((s) => s.cpsxNangCapPolicies);
+  const cot = cotBang2TheoQuyen(cpsxPolicies);
+  // Bảng 2 chỉ hiện khi có ít nhất cột Nhân công hoặc Điện (cột Thời gian đơn lẻ → ẩn luôn).
+  const hienBang2 = cot.coLuong || cot.coDien;
+  const bang2LabelColSpan = 1 + (cot.coThoiGian ? 1 : 0) + (cot.coLuong ? 1 : 0);
 
   return (
     <div className="dac-ta-nang-cao">
@@ -189,56 +197,66 @@ export default function BangDacTaNangCao({
       </div>
 
       {/* ═══ Table 2 + cụm 3 dòng tổng (2 cột) ═══ */}
-      <div className="dac-ta-nang-cao__split">
-        <div className="dac-ta-nang-cao__split-table">
-          <div className="table-responsive">
-            <table className="data-table" id="m-t-advanced-labor">
-              <thead>
-                <tr>
-                  <th>Công đoạn</th>
-                  <th className="num">Thời gian SX (phút)</th>
-                  <th className="num">Giá nhân công (đ/phút)</th>
-                  <th className="num" title="Thành tiền nhân công (VNĐ)">
-                    Thành tiền nhân công (VNĐ)
-                  </th>
-                  <th className="num">Giá điện (đ/phút)</th>
-                  <th className="num" title="Thành tiền điện (VNĐ)">
-                    Thành tiền điện
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {dongNhanCongDien.map((row, idx) => {
-                  const laGc = !!row.isGiaCongNgoai;
-                  return (
-                    <tr key={`ncd-${idx}`}>
-                      <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">
-                        {row.congDoan}
+      <div className={`dac-ta-nang-cao__split${hienBang2 ? '' : ' dac-ta-nang-cao__split--totals-only'}`}>
+        {hienBang2 && (
+          <div className="dac-ta-nang-cao__split-table">
+            <div className="table-responsive">
+              <table className="data-table" id="m-t-advanced-labor">
+                <thead>
+                  <tr>
+                    <th>Công đoạn</th>
+                    {cot.coThoiGian && <th className="num">Thời gian SX (phút)</th>}
+                    {cot.coLuong && <th className="num">Giá nhân công (đ/phút)</th>}
+                    {cot.coLuong && (
+                      <th className="num" title="Thành tiền nhân công (VNĐ)">
+                        Thành tiền nhân công (VNĐ)
+                      </th>
+                    )}
+                    {cot.coDien && <th className="num">Giá điện (đ/phút)</th>}
+                    {cot.coDien && (
+                      <th className="num" title="Thành tiền điện (VNĐ)">
+                        Thành tiền điện
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {dongNhanCongDien.map((row, idx) => {
+                    const laGc = !!row.isGiaCongNgoai;
+                    return (
+                      <tr key={`ncd-${idx}`}>
+                        <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">
+                          {row.congDoan}
+                        </td>
+                        {cot.coThoiGian && oSoGcNangCao(dinhDangSo(row.thoiGianPhut, 0), laGc, 'Thời gian SX (phút)', 'highlight')}
+                        {cot.coLuong && oSoGcNangCao(dinhDangSo(row.cpNhanCongPerPhut, 0), laGc, 'Giá nhân công (đ/phút)')}
+                        {cot.coLuong && oSoGcNangCao(dinhDangSo(row.thanhTienNhanCong, 0), laGc, 'Thành tiền nhân công (VNĐ)')}
+                        {cot.coDien && oSoGcNangCao(dinhDangSo(row.cpDienPerPhut, 0), laGc, 'Giá điện (đ/phút)')}
+                        {cot.coDien && oSoGcNangCao(dinhDangSo(row.thanhTienDien, 0), laGc, 'Thành tiền điện')}
+                      </tr>
+                    );
+                  })}
+                  <tr className="total-row">
+                    <td colSpan={bang2LabelColSpan}>
+                      <strong>Tổng nhân công / điện</strong>
+                    </td>
+                    {cot.coLuong && (
+                      <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>
+                        {dinhDangSo(tongNhanCong, 0)}
                       </td>
-                      {oSoGcNangCao(dinhDangSo(row.thoiGianPhut, 0), laGc, 'Thời gian SX (phút)', 'highlight')}
-                      {oSoGcNangCao(dinhDangSo(row.cpNhanCongPerPhut, 0), laGc, 'Giá nhân công (đ/phút)')}
-                      {oSoGcNangCao(dinhDangSo(row.thanhTienNhanCong, 0), laGc, 'Thành tiền nhân công (VNĐ)')}
-                      {oSoGcNangCao(dinhDangSo(row.cpDienPerPhut, 0), laGc, 'Giá điện (đ/phút)')}
-                      {oSoGcNangCao(dinhDangSo(row.thanhTienDien, 0), laGc, 'Thành tiền điện')}
-                    </tr>
-                  );
-                })}
-                <tr className="total-row">
-                  <td colSpan={3}>
-                    <strong>Tổng nhân công / điện</strong>
-                  </td>
-                  <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>
-                    {dinhDangSo(tongNhanCong, 0)}
-                  </td>
-                  <td />
-                  <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>
-                    {dinhDangSo(tongDien, 0)}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+                    )}
+                    {cot.coDien && <td />}
+                    {cot.coDien && (
+                      <td className="num" style={{ color: 'var(--accent)', fontWeight: 800 }}>
+                        {dinhDangSo(tongDien, 0)}
+                      </td>
+                    )}
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="dac-ta-nang-cao__totals">
           <div className="dac-ta-nang-cao__total-row">
