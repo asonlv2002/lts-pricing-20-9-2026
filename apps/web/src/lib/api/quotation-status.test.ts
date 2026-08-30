@@ -85,6 +85,13 @@ async function main() {
        assert('nop bao gia body rong (khong co quotationId)', Object.keys(body ?? {}).length === 0, JSON.stringify(body));
      }
 
+     await nopBaoGiaService('q1-pin', 'token', 'pin-token-abc');
+     {
+       const headers = capturedInit?.headers instanceof Headers ? capturedInit.headers : new Headers(capturedInit?.headers);
+       assert('nop bao gia gui x-pin-token khi co pinToken',
+         headers.get('x-pin-token') === 'pin-token-abc', String(headers.get('x-pin-token')));
+     }
+
      await duyetBaoGiaService('q2', 'rejected', 'token', 'pin-token-xyz');
      assert('duyet bao gia goi /quotations/{id}/review_update_status', capturedUrl.endsWith('/quotations/q2/review_update_status'), capturedUrl);
      {
@@ -151,9 +158,15 @@ async function main() {
          { pricingSheetId: 's2', hasCustomerApproved: false },
        ],
        'token',
+       'pin-token-cd',
      );
      assert('customer decide goi /quotations/{id}/customer-decide', capturedUrl.endsWith('/quotations/q4/customer-decide'), capturedUrl);
      assert('customer decide dung PATCH', capturedInit?.method === 'PATCH', String(capturedInit?.method));
+     {
+       const headers = capturedInit?.headers instanceof Headers ? capturedInit.headers : new Headers(capturedInit?.headers);
+       assert('customer decide gui x-pin-token khi co pinToken',
+         headers.get('x-pin-token') === 'pin-token-cd', String(headers.get('x-pin-token')));
+     }
      {
        // Server mong body LA array truc tiep (xem quotations.controller.ts @Body() customerDecisions: CustomerDecidePricingSheetDto[]).
        // KHONG duoc wrap thanh object { decisions: [...] }.

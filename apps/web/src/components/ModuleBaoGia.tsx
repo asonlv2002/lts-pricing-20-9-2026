@@ -85,6 +85,8 @@ import {
 } from "../lib/quote-product-spec";
 import { boSoCauTruc, buildStructureFromLayers } from "../lib/format-structure";
 import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
+import NhapPinDuyetModal from "./auth/NhapPinDuyetModal";
+import { useNhapPinPrompt, laHuyPin } from "../lib/useNhapPinPrompt";
 import { WIZARD_STYLES } from "./wizard/wizard-styles";
 import {
   coNhapBaoGia,
@@ -3666,6 +3668,8 @@ function TaoBaoGiaWizard({
   const [confirmExit, setConfirmExit] = useState(false);
   const [confirmCreateNew, setConfirmCreateNew] = useState(false);
   const [confirmSaoChep, setConfirmSaoChep] = useState(false);
+  const pin = useNhapPinPrompt();
+  const promptPin = pin.promptPin;
   const pendingModuleRef = useRef<string | null>(null);
   const hasDataRef = useRef(false);
   const exitingRef = useRef(false);
@@ -4161,7 +4165,11 @@ function TaoBaoGiaWizard({
           );
 
           if (sendForApproval) {
-            await nopBaoGiaService(bgDangSua.id, accessToken);
+            const pinToken = await promptPin(
+              "Gửi duyệt báo giá",
+              "Nhập mã PIN để gửi báo giá chờ duyệt.",
+            );
+            await nopBaoGiaService(bgDangSua.id, accessToken, pinToken);
           }
           return bgDangSua.id;
         }
@@ -4220,7 +4228,11 @@ function TaoBaoGiaWizard({
             throw new Error(
               "Báo giá đã tạo trên máy chủ nhưng không lấy được ID để nộp duyệt.",
             );
-          await nopBaoGiaService(created.id, accessToken);
+          const pinToken = await promptPin(
+            "Gửi duyệt báo giá",
+            "Nhập mã PIN để gửi báo giá chờ duyệt.",
+          );
+          await nopBaoGiaService(created.id, accessToken, pinToken);
         }
         if (!created?.id)
           throw new Error(
@@ -4234,7 +4246,7 @@ function TaoBaoGiaWizard({
           : new Error("Đồng bộ báo giá lên máy chủ thất bại.");
       }
     },
-    [accessToken, isAuthenticated],
+    [accessToken, isAuthenticated, promptPin],
   );
 
   const handleSave = useCallback(
@@ -4784,6 +4796,13 @@ function TaoBaoGiaWizard({
           customerInfo={previewState.customerInfo}
         />
       )}
+      <NhapPinDuyetModal
+        open={pin.open}
+        title={pin.title}
+        message={pin.message}
+        onConfirm={pin.confirm}
+        onClose={pin.cancel}
+      />
     </div>
   );
 }
@@ -5757,6 +5776,8 @@ export default function QuotationModule({
   const [xacNhanXoaBaoGia, datXacNhanXoaBaoGia] = useState<HistoryItem | null>(
     null,
   );
+  const pin = useNhapPinPrompt();
+  const promptPin = pin.promptPin;
 
   React.useEffect(() => {
     kiemTraHetHan();
@@ -5837,19 +5858,28 @@ export default function QuotationModule({
       datXacNhanXoaBaoGia(null);
       if (muc.quotationId && accessToken) {
         try {
-          const ketQua = await xoaBaoGiaService(muc.quotationId, accessToken);
+          const pinToken = await promptPin(
+            "Xóa báo giá",
+            "Nhập mã PIN để xóa báo giá này.",
+          );
+          const ketQua = await xoaBaoGiaService(
+            muc.quotationId,
+            accessToken,
+            pinToken,
+          );
           if (!ketQua.success) {
             alert("Không thể xóa báo giá trên máy chủ.");
             return;
           }
         } catch (e) {
+          if (laHuyPin(e)) return;
           alert(e instanceof Error ? e.message : "Lỗi khi xóa báo giá.");
           return;
         }
       }
       xoaLichSu(muc.id);
     },
-    [accessToken, xoaLichSu],
+    [accessToken, xoaLichSu, promptPin],
   );
 
   const capNhatTrangThaiDon = useCallback(
@@ -5866,10 +5896,21 @@ export default function QuotationModule({
           "Báo giá này chưa có mã server. Vui lòng tạo/lưu lại báo giá trên máy chủ trước khi gửi duyệt.",
         );
       }
-      await nopBaoGiaService(muc.quotationId, accessToken);
+      try {
+        const pinToken = await promptPin(
+          "Gửi duyệt báo giá",
+          "Nhập mã PIN để gửi báo giá chờ duyệt.",
+        );
+        await nopBaoGiaService(muc.quotationId, accessToken, pinToken);
+      } catch (e) {
+        if (laHuyPin(e)) return;
+        throw e instanceof Error
+          ? e
+          : new Error("Không gửi được báo giá lên máy chủ.");
+      }
       capNhatTrangThaiLocal(muc.id, "pending_approval");
     },
-    [accessToken, capNhatTrangThaiLocal, isAuthenticated],
+    [accessToken, capNhatTrangThaiLocal, isAuthenticated, promptPin],
   );
 
   if (showWizard) {
@@ -6034,6 +6075,14 @@ export default function QuotationModule({
           </div>
         </div>
       )}
+
+      <NhapPinDuyetModal
+        open={pin.open}
+        title={pin.title}
+        message={pin.message}
+        onConfirm={pin.confirm}
+        onClose={pin.cancel}
+      />
     </div>
   );
 }

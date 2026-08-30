@@ -516,6 +516,13 @@ export function buildManualFromSource(
     if (source.hasSongSieuAm && (source.songSieuAmMm ?? 0) > 0) {
       next.songSieuAm = source.songSieuAmMm as number;
     }
+    if ((source.sideSealMm ?? 0) > 0) {
+      next.hanBien = source.sideSealMm as number;
+      next.sealEdge = `${source.sideSealMm}mm`;
+    }
+    if ((source.headSealMm ?? 0) > 0) {
+      next.hanDau = source.headSealMm as number;
+    }
     return next;
   }
   return m;

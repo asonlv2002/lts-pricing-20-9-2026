@@ -204,5 +204,41 @@ const sourcesSANone = mapBaoGiaToLsxSources(bgSANone);
 assert('ps-sa-none hasSongSieuAm falsy', !sourcesSANone[0]?.hasSongSieuAm);
 assert('ps-sa-none songSieuAmMm undefined', sourcesSANone[0]?.songSieuAmMm === undefined);
 
+console.log('\n=== mapBaoGiaToLsxSources sideSealMm + headSealMm ===');
+
+const bgSeal: BaoGiaApi = {
+  id: 'q-seal',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  inputValue: {
+    productBagSpecs: [
+      {
+        pricingSheetId: 'ps-seal',
+        productName: 'Túi seal',
+        bagSpec: { sideSealMm: 10, headSealMm: 50 },
+      },
+    ],
+  },
+  pricingSheets: [sheet('ps-seal', 'Túi seal')],
+};
+const sourcesSeal = mapBaoGiaToLsxSources(bgSeal);
+assert('ps-seal sideSealMm = 10', sourcesSeal[0]?.sideSealMm === 10, String(sourcesSeal[0]?.sideSealMm));
+assert('ps-seal headSealMm = 50', sourcesSeal[0]?.headSealMm === 50, String(sourcesSeal[0]?.headSealMm));
+
+const bgSealNone: BaoGiaApi = {
+  id: 'q-seal-none',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  inputValue: {
+    productBagSpecs: [
+      { pricingSheetId: 'ps-seal-none', productName: 'Túi seal 2', bagSpec: { sideSealMm: 0, headSealMm: 0 } },
+    ],
+  },
+  pricingSheets: [sheet('ps-seal-none', 'Túi seal 2')],
+};
+const sourcesSealNone = mapBaoGiaToLsxSources(bgSealNone);
+assert('ps-seal-none sideSealMm undefined', sourcesSealNone[0]?.sideSealMm === undefined);
+assert('ps-seal-none headSealMm undefined', sourcesSealNone[0]?.headSealMm === undefined);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

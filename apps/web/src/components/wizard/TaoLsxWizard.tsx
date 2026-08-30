@@ -28,6 +28,8 @@ import LsxPreviewModal from '../LsxPreviewModal';
 import LsxPdfPreviewModal from '../LsxPdfPreviewModal';
 import BaoGiaPreviewModal from '../BaoGiaPreviewModal';
 import ConfirmDialog from '../ConfirmDialog';
+import NhapPinDuyetModal from '../auth/NhapPinDuyetModal';
+import { useNhapPinPrompt, laHuyPin } from '../../lib/useNhapPinPrompt';
 import { buildHistoryItemFromServerData } from '../../lib/baoGiaExport';
 import type { HistoryItem } from '../../lib/types';
 import { WIZARD_STYLES } from './wizard-styles';
@@ -133,6 +135,7 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
   const [toast, setToast] = useState<Toast>(null);
   const [modalSuccess, setModalSuccess] = useState<{ lsxNumber: string; quotationId: string } | null>(null);
   const [confirmCapNhat, setConfirmCapNhat] = useState(false);
+  const pin = useNhapPinPrompt();
 
   const [previewLsx, setPreviewLsx] = useState<{ order: any; reviewerSignatureDataUrl?: string | null } | null>(null);
   const [previewLsxPdf, setPreviewLsxPdf] = useState<{ order: any; reviewerSignatureDataUrl?: string | null } | null>(null);
@@ -282,7 +285,11 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
     setDangXuLy(true);
     setToast(null);
     try {
-      const createRes = await createQuotationPricingSheetOrdersService(bgDangChon.id, accessToken);
+      const pinToken = await pin.promptPin(
+        'Tạo LSX',
+        'Nhập mã PIN để tạo lệnh sản xuất từ bảng giá đã duyệt.',
+      );
+      const createRes = await createQuotationPricingSheetOrdersService(bgDangChon.id, accessToken, pinToken);
       const newOrder = createRes.orders
         .filter((o) => o.pricingSheetId === sheetDangChon.id)
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
@@ -301,6 +308,7 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
       setToast({ kind: 'ok', msg: `Đã tạo LSX ${finalManual.lsxNumber || newOrder.id} thành công` });
       setModalSuccess({ lsxNumber: finalManual.lsxNumber || newOrder.id, quotationId: bgDangChon.id });
     } catch (e) {
+      if (laHuyPin(e)) return;
       setToast({ kind: 'err', msg: e instanceof Error ? e.message : 'Lỗi tạo LSX' });
     } finally {
       setDangXuLy(false);
@@ -653,6 +661,14 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
           customerInfo={previewBg.customerInfo}
         />
       )}
+
+      <NhapPinDuyetModal
+        open={pin.open}
+        title={pin.title}
+        message={pin.message}
+        onConfirm={pin.confirm}
+        onClose={pin.cancel}
+      />
 
       {confirmCapNhat && (
         <ConfirmDialog

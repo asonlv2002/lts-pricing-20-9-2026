@@ -47,13 +47,18 @@ async function main() {
 
     // Test 2: createQuotationPricingSheetOrdersService
     console.log('\n== createQuotationPricingSheetOrdersService ==');
-    await createQuotationPricingSheetOrdersService('q1', 'token');
+    await createQuotationPricingSheetOrdersService('q1', 'token', 'pin-token-abc');
     assert('create goi /quotations/{id}/create-orders', capturedUrl.endsWith('/quotations/q1/create-orders'), capturedUrl);
     assert('create dung POST', capturedInit?.method === 'POST', String(capturedInit?.method));
     {
       const auth = (capturedInit?.headers as Headers | undefined)?.get('Authorization');
       assert('create co Authorization header',
         Boolean(auth?.includes('Bearer token')), String(auth));
+    }
+    {
+      const headers = capturedInit?.headers instanceof Headers ? capturedInit.headers : new Headers(capturedInit?.headers);
+      assert('create gui x-pin-token khi co pinToken',
+        headers.get('x-pin-token') === 'pin-token-abc', String(headers.get('x-pin-token')));
     }
 
     // Test 3: updateQuotationPricingSheetOrderService

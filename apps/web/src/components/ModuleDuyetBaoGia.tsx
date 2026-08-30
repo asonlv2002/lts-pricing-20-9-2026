@@ -32,7 +32,6 @@ import {
 import { QrevStyleInjector } from "./qrev-styles";
 import { coQuyenDuyetBaoGia } from "../lib/permissions";
 import type { CalculateInput, HistoryItem } from "../lib/types";
-import ConfirmDialog from "./ConfirmDialog";
 import NhapPinDuyetModal from "./auth/NhapPinDuyetModal";
 import NhapLyDoTruocPinModal from "./auth/NhapLyDoTruocPinModal";
 import {
@@ -221,12 +220,6 @@ export default function ModuleDuyetBaoGia({
   const [thongBao, datThongBao] = useState("");
   const [dangXuLyId, datDangXuLyId] = useState<string | null>(null);
   const [dangXemBgId, setDangXemBgId] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<{
-    bg: BaoGiaApi;
-    title: string;
-    message: string;
-    onConfirm: () => void;
-  } | null>(null);
   const [nhapPin, setNhapPin] = useState<{
     bg: BaoGiaApi;
     title: string;
@@ -312,24 +305,24 @@ export default function ModuleDuyetBaoGia({
   const nopBaoGia = useCallback(
     async (bg: BaoGiaApi) => {
       if (!accessToken) return;
-      setConfirm({
+      // Nộp báo giá cần nhập mã PIN (server gắn PinGuard trên route status_update).
+      setNhapPin({
         bg,
         title: "Gửi duyệt báo giá",
         message: `Bạn có chắc muốn gửi báo giá "${tenBaoGia(bg)}" để duyệt?`,
-        onConfirm: async () => {
-          setConfirm(null);
+        onConfirm: async (pinToken: string) => {
           datDangXuLyId(bg.id);
           datLoi("");
           try {
-            await nopBaoGiaService(bg.id, accessToken);
+            await nopBaoGiaService(bg.id, accessToken, pinToken);
+            setNhapPin(null);
             hienThongBao("Đã nộp báo giá để chờ duyệt.");
             await lamMoi();
           } catch (error) {
-            datLoi(
-              error instanceof Error
-                ? error.message
-                : "Không nộp được báo giá.",
-            );
+            // Ném lại để modal PIN giữ mở + hiện lỗi (không đóng sớm).
+            throw error instanceof Error
+              ? error
+              : new Error("Không nộp được báo giá.");
           } finally {
             datDangXuLyId(null);
           }
@@ -418,28 +411,27 @@ export default function ModuleDuyetBaoGia({
   const xoaBaoGia = useCallback(
     async (bg: BaoGiaApi) => {
       if (!accessToken) return;
-      setConfirm({
+      // Xóa báo giá cần nhập mã PIN (server gắn PinGuard trên route DELETE).
+      setNhapPin({
         bg,
         title: "Xóa báo giá",
         message: `Bạn có chắc muốn xóa báo giá "${tenBaoGia(bg)}"? Hành động này không thể hoàn tác.`,
-        onConfirm: async () => {
-          setConfirm(null);
+        onConfirm: async (pinToken: string) => {
           datDangXuLyId(bg.id);
           datLoi("");
           try {
-            const ketQua = await xoaBaoGiaService(bg.id, accessToken);
+            const ketQua = await xoaBaoGiaService(bg.id, accessToken, pinToken);
             if (!ketQua.success) {
-              datLoi("Không thể xóa báo giá này.");
-            } else {
-              hienThongBao("Đã xóa báo giá.");
-              await lamMoi();
+              throw new Error("Không thể xóa báo giá này.");
             }
+            setNhapPin(null);
+            hienThongBao("Đã xóa báo giá.");
+            await lamMoi();
           } catch (error) {
-            datLoi(
-              error instanceof Error
-                ? error.message
-                : "Không xóa được báo giá.",
-            );
+            // Ném lại để modal PIN giữ mở + hiện lỗi (không đóng sớm).
+            throw error instanceof Error
+              ? error
+              : new Error("Không xóa được báo giá.");
           } finally {
             datDangXuLyId(null);
           }
@@ -463,12 +455,12 @@ export default function ModuleDuyetBaoGia({
       if (!accessToken) return;
       const sheetLabel = sheet.pricingSheetName || sheet.id;
       const hanhDongText = quyetDinh === "duyet" ? "duyệt" : "bỏ";
-      setConfirm({
+      // Phản hồi khách cần nhập mã PIN (server gắn PinGuard trên route customer-decide).
+      setNhapPin({
         bg,
         title: `Xác nhận phản hồi khách`,
         message: `Đánh dấu khách đã ${hanhDongText} bảng tính "${sheetLabel}"?`,
-        onConfirm: async () => {
-          setConfirm(null);
+        onConfirm: async (pinToken: string) => {
           datDangXuLyId(bg.id);
           datLoi("");
           try {
@@ -476,7 +468,9 @@ export default function ModuleDuyetBaoGia({
               bg.id,
               [{ pricingSheetId: sheet.id, hasCustomerApproved: quyetDinh === "duyet" }],
               accessToken,
+              pinToken,
             );
+            setNhapPin(null);
             hienThongBao(`Đã ghi nhận khách ${hanhDongText} bảng tính.`);
             // Reload row de cap nhat hasCustomerApproved + updatedAt.
             const fresh = await layBaoGiaTheoIdService(bg.id, accessToken);
@@ -484,11 +478,10 @@ export default function ModuleDuyetBaoGia({
               prev.map((b) => (b.id === fresh.id ? fresh : b)),
             );
           } catch (error) {
-            datLoi(
-              error instanceof Error
-                ? error.message
-                : `Không ghi nhận được phản hồi khách.`,
-            );
+            // Ném lại để modal PIN giữ mở + hiện lỗi (không đóng sớm).
+            throw error instanceof Error
+              ? error
+              : new Error(`Không ghi nhận được phản hồi khách.`);
           } finally {
             datDangXuLyId(null);
           }
@@ -961,14 +954,6 @@ export default function ModuleDuyetBaoGia({
           </div>
         )}
       </div>
-
-      <ConfirmDialog
-        open={!!confirm}
-        title={confirm?.title || ""}
-        message={confirm?.message || ""}
-        onConfirm={() => confirm?.onConfirm()}
-        onCancel={() => setConfirm(null)}
-      />
 
       <NhapLyDoTruocPinModal
         open={!!nhapLyDo}

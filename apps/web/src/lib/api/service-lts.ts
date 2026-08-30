@@ -1837,15 +1837,19 @@ export async function layBaoGiaTheoIdService(
 }
 
 // PATCH /quotations/{id}/status_update — nộp một báo giá nháp để chờ duyệt.
+// Route yêu cầu PIN (PinGuard): truyền pinToken qua header x-pin-token.
 export async function nopBaoGiaService(
   quotationId: string,
   token?: string,
+  pinToken?: string,
 ): Promise<BaoGiaApi> {
+  const headers = pinToken ? { "x-pin-token": pinToken } : undefined;
   return goiService<BaoGiaApi>(
     `/quotations/${encodeURIComponent(quotationId)}/status_update`,
     {
       method: "PATCH",
       body: JSON.stringify({}),
+      headers,
     },
     token,
   );
@@ -1912,16 +1916,20 @@ export interface CustomerDecideItem {
 // Body PHẢI là mảng trực tiếp, KHÔNG wrap thành object (xem quotations.controller.ts
 // @Body() customerDecisions: CustomerDecidePricingSheetDto[]). Nếu wrap, server
 // sẽ ép về array rỗng → 400 "At least one pricing sheet decision is required".
+// Route yêu cầu PIN (PinGuard): truyền pinToken qua header x-pin-token.
 export async function customerDecideBaoGiaService(
   idBaoGia: string,
   decisions: CustomerDecideItem[],
   token?: string,
+  pinToken?: string,
 ): Promise<BaoGiaApi> {
+  const headers = pinToken ? { "x-pin-token": pinToken } : undefined;
   return goiService<BaoGiaApi>(
     `/quotations/${encodeURIComponent(idBaoGia)}/customer-decide`,
     {
       method: "PATCH",
       body: JSON.stringify(decisions),
+      headers,
     },
     token,
   );
@@ -1972,13 +1980,15 @@ export async function capNhatBaoGiaService(
 export async function xoaBaoGiaService(
   id: string,
   token?: string,
+  pinToken?: string,
 ): Promise<{ success: true } | { success: false }> {
+  const headers = pinToken ? { "x-pin-token": pinToken } : undefined;
   const firstToken = token ?? layTokenHienTai?.()?.accessToken;
   let res: Response;
   try {
     res = await goiRaw(
       `/quotations/${encodeURIComponent(id)}`,
-      { method: "DELETE" },
+      { method: "DELETE", headers },
       firstToken,
     );
   } catch {
@@ -1986,12 +1996,18 @@ export async function xoaBaoGiaService(
   }
 
   if (res.status === 401) {
+    // 401 do sai PIN / thiếu pin-token — KHÔNG phải hết phiên JWT: không refresh/logout.
+    const body401 = await docJson(res);
+    if (laLoiPinHttp(trichMessageTuBody(body401))) {
+      throw new LoiServiceLts(layLoiTuResponse(401, body401), 401);
+    }
+
     try {
       const tokens = await lamMoiTokenTuHeThong();
       try {
         res = await goiRaw(
           `/quotations/${encodeURIComponent(id)}`,
-          { method: "DELETE" },
+          { method: "DELETE", headers },
           tokens.accessToken,
         );
       } catch {
@@ -2003,6 +2019,15 @@ export async function xoaBaoGiaService(
         throw new LoiServiceLts("Hết phiên đăng nhập.", 401);
       }
       throw error;
+    }
+
+    if (res.status === 401) {
+      const bodyRetry = await docJson(res);
+      if (laLoiPinHttp(trichMessageTuBody(bodyRetry))) {
+        throw new LoiServiceLts(layLoiTuResponse(401, bodyRetry), 401);
+      }
+      xuLyPhienKhongHopLe?.();
+      throw new LoiServiceLts("Hết phiên đăng nhập.", 401);
     }
   }
 
@@ -2165,14 +2190,18 @@ export function shellQuotationFromOrder(
 
 // POST /quotations/{id}/create-orders — tạo orders từ các pricing sheet đã KH-duyệt.
 // Server tự bỏ qua sheet đã có order; response trả TẤT CẢ orders (cả cũ + mới) sort createdAt desc.
+// Route yêu cầu PIN (PinGuard): truyền pinToken qua header x-pin-token.
 export async function createQuotationPricingSheetOrdersService(
   quotationId: string,
   token?: string,
+  pinToken?: string,
 ): Promise<CreateQuotationPricingSheetOrdersResponseApi> {
+  const headers = pinToken ? { "x-pin-token": pinToken } : undefined;
   return goiService<CreateQuotationPricingSheetOrdersResponseApi>(
     `/quotations/${encodeURIComponent(quotationId)}/create-orders`,
     {
       method: "POST",
+      headers,
     },
     token,
   );

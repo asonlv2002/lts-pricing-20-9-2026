@@ -1081,6 +1081,10 @@ export interface LsxSourceData {
   /** Tick "Từ đầu đến sóng siêu âm" trên báo giá — prefill `manual.songSieuAm` lúc tạo LSX (chỉ cutSealNapKeo). */
   hasSongSieuAm?: boolean;
   songSieuAmMm?: number;
+  /** Bề rộng hàn biên (mm) từ bagSpec báo giá — prefill `manual.hanBien` + `manual.sealEdge` lúc tạo LSX. */
+  sideSealMm?: number;
+  /** Bề rộng hàn đầu (mm) từ bagSpec báo giá — prefill `manual.hanDau` lúc tạo LSX. */
+  headSealMm?: number;
   /** Ghi chú công đoạn từ báo giá (dropdown công đoạn + text). */
   stageNotes?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
   /** Mô tả khác theo công đoạn từ báo giá. */

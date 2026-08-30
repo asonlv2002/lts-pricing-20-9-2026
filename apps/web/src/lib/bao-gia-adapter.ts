@@ -74,6 +74,8 @@ function layLsxBagMetadata(entry: Record<string, unknown> | null): {
   zipperDistanceMm?: number;
   hasSongSieuAm?: boolean;
   songSieuAmMm?: number;
+  sideSealMm?: number;
+  headSealMm?: number;
   stageNotes?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
   stageDescriptions?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
 } {
@@ -85,6 +87,8 @@ function layLsxBagMetadata(entry: Record<string, unknown> | null): {
   const zipper = b.zipperDistanceMm;
   const saFlag = b.hasSongSieuAm;
   const saMm = b.songSieuAmMm;
+  const sideSeal = b.sideSealMm;
+  const headSeal = b.headSealMm;
   return {
     bagWidthMm: typeof widthMm === 'number' && widthMm > 0 ? widthMm : undefined,
     bagLengthMm: typeof lengthMm === 'number' && lengthMm > 0 ? lengthMm : undefined,
@@ -95,6 +99,8 @@ function layLsxBagMetadata(entry: Record<string, unknown> | null): {
     zipperDistanceMm: typeof zipper === 'number' && zipper > 0 ? zipper : undefined,
     hasSongSieuAm: saFlag === true ? true : undefined,
     songSieuAmMm: typeof saMm === 'number' && saMm > 0 ? saMm : undefined,
+    sideSealMm: typeof sideSeal === 'number' && sideSeal > 0 ? sideSeal : undefined,
+    headSealMm: typeof headSeal === 'number' && headSeal > 0 ? headSeal : undefined,
     stageNotes: docStageNotes(b.stageNotes),
     stageDescriptions: docStageNotes(b.stageDescriptions),
   };

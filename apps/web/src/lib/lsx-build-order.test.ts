@@ -329,6 +329,22 @@ const oSANoTick = buildProductionOrderFromSource(sSANoTick, emptyCtx());
 assert('không tick → giữ default 32 từ applyBagDefaults', oSANoTick.manual.songSieuAm === 32, String(oSANoTick.manual.songSieuAm));
 assert('snapshot hasSongSieuAm falsy khi không tick', !oSANoTick.snapshot.hasSongSieuAm);
 
+console.log('\n=== sideSealMm/headSealMm → hàn biên/hàn đầu từ báo giá ===');
+const sSeal = makeSource('q1:seal', 'TUI 4 BIEN', 'LLDPE');
+sSeal.sideSealMm = 10;
+sSeal.headSealMm = 50;
+sSeal.input = baseInput({ productName: 'TUI 4 BIEN', bagType: '4bien', layer2Id: 'LLDPE' });
+const oSeal = buildProductionOrderFromSource(sSeal, emptyCtx());
+assert('prefill hanBien = 10 từ báo giá', oSeal.manual.hanBien === 10, String(oSeal.manual.hanBien));
+assert('prefill sealEdge = "10mm" từ báo giá', oSeal.manual.sealEdge === '10mm', oSeal.manual.sealEdge);
+assert('prefill hanDau = 50 từ báo giá', oSeal.manual.hanDau === 50, String(oSeal.manual.hanDau));
+
+const sSealNone = makeSource('q1:seal-none', 'TUI 4 BIEN 2', 'LLDPE');
+sSealNone.input = baseInput({ productName: 'TUI 4 BIEN 2', bagType: '4bien', layer2Id: 'LLDPE' });
+const oSealNone = buildProductionOrderFromSource(sSealNone, emptyCtx());
+assert('không sideSealMm → giữ default hanBien 10 từ applyBagDefaults', oSealNone.manual.hanBien === 10, String(oSealNone.manual.hanBien));
+assert('không headSealMm → giữ default hanDau 50 từ applyBagDefaults', oSealNone.manual.hanDau === 50, String(oSealNone.manual.hanDau));
+
 console.log('\n=== dual laminate: 1 pass nhiều parts ===');
 const mats = [
   { id: 'PET12', name: 'PET', thickness: 12 },
