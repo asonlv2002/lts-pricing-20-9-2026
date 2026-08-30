@@ -221,6 +221,7 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
     }, manual.divideWidth),
     [inp.productType, inp.numColors, inp.layer1Id, inp.layer2Id, inp.layer3Id, inp.layer4Id, inp.layer5Id, inp.layer2AltId, inp.hasDivide, inp.divideWidthMm, manual.divideWidth],
   );
+  const showIn = stageFlags.showIn;
   const showGhep = stageFlags.showGhep;
   const showChia = stageFlags.showChia;
   const showTui = stageFlags.showTui;
@@ -381,6 +382,235 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
             value={manual.divideDeliveryReq}
             onChange={v => upd('divideDeliveryReq', v)}
             placeholder="Yêu cầu giao hàng..."
+            style={{ flex: 1, minWidth: 0 }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /** Khối ô nhập khâu IN (dùng cho cả nửa 50/50 và full-width khi không ghép). */
+  function printControls() {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>Màng in:</span>
+          <TI
+            value={manual.printFilmName}
+            onChange={v => upd('printFilmName', v)}
+            placeholder="PA15"
+            style={{ fontWeight: 700, flex: 1, minWidth: 0 }}
+          />
+        </div>
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>Khổ:</span>
+          <span style={{ fontWeight: 700 }}>{khoMM}mm</span>
+        </div>
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>Trục in:</span>
+          <span>D:</span>
+          <NI
+            value={manual.cylDiameter}
+            onChange={v => upd('cylDiameter', v)}
+            placeholder="700"
+            style={{ width: '50px', maxWidth: '50px' }}
+          />
+          <span>×</span>
+          <NI
+            value={manual.cylWidth}
+            onChange={v => upd('cylWidth', v)}
+            placeholder="500"
+            style={{ width: '50px', maxWidth: '50px' }}
+          />
+          <span>mm</span>
+        </div>
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>Số trục:</span>
+          <NI
+            value={manual.numCylinders}
+            onChange={v => upd('numCylinders', v)}
+            placeholder="08"
+            style={{ width: '50px', maxWidth: '50px' }}
+          />
+          <span style={{ fontWeight: 700, fontSize: '11px', marginLeft: 8 }}>Chiều:</span>
+          <TI
+            value={manual.printDirection}
+            onChange={v => upd('printDirection', v)}
+            placeholder="Đầu chữ ra trước"
+            style={{ flex: 1, minWidth: 0 }}
+          />
+        </div>
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>MST:</span>
+          <TI
+            value={manual.printMST}
+            onChange={v => upd('printMST', v)}
+            placeholder=""
+            style={{ flex: 1, minWidth: 0 }}
+          />
+        </div>
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>ĐM phi hao:</span>
+          <NI
+            value={manual.printWastePercent}
+            onChange={v => upd('printWastePercent', v)}
+            placeholder="2.320"
+            style={{ width: '70px', maxWidth: '70px' }}
+          />
+          <span>m</span>
+        </div>
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>Thành phẩm in:</span>
+          <NI
+            value={manual.printProductQty}
+            onChange={v => upd('printProductQty', v)}
+            placeholder="3.300"
+            style={{ ...styles.boldVal, width: '80px', maxWidth: '80px' }}
+          />
+          <TI
+            value={manual.printProductUnit}
+            onChange={v => upd('printProductUnit', v)}
+            placeholder="MD"
+            style={{ width: '40px', maxWidth: '40px' }}
+          />
+        </div>
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>SL cấp vật tư:</span>
+          <NI
+            value={manual.materialQtySupplied}
+            onChange={v => upd('materialQtySupplied', v)}
+            placeholder="3.300"
+            style={{ width: '70px', maxWidth: '70px' }}
+          />
+          <span>m</span>
+        </div>
+        {manual.inDesc && (
+          <div style={styles.cellRow}>
+            <span style={{ fontWeight: 700, fontSize: '11px' }}>Mô tả khác:</span>
+            <TI
+              value={manual.inDesc}
+              onChange={v => upd('inDesc', v)}
+              placeholder="Mô tả khác..."
+              style={{ flex: 1, minWidth: 0, fontStyle: 'italic' }}
+            />
+          </div>
+        )}
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px', color: '#c00' }}>Ghi chú:</span>
+          <TA
+            value={manual.printNotes}
+            onChange={v => upd('printNotes', v)}
+            placeholder="PA15-640: tồn kho => Duyệt Chạy mẫu sắc theo Epson giấy có chữ ký khách"
+            rows={2}
+          />
+        </div>
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>- Trục in:</span>
+          <TI
+            value={manual.cylInfo}
+            onChange={v => upd('cylInfo', v)}
+            placeholder="23/3 vế"
+            style={{ flex: 1, minWidth: 0 }}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /** Khối ô nhập khâu GHÉP (nửa phải 50/50 hoặc full-width khi không in). */
+  function lamControls() {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+        {laminateLayers.length > 0 && (
+          <>
+            {laminateLayers.map((layer, li) => (
+              <div key={`lam-${li}-${layer.label}`} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: '11px' }}>{layer.label}:</div>
+                {layer.parts.map((p, pi) => (
+                  <div key={pi} style={styles.cellRow}>
+                    <TI
+                      value={p.name}
+                      onChange={v => updLamPart(li, pi, { name: v })}
+                      placeholder="LLDPE130"
+                      style={{ fontWeight: 700, flex: 1, minWidth: 0 }}
+                    />
+                    <span style={{ fontSize: 11 }}>Khổ</span>
+                    <NI
+                      value={p.widthMm}
+                      onChange={v => updLamPart(li, pi, { widthMm: v })}
+                      placeholder="640"
+                      style={{ width: '56px', maxWidth: '56px' }}
+                    />
+                    <span>mm</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+            <div style={styles.cellRow}>
+              <span style={{ fontWeight: 700, fontSize: '11px' }}>ĐM phi hao:</span>
+              {laminateLayers.map((layer, li) => (
+                <span key={`waste-${li}-${layer.label}`} style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700 }}>L{li + 1}:</span>
+                  <NI
+                    value={layer.wasteMeters}
+                    onChange={v => updLamLayer(li, { wasteMeters: v })}
+                    placeholder="120"
+                    style={{ width: '50px', maxWidth: '50px' }}
+                  />
+                  <span>m</span>
+                </span>
+              ))}
+            </div>
+          </>
+        )}
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>Thành phẩm ghép:</span>
+          <NI
+            value={manual.lamProductQty}
+            onChange={v => upd('lamProductQty', v)}
+            placeholder="3.180"
+            style={{ width: '70px', maxWidth: '70px' }}
+          />
+          <TI
+            value={manual.lamProductUnit}
+            onChange={v => upd('lamProductUnit', v)}
+            placeholder="MD"
+            style={{ width: '36px', maxWidth: '36px' }}
+          />
+          <span style={{ fontSize: '10px' }}>(ghép hết</span>
+          <TI
+            value={manual.lamBTPNote}
+            onChange={v => upd('lamBTPNote', v)}
+            placeholder="BTP in 3.300m)"
+            style={{ fontSize: '10px' }}
+          />
+        </div>
+        {manual.lamDesc && (
+          <div style={styles.cellRow}>
+            <span style={{ fontWeight: 700, fontSize: '11px' }}>Mô tả khác:</span>
+            <TI
+              value={manual.lamDesc}
+              onChange={v => upd('lamDesc', v)}
+              placeholder="Mô tả khác..."
+              style={{ flex: 1, minWidth: 0, fontStyle: 'italic' }}
+            />
+          </div>
+        )}
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>SL cấp vật tư:</span>
+          <TI
+            value={manual.lamMaterialSupplyQty}
+            onChange={v => upd('lamMaterialSupplyQty', v)}
+            placeholder=""
+            style={{ flex: 1, minWidth: 0 }}
+          />
+        </div>
+        <div style={styles.cellRow}>
+          <span style={{ fontWeight: 700, fontSize: '11px' }}>Ghi chú:</span>
+          <TI
+            value={manual.laminateNotes}
+            onChange={v => upd('laminateNotes', v)}
+            placeholder="LLDPE130-K640: tồn kho"
             style={{ flex: 1, minWidth: 0 }}
           />
         </div>
@@ -582,7 +812,7 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
       </table>
 
       {/* ═══════ II. CÔNG VIỆC CẦN THỰC HIỆN ═══════ */}
-      {(showGhep || showChia || showTui) && (
+      {(showIn || showGhep || showChia || showTui) && (
         <table style={styles.table}>
           <tbody>
             <tr>
@@ -592,132 +822,30 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
         </table>
       )}
 
-      {/* ═══════ Hàng 1: MÁY IN | MÁY GHÉP ═══════ */}
-      {(showGhep) && (
+      {/* ═══════ Hàng 1: MÁY IN | MÁY GHÉP (50/50 khi cả hai cùng có) ═══════ */}
+      {(showIn || showGhep) && (
         <table style={styles.table}>
           <tbody>
             <tr>
+              {showIn && (
+                <td colSpan={showGhep ? 4 : 8} style={{ ...styles.secBlue, width: showGhep ? '50%' : '100%' }}>MÁY IN</td>
+              )}
               {showGhep && (
-                <td colSpan={8} style={{ ...styles.secBlue }}>MÁY GHÉP</td>
+                <td colSpan={showIn ? 4 : 8} style={{ ...styles.secBlue, width: showIn ? '50%' : '100%' }}>MÁY GHÉP</td>
               )}
             </tr>
-
-            {showGhep && laminateLayers.length > 0 && (
-              <>
-                <tr>
-                  <td style={styles.lbl}>{laminateLayers[0].label}:</td>
-                  <td colSpan={7} style={styles.td}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                      {laminateLayers[0].parts.map((p, pi) => (
-                        <div key={pi} style={styles.cellRow}>
-                          <TI
-                            value={p.name}
-                            onChange={v => updLamPart(0, pi, { name: v })}
-                            placeholder="LLDPE130"
-                            style={{ fontWeight: 700, flex: 1, minWidth: 0 }}
-                          />
-                          <span style={{ fontSize: 11 }}>Khổ</span>
-                          <NI
-                            value={p.widthMm}
-                            onChange={v => updLamPart(0, pi, { widthMm: v })}
-                            placeholder="640"
-                            style={{ width: '56px', maxWidth: '56px' }}
-                          />
-                          <span>mm</span>
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-
-                {laminateLayers.slice(1).map((layer, idx) => {
-                  const li = idx + 1;
-                  return (
-                    <tr key={`lam-${li}-${layer.label}`}>
-                      <td style={styles.lbl}>{layer.label}:</td>
-                      <td colSpan={7} style={styles.td}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                          {layer.parts.map((p, pi) => (
-                            <div key={pi} style={styles.cellRow}>
-                              <TI
-                                value={p.name}
-                                onChange={v => updLamPart(li, pi, { name: v })}
-                                placeholder="MPET12"
-                                style={{ fontWeight: 700, flex: 1, minWidth: 0 }}
-                              />
-                              <span style={{ fontSize: 11 }}>Khổ</span>
-                              <NI
-                                value={p.widthMm}
-                                onChange={v => updLamPart(li, pi, { widthMm: v })}
-                                placeholder="640"
-                                style={{ width: '56px', maxWidth: '56px' }}
-                              />
-                              <span>mm</span>
-                            </div>
-                          ))}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-
-                <tr>
-                  <td style={styles.lbl}>ĐM phi hao:</td>
-                  <td colSpan={7} style={styles.td}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
-                      {laminateLayers.map((layer, li) => (
-                        <div key={`waste-${li}-${layer.label}`} style={styles.cellRow}>
-                          <span style={{ fontSize: 11, fontWeight: 700, minWidth: 28 }}>L{li + 1}:</span>
-                          <NI
-                            value={layer.wasteMeters}
-                            onChange={v => updLamLayer(li, { wasteMeters: v })}
-                            placeholder="120"
-                            style={{ width: '70px', maxWidth: '70px' }}
-                          />
-                          <span>m</span>
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              </>
-            )}
-
-            {showGhep && (
-              <>
-                <tr>
-                  <td style={styles.lbl}>Thành phẩm ghép:</td>
-                  <td colSpan={3} style={styles.td}>
-                    <div style={styles.cellRow}>
-                      <NI value={manual.lamProductQty} onChange={v => upd('lamProductQty', v)} placeholder="3.180" style={{ width: '70px', maxWidth: '70px' }} />
-                      <TI value={manual.lamProductUnit} onChange={v => upd('lamProductUnit', v)} placeholder="MD" style={{ width: '36px', maxWidth: '36px' }} />
-                      <span style={{ fontSize: '10px' }}>(ghép hết</span>
-                    </div>
-                  </td>
-                  <td colSpan={4} style={styles.td}>
-                    <TI value={manual.lamBTPNote} onChange={v => upd('lamBTPNote', v)} placeholder="BTP in 3.300m)" style={{ fontSize: '10px' }} />
-                  </td>
-                </tr>
-                {manual.lamDesc && (
-                  <tr>
-                    <td style={styles.lbl}>Mô tả khác:</td>
-                    <td colSpan={7} style={styles.td}>
-                      <TI value={manual.lamDesc} onChange={v => upd('lamDesc', v)} placeholder="Mô tả khác..." style={{ flex: 1, minWidth: 0, fontStyle: 'italic' }} />
-                    </td>
-                  </tr>
-                )}
-                <tr>
-                  <td style={styles.lbl}>Số lượng cấp vật tư:</td>
-                  <td colSpan={3} style={styles.td}>
-                    <TI value={manual.lamMaterialSupplyQty} onChange={v => upd('lamMaterialSupplyQty', v)} placeholder="" />
-                  </td>
-                  <td style={styles.lbl}>Ghi chú:</td>
-                  <td colSpan={3} style={styles.td}>
-                    <TI value={manual.laminateNotes} onChange={v => upd('laminateNotes', v)} placeholder="LLDPE130-K640: tồn kho" />
-                  </td>
-                </tr>
-              </>
-            )}
+            <tr>
+              {showIn && (
+                <td colSpan={showGhep ? 4 : 8} style={{ ...styles.td, verticalAlign: 'top' }}>
+                  {printControls()}
+                </td>
+              )}
+              {showGhep && (
+                <td colSpan={showIn ? 4 : 8} style={{ ...styles.td, verticalAlign: 'top' }}>
+                  {lamControls()}
+                </td>
+              )}
+            </tr>
           </tbody>
         </table>
       )}

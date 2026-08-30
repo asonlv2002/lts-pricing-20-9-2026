@@ -3026,9 +3026,9 @@ function BuocChonSanPham({
                       )}
                       {spreadMm > 0 && cutMm > 0 && (
                         <div className="wiz-desc-row">
-                          <span className="wiz-desc-label">Khổ trải:</span>
+                          <span className="wiz-desc-label">Khổ:</span>
                           <span className="wiz-desc-value">
-                            {spreadMm}mm × {cutMm}mm
+                            Khổ trải {spreadMm} mm × Bước cắt {cutMm} mm
                           </span>
                         </div>
                       )}
