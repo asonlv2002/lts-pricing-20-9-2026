@@ -162,6 +162,8 @@ export function buildLsxBagFieldRows(
       break;
   }
 
+  if (m.hanDay) full('Hàn đáy: ', v(m.hanDay, 'mm'));
+
   if (m.useDualCutter) full('', 'Sử dụng dao cắt 2 nhịp để cắt');
   if (m.useSemicircularMold) full('', 'Sử dụng khuôn đáy đứng bán nguyệt');
   if (m.bagDesc) full('', m.bagDesc);

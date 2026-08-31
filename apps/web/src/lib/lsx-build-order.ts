@@ -397,6 +397,7 @@ export function defaultManual(lsxNumber: string, preparedBy: string): LSXManualF
     hanSau: 0,
     hanBien: 0,
     hanDau: 0,
+    hanDay: 0,
     xepHong: 0,
     holePunchInfo: '',
     ventHoleInfo: '',
@@ -522,6 +523,31 @@ export function buildManualFromSource(
     }
     if ((source.headSealMm ?? 0) > 0) {
       next.hanDau = source.headSealMm as number;
+    }
+    if (source.hasTearNotch && (source.tearNotchFromTopMm ?? 0) > 0) {
+      next.tearNotch = `cách đầu ${source.tearNotchFromTopMm}mm`;
+    }
+    if (source.hasHandleHole && source.handleHoleDescription) {
+      next.holePunchInfo = source.handleHoleDescription;
+    }
+    if (source.hasHangHole && source.hangHoleDescription) {
+      next.loTreoInfo = source.hangHoleDescription;
+    }
+    if ((source.gussetMm ?? 0) > 0) {
+      next.xepHong = source.gussetMm as number;
+    }
+    if ((source.lidMm ?? 0) > 0) {
+      next.nap = source.lidMm as number;
+    }
+    if ((source.backSealMm ?? 0) > 0) {
+      if (bag.key === 'tui-xep-hong-lung-lech') next.danLungLech = source.backSealMm as number;
+      else if (bag.key === 'tui-dan-lung-giua') next.danLung = source.backSealMm as number;
+    }
+    if (source.hasBottomSeal && (source.bottomSealMm ?? 0) > 0) {
+      next.hanDay = source.bottomSealMm as number;
+    }
+    if ((source.standupBottomSideMm ?? 0) > 0 && bag.key === 'tui-day-dung') {
+      next.foldBottom = `${source.standupBottomSideMm as number * 2}mm`;
     }
     return next;
   }

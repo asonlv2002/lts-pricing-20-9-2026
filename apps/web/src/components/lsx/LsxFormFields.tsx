@@ -912,6 +912,9 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                       <span style={{ fontWeight: 700, fontSize: '11px', marginLeft: 8 }}>Hàn đầu:</span>
                       <NI value={manual.hanDau} onChange={v => upd('hanDau', v)} placeholder="50" style={{ width: '50px', maxWidth: '50px' }} />
                       <span>mm</span>
+                      <span style={{ fontWeight: 700, fontSize: '11px', marginLeft: 8 }}>Hàn đáy:</span>
+                      <NI value={manual.hanDay ?? 0} onChange={v => upd('hanDay', v)} placeholder="0" style={{ width: '50px', maxWidth: '50px' }} />
+                      <span>mm</span>
                     </div>
                     {isFieldVisible('xepHong') && (
                       <div style={styles.cellRow}>
@@ -1055,6 +1058,11 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                   </td>
                   <td colSpan={4} style={{ ...styles.td, verticalAlign: 'top' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                      <div style={styles.cellRow}>
+                        <span style={{ fontWeight: 700, fontSize: '11px' }}>Hàn đáy:</span>
+                        <NI value={manual.hanDay ?? 0} onChange={v => upd('hanDay', v)} placeholder="0" style={{ width: '50px', maxWidth: '50px' }} />
+                        <span>mm</span>
+                      </div>
                       {isFieldVisible('xepHong') && (
                         <div style={styles.cellRow}>
                           <span style={{ fontWeight: 700, fontSize: '11px' }}>Xếp hông:</span>

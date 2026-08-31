@@ -240,5 +240,49 @@ const sourcesSealNone = mapBaoGiaToLsxSources(bgSealNone);
 assert('ps-seal-none sideSealMm undefined', sourcesSealNone[0]?.sideSealMm === undefined);
 assert('ps-seal-none headSealMm undefined', sourcesSealNone[0]?.headSealMm === undefined);
 
+console.log('\n=== mapBaoGiaToLsxSources field máy túi mở rộng ===');
+
+const bgFull: BaoGiaApi = {
+  id: 'q-full',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  inputValue: {
+    productBagSpecs: [
+      {
+        pricingSheetId: 'ps-full',
+        productName: 'Túi đầy đủ',
+        bagSpec: {
+          hasTearNotch: true,
+          tearNotchFromTopMm: 15,
+          hasHangHole: true,
+          hangHoleDescription: 'Ø8mm giữa',
+          hasHandleHole: true,
+          handleHoleDescription: '3 lỗ quai xách',
+          gussetMm: 80,
+          lidMm: 40,
+          backSealMm: 12,
+          hasBottomSeal: true,
+          bottomSealMm: 20,
+          standupBottomSideMm: 50,
+        },
+      },
+    ],
+  },
+  pricingSheets: [sheet('ps-full', 'Túi đầy đủ')],
+};
+const sFull = mapBaoGiaToLsxSources(bgFull)[0];
+assert('ps-full hasTearNotch = true', sFull?.hasTearNotch === true);
+assert('ps-full tearNotchFromTopMm = 15', sFull?.tearNotchFromTopMm === 15, String(sFull?.tearNotchFromTopMm));
+assert('ps-full hasHangHole = true', sFull?.hasHangHole === true);
+assert('ps-full hangHoleDescription', sFull?.hangHoleDescription === 'Ø8mm giữa', String(sFull?.hangHoleDescription));
+assert('ps-full hasHandleHole = true', sFull?.hasHandleHole === true);
+assert('ps-full handleHoleDescription', sFull?.handleHoleDescription === '3 lỗ quai xách', String(sFull?.handleHoleDescription));
+assert('ps-full gussetMm = 80', sFull?.gussetMm === 80, String(sFull?.gussetMm));
+assert('ps-full lidMm = 40', sFull?.lidMm === 40, String(sFull?.lidMm));
+assert('ps-full backSealMm = 12', sFull?.backSealMm === 12, String(sFull?.backSealMm));
+assert('ps-full hasBottomSeal = true', sFull?.hasBottomSeal === true);
+assert('ps-full bottomSealMm = 20', sFull?.bottomSealMm === 20, String(sFull?.bottomSealMm));
+assert('ps-full standupBottomSideMm = 50', sFull?.standupBottomSideMm === 50, String(sFull?.standupBottomSideMm));
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

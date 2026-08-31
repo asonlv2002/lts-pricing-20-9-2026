@@ -1085,6 +1085,26 @@ export interface LsxSourceData {
   sideSealMm?: number;
   /** Bề rộng hàn đầu (mm) từ bagSpec báo giá — prefill `manual.hanDau` lúc tạo LSX. */
   headSealMm?: number;
+  /** Có nhấn xé V từ báo giá — prefill `manual.tearNotch`. */
+  hasTearNotch?: boolean;
+  tearNotchFromTopMm?: number;
+  /** Đục lỗ treo từ báo giá — prefill `manual.loTreoInfo`. */
+  hasHangHole?: boolean;
+  hangHoleDescription?: string;
+  /** Đục lỗ quai xách từ báo giá — prefill `manual.holePunchInfo`. */
+  hasHandleHole?: boolean;
+  handleHoleDescription?: string;
+  /** Xếp hông (mm) từ báo giá — prefill `manual.xepHong`. */
+  gussetMm?: number;
+  /** Nắp (mm) từ báo giá — prefill `manual.nap` (cutSealNapKeo). */
+  lidMm?: number;
+  /** Dán lưng (mm) từ báo giá — prefill `manual.danLungLech` / `manual.danLung`. */
+  backSealMm?: number;
+  /** Hàn đáy từ báo giá — prefill `manual.hanDay`. */
+  hasBottomSeal?: boolean;
+  bottomSealMm?: number;
+  /** Khổ đáy mỗi bên (mm) đáy đứng — prefill `manual.foldBottom` = side×2. */
+  standupBottomSideMm?: number;
   /** Ghi chú công đoạn từ báo giá (dropdown công đoạn + text). */
   stageNotes?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
   /** Mô tả khác theo công đoạn từ báo giá. */
@@ -1210,6 +1230,7 @@ export interface LSXManualFields {
   hanSau: number;               // Hàn sau (mm)
   hanBien: number;              // Hàn biên (mm)
   hanDau: number;               // Hàn đáu (mm)
+  hanDay?: number;              // Hàn đáy (mm)
   xepHong: number;              // Xếp hông (mm)
   holePunchInfo: string;        // Đục lỗ (vd: "Đục 3 lỗ trên quai xách (Theo Market)")
   ventHoleInfo: string;         // Lỗ thông hơi (vd: "6 lỗ/mặt: Ø1mm")

@@ -262,6 +262,14 @@ export function formatLsxLamSupplyLine(m: Pick<LSXManualFields, 'lamMaterialSupp
   return t || empty;
 }
 
+/** Ghi chú MÁY LÀM TÚI — gộp ghi chú tay + lưu ý (xuống dòng khi cả 2 có). */
+export function formatLsxBagNote(m: Pick<LSXManualFields, 'bagMachineNotes' | 'bagLuuY'>): string {
+  const tay = (m.bagMachineNotes || '').trim();
+  const luuY = (m.bagLuuY || '').trim();
+  if (tay && luuY) return `${tay}\n${luuY}`;
+  return tay || luuY || 'chạy theo mẫu đã sản xuất';
+}
+
 /** Auto note: "ghép hết BTP in 3.300m". */
 export function buildLsxLamBtpNote(printProductQty: number): string {
   if (!printProductQty) return '';
@@ -829,7 +837,12 @@ export async function buildLSXDocxBlob(
     const noteCell = (vm: string) =>
       cell(
         vm === VM_START
-          ? [para([run('Ghi chú:', { b: true })]), para([run(m.bagLuuY || '', { b: true })])]
+          ? [
+              para([run('Ghi chú:', { b: true })]),
+              ...formatLsxBagNote(m)
+                .split('\n')
+                .map((line) => para([run(line, { b: true })])),
+            ]
           : [],
         { w: bagW.note, vm, va: 'top' },
       );
@@ -862,7 +875,6 @@ export async function buildLSXDocxBlob(
       noteCell(VM_CONTINUE),
       cell([
         para([run(`Định mức phi hao: ${vd(m.bagWasteMeters, 'm')}`, { b: true })]),
-        para([run('Ghi chú: ', { b: true }), run(m.bagMachineNotes || m.bagLuuY || 'chạy theo mẫu đã sản xuất')]),
       ], { cs: 2 }),
     ));
 

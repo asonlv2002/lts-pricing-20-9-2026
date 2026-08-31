@@ -189,7 +189,8 @@ console.log('buildLsxHtml layout B (túi không chia)');
   );
   assert(
     'B: bag machine note appears once',
-    (html.match(/Ghi chú: (?:<\/span>)?chạy theo mẫu/g) || []).length === 1,
+    (html.match(/chạy theo mẫu/g) || []).length === 1 &&
+      /data-lsx-bag-note[\s\S]*?chạy theo mẫu/.test(html),
   );
   assert(
     'B: zipper detail nằm trong lưới thông số',

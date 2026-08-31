@@ -76,6 +76,18 @@ function layLsxBagMetadata(entry: Record<string, unknown> | null): {
   songSieuAmMm?: number;
   sideSealMm?: number;
   headSealMm?: number;
+  hasTearNotch?: boolean;
+  tearNotchFromTopMm?: number;
+  hasHangHole?: boolean;
+  hangHoleDescription?: string;
+  hasHandleHole?: boolean;
+  handleHoleDescription?: string;
+  gussetMm?: number;
+  lidMm?: number;
+  backSealMm?: number;
+  hasBottomSeal?: boolean;
+  bottomSealMm?: number;
+  standupBottomSideMm?: number;
   stageNotes?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
   stageDescriptions?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
 } {
@@ -89,6 +101,14 @@ function layLsxBagMetadata(entry: Record<string, unknown> | null): {
   const saMm = b.songSieuAmMm;
   const sideSeal = b.sideSealMm;
   const headSeal = b.headSealMm;
+  const tearTop = b.tearNotchFromTopMm;
+  const hangDesc = b.hangHoleDescription;
+  const handleDesc = b.handleHoleDescription;
+  const gusset = b.gussetMm;
+  const lid = b.lidMm;
+  const backSeal = b.backSealMm;
+  const bottomSeal = b.bottomSealMm;
+  const standup = b.standupBottomSideMm;
   return {
     bagWidthMm: typeof widthMm === 'number' && widthMm > 0 ? widthMm : undefined,
     bagLengthMm: typeof lengthMm === 'number' && lengthMm > 0 ? lengthMm : undefined,
@@ -101,6 +121,18 @@ function layLsxBagMetadata(entry: Record<string, unknown> | null): {
     songSieuAmMm: typeof saMm === 'number' && saMm > 0 ? saMm : undefined,
     sideSealMm: typeof sideSeal === 'number' && sideSeal > 0 ? sideSeal : undefined,
     headSealMm: typeof headSeal === 'number' && headSeal > 0 ? headSeal : undefined,
+    hasTearNotch: b.hasTearNotch === true ? true : undefined,
+    tearNotchFromTopMm: typeof tearTop === 'number' && tearTop > 0 ? tearTop : undefined,
+    hasHangHole: b.hasHangHole === true ? true : undefined,
+    hangHoleDescription: typeof hangDesc === 'string' && hangDesc ? hangDesc : undefined,
+    hasHandleHole: b.hasHandleHole === true ? true : undefined,
+    handleHoleDescription: typeof handleDesc === 'string' && handleDesc ? handleDesc : undefined,
+    gussetMm: typeof gusset === 'number' && gusset > 0 ? gusset : undefined,
+    lidMm: typeof lid === 'number' && lid > 0 ? lid : undefined,
+    backSealMm: typeof backSeal === 'number' && backSeal > 0 ? backSeal : undefined,
+    hasBottomSeal: b.hasBottomSeal === true ? true : undefined,
+    bottomSealMm: typeof bottomSeal === 'number' && bottomSeal > 0 ? bottomSeal : undefined,
+    standupBottomSideMm: typeof standup === 'number' && standup > 0 ? standup : undefined,
     stageNotes: docStageNotes(b.stageNotes),
     stageDescriptions: docStageNotes(b.stageDescriptions),
   };

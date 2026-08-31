@@ -182,6 +182,30 @@ console.log('\nbuildLsxBagFieldRows — túi 3 biên + zipper manual 25 thắng 
   );
 }
 
+console.log('\nbuildLsxBagFieldRows — Hàn đáy hiện khi hanDay > 0, ẩn khi 0');
+
+{
+  const rows = buildLsxBagFieldRows(
+    'tui-3-bien',
+    manual({ sealEdge: '7mm', hanDau: 30, hanDay: 20 }),
+    false,
+  );
+  const hanDay = rows.find(
+    (r) => r.kind === 'full' && 'field' in r && r.field.label.includes('Hàn đáy'),
+  ) as { kind: 'full'; field: { label: string; value: string } } | undefined;
+  assert('có dòng Hàn đáy: 20mm', !!hanDay && hanDay.field.value === '20mm', JSON.stringify(rows));
+
+  const rowsNone = buildLsxBagFieldRows(
+    'tui-3-bien',
+    manual({ sealEdge: '7mm', hanDau: 30 }),
+    false,
+  );
+  assert(
+    'không hanDay → ẩn dòng Hàn đáy',
+    !rowsNone.some((r) => r.kind === 'full' && 'field' in r && r.field.label.includes('Hàn đáy')),
+  );
+}
+
 console.log('\nsplitLsxBagBlockWidths — kẻ dọc canh giữa (DOCX dùng DXA)');
 
 {

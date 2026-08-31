@@ -345,6 +345,47 @@ const oSealNone = buildProductionOrderFromSource(sSealNone, emptyCtx());
 assert('không sideSealMm → giữ default hanBien 10 từ applyBagDefaults', oSealNone.manual.hanBien === 10, String(oSealNone.manual.hanBien));
 assert('không headSealMm → giữ default hanDau 50 từ applyBagDefaults', oSealNone.manual.hanDau === 50, String(oSealNone.manual.hanDau));
 
+console.log('\n=== field máy túi mở rộng → prefill từ báo giá ===');
+
+const sFull = makeSource('q1:full', 'TUI 4 BIEN FULL', 'LLDPE');
+sFull.hasTearNotch = true;
+sFull.tearNotchFromTopMm = 15;
+sFull.hasHandleHole = true;
+sFull.handleHoleDescription = '3 lỗ quai xách';
+sFull.hasHangHole = true;
+sFull.hangHoleDescription = 'Ø8mm giữa';
+sFull.gussetMm = 80;
+sFull.lidMm = 40;
+sFull.hasBottomSeal = true;
+sFull.bottomSealMm = 20;
+sFull.input = baseInput({ productName: 'TUI 4 BIEN FULL', bagType: '4bien', layer2Id: 'LLDPE' });
+const oFull = buildProductionOrderFromSource(sFull, emptyCtx());
+assert('prefill tearNotch "cách đầu 15mm"', oFull.manual.tearNotch === 'cách đầu 15mm', oFull.manual.tearNotch);
+assert('prefill holePunchInfo từ handleHoleDescription', oFull.manual.holePunchInfo === '3 lỗ quai xách', oFull.manual.holePunchInfo);
+assert('prefill loTreoInfo từ hangHoleDescription', oFull.manual.loTreoInfo === 'Ø8mm giữa', oFull.manual.loTreoInfo);
+assert('prefill xepHong = 80 (ghi đè default 60)', oFull.manual.xepHong === 80, String(oFull.manual.xepHong));
+assert('prefill nap = 40', oFull.manual.nap === 40, String(oFull.manual.nap));
+assert('prefill hanDay = 20', oFull.manual.hanDay === 20, String(oFull.manual.hanDay));
+
+const sLech = makeSource('q1:lech', 'TUI LUNG LECH', 'LLDPE');
+sLech.backSealMm = 12;
+sLech.input = baseInput({ productName: 'TUI LUNG LECH', bagType: 'xephong_lech', layer2Id: 'LLDPE' });
+const oLech = buildProductionOrderFromSource(sLech, emptyCtx());
+assert('prefill danLungLech = 12 (xephong_lech)', oLech.manual.danLungLech === 12, String(oLech.manual.danLungLech));
+
+const sDung = makeSource('q1:dung', 'TUI DAY DUNG', 'LLDPE');
+sDung.standupBottomSideMm = 50;
+sDung.input = baseInput({ productName: 'TUI DAY DUNG', bagType: 'dayDung', layer2Id: 'LLDPE' });
+const oDung = buildProductionOrderFromSource(sDung, emptyCtx());
+assert('prefill foldBottom = "100mm" (đáy ×2)', oDung.manual.foldBottom === '100mm', oDung.manual.foldBottom);
+
+const sNone = makeSource('q1:full-none', 'TUI 4 BIEN EMPTY', 'LLDPE');
+sNone.input = baseInput({ productName: 'TUI 4 BIEN EMPTY', bagType: '4bien', layer2Id: 'LLDPE' });
+const oNone = buildProductionOrderFromSource(sNone, emptyCtx());
+assert('không data tearNotch → rỗng', !oNone.manual.tearNotch, String(oNone.manual.tearNotch));
+assert('không data hanDay → 0 (undefined)', !oNone.manual.hanDay, String(oNone.manual.hanDay));
+assert('không data xepHong → giữ default 60', oNone.manual.xepHong === 60, String(oNone.manual.xepHong));
+
 console.log('\n=== dual laminate: 1 pass nhiều parts ===');
 const mats = [
   { id: 'PET12', name: 'PET', thickness: 12 },

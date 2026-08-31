@@ -19,6 +19,7 @@ import {
   formatLsxPrintProductLine,
   formatLsxLamProductLine,
   formatLsxLamSupplyLine,
+  formatLsxBagNote,
   type LsxDocxTemplateKey,
 } from './lsxExport';
 import { buildLsxLamGridRows } from './lsx-lam-rows';
@@ -161,14 +162,16 @@ const CSS = `
   .lsx-html-page .divide-split {
     display: flex;
     align-items: stretch;
+    border-bottom: 1px solid #000;
+    margin: 0 -5px;
   }
   .lsx-html-page .divide-cell {
     flex: 1 1 50%;
     min-width: 0;
+    padding: 0 5px;
   }
   .lsx-html-page .divide-cell + .divide-cell {
     border-left: 1px solid #000;
-    padding-left: 8px;
   }
   /* IN | GHÉP: ô ngoài chỉ là khung, lưới con tự kẻ bên trong */
   .lsx-html-page td.lam-half {
@@ -444,10 +447,10 @@ function divideLeftColHtml(order: ProductionOrder): string {
   `;
 }
 
-/** Ghi chú vận hành cuối lưới túi — chỉ định mức phi hao + ghi chú máy. */
+/** Ghi chú cuối lưới túi — chỉ còn định mức phi hao (ghi chú đã gộp vào cột trái). */
 function bagFooterNotesHtml(order: ProductionOrder): string {
   const m = order.manual;
-  return `<div class="b">Định mức phi hao: ${esc(vd(m.bagWasteMeters, 'm'))}</div><div><span class="b">Ghi chú: </span>${esc(m.bagMachineNotes || m.bagLuuY || 'chạy theo mẫu đã sản xuất')}</div>`;
+  return `<div class="b">Định mức phi hao: ${esc(vd(m.bagWasteMeters, 'm'))}</div>`;
 }
 
 /**
@@ -480,7 +483,7 @@ function bagSplitHtml(
     <div class="bag-split">
       <div class="bag-note" data-lsx-bag-note>
         <div><span class="b">Ghi chú:</span></div>
-        <div class="b">${esc(m.bagLuuY || '')}</div>
+        <div class="b">${esc(formatLsxBagNote(m)).replace(/\n/g, '<br/>')}</div>
       </div>
       <div class="bag-grid" data-lsx-bag-grid>
         <table><colgroup><col style="width:50%" /><col style="width:50%" /></colgroup>${rows.join('')}</table>

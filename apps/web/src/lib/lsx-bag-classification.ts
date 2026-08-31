@@ -49,14 +49,14 @@ const BAG_TYPES: Record<LsxBagTypeKey, LsxBagTypeInfo> = {
   'tui-3-bien': {
     key: 'tui-3-bien',
     label: 'Túi 3 biên',
-    baseFields: ['holePunchInfo', 'sealEdge', 'hanBien', 'hanDau'],
+    baseFields: ['holePunchInfo', 'sealEdge', 'hanBien', 'hanDau', 'hanDay'],
     defaults: { hanDau: 30, sealEdge: '7mm', holePunchInfo: 'Lỗ tròn Ø8mm cách đầu túi 10mm' },
-    extraFields: ['holePunchInfo', 'sealEdge', 'hanBien', 'hanDau'],
+    extraFields: ['holePunchInfo', 'sealEdge', 'hanBien', 'hanDau', 'hanDay'],
   },
   'tui-4-bien': {
     key: 'tui-4-bien',
     label: 'Túi 4 biên',
-    baseFields: ['xepHong', 'holePunchInfo', 'ventHoleInfo', 'hanBien', 'hanDau'],
+    baseFields: ['xepHong', 'holePunchInfo', 'ventHoleInfo', 'hanBien', 'hanDau', 'hanDay'],
     defaults: {
       hanBien: 10,
       hanDau: 50,
@@ -64,7 +64,7 @@ const BAG_TYPES: Record<LsxBagTypeKey, LsxBagTypeInfo> = {
       holePunchInfo: '3 lỗ tròn quai xách (theo Market)',
       ventHoleInfo: '6 lỗ/mặt Ø1mm',
     },
-    extraFields: ['xepHong', 'holePunchInfo', 'ventHoleInfo', 'hanBien', 'hanDau'],
+    extraFields: ['xepHong', 'holePunchInfo', 'ventHoleInfo', 'hanBien', 'hanDau', 'hanDay'],
   },
   'tui-dan-lung-giua': {
     key: 'tui-dan-lung-giua',
@@ -83,9 +83,9 @@ const BAG_TYPES: Record<LsxBagTypeKey, LsxBagTypeInfo> = {
   'tui-day-dung': {
     key: 'tui-day-dung',
     label: 'Túi đáy đứng',
-    baseFields: ['sealEdge', 'foldBottom', 'hanBien'],
+    baseFields: ['sealEdge', 'foldBottom', 'hanBien', 'hanDay'],
     defaults: { sealEdge: '10mm', foldBottom: '100mm', hanBien: 10 },
-    extraFields: ['sealEdge', 'foldBottom', 'hanBien'],
+    extraFields: ['sealEdge', 'foldBottom', 'hanBien', 'hanDay'],
   },
   'tui-cut-seal': {
     key: 'tui-cut-seal',

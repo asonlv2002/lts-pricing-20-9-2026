@@ -91,6 +91,7 @@ function defaultManual(): LSXManualFields {
     hanSau: 0,
     hanBien: 0,
     hanDau: 0,
+    hanDay: 0,
     xepHong: 0,
     holePunchInfo: '',
     ventHoleInfo: '',

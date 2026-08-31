@@ -22,6 +22,7 @@ import {
   formatLsxPrintProductLine,
   formatLsxLamProductLine,
   formatLsxLamSupplyLine,
+  formatLsxBagNote,
   type LsxDocxTemplateKey,
 } from "../lib/lsxExport";
 import { formatLsxOrderQuantityParts } from "../lib/lsx-quantity";
@@ -153,8 +154,14 @@ const styles = StyleSheet.create({
   bagGridCell: { width: "50%", paddingHorizontal: 4, paddingVertical: 3 },
   bagGridCellFull: { width: "100%", paddingHorizontal: 4, paddingVertical: 3 },
   bagGridDivider: { borderLeft: BORDER },
-  divideGridRow: { flexDirection: "row" as const, alignItems: "stretch" as const },
-  divideGridCell: { width: "50%", paddingHorizontal: 4, paddingVertical: 3 },
+  divideGridRow: {
+    flexDirection: "row" as const,
+    alignItems: "stretch" as const,
+    borderBottom: BORDER,
+    marginLeft: -5,
+    marginRight: -5,
+  },
+  divideGridCell: { width: "50%", paddingHorizontal: 5, paddingVertical: 3 },
   divideGridDivider: { borderLeft: BORDER },
   // MÁY IN | MÁY GHÉP: hai nửa 50/50, mỗi nửa tự xếp hàng (không cần ô rỗng đệm)
   lamHalfLeft: { width: "50%", borderBottom: BORDER },
@@ -783,7 +790,7 @@ function TuiBody({
           <View style={LSX_PDF_STRETCH_ROW_STYLE}>
             <View style={styles.bagNote}>
               <Text style={styles.bold}>Ghi chú:</Text>
-              <Text style={styles.bold}>{m.bagLuuY || ""}</Text>
+              <Text style={styles.bold}>{formatLsxBagNote(m)}</Text>
             </View>
             <View style={styles.bagGrid}>
               <View style={styles.bagGridCellFull}>
@@ -804,10 +811,6 @@ function TuiBody({
               <View style={styles.bagGridRow}>
                 <View style={styles.bagGridCellFull}>
                   <Text style={styles.bold}>{`Định mức phi hao: ${vd(m.bagWasteMeters, "m")}`}</Text>
-                  <Text>
-                    <Text style={styles.bold}>Ghi chú: </Text>
-                    {m.bagMachineNotes || m.bagLuuY || "chạy theo mẫu đã sản xuất"}
-                  </Text>
                 </View>
               </View>
             </View>
