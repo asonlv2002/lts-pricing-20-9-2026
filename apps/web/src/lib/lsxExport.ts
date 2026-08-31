@@ -432,8 +432,19 @@ export async function buildLSXDocxBlob(
       ? formatLsxDivideSummary(divideSpec)
       : vd(divideSpec.defaultWidthMm, 'mm');
     return [
-      para([run('Khổ màng: ', { b: true }), run(filmWidth)]),
-      para([run('Khổ chia: ', { b: true }), run(khoChia)]),
+      new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        layout: TableLayoutType.FIXED,
+        columnWidths: [5000, 5000],
+        rows: [
+          new TableRow({
+            children: [
+              cell([para([run('Khổ màng: ', { b: true }), run(filmWidth)])]),
+              cell([para([run('Khổ chia: ', { b: true }), run(khoChia)])]),
+            ],
+          }),
+        ],
+      }),
       para([run('Chiều dài: ', { b: true }), run(vd(m.rollLength, 'm'))]),
       para([run('Chiều ra cuộn: ', { b: true }), run(vd(m.divideRollOutWidth, 'mm'))]),
       ...(m.divideDesc

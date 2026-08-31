@@ -153,6 +153,9 @@ const styles = StyleSheet.create({
   bagGridCell: { width: "50%", paddingHorizontal: 4, paddingVertical: 3 },
   bagGridCellFull: { width: "100%", paddingHorizontal: 4, paddingVertical: 3 },
   bagGridDivider: { borderLeft: BORDER },
+  divideGridRow: { flexDirection: "row" as const, alignItems: "stretch" as const },
+  divideGridCell: { width: "50%", paddingHorizontal: 4, paddingVertical: 3 },
+  divideGridDivider: { borderLeft: BORDER },
   // MÁY IN | MÁY GHÉP: hai nửa 50/50, mỗi nửa tự xếp hàng (không cần ô rỗng đệm)
   lamHalfLeft: { width: "50%", borderBottom: BORDER },
   lamHalfRight: LSX_PDF_LAM_HALF_RIGHT_STYLE,
@@ -268,8 +271,14 @@ function DivideDetails({ order }: { order: ProductionOrder }) {
   const khoChia = spec.elementCount > 0 ? formatLsxDivideSummary(spec) : vd(spec.defaultWidthMm, "mm");
   return (
     <>
-      <Line label="Khổ màng: " value={filmWidth} />
-      <Line label="Khổ chia: " value={khoChia} />
+      <View style={styles.divideGridRow}>
+        <View style={styles.divideGridCell}>
+          <Line label="Khổ màng: " value={filmWidth} />
+        </View>
+        <View style={[styles.divideGridCell, styles.divideGridDivider]}>
+          <Line label="Khổ chia: " value={khoChia} />
+        </View>
+      </View>
       <Line label="Chiều dài: " value={vd(m.rollLength, "m")} />
       <Line label="Chiều ra cuộn: " value={vd(m.divideRollOutWidth, "mm")} />
       {!!m.divideDesc && <Line label="Mô tả: " value={m.divideDesc} />}

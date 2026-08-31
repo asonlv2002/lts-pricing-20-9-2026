@@ -61,8 +61,12 @@ function divideResultHtml(order: ProductionOrder): string {
   const filmWidth = spec.filmWidthMm ? `${spec.filmWidthMm}mm` : '…';
   const khoChia = formatLsxDivideSummary(spec);
   const rows: string[] = [];
-  rows.push(`<div><span class="b">Khổ màng: </span>${esc(filmWidth)}</div>`);
-  rows.push(`<div><span class="b">Khổ chia: </span>${esc(khoChia)}</div>`);
+  rows.push(
+    `<div class="divide-split">` +
+      `<div class="divide-cell"><span class="b">Khổ màng: </span>${esc(filmWidth)}</div>` +
+      `<div class="divide-cell"><span class="b">Khổ chia: </span>${esc(khoChia)}</div>` +
+      `</div>`,
+  );
   rows.push(`<div><span class="b">Chiều dài: </span>${esc(vd(m.rollLength, 'm'))}</div>`);
   rows.push(`<div><span class="b">Chiều ra cuộn: </span>${esc(vd(m.divideRollOutWidth, 'mm'))}</div>`);
   if (m.divideDesc) {
@@ -153,6 +157,18 @@ const CSS = `
   }
   .lsx-html-page .bag-split .red-note {
     color: #000;
+  }
+  .lsx-html-page .divide-split {
+    display: flex;
+    align-items: stretch;
+  }
+  .lsx-html-page .divide-cell {
+    flex: 1 1 50%;
+    min-width: 0;
+  }
+  .lsx-html-page .divide-cell + .divide-cell {
+    border-left: 1px solid #000;
+    padding-left: 8px;
   }
   /* IN | GHÉP: ô ngoài chỉ là khung, lưới con tự kẻ bên trong */
   .lsx-html-page td.lam-half {
