@@ -500,7 +500,7 @@ export function buildManualFromSource(
   if (i.divideWidthMm && i.divideWidthMm > 0) {
     m.divideWidth = i.divideWidthMm;
   }
-  if (i.divideElements && i.divideElements > 0) {
+  if (i.divideElements && i.divideElements > 1) {
     m.divideElements = i.divideElements;
   }
   const bag = bagInfo ?? classifyLsxBagType(i.bagType, !!i.hasZipper);

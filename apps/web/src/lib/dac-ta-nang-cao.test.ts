@@ -696,8 +696,8 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Có chia N=2: Làm túi neo (SL×bước)÷N; Chia TP = ĐV túi; ĐV Chia = TP/N
-  const tpTui = (10000 * 0.4) / 2;
+  // Có chia N=2: Làm túi neo (SL×bước)×N÷hình; Chia TP = ĐV túi; ĐV Chia = TP/N
+  const tpTui = (10000 * 0.4 * 2) / 1;
   const phTui = tpTui / 3000 * 20 + 100;
   const dvTui = tpTui + phTui;
   const rN2 = taoResult({
@@ -719,7 +719,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 
   const dongTuiN2 = rowsN2.find(r => r.congDoan === 'Làm túi')!;
   eq(dongTuiN2.vatLieu, 'Zipper', 'N=2: vật liệu Zipper');
-  approx(dongTuiN2.thanhPham!, tpTui, 'Làm túi có chia: TP = SL×bước÷N');
+  approx(dongTuiN2.thanhPham!, tpTui, 'Làm túi có chia: TP = SL×bước×N÷hình');
   approx(dongTuiN2.phiHao!, phTui, 'Làm túi: PH = định mức trên TP');
   approx(dongTuiN2.dauVaoNVL!, dvTui, 'Làm túi: ĐV = TP + PH');
   approx(dongTuiN2.khoMang!, 0.3, 'Làm túi có chia: khổ = khổ chia');
@@ -755,7 +755,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
 }
 
 {
-  // Có chia + numImages>1 → vẫn ÷N (không ÷ hình)
+  // Có chia + numImages>1 → TP = SL×bước ÷ (con hình ÷ phần tử chia)
   const rChiaHinh = taoResult({
     zipperTotal: 0, tapeTotal: 0, handleTotal: 0,
     input: {
@@ -765,12 +765,12 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   });
   const dongTuiHinh = lapDongVatLieuNangCao(rChiaHinh, taoUniRows(), taoHangSo())
     .find(r => r.congDoan === 'Làm túi')!;
-  approx(dongTuiHinh.thanhPham!, (10000 * 0.4) / 2, 'có chia + 2 hình: TP = SL×bước÷N (không ÷ hình)');
+  approx(dongTuiHinh.thanhPham!, (10000 * 0.4 * 2) / 2, 'có chia + 2 hình: TP = SL×bước÷(hình÷phần tử)');
 }
 
 {
-  // Có chia + GC slit → dòng Chia GC; Làm túi neo (SL×bước)÷N
-  const tpTui = (10000 * 0.4) / 2;
+  // Có chia + GC slit → dòng Chia GC; Làm túi neo SL×bước ÷ (con hình ÷ phần tử chia)
+  const tpTui = (10000 * 0.4 * 2) / 1;
   const phTui = tpTui / 3000 * 20 + 100;
   const rGc = taoResult({
     zipperTotal: 0,
@@ -788,7 +788,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   assert(dongChiaGc != null, 'GC slit: dòng Chia HIỆN (chỉ có isGiaCongNgoai=true)');
   assert(dongChiaGc.isGiaCongNgoai === true, 'GC slit: dòng Chia có isGiaCongNgoai=true');
   const dongTui = rowsGc.find(r => r.congDoan === 'Làm túi')!;
-  approx(dongTui.thanhPham!, tpTui, 'GC slit: TP = SL×bước÷N');
+  approx(dongTui.thanhPham!, tpTui, 'GC slit: TP = SL×bước÷(hình÷phần tử)');
   approx(dongTui.dauVaoNVL!, tpTui + phTui, 'GC slit: ĐV = TP+PH');
   approx(dongTui.phiHao!, phTui, 'GC slit: PH định mức trên TP');
 }
@@ -925,14 +925,14 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   approx(dongChia.thanhTienNhanCong, dongChia.thoiGianPhut! * 736, 'chia: thành tiền NC');
   approx(dongChia.thanhTienDien, dongChia.thoiGianPhut! * 1000, 'chia: thành tiền điện');
 
-  // làm túi + có chia N=2: met = (SL×bước)÷N + PH
-  const metTuiNeo = 2000 + 2000 / 3000 * 20 + 100;
+  // làm túi + có chia N=2: met = (SL×bước)×N÷hình + PH
+  const metTuiNeo = 8000 + 8000 / 3000 * 20 + 100;
   const dongTuiChia = rowsChia[3];
-  approx(dongTuiChia.thoiGianPhut!, 90 + metTuiNeo / 60, 'làm túi + có chia: met = TP÷N + PH');
+  approx(dongTuiChia.thoiGianPhut!, 90 + metTuiNeo / 60, 'làm túi + có chia: met = TP×N÷hình + PH');
 }
 
 {
-  // Mét túi = TP neo (SL×bước÷N khi chia) + PH; SL/N khác → met khác
+  // Mét túi = TP neo (SL×bước×N÷hình khi chia) + PH; SL/N khác → met khác
   const rN2 = taoResult({
     cutMeters: 25000,
     cutWaste: 267,
@@ -960,14 +960,14 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   const t2 = lapDongNhanCongDien(rN2, taoHangSo()).find(r => r.congDoan === 'làm túi')!;
   const t4 = lapDongNhanCongDien(rN4, taoHangSo()).find(r => r.congDoan === 'làm túi')!;
   const t0 = lapDongNhanCongDien(rNoChia, taoHangSo()).find(r => r.congDoan === 'làm túi')!;
-  // bước 0,5m → 50 m/phút; có chia TP = qty×0.5÷N; không chia TP = qty×0.5
-  const met10kChia2 = (10000 * 0.5) / 2 + ((10000 * 0.5) / 2) / 3000 * 20 + 100;
-  const met50kChia4 = (50000 * 0.5) / 4 + ((50000 * 0.5) / 4) / 3000 * 20 + 100;
+  // bước 0,5m → 50 m/phút; có chia TP = qty×0.5×N÷hình; không chia TP = qty×0.5÷hình
+  const met10kChia2 = (10000 * 0.5 * 2) / 1 + ((10000 * 0.5 * 2) / 1) / 3000 * 20 + 100;
+  const met50kChia4 = (50000 * 0.5 * 4) / 1 + ((50000 * 0.5 * 4) / 1) / 3000 * 20 + 100;
   const met10kNoChia = 10000 * 0.5 + (10000 * 0.5) / 3000 * 20 + 100;
-  approx(t2.thoiGianPhut!, 90 + met10kChia2 / 50, 'làm túi N=2: met = (SL×bước)÷2 + PH');
-  approx(t4.thoiGianPhut!, 90 + met50kChia4 / 50, 'làm túi SL 50k N=4: met = (SL×bước)÷4 + PH');
+  approx(t2.thoiGianPhut!, 90 + met10kChia2 / 50, 'làm túi N=2: met = (SL×bước)×2 + PH');
+  approx(t4.thoiGianPhut!, 90 + met50kChia4 / 50, 'làm túi SL 50k N=4: met = (SL×bước)×4 + PH');
   approx(t0.thoiGianPhut!, 90 + met10kNoChia / 50, 'làm túi không chia: met = SL×bước + PH');
-  assert(t2.thoiGianPhut! < t0.thoiGianPhut!, 'có chia N=2 → mét túi nhỏ hơn không chia (cùng SL)');
+  assert(t2.thoiGianPhut! > t0.thoiGianPhut!, 'có chia N=2 → mét túi lớn hơn không chia (cùng SL, khổ hẹp)');
 }
 
 {
@@ -1249,7 +1249,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     hangSo: taoHangSo(),
     activeOv: ovVl,
   });
-  const tpTui = (10000 * 0.4) / 2;
+  const tpTui = (10000 * 0.4 * 2) / 1;
   const phTui = tpTui / 3000 * 20 + 100;
   const dvTui = tpTui + phTui;
   const ghep = uniOv.find(r => r.rowKey === 'lam-2')!;
@@ -1261,7 +1261,7 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
   const dongGhep = dong.find(d => d.rowKey === 'lam-2' && d.congDoan !== '')!;
   const dongChia = dong.find(d => d.congDoan === 'Chia')!;
   const dongTui = dong.find(d => d.congDoan === 'Làm túi')!;
-  approx(dongTui.thanhPham!, tpTui, 'NC chỉ VL: túi neo SL×bước÷N');
+  approx(dongTui.thanhPham!, tpTui, 'NC chỉ VL: túi neo SL×bước×N÷hình');
   approx(dongTui.dauVaoNVL!, dvTui, 'NC chỉ VL: ĐV túi');
   approx(dongChia.thanhPham!, dvTui, 'NC chỉ VL: Chia TP = ĐV túi');
   approx(dongChia.dauVaoNVL!, dvTui / 2, 'NC chỉ VL: Chia ĐV = TP/N');
@@ -1283,14 +1283,14 @@ eq(chonNhomMuc('mpet 12'), 'pet', 'lowercase vẫn nhận');
     result: rChia,
     hangSo: taoHangSo(),
   });
-  const tpTui = (100000 * 0.25) / 2;
+  const tpTui = (100000 * 0.25 * 2) / 1;
   const phTui = tpTui / 3000 * 20 + 100;
   const dvTui = tpTui + phTui;
   const dong = lapDongVatLieuNangCao(rChia, uni, taoHangSo());
   const dongTui = dong.find(d => d.congDoan === 'Làm túi')!;
   const dongChia = dong.find(d => d.congDoan === 'Chia')!;
   const dongGhep = dong.find(d => d.rowKey === 'lam-2' && d.congDoan !== '')!;
-  approx(dongTui.thanhPham!, tpTui, 'mặc định chia: TP túi = SL×bước÷N');
+  approx(dongTui.thanhPham!, tpTui, 'mặc định chia: TP túi = SL×bước×N÷hình');
   approx(dongTui.dauVaoNVL!, dvTui, 'mặc định chia: ĐV túi');
   approx(dongChia.thanhPham!, dvTui, 'mặc định chia: Chia TP = ĐV túi');
   approx(dongChia.dauVaoNVL!, dvTui / 2, 'mặc định chia: Chia ĐV = TP/N');

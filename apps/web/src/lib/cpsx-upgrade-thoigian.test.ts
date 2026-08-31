@@ -120,7 +120,7 @@ assert(
 );
 assert('metChia: null → 0', metChiaHoacLamTui(null) === 0);
 
-// metLamTuiTuDauVaoNVL: TP+PH; có chia TP=(SL×bước)÷N; không chia TP=(SL×bước)÷hình
+// metLamTuiTuDauVaoNVL: TP+PH; Đầu vào NVL = SL×bước ÷ (số con hình ÷ số phần tử chia)
 assert('soPhanTu: không chia → 1', soPhanTuChiaLamTui({ hasDivide: false, divideElements: 4 }) === 1);
 assert('soPhanTu: có chia N=2 → 2', soPhanTuChiaLamTui({ hasDivide: true, divideElements: 2 }) === 2);
 assert('soPhanTu: có chia N=0 → 1', soPhanTuChiaLamTui({ hasDivide: true, divideElements: 0 }) === 1);
@@ -143,13 +143,13 @@ assert(
   }) === 4000 + (4000 / 3000 * 20 + 100),
 );
 assert(
-  'metTui: có chia ÷N (không ÷ numImages)',
+  'metTui: có chia ÷ (con hình ÷ phần tử chia)',
   metLamTuiTuDauVaoNVL({
     input: {
       productType: 'tui', quantity: 10000, cutStep: 0.4, numImages: 2,
       hasDivide: true, divideElements: 2,
     },
-  }) === 2000 + (2000 / 3000 * 20 + 100),
+  }) === 4000 + (4000 / 3000 * 20 + 100),
 );
 assert(
   'metTui: case sheet 100k×0.25÷2 = 12500',

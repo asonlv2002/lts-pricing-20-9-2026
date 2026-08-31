@@ -489,7 +489,7 @@ export interface CpsxTuiSpeedRule {
 /**
  * CPSX nâng cấp — máy làm túi.
  * TG = setup(loại túi) + Đầu vào NVL làm túi / speedMPerMin.
- * ĐV = TP+PH; có chia TP=(SL×bước)÷N; không chia TP=(SL×bước)÷hình.
+ * ĐV = TP+PH; TP = Đầu vào NVL = (SL×bước) ÷ (số con hình ÷ số phần tử chia).
  */
 export interface CpsxThoiGianMayTui {
   setupRules: CpsxTuiSetupRule[];

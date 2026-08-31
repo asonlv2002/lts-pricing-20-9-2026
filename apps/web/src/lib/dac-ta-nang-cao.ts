@@ -317,8 +317,7 @@ function traGiaNVL(
 /**
  * Thành phẩm làm túi (mét) — neo từ đơn / ghi đè / engine.
  * Ưu tiên: override.cut.meters → neo đơn → cutMeters → uni.meters.
- * Neo đơn: có chia → (SL × bước cắt) ÷ số phần tử chia;
- *           không chia → (SL × bước) ÷ số con hình.
+ * Neo đơn: Đầu vào NVL = (SL × bước cắt) ÷ (số con hình ÷ số phần tử chia).
  */
 export function layThanhPhamLamTui(params: {
   result?: CalculateResult | null;
@@ -333,12 +332,10 @@ export function layThanhPhamLamTui(params: {
   const qty = so(input?.quantity);
   const buoc = so(input?.cutStep);
   const soHinh = Math.max(1, so(input?.numImages) || 1);
+  const soPt = soPhanTuChiaLamTui(input);
   if (qty > 0 && buoc > 0) {
-    // Có chia: TP = SL × bước / số phần tử chia (không ÷ số con hình)
-    if (input?.hasDivide === true) {
-      return (qty * buoc) / soPhanTuChiaLamTui(input);
-    }
-    return (qty * buoc) / soHinh;
+    // Đầu vào NVL = SL × bước cắt ÷ (số con hình ÷ số phần tử chia)
+    return (qty * buoc * soPt) / soHinh;
   }
   const cutM = so(params.result?.cutMeters);
   if (cutM > 0) return cutM;
@@ -568,7 +565,7 @@ function layTpVaKhoNguonChia(
    * Ghép tách theo lớp (như bảng cũ). Dòng ghép có nhiều vật liệu song song
    * (`materialDetails`) → tách 1 dòng/chi tiết; meters/phi hao lặp lại cấp lớp.
    * Dòng Làm túi: gộp Zipper/Băng keo/Quai vào cùng hàng (không tách dòng).
- * TP neo: không chia = (SL×bước)÷hình; có chia = (SL×bước)÷số phần tử chia;
+ * TP neo = Đầu vào NVL = (SL×bước) ÷ (số con hình ÷ số phần tử chia);
  * hoặc ghi đè meters. PH = định mức trên TP (hoặc ghi đè waste); ĐV = TP + PH.
  * Zipper = ĐV × giá (đã theo TP/N khi có chia).
  * Phủ mờ: chèn dòng Lật mặt ngay sau In (VL/khổ copy In; chi phí = 0).
@@ -714,7 +711,7 @@ function layTpVaKhoNguonChia(
     }
     // Công đoạn gia công ngoài: CP gia công (costCPSX) cộng vào thành tiền CPNVL
     const cpGiaCongNgoai = row.isOutsourced ? so(row.costCPSX) : 0;
-    // Làm túi: gộp phụ kiện; TP neo (SL×bước)÷hình hoặc ÷N khi chia; PH→ĐV.
+    // Làm túi: gộp phụ kiện; TP neo = SL×bước ÷ (con hình ÷ phần tử chia); PH→ĐV.
     // Có chia: khổ = khổ chia; sau đó dòng Chia neo TP = ĐV túi.
     if (row.rowKey === 'cut' && !laMang) {
       const thanhPhamTui = layThanhPhamLamTui({
@@ -1001,7 +998,7 @@ export function lapDongNhanCongDien(
     ), ['chia'], isGc ? undefined : overrides, isGc));
   }
 
-  // làm túi — TG = setup + ĐV NVL / tốc độ; ĐV = TP+PH (TP neo đơn: có chia ÷ N)
+  // làm túi — TG = setup + ĐV NVL / tốc độ; ĐV = TP+PH (TP neo đơn: SL×bước ÷ (con hình ÷ phần tử chia))
   if (!laMang && !laGc('bag')) {
     const setupTui = chonSetupMayTui(tg.bag, bagType, hasZipper, cutStepM);
     const tocDoTui = chonTocDoMayTui(tg.bag, cutStepM);
