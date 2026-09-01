@@ -1586,19 +1586,6 @@ body {
   color: var(--pink);
 }
 
-/* Snapshot badge cho thẻ "Lợi nhuận" khi mở sheet đã lưu */
-.profit-snapshot-badge {
-  display: inline-flex;
-  align-items: center;
-  margin-left: 6px;
-  padding: 1px 6px;
-  border-radius: 999px;
-  background: rgba(16, 185, 129, 0.12);
-  font-size: 0.7rem;
-  vertical-align: middle;
-  cursor: help;
-}
-
 /* ═══════════ TABLE ═══════════ */
 .data-table {
   width: 100%;

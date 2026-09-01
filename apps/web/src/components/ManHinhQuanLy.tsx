@@ -2012,19 +2012,10 @@ const buttonLabel = loadedItem
             <div style={{height: '14px'}}></div>
 
             <div className="stat-grid" id="s-stats">
-              <div className="stat-card green" style={{position: 'relative'}}>
+              <div className="stat-card green">
                 <div className="stat-label">{hienThiGia.profitLabel}</div>
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
                   {dinhDangSo(tienLoiNhuanGoc)}đ <span style={{fontSize: '0.85rem'}}>({dinhDangPhanTram(tyLeLoiNhuanGoc)})</span>
-                  {laSheetDaLuu && (
-                    <span
-                      className="profit-snapshot-badge"
-                      title="Giá tại thời điểm lưu — không thay đổi khi admin sửa bảng lợi nhuận"
-                      aria-label="Snapshot lợi nhuận tại thời điểm lưu"
-                    >
-                      📌
-                    </span>
-                  )}
                 </div>
               </div>
               <div className="stat-card cyan">
