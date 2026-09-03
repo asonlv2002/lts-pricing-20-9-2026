@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { dungCuaHangTinhGia } from '../../store/CuaHangTinhGia';
 import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { mapAuthError } from '../../lib/api/service-lts';
 import YeuCauDatLaiMatKhauFlow from './YeuCauDatLaiMatKhauFlow';
 
 export default function DangNhapModal() {
@@ -29,8 +30,8 @@ export default function DangNhapModal() {
     setDangXuLy(true);
     try {
       await login(account.trim(), password);
-    } catch {
-      setLocError(authError || 'Đăng nhập thất bại');
+    } catch (err) {
+      setLocError(mapAuthError(err));
     } finally {
       setDangXuLy(false);
     }

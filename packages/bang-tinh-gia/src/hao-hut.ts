@@ -21,7 +21,7 @@ export function tinhHaoHutIn(metIn: number, soMau: number, hangSo: HangSo): { ch
   const hHInC = hangSo.hatHaoInC || 50000;
   const hHInD = hangSo.hatHaoInD || 400;
   const hatHaoIn = soMau > 0
-    ? ((metIn / hHInA * hHInB) + (metIn > hHInC ? (metIn - hHInC) / hHInC * hHInD : 0))
+    ? (chiPhiCaiDatMau + (metIn / hHInA * hHInB) + (metIn > hHInC ? (metIn - hHInC) / hHInC * hHInD : 0))
     : 0;
   return { chiPhiCaiDatMau, hatHaoIn };
 }

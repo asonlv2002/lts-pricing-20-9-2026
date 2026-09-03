@@ -391,6 +391,30 @@ export class LoiServiceLts extends Error {
   }
 }
 
+/**
+ * Map lỗi auth (login / password-reset) từ BE sang message tiếng Việt hiển thị.
+ * BE commit "account does not exist response" trả 400 với message EN khi:
+ *   - account rỗng / sai format
+ *   - account không tồn tại
+ *   - account bị vô hiệu hóa (isActive=false)
+ * 401 chỉ dành cho "account hợp lệ + password sai" (giữ generic chống enumeration).
+ * Lưu ý: dichLoiServer đã dịch message EN → VN trước; helper này chỉ là lớp
+ * dự phòng nếu dichLoiServer thay đổi, hoặc áp dụng cho lỗi ngoài flow chuẩn.
+ */
+export function mapAuthError(err: unknown): string {
+  if (err instanceof LoiServiceLts) {
+    if (err.status === 400) {
+      return "Tài khoản không tồn tại hoặc đã bị vô hiệu hóa. Vui lòng kiểm tra lại.";
+    }
+    if (err.status === 401) {
+      return "Tài khoản hoặc mật khẩu không đúng.";
+    }
+    return err.message;
+  }
+  if (err instanceof Error) return err.message;
+  return "Đăng nhập thất bại.";
+}
+
 export function caiDatQuanLyPhien(config: {
   layTokenHienTai: TokenProvider;
   luuTokenMoi: TokenSaver;
@@ -433,6 +457,11 @@ function dichLoiServer(message: string, status: number): string {
   if (lower.includes("invalid refresh token")) return "Hết phiên đăng nhập.";
   if (lower.includes("invalid credentials") || lower.includes("unauthorized"))
     return "Tài khoản hoặc mật khẩu không đúng.";
+  if (
+    lower.includes("account is missing, invalid, or does not exist")
+  ) {
+    return "Tài khoản không tồn tại hoặc đã bị vô hiệu hóa. Vui lòng kiểm tra lại.";
+  }
   if (lower.includes("missing pin token"))
     return "Vui lòng nhập mã PIN để xác nhận thao tác.";
   if (lower.includes("pin token expired"))
@@ -698,7 +727,12 @@ export interface PasswordResetVerifyApi {
   expiresAt: string;
 }
 
-/** POST /auth/password-reset-requests — public, body { account }. Luôn { ok: true }. */
+/**
+ * POST /auth/password-reset-requests — public, body { account }.
+ * Từ commit "account does not exist response": throw 400 với message
+ * "Account is missing, invalid, or does not exist." nếu account rỗng /
+ * sai format / không tồn tại / bị vô hiệu hóa. Trước đó luôn trả { ok: true }.
+ */
 export async function taoYeuCauDatLaiMatKhauService(
   account: string,
 ): Promise<{ ok: true }> {

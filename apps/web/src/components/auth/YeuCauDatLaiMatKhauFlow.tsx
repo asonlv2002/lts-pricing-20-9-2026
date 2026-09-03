@@ -91,6 +91,9 @@ export default function YeuCauDatLaiMatKhauFlow({
     setDangXuLy(true);
     setLoi(null);
     try {
+      // BE từ commit "account does not exist response" trả 400 nếu account
+      // rỗng/sai format/không tồn tại/bị vô hiệu hóa — throw sẽ rơi vào catch
+      // và giữ nguyên bước 'account' để user sửa lại (trước đó luôn { ok: true }).
       await taoYeuCauDatLaiMatKhauService(acc);
       setBuoc('waiting');
       setCode('');
