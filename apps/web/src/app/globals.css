@@ -2913,6 +2913,13 @@ body {
   flex-direction: column;
   gap: 8px;
 }
+.config-cpsx-upgrade-admin-bar {
+  margin-top: 24px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(0, 0, 0, 0.08);
+  display: flex;
+  justify-content: flex-start;
+}
 .config-cpsx-upgrade__subnav {
   display: flex;
   flex-wrap: wrap;

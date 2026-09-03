@@ -1,13 +1,37 @@
 "use client";
 
 import React from "react";
+import { ShieldCheck } from "lucide-react";
 import { dungCuaHangTinhGia } from "../../store/CuaHangTinhGia";
-import { layProductionUpgradePriceConfigService } from "../../lib/api/service-lts";
+import {
+  layProductionUpgradePriceConfigService,
+  replaceUserPriceConfigPoliciesService,
+} from "../../lib/api/service-lts";
 import type { PolicyCode } from "../../lib/api/service-lts";
 import CpsxNangCapDien from "./CpsxNangCapDien";
 import CpsxNangCapLuong from "./CpsxNangCapLuong";
 import CpsxNangCapMuc from "./CpsxNangCapMuc";
 import CpsxNangCapThoiGian from "./CpsxNangCapThoiGian";
+
+const CAC_QUYEN_CPSX_NANG_CAO: PolicyCode[] = [
+  "CPSX_UPGRADE_EDIT_ELECTRIC_TIME_FRAME",
+  "CPSX_UPGRADE_EDIT_ELECTRIC_PER_MINUTE",
+  "CPSX_UPGRADE_EDIT_LABOR_PRINT",
+  "CPSX_UPGRADE_EDIT_LABOR_LAMINATE",
+  "CPSX_UPGRADE_EDIT_LABOR_SLIT",
+  "CPSX_UPGRADE_EDIT_LABOR_BAG",
+  "CPSX_UPGRADE_EDIT_INK_OPP",
+  "CPSX_UPGRADE_EDIT_INK_PET",
+  "CPSX_UPGRADE_EDIT_INK_PE",
+  "CPSX_UPGRADE_EDIT_SOLVENT",
+  "CPSX_UPGRADE_EDIT_ADHESIVE",
+  "CPSX_UPGRADE_EDIT_INK_RATE",
+  "CPSX_UPGRADE_EDIT_ADHESIVE_RATE",
+  "CPSX_UPGRADE_EDIT_TIME_PRINT",
+  "CPSX_UPGRADE_EDIT_TIME_LAMINATE",
+  "CPSX_UPGRADE_EDIT_TIME_SLIT",
+  "CPSX_UPGRADE_EDIT_TIME_BAG",
+];
 
 function TieuDe({ children }: { children: React.ReactNode }) {
   return <div className="config-group-header">{children}</div>;
@@ -40,6 +64,8 @@ export default function CpsxNangCapTrang() {
   const dangTaiCpsxPolicies = dungCuaHangTinhGia((s) => s.dangTaiCpsxNangCapPolicies);
   const datCpsxPolicies = dungCuaHangTinhGia((s) => s.datCpsxNangCapPolicies);
 
+  const [dangCapNhatQuyen, setDangCapNhatQuyen] = React.useState(false);
+
   React.useEffect(() => {
     if (!daDangNhap || !accessToken) {
       datCpsxPolicies([]);
@@ -60,6 +86,32 @@ export default function CpsxNangCapTrang() {
   }, [daDangNhap, accessToken, datCpsxPolicies]);
 
   const coQuyen = (code: PolicyCode) => cpsxPolicies.includes(code);
+
+  const laAdmin = nguoiDungHienTai?.account === "admin";
+  const nutAdminBiVoHieu =
+    dangCapNhatQuyen || !daDangNhap || !accessToken || !laAdmin;
+
+  const xuLyTuCapNhatQuyen = async () => {
+    if (nutAdminBiVoHieu) return;
+    if (!nguoiDungHienTai || !accessToken) return;
+    setDangCapNhatQuyen(true);
+    try {
+      await replaceUserPriceConfigPoliciesService(
+        accessToken,
+        nguoiDungHienTai.id,
+        [
+          {
+            configName: "PRODUCTION_UPGRADE",
+            policies: CAC_QUYEN_CPSX_NANG_CAO,
+          },
+        ],
+      );
+    } catch {
+      // im lặng theo yêu cầu
+    } finally {
+      setDangCapNhatQuyen(false);
+    }
+  };
 
   if (daDangNhap && (dangTai || dangTaiCpsxPolicies)) {
     return <DangTaiCpsxNangCao />;
@@ -132,6 +184,20 @@ export default function CpsxNangCapTrang() {
             coQuyenBag={coQuyen("CPSX_UPGRADE_EDIT_TIME_BAG")}
           />
         </>
+      )}
+
+      {daDangNhap && laAdmin && (
+        <div className="config-cpsx-upgrade-admin-bar">
+          <button
+            type="button"
+            className="btn btn-sm btn-outline"
+            onClick={xuLyTuCapNhatQuyen}
+            disabled={nutAdminBiVoHieu}
+          >
+            <ShieldCheck size={14} />
+            Tự cập nhật quyền CPSX nâng cao (admin)
+          </button>
+        </div>
       )}
     </div>
   );

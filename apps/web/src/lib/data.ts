@@ -1,4 +1,4 @@
-import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate, PrintPressLabor, PrintPressElectric, PrintPressTime, LaminatePressLabor, LaminatePressElectric, LaminatePressTime, SlitPressLabor, SlitPressElectric, SlitPressTime, SlitPressTimeRule, BagPressLabor, BagPressElectric, BagPressTime, BagPressSetupRule, BagPressSpeedRule, CpsxTuiSpeedRule, CpsxUpgradeElectric, CpsxUpgradeLabor, CpsxUpgradeLabor1May, CpsxUpgradeLaborTui, CpsxUpgradeInk, CpsxUpgradeThoiGian, MucInTable, MucInRow, SolventAdhesiveTable, SolventAdhesiveRow, KeoRow, DinhMucInRow, DinhMucGhep } from './types';
+import { Material, ProfitRow, AppConstants, SmallWidthMaterialPrice, BoxOption, HandleOption, ConfigSnapshot, PrintSurchargeOption, PrintFilmProfitRate, SlitPressTimeRule, BagPressSetupRule, CpsxTuiSpeedRule, CpsxUpgradeElectric, CpsxUpgradeLabor, CpsxUpgradeLabor1May, CpsxUpgradeLaborTui, CpsxUpgradeInk, CpsxUpgradeThoiGian, MucInTable, MucInRow, SolventAdhesiveTable, SolventAdhesiveRow, KeoRow, DinhMucInRow, DinhMucGhep } from './types';
 import { chuanHoaCpsxUpgradeElectric } from './cpsx-upgrade-electric';
 import { chuanHoaCpsxUpgradeLabor } from './cpsx-upgrade-labor';
 import { chuanHoaCpsxUpgradeInk } from './cpsx-upgrade-ink';
@@ -60,58 +60,6 @@ const printFilmProfitRates: PrintFilmProfitRate[] = rawPrintFilmProfitRates
     return [{ customerGroup: row.customerGroup, colorFrom: row.colorFrom, colorTo: row.colorTo, rate: row.rate }];
   });
 
-export const DEFAULT_PRINT_PRESS_LABOR: PrintPressLabor = {
-  wages: [800000, 550000, 500000, 800000, 550000, 500000],
-  mealMorning: 30000,
-  mealEvening: 65000,
-  otFactor: 1.5,
-  shiftDivisor: 2,
-};
-
-export const DEFAULT_PRINT_PRESS_ELECTRIC: PrintPressElectric = {
-  powerKw: 180,
-  efficiency: 0.55,
-  pricePerKwh: 2140,
-};
-
-export const DEFAULT_PRINT_PRESS_TIME: PrintPressTime = {
-  mountMinutesPerColor: 15,
-  proofMinutes1to7: 20,
-  proofMinutes8: 30,
-  matteExtraMinutes: 80,
-  avgSpeedMPerMin: 150,
-};
-
-export const DEFAULT_LAMINATE_PRESS_LABOR: LaminatePressLabor = {
-  wages: [800000, 550000, 800000, 550000],
-  mealMorning: 30000,
-  mealEvening: 65000,
-  otFactor: 1.5,
-};
-
-export const DEFAULT_LAMINATE_PRESS_ELECTRIC: LaminatePressElectric = {
-  powerKw: 45,
-  efficiency: 0.65,
-  pricePerKwh: 2140,
-};
-
-export const DEFAULT_LAMINATE_PRESS_TIME: LaminatePressTime = {
-  setupFirstMinutes: 10,
-  setupNextMinutes: 30,
-  avgSpeedMPerMin: 100,
-};
-
-export const DEFAULT_SLIT_PRESS_LABOR: SlitPressLabor = {
-  wage: 550000,
-  mealMorning: 30000,
-};
-
-export const DEFAULT_SLIT_PRESS_ELECTRIC: SlitPressElectric = {
-  powerKw: 15,
-  efficiency: 0.6,
-  pricePerKwh: 2140,
-};
-
 export const DEFAULT_SLIT_PRESS_TIME_RULES: SlitPressTimeRule[] = [
   { key: 'opp_mattopp', label: 'Màng OPP, MattOPP', setupMinutes: 30, speedMPerMin: 180 },
   { key: 'mpet_pet', label: 'Màng MPET, PET', setupMinutes: 20, speedMPerMin: 90 },
@@ -119,70 +67,6 @@ export const DEFAULT_SLIT_PRESS_TIME_RULES: SlitPressTimeRule[] = [
   { key: 'laminate_3', label: 'Màng ghép 3 lớp', setupMinutes: 20, speedMPerMin: 90 },
   { key: 'matte_flip', label: 'In phủ mờ (lật mặt)', setupMinutes: 20, speedMPerMin: 150 },
 ];
-
-export const DEFAULT_SLIT_PRESS_TIME: SlitPressTime = {
-  rules: DEFAULT_SLIT_PRESS_TIME_RULES.map((r) => ({ ...r })),
-};
-
-export const BAG_PRESS_MAX_PER_SHIFT = 3;
-
-export const DEFAULT_BAG_PRESS_LABOR: BagPressLabor = {
-  // 2 ca × 3 CN: [ca sáng…, ca tối…]
-  wages: [800000, 550000, 500000, 800000, 550000, 500000],
-  morningCount: 3,
-  mealMorning: 30000,
-  mealEvening: 65000,
-  otFactor: 1.5,
-};
-
-/** Chuẩn hoá wages 2 ca; bản cũ length≤3 → ca tối = default */
-export function normalizeBagPressLabor(
-  raw?: Partial<BagPressLabor> & { wages?: number[] },
-): BagPressLabor {
-  const defMorning = DEFAULT_BAG_PRESS_LABOR.wages.slice(0, BAG_PRESS_MAX_PER_SHIFT);
-  const defEvening = DEFAULT_BAG_PRESS_LABOR.wages.slice(BAG_PRESS_MAX_PER_SHIFT);
-  const src = Array.isArray(raw?.wages) ? raw!.wages!.map((w) => Number(w) || 0) : [];
-
-  let morning: number[];
-  let evening: number[];
-
-  if (src.length === 0) {
-    morning = [...defMorning];
-    evening = [...defEvening];
-  } else if (src.length <= BAG_PRESS_MAX_PER_SHIFT) {
-    morning = src.slice(0, BAG_PRESS_MAX_PER_SHIFT);
-    evening = [...defEvening];
-  } else {
-    const mcRaw = Number(raw?.morningCount);
-    const mc =
-      Number.isFinite(mcRaw) && mcRaw >= 1 && mcRaw <= BAG_PRESS_MAX_PER_SHIFT
-        ? Math.floor(mcRaw)
-        : BAG_PRESS_MAX_PER_SHIFT;
-    morning = src.slice(0, mc).slice(0, BAG_PRESS_MAX_PER_SHIFT);
-    evening = src.slice(mc).slice(0, BAG_PRESS_MAX_PER_SHIFT);
-    if (evening.length === 0) evening = [...defEvening];
-  }
-
-  if (morning.length === 0) morning = [defMorning[0] ?? 500000];
-  if (evening.length === 0) evening = [defEvening[0] ?? 500000];
-
-  return {
-    wages: [...morning, ...evening],
-    morningCount: morning.length,
-    mealMorning: Number(raw?.mealMorning) || DEFAULT_BAG_PRESS_LABOR.mealMorning,
-    mealEvening: Number(raw?.mealEvening) || DEFAULT_BAG_PRESS_LABOR.mealEvening,
-    otFactor:
-      Number(raw?.otFactor) > 0
-        ? Number(raw?.otFactor)
-        : DEFAULT_BAG_PRESS_LABOR.otFactor,
-  };
-}
-
-export const DEFAULT_BAG_PRESS_ELECTRIC: BagPressElectric = {
-  powerKw: 22,
-  efficiency: 0.6,
-  pricePerKwh: 2140,
-};
 
 /** Setup túi CPSX: 1 bảng — loại túi + stepOp + ngưỡng cm (lưu mm). */
 export const DEFAULT_BAG_PRESS_SETUP_RULES: BagPressSetupRule[] = [
@@ -200,16 +84,8 @@ export const DEFAULT_BAG_PRESS_SETUP_RULES: BagPressSetupRule[] = [
   { key: 'cut_seal', label: 'Túi cắt Seal', setupMinutes: 90, maxStepMm: 0, stepOp: 'gt' },
 ];
 
-/** Trần mm mặc định cho bậc «không giới hạn» (thay null). */
+/** Trần mm mặc định cho bậc «không giới hạn» (thay null) — dùng cho CPSX nâng cao speedRules. */
 export const TOC_DO_BUOC_CAT_MAX_TRAN = 9_999_999;
-
-export const DEFAULT_BAG_PRESS_SPEED_RULES: BagPressSpeedRule[] = [
-  { key: 'le_200', label: '0 – 200 mm', minStepMm: 0, maxStepMm: 200, bagsPerMinute: 80 },
-  { key: '200_300', label: '200 – 300 mm', minStepMm: 200, maxStepMm: 300, bagsPerMinute: 70 },
-  { key: '300_400', label: '300 – 400 mm', minStepMm: 300, maxStepMm: 400, bagsPerMinute: 60 },
-  { key: '400_550', label: '400 – 550 mm', minStepMm: 400, maxStepMm: 550, bagsPerMinute: 50 },
-  { key: 'gt_550', label: '550 – 9999999 mm', minStepMm: 550, maxStepMm: TOC_DO_BUOC_CAT_MAX_TRAN, bagsPerMinute: 20 },
-];
 
 export const DEFAULT_CPSX_TUI_SPEED_RULES: CpsxTuiSpeedRule[] = [
   { key: 'le_200', label: '0 – 200 mm', minStepMm: 0, maxStepMm: 200, speedMPerMin: 80 },
@@ -218,11 +94,6 @@ export const DEFAULT_CPSX_TUI_SPEED_RULES: CpsxTuiSpeedRule[] = [
   { key: '400_550', label: '400 – 550 mm', minStepMm: 400, maxStepMm: 550, speedMPerMin: 50 },
   { key: 'gt_550', label: '550 – 9999999 mm', minStepMm: 550, maxStepMm: TOC_DO_BUOC_CAT_MAX_TRAN, speedMPerMin: 20 },
 ];
-
-export const DEFAULT_BAG_PRESS_TIME: BagPressTime = {
-  setupRules: DEFAULT_BAG_PRESS_SETUP_RULES.map((r) => ({ ...r })),
-  speedRules: DEFAULT_BAG_PRESS_SPEED_RULES.map((r) => ({ ...r })),
-};
 
 /** CPSX nâng cấp — mục Điện; độc lập pricePerKwh CPSX cũ; mặc định TB cộng */
 export const DEFAULT_CPSX_UPGRADE_ELECTRIC: CpsxUpgradeElectric = {
@@ -477,199 +348,6 @@ export const DEFAULT_CPSX_UPGRADE_THOIGIAN: CpsxUpgradeThoiGian = {
   },
 };
 
-const rawPrintPressLabor = (rawConstants as unknown as {
-  printPressLabor?: Partial<PrintPressLabor>;
-}).printPressLabor;
-const printPressLabor: PrintPressLabor = {
-  wages: Array.isArray(rawPrintPressLabor?.wages) && (rawPrintPressLabor?.wages.length ?? 0) > 0
-    ? (rawPrintPressLabor?.wages ?? []).map((w) => Number(w) || 0)
-    : [...DEFAULT_PRINT_PRESS_LABOR.wages],
-  mealMorning: Number(rawPrintPressLabor?.mealMorning) || DEFAULT_PRINT_PRESS_LABOR.mealMorning,
-  mealEvening: Number(rawPrintPressLabor?.mealEvening) || DEFAULT_PRINT_PRESS_LABOR.mealEvening,
-  otFactor: Number(rawPrintPressLabor?.otFactor) > 0
-    ? Number(rawPrintPressLabor?.otFactor)
-    : DEFAULT_PRINT_PRESS_LABOR.otFactor,
-  shiftDivisor: Number(rawPrintPressLabor?.shiftDivisor) > 0
-    ? Number(rawPrintPressLabor?.shiftDivisor)
-    : DEFAULT_PRINT_PRESS_LABOR.shiftDivisor,
-};
-
-const rawPrintPressElectric = (rawConstants as { printPressElectric?: PrintPressElectric }).printPressElectric;
-const printPressElectric: PrintPressElectric = {
-  powerKw: Number(rawPrintPressElectric?.powerKw) > 0
-    ? Number(rawPrintPressElectric?.powerKw)
-    : DEFAULT_PRINT_PRESS_ELECTRIC.powerKw,
-  efficiency: Number(rawPrintPressElectric?.efficiency) > 0
-    ? Number(rawPrintPressElectric?.efficiency)
-    : DEFAULT_PRINT_PRESS_ELECTRIC.efficiency,
-  pricePerKwh: Number(rawPrintPressElectric?.pricePerKwh) > 0
-    ? Number(rawPrintPressElectric?.pricePerKwh)
-    : DEFAULT_PRINT_PRESS_ELECTRIC.pricePerKwh,
-};
-
-const rawPrintPressTime = (rawConstants as { printPressTime?: PrintPressTime }).printPressTime;
-const printPressTime: PrintPressTime = {
-  mountMinutesPerColor: Number(rawPrintPressTime?.mountMinutesPerColor) > 0
-    ? Number(rawPrintPressTime?.mountMinutesPerColor)
-    : DEFAULT_PRINT_PRESS_TIME.mountMinutesPerColor,
-  proofMinutes1to7: Number(rawPrintPressTime?.proofMinutes1to7) > 0
-    ? Number(rawPrintPressTime?.proofMinutes1to7)
-    : DEFAULT_PRINT_PRESS_TIME.proofMinutes1to7,
-  proofMinutes8: Number(rawPrintPressTime?.proofMinutes8) > 0
-    ? Number(rawPrintPressTime?.proofMinutes8)
-    : DEFAULT_PRINT_PRESS_TIME.proofMinutes8,
-  matteExtraMinutes: Number(rawPrintPressTime?.matteExtraMinutes) >= 0
-    ? Number(rawPrintPressTime?.matteExtraMinutes)
-    : DEFAULT_PRINT_PRESS_TIME.matteExtraMinutes,
-  avgSpeedMPerMin: Number(rawPrintPressTime?.avgSpeedMPerMin) > 0
-    ? Number(rawPrintPressTime?.avgSpeedMPerMin)
-    : DEFAULT_PRINT_PRESS_TIME.avgSpeedMPerMin,
-};
-
-const rawLaminatePressLabor = (rawConstants as unknown as {
-  laminatePressLabor?: { wages?: number[]; mealMorning?: number; mealEvening?: number; otFactor?: number };
-}).laminatePressLabor;
-const padLaminateWages = (wages?: number[]): [number, number, number, number] => {
-  const src = Array.isArray(wages) ? wages : [];
-  return [
-    Number(src[0]) || 0,
-    Number(src[1]) || 0,
-    Number(src[2]) || 0,
-    Number(src[3]) || 0,
-  ];
-};
-const laminatePressLabor: LaminatePressLabor = {
-  wages: padLaminateWages(rawLaminatePressLabor?.wages),
-  mealMorning: Number(rawLaminatePressLabor?.mealMorning) || DEFAULT_LAMINATE_PRESS_LABOR.mealMorning,
-  mealEvening: Number(rawLaminatePressLabor?.mealEvening) || DEFAULT_LAMINATE_PRESS_LABOR.mealEvening,
-  otFactor: Number(rawLaminatePressLabor?.otFactor) > 0
-    ? Number(rawLaminatePressLabor?.otFactor)
-    : DEFAULT_LAMINATE_PRESS_LABOR.otFactor,
-};
-
-const rawLaminatePressElectric = (rawConstants as { laminatePressElectric?: LaminatePressElectric }).laminatePressElectric;
-const laminatePressElectric: LaminatePressElectric = {
-  powerKw: Number(rawLaminatePressElectric?.powerKw) > 0
-    ? Number(rawLaminatePressElectric?.powerKw)
-    : DEFAULT_LAMINATE_PRESS_ELECTRIC.powerKw,
-  efficiency: Number(rawLaminatePressElectric?.efficiency) > 0
-    ? Number(rawLaminatePressElectric?.efficiency)
-    : DEFAULT_LAMINATE_PRESS_ELECTRIC.efficiency,
-  pricePerKwh: Number(rawLaminatePressElectric?.pricePerKwh) > 0
-    ? Number(rawLaminatePressElectric?.pricePerKwh)
-    : DEFAULT_LAMINATE_PRESS_ELECTRIC.pricePerKwh,
-};
-
-const rawLaminatePressTime = (rawConstants as { laminatePressTime?: LaminatePressTime }).laminatePressTime;
-const laminatePressTime: LaminatePressTime = {
-  setupFirstMinutes: Number(rawLaminatePressTime?.setupFirstMinutes) > 0
-    ? Number(rawLaminatePressTime?.setupFirstMinutes)
-    : DEFAULT_LAMINATE_PRESS_TIME.setupFirstMinutes,
-  setupNextMinutes: Number(rawLaminatePressTime?.setupNextMinutes) > 0
-    ? Number(rawLaminatePressTime?.setupNextMinutes)
-    : DEFAULT_LAMINATE_PRESS_TIME.setupNextMinutes,
-  avgSpeedMPerMin: Number(rawLaminatePressTime?.avgSpeedMPerMin) > 0
-    ? Number(rawLaminatePressTime?.avgSpeedMPerMin)
-    : DEFAULT_LAMINATE_PRESS_TIME.avgSpeedMPerMin,
-};
-
-const rawSlitPressLabor = (rawConstants as unknown as {
-  slitPressLabor?: { wage?: number; mealMorning?: number };
-}).slitPressLabor;
-const slitPressLabor: SlitPressLabor = {
-  wage: Number(rawSlitPressLabor?.wage) || 0,
-  mealMorning: Number(rawSlitPressLabor?.mealMorning) || DEFAULT_SLIT_PRESS_LABOR.mealMorning,
-};
-
-const rawSlitPressElectric = (rawConstants as { slitPressElectric?: SlitPressElectric }).slitPressElectric;
-const slitPressElectric: SlitPressElectric = {
-  powerKw: Number(rawSlitPressElectric?.powerKw) > 0
-    ? Number(rawSlitPressElectric?.powerKw)
-    : DEFAULT_SLIT_PRESS_ELECTRIC.powerKw,
-  efficiency: Number(rawSlitPressElectric?.efficiency) > 0
-    ? Number(rawSlitPressElectric?.efficiency)
-    : DEFAULT_SLIT_PRESS_ELECTRIC.efficiency,
-  pricePerKwh: Number(rawSlitPressElectric?.pricePerKwh) > 0
-    ? Number(rawSlitPressElectric?.pricePerKwh)
-    : DEFAULT_SLIT_PRESS_ELECTRIC.pricePerKwh,
-};
-
-const rawSlitPressTime = (rawConstants as unknown as {
-  slitPressTime?: { rules?: Array<{ key?: string; label?: string; setupMinutes?: number; speedMPerMin?: number }> };
-}).slitPressTime;
-const slitPressTime: SlitPressTime = {
-  rules: Array.isArray(rawSlitPressTime?.rules) && (rawSlitPressTime?.rules?.length ?? 0) > 0
-    ? (rawSlitPressTime?.rules ?? []).map((r, i) => ({
-        key: r.key || `rule_${i + 1}`,
-        label: r.label || `Loại ${i + 1}`,
-        setupMinutes: Number(r.setupMinutes) > 0 ? Number(r.setupMinutes) : 20,
-        speedMPerMin: Number(r.speedMPerMin) > 0 ? Number(r.speedMPerMin) : 100,
-      }))
-    : DEFAULT_SLIT_PRESS_TIME.rules.map((r) => ({ ...r })),
-};
-
-const rawBagPressLabor = (rawConstants as unknown as {
-  bagPressLabor?: Partial<BagPressLabor> & { wages?: number[] };
-}).bagPressLabor;
-const bagPressLabor: BagPressLabor = normalizeBagPressLabor(rawBagPressLabor);
-
-const rawBagPressElectric = (rawConstants as { bagPressElectric?: BagPressElectric }).bagPressElectric;
-const bagPressElectric: BagPressElectric = {
-  powerKw: Number(rawBagPressElectric?.powerKw) > 0
-    ? Number(rawBagPressElectric?.powerKw)
-    : DEFAULT_BAG_PRESS_ELECTRIC.powerKw,
-  efficiency: Number(rawBagPressElectric?.efficiency) > 0
-    ? Number(rawBagPressElectric?.efficiency)
-    : DEFAULT_BAG_PRESS_ELECTRIC.efficiency,
-  pricePerKwh: Number(rawBagPressElectric?.pricePerKwh) > 0
-    ? Number(rawBagPressElectric?.pricePerKwh)
-    : DEFAULT_BAG_PRESS_ELECTRIC.pricePerKwh,
-};
-
-const rawBagPressTime = (rawConstants as unknown as {
-  bagPressTime?: {
-    setupRules?: Array<{ key?: string; label?: string; setupMinutes?: number }>;
-    speedRules?: Array<{
-      key?: string;
-      label?: string;
-      minStepMm?: number;
-      maxStepMm?: number | null;
-      bagsPerMinute?: number;
-    }>;
-  };
-}).bagPressTime;
-const bagPressTime: BagPressTime = {
-  setupRules: Array.isArray(rawBagPressTime?.setupRules) && (rawBagPressTime?.setupRules?.length ?? 0) > 0
-    ? (rawBagPressTime?.setupRules ?? []).map((r, i) => ({
-        key: r.key || `setup_${i + 1}`,
-        label: r.label || `Loại túi ${i + 1}`,
-        setupMinutes: Number(r.setupMinutes) > 0 ? Number(r.setupMinutes) : 90,
-      }))
-    : DEFAULT_BAG_PRESS_TIME.setupRules.map((r) => ({ ...r })),
-  speedRules: Array.isArray(rawBagPressTime?.speedRules) && (rawBagPressTime?.speedRules?.length ?? 0) > 0
-    ? (() => {
-        const rows = rawBagPressTime?.speedRules ?? [];
-        let prevMax = 0;
-        return rows.map((r, i) => {
-          const maxStepMm =
-            r.maxStepMm == null ? TOC_DO_BUOC_CAT_MAX_TRAN : (Number(r.maxStepMm) || TOC_DO_BUOC_CAT_MAX_TRAN);
-          const minStepMm =
-            r.minStepMm != null && Number.isFinite(Number(r.minStepMm))
-              ? Math.max(0, Number(r.minStepMm))
-              : prevMax;
-          prevMax = maxStepMm;
-          return {
-            key: r.key || `speed_${i + 1}`,
-            label: r.label || `${minStepMm} – ${maxStepMm} mm`,
-            minStepMm,
-            maxStepMm,
-            bagsPerMinute: Number(r.bagsPerMinute) > 0 ? Number(r.bagsPerMinute) : 50,
-          };
-        });
-      })()
-    : DEFAULT_BAG_PRESS_TIME.speedRules.map((r) => ({ ...r })),
-};
-
 const rawCpsxUpgradeElectric = (rawConstants as unknown as {
   cpsxUpgradeElectric?: Partial<CpsxUpgradeElectric>;
 }).cpsxUpgradeElectric;
@@ -716,18 +394,6 @@ export const INITIAL_CONSTANTS: AppConstants = {
   cutRules: rawConstants.cutRules?.length ? rawConstants.cutRules : fallbackCutRules,
   customPrintSurcharges: rawConstants.customPrintSurcharges ?? [],
   printFilmProfitRates,
-  printPressLabor,
-  printPressElectric,
-  printPressTime,
-  laminatePressLabor,
-  laminatePressElectric,
-  laminatePressTime,
-  slitPressLabor,
-  slitPressElectric,
-  slitPressTime,
-  bagPressLabor,
-  bagPressElectric,
-  bagPressTime,
   cpsxUpgradeElectric,
   cpsxUpgradeLabor,
   cpsxUpgradeInk,

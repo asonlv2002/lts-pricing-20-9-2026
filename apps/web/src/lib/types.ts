@@ -91,95 +91,12 @@ export interface PrintSurchargeOption {
   price: number;
 }
 
-/** Lương NC máy in (đ/phút) — cấu hình UI; chưa nối engine */
-export interface PrintPressLabor {
-  wages: number[];
-  mealMorning: number;
-  mealEvening: number;
-  otFactor: number;
-  /** Mẫu số chia số công nhân theo ca, dùng chung trong các công thức lương */
-  shiftDivisor: number;
-}
-
-/** Điện máy in (đ/phút) — cấu hình UI; chưa nối engine */
-export interface PrintPressElectric {
-  powerKw: number;
-  efficiency: number; // thập phân, vd 0.55 = 55%
-  pricePerKwh: number;
-}
-
-/** Tham số thời gian SX in — cấu hình UI; mét hao/TP lấy từ tính giá sau */
-export interface PrintPressTime {
-  mountMinutesPerColor: number;
-  proofMinutes1to7: number;
-  proofMinutes8: number;
-  matteExtraMinutes: number;
-  avgSpeedMPerMin: number;
-}
-
-/** Lương NC máy ghép (đ/phút) — luôn 4 người; độc lập với in; chưa nối engine */
-export interface LaminatePressLabor {
-  wages: [number, number, number, number];
-  mealMorning: number;
-  mealEvening: number;
-  otFactor: number;
-}
-
-/** Điện máy ghép (đ/phút) — cấu hình UI; chưa nối engine */
-export interface LaminatePressElectric {
-  powerKw: number;
-  efficiency: number;
-  pricePerKwh: number;
-}
-
-/** Thời gian SX ghép — cấu hình UI; mét hao/TP lấy từ tính giá sau */
-export interface LaminatePressTime {
-  setupFirstMinutes: number;
-  setupNextMinutes: number;
-  avgSpeedMPerMin: number;
-}
-
-/** Lương NC máy chia — 1 người, 12h ca sáng; chưa nối engine */
-export interface SlitPressLabor {
-  wage: number;
-  mealMorning: number;
-}
-
-/** Điện máy chia (đ/phút) — cấu hình UI; chưa nối engine */
-export interface SlitPressElectric {
-  powerKw: number;
-  efficiency: number;
-  pricePerKwh: number;
-}
-
-/** Rule setup/tốc độ chia theo loại SP */
+/** Rule setup/tốc độ máy chia theo loại SP — shared giữa CPSX cũ (DEFAULT_SLIT_PRESS_TIME_RULES) và CPSX nâng cao defaults */
 export interface SlitPressTimeRule {
   key: string;
   label: string;
   setupMinutes: number;
   speedMPerMin: number;
-}
-
-/** Thời gian SX chia — bảng rule; mét hao/TP lấy từ tính giá sau */
-export interface SlitPressTime {
-  rules: SlitPressTimeRule[];
-}
-
-/** Lương NC máy làm túi — 2 ca, tối đa 3 CN/ca (wages flatten: sáng rồi tối); chưa nối engine */
-export interface BagPressLabor {
-  wages: number[];
-  /** Số CN ca sáng (1–3); phần còn lại của wages là ca tối (≤3) */
-  morningCount: number;
-  mealMorning: number;
-  mealEvening: number;
-  otFactor: number;
-}
-
-/** Điện máy làm túi (đ/phút) — cấu hình UI; chưa nối engine */
-export interface BagPressElectric {
-  powerKw: number;
-  efficiency: number;
-  pricePerKwh: number;
 }
 
 /**
@@ -194,23 +111,6 @@ export interface BagPressSetupRule {
   maxStepMm?: number | null;
   /** lte/gte/lt/gt so với maxStepMm; null chỉ data cũ pre-migrate */
   stepOp?: "lte" | "gte" | "lt" | "gt" | null;
-}
-
-/** Tốc độ theo bước cắt (mm → cái/phút); khoảng [min, max] mm */
-export interface BagPressSpeedRule {
-  key: string;
-  label: string;
-  /** Cận dưới mm (bậc 0 thường 0) */
-  minStepMm?: number;
-  /** Cận trên mm; null = data cũ «không trần» (migrate → 9999999) */
-  maxStepMm: number | null;
-  bagsPerMinute: number;
-}
-
-/** Thời gian SX cắt — setup loại túi + tốc độ bước cắt */
-export interface BagPressTime {
-  setupRules: BagPressSetupRule[];
-  speedRules: BagPressSpeedRule[];
 }
 
 /** CPSX nâng cấp — khung giờ giá điện */
@@ -561,30 +461,6 @@ export interface AppConstants {
   customPaymentDays?: number[];
   customAccessories?: CustomAccessory[];
   customPrintSurcharges?: PrintSurchargeOption[];
-  /** Lương NC máy in theo phút — chỉ lưu cấu hình, engine chưa dùng */
-  printPressLabor?: PrintPressLabor;
-  /** Điện máy in — chỉ lưu cấu hình, engine chưa dùng */
-  printPressElectric?: PrintPressElectric;
-  /** Thời gian SX in (tham số) — chỉ lưu cấu hình, engine chưa dùng */
-  printPressTime?: PrintPressTime;
-  /** Lương NC máy ghép — chỉ lưu cấu hình, engine chưa dùng */
-  laminatePressLabor?: LaminatePressLabor;
-  /** Điện máy ghép — chỉ lưu cấu hình, engine chưa dùng */
-  laminatePressElectric?: LaminatePressElectric;
-  /** Thời gian SX ghép — chỉ lưu cấu hình, engine chưa dùng */
-  laminatePressTime?: LaminatePressTime;
-  /** Lương NC máy chia — chỉ lưu cấu hình, engine chưa dùng */
-  slitPressLabor?: SlitPressLabor;
-  /** Điện máy chia — chỉ lưu cấu hình, engine chưa dùng */
-  slitPressElectric?: SlitPressElectric;
-  /** Thời gian SX chia — chỉ lưu cấu hình, engine chưa dùng */
-  slitPressTime?: SlitPressTime;
-  /** Lương NC máy làm túi — chỉ lưu cấu hình, engine chưa dùng */
-  bagPressLabor?: BagPressLabor;
-  /** Điện máy làm túi — chỉ lưu cấu hình, engine chưa dùng */
-  bagPressElectric?: BagPressElectric;
-  /** Thời gian SX cắt — chỉ lưu cấu hình, engine chưa dùng */
-  bagPressTime?: BagPressTime;
   /** CPSX nâng cấp — mục Điện; độc lập CPSX cũ, engine chưa dùng */
   cpsxUpgradeElectric?: CpsxUpgradeElectric;
   /** CPSX nâng cấp — mục Lương; độc lập CPSX cũ, engine chưa dùng */

@@ -1,5 +1,5 @@
 /**
- * Regression checks for the inline print-press labor formulas.
+ * Regression checks cho CPSX cũ (Labor/Electric/Time) đã xóa khỏi UI — toàn bộ chuyển sang CPSX nâng cao.
  * Run: pnpm exec tsx src/components/TrangCauHinh.print-labor-inline.test.ts
  */
 
@@ -23,153 +23,82 @@ const source = readFileSync(
   resolve(process.cwd(), 'src/components/TrangCauHinh.tsx'),
   'utf8',
 );
-const dataSource = readFileSync(resolve(process.cwd(), 'src/lib/data.ts'), 'utf8');
 const typesSource = readFileSync(resolve(process.cwd(), 'src/lib/types.ts'), 'utf8');
+const dataSource = readFileSync(resolve(process.cwd(), 'src/lib/data.ts'), 'utf8');
 const globalsCss = readFileSync(resolve(process.cwd(), 'src/app/globals.css'), 'utf8');
-function sliceCard(startTitle: string, endTitle: string): string {
-  const start = source.indexOf(`tieuDe="${startTitle}"`);
-  const end = source.indexOf(`tieuDe="${endTitle}"`, start + 1);
-  if (start < 0) throw new Error(`Card not found: ${startTitle}`);
-  return source.slice(start, end < 0 ? source.length : end);
-}
 
-const printLaborSource = sliceCard(
-  'Lương nhân công máy in',
-  'Chi phí điện máy in',
-);
-const electricInSource = sliceCard('Chi phí điện máy in', 'Thời gian sản xuất in');
-const timeInSource = sliceCard('Thời gian sản xuất in', 'Lương nhân công máy ghép');
-const laborGhepSource = sliceCard(
-  'Lương nhân công máy ghép',
-  'Chi phí điện máy ghép',
-);
-const electricGhepSource = sliceCard(
-  'Chi phí điện máy ghép',
-  'Thời gian sản xuất ghép',
-);
-const timeGhepSource = sliceCard(
-  'Thời gian sản xuất ghép',
-  'Lương nhân công máy chia',
-);
-const laborChiaSource = sliceCard(
-  'Lương nhân công máy chia',
-  'Chi phí điện máy chia',
-);
-const electricChiaSource = sliceCard(
-  'Chi phí điện máy chia',
-  'Thời gian sản xuất chia',
-);
-const timeChiaSource = sliceCard(
-  'Thời gian sản xuất chia',
-  'Lương nhân công máy làm túi',
-);
-const laborTuiSource = sliceCard(
-  'Lương nhân công máy làm túi',
-  'Chi phí điện máy làm túi',
-);
-const electricTuiSource = sliceCard(
-  'Chi phí điện máy làm túi',
-  'Thời gian sản xuất cắt',
-);
-const timeTuiSource = source.slice(
-  source.indexOf('tieuDe="Thời gian sản xuất cắt"'),
-);
-
-console.log('\n== Print press labor inline formula layout ==');
+console.log('\n== 12 thẻ Labor/Electric/Time cũ đã xóa (CPSX nâng cao thay thế) ==');
 
 assert(
-  'card uses inline formula rows instead of its old preview box',
-  printLaborSource.includes('config-print-press-labor__formula-row')
-    && printLaborSource.includes('config-print-press-labor__formula-input')
-    && !printLaborSource.includes('config-print-press-labor__preview')
-    && !printLaborSource.includes('Preview công thức'),
+  '4 thẻ Lương nhân công máy X đã xóa',
+  !source.includes('tieuDe="Lương nhân công máy in"')
+    && !source.includes('tieuDe="Lương nhân công máy ghép"')
+    && !source.includes('tieuDe="Lương nhân công máy chia"')
+    && !source.includes('tieuDe="Lương nhân công máy làm túi"'),
 );
 
 assert(
-  'meal and overtime formulas share the editable shift divisor',
-  typesSource.includes('shiftDivisor: number;')
-    && dataSource.includes('shiftDivisor: 2,')
-    && source.includes('DEFAULT_PRINT_PRESS_LABOR.shiftDivisor')
-    && printLaborSource.includes('aria-label="Mẫu số chia công nhân theo ca"')
-    && (printLaborSource.match(/soNguoiMoiCaMayIn/g) ?? []).length >= 3
-    && source.includes('printPressLabor.mealMorning * soCongNhanMayIn / soNguoiMoiCaMayIn')
-    && source.includes('printPressLabor.mealEvening * soCongNhanMayIn / soNguoiMoiCaMayIn')
-    && source.includes('tongLuongMayIn / soNguoiMoiCaMayIn'),
+  '4 thẻ Chi phí điện máy X đã xóa',
+  !source.includes('tieuDe="Chi phí điện máy in"')
+    && !source.includes('tieuDe="Chi phí điện máy ghép"')
+    && !source.includes('tieuDe="Chi phí điện máy chia"')
+    && !source.includes('tieuDe="Chi phí điện máy làm túi"'),
 );
+
+assert(
+  '4 thẻ Thời gian sản xuất X đã xóa (lần trước)',
+  !source.includes('tieuDe="Thời gian sản xuất in"')
+    && !source.includes('tieuDe="Thời gian sản xuất ghép"')
+    && !source.includes('tieuDe="Thời gian sản xuất chia"')
+    && !source.includes('tieuDe="Thời gian sản xuất cắt"'),
+);
+
+assert(
+  '8 interface Labor/Electric đã xóa khỏi types.ts',
+  !typesSource.includes('export interface PrintPressLabor ')
+    && !typesSource.includes('export interface PrintPressElectric ')
+    && !typesSource.includes('export interface LaminatePressLabor ')
+    && !typesSource.includes('export interface LaminatePressElectric ')
+    && !typesSource.includes('export interface SlitPressLabor ')
+    && !typesSource.includes('export interface SlitPressElectric ')
+    && !typesSource.includes('export interface BagPressLabor ')
+    && !typesSource.includes('export interface BagPressElectric '),
+);
+
+assert(
+  '8 field AppConstants *PressLabor/*PressElectric đã xóa',
+  !typesSource.includes('printPressLabor?:')
+    && !typesSource.includes('printPressElectric?:')
+    && !typesSource.includes('laminatePressLabor?:')
+    && !typesSource.includes('laminatePressElectric?:')
+    && !typesSource.includes('slitPressLabor?:')
+    && !typesSource.includes('slitPressElectric?:')
+    && !typesSource.includes('bagPressLabor?:')
+    && !typesSource.includes('bagPressElectric?:'),
+);
+
+assert(
+  '8 default constant đã xóa khỏi data.ts',
+  !dataSource.includes('DEFAULT_PRINT_PRESS_LABOR')
+    && !dataSource.includes('DEFAULT_PRINT_PRESS_ELECTRIC')
+    && !dataSource.includes('DEFAULT_LAMINATE_PRESS_LABOR')
+    && !dataSource.includes('DEFAULT_LAMINATE_PRESS_ELECTRIC')
+    && !dataSource.includes('DEFAULT_SLIT_PRESS_LABOR')
+    && !dataSource.includes('DEFAULT_SLIT_PRESS_ELECTRIC')
+    && !dataSource.includes('DEFAULT_BAG_PRESS_LABOR')
+    && !dataSource.includes('DEFAULT_BAG_PRESS_ELECTRIC'),
+);
+
+console.log('\n== Mobile CSS cho CPSX cũ vẫn còn (legacy) ==');
 
 assert(
   'mobile controls remain touch friendly and scoped to the config page',
   /@media \(max-width:\s*767px\) \{[\s\S]*\.lts-shell--mobile \.config-page \.config-print-press-labor__delete,[\s\S]*width:\s*44px;[\s\S]*height:\s*44px;/.test(globalsCss),
 );
 
-console.log('\n== Inline sync across labor / electric / time cards ==');
-
-assert(
-  'no card keeps the old preview/result box',
-  !source.includes('config-print-press-labor__preview')
-    && !source.includes('config-print-press-labor__result')
-    && !source.includes('Preview công thức')
-    && !source.includes('Review công thức'),
-);
-
-assert(
-  'no delete control still uses the trash emoji inside config cards',
-  !laborTuiSource.includes('🗑')
-    && !timeChiaSource.includes('🗑')
-    && !timeTuiSource.includes('🗑'),
-);
-
-assert(
-  'electric cards render an inline formula row (in/ghep/chia/tui)',
-  electricInSource.includes('config-print-press-labor__formula-row')
-    && electricGhepSource.includes('config-print-press-labor__formula-row')
-    && electricChiaSource.includes('config-print-press-labor__formula-row')
-    && electricTuiSource.includes('config-print-press-labor__formula-row'),
-);
-
-assert(
-  'simple time cards (in/ghep) embed config values inside the T formula',
-  timeInSource.includes('config-print-press-labor__formula-row--wrap')
-    && timeInSource.includes('T = số màu × ( lên trục')
-    && timeInSource.includes('printPressTime.avgSpeedMPerMin')
-    && !timeInSource.includes('Thời gian lên trục =')
-    && timeGhepSource.includes('config-print-press-labor__formula-row--wrap')
-    && timeGhepSource.includes('T = Setup lần đầu')
-    && timeGhepSource.includes('laminatePressTime.avgSpeedMPerMin')
-    && !timeGhepSource.includes('Setup lần 1 ='),
-);
-
-assert(
-  'rule-table time cards (chia/tui) drop the old preview and use an inline note',
-  !timeChiaSource.includes('config-print-press-labor__preview')
-    && !timeTuiSource.includes('config-print-press-labor__preview')
-    && timeChiaSource.includes('config-note')
-    && timeTuiSource.includes('config-note'),
-);
-
-assert(
-  'ghep labor card uses inline formula rows',
-  laborGhepSource.includes('config-print-press-labor__formula-row')
-    && laborGhepSource.includes('config-print-press-labor__formula-input'),
-);
-
-assert(
-  'chia labor card uses inline formula rows',
-  laborChiaSource.includes('config-print-press-labor__formula-row')
-    && laborChiaSource.includes('config-print-press-labor__formula-input'),
-);
-
-assert(
-  'tui labor card uses inline formula rows with per-shift meal counts',
-  laborTuiSource.includes('config-print-press-labor__formula-row')
-    && laborTuiSource.includes('config-print-press-labor__formula-input')
-    && source.includes('bagPressLabor.mealMorning * bagMorningWages.length')
-    && source.includes('bagPressLabor.mealEvening * bagEveningWages.length'),
-);
-
 if (failed > 0) {
-  console.error(`\n${failed} print labor checks failed.`);
+  console.error(`\n${failed} CPSX cũ checks failed.`);
   process.exit(1);
 }
 
-console.log(`\nAll ${passed} print labor checks passed.`);
+console.log(`\nAll ${passed} CPSX cũ checks passed.`);
