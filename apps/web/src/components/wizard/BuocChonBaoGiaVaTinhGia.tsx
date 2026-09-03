@@ -49,6 +49,31 @@ function locSheetKhaDung(bg: BaoGiaApi): PricingSheetApi[] {
   return (bg.pricingSheets ?? []).filter((s) => s.hasCustomerApproved === true);
 }
 
+/** Lấy giá engine từ sheet (saleResult → masterResult). Mirror bao-gia-adapter layFinalPrice. */
+export function layFinalPriceCuaSheet(sheet: PricingSheetApi): number {
+  const saleP = (sheet.saleResult as Record<string, unknown> | null | undefined)?.finalPrice;
+  if (typeof saleP === 'number') return saleP;
+  const masterP = (sheet.masterResult as Record<string, unknown> | null | undefined)?.finalPrice;
+  if (typeof masterP === 'number') return masterP;
+  return 0;
+}
+
+/**
+ * Tính giá hiển thị step 2b: ưu tiên chotGia (sale đã thương lượng),
+ * fallback sang giá engine khi chotGia <= 0.
+ * `laGiaEngine = true` nghĩa đang fallback → UI nên đánh dấu "(giá engine)".
+ */
+export function layGiaHienThiCuaSheet(
+  sheet: PricingSheetApi,
+  input: Record<string, unknown>,
+): { gia: number; laGiaEngine: boolean } {
+  const chotGiaRaw = input.chotGia;
+  const chotGia = typeof chotGiaRaw === 'number' && chotGiaRaw > 0 ? chotGiaRaw : 0;
+  if (chotGia > 0) return { gia: chotGia, laGiaEngine: false };
+  const finalPrice = layFinalPriceCuaSheet(sheet);
+  return { gia: finalPrice, laGiaEngine: finalPrice > 0 };
+}
+
 function locBgChoKhachHang(
   quotations: BaoGiaApi[],
   customer: CustomerLite | null,
@@ -265,7 +290,7 @@ export function BuocChonBaoGiaVaTinhGia({
               const productName = sheet.pricingSheetName || (typeof input.productName === 'string' ? input.productName : '—');
               const structure = typeof input.structure === 'string' ? input.structure : '';
               const quantity = typeof input.quantity === 'number' ? input.quantity : 0;
-              const chotGia = typeof input.chotGia === 'number' ? input.chotGia : 0;
+              const { gia: giaHienThi, laGiaEngine } = layGiaHienThiCuaSheet(sheet, input);
               return (
                 <div
                   key={sheet.id}
@@ -283,7 +308,17 @@ export function BuocChonBaoGiaVaTinhGia({
                     {structure && <div className="wiz-customer-meta">{structure}</div>}
                     <div className="wiz-customer-meta" style={{ marginTop: 2 }}>
                       <span>SL: <b>{quantity.toLocaleString('vi-VN')}</b></span>
-                      <span>Giá: <b>{chotGia.toLocaleString('vi-VN')} ₫</b></span>
+                      <span>
+                        Giá: <b>{giaHienThi.toLocaleString('vi-VN')} ₫</b>
+                        {laGiaEngine && (
+                          <span
+                            title="Chưa có giá chốt — đang hiển thị giá engine"
+                            style={{ fontSize: '0.66rem', color: '#6b7280', marginLeft: 4 }}
+                          >
+                            (giá engine)
+                          </span>
+                        )}
+                      </span>
                       <span style={{ color: '#047857' }}>Khách đã duyệt</span>
                     </div>
                   </div>
