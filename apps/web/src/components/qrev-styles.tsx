@@ -119,6 +119,12 @@ export const QREV_STYLES = `
 .qrev-btn-icon--danger { color: #b91c1c; border-color: #b91c1c; }
 .qrev-btn-icon--close { border-color: transparent; }
 
+.qrev-rejected-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 32px; height: 32px; border-radius: 8px;
+  border: 1px solid #fecaca; background: #fef2f2; cursor: help;
+}
+
 .qrev-table-bottom-spacer { height: 8px; }
 
 .qrev-empty {

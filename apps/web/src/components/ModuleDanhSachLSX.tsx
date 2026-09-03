@@ -217,7 +217,7 @@ export default function ModuleDanhSachLSX({
         },
       });
     },
-    [accessToken, lamMoi, hienThongBao],
+    [nhapLyDo, accessToken, lamMoi, hienThongBao],
   );
 
   // Ref để truy cập dangTaiXemId hiện tại trong callback async (không cần thêm vào deps).
@@ -437,7 +437,7 @@ export default function ModuleDanhSachLSX({
                         </div>
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
-                        {row.status === 'pending' && laNguoiDuyet && (
+                        {row.status === 'pending' && laNguoiDuyet && !row.reason && (
                           <div className="qrev-row-actions">
                             <button
                               className="qrev-btn-icon qrev-btn-icon--ok"
@@ -449,13 +449,39 @@ export default function ModuleDanhSachLSX({
                             </button>
                             <button
                               className="qrev-btn-icon qrev-btn-icon--danger"
-                              title={row.reason ? `Từ chối · Lý do: ${row.reason}` : 'Từ chối'}
+                              title="Từ chối"
                               disabled={isProcessing}
                               onClick={() => void duyetLsx(row, 'rejected')}
                             >
                               <XCircle size={15} />
                             </button>
                           </div>
+                        )}
+                        {row.status === 'pending' && laNguoiDuyet && row.reason && (
+                          <div className="qrev-row-actions">
+                            <span
+                              className="qrev-rejected-badge"
+                              title={`Đã từ chối · Lý do: ${row.reason}`}
+                            >
+                              <XCircle size={15} style={{ color: '#dc2626' }} />
+                            </span>
+                            <button
+                              className="qrev-btn-icon qrev-btn-icon--ok"
+                              title="Duyệt lại"
+                              disabled={isProcessing}
+                              onClick={() => void duyetLsx(row, 'approved')}
+                            >
+                              <CheckCircle2 size={15} />
+                            </button>
+                          </div>
+                        )}
+                        {!laNguoiDuyet && row.reason && (
+                          <span
+                            className="qrev-rejected-badge"
+                            title={`Đã từ chối · Lý do: ${row.reason}`}
+                          >
+                            <XCircle size={15} style={{ color: '#dc2626' }} />
+                          </span>
                         )}
                         {row.status === 'approved' && (
                           <span title="Đã duyệt">
