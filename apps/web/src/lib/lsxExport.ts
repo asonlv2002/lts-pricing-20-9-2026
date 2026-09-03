@@ -938,8 +938,15 @@ export async function buildLSXDocxBlob(
 
     const tamZipper = zipperDistanceFromOrder(
       { manual: m, snapshot: s },
+      !!s.hasZipper,
       templateKey,
     );
+
+    const tamZipperStr = tamZipper > 0 ? `${tamZipper}mm` : '—';
+    const tearNotchText = v(m.tearNotch);
+    const hasTearNotch = !!tearNotchText;
+    const showZipperCell = tamZipper > 0 || !!s.hasZipper;
+    const showTearNotchCell = hasTearNotch;
 
     switch (templateKey) {
       case 'tui-3-bien':
@@ -950,23 +957,23 @@ export async function buildLSXDocxBlob(
         pushContinue([
           cell([para([run('Đục lỗ: ', { b: true }), run(v(m.holePunchInfo) || '…')])], { cs: rcs(3) }),
         ]);
-        if (s.hasZipper || m.tamZipperCachMieng || m.tearNotch || m.useDualCutter || m.useSemicircularMold) {
-          if (s.hasZipper || m.tamZipperCachMieng) {
-            pushContinue([
-              cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(1) }),
-              cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch) || '2 bên cách miệng 15mm')])], { cs: rcs(2) }),
-            ]);
-          } else if (m.tearNotch) {
-            pushContinue([cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch))])], { cs: rcs(3) })]);
-          }
-          if (m.useDualCutter || m.useSemicircularMold) {
-            pushContinue([
-              cell([
-                ...(m.useDualCutter ? [para([run('Sử dụng dao cắt 2 nhịp để cắt', { b: true })])] : []),
-                ...(m.useSemicircularMold ? [para([run('Sử dụng khuôn đáy đứng bán nguyệt', { b: true })])] : []),
-              ], { cs: rcs(3) }),
-            ], 340);
-          }
+        if (showZipperCell && showTearNotchCell) {
+          pushContinue([
+            cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(tamZipperStr)])], { cs: rcs(1) }),
+            cell([para([run('Nhấn xé "v": ', { b: true }), run(tearNotchText)])], { cs: rcs(2) }),
+          ]);
+        } else if (showZipperCell) {
+          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(tamZipperStr)])], { cs: rcs(3) })]);
+        } else if (showTearNotchCell) {
+          pushContinue([cell([para([run('Nhấn xé "v": ', { b: true }), run(tearNotchText)])], { cs: rcs(3) })]);
+        }
+        if (m.useDualCutter || m.useSemicircularMold) {
+          pushContinue([
+            cell([
+              ...(m.useDualCutter ? [para([run('Sử dụng dao cắt 2 nhịp để cắt', { b: true })])] : []),
+              ...(m.useSemicircularMold ? [para([run('Sử dụng khuôn đáy đứng bán nguyệt', { b: true })])] : []),
+            ], { cs: rcs(3) }),
+          ], 340);
         }
         break;
 
@@ -984,11 +991,15 @@ export async function buildLSXDocxBlob(
         pushContinue([
           cell([para([run('Đục lỗ thông hơi: ', { b: true }), run(v(m.ventHoleInfo) || '…')])], { cs: rcs(3) }),
         ]);
-        if (s.hasZipper || m.tamZipperCachMieng) {
+        if (showZipperCell && showTearNotchCell) {
           pushContinue([
-            cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(1) }),
-            cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch) || '2 bên cách miệng 15mm')])], { cs: rcs(2) }),
+            cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(tamZipperStr)])], { cs: rcs(1) }),
+            cell([para([run('Nhấn xé "v": ', { b: true }), run(tearNotchText)])], { cs: rcs(2) }),
           ]);
+        } else if (showZipperCell) {
+          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(tamZipperStr)])], { cs: rcs(3) })]);
+        } else if (showTearNotchCell) {
+          pushContinue([cell([para([run('Nhấn xé "v": ', { b: true }), run(tearNotchText)])], { cs: rcs(3) })]);
         }
         break;
 
@@ -1002,8 +1013,8 @@ export async function buildLSXDocxBlob(
             para([run(v(m.ventHoleInfo) ? `Đục lỗ thông hơi: ${m.ventHoleInfo}` : '')]),
           ], { cs: rcs(3) }),
         ], 340);
-        if (s.hasZipper || m.tamZipperCachMieng) {
-          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(3) })]);
+        if (showZipperCell) {
+          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(tamZipperStr)])], { cs: rcs(3) })]);
         }
         break;
 
@@ -1015,17 +1026,21 @@ export async function buildLSXDocxBlob(
           cell([para([run('Dán lưng lệch: ', { b: true }), run(v(m.danLungLech, 'mm') || '10mm')])], { cs: rcs(1) }),
           cell([para([run('Dán đáy: ', { b: true }), run(v(m.danDay, 'mm') || '10mm')])], { cs: rcs(2) }),
         ]);
-        if (s.hasZipper || m.tamZipperCachMieng) {
-          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(3) })]);
+        if (showZipperCell) {
+          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(tamZipperStr)])], { cs: rcs(3) })]);
         }
         break;
 
       case 'tui-day-dung':
-        if (s.hasZipper || m.tamZipperCachMieng) {
+        if (showZipperCell && showTearNotchCell) {
           pushContinue([
-            cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(1) }),
-            cell([para([run('Nhấn xé "v": ', { b: true }), run(v(m.tearNotch) || '2 bên cách miệng 15mm')])], { cs: rcs(2) }),
+            cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(tamZipperStr)])], { cs: rcs(1) }),
+            cell([para([run('Nhấn xé "v": ', { b: true }), run(tearNotchText)])], { cs: rcs(2) }),
           ]);
+        } else if (showZipperCell) {
+          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(tamZipperStr)])], { cs: rcs(3) })]);
+        } else if (showTearNotchCell) {
+          pushContinue([cell([para([run('Nhấn xé "v": ', { b: true }), run(tearNotchText)])], { cs: rcs(3) })]);
         }
         pushContinue([
           cell([para([run('Hàn biên: ', { b: true }), run(v(m.sealEdge) || v(m.hanBien, 'mm') || '10mm')])], { cs: rcs(1) }),
@@ -1034,12 +1049,14 @@ export async function buildLSXDocxBlob(
         break;
 
       case 'tui-cut-seal':
-        if (s.hasZipper || m.tamZipperCachMieng) {
+        if (showZipperCell) {
           pushContinue([
-            cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(3) }),
+            cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(tamZipperStr)])], { cs: rcs(3) }),
           ]);
+        }
+        if (m.loTreoInfo) {
           pushContinue([
-            cell([para([run('Đục treo lỗ tròn: ', { b: true }), run(v(m.loTreoInfo) || 'Ø8mm ở giữa khoảng cách miệng túi và tâm zipper')])], { cs: rcs(3) }),
+            cell([para([run('Đục treo lỗ tròn: ', { b: true }), run(m.loTreoInfo)])], { cs: rcs(3) }),
           ]);
         }
         break;
@@ -1055,8 +1072,8 @@ export async function buildLSXDocxBlob(
             para([run(m.danKeoNap ? 'Dán keo ở mé dưới trong nắp: có' : '')]),
           ], { cs: rcs(3) }),
         ], 340);
-        if (s.hasZipper || m.tamZipperCachMieng) {
-          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(3) })]);
+        if (showZipperCell) {
+          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(tamZipperStr)])], { cs: rcs(3) })]);
         }
         break;
 
@@ -1067,10 +1084,10 @@ export async function buildLSXDocxBlob(
         ]);
         if (m.xepHong) pushContinue([cell([para([run('Xếp hông: ', { b: true }), run(v(m.xepHong, 'mm'))])], { cs: rcs(3) })]);
         if (m.foldBottom) pushContinue([cell([para([run('Xếp đáy: ', { b: true }), run(v(m.foldBottom))])], { cs: rcs(3) })]);
-        if (s.hasZipper || m.tamZipperCachMieng) {
-          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(`${tamZipper}mm`)])], { cs: rcs(3) })]);
+        if (showZipperCell) {
+          pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(tamZipperStr)])], { cs: rcs(3) })]);
         }
-        if (m.tearNotch) pushContinue([cell([para([run('Nhấn xé "v": ', { b: true }), run(m.tearNotch)])], { cs: rcs(3) })]);
+        if (showTearNotchCell) pushContinue([cell([para([run('Nhấn xé "v": ', { b: true }), run(tearNotchText)])], { cs: rcs(3) })]);
         if (m.holePunchInfo) pushContinue([cell([para([run(m.holePunchInfo)])], { cs: rcs(3) })]);
         if (m.useDualCutter || m.useSemicircularMold) {
           pushContinue([

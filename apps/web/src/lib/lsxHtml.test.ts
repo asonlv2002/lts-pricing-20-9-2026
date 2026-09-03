@@ -151,7 +151,11 @@ function order(opts: {
 console.log('buildLsxHtml layout B (túi không chia)');
 
 {
-  const html = buildLsxHtml(order({ hasDivide: false, hasZipper: true }));
+  const html = buildLsxHtml(order({
+    hasDivide: false,
+    hasZipper: true,
+    manual: { tearNotch: '2 bên cách miệng 15mm' },
+  }));
 
   // Layout B: no left vMerge notes column — bag fields full width
   assert(
@@ -261,6 +265,27 @@ console.log('\nbuildLsxHtml khối Quy cách (mục I)');
   assert('Xếp đáy tự chia mỗi bên', html.includes('100mm (50mm / Bên)'));
   assert('có dòng Hàn biên', html.includes('Hàn biên: </span>10mm'));
   assert('có dòng Nhấn xé "v"', html.includes('Nhấn xé &quot;v&quot; 2 bên cách miệng 15mm'));
+}
+
+console.log('\nbuildLsxHtml — hasZipper + manual rỗng → hiển thị "—"');
+
+{
+  const html = buildLsxHtml(
+    order({
+      bagType: 'dayDung',
+      hasZipper: true,
+      manual: {
+        foldBottom: '100mm',
+        sealEdge: '10mm',
+        // tamZipperCachMieng: 0 (mặc định) + tearNotch: '' (mặc định) → báo giá không có
+      },
+    }),
+  );
+
+  assert('Quy cách kèm "—" thay vì 30mm', html.includes('Tâm zipper cách đầu: </span>—'));
+  assert('không còn 30mm mặc định trong dòng zipper', !/Tâm zipper cách đầu: <\/span>30mm/.test(html));
+  assert('KHÔNG hiện dòng Nhấn xé khi tearNotch rỗng (chỉ hiện khi có data)', !html.includes('Nhấn xé'));
+  assert('không còn "2 bên cách miệng 15mm" mặc định', !html.includes('2 bên cách miệng 15mm'));
 }
 
 console.log('\nbuildLsxHtml layout A (túi + chia, nhiều lớp)');

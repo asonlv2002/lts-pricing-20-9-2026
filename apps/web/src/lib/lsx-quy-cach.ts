@@ -100,8 +100,8 @@ export function buildLsxQuyCachLines(
   if (showZipper) {
     const tam = manual.tamZipperCachMieng > 0
       ? manual.tamZipperCachMieng
-      : (snapshot.zipperDistanceMm && snapshot.zipperDistanceMm > 0 ? snapshot.zipperDistanceMm : 30);
-    lines.push(`Tâm zipper cách đầu: ${tam}mm`);
+      : (snapshot.zipperDistanceMm && snapshot.zipperDistanceMm > 0 ? snapshot.zipperDistanceMm : 0);
+    lines.push(`Tâm zipper cách đầu: ${tam > 0 ? `${tam}mm` : '—'}`);
   }
   const foldBottom = formatLsxFoldBottom(manual.foldBottom);
   if (foldBottom) lines.push(`Xếp đáy: ${foldBottom}`);

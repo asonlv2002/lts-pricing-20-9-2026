@@ -105,6 +105,24 @@ console.log('\nbuildLsxQuyCachLines');
       sealEdge: '',
       tearNotch: '',
     },
+    { productType: 'tui', spreadWidth: 0.22, cutStep: 0.32, hasZipper: true },
+  );
+  assert('hasZipper + manual rỗng → dòng zipper vẫn hiện nhưng "—"', lines.includes('Tâm zipper cách đầu: —'), lines.join(' | '));
+  assert('không fallback 30mm', !lines.some(l => l.includes('30mm')), lines.join(' | '));
+  assert('không fallback 2 bên cách miệng 15mm', !lines.some(l => l.includes('2 bên cách miệng')), lines.join(' | '));
+}
+
+{
+  const lines = buildLsxQuyCachLines(
+    {
+      quyCachNote: '',
+      quyCachToleranceWidthMm: 2,
+      quyCachToleranceLengthMm: 2,
+      tamZipperCachMieng: 0,
+      foldBottom: '',
+      sealEdge: '',
+      tearNotch: '',
+    },
     { productType: 'tui', spreadWidth: 0.22, cutStep: 0.32, hasZipper: false },
   );
   assert('bỏ field trống, chỉ còn quy cách', lines.length === 1, lines.join(' | '));

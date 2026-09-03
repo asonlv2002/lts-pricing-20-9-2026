@@ -414,8 +414,9 @@ section('15. Phi hao tính toán engine — đảm bảo công thức đúng');
     const pC = cons.printWasteC || 50000;
     const pD = cons.printWasteD || 400;
     const pm = rPhi.printMeters;
-    const expectedPrintWaste = (pm / pA * pB) + (pm > pC ? (pm - pC) / pC * pD : 0);
-    assertApprox('printWaste = meters/pA×pB + ... (đã bỏ colorSetup)', rPhi.printWaste, expectedPrintWaste, 0.1);
+    const setup = cons.colorSetup?.[baseTuiInput.numColors] ?? (baseTuiInput.numColors * 200 + 200);
+    const expectedPrintWaste = setup + (pm / pA * pB) + (pm > pC ? (pm - pC) / pC * pD : 0);
+    assertApprox('printWaste = phi hao setup + meters/pA*pB + ... (gom colorSetup)', rPhi.printWaste, expectedPrintWaste, 0.1);
     assert('printWaste > 0 khi numColors=4', rPhi.printWaste > 0);
   }
 }

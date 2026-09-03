@@ -86,6 +86,54 @@ console.log('\nbuildLsxBagFieldRows — không zipper thì ẩn dòng zipper');
   assert('vẫn có Hàn biên | Xếp đáy', rows.length === 1 && rows[0].kind === 'pair', String(rows.length));
 }
 
+console.log('\nbuildLsxBagFieldRows — hasZipper + manual rỗng → chỉ hiện Tâm zipper "—"');
+
+{
+  const rows = buildLsxBagFieldRows(
+    'tui-day-dung',
+    manual({ sealEdge: '10mm', foldBottom: '100mm' }),
+    true,
+  );
+  // 1 hàng zipper (full) + 1 hàng hàn biên | xếp đáy (pair)
+  assert('2 hàng: 1 full (Tâm zipper) + 1 pair (Hàn biên | Xếp đáy)', rows.length === 2, String(rows.length));
+  const r0 = rows[0];
+  const r1 = rows[1];
+  assert(
+    'hàng 1: Tâm zipper "—" full (không còn cặp 2 ô)',
+    r0.kind === 'full' && r0.field.label === 'Tâm zipper cách đầu: ' && r0.field.value === '—',
+    JSON.stringify(r0),
+  );
+  assert(
+    'KHÔNG còn dòng Nhấn xé trong PDF khi tearNotch rỗng',
+    !rows.some(r => (r.kind === 'full' ? r.field.label : r.left.label + r.right.label).includes('Nhấn xé')),
+    JSON.stringify(rows),
+  );
+  assert(
+    'hàng 2: Hàn biên | Xếp đáy (giữ nguyên)',
+    r1.kind === 'pair' && r1.left.label.includes('Hàn biên') && r1.right.label.includes('Xếp đáy'),
+    JSON.stringify(r1),
+  );
+}
+
+console.log('\nbuildLsxBagFieldRows — hasZipper + tearNotch có → cặp Tâm zipper | Nhấn xé');
+
+{
+  const rows = buildLsxBagFieldRows(
+    'tui-day-dung',
+    manual({ sealEdge: '10mm', foldBottom: '100mm', tearNotch: 'cách đầu 15mm' }),
+    true,
+  );
+  const r0 = rows[0];
+  assert('2 hàng pair', rows.length === 2, String(rows.length));
+  assert(
+    'hàng 1: Tâm zipper "—" | Nhấn xé "cách đầu 15mm"',
+    r0.kind === 'pair' &&
+      r0.left.value === '—' &&
+      r0.right.value === 'cách đầu 15mm',
+    JSON.stringify(r0),
+  );
+}
+
 console.log('\nbuildLsxBagFieldRows — túi 3 biên');
 
 {
@@ -134,12 +182,13 @@ console.log('\nbuildLsxBagFieldRows — túi 3 biên + zipper có Tâm zipper');
     true,
     30,
   );
-  const pairZipper = rows.find(
-    r => r.kind === 'pair' && r.left.label.includes('Tâm zipper'),
-  ) as { kind: 'pair'; left: { label: string; value: string }; right: { label: string; value: string } } | undefined;
+  // hasZipper + snapshot=30, tearNotch rỗng → dòng Tâm zipper là `full` (đơn), không phải pair
+  const zipperRow = rows.find(
+    r => r.kind === 'full' && r.field.label.includes('Tâm zipper'),
+  ) as { kind: 'full'; field: { label: string; value: string } } | undefined;
   assert(
-    'tui-3-bien + zipper có cặp Tâm zipper | Nhấn xé',
-    !!pairZipper && pairZipper.left.value === '30mm' && pairZipper.right.label.includes('Nhấn xé'),
+    'tui-3-bien + zipper có dòng Tâm zipper "30mm" (full, không cặp)',
+    !!zipperRow && zipperRow.field.value === '30mm',
     JSON.stringify(rows),
   );
 }
@@ -153,12 +202,12 @@ console.log('\nbuildLsxBagFieldRows — túi 3 biên + zipper + snapshot.zipperD
     true,
     18,
   );
-  const pairZipper = rows.find(
-    r => r.kind === 'pair' && r.left.label.includes('Tâm zipper'),
-  ) as { kind: 'pair'; left: { label: string; value: string } } | undefined;
+  const zipperRow = rows.find(
+    r => r.kind === 'full' && r.field.label.includes('Tâm zipper'),
+  ) as { kind: 'full'; field: { label: string; value: string } } | undefined;
   assert(
     'snapshot 18 thắng manual = 0',
-    !!pairZipper && pairZipper.left.value === '18mm',
+    !!zipperRow && zipperRow.field.value === '18mm',
     JSON.stringify(rows),
   );
 }
@@ -172,12 +221,12 @@ console.log('\nbuildLsxBagFieldRows — túi 3 biên + zipper manual 25 thắng 
     true,
     18,
   );
-  const pairZipper = rows.find(
-    r => r.kind === 'pair' && r.left.label.includes('Tâm zipper'),
-  ) as { kind: 'pair'; left: { label: string; value: string } } | undefined;
+  const zipperRow = rows.find(
+    r => r.kind === 'full' && r.field.label.includes('Tâm zipper'),
+  ) as { kind: 'full'; field: { label: string; value: string } } | undefined;
   assert(
     'manual 25 thắng snapshot 18',
-    !!pairZipper && pairZipper.left.value === '25mm',
+    !!zipperRow && zipperRow.field.value === '25mm',
     JSON.stringify(rows),
   );
 }

@@ -738,13 +738,13 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                 <td style={styles.lbl}>Tâm zipper cách đầu:</td>
                 <td style={styles.td} colSpan={3}>
                   <div style={styles.cellRow}>
-                    <NI value={manual.tamZipperCachMieng} onChange={v => upd('tamZipperCachMieng', v)} placeholder="30" style={{ width: '50px', maxWidth: '50px' }} />
+                    <NI value={manual.tamZipperCachMieng} onChange={v => upd('tamZipperCachMieng', v)} style={{ width: '50px', maxWidth: '50px' }} />
                     <span>mm</span>
                   </div>
                 </td>
                 <td style={styles.lbl}>Nhấn xé &quot;v&quot;:</td>
                 <td style={styles.td} colSpan={3}>
-                  <TI value={manual.tearNotch} onChange={v => upd('tearNotch', v)} placeholder="2 bên cách miệng 15mm" />
+                  <TI value={manual.tearNotch} onChange={v => upd('tearNotch', v)} />
                 </td>
               </tr>
               <tr>

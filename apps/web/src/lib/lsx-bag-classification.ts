@@ -40,11 +40,6 @@ export const ZIPPER_ACCESSORY_FIELDS: (keyof LSXManualFields)[] = [
   'useDualCutter',
 ];
 
-export const ZIPPER_ACCESSORY_DEFAULTS: Partial<LSXManualFields> = {
-  tamZipperCachMieng: 30,
-  tearNotch: '2 bên cách miệng 15mm',
-};
-
 const BAG_TYPES: Record<LsxBagTypeKey, LsxBagTypeInfo> = {
   'tui-3-bien': {
     key: 'tui-3-bien',
@@ -200,31 +195,30 @@ export function bagTypeLabelHienThi(
   return 'Túi zipper 3 biên';
 }
 
-/** Default mm `Tâm zipper cách đầu` khi LSX không có giá trị — 30mm (zipper 3 biên/đáy đứng). */
-export const DEFAULT_TAM_ZIPPER_CACH_MIENG_MM = 30;
-/** Default mm cho túi cắt seal có zipper (LSX tham chiếu #8). */
-export const DEFAULT_TAM_ZIPPER_CUT_SEAL_MM = 25;
-
 /**
  * Giá trị "Tâm zipper cách đầu" dùng để ghi vào LSX.
  * Thứ tự ưu tiên: admin sửa tay trong LSX manual → snapshot từ báo giá → default theo kiểu túi.
- * - manual > 0: thắng (kể cả admin sửa khác default).
- * - manual = 0/null/undefined: dùng snapshot.zipperDistanceMm > 0 ? snapshot : default.
+ * - !hasZipper: trả 0 (ẩn dòng zipper, không tự ý hiển thị).
+ * - hasZipper + manual > 0: thắng (kể cả admin sửa khác default).
+ * - hasZipper + manual = 0 + snapshot > 0: dùng snapshot.
+ * - hasZipper + cả hai = 0: trả 0 (layer trên render "—").
+ *
+ * Lưu ý: KHÔNG còn fallback 30/25 — chỉ hiển thị khi báo giá / admin có giá trị thật.
  */
 export function zipperDistanceFromOrder(
   source: {
     manual: { tamZipperCachMieng: number };
     snapshot: { zipperDistanceMm?: number };
   },
+  hasZipper: boolean,
   templateKey?: LsxBagTypeKey | string,
 ): number {
+  if (!hasZipper) return 0;
   const m = source.manual.tamZipperCachMieng;
   if (typeof m === 'number' && m > 0) return m;
   const s = source.snapshot.zipperDistanceMm;
   if (typeof s === 'number' && s > 0) return s;
-  return templateKey === 'tui-cut-seal'
-    ? DEFAULT_TAM_ZIPPER_CUT_SEAL_MM
-    : DEFAULT_TAM_ZIPPER_CACH_MIENG_MM;
+  return 0;
 }
 
 /** Field máy túi visible: base kiểu + khuôn bán nguyệt (luôn) + zipper nếu bật. */
@@ -246,14 +240,15 @@ export function applyBagDefaults(
   bagInfo: LsxBagTypeInfo,
   hasZipper: boolean,
 ): LSXManualFields {
+  void hasZipper;
   const next = { ...m };
   for (const [k, v] of Object.entries(bagInfo.defaults)) {
-    (next as Record<string, unknown>)[k] = v;
-  }
-  if (hasZipper) {
-    for (const [k, v] of Object.entries(ZIPPER_ACCESSORY_DEFAULTS)) {
-      (next as Record<string, unknown>)[k] = v;
+    if (v === undefined || v === null) continue;
+    const cur = (next as Record<string, unknown>)[k];
+    if (cur !== undefined && cur !== null && cur !== '' && cur !== 0 && cur !== false) {
+      continue;
     }
+    (next as Record<string, unknown>)[k] = v;
   }
   return next;
 }

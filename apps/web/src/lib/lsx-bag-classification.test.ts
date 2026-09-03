@@ -11,8 +11,6 @@ import {
   classifyLsxBagType,
   classifyLsxBagTypeByKey,
   zipperDistanceFromOrder,
-  DEFAULT_TAM_ZIPPER_CACH_MIENG_MM,
-  DEFAULT_TAM_ZIPPER_CUT_SEAL_MM,
 } from './lsx-bag-classification';
 import type { LSXManualFields } from './types';
 
@@ -71,34 +69,38 @@ const orderStub = (manual: Partial<LSXManualFields>, zip?: number) => ({
   snapshot: { zipperDistanceMm: zip } as { zipperDistanceMm?: number },
 });
 
-console.log('\nzipperDistanceFromOrder — fallback chain');
+console.log('\nzipperDistanceFromOrder — fallback chain (chỉ khi hasZipper=true)');
 assert(
   'manual > 0 thắng (admin sửa tay)',
-  zipperDistanceFromOrder(orderStub({ tamZipperCachMieng: 25 }, 0), 'tui-3-bien') === 25,
+  zipperDistanceFromOrder(orderStub({ tamZipperCachMieng: 25 }, 0), true, 'tui-3-bien') === 25,
 );
 assert(
   'manual = 0, snapshot có 22 → 22',
-  zipperDistanceFromOrder(orderStub({}, 22), 'tui-3-bien') === 22,
+  zipperDistanceFromOrder(orderStub({}, 22), true, 'tui-3-bien') === 22,
 );
 assert(
-  'manual = 0, snapshot = 0, tui-3-bien → 30',
-  zipperDistanceFromOrder(orderStub({}, 0), 'tui-3-bien') === DEFAULT_TAM_ZIPPER_CACH_MIENG_MM,
+  'hasZipper=true, manual = 0, snapshot = 0, tui-3-bien → 0 (không còn fallback 30)',
+  zipperDistanceFromOrder(orderStub({}, 0), true, 'tui-3-bien') === 0,
 );
 assert(
-  'manual = 0, snapshot = 0, tui-day-dung → 30',
-  zipperDistanceFromOrder(orderStub({}, 0), 'tui-day-dung') === 30,
+  'hasZipper=true, manual = 0, snapshot = 0, tui-day-dung → 0',
+  zipperDistanceFromOrder(orderStub({}, 0), true, 'tui-day-dung') === 0,
 );
 assert(
-  'manual = 0, snapshot = 0, tui-cut-seal → 25',
-  zipperDistanceFromOrder(orderStub({}, 0), 'tui-cut-seal') === DEFAULT_TAM_ZIPPER_CUT_SEAL_MM,
+  'hasZipper=true, manual = 0, snapshot = 0, tui-cut-seal → 0 (không còn fallback 25)',
+  zipperDistanceFromOrder(orderStub({}, 0), true, 'tui-cut-seal') === 0,
 );
 assert(
-  'manual = 0, snapshot = 0, fallback (no templateKey) → 30',
-  zipperDistanceFromOrder(orderStub({}, 0)) === 30,
+  'hasZipper=true, manual = 0, snapshot = 0, no templateKey → 0',
+  zipperDistanceFromOrder(orderStub({}, 0), true) === 0,
 );
 assert(
-  'manual > 0 thắng kể cả snapshot = 0 (admin đã xoá sẵn)',
-  zipperDistanceFromOrder(orderStub({ tamZipperCachMieng: 12 }, 0), 'tui-3-bien') === 12,
+  'hasZipper=true, manual > 0 thắng kể cả snapshot = 0 (admin đã xoá sẵn)',
+  zipperDistanceFromOrder(orderStub({ tamZipperCachMieng: 12 }, 0), true, 'tui-3-bien') === 12,
+);
+assert(
+  'hasZipper=false → 0 bất kể manual/snapshot (dòng zipper ẩn)',
+  zipperDistanceFromOrder(orderStub({ tamZipperCachMieng: 25 }, 22), false, 'tui-3-bien') === 0,
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);

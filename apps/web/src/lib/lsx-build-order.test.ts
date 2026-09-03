@@ -386,6 +386,13 @@ assert('không data tearNotch → rỗng', !oNone.manual.tearNotch, String(oNone
 assert('không data hanDay → 0 (undefined)', !oNone.manual.hanDay, String(oNone.manual.hanDay));
 assert('không data xepHong → giữ default 60', oNone.manual.xepHong === 60, String(oNone.manual.xepHong));
 
+console.log('\n=== phụ kiện zipper KHÔNG tự điền khi báo giá không có ===');
+const sZipperNone = makeSource('q1:zip-none', 'TUI ZIPPER TRONG', 'LLDPE');
+sZipperNone.input = baseInput({ productName: 'TUI ZIPPER TRONG', bagType: '3bien', hasZipper: true, layer2Id: 'LLDPE' });
+const oZipperNone = buildProductionOrderFromSource(sZipperNone, emptyCtx());
+assert('hasZipper + không zipperDistanceMm → tamZipperCachMieng rỗng', !oZipperNone.manual.tamZipperCachMieng, String(oZipperNone.manual.tamZipperCachMieng));
+assert('hasZipper + không hasTearNotch → tearNotch rỗng', !oZipperNone.manual.tearNotch, String(oZipperNone.manual.tearNotch));
+
 console.log('\n=== dual laminate: 1 pass nhiều parts ===');
 const mats = [
   { id: 'PET12', name: 'PET', thickness: 12 },
