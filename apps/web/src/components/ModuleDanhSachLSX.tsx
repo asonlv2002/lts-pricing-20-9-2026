@@ -457,30 +457,9 @@ export default function ModuleDanhSachLSX({
                             </button>
                           </div>
                         )}
-                        {row.status === 'pending' && laNguoiDuyet && row.reason && (
-                          <div className="qrev-row-actions">
-                            <span
-                              className="qrev-rejected-badge"
-                              title={`Đã từ chối · Lý do: ${row.reason}`}
-                            >
-                              <XCircle size={15} style={{ color: '#dc2626' }} />
-                            </span>
-                            <button
-                              className="qrev-btn-icon qrev-btn-icon--ok"
-                              title="Duyệt lại"
-                              disabled={isProcessing}
-                              onClick={() => void duyetLsx(row, 'approved')}
-                            >
-                              <CheckCircle2 size={15} />
-                            </button>
-                          </div>
-                        )}
-                        {!laNguoiDuyet && row.reason && (
-                          <span
-                            className="qrev-rejected-badge"
-                            title={`Đã từ chối · Lý do: ${row.reason}`}
-                          >
-                            <XCircle size={15} style={{ color: '#dc2626' }} />
+                        {row.reason && (
+                          <span title={`Đã từ chối · Lý do: ${row.reason}`}>
+                            <XCircle size={16} style={{ color: '#dc2626' }} />
                           </span>
                         )}
                         {row.status === 'approved' && (
