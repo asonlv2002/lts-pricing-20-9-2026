@@ -1425,7 +1425,6 @@ const buttonLabel = loadedItem
   const breakdownItems: [string, string][] = [
     [`${hienThiGia.initialPriceLabel} (Vốn + ${dinhDangPhanTram(tyLeLoiNhuanHieuLuc)} LN)`, dinhDangSo(giaVonDonViHieuLuc, 1) + ' đ'],
   ];
-  if (dauVaoKq.hasZipper) breakdownItems.push(['Chi phí Zipper', dinhDangSo(rHieuLuc.zipperPerUnit, 1) + ' đ']);
   if (dauVaoKq.hasTape) breakdownItems.push(['Chi phí Băng keo', dinhDangSo(rHieuLuc.tapePerUnit, 1) + ' đ']);
   if (dauVaoKq.hasHandle) breakdownItems.push(['Chi phí Quai', dinhDangSo(rHieuLuc.handlePerUnit, 1) + ' đ']);
   breakdownItems.push(
