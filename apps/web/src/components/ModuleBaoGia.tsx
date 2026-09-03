@@ -2635,7 +2635,12 @@ function BuocChonSanPham({
                                 dungCuaHangTinhGia.getState().materials,
                               );
                               const selectedIdx = spec.structureBack
-                                ? opts.findIndex((o) => o.structureBack === spec.structureBack)
+                                ? opts.findIndex(
+                                    (o) =>
+                                      o.structureBack === spec.structureBack &&
+                                      o.structureSwapped === spec.structureSwapped &&
+                                      o.bottomFollows === spec.bottomFollows,
+                                  )
                                 : -1;
                               return (
                                 <select
