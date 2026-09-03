@@ -37,7 +37,7 @@ import {
   getAuditFieldLabel,
 } from "../lib/customer-audit-format";
 import { diffManagerLists } from "../lib/activity-log-mapper";
-import { dieuHuongModuleApp } from "../lib/menu-route";
+import { dieuHuongModuleApp, dieuHuongMenuApp, menuKeyTinhGiaTheoItem } from "../lib/menu-route";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -830,14 +830,19 @@ export default function ModuleNhatKy({
       );
       if (entry.targetType === "history" && item && !item.isQuote) {
         loadHistoryItem(item.id);
-        dieuHuongModuleApp("calculator");
+        dieuHuongMenuApp(menuKeyTinhGiaTheoItem(item));
         return;
       }
       // Bảng tính giá từ server không có trong local → fetch rồi mở thẳng calculator
       if (entry.targetType === "history" && !item && accessToken) {
         const ok = await taiBangTinhTuServer(entry.targetId);
         if (ok) {
-          dieuHuongModuleApp("calculator");
+          const loaded = dungCuaHangTinhGia.getState().history.find(
+            (h) => h.id === entry.targetId || h.pricingSheetId === entry.targetId,
+          );
+          dieuHuongMenuApp(
+            menuKeyTinhGiaTheoItem(loaded ?? { input: null }),
+          );
           return;
         }
       }

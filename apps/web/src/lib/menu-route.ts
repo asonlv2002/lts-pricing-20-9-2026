@@ -1,4 +1,5 @@
 import type { LoaiDeepLink } from './support-route';
+import type { HistoryItem } from './types';
 
 export const MOBILE_HUB_PREFIX = 'mobile.hub.';
 export const HUB_PATH_PREFIX = 'hub';
@@ -76,6 +77,29 @@ export function menuMacDinhKhiDeepLink(loai: LoaiDeepLink): string {
 
 export function menuKeyTuModule(module: MaModuleMenu): string {
   return MENU_MAC_DINH_THEO_MODULE[module];
+}
+
+/**
+ * Menu key cho tab "tính giá" theo loại item:
+ * - Bảng tính nâng cao (`isNangCap`) → `tao-tinh-gia-nang-cap`
+ * - Bảng tính thường → `tao-tinh-gia`
+ *
+ * Ưu tiên `item.isNangCap` (cờ cấp HistoryItem), fallback `input.isNangCap`
+ * (cờ trong input blob, mirror theo `moBangTinhVoiPin`).
+ *
+ * Tránh hard-code `dieuHuongModuleApp("calculator")` (luôn → `tao-tinh-gia`
+ * cũ) — gây race với `VoTrang` ghi đè `cheDoNangCao` theo `menuDangChon`,
+ * dẫn tới `page.tsx` reset form khi mở item nâng cao từ wizard BG / audit.
+ */
+export function menuKeyTinhGiaTheoItem(
+  item: {
+    isNangCap?: HistoryItem['isNangCap'];
+    input?: HistoryItem['input'] | null;
+  },
+): string {
+  return !!(item.isNangCap || item.input?.isNangCap)
+    ? 'tao-tinh-gia-nang-cap'
+    : 'tao-tinh-gia';
 }
 
 /**

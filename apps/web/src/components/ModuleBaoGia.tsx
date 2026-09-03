@@ -38,7 +38,7 @@ import {
   Check,
 } from "lucide-react";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
-import { dieuHuongModuleApp } from "../lib/menu-route";
+import { dieuHuongMenuApp, menuKeyTinhGiaTheoItem } from "../lib/menu-route";
 import ComboBoxDieuKhoan from "./ComboBoxDieuKhoan";
 import { normalizeDisplayText } from "../lib/text-codec";
 import {
@@ -4052,7 +4052,7 @@ function TaoBaoGiaWizard({
     (dungCuaHangTinhGia as any)
       .getState()
       .loadHistoryItem(product.historyItem.id);
-    dieuHuongModuleApp("calculator");
+    dieuHuongMenuApp(menuKeyTinhGiaTheoItem(product.historyItem));
   };
 
   const handleCustomerSelect = (c: Customer) => {
@@ -6036,8 +6036,8 @@ export default function QuotationModule({
           isAdmin={isAdmin}
           onClose={() => setSelectedItem(null)}
           onLoadCalc={(id) => {
-            taiLichSu(id);
-            dieuHuongModuleApp("calculator");
+            if (selectedItem) taiLichSu(id);
+            dieuHuongMenuApp(menuKeyTinhGiaTheoItem(selectedItem || { input: {} }));
           }}
           onPatch={(id, patch) => {
             patchHistoryItem(id, patch);

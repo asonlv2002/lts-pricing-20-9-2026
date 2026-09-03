@@ -4,6 +4,7 @@ import {
   docIdChiTietDanhSachBaoGia,
   docMenuKeyTuPathname,
   laMobileHubMenuKey,
+  menuKeyTinhGiaTheoItem,
   menuKeyTuModule,
   menuMacDinhKhiDeepLink,
   moduleTuMenuKey,
@@ -198,6 +199,55 @@ assert(
 assert(
   'docDeepLinkTuPathname null on menu-detail',
   docDeepLinkTuPathname('/danh-sach-bao-gia/Q-123') === null,
+);
+
+console.log(`\n${passed} passed, ${failed} failed`);
+if (failed > 0) process.exit(1);
+
+// ════════════════════════════════════════════════════════════════════════════
+// menuKeyTinhGiaTheoItem — chọn đúng tab khi mở bảng tính từ wizard BG /
+// audit log. Trước fix: 3 chỗ dùng `dieuHuongModuleApp("calculator")` luôn
+// đi tới `tao-tinh-gia` (cũ) → VoTrang ghi đè cheDoNangCao=true về false →
+// page.tsx reset form → user thấy màn hình chọn chế độ thay vì bảng tính.
+// Sau fix: helper đọc `isNangCap` (cờ HistoryItem) hoặc `input.isNangCap`
+// (cờ trong input blob, mirror theo `moBangTinhVoiPin`).
+// ════════════════════════════════════════════════════════════════════════════
+console.log('\nmenuKeyTinhGiaTheoItem');
+
+assert(
+  'item nâng cao (isNangCap=true) → tao-tinh-gia-nang-cap',
+  menuKeyTinhGiaTheoItem({
+    isNangCap: true,
+    input: { isNangCap: false } as any,
+  }) === 'tao-tinh-gia-nang-cap',
+);
+assert(
+  'item thường (isNangCap=false) nhưng input.isNangCap=true → tab nâng cao (fallback input)',
+  menuKeyTinhGiaTheoItem({
+    isNangCap: false,
+    input: { isNangCap: true } as any,
+  }) === 'tao-tinh-gia-nang-cap',
+);
+assert(
+  'item thường (cả 2 flag false) → tao-tinh-gia',
+  menuKeyTinhGiaTheoItem({
+    isNangCap: false,
+    input: { isNangCap: false } as any,
+  }) === 'tao-tinh-gia',
+);
+assert(
+  'item không có cờ (undefined) → tao-tinh-gia (fallback an toàn)',
+  menuKeyTinhGiaTheoItem({
+    isNangCap: undefined,
+    input: {} as any,
+  }) === 'tao-tinh-gia',
+);
+assert(
+  'item không có input → tao-tinh-gia',
+  menuKeyTinhGiaTheoItem({
+    isNangCap: false,
+    input: undefined as any,
+  }) === 'tao-tinh-gia',
 );
 
 console.log(`\n${passed} passed, ${failed} failed`);
