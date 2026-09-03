@@ -392,7 +392,7 @@ export default function ModuleDanhSachLSX({
                       <td>
                         <div className="qrev-cell-quote-text">
                           <span className="qrev-cell-name" style={{ fontFamily: 'monospace' }}>
-                            {row.lsxNumber || row.orderId.slice(0, 12)}
+                            {row.lsxNumber || row.orderId}
                           </span>
                           <span className="qrev-cell-sub" style={{ fontSize: '0.7rem' }}>
                             {new Date(row.createdAt).toLocaleDateString('vi-VN')}
