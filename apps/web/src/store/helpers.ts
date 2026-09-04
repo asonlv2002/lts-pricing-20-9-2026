@@ -71,6 +71,7 @@ export const dauVaoMacDinh: CalculateInput = {
   commercialDescription: '',
   commercialUnitKind: 'tui',
   commercialUnitLabel: '',
+  commercialExtraFee: 0,
 };
 
 export const dauVaoKhoiTao = dongBoCotLoiNhuan(dauVaoMacDinh, INITIAL_MATERIALS);

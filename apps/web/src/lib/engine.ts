@@ -385,7 +385,13 @@ export function tinhGiaWeb(
   const dauVao = doiSangDauVao(inputDaDongBoCot, bangGiaKhoNho);
   const vatLieu = materials.map(doiSangVatLieu);
   const hangSo = doiSangHangSo(constants, inputDaDongBoCot);
-  const bangLN = doiSangDongLoiNhuan(profitTable);
+  // Trong commercial-form: KHÔNG áp LN của engine (đã có LN riêng từ [Thu mua]).
+  // Engine vẫn chạy để lấy breakdown components (Vốn, Thùng, Vận chuyển, Lãi vay, Hoa hồng),
+  // nhưng bảng lợi nhuận bị zero để engine's profitAmount = 0, profitRate = 0.
+  const bangLoiNhuanCoHieuLuc = input.pricingMode === 'commercial'
+    ? profitTable.map(r => ({ ...r, col1: 0, col2: 0, largeCol1: 0, largeCol2: 0 }))
+    : profitTable;
+  const bangLN = doiSangDongLoiNhuan(bangLoiNhuanCoHieuLuc);
 
   const ketQua = tinhGia(dauVao, vatLieu, hangSo, bangLN);
   if (!ketQua) return null;
@@ -398,18 +404,26 @@ export const calculate = tinhGiaWeb;
 
 // ── Tính giá Thương mại (mua đi bán lại) ────────────────────────────────────
 // Không qua engine @lts/bang-tinh-gia — tính đơn giản:
-//   thành tiền mua = commercialPurchasePrice × quantity
-//   lợi nhuận (%): trên thành tiền mua | (VND): cộng thẳng
-//   tổng = thành tiền mua + lợi nhuận
-//   đơn giá cuối = tổng / quantity
+//   purchaseTotal  = commercialPurchasePrice × quantity
+//   extraFee       = phụ phí khác (tách riêng, KHÔNG ảnh hưởng LN%)
+//   baseCostTotal  = purchaseTotal (KHÔNG + extraFee)
+//   profitVnd (%): purchaseTotal × pct  | (VND): profitRaw × quantity (/sp × SL)
+//   totalVnd       = purchaseTotal + profitVnd (KHÔNG + extraFee)
+//   unitPriceVnd   = totalVnd / quantity (= mua + LN/sp, chưa gồm extraFee & chi phí engine)
+//   extraFeePerUnit= extraFee / quantity (tách riêng, không chịu HH, hiển thị dòng riêng)
 export interface KetQuaThuongMai {
   purchasePrice: number;   // Đơn giá mua (per unit)
   quantity: number;         // Số lượng
   purchaseTotal: number;    // Thành tiền mua = purchasePrice × quantity
-  profitVnd: number;        // Lợi nhuận (VND)
-  totalVnd: number;         // Tổng = purchaseTotal + profitVnd
+  extraFee: number;         // Tổng phụ phí khác (VND) — tách riêng
+  extraFeePerUnit: number;  // Phụ phí khác / đơn vị
+  baseCostTotal: number;    // purchaseTotal (KHÔNG + extraFee)
+  baseCostPerUnit: number;  // purchasePrice (= baseCostTotal / quantity)
+  profitVnd: number;        // Lợi nhuận (VND) — (%): purchaseTotal × pct | (VND): profitRaw × SL
+  profitPerUnit: number;    // Lợi nhuận / đơn vị (= LN/sp)
+  totalVnd: number;         // Tổng = purchaseTotal + profitVnd (KHÔNG + extraFee)
   unitPriceVnd: number;     // Đơn giá cuối / đơn vị = totalVnd / quantity
-  profitPct: number;        // Tỷ lệ lợi nhuận / thành tiền mua (decimal)
+  profitPct: number;        // Tỷ lệ lợi nhuận / purchaseTotal (decimal)
   profitUnit: 'percent' | 'vnd';
   profitRawValue: number;
   unitKind: 'tui' | 'm2' | 'm' | 'custom';
@@ -424,12 +438,23 @@ export function tinhGiaThuongMai(input: CalculateInput): KetQuaThuongMai {
   const profitRaw = Number(input.commercialProfitValue) || 0;
   const unitKind = (input.commercialUnitKind || 'tui') as 'tui' | 'm2' | 'm' | 'custom';
   const customLabel = (input.commercialUnitLabel || '').trim();
+  const extraFee = Math.max(0, Number(input.commercialExtraFee) || 0);
 
+  // Tổng mua = (giá mua × SL). Phụ phí tách riêng, KHÔNG ảnh hưởng baseCost / LN%.
   const purchaseTotal = purchasePrice * quantity;
-  const profitVnd = profitUnit === 'percent' ? purchaseTotal * (profitRaw / 100) : profitRaw;
-  const totalVnd = purchaseTotal + profitVnd;
+  const baseCostTotal = purchaseTotal;
+  const baseCostPerUnit = quantity > 0 ? baseCostTotal / quantity : purchasePrice;
+
+  // Lợi nhuận:
+  //   % : trên purchaseTotal (KHÔNG gồm extraFee)
+  //   VND: profitRaw × quantity (mỗi sản phẩm cộng dồn)
+  const profitVnd = profitUnit === 'percent' ? baseCostTotal * (profitRaw / 100) : profitRaw * quantity;
+  const profitPerUnit = quantity > 0 ? profitVnd / quantity : 0;
+  const extraFeePerUnit = quantity > 0 ? extraFee / quantity : 0;
+
+  const totalVnd = baseCostTotal + profitVnd;
   const unitPriceVnd = quantity > 0 ? totalVnd / quantity : purchasePrice;
-  const pct = purchaseTotal > 0 ? profitVnd / purchaseTotal : 0;
+  const pct = baseCostTotal > 0 ? profitVnd / baseCostTotal : 0;
 
   const unitLabel =
     unitKind === 'tui' ? '/Túi' :
@@ -441,7 +466,12 @@ export function tinhGiaThuongMai(input: CalculateInput): KetQuaThuongMai {
     purchasePrice,
     quantity,
     purchaseTotal,
+    extraFee,
+    extraFeePerUnit,
+    baseCostTotal,
+    baseCostPerUnit,
     profitVnd,
+    profitPerUnit,
     totalVnd,
     unitPriceVnd,
     profitPct: pct,

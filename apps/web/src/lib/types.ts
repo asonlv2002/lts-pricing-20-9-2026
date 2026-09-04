@@ -608,6 +608,8 @@ export interface CalculateInput {
   commercialUnitKind?: 'tui' | 'm2' | 'm' | 'custom';
   /** Nhãn đơn vị tự nhập — chỉ dùng khi commercialUnitKind='custom' (vd: 'thùng', 'kg') */
   commercialUnitLabel?: string;
+  /** Tổng phụ phí khác (VNĐ) — chỉ dùng khi commercialMode='form', cộng vào Tổng cuối */
+  commercialExtraFee?: number;
 }
 
 // ── Quote Status (luồng báo giá local + server) ──────────────────────────────

@@ -1488,9 +1488,30 @@ const buttonLabel = loadedItem
   // Commission từ engine gốc (không bị ảnh hưởng bởi admin/sale override)
   const effCommissionPerUnit = rHieuLuc.commissionPerUnit;
 
+  // Tính giá Thương mại — override giá bán nếu user chọn mode=form.
+  // BIG price = đơn giá cuối / đơn vị (để khớp với cách hiển thị đ/túi, đ/m² hiện tại).
+  const ketQuaThuongMaiHieuLuc = isCommercial && commercialMode === 'form'
+    ? (ketQuaThuongMai ?? tinhGiaThuongMai(input))
+    : null;
+
+  // Label LN cho breakdown "Vốn + X% LN" — ưu tiên commercial's LN (user nhập ở [Thu mua]).
+  // Format A: VND primary → "20₫/sp (= 10,00%)" | % primary → "10,00%".
+  // profitRawValue là số user nhập trực tiếp (10 = 10%, KHÔNG phải decimal 0.1) — KHÔNG dùng dinhDangPhanTram (× 100).
+  const lnLabelThuongMai = ketQuaThuongMaiHieuLuc
+    ? (ketQuaThuongMaiHieuLuc.profitUnit === 'percent'
+        ? `${dinhDangSo(ketQuaThuongMaiHieuLuc.profitRawValue, 2)}%`
+        : `${dinhDangSo(ketQuaThuongMaiHieuLuc.profitRawValue, 0)} đ/sp (= ${dinhDangSo(ketQuaThuongMaiHieuLuc.profitPct * 100, 2)}%)`)
+    : `${dinhDangPhanTram(tyLeLoiNhuanHieuLuc)}%`;
+
   // ── Breakdown items ──
+  // Commercial-form: dòng 1 dùng commercial's unitPriceVnd (mua + LN/sp, KHÔNG gồm extraFee & chi phí engine).
+  // Nội bộ / Gia công: giữ nguyên giaVonDonViHieuLuc.
+  const giaVonDauDong = ketQuaThuongMaiHieuLuc
+    ? ketQuaThuongMaiHieuLuc.unitPriceVnd
+    : giaVonDonViHieuLuc;
+
   const breakdownItems: [string, string][] = [
-    [`${hienThiGia.initialPriceLabel} (Vốn + ${dinhDangPhanTram(tyLeLoiNhuanHieuLuc)} LN)`, dinhDangSo(giaVonDonViHieuLuc, 1) + ' đ'],
+    [`${hienThiGia.initialPriceLabel} (Vốn + ${lnLabelThuongMai} LN)`, dinhDangSo(giaVonDauDong, 1) + ' đ'],
   ];
   if (dauVaoKq.hasTape) breakdownItems.push(['Chi phí Băng keo', dinhDangSo(rHieuLuc.tapePerUnit, 1) + ' đ']);
   if (dauVaoKq.hasHandle) breakdownItems.push(['Chi phí Quai', dinhDangSo(rHieuLuc.handlePerUnit, 1) + ' đ']);
@@ -1500,7 +1521,7 @@ const buttonLabel = loadedItem
     [hienThiGia.interestLabel(rHieuLuc.interestBase || 0, rHieuLuc.paymentDays ?? dauVaoKq.paymentDays ?? 30), dinhDangSo(rHieuLuc.interestPerUnit, 1) + ` đ${laMangIn ? `/${nhanDonVi}` : ''}`],
     ['Hoa hồng kinh doanh', dinhDangSo(effCommissionPerUnit, 1) + ' đ']
   );
-  
+
   if ((rHieuLuc.gcShippingPerUnit ?? 0) > 0) {
     breakdownItems.push(['Vận chuyển (gia công)', dinhDangSo(rHieuLuc.gcShippingPerUnit ?? 0, 1) + ' đ']);
   }
@@ -1513,6 +1534,27 @@ const buttonLabel = loadedItem
   if (dauVaoKq.cylIncluded && (rHieuLuc.cylAllocPerUnit ?? 0) > 0) {
     breakdownItems.push([`Trục in phân bổ (bao trục / 200k m²)`, dinhDangSo(rHieuLuc.cylAllocPerUnit ?? 0, 2) + ' đ']);
   }
+  // Commercial-form: dòng Phụ phí khác (tách riêng, không chịu HH, cộng vào tổng).
+  if (ketQuaThuongMaiHieuLuc && ketQuaThuongMaiHieuLuc.extraFee > 0) {
+    breakdownItems.push(['Phụ phí khác', dinhDangSo(ketQuaThuongMaiHieuLuc.extraFeePerUnit, 1) + ' đ']);
+  }
+
+  // Tổng per-unit = sum tất cả dòng breakdown (không parse string, dùng numeric trực tiếp).
+  // Commercial-form: dùng tổng này cho cả card lớn & breakdown "GIÁ BÁN ĐỀ XUẤT" (đã bao gồm Thùng/VC/Lãi vay/HH/Phụ phí).
+  // Nội bộ / Gia công: giữ rHieuLuc.finalPrice (engine final price).
+  const tongBreakdown =
+    giaVonDauDong
+    + (dauVaoKq.hasTape ? rHieuLuc.tapePerUnit : 0)
+    + (dauVaoKq.hasHandle ? rHieuLuc.handlePerUnit : 0)
+    + rHieuLuc.boxPerUnit
+    + rHieuLuc.shippingPerUnit
+    + rHieuLuc.interestPerUnit
+    + effCommissionPerUnit
+    + (rHieuLuc.gcShippingPerUnit ?? 0)
+    + (rHieuLuc.gcPackagingPerUnit ?? 0)
+    + (rHieuLuc.gcOtherPerUnit ?? 0)
+    + (dauVaoKq.cylIncluded ? (rHieuLuc.cylAllocPerUnit ?? 0) : 0)
+    + (ketQuaThuongMaiHieuLuc?.extraFeePerUnit ?? 0);
 
   const cylAllocTotal = dauVaoKq.cylIncluded ? ((rHieuLuc.cylAllocPerUnit ?? 0) * dauVaoKq.quantity) : 0;
   const totalCommission = effCommissionPerUnit * dauVaoKq.quantity;
@@ -1521,11 +1563,9 @@ const buttonLabel = loadedItem
   const hasChotGia = chotGiaNum > 0;
   // Tính giá Thương mại — override giá bán nếu user chọn mode=form.
   // BIG price = đơn giá cuối / đơn vị (để khớp với cách hiển thị đ/túi, đ/m² hiện tại).
-  const ketQuaThuongMaiHieuLuc = isCommercial && commercialMode === 'form'
-    ? (ketQuaThuongMai ?? tinhGiaThuongMai(input))
-    : null;
-  // Giá cuối cùng từ engine gốc (hoặc đơn giá cuối/đơn vị khi commercial-form)
-  const effFinalPriceWithComm = ketQuaThuongMaiHieuLuc ? ketQuaThuongMaiHieuLuc.unitPriceVnd : rHieuLuc.finalPrice;
+  // (ketQuaThuongMaiHieuLuc đã được khai báo ở trên — phục vụ breakdown label)
+  // Giá cuối cùng từ engine gốc (hoặc TỔNG breakdown khi commercial-form: mua + LN + Thùng + VC + Lãi vay + HH + Phụ phí).
+  const effFinalPriceWithComm = ketQuaThuongMaiHieuLuc ? tongBreakdown : rHieuLuc.finalPrice;
   const shownPrice = hasChotGia ? chotGiaNum : effFinalPriceWithComm;
   const diff = hasChotGia ? chotGiaNum - effFinalPriceWithComm : 0;
   const hienThiPhanBoChotGia = tinhNhapPhanBoChotGia({
@@ -1808,15 +1848,6 @@ const buttonLabel = loadedItem
               <div className="value" id="s-price" style={hasChotGia ? {color:'var(--green)'} : undefined}>
                 {dinhDangSo(shownPrice, 0)}
               </div>
-              {ketQuaThuongMaiHieuLuc && (
-                <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px'}}>
-                  💼 Thương mại · <strong style={{color:'var(--text)'}}>{Math.round(ketQuaThuongMaiHieuLuc.purchasePrice).toLocaleString('vi-VN')}</strong> đ{ketQuaThuongMaiHieuLuc.unitLabel}
-                  {' × '}<strong style={{color:'var(--text)'}}>{ketQuaThuongMaiHieuLuc.quantity.toLocaleString('vi-VN')}</strong>
-                  {' = '}<strong style={{color:'var(--text)'}}>{Math.round(ketQuaThuongMaiHieuLuc.purchaseTotal).toLocaleString('vi-VN')}</strong> đ
-                  {' + LN '}<strong style={{color:'var(--text)'}}>{Math.round(ketQuaThuongMaiHieuLuc.profitVnd).toLocaleString('vi-VN')}</strong> đ
-                  {' = Tổng '}<strong style={{color:'var(--text)'}}>{Math.round(ketQuaThuongMaiHieuLuc.totalVnd).toLocaleString('vi-VN')}</strong> đ
-                </div>
-              )}
               {hasChotGia && (
                 <div style={{fontSize:'0.82rem', color:'var(--muted)', marginTop:'2px', marginBottom:'2px'}}>
                   (giá đề xuất {dinhDangSo(effFinalPriceWithComm, 0)} đ/{nhanDonVi})

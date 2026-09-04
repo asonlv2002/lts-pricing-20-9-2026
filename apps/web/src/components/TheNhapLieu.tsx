@@ -141,7 +141,6 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   const cheDoThuongMai = (input.commercialMode || 'form') as 'form' | 'description';
   const laThuongMaiMoTa = laThuongMai && cheDoThuongMai === 'description';
   const laThuongMaiForm = laThuongMai && cheDoThuongMai === 'form';
-  const ketQuaThuongMai = laThuongMaiForm ? tinhGiaThuongMai(input) : null;
   const [nhomTheoLop, datNhomTheoLop] = React.useState<Record<string, string>>({});
   const [dangFocusKhachHang, datDangFocusKhachHang] = React.useState(false);
   const [danhSachKhachHang, datDanhSachKhachHang] = React.useState<KhachHangGoiY[]>(() => loadCustomers() as KhachHangGoiY[]);
@@ -956,32 +955,6 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                 </select>
               </div>
             </div>
-            {ketQuaThuongMai && (
-              <div
-                style={{
-                  fontSize: '0.82rem',
-                  color: 'var(--muted)',
-                  padding: '8px 12px',
-                  background: 'var(--surface2)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '6px',
-                  marginTop: '4px',
-                  lineHeight: 1.55,
-                }}
-              >
-                {ketQuaThuongMai.quantity > 0 ? (
-                  <>
-                    ↪ Tổng: <strong style={{ color: 'var(--text)' }}>{Math.round(ketQuaThuongMai.totalVnd).toLocaleString('vi-VN')}</strong> đ
-                    {' · '}Lợi nhuận: <strong style={{ color: 'var(--text)' }}>{Math.round(ketQuaThuongMai.profitVnd).toLocaleString('vi-VN')}</strong> đ
-                  </>
-                ) : (
-                  <>
-                    ↪ Tổng: <strong style={{ color: 'var(--text)' }}>{Math.round(ketQuaThuongMai.totalVnd).toLocaleString('vi-VN')}</strong> đ
-                    {' · '}Lợi nhuận: <strong style={{ color: 'var(--text)' }}>{Math.round(ketQuaThuongMai.profitVnd).toLocaleString('vi-VN')}</strong> đ
-                  </>
-                )}
-              </div>
-            )}
           </div>
         </div>
       )}
@@ -1246,113 +1219,117 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
           </div>
 
           <div className={`advanced-section ${advancedOpen ? 'open' : ''}`}>
-            <div className="form-row-3">
-              <div className="form-group">
-                <label className="form-label">Phủ mực (%)</label>
-                <select
-                  className="form-input"
-                  value={input.coverageRatio === 0.5 ? '50' : '100'}
-                  onChange={e => capNhatDauVao({ coverageRatio: laMangIn ? 1 : (e.target.value === '50' ? 0.5 : 1) })}
-                  disabled={laMangIn}
-                >
-                  <option value="100">100%</option>
-                  {!laMangIn && <option value="50">50%</option>}
-                </select>
-                {laMangIn && <div style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '4px' }}>Màng in mặc định tính 100%.</div>}
-              </div>
-            </div>
-
-            <div className="form-row-3" style={{ marginTop: '10px' }}>
-              {cacPhuPhiIn.map(option => (
-                <div className="form-group" key={option.key}>
-                  <label className="form-check">
-                    <input
-                      type="checkbox"
-                      checked={option.checked}
-                      onChange={e => xuLyDoiPhuPhiIn(option.key, e.target.checked)}
-                    /> {option.label} ({option.price.toLocaleString('vi-VN')}đ)
-                  </label>
-                </div>
-              ))}
-            </div>
-
-            {input.productType !== 'mang' && (
+            {!laThuongMaiForm && (
               <>
-                <div className="advanced-sub-title">🎀 Phụ kiện</div>
                 <div className="form-row-3">
-                  <div className="form-group"><label className="form-check"><input type="checkbox" checked={input.hasZipper} onChange={e => capNhatDauVao({ hasZipper: e.target.checked })} /> Zipper ({(Number(constants.zipperPrice) > 0 ? Number(constants.zipperPrice) : 378).toLocaleString('vi-VN')}đ/m)</label></div>
-                  <div className="form-group"><label className="form-check"><input type="checkbox" checked={input.hasTape} onChange={e => { const val = e.target.checked; capNhatDauVao({ hasTape: val }); }} /> Băng keo</label></div>
-
-                                    <div className="form-group">
-                    <label className="form-check"><input type="checkbox" checked={input.hasHandle} onChange={e => capNhatDauVao({ hasHandle: e.target.checked, handleOptionKey: e.target.checked ? (input.handleOptionKey || constants.handleOptions?.[0]?.key || null) : null })} /> Quai</label>
-                    {input.hasHandle && (
-                      <select className="form-select" style={{ marginTop: '6px' }} value={input.handleOptionKey || constants.handleOptions?.[0]?.key || ''} onChange={e => capNhatDauVao({ handleOptionKey: e.target.value as any })}>
-                        {(constants.handleOptions ?? []).map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-                      </select>
-                    )}
+                  <div className="form-group">
+                    <label className="form-label">Phủ mực (%)</label>
+                    <select
+                      className="form-input"
+                      value={input.coverageRatio === 0.5 ? '50' : '100'}
+                      onChange={e => capNhatDauVao({ coverageRatio: laMangIn ? 1 : (e.target.value === '50' ? 0.5 : 1) })}
+                      disabled={laMangIn}
+                    >
+                      <option value="100">100%</option>
+                      {!laMangIn && <option value="50">50%</option>}
+                    </select>
+                    {laMangIn && <div style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '4px' }}>Màng in mặc định tính 100%.</div>}
                   </div>
+                </div>
+
+                <div className="form-row-3" style={{ marginTop: '10px' }}>
+                  {cacPhuPhiIn.map(option => (
+                    <div className="form-group" key={option.key}>
+                      <label className="form-check">
+                        <input
+                          type="checkbox"
+                          checked={option.checked}
+                          onChange={e => xuLyDoiPhuPhiIn(option.key, e.target.checked)}
+                        /> {option.label} ({option.price.toLocaleString('vi-VN')}đ)
+                      </label>
+                    </div>
+                  ))}
+                </div>
+
+                {input.productType !== 'mang' && (
+                  <>
+                    <div className="advanced-sub-title">🎀 Phụ kiện</div>
+                    <div className="form-row-3">
+                      <div className="form-group"><label className="form-check"><input type="checkbox" checked={input.hasZipper} onChange={e => capNhatDauVao({ hasZipper: e.target.checked })} /> Zipper ({(Number(constants.zipperPrice) > 0 ? Number(constants.zipperPrice) : 378).toLocaleString('vi-VN')}đ/m)</label></div>
+                      <div className="form-group"><label className="form-check"><input type="checkbox" checked={input.hasTape} onChange={e => { const val = e.target.checked; capNhatDauVao({ hasTape: val }); }} /> Băng keo</label></div>
+
+                                          <div className="form-group">
+                        <label className="form-check"><input type="checkbox" checked={input.hasHandle} onChange={e => capNhatDauVao({ hasHandle: e.target.checked, handleOptionKey: e.target.checked ? (input.handleOptionKey || constants.handleOptions?.[0]?.key || null) : null })} /> Quai</label>
+                        {input.hasHandle && (
+                          <select className="form-select" style={{ marginTop: '6px' }} value={input.handleOptionKey || constants.handleOptions?.[0]?.key || ''} onChange={e => capNhatDauVao({ handleOptionKey: e.target.value as any })}>
+                            {(constants.handleOptions ?? []).map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                <div className="advanced-sub-title">🖨️ Trục in</div>
+
+                {/* Hàng 1: Dài | Chu vi | Loại trục */}
+                <div className={`form-row-3 cylinder-input-grid ${(input.cylType ?? 'A') === 'custom' ? 'cylinder-input-grid--custom' : ''}`}>
+                  <div className="form-group">
+                    <label className="form-label">Dài (m)</label>
+                    <ONhapSoThapPhan className="form-input" step="0.01" value={input.cylLength || 0}
+                      onChange={(val: number) => capNhatDauVao({ cylLength: val })} />
+                    {!!input.cylLength && input.cylLength < 0.7 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Dưới tối thiểu (0.7m)</div> : null}
+                    {!!input.cylLength && input.cylLength > 1.25 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Vượt tối đa (1.25m)</div> : null}
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Chu vi (m)</label>
+                    <ONhapSoThapPhan className="form-input" step="0.01" value={input.cylCircum || 0}
+                      onChange={(val: number) => capNhatDauVao({ cylCircum: val })} />
+                    {!!input.cylCircum && input.cylCircum < 0.4 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Dưới tối thiểu (0.4m)</div> : null}
+                    {!!input.cylCircum && input.cylCircum > 0.9 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Vượt tối đa (0.9m)</div> : null}
+                  </div>
+                  <div className="form-group cylinder-type-field">
+                    <label className="form-label">Loại trục</label>
+                    <select className="form-select" value={input.cylType ?? 'A'}
+                      onChange={e => capNhatDauVao({ cylType: e.target.value })}>
+                      <option value="A">Trục A</option>
+                      <option value="B">Trục B</option>
+                      {(constants.customCylTypes ?? []).map(cyl => (
+                        <option key={cyl.key} value={cyl.key}>{cyl.label}</option>
+                      ))}
+                      <option value="custom">Trục khác</option>
+                    </select>
+                  </div>
+
+                  {(input.cylType ?? 'A') === 'custom' && (
+                    <div className="form-group cylinder-custom-price-field">
+                      <label className="form-label">Đơn giá khác (đ/m²)</label>
+                      <ONhapSoDinhDang className="form-input" value={input.cylUnitPrice || 0}
+                        onChange={(val: number) => capNhatDauVao({ cylUnitPrice: val })} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Preview + Bao trục */}
+                <div className="cylinder-preview" style={{ marginBottom: '10px' }}>
+                  <span className="cylinder-preview-item">DT: <span className="cyl-val">{((input.cylLength || 0) * (input.cylCircum || 0)).toFixed(4)} m²</span></span>
+                  <span className="cylinder-preview-item">1 trục: <span className="cyl-val">{(((input.cylLength || 0) * (input.cylCircum || 0) * (input.cylUnitPrice || 7300000)) || 0).toLocaleString('vi-VN')} đ</span></span>
+                  <span className="cylinder-preview-item">Cả bộ ({input.numColors || 0} màu): <span className="cyl-val">{(((input.cylLength || 0) * (input.cylCircum || 0) * (input.cylUnitPrice || 7300000) * (input.numColors || 0)) || 0).toLocaleString('vi-VN')} đ</span></span>
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '14px' }}>
+                  <label className="form-check" style={{ alignItems: 'flex-start', gap: '8px' }}>
+                    <input type="checkbox" checked={input.cylIncluded ?? false} onChange={e => capNhatDauVao({ cylIncluded: e.target.checked })} style={{ marginTop: '2px' }} />
+                    <span>
+                      <strong>Bao trục</strong> — phân bổ chi phí bộ trục vào đơn giá sản phẩm
+                      <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '2px' }}>
+                        Định mức 200.000 m² · {input.productType === 'mang' ? 'màng: cộng đ/m²' : 'túi: cộng đ/túi'}
+                      </div>
+                    </span>
+                  </label>
                 </div>
               </>
             )}
-
-            <div className="advanced-sub-title">🖨️ Trục in</div>
-
-            {/* Hàng 1: Dài | Chu vi | Loại trục */}
-            <div className={`form-row-3 cylinder-input-grid ${(input.cylType ?? 'A') === 'custom' ? 'cylinder-input-grid--custom' : ''}`}>
-              <div className="form-group">
-                <label className="form-label">Dài (m)</label>
-                <ONhapSoThapPhan className="form-input" step="0.01" value={input.cylLength || 0}
-                  onChange={(val: number) => capNhatDauVao({ cylLength: val })} />
-                {!!input.cylLength && input.cylLength < 0.7 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Dưới tối thiểu (0.7m)</div> : null}
-                {!!input.cylLength && input.cylLength > 1.25 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Vượt tối đa (1.25m)</div> : null}
-              </div>
-              <div className="form-group">
-                <label className="form-label">Chu vi (m)</label>
-                <ONhapSoThapPhan className="form-input" step="0.01" value={input.cylCircum || 0}
-                  onChange={(val: number) => capNhatDauVao({ cylCircum: val })} />
-                {!!input.cylCircum && input.cylCircum < 0.4 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Dưới tối thiểu (0.4m)</div> : null}
-                {!!input.cylCircum && input.cylCircum > 0.9 ? <div style={{ color: 'var(--danger)', fontSize: '0.75rem', marginTop: '4px' }}>⚠️ Vượt tối đa (0.9m)</div> : null}
-              </div>
-              <div className="form-group cylinder-type-field">
-                <label className="form-label">Loại trục</label>
-                <select className="form-select" value={input.cylType ?? 'A'}
-                  onChange={e => capNhatDauVao({ cylType: e.target.value })}>
-                  <option value="A">Trục A</option>
-                  <option value="B">Trục B</option>
-                  {(constants.customCylTypes ?? []).map(cyl => (
-                    <option key={cyl.key} value={cyl.key}>{cyl.label}</option>
-                  ))}
-                  <option value="custom">Trục khác</option>
-                </select>
-              </div>
-
-              {(input.cylType ?? 'A') === 'custom' && (
-                <div className="form-group cylinder-custom-price-field">
-                  <label className="form-label">Đơn giá khác (đ/m²)</label>
-                  <ONhapSoDinhDang className="form-input" value={input.cylUnitPrice || 0}
-                    onChange={(val: number) => capNhatDauVao({ cylUnitPrice: val })} />
-                </div>
-              )}
-            </div>
-
-            {/* Preview + Bao trục */}
-            <div className="cylinder-preview" style={{ marginBottom: '10px' }}>
-              <span className="cylinder-preview-item">DT: <span className="cyl-val">{((input.cylLength || 0) * (input.cylCircum || 0)).toFixed(4)} m²</span></span>
-              <span className="cylinder-preview-item">1 trục: <span className="cyl-val">{(((input.cylLength || 0) * (input.cylCircum || 0) * (input.cylUnitPrice || 7300000)) || 0).toLocaleString('vi-VN')} đ</span></span>
-              <span className="cylinder-preview-item">Cả bộ ({input.numColors || 0} màu): <span className="cyl-val">{(((input.cylLength || 0) * (input.cylCircum || 0) * (input.cylUnitPrice || 7300000) * (input.numColors || 0)) || 0).toLocaleString('vi-VN')} đ</span></span>
-            </div>
-
-            <div className="form-group" style={{ marginBottom: '14px' }}>
-              <label className="form-check" style={{ alignItems: 'flex-start', gap: '8px' }}>
-                <input type="checkbox" checked={input.cylIncluded ?? false} onChange={e => capNhatDauVao({ cylIncluded: e.target.checked })} style={{ marginTop: '2px' }} />
-                <span>
-                  <strong>Bao trục</strong> — phân bổ chi phí bộ trục vào đơn giá sản phẩm
-                  <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '2px' }}>
-                    Định mức 200.000 m² · {input.productType === 'mang' ? 'màng: cộng đ/m²' : 'túi: cộng đ/túi'}
-                  </div>
-                </span>
-              </label>
-            </div>
 
             <div className="advanced-sub-title">📦 Phụ phí</div>
             {input.productType === 'mang' ? (
@@ -1465,6 +1442,19 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
               </div>
               <GoiYHoaHong />
             </div>
+
+            {laThuongMaiForm && (
+              <>
+                <div className="advanced-sub-title">💰 Phụ phí khác</div>
+                <div className="form-group">
+                  <ONhapSoDinhDang
+                    className="form-input"
+                    value={input.commercialExtraFee || 0}
+                    onChange={(val: number) => capNhatDauVao({ commercialExtraFee: val })}
+                  />
+                </div>
+              </>
+            )}
 
           </div>
         </>
