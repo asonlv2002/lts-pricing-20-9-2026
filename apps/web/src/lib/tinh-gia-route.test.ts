@@ -35,6 +35,18 @@ assert(
   'loaiTinhGiaTuNangCao true',
   loaiTinhGiaTuNangCao(true) === 'tinh-gia-nang-cao',
 );
+assert(
+  'loaiTinhGiaTuNangCao thuongMai (ưu tiên NC false)',
+  loaiTinhGiaTuNangCao(false, true) === 'tinh-gia-thuong-mai',
+);
+assert(
+  'loaiTinhGiaTuNangCao nangCao thắng thuongMai',
+  loaiTinhGiaTuNangCao(true, true) === 'tinh-gia-nang-cao',
+);
+assert(
+  'loaiTinhGiaTuNangCao mặc định',
+  loaiTinhGiaTuNangCao() === 'tinh-gia',
+);
 
 assert(
   'docIdTuPathname',
@@ -43,6 +55,10 @@ assert(
 assert(
   'docIdTuPathname nang-cao',
   docIdTuPathname('/tinh-gia-nang-cao/abc-123') === 'abc-123',
+);
+assert(
+  'docIdTuPathname thuong-mai',
+  docIdTuPathname('/tinh-gia-thuong-mai/abc-123') === 'abc-123',
 );
 assert(
   'docIdTuPathname menu null',
@@ -65,6 +81,10 @@ assert(
 assert(
   'docIdTuUrl path nang-cao',
   docIdTuUrl('https://app.example.com/tinh-gia-nang-cao/sheet-9') === 'sheet-9',
+);
+assert(
+  'docIdTuUrl path thuong-mai',
+  docIdTuUrl('https://app.example.com/tinh-gia-thuong-mai/sheet-9') === 'sheet-9',
 );
 assert(
   'docIdTuUrl no param',
@@ -99,12 +119,24 @@ assert(
   ghepUrlTinhGia('https://x.com/app', 'A1', { nangCao: true }) === '/tinh-gia-nang-cao/A1',
 );
 assert(
+  'ghepUrlTinhGia set id thuongMai',
+  ghepUrlTinhGia('https://x.com/app', 'A1', { thuongMai: true }) === '/tinh-gia-thuong-mai/A1',
+);
+assert(
+  'ghepUrlTinhGia set id thuongMai + nangCao → ưu tiên nangCao',
+  ghepUrlTinhGia('https://x.com/app', 'A1', { nangCao: true, thuongMai: true }) === '/tinh-gia-nang-cao/A1',
+);
+assert(
   'ghepUrlTinhGia clear → menu path',
   ghepUrlTinhGia('https://x.com/?tinh-gia=old&foo=1', null) === '/tao-tinh-gia',
 );
 assert(
   'ghepUrlTinhGia clear nangCao → menu NC',
   ghepUrlTinhGia('https://x.com/', null, { nangCao: true }) === '/tao-tinh-gia-nang-cap',
+);
+assert(
+  'ghepUrlTinhGia clear thuongMai → menu TM',
+  ghepUrlTinhGia('https://x.com/', null, { thuongMai: true }) === '/tao-tinh-gia-thuong-mai',
 );
 assert(
   'ghepUrlTinhGia replace id',
@@ -128,6 +160,13 @@ assert(
   (() => {
     const u = taoUrlChiaSeTinhGia('sheet-1', { nangCao: true });
     return !!u && u.includes('/tinh-gia-nang-cao/sheet-1');
+  })(),
+);
+assert(
+  'taoUrlChiaSeTinhGia path thuongMai',
+  (() => {
+    const u = taoUrlChiaSeTinhGia('sheet-1', { thuongMai: true });
+    return !!u && u.includes('/tinh-gia-thuong-mai/sheet-1');
   })(),
 );
 

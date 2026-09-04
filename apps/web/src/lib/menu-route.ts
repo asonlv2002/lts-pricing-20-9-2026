@@ -8,6 +8,7 @@ export const HUB_PATH_PREFIX = 'hub';
 export const ENTITY_PATH_PREFIX: Record<LoaiDeepLink, string> = {
   'tinh-gia': 'tinh-gia',
   'tinh-gia-nang-cao': 'tinh-gia-nang-cao',
+  'tinh-gia-thuong-mai': 'tinh-gia-thuong-mai',
   'bao-gia': 'bao-gia',
   'khach-hang': 'khach-hang',
   lsx: 'lsx',
@@ -47,6 +48,7 @@ export const MENU_MAC_DINH_THEO_MODULE: Record<MaModuleMenu, string> = {
 export const MENU_MAC_DINH_KHI_DEEP_LINK: Record<LoaiDeepLink, string> = {
   'tinh-gia': 'tao-tinh-gia',
   'tinh-gia-nang-cao': 'tao-tinh-gia-nang-cap',
+  'tinh-gia-thuong-mai': 'tao-tinh-gia-thuong-mai',
   'bao-gia': 'tao-bao-gia',
   'khach-hang': 'danh-sach-khach-hang',
   lsx: 'danh-sach-lsx',
@@ -82,10 +84,12 @@ export function menuKeyTuModule(module: MaModuleMenu): string {
 /**
  * Menu key cho tab "tính giá" theo loại item:
  * - Bảng tính nâng cao (`isNangCap`) → `tao-tinh-gia-nang-cap`
+ * - Bảng tính thương mại (`isThuongMai` / `pricingMode='commercial'`) → `tao-tinh-gia-thuong-mai`
  * - Bảng tính thường → `tao-tinh-gia`
  *
- * Ưu tiên `item.isNangCap` (cờ cấp HistoryItem), fallback `input.isNangCap`
- * (cờ trong input blob, mirror theo `moBangTinhVoiPin`).
+ * Ưu tiên `isNangCap` (cờ cấp HistoryItem) → fallback `input.isNangCap`.
+ * Sau đó `isThuongMai` → fallback `input.pricingMode === 'commercial'`.
+ * Nâng cao thắng thương mại (nếu 1 bảng vừa NC vừa commercial — NC vẫn là tab chính).
  *
  * Tránh hard-code `dieuHuongModuleApp("calculator")` (luôn → `tao-tinh-gia`
  * cũ) — gây race với `VoTrang` ghi đè `cheDoNangCao` theo `menuDangChon`,
@@ -94,12 +98,18 @@ export function menuKeyTuModule(module: MaModuleMenu): string {
 export function menuKeyTinhGiaTheoItem(
   item: {
     isNangCap?: HistoryItem['isNangCap'];
+    isThuongMai?: HistoryItem['isThuongMai'];
     input?: HistoryItem['input'] | null;
-  },
+  } | null | undefined,
 ): string {
-  return !!(item.isNangCap || item.input?.isNangCap)
-    ? 'tao-tinh-gia-nang-cap'
-    : 'tao-tinh-gia';
+  if (!item) return 'tao-tinh-gia';
+  const isNangCap = !!(item.isNangCap || item.input?.isNangCap);
+  if (isNangCap) return 'tao-tinh-gia-nang-cap';
+  const isThuongMai = !!(
+    item.isThuongMai || item.input?.pricingMode === 'commercial'
+  );
+  if (isThuongMai) return 'tao-tinh-gia-thuong-mai';
+  return 'tao-tinh-gia';
 }
 
 /**

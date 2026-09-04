@@ -4,7 +4,9 @@ import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 
 export default function DauTrang() {
-  const { activeView: manHinhDangMo, setActiveView: datGocNhin, layoutType: kieuBoCuc, result: ketQua, history: lichSu, currentChotGia: giaChotHienTai } = dungCuaHangTinhGia();
+  const { activeView: manHinhDangMo, setActiveView: datGocNhin, layoutType: kieuBoCuc, result: ketQua, history: lichSu, currentChotGia: giaChotHienTai, input } = dungCuaHangTinhGia();
+  const laThuongMai = input?.pricingMode === 'commercial';
+  const coHienTabKyThuat = !laThuongMai;
 
   const xuLyXuat = () => {
     if (manHinhDangMo === 'history') {
@@ -77,12 +79,14 @@ export default function DauTrang() {
         >
           📊 Quản Lý
         </button>
-        <button 
-          className={`tab ${manHinhDangMo === 'tech' ? 'active' : ''}`} 
+        {coHienTabKyThuat && (
+        <button
+          className={`tab ${manHinhDangMo === 'tech' ? 'active' : ''}`}
           onClick={() => datGocNhin('tech')}
         >
           ⚙️ Kỹ Thuật
         </button>
+        )}
         <button 
           className={`tab ${manHinhDangMo === 'history' ? 'active' : ''}`} 
           onClick={() => datGocNhin('history')}

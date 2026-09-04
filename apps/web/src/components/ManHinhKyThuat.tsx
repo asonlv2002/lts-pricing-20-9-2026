@@ -18,11 +18,14 @@ function dinhDangSo(n: number | null | undefined, decimals = 0): string {
 
 export default function ManHinhKyThuat() {
 
-  const { result: ketQua, activeView: manHinhDangMo } = dungCuaHangTinhGia();
+  const { result: ketQua, activeView: manHinhDangMo, input } = dungCuaHangTinhGia();
 
 
 
   if (manHinhDangMo !== 'tech') return null;
+
+  // Tính giá thương mại: không có thông số kỹ thuật sản xuất → ẩn luôn panel.
+  if (input?.pricingMode === 'commercial') return null;
 
 
 

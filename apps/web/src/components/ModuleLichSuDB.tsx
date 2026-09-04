@@ -129,7 +129,7 @@ function DetailPanel({
 }: {
   item: HistoryItem; mode: ToggleMode;
   onClose: () => void;
-  onLoad: (id: string) => void;
+  onLoad: (id: string) => Promise<boolean> | void;
   onNavigate?: (module: 'calculator') => void;
   onPatch: (id: string, patch: Partial<Pick<HistoryItem, 'customer' | 'productName' | 'chotGia' | 'quoteStatus'>>) => void;
 }) {
@@ -280,7 +280,12 @@ function DetailPanel({
             {!editing && !item.isQuote && (
               <button
                 className="hist-detail-mobile-load-btn"
-                onClick={() => { onLoad(item.id); onNavigate?.('calculator'); onClose(); }}
+                onClick={async () => {
+                  const ok = await onLoad(item.id);
+                  if (ok === false) return;
+                  onNavigate?.('calculator');
+                  onClose();
+                }}
                 title="Tải lại bảng tính giá"
                 aria-label="Tải lại bảng tính giá"
               >
@@ -482,7 +487,12 @@ function DetailPanel({
           ) : (
             <>
               {!item.isQuote && (
-                <button className="btn btn-sm btn-outline hist-detail-desktop-load-btn" onClick={() => { onLoad(item.id); onNavigate?.('calculator'); onClose(); }}
+                <button className="btn btn-sm btn-outline hist-detail-desktop-load-btn" onClick={async () => {
+                  const ok = await onLoad(item.id);
+                  if (ok === false) return;
+                  onNavigate?.('calculator');
+                  onClose();
+                }}
                   style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                   <RotateCcw size={13} /> Tải lại bảng tính giá
                 </button>
@@ -682,7 +692,7 @@ function LsxDetailPanel({
 // MAIN MODULE
 // ════════════════════════════════════════════════════════════
 export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieuHuong?: (module: 'calculator' | 'quotations') => void; menuDangChon?: string }) {
-  const { history: lichSu, productionOrders, loadHistoryItem: taiLichSu, patchHistoryItem, capNhatLSX, materials, role,
+  const { history: lichSu, productionOrders, patchHistoryItem, capNhatLSX, materials, role,
     taiLichSuTuServer, isAuthenticated: daDangNhap,
   } = dungCuaHangTinhGia();
 
@@ -933,7 +943,7 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
           item={selectedItem}
           mode={mode}
           onClose={() => setSelectedItem(null)}
-          onLoad={taiLichSu}
+          onLoad={(id) => dungCuaHangTinhGia.getState().moBangTinhVoiPin(id)}
           onNavigate={khiDieuHuong}
           onPatch={(id, patch) => {
             patchHistoryItem(id, patch);
@@ -1253,7 +1263,11 @@ export default function ModuleLichSuDB({ khiDieuHuong, menuDangChon }: { khiDieu
                         {' '}
                         {!h.isQuote && (
                           <>
-                            <button className="btn btn-sm btn-outline hist-row-load-btn" title="Tải lại" onClick={() => { taiLichSu(h.id); khiDieuHuong?.('calculator'); }}>
+                            <button className="btn btn-sm btn-outline hist-row-load-btn" title="Tải lại" onClick={async () => {
+                              const ok = await dungCuaHangTinhGia.getState().moBangTinhVoiPin(h.id);
+                              if (!ok) return;
+                              khiDieuHuong?.('calculator');
+                            }}>
                               <RotateCcw size={13} />
                             </button>
                             {mode === 'pricing' && selectedQuoteHistoryIds.has(h.id) && (

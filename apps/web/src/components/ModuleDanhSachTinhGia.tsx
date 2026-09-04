@@ -9,7 +9,7 @@ import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import { getPricingWorkflowStatus } from '../lib/history-filters';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { idChiaSeBangTinh, taoUrlChiaSeTinhGia } from '../lib/tinh-gia-route';
-import { dieuHuongMenuApp } from '../lib/menu-route';
+import { dieuHuongMenuApp, menuKeyTinhGiaTheoItem } from '../lib/menu-route';
 import { QrevStyleInjector } from './qrev-styles';
 import { xoaPricingSheetService } from '../lib/api/service-lts';
 import { exportPricingDetailToA4 } from '../lib/pricing-detail-export';
@@ -62,7 +62,7 @@ export default function ModuleDanhSachTinhGia({
 }: {
   khiDieuHuong?: (module: 'calculator' | 'quotations') => void;
 }) {
-  const { history: lichSu, loadHistoryItem: taiLichSu, taiLichSuTuServer, removeHistoryItem: xoaLichSu, accessToken, materials, constants, profitTable, cpsxNangCapPolicies, nguoiDungHienTai } = dungCuaHangTinhGia();
+  const { history: lichSu, taiLichSuTuServer, removeHistoryItem: xoaLichSu, accessToken, materials, constants, profitTable, cpsxNangCapPolicies, nguoiDungHienTai } = dungCuaHangTinhGia();
 
   const [tuKhoa, datTuKhoa] = useState('');
   const [boLoc, datBoLoc] = useState<BoLocTinhGia>('all');
@@ -135,16 +135,12 @@ export default function ModuleDanhSachTinhGia({
   const totalPages = Math.ceil(dsDaHienThi.length / PAGE_SIZE);
   const pageItems = dsDaHienThi.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
-  const moLaiTinhGia = (id: string) => {
+  const moLaiTinhGia = async (id: string) => {
     const item = lichSu.find(h => h.id === id);
-    // Bảng tính nâng cấp → mở đúng tab "nâng cấp" (route riêng)
-    if (item?.isNangCap) {
-      dieuHuongMenuApp('tao-tinh-gia-nang-cap');
-      taiLichSu(id);
-      return;
-    }
-    taiLichSu(id);
-    khiDieuHuong?.('calculator');
+    const ok = await dungCuaHangTinhGia.getState().moBangTinhVoiPin(id);
+    if (!ok) return;
+    // Helper phân biệt 3 tab: nâng cao / thương mại / thường → URL có id
+    dieuHuongMenuApp(menuKeyTinhGiaTheoItem(item));
   };
 
   const moXemA4 = (h: HistoryItem) => {
@@ -262,7 +258,7 @@ export default function ModuleDanhSachTinhGia({
               variant="qrev"
               size={15}
             />
-            <button className="qrev-btn-icon qrev-btn-icon--primary" title="Mở lại tính giá" onClick={() => moLaiTinhGia(h.id)}>
+            <button className="qrev-btn-icon qrev-btn-icon--primary" title="Mở lại tính giá" onClick={() => void moLaiTinhGia(h.id)}>
               <FileEdit size={15} />
             </button>
             {h.deletable && (

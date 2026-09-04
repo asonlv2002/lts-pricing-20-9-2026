@@ -1337,15 +1337,40 @@ const buttonLabel = loadedItem
 
   // Tính giá Thương mại — chế độ "Mô tả khác": chỉ hiện card mô tả, không tính giá
   if (isCommercial && commercialMode === 'description') {
-    const moTa = (input.commercialDescription || '').trim();
+    const kqTM = tinhGiaThuongMai(input);
+    const donViTM = kqTM.unitLabel; // "/Túi" | "/m²" | "/m" | "/<custom>"
+    const soLuongTM = Math.max(0, Number(input.quantity) || 0);
+    const phiVC = Math.max(0, Number((input as any).shippingFee) || 0);
+    const vcPerUnit = soLuongTM > 0 ? phiVC / soLuongTM : 0;
+    const loaiThung = (hangSo.boxOptions ?? []).find((o: any) => o.key === input.boxOptionKey);
+    const giaThung = loaiThung ? loaiThung.price : Math.max(0, Number(input.boxPrice) || 0);
+    const soTuiMotThung = Math.max(1, Number(input.bagsPerBox) || 1);
+    const thungPerUnit = soLuongTM > 0 && soTuiMotThung > 0 ? giaThung / soTuiMotThung : 0;
+    const trongLuongMoiDonVi = Math.max(0, Number(input.commercialUnitWeight) || 0);
+    const tongTrongLuongGr = soLuongTM * trongLuongMoiDonVi;
+    const tongTrongLuongKg = tongTrongLuongGr / 1000;
+    const tongTrongLuongTan = tongTrongLuongGr / 1000000;
+    const laCoSL = soLuongTM > 0;
+    const lnLabel = kqTM.profitUnit === 'percent'
+      ? `${dinhDangSo(kqTM.profitRawValue, 2)}% (= ${dinhDangSo(kqTM.profitPerUnit, 0)} đ${donViTM})`
+      : `${dinhDangSo(kqTM.profitRawValue, 0)} đ${donViTM} (= ${dinhDangSo(kqTM.profitPct * 100, 2)}%)`;
+    const tongCongPerUnit = kqTM.unitPriceVnd + vcPerUnit + thungPerUnit + kqTM.extraFeePerUnit;
+    const giaHienThi = laCoSL ? kqTM.unitPriceVnd + vcPerUnit + thungPerUnit + kqTM.extraFeePerUnit : 0;
+
     return (
       <div className="panel active" id="panel-manager">
         <div className="manager-content">
           <div className="card" style={{ marginBottom: 14, padding: 0, background: 'transparent', border: 'none', boxShadow: 'none' }}>
             <div className="price-hero">
-              <div className="label">Báo giá Thương mại — Mô tả tự do</div>
-              <div className="value" style={{ color: 'var(--muted)' }}>— đ</div>
-              <div className="unit">(không tính giá — chỉ mô tả)</div>
+              <div className="label">{`Giá đề xuất ${donViTM}`}</div>
+              <div className="value" id="s-price" style={laCoSL ? undefined : { color: 'var(--muted)' }}>
+                {laCoSL ? dinhDangSo(giaHienThi, 0) : '—'}
+              </div>
+              <div className="unit">
+                {laCoSL
+                  ? `(đã gồm mua + LN + phụ phí + VC + thùng)`
+                  : 'nhập Số lượng + Đơn giá mua + LN để tính'}
+              </div>
               <div className="sub" id="s-structure">
                 <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '1.05rem', marginBottom: 12 }}>
                   {input.customer || '—'} — {input.productName || '—'}
@@ -1353,18 +1378,53 @@ const buttonLabel = loadedItem
               </div>
             </div>
           </div>
-          <div className="card" style={{ marginBottom: 14 }}>
-            <div className="card-title" style={{ fontSize: '0.95rem' }}>
-              <span className="icon">📝</span> Mô tả báo giá
-            </div>
-            {moTa ? (
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.92rem', lineHeight: 1.55, color: 'var(--text)' }}>{moTa}</div>
-            ) : (
-              <div style={{ color: 'var(--muted)', fontSize: '0.88rem', fontStyle: 'italic' }}>
-                Chưa có mô tả. Nhập mô tả ở cột trái để hiển thị tại đây.
-              </div>
-            )}
-          </div>
+
+          {/* ═══ Chi tiết giá đề xuất ═══ */}
+          <TheThuGon
+            resetKey={`${kqTM.unitPriceVnd}|${soLuongTM}|${kqTM.profitRawValue}`}
+            style={{ marginBottom: '14px' }}
+            title={<><span className="icon">💰</span> Chi tiết giá đề xuất{donViTM ? ` ${donViTM}` : ''}</>}
+          >
+            <ul className="breakdown-list" id="s-breakdown">
+              <li><span className="bl-label">Đơn giá mua</span><span className="bl-value">{dinhDangSo(kqTM.purchasePrice, 0)} đ{donViTM}</span></li>
+              <li><span className="bl-label">Lợi nhuận</span><span className="bl-value">{lnLabel}</span></li>
+              {kqTM.extraFee > 0 && (
+                <li><span className="bl-label">Phụ phí khác</span><span className="bl-value">{dinhDangSo(kqTM.extraFeePerUnit, 0)} đ{donViTM}</span></li>
+              )}
+              {phiVC > 0 && (
+                <li><span className="bl-label">Vận chuyển / đơn vị</span><span className="bl-value">{dinhDangSo(vcPerUnit, 0)} đ{donViTM}</span></li>
+              )}
+              {giaThung > 0 && (
+                <li><span className="bl-label">Phí thùng / đơn vị</span><span className="bl-value">{dinhDangSo(thungPerUnit, 0)} đ{donViTM}</span></li>
+              )}
+              <li className="bl-total">
+                <span className="bl-label" style={{ color: 'var(--orange)' }}>GIÁ ĐỀ XUẤT{donViTM ? ` ${donViTM.toUpperCase()}` : ''}</span>
+                <span className="bl-value" style={{ color: 'var(--orange)' }}>{laCoSL ? `${dinhDangSo(tongCongPerUnit, 0)} đ` : '—'}</span>
+              </li>
+              {laCoSL && (
+                <li style={{ marginTop: 6, fontSize: '0.78rem', color: 'var(--muted)' }}>
+                  × {dinhDangSo(soLuongTM, 0)} sp = <strong style={{ color: 'var(--text)' }}>{dinhDangSo(tongCongPerUnit * soLuongTM, 0)} đ</strong> tổng lô
+                </li>
+              )}
+            </ul>
+          </TheThuGon>
+
+          {/* ═══ Trọng lượng & Vận chuyển ═══ */}
+          <TheThuGon
+            resetKey={`${trongLuongMoiDonVi}|${soLuongTM}|${phiVC}`}
+            style={{ marginTop: '14px' }}
+            title={<><span className="icon">⚖️</span> Trọng lượng &amp; Vận chuyển</>}
+          >
+            <ul className="breakdown-list" id="m-t-weight">
+              <li><span className="bl-label">Trọng lượng / đơn vị</span><span className="bl-value">{trongLuongMoiDonVi > 0 ? `${dinhDangSo(trongLuongMoiDonVi, 2)} gr` : '— (nhập ở Thu mua)'}</span></li>
+              <li><span className="bl-label">Tổng trọng lượng</span><span className="bl-value">{tongTrongLuongKg > 0 ? `${dinhDangSo(tongTrongLuongKg, 1)} kg` : '—'}</span></li>
+              <li><span className="bl-label">Trọng lượng (tấn)</span><span className="bl-value">{tongTrongLuongTan > 0 ? `${dinhDangSo(tongTrongLuongTan, 3)} tấn` : '—'}</span></li>
+              <li><span className="bl-label">Vận chuyển (tổng lô)</span><span className="bl-value">{phiVC > 0 ? `${dinhDangSo(phiVC, 0)} đ` : '— (nhập ở Phụ phí)'}</span></li>
+              {laCoSL && phiVC > 0 && (
+                <li><span className="bl-label">Vận chuyển / đơn vị</span><span className="bl-value">{dinhDangSo(vcPerUnit, 0)} đ{donViTM}</span></li>
+              )}
+            </ul>
+          </TheThuGon>
         </div>
       </div>
     );
@@ -2178,7 +2238,7 @@ const buttonLabel = loadedItem
           </div>
 
           {/* ═══ SECTION: Đặc tả kỹ thuật & nguyên liệu ═══ */}
-          {!nangCap && (<>
+          {!nangCap && !isCommercial && (<>
           <div id="sect-tech" className="manager-section-anchor"></div>
           <TheThuGon
             resetKey={khoaKetQua}

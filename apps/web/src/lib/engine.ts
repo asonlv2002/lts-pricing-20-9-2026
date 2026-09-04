@@ -429,6 +429,8 @@ export interface KetQuaThuongMai {
   unitKind: 'tui' | 'm2' | 'm' | 'custom';
   /** Nhãn đơn vị hiển thị (vd: '/Túi', '/m²', '/m', '/thùng') */
   unitLabel: string;
+  /** Trọng lượng / đơn vị (gram) — optional, cho mô tả tự do */
+  unitWeightGr?: number;
 }
 
 export function tinhGiaThuongMai(input: CalculateInput): KetQuaThuongMai {
@@ -439,6 +441,7 @@ export function tinhGiaThuongMai(input: CalculateInput): KetQuaThuongMai {
   const unitKind = (input.commercialUnitKind || 'tui') as 'tui' | 'm2' | 'm' | 'custom';
   const customLabel = (input.commercialUnitLabel || '').trim();
   const extraFee = Math.max(0, Number(input.commercialExtraFee) || 0);
+  const unitWeightGr = Math.max(0, Number(input.commercialUnitWeight) || 0);
 
   // Tổng mua = (giá mua × SL). Phụ phí tách riêng, KHÔNG ảnh hưởng baseCost / LN%.
   const purchaseTotal = purchasePrice * quantity;
@@ -479,5 +482,45 @@ export function tinhGiaThuongMai(input: CalculateInput): KetQuaThuongMai {
     profitRawValue: profitRaw,
     unitKind,
     unitLabel,
+    unitWeightGr,
   };
+}
+
+/**
+ * Đơn giá cuối của sheet thương mại (mua + LN + Thùng/VC/Lãi vay/HH/Trục/Phụ phí).
+ * Tái hiện công thức `tongBreakdown` trong ManHinhQuanLy (line 1605-1617) — dùng
+ * khi lưu history / hiển thị list, đảm bảo 1 nguồn công thức với panel kết quả.
+ *
+ * - `input`           : input hiện tại (pricingMode/commercial*)
+ * - `result`          : kết quả engine (CalculateResult) — chứa các per-unit (tape/handle/box/shipping/interest/commission/gc/cyl)
+ *
+ * Trả về `null` nếu input không phải commercial-form (không áp dụng).
+ */
+export function tinhDonGiaThuongMaiHieuLuc(
+  input: CalculateInput,
+  result: CalculateResult | null,
+): number | null {
+  if (input?.pricingMode !== 'commercial') return null;
+  if ((input.commercialMode || 'form') !== 'form') return null;
+  if (!result) return null;
+
+  const ketQuaThuongMai = tinhGiaThuongMai(input);
+  const r = result;
+  const dauVao = r.input;
+
+  const tong =
+    ketQuaThuongMai.unitPriceVnd
+    + (dauVao.hasTape ? (r.tapePerUnit ?? 0) : 0)
+    + (dauVao.hasHandle ? (r.handlePerUnit ?? 0) : 0)
+    + (r.boxPerUnit ?? 0)
+    + (r.shippingPerUnit ?? 0)
+    + (r.interestPerUnit ?? 0)
+    + (r.commissionPerUnit ?? 0)
+    + (r.gcShippingPerUnit ?? 0)
+    + (r.gcPackagingPerUnit ?? 0)
+    + (r.gcOtherPerUnit ?? 0)
+    + (dauVao.cylIncluded ? (r.cylAllocPerUnit ?? 0) : 0)
+    + ketQuaThuongMai.extraFeePerUnit;
+
+  return tong;
 }

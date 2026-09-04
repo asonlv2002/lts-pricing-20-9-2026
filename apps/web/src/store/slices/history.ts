@@ -2,7 +2,7 @@ import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import { CalculateInput, HistoryItem, QuoteProductLine, QuoteStatus, QuoteTerms } from '../../lib/types';
 import { tinhBaoGia, lapDongSanXuat } from '../../lib/manager-calculation';
-import { dongBoCotLoiNhuan } from '../../lib/engine';
+import { dongBoCotLoiNhuan, tinhDonGiaThuongMaiHieuLuc, tinhGiaThuongMai } from '../../lib/engine';
 import { tinhKetQuaNangCaoHieuLuc } from '../../lib/dac-ta-nang-cao';
 import {
   layDanhSachPricingSheetService,
@@ -115,6 +115,13 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
           }).result
         : state.result;
 
+      // Tính giá Thương mại (mua + LN + Thùng/VC/Lãi vay/HH/Trục/Phụ phí) — khớp panel.
+      const giaThuongMai = tinhDonGiaThuongMaiHieuLuc(state.input, state.result);
+      const finalPriceHieuLuc = giaThuongMai ?? ketQuaLuu.finalPrice;
+      const ketQuaTM = giaThuongMai ? tinhGiaThuongMai(state.input) : null;
+      const profitRateHieuLuc = ketQuaTM ? ketQuaTM.profitPct : ketQuaLuu.profitRate;
+      const profitAmountHieuLuc = ketQuaTM ? ketQuaTM.profitVnd : ketQuaLuu.profitAmount;
+
       const isoNow = now.toISOString();
       const item: HistoryItem = {
         id: String(now.getTime()),
@@ -125,10 +132,10 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         productName: state.input.productName || 'N/A',
         structure: state.result.structureText,
         quantity: state.input.quantity,
-        finalPrice: ketQuaLuu.finalPrice,
+        finalPrice: finalPriceHieuLuc,
         chotGia: state.currentChotGia || undefined,
-        profitRate: ketQuaLuu.profitRate,
-        profitAmount: ketQuaLuu.profitAmount,
+        profitRate: profitRateHieuLuc,
+        profitAmount: profitAmountHieuLuc,
         isQuote: false,
         sellerId: state.currentSellerId,
         sellerName: state.currentSellerName,
@@ -174,6 +181,9 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     if (!item) return false;
 
     const laNangCap = !!(item.isNangCap || item.input?.isNangCap);
+    const laThuongMai = !!(
+      item.isThuongMai || item.input?.pricingMode === 'commercial'
+    );
     // Apply pin TRƯỚC khi tính result — nâng cao/thường cùng dùng constants đã ghim
     const pinIds = (item.priceConfigIds ?? []).map((x) => String(x).trim()).filter(Boolean);
     let pinCpsxTuCtx = item.pinnedCpsxNangCao;
@@ -250,6 +260,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       isDirty: false,
       loadedHistoryId: item.id,
       cheDoNangCao: laNangCap,
+      cheDoThuongMai: laThuongMai,
       saleOverrides: item.saleOverrides ?? {},
       adminOverrides: item.adminOverrides ?? {},
       saleProfitRatePct: item.saleProfitRatePct ?? 0,
@@ -315,6 +326,9 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const syncedInput = dongBoCotLoiNhuan({ ...rawInput }, ctxMap.materials);
       const mapped = mapPricingSheetToHistory(sheet, ctxMap);
       const laNangCap = !!(mapped?.isNangCap || rawInput.isNangCap);
+      const laThuongMai = !!(
+        mapped?.isThuongMai || rawInput.pricingMode === 'commercial'
+      );
       if (laNangCap && pinIds.length && !coProductionUpgradeTrongConfigs(configs) && !mapped?.pinnedCpsxNangCao) {
         console.warn(
           'Sheet NC từ server: pin không hydrate CPSX nâng cao — kiểm tra PRODUCTION_UPGRADE trong priceConfigIds',
@@ -360,6 +374,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
           isDirty: false,
           loadedHistoryId: sheet.id,
           cheDoNangCao: laNangCap,
+          cheDoThuongMai: laThuongMai,
           originalCustomerLoaded: sheet.customerCodeName || sheet.customer?.codeName || null,
           saleOverrides: mapped?.saleOverrides ?? {},
           adminOverrides: mapped?.adminOverrides ?? {},
@@ -451,6 +466,13 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
           }).result
         : state.result;
 
+      // Tính giá Thương mại (mua + LN + Thùng/VC/Lãi vay/HH/Trục/Phụ phí) — khớp panel.
+      const giaThuongMai = tinhDonGiaThuongMaiHieuLuc(state.input, state.result);
+      const finalPriceHieuLuc = giaThuongMai ?? ketQuaLuu.finalPrice;
+      const ketQuaTM = giaThuongMai ? tinhGiaThuongMai(state.input) : null;
+      const profitRateHieuLuc = ketQuaTM ? ketQuaTM.profitPct : ketQuaLuu.profitRate;
+      const profitAmountHieuLuc = ketQuaTM ? ketQuaTM.profitVnd : ketQuaLuu.profitAmount;
+
       const now = new Date();
       const isoNow = now.toISOString();
       const updated: HistoryItem = {
@@ -462,10 +484,10 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         productName: state.input.productName || old.productName,
         structure: state.result.structureText,
         quantity: state.input.quantity,
-        finalPrice: ketQuaLuu.finalPrice,
+        finalPrice: finalPriceHieuLuc,
         chotGia: state.currentChotGia || undefined,
-        profitRate: ketQuaLuu.profitRate,
-        profitAmount: ketQuaLuu.profitAmount,
+        profitRate: profitRateHieuLuc,
+        profitAmount: profitAmountHieuLuc,
         saleOverrides: Object.keys(state.saleOverrides).length > 0 ? state.saleOverrides : undefined,
         adminOverrides: Object.keys(state.adminOverrides).length > 0 ? state.adminOverrides : undefined,
         input: { ...state.input, isNangCap: laNangCap || undefined },

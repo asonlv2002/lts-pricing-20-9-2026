@@ -3,6 +3,7 @@
 export type LoaiDeepLink =
   | 'tinh-gia'
   | 'tinh-gia-nang-cao'
+  | 'tinh-gia-thuong-mai'
   | 'bao-gia'
   | 'khach-hang'
   | 'lsx';
@@ -22,6 +23,7 @@ export const DEEP_LINK_QUERY_KEYS = ['tinh-gia', 'bao-gia', 'khach-hang', 'lsx']
 export const NHAN_LOAI_DEEP_LINK: Record<LoaiDeepLink, string> = {
   'tinh-gia': 'Tính giá',
   'tinh-gia-nang-cao': 'Tính giá nâng cao',
+  'tinh-gia-thuong-mai': 'Tính giá thương mại',
   'bao-gia': 'Báo giá',
   'khach-hang': 'Khách hàng',
   lsx: 'LSX',
@@ -133,6 +135,7 @@ export function dongBoUrlDeepLinkClear(): void {
   const entityRoots = new Set([
     'tinh-gia',
     'tinh-gia-nang-cao',
+    'tinh-gia-thuong-mai',
     'bao-gia',
     'khach-hang',
     'lsx',

@@ -9,7 +9,7 @@ function dinhDangSo(n: number, decimals = 0): string {
 }
 
 export default function XemLichSu() {
-  const { activeView: manHinhDangMo, history: lichSu, loadHistoryItem: taiLichSu, removeHistoryItem: xoaLichSu } = dungCuaHangTinhGia();
+  const { activeView: manHinhDangMo, history: lichSu, removeHistoryItem: xoaLichSu } = dungCuaHangTinhGia();
 
   if (manHinhDangMo !== 'history') return null;
 
@@ -112,7 +112,7 @@ export default function XemLichSu() {
                     <button
                       className="crm-btn crm-btn-ghost hist-action-btn"
                       title="Tải lại và chỉnh sửa tính toán này"
-                      onClick={() => taiLichSu(muc.id)}
+                      onClick={() => void dungCuaHangTinhGia.getState().moBangTinhVoiPin(muc.id)}
                     >
                       <RotateCcw size={14} />
                       <span>Tải</span>

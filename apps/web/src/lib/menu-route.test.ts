@@ -249,6 +249,45 @@ assert(
     input: undefined as any,
   }) === 'tao-tinh-gia',
 );
+assert(
+  'item null → tao-tinh-gia (fallback an toàn)',
+  menuKeyTinhGiaTheoItem(null) === 'tao-tinh-gia',
+);
+assert(
+  'item undefined → tao-tinh-gia (fallback an toàn)',
+  menuKeyTinhGiaTheoItem(undefined) === 'tao-tinh-gia',
+);
+assert(
+  'item thương mại (isThuongMai=true) → tao-tinh-gia-thuong-mai',
+  menuKeyTinhGiaTheoItem({
+    isNangCap: false,
+    isThuongMai: true,
+    input: { pricingMode: 'internal' } as any,
+  }) === 'tao-tinh-gia-thuong-mai',
+);
+assert(
+  'item thường nhưng input.pricingMode="commercial" → tao-tinh-gia-thuong-mai (fallback input)',
+  menuKeyTinhGiaTheoItem({
+    isNangCap: false,
+    isThuongMai: false,
+    input: { pricingMode: 'commercial' } as any,
+  }) === 'tao-tinh-gia-thuong-mai',
+);
+assert(
+  'item vừa nâng cao vừa thương mại (nangCao thắng) → tao-tinh-gia-nang-cap',
+  menuKeyTinhGiaTheoItem({
+    isNangCap: true,
+    isThuongMai: true,
+    input: { isNangCap: true, pricingMode: 'commercial' } as any,
+  }) === 'tao-tinh-gia-nang-cap',
+);
+assert(
+  'item thường, commercialMode=description (không set isThuongMai) → vẫn về tao-tinh-gia-thuong-mai (pricingMode check)',
+  menuKeyTinhGiaTheoItem({
+    isNangCap: false,
+    input: { pricingMode: 'commercial', commercialMode: 'description' } as any,
+  }) === 'tao-tinh-gia-thuong-mai',
+);
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

@@ -620,7 +620,6 @@ export default function ModuleNhatKy({
     loiNhatKy,
     xuatNhatKyCsv,
     taiNhatKyHeThong,
-    loadHistoryItem,
     history,
     nguoiDungHienTai,
     accessToken,
@@ -829,7 +828,8 @@ export default function ModuleNhatKy({
         (h) => h.id === entry.targetId || h.pricingSheetId === entry.targetId,
       );
       if (entry.targetType === "history" && item && !item.isQuote) {
-        loadHistoryItem(item.id);
+        const ok = await dungCuaHangTinhGia.getState().moBangTinhVoiPin(item.id);
+        if (!ok) return;
         dieuHuongMenuApp(menuKeyTinhGiaTheoItem(item));
         return;
       }

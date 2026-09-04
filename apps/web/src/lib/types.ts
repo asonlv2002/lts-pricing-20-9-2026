@@ -610,6 +610,8 @@ export interface CalculateInput {
   commercialUnitLabel?: string;
   /** Tổng phụ phí khác (VNĐ) — chỉ dùng khi commercialMode='form', cộng vào Tổng cuối */
   commercialExtraFee?: number;
+  /** Trọng lượng / đơn vị (gram) — dùng cho mô tả tự do (mua SP khác), hiện lên Trọng lượng & Vận chuyển */
+  commercialUnitWeight?: number;
 }
 
 // ── Quote Status (luồng báo giá local + server) ──────────────────────────────

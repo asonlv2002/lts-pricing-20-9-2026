@@ -4040,7 +4040,7 @@ function TaoBaoGiaWizard({
     setErrorSection(null);
   };
 
-  const handleViewPricing = (pIdx: number) => {
+  const handleViewPricing = async (pIdx: number) => {
     const product = state.products[pIdx];
     if (!product) return;
     exitingRef.current = true;
@@ -4049,9 +4049,8 @@ function TaoBaoGiaWizard({
       products: state.products,
       terms: state.terms,
     });
-    (dungCuaHangTinhGia as any)
-      .getState()
-      .loadHistoryItem(product.historyItem.id);
+    const ok = await dungCuaHangTinhGia.getState().moBangTinhVoiPin(product.historyItem.id);
+    if (!ok) return;
     dieuHuongMenuApp(menuKeyTinhGiaTheoItem(product.historyItem));
   };
 
@@ -4618,7 +4617,7 @@ function TaoBaoGiaWizard({
               constants={constants}
               profitTable={profitTable}
               smallWidthPrices={smallWidthPrices}
-              onViewPricing={handleViewPricing}
+              onViewPricing={(pIdx) => void handleViewPricing(pIdx)}
             />
           )}
         </div>
@@ -5757,7 +5756,6 @@ export default function QuotationModule({
 }) {
   const {
     history,
-    loadHistoryItem: taiLichSu,
     updateQuoteStatus: capNhatTrangThaiLocal,
     currentSellerId: hienTaiSellerId,
     saoChepBangTinh,
@@ -6035,9 +6033,12 @@ export default function QuotationModule({
           item={selectedItem}
           isAdmin={isAdmin}
           onClose={() => setSelectedItem(null)}
-          onLoadCalc={(id) => {
-            if (selectedItem) taiLichSu(id);
-            dieuHuongMenuApp(menuKeyTinhGiaTheoItem(selectedItem || { input: {} }));
+          onLoadCalc={async (id) => {
+            const target = selectedItem;
+            if (!target) return;
+            const ok = await dungCuaHangTinhGia.getState().moBangTinhVoiPin(id);
+            if (!ok) return;
+            dieuHuongMenuApp(menuKeyTinhGiaTheoItem(target));
           }}
           onPatch={(id, patch) => {
             patchHistoryItem(id, patch);

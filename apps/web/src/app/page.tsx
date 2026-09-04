@@ -29,8 +29,8 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
 
   // Tính giá Thương mại — override giá hiển thị khi commercial-form
   const laThuongMai = input.pricingMode === 'commercial';
-  const cheDoThuongMai = (input.commercialMode || 'form') as 'form' | 'description';
-  const ketQuaThuongMai = laThuongMai && cheDoThuongMai === 'form' ? tinhGiaThuongMai(input) : null;
+  const cheDoHienThiThuongMai = (input.commercialMode || 'form') as 'form' | 'description';
+  const ketQuaThuongMai = laThuongMai && cheDoHienThiThuongMai === 'form' ? tinhGiaThuongMai(input) : null;
 
   // Tab nâng cấp: giá từ bảng đặc tả nâng cao (có ghi đè Sale/Admin)
   // Sheet đã lưu: overlay CPSX NC từ pin — không bám constants đang sửa trên màn CPSX
@@ -138,12 +138,13 @@ export default function TrangChinh() {
     resetInput: datLaiDauVao,
     setInput: capNhatDauVao,
     cheDoNangCao,
+    cheDoThuongMai,
     input,
   } = dungCuaHangTinhGia();
 
   const laThuongMai = input.pricingMode === 'commercial';
-  const cheDoThuongMai = (input.commercialMode || 'form') as 'form' | 'description';
-  const ketQuaThuongMai = laThuongMai && cheDoThuongMai === 'form' ? tinhGiaThuongMai(input) : null;
+  const cheDoHienThiThuongMai = (input.commercialMode || 'form') as 'form' | 'description';
+  const ketQuaThuongMai = laThuongMai && cheDoHienThiThuongMai === 'form' ? tinhGiaThuongMai(input) : null;
 
   const [tabMobile, datTabMobile] = useState<'input' | 'result'>('input');
   const [doRongTrai, datDoRongTrai] = useState<number | null>(null);
@@ -153,21 +154,35 @@ export default function TrangChinh() {
 
   const dangChonCheDo = pricingEntry === 'pick';
 
-  // Mỗi tab (cũ / nâng cấp) có form nhập riêng — khi đổi tab: quay về màn
-  // hình chọn chế độ (3 lựa chọn: Nội bộ / Gia công / Thương mại) trước.
-  // Ngoại lệ: đang mở bảng tính từ lịch sử thuộc đúng tab mới → giữ nguyên.
-  const tabTruoc = useRef(cheDoNangCao);
+  // Mỗi tab (cũ / nâng cao / thương mại) có form nhập riêng — khi đổi tab: quay về
+  // màn hình chọn chế độ (3 lựa chọn: Nội bộ / Gia công / Thương mại) trước, trừ khi
+  // đang mở bảng tính từ lịch sử thuộc đúng tab mới.
+  const tabTruoc = useRef<'thuong' | 'nang-cao' | 'thuong-mai'>(
+    cheDoNangCao ? 'nang-cao' : cheDoThuongMai ? 'thuong-mai' : 'thuong',
+  );
   useEffect(() => {
-    if (tabTruoc.current === cheDoNangCao) return;
-    tabTruoc.current = cheDoNangCao;
+    const tabHienTai: 'thuong' | 'nang-cao' | 'thuong-mai' = cheDoNangCao
+      ? 'nang-cao'
+      : cheDoThuongMai
+        ? 'thuong-mai'
+        : 'thuong';
+    if (tabTruoc.current === tabHienTai) return;
+    tabTruoc.current = tabHienTai;
     const s = dungCuaHangTinhGia.getState();
     // Đang mở bảng tính từ lịch sử thuộc tab mới → không xóa form vừa load
     const mucDangMo = s.loadedHistoryId ? timMucLichSuTheoId(s.history, s.loadedHistoryId) : null;
-    const vuaMoTuLichSu = !!mucDangMo && (!!mucDangMo.isNangCap === cheDoNangCao);
+    const itemNangCao = !!mucDangMo?.isNangCap;
+    const itemThuongMai = !!(
+      mucDangMo?.isThuongMai || mucDangMo?.input?.pricingMode === 'commercial'
+    );
+    const vuaMoTuLichSu =
+      !!mucDangMo &&
+      itemNangCao === cheDoNangCao &&
+      itemThuongMai === cheDoThuongMai;
     if (vuaMoTuLichSu) return;
     datLaiDauVao();
     datPricingEntry('pick');
-  }, [cheDoNangCao, datLaiDauVao, datPricingEntry]);
+  }, [cheDoNangCao, cheDoThuongMai, datLaiDauVao, datPricingEntry]);
 
   const xuLyChonCheDoTinhGia = (mode: PricingMode) => {
     datLaiDauVao();
@@ -179,6 +194,26 @@ export default function TrangChinh() {
     });
     datPricingEntry('form');
   };
+
+  // Mở thẳng tab thương mại (từ menu "Tính giá thương mại" hoặc URL /tao-tinh-gia-thuong-mai
+  // hay deep-link /tinh-gia-thuong-mai/<id>): bỏ qua màn chọn chế độ, set form thương mại.
+  // Skip khi đang mở từ lịch sử (tab-switch effect đã xử lý giữ form).
+  useEffect(() => {
+    if (!cheDoThuongMai) return;
+    const s = dungCuaHangTinhGia.getState();
+    if (s.loadedHistoryId) return; // đang mở từ lịch sử — đã có pricingMode
+    if (input.pricingMode === 'commercial') {
+      // Đã là commercial — nếu vô tình đang ở tab Kỹ thuật thì đẩy về Quản lý.
+      if (gocNhinHienTai === 'tech') datGocNhin('manager');
+      return;
+    }
+    capNhatDauVao({
+      pricingMode: 'commercial',
+      commercialMode: (input.commercialMode as 'form' | 'description') || 'form',
+    });
+    datPricingEntry('form');
+    if (gocNhinHienTai === 'tech') datGocNhin('manager');
+  }, [cheDoThuongMai, input.pricingMode, input.commercialMode, capNhatDauVao, datPricingEntry, gocNhinHienTai, datGocNhin]);
 
   // ── Phát hiện mobile ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -554,7 +589,7 @@ export default function TrangChinh() {
             <ManHinhQuanLy
               nangCap={cheDoNangCao}
               isCommercial={laThuongMai}
-              commercialMode={cheDoThuongMai}
+              commercialMode={cheDoHienThiThuongMai}
               ketQuaThuongMai={ketQuaThuongMai ?? undefined}
             />
             <ManHinhKyThuat />

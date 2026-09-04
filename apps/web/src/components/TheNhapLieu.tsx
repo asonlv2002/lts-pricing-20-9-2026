@@ -795,8 +795,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
         </div>
       )}
 
-      {!laThuongMaiMoTa && (<>
-
+      {!laThuongMaiMoTa && (
       <div className="form-row product-type-row">
         <div className="form-group">
           <label className="form-label">Loại sản phẩm</label>
@@ -858,6 +857,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
           </div>
         )}
       </div>
+      )}
 
       <div className="form-group">
         <label className="form-label">{input.productType === 'mang' ? 'Số lượng màng' : 'Số lượng'}</label>
@@ -880,8 +880,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
         )}
       </div>
 
-      {/* Chiều dài cuộn màng thành phẩm — chỉ hiện khi chọn màng */}
-      {input.productType === 'mang' && (
+      {!laThuongMaiMoTa && input.productType === 'mang' && (
         <div className="form-group">
           <label className="form-label">Chiều dài mỗi cuộn màng TP (m)</label>
           <ONhapSoDinhDang className="form-input" placeholder="VD: 6000" value={(input as any).filmRollLength || 6000} onChange={(val: number) => capNhatDauVao({ filmRollLength: val } as any)} />
@@ -890,7 +889,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
 
       <div className="divider"></div>
 
-      {laThuongMaiForm && hienCauTruc && (
+      {laThuongMai && (
         <div id="thuMuaSection">
           <div
             className="advanced-toggle"
@@ -955,11 +954,25 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                 </select>
               </div>
             </div>
+            {laThuongMaiMoTa && (
+              <div className="form-group">
+                <label className="form-label">Trọng lượng / đơn vị (gr)</label>
+                <ONhapSoDinhDang
+                  className="form-input"
+                  placeholder="VD: 25"
+                  value={input.commercialUnitWeight || 0}
+                  onChange={(val: number) => capNhatDauVao({ commercialUnitWeight: val })}
+                />
+                <div className="form-hint" style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 4 }}>
+                  Trọng lượng của sản phẩm mua (để hiện lên Trọng lượng &amp; Vận chuyển).
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {hienCauTruc && (
+      {hienCauTruc && !laThuongMaiMoTa && (
         <div id="structureSection">
           <div
             className="advanced-toggle"
@@ -1211,7 +1224,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
         </div>
       )}
 
-      {hienCauTruc && (
+      {(hienCauTruc || laThuongMaiMoTa) && (
         <>
           <div className="advanced-toggle" onClick={() => datMoRongNangCao(!advancedOpen)}>
             <span>⚙️ Tùy chỉnh nâng cao</span>
@@ -1219,7 +1232,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
           </div>
 
           <div className={`advanced-section ${advancedOpen ? 'open' : ''}`}>
-            {!laThuongMaiForm && (
+            {!laThuongMai && (
               <>
                 <div className="form-row-3">
                   <div className="form-group">
@@ -1478,8 +1491,6 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
           </div>
         </>
       )}
-
-      </>)}
 
       <div className="divider"></div>
 

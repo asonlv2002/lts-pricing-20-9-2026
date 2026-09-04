@@ -808,6 +808,23 @@ export function exportPricingDetailToA4(
     return;
   }
 
+  // Tính giá thương mại: không có thông số CPSX / override kỹ thuật → chỉ xuất 1 trang.
+  const laThuongMai = !!(item.isThuongMai || item.input?.pricingMode === 'commercial');
+  if (laThuongMai) {
+    const pagesHtml = `<div class="page">
+      <h1>CHI TIẾT BẢNG TÍNH GIÁ</h1>
+      <div style="text-align:center;font-size:9pt;color:#64748b;margin-bottom:12px;">Ngày ${item.date}</div>
+      ${buildThongTinChung(r, item)}
+      ${buildGia(r, item, constants, profitTable)}
+    </div>`;
+    moCuaSoHtml(
+      `Chi tiết ${item.productName}`,
+      `Chi tiết bảng tính giá — ${item.productName}`,
+      pagesHtml,
+    );
+    return;
+  }
+
   const { uniRows } = lapDongSanXuat(r, constants);
   const emptyOv: OverrideTable = {};
 

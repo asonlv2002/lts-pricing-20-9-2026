@@ -14,6 +14,8 @@ export interface UISlice {
   advancedOpen: boolean;
   /** true = đang ở tab "Tạo bảng tính giá (nâng cấp)" — giá lấy từ bảng đặc tả nâng cao */
   cheDoNangCao: boolean;
+  /** true = đang ở tab "Tính giá thương mại" — input.pricingMode='commercial', form mua-bán-lại */
+  cheDoThuongMai: boolean;
   currentSellerId: string;
   currentSellerName: string;
   role: string;
@@ -54,6 +56,7 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   theme: 'light',
   advancedOpen: false,
   cheDoNangCao: false,
+  cheDoThuongMai: false,
   currentSellerId: 'S1',
   currentSellerName: 'Nguyễn Văn An',
   role: 'admin',
@@ -72,6 +75,7 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   setTheme:         (v) => set({ theme: v }),
   setAdvancedOpen:  (v) => set({ advancedOpen: v }),
   setCheDoNangCao:  (v) => set({ cheDoNangCao: v }),
+  setCheDoThuongMai: (v: boolean) => set({ cheDoThuongMai: v }),
   setCurrentSeller: (id, name) => set({ currentSellerId: id, currentSellerName: name }),
   setRole:          (r) => set({ role: r }),
   datBaoGiaDangSua: (bg) => set({ baoGiaDangSua: bg }),

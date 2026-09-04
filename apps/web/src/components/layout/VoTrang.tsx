@@ -70,6 +70,7 @@ import {
   laMobileHubMenuKey,
   menuKeyTuModule,
   moduleTuMenuKey,
+  menuKeyTinhGiaTheoItem,
   type CheDoLichSu,
   type LtsNavigateDetail,
   type MaModuleMenu,
@@ -258,6 +259,12 @@ const CAC_NHOM_MENU: NhomMenu[] = [
         key: "tao-tinh-gia-nang-cap",
         id: "calculator",
         label: "Tạo bảng tính giá",
+        vaiTros: ["admin", "sale"],
+      },
+      {
+        key: "tao-tinh-gia-thuong-mai",
+        id: "calculator",
+        label: "Tính giá thương mại",
         vaiTros: ["admin", "sale"],
       },
       {
@@ -1045,6 +1052,14 @@ function ThanhBen({
       if (laMobile) datDangMo(false);
       return;
     }
+    if (item.key === "tao-tinh-gia-thuong-mai") {
+      // Tab thương mại: auto-set pricingMode='commercial', skip landing chọn chế độ.
+      // page.tsx useEffect sẽ set input + pricingEntry='form'.
+      datMenuDangChon(item.key);
+      datModuleDangMo(item.id);
+      if (laMobile) datDangMo(false);
+      return;
+    }
     // datMenuDangChon + datModuleDangMo được shell bọc URL qua callback
     datMenuDangChon(item.key);
     datModuleDangMo(item.id);
@@ -1668,12 +1683,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const module =
-        moduleTuMenuKey(key, CAC_MUC_MENU) ??
-        (CAC_MUC_MENU.find((m) => m.key === key)?.id as MaModuleMenu | undefined);
+      // Fallback: 'tao-tinh-gia' (tab form cũ) + 'tao-tinh-gia-thuong-mai' cùng
+      // module calculator với 'tao-tinh-gia-nang-cap', nhưng CAC_MUC_MENU chỉ
+      // register 'tao-tinh-gia-nang-cap' & 'tao-tinh-gia-thuong-mai' làm entry.
+      // Không có fallback này → route từ list page (mở lại thương mại / mở lại form cũ) sẽ
+      // chỉ set menuDangChon mà KHÔNG đổi moduleDangMo → TrangChinh không mount → form không mở.
+      const moduleFallback =
+        key === "tao-tinh-gia" || key === "tao-tinh-gia-thuong-mai"
+          ? "calculator"
+          : (moduleTuMenuKey(key, CAC_MUC_MENU) ??
+            (CAC_MUC_MENU.find((m) => m.key === key)?.id as MaModuleMenu | undefined));
 
       datMenuDangChon(key);
-      if (module) datModuleDangMo(module);
+      if (moduleFallback) datModuleDangMo(moduleFallback);
       if (!dangDongBoTuUrl.current) dongBoUrlMenu(key, mode);
     },
     [datModuleDangMo],
@@ -1834,6 +1856,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     dungCuaHangTinhGia.setState({
       cheDoNangCao: menuDangChon === "tao-tinh-gia-nang-cap",
+      cheDoThuongMai: menuDangChon === "tao-tinh-gia-thuong-mai",
     });
   }, [menuDangChon]);
 
@@ -1908,7 +1931,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      if (deep.loai === "tinh-gia" || deep.loai === "tinh-gia-nang-cao") {
+      if (deep.loai === "tinh-gia" || deep.loai === "tinh-gia-nang-cao" || deep.loai === "tinh-gia-thuong-mai") {
         try {
           const local = timMucLichSuTheoId(
             dungCuaHangTinhGia.getState().history,
@@ -1918,7 +1941,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             if (huy) return;
             await moBangTinhVoiPin(local.id);
             if (huy) return;
-            dieuHuongMenu(local.isNangCap ? "tao-tinh-gia-nang-cap" : "tao-tinh-gia", "replace");
+            dieuHuongMenu(menuKeyTinhGiaTheoItem(local), "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
             return;
@@ -1934,7 +1957,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           if (sauTai && !sauTai.isQuote) {
             await moBangTinhVoiPin(sauTai.id);
             if (huy) return;
-            dieuHuongMenu(sauTai.isNangCap ? "tao-tinh-gia-nang-cap" : "tao-tinh-gia", "replace");
+            dieuHuongMenu(menuKeyTinhGiaTheoItem(sauTai), "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
             return;
@@ -1947,7 +1970,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               dungCuaHangTinhGia.getState().history,
               deep.id,
             );
-            dieuHuongMenu(sauServer?.isNangCap ? "tao-tinh-gia-nang-cap" : "tao-tinh-gia", "replace");
+            dieuHuongMenu(menuKeyTinhGiaTheoItem(sauServer), "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
             return;
@@ -2030,9 +2053,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (moduleDangMo === "calculator" && loadedHistoryId) {
       const item = timMucLichSuTheoId(lichSu, loadedHistoryId);
       const idShare = idChiaSeBangTinh(item ?? { id: loadedHistoryId });
-      const nangCao =
-        !!item?.isNangCap || menuDangChon === "tao-tinh-gia-nang-cap";
-      dongBoUrlTinhGia(idShare, { nangCao });
+      dongBoUrlTinhGia(idShare, {
+        nangCao: !!item?.isNangCap || menuDangChon === "tao-tinh-gia-nang-cap",
+        thuongMai: !!item?.isThuongMai || menuDangChon === "tao-tinh-gia-thuong-mai",
+      });
       return;
     }
 
