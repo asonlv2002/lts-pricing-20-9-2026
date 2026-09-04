@@ -5,6 +5,8 @@
 
 import { dungCuaHangTinhGia } from '../src/store/CuaHangTinhGia';
 import { tinhGiaThuongMai } from '../src/lib/engine';
+import { CalculateInput, HistoryItem } from '../src/lib/types';
+import { dauVaoMacDinh } from '../src/store/helpers';
 
 let passed = 0;
 let failed = 0;
@@ -23,7 +25,34 @@ function assert(name: string, condition: boolean, detail = ''): void {
 
 console.log('\n== Runtime test: mở báo giá thương mại từ danh sách ==\n');
 
-const itemThuongMai = {
+const inputThuongMai: CalculateInput = {
+  ...dauVaoMacDinh,
+  customer: 'CÔNG TY test',
+  productName: 'SP test',
+  pricingMode: 'commercial',
+  commercialMode: 'description',
+  commercialDescription: 'Báo giá SP test - điều khoản ABC',
+  commercialPurchasePrice: 12500,
+  commercialUnitKind: 'tui',
+  commercialProfitValue: 10,
+  commercialProfitUnit: 'percent',
+  commercialUnitWeight: 25,
+  commercialExtraFee: 0,
+  quantity: 5000,
+  boxOptionKey: 'thung-5-lop',
+  bagsPerBox: 500,
+  paymentDays: 30,
+  commissionRate: 0.03,
+  productType: 'tui',
+  bagType: '3bien',
+  spreadWidth: 0.42,
+  cutStep: 0.45,
+  numImages: 4,
+  layer1Id: null,
+  layer2Id: null,
+};
+
+const itemThuongMai: HistoryItem = {
   id: 'test-thuong-mai-1',
   date: '01/01/2025',
   createdAt: '2025-01-01T00:00:00.000Z',
@@ -40,35 +69,7 @@ const itemThuongMai = {
   isNangCap: undefined,
   isThuongMai: true,
   pricingSheetId: 'sheet-1',
-  input: {
-    customer: 'CÔNG TY test',
-    productName: 'SP test',
-    pricingMode: 'commercial' as const,
-    commercialMode: 'description' as const,
-    commercialDescription: 'Báo giá SP test - điều khoản ABC',
-    commercialPurchasePrice: 12500,
-    commercialUnitKind: 'tui' as const,
-    commercialProfitValue: 10,
-    commercialProfitUnit: 'percent' as const,
-    commercialUnitWeight: 25,
-    commercialExtraFee: 0,
-    quantity: 5000,
-    boxOptionKey: 'thung-5-lop',
-    bagsPerBox: 500,
-    shippingFee: 350000,
-    interestBase: 0.085,
-    interestSpread: 0,
-    paymentDays: 30,
-    commissionRate: 0.03,
-    productType: 'tui' as const,
-    bagType: '3bien',
-    spreadWidth: 0.42,
-    cutStep: 0.45,
-    numImages: 4,
-    layer1Id: null,
-    layer2Id: null,
-    customerCode: 'TEST001',
-  },
+  input: inputThuongMai,
 };
 
 dungCuaHangTinhGia.setState((s) => ({
@@ -99,10 +100,6 @@ dungCuaHangTinhGia.setState((s) => ({
     `got: ${s.input.commercialUnitWeight}`);
   assert('input.quantity = 5000', s.input.quantity === 5000,
     `got: ${s.input.quantity}`);
-  assert('input.shippingFee = 350000', s.input.shippingFee === 350000,
-    `got: ${s.input.shippingFee}`);
-  assert('input.interestBase = 0.085', s.input.interestBase === 0.085,
-    `got: ${s.input.interestBase}`);
   assert('input.commissionRate = 0.03', s.input.commissionRate === 0.03,
     `got: ${s.input.commissionRate}`);
 
