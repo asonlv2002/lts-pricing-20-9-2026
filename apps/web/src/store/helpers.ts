@@ -63,6 +63,14 @@ export const dauVaoMacDinh: CalculateInput = {
   bagsPerBox: 0, boxPrice: 0, boxWeight: 0, boxOptionKey: null, shippingPerKm: 0, shippingKm: 0,
   cylLength: 0, cylCircum: 0, cylUnitPrice: 7300000, cylType: 'A' as const, cylIncluded: false, targetThickness: 0, micOverrides: {},
   pricingMode: 'internal',
+  // Tính giá Thương mại — chỉ dùng khi pricingMode='commercial'
+  commercialMode: 'form',
+  commercialPurchasePrice: 0,
+  commercialProfitValue: 0,
+  commercialProfitUnit: 'percent',
+  commercialDescription: '',
+  commercialUnitKind: 'tui',
+  commercialUnitLabel: '',
 };
 
 export const dauVaoKhoiTao = dongBoCotLoiNhuan(dauVaoMacDinh, INITIAL_MATERIALS);

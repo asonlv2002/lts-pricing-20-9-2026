@@ -471,7 +471,7 @@ export interface AppConstants {
   cpsxUpgradeThoiGian?: CpsxUpgradeThoiGian;
 }
 
-export type PricingMode = 'internal' | 'outsource';
+export type PricingMode = 'internal' | 'outsource' | 'commercial';
 
 export type OutsourceStep =
   | 'print'
@@ -593,6 +593,21 @@ export interface CalculateInput {
   outsource?: OutsourceConfig;
   /** true = bảng tính giá dùng bảng đặc tả kỹ thuật nâng cao làm nguồn giá */
   isNangCap?: boolean;
+  // ── Tính giá Thương mại (mua đi bán lại) — chỉ dùng khi pricingMode='commercial' ──
+  /** 'form' = nhập theo form tính giá + [Thu mua]; 'description' = mô tả tự do */
+  commercialMode?: 'form' | 'description';
+  /** Đơn giá mua (VNĐ / đơn vị) — nhân với quantity để ra thành tiền mua */
+  commercialPurchasePrice?: number;
+  /** Giá trị lợi nhuận raw (theo đơn vị commercialProfitUnit) */
+  commercialProfitValue?: number;
+  /** Đơn vị lợi nhuận: 'percent' = % trên thành tiền mua, 'vnd' = VNĐ cố định */
+  commercialProfitUnit?: 'percent' | 'vnd';
+  /** Mô tả tự do — chỉ dùng khi commercialMode='description' */
+  commercialDescription?: string;
+  /** Đơn vị đơn giá mua: 'tui' | 'm2' | 'm' | 'custom' */
+  commercialUnitKind?: 'tui' | 'm2' | 'm' | 'custom';
+  /** Nhãn đơn vị tự nhập — chỉ dùng khi commercialUnitKind='custom' (vd: 'thùng', 'kg') */
+  commercialUnitLabel?: string;
 }
 
 // ── Quote Status (luồng báo giá local + server) ──────────────────────────────

@@ -9,6 +9,7 @@ import { chuyenDanhSachCustomerApiSangUi } from '../lib/customer-api';
 import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
 import { chuanHoaSoThapPhan } from '../lib/so-thap-phan';
 import { ChiTietGiaCongNgoai } from './PanelGiaCongNgoai';
+import { tinhGiaThuongMai } from '../lib/engine';
 
 type KhachHangGoiY = {
   id: string;
@@ -133,7 +134,14 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   const nhanCheDo =
     input.pricingMode === 'outsource'
       ? `Gia công${input.outsource?.steps?.length ? ` · ${input.outsource.steps.length} CD` : ''}`
-      : 'Nội bộ';
+      : input.pricingMode === 'commercial'
+        ? 'Thương mại'
+        : 'Nội bộ';
+  const laThuongMai = input.pricingMode === 'commercial';
+  const cheDoThuongMai = (input.commercialMode || 'form') as 'form' | 'description';
+  const laThuongMaiMoTa = laThuongMai && cheDoThuongMai === 'description';
+  const laThuongMaiForm = laThuongMai && cheDoThuongMai === 'form';
+  const ketQuaThuongMai = laThuongMaiForm ? tinhGiaThuongMai(input) : null;
   const [nhomTheoLop, datNhomTheoLop] = React.useState<Record<string, string>>({});
   const [dangFocusKhachHang, datDangFocusKhachHang] = React.useState(false);
   const [danhSachKhachHang, datDanhSachKhachHang] = React.useState<KhachHangGoiY[]>(() => loadCustomers() as KhachHangGoiY[]);
@@ -144,6 +152,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
   const quickCustomerRef = React.useRef<HTMLDivElement | null>(null);
  const [vuaTaoKhachMoi, datVuaTaoKhachMoi] = React.useState(false);
   const [cauTrucMo, datCauTrucMo] = React.useState(true);
+  const [thuMuaMo, datThuMuaMo] = React.useState(true);
   const [chiTietGcMo, datChiTietGcMo] = React.useState(true);
 
   const lamMoiDanhSachKhachHang = React.useCallback(() => {
@@ -751,13 +760,43 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
         </div>
       </div>
 
-      <div className="form-group">
-        <label className="form-label">Nhóm khách</label>
-        <select className="form-select" value={input.printFilmCustomerGroup ?? 'normal'} onChange={e => capNhatDauVao({ printFilmCustomerGroup: e.target.value as 'normal' | 'large' })}>
-          <option value="normal">Khách thường</option>
-          <option value="large">Khách lớn</option>
-        </select>
-      </div>
+      {laThuongMai ? (
+        <>
+          <div className="form-group">
+            <label className="form-label">Loại báo giá</label>
+            <select className="form-select" value={cheDoThuongMai} onChange={e => capNhatDauVao({ commercialMode: e.target.value as 'form' | 'description' })}>
+              <option value="form">Nhập theo form tính giá</option>
+              <option value="description">Mô tả khác</option>
+            </select>
+          </div>
+          {laThuongMaiMoTa && (
+            <div className="form-group">
+              <label className="form-label">Mô tả báo giá thương mại</label>
+              <textarea
+                className="form-input"
+                rows={8}
+                placeholder="Mô tả sản phẩm, điều khoản, điều kiện giao hàng..."
+                value={input.commercialDescription || ''}
+                onChange={e => capNhatDauVao({ commercialDescription: e.target.value })}
+                style={{ resize: 'vertical', minHeight: 140, fontFamily: 'inherit' }}
+              />
+              <div className="form-hint" style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: 4 }}>
+                Báo giá dạng tự do — không tính số, không qua công thức LTS.
+              </div>
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="form-group">
+          <label className="form-label">Nhóm khách</label>
+          <select className="form-select" value={input.printFilmCustomerGroup ?? 'normal'} onChange={e => capNhatDauVao({ printFilmCustomerGroup: e.target.value as 'normal' | 'large' })}>
+            <option value="normal">Khách thường</option>
+            <option value="large">Khách lớn</option>
+          </select>
+        </div>
+      )}
+
+      {!laThuongMaiMoTa && (<>
 
       <div className="form-row product-type-row">
         <div className="form-group">
@@ -851,6 +890,101 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
       )}
 
       <div className="divider"></div>
+
+      {laThuongMaiForm && hienCauTruc && (
+        <div id="thuMuaSection">
+          <div
+            className="advanced-toggle"
+            onClick={() => datThuMuaMo(v => !v)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); datThuMuaMo(v => !v); } }}
+            aria-expanded={thuMuaMo}
+          >
+            <span><span className="icon">🛒</span> Thu mua</span>
+            <span className={`advanced-arrow ${thuMuaMo ? 'open' : ''}`}>▸</span>
+          </div>
+          <div className={`advanced-section form-collapse-section ${thuMuaMo ? 'open' : ''}`}>
+            <div className="form-group">
+              <label className="form-label">Đơn giá mua (VNĐ)</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <ONhapSoDinhDang
+                  className="form-input"
+                  style={{ flex: 1, minWidth: 0 }}
+                  value={input.commercialPurchasePrice || 0}
+                  onChange={(val: number) => capNhatDauVao({ commercialPurchasePrice: val })}
+                />
+                <select
+                  className="form-select"
+                  style={{ width: '110px', flexShrink: 0 }}
+                  value={input.commercialUnitKind || 'tui'}
+                  onChange={e => capNhatDauVao({ commercialUnitKind: e.target.value as 'tui' | 'm2' | 'm' | 'custom' })}
+                >
+                  <option value="tui">/Túi</option>
+                  <option value="m2">/m²</option>
+                  <option value="m">/m</option>
+                  <option value="custom">Khác...</option>
+                </select>
+              </div>
+              {input.commercialUnitKind === 'custom' && (
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ marginTop: '6px' }}
+                  placeholder="Nhập đơn vị (vd: thùng, hộp, kg)"
+                  value={input.commercialUnitLabel || ''}
+                  onChange={e => capNhatDauVao({ commercialUnitLabel: e.target.value })}
+                />
+              )}
+            </div>
+            <div className="form-group">
+              <label className="form-label">Lợi nhuận</label>
+              <div className="commission-row">
+                <ONhapSoDinhDang
+                  className="form-input"
+                  value={input.commercialProfitValue || 0}
+                  onChange={(val: number) => capNhatDauVao({ commercialProfitValue: val })}
+                />
+                <select
+                  className="form-select"
+                  style={{ width: '90px', flexShrink: 0 }}
+                  value={input.commercialProfitUnit || 'percent'}
+                  onChange={e => capNhatDauVao({ commercialProfitUnit: e.target.value as 'percent' | 'vnd' })}
+                >
+                  <option value="percent">%</option>
+                  <option value="vnd">VND</option>
+                </select>
+              </div>
+            </div>
+            {ketQuaThuongMai && (
+              <div
+                style={{
+                  fontSize: '0.82rem',
+                  color: 'var(--muted)',
+                  padding: '8px 12px',
+                  background: 'var(--surface2)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '6px',
+                  marginTop: '4px',
+                  lineHeight: 1.55,
+                }}
+              >
+                {ketQuaThuongMai.quantity > 0 ? (
+                  <>
+                    ↪ Tổng: <strong style={{ color: 'var(--text)' }}>{Math.round(ketQuaThuongMai.totalVnd).toLocaleString('vi-VN')}</strong> đ
+                    {' · '}Lợi nhuận: <strong style={{ color: 'var(--text)' }}>{Math.round(ketQuaThuongMai.profitVnd).toLocaleString('vi-VN')}</strong> đ
+                  </>
+                ) : (
+                  <>
+                    ↪ Tổng: <strong style={{ color: 'var(--text)' }}>{Math.round(ketQuaThuongMai.totalVnd).toLocaleString('vi-VN')}</strong> đ
+                    {' · '}Lợi nhuận: <strong style={{ color: 'var(--text)' }}>{Math.round(ketQuaThuongMai.profitVnd).toLocaleString('vi-VN')}</strong> đ
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {hienCauTruc && (
         <div id="structureSection">
@@ -1354,6 +1488,8 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
           </div>
         </>
       )}
+
+      </>)}
 
       <div className="divider"></div>
 

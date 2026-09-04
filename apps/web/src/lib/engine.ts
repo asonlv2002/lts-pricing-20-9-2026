@@ -395,3 +395,59 @@ export function tinhGiaWeb(
 
 export const optimizeThickness = toiUuDoDayTheoVatLieu;
 export const calculate = tinhGiaWeb;
+
+// ── Tính giá Thương mại (mua đi bán lại) ────────────────────────────────────
+// Không qua engine @lts/bang-tinh-gia — tính đơn giản:
+//   thành tiền mua = commercialPurchasePrice × quantity
+//   lợi nhuận (%): trên thành tiền mua | (VND): cộng thẳng
+//   tổng = thành tiền mua + lợi nhuận
+//   đơn giá cuối = tổng / quantity
+export interface KetQuaThuongMai {
+  purchasePrice: number;   // Đơn giá mua (per unit)
+  quantity: number;         // Số lượng
+  purchaseTotal: number;    // Thành tiền mua = purchasePrice × quantity
+  profitVnd: number;        // Lợi nhuận (VND)
+  totalVnd: number;         // Tổng = purchaseTotal + profitVnd
+  unitPriceVnd: number;     // Đơn giá cuối / đơn vị = totalVnd / quantity
+  profitPct: number;        // Tỷ lệ lợi nhuận / thành tiền mua (decimal)
+  profitUnit: 'percent' | 'vnd';
+  profitRawValue: number;
+  unitKind: 'tui' | 'm2' | 'm' | 'custom';
+  /** Nhãn đơn vị hiển thị (vd: '/Túi', '/m²', '/m', '/thùng') */
+  unitLabel: string;
+}
+
+export function tinhGiaThuongMai(input: CalculateInput): KetQuaThuongMai {
+  const purchasePrice = Number(input.commercialPurchasePrice) || 0;
+  const quantity = Math.max(0, Number(input.quantity) || 0);
+  const profitUnit = (input.commercialProfitUnit || 'percent') as 'percent' | 'vnd';
+  const profitRaw = Number(input.commercialProfitValue) || 0;
+  const unitKind = (input.commercialUnitKind || 'tui') as 'tui' | 'm2' | 'm' | 'custom';
+  const customLabel = (input.commercialUnitLabel || '').trim();
+
+  const purchaseTotal = purchasePrice * quantity;
+  const profitVnd = profitUnit === 'percent' ? purchaseTotal * (profitRaw / 100) : profitRaw;
+  const totalVnd = purchaseTotal + profitVnd;
+  const unitPriceVnd = quantity > 0 ? totalVnd / quantity : purchasePrice;
+  const pct = purchaseTotal > 0 ? profitVnd / purchaseTotal : 0;
+
+  const unitLabel =
+    unitKind === 'tui' ? '/Túi' :
+    unitKind === 'm2'  ? '/m²' :
+    unitKind === 'm'   ? '/m' :
+    customLabel ? `/${customLabel}` : '/đơn vị';
+
+  return {
+    purchasePrice,
+    quantity,
+    purchaseTotal,
+    profitVnd,
+    totalVnd,
+    unitPriceVnd,
+    profitPct: pct,
+    profitUnit,
+    profitRawValue: profitRaw,
+    unitKind,
+    unitLabel,
+  };
+}

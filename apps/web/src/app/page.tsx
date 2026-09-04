@@ -14,6 +14,7 @@ import { tinhKetQuaNangCaoHieuLuc } from '../lib/dac-ta-nang-cao';
 import { timMucLichSuTheoId } from '../lib/history-identity';
 import { apCpsxNangCaoVaoHangSo } from '../lib/cpsx-nang-cao-pin';
 import { taiTruocThuVienNang } from '../lib/preload-heavy';
+import { tinhGiaThuongMai } from '../lib/engine';
 
 // ── Format helper ─────────────────────────────────────────────────────────────
 function dinhDangSo(n: number, soLe = 0): string {
@@ -23,8 +24,13 @@ function dinhDangSo(n: number, soLe = 0): string {
 
 // ── Thanh giá mini (mobile) ───────────────────────────────────────────────────
 function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boolean }) {
-  const { result, currentChotGia } = dungCuaHangTinhGia();
+  const { result, currentChotGia, input } = dungCuaHangTinhGia();
   if (!result) return null;
+
+  // Tính giá Thương mại — override giá hiển thị khi commercial-form
+  const laThuongMai = input.pricingMode === 'commercial';
+  const cheDoThuongMai = (input.commercialMode || 'form') as 'form' | 'description';
+  const ketQuaThuongMai = laThuongMai && cheDoThuongMai === 'form' ? tinhGiaThuongMai(input) : null;
 
   // Tab nâng cấp: giá từ bảng đặc tả nâng cao (có ghi đè Sale/Admin)
   // Sheet đã lưu: overlay CPSX NC từ pin — không bám constants đang sửa trên màn CPSX
@@ -49,7 +55,12 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
       })()
     : result;
 
-  const gia = currentChotGia > 0 ? currentChotGia : ketQuaHienThi.finalPrice;
+  const gia = currentChotGia > 0
+    ? currentChotGia
+    : (ketQuaThuongMai ? ketQuaThuongMai.unitPriceVnd : ketQuaHienThi.finalPrice);
+  const tyLeLn = ketQuaThuongMai
+    ? ketQuaThuongMai.profitPct
+    : ketQuaHienThi.profitRate;
   const laMang = result.input.productType === 'mang';
   const donVi = laMang ? 'm²' : 'túi';
 
@@ -63,7 +74,7 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
         <span className="mps-price">{dinhDangSo(gia, 0)} đ/{donVi}</span>
       </div>
       <div className="mps-right">
-        <span className="mps-profit">LN: {dinhDangSo(ketQuaHienThi.profitRate * 100, 1)}%</span>
+        <span className="mps-profit">LN: {dinhDangSo(tyLeLn * 100, 1)}%</span>
         <span className="mps-arrow">→ Xem chi tiết</span>
       </div>
     </div>
@@ -127,7 +138,12 @@ export default function TrangChinh() {
     resetInput: datLaiDauVao,
     setInput: capNhatDauVao,
     cheDoNangCao,
+    input,
   } = dungCuaHangTinhGia();
+
+  const laThuongMai = input.pricingMode === 'commercial';
+  const cheDoThuongMai = (input.commercialMode || 'form') as 'form' | 'description';
+  const ketQuaThuongMai = laThuongMai && cheDoThuongMai === 'form' ? tinhGiaThuongMai(input) : null;
 
   const [tabMobile, datTabMobile] = useState<'input' | 'result'>('input');
   const [doRongTrai, datDoRongTrai] = useState<number | null>(null);
@@ -159,6 +175,7 @@ export default function TrangChinh() {
     capNhatDauVao({
       pricingMode: mode,
       outsource: mode === 'outsource' ? { steps: [] } : undefined,
+      ...(mode === 'commercial' ? { commercialMode: 'form' as const } : {}),
     });
     datPricingEntry('form');
   };
@@ -534,7 +551,12 @@ export default function TrangChinh() {
             id="resultArea"
             className={`grid-col-result ${!laMobile || (coKetQuaMobile && tabMobile === 'result') ? 'active' : ''}`}
           >
-            <ManHinhQuanLy nangCap={cheDoNangCao} />
+            <ManHinhQuanLy
+              nangCap={cheDoNangCao}
+              isCommercial={laThuongMai}
+              commercialMode={cheDoThuongMai}
+              ketQuaThuongMai={ketQuaThuongMai ?? undefined}
+            />
             <ManHinhKyThuat />
           </div>}
 

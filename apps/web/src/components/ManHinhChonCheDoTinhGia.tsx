@@ -77,8 +77,7 @@ export function ManHinhChonCheDoTinhGia(props: {
 
         <button
           type="button"
-          disabled
-          title="Sắp có"
+          onClick={() => onChon('commercial')}
           style={{
             display: 'flex',
             flexDirection: 'column',
@@ -88,17 +87,16 @@ export function ManHinhChonCheDoTinhGia(props: {
             textAlign: 'left',
             border: '1px solid var(--border)',
             borderRadius: 12,
-            background: 'var(--surface2, var(--surface))',
-            cursor: 'not-allowed',
-            opacity: 0.55,
+            background: 'var(--surface)',
+            cursor: 'pointer',
             minHeight: 120,
             color: 'inherit',
           }}
         >
-          <span style={{ fontSize: '1.5rem' }} aria-hidden>📦</span>
+          <span style={{ fontSize: '1.5rem' }} aria-hidden>🛒</span>
           <span style={{ fontWeight: 800, fontSize: '0.95rem' }}>Thương mại</span>
           <span style={{ fontSize: '0.78rem', color: 'var(--muted)', lineHeight: 1.35 }}>
-            Sắp có
+            Mua đi bán lại — nhập giá mua + lợi nhuận
           </span>
         </button>
       </div>

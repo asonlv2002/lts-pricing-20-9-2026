@@ -31,7 +31,11 @@ export function ModalCheDoTinhGia(props: {
   };
 
   const xuLyTiep = () => {
-    if (mode === 'commercial') return;
+    if (mode === 'commercial') {
+      onConfirm('commercial', []);
+      resetLocal();
+      return;
+    }
     if (mode === 'internal') {
       onConfirm('internal', []);
       resetLocal();
@@ -59,6 +63,7 @@ export function ModalCheDoTinhGia(props: {
 
   const coTheTiep =
     mode === 'internal' ||
+    mode === 'commercial' ||
     (mode === 'outsource' && (buoc === 1 || steps.length > 0));
 
   return (
@@ -81,13 +86,12 @@ export function ModalCheDoTinhGia(props: {
               [
                 { key: 'internal' as const, label: 'Nội bộ', desc: 'Tính giá LTS full (hiện tại)' },
                 { key: 'outsource' as const, label: 'Gia công', desc: 'Thuê ngoài 1+ công đoạn' },
-                { key: 'commercial' as const, label: 'Thương mại', desc: 'Sắp có' },
+                { key: 'commercial' as const, label: 'Thương mại', desc: 'Mua đi bán lại — đơn giản' },
               ] as const
             ).map(opt => (
               <button
                 key={opt.key}
                 type="button"
-                disabled={opt.key === 'commercial'}
                 onClick={() => setMode(opt.key)}
                 style={{
                   textAlign: 'left',
@@ -99,8 +103,7 @@ export function ModalCheDoTinhGia(props: {
                       : '1px solid var(--border)',
                   background:
                     mode === opt.key ? 'rgba(79,70,229,0.06)' : 'var(--surface)',
-                  cursor: opt.key === 'commercial' ? 'not-allowed' : 'pointer',
-                  opacity: opt.key === 'commercial' ? 0.55 : 1,
+                  cursor: 'pointer',
                 }}
               >
                 <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{opt.label}</div>

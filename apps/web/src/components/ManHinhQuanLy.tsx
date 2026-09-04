@@ -23,6 +23,7 @@ import { quyetDinhPricingSheetSync } from '../lib/pricing-sheet-sync';
 import { LS_CUSTOMERS, loadCustomers } from '../store/helpers';
 import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override-display';
 import { tinhNhapPhanBoChotGia } from '../lib/chot-gia-allocation';
+import { tinhGiaThuongMai, type KetQuaThuongMai } from '../lib/engine';
 import { timMucLichSuTheoId } from '../lib/history-identity';
 import { dieuHuongModuleApp } from '../lib/menu-route';
 import { apCpsxNangCaoVaoHangSo, trichCpsxNangCao } from '../lib/cpsx-nang-cao-pin';
@@ -1235,7 +1236,7 @@ async function syncPricingSheetToServer(
   }
 }
 
-export default function ManHinhQuanLy({ nangCap = false }: { nangCap?: boolean }) {
+export default function ManHinhQuanLy({ nangCap = false, isCommercial = false, commercialMode, ketQuaThuongMai }: { nangCap?: boolean; isCommercial?: boolean; commercialMode?: 'form' | 'description'; ketQuaThuongMai?: KetQuaThuongMai }) {
   const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo, profitTable: bangLoiNhuan, currentChotGia: giaChotHienTai, setCurrentChotGia: datGiaChotHienTai, addCurrentToHistory: themVaoLichSu, capNhatHienTaiVaoLichSu: capNhatVaoLichSu,
     role,   loadedHistoryId: loadedHistoryId,
   originalCustomerLoaded: originalCustomerLoaded, history: lichSu, materials,
@@ -1333,6 +1334,41 @@ const buttonLabel = loadedItem
   const coTheLuuAdminNangCao = loadedItem?.canAdminUpdate !== false;
 
   if (manHinhDangMo !== 'manager') return null;
+
+  // Tính giá Thương mại — chế độ "Mô tả khác": chỉ hiện card mô tả, không tính giá
+  if (isCommercial && commercialMode === 'description') {
+    const moTa = (input.commercialDescription || '').trim();
+    return (
+      <div className="panel active" id="panel-manager">
+        <div className="manager-content">
+          <div className="card" style={{ marginBottom: 14, padding: 0, background: 'transparent', border: 'none', boxShadow: 'none' }}>
+            <div className="price-hero">
+              <div className="label">Báo giá Thương mại — Mô tả tự do</div>
+              <div className="value" style={{ color: 'var(--muted)' }}>— đ</div>
+              <div className="unit">(không tính giá — chỉ mô tả)</div>
+              <div className="sub" id="s-structure">
+                <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '1.05rem', marginBottom: 12 }}>
+                  {input.customer || '—'} — {input.productName || '—'}
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="card" style={{ marginBottom: 14 }}>
+            <div className="card-title" style={{ fontSize: '0.95rem' }}>
+              <span className="icon">📝</span> Mô tả báo giá
+            </div>
+            {moTa ? (
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.92rem', lineHeight: 1.55, color: 'var(--text)' }}>{moTa}</div>
+            ) : (
+              <div style={{ color: 'var(--muted)', fontSize: '0.88rem', fontStyle: 'italic' }}>
+                Chưa có mô tả. Nhập mô tả ở cột trái để hiển thị tại đây.
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!ketQua) {
     return (
@@ -1483,8 +1519,13 @@ const buttonLabel = loadedItem
   const commissionPct = tongChiPhiSXHieuLuc > 0 ? (effCommissionPerUnit * dauVaoKq.quantity / tongChiPhiSXHieuLuc) : 0;
   const chotGiaNum = giaChotHienTai || 0;
   const hasChotGia = chotGiaNum > 0;
-  // Giá cuối cùng từ engine gốc
-  const effFinalPriceWithComm = rHieuLuc.finalPrice;
+  // Tính giá Thương mại — override giá bán nếu user chọn mode=form.
+  // BIG price = đơn giá cuối / đơn vị (để khớp với cách hiển thị đ/túi, đ/m² hiện tại).
+  const ketQuaThuongMaiHieuLuc = isCommercial && commercialMode === 'form'
+    ? (ketQuaThuongMai ?? tinhGiaThuongMai(input))
+    : null;
+  // Giá cuối cùng từ engine gốc (hoặc đơn giá cuối/đơn vị khi commercial-form)
+  const effFinalPriceWithComm = ketQuaThuongMaiHieuLuc ? ketQuaThuongMaiHieuLuc.unitPriceVnd : rHieuLuc.finalPrice;
   const shownPrice = hasChotGia ? chotGiaNum : effFinalPriceWithComm;
   const diff = hasChotGia ? chotGiaNum - effFinalPriceWithComm : 0;
   const hienThiPhanBoChotGia = tinhNhapPhanBoChotGia({
@@ -1767,6 +1808,15 @@ const buttonLabel = loadedItem
               <div className="value" id="s-price" style={hasChotGia ? {color:'var(--green)'} : undefined}>
                 {dinhDangSo(shownPrice, 0)}
               </div>
+              {ketQuaThuongMaiHieuLuc && (
+                <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px'}}>
+                  💼 Thương mại · <strong style={{color:'var(--text)'}}>{Math.round(ketQuaThuongMaiHieuLuc.purchasePrice).toLocaleString('vi-VN')}</strong> đ{ketQuaThuongMaiHieuLuc.unitLabel}
+                  {' × '}<strong style={{color:'var(--text)'}}>{ketQuaThuongMaiHieuLuc.quantity.toLocaleString('vi-VN')}</strong>
+                  {' = '}<strong style={{color:'var(--text)'}}>{Math.round(ketQuaThuongMaiHieuLuc.purchaseTotal).toLocaleString('vi-VN')}</strong> đ
+                  {' + LN '}<strong style={{color:'var(--text)'}}>{Math.round(ketQuaThuongMaiHieuLuc.profitVnd).toLocaleString('vi-VN')}</strong> đ
+                  {' = Tổng '}<strong style={{color:'var(--text)'}}>{Math.round(ketQuaThuongMaiHieuLuc.totalVnd).toLocaleString('vi-VN')}</strong> đ
+                </div>
+              )}
               {hasChotGia && (
                 <div style={{fontSize:'0.82rem', color:'var(--muted)', marginTop:'2px', marginBottom:'2px'}}>
                   (giá đề xuất {dinhDangSo(effFinalPriceWithComm, 0)} đ/{nhanDonVi})
@@ -2307,7 +2357,7 @@ const buttonLabel = loadedItem
           </>)}
 
           {/* ═══ SECTION: Đặc tả kỹ thuật & nguyên liệu (nâng cao) ═══ */}
-          {nangCap && (<>
+          {nangCap && !isCommercial && (<>
           <div id="sect-tech-advanced" className="manager-section-anchor"></div>
           <TheThuGon
             resetKey={khoaKetQua}
@@ -2353,6 +2403,7 @@ const buttonLabel = loadedItem
           </>)}
 
           {/* ═══ SECTION: Bảng giá theo số lượng (MOQ) ═══ */}
+          {!isCommercial && (<>
           <div id="sect-moq" className="manager-section-anchor"></div>
           <TheThuGon
             resetKey={khoaKetQua}
@@ -2517,6 +2568,7 @@ const buttonLabel = loadedItem
               </table>
             </div>
           </TheThuGon>
+          </>)}
 
           {/* ═══ SECTION: Trọng lượng & Vận chuyển ═══ */}
           <div id="sect-weight" className="manager-section-anchor"></div>
