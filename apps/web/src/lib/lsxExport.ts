@@ -26,6 +26,13 @@ import { buildLsxBagFieldRows, splitLsxBagBlockWidths } from './lsx-bag-fields';
 import { buildLsxLamGridRows, splitLsxLamBlockWidths } from './lsx-lam-rows';
 import { formatLsxHeaderDate } from './lsx-header-format';
 import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from './lsx-divide';
+import {
+  ghepNangCaoSpecTheoLop,
+  layKhoMangTuNguon,
+  layNangCaoSpec,
+  layPhiHao,
+  layThanhPham,
+} from './lsx-nang-cao';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function v(val: string | number | null | undefined, suffix = ''): string {
@@ -109,6 +116,33 @@ export function formatLsxLamPassName(parts: LsxLamExportPart[], fallbackName = '
 export function resolveLsxLaminateRows(order: ProductionOrder): LsxLamExportRow[] {
   const { snapshot: s, manual: m } = order;
   const defaultKho = Math.round((s.spreadWidth || 0) * 1000);
+  // Ưu tiên bảng đặc tả nâng cao (đã snapshot lúc tạo LSX) — nguồn Khổ/PhiHao
+  // từng lớp ghép chính thức từ báo giá. Gom đủ vật liệu trong cùng section
+  // "GHÉP (Lớp N)" / "Ghép N" (multi-layer composite) — không chỉ lấy dòng đầu.
+  // Fallback: laminateLayers (user sửa tay) → legacy 1-2 field → snapshot layer2-5.
+  const ghepGroups = ghepNangCaoSpecTheoLop(layNangCaoSpec(order));
+  if (ghepGroups.length > 0) {
+    return ghepGroups.map((g, i) => {
+      const parts: LsxLamExportPart[] = g.rows.map((r) => {
+        const khoMm = typeof r.khoMang === 'number' && r.khoMang > 0
+          ? Math.round(r.khoMang * 1000)
+          : defaultKho;
+        return { name: r.vatLieu || '', widthMm: khoMm };
+      });
+      const waste = g.rows.reduce(
+        (sum, r) => sum + (typeof r.phiHao === 'number' && r.phiHao > 0 ? r.phiHao : 0),
+        0,
+      );
+      const name = parts[0]?.name || '';
+      return {
+        label: g.label || `Màng ghép ${i + 1}`,
+        name,
+        widthMm: parts[0]?.widthMm || defaultKho,
+        wasteMeters: Math.round(waste),
+        parts: parts.length ? parts : [{ name, widthMm: defaultKho }],
+      };
+    });
+  }
   if (m.laminateLayers && m.laminateLayers.length > 0) {
     return m.laminateLayers.map((layer, i) => {
       const parts: LsxLamExportPart[] = (layer.parts || [])
@@ -206,24 +240,25 @@ export function resolveLsxCylMm(
   return { d, cv };
 }
 
-/** "Dài 750 x Chu vi 500" hoặc "" nếu thiếu. withMm → thêm "mm". */
+/** "Dài 750 x Chu vi 500" | "Dài 750 x Chu vi …" | "…" nếu cả 2 = 0. withMm → thêm "mm". */
 export function formatLsxCylText(
   m: Pick<LSXManualFields, 'cylDiameter' | 'cylWidth'>,
   s: Pick<ProductionOrder['snapshot'], 'cylLength' | 'cylCircum'>,
   opts: { withMm?: boolean } = {},
 ): string {
   const { d, cv } = resolveLsxCylMm(m, s);
-  if (!d && !cv) return '';
+  if (!d && !cv) return '…';
   const unit = opts.withMm ? 'mm' : '';
   const left = d ? `Dài ${d}${unit}` : 'Dài …';
   const right = cv ? `Chu vi ${cv}${unit}` : 'Chu vi …';
   return `${left} x ${right}`;
 }
 
-/** "08 trục" | "= số màu" | "…". */
-export function formatLsxNumCylinders(m: Pick<LSXManualFields, 'numCylinders'>, fallbackEqColors = true): string {
+/** "08 trục" | "" (rỗng nếu không có). fallbackEqColors=true trả "= số màu" — legacy, không dùng nữa. */
+export function formatLsxNumCylinders(m: Pick<LSXManualFields, 'numCylinders'>, fallbackEqColors = false): string {
   if (m.numCylinders > 0) return `${String(m.numCylinders).padStart(2, '0')} trục`;
-  return fallbackEqColors ? '= số màu' : '…';
+  if (fallbackEqColors) return '= số màu';
+  return '';
 }
 
 function fmtMeters(n: number): string {
@@ -267,7 +302,7 @@ export function formatLsxBagNote(m: Pick<LSXManualFields, 'bagMachineNotes' | 'b
   const tay = (m.bagMachineNotes || '').trim();
   const luuY = (m.bagLuuY || '').trim();
   if (tay && luuY) return `${tay}\n${luuY}`;
-  return tay || luuY || 'chạy theo mẫu đã sản xuất';
+  return tay || luuY;
 }
 
 /** Auto note: "ghép hết BTP in 3.300m". */
@@ -390,7 +425,11 @@ export async function buildLSXDocxBlob(
   const hasDivide = orderHasDivide(order);
   void orderStageLayout(order);
   const isTui = s.productType !== 'mang';
-  const khoMM = Math.round((s.spreadWidth || 0) * 1000);
+  // Ưu tiên bảng đặc tả nâng cao cho Khổ IN; fallback snapshot.spreadWidth
+  const khoMM = layKhoMangTuNguon({ snapshot: s }, 'In') ?? 0;
+  const tpIn = layThanhPham(order, 'In');
+  const phiHaoIn = layPhiHao(order, 'In');
+  const phiHaoTui = layPhiHao(order, 'Làm túi') ?? m.bagWasteMeters;
   const bagSize = lsxBagSizeMm(s);
   const bagLabel = isTui
     ? bagTypeLabelHienThi(bagInfo, s.bagType || '', !!s.hasZipper, !!m.lsxBagTypeOverride)
@@ -604,12 +643,10 @@ export async function buildLSXDocxBlob(
       ]),
     ));
     mR.push(rowH(1100, cell([
-      para([run('Thành phẩm in yêu cầu: ', { b: true }), run(formatLsxPrintProductLine(m))]),
-      para([run(`Định mức phi hao: ${formatLsxPrintWasteLine(m)}`)]),
+      para([run('Thành phẩm in yêu cầu: ', { b: true }), run(tpIn ? `${tpIn.toLocaleString('vi-VN')}m` : formatLsxPrintProductLine(m))]),
+      para([run(`Định mức phi hao: ${phiHaoIn ? `${phiHaoIn.toLocaleString('vi-VN')}m` : formatLsxPrintWasteLine(m)}`)]),
       para([run(`Số lượng cấp vật tư: ${v(m.materialQtySupplied)}`)]),
-      para([]),
-      para([run('Ghi chú:', { b: true })]),
-      para([run(m.printNotes || 'Sử dụng màng')]),
+      ...(m.printNotes ? [para([run('Ghi chú:', { b: true })]), para([run(m.printNotes)])] : []),
       para([run('Trục in: ', { b: true }), run(v(m.cylInfo))]),
     ], { cs: 2 })));
 
@@ -623,14 +660,9 @@ export async function buildLSXDocxBlob(
       ));
       mR.push(rowH(2200, cell([
         para([run(`Định mức phi hao: ${layPhiHaoChia(order)}m`)]),
-        para([]),
-        para([run('Khách hàng yêu cầu giao: ', { b: true }), run(v(m.divideDeliveryReq))]),
-        para([]),
-        para([run(m.divideNotes || 'Ghi chú: Quấn cuộn đúng quy cách, cuộn lẻ không quá ……m/cuộn')]),
-        para([run('Cân ký cẩn thận, đảm bảo chính xác tránh sai lệnh quá nhiều.')]),
-        para([run('Đánh dấu từng cặp MT-MS để khách hàng phân biệt.')]),
-        para([]),
-        para([run('** Lưu ý:', { b: true, sz: 26 })]),
+        ...(m.divideDeliveryReq ? [para([run('Khách hàng yêu cầu giao: ', { b: true }), run(v(m.divideDeliveryReq))])] : []),
+        ...(m.divideNotes ? [para([run(m.divideNotes)])] : []),
+        ...(m.divideDesc ? [para([run('Mô tả: ', { b: true }), run(m.divideDesc)])] : []),
       ], { cs: 2 })));
     }
     mR.push(rowH(600,
@@ -682,16 +714,16 @@ export async function buildLSXDocxBlob(
       ));
       tR.push(rowH(1000,
         cell([
-          para([run(`Định mức phi hao: ${formatLsxPrintWasteLine(m, '…')}`)]),
-          para([run(`Thành phẩm in: ${formatLsxPrintProductLine(m, '…')}`)]),
+          para([run(`Định mức phi hao: ${phiHaoIn ? `${phiHaoIn.toLocaleString('vi-VN')}m` : formatLsxPrintWasteLine(m, '…')}`)]),
+          para([run(`Thành phẩm in: ${tpIn ? `${tpIn.toLocaleString('vi-VN')}m` : formatLsxPrintProductLine(m, '…')}`)]),
           ...(m.inDesc ? [para([run(m.inDesc)])] : []),
-          para([run('Ghi chú: ', { b: true }), run(m.printNotes || '')]),
-          para([run('- Màu sắc: duyệt màu theo '), run(v(m.maMucNhu) || '…')]),
+          ...(m.printNotes ? [para([run('Ghi chú: ', { b: true }), run(m.printNotes)])] : []),
         ], { cs: 2 }),
         cell([
-          para([run('Ghi chú chia: ', { b: true })]),
-          ...(m.divideDesc ? [para([run(m.divideDesc)])] : []),
-          para([run(m.divideDeliveryReq || m.divideNotes || '')]),
+          ...(m.divideDesc ? [para([run('Mô tả: ', { b: true }), run(m.divideDesc)])] : []),
+          ...(m.divideDeliveryReq || m.divideNotes
+            ? [para([run('Ghi chú chia: ', { b: true }), run(m.divideDeliveryReq || m.divideNotes || '')]), para([run('')])]
+            : []),
         ], { cs: 3 }),
       ));
 
@@ -784,11 +816,10 @@ export async function buildLSXDocxBlob(
       const wasteText = formatLsxLamWasteText(lamRows);
       tR.push(rowH(1100,
         cell([
-          para([run(`Định mức phi hao: ${formatLsxPrintWasteLine(m, '…')}`)]),
-          para([run(`Thành phẩm yêu cầu: ${formatLsxPrintProductLine(m, '…')}`)]),
+          para([run(`Định mức phi hao: ${phiHaoIn ? `${phiHaoIn.toLocaleString('vi-VN')}m` : formatLsxPrintWasteLine(m, '…')}`)]),
+          para([run(`Thành phẩm yêu cầu: ${tpIn ? `${tpIn.toLocaleString('vi-VN')}m` : formatLsxPrintProductLine(m, '…')}`)]),
           ...(m.inDesc ? [para([run(m.inDesc)])] : []),
-          para([run('Ghi chú: ', { b: true }), run(m.printNotes || '')]),
-          para([run('- Màu sắc: duyệt màu theo '), run(v(m.maMucNhu) || '…')]),
+          ...(m.printNotes ? [para([run('Ghi chú: ', { b: true }), run(m.printNotes)])] : []),
           ...(m.cylInfo ? [para([run('Trục in: ', { b: true }), run(m.cylInfo)])] : []),
         ], { cs: 2 }),
         cell([
@@ -797,7 +828,7 @@ export async function buildLSXDocxBlob(
           ...(m.lamBTPNote ? [para([run(m.lamBTPNote)])] : []),
           ...(m.lamDesc ? [para([run(m.lamDesc)])] : []),
           para([run('Số lượng cấp vật tư: ', { b: true }), run(formatLsxLamSupplyLine(m, '…'))]),
-          para([run('Ghi chú: ', { b: true }), run(m.laminateNotes || '')]),
+          ...(m.laminateNotes ? [para([run('Ghi chú: ', { b: true }), run(m.laminateNotes)])] : []),
         ], { cs: 3 }),
       ));
 
@@ -874,7 +905,7 @@ export async function buildLSXDocxBlob(
     bagGridRows.push(rowMin(560,
       noteCell(VM_CONTINUE),
       cell([
-        para([run(`Định mức phi hao: ${vd(m.bagWasteMeters, 'm')}`, { b: true })]),
+        para([run(`Định mức phi hao: ${phiHaoTui > 0 ? `${phiHaoTui.toLocaleString('vi-VN')}m` : '…'}`, { b: true })]),
       ], { cs: 2 }),
     ));
 

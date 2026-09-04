@@ -29,6 +29,7 @@ import { bagTypeLabelHienThi } from './lsx-bag-classification';
 import { buildLsxBagFieldRows } from './lsx-bag-fields';
 import { formatLsxHeaderDate } from './lsx-header-format';
 import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from './lsx-divide';
+import { layDongTheoCongDoan, layKhoMangTuNguon, layPhiHao, layThanhPham } from './lsx-nang-cao';
 
 
 function v(val: string | number | null | undefined, suffix = ''): string {
@@ -378,7 +379,9 @@ function productInfoHtml(order: ProductionOrder): string {
 function mangBodyHtml(order: ProductionOrder): string {
   const { snapshot: s, manual: m } = order;
   const hasDivide = orderHasDivide(order);
-  const khoMM = Math.round((s.spreadWidth || 0) * 1000);
+  const khoMM = layKhoMangTuNguon({ snapshot: s }, 'In') ?? 0;
+  const tpIn = layThanhPham(order, 'In');
+  const phiHaoIn = layPhiHao(order, 'In');
 
   let html = `
   <table>
@@ -400,15 +403,17 @@ function mangBodyHtml(order: ProductionOrder): string {
     </tr>
     <tr>
       <td colspan="2">
-        <div><span class="b">Thành phẩm in yêu cầu: </span>${esc(formatLsxPrintProductLine(m))}</div>
-        <div>Định mức phi hao: ${esc(formatLsxPrintWasteLine(m))}</div>
+        <div><span class="b">Thành phẩm in yêu cầu: </span>${esc(tpIn ? `${tpIn.toLocaleString('vi-VN')}m` : formatLsxPrintProductLine(m))}</div>
+        <div>Định mức phi hao: ${esc(phiHaoIn ? `${phiHaoIn.toLocaleString('vi-VN')}m` : formatLsxPrintWasteLine(m))}</div>
         <div>Số lượng cấp vật tư: ${esc(v(m.materialQtySupplied))}</div>
-        <div><span class="b">Ghi chú: </span>${esc(m.printNotes || 'Sử dụng màng')}</div>
+        ${m.printNotes ? `<div><span class="b">Ghi chú: </span>${esc(m.printNotes)}</div>` : ''}
         <div><span class="b">Trục in: </span>${esc(v(m.cylInfo))}</div>
       </td>
     </tr>`;
 
   if (hasDivide) {
+    const chiaRow = layDongTheoCongDoan(order, 'Chia');
+    const phiHaoChia = chiaRow && typeof chiaRow.phiHao === 'number' ? chiaRow.phiHao : layPhiHaoChia(order);
     html += `
     <tr><td colspan="2" class="sec-orange">MÁY CHIA</td></tr>
     <tr>
@@ -421,12 +426,10 @@ function mangBodyHtml(order: ProductionOrder): string {
     </tr>
     <tr>
       <td colspan="2">
-        <div>Định mức phi hao: ${layPhiHaoChia(order)}m</div>
-        <div><span class="b">Khách hàng yêu cầu giao: </span>${esc(v(m.divideDeliveryReq))}</div>
-        <div>${esc(m.divideNotes || 'Ghi chú: Quấn cuộn đúng quy cách, cuộn lẻ không quá ……m/cuộn')}</div>
-        <div>Cân ký cẩn thận, đảm bảo chính xác tránh sai lệnh quá nhiều.</div>
-        <div>Đánh dấu từng cặp MT-MS để khách hàng phân biệt.</div>
-        <div class="b">** Lưu ý:</div>
+        <div>Định mức phi hao: ${esc(String(phiHaoChia))}m</div>
+        ${m.divideDeliveryReq ? `<div><span class="b">Khách hàng yêu cầu giao: </span>${esc(m.divideDeliveryReq)}</div>` : ''}
+        ${m.divideNotes ? `<div>${esc(m.divideNotes)}</div>` : ''}
+        ${m.divideDesc ? `<div><span class="b">Mô tả: </span>${esc(m.divideDesc)}</div>` : ''}
       </td>
     </tr>`;
   }
@@ -448,9 +451,8 @@ function divideLeftColHtml(order: ProductionOrder): string {
 }
 
 /** Ghi chú cuối lưới túi — chỉ còn định mức phi hao (ghi chú đã gộp vào cột trái). */
-function bagFooterNotesHtml(order: ProductionOrder): string {
-  const m = order.manual;
-  return `<div class="b">Định mức phi hao: ${esc(vd(m.bagWasteMeters, 'm'))}</div>`;
+function bagFooterNotesHtml(order: ProductionOrder, phiHaoTui: number): string {
+  return `<div class="b">Định mức phi hao: ${esc(phiHaoTui > 0 ? `${phiHaoTui.toLocaleString('vi-VN')}m` : '…')}</div>`;
 }
 
 /**
@@ -462,6 +464,7 @@ function bagSplitHtml(
   bagSize: { widthMm: number; lengthMm: number },
   fieldSpecs: BagRow[],
   order: ProductionOrder,
+  phiHaoTui: number,
 ): string {
   const m = order.manual;
   const rows: string[] = [];
@@ -477,7 +480,7 @@ function bagSplitHtml(
       rows.push(`<tr><td colspan="2">${spec.text}</td></tr>`);
     }
   }
-  rows.push(`<tr><td colspan="2">${bagFooterNotesHtml(order)}</td></tr>`);
+  rows.push(`<tr><td colspan="2">${bagFooterNotesHtml(order, phiHaoTui)}</td></tr>`);
 
   return `
     <div class="bag-split">
@@ -503,13 +506,17 @@ function tuiBodyHtml(order: ProductionOrder): string {
   const bagLabel = bagInfo.key === 'fallback'
     ? s.bagType || 'Túi'
     : bagTypeLabelHienThi(bagInfo, s.bagType || '', !!s.hasZipper, !!m.lsxBagTypeOverride);
-  const khoMM = Math.round((s.spreadWidth || 0) * 1000);
+  // Ưu tiên bảng đặc tả nâng cao cho Khổ IN; fallback snapshot.spreadWidth
+  const khoMM = layKhoMangTuNguon({ snapshot: s }, 'In') ?? 0;
+  const tpIn = layThanhPham(order, 'In');
+  const phiHaoIn = layPhiHao(order, 'In');
+  const phiHaoTui = layPhiHao(order, 'Làm túi') ?? m.bagWasteMeters;
   const bagSize = lsxBagSizeMm(s);
   const templateKey = resolveLsxDocxTemplate(order);
   const fieldSpecs = bagFieldSpecs(templateKey, m, !!s.hasZipper, s.zipperDistanceMm);
 
 
-  const bagContent = bagSplitHtml(bagLabel, bagSize, fieldSpecs, order);
+  const bagContent = bagSplitHtml(bagLabel, bagSize, fieldSpecs, order, phiHaoTui);
   const leftRowspan = 1;
 
   let html = `<table>${COLS5}
@@ -543,14 +550,13 @@ function tuiBodyHtml(order: ProductionOrder): string {
     </tr>
     <tr>
       <td colspan="2">
-        <div>Định mức phi hao: ${esc(formatLsxPrintWasteLine(m, '…'))}</div>
-        <div>Thành phẩm in: ${esc(formatLsxPrintProductLine(m, '…'))}</div>
+        <div>Định mức phi hao: ${esc(phiHaoIn ? `${phiHaoIn.toLocaleString('vi-VN')}m` : formatLsxPrintWasteLine(m, '…'))}</div>
+        <div>Thành phẩm in: ${esc(tpIn ? `${tpIn.toLocaleString('vi-VN')}m` : formatLsxPrintProductLine(m, '…'))}</div>
         ${m.inDesc ? `<div>${esc(m.inDesc)}</div>` : ''}
-        <div><span class="b">Ghi chú: </span>${esc(m.printNotes || '')}</div>
-        <div>- Màu sắc: duyệt màu theo ${esc(v(m.maMucNhu) || '…')}</div>
+        ${m.printNotes ? `<div><span class="b">Ghi chú: </span>${esc(m.printNotes)}</div>` : ''}
       </td>
       <td colspan="3">
-        <div><span class="b">Ghi chú chia: </span>${esc(m.divideDeliveryReq || '')}</div>
+        ${m.divideDeliveryReq || m.divideNotes ? `<div><span class="b">Ghi chú chia: </span>${esc(m.divideDeliveryReq || m.divideNotes || '')}</div>` : ''}
       </td>
     </tr>`;
   } else {
@@ -572,7 +578,7 @@ function tuiBodyHtml(order: ProductionOrder): string {
             </td>
             <td>
               <div><span class="b">Khổ: </span>${khoMM ? `${khoMM}mm` : '…'}</div>
-              <div><span class="b">Số trục: </span>${esc(formatLsxNumCylinders(m))}</div>
+              <div><span class="b">Số trục: </span>${esc(formatLsxNumCylinders(m, false))}</div>
               ${m.printDirection ? `<div><span class="b">Chiều ra cuộn: </span>${esc(m.printDirection)}</div>` : ''}
             </td>
           </tr>
@@ -614,12 +620,10 @@ function tuiBodyHtml(order: ProductionOrder): string {
     </tr>
     <tr>
       <td colspan="2">
-        <div>Định mức phi hao: ${esc(formatLsxPrintWasteLine(m, '…'))}</div>
-        <div>Thành phẩm yêu cầu: ${esc(formatLsxPrintProductLine(m, '…'))}</div>
+        <div>Định mức phi hao: ${esc(phiHaoIn ? `${phiHaoIn.toLocaleString('vi-VN')}m` : formatLsxPrintWasteLine(m, '…'))}</div>
+        <div>Thành phẩm yêu cầu: ${esc(tpIn ? `${tpIn.toLocaleString('vi-VN')}m` : formatLsxPrintProductLine(m, '…'))}</div>
         ${m.inDesc ? `<div>${esc(m.inDesc)}</div>` : ''}
-        <div><span class="b">Ghi chú:</span></div>
-        <div>${esc(m.printNotes || '')}</div>
-        <div>- Màu sắc: duyệt màu theo ${esc(v(m.maMucNhu) || '…')}</div>
+        ${m.printNotes ? `<div><span class="b">Ghi chú: </span>${esc(m.printNotes)}</div>` : ''}
         ${m.cylInfo ? `<div><span class="b">Trục in: </span>${esc(m.cylInfo)}</div>` : ''}
       </td>
       <td colspan="3">
@@ -628,7 +632,7 @@ function tuiBodyHtml(order: ProductionOrder): string {
         ${m.lamBTPNote ? `<div>${esc(m.lamBTPNote)}</div>` : ''}
         ${m.lamDesc ? `<div>${esc(m.lamDesc)}</div>` : ''}
         <div><span class="b">Số lượng cấp vật tư: </span>${esc(formatLsxLamSupplyLine(m, '…'))}</div>
-        <div><span class="b">Ghi chú: </span>${esc(m.laminateNotes || '')}</div>
+        ${m.laminateNotes ? `<div><span class="b">Ghi chú: </span>${esc(m.laminateNotes)}</div>` : ''}
       </td>
     </tr>`;
   }

@@ -13,6 +13,7 @@ import type {
 } from './types';
 import {
   buildLaminateLayersFromInput,
+  buildLaminateLayersFromSource,
   buildLaminateNotesChecklist,
   buildProductionOrderFromSource,
   buildSnapshotFromSource,
@@ -25,6 +26,7 @@ import {
 } from './lsx-build-order';
 import { formatLsxOrderQuantity } from './lsx-quantity';
 import { genMsp, MSP_DEFAULT_SEED } from './lsx-msp';
+import type { LsxNangCaoRow } from './lsx-nang-cao';
 
 let passed = 0;
 let failed = 0;
@@ -486,6 +488,124 @@ assert('ghi chú [chia] không set → divideNotes rỗng', m.divideNotes === ''
 assert('mô tả [in] → inDesc', m.inDesc === 'màu theo mẫu đã duyệt', m.inDesc);
 assert('mô tả [lam-tui] → bagDesc', m.bagDesc === 'Từ sóng siêu âm...', m.bagDesc);
 assert('mô tả các stage khác để trống', m.lamDesc === '' && m.divideDesc === '', `lam=${m.lamDesc} chia=${m.divideDesc}`);
+
+console.log('\n=== nangCaoSpec (bảng đặc tả nâng cao) trong snapshot ===');
+
+const mauSpec: LsxNangCaoRow[] = [
+  { congDoan: 'In', vatLieu: 'PET12', khoMang: 0.56, thanhPham: 12000, phiHao: 840, dauVaoNVL: 12840, cpVatLieu: 0, donViGiaNVL: 'kg' },
+  { congDoan: 'Ghép 1', vatLieu: 'MPET12', khoMang: 0.56, thanhPham: 11700, phiHao: 110, dauVaoNVL: 11810, cpVatLieu: 0, donViGiaNVL: 'kg' },
+  { congDoan: 'Làm túi', vatLieu: 'PET12 + Zipper', khoMang: 0.22, thanhPham: 5500, phiHao: 140, dauVaoNVL: 5640, cpVatLieu: 0, donViGiaNVL: 'kg' },
+];
+
+const sourceCoSpec = { ...sourceWithBagSize, nangCaoSpec: mauSpec };
+const snapCoSpec = buildSnapshotFromSource(sourceCoSpec, orderWithBagSize.manual, []);
+assert(
+  'buildSnapshotFromSource lưu nangCaoSpec từ source',
+  Array.isArray(snapCoSpec.nangCaoSpec) && (snapCoSpec.nangCaoSpec as LsxNangCaoRow[]).length === 3,
+);
+
+const snapKhongSpec = buildSnapshotFromSource(sourceWithBagSize, orderWithBagSize.manual, []);
+assert('source không có nangCaoSpec → undefined', snapKhongSpec.nangCaoSpec === undefined);
+
+const sourceSpecRong = { ...sourceWithBagSize, nangCaoSpec: [] };
+const snapSpecRong = buildSnapshotFromSource(sourceSpecRong, orderWithBagSize.manual, []);
+assert(
+  'source.nangCaoSpec rỗng [] → undefined (không lưu field thừa)',
+  snapSpecRong.nangCaoSpec === undefined,
+);
+
+console.log('\n=== buildProductionOrderFromSource lấy nangCaoSpec từ source ===');
+const orderCoSpec = buildProductionOrderFromSource(sourceCoSpec, emptyCtx());
+assert('order có nangCaoSpec khi source có', (orderCoSpec.snapshot.nangCaoSpec as LsxNangCaoRow[] | undefined)?.length === 3);
+
+const orderKhongSpec = buildProductionOrderFromSource(sourceWithBagSize, emptyCtx());
+assert('order không có nangCaoSpec khi source không có', orderKhongSpec.snapshot.nangCaoSpec === undefined);
+
+console.log('\n=== buildLaminateLayersFromSource — ưu tiên nangCaoSpec ===');
+
+{
+  // Multi-layer composite: GHÉP (Lớp 2) có 3 vật liệu (MPET 0.21, PET 0.4, MPET 0.21)
+  const spec3Lop: LsxNangCaoRow[] = [
+    { congDoan: 'In', vatLieu: 'PET12', khoMang: 0.82, thanhPham: 12000, phiHao: 0, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: 'GHÉP (Lớp 2)', vatLieu: 'MPET12', khoMang: 0.21, thanhPham: 12000, phiHao: 1, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: '', vatLieu: 'PET12', khoMang: 0.4, thanhPham: 12000, phiHao: 2, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: '', vatLieu: 'MPET12', khoMang: 0.21, thanhPham: 12000, phiHao: 3, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: 'GHÉP (Lớp 3)', vatLieu: 'LLDPE125', khoMang: 0.82, thanhPham: 12000, phiHao: 4, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+  ];
+  const source3Lop: LsxSourceData = {
+    ...sourceWithBagSize,
+    input: baseInput({ layer1Id: 'PET12', layer2Id: 'MPET12', layer3Id: 'LLDPE125', spreadWidth: 0.5 }),
+    nangCaoSpec: spec3Lop,
+  };
+  const layers = buildLaminateLayersFromSource(source3Lop, mats);
+  assert('nangCaoSpec 3 lớp → 2 layers', layers.length === 2, String(layers.length));
+  assert('layer[0] label "GHÉP (Lớp 2)"', layers[0].label === 'GHÉP (Lớp 2)', layers[0].label);
+  assert('layer[0] 3 parts (multi-layer)', layers[0].parts.length === 3, String(layers[0].parts.length));
+  assert('layer[0].parts[0].widthMm = 210 (MPET)', layers[0].parts[0].widthMm === 210, String(layers[0].parts[0].widthMm));
+  assert('layer[0].parts[0].name = MPET12', layers[0].parts[0].name === 'MPET12', layers[0].parts[0].name);
+  assert('layer[0].parts[1].widthMm = 400 (PET)', layers[0].parts[1].widthMm === 400, String(layers[0].parts[1].widthMm));
+  assert('layer[0].parts[2].widthMm = 210 (MPET)', layers[0].parts[2].widthMm === 210, String(layers[0].parts[2].widthMm));
+  assert('layer[1] label "GHÉP (Lớp 3)"', layers[1].label === 'GHÉP (Lớp 3)', layers[1].label);
+  assert('layer[1] 1 part', layers[1].parts.length === 1, String(layers[1].parts.length));
+  assert('layer[1].parts[0].widthMm = 820 (LLDPE)', layers[1].parts[0].widthMm === 820, String(layers[1].parts[0].widthMm));
+}
+{
+  // Source không có nangCaoSpec → fallback legacy
+  const sourceNoSpec: LsxSourceData = {
+    ...sourceWithBagSize,
+    input: baseInput({ layer1Id: 'PET12', layer2Id: 'MPET12', layer3Id: 'LLDPE125', spreadWidth: 0.5 }),
+  };
+  const layersLegacy = buildLaminateLayersFromInput(sourceNoSpec.input, mats);
+  const layersFromSource = buildLaminateLayersFromSource(sourceNoSpec, mats);
+  assert('fallback legacy khi không có spec', JSON.stringify(layersFromSource) === JSON.stringify(layersLegacy));
+}
+{
+  // Source có nangCaoSpec rỗng [] → fallback legacy
+  const sourceRong: LsxSourceData = {
+    ...sourceWithBagSize,
+    input: baseInput({ layer1Id: 'PET12', layer2Id: 'MPET12', layer3Id: 'LLDPE125', spreadWidth: 0.5 }),
+    nangCaoSpec: [],
+  };
+  const layersLegacy = buildLaminateLayersFromInput(sourceRong.input, mats);
+  const layersFromSource = buildLaminateLayersFromSource(sourceRong, mats);
+  assert('nangCaoSpec rỗng [] → fallback legacy', JSON.stringify(layersFromSource) === JSON.stringify(layersLegacy));
+}
+{
+  // nangCaoSpec chỉ có In (không có Ghép) → fallback legacy
+  const specOnlyIn: LsxNangCaoRow[] = [
+    { congDoan: 'In', vatLieu: 'PET12', khoMang: 0.5, thanhPham: 12000, phiHao: 0, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+  ];
+  const sourceOnlyIn: LsxSourceData = {
+    ...sourceWithBagSize,
+    input: baseInput({ layer1Id: 'PET12', layer2Id: 'MPET12', layer3Id: 'LLDPE125', spreadWidth: 0.5 }),
+    nangCaoSpec: specOnlyIn,
+  };
+  const layersLegacy = buildLaminateLayersFromInput(sourceOnlyIn.input, mats);
+  const layersFromSource = buildLaminateLayersFromSource(sourceOnlyIn, mats);
+  assert('spec chỉ có In (không Ghép) → fallback legacy', JSON.stringify(layersFromSource) === JSON.stringify(layersLegacy));
+}
+
+console.log('\n=== buildProductionOrderFromSource dùng nangCaoSpec cho laminateLayers ===');
+
+{
+  const spec3Lop: LsxNangCaoRow[] = [
+    { congDoan: 'In', vatLieu: 'PET12', khoMang: 0.82, thanhPham: 12000, phiHao: 0, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: 'GHÉP (Lớp 2)', vatLieu: 'MPET12', khoMang: 0.21, thanhPham: 12000, phiHao: 1, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: '', vatLieu: 'PET12', khoMang: 0.4, thanhPham: 12000, phiHao: 2, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: '', vatLieu: 'MPET12', khoMang: 0.21, thanhPham: 12000, phiHao: 3, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: 'GHÉP (Lớp 3)', vatLieu: 'LLDPE125', khoMang: 0.82, thanhPham: 12000, phiHao: 4, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+  ];
+  const source3Lop: LsxSourceData = {
+    ...sourceWithBagSize,
+    input: baseInput({ layer1Id: 'PET12', layer2Id: 'MPET12', layer3Id: 'LLDPE125', spreadWidth: 0.5 }),
+    nangCaoSpec: spec3Lop,
+  };
+  const order = buildProductionOrderFromSource(source3Lop, emptyCtx());
+  const lams = order.manual.laminateLayers;
+  assert('order.manual.laminateLayers.length = 2 (2 Ghép sections)', lams?.length === 2, String(lams?.length));
+  assert('order.manual.laminateLayers[0].parts.length = 3 (multi-layer)', lams?.[0].parts.length === 3, String(lams?.[0].parts.length));
+  assert('order.manual.laminateLayers[0].parts[1].widthMm = 400 (PET)', lams?.[0].parts[1].widthMm === 400, String(lams?.[0].parts[1].widthMm));
+}
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

@@ -284,5 +284,67 @@ assert('ps-full hasBottomSeal = true', sFull?.hasBottomSeal === true);
 assert('ps-full bottomSealMm = 20', sFull?.bottomSealMm === 20, String(sFull?.bottomSealMm));
 assert('ps-full standupBottomSideMm = 50', sFull?.standupBottomSideMm === 50, String(sFull?.standupBottomSideMm));
 
+console.log('\n=== nangCaoSpec từ inputValue (snap lúc Lưu tính giá) ===');
+
+const mauSpec = [
+  { congDoan: 'In', vatLieu: 'PET12', khoMang: 0.56, thanhPham: 12000, phiHao: 840 },
+  { congDoan: 'Ghép 1', vatLieu: 'MPET12', khoMang: 0.56, thanhPham: 11700, phiHao: 110 },
+];
+function sheetCoSpec(id: string, name: string, spec: unknown): PricingSheetApi {
+  const base = sheet(id, name);
+  return {
+    ...base,
+    inputValue: { ...(base.inputValue ?? {}), nangCaoSpec: spec },
+  };
+}
+
+const bgCoSpec: BaoGiaApi = {
+  id: 'q-spec',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  inputValue: {},
+  pricingSheets: [sheetCoSpec('ps-spec', 'SP có spec', mauSpec)],
+};
+const sSpec = mapBaoGiaToLsxSources(bgCoSpec)[0];
+assert('pricing sheet có nangCaoSpec → source.nangCaoSpec giữ nguyên', Array.isArray(sSpec?.nangCaoSpec) && (sSpec?.nangCaoSpec as unknown[])?.length === 2);
+
+const bgKhongSpec: BaoGiaApi = {
+  id: 'q-no-spec',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  inputValue: {},
+  pricingSheets: [sheetCoSpec('ps-no-spec', 'SP không spec', undefined)],
+};
+const sNoSpec = mapBaoGiaToLsxSources(bgKhongSpec)[0];
+assert('inputValue.nangCaoSpec = undefined → source.nangCaoSpec = undefined', sNoSpec?.nangCaoSpec === undefined);
+
+const bgSpecRac: BaoGiaApi = {
+  id: 'q-rac',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  inputValue: {},
+  pricingSheets: [sheetCoSpec('ps-rac', 'SP rác', 'không phải array')],
+};
+const sRac = mapBaoGiaToLsxSources(bgSpecRac)[0];
+assert('inputValue.nangCaoSpec không phải array → undefined', sRac?.nangCaoSpec === undefined);
+
+const bgInputValueTrucTiep: BaoGiaApi = {
+  id: 'q-truc-tiep',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  inputValue: {
+    nangCaoSpec: [{ congDoan: 'In', vatLieu: 'PET', khoMang: 0.5 }],
+    productType: 'mang',
+    customer: 'KH',
+    productName: 'Màng',
+  },
+  pricingSheets: [],
+};
+const sTrucTiep = mapBaoGiaToLsxSources(bgInputValueTrucTiep)[0];
+assert(
+  'BG không có pricingSheets → fallback inputValue trực tiếp, vẫn lấy nangCaoSpec',
+  Array.isArray(sTrucTiep?.nangCaoSpec) && (sTrucTiep?.nangCaoSpec as unknown[])?.length === 1,
+);
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

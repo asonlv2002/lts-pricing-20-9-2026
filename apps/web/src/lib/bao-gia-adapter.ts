@@ -18,6 +18,13 @@ function docInputBangTinh(value: unknown): Partial<CalculateInput> {
   return laObject(value) ? (value as Partial<CalculateInput>) : {};
 }
 
+/** Lấy snapshot bảng đặc tả nâng cao từ `inputValue.nangCaoSpec` (đã snap lúc Lưu tính giá). */
+function layNangCaoSpecTuInputValue(inputValue: unknown): unknown {
+  if (!laObject(inputValue)) return undefined;
+  const raw = (inputValue as Record<string, unknown>).nangCaoSpec;
+  return Array.isArray(raw) ? raw : undefined;
+}
+
 function layFinalPrice(sheet: PricingSheetApi): number {
   const saleP = (sheet.saleResult as Record<string, unknown> | null | undefined)?.finalPrice;
   if (typeof saleP === 'number') return saleP;
@@ -184,6 +191,7 @@ function tuPricingSheet(
   const bagSpec = layBagSpecLite(entry);
   const hasHalfMoonBottom = layHasHalfMoonBottom(entry);
   const bagMetadata = layLsxBagMetadata(entry);
+  const nangCaoSpec = layNangCaoSpecTuInputValue(sheet.inputValue);
 
   return {
     id: `${quotationId}:${sheet.id}`,
@@ -195,6 +203,7 @@ function tuPricingSheet(
     input: rawInput as CalculateInput,
     hasHalfMoonBottom: hasHalfMoonBottom || undefined,
     ...bagMetadata,
+    nangCaoSpec,
   };
 }
 
@@ -210,6 +219,7 @@ function tuInputValueTrucTiep(
   const bagSpec = layBagSpecLite(entry);
   const hasHalfMoonBottom = layHasHalfMoonBottom(entry);
   const bagMetadata = layLsxBagMetadata(entry);
+  const nangCaoSpec = layNangCaoSpecTuInputValue(inputValue);
 
   return {
     id: quotationId,
@@ -221,6 +231,7 @@ function tuInputValueTrucTiep(
     input: rawInput as CalculateInput,
     hasHalfMoonBottom: hasHalfMoonBottom || undefined,
     ...bagMetadata,
+    nangCaoSpec,
   };
 }
 

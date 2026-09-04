@@ -24,6 +24,10 @@ import {
   type LsxBagTypeInfo,
 } from './lsx-bag-classification';
 import { formatLsxStructure } from './lsx-structure';
+import {
+  type LsxNangCaoRow,
+  ghepNangCaoSpecTheoLop,
+} from './lsx-nang-cao';
 
 export type LamLayerPart = { name: string; widthMm: number };
 export type LamLayerRow = {
@@ -257,6 +261,48 @@ export function buildLaminateLayersFromInput(
   return rows;
 }
 
+/**
+ * Dựng laminateLayers ưu tiên `source.nangCaoSpec` (bảng đặc tả nâng cao đã snap
+ * lúc Lưu/Cập nhật tính giá) — single source of truth cho MÁY GHÉP. Fallback về
+ * `buildLaminateLayersFromInput` (legacy `layer*Id` + `spreadWidth`) khi LSX cũ
+ * chưa có nangCaoSpec.
+ *
+ * Phân biệt với form chỉ hiển thị — đây là dữ liệu prefilled lúc tạo LSX, sau đó
+ * user có thể sửa tay trong form; nhưng giá trị khởi tạo PHẢI khớp bảng nâng cao
+ * (vd: Ghép Lớp 2 có 3 vật liệu MPET/PET/MPET thì form phải hiện đủ 3 parts,
+ * không phải chỉ 2 như dual-structure legacy).
+ */
+export function buildLaminateLayersFromSource(
+  source: LsxSourceData,
+  materials: { id: string; name: string; thickness?: number }[],
+  wasteByLayerIndex?: Map<number, number>,
+): LamLayerRow[] {
+  const rawSpec = (source as { nangCaoSpec?: unknown }).nangCaoSpec;
+  if (Array.isArray(rawSpec) && rawSpec.length > 0) {
+    const defaultW = Math.round((source.input.spreadWidth || 0) * 1000);
+    const groups = ghepNangCaoSpecTheoLop(rawSpec as LsxNangCaoRow[]);
+    if (groups.length > 0) {
+      return groups.map((g) => {
+        const parts: LamLayerPart[] = g.rows.map((r) => ({
+          name: r.vatLieu || '',
+          widthMm:
+            typeof r.khoMang === 'number' && r.khoMang > 0
+              ? Math.round(r.khoMang * 1000)
+              : defaultW,
+        }));
+        const waste = wasteByLayerIndex?.get(g.layerIndex) ?? 0;
+        return {
+          label: g.label,
+          layerIndex: g.layerIndex,
+          parts,
+          wasteMeters: Math.round(waste),
+        };
+      });
+    }
+  }
+  return buildLaminateLayersFromInput(source.input, materials, wasteByLayerIndex);
+}
+
 export function prefillFromEngine(
   m: LSXManualFields,
   layers: LamLayerRow[],
@@ -478,7 +524,13 @@ export function buildManualFromSource(
   const inputForLsxLayers = lsxLayer2Lengths
     ? { ...i, layer2Lengths: lsxLayer2Lengths }
     : i;
-  let layers = buildLaminateLayersFromInput(inputForLsxLayers, ctx.materials);
+  // Ưu tiên nangCaoSpec (bảng đặc tả nâng cao); fallback legacy layer*Id
+  // (lsxLayer2Lengths override cho dual standup chỉ áp dụng khi KHÔNG có spec).
+  const hasSpec = Array.isArray((source as { nangCaoSpec?: unknown }).nangCaoSpec)
+    && (source as { nangCaoSpec?: unknown[] }).nangCaoSpec!.length > 0;
+  let layers = hasSpec
+    ? buildLaminateLayersFromSource(source, ctx.materials)
+    : buildLaminateLayersFromInput(inputForLsxLayers, ctx.materials);
   layers = prefillFromEngine(
     m,
     layers,
@@ -566,6 +618,13 @@ export function buildSnapshotFromSource(
     bottomFollows: source.bottomFollows,
     structureSwapped: source.structureSwapped,
   });
+  // Lấy nangCaoSpec từ source (đã được bao-gia-adapter đọc từ inputValue
+  // của pricing sheet — snap lúc Lưu tính giá / Cập nhật ở ManHinhQuanLy).
+  // Cập nhật LSX giữ nguyên (không re-snap) để bản in ổn định.
+  const specRaw = source.nangCaoSpec;
+  const nangCaoSpec = Array.isArray(specRaw) && specRaw.length > 0
+    ? (specRaw as LsxNangCaoRow[])
+    : undefined;
   return {
     customer: source.customer,
     productName: source.productName,
@@ -598,6 +657,7 @@ export function buildSnapshotFromSource(
     totalArea: Math.round(area * 100) / 100,
     hasSongSieuAm: source.hasSongSieuAm,
     songSieuAmMm: source.songSieuAmMm,
+    nangCaoSpec,
   };
 }
 

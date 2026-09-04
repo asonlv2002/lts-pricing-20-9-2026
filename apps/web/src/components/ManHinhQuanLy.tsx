@@ -5,6 +5,7 @@ import { lapDongSanXuat, tinhGiaHieuLuc, xuLyDongGhiDe, type UniRow } from '../l
 import { chuanBiUniRowsNangCao, lapDongVatLieuNangCao, lapDongNhanCongDien, tinhTongNangCao, tinhKetQuaNangCaoHieuLuc } from '../lib/dac-ta-nang-cao';
 import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { TECHNICAL_TABLE_MOBILE_LABELS as MOBILE_LABELS } from '../lib/technical-table-mobile-labels';
+import { buildNangCaoSpecFromPricing, type LsxNangCaoRow } from '../lib/lsx-nang-cao';
 import type { AppConstants, CalculateResult, Material, OverrideRowKey, OverrideFields, OverrideTable, HistoryItem } from '../lib/types';
 import { kiemTraMaKhachHang, laKhachHangThuocQuyen, type KhachHangCoTen } from '../lib/customer-api';
 import { coQuyenCoVanBangTinh, coQuyenQuanLyKhachHang, cotBang2TheoQuyen, type PolicyCode } from '../lib/permissions';import { 
@@ -1140,6 +1141,30 @@ function hienToastCanhBao(noiDung: string) {
   setTimeout(() => toast.remove(), 6000);
 }
 
+/** Tính nangCaoSpec từ store hiện tại (chỉ khi đang ở chế độ nâng cao & có result). */
+function tinhNangCaoSpecTuStore(state: ReturnType<typeof dungCuaHangTinhGia.getState>): LsxNangCaoRow[] | undefined {
+  if (!state.cheDoNangCao || !state.result) return undefined;
+  const overrides = Object.keys(state.adminOverrides || {}).length > 0
+    ? state.adminOverrides
+    : state.saleOverrides;
+  return buildNangCaoSpecFromPricing(
+    state.result,
+    lapDongSanXuat(state.result, state.constants).uniRows,
+    state.constants,
+    state.materials,
+    overrides,
+  );
+}
+
+/** Merge nangCaoSpec vào inputValue (đè spec cũ nếu có). */
+function ganNangCaoSpecVaoInput(inputValue: unknown, spec: LsxNangCaoRow[] | undefined): unknown {
+  if (!laObject(inputValue)) return inputValue;
+  return { ...inputValue, nangCaoSpec: spec };
+}
+function laObject(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v);
+}
+
 // Đẩy 1 pricing sheet lên server (chạy ngầm, không hiện toast).
 // Bỏ qua im lặng nếu offline / chưa đăng nhập. Hiện toast nếu thiếu mã khách hàng.
 // syncAdvisor: user advisor → luôn PATCH masterResult (kể cả rỗng để xóa ghi đè Admin).
@@ -1153,6 +1178,12 @@ async function syncPricingSheetToServer(
 
   const decision = quyetDinhPricingSheetSync(h, isAuthenticated, accessToken, h?.pricingSheetId, opts);
   if (decision.action === 'skip') return;
+
+  // Snap bảng đặc tả nâng cao vào inputValue để LSX (tạo sau này) đọc lại được
+  // — đồng thời khoá "ảnh chụp" theo engine hiện tại.
+  const state = dungCuaHangTinhGia.getState();
+  const nangCaoSpec = tinhNangCaoSpecTuStore(state);
+  if (h) h.input = ganNangCaoSpecVaoInput(h.input, nangCaoSpec) as HistoryItem['input'];
 
   try {
     if (decision.action === 'postCreate') {
@@ -1226,7 +1257,7 @@ const hangSoNc = (nangCap && loadedItem?.pinnedCpsxNangCao)
 const isSameCustomer = loadedItem && originalCustomerLoaded && currentCustomerCode && originalCustomerLoaded === currentCustomerCode;
 const buttonLabel = loadedItem
   ? (isSameCustomer ? "🔄 Cập nhật" : "📄 Tạo bảng tính mới")
-  : "💾 Lưu báo giá";
+  : "💾 Lưu tính giá";
   const showBanner = loadedItem && !isSameCustomer;
   const [vatLieuCuonDangChon, datVatLieuCuonDangChon] = React.useState('');
   const [tabDangMo, datTabDangMo] = React.useState<'sale' | 'admin'>('sale');
@@ -1934,8 +1965,8 @@ const buttonLabel = loadedItem
                 <button
                   className="btn btn-sm btn-green"
                   style={{marginBottom: 0, height: '40px'}}
-                  title="Lưu bảng tính này vào lịch sử báo giá"
-                  onClick={() => {
+                    title="Lưu bảng tính giá vào lịch sử"
+                    onClick={() => {
                     if (!(input.productName || '').trim()) {
                       alert('Vui lòng nhập tên sản phẩm trước khi lưu.');
                       return;

@@ -292,6 +292,57 @@ console.log('\nresolveLsxLaminateRows / formatLsxLamWasteText');
   assert('legacy waste', formatLsxLamWasteText(rows) === 'L1: 50m, L2: 40m');
 }
 
+{
+  // resolveLsxLaminateRows ưu tiên nangCaoSpec — multi-layer composite
+  const o = order('tui', '3bien', false);
+  o.snapshot.nangCaoSpec = [
+    { congDoan: 'In', vatLieu: 'PET12', khoMang: 0.82, thanhPham: 12000, phiHao: 0, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: 'GHÉP (Lớp 2)', vatLieu: 'MPET12', khoMang: 0.21, thanhPham: 12000, phiHao: 100, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: '', vatLieu: 'PET12', khoMang: 0.4, thanhPham: 12000, phiHao: 110, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: '', vatLieu: 'MPET12', khoMang: 0.21, thanhPham: 12000, phiHao: 120, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: 'GHÉP (Lớp 3)', vatLieu: 'LLDPE', khoMang: 0.82, thanhPham: 12000, phiHao: 80, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+  ];
+  const rows = resolveLsxLaminateRows(o);
+  assert('nangCaoSpec: 2 Ghép groups', rows.length === 2, String(rows.length));
+  assert('row[0] label "GHÉP (Lớp 2)"', rows[0].label === 'GHÉP (Lớp 2)', rows[0].label);
+  assert('row[0] 3 parts (multi-layer)', rows[0].parts.length === 3, String(rows[0].parts.length));
+  assert('row[0].parts[0].name = MPET12', rows[0].parts[0].name === 'MPET12', rows[0].parts[0].name);
+  assert('row[0].parts[0].widthMm = 210', rows[0].parts[0].widthMm === 210, String(rows[0].parts[0].widthMm));
+  assert('row[0].parts[1].name = PET12', rows[0].parts[1].name === 'PET12', rows[0].parts[1].name);
+  assert('row[0].parts[1].widthMm = 400', rows[0].parts[1].widthMm === 400, String(rows[0].parts[1].widthMm));
+  assert('row[0].parts[2].widthMm = 210', rows[0].parts[2].widthMm === 210, String(rows[0].parts[2].widthMm));
+  // waste = sum of all phiHao in group
+  assert('row[0] waste = 100+110+120 = 330', rows[0].wasteMeters === 330, String(rows[0].wasteMeters));
+  assert('row[1] label "GHÉP (Lớp 3)"', rows[1].label === 'GHÉP (Lớp 3)', rows[1].label);
+  assert('row[1] 1 part', rows[1].parts.length === 1);
+  assert('row[1] waste = 80', rows[1].wasteMeters === 80, String(rows[1].wasteMeters));
+}
+{
+  // nangCaoSpec với format cũ "Ghép 1" (không có "Lớp")
+  const o = order('tui', '3bien', false);
+  o.snapshot.nangCaoSpec = [
+    { congDoan: 'Ghép 1', vatLieu: 'PET12', khoMang: 0.56, thanhPham: 12000, phiHao: 100, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: 'Ghép 2', vatLieu: 'MPET12', khoMang: 0.56, thanhPham: 12000, phiHao: 80, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+  ];
+  const rows = resolveLsxLaminateRows(o);
+  assert('format cũ "Ghép 1"/"Ghép 2": 2 rows', rows.length === 2);
+  assert('row[0] label "Ghép 1"', rows[0].label === 'Ghép 1');
+  assert('row[1] label "Ghép 2"', rows[1].label === 'Ghép 2');
+}
+{
+  // nangCaoSpec có Ghép nhưng vẫn có laminateLayers user sửa tay → ưu tiên nangCaoSpec
+  const o = order('tui', '3bien', false);
+  o.snapshot.nangCaoSpec = [
+    { congDoan: 'Ghép 1', vatLieu: 'PET_NANG_CAO', khoMang: 0.5, thanhPham: 12000, phiHao: 0, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+  ];
+  o.manual.laminateLayers = [
+    { layerIndex: 2, label: 'Màng ghép 1', parts: [{ name: 'USER_SUA_TAY', widthMm: 300 }], wasteMeters: 99 },
+  ];
+  const rows = resolveLsxLaminateRows(o);
+  assert('nangCaoSpec thắng laminateLayers user sửa', rows[0].parts[0].name === 'PET_NANG_CAO', rows[0].parts[0].name);
+  assert('nangCaoSpec thắng waste', rows[0].wasteMeters === 0, String(rows[0].wasteMeters));
+}
+
 console.log('\nIN/GHÉP format helpers');
 
 assert('toCylMm meters', toCylMm(0.75) === 750);
@@ -314,8 +365,8 @@ assert('toCylMm zero', toCylMm(0) === 0);
 }
 
 assert('num cylinders pad', formatLsxNumCylinders({ numCylinders: 8 }) === '08 trục');
-assert('num cylinders fallback', formatLsxNumCylinders({ numCylinders: 0 }) === '= số màu');
-assert('num cylinders empty', formatLsxNumCylinders({ numCylinders: 0 }, false) === '…');
+assert('num cylinders legacy = số màu (chỉ khi fallbackEqColors=true)', formatLsxNumCylinders({ numCylinders: 0 }, true) === '= số màu');
+assert('num cylinders rỗng mặc định', formatLsxNumCylinders({ numCylinders: 0 }) === '');
 
 assert(
   'print waste line',

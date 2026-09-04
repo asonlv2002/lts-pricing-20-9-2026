@@ -214,7 +214,9 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
     setLoi('');
     try {
       const manualCoChuKy = await themChuKyVaoManual(manual);
-      const snapshot = source ? buildSnapshotFromSource(source, manualCoChuKy, materials) : lsxSnapshotTuInputValue(order.inputValue);
+      const snapshot = source
+        ? buildSnapshotFromSource(source, manualCoChuKy, materials)
+        : lsxSnapshotTuInputValue(order.inputValue);
       const inputValueCoSnapshot = snapshot
         ? ganLsxSnapshotVaoInputValue(manualCoChuKy, snapshot)
         : manualCoChuKy;

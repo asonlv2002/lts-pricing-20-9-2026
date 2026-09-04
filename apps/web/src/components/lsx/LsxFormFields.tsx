@@ -17,6 +17,7 @@ import type { LsxSourceData, LSXManualFields } from '../../lib/types';
 import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, resolveLsxStageFlags, resolveLsxBagVisibleFields, type LsxBagTypeInfo } from '../../lib/lsx-bag-classification';
 import { formatLsxFoldBottom, lsxBagSizeMm, LSX_TOLERANCE_WIDTH_DEFAULT_MM, LSX_TOLERANCE_LENGTH_DEFAULT_MM } from '../../lib/lsx-quy-cach';
 import { formatLsxOrderQuantityParts } from '../../lib/lsx-quantity';
+import { layKhoMangTuNguon } from '../../lib/lsx-nang-cao';
 
 // ── CSS cho form giống mẫu thực ─────────────────────────────────────────────
 const styles = {
@@ -189,7 +190,9 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
   const inp = source.input;
   const isMang = inp.productType === 'mang';
   const isTui = !isMang;
-  const khoMM = Math.round(inp.spreadWidth * 1000);
+  // Ưu tiên nangCaoSpec từ tính giá nâng cao (snap lúc Lưu/Cập nhật);
+  // fallback inp.spreadWidth khi LSX cũ không có spec.
+  const khoMM = layKhoMangTuNguon(source, 'In') ?? Math.round((inp.spreadWidth || 0) * 1000);
   const dlMM = Math.round(inp.cutStep * 1000);
   const bagSize = lsxBagSizeMm(source);
 

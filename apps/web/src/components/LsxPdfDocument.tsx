@@ -33,6 +33,12 @@ import { buildLsxLamGridRows } from "../lib/lsx-lam-rows";
 import { formatLsxHeaderDate } from "../lib/lsx-header-format";
 import { lsxExportBaseName } from "../lib/lsx-msp";
 import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from "../lib/lsx-divide";
+import {
+  layDongTheoCongDoan,
+  layKhoMangTuNguon,
+  layPhiHao,
+  layThanhPham,
+} from "../lib/lsx-nang-cao";
 
 // Times New Roman — same as BaoGiaPdfDocument / DOCX ground truth
 Font.register({
@@ -444,7 +450,11 @@ function MangBody({
 }) {
   const { snapshot: s, manual: m } = order;
   const hasDivide = orderHasDivide(order);
-  const khoMM = Math.round((s.spreadWidth || 0) * 1000);
+  const khoMM = layKhoMangTuNguon({ snapshot: s }, "In") ?? 0;
+  const tpIn = layThanhPham(order, "In");
+  const phiHaoIn = layPhiHao(order, "In");
+  const chiaRow = layDongTheoCongDoan(order, "Chia");
+  const phiHaoChia = chiaRow && typeof chiaRow.phiHao === "number" ? chiaRow.phiHao : layPhiHaoChia(order);
 
   return (
     <View style={styles.table}>
@@ -478,11 +488,11 @@ function MangBody({
         <Cell w="100%">
           <Line
             label="Thành phẩm in yêu cầu: "
-            value={formatLsxPrintProductLine(m)}
+            value={tpIn ? `${tpIn.toLocaleString("vi-VN")}m` : formatLsxPrintProductLine(m)}
           />
-          <Text>{`Định mức phi hao: ${formatLsxPrintWasteLine(m)}`}</Text>
+          <Text>{`Định mức phi hao: ${phiHaoIn ? `${phiHaoIn.toLocaleString("vi-VN")}m` : formatLsxPrintWasteLine(m)}`}</Text>
           <Text>{`Số lượng cấp vật tư: ${v(m.materialQtySupplied)}`}</Text>
-          <Line label="Ghi chú: " value={m.printNotes || "Sử dụng màng"} />
+          {!!m.printNotes && <Line label="Ghi chú: " value={m.printNotes} />}
           <Line label="Trục in: " value={v(m.cylInfo)} />
         </Cell>
       </View>
@@ -506,15 +516,12 @@ function MangBody({
           </View>
           <View style={styles.row}>
             <Cell w="100%">
-              <Text>{`Định mức phi hao: ${layPhiHaoChia(order)}m`}</Text>
-              <Line label="Khách hàng yêu cầu giao: " value={v(m.divideDeliveryReq)} />
-              <Text>
-                {m.divideNotes ||
-                  "Ghi chú: Quấn cuộn đúng quy cách, cuộn lẻ không quá ……m/cuộn"}
-              </Text>
-              <Text>Cân ký cẩn thận, đảm bảo chính xác tránh sai lệnh quá nhiều.</Text>
-              <Text>Đánh dấu từng cặp MT-MS để khách hàng phân biệt.</Text>
-              <Text style={styles.bold}>** Lưu ý:</Text>
+              <Text>{`Định mức phi hao: ${phiHaoChia}m`}</Text>
+              {!!m.divideDeliveryReq && (
+                <Line label="Khách hàng yêu cầu giao: " value={m.divideDeliveryReq} />
+              )}
+              {!!m.divideNotes && <Text>{m.divideNotes}</Text>}
+              {!!m.divideDesc && <Line label="Mô tả: " value={m.divideDesc} />}
             </Cell>
           </View>
         </>
@@ -579,7 +586,10 @@ function TuiBody({
     bagInfo.key === "fallback"
       ? s.bagType || "Túi"
       : bagTypeLabelHienThi(bagInfo, s.bagType || "", !!s.hasZipper, !!m.lsxBagTypeOverride);
-  const khoMM = Math.round((s.spreadWidth || 0) * 1000);
+  const khoMM = layKhoMangTuNguon({ snapshot: s }, "In") ?? 0;
+  const tpIn = layThanhPham(order, "In");
+  const phiHaoIn = layPhiHao(order, "In");
+  const phiHaoTui = layPhiHao(order, "Làm túi") ?? m.bagWasteMeters;
   const bagSize = lsxBagSizeMm(s);
   const templateKey = resolveLsxDocxTemplate(order);
   const bagRows = bagGridRows(templateKey, m, !!s.hasZipper, s.zipperDistanceMm);
@@ -637,14 +647,14 @@ function TuiBody({
           </View>
           <View style={styles.row}>
             <Cell w="50%">
-              <Text>{`Định mức phi hao: ${formatLsxPrintWasteLine(m, "…")}`}</Text>
-              <Text>{`Thành phẩm in: ${formatLsxPrintProductLine(m, "…")}`}</Text>
-              <Line label="Ghi chú: " value={m.printNotes || ""} />
-              <Text>{`- Màu sắc: duyệt màu theo ${v(m.maMucNhu) || "…"}`}</Text>
+              <Text>{`Định mức phi hao: ${phiHaoIn ? `${phiHaoIn.toLocaleString("vi-VN")}m` : formatLsxPrintWasteLine(m, "…")}`}</Text>
+              <Text>{`Thành phẩm in: ${tpIn ? `${tpIn.toLocaleString("vi-VN")}m` : formatLsxPrintProductLine(m, "…")}`}</Text>
+              {!!m.printNotes && <Line label="Ghi chú: " value={m.printNotes} />}
             </Cell>
             <Cell w="50%">
-              <Line label="Ghi chú chia: " value="" />
-              <Text>{m.divideDeliveryReq || m.divideNotes || ""}</Text>
+              {(m.divideDeliveryReq || m.divideNotes) && (
+                <Line label="Ghi chú chia: " value={m.divideDeliveryReq || m.divideNotes || ""} />
+              )}
             </Cell>
           </View>
         </>
@@ -736,10 +746,9 @@ function TuiBody({
                 )}
                 <View style={styles.row}>
                   <Cell w="50%">
-                    <Text>{`Định mức phi hao: ${formatLsxPrintWasteLine(m, "…")}`}</Text>
-                    <Text>{`Thành phẩm yêu cầu: ${formatLsxPrintProductLine(m, "…")}`}</Text>
-                    <Line label="Ghi chú: " value={m.printNotes || ""} />
-                    <Text>{`- Màu sắc: duyệt màu theo ${v(m.maMucNhu) || "…"}`}</Text>
+                    <Text>{`Định mức phi hao: ${phiHaoIn ? `${phiHaoIn.toLocaleString("vi-VN")}m` : formatLsxPrintWasteLine(m, "…")}`}</Text>
+                    <Text>{`Thành phẩm yêu cầu: ${tpIn ? `${tpIn.toLocaleString("vi-VN")}m` : formatLsxPrintProductLine(m, "…")}`}</Text>
+                    {!!m.printNotes && <Line label="Ghi chú: " value={m.printNotes} />}
                     {!!m.cylInfo && <Line label="Trục in: " value={m.cylInfo} />}
                   </Cell>
                   <Cell w="50%">
@@ -747,7 +756,7 @@ function TuiBody({
                     <Text>{`Thành phẩm yêu cầu: ${formatLsxLamProductLine(m, "…")}`}</Text>
                     {!!m.lamBTPNote && <Text>{m.lamBTPNote}</Text>}
                     <Line label="Số lượng cấp vật tư: " value={formatLsxLamSupplyLine(m, "…")} />
-                    <Line label="Ghi chú: " value={m.laminateNotes || ""} />
+                    {!!m.laminateNotes && <Line label="Ghi chú: " value={m.laminateNotes} />}
                   </Cell>
                 </View>
               </>
@@ -810,7 +819,7 @@ function TuiBody({
               {bagRows}
               <View style={styles.bagGridRow}>
                 <View style={styles.bagGridCellFull}>
-                  <Text style={styles.bold}>{`Định mức phi hao: ${vd(m.bagWasteMeters, "m")}`}</Text>
+                  <Text style={styles.bold}>{`Định mức phi hao: ${phiHaoTui > 0 ? `${phiHaoTui.toLocaleString("vi-VN")}m` : "…"}`}</Text>
                 </View>
               </View>
             </View>
