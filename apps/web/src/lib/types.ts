@@ -870,6 +870,7 @@ export interface HistoryItem {
   canUpdate?: boolean;        // Cho phép cập nhật trên server (từ Original.canUpdate)
   canAdminUpdate?: boolean;   // Cho phép admin cập nhật trên server (từ Original.canAdminUpdate)
   isNangCap?: boolean;        // true = bảng tính giá nâng cấp (giá từ bảng đặc tả nâng cao)
+  isThuongMai?: boolean;      // true = bảng tính giá thương mại (mua đi bán lại, input.pricingMode='commercial')
   input: CalculateInput;
 }
 

@@ -218,6 +218,7 @@ export function mapPricingSheetToHistory(
     saleProfitRatePct,
     adminProfitRatePct,
     isNangCap: laNangCap || undefined,
+    isThuongMai: rawInput.pricingMode === 'commercial' || undefined,
     pricingSheetId: sheet.id,
     priceConfigIds: sheet.priceConfigIds,
     thieuPin: thieuPin || undefined,

@@ -218,6 +218,15 @@ export default function ModuleDanhSachTinhGia({
                 🚀 Nâng cấp
               </span>
             )}
+            {h.isThuongMai && (
+              <span
+                className="qrev-badge"
+                title="Tính giá thương mại — mua đi bán lại"
+                style={{ background: 'rgba(20,184,166,0.12)', color: '#0d9488', marginLeft: 8, fontWeight: 600 }}
+              >
+                🏷️ Thương mại
+              </span>
+            )}
             {h.thieuPin && (
               <span
                 className="qrev-badge"

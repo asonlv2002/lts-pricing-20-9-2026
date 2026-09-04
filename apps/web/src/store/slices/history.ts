@@ -137,6 +137,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         saleProfitRatePct: state.saleProfitRatePct || undefined,
         adminProfitRatePct: state.adminProfitRatePct || undefined,
         isNangCap: laNangCap || undefined,
+        isThuongMai: state.input.pricingMode === 'commercial' || undefined,
         // Sheet NC: đóng băng CPSX nâng cao lúc lưu — không bám session đang sửa sau này
         pinnedCpsxNangCao: laNangCap ? trichCpsxNangCao(state.constants) : undefined,
         input: { ...state.input, isNangCap: laNangCap || undefined },
@@ -474,6 +475,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         adminProfitRatePct: state.adminProfitRatePct || undefined,
         pinnedCpsxNangCao: pinCpsx,
         isNangCap: laNangCap || undefined,
+        isThuongMai: state.input.pricingMode === 'commercial' || undefined,
       };
       // Cập nhật → đưa lên đầu danh sách
       const history = [
