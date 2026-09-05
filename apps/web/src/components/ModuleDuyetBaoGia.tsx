@@ -907,7 +907,7 @@ export default function ModuleDuyetBaoGia({
                                             disabled={isPending}
                                             onClick={() => void customerDecideSheet(bg, sheet, "duyet")}
                                           >
-                                            ✓ Duyệt
+                                            ✓ KH Duyệt
                                           </button>
                                         )}
                                         {hienTai !== "bo" && (
@@ -917,7 +917,7 @@ export default function ModuleDuyetBaoGia({
                                             disabled={isPending}
                                             onClick={() => void customerDecideSheet(bg, sheet, "bo")}
                                           >
-                                            ✕ Bỏ
+                                            ✕ KH từ chối
                                           </button>
                                         )}
                                       </div>
