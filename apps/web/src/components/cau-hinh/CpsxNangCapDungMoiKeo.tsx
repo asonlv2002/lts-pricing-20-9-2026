@@ -339,9 +339,12 @@ function DongKeo({
 export default function CpsxNangCapDungMoiKeo({
   coQuyenDungMoi = true,
   coQuyenKeo = true,
+  chiXem = false,
 }: {
   coQuyenDungMoi?: boolean;
   coQuyenKeo?: boolean;
+  /** Chế độ chỉ xem (REVIEW) — hiện đủ form nhưng khóa toàn bộ input. */
+  chiXem?: boolean;
 }) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const materials = dungCuaHangTinhGia((s) => s.materials);
@@ -474,7 +477,7 @@ export default function CpsxNangCapDungMoiKeo({
   return (
     <div className="config-cpsx-upgrade-solvent">
       {/* ═══════ Bảng giá dung môi ═══════ */}
-      {coQuyenDungMoi && (
+      {(coQuyenDungMoi || chiXem) && (
       <div className="card config-card config-cpsx-upgrade-card">
         <div className="config-section-title config-cpsx-upgrade__head">
           <span>Bảng giá dung môi</span>
@@ -490,7 +493,11 @@ export default function CpsxNangCapDungMoiKeo({
           </button>
         </div>
         {openDm && (
-          <div id="cpsx-dungmoi-body" className="config-cpsx-upgrade__panel">
+          <fieldset
+            id="cpsx-dungmoi-body"
+            disabled={chiXem}
+            className="config-cpsx-upgrade__panel config-cpsx-upgrade__ro"
+          >
             <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
               <table className="config-table config-cpsx-upgrade__table">
                 <thead>
@@ -671,13 +678,13 @@ export default function CpsxNangCapDungMoiKeo({
               <strong>loại màng</strong> (first match). «Tất cả» = mọi màng.
               Thứ tự dòng trên bảng quyết định ưu tiên khi nhiều dòng khớp.
             </p>
-          </div>
+          </fieldset>
         )}
         </div>
       )}
 
       {/* ═══════ Bảng giá keo ghép ═══════ */}
-      {coQuyenKeo && (
+      {(coQuyenKeo || chiXem) && (
       <div className="card config-card config-cpsx-upgrade-card">
         <div className="config-section-title config-cpsx-upgrade__head">
           <span>Bảng giá keo ghép</span>
@@ -698,7 +705,11 @@ export default function CpsxNangCapDungMoiKeo({
           </button>
         </div>
         {openKeo && (
-          <div id="cpsx-keo-body" className="config-cpsx-upgrade__panel">
+          <fieldset
+            id="cpsx-keo-body"
+            disabled={chiXem}
+            className="config-cpsx-upgrade__panel config-cpsx-upgrade__ro"
+          >
             <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
               <table className="config-table config-cpsx-upgrade__table">
                 <thead>
@@ -847,7 +858,7 @@ export default function CpsxNangCapDungMoiKeo({
               trọng số. Giá sau (engine): keo = giá đã chọn · DM pha keo = dòng
               dung môi công đoạn Ghép · quy g → ₫/m² ÷ 1000.
             </p>
-          </div>
+          </fieldset>
         )}
         </div>
       )}

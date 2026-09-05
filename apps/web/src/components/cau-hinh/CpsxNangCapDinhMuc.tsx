@@ -8,10 +8,9 @@ import {
   chuanHoaCpsxUpgradeInk,
   chuanHoaDinhMucGhep,
   chuanHoaDinhMucIn,
-  lapBangGiaInTheoMau,
   tinhCpMucInChiTiet,
 } from "../../lib/cpsx-upgrade-ink";
-import { tinhCpKeoDungMoiGhep } from "../../lib/dac-ta-nang-cao";
+import { BangGiaInTheoMau, GiaGhepKetQua } from "./CpsxGiaInGhepKetQua";
 
 function docSoThapPhan(value: string): number {
   const n = Number(value.replace(",", ".").replace(/[^\d.-]/g, ""));
@@ -34,9 +33,12 @@ function clampSoMau(n: number): number {
 export default function CpsxNangCapDinhMuc({
   coQuyenInRate = true,
   coQuyenAdhesiveRate = true,
+  chiXem = false,
 }: {
   coQuyenInRate?: boolean;
   coQuyenAdhesiveRate?: boolean;
+  /** Chế độ chỉ xem (REVIEW) — hiện đủ form nhưng khóa toàn bộ input. */
+  chiXem?: boolean;
 }) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
@@ -79,15 +81,12 @@ export default function CpsxNangCapDinhMuc({
   const [soMauPET, setSoMauPET] = React.useState(1);
   const [soMauOPP, setSoMauOPP] = React.useState(1);
 
-  const khongCoQuyenInRate = !coQuyenInRate;
-  const khongCoQuyenAdhesiveRate = !coQuyenAdhesiveRate;
+  const khongCoQuyenInRate = !(coQuyenInRate || chiXem);
+  const khongCoQuyenAdhesiveRate = !(coQuyenAdhesiveRate || chiXem);
 
   // CP mực in + DM in (₫/m²) — dùng chung helper đã test với engine đặc tả
   const chiTietPET = tinhCpMucInChiTiet(soMauPET, "pet", ink);
   const chiTietOPP = tinhCpMucInChiTiet(soMauOPP, "opp", ink);
-  // CP keo + dung môi ghép (₫/m²) — helper engine đặc tả
-  const chiTietKeo = tinhCpKeoDungMoiGhep(ink);
-  const bangGiaIn = React.useMemo(() => lapBangGiaInTheoMau(ink), [ink]);
 
   const luuPatch = (patch: {
     dinhMucIn?: DinhMucInRow[];
@@ -135,7 +134,11 @@ export default function CpsxNangCapDinhMuc({
           </button>
         </div>
         {openIn && (
-          <div id="cpsx-dinhmuc-in-body" className="config-cpsx-upgrade__panel">
+          <fieldset
+            id="cpsx-dinhmuc-in-body"
+            disabled={chiXem}
+            className="config-cpsx-upgrade__panel config-cpsx-upgrade__ro"
+          >
             <div className="config-cpsx-upgrade__formulas">
               <div className="config-cpsx-upgrade__formula-head">
                 Công thức áp dụng: CP mực in + DM in = (ĐM mực × Giá mực + ĐM
@@ -304,49 +307,8 @@ export default function CpsxNangCapDinhMuc({
               số màu — không nhân lại số màu.
             </p>
 
-            <div className="config-cpsx-upgrade__col-title">
-              Bảng giá in theo số màu (VNĐ/m²)
-            </div>
-            <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
-              <table className="config-table config-cpsx-upgrade__table config-cpsx-upgrade__gia-in">
-                <thead>
-                  <tr>
-                    <th rowSpan={2}>Số màu</th>
-                    <th colSpan={3}>Tỉ lệ phủ 100%</th>
-                    <th colSpan={3}>Tỉ lệ phủ 50%</th>
-                  </tr>
-                  <tr>
-                    <th className="num">OPP</th>
-                    <th className="num">PET</th>
-                    <th className="num">PE</th>
-                    <th className="num">OPP</th>
-                    <th className="num">PET</th>
-                    <th className="num">PE</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {bangGiaIn.map((r) => (
-                    <tr key={`gia-in-${r.soMau}`}>
-                      <td className="config-cpsx-upgrade__lock">
-                        In {r.soMau} màu
-                      </td>
-                      <td className="num">{dinhDangVnd(r.opp100)}</td>
-                      <td className="num">{dinhDangVnd(r.pet100)}</td>
-                      <td className="num">{dinhDangVnd(r.pe100)}</td>
-                      <td className="num">{dinhDangVnd(r.opp50)}</td>
-                      <td className="num">{dinhDangVnd(r.pet50)}</td>
-                      <td className="num">{dinhDangVnd(r.pe50)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <p className="config-note">
-              Giá in = (ĐM mực × giá mực ₫/kg + ĐM dung môi × giá DM) ÷ 1000 —
-              tự tính từ bảng giá mực + bảng dung môi + định mức g/m². Tỉ lệ
-              phủ 50% = nửa giá phủ 100% (nhân cả mực + dung môi).
-            </p>
-          </div>
+            <BangGiaInTheoMau ink={ink} />
+          </fieldset>
         )}
       </div>
 
@@ -368,43 +330,12 @@ export default function CpsxNangCapDinhMuc({
           </button>
         </div>
         {openGhep && (
-          <div
+          <fieldset
             id="cpsx-dinhmuc-ghep-body"
-            className="config-cpsx-upgrade__panel"
+            disabled={chiXem}
+            className="config-cpsx-upgrade__panel config-cpsx-upgrade__ro"
           >
-            <div className="config-cpsx-upgrade__formulas">
-              <div className="config-cpsx-upgrade__formula-head">
-                Công thức áp dụng: CP dung môi + keo ghép = (ĐM KEO × Giá KEO +
-                ĐM DM ghép × Giá DM ghép) ÷ 1000 → ₫/m²
-              </div>
-
-              <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-                <span className="config-cpsx-upgrade__formula-label">
-                  KEO  ·  Giá KEO{" "}
-                  <strong className="config-cpsx-upgrade__highlight">
-                    {dinhDangVnd(chiTietKeo.giaKeo)} ₫/kg
-                  </strong>{" "}
-                  (TB 319+766)  ·  Giá DM ghép{" "}
-                  <strong className="config-cpsx-upgrade__highlight">
-                    {dinhDangVnd(chiTietKeo.giaDungMoi)} ₫/kg
-                  </strong>{" "}
-                  (DUNG MÔI EA)
-                </span>
-              </div>
-              <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
-                <strong className="config-cpsx-upgrade__formula-result">
-                  → ({dinhDangSo(chiTietKeo.keoKhoG)}g ×{" "}
-                  <span className="config-cpsx-upgrade__highlight">
-                    {dinhDangVnd(chiTietKeo.giaKeo)}
-                  </span>{" "}
-                  ₫/kg + {dinhDangSo(chiTietKeo.dungMoiPhaKeoG)}g ×{" "}
-                  <span className="config-cpsx-upgrade__highlight">
-                    {dinhDangVnd(chiTietKeo.giaDungMoi)}
-                  </span>{" "}
-                  ₫/kg) ÷ 1000 = {dinhDangVnd(chiTietKeo.donGia)} ₫/m²
-                </strong>
-              </div>
-            </div>
+            <GiaGhepKetQua ink={ink} />
 
             <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
               <table className="config-table config-cpsx-upgrade__table">
@@ -468,7 +399,7 @@ export default function CpsxNangCapDinhMuc({
               Giá sau (engine): keo = TB 319+766 · DM pha keo = DUNG MÔI EA ·
               quy g → ₫/m² ÷ 1000.
             </p>
-          </div>
+          </fieldset>
         )}
       </div>
     </div>

@@ -50,9 +50,12 @@ function gioTuKhung(slot: ElectricTimeSlot): number | null {
 export default function CpsxNangCapDien({
   coQuyenKhungGio = true,
   coQuyenDienMay = true,
+  chiXem = false,
 }: {
   coQuyenKhungGio?: boolean;
   coQuyenDienMay?: boolean;
+  /** Chế độ chỉ xem (REVIEW) — hiện đủ form nhưng khóa toàn bộ input. */
+  chiXem?: boolean;
 }) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
@@ -169,7 +172,7 @@ export default function CpsxNangCapDien({
 
   return (
     <div className="config-cpsx-upgrade">
-      {coQuyenKhungGio && (
+      {(coQuyenKhungGio || chiXem) && (
         <div className="card config-card config-cpsx-upgrade-card">
         <div className="config-section-title config-cpsx-upgrade__head">
           <span>Giá điện theo khung giờ</span>
@@ -189,7 +192,11 @@ export default function CpsxNangCapDien({
         </div>
 
         {openKhungGio && (
-          <div id="cpsx-dien-khung-gio" className="config-cpsx-upgrade__panel">
+          <fieldset
+            id="cpsx-dien-khung-gio"
+            disabled={chiXem}
+            className="config-cpsx-upgrade__panel config-cpsx-upgrade__ro"
+          >
             <div className="config-table-wrap config-cpsx-upgrade__table-wrap">
               <table className="config-table config-cpsx-upgrade__table">
                 <thead>
@@ -392,12 +399,12 @@ export default function CpsxNangCapDien({
                 )}
               </label>
             </fieldset>
-          </div>
+          </fieldset>
         )}
         </div>
       )}
 
-      {coQuyenDienMay && (
+      {(coQuyenDienMay || chiXem) && (
         <div className="card config-card config-cpsx-upgrade-card">
         <div className="config-section-title config-cpsx-upgrade__head">
           <span>Điện / phút theo máy</span>
@@ -417,7 +424,11 @@ export default function CpsxNangCapDien({
         </div>
 
         {openMay && (
-          <div id="cpsx-dien-may" className="config-cpsx-upgrade__panel">
+          <fieldset
+            id="cpsx-dien-may"
+            disabled={chiXem}
+            className="config-cpsx-upgrade__panel config-cpsx-upgrade__ro"
+          >
             <p className="config-note">
               (Công suất × Hiệu suất × Giá điện) ÷ 60. Giá điện = ô đang áp dụng
               (chung 4 máy).
@@ -497,7 +508,7 @@ export default function CpsxNangCapDien({
                 </tbody>
               </table>
             </div>
-          </div>
+          </fieldset>
         )}
         </div>
       )}

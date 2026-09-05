@@ -370,6 +370,7 @@ export default function CpsxNangCapMuc({
   coQuyenKeo = true,
   coQuyenInRate = true,
   coQuyenAdhesiveRate = true,
+  chiXem = false,
 }: {
   coQuyenOpp?: boolean;
   coQuyenPet?: boolean;
@@ -378,6 +379,8 @@ export default function CpsxNangCapMuc({
   coQuyenKeo?: boolean;
   coQuyenInRate?: boolean;
   coQuyenAdhesiveRate?: boolean;
+  /** Chế độ chỉ xem (REVIEW) — hiện đủ form nhưng khóa toàn bộ input. */
+  chiXem?: boolean;
 }) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
@@ -419,9 +422,9 @@ export default function CpsxNangCapMuc({
     setOpenMap((m) => ({ ...m, [loai]: !m[loai] }));
 
   const loaiList = (Object.keys(LABEL) as LoaiBang[]).filter((loai) => {
-    if (loai === "opp") return coQuyenOpp;
-    if (loai === "pet") return coQuyenPet;
-    if (loai === "pe") return coQuyenPe;
+    if (loai === "opp") return coQuyenOpp || chiXem;
+    if (loai === "pet") return coQuyenPet || chiXem;
+    if (loai === "pe") return coQuyenPe || chiXem;
     return true;
   });
 
@@ -452,24 +455,30 @@ export default function CpsxNangCapMuc({
               </button>
             </div>
             {open && (
-              <div id={`cpsx-muc-body-${loai}`}>
+              <fieldset
+                id={`cpsx-muc-body-${loai}`}
+                disabled={chiXem}
+                className="config-cpsx-upgrade__ro"
+              >
                 <BangMuc
                   loai={loai}
                   state={t}
                   onChange={(next) => suaBang(loai, next)}
                 />
-              </div>
+              </fieldset>
             )}
           </div>
         );
       })}
       <CpsxNangCapDungMoiKeo
-        coQuyenDungMoi={coQuyenDungMoi}
-        coQuyenKeo={coQuyenKeo}
+        coQuyenDungMoi={coQuyenDungMoi || chiXem}
+        coQuyenKeo={coQuyenKeo || chiXem}
+        chiXem={chiXem}
       />
       <CpsxNangCapDinhMuc
-        coQuyenInRate={coQuyenInRate}
-        coQuyenAdhesiveRate={coQuyenAdhesiveRate}
+        coQuyenInRate={coQuyenInRate || chiXem}
+        coQuyenAdhesiveRate={coQuyenAdhesiveRate || chiXem}
+        chiXem={chiXem}
       />
 
       <div className="card config-card config-cpsx-upgrade-readonly__card">

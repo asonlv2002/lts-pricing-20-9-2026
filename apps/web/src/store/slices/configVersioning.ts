@@ -41,6 +41,7 @@ export interface ConfigVersioningSlice {
   dangXemPhienBan: boolean;
   phienBanDangXemId: string | null;
   /** Policies CPSX nâng cao của user hiện tại (từ GET /price-config/production-upgrade/latest).
+   *  Chứa cả SỬA (CPSX_UPGRADE_EDIT_*) lẫn XEM (CPSX_UPGRADE_REVIEW_*).
    *  Share cho TrangCauHinh gate nút lưu + CpsxNangCapTrang render từng section. */
   cpsxNangCapPolicies: PolicyCode[];
   /** True khi đang fetch cpsxNangCapPolicies (phân biệt user không có quyền vs chưa load xong). */
@@ -388,7 +389,7 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
       const upgrade = await layProductionUpgradePriceConfigService(token, 'latest');
       const policies = (upgrade?.policies ?? []).filter(
         (p): p is PolicyCode =>
-          typeof p === 'string' && p.startsWith('CPSX_UPGRADE_EDIT_'),
+          typeof p === 'string' && p.startsWith('CPSX_UPGRADE_'),
       );
       set({ cpsxNangCapPolicies: policies, dangTaiCpsxNangCapPolicies: false });
     } catch (e) {

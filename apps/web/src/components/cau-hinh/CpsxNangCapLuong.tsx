@@ -106,11 +106,14 @@ export default function CpsxNangCapLuong({
   coQuyenLaminate = true,
   coQuyenSlit = true,
   coQuyenBag = true,
+  chiXem = false,
 }: {
   coQuyenPrint?: boolean;
   coQuyenLaminate?: boolean;
   coQuyenSlit?: boolean;
   coQuyenBag?: boolean;
+  /** Chế độ chỉ xem (REVIEW) — hiện đủ 4 máy nhưng khóa toàn bộ input. */
+  chiXem?: boolean;
 }) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
@@ -188,7 +191,7 @@ export default function CpsxNangCapLuong({
     summary: string;
     body: React.ReactNode;
   }> = [];
-  if (coQuyenPrint) {
+  if (coQuyenPrint || chiXem) {
     cards.push({
       key: "print",
       title: "Lương công nhân máy in",
@@ -204,7 +207,7 @@ export default function CpsxNangCapLuong({
       ),
     });
   }
-  if (coQuyenLaminate) {
+  if (coQuyenLaminate || chiXem) {
     cards.push({
       key: "laminate",
       title: "Lương công nhân máy ghép",
@@ -219,7 +222,7 @@ export default function CpsxNangCapLuong({
       ),
     });
   }
-  if (coQuyenSlit) {
+  if (coQuyenSlit || chiXem) {
     cards.push({
       key: "slit",
       title: "Lương công nhân máy chia",
@@ -234,7 +237,7 @@ export default function CpsxNangCapLuong({
       ),
     });
   }
-  if (coQuyenBag) {
+  if (coQuyenBag || chiXem) {
     cards.push({
       key: "bag",
       title: "Lương công nhân máy làm túi",
@@ -264,7 +267,13 @@ export default function CpsxNangCapLuong({
               </button>
             </div>
             {open && (
-              <div id={`cpsx-luong-body-${key}`}>{body}</div>
+              <fieldset
+                id={`cpsx-luong-body-${key}`}
+                disabled={chiXem}
+                className="config-cpsx-upgrade__ro"
+              >
+                {body}
+              </fieldset>
             )}
           </div>
         );
@@ -275,10 +284,10 @@ export default function CpsxNangCapLuong({
           Kết quả hiện tại
         </div>
         {[
-          { hien: coQuyenPrint, label: "Lương CN máy in", value: tomTat1May("print") },
-          { hien: coQuyenLaminate, label: "Lương CN máy ghép", value: tomTat1May("laminate") },
-          { hien: coQuyenSlit, label: "Lương CN máy chia", value: tomTat1May("slit") },
-          { hien: coQuyenBag, label: "Lương CN máy làm túi", value: tomTatTui() },
+          { hien: coQuyenPrint || chiXem, label: "Lương CN máy in", value: tomTat1May("print") },
+          { hien: coQuyenLaminate || chiXem, label: "Lương CN máy ghép", value: tomTat1May("laminate") },
+          { hien: coQuyenSlit || chiXem, label: "Lương CN máy chia", value: tomTat1May("slit") },
+          { hien: coQuyenBag || chiXem, label: "Lương CN máy làm túi", value: tomTatTui() },
         ].map((row) => (
           <div key={row.label} className="config-cpsx-upgrade-readonly__row">
             <span className="config-cpsx-upgrade-readonly__label">{row.label}</span>

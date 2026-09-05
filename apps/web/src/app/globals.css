@@ -2403,7 +2403,7 @@ body {
   cursor: pointer !important;
 }
 /* Read-only khi KHÔNG có quyền PRICE_CONFIG_MANAGER: khóa nhập nhưng chừa
-   CPSX nâng cao — CpsxNangCapTrang tự khóa theo CPSX_UPGRADE_EDIT_*. */
+   CPSX nâng cao — CpsxNangCapTrang tự khóa theo CPSX_UPGRADE_EDIT_*/REVIEW_*. */
 .config-page--semi-readonly
   .config-content
   .card.config-card:not(.config-version-card):not(.config-cpsx-upgrade-card):not(.config-cpsx-upgrade-readonly__card) {
@@ -3814,6 +3814,19 @@ body {
 .config-cpsx-upgrade-card {
   margin-bottom: 20px;
   padding: 18px 20px 20px;
+}
+/* Fieldset "chỉ xem" (REVIEW): bỏ style mặc định của fieldset —
+   disabled khóa mọi input/select/button bên trong. */
+fieldset.config-cpsx-upgrade__panel,
+.config-cpsx-upgrade__ro {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-inline-size: 0;
+}
+fieldset.config-cpsx-upgrade__ro[disabled],
+.config-cpsx-upgrade__ro[disabled] {
+  opacity: 0.82;
 }
 .config-cpsx-upgrade-readonly__card {
   margin-bottom: 20px;

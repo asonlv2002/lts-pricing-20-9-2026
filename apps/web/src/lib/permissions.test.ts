@@ -125,47 +125,69 @@ assert(
     && coTheXemMucMenu(['ROLE_MANAGER'] as PolicyCode[], 'vai-tro') === true,
 );
 
-console.log('\n== cotBang2TheoQuyen (Bảng 2) ==');
+console.log('\n== cotBang2TheoQuyen (Bảng 2 — chỉ REVIEW mở, EDIT không mở) ==');
 assert(
-  'điện: chỉ cần ELECTRIC_PER_MINUTE (không cần khung giờ)',
-  cotBang2TheoQuyen(['CPSX_UPGRADE_EDIT_ELECTRIC_PER_MINUTE']).coDien === true,
+  'điện: chỉ cần REVIEW_ELECTRIC_PER_MINUTE (không cần khung giờ)',
+  cotBang2TheoQuyen(['CPSX_UPGRADE_REVIEW_ELECTRIC_PER_MINUTE']).coDien === true,
 );
 assert(
-  'điện: chỉ khung giờ (TIME_FRAME) → KHÔNG thấy cột điện',
-  cotBang2TheoQuyen(['CPSX_UPGRADE_EDIT_ELECTRIC_TIME_FRAME']).coDien === false,
+  'điện: chỉ REVIEW khung giờ (TIME_FRAME) → KHÔNG thấy cột điện',
+  cotBang2TheoQuyen(['CPSX_UPGRADE_REVIEW_ELECTRIC_TIME_FRAME']).coDien === false,
 );
 assert(
-  'lương: đủ 4 code máy → coLuong true',
+  'điện: EDIT_ELECTRIC_PER_MINUTE mà không có REVIEW → KHÔNG thấy cột điện',
+  cotBang2TheoQuyen(['CPSX_UPGRADE_EDIT_ELECTRIC_PER_MINUTE']).coDien === false,
+);
+assert(
+  'lương: đủ 4 code REVIEW máy → coLuong true',
+  cotBang2TheoQuyen([
+    'CPSX_UPGRADE_REVIEW_LABOR_PRINT',
+    'CPSX_UPGRADE_REVIEW_LABOR_LAMINATE',
+    'CPSX_UPGRADE_REVIEW_LABOR_SLIT',
+    'CPSX_UPGRADE_REVIEW_LABOR_BAG',
+  ]).coLuong === true,
+);
+assert(
+  'lương: đủ 4 code EDIT mà không có REVIEW → coLuong false',
   cotBang2TheoQuyen([
     'CPSX_UPGRADE_EDIT_LABOR_PRINT',
     'CPSX_UPGRADE_EDIT_LABOR_LAMINATE',
     'CPSX_UPGRADE_EDIT_LABOR_SLIT',
     'CPSX_UPGRADE_EDIT_LABOR_BAG',
-  ]).coLuong === true,
-);
-assert(
-  'lương: thiếu 1 code → coLuong false (AND)',
-  cotBang2TheoQuyen([
-    'CPSX_UPGRADE_EDIT_LABOR_PRINT',
-    'CPSX_UPGRADE_EDIT_LABOR_LAMINATE',
-    'CPSX_UPGRADE_EDIT_LABOR_SLIT',
   ]).coLuong === false,
 );
 assert(
-  'thời gian: đủ 4 code → coThoiGian true',
+  'lương: thiếu 1 code REVIEW → coLuong false (AND)',
+  cotBang2TheoQuyen([
+    'CPSX_UPGRADE_REVIEW_LABOR_PRINT',
+    'CPSX_UPGRADE_REVIEW_LABOR_LAMINATE',
+    'CPSX_UPGRADE_REVIEW_LABOR_SLIT',
+  ]).coLuong === false,
+);
+assert(
+  'thời gian: đủ 4 code REVIEW → coThoiGian true',
+  cotBang2TheoQuyen([
+    'CPSX_UPGRADE_REVIEW_TIME_PRINT',
+    'CPSX_UPGRADE_REVIEW_TIME_LAMINATE',
+    'CPSX_UPGRADE_REVIEW_TIME_SLIT',
+    'CPSX_UPGRADE_REVIEW_TIME_BAG',
+  ]).coThoiGian === true,
+);
+assert(
+  'thời gian: đủ 4 code EDIT mà không có REVIEW → coThoiGian false',
   cotBang2TheoQuyen([
     'CPSX_UPGRADE_EDIT_TIME_PRINT',
     'CPSX_UPGRADE_EDIT_TIME_LAMINATE',
     'CPSX_UPGRADE_EDIT_TIME_SLIT',
     'CPSX_UPGRADE_EDIT_TIME_BAG',
-  ]).coThoiGian === true,
+  ]).coThoiGian === false,
 );
 assert(
-  'thời gian: thiếu 1 code → coThoiGian false (AND)',
+  'thời gian: thiếu 1 code REVIEW → coThoiGian false (AND)',
   cotBang2TheoQuyen([
-    'CPSX_UPGRADE_EDIT_TIME_PRINT',
-    'CPSX_UPGRADE_EDIT_TIME_LAMINATE',
-    'CPSX_UPGRADE_EDIT_TIME_SLIT',
+    'CPSX_UPGRADE_REVIEW_TIME_PRINT',
+    'CPSX_UPGRADE_REVIEW_TIME_LAMINATE',
+    'CPSX_UPGRADE_REVIEW_TIME_SLIT',
   ]).coThoiGian === false,
 );
 assert(

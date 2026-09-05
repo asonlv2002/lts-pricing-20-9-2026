@@ -33,7 +33,7 @@ export type PolicyCode =
   | "ORDER_REVIEWER"
   | "ACTIVITY_MONITOR"
   | "SYSTEM_MONITOR"
-  // ── CPSX nâng cao ──────────────────────────────────────────
+  // ── CPSX nâng cao — SỬA (EDIT) ─────────────────────────────
   | "CPSX_UPGRADE_EDIT_ELECTRIC_TIME_FRAME"
   | "CPSX_UPGRADE_EDIT_ELECTRIC_PER_MINUTE"
   | "CPSX_UPGRADE_EDIT_LABOR_PRINT"
@@ -50,12 +50,41 @@ export type PolicyCode =
   | "CPSX_UPGRADE_EDIT_TIME_PRINT"
   | "CPSX_UPGRADE_EDIT_TIME_LAMINATE"
   | "CPSX_UPGRADE_EDIT_TIME_SLIT"
-  | "CPSX_UPGRADE_EDIT_TIME_BAG";
+  | "CPSX_UPGRADE_EDIT_TIME_BAG"
+  // ── CPSX nâng cao — XEM (REVIEW, chỉ xem) ──────────────────
+  | "CPSX_UPGRADE_REVIEW_ELECTRIC_TIME_FRAME"
+  | "CPSX_UPGRADE_REVIEW_ELECTRIC_PER_MINUTE"
+  | "CPSX_UPGRADE_REVIEW_LABOR_PRINT"
+  | "CPSX_UPGRADE_REVIEW_LABOR_LAMINATE"
+  | "CPSX_UPGRADE_REVIEW_LABOR_SLIT"
+  | "CPSX_UPGRADE_REVIEW_LABOR_BAG"
+  | "CPSX_UPGRADE_REVIEW_INK_OPP"
+  | "CPSX_UPGRADE_REVIEW_INK_PET"
+  | "CPSX_UPGRADE_REVIEW_INK_PE"
+  | "CPSX_UPGRADE_REVIEW_SOLVENT"
+  | "CPSX_UPGRADE_REVIEW_ADHESIVE"
+  | "CPSX_UPGRADE_REVIEW_INK_RATE"
+  | "CPSX_UPGRADE_REVIEW_ADHESIVE_RATE"
+  | "CPSX_UPGRADE_REVIEW_TIME_PRINT"
+  | "CPSX_UPGRADE_REVIEW_TIME_LAMINATE"
+  | "CPSX_UPGRADE_REVIEW_TIME_SLIT"
+  | "CPSX_UPGRADE_REVIEW_TIME_BAG";
 
-export const CO_QUYEN_CPSX_UPGRADE_PREFIX = "CPSX_UPGRADE_EDIT_";
+export const CO_QUYEN_CPSX_UPGRADE_PREFIX = "CPSX_UPGRADE_";
+export const CO_QUYEN_CPSX_UPGRADE_EDIT_PREFIX = "CPSX_UPGRADE_EDIT_";
+export const CO_QUYEN_CPSX_UPGRADE_REVIEW_PREFIX = "CPSX_UPGRADE_REVIEW_";
 
+/** Policy CPSX nâng cao (cả SỬA lẫn XEM) — lưu ở priceConfigPolicies, không phải user.policies. */
 export function laPolicyCpsxUpgrade(code: string): boolean {
   return code.startsWith(CO_QUYEN_CPSX_UPGRADE_PREFIX);
+}
+
+export function laPolicyCpsxUpgradeEdit(code: string): boolean {
+  return code.startsWith(CO_QUYEN_CPSX_UPGRADE_EDIT_PREFIX);
+}
+
+export function laPolicyCpsxUpgradeReview(code: string): boolean {
+  return code.startsWith(CO_QUYEN_CPSX_UPGRADE_REVIEW_PREFIX);
 }
 
 export interface Policy {
@@ -161,125 +190,245 @@ export const POLICY_CATALOG: Policy[] = [
     nhom: "Quản trị",
     rui_ro: "trung",
   },
-  // ── CPSX nâng cao ──────────────────────────────────────────
+  // ── CPSX nâng cao — SỬA (EDIT) ──────────────────────────────
   {
     code: "CPSX_UPGRADE_EDIT_ELECTRIC_TIME_FRAME",
-    ten: "CPSX — Giá điện theo khung giờ",
+    ten: "Sửa CPSX - Giá điện theo khung giờ",
     moTa: "Cho phép sửa bảng giá điện theo khung giờ trong CPSX nâng cao.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_ELECTRIC_PER_MINUTE",
-    ten: "CPSX — Điện/phút mỗi máy",
+    ten: "Sửa CPSX - Điện/phút mỗi máy",
     moTa: "Cho phép sửa công suất + hiệu suất của từng máy.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_LABOR_PRINT",
-    ten: "CPSX — Lương CN máy in",
+    ten: "Sửa CPSX - Lương CN máy in",
     moTa: "Cho phép sửa lương công nhân máy in.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_LABOR_LAMINATE",
-    ten: "CPSX — Lương CN máy ghép",
+    ten: "Sửa CPSX - Lương CN máy ghép",
     moTa: "Cho phép sửa lương công nhân máy ghép.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_LABOR_SLIT",
-    ten: "CPSX — Lương CN máy chia",
+    ten: "Sửa CPSX - Lương CN máy chia",
     moTa: "Cho phép sửa lương công nhân máy chia.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_LABOR_BAG",
-    ten: "CPSX — Lương CN máy làm túi",
+    ten: "Sửa CPSX - Lương CN máy làm túi",
     moTa: "Cho phép sửa lương công nhân máy làm túi.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_INK_OPP",
-    ten: "CPSX — Bảng giá mực in OPP",
+    ten: "Sửa CPSX - Bảng giá mực in OPP",
     moTa: "Cho phép sửa bảng giá mực in OPP.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_INK_PET",
-    ten: "CPSX — Bảng giá mực in PET",
+    ten: "Sửa CPSX - Bảng giá mực in PET",
     moTa: "Cho phép sửa bảng giá mực in PET.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_INK_PE",
-    ten: "CPSX — Bảng giá mực in PE",
+    ten: "Sửa CPSX - Bảng giá mực in PE",
     moTa: "Cho phép sửa bảng giá mực in PE.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_SOLVENT",
-    ten: "CPSX — Bảng giá dung môi",
+    ten: "Sửa CPSX - Bảng giá dung môi",
     moTa: "Cho phép sửa bảng giá dung môi in + ghép.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_ADHESIVE",
-    ten: "CPSX — Bảng giá keo ghép",
+    ten: "Sửa CPSX - Bảng giá keo ghép",
     moTa: "Cho phép sửa bảng giá keo ghép.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_INK_RATE",
-    ten: "CPSX — Định mức mực in + DM in",
+    ten: "Sửa CPSX - Định mức mực in + DM in",
     moTa: "Cho phép sửa định mức mực in và dung môi in theo số màu.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_ADHESIVE_RATE",
-    ten: "CPSX — Định mức keo + DM ghép",
+    ten: "Sửa CPSX - Định mức keo + DM ghép",
     moTa: "Cho phép sửa định mức keo khô và dung môi pha keo.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_TIME_PRINT",
-    ten: "CPSX — Thời gian SX máy in",
+    ten: "Sửa CPSX - Thời gian SX máy in",
     moTa: "Cho phép sửa thời gian sản xuất máy in.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_TIME_LAMINATE",
-    ten: "CPSX — Thời gian SX máy ghép",
+    ten: "Sửa CPSX - Thời gian SX máy ghép",
     moTa: "Cho phép sửa thời gian sản xuất máy ghép.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_TIME_SLIT",
-    ten: "CPSX — Thời gian SX máy chia",
+    ten: "Sửa CPSX - Thời gian SX máy chia",
     moTa: "Cho phép sửa thời gian sản xuất máy chia.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
   },
   {
     code: "CPSX_UPGRADE_EDIT_TIME_BAG",
-    ten: "CPSX — Thời gian SX máy làm túi",
+    ten: "Sửa CPSX - Thời gian SX máy làm túi",
     moTa: "Cho phép sửa thời gian sản xuất máy làm túi.",
     nhom: "CPSX nâng cao",
     rui_ro: "cao",
+  },
+  // ── CPSX nâng cao — XEM (REVIEW, chỉ xem) ───────────────────
+  {
+    code: "CPSX_UPGRADE_REVIEW_ELECTRIC_TIME_FRAME",
+    ten: "Xem CPSX - Giá điện theo khung giờ",
+    moTa: "Cho phép xem (chỉ xem) bảng giá điện theo khung giờ trong CPSX nâng cao.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_ELECTRIC_PER_MINUTE",
+    ten: "Xem CPSX - Điện/phút mỗi máy",
+    moTa: "Cho phép xem (chỉ xem) công suất + hiệu suất của từng máy và cột giá điện trong bảng đặc tả.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_LABOR_PRINT",
+    ten: "Xem CPSX - Lương CN máy in",
+    moTa: "Cho phép xem (chỉ xem) lương công nhân máy in.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_LABOR_LAMINATE",
+    ten: "Xem CPSX - Lương CN máy ghép",
+    moTa: "Cho phép xem (chỉ xem) lương công nhân máy ghép.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_LABOR_SLIT",
+    ten: "Xem CPSX - Lương CN máy chia",
+    moTa: "Cho phép xem (chỉ xem) lương công nhân máy chia.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_LABOR_BAG",
+    ten: "Xem CPSX - Lương CN máy làm túi",
+    moTa: "Cho phép xem (chỉ xem) lương công nhân máy làm túi.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_INK_OPP",
+    ten: "Xem CPSX - Bảng giá mực in OPP",
+    moTa: "Cho phép xem (chỉ xem) bảng giá mực in OPP.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_INK_PET",
+    ten: "Xem CPSX - Bảng giá mực in PET",
+    moTa: "Cho phép xem (chỉ xem) bảng giá mực in PET.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_INK_PE",
+    ten: "Xem CPSX - Bảng giá mực in PE",
+    moTa: "Cho phép xem (chỉ xem) bảng giá mực in PE.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_SOLVENT",
+    ten: "Xem CPSX - Bảng giá dung môi",
+    moTa: "Cho phép xem (chỉ xem) bảng giá dung môi in + ghép.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_ADHESIVE",
+    ten: "Xem CPSX - Bảng giá keo ghép",
+    moTa: "Cho phép xem (chỉ xem) bảng giá keo ghép.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_INK_RATE",
+    ten: "Xem CPSX - Định mức mực in + DM in",
+    moTa: "Cho phép xem (chỉ xem) định mức mực in và dung môi in theo số màu.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_ADHESIVE_RATE",
+    ten: "Xem CPSX - Định mức keo + DM ghép",
+    moTa: "Cho phép xem (chỉ xem) định mức keo khô và dung môi pha keo.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_TIME_PRINT",
+    ten: "Xem CPSX - Thời gian SX máy in",
+    moTa: "Cho phép xem (chỉ xem) thời gian sản xuất máy in.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_TIME_LAMINATE",
+    ten: "Xem CPSX - Thời gian SX máy ghép",
+    moTa: "Cho phép xem (chỉ xem) thời gian sản xuất máy ghép.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_TIME_SLIT",
+    ten: "Xem CPSX - Thời gian SX máy chia",
+    moTa: "Cho phép xem (chỉ xem) thời gian sản xuất máy chia.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
+  },
+  {
+    code: "CPSX_UPGRADE_REVIEW_TIME_BAG",
+    ten: "Xem CPSX - Thời gian SX máy làm túi",
+    moTa: "Cho phép xem (chỉ xem) thời gian sản xuất máy làm túi.",
+    nhom: "CPSX nâng cao",
+    rui_ro: "thap",
   },
 ];
 

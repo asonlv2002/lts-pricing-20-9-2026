@@ -887,7 +887,11 @@ export default function TrangCauHinh({
             // user có CPSX_UPGRADE_EDIT_* cũng lưu được, không bắt buộc PRICE_CONFIG_MANAGER.
             // CpsxNangCapTrang fetch policies qua /price-config/production-upgrade/latest
             // (mỗi user có thể có tập CPSX_UPGRADE_EDIT_* khác nhau) → lưu store cpsxNangCapPolicies.
-            const coCpsxUpgradeEdit = (cpsxNangCapPolicies ?? []).length > 0;
+            // Chỉ quyền SỬA (EDIT) mới được khối Lưu phiên bản — user chỉ có
+            // quyền XEM (REVIEW) không tạo/thay phiên bản CPSX nâng cao.
+            const coCpsxUpgradeEdit = (cpsxNangCapPolicies ?? []).some((p) =>
+              p.startsWith("CPSX_UPGRADE_EDIT_"),
+            );
             const coQuyenLuuPhienBanUpgrade =
               !!nguoiDungHienTai?.policies.includes("PRICE_CONFIG_MANAGER") || coCpsxUpgradeEdit;
             return (

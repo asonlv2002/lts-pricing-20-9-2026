@@ -55,11 +55,14 @@ export default function CpsxNangCapThoiGian({
   coQuyenLaminate = true,
   coQuyenSlit = true,
   coQuyenBag = true,
+  chiXem = false,
 }: {
   coQuyenPrint?: boolean;
   coQuyenLaminate?: boolean;
   coQuyenSlit?: boolean;
   coQuyenBag?: boolean;
+  /** Chế độ chỉ xem (REVIEW) — hiện đủ 4 máy nhưng khóa toàn bộ input. */
+  chiXem?: boolean;
 }) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
@@ -115,7 +118,7 @@ export default function CpsxNangCapThoiGian({
     summary: string;
     body: React.ReactNode;
   }> = [];
-  if (coQuyenPrint) {
+  if (coQuyenPrint || chiXem) {
     cards.push({
       key: "print",
       title: `Thời gian SX ${MAY_LABELS.print}`,
@@ -128,7 +131,7 @@ export default function CpsxNangCapThoiGian({
       ),
     });
   }
-  if (coQuyenLaminate) {
+  if (coQuyenLaminate || chiXem) {
     cards.push({
       key: "laminate",
       title: `Thời gian SX ${MAY_LABELS.laminate}`,
@@ -141,7 +144,7 @@ export default function CpsxNangCapThoiGian({
       ),
     });
   }
-  if (coQuyenSlit) {
+  if (coQuyenSlit || chiXem) {
     cards.push({
       key: "slit",
       title: `Thời gian SX ${MAY_LABELS.slit}`,
@@ -154,7 +157,7 @@ export default function CpsxNangCapThoiGian({
       ),
     });
   }
-  if (coQuyenBag) {
+  if (coQuyenBag || chiXem) {
     cards.push({
       key: "bag",
       title: `Thời gian SX ${MAY_LABELS.bag}`,
@@ -200,7 +203,15 @@ export default function CpsxNangCapThoiGian({
                 {open ? "▾ Thu gọn" : "▸ Mở rộng"}
               </button>
             </div>
-            {open && <div id={`cpsx-thoigian-body-${key}`}>{body}</div>}
+            {open && (
+              <fieldset
+                id={`cpsx-thoigian-body-${key}`}
+                disabled={chiXem}
+                className="config-cpsx-upgrade__ro"
+              >
+                {body}
+              </fieldset>
+            )}
           </div>
         );
       })}
