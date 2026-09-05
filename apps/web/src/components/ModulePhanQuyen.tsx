@@ -22,6 +22,7 @@ import {
   type PasswordResetRequestApi,
   type PasswordResetReviewApi,
   POLICY_CATALOG,
+  POLICY_CATALOG_UI,
   layTaiKhoanService,
   taoTaiKhoanService,
   kichHoatTaiKhoanService,
@@ -50,7 +51,7 @@ import { coQuyenQuanLyTaiKhoan } from '../lib/permissions';
 // ═════════════════════════════════════════════════════════════════════════════
 const TAI_KHOAN_MAU: TaiKhoan[] = [
   { id: '1', account: 'admin',       fullName: 'Quản trị hệ thống', isActive: true,
-    policies: POLICY_CATALOG.map(p => p.code), createdAt: '2025-08-12', lastLogin: '2026-05-25 08:42' },
+    policies: POLICY_CATALOG_UI.map(p => p.code), createdAt: '2025-08-12', lastLogin: '2026-05-25 08:42' },
   { id: '2', account: 'thu.lts',     fullName: 'Lê Thị Thu',         isActive: true,
     policies: ['ACCOUNT_MANAGER','ROLE_MANAGER','USER_POLICY_GRANT'], createdAt: '2025-09-03', lastLogin: '2026-05-24 17:21' },
   { id: '3', account: 'nguyen.an',   fullName: 'Nguyễn Văn An',      isActive: true,
@@ -68,7 +69,7 @@ const VAI_TRO_MAU: VaiTro[] = [
     code: 'SUPER_ADMIN',
     name: 'Quản trị tối cao',
     description: 'Toàn quyền hệ thống — chỉ dành cho 1–2 tài khoản gốc.',
-    policies: POLICY_CATALOG.map(p => p.code),
+    policies: POLICY_CATALOG_UI.map(p => p.code),
     granterName: 'Hệ thống',
     updatedAt: '2025-08-12',
   },
@@ -186,7 +187,7 @@ function HangTaiKhoan({ user, daChon, onClick }: { user: TaiKhoan; daChon: boole
       <div className="pq-row__meta">
         <span className={`pq-dot ${user.isActive ? 'pq-dot--on' : 'pq-dot--off'}`} />
         <span className="pq-row__count">
-          {user.policies.length}<span className="pq-row__count-sub">/{POLICY_CATALOG.length}</span>
+          {user.policies.length}<span className="pq-row__count-sub">/{POLICY_CATALOG_UI.length}</span>
         </span>
       </div>
       <ChevronRight size={15} className="pq-row__chev" />
@@ -439,8 +440,8 @@ function InspectorTaiKhoan({
 
   const danhSachLoc = useMemo(() => {
     const k = tuKhoa.trim().toLowerCase();
-    if (!k) return POLICY_CATALOG;
-    return POLICY_CATALOG.filter(p =>
+    if (!k) return POLICY_CATALOG_UI;
+    return POLICY_CATALOG_UI.filter(p =>
       p.code.toLowerCase().includes(k) ||
       p.ten.toLowerCase().includes(k) ||
       p.nhom.toLowerCase().includes(k),
@@ -503,7 +504,7 @@ function InspectorTaiKhoan({
       {/* Stats */}
       <div className="pq-stats">
         <div className="pq-stat">
-          <div className="pq-stat__num">{user.policies.length}/{POLICY_CATALOG.length}</div>
+          <div className="pq-stat__num">{user.policies.length}/{POLICY_CATALOG_UI.length}</div>
           <div className="pq-stat__lbl">Quyền đã cấp</div>
         </div>
         <div className="pq-stat">
@@ -892,7 +893,7 @@ function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: VaiTro[] }) {
               <th className="pq-readable-table__principal">
                 {moiTruong === 'user' ? 'Tài khoản' : 'Vai trò'}
               </th>
-              {POLICY_CATALOG.map(p => (
+              {POLICY_CATALOG_UI.map(p => (
                 <th key={p.code} className={`pq-readable-table__policy ${mauNhom(p.nhom).replace('pq-chip', 'pq-col')}`} title={moTaPolicy(p.code)}>
                   <div className="pq-readable-table__policy-name">{p.ten}</div>
                   <div className="pq-readable-table__policy-group">{p.nhom}</div>
@@ -927,7 +928,7 @@ function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: VaiTro[] }) {
                     </div>
                   </div>
                 </th>
-                {POLICY_CATALOG.map(p => {
+                {POLICY_CATALOG_UI.map(p => {
                   const has = row.policies.includes(p.code);
                   return (
                     <td key={p.code} className="pq-readable-table__cell">
@@ -943,7 +944,7 @@ function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: VaiTro[] }) {
                   );
                 })}
                 <td className="pq-readable-table__summary pq-readable-table__summary--body">
-                  <span>{row.policies.length}</span>/{POLICY_CATALOG.length}
+                  <span>{row.policies.length}</span>/{POLICY_CATALOG_UI.length}
                 </td>
               </tr>
             ))}
@@ -1257,7 +1258,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     tongUser:    users.length,
     activeUser:  users.filter(u => u.isActive).length,
     tongRole:    roles.length,
-    tongPolicy:  POLICY_CATALOG.length,
+    tongPolicy:  POLICY_CATALOG_UI.length,
   }), [users, roles]);
 
   const tieuDeView =

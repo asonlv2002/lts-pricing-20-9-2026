@@ -432,6 +432,15 @@ export const POLICY_CATALOG: Policy[] = [
   },
 ];
 
+/**
+ * Danh sách policy hiển thị trên UI (Phân quyền, Ma trận quyền, thống kê).
+ * Khác POLICY_CATALOG: bỏ các policy legacy không còn dùng (server không cấp nữa)
+ * để admin không cấp nhầm. POLICY_CATALOG vẫn giữ đầy đủ cho so khớp/audit.
+ */
+export const POLICY_CATALOG_UI: Policy[] = POLICY_CATALOG.filter(
+  (p) => p.code !== "PRODUCT_MANAGER",
+);
+
 // ── API types ────────────────────────────────────────────────────────────
 export interface TaiKhoanApi {
   id: string;

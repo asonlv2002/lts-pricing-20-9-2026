@@ -11,6 +11,7 @@ import {
   customerDecideBaoGiaService,
   kiemTraLechPolicy,
   POLICY_CATALOG,
+  POLICY_CATALOG_UI,
 } from './service-lts';
 
 let passed = 0;
@@ -51,6 +52,9 @@ console.log('\n== Policy catalog dong bo ==');
 const catalogCodes = POLICY_CATALOG.map(p => p.code);
 assert('catalog co QUOTATION_REVIEWER', catalogCodes.includes('QUOTATION_REVIEWER'));
 assert('catalog co PRODUCT_MANAGER (legacy, server khong ho tro)', catalogCodes.includes('PRODUCT_MANAGER'));
+assert('catalog UI an PRODUCT_MANAGER (legacy)',
+  !POLICY_CATALOG_UI.map(p => p.code).includes('PRODUCT_MANAGER')
+  && POLICY_CATALOG_UI.length === POLICY_CATALOG.length - 1);
 assert('catalog co CUSTOMER_MANAGER', catalogCodes.includes('CUSTOMER_MANAGER'));
 assert('catalog co ORDER_REVIEWER', catalogCodes.includes('ORDER_REVIEWER'));
 {
