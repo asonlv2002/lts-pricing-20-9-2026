@@ -281,7 +281,7 @@ function buildGia(r: CalculateResult, item: HistoryItem, constants: AppConstants
   const blItems: [string, string][] = [
     [`${meta.initialPriceLabel} (Vốn + ${dinhDangPhanTram(tyLeLN)} LN)`, dinhDangSoLe(r.costPerUnit, 1) + ' đ'],
   ];
-  if (item.input.hasZipper) blItems.push(['Chi phí Zipper', dinhDangSoLe(r.zipperPerUnit, 1) + ' đ']);
+  // Zipper đã gộp vào dòng Làm túi trên bảng đặc tả — không hiện dòng riêng (đồng bộ màn hình, b07d8ca)
   if (item.input.hasTape) blItems.push(['Chi phí Băng keo', dinhDangSoLe(r.tapePerUnit, 1) + ' đ']);
   if (item.input.hasHandle) blItems.push(['Chi phí Quai', dinhDangSoLe(r.handlePerUnit, 1) + ' đ']);
   blItems.push(
