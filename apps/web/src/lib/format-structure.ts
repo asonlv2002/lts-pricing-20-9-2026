@@ -70,6 +70,37 @@ export function buildSideStructureText(
   return parts.join("//");
 }
 
+/**
+ * Cấu trúc MẶT TRƯỚC cho wizard báo giá — build từ layer IDs, bỏ notation
+ * web ghép `[A + B]` của engine (đơn 2 mặt: alt = mặt sau, không phải lớp ghép).
+ * Trả null nếu đơn không phải 2 mặt hoặc material id không resolve được.
+ */
+export function cauTrucMatTrucTuLop(
+  materials: MatLite[],
+  input: {
+    layer1Id?: string | null;
+    layer2Id?: string | null;
+    layer2AltId?: string | null;
+    layer3Id?: string | null;
+    layer4Id?: string | null;
+    layer5Id?: string | null;
+  },
+): string | null {
+  if (!input.layer2Id || !input.layer2AltId) return null;
+  const ids = [input.layer1Id, input.layer2Id, input.layer3Id, input.layer4Id, input.layer5Id];
+  if (!ids.every((id) => !id || materials.some((m) => m.id === id))) return null;
+  return boSoCauTruc(
+    buildSideStructureText(
+      materials,
+      input.layer1Id,
+      input.layer2Id,
+      input.layer3Id,
+      input.layer4Id,
+      input.layer5Id,
+    ),
+  ) || null;
+}
+
 /** bagSpec fields cần cho nhãn 2 mặt (giống wizard BG). */
 export type ChatLieuBagSpecLite = {
   structureBack?: string;

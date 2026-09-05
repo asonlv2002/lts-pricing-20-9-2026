@@ -416,7 +416,37 @@ function buildBagSpecDescription(
     (spec.bagType ? spec.bagType.toUpperCase() : "");
   if (bagLabel) lines.push(bagLabel + ".");
   const chatLieu = boSoCauTruc(structure);
-  if (chatLieu) lines.push("Chất liệu: " + chatLieu + ".");
+  if (spec.structureBack) {
+    const front = boSoCauTruc(
+      spec.structureSwapped ? spec.structureBack : structure,
+    );
+    const back = boSoCauTruc(
+      spec.structureSwapped ? structure : spec.structureBack,
+    );
+    if (front && back) {
+      if (spec.bagType === "dayDung") {
+        const frontSuffix = spec.bottomFollows === "front" ? " + Đáy" : "";
+        const backSuffix = spec.bottomFollows === "back" ? " + Đáy" : "";
+        lines.push(
+          "Chất liệu: Mặt trước" +
+            frontSuffix +
+            ": " +
+            front +
+            ", Mặt sau" +
+            backSuffix +
+            ": " +
+            back +
+            ".",
+        );
+      } else {
+        lines.push("Chất liệu: Mặt trước: " + front + ", Mặt sau: " + back + ".");
+      }
+    } else if (chatLieu) {
+      lines.push("Chất liệu: " + chatLieu + ".");
+    }
+  } else if (chatLieu) {
+    lines.push("Chất liệu: " + chatLieu + ".");
+  }
   if (totalThickness > 0)
     lines.push("Độ dày: " + totalThickness + " mic (± 5 mic).");
   const dimParts: string[] = [];

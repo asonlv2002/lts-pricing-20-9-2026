@@ -7,6 +7,7 @@ import {
   formatChatLieuNhuBaoGia,
   buildSideStructureText,
   normalizeMaterialBaseName,
+  cauTrucMatTrucTuLop,
 } from './format-structure';
 
 let passed = 0;
@@ -149,6 +150,28 @@ assert(
   dualFallback === 'Mặt trước: PET//LLDPE, Mặt sau: PET//MPET',
   dualFallback,
 );
+
+console.log('\n=== cauTrucMatTrucTuLop (mặt trước bỏ notation [A + B]) ===');
+const mt1 = cauTrucMatTrucTuLop(mats, {
+  layer1Id: 'PET12',
+  layer2Id: 'MPET12',
+  layer2AltId: 'PET12',
+  layer3Id: 'LLDPE120',
+});
+assert('dual → mặt trước từ layer IDs', mt1 === 'PET//MPET//LLDPE', mt1 ?? 'null');
+
+const mt2 = cauTrucMatTrucTuLop(mats, {
+  layer1Id: 'PET12',
+  layer2Id: 'LLDPE50',
+});
+assert('thiếu layer2AltId → null', mt2 === null, String(mt2));
+
+const mt3 = cauTrucMatTrucTuLop(mats, {
+  layer1Id: 'PET12',
+  layer2Id: 'KHONGTONTAI',
+  layer2AltId: 'MPET12',
+});
+assert('id lạ → null (fallback chuỗi engine)', mt3 === null, String(mt3));
 
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed > 0) process.exit(1);

@@ -85,7 +85,11 @@ import {
   type QuoteProductBagSpec,
   generateStructureBackOptions,
 } from "../lib/quote-product-spec";
-import { boSoCauTruc, buildStructureFromLayers } from "../lib/format-structure";
+import {
+  boSoCauTruc,
+  buildStructureFromLayers,
+  cauTrucMatTrucTuLop,
+} from "../lib/format-structure";
 import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
 import NhapPinDuyetModal from "./auth/NhapPinDuyetModal";
 import { useNhapPinPrompt, laHuyPin } from "../lib/useNhapPinPrompt";
@@ -323,8 +327,16 @@ function buildWizardProductFromHistoryItem(
       spec.structureSwapped = opts[0].structureSwapped;
     }
   }
+  // Đơn 2 mặt: chuỗi engine có notation web ghép "[A + B]" — báo giá hiển thị theo mặt,
+  // mặt trước build từ layer IDs (layer2AltId là mặt sau, xem generateStructureBackOptions).
+  let historyItemHienThi = item;
+  if (item.input.layer2AltId) {
+    const { materials } = dungCuaHangTinhGia.getState();
+    const cauTrucMatTruoc = cauTrucMatTrucTuLop(materials, item.input);
+    if (cauTrucMatTruoc) historyItemHienThi = { ...item, structure: cauTrucMatTruoc };
+  }
   return {
-    historyItem: item,
+    historyItem: historyItemHienThi,
     tiers: [
       {
         quantity: item.quantity,
@@ -379,6 +391,12 @@ function buildWizardProductFromQuoteProductLine(
       spec.bottomFollows = opts[0].bottomFollows;
       spec.structureSwapped = opts[0].structureSwapped;
     }
+  }
+  // Đơn 2 mặt: chuỗi engine có notation web ghép "[A + B]" — báo giá hiển thị theo mặt.
+  if (qp.input.layer2AltId) {
+    const { materials } = dungCuaHangTinhGia.getState();
+    const cauTrucMatTruoc = cauTrucMatTrucTuLop(materials, qp.input);
+    if (cauTrucMatTruoc) historyItem.structure = cauTrucMatTruoc;
   }
   return {
     historyItem,
