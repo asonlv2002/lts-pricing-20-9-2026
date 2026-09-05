@@ -31,7 +31,6 @@ import ModuleTaiNguyenHeThong from "../ModuleTaiNguyenHeThong";
 import {
   coTheXemNhomMenu,
   coTheXemMucMenu,
-  coQuyenDuyet,
   vaiTroTuPolicies,
 } from "../../lib/permissions";
 import {
@@ -1127,21 +1126,19 @@ function ThanhBen({
               <span>Đổi ảnh đại diện</span>
             </button>
             <div className="lts-account-menu-sep" />
-            {coQuyenDuyet(policies) && (
-              <button
-                type="button"
-                className="lts-account-menu-item"
-                role="menuitem"
-                onClick={() => {
-                  datMenuTaiKhoanMo(false);
-                  datHienDoiPin();
-                }}
-              >
-                <KeyRoundIcon size={14} />
-                <span>Đổi mã Pin</span>
-              </button>
-            )}
-            {coQuyenDuyet(policies) && <div className="lts-account-menu-sep" />}
+            <button
+              type="button"
+              className="lts-account-menu-item"
+              role="menuitem"
+              onClick={() => {
+                datMenuTaiKhoanMo(false);
+                datHienDoiPin();
+              }}
+            >
+              <KeyRoundIcon size={14} />
+              <span>Đổi mã Pin</span>
+            </button>
+            <div className="lts-account-menu-sep" />
             <button
               type="button"
               className="lts-account-menu-item"
@@ -1432,9 +1429,7 @@ function MobileHubScreen({
       <div className="lts-mobile-hub-content">
         {hub.cards
           .filter((card) =>
-            card.action.type === "changePin"
-              ? coQuyenDuyet(policies)
-              : card.action.type !== "module" || coTheXemMucMenu(policies, card.action.key),
+            card.action.type !== "module" || coTheXemMucMenu(policies, card.action.key),
           )
           .map((card) => (
           <button
