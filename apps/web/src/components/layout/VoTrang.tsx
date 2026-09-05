@@ -261,12 +261,6 @@ const CAC_NHOM_MENU: NhomMenu[] = [
         vaiTros: ["admin", "sale"],
       },
       {
-        key: "tao-tinh-gia-thuong-mai",
-        id: "calculator",
-        label: "Tính giá thương mại",
-        vaiTros: ["admin", "sale"],
-      },
-      {
         key: "tao-bao-gia",
         id: "quotations",
         label: "Tạo bảng báo giá",
@@ -424,6 +418,15 @@ const CAC_NHOM_MENU: NhomMenu[] = [
 ];
 
 const CAC_MUC_MENU: MucMenu[] = CAC_NHOM_MENU.flatMap((nhom) => nhom.mucCon);
+
+/** Resolve module từ menu key, có fallback cho key KHÔNG còn mục menu:
+ * 'tao-tinh-gia' (route nội bộ tab form cũ) và 'tao-tinh-gia-thuong-mai' (route nội bộ
+ * khi mở lại item thương mại từ lịch sử / deep-link — thương mại giờ là option ở màn
+ * chọn chế độ của "Tạo bảng tính giá") cùng module calculator với 'tao-tinh-gia-nang-cap'. */
+const moduleTuMenuKeyVoiFallback = (key: string): MaModuleMenu | null =>
+  key === "tao-tinh-gia" || key === "tao-tinh-gia-thuong-mai"
+    ? "calculator"
+    : moduleTuMenuKey(key, CAC_MUC_MENU);
 
 /** Menu key tổng quan — slug VN, không còn prefix `overview.`. */
 const MENU_KEYS_OVERVIEW = new Set([
@@ -1051,14 +1054,6 @@ function ThanhBen({
       if (laMobile) datDangMo(false);
       return;
     }
-    if (item.key === "tao-tinh-gia-thuong-mai") {
-      // Tab thương mại: auto-set pricingMode='commercial', skip landing chọn chế độ.
-      // page.tsx useEffect sẽ set input + pricingEntry='form'.
-      datMenuDangChon(item.key);
-      datModuleDangMo(item.id);
-      if (laMobile) datDangMo(false);
-      return;
-    }
     // datMenuDangChon + datModuleDangMo được shell bọc URL qua callback
     datMenuDangChon(item.key);
     datModuleDangMo(item.id);
@@ -1680,14 +1675,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
       // Fallback: 'tao-tinh-gia' (tab form cũ) + 'tao-tinh-gia-thuong-mai' cùng
       // module calculator với 'tao-tinh-gia-nang-cap', nhưng CAC_MUC_MENU chỉ
-      // register 'tao-tinh-gia-nang-cap' & 'tao-tinh-gia-thuong-mai' làm entry.
+      // register 'tao-tinh-gia-nang-cap' làm entry — dùng moduleTuMenuKeyVoiFallback.
       // Không có fallback này → route từ list page (mở lại thương mại / mở lại form cũ) sẽ
       // chỉ set menuDangChon mà KHÔNG đổi moduleDangMo → TrangChinh không mount → form không mở.
-      const moduleFallback =
-        key === "tao-tinh-gia" || key === "tao-tinh-gia-thuong-mai"
-          ? "calculator"
-          : (moduleTuMenuKey(key, CAC_MUC_MENU) ??
-            (CAC_MUC_MENU.find((m) => m.key === key)?.id as MaModuleMenu | undefined));
+      const moduleFallback = moduleTuMenuKeyVoiFallback(key);
 
       datMenuDangChon(key);
       if (moduleFallback) datModuleDangMo(moduleFallback);
@@ -1708,7 +1699,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           datMenuDangChon(key);
           return true;
         }
-        const module = moduleTuMenuKey(key, CAC_MUC_MENU);
+        const module = moduleTuMenuKeyVoiFallback(key);
         datMenuDangChon(key);
         if (module) datModuleDangMo(module);
         return true;

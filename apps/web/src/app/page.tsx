@@ -195,9 +195,9 @@ export default function TrangChinh() {
     datPricingEntry('form');
   };
 
-  // Mở thẳng tab thương mại (từ menu "Tính giá thương mại" hoặc URL /tao-tinh-gia-thuong-mai
-  // hay deep-link /tinh-gia-thuong-mai/<id>): bỏ qua màn chọn chế độ, set form thương mại.
-  // Skip khi đang mở từ lịch sử (tab-switch effect đã xử lý giữ form).
+  // Mở lại item thương mại từ lịch sử / URL /tao-tinh-gia-thuong-mai (không còn mục
+  // menu — thương mại giờ là option ở màn chọn chế độ của "Tạo bảng tính giá"):
+  // vẫn vào thẳng form thương mại. Skip khi đang mở từ lịch sử (tab-switch effect đã giữ form).
   useEffect(() => {
     if (!cheDoThuongMai) return;
     const s = dungCuaHangTinhGia.getState();

@@ -2403,7 +2403,7 @@ body {
   cursor: pointer !important;
 }
 /* Read-only khi KHÔNG có quyền PRICE_CONFIG_MANAGER: khóa nhập nhưng chừa
-   CPSX nâng cao — CpsxNangCapTrang tự khóa theo CPSX_UPGRADE_EDIT_*/REVIEW_*. */
+   CPSX nâng cao — CpsxNangCapTrang tự khóa theo các policy CPSX_UPGRADE_EDIT / REVIEW. */
 .config-page--semi-readonly
   .config-content
   .card.config-card:not(.config-version-card):not(.config-cpsx-upgrade-card):not(.config-cpsx-upgrade-readonly__card) {
