@@ -30,7 +30,7 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
   // Tính giá Thương mại — override giá hiển thị khi commercial-form
   const laThuongMai = input.pricingMode === 'commercial';
   const cheDoHienThiThuongMai = (input.commercialMode || 'form') as 'form' | 'description';
-  const ketQuaThuongMai = laThuongMai && cheDoHienThiThuongMai === 'form' ? tinhGiaThuongMai(input) : null;
+  const ketQuaThuongMai = laThuongMai ? tinhGiaThuongMai(input) : null;
 
   // Tab nâng cấp: giá từ bảng đặc tả nâng cao (có ghi đè Sale/Admin)
   // Sheet đã lưu: overlay CPSX NC từ pin — không bám constants đang sửa trên màn CPSX
@@ -144,7 +144,7 @@ export default function TrangChinh() {
 
   const laThuongMai = input.pricingMode === 'commercial';
   const cheDoHienThiThuongMai = (input.commercialMode || 'form') as 'form' | 'description';
-  const ketQuaThuongMai = laThuongMai && cheDoHienThiThuongMai === 'form' ? tinhGiaThuongMai(input) : null;
+  const ketQuaThuongMai = laThuongMai ? tinhGiaThuongMai(input) : null;
 
   const [tabMobile, datTabMobile] = useState<'input' | 'result'>('input');
   const [doRongTrai, datDoRongTrai] = useState<number | null>(null);
