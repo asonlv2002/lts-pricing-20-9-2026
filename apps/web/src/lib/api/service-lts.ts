@@ -550,6 +550,15 @@ async function docJson(response: Response): Promise<unknown> {
   }
 }
 
+/** Refresh token mới nhất trong localStorage — tab khác có thể đã rotate. */
+function docRefreshTokenMoiNhatTuLocalStorage(): string | null {
+  try {
+    return window.localStorage.getItem(LS_REFRESH_TOKEN);
+  } catch {
+    return null;
+  }
+}
+
 async function lamMoiTokenTuHeThong(): Promise<TokenPair> {
   if (dangRefreshPromise) return dangRefreshPromise;
 
@@ -560,7 +569,25 @@ async function lamMoiTokenTuHeThong(): Promise<TokenPair> {
     if (!current?.refreshToken)
       throw new Error("Không có refresh token để làm mới phiên.");
 
-    const data = await lamMoiTokenService(current.refreshToken);
+    let data: DangNhapApi;
+    try {
+      data = await lamMoiTokenService(current.refreshToken);
+    } catch (error) {
+      // Token trong memory có thể đã bị tab khác rotate (refresh token chỉ
+      // dùng 1 lần). 401 + LS có token khác → thử lại với bản mới nhất trước
+      // khi kết luận hết phiên.
+      const refreshTokenMoiNhat = docRefreshTokenMoiNhatTuLocalStorage();
+      if (
+        error instanceof LoiServiceLts
+        && error.status === 401
+        && refreshTokenMoiNhat
+        && refreshTokenMoiNhat !== current.refreshToken
+      ) {
+        data = await lamMoiTokenService(refreshTokenMoiNhat);
+      } else {
+        throw error;
+      }
+    }
     const nextTokens: TokenPair = {
       accessToken: data.accessToken,
       refreshToken: data.refreshToken,

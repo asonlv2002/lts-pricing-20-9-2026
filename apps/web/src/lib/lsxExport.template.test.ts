@@ -22,6 +22,9 @@ import {
   buildLsxLamBtpNote,
   dataUrlSangBuffer,
   chuKyParagraph,
+  hienThiPhiHaoIn,
+  hienThiPhiHaoTui,
+  hienThiThanhPhamIn,
 } from './lsxExport';
 
 import {
@@ -330,7 +333,7 @@ console.log('\nresolveLsxLaminateRows / formatLsxLamWasteText');
   assert('row[1] label "Ghép 2"', rows[1].label === 'Ghép 2');
 }
 {
-  // nangCaoSpec có Ghép nhưng vẫn có laminateLayers user sửa tay → ưu tiên nangCaoSpec
+  // laminateLayers user sửa tay thắng nangCaoSpec (manual-first, regression 2026-09-05)
   const o = order('tui', '3bien', false);
   o.snapshot.nangCaoSpec = [
     { congDoan: 'Ghép 1', vatLieu: 'PET_NANG_CAO', khoMang: 0.5, thanhPham: 12000, phiHao: 0, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
@@ -339,8 +342,17 @@ console.log('\nresolveLsxLaminateRows / formatLsxLamWasteText');
     { layerIndex: 2, label: 'Màng ghép 1', parts: [{ name: 'USER_SUA_TAY', widthMm: 300 }], wasteMeters: 99 },
   ];
   const rows = resolveLsxLaminateRows(o);
-  assert('nangCaoSpec thắng laminateLayers user sửa', rows[0].parts[0].name === 'PET_NANG_CAO', rows[0].parts[0].name);
-  assert('nangCaoSpec thắng waste', rows[0].wasteMeters === 0, String(rows[0].wasteMeters));
+  assert('laminateLayers user sửa thắng nangCaoSpec', rows[0].parts[0].name === 'USER_SUA_TAY', rows[0].parts[0].name);
+  assert('laminateLayers user sửa thắng waste', rows[0].wasteMeters === 99, String(rows[0].wasteMeters));
+}
+{
+  // nangCaoSpec vẫn dùng khi form không có laminateLayers (manual rỗng)
+  const o = order('tui', '3bien', false);
+  o.snapshot.nangCaoSpec = [
+    { congDoan: 'Ghép 1', vatLieu: 'PET_NANG_CAO', khoMang: 0.5, thanhPham: 12000, phiHao: 0, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+  ];
+  const rows = resolveLsxLaminateRows(o);
+  assert('manual rỗng → fallback nangCaoSpec', rows[0]?.parts[0]?.name === 'PET_NANG_CAO', rows[0]?.parts[0]?.name);
 }
 
 console.log('\nIN/GHÉP format helpers');
@@ -415,6 +427,51 @@ const PNG_DATA_URL = 'data:image/png;base64,iVBORw0KGgo='; // bytes: 8D 04 0B 3F
   assert('chuKyParagraph empty when no signature', noSig.length === 0);
   const badSig = chuKyParagraph({ ...baseManual(), preparedBySignature: 'data:image/webp;base64,AAAA' }, FakeParagraph, { AlignmentType: { CENTER: 'center' } });
   assert('chuKyParagraph empty on unsupported format', badSig.length === 0);
+}
+
+console.log('\nmanual-first helpers (regression 2026-09-05)');
+
+{
+  // Case ảnh user báo: spec nâng cao 1.810,828 / 16.624,143 — user sửa form 5000 / 10000 MD / 30000
+  const o = order('tui', '3bien', false);
+  o.snapshot.nangCaoSpec = [
+    { congDoan: 'In', vatLieu: 'PET12', khoMang: 0.82, thanhPham: 16624.143, phiHao: 1810.828, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: 'Làm túi', vatLieu: '', khoMang: null, thanhPham: 16000, phiHao: 210, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+  ];
+  assert('manual rỗng → spec phi hao IN', hienThiPhiHaoIn(o).includes('1.810') || hienThiPhiHaoIn(o).includes('1810'), hienThiPhiHaoIn(o));
+  assert('manual rỗng → spec thành phẩm IN', hienThiThanhPhamIn(o).includes('16.624') || hienThiThanhPhamIn(o).includes('16624'), hienThiThanhPhamIn(o));
+  assert('manual rỗng → spec phi hao túi', hienThiPhiHaoTui(o) === 210, String(hienThiPhiHaoTui(o)));
+
+  o.manual.printWastePercent = 5000;
+  o.manual.printProductQty = 10000;
+  o.manual.printProductUnit = 'MD';
+  o.manual.materialQtySupplied = 30000;
+  o.manual.bagWasteMeters = 150;
+  const phIn = hienThiPhiHaoIn(o);
+  const tpInTxt = hienThiThanhPhamIn(o);
+  assert('manual thắng spec: phi hao IN = 5.000m', phIn === '5.000m' || phIn === '5000m', phIn);
+  assert('manual thắng spec: thành phẩm IN = 10.000 MD', tpInTxt === '10.000 MD' || tpInTxt === '10000 MD', tpInTxt);
+  assert('manual thắng spec: phi hao túi = 150', hienThiPhiHaoTui(o) === 150, String(hienThiPhiHaoTui(o)));
+
+  o.manual.printWastePercent = 0;
+  o.manual.printProductQty = 0;
+  o.manual.bagWasteMeters = 0;
+  assert('manual = 0 → trả về spec (phi hao IN)', hienThiPhiHaoIn(o).includes('810'), hienThiPhiHaoIn(o));
+  assert('manual = 0 → trả về spec (thành phẩm IN)', hienThiThanhPhamIn(o).includes('624'), hienThiThanhPhamIn(o));
+  assert('manual = 0 → trả về spec (phi hao túi)', hienThiPhiHaoTui(o) === 210, String(hienThiPhiHaoTui(o)));
+}
+{
+  // Không có spec nâng cao (LSX cũ) → chỉ manual
+  const o = order('mang', '', false);
+  assert('không spec + manual rỗng → phi hao IN rỗng', hienThiPhiHaoIn(o) === '', JSON.stringify(hienThiPhiHaoIn(o)));
+  assert('không spec + manual rỗng → thành phẩm IN rỗng', hienThiThanhPhamIn(o) === '', JSON.stringify(hienThiThanhPhamIn(o)));
+  assert('không spec + manual rỗng → phi hao túi 0', hienThiPhiHaoTui(o) === 0);
+  o.manual.printWastePercent = 2320;
+  o.manual.printProductQty = 3300;
+  o.manual.bagWasteMeters = 140;
+  assert('không spec → manual phi hao IN', hienThiPhiHaoIn(o) === '2.320m' || hienThiPhiHaoIn(o) === '2320m', hienThiPhiHaoIn(o));
+  assert('không spec → manual thành phẩm IN', hienThiThanhPhamIn(o) === '3.300 MD' || hienThiThanhPhamIn(o) === '3300 MD', hienThiThanhPhamIn(o));
+  assert('không spec → manual phi hao túi', hienThiPhiHaoTui(o) === 140);
 }
 
 console.log('\nuseSemicircularMold visibility (not zipper-only)');const dayDung = classifyLsxBagType('dayDung');

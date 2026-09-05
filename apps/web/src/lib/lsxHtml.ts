@@ -15,11 +15,12 @@ import {
   formatLsxLamWasteText,
   formatLsxCylText,
   formatLsxNumCylinders,
-  formatLsxPrintWasteLine,
-  formatLsxPrintProductLine,
   formatLsxLamProductLine,
   formatLsxLamSupplyLine,
   formatLsxBagNote,
+  hienThiPhiHaoIn,
+  hienThiPhiHaoTui,
+  hienThiThanhPhamIn,
   type LsxDocxTemplateKey,
 } from './lsxExport';
 import { buildLsxLamGridRows } from './lsx-lam-rows';
@@ -29,7 +30,7 @@ import { bagTypeLabelHienThi } from './lsx-bag-classification';
 import { buildLsxBagFieldRows } from './lsx-bag-fields';
 import { formatLsxHeaderDate } from './lsx-header-format';
 import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from './lsx-divide';
-import { layDongTheoCongDoan, layKhoMangTuNguon, layPhiHao, layThanhPham } from './lsx-nang-cao';
+import { layDongTheoCongDoan, layKhoMangTuNguon } from './lsx-nang-cao';
 
 
 function v(val: string | number | null | undefined, suffix = ''): string {
@@ -380,8 +381,6 @@ function mangBodyHtml(order: ProductionOrder): string {
   const { snapshot: s, manual: m } = order;
   const hasDivide = orderHasDivide(order);
   const khoMM = layKhoMangTuNguon({ snapshot: s }, 'In') ?? 0;
-  const tpIn = layThanhPham(order, 'In');
-  const phiHaoIn = layPhiHao(order, 'In');
 
   let html = `
   <table>
@@ -403,8 +402,8 @@ function mangBodyHtml(order: ProductionOrder): string {
     </tr>
     <tr>
       <td colspan="2">
-        <div><span class="b">Thành phẩm in yêu cầu: </span>${esc(tpIn ? `${tpIn.toLocaleString('vi-VN')}m` : formatLsxPrintProductLine(m))}</div>
-        <div>Định mức phi hao: ${esc(phiHaoIn ? `${phiHaoIn.toLocaleString('vi-VN')}m` : formatLsxPrintWasteLine(m))}</div>
+        <div><span class="b">Thành phẩm in yêu cầu: </span>${esc(hienThiThanhPhamIn(order))}</div>
+        <div>Định mức phi hao: ${esc(hienThiPhiHaoIn(order))}</div>
         <div>Số lượng cấp vật tư: ${esc(v(m.materialQtySupplied))}</div>
         ${m.printNotes ? `<div><span class="b">Ghi chú: </span>${esc(m.printNotes)}</div>` : ''}
         <div><span class="b">Trục in: </span>${esc(v(m.cylInfo))}</div>
@@ -508,9 +507,7 @@ function tuiBodyHtml(order: ProductionOrder): string {
     : bagTypeLabelHienThi(bagInfo, s.bagType || '', !!s.hasZipper, !!m.lsxBagTypeOverride);
   // Ưu tiên bảng đặc tả nâng cao cho Khổ IN; fallback snapshot.spreadWidth
   const khoMM = layKhoMangTuNguon({ snapshot: s }, 'In') ?? 0;
-  const tpIn = layThanhPham(order, 'In');
-  const phiHaoIn = layPhiHao(order, 'In');
-  const phiHaoTui = layPhiHao(order, 'Làm túi') ?? m.bagWasteMeters;
+  const phiHaoTui = hienThiPhiHaoTui(order);
   const bagSize = lsxBagSizeMm(s);
   const templateKey = resolveLsxDocxTemplate(order);
   const fieldSpecs = bagFieldSpecs(templateKey, m, !!s.hasZipper, s.zipperDistanceMm);
@@ -550,8 +547,9 @@ function tuiBodyHtml(order: ProductionOrder): string {
     </tr>
     <tr>
       <td colspan="2">
-        <div>Định mức phi hao: ${esc(phiHaoIn ? `${phiHaoIn.toLocaleString('vi-VN')}m` : formatLsxPrintWasteLine(m, '…'))}</div>
-        <div>Thành phẩm in: ${esc(tpIn ? `${tpIn.toLocaleString('vi-VN')}m` : formatLsxPrintProductLine(m, '…'))}</div>
+        <div>Định mức phi hao: ${esc(hienThiPhiHaoIn(order) || '…')}</div>
+        <div>Thành phẩm in: ${esc(hienThiThanhPhamIn(order) || '…')}</div>
+        ${m.materialQtySupplied > 0 ? `<div><span class="b">Số lượng cấp vật tư: </span>${esc(v(m.materialQtySupplied))}</div>` : ''}
         ${m.inDesc ? `<div>${esc(m.inDesc)}</div>` : ''}
         ${m.printNotes ? `<div><span class="b">Ghi chú: </span>${esc(m.printNotes)}</div>` : ''}
       </td>
@@ -620,8 +618,9 @@ function tuiBodyHtml(order: ProductionOrder): string {
     </tr>
     <tr>
       <td colspan="2">
-        <div>Định mức phi hao: ${esc(phiHaoIn ? `${phiHaoIn.toLocaleString('vi-VN')}m` : formatLsxPrintWasteLine(m, '…'))}</div>
-        <div>Thành phẩm yêu cầu: ${esc(tpIn ? `${tpIn.toLocaleString('vi-VN')}m` : formatLsxPrintProductLine(m, '…'))}</div>
+        <div>Định mức phi hao: ${esc(hienThiPhiHaoIn(order) || '…')}</div>
+        <div>Thành phẩm yêu cầu: ${esc(hienThiThanhPhamIn(order) || '…')}</div>
+        ${m.materialQtySupplied > 0 ? `<div><span class="b">Số lượng cấp vật tư: </span>${esc(v(m.materialQtySupplied))}</div>` : ''}
         ${m.inDesc ? `<div>${esc(m.inDesc)}</div>` : ''}
         ${m.printNotes ? `<div><span class="b">Ghi chú: </span>${esc(m.printNotes)}</div>` : ''}
         ${m.cylInfo ? `<div><span class="b">Trục in: </span>${esc(m.cylInfo)}</div>` : ''}

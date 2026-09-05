@@ -23,7 +23,7 @@ import {
   LoiServiceLts,
   type PolicyCode,
 } from '../../lib/api/service-lts';
-import { laLoiRefreshHetPhien } from '../../lib/auth-session';
+import { laLoiRefreshHetPhien, quyetDinhDongBoTokenThongQuaStorage } from '../../lib/auth-session';
 import { vaiTroTuPolicies } from '../../lib/permissions';
 import { decodeBase64UrlUtf8, normalizeDisplayText } from '../../lib/text-codec';
 import { blobSangPngDataUrl } from '../../lib/chu-ky';
@@ -265,6 +265,39 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
       resetPhienHetHan(set, get);
     },
   });
+
+  // Đồng bộ phiên giữa các tab: khi tab khác rotate/xoá token trong
+  // localStorage, tab này nhận token mới (hoặc đăng xuất theo) thay vì gửi
+  // token cũ đã bị thu hồi lên BE rồi bị 401 "Hết phiên đăng nhập.".
+  if (typeof window !== 'undefined') {
+    window.addEventListener('storage', (event) => {
+      // Key refresh token là định danh của cặp token — event của key access
+      // sẽ được xử lý gián tiếp khi đọc lại cả 2 key ở event refresh.
+      if (event.key !== LS_REFRESH_TOKEN) return;
+      let accessTokenLs: string | null = null;
+      let refreshTokenLs: string | null = null;
+      try {
+        accessTokenLs = window.localStorage.getItem(LS_ACCESS_TOKEN);
+        refreshTokenLs = window.localStorage.getItem(LS_REFRESH_TOKEN);
+      } catch {
+        return;
+      }
+      const quyetDinh = quyetDinhDongBoTokenThongQuaStorage({
+        refreshTokenLs,
+        accessTokenLs,
+        refreshTokenHienTai: get().refreshToken,
+      });
+      if (quyetDinh.hanhDong === 'apDung') {
+        set({
+          accessToken: quyetDinh.accessToken,
+          refreshToken: quyetDinh.refreshToken,
+          isAuthenticated: true,
+        });
+      } else if (quyetDinh.hanhDong === 'dangXuat') {
+        get().logout();
+      }
+    });
+  }
 
   return ({
   accessToken: null,

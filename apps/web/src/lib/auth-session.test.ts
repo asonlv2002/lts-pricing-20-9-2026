@@ -3,7 +3,7 @@
  * Chay: npx tsx src/lib/auth-session.test.ts
  */
 
-import { docThoiDiemHetHanJwt, laLoiRefreshHetPhien, tinhThoiGianChoLamMoiPhien } from './auth-session';
+import { docThoiDiemHetHanJwt, laLoiRefreshHetPhien, quyetDinhDongBoTokenThongQuaStorage, tinhThoiGianChoLamMoiPhien } from './auth-session';
 
 let passed = 0;
 let failed = 0;
@@ -88,6 +88,56 @@ assert(
 assert(
   'does not treat network failure as expired session',
   laLoiRefreshHetPhien(new Error('Không kết nối được tới máy chủ.')) === false,
+);
+
+console.log('\n== Đồng bộ token giữa các tab qua storage event ==');
+
+assert(
+  'tab khác rotate token → nhận cặp token mới từ localStorage',
+  (() => {
+    const q = quyetDinhDongBoTokenThongQuaStorage({
+      refreshTokenLs: 'R2',
+      accessTokenLs: 'A2',
+      refreshTokenHienTai: 'R1',
+    });
+    return q.hanhDong === 'apDung' && q.accessToken === 'A2' && q.refreshToken === 'R2';
+  })(),
+);
+
+assert(
+  'tab khác đăng xuất (LS rỗng) → đăng xuất theo',
+  quyetDinhDongBoTokenThongQuaStorage({
+    refreshTokenLs: null,
+    accessTokenLs: null,
+    refreshTokenHienTai: 'R1',
+  }).hanhDong === 'dangXuat',
+);
+
+assert(
+  'token LS trùng memory → bỏ qua',
+  quyetDinhDongBoTokenThongQuaStorage({
+    refreshTokenLs: 'R1',
+    accessTokenLs: 'A1',
+    refreshTokenHienTai: 'R1',
+  }).hanhDong === 'boQua',
+);
+
+assert(
+  'tab này chưa đăng nhập → không tự nhận session hộ',
+  quyetDinhDongBoTokenThongQuaStorage({
+    refreshTokenLs: 'R2',
+    accessTokenLs: 'A2',
+    refreshTokenHienTai: null,
+  }).hanhDong === 'boQua',
+);
+
+assert(
+  'LS thiếu access token (ghi dở) → bỏ qua, chờ event kế',
+  quyetDinhDongBoTokenThongQuaStorage({
+    refreshTokenLs: 'R2',
+    accessTokenLs: null,
+    refreshTokenHienTai: 'R1',
+  }).hanhDong === 'boQua',
 );
 
 console.log(`\nPassed: ${passed}, Failed: ${failed}`);

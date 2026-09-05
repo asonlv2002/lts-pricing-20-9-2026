@@ -18,11 +18,12 @@ import {
   formatLsxLamWasteText,
   formatLsxCylText,
   formatLsxNumCylinders,
-  formatLsxPrintWasteLine,
-  formatLsxPrintProductLine,
   formatLsxLamProductLine,
   formatLsxLamSupplyLine,
   formatLsxBagNote,
+  hienThiPhiHaoIn,
+  hienThiPhiHaoTui,
+  hienThiThanhPhamIn,
   type LsxDocxTemplateKey,
 } from "../lib/lsxExport";
 import { formatLsxOrderQuantityParts } from "../lib/lsx-quantity";
@@ -36,8 +37,6 @@ import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from "../
 import {
   layDongTheoCongDoan,
   layKhoMangTuNguon,
-  layPhiHao,
-  layThanhPham,
 } from "../lib/lsx-nang-cao";
 
 // Times New Roman — same as BaoGiaPdfDocument / DOCX ground truth
@@ -451,8 +450,6 @@ function MangBody({
   const { snapshot: s, manual: m } = order;
   const hasDivide = orderHasDivide(order);
   const khoMM = layKhoMangTuNguon({ snapshot: s }, "In") ?? 0;
-  const tpIn = layThanhPham(order, "In");
-  const phiHaoIn = layPhiHao(order, "In");
   const chiaRow = layDongTheoCongDoan(order, "Chia");
   const phiHaoChia = chiaRow && typeof chiaRow.phiHao === "number" ? chiaRow.phiHao : layPhiHaoChia(order);
 
@@ -488,9 +485,9 @@ function MangBody({
         <Cell w="100%">
           <Line
             label="Thành phẩm in yêu cầu: "
-            value={tpIn ? `${tpIn.toLocaleString("vi-VN")}m` : formatLsxPrintProductLine(m)}
+            value={hienThiThanhPhamIn(order)}
           />
-          <Text>{`Định mức phi hao: ${phiHaoIn ? `${phiHaoIn.toLocaleString("vi-VN")}m` : formatLsxPrintWasteLine(m)}`}</Text>
+          <Text>{`Định mức phi hao: ${hienThiPhiHaoIn(order)}`}</Text>
           <Text>{`Số lượng cấp vật tư: ${v(m.materialQtySupplied)}`}</Text>
           {!!m.printNotes && <Line label="Ghi chú: " value={m.printNotes} />}
           <Line label="Trục in: " value={v(m.cylInfo)} />
@@ -587,9 +584,7 @@ function TuiBody({
       ? s.bagType || "Túi"
       : bagTypeLabelHienThi(bagInfo, s.bagType || "", !!s.hasZipper, !!m.lsxBagTypeOverride);
   const khoMM = layKhoMangTuNguon({ snapshot: s }, "In") ?? 0;
-  const tpIn = layThanhPham(order, "In");
-  const phiHaoIn = layPhiHao(order, "In");
-  const phiHaoTui = layPhiHao(order, "Làm túi") ?? m.bagWasteMeters;
+  const phiHaoTui = hienThiPhiHaoTui(order);
   const bagSize = lsxBagSizeMm(s);
   const templateKey = resolveLsxDocxTemplate(order);
   const bagRows = bagGridRows(templateKey, m, !!s.hasZipper, s.zipperDistanceMm);
@@ -647,8 +642,11 @@ function TuiBody({
           </View>
           <View style={styles.row}>
             <Cell w="50%">
-              <Text>{`Định mức phi hao: ${phiHaoIn ? `${phiHaoIn.toLocaleString("vi-VN")}m` : formatLsxPrintWasteLine(m, "…")}`}</Text>
-              <Text>{`Thành phẩm in: ${tpIn ? `${tpIn.toLocaleString("vi-VN")}m` : formatLsxPrintProductLine(m, "…")}`}</Text>
+              <Text>{`Định mức phi hao: ${hienThiPhiHaoIn(order) || "…"}`}</Text>
+              <Text>{`Thành phẩm in: ${hienThiThanhPhamIn(order) || "…"}`}</Text>
+              {m.materialQtySupplied > 0 && (
+                <Text>{`Số lượng cấp vật tư: ${v(m.materialQtySupplied)}`}</Text>
+              )}
               {!!m.printNotes && <Line label="Ghi chú: " value={m.printNotes} />}
             </Cell>
             <Cell w="50%">
@@ -746,8 +744,11 @@ function TuiBody({
                 )}
                 <View style={styles.row}>
                   <Cell w="50%">
-                    <Text>{`Định mức phi hao: ${phiHaoIn ? `${phiHaoIn.toLocaleString("vi-VN")}m` : formatLsxPrintWasteLine(m, "…")}`}</Text>
-                    <Text>{`Thành phẩm yêu cầu: ${tpIn ? `${tpIn.toLocaleString("vi-VN")}m` : formatLsxPrintProductLine(m, "…")}`}</Text>
+                    <Text>{`Định mức phi hao: ${hienThiPhiHaoIn(order) || "…"}`}</Text>
+                    <Text>{`Thành phẩm yêu cầu: ${hienThiThanhPhamIn(order) || "…"}`}</Text>
+                    {m.materialQtySupplied > 0 && (
+                      <Text>{`Số lượng cấp vật tư: ${v(m.materialQtySupplied)}`}</Text>
+                    )}
                     {!!m.printNotes && <Line label="Ghi chú: " value={m.printNotes} />}
                     {!!m.cylInfo && <Line label="Trục in: " value={m.cylInfo} />}
                   </Cell>
