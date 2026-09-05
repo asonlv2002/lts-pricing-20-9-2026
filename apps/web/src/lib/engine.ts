@@ -524,3 +524,71 @@ export function tinhDonGiaThuongMaiHieuLuc(
 
   return tong;
 }
+
+/**
+ * Tạo CalculateResult-shaped từ commercial input (dùng khi description mode).
+ * Engine chính trả null vì description mode thiếu data kỹ thuật (khổ, bước cắt, ...).
+ * Helper này để description mode dùng chung render path với form mode.
+ *
+ * Cost basis lấy từ `tinhGiaThuongMai` (mua + LN/sp + extraFee/sp).
+ * Các field engine khác (tape, handle, zipper, commission, interest, cyl) = 0.
+ * Box từ `hangSo.boxOptions[boxOptionKey].price` hoặc `input.boxPrice`.
+ * Shipping phân bổ theo `quantity`.
+ */
+export function synthesizeResultFromCommercial(
+  input: CalculateInput,
+  hangSo: AppConstants,
+  _materials: Material[]
+): CalculateResult {
+  const tm = tinhGiaThuongMai(input);
+  const qty = Math.max(0, Number(input.quantity) || 0);
+  const loaiThung = (hangSo.boxOptions ?? []).find(
+    (o: any) => o.key === input.boxOptionKey
+  );
+  const giaThung = loaiThung
+    ? Number(loaiThung.price) || 0
+    : Math.max(0, Number(input.boxPrice) || 0);
+  const soTuiMotThung = Math.max(1, Number(input.bagsPerBox) || 1);
+  const thungPerUnit = giaThung / soTuiMotThung;
+  const phiVC = Math.max(0, Number((input as any).shippingFee) || 0);
+  const vcPerUnit = qty > 0 ? phiVC / qty : 0;
+  const finalPrice = tm.unitPriceVnd + vcPerUnit + thungPerUnit + tm.extraFeePerUnit;
+  return {
+    input,
+    finalPrice,
+    costPerUnit: tm.unitPriceVnd,
+    profitRate: tm.profitPct,
+    profitAmount: tm.profitVnd,
+    interestPerUnit: 0,
+    shippingPerUnit: vcPerUnit,
+    shippingTotal: phiVC,
+    commissionPerUnit: 0,
+    commissionTotal: 0,
+    boxPerUnit: thungPerUnit,
+    boxTotal: giaThung,
+    tapePerUnit: 0,
+    handlePerUnit: 0,
+    zipperPerUnit: 0,
+    zipperTotal: 0,
+    tapeTotal: 0,
+    handleTotal: 0,
+    cylAllocPerUnit: 0,
+    cylinderCost: 0,
+    cylinderCostPerUnit: 0,
+    cylLength: 0,
+    cylCircum: 0,
+    totalThickness: 0,
+    bagArea: 0,
+    tareWeight: 0,
+    filmRollArea: 0,
+    structureText: (input.commercialDescription || '').trim() || 'Mô tả khác',
+    layers: { print: null, laminations: [] },
+    totalProductionCost: tm.unitPriceVnd * qty,
+    gcShippingPerUnit: 0,
+    gcPackagingPerUnit: 0,
+    gcOtherPerUnit: 0,
+    gcShippingTotal: 0,
+    gcPackagingTotal: 0,
+    gcOtherTotal: 0,
+  } as unknown as CalculateResult;
+}
