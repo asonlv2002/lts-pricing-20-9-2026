@@ -39,6 +39,8 @@ import {
 } from "lucide-react";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { dieuHuongMenuApp, menuKeyTinhGiaTheoItem } from "../lib/menu-route";
+import { apCpsxNangCaoVaoHangSo } from "../lib/cpsx-nang-cao-pin";
+import { tinhKetQuaNangCaoHieuLuc } from "../lib/dac-ta-nang-cao";
 import ComboBoxDieuKhoan from "./ComboBoxDieuKhoan";
 import { normalizeDisplayText } from "../lib/text-codec";
 import {
@@ -1777,7 +1779,10 @@ function BuocChonSanPham({
   const addProduct = (item: HistoryItem) => {
     if (addedIds.has(item.id)) return;
     const base = buildWizardProductFromHistoryItem(item);
-    const calcPrice = tinhGiaTheoSoLuong(item, item.quantity);
+    // Giá sheet là nguồn chuẩn (đã tính theo đường đúng lúc lưu/mở danh sách).
+    // Chỉ recalc khi chưa có giá nào (sheet legacy rỗng).
+    const giaGoc = base.tiers[0]?.finalPrice || item.finalPrice || 0;
+    const calcPrice = giaGoc > 0 ? giaGoc : tinhGiaTheoSoLuong(item, item.quantity);
     if (calcPrice > 0) {
       base.tiers = base.tiers.map((t) => ({
         ...t,
@@ -1813,14 +1818,34 @@ function BuocChonSanPham({
   const tinhGiaTheoSoLuong = (item: HistoryItem, quantity: number): number => {
     if (quantity <= 0) return 0;
     try {
+      const laNangCap = !!(item.isNangCap || item.input?.isNangCap);
+      // Sheet nâng cao: pin CPSX NC + tính qua bảng đặc tả NC (đồng bộ danh sách/A4),
+      // ghi đè dòng của sheet vẫn áp; LN% ghi đè = 0 (chỉ preview trong tab).
+      const hangSo =
+        laNangCap && item.pinnedCpsxNangCao
+          ? apCpsxNangCaoVaoHangSo(constants, item.pinnedCpsxNangCao)
+          : constants;
       const result = tinhBaoGia(
         { ...item.input, quantity },
         materials,
-        constants,
+        hangSo,
         profitTable,
         smallWidthPrices,
       );
-      return result?.finalPrice ?? item.finalPrice;
+      if (!result) return item.finalPrice;
+      if (!laNangCap) return result.finalPrice;
+      const { uniRows } = lapDongSanXuat(result, hangSo);
+      return tinhKetQuaNangCaoHieuLuc({
+        result,
+        uniRows,
+        constants: hangSo,
+        materials,
+        saleOverrides: item.saleOverrides ?? {},
+        adminOverrides: item.adminOverrides ?? {},
+        saleProfitRatePct: 0,
+        adminProfitRatePct: 0,
+        profitTable,
+      }).result.finalPrice;
     } catch {
       return item.finalPrice;
     }

@@ -166,8 +166,10 @@ export function mapPricingSheetToHistory(
   const saleProfitRatePct = unwrapProfitRatePct(sheet.saleResult);
   const adminProfitRatePct = unwrapProfitRatePct(sheet.masterResult);
 
-  // Bảng tính nâng cấp: giá hiển thị lấy từ bảng đặc tả nâng cao (có ghi đè)
-  // constants/materials = ctx đã pin (CPSX nâng cao lúc lưu), không phải latest session
+  // Bảng tính nâng cấp: giá hiển thị lấy từ bảng đặc tả nâng cao (có ghi đè dòng)
+  // constants/materials = ctx đã pin (CPSX nâng cao lúc lưu), không phải latest session.
+  // LN% ghi đè Sale/Admin KHÔNG áp vào giá hiển thị (chỉ preview trong tab) —
+  // đồng bộ với lưu sheet (history.ts) và A4 chi tiết (pricing-detail-export.ts).
   const ketQuaHienThi = laNangCap
     ? tinhKetQuaNangCaoHieuLuc({
         result,
@@ -176,8 +178,8 @@ export function mapPricingSheetToHistory(
         materials: ctx.materials,
         saleOverrides: saleOverrides ?? {},
         adminOverrides: adminOverrides ?? {},
-        saleProfitRatePct,
-        adminProfitRatePct,
+        saleProfitRatePct: 0,
+        adminProfitRatePct: 0,
         profitTable: ctx.profitTable,
       }).result
     : result;
