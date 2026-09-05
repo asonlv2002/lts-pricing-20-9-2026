@@ -731,6 +731,7 @@ function exportPricingDetailNangCaoToA4(
   const { uniRows } = lapDongSanXuat(r0, hangSo);
   const saleOv = item.saleOverrides ?? {};
   const adminOv = item.adminOverrides ?? {};
+  // Giá hero A4 theo LN hệ thống — LN% ghi đè Sale/Admin chỉ là scenario preview.
   const kq = tinhKetQuaNangCaoHieuLuc({
     result: r0,
     uniRows,
@@ -738,8 +739,8 @@ function exportPricingDetailNangCaoToA4(
     materials,
     saleOverrides: saleOv,
     adminOverrides: adminOv,
-    saleProfitRatePct: item.saleProfitRatePct ?? 0,
-    adminProfitRatePct: item.adminProfitRatePct ?? 0,
+    saleProfitRatePct: 0,
+    adminProfitRatePct: 0,
     profitTable,
   });
   const r = kq.result;

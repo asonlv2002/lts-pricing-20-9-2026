@@ -102,15 +102,26 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
         dauVaoMoi.cylLength = khoTrai > 0 ? Number(Math.max(0.7, khoTrai * soHinh + 0.1).toFixed(3)) : 0;
       }
 
-      if ('divideElements' in partial || 'hasDivide' in partial || 'spreadWidth' in partial || 'numImages' in partial) {
-        const soPt = Math.max(1, Math.round(dauVaoMoi.divideElements || 0));
+      // "Có chia" là công tắc tường minh (checkbox); khổ chia = gợi ý tự tính, user sửa được.
+      if ('hasDivide' in partial) {
+        if (!dauVaoMoi.hasDivide) {
+          dauVaoMoi.hasDivide = false;
+          dauVaoMoi.divideElements = 1;
+          dauVaoMoi.divideWidthMm = 0;
+        } else {
+          const soPt = Math.max(1, Math.round(dauVaoMoi.divideElements || 1));
+          dauVaoMoi.divideElements = soPt;
+          if ((dauVaoMoi.spreadWidth || 0) > 0) {
+            const soHinh = Math.max(1, dauVaoMoi.numImages || 1);
+            dauVaoMoi.divideWidthMm = Math.round((dauVaoMoi.spreadWidth || 0) * 1000 * soHinh / soPt);
+          }
+        }
+      } else if (dauVaoMoi.hasDivide && ('divideElements' in partial || 'spreadWidth' in partial || 'numImages' in partial)) {
+        const soPt = Math.max(1, Math.round(dauVaoMoi.divideElements || 1));
         dauVaoMoi.divideElements = soPt;
-        dauVaoMoi.hasDivide = soPt > 1;
-        if (dauVaoMoi.hasDivide && (dauVaoMoi.spreadWidth || 0) > 0) {
+        if ((dauVaoMoi.spreadWidth || 0) > 0) {
           const soHinh = Math.max(1, dauVaoMoi.numImages || 1);
           dauVaoMoi.divideWidthMm = Math.round((dauVaoMoi.spreadWidth || 0) * 1000 * soHinh / soPt);
-        } else if (!dauVaoMoi.hasDivide) {
-          dauVaoMoi.divideWidthMm = 0;
         }
       }
 

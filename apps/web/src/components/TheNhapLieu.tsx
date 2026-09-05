@@ -1019,21 +1019,29 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
             </div>
           </div>
 
-          <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">Số phần tử chia</label>
-              <input type="text" className="form-input" value={input.divideElements === 1 ? '' : input.divideElements} inputMode="numeric" placeholder="1"
-                onKeyDown={e => { if (e.key === '.' || e.key === ',' || e.key === 'e') e.preventDefault(); }}
-                onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); if (raw === '') { capNhatDauVao({ divideElements: 0 } as any); return; } const v = parseInt(raw, 10); capNhatDauVao({ divideElements: Math.max(1, v) } as any); }}
-                onBlur={() => { if (!input.divideElements) capNhatDauVao({ divideElements: 1 } as any); }} />
-            </div>
-            {input.hasDivide && (
+          <div className="form-group" style={{ marginTop: '2px' }}>
+            <label className="form-row-checkbox" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem' }}>
+              <input type="checkbox" checked={!!input.hasDivide}
+                onChange={e => capNhatDauVao({ hasDivide: e.target.checked } as any)} />
+              <span>Có chia</span>
+            </label>
+          </div>
+
+          {input.hasDivide && (
+            <div className="form-row">
+              <div className="form-group">
+                <label className="form-label">Số phần tử chia</label>
+                <input type="text" className="form-input" value={input.divideElements === 1 ? '' : input.divideElements} inputMode="numeric" placeholder="1"
+                  onKeyDown={e => { if (e.key === '.' || e.key === ',' || e.key === 'e') e.preventDefault(); }}
+                  onChange={e => { const raw = e.target.value.replace(/[^0-9]/g, ''); if (raw === '') { capNhatDauVao({ divideElements: 0 } as any); return; } const v = parseInt(raw, 10); capNhatDauVao({ divideElements: Math.max(1, v) } as any); }}
+                  onBlur={() => { if (!input.divideElements) capNhatDauVao({ divideElements: 1 } as any); }} />
+              </div>
               <div className="form-group">
                 <label className="form-label">Khổ chia (m)</label>
-                <input type="text" className="form-input" value={((input.divideWidthMm || 0) / 1000).toLocaleString('vi-VN', { maximumFractionDigits: 3 })} readOnly tabIndex={-1} />
+                <ONhapSoThapPhan className="form-input" value={(input.divideWidthMm || 0) / 1000} step="0.001" min="0.001" onChange={(val: number) => capNhatDauVao({ divideWidthMm: Math.round(val * 1000) } as any)} />
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {hienThiChonLop('Lớp 1', 'layer1Id', false)}
           {!(input as any).layer2AltId ? (

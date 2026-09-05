@@ -99,7 +99,9 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       // Tính mã khách hàng hiện tại
       const currentCustomerCode = timMaKhachHang(state.input.customer) || null;
 
-      // Tab nâng cấp: giá lưu theo bảng đặc tả nâng cao (có ghi đè)
+      // Tab nâng cấp: giá lưu theo bảng đặc tả nâng cao (có ghi đè dòng).
+      // LN% ghi đè Sale/Admin KHÔNG áp vào giá lưu — chỉ preview trong tab;
+      // pct vẫn được lưu vào item để trang phụ PDF/tab hiện scenario.
       const laNangCap = !!state.cheDoNangCao;
       const ketQuaLuu = laNangCap
         ? tinhKetQuaNangCaoHieuLuc({
@@ -109,8 +111,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
             materials: state.materials,
             saleOverrides: state.saleOverrides,
             adminOverrides: state.adminOverrides,
-            saleProfitRatePct: state.saleProfitRatePct,
-            adminProfitRatePct: state.adminProfitRatePct,
+            saleProfitRatePct: 0,
+            adminProfitRatePct: 0,
             profitTable: state.profitTable,
           }).result
         : state.result;
@@ -452,6 +454,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const hangSoLuu = laNangCap
         ? apCpsxNangCaoVaoHangSo(state.constants, pinCpsx)
         : state.constants;
+      // LN% ghi đè Sale/Admin KHÔNG áp vào giá cập nhật — chỉ preview trong tab.
       const ketQuaLuu = laNangCap
         ? tinhKetQuaNangCaoHieuLuc({
             result: state.result,
@@ -460,8 +463,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
             materials: state.materials,
             saleOverrides: state.saleOverrides,
             adminOverrides: state.adminOverrides,
-            saleProfitRatePct: state.saleProfitRatePct,
-            adminProfitRatePct: state.adminProfitRatePct,
+            saleProfitRatePct: 0,
+            adminProfitRatePct: 0,
             profitTable: state.profitTable,
           }).result
         : state.result;

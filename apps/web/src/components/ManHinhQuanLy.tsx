@@ -1475,8 +1475,9 @@ const buttonLabel = loadedItem
         materials,
         saleOverrides: ghiDeSale,
         adminOverrides: ghiDeAdmin,
-        saleProfitRatePct,
-        adminProfitRatePct,
+        // LN% ghi đè Sale/Admin chỉ preview trong tab — màn hình giá luôn theo LN hệ thống
+        saleProfitRatePct: 0,
+        adminProfitRatePct: 0,
         profitTable: bangLoiNhuan,
       })
     : null;
@@ -1791,6 +1792,7 @@ const buttonLabel = loadedItem
     const res = calculateForInput(inp);
     if (!res) return { qty, res, isCurrent: qty === currentQty };
     // Tab nâng cấp: mỗi mức SL tính lại bảng đặc tả nâng cao → giá mới
+    // (LN% ghi đè Sale/Admin chỉ preview trong tab — MOQ theo LN hệ thống)
     const resHieuLuc = nangCap
       ? tinhKetQuaNangCaoHieuLuc({
           result: res,
@@ -1799,8 +1801,8 @@ const buttonLabel = loadedItem
           materials,
           saleOverrides: ghiDeSale,
           adminOverrides: ghiDeAdmin,
-          saleProfitRatePct,
-          adminProfitRatePct,
+          saleProfitRatePct: 0,
+          adminProfitRatePct: 0,
           profitTable: bangLoiNhuan,
         }).result
       : res;
