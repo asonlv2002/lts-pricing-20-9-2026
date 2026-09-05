@@ -38,6 +38,7 @@ function TheThuGon({
   resetKey,
   style,
   giuTrangThaiKhiReset = false,
+  moDinh = false,
 }: {
   title: React.ReactNode;
   children: React.ReactNode;
@@ -45,8 +46,10 @@ function TheThuGon({
   style?: React.CSSProperties;
   /** true = không ép đóng khi kết quả tính lại (user giữ trạng thái mở/đóng) */
   giuTrangThaiKhiReset?: boolean;
+  /** true = khởi tạo ở trạng thái mở */
+  moDinh?: boolean;
 }) {
-  const [mo, datMo] = useState(false);
+  const [mo, datMo] = useState(moDinh);
   React.useEffect(() => {
     if (!giuTrangThaiKhiReset) datMo(false);
   }, [resetKey, giuTrangThaiKhiReset]);
@@ -1339,41 +1342,343 @@ const buttonLabel = loadedItem
   if (isCommercial && commercialMode === 'description') {
     const kqTM = tinhGiaThuongMai(input);
     const donViTM = kqTM.unitLabel; // "/Túi" | "/m²" | "/m" | "/<custom>"
+    const donViTMGoc = donViTM.replace('/', '');
     const soLuongTM = Math.max(0, Number(input.quantity) || 0);
-    const phiVC = Math.max(0, Number((input as any).shippingFee) || 0);
-    const vcPerUnit = soLuongTM > 0 ? phiVC / soLuongTM : 0;
-    const loaiThung = (hangSo.boxOptions ?? []).find((o: any) => o.key === input.boxOptionKey);
-    const giaThung = loaiThung ? loaiThung.price : Math.max(0, Number(input.boxPrice) || 0);
+    const laCoSL = soLuongTM > 0;
+    // Kết quả tổng hợp từ tinhBaoGia (synthesizeResultFromCommercial) — 1 nguồn công thức
+    // với kết quả lưu lịch sử: mua+LN, VC (đ/km × km), thùng, phụ phí, lãi vay, hoa hồng.
+    const kqTongHop = ketQua;
+    const phiVC = Math.max(0, kqTongHop?.shippingTotal ?? 0);
+    const vcPerUnit = kqTongHop?.shippingPerUnit ?? 0;
+    const thungPerUnit = kqTongHop?.boxPerUnit ?? 0;
+    const laiVayPerUnit = kqTongHop?.interestPerUnit ?? 0;
+    const hoaHongPerUnit = kqTongHop?.commissionPerUnit ?? 0;
     const soTuiMotThung = Math.max(1, Number(input.bagsPerBox) || 1);
-    const thungPerUnit = soLuongTM > 0 && soTuiMotThung > 0 ? giaThung / soTuiMotThung : 0;
+    const trongLuongThung = Math.max(0, Number(input.boxWeight) || 0);
     const trongLuongMoiDonVi = Math.max(0, Number(input.commercialUnitWeight) || 0);
-    const tongTrongLuongGr = soLuongTM * trongLuongMoiDonVi;
+    // Tổng trọng lượng (vận chuyển tổng lô) = trọng lượng đơn hàng + trọng lượng thùng
+    // (số thùng × trọng lượng thùng) — khớp yêu cầu nghiệp vụ.
+    const soLuongThung = laCoSL && Number(input.bagsPerBox) > 0 ? soLuongTM / Number(input.bagsPerBox) : 0;
+    const trongLuongThungTongGr = soLuongThung * trongLuongThung;
+    const tongTrongLuongGr = soLuongTM * trongLuongMoiDonVi + trongLuongThungTongGr;
     const tongTrongLuongKg = tongTrongLuongGr / 1000;
     const tongTrongLuongTan = tongTrongLuongGr / 1000000;
-    const laCoSL = soLuongTM > 0;
     const lnLabel = kqTM.profitUnit === 'percent'
       ? `${dinhDangSo(kqTM.profitRawValue, 2)}% (= ${dinhDangSo(kqTM.profitPerUnit, 0)} đ${donViTM})`
       : `${dinhDangSo(kqTM.profitRawValue, 0)} đ${donViTM} (= ${dinhDangSo(kqTM.profitPct * 100, 2)}%)`;
-    const tongCongPerUnit = kqTM.unitPriceVnd + vcPerUnit + thungPerUnit + kqTM.extraFeePerUnit;
-    const giaHienThi = laCoSL ? kqTM.unitPriceVnd + vcPerUnit + thungPerUnit + kqTM.extraFeePerUnit : 0;
+    const tongCongPerUnit = kqTongHop?.finalPrice
+      ?? (kqTM.unitPriceVnd + vcPerUnit + thungPerUnit + kqTM.extraFeePerUnit + laiVayPerUnit + hoaHongPerUnit);
+    const giaHienThi = laCoSL ? tongCongPerUnit : 0;
+    const chuoiMotaTM = (input.commercialDescription || '').trim();
+
+    // ── Chốt giá + phân bổ chênh lệch (mirror màn kết quả đầy đủ) ──
+    const giaDeXuatTM = giaHienThi;
+    const chotGiaNum = giaChotHienTai || 0;
+    const hasChotGia = chotGiaNum > 0;
+    const shownPriceTM = hasChotGia ? chotGiaNum : giaDeXuatTM;
+    const diffTM = hasChotGia ? chotGiaNum - giaDeXuatTM : 0;
+    const hienThiPhanBoChotGia = tinhNhapPhanBoChotGia({
+      hasChotGia,
+      diff: diffTM,
+      hoaHongNhap: phanBoCongTy,
+      hoaHongEngine: hoaHongPerUnit,
+      donViPhanBo,
+    });
+    const phanBoHoaHongTM = hienThiPhanBoChotGia.hoaHongAmount;
+    const coLoiPhanBoTM = hienThiPhanBoChotGia.loi.length > 0;
+    const giaTriNhapCongTyTM = coLoiPhanBoTM ? 'Lỗi phân bổ' : dinhDangSo(hienThiPhanBoChotGia.congTyDisplay, 1);
+    const giaTriNhapHoaHongTM = phanBoDangNhap.field === 'commission'
+      ? phanBoDangNhap.value
+      : String(+(hienThiPhanBoChotGia.hoaHongDisplay).toFixed(1));
+    const newCommissionPerUnitTM = Math.max(0, hoaHongPerUnit + phanBoHoaHongTM);
+    const doanhThuChotTM = shownPriceTM * soLuongTM;
+    const tongHoaHongChotTM = newCommissionPerUnitTM * soLuongTM;
+    // Chi phí/sp = mua + VC + thùng + phụ phí + lãi vay (KHÔNG gồm LN, không gồm hoa hồng)
+    const chiPhiDonViTM = kqTM.purchasePrice + vcPerUnit + thungPerUnit + kqTM.extraFeePerUnit + laiVayPerUnit;
+    const tongChiPhiTM = chiPhiDonViTM * soLuongTM;
+    const loiNhuanCongTyChotTM = doanhThuChotTM - tongChiPhiTM - tongHoaHongChotTM;
+    const pctLoiNhuanCongTyChotTM = tongChiPhiTM > 0 ? loiNhuanCongTyChotTM / tongChiPhiTM : 0;
+    const commissionPctShownTM = tongChiPhiTM > 0 ? (newCommissionPerUnitTM * soLuongTM / tongChiPhiTM) : 0;
+
+    // ── Thẻ thống kê ──
+    const doanhThuTM = giaDeXuatTM * soLuongTM;
+    const hoaHongTongTM = hoaHongPerUnit * soLuongTM;
+    const tongMuaTM = kqTM.purchasePrice * soLuongTM;
+    const hoaHongPctTM = tongMuaTM > 0 ? hoaHongTongTM / tongMuaTM : 0;
+
+    // Xuất A4 — bản thương mại 1 trang, dùng chung nguồn với 👁 Xem ở danh sách lịch sử
+    const xuLyXemChiTietTM = () => {
+      const st = dungCuaHangTinhGia.getState();
+      const item: HistoryItem = {
+        id: loadedItem?.id ?? 'draft-export',
+        date: loadedItem?.date ?? new Date().toLocaleString('vi-VN'),
+        customer: input.customer || '—',
+        productName: input.productName || '—',
+        structure: kqTongHop?.structureText || 'Mô tả khác',
+        quantity: input.quantity,
+        finalPrice: giaDeXuatTM,
+        profitRate: kqTM.profitPct,
+        chotGia: hasChotGia ? chotGiaNum : undefined,
+        isThuongMai: true,
+        input: { ...input },
+        sellerName: loadedItem?.sellerName,
+      };
+      exportPricingDetailToA4(item, st.materials, st.constants, st.profitTable);
+    };
+
+    // Lưu bảng tính "Mô tả khác" — logic khớp nút Lưu của màn kết quả đầy đủ:
+    // check tên SP → quyền khách → themVaoLichSu/capNhatVaoLichSu → sync server → toast.
+    // Result đã được synthesize trong tinhBaoGia (structureText = nội dung mô tả).
+    const luuMotaBaoGia = (kieu: 'moi' | 'capNhat') => {
+      if (!(input.productName || '').trim()) {
+        alert('Vui lòng nhập tên sản phẩm trước khi lưu.');
+        return;
+      }
+      if (!kiemTraKhachHangQuyen()) return;
+      if (kieu === 'capNhat') capNhatVaoLichSu(); else themVaoLichSu();
+      const st = dungCuaHangTinhGia.getState();
+      const h = timMucLichSuTheoId(st.history, st.loadedHistoryId);
+      const syncAdvisor = coQuyenCoVanBangTinh(st.nguoiDungHienTai?.policies ?? []);
+      void syncPricingSheetToServer(h, isAuthenticated, accessToken, { syncAdvisor })
+        .then(() => { dungCuaHangTinhGia.getState().taiLichSuTuServer(); });
+      const container = document.getElementById('toastContainer');
+      if (container) {
+        const toast = document.createElement('div');
+        toast.className = 'toast toast-clickable';
+        toast.innerHTML = kieu === 'capNhat'
+          ? '🔄 Đã cập nhật bảng tính giá! <span style="text-decoration:underline;margin-left:6px;">Xem lịch sử →</span>'
+          : '💾 Đã lưu báo giá! <span style="text-decoration:underline;margin-left:6px;">Xem lịch sử →</span>';
+        toast.addEventListener('click', () => { dieuHuongModuleApp('history_db'); toast.remove(); });
+        container.appendChild(toast);
+        setTimeout(() => toast.remove(), 5000);
+      }
+    };
 
     return (
       <div className="panel active" id="panel-manager">
         <div className="manager-content">
           <div className="card" style={{ marginBottom: 14, padding: 0, background: 'transparent', border: 'none', boxShadow: 'none' }}>
             <div className="price-hero">
-              <div className="label">{`Giá đề xuất ${donViTM}`}</div>
+              <div className="label">{hasChotGia ? `Giá bán chốt ${donViTM}` : `Giá đề xuất ${donViTM}`}</div>
               <div className="value" id="s-price" style={laCoSL ? undefined : { color: 'var(--muted)' }}>
-                {laCoSL ? dinhDangSo(giaHienThi, 0) : '—'}
+                {laCoSL ? dinhDangSo(shownPriceTM, 0) : '—'}
               </div>
               <div className="unit">
                 {laCoSL
-                  ? `(đã gồm mua + LN + phụ phí + VC + thùng)`
+                  ? `(đã gồm mua + LN + phụ phí + VC + thùng + lãi vay + hoa hồng)`
                   : 'nhập Số lượng + Đơn giá mua + LN để tính'}
               </div>
               <div className="sub" id="s-structure">
                 <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: '1.05rem', marginBottom: 12 }}>
                   {input.customer || '—'} — {input.productName || '—'}
+                </div>
+                {laCoSL && (
+                  <div style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: chuoiMotaTM ? 10 : 0 }}>
+                    Số lượng: <strong style={{ color: 'var(--text)' }}>{dinhDangSo(soLuongTM, 0)}</strong> {kqTM.unitLabel.replace('/', '')}
+                  </div>
+                )}
+                {chuoiMotaTM && (
+                  <div style={{
+                    whiteSpace: 'pre-wrap',
+                    background: 'var(--surface2, rgba(0,0,0,0.04))',
+                    border: '1px solid var(--border)',
+                    borderRadius: 8,
+                    padding: '10px 12px',
+                    fontSize: '0.85rem',
+                    color: 'var(--text-secondary, var(--text))',
+                    lineHeight: 1.55,
+                  }}>
+                    {chuoiMotaTM}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* ═══ Chốt giá + phân bổ chênh lệch ═══ */}
+          <div className="chot-gia-row">
+            <div className="form-group" style={{flex: 1}}>
+              <label className="form-label">Giá bán chốt (đ{donViTM})</label>
+              <input
+                className="form-input"
+                placeholder="Nhập giá chốt..."
+                style={{borderColor: 'var(--green)'}}
+                value={giaChotHienTai > 0 ? String(Math.round(giaChotHienTai)) : ''}
+                onChange={(e) => datGiaChotHienTai(Number(e.target.value.replace(/[^\d.]/g, '')) || 0)}
+              />
+            </div>
+            <div className="form-group" style={{flex: 1.5, opacity: hasChotGia ? 1 : 0.5, pointerEvents: hasChotGia ? 'auto' : 'none'}}>
+              <label className="form-label" style={{whiteSpace:'nowrap'}}>Phân bổ chênh lệch {hasChotGia ? `(${diffTM >= 0 ? '+' : ''}${dinhDangSo(diffTM, 1)}đ${donViTM})` : ''}</label>
+              <div style={{display:'flex', gap:'4px', alignItems:'center'}}>
+                <span style={{fontSize:'0.78rem', whiteSpace:'nowrap'}}>Hoa hồng</span>
+                <input
+                  className="form-input"
+                  type="text"
+                  inputMode="decimal"
+                  style={{flex: 1, textAlign:'right', minWidth:0}}
+                  value={giaTriNhapHoaHongTM}
+                  onBlur={() => datPhanBoDangNhap({ field: null, value: '' })}
+                  onChange={(e) => {
+                    const raw = e.target.value.replace(/-/g, '');
+                    if (raw.trim() === '') {
+                      datPhanBoDangNhap({ field: 'commission', value: '' });
+                      setPhanBoCongTy(0);
+                      return;
+                    }
+                    const hoaHong = Number(raw.replace(',', '.'));
+                    if (!Number.isFinite(hoaHong)) {
+                      datPhanBoDangNhap({ field: 'commission', value: raw });
+                      return;
+                    }
+                    const nextHoaHong = donViPhanBo === 'percent'
+                      ? Math.min(100, Math.max(0, hoaHong))
+                      : Math.max(0, hoaHong);
+                    datPhanBoDangNhap({ field: 'commission', value: donViPhanBo === 'percent' && hoaHong > 100 ? '100' : raw });
+                    setPhanBoCongTy(nextHoaHong);
+                  }}
+                  placeholder="0"
+                />
+                <span style={{fontSize:'0.78rem', whiteSpace:'nowrap'}}>Công ty</span>
+                <input
+                  className="form-input"
+                  type="text"
+                  inputMode="decimal"
+                  style={{
+                    flex: 1,
+                    textAlign:'right',
+                    minWidth:0,
+                    background: 'var(--subtle, #f8fafc)',
+                    color: coLoiPhanBoTM ? '#dc2626' : undefined,
+                    fontWeight: coLoiPhanBoTM ? 700 : undefined,
+                    borderColor: coLoiPhanBoTM ? '#dc2626' : undefined,
+                  }}
+                  value={giaTriNhapCongTyTM}
+                  readOnly
+                  aria-readonly="true"
+                />
+                <select
+                  className="form-input"
+                  style={{width:'62px', padding:'6px 2px', flexShrink:0}}
+                  value={donViPhanBo}
+                  onChange={(e) => {
+                    const next = e.target.value as 'vnd' | 'percent';
+                    if (hasChotGia && diffTM !== 0) {
+                        const absDiff = Math.abs(diffTM);
+                        setPhanBoCongTy(next === 'percent'
+                          ? Math.min(100, +(donViPhanBo === 'vnd' && absDiff > 0 ? (phanBoCongTy / absDiff * 100) : phanBoCongTy).toFixed(1))
+                          : +(donViPhanBo === 'percent' ? (phanBoCongTy * absDiff / 100) : phanBoCongTy).toFixed(1));
+                      }
+                    datPhanBoDangNhap({ field: null, value: '' });
+                    setDonViPhanBo(next);
+                  }}
+                >
+                  <option value="vnd">VNĐ</option>
+                  <option value="percent">%</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* ═══ Lưu / Xem bảng tính ═══ */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 14 }}>
+            {loadedItem ? (
+              <>
+                {loadedItem?.canUpdate === true && (
+                  <button
+                    className="btn btn-sm btn-green"
+                    style={{ marginBottom: 0, height: '40px' }}
+                    title="Cập nhật bảng tính giá hiện tại"
+                    onClick={() => luuMotaBaoGia('capNhat')}
+                  >
+                    🔄 Cập nhật
+                  </button>
+                )}
+                <button
+                  className="btn btn-sm btn-green"
+                  style={{ marginBottom: 0, height: '40px' }}
+                  title="Tạo bảng tính giá mới"
+                  onClick={() => luuMotaBaoGia('moi')}
+                >
+                  📄 Lưu mới
+                </button>
+              </>
+            ) : (
+              <button
+                className="btn btn-sm btn-green"
+                style={{ marginBottom: 0, height: '40px' }}
+                title="Lưu bảng tính giá vào lịch sử"
+                onClick={() => luuMotaBaoGia('moi')}
+              >
+                💾 Lưu báo giá
+              </button>
+            )}
+            <button
+              type="button"
+              className="btn btn-sm btn-outline"
+              style={{ marginBottom: 0, height: '40px' }}
+              title="Xem chi tiết bảng tính (A4)"
+              onClick={xuLyXemChiTietTM}
+            >
+              👁 Xem
+            </button>
+          </div>
+
+          <div id="chotAnalysis">
+            {hasChotGia ? (
+              <div className={`chot-analysis ${diffTM >= 0 ? 'positive' : 'negative'}`}>
+                <div className="chot-row">
+                  <span className="chot-label">{diffTM >= 0 ? '✅' : '⚠️'} Chênh lệch / {donViTMGoc}</span>
+                  <span className="chot-value">{diffTM >= 0 ? '+' : ''}{dinhDangSo(diffTM, 1)} đ/{donViTMGoc}</span>
+                </div>
+                <div className="chot-row" style={{fontSize:'0.82rem', color:'var(--muted)'}}>
+                  <span className="chot-label">
+                    {donViPhanBo === 'percent'
+                      ? <>↳ Hoa hồng: {dinhDangSo(hienThiPhanBoChotGia.hoaHongDisplay, 1)}% = {dinhDangSo(hienThiPhanBoChotGia.hoaHongAmount, 1)}đ | Công ty: {dinhDangSo(hienThiPhanBoChotGia.congTyDisplay, 1)}% = {dinhDangSo(hienThiPhanBoChotGia.congTyAmount, 1)}đ</>
+                      : <>↳ Hoa hồng: {dinhDangSo(phanBoHoaHongTM, 1)}đ | Công ty: {dinhDangSo(hienThiPhanBoChotGia.congTyAmount, 1)}đ</>}
+                  </span>
+                </div>
+                {hienThiPhanBoChotGia.loi.map((msg, index) => (
+                  <div key={index} className="chot-row" style={{fontSize:'0.82rem', color: '#b45309'}}>
+                    <span className="chot-label">⚠ {msg}</span>
+                  </div>
+                ))}
+                <div className="chot-row" style={{fontWeight:700}}>
+                  <span className="chot-label">Doanh thu tổng</span>
+                  <span className="chot-value">{dinhDangSo(shownPriceTM)} đ/{donViTMGoc} × {dinhDangSo(soLuongTM)} {donViTMGoc} = {dinhDangSo(doanhThuChotTM)} đ</span>
+                </div>
+                <div className="chot-row">
+                  <span className="chot-label">LN công ty ({dinhDangPhanTram(pctLoiNhuanCongTyChotTM)})</span>
+                  <span className="chot-value">{dinhDangSo(loiNhuanCongTyChotTM)} đ</span>
+                </div>
+                <div className="chot-row">
+                  <span className="chot-label">% Hoa hồng ({dinhDangPhanTram(commissionPctShownTM)})</span>
+                  <span className="chot-value">{dinhDangSo(tongHoaHongChotTM)} đ</span>
+                </div>
+              </div>
+            ) : null}
+          </div>
+
+          <div className="stat-grid" id="s-stats">
+            <div className="stat-card green">
+              <div className="stat-label">Lợi nhuận</div>
+              <div className="stat-value" style={{fontSize: '1.15rem'}}>
+                {dinhDangSo(kqTM.profitVnd)}đ <span style={{fontSize: '0.85rem'}}>({dinhDangPhanTram(kqTM.profitPct)})</span>
+              </div>
+            </div>
+            <div className="stat-card cyan">
+              <div className="stat-label">Doanh thu</div>
+              <div className="stat-value">{dinhDangSo(doanhThuTM)} đ</div>
+            </div>
+            <div className="stat-card orange">
+              <div className="stat-label">Giá Bán{donViTM}</div>
+              <div className="stat-value">{dinhDangSo(giaDeXuatTM, 0)} đ</div>
+            </div>
+            <div className="stat-card pink">
+              <div className="stat-label">Hoa hồng</div>
+              <div className="stat-value" style={{fontSize: '1.15rem'}}>
+                {dinhDangSo(hoaHongTongTM)} đ
+                <div style={{fontSize:'0.85rem', fontWeight:'normal', marginTop:'4px'}}>
+                  {dinhDangSo(hoaHongPerUnit, 1)} đ{donViTM} ({dinhDangPhanTram(hoaHongPctTM)})
                 </div>
               </div>
             </div>
@@ -1381,9 +1686,9 @@ const buttonLabel = loadedItem
 
           {/* ═══ Chi tiết giá đề xuất ═══ */}
           <TheThuGon
-            resetKey={`${kqTM.unitPriceVnd}|${soLuongTM}|${kqTM.profitRawValue}`}
+            resetKey={`${kqTM.unitPriceVnd}|${soLuongTM}|${kqTM.profitRawValue}|${input.paymentDays}|${input.commissionInputValue}|${input.commissionUnit}|${input.shippingPerKm}|${input.shippingKm}|${input.boxPrice}|${input.bagsPerBox}|${giaChotHienTai}`}
             style={{ marginBottom: '14px' }}
-            title={<><span className="icon">💰</span> Chi tiết giá đề xuất{donViTM ? ` ${donViTM}` : ''}</>}
+            title={<><span className="icon">💰</span> Chi tiết giá {hasChotGia ? 'chốt' : 'đề xuất'}{donViTM ? ` ${donViTM}` : ''}</>}
           >
             <ul className="breakdown-list" id="s-breakdown">
               <li><span className="bl-label">Đơn giá mua</span><span className="bl-value">{dinhDangSo(kqTM.purchasePrice, 0)} đ{donViTM}</span></li>
@@ -1394,16 +1699,33 @@ const buttonLabel = loadedItem
               {phiVC > 0 && (
                 <li><span className="bl-label">Vận chuyển / đơn vị</span><span className="bl-value">{dinhDangSo(vcPerUnit, 0)} đ{donViTM}</span></li>
               )}
-              {giaThung > 0 && (
+              {thungPerUnit > 0 && (
                 <li><span className="bl-label">Phí thùng / đơn vị</span><span className="bl-value">{dinhDangSo(thungPerUnit, 0)} đ{donViTM}</span></li>
+              )}
+              {laiVayPerUnit > 0 && (
+                <li><span className="bl-label">Lãi vay vốn ({dinhDangSo((hangSo.interestBase || 0) + (hangSo.interestSpread || 0), 2)}%/năm · {input.paymentDays ?? 30} ngày)</span><span className="bl-value">{dinhDangSo(laiVayPerUnit, 0)} đ{donViTM}</span></li>
+              )}
+              {hoaHongPerUnit > 0 && (
+                <li><span className="bl-label">Hoa hồng kinh doanh</span><span className="bl-value">{dinhDangSo(hoaHongPerUnit, 0)} đ{donViTM}</span></li>
               )}
               <li className="bl-total">
                 <span className="bl-label" style={{ color: 'var(--orange)' }}>GIÁ ĐỀ XUẤT{donViTM ? ` ${donViTM.toUpperCase()}` : ''}</span>
                 <span className="bl-value" style={{ color: 'var(--orange)' }}>{laCoSL ? `${dinhDangSo(tongCongPerUnit, 0)} đ` : '—'}</span>
               </li>
+              {hasChotGia && (
+                <li className="bl-total" style={{borderTop: '1px dashed var(--border)', marginTop: '6px', paddingTop: '8px'}}>
+                  <span className="bl-label" style={{color:'var(--green)'}}>GIÁ BÁN CHỐT{donViTM ? ` ${donViTM.toUpperCase()}` : ''}</span>
+                  <span className="bl-value" style={{color:'var(--green)'}}>
+                    {dinhDangSo(chotGiaNum, 0)} đ
+                    <span style={{fontSize:'0.75em', fontWeight:400, marginLeft:'8px', color: diffTM >= 0 ? 'var(--green)' : 'var(--red)'}}>
+                      ({diffTM >= 0 ? '+' : ''}{dinhDangSo(diffTM, 0)} đ)
+                    </span>
+                  </span>
+                </li>
+              )}
               {laCoSL && (
                 <li style={{ marginTop: 6, fontSize: '0.78rem', color: 'var(--muted)' }}>
-                  × {dinhDangSo(soLuongTM, 0)} sp = <strong style={{ color: 'var(--text)' }}>{dinhDangSo(tongCongPerUnit * soLuongTM, 0)} đ</strong> tổng lô
+                  × {dinhDangSo(soLuongTM, 0)} {donViTMGoc} = <strong style={{ color: 'var(--text)' }}>{dinhDangSo(tongCongPerUnit * soLuongTM, 0)} đ</strong> tổng lô
                 </li>
               )}
             </ul>
@@ -1417,14 +1739,31 @@ const buttonLabel = loadedItem
           >
             <ul className="breakdown-list" id="m-t-weight">
               <li><span className="bl-label">Trọng lượng / đơn vị</span><span className="bl-value">{trongLuongMoiDonVi > 0 ? `${dinhDangSo(trongLuongMoiDonVi, 2)} gr` : '— (nhập ở Thu mua)'}</span></li>
-              <li><span className="bl-label">Tổng trọng lượng</span><span className="bl-value">{tongTrongLuongKg > 0 ? `${dinhDangSo(tongTrongLuongKg, 1)} kg` : '—'}</span></li>
+              <li><span className="bl-label">Tổng trọng lượng đơn hàng</span><span className="bl-value">{soLuongTM * trongLuongMoiDonVi > 0 ? `${dinhDangSo((soLuongTM * trongLuongMoiDonVi) / 1000, 1)} kg` : '—'}</span></li>
+              <li><span className="bl-label">Trọng lượng thùng ({dinhDangSo(soLuongThung, 0)} thùng × {dinhDangSo(trongLuongThung, 0)} gr)</span><span className="bl-value">{trongLuongThungTongGr > 0 ? `${dinhDangSo(trongLuongThungTongGr / 1000, 1)} kg` : '—'}</span></li>
+              <li><span className="bl-label">Vận chuyển tổng lô</span><span className="bl-value">{tongTrongLuongKg > 0 ? `${dinhDangSo(tongTrongLuongKg, 1)} kg` : '—'}</span></li>
               <li><span className="bl-label">Trọng lượng (tấn)</span><span className="bl-value">{tongTrongLuongTan > 0 ? `${dinhDangSo(tongTrongLuongTan, 3)} tấn` : '—'}</span></li>
-              <li><span className="bl-label">Vận chuyển (tổng lô)</span><span className="bl-value">{phiVC > 0 ? `${dinhDangSo(phiVC, 0)} đ` : '— (nhập ở Phụ phí)'}</span></li>
+              <li><span className="bl-label">Vận chuyển (tổng phí)</span><span className="bl-value">{phiVC > 0 ? `${dinhDangSo(phiVC, 0)} đ` : '— (nhập đ/km × km ở Phụ phí)'}</span></li>
               {laCoSL && phiVC > 0 && (
                 <li><span className="bl-label">Vận chuyển / đơn vị</span><span className="bl-value">{dinhDangSo(vcPerUnit, 0)} đ{donViTM}</span></li>
               )}
             </ul>
           </TheThuGon>
+
+          {/* ═══ Mô tả báo giá (nội dung textarea ở form) ═══ */}
+          {chuoiMotaTM && (
+            <TheThuGon
+              resetKey="commercial-description"
+              giuTrangThaiKhiReset
+              moDinh
+              style={{ marginTop: '14px' }}
+              title={<><span className="icon">📝</span> Mô tả báo giá</>}
+            >
+              <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.85rem', color: 'var(--text)', lineHeight: 1.6 }}>
+                {chuoiMotaTM}
+              </div>
+            </TheThuGon>
+          )}
         </div>
       </div>
     );
@@ -1561,7 +1900,7 @@ const buttonLabel = loadedItem
   const lnLabelThuongMai = ketQuaThuongMaiHieuLuc
     ? (ketQuaThuongMaiHieuLuc.profitUnit === 'percent'
         ? `${dinhDangSo(ketQuaThuongMaiHieuLuc.profitRawValue, 2)}%`
-        : `${dinhDangSo(ketQuaThuongMaiHieuLuc.profitRawValue, 0)} đ/sp (= ${dinhDangSo(ketQuaThuongMaiHieuLuc.profitPct * 100, 2)}%)`)
+        : `${dinhDangSo(ketQuaThuongMaiHieuLuc.profitRawValue, 0)} đ${ketQuaThuongMaiHieuLuc.unitLabel} (= ${dinhDangSo(ketQuaThuongMaiHieuLuc.profitPct * 100, 2)}%)`)
     : `${dinhDangPhanTram(tyLeLoiNhuanHieuLuc)}%`;
 
   // ── Breakdown items ──
@@ -1881,13 +2220,16 @@ const buttonLabel = loadedItem
   }).filter(Boolean) : [];
 
   // ── Weight items ──
+  const trongLuongThungTongGr = !laMang && (dauVaoKq.bagsPerBox || 0) > 0
+    ? (dauVaoKq.quantity / dauVaoKq.bagsPerBox) * (dauVaoKq.boxWeight || 0)
+    : 0;
   const weightItems: [string, string][] = [
-    [laMang ? 'Diện tích băng (m²/m dài)' : 'Diện tích 1 túi', dinhDangM2(rHieuLuc.bagArea)],
+    [laMang ? 'Diện tích băng (m²/m dài)' : `Diện tích 1 ${nhanDonVi}`, dinhDangM2(rHieuLuc.bagArea)],
     ['Tổng diện tích đơn hàng', dinhDangSo(rHieuLuc.totalArea, 1) + ' m²'],
     ...(!laMang ? [
-      ['Trọng lượng / túi (Tare)', dinhDangSo(rHieuLuc.tareWeight, 2) + ' gr'] as [string, string],
-      ['Khối lượng thùng quy đổi', dinhDangSo((dauVaoKq.boxWeight || 0) / (dauVaoKq.bagsPerBox || 1), 2) + ' gr/túi'] as [string, string],
-      ['Tổng trọng lượng', dinhDangSo(rHieuLuc.tareWeight * dauVaoKq.quantity / 1000, 1) + ' kg'] as [string, string],
+      [`Trọng lượng / ${nhanDonVi} (Tare)`, dinhDangSo(rHieuLuc.tareWeight, 2) + ' gr'] as [string, string],
+      [`Khối lượng thùng quy đổi (${dinhDangSo(trongLuongThungTongGr / 1000, 1)} kg tổng thùng)`, dinhDangSo((dauVaoKq.boxWeight || 0) / (dauVaoKq.bagsPerBox || 1), 2) + ' gr'] as [string, string],
+      ['Vận chuyển tổng lô (đơn hàng + thùng)', dinhDangSo(rHieuLuc.tareWeight * dauVaoKq.quantity / 1000, 1) + ' kg'] as [string, string],
       ['Trọng lượng (tấn)', dinhDangSo(rHieuLuc.tareWeight * dauVaoKq.quantity / 1000000, 3) + ' tấn'] as [string, string],
     ] : [
       ['Chiều dài cuộn TP', dinhDangSo(chieuDaiCuonMang) + ' m/cuộn'] as [string, string],

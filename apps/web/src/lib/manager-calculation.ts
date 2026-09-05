@@ -1,4 +1,4 @@
-﻿import { tinhGiaWeb, traLoiNhuanTheoBang, layCotLoiNhuanTuDong, toiUuDoDayTheoVatLieu } from './engine';
+﻿import { tinhGiaWeb, synthesizeResultFromCommercial, traLoiNhuanTheoBang, layCotLoiNhuanTuDong, toiUuDoDayTheoVatLieu } from './engine';
 import type { AppConstants, CalculateInput, CalculateResult, Material, OverrideRowKey, OverrideTable, ProfitRow, SmallWidthMaterialPrice } from './types';
 
 export { toiUuDoDayTheoVatLieu, toiUuDoDayTheoVatLieu as optimizeThickness };
@@ -47,6 +47,12 @@ export function tinhBaoGia(
   profitTable: ProfitRow[],
   smallWidthPrices: SmallWidthMaterialPrice[] = [],
 ): CalculateResult | null {
+  // Thương mại "Mô tả khác": báo giá tự do — KHÔNG qua engine LTS (thiếu thông số kỹ thuật).
+  // Trả result tổng hợp (structureText = nội dung mô tả, finalPrice = mua+LN+VC+thùng+phụ phí)
+  // để nút Lưu / lịch sử / mini strip hoạt động nguyên bản mà không cần cấu trúc vật liệu.
+  if (input.pricingMode === 'commercial' && (input.commercialMode || 'form') === 'description') {
+    return synthesizeResultFromCommercial(input, constants, materials);
+  }
   return tinhGiaWeb(input, materials, constants, profitTable, smallWidthPrices);
 }
 

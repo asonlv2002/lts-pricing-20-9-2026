@@ -187,6 +187,7 @@ table.table-nc-ncd th { white-space: nowrap; font-size: 6.5pt; text-transform: u
 function buildThongTinChung(r: CalculateResult, item: HistoryItem): string {
   const i = item.input;
   const laMang = i.productType === 'mang';
+  const laMotaTM = i.pricingMode === 'commercial' && (i.commercialMode || 'form') === 'description';
   const soMau = i.numColors && i.numColors > 0 ? `${i.numColors} màu` : 'Không in';
   const khoMm = Math.round(i.spreadWidth * 1000);
   const buocMm = Math.round(i.cutStep * 1000);
@@ -196,6 +197,26 @@ function buildThongTinChung(r: CalculateResult, item: HistoryItem): string {
   if (!laMang && loai) {
     if (i.hasTape && i.bagType === 'cutSeal') loai = 'Cut seal mở miệng có nắp keo';
     if (i.hasZipper) loai = 'Zipper ' + loai;
+  }
+
+  // Sheet thương mại "Mô tả khác": không có thông số kỹ thuật — chỉ KH/SP/SL/đơn vị/trọng lượng/mô tả.
+  if (laMotaTM) {
+    const donVi = getPricingDisplayMeta(i).unit;
+    const trongLuong = Math.max(0, Number((i as any).commercialUnitWeight) || 0);
+    const moTa = (i.commercialDescription || '').trim();
+    return `
+    <div class="section">
+      <div class="section-title"><span class="icon">📋</span> THÔNG TIN CHUNG</div>
+      <div class="info-box">
+        <div class="name-line">${item.customer} — ${item.productName}</div>
+        <div class="info-grid">
+          <div class="info-item"><strong>Số lượng:</strong> ${dinhDangSo(i.quantity)} ${donVi}</div>
+          ${trongLuong > 0 ? `<div class="info-item"><strong>Trọng lượng / đơn vị:</strong> ${dinhDangSoLe(trongLuong, 2)} gr</div>` : ''}
+        </div>
+        ${moTa ? `<div class="info-item" style="white-space:pre-wrap;margin-top:6px;"><strong>Mô tả:</strong> ${moTa}</div>` : ''}
+        ${item.sellerName ? `<div style="margin-top:6px;font-size:9pt;color:#64748b;">Sale: ${item.sellerName}</div>` : ''}
+      </div>
+    </div>`;
   }
 
   let trucIn = '';
@@ -220,7 +241,7 @@ function buildThongTinChung(r: CalculateResult, item: HistoryItem): string {
         <div class="name-line">${item.customer} — ${item.productName}</div>
         <div class="info-grid">
           <div class="info-item"><strong>Chất liệu:</strong> ${r.structureText}</div>
-          <div class="info-item"><strong>${laMang ? 'Diện tích' : 'Số lượng'}:</strong> ${dinhDangSo(i.quantity)} ${laMang ? 'm²' : 'túi'}</div>
+          <div class="info-item"><strong>${laMang ? 'Diện tích' : 'Số lượng'}:</strong> ${dinhDangSo(i.quantity)} ${laMang ? 'm²' : getPricingDisplayMeta(i).unit}</div>
           <div class="info-item"><strong>Số màu:</strong> ${soMau}</div>
           <div class="info-item"><strong>Kích thước:</strong> KT ${khoMm} mm x BC ${buocMm} mm</div>
           <div class="info-item"><strong>Độ dày:</strong> ${r.totalThickness} mic</div>

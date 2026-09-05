@@ -15,6 +15,7 @@ import { timMucLichSuTheoId } from '../lib/history-identity';
 import { apCpsxNangCaoVaoHangSo } from '../lib/cpsx-nang-cao-pin';
 import { taiTruocThuVienNang } from '../lib/preload-heavy';
 import { tinhGiaThuongMai } from '../lib/engine';
+import { layDonViTinh } from '../lib/pricing-display';
 
 // ── Format helper ─────────────────────────────────────────────────────────────
 function dinhDangSo(n: number, soLe = 0): string {
@@ -62,7 +63,7 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
     ? ketQuaThuongMai.profitPct
     : ketQuaHienThi.profitRate;
   const laMang = result.input.productType === 'mang';
-  const donVi = laMang ? 'm²' : 'túi';
+  const donVi = laThuongMai ? layDonViTinh(result.input) : (laMang ? 'm²' : 'túi');
 
   return (
     <div className="mini-price-strip" onClick={onNhan} role="button" tabIndex={0}

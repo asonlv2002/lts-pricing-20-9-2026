@@ -1,6 +1,9 @@
 type PricingDisplayInput = {
   productType?: string;
   filmType?: string;
+  pricingMode?: string;
+  commercialUnitKind?: string;
+  commercialUnitLabel?: string;
 };
 
 function formatPercent(rate: number) {
@@ -11,10 +14,22 @@ export function isPrintFilm(input: PricingDisplayInput) {
   return input.productType === 'mang' && input.filmType === 'mangIn';
 }
 
+/** Đơn vị hiển thị — thương mại dùng đơn vị user tự chọn (mua đi bán lại), còn lại theo loại SP. */
+export function layDonViTinh(input: PricingDisplayInput): string {
+  if (input.pricingMode === 'commercial') {
+    const kind = input.commercialUnitKind || 'tui';
+    if (kind === 'm2') return 'm²';
+    if (kind === 'm') return 'm';
+    if (kind === 'custom' && (input.commercialUnitLabel || '').trim()) return input.commercialUnitLabel!.trim();
+    return 'túi';
+  }
+  return input.productType === 'mang' ? 'm²' : 'túi';
+}
+
 export function getPricingDisplayMeta(input: PricingDisplayInput) {
   const printFilm = isPrintFilm(input);
   const film = input.productType === 'mang';
-  const unit = film ? 'm²' : 'túi';
+  const unit = layDonViTinh(input);
 
   return {
     isPrintFilm: printFilm,

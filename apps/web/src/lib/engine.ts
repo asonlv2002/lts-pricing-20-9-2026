@@ -531,9 +531,9 @@ export function tinhDonGiaThuongMaiHieuLuc(
  * Helper này để description mode dùng chung render path với form mode.
  *
  * Cost basis lấy từ `tinhGiaThuongMai` (mua + LN/sp + extraFee/sp).
- * Các field engine khác (tape, handle, zipper, commission, interest, cyl) = 0.
+ * Lãi vay & hoa hồng khớp công thức engine (tai-chinh.ts), base = đơn giá mua (giá vốn TM).
  * Box từ `hangSo.boxOptions[boxOptionKey].price` hoặc `input.boxPrice`.
- * Shipping phân bổ theo `quantity`.
+ * Shipping = shippingPerKm × shippingKm, phân bổ theo `quantity`.
  */
 export function synthesizeResultFromCommercial(
   input: CalculateInput,
@@ -550,20 +550,36 @@ export function synthesizeResultFromCommercial(
     : Math.max(0, Number(input.boxPrice) || 0);
   const soTuiMotThung = Math.max(1, Number(input.bagsPerBox) || 1);
   const thungPerUnit = giaThung / soTuiMotThung;
-  const phiVC = Math.max(0, Number((input as any).shippingFee) || 0);
+  const phiVC = Math.max(0, Number(input.shippingPerKm || 0) * Number(input.shippingKm || 0));
   const vcPerUnit = qty > 0 ? phiVC / qty : 0;
-  const finalPrice = tm.unitPriceVnd + vcPerUnit + thungPerUnit + tm.extraFeePerUnit;
+
+  // Lãi vay — khớp tinhLaiVay (tai-chinh.ts): (CB + Them)/12 × (ngày/30) × giá vốn/sp.
+  // Giá vốn thương mại = đơn giá mua.
+  const ngayThanhToan = input.paymentDays ?? 30;
+  const laiSuatCoBan = hangSo.interestBase ?? 0.10;
+  const laiSuatThem = hangSo.interestSpread ?? 0.03;
+  const laiVayPerUnit = (laiSuatCoBan + laiSuatThem) / 12 * (ngayThanhToan / 30) * tm.purchasePrice;
+
+  // Hoa hồng — khớp tinhHoaHong (tai-chinh.ts): % trên giá vốn/sp hoặc VND cố định /sp.
+  const hoaHongPerDonVi = (input.commissionUnit || 'percent') === 'vnd'
+    ? (input.commissionFixedVND || 0)
+    : (input.commissionRate || 0) * tm.purchasePrice;
+
+  const finalPrice = tm.unitPriceVnd + vcPerUnit + thungPerUnit + tm.extraFeePerUnit + laiVayPerUnit + hoaHongPerDonVi;
   return {
     input,
     finalPrice,
     costPerUnit: tm.unitPriceVnd,
     profitRate: tm.profitPct,
     profitAmount: tm.profitVnd,
-    interestPerUnit: 0,
+    interestPerUnit: laiVayPerUnit,
+    interestBase: laiSuatCoBan,
+    interestSpread: laiSuatThem,
+    paymentDays: ngayThanhToan,
     shippingPerUnit: vcPerUnit,
     shippingTotal: phiVC,
-    commissionPerUnit: 0,
-    commissionTotal: 0,
+    commissionPerUnit: hoaHongPerDonVi,
+    commissionTotal: hoaHongPerDonVi * qty,
     boxPerUnit: thungPerUnit,
     boxTotal: giaThung,
     tapePerUnit: 0,

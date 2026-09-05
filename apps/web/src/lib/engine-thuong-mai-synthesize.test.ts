@@ -9,11 +9,13 @@ const hangSoMacDinh: AppConstants = {
     { key: 'thungNho', price: 5000, label: 'Thùng nhỏ' },
     { key: 'thungLon', price: 10000, label: 'Thùng lớn' },
   ],
+  interestBase: 0.12,
+  interestSpread: 0,
 } as any;
 
 const cases = [
   {
-    ten: 'Có mua + LN% + SL>0: cost basis từ tinhGiaThuongMai, shipping phân bổ theo SL',
+    ten: 'Có mua + LN% + SL>0: mua+LN+VC(đ/km×km)+thùng+lãi vay(1%/tháng×mua)',
     input: {
       pricingMode: 'commercial',
       commercialMode: 'description',
@@ -26,16 +28,47 @@ const cases = [
       quantity: 50000,
       boxOptionKey: 'thungNho',
       bagsPerBox: 100,
-      shippingFee: 1000000,
+      shippingPerKm: 2000,
+      shippingKm: 500,
+      paymentDays: 30,
     } as unknown as CalculateInput,
     mong: {
-      finalPrice: 294 + 20 + 50 + 0,
+      // 294 (mua+LN) + 20 (VC 1tr/50k) + 50 (thùng) + 2.8 (lãi 0.12/12×280) + 0 (HH)
+      finalPrice: 294 + 20 + 50 + 2.8,
       costPerUnit: 294,
       profitRate: 0.05,
       profitAmount: 280 * 0.05 * 50000,
+      shippingTotal: 1000000,
       shippingPerUnit: 20,
       boxPerUnit: 50,
+      interestPerUnit: 2.8,
+      commissionPerUnit: 0,
       structureText: 'Túi zipper 3 biên, có quai',
+    },
+  },
+  {
+    ten: 'Hoa hồng VND cố định + 90 ngày: lãi ×3, HH cộng thẳng',
+    input: {
+      pricingMode: 'commercial',
+      commercialMode: 'description',
+      commercialPurchasePrice: 280,
+      commercialProfitValue: 5,
+      commercialProfitUnit: 'percent',
+      commercialUnitKind: 'tui',
+      quantity: 50000,
+      boxPrice: 0,
+      bagsPerBox: 1,
+      shippingPerKm: 0,
+      shippingKm: 0,
+      paymentDays: 90,
+      commissionUnit: 'vnd',
+      commissionFixedVND: 10,
+    } as unknown as CalculateInput,
+    mong: {
+      // 294 + 0 (VC) + 0 (thùng) + 8.4 (lãi 0.12/12×3×280) + 10 (HH/sp)
+      finalPrice: 294 + 8.4 + 10,
+      interestPerUnit: 8.4,
+      commissionPerUnit: 10,
     },
   },
   {
@@ -50,10 +83,13 @@ const cases = [
       quantity: 0,
       boxPrice: 0,
       bagsPerBox: 1,
-      shippingFee: 0,
+      shippingPerKm: 0,
+      shippingKm: 0,
+      paymentDays: 30,
     } as unknown as CalculateInput,
     mong: {
-      finalPrice: 280,
+      // 280 + 0 + 0 + 2.8 (lãi theo đơn giá mua) + 0
+      finalPrice: 282.8,
       costPerUnit: 280,
       profitAmount: 0,
       shippingPerUnit: 0,
@@ -72,10 +108,12 @@ const cases = [
       quantity: 10000,
       boxPrice: 0,
       bagsPerBox: 1,
-      shippingFee: 0,
+      shippingPerKm: 0,
+      shippingKm: 0,
+      paymentDays: 30,
     } as unknown as CalculateInput,
     mong: {
-      finalPrice: 280,
+      finalPrice: 282.8,
       profitRate: 0,
       profitAmount: 0,
       costPerUnit: 280,
@@ -94,7 +132,8 @@ const cases = [
       commercialDescription: '',
       boxPrice: 0,
       bagsPerBox: 1,
-      shippingFee: 0,
+      shippingPerKm: 0,
+      shippingKm: 0,
     } as unknown as CalculateInput,
     mong: {
       structureText: 'Mô tả khác',

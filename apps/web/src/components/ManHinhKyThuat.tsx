@@ -103,6 +103,10 @@ export default function ManHinhKyThuat() {
 
   // Weight items
 
+  // Tổng trọng lượng (vận chuyển tổng lô) = trọng lượng đơn hàng + trọng lượng thùng
+  // (số thùng × trọng lượng thùng). tareWeight đã gồm thùng quy đổi /sp nên tổng khớp.
+  const trongLuongThungTongGr = dauVao.bagsPerBox > 0 ? (dauVao.quantity / dauVao.bagsPerBox) * (dauVao.boxWeight || 0) : 0;
+
   const cacDongTrongLuong: [string, string][] = [
 
     ['Diện tích 1 túi', dinhDangSo(kq.bagArea, 4) + ' m²'],
@@ -113,7 +117,9 @@ export default function ManHinhKyThuat() {
 
     ['Khối lượng thùng quy đổi', dinhDangSo((dauVao.boxWeight || 0) / (dauVao.bagsPerBox || 1), 2) + ' gr/túi'],
 
-    ['Tổng trọng lượng', dinhDangSo(kq.tareWeight * dauVao.quantity / 1000, 1) + ' kg'],
+    ['Trọng lượng thùng (số thùng × gr/thùng)', dinhDangSo(trongLuongThungTongGr / 1000, 1) + ' kg'],
+
+    ['Vận chuyển tổng lô (đơn hàng + thùng)', dinhDangSo(kq.tareWeight * dauVao.quantity / 1000, 1) + ' kg'],
 
     ['Trọng lượng (tấn)', dinhDangSo(kq.tareWeight * dauVao.quantity / 1000000, 3) + ' tấn']
 
