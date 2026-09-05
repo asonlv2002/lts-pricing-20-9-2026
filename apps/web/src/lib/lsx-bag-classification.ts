@@ -57,7 +57,8 @@ const BAG_TYPES: Record<LsxBagTypeKey, LsxBagTypeInfo> = {
       hanDau: 50,
       xepHong: 60,
       holePunchInfo: '3 lỗ tròn quai xách (theo Market)',
-      ventHoleInfo: '6 lỗ/mặt Ø1mm',
+      // ventHoleInfo KHÔNG default — chỉ hiện khi người dùng tự nhập
+      // (feedback 2026-09-05 ý 7: không tích đục lỗ thông hơi thì không hiện).
     },
     extraFields: ['xepHong', 'holePunchInfo', 'ventHoleInfo', 'hanBien', 'hanDau', 'hanDay'],
   },
@@ -65,7 +66,7 @@ const BAG_TYPES: Record<LsxBagTypeKey, LsxBagTypeInfo> = {
     key: 'tui-dan-lung-giua',
     label: 'Túi dán lưng giữa',
     baseFields: ['danLung', 'ventHoleInfo', 'hanDau'],
-    defaults: { hanDau: 13, danLung: 13, ventHoleInfo: '2 lỗ trên/dưới' },
+    defaults: { hanDau: 13, danLung: 13 },
     extraFields: ['danLung', 'ventHoleInfo', 'hanDau'],
   },
   'tui-xep-hong-lung-lech': {

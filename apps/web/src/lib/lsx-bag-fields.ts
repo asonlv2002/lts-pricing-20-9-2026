@@ -100,7 +100,13 @@ export function buildLsxBagFieldRows(
 
     case 'tui-4-bien':
       pair('Hàn biên: ', v(m.hanBien, 'mm') || '10mm', 'Hàn đầu: ', v(m.hanDau, 'mm') || '50mm');
-      pair('Xếp hông: ', v(m.xepHong, 'mm') || '…', 'Đục lỗ thông hơi: ', v(m.ventHoleInfo) || '…');
+      // Đục lỗ thông hơi: chỉ hiện khi có dữ liệu — không tick thì ẩn ô
+      // (feedback 2026-09-05 ý 7); Xếp hông luôn hiện.
+      if (m.ventHoleInfo) {
+        pair('Xếp hông: ', v(m.xepHong, 'mm') || '…', 'Đục lỗ thông hơi: ', m.ventHoleInfo);
+      } else {
+        full('Xếp hông: ', v(m.xepHong, 'mm') || '…');
+      }
       full('Đục lỗ: ', v(m.holePunchInfo) || 'Đục 3 lỗ tròn quai xách (Theo Market)');
       if (showZipperCell && showTearNotchCell) {
         pair(

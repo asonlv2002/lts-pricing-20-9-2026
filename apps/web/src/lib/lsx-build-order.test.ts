@@ -521,6 +521,35 @@ assert('order có nangCaoSpec khi source có', (orderCoSpec.snapshot.nangCaoSpec
 const orderKhongSpec = buildProductionOrderFromSource(sourceWithBagSize, emptyCtx());
 assert('order không có nangCaoSpec khi source không có', orderKhongSpec.snapshot.nangCaoSpec === undefined);
 
+console.log('\n=== ý 8: prefill DMPH/TPYC từ BẢNG ĐẶC TẢ (round nguyên), SL cấp VTT ghép trống ===');
+{
+  // Số liệu dạng LSX 2609.04: In lẻ (16.624,143 / 1.810,828), ghép 2 lớp,
+  // Làm túi 313,333 — manual phải bằng giá trị ĐẶC TẢ round nguyên, KHÔNG engine.
+  const spec8: LsxNangCaoRow[] = [
+    { congDoan: 'In', vatLieu: 'PET12', khoMang: 0.82, thanhPham: 16624.143, phiHao: 1810.828, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: 'GHÉP (Lớp 2)', vatLieu: 'MPET12', khoMang: 0.21, thanhPham: 16414.2, phiHao: 209.4, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: '', vatLieu: 'PET12', khoMang: 0.4, thanhPham: 16414.2, phiHao: 209.4, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: '', vatLieu: 'MPET12', khoMang: 0.21, thanhPham: 16414.2, phiHao: 209.4, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: 'GHÉP (Lớp 3)', vatLieu: 'LLDPE125', khoMang: 0.82, thanhPham: 16205.6, phiHao: 208.4, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: 'Chia', vatLieu: '—', khoMang: 0.4, thanhPham: 32411.2, phiHao: 0, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: null },
+    { congDoan: 'Làm túi', vatLieu: '-', khoMang: 0.4, thanhPham: 32000, phiHao: 313.333, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: null },
+  ];
+  const source8: LsxSourceData = { ...sourceWithBagSize, nangCaoSpec: spec8 };
+  const o8 = buildProductionOrderFromSource(source8, emptyCtx());
+  const m8 = o8.manual;
+  assert('DMPH in = round(1810.828) = 1811', m8.printWastePercent === 1811, String(m8.printWastePercent));
+  assert('TPYC in = round(16624.143) = 16624', m8.printProductQty === 16624, String(m8.printProductQty));
+  assert('TPYC ghép = TP dòng ghép cuối round(16205.6) = 16206', m8.lamProductQty === 16206, String(m8.lamProductQty));
+  assert('waste ghép lớp 2 = 209 (phi hao cấp lớp, không cộng 3 dòng)', m8.laminateLayers?.[0]?.wasteMeters === 209, String(m8.laminateLayers?.[0]?.wasteMeters));
+  assert('waste ghép lớp 3 = 208', m8.laminateLayers?.[1]?.wasteMeters === 208, String(m8.laminateLayers?.[1]?.wasteMeters));
+  assert('DMPH túi = round(313.333) = 313', m8.bagWasteMeters === 313, String(m8.bagWasteMeters));
+  assert('SL cấp vật tư ghép để TRỐNG (chỉ In điền)', m8.lamMaterialSupplyQty === '', JSON.stringify(m8.lamMaterialSupplyQty));
+  assert('ghi chú BTP derive từ TP in spec', m8.lamBTPNote.includes('16.624'), String(m8.lamBTPNote));
+  // LSX cũ không spec → giữ prefill engine như trước
+  const oKhongSpec = buildProductionOrderFromSource(sourceWithBagSize, emptyCtx());
+  assert('không spec: lamMaterialSupplyQty cũng để trống', oKhongSpec.manual.lamMaterialSupplyQty === '', JSON.stringify(oKhongSpec.manual.lamMaterialSupplyQty));
+}
+
 console.log('\n=== buildLaminateLayersFromSource — ưu tiên nangCaoSpec ===');
 
 {
@@ -540,11 +569,10 @@ console.log('\n=== buildLaminateLayersFromSource — ưu tiên nangCaoSpec ===')
   const layers = buildLaminateLayersFromSource(source3Lop, mats);
   assert('nangCaoSpec 3 lớp → 2 layers', layers.length === 2, String(layers.length));
   assert('layer[0] label "GHÉP (Lớp 2)"', layers[0].label === 'GHÉP (Lớp 2)', layers[0].label);
-  assert('layer[0] 3 parts (multi-layer)', layers[0].parts.length === 3, String(layers[0].parts.length));
-  assert('layer[0].parts[0].widthMm = 210 (MPET)', layers[0].parts[0].widthMm === 210, String(layers[0].parts[0].widthMm));
+  assert('layer[0] 2 parts (gộp trùng tên vật liệu)', layers[0].parts.length === 2, String(layers[0].parts.length));
+  assert('layer[0].parts[0].widthMm = 210 (MPET, khổ dòng đầu)', layers[0].parts[0].widthMm === 210, String(layers[0].parts[0].widthMm));
   assert('layer[0].parts[0].name = MPET12', layers[0].parts[0].name === 'MPET12', layers[0].parts[0].name);
   assert('layer[0].parts[1].widthMm = 400 (PET)', layers[0].parts[1].widthMm === 400, String(layers[0].parts[1].widthMm));
-  assert('layer[0].parts[2].widthMm = 210 (MPET)', layers[0].parts[2].widthMm === 210, String(layers[0].parts[2].widthMm));
   assert('layer[1] label "GHÉP (Lớp 3)"', layers[1].label === 'GHÉP (Lớp 3)', layers[1].label);
   assert('layer[1] 1 part', layers[1].parts.length === 1, String(layers[1].parts.length));
   assert('layer[1].parts[0].widthMm = 820 (LLDPE)', layers[1].parts[0].widthMm === 820, String(layers[1].parts[0].widthMm));
@@ -603,7 +631,7 @@ console.log('\n=== buildProductionOrderFromSource dùng nangCaoSpec cho laminate
   const order = buildProductionOrderFromSource(source3Lop, emptyCtx());
   const lams = order.manual.laminateLayers;
   assert('order.manual.laminateLayers.length = 2 (2 Ghép sections)', lams?.length === 2, String(lams?.length));
-  assert('order.manual.laminateLayers[0].parts.length = 3 (multi-layer)', lams?.[0].parts.length === 3, String(lams?.[0].parts.length));
+  assert('order.manual.laminateLayers[0].parts.length = 2 (gộp trùng tên)', lams?.[0].parts.length === 2, String(lams?.[0].parts.length));
   assert('order.manual.laminateLayers[0].parts[1].widthMm = 400 (PET)', lams?.[0].parts[1].widthMm === 400, String(lams?.[0].parts[1].widthMm));
 }
 

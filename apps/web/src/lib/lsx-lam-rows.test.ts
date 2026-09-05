@@ -4,7 +4,7 @@
  */
 
 import type { LsxLamExportRow } from './lsxExport';
-import { buildLsxLamGridRows, splitLsxLamBlockWidths } from './lsx-lam-rows';
+import { buildLsxLamGridRows, gomLsxLamParts, splitLsxLamBlockWidths } from './lsx-lam-rows';
 
 let passed = 0;
 let failed = 0;
@@ -30,7 +30,37 @@ function lamRow(partial: Partial<LsxLamExportRow> = {}): LsxLamExportRow {
   };
 }
 
-console.log('buildLsxLamGridRows — pass đơn (1 vật liệu)');
+console.log('gomLsxLamParts — gộp trùng tên vật liệu, giữ khổ dòng đầu');
+
+{
+  const parts = gomLsxLamParts([
+    { name: 'MPET', widthMm: 160 },
+    { name: 'PET', widthMm: 500 },
+    { name: 'MPET', widthMm: 160 },
+  ]);
+  assert('3 dòng lặp → 2 dòng', parts.length === 2, String(parts.length));
+  assert('dòng 1 MPET 160 (khổ đầu, không cộng)', parts[0].name === 'MPET' && parts[0].widthMm === 160);
+  assert('dòng 2 PET 500', parts[1].name === 'PET' && parts[1].widthMm === 500);
+}
+
+{
+  const parts = gomLsxLamParts([
+    { name: 'PET12', widthMm: 280 },
+    { name: 'MPET12', widthMm: 280 },
+  ]);
+  assert('khác tên giữ nguyên', parts.length === 2, String(parts.length));
+}
+
+{
+  const parts = gomLsxLamParts([
+    { name: '', widthMm: 0 },
+    { name: '', widthMm: 0 },
+    { name: 'LLDPE', widthMm: 480 },
+  ]);
+  assert('dòng rỗng không bị gộp mất', parts.length === 3, String(parts.length));
+}
+
+console.log('\nbuildLsxLamGridRows — pass đơn (1 vật liệu)');
 
 {
   const rows = buildLsxLamGridRows(

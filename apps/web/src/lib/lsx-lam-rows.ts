@@ -14,6 +14,31 @@ export interface LsxLamGridPart {
   khoText: string;
 }
 
+/** Part ghép dạng thô: tên vật liệu + khổ mm — dùng chung cho gộp dòng. */
+export interface LsxLamPartLike {
+  name: string;
+  widthMm: number;
+}
+
+/**
+ * Gộp parts trùng tên vật liệu — LSX chỉ hiện MỖI vật liệu 1 dòng
+ * (feedback 2026-09-05: ghép lớp 2 "MPET khổ 160 / PET khổ 500 — chỉ cần
+ * 2 dòng thôi"). Web composite lặp vật liệu ở 2 mép (MPET/PET/MPET) là cùng
+ * 1 cuộn → giữ khổ của dòng ĐẦU TIÊN, không cộng khổ. Bảng đặc tả tính giá
+ * giữ nguyên, chỉ áp dụng khi hiển thị LSX.
+ */
+export function gomLsxLamParts<T extends LsxLamPartLike>(parts: T[]): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const p of parts) {
+    const key = (p.name || '').trim();
+    if (key && seen.has(key)) continue;
+    if (key) seen.add(key);
+    out.push(p);
+  }
+  return out;
+}
+
 export type LsxLamGridRow =
   | { kind: 'single'; label: string; name: string; khoText: string }
   | { kind: 'dual'; label: string; parts: LsxLamGridPart[] };

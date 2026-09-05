@@ -296,26 +296,28 @@ console.log('\nresolveLsxLaminateRows / formatLsxLamWasteText');
 }
 
 {
-  // resolveLsxLaminateRows ưu tiên nangCaoSpec — multi-layer composite
+  // resolveLsxLaminateRows ưu tiên nangCaoSpec — multi-layer composite.
+  // Các dòng chi tiết trong cùng section LỘP lặp cùng phi hao cấp lớp
+  // (lapDongVatLieuNangCao) → waste lấy 1 lần; parts trùng tên vật liệu
+  // gộp còn 1 dòng giữ khổ đầu (feedback 2026-09-05 ý 2 + ý 5).
   const o = order('tui', '3bien', false);
   o.snapshot.nangCaoSpec = [
     { congDoan: 'In', vatLieu: 'PET12', khoMang: 0.82, thanhPham: 12000, phiHao: 0, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
     { congDoan: 'GHÉP (Lớp 2)', vatLieu: 'MPET12', khoMang: 0.21, thanhPham: 12000, phiHao: 100, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
-    { congDoan: '', vatLieu: 'PET12', khoMang: 0.4, thanhPham: 12000, phiHao: 110, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
-    { congDoan: '', vatLieu: 'MPET12', khoMang: 0.21, thanhPham: 12000, phiHao: 120, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: '', vatLieu: 'PET12', khoMang: 0.4, thanhPham: 12000, phiHao: 100, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
+    { congDoan: '', vatLieu: 'MPET12', khoMang: 0.21, thanhPham: 12000, phiHao: 100, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
     { congDoan: 'GHÉP (Lớp 3)', vatLieu: 'LLDPE', khoMang: 0.82, thanhPham: 12000, phiHao: 80, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
   ];
   const rows = resolveLsxLaminateRows(o);
   assert('nangCaoSpec: 2 Ghép groups', rows.length === 2, String(rows.length));
   assert('row[0] label "GHÉP (Lớp 2)"', rows[0].label === 'GHÉP (Lớp 2)', rows[0].label);
-  assert('row[0] 3 parts (multi-layer)', rows[0].parts.length === 3, String(rows[0].parts.length));
+  assert('row[0] 2 parts (gộp trùng tên vật liệu)', rows[0].parts.length === 2, String(rows[0].parts.length));
   assert('row[0].parts[0].name = MPET12', rows[0].parts[0].name === 'MPET12', rows[0].parts[0].name);
-  assert('row[0].parts[0].widthMm = 210', rows[0].parts[0].widthMm === 210, String(rows[0].parts[0].widthMm));
+  assert('row[0].parts[0].widthMm = 210 (khổ dòng đầu)', rows[0].parts[0].widthMm === 210, String(rows[0].parts[0].widthMm));
   assert('row[0].parts[1].name = PET12', rows[0].parts[1].name === 'PET12', rows[0].parts[1].name);
   assert('row[0].parts[1].widthMm = 400', rows[0].parts[1].widthMm === 400, String(rows[0].parts[1].widthMm));
-  assert('row[0].parts[2].widthMm = 210', rows[0].parts[2].widthMm === 210, String(rows[0].parts[2].widthMm));
-  // waste = sum of all phiHao in group
-  assert('row[0] waste = 100+110+120 = 330', rows[0].wasteMeters === 330, String(rows[0].wasteMeters));
+  // waste = phi hao cấp lớp, KHÔNG cộng dồn theo số dòng chi tiết
+  assert('row[0] waste = 100 (1 lần, không ×3)', rows[0].wasteMeters === 100, String(rows[0].wasteMeters));
   assert('row[1] label "GHÉP (Lớp 3)"', rows[1].label === 'GHÉP (Lớp 3)', rows[1].label);
   assert('row[1] 1 part', rows[1].parts.length === 1);
   assert('row[1] waste = 80', rows[1].wasteMeters === 80, String(rows[1].wasteMeters));
@@ -438,7 +440,7 @@ console.log('\nmanual-first helpers (regression 2026-09-05)');
     { congDoan: 'In', vatLieu: 'PET12', khoMang: 0.82, thanhPham: 16624.143, phiHao: 1810.828, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
     { congDoan: 'Làm túi', vatLieu: '', khoMang: null, thanhPham: 16000, phiHao: 210, dauVaoNVL: 0, cpVatLieu: 0, donViGiaNVL: 'kg' },
   ];
-  assert('manual rỗng → spec phi hao IN', hienThiPhiHaoIn(o).includes('1.810') || hienThiPhiHaoIn(o).includes('1810'), hienThiPhiHaoIn(o));
+  assert('manual rỗng → spec phi hao IN (round nguyên)', hienThiPhiHaoIn(o).includes('1.811') || hienThiPhiHaoIn(o).includes('1811'), hienThiPhiHaoIn(o));
   assert('manual rỗng → spec thành phẩm IN', hienThiThanhPhamIn(o).includes('16.624') || hienThiThanhPhamIn(o).includes('16624'), hienThiThanhPhamIn(o));
   assert('manual rỗng → spec phi hao túi', hienThiPhiHaoTui(o) === 210, String(hienThiPhiHaoTui(o)));
 
@@ -456,8 +458,8 @@ console.log('\nmanual-first helpers (regression 2026-09-05)');
   o.manual.printWastePercent = 0;
   o.manual.printProductQty = 0;
   o.manual.bagWasteMeters = 0;
-  assert('manual = 0 → trả về spec (phi hao IN)', hienThiPhiHaoIn(o).includes('810'), hienThiPhiHaoIn(o));
-  assert('manual = 0 → trả về spec (thành phẩm IN)', hienThiThanhPhamIn(o).includes('624'), hienThiThanhPhamIn(o));
+  assert('manual = 0 → trả về spec round (phi hao IN 1.811)', hienThiPhiHaoIn(o).includes('1.811') || hienThiPhiHaoIn(o).includes('1811'), hienThiPhiHaoIn(o));
+  assert('manual = 0 → trả về spec round (thành phẩm IN 16.624)', hienThiThanhPhamIn(o).includes('16.624') || hienThiThanhPhamIn(o).includes('16624'), hienThiThanhPhamIn(o));
   assert('manual = 0 → trả về spec (phi hao túi)', hienThiPhiHaoTui(o) === 210, String(hienThiPhiHaoTui(o)));
 }
 {

@@ -16,6 +16,7 @@ import type {
 import { calculate } from './engine';
 import { normalizeMaterialBaseName } from './format-structure';
 import { buildLsxLamBtpNote, toCylMm } from './lsxExport';
+import { gomLsxLamParts } from './lsx-lam-rows';
 import { LSX_TOLERANCE_WIDTH_DEFAULT_MM, LSX_TOLERANCE_LENGTH_DEFAULT_MM } from './lsx-quy-cach';
 import { genMsp } from './lsx-msp';
 import {
@@ -181,15 +182,13 @@ export function getMaterialLabel(
   return base;
 }
 
-/** Checklist ghi chú máy ghép: "PET12 khổ 480:" mỗi lớp con. */
+/** Checklist ghi chú máy ghép: "PET12 khổ 480:" mỗi lớp con (mỗi vật liệu 1 dòng). */
 export function buildLaminateNotesChecklist(layers: LamLayerRow[]): string {
   return layers
     .flatMap((row) =>
-      row.parts
-        .filter((p) => p.name)
-        .map((p) =>
-          p.widthMm > 0 ? `${p.name} khổ ${p.widthMm}:` : `${p.name} khổ :`,
-        ),
+      gomLsxLamParts(row.parts.filter((p) => p.name)).map((p) =>
+        p.widthMm > 0 ? `${p.name} khổ ${p.widthMm}:` : `${p.name} khổ :`,
+      ),
     )
     .join('\n');
 }
@@ -283,13 +282,15 @@ export function buildLaminateLayersFromSource(
     const groups = ghepNangCaoSpecTheoLop(rawSpec as LsxNangCaoRow[]);
     if (groups.length > 0) {
       return groups.map((g) => {
-        const parts: LamLayerPart[] = g.rows.map((r) => ({
-          name: r.vatLieu || '',
-          widthMm:
-            typeof r.khoMang === 'number' && r.khoMang > 0
-              ? Math.round(r.khoMang * 1000)
-              : defaultW,
-        }));
+        const parts: LamLayerPart[] = gomLsxLamParts(
+          g.rows.map((r) => ({
+            name: r.vatLieu || '',
+            widthMm:
+              typeof r.khoMang === 'number' && r.khoMang > 0
+                ? Math.round(r.khoMang * 1000)
+                : defaultW,
+          })),
+        );
         const waste = wasteByLayerIndex?.get(g.layerIndex) ?? 0;
         return {
           label: g.label,
@@ -362,14 +363,70 @@ export function prefillFromEngine(
       m.lamBTPNote = buildLsxLamBtpNote(m.printProductQty);
     }
 
-    if (!m.lamMaterialSupplyQty && m.printProductQty > 0) {
-      m.lamMaterialSupplyQty = String(m.printProductQty);
-    }
+    // SL cấp vật tư GHÉP: KHÔNG tự điền — chỉ khâu In có dữ liệu điền tay
+    // (feedback 2026-09-05 ý 8: "khâu in thì cho điền, còn lại để trống").
 
     return next;
   } catch {
     return layers;
   }
+}
+
+/**
+ * Prefill số liệu LSX từ BẢNG ĐẶC TẢ NÂNG CAO (feedback 2026-09-05 ý 8:
+ * DMPH/TPYC trên LSX = bảng đặc tả, làm tròn số nguyên). Chạy TRƯỚC
+ * prefillFromEngine — nhờ guard `if (!m.x)` nên giá trị spec thắng giá trị
+ * engine; manual (admin sửa tay) vẫn thắng tất cả khi hiển thị.
+ * SL cấp vật tư: để trống hoàn toàn (chỉ khâu In điền tay).
+ */
+export function prefillTuDacTa(
+  m: LSXManualFields,
+  spec: readonly LsxNangCaoRow[],
+  layers: LamLayerRow[],
+): LamLayerRow[] {
+  if (!spec || spec.length === 0) return layers;
+  const dong = (ten: string) => spec.find(r => r.congDoan === ten);
+
+  // In: DMPH + Thành phẩm in = dòng "In" của đặc tả
+  const dongIn = dong('In');
+  if (dongIn) {
+    if (typeof dongIn.phiHao === 'number' && dongIn.phiHao > 0 && !m.printWastePercent) {
+      m.printWastePercent = Math.round(dongIn.phiHao);
+    }
+    if (typeof dongIn.thanhPham === 'number' && dongIn.thanhPham > 0 && !m.printProductQty) {
+      m.printProductQty = Math.round(dongIn.thanhPham);
+    }
+  }
+
+  // Ghép: waste từng lớp = phi hao cấp lớp (không cộng dồn dòng chi tiết);
+  // TPYC ghép = Thành phẩm dòng ghép CUỐI
+  const groups = ghepNangCaoSpecTheoLop([...spec]);
+  const next = layers.map(row => {
+    const g = groups.find(x => x.layerIndex === row.layerIndex);
+    if (!g) return row;
+    const wr = g.rows.find(r => typeof r.phiHao === 'number' && r.phiHao > 0);
+    if (!wr || typeof wr.phiHao !== 'number') return row;
+    return { ...row, wasteMeters: Math.round(wr.phiHao) };
+  });
+  const last = groups[groups.length - 1];
+  if (last) {
+    const tpDong = last.rows.find(r => typeof r.thanhPham === 'number' && r.thanhPham > 0);
+    if (tpDong && typeof tpDong.thanhPham === 'number' && !m.lamProductQty) {
+      m.lamProductQty = Math.round(tpDong.thanhPham);
+    }
+  }
+
+  // Làm túi: DMPH = phi hao dòng "Làm túi" của đặc tả
+  const dongTui = dong('Làm túi');
+  if (dongTui && typeof dongTui.phiHao === 'number' && dongTui.phiHao > 0 && !m.bagWasteMeters) {
+    m.bagWasteMeters = Math.round(dongTui.phiHao);
+  }
+
+  // Ghi chú BTP "ghép hết BTP in Xm" — derive từ Thành phẩm In (spec)
+  if (!m.lamBTPNote && m.printProductQty > 0) {
+    m.lamBTPNote = buildLsxLamBtpNote(m.printProductQty);
+  }
+  return next;
 }
 
 export function syncLegacyLaminateFields(m: LSXManualFields, layers: LamLayerRow[]): void {
@@ -531,15 +588,34 @@ export function buildManualFromSource(
   let layers = hasSpec
     ? buildLaminateLayersFromSource(source, ctx.materials)
     : buildLaminateLayersFromInput(inputForLsxLayers, ctx.materials);
-  layers = prefillFromEngine(
-    m,
-    layers,
-    i as CalculateInput,
-    ctx.materials,
-    ctx.constants,
-    ctx.profitTable,
-    ctx.smallWidthPrices,
-  );
+  // Prefill trục in từ input (cả nhánh spec lẫn engine — trước đây nằm trong
+  // prefillFromEngine; tách ra để nhánh spec không bỏ sót).
+  if (!m.cylDiameter && (i.cylLength ?? 0) > 0) {
+    m.cylDiameter = toCylMm(i.cylLength);
+  }
+  if (!m.cylWidth && (i.cylCircum ?? 0) > 0) {
+    m.cylWidth = toCylMm(i.cylCircum);
+  }
+  // Ý 8 (2026-09-05): khi có đặc tả nâng cao → prefill DMPH/TPYC/waste từ
+  // BẢNG ĐẶC TẢ (round nguyên) — KHÔNG chạy prefillFromEngine nữa để engine
+  // (không lan ÷N khi chia) không ghi đè lệch số so với đặc tả.
+  if (hasSpec) {
+    layers = prefillTuDacTa(
+      m,
+      (source as { nangCaoSpec?: LsxNangCaoRow[] }).nangCaoSpec ?? [],
+      layers,
+    );
+  } else {
+    layers = prefillFromEngine(
+      m,
+      layers,
+      i as CalculateInput,
+      ctx.materials,
+      ctx.constants,
+      ctx.profitTable,
+      ctx.smallWidthPrices,
+    );
+  }
   m.laminateLayers = layers;
   syncLegacyLaminateFields(m, layers);
   if (!m.laminateNotes) {

@@ -291,8 +291,14 @@ function DivideDetails({ order }: { order: ProductionOrder }) {
           <Line label="Khổ chia: " value={khoChia} />
         </View>
       </View>
-      <Line label="Chiều dài: " value={vd(m.rollLength, "m")} />
-      <Line label="Chiều ra cuộn: " value={vd(m.divideRollOutWidth, "mm")} />
+      {/* "Chiều dài" chỉ áp dụng cho SP màng; "Chiều ra cuộn" ẩn khi không điền
+          (feedback 2026-09-05 ý 6). */}
+      {order.snapshot.productType === "mang" && (
+        <Line label="Chiều dài: " value={vd(m.rollLength, "m")} />
+      )}
+      {(m.divideRollOutWidth ?? 0) > 0 && (
+        <Line label="Chiều ra cuộn: " value={`${m.divideRollOutWidth}mm`} />
+      )}
       {!!m.divideDesc && <Line label="Mô tả: " value={m.divideDesc} />}
       {!!m.divideNotes && <Line label="Ghi chú: " value={m.divideNotes} />}
     </>
@@ -377,7 +383,9 @@ function ProductInfo({ order }: { order: ProductionOrder }) {
   const bagLabel = isTui
     ? bagTypeLabelHienThi(bagInfo, s.bagType || "", !!s.hasZipper, !!m.lsxBagTypeOverride)
     : "";
-  const khoMM = Math.round((s.spreadWidth || 0) * 1000);
+  // Khổ màng = khổ dòng In của bảng đặc tả nâng cao; fallback spreadWidth
+  // (feedback 2026-09-05 ý 1: Section I phải ra K820mm, không phải khổ chia 400).
+  const khoMM = layKhoMangTuNguon({ snapshot: s }, "In") ?? Math.round((s.spreadWidth || 0) * 1000);
 
   return (
     <View style={styles.table}>
@@ -451,7 +459,9 @@ function MangBody({
   const hasDivide = orderHasDivide(order);
   const khoMM = layKhoMangTuNguon({ snapshot: s }, "In") ?? 0;
   const chiaRow = layDongTheoCongDoan(order, "Chia");
-  const phiHaoChia = chiaRow && typeof chiaRow.phiHao === "number" ? chiaRow.phiHao : layPhiHaoChia(order);
+  const phiHaoChiaRaw = chiaRow && typeof chiaRow.phiHao === "number" ? chiaRow.phiHao : layPhiHaoChia(order);
+  // Phi hao chia: làm tròn số nguyên (ý 8)
+  const phiHaoChia = Math.round(phiHaoChiaRaw);
 
   return (
     <View style={styles.table}>
@@ -517,8 +527,8 @@ function MangBody({
               {!!m.divideDeliveryReq && (
                 <Line label="Khách hàng yêu cầu giao: " value={m.divideDeliveryReq} />
               )}
-              {!!m.divideNotes && <Text>{m.divideNotes}</Text>}
-              {!!m.divideDesc && <Line label="Mô tả: " value={m.divideDesc} />}
+              {/* Mô tả / Ghi chú chia đã có nhãn trong DivideDetails phía trên
+                  — không lặp lại ở đây (fix lặp 2026-09-05). */}
             </Cell>
           </View>
         </>
@@ -647,11 +657,14 @@ function TuiBody({
               {m.materialQtySupplied > 0 && (
                 <Text>{`Số lượng cấp vật tư: ${v(m.materialQtySupplied)}`}</Text>
               )}
+              {!!m.inDesc && <Text>{m.inDesc}</Text>}
               {!!m.printNotes && <Line label="Ghi chú: " value={m.printNotes} />}
             </Cell>
             <Cell w="50%">
-              {(m.divideDeliveryReq || m.divideNotes) && (
-                <Line label="Ghi chú chia: " value={m.divideDeliveryReq || m.divideNotes || ""} />
+              {/* divideNotes đã hiển thị trong DivideDetails phía trên — ô này
+                  chỉ còn YC giao hàng để không lặp (fix lặp 2026-09-05). */}
+              {!!m.divideDeliveryReq && (
+                <Line label="Ghi chú chia: " value={m.divideDeliveryReq} />
               )}
             </Cell>
           </View>
@@ -732,16 +745,9 @@ function TuiBody({
                     })}
                   </View>
                 </View>
-                {(!!m.inDesc || !!m.lamDesc) && (
-                  <View style={styles.row}>
-                    <Cell w="50%">
-                      {!!m.inDesc && <Text>{m.inDesc}</Text>}
-                    </Cell>
-                    <Cell w="50%">
-                      {!!m.lamDesc && <Text>{m.lamDesc}</Text>}
-                    </Cell>
-                  </View>
-                )}
+                {/* Ghi chú công đoạn (inDesc/lamDesc) nằm trong block DMPH bên
+                    dưới — không render row riêng để tránh khung dư rỗng nửa
+                    GHÉP khi chỉ IN có mô tả (feedback 2026-09-05 ý 3+4). */}
                 <View style={styles.row}>
                   <Cell w="50%">
                     <Text>{`Định mức phi hao: ${hienThiPhiHaoIn(order) || "…"}`}</Text>
@@ -749,6 +755,7 @@ function TuiBody({
                     {m.materialQtySupplied > 0 && (
                       <Text>{`Số lượng cấp vật tư: ${v(m.materialQtySupplied)}`}</Text>
                     )}
+                    {!!m.inDesc && <Text>{m.inDesc}</Text>}
                     {!!m.printNotes && <Line label="Ghi chú: " value={m.printNotes} />}
                     {!!m.cylInfo && <Line label="Trục in: " value={m.cylInfo} />}
                   </Cell>
@@ -756,7 +763,11 @@ function TuiBody({
                     <Text>{`Định mức phi hao: ${wasteText || "…"}`}</Text>
                     <Text>{`Thành phẩm yêu cầu: ${formatLsxLamProductLine(m, "…")}`}</Text>
                     {!!m.lamBTPNote && <Text>{m.lamBTPNote}</Text>}
-                    <Line label="Số lượng cấp vật tư: " value={formatLsxLamSupplyLine(m, "…")} />
+                    {!!m.lamDesc && <Text>{m.lamDesc}</Text>}
+                    {/* SL cấp vật tư ghép: chỉ hiện khi có dữ liệu (điền tay) */}
+                    {!!formatLsxLamSupplyLine(m, "") && (
+                      <Line label="Số lượng cấp vật tư: " value={formatLsxLamSupplyLine(m, "")} />
+                    )}
                     {!!m.laminateNotes && <Line label="Ghi chú: " value={m.laminateNotes} />}
                   </Cell>
                 </View>
@@ -789,8 +800,7 @@ function TuiBody({
           <Cell w="50%">
             <DivideDetails order={order} />
             <Text>{`Định mức phi hao chia: ${layPhiHaoChia(order)}m`}</Text>
-            {!!m.divideDesc && <Text>{m.divideDesc}</Text>}
-            <Text>{m.divideNotes || ""}</Text>
+            {/* Mô tả / Ghi chú chia đã nằm trong DivideDetails — không lặp. */}
           </Cell>
         )}
         <Cell

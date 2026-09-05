@@ -1,4 +1,5 @@
 import type { ProductionOrder } from './types';
+import { layDongTheoCongDoan } from './lsx-nang-cao';
 
 export interface LsxDivideSpec {
   filmWidthMm: number;
@@ -11,11 +12,34 @@ export interface LsxDivideSpec {
   error: string;
 }
 
+/**
+ * Khổ trước chia từ dòng "Chia" của bảng đặc tả nâng cao — `khoMangLabel`
+ * dạng "0,820 → 0,400" → lấy phần trước mũi tên (feedback 2026-09-05 ý 6:
+ * "máy chia lấy công đoạn chia của đặc tả kỹ thuật"). 0 nếu không có.
+ */
+function layKhoTruocTuDongChia(order: ProductionOrder): number {
+  const chia = layDongTheoCongDoan(order, 'Chia');
+  const label = chia?.khoMangLabel;
+  if (!label) return 0;
+  const truoc = label.split('→')[0]?.trim().replace(',', '.') ?? '';
+  const n = Number.parseFloat(truoc);
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 1000) : 0;
+}
+
+/** Khổ dòng "In" của đặc tả nâng cao (mm); 0 nếu không có. */
+function layKhoTuDongIn(order: ProductionOrder): number {
+  const dongIn = layDongTheoCongDoan(order, 'In');
+  const kho = dongIn?.khoMang;
+  return typeof kho === 'number' && kho > 0 ? Math.round(kho * 1000) : 0;
+}
+
 export function resolveLsxDivideSpec(order: ProductionOrder): LsxDivideSpec {
   const { manual, snapshot } = order;
-  const filmWidthMm = Math.round(
-    snapshot.originalWidthMm || (snapshot.spreadWidth || 0) * 1000,
-  );
+  // Ưu tiên đặc tả nâng cao: dòng Chia (khổ trước) → dòng In → fallback cũ.
+  const filmWidthMm =
+    layKhoTruocTuDongChia(order)
+    || layKhoTuDongIn(order)
+    || Math.round(snapshot.originalWidthMm || (snapshot.spreadWidth || 0) * 1000);
   const elementCount = Math.max(0, Math.round(manual.divideElements || 0));
   const defaultWidthMm = manual.divideWidth || snapshot.divideWidthMm || 0;
   const customWidths = Array.isArray(manual.divideWidths) ? manual.divideWidths : [];
