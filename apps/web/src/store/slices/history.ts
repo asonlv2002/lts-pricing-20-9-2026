@@ -102,7 +102,10 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       // Tab nâng cấp: giá lưu theo bảng đặc tả nâng cao (có ghi đè dòng).
       // LN% ghi đè Sale/Admin KHÔNG áp vào giá lưu — chỉ preview trong tab;
       // pct vẫn được lưu vào item để trang phụ PDF/tab hiện scenario.
-      const laNangCap = !!state.cheDoNangCao;
+      // Thương mại KHÔNG bao giờ chạy bảng đặc tả nâng cao — cờ cheDoNangCao
+      // lệch true khi lưu từ màn TM sẽ cộng LN bảng giá lên giá đã gồm LN
+      // (sai giá khi xem lại: đề xuất/LN/HH lệch hoàn toàn so với màn tính giá).
+      const laNangCap = !!state.cheDoNangCao && state.input.pricingMode !== 'commercial';
       const ketQuaLuu = laNangCap
         ? tinhKetQuaNangCaoHieuLuc({
             result: state.result,
@@ -125,6 +128,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const profitAmountHieuLuc = ketQuaTM ? ketQuaTM.profitVnd : ketQuaLuu.profitAmount;
 
       const isoNow = now.toISOString();
+      // Snapshot độ dày tổng (mic) lúc lưu — báo giá/PDF/DOCX ưu tiên dùng con số này.
+      const doDayMic = (laNangCap ? ketQuaLuu : state.result).totalThickness || 0;
       const item: HistoryItem = {
         id: String(now.getTime()),
         date: dinhDangDateLegacy(now),
@@ -149,7 +154,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         isThuongMai: state.input.pricingMode === 'commercial' || undefined,
         // Sheet NC: đóng băng CPSX nâng cao lúc lưu — không bám session đang sửa sau này
         pinnedCpsxNangCao: laNangCap ? trichCpsxNangCao(state.constants) : undefined,
-        input: { ...state.input, isNangCap: laNangCap || undefined },
+        input: { ...state.input, isNangCap: laNangCap || undefined, totalThicknessMic: doDayMic },
         originalCustomer: currentCustomerCode ?? undefined,
         // Lưu mới → luôn tạo sheet mới trên server (không copy pricingSheetId từ item cũ)
       };
@@ -182,10 +187,12 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     const item = timMucLichSuTheoId(state.history, id);
     if (!item) return false;
 
-    const laNangCap = !!(item.isNangCap || item.input?.isNangCap);
     const laThuongMai = !!(
       item.isThuongMai || item.input?.pricingMode === 'commercial'
     );
+    // Item TM nhiễm cờ isNangCap (bug lưu lệch cờ cũ) → TM không chạy bảng
+    // đặc tả nâng cao; ép false để không tính lại giá qua tinhKetQuaNangCaoHieuLuc.
+    const laNangCap = !!(item.isNangCap || item.input?.isNangCap) && !laThuongMai;
     // Apply pin TRƯỚC khi tính result — nâng cao/thường cùng dùng constants đã ghim
     const pinIds = (item.priceConfigIds ?? []).map((x) => String(x).trim()).filter(Boolean);
     let pinCpsxTuCtx = item.pinnedCpsxNangCao;
@@ -327,10 +334,11 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const ctxMap = layCtxChoPricingSheet(sheet, fallback, configs);
       const syncedInput = dongBoCotLoiNhuan({ ...rawInput }, ctxMap.materials);
       const mapped = mapPricingSheetToHistory(sheet, ctxMap);
-      const laNangCap = !!(mapped?.isNangCap || rawInput.isNangCap);
       const laThuongMai = !!(
         mapped?.isThuongMai || rawInput.pricingMode === 'commercial'
       );
+      // Item TM nhiễm cờ isNangCap (bug cũ) → ép false, TM không chạy bảng NC.
+      const laNangCap = !!(mapped?.isNangCap || rawInput.isNangCap) && !laThuongMai;
       if (laNangCap && pinIds.length && !coProductionUpgradeTrongConfigs(configs) && !mapped?.pinnedCpsxNangCao) {
         console.warn(
           'Sheet NC từ server: pin không hydrate CPSX nâng cao — kiểm tra PRODUCTION_UPGRADE trong priceConfigIds',
@@ -446,7 +454,9 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const old = timMucLichSuTheoId(state.history, state.loadedHistoryId);
       if (!old) return state;
 
-      const laNangCap = !!state.cheDoNangCao;
+      // Thương mại không chạy bảng đặc tả nâng cao — chặn cờ cheDoNangCao lệch
+      // (giống addCurrentToHistory; đồng thời xóa isNangCap nhiễm trên item cũ).
+      const laNangCap = !!state.cheDoNangCao && state.input.pricingMode !== 'commercial';
       // Giữ CPSX NC lúc lưu; sheet legacy chưa pin → ghim lần cập nhật đầu
       const pinCpsx = laNangCap
         ? (old.pinnedCpsxNangCao ?? trichCpsxNangCao(state.constants))
@@ -478,6 +488,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
 
       const now = new Date();
       const isoNow = now.toISOString();
+      // Snapshot độ dày tổng (mic) lúc cập nhật — báo giá/PDF/DOCX ưu tiên dùng con số này.
+      const doDayMic = (laNangCap ? ketQuaLuu : state.result).totalThickness || 0;
       const updated: HistoryItem = {
         ...old,
         date: dinhDangDateLegacy(now),
@@ -493,7 +505,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         profitAmount: profitAmountHieuLuc,
         saleOverrides: Object.keys(state.saleOverrides).length > 0 ? state.saleOverrides : undefined,
         adminOverrides: Object.keys(state.adminOverrides).length > 0 ? state.adminOverrides : undefined,
-        input: { ...state.input, isNangCap: laNangCap || undefined },
+        input: { ...state.input, isNangCap: laNangCap || undefined, totalThicknessMic: doDayMic },
         sellerId: state.currentSellerId || old.sellerId,
         sellerName: state.currentSellerName || old.sellerName,
         saleProfitRatePct: state.saleProfitRatePct || undefined,

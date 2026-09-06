@@ -112,6 +112,10 @@ function layLsxBagMetadata(entry: Record<string, unknown> | null): {
   standupBottomSideMm?: number;
   stageNotes?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
   stageDescriptions?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
+  /** Màng: chiều dài cuộn chốt trên báo giá (m) — LSX quy cách cuộn ưu tiên giá trị này. */
+  rollLengthM?: number;
+  /** Màng: chiều ra cuộn màng từ báo giá — prefill `manual.chieuRaCuonSP` (ô thông tin SP). */
+  chieuRaCuonMang?: string;
 } {
   if (!entry || !laObject(entry.bagSpec)) return {};
   const b = entry.bagSpec as Record<string, unknown>;
@@ -155,6 +159,14 @@ function layLsxBagMetadata(entry: Record<string, unknown> | null): {
     hasBottomSeal: b.hasBottomSeal === true ? true : undefined,
     bottomSealMm: typeof bottomSeal === 'number' && bottomSeal > 0 ? bottomSeal : undefined,
     standupBottomSideMm: typeof standup === 'number' && standup > 0 ? standup : undefined,
+    rollLengthM: (() => {
+      const rl = b.rollLengthM;
+      return typeof rl === 'number' && rl > 0 ? rl : undefined;
+    })(),
+    chieuRaCuonMang: (() => {
+      const cr = b.chieuRaCuonMang;
+      return typeof cr === 'string' && cr.trim() ? cr.trim() : undefined;
+    })(),
     stageNotes: docStageNotes(b.stageNotes),
     stageDescriptions: docStageNotes(b.stageDescriptions),
   };

@@ -59,6 +59,10 @@ export interface QuoteProductBagSpec {
   handleOptionKey: string;
   hasSongSieuAm: boolean;
   songSieuAmMm: number;
+  /** Màng: chiều dài mỗi cuộn màng TP (m) — prefill từ input.filmRollLength, sửa tay được. */
+  rollLengthM: number;
+  /** Màng: chiều ra cuộn màng (text, vd "Mặt in ra ngoài") — chuyển sang LSX ô thông tin sản phẩm, máy in/chia để trống. */
+  chieuRaCuonMang: string;
 }
 
 export type BagSpecConditionalField = 'gusset' | 'backSeal' | 'standupBottom' | 'sideSeal' | 'lid' | 'songSieuAm';
@@ -114,6 +118,9 @@ export function buildDefaultBagSpec(input: CalculateInput): QuoteProductBagSpec 
     handleOptionKey: input.handleOptionKey || '',
     hasSongSieuAm: false,
     songSieuAmMm: 0,
+    rollLengthM:
+      input.productType === 'mang' ? input.filmRollLength || 6000 : 0,
+    chieuRaCuonMang: '',
   };
 }
 

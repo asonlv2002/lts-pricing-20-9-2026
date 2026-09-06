@@ -163,12 +163,12 @@ function NI({ value, onChange, placeholder, style }: {
   );
 }
 
-function TA({ value, onChange, placeholder, rows }: {
-  value: string; onChange: (v: string) => void; placeholder?: string; rows?: number;
+function TA({ value, onChange, placeholder, rows, style }: {
+  value: string; onChange: (v: string) => void; placeholder?: string; rows?: number; style?: React.CSSProperties;
 }) {
   return (
     <textarea
-      style={styles.textarea}
+      style={{ ...styles.textarea, ...style }}
       value={value}
       placeholder={placeholder ?? ''}
       rows={rows || 2}
@@ -1000,10 +1000,11 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                       <span style={{ fontWeight: 700, fontSize: '11px', color: '#c00' }}>Ghi chú:</span>
                       <TI value={manual.bagMachineNotes} onChange={v => upd('bagMachineNotes', v)} placeholder="Chạy theo market" style={{ flex: 1, minWidth: 0, fontWeight: 700, color: '#c00' }} />
                     </div>
-                    <TA value={manual.packagingNotes} onChange={v => upd('packagingNotes', v)}
-                      placeholder="Đơn hàng / đóng gói..." rows={2} />
-                    <TA value={manual.deliveryNotes} onChange={v => upd('deliveryNotes', v)}
-                      placeholder="Yêu cầu giao hàng..." rows={2} />
+                    <div style={styles.cellRow}>
+                      <span style={{ fontWeight: 700, fontSize: '11px' }}>Yêu cầu giao hàng:</span>
+                      <TA value={manual.deliveryNotes} onChange={v => upd('deliveryNotes', v)}
+                        placeholder="Yêu cầu giao hàng..." rows={2} style={{ flex: 1, minWidth: 0 }} />
+                    </div>
                   </div>
                 </td>
               </tr>
@@ -1032,10 +1033,11 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                   </td>
                 </tr>
                 <tr>
-                  <td style={styles.lbl} rowSpan={2}>Đơn hàng</td>
+                  <td style={styles.lbl} rowSpan={2}>Ghi chú</td>
                   <td colSpan={3} rowSpan={2} style={styles.td}>
-                    <TA value={manual.packagingNotes} onChange={v => upd('packagingNotes', v)}
-                      placeholder="Không bược thiếu, Không được dư." rows={4} />
+                    <TA value={manual.bagMachineNotes} onChange={v => upd('bagMachineNotes', v)}
+                      placeholder="Chạy theo market" rows={4}
+                      style={{ fontWeight: 700, color: '#c00' }} />
                   </td>
                   <td style={styles.lbl}>Chiều rộng:</td>
                   <td style={styles.td}>
@@ -1146,10 +1148,6 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                           <TI value={manual.bagDesc} onChange={v => upd('bagDesc', v)} placeholder="Mô tả khác..." style={{ flex: 1, minWidth: 0, fontStyle: 'italic' }} />
                         </div>
                       )}
-                      <div style={styles.cellRow}>
-                        <span style={{ fontWeight: 700, fontSize: '11px', color: '#c00' }}>Ghi chú:</span>
-                        <TI value={manual.bagMachineNotes} onChange={v => upd('bagMachineNotes', v)} placeholder="Chạy theo market" style={{ flex: 1, minWidth: 0, fontWeight: 700, color: '#c00' }} />
-                      </div>
                     </div>
                   </td>
                 </tr>

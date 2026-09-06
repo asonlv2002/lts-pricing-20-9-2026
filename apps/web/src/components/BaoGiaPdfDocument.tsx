@@ -10,10 +10,10 @@ import {
   Font,
   PDFDownloadLink,
 } from "@react-pdf/renderer";
-import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { useCalculatorStore } from "../store/CuaHangTinhGia";
 import { boSoCauTruc } from "../lib/format-structure";
 import { formatStageDescriptionsForQuote } from "../lib/quote-product-spec";
+import { tinhTongDoDayCuaInput } from "../lib/do-day-snapshot";
 import {
   estimateQuoteGroupHeight,
   paginateQuoteGroups,
@@ -462,6 +462,13 @@ function buildBagSpecDescription(
     dimParts.push(llabel + ": " + spec.backSealMm + "mm");
   }
   if (dimParts.length) lines.push("Quy cách: " + dimParts.join(". ") + ".");
+  if (input.productType === "mang") {
+    const rollLen = spec.rollLengthM || input.filmRollLength || 0;
+    if (rollLen > 0)
+      lines.push(
+        "Chiều dài cuộn: " + rollLen.toLocaleString("vi-VN") + " m/cuộn.",
+      );
+  }
   if (spec.sideSealMm > 0) lines.push("Hàn biên: " + spec.sideSealMm + "mm.");
   if (spec.hasHeadSeal && spec.headSealMm > 0)
     lines.push("Hàn đầu: " + spec.headSealMm + "mm.");
@@ -515,8 +522,6 @@ interface ProductGroup {
 }
 
 function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
-  const { materials } = dungCuaHangTinhGia.getState();
-
   return products
     .map((p) => {
     const input = p.input || {};
@@ -543,23 +548,7 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
     }
     const isBag = input.productType !== "mang";
 
-    let totalThickness = 0;
-    for (const layerKey of [
-      "layer1Id",
-      "layer2Id",
-      "layer3Id",
-      "layer4Id",
-      "layer5Id",
-    ]) {
-      const matId = input[layerKey] as string | undefined;
-      if (matId) {
-        const mat = materials.find((m: any) => m.id === matId);
-        const override = (
-          input.micOverrides as Record<string, number> | undefined
-        )?.[layerKey];
-        totalThickness += override ?? (mat as any)?.thickness ?? 0;
-      }
-    }
+    const totalThickness = tinhTongDoDayCuaInput(input);
 
     const excludeBag = (p.bagSpec as any)?.includeBagInQuote === false;
     // "Mô tả khác" theo công đoạn của TỪNG sản phẩm → nối vào cột Mô tả

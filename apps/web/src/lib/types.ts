@@ -593,6 +593,11 @@ export interface CalculateInput {
   outsource?: OutsourceConfig;
   /** true = bảng tính giá dùng bảng đặc tả kỹ thuật nâng cao làm nguồn giá */
   isNangCap?: boolean;
+  /** Snapshot độ dày tổng (mic) lúc LƯU bảng tính giá — engine totalThickness
+   *  (tổng lớp + keo 3 mic/lớp ghép, làm tròn bậc 5). Báo giá/PDF/DOCX ưu tiên
+   *  dùng con số này thay vì tự cộng lại → luôn khớp màn tính giá kể cả khi
+   *  cấu hình vật liệu đổi sau khi lưu. */
+  totalThicknessMic?: number;
   // ── Tính giá Thương mại (mua đi bán lại) — chỉ dùng khi pricingMode='commercial' ──
   /** 'form' = nhập theo form tính giá + [Thu mua]; 'description' = mô tả tự do */
   commercialMode?: 'form' | 'description';
@@ -1005,6 +1010,10 @@ export interface LsxSourceData {
   stageNotes?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
   /** Mô tả khác theo công đoạn từ báo giá. */
   stageDescriptions?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
+  /** Màng: chiều dài cuộn (m) chốt trên báo giá (`bagSpec.rollLengthM`) — LSX quy cách cuộn ưu tiên giá trị này. */
+  rollLengthM?: number;
+  /** Màng: chiều ra cuộn màng từ báo giá — prefill `manual.chieuRaCuonSP` (chỉ ô thông tin SP, không máy in/chia). */
+  chieuRaCuonMang?: string;
 /**
    * Snapshot bảng đặc tả kỹ thuật nâng cao (LsxNangCaoRow[]) — từ `inputValue.nangCaoSpec`
    * của pricing sheet (đã snap lúc "Lưu tính giá" / "Cập nhật"). LSX render ưu tiên

@@ -4,6 +4,8 @@ import type { HistoryItem, OverrideTable } from './types';
  * Ghi đè đang giữ trong store còn ĐÚNG object lúc mở sheet hay chưa.
  * Mọi slice khi chỉnh ghi đè đều tạo object MỚI (không mutate) — nên so
  * tham chiếu là đủ để biết "chưa ai chỉnh ô nào".
+ * (Trước đây dùng chặn đóng băng giá đề xuất — nay chỉ để hiện ghi chú
+ * "có thay đổi bảng đặc tả chưa lưu" trên sheet đã lưu.)
  */
 export function overridesChuaDoi(
   ghiDeHienTai: OverrideTable | undefined,
@@ -13,6 +15,22 @@ export function overridesChuaDoi(
   const coTrongSheet = !!ghiDeLuuTrongSheet && Object.keys(ghiDeLuuTrongSheet).length > 0;
   if (!coHienTai && !coTrongSheet) return true;
   return coHienTai && coTrongSheet && ghiDeHienTai === ghiDeLuuTrongSheet;
+}
+
+/**
+ * Điều kiện đóng băng giá đề xuất — dùng chung desktop/mobile để CHỌN NGUỒN
+ * override cho phần hiển thị (đã lưu khi đóng băng, hiện tại khi không).
+ *
+ * Chỉ phụ thuộc input (`isDirty`) — KHÔNG phụ thuộc ô ghi đè Sale/Admin:
+ * sửa bảng đặc tả trên sheet đã lưu chỉ là preview trong tab ghi đè,
+ * giá màn hình giữ nguyên đến khi bấm Lưu thay đổi / Cập nhật / Lưu mới.
+ */
+export function coDongBangGiaDeXuat(
+  nangCap: boolean,
+  loadedItem: Pick<HistoryItem, 'finalPrice'> | null | undefined,
+  isDirty: boolean,
+): boolean {
+  return !!(nangCap && loadedItem && !isDirty && (loadedItem.finalPrice ?? 0) > 0);
 }
 
 export interface GiaDeXuatHienThiParams {
@@ -25,14 +43,12 @@ export interface GiaDeXuatHienThiParams {
     | undefined;
   /** true = user đã chỉnh input kể từ lúc mở sheet */
   isDirty: boolean;
-  saleOverrides: OverrideTable;
-  adminOverrides: OverrideTable;
   /** Giá đề xuất tính lại live theo cấu hình/ghi đè hiện tại */
   giaTinhLai: number;
 }
 
 export interface GiaDeXuatHienThiKetQua {
-  /** true = đang giữ giá lúc lưu sheet (chưa chỉnh sửa gì) */
+  /** true = đang giữ giá lúc lưu sheet (chưa chỉnh input) */
   dongBang: boolean;
   /** Giá đề xuất dùng để hiển thị */
   giaDeXuat: number;
@@ -43,22 +59,15 @@ export interface GiaDeXuatHienThiKetQua {
 /**
  * Giá đề xuất HIỂN THỊ cho màn kết quả.
  *
- * - Bảng tính mới / đang chỉnh sửa: = giá tính lại live (hành vi cũ).
- * - Mở lại sheet nâng cao ĐÃ LƯU mà chưa chỉnh gì (input + ghi đè 2 vai):
- *   giữ đúng giá snapshot lúc lưu — không bị cuốn theo đơn giá/định mức/
- *   lợi nhuận hệ thống đã đổi sau đó (kể cả khi Sale/Admin đổi trên server).
+ * - Bảng tính mới / đang chỉnh input: = giá tính lại live (hành vi cũ).
+ * - Mở lại sheet nâng cao ĐÃ LƯU mà chưa chỉnh INPUT: giữ đúng giá snapshot
+ *   lúc lưu — kể cả khi Sale/Admin sửa bảng đặc tả (preview chỉ trong tab
+ *   ghi đè, có dòng chênh lệch riêng); giá mới chỉ áp sau khi Lưu/Cập nhật.
  */
 export function tinhGiaDeXuatHienThi(
   p: GiaDeXuatHienThiParams,
 ): GiaDeXuatHienThiKetQua {
-  const dongBang = !!(
-    p.nangCap &&
-    p.loadedItem &&
-    !p.isDirty &&
-    (p.loadedItem.finalPrice ?? 0) > 0 &&
-    overridesChuaDoi(p.saleOverrides, p.loadedItem.saleOverrides) &&
-    overridesChuaDoi(p.adminOverrides, p.loadedItem.adminOverrides)
-  );
+  const dongBang = coDongBangGiaDeXuat(p.nangCap, p.loadedItem, p.isDirty);
   const giaLuu = p.loadedItem?.finalPrice ?? 0;
   return {
     dongBang,

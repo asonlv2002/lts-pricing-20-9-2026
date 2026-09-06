@@ -16,7 +16,7 @@ import { apCpsxNangCaoVaoHangSo } from '../lib/cpsx-nang-cao-pin';
 import { taiTruocThuVienNang } from '../lib/preload-heavy';
 import { tinhGiaThuongMai } from '../lib/engine';
 import { layDonViTinh } from '../lib/pricing-display';
-import { tinhGiaDeXuatHienThi } from '../lib/gia-de-xuat-hien-thi';
+import { tinhGiaDeXuatHienThi, coDongBangGiaDeXuat } from '../lib/gia-de-xuat-hien-thi';
 
 // ── Format helper ─────────────────────────────────────────────────────────────
 function dinhDangSo(n: number, soLe = 0): string {
@@ -37,20 +37,24 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
   // Tab nâng cấp: giá từ bảng đặc tả nâng cao (có ghi đè Sale/Admin)
   // Sheet đã lưu: overlay CPSX NC từ pin — không bám constants đang sửa trên màn CPSX.
   // LN% ghi đè Sale/Admin KHÔNG áp vào giá hiển thị (theo LN hệ thống — đồng bộ desktop).
-  const ketQuaHienThi = nangCap
+  // TM không chạy bảng NC — chống cờ cheDoNangCao lệch (LN bảng giá cộng trên giá đã gồm LN).
+  // Sheet đã lưu chưa đụng input → theo override ĐÃ LƯU (đồng bộ desktop đóng băng);
+  // sửa bảng đặc tả chỉ preview trong tab ghi đè, không cuốn giá hiển thị.
+  const ketQuaHienThi = nangCap && !laThuongMai
     ? (() => {
         const s = dungCuaHangTinhGia.getState();
         const item = timMucLichSuTheoId(s.history, s.loadedHistoryId);
         const hangSoNc = item?.pinnedCpsxNangCao
           ? apCpsxNangCaoVaoHangSo(s.constants, item.pinnedCpsxNangCao)
           : s.constants;
+        const dongBang = coDongBangGiaDeXuat(nangCap, item, s.isDirty);
         return tinhKetQuaNangCaoHieuLuc({
           result,
           uniRows: lapDongSanXuat(result, hangSoNc).uniRows,
           constants: hangSoNc,
           materials: s.materials,
-          saleOverrides: s.saleOverrides,
-          adminOverrides: s.adminOverrides,
+          saleOverrides: dongBang ? (item?.saleOverrides ?? {}) : s.saleOverrides,
+          adminOverrides: dongBang ? (item?.adminOverrides ?? {}) : s.adminOverrides,
           saleProfitRatePct: 0,
           adminProfitRatePct: 0,
           profitTable: s.profitTable,
@@ -58,7 +62,7 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
       })()
     : result;
 
-  // Đóng băng giá đề xuất khi mở lại sheet NC đã lưu (chưa chỉnh sửa) — đồng bộ desktop.
+  // Đóng băng giá đề xuất khi mở lại sheet NC đã lưu (chưa chỉnh input) — đồng bộ desktop.
   const giaDeXuatHienThi = (() => {
     const s = dungCuaHangTinhGia.getState();
     if (!nangCap) return ketQuaHienThi.finalPrice;
@@ -67,8 +71,6 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
       nangCap,
       loadedItem: item,
       isDirty: s.isDirty,
-      saleOverrides: s.saleOverrides,
-      adminOverrides: s.adminOverrides,
       giaTinhLai: ketQuaHienThi.finalPrice,
     }).giaDeXuat;
   })();

@@ -18,6 +18,7 @@ import { normalizeMaterialBaseName } from './format-structure';
 import { buildLsxLamBtpNote, toCylMm } from './lsxExport';
 import { gomLsxLamParts } from './lsx-lam-rows';
 import { LSX_TOLERANCE_WIDTH_DEFAULT_MM, LSX_TOLERANCE_LENGTH_DEFAULT_MM } from './lsx-quy-cach';
+import { layKhoMangTuNguon } from './lsx-nang-cao';
 import { genMsp } from './lsx-msp';
 import {
   applyBagDefaults,
@@ -538,23 +539,32 @@ export interface BuildLsxOrderCtx {
 }
 
 /** Prefill manual fields từ source (form + batch). */
-/** Áp dụng ghi chú công đoạn + mô tả khác từ báo giá vào manual LSX. */
+/** Áp dụng ghi chú công đoạn + mô tả khách từ báo giá vào manual LSX.
+ *  Feedback 2026-09-06: khâu in/ghép/chia — mô tả khách GỘP vào ô Ghi chú của khâu
+ *  (mô tả khách trên, ghi chú có sẵn + stageNotes dưới cùng), không còn
+ *  field "Mô tả khác" riêng. Riêng làm túi giữ tách: mô tả → bagDesc,
+ *  ghi chú → bagLuuY. */
 function apDungStageGhiChu(m: LSXManualFields, source: LsxSourceData): void {
   const ghiChu = source.stageNotes ?? [];
+  const moTa = source.stageDescriptions ?? [];
+  for (const n of ghiChu) {
+    if (!n || !n.text) continue;
+    if (n.stage === 'lam-tui') m.bagLuuY = ghepText(m.bagLuuY, n.text);
+  }
+  for (const d of moTa) {
+    if (!d || !d.text) continue;
+    if (d.stage === 'lam-tui') m.bagDesc = ghepText(m.bagDesc, d.text);
+  }
+  const moTaText = (stage: 'in' | 'ghep' | 'chia'): string =>
+    moTa.filter(d => d && d.stage === stage && d.text).map(d => d.text).join('\n');
+  m.printNotes = ghepText(moTaText('in'), m.printNotes);
+  m.laminateNotes = ghepText(moTaText('ghep'), m.laminateNotes);
+  m.divideNotes = ghepText(moTaText('chia'), m.divideNotes);
   for (const n of ghiChu) {
     if (!n || !n.text) continue;
     if (n.stage === 'in') m.printNotes = ghepText(m.printNotes, n.text);
     else if (n.stage === 'ghep') m.laminateNotes = ghepText(m.laminateNotes, n.text);
     else if (n.stage === 'chia') m.divideNotes = ghepText(m.divideNotes, n.text);
-    else if (n.stage === 'lam-tui') m.bagLuuY = ghepText(m.bagLuuY, n.text);
-  }
-  const moTa = source.stageDescriptions ?? [];
-  for (const d of moTa) {
-    if (!d || !d.text) continue;
-    if (d.stage === 'in') m.inDesc = ghepText(m.inDesc, d.text);
-    else if (d.stage === 'ghep') m.lamDesc = ghepText(m.lamDesc, d.text);
-    else if (d.stage === 'chia') m.divideDesc = ghepText(m.divideDesc, d.text);
-    else if (d.stage === 'lam-tui') m.bagDesc = ghepText(m.bagDesc, d.text);
   }
 }
 
@@ -563,6 +573,37 @@ function ghepText(a: string, b: string): string {
   if (!a) return b;
   if (!b) return a;
   return `${a}\n${b}`;
+}
+
+/**
+ * Feedback 2026-09-06 ý 1: "Quy cách cuộn" = khổ trải x chiều dài cuộn.
+ * Chiều dài cuộn = "Chiều dài mỗi cuộn màng TP" (filmRollLength) của tính giá.
+ * Chỉ điền khi đang trống → form vẫn sửa tay được. Dùng cho cả tạo mới và
+ * mở sửa LSX cũ (backfill).
+ */
+export function backfillQuyCachCuon(m: LSXManualFields, source: LsxSourceData): void {
+  if (m.quyCachCuon?.trim()) return;
+  const i = source.input;
+  if (i.productType !== 'mang') return;
+  const khoMM = layKhoMangTuNguon(source, 'In') ?? Math.round((i.spreadWidth || 0) * 1000);
+  if (khoMM <= 0) return;
+  // Ưu tiên chiều dài cuộn chốt trên BÁO GIÁ (spec.rollLengthM — sale sửa được);
+  // fallback chiều dài cuộn của bảng tính giá (input.filmRollLength).
+  const rollLen = Math.round(source.rollLengthM || i.filmRollLength || 0);
+  m.quyCachCuon = `K${khoMM}mm x ${rollLen > 0 ? rollLen : '…'}m`;
+}
+
+/**
+ * "Chiều ra cuộn màng" từ báo giá → CHỈ ô thông tin sản phẩm (chieuRaCuonSP).
+ * Máy in (printDirection/rollOutWidth) & máy chia (divideRollOutWidth) KHÔNG
+ * được prefill — để bộ phận sản xuất tự điền. Chỉ điền khi đang trống.
+ */
+export function backfillChieuRaCuonMang(m: LSXManualFields, source: LsxSourceData): void {
+  if (m.chieuRaCuonSP?.trim()) return;
+  if (source.input.productType !== 'mang') return;
+  const val = (source.chieuRaCuonMang || '').trim();
+  if (!val) return;
+  m.chieuRaCuonSP = val;
 }
 
 export function buildManualFromSource(
@@ -634,52 +675,54 @@ export function buildManualFromSource(
   }
   const bag = bagInfo ?? classifyLsxBagType(i.bagType, !!i.hasZipper);
   apDungStageGhiChu(m, source);
-  if (tui) {
-    const next = applyBagDefaults(m, bag, !!i.hasZipper);
-    if (source.hasHalfMoonBottom) {
-      next.useSemicircularMold = true;
-    }
-    if (i.hasZipper && (source.zipperDistanceMm ?? 0) > 0) {
-      next.tamZipperCachMieng = source.zipperDistanceMm as number;
-    }
-    if (source.hasSongSieuAm && (source.songSieuAmMm ?? 0) > 0) {
-      next.songSieuAm = source.songSieuAmMm as number;
-    }
-    if ((source.sideSealMm ?? 0) > 0) {
-      next.hanBien = source.sideSealMm as number;
-      next.sealEdge = `${source.sideSealMm}mm`;
-    }
-    if ((source.headSealMm ?? 0) > 0) {
-      next.hanDau = source.headSealMm as number;
-    }
-    if (source.hasTearNotch && (source.tearNotchFromTopMm ?? 0) > 0) {
-      next.tearNotch = `cách đầu ${source.tearNotchFromTopMm}mm`;
-    }
-    if (source.hasHandleHole && source.handleHoleDescription) {
-      next.holePunchInfo = source.handleHoleDescription;
-    }
-    if (source.hasHangHole && source.hangHoleDescription) {
-      next.loTreoInfo = source.hangHoleDescription;
-    }
-    if ((source.gussetMm ?? 0) > 0) {
-      next.xepHong = source.gussetMm as number;
-    }
-    if ((source.lidMm ?? 0) > 0) {
-      next.nap = source.lidMm as number;
-    }
-    if ((source.backSealMm ?? 0) > 0) {
-      if (bag.key === 'tui-xep-hong-lung-lech') next.danLungLech = source.backSealMm as number;
-      else if (bag.key === 'tui-dan-lung-giua') next.danLung = source.backSealMm as number;
-    }
-    if (source.hasBottomSeal && (source.bottomSealMm ?? 0) > 0) {
-      next.hanDay = source.bottomSealMm as number;
-    }
-    if ((source.standupBottomSideMm ?? 0) > 0 && bag.key === 'tui-day-dung') {
-      next.foldBottom = `${source.standupBottomSideMm as number * 2}mm`;
-    }
-    return next;
+  if (!tui) {
+    backfillQuyCachCuon(m, source);
+    backfillChieuRaCuonMang(m, source);
+    return m;
   }
-  return m;
+  const next = applyBagDefaults(m, bag, !!i.hasZipper);
+  if (source.hasHalfMoonBottom) {
+    next.useSemicircularMold = true;
+  }
+  if (i.hasZipper && (source.zipperDistanceMm ?? 0) > 0) {
+    next.tamZipperCachMieng = source.zipperDistanceMm as number;
+  }
+  if (source.hasSongSieuAm && (source.songSieuAmMm ?? 0) > 0) {
+    next.songSieuAm = source.songSieuAmMm as number;
+  }
+  if ((source.sideSealMm ?? 0) > 0) {
+    next.hanBien = source.sideSealMm as number;
+    next.sealEdge = `${source.sideSealMm}mm`;
+  }
+  if ((source.headSealMm ?? 0) > 0) {
+    next.hanDau = source.headSealMm as number;
+  }
+  if (source.hasTearNotch && (source.tearNotchFromTopMm ?? 0) > 0) {
+    next.tearNotch = `cách đầu ${source.tearNotchFromTopMm}mm`;
+  }
+  if (source.hasHandleHole && source.handleHoleDescription) {
+    next.holePunchInfo = source.handleHoleDescription;
+  }
+  if (source.hasHangHole && source.hangHoleDescription) {
+    next.loTreoInfo = source.hangHoleDescription;
+  }
+  if ((source.gussetMm ?? 0) > 0) {
+    next.xepHong = source.gussetMm as number;
+  }
+  if ((source.lidMm ?? 0) > 0) {
+    next.nap = source.lidMm as number;
+  }
+  if ((source.backSealMm ?? 0) > 0) {
+    if (bag.key === 'tui-xep-hong-lung-lech') next.danLungLech = source.backSealMm as number;
+    else if (bag.key === 'tui-dan-lung-giua') next.danLung = source.backSealMm as number;
+  }
+  if (source.hasBottomSeal && (source.bottomSealMm ?? 0) > 0) {
+    next.hanDay = source.bottomSealMm as number;
+  }
+  if ((source.standupBottomSideMm ?? 0) > 0 && bag.key === 'tui-day-dung') {
+    next.foldBottom = `${source.standupBottomSideMm as number * 2}mm`;
+  }
+  return next;
 }
 
 export function buildSnapshotFromSource(

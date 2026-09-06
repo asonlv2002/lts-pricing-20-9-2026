@@ -270,7 +270,14 @@ function Line({ label, value, boldLabel = true }: { label: string; value?: strin
   );
 }
 
-function DivideDetails({ order }: { order: ProductionOrder }) {
+function DivideDetails({
+  order,
+  variant = "tui",
+}: {
+  order: ProductionOrder;
+  /** "mang" = feedback 2026-09-06 ý 5: Ghi chú lên đầu, trên "cái mớ". */
+  variant?: "mang" | "tui";
+}) {
   const spec = resolveLsxDivideSpec(order);
   const m = order.manual;
   // Chi an khi user that su khong co du lieu (regression 2026-08-27:
@@ -282,6 +289,25 @@ function DivideDetails({ order }: { order: ProductionOrder }) {
   if (!hasUserData) return null;
   const filmWidth = spec.filmWidthMm ? `${spec.filmWidthMm}mm` : "…";
   const khoChia = spec.elementCount > 0 ? formatLsxDivideSummary(spec) : vd(spec.defaultWidthMm, "mm");
+  if (variant === "mang") {
+    // Feedback 2026-09-06 ý 5+7: Ghi chú lên đầu; "Chiều ra cuộn" sau chia
+    // nằm ở hàng cuối khối MÁY CHIA (cạnh Định mức phi hao) — render ở MangBody.
+    const ghiChuChia = [m.divideDesc, m.divideNotes].filter(Boolean).join("\n");
+    return (
+      <>
+        <View style={styles.divideGridRow}>
+          <View style={styles.divideGridCell}>
+            <Line label="Khổ màng: " value={filmWidth} />
+          </View>
+          <View style={[styles.divideGridCell, styles.divideGridDivider]}>
+            <Line label="Khổ chia: " value={khoChia} />
+          </View>
+        </View>
+        <Line label="Ghi chú: " value={ghiChuChia} />
+        <Line label="Chiều dài: " value={vd(m.rollLength, "m")} />
+      </>
+    );
+  }
   return (
     <>
       <View style={styles.divideGridRow}>
@@ -463,47 +489,159 @@ function MangBody({
   const phiHaoChiaRaw = chiaRow && typeof chiaRow.phiHao === "number" ? chiaRow.phiHao : layPhiHaoChia(order);
   // Phi hao chia: làm tròn số nguyên (ý 8)
   const phiHaoChia = Math.round(phiHaoChiaRaw);
+  // Feedback 2026-09-06 ý 3: màng ghép → MÁY IN | MÁY GHÉP 50/50 như túi.
+  const lamRows = resolveLsxLaminateRows(order);
+  const coGhep = lamRows.length > 0;
+  // Ý 7: chiều ra cuộn sau chia — thường y chang thành phẩm; trống thì "…"
+  const crcChia = (m.divideRollOutWidth ?? 0) > 0 ? `${m.divideRollOutWidth}mm` : "…";
 
   return (
     <View style={styles.table}>
-      <View style={styles.row}>
-        <View style={[styles.cell, { width: "100%" }, styles.secOrange]}>
-          <Text style={styles.bold}>{stageLabel(order, "MÁY IN", "in")}</Text>
-        </View>
-      </View>
-      <View style={styles.row}>
-        <Cell w="50%">
-          <Line label="Màng in: " value={m.printFilmName || s.layer1Name || ""} />
-        </Cell>
-        <Cell w="50%">
-          <Line label="Khổ: " value={khoMM ? `${khoMM}mm` : ""} />
-        </Cell>
-      </View>
-      <View style={styles.row}>
-        <Cell w="50%">
-          <Line
-            label="Quy cách trục: "
-            value={formatLsxCylText(m, s, { withMm: true })}
-          />
-          <Line label="MST: " value={v(m.printMST)} />
-        </Cell>
-        <Cell w="50%">
-          <Line label="Số trục: " value={formatLsxNumCylinders(m, false)} />
-          <Line label="Chiều ra cuộn: " value={v(m.printDirection) || v(m.rollOutWidth, "mm")} />
-        </Cell>
-      </View>
-      <View style={styles.row}>
-        <Cell w="100%">
-          <Line
-            label="Thành phẩm in yêu cầu: "
-            value={hienThiThanhPhamIn(order)}
-          />
-          <Text>{`Định mức phi hao: ${hienThiPhiHaoIn(order)}`}</Text>
-          <Text>{`Số lượng cấp vật tư: ${v(m.materialQtySupplied)}`}</Text>
-          {!!m.printNotes && <Line label="Ghi chú: " value={m.printNotes} />}
-          <Line label="Trục in: " value={v(m.cylInfo)} />
-        </Cell>
-      </View>
+      {coGhep ? (
+        <>
+          <View style={styles.row}>
+            <View style={[styles.cell, { width: "50%" }, styles.secOrange]}>
+              <Text style={styles.bold}>{stageLabel(order, "MÁY IN", "in")}</Text>
+            </View>
+            <View style={[styles.cell, { width: "50%" }, styles.secOrange]}>
+              <Text style={styles.bold}>{stageLabel(order, "MÁY GHÉP", "ghep")}</Text>
+            </View>
+          </View>
+          {(() => {
+            const wasteText = formatLsxLamWasteText(lamRows);
+            const gridRows = buildLsxLamGridRows(lamRows, khoMM);
+            return (
+              <>
+                <View style={styles.row}>
+                  <View style={styles.lamHalfLeft}>
+                    <View style={styles.lamPrintRow}>
+                      <View style={styles.lamPrintName}>
+                        <Line label="Màng in: " value={m.printFilmName || s.layer1Name || ""} />
+                        <Line label="Quy cách trục: " value={formatLsxCylText(m, s, { withMm: true })} />
+                        <Line label="MST: " value={v(m.printMST) || "…"} />
+                      </View>
+                      <View style={styles.lamPrintKho}>
+                        <Line label="Khổ: " value={khoMM ? `${khoMM}mm` : "…"} />
+                        <Line label="Số trục: " value={formatLsxNumCylinders(m, false)} />
+                        <Line label="Chiều ra cuộn: " value={v(m.printDirection) || v(m.rollOutWidth, "mm") || "…"} />
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.lamHalfRight}>
+                    {gridRows.map((row, ri) => {
+                      const rowStyle = ri === 0 ? styles.lamRow : [styles.lamRow, styles.lamRowNext];
+                      if (row.kind === "dual") {
+                        return (
+                          <View style={rowStyle} key={`lam-mang-${ri}`}>
+                            <View style={styles.lamLabel}>
+                              <Text style={styles.bold}>{row.label}</Text>
+                            </View>
+                            <View style={styles.lamPartsCol}>
+                              {row.parts.map((p, pi) => (
+                                <View
+                                  style={pi === 0 ? styles.lamPartRow : [styles.lamPartRow, styles.lamRowNext]}
+                                  key={`lam-mang-${ri}-${pi}`}
+                                >
+                                  <View style={styles.lamPartName}>
+                                    <Text>{p.name}</Text>
+                                  </View>
+                                  <View style={styles.lamPartKho}>
+                                    <Line label="Khổ " value={p.khoText} />
+                                  </View>
+                                </View>
+                              ))}
+                            </View>
+                          </View>
+                        );
+                      }
+                      return (
+                        <View style={rowStyle} key={`lam-mang-${ri}`}>
+                          <View style={styles.lamSingleName}>
+                            <Line label={`${row.label}: `} value={row.name} />
+                          </View>
+                          <View style={styles.lamSingleKho}>
+                            <Line label="Khổ " value={row.khoText} />
+                          </View>
+                        </View>
+                      );
+                    })}
+                  </View>
+                </View>
+                <View style={styles.row}>
+                  <Cell w="50%">
+                    <Line label="Thành phẩm in yêu cầu: " value={hienThiThanhPhamIn(order) || "…"} />
+                    <Text>{`Định mức phi hao: ${hienThiPhiHaoIn(order) || "…"}`}</Text>
+                    {m.materialQtySupplied > 0 && (
+                      <Text>{`Số lượng cấp vật tư: ${v(m.materialQtySupplied)}`}</Text>
+                    )}
+                    {(!!m.inDesc || !!m.printNotes) && (
+                      <Line
+                        label="Ghi chú: "
+                        value={[m.inDesc, m.printNotes].filter(Boolean).join("\n")}
+                      />
+                    )}
+                  </Cell>
+                  <Cell w="50%">
+                    <Text>{`Định mức phi hao: ${wasteText || "…"}`}</Text>
+                    <Line label="Thành phẩm yêu cầu: " value={formatLsxLamProductLine(m, "…")} />
+                    {!!m.lamBTPNote && <Text>{m.lamBTPNote}</Text>}
+                    {(!!m.lamDesc || !!m.laminateNotes) && (
+                      <Line
+                        label="Ghi chú: "
+                        value={[m.lamDesc, m.laminateNotes].filter(Boolean).join("\n")}
+                      />
+                    )}
+                    {!!formatLsxLamSupplyLine(m, "") && (
+                      <Line label="Số lượng cấp vật tư: " value={formatLsxLamSupplyLine(m, "")} />
+                    )}
+                  </Cell>
+                </View>
+              </>
+            );
+          })()}
+        </>
+      ) : (
+        <>
+          <View style={styles.row}>
+            <View style={[styles.cell, { width: "100%" }, styles.secOrange]}>
+              <Text style={styles.bold}>{stageLabel(order, "MÁY IN", "in")}</Text>
+            </View>
+          </View>
+          <View style={styles.row}>
+            <Cell w="50%">
+              <Line label="Màng in: " value={m.printFilmName || s.layer1Name || ""} />
+            </Cell>
+            <Cell w="50%">
+              <Line label="Khổ: " value={khoMM ? `${khoMM}mm` : ""} />
+            </Cell>
+          </View>
+          <View style={styles.row}>
+            <Cell w="50%">
+              <Line
+                label="Quy cách trục: "
+                value={formatLsxCylText(m, s, { withMm: true })}
+              />
+              <Line label="MST: " value={v(m.printMST)} />
+            </Cell>
+            <Cell w="50%">
+              <Line label="Số trục: " value={formatLsxNumCylinders(m, false)} />
+              <Line label="Chiều ra cuộn: " value={v(m.printDirection) || v(m.rollOutWidth, "mm")} />
+            </Cell>
+          </View>
+          <View style={styles.row}>
+            <Cell w="100%">
+              <Line
+                label="Thành phẩm in yêu cầu: "
+                value={hienThiThanhPhamIn(order)}
+              />
+              <Text>{`Định mức phi hao: ${hienThiPhiHaoIn(order)}`}</Text>
+              <Text>{`Số lượng cấp vật tư: ${v(m.materialQtySupplied)}`}</Text>
+              {!!m.printNotes && <Line label="Ghi chú: " value={m.printNotes} />}
+              {/* Feedback 2026-09-06 ý 6: bỏ dòng "Trục in" trên LSX màng. */}
+            </Cell>
+          </View>
+        </>
+      )}
 
       {hasDivide && (
         <>
@@ -513,7 +651,7 @@ function MangBody({
             </View>
           </View>
           <View style={styles.row}>
-            <Cell w="100%"><DivideDetails order={order} /></Cell>
+            <Cell w="100%"><DivideDetails order={order} variant="mang" /></Cell>
           </View>
           <View style={styles.row}>
             <Cell w="100%">
@@ -523,13 +661,14 @@ function MangBody({
             </Cell>
           </View>
           <View style={styles.row}>
-            <Cell w="100%">
+            <Cell w="50%">
               <Text>{`Định mức phi hao: ${phiHaoChia}m`}</Text>
+            </Cell>
+            <Cell w="50%">
+              <Line label="Chiều ra cuộn: " value={crcChia} />
               {!!m.divideDeliveryReq && (
                 <Line label="Khách hàng yêu cầu giao: " value={m.divideDeliveryReq} />
               )}
-              {/* Mô tả / Ghi chú chia đã có nhãn trong DivideDetails phía trên
-                  — không lặp lại ở đây (fix lặp 2026-09-05). */}
             </Cell>
           </View>
         </>

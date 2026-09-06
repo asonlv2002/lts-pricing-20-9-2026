@@ -78,11 +78,11 @@ function divideResultHtml(order: ProductionOrder): string {
   if ((m.divideRollOutWidth ?? 0) > 0) {
     rows.push(`<div><span class="b">Chiều ra cuộn: </span>${esc(`${m.divideRollOutWidth}mm`)}</div>`);
   }
-  if (m.divideDesc) {
-    rows.push(`<div><span class="b">Mô tả: </span>${esc(m.divideDesc)}</div>`);
-  }
-  if (m.divideNotes) {
-    rows.push(`<div><span class="b">Ghi chú: </span>${esc(m.divideNotes)}</div>`);
+  if (m.divideDesc || m.divideNotes) {
+    // Feedback 2026-09-06: gộp "Mô tả" + "Ghi chú" thành 1 khối "Ghi chú:"
+    // (mô tả khách trước, ghi chú có sẵn dưới cùng).
+    const ghiChuChia = [m.divideDesc, m.divideNotes].filter(Boolean).join('\n');
+    rows.push(`<div><span class="b">Ghi chú: </span>${esc(ghiChuChia).replace(/\n/g, '<br/>')}</div>`);
   }
   return rows.join('');
 }
@@ -384,15 +384,127 @@ function productInfoHtml(order: ProductionOrder): string {
   </table>`;
 }
 
+/**
+ * Khối thông số MÁY CHIA cho LSX MÀNG — feedback 2026-09-06 ý 5+7:
+ * "Ghi chú" lên đầu (trên "cái mớ" Chiều dài / Lưu ý / phi hao); dòng
+ * "Chiều ra cuộn" sau chia bổ sung cuối khối, cạnh Định mức phi hao.
+ * Ẩn đặc tả khi user chưa nhập gì (giữ hành vi regression 2026-08-27).
+ */
+function divideMangContentHtml(order: ProductionOrder, phiHaoChia: number): { spec: string; cuoi: string } {
+  const spec = resolveLsxDivideSpec(order);
+  const m = order.manual;
+  const hasUserData =
+    (m.divideWidth ?? 0) > 0
+    || (m.divideElements ?? 0) > 0
+    || (Array.isArray(m.divideWidths) && m.divideWidths.length > 0);
+  const filmWidth = spec.filmWidthMm ? `${spec.filmWidthMm}mm` : '…';
+  const khoChia = spec.elementCount > 0 ? formatLsxDivideSummary(spec) : vd(spec.defaultWidthMm, 'mm');
+  const ghiChuChia = [m.divideDesc, m.divideNotes].filter(Boolean).join('\n');
+  // Ý 7: chiều ra cuộn sau chia — thường y chang thành phẩm; trống thì "…"
+  const crc = (m.divideRollOutWidth ?? 0) > 0 ? `${m.divideRollOutWidth}mm` : '…';
+  return {
+    spec: hasUserData ? `
+    <div class="divide-split">
+      <div class="divide-cell"><span class="b">Khổ màng: </span>${esc(filmWidth)}</div>
+      <div class="divide-cell"><span class="b">Khổ chia: </span>${esc(khoChia)}</div>
+    </div>
+    <div><span class="b">Ghi chú: </span>${ghiChuChia ? esc(ghiChuChia).replace(/\n/g, '<br/>') : ''}</div>
+    <div><span class="b">Chiều dài: </span>${esc(vd(m.rollLength, 'm'))}</div>` : '',
+    cuoi: `
+    <div class="divide-split">
+      <div class="divide-cell"><span class="b">Định mức phi hao: </span>${esc(String(phiHaoChia))}m</div>
+      <div class="divide-cell"><span class="b">Chiều ra cuộn: </span>${esc(crc)}</div>
+    </div>
+    ${m.divideDeliveryReq ? `<div><span class="b">Khách hàng yêu cầu giao: </span>${esc(m.divideDeliveryReq)}</div>` : ''}`,
+  };
+}
+
 // ── Màng body — 2-col (ref mang-in / mang-bopp) ──────────────────────────────
 function mangBodyHtml(order: ProductionOrder): string {
   const { snapshot: s, manual: m } = order;
   const hasDivide = orderHasDivide(order);
   const khoMM = layKhoMangTuNguon({ snapshot: s }, 'In') ?? 0;
+  // Màng ghép (2 lớp trở lên) → MÁY IN | MÁY GHÉP 50/50 như túi
+  // (feedback 2026-09-06 ý 3: "khâu ghép của chị đâu").
+  const lamRows = resolveLsxLaminateRows(order);
+  const coGhep = lamRows.length > 0;
 
   let html = `
   <table>
-    <colgroup><col style="width:48.5%" /><col style="width:51.5%" /></colgroup>
+    <colgroup><col style="width:48.5%" /><col style="width:51.5%" /></colgroup>`;
+
+  if (coGhep) {
+    const wasteText = formatLsxLamWasteText(lamRows);
+    const gridRows = buildLsxLamGridRows(lamRows, khoMM);
+
+    // Nửa MÁY IN — bỏ dòng "Trục in" (feedback 2026-09-06 ý 6)
+    const printGrid = `
+        <table><colgroup><col style="width:58%" /><col style="width:42%" /></colgroup>
+          <tr>
+            <td>
+              <div><span class="b">Màng in: </span>${esc(m.printFilmName || s.layer1Name || '')}</div>
+              <div><span class="b">Quy cách trục: </span>${esc(formatLsxCylText(m, s, { withMm: true }))}</div>
+              <div><span class="b">MST: </span>${esc(v(m.printMST) || '…')}</div>
+            </td>
+            <td>
+              <div><span class="b">Khổ: </span>${khoMM ? `${khoMM}mm` : '…'}</div>
+              <div><span class="b">Số trục: </span>${esc(formatLsxNumCylinders(m, false))}</div>
+              <div><span class="b">Chiều ra cuộn: </span>${esc(v(m.printDirection) || v(m.rollOutWidth, 'mm') || '…')}</div>
+            </td>
+          </tr>
+        </table>`;
+
+    // Nửa MÁY GHÉP: dòng đơn = 2 ô; dòng dual = label gộp dọc + mỗi vật liệu 1 hàng
+    const lamGridRowsHtml = gridRows
+      .map((row) => {
+        if (row.kind === 'dual') {
+          return row.parts
+            .map((p, pi) =>
+              pi === 0
+                ? `<tr><td rowspan="${row.parts.length}" class="vm"><span class="b">${esc(row.label)}</span></td>` +
+                  `<td>${esc(p.name)}</td><td>Khổ ${esc(p.khoText)}</td></tr>`
+                : `<tr><td class="lam-part-first">${esc(p.name)}</td><td>Khổ ${esc(p.khoText)}</td></tr>`,
+            )
+            .join('');
+        }
+        return (
+          `<tr><td colspan="2"><span class="b">${esc(row.label)}: </span>${esc(row.name)}</td>` +
+          `<td>Khổ ${esc(row.khoText)}</td></tr>`
+        );
+      })
+      .join('');
+
+    const lamGrid = `
+        <table><colgroup><col style="width:36%" /><col style="width:38%" /><col style="width:26%" /></colgroup>
+          ${lamGridRowsHtml || '<tr><td colspan="3"></td></tr>'}
+        </table>`;
+
+    html += `
+    <tr>
+      <td class="sec-orange" style="width:48.5%">${esc(stageLabel(order, 'MÁY IN', 'in'))}</td>
+      <td class="sec-orange" style="width:51.5%">${esc(stageLabel(order, 'MÁY GHÉP', 'ghep'))}</td>
+    </tr>
+    <tr>
+      <td class="lam-half lam-half--print" data-lsx-print-grid>${printGrid}</td>
+      <td class="lam-half" data-lsx-lam-grid>${lamGrid}</td>
+    </tr>
+    <tr>
+      <td>
+        <div><span class="b">Thành phẩm in yêu cầu: </span>${esc(hienThiThanhPhamIn(order) || '…')}</div>
+        <div>Định mức phi hao: ${esc(hienThiPhiHaoIn(order) || '…')}</div>
+        ${m.materialQtySupplied > 0 ? `<div>Số lượng cấp vật tư: ${esc(v(m.materialQtySupplied))}</div>` : ''}
+        ${(m.inDesc || m.printNotes) ? `<div><span class="b">Ghi chú: </span>${esc([m.inDesc, m.printNotes].filter(Boolean).join('\n')).replace(/\n/g, '<br/>')}</div>` : ''}
+      </td>
+      <td>
+        <div>Định mức phi hao: ${esc(wasteText || '…')}</div>
+        <div><span class="b">Thành phẩm yêu cầu: </span>${esc(formatLsxLamProductLine(m, '…'))}</div>
+        ${m.lamBTPNote ? `<div>${esc(m.lamBTPNote)}</div>` : ''}
+        ${(m.lamDesc || m.laminateNotes) ? `<div><span class="b">Ghi chú: </span>${esc([m.lamDesc, m.laminateNotes].filter(Boolean).join('\n')).replace(/\n/g, '<br/>')}</div>` : ''}
+        ${formatLsxLamSupplyLine(m, '') ? `<div><span class="b">Số lượng cấp vật tư: </span>${esc(formatLsxLamSupplyLine(m, ''))}</div>` : ''}
+      </td>
+    </tr>`;
+  } else {
+    html += `
     <tr><td colspan="2" class="sec-orange">${esc(stageLabel(order, 'MÁY IN', 'in'))}</td></tr>
     <tr>
       <td><span class="b">Màng in: </span>${esc(m.printFilmName || s.layer1Name || '')}</td>
@@ -414,32 +526,25 @@ function mangBodyHtml(order: ProductionOrder): string {
         <div>Định mức phi hao: ${esc(hienThiPhiHaoIn(order))}</div>
         ${m.materialQtySupplied > 0 ? `<div>Số lượng cấp vật tư: ${esc(v(m.materialQtySupplied))}</div>` : ''}
         ${m.printNotes ? `<div><span class="b">Ghi chú: </span>${esc(m.printNotes)}</div>` : ''}
-        <div><span class="b">Trục in: </span>${esc(v(m.cylInfo))}</div>
       </td>
     </tr>`;
+  }
 
   if (hasDivide) {
     const chiaRow = layDongTheoCongDoan(order, 'Chia');
     const phiHaoChiaRaw = chiaRow && typeof chiaRow.phiHao === 'number' ? chiaRow.phiHao : layPhiHaoChia(order);
     // Phi hao chia: làm tròn số nguyên (ý 8)
     const phiHaoChia = Math.round(phiHaoChiaRaw);
+    const { spec: chiaSpec, cuoi: chiaCuoi } = divideMangContentHtml(order, phiHaoChia);
     html += `
     <tr><td colspan="2" class="sec-orange">${esc(stageLabel(order, 'MÁY CHIA', 'chia'))}</td></tr>
-    <tr>
-      <td colspan="2">${divideResultHtml(order)}</td>
-    </tr>
+    ${chiaSpec ? `<tr><td colspan="2">${chiaSpec}</td></tr>` : ''}
     <tr>
       <td colspan="2">
         <div class="red-note">(Lưu ý: Dựa vào số mét thực tế mà linh động chia cuộn hợp lý)</div>
       </td>
     </tr>
-    <tr>
-      <td colspan="2">
-        <div>Định mức phi hao: ${esc(String(phiHaoChia))}m</div>
-        ${m.divideDeliveryReq ? `<div><span class="b">Khách hàng yêu cầu giao: </span>${esc(m.divideDeliveryReq)}</div>` : ''}
-        <!-- Mô tả / Ghi chú chia đã có nhãn trong divideResultHtml phía trên — không lặp -->
-      </td>
-    </tr>`;
+    <tr><td colspan="2">${chiaCuoi}</td></tr>`;
   }
 
   html += `
@@ -559,8 +664,7 @@ function tuiBodyHtml(order: ProductionOrder): string {
         <div>Định mức phi hao: ${esc(hienThiPhiHaoIn(order) || '…')}</div>
         <div>Thành phẩm in: ${esc(hienThiThanhPhamIn(order) || '…')}</div>
         ${m.materialQtySupplied > 0 ? `<div><span class="b">Số lượng cấp vật tư: </span>${esc(v(m.materialQtySupplied))}</div>` : ''}
-        ${m.inDesc ? `<div>${esc(m.inDesc)}</div>` : ''}
-        ${m.printNotes ? `<div><span class="b">Ghi chú: </span>${esc(m.printNotes)}</div>` : ''}
+        ${(m.inDesc || m.printNotes) ? `<div><span class="b">Ghi chú: </span>${esc([m.inDesc, m.printNotes].filter(Boolean).join('\n')).replace(/\n/g, '<br/>')}</div>` : ''}
       </td>
       <td colspan="3">
         ${m.divideDeliveryReq ? `<div><span class="b">Ghi chú chia: </span>${esc(m.divideDeliveryReq)}</div>` : ''}
@@ -630,17 +734,15 @@ function tuiBodyHtml(order: ProductionOrder): string {
         <div>Định mức phi hao: ${esc(hienThiPhiHaoIn(order) || '…')}</div>
         <div>Thành phẩm yêu cầu: ${esc(hienThiThanhPhamIn(order) || '…')}</div>
         ${m.materialQtySupplied > 0 ? `<div><span class="b">Số lượng cấp vật tư: </span>${esc(v(m.materialQtySupplied))}</div>` : ''}
-        ${m.inDesc ? `<div>${esc(m.inDesc)}</div>` : ''}
-        ${m.printNotes ? `<div><span class="b">Ghi chú: </span>${esc(m.printNotes)}</div>` : ''}
+        ${(m.inDesc || m.printNotes) ? `<div><span class="b">Ghi chú: </span>${esc([m.inDesc, m.printNotes].filter(Boolean).join('\n')).replace(/\n/g, '<br/>')}</div>` : ''}
         ${m.cylInfo ? `<div><span class="b">Trục in: </span>${esc(m.cylInfo)}</div>` : ''}
       </td>
       <td colspan="3">
         <div>Định mức phi hao: ${esc(wasteText || '…')}</div>
         <div>Thành phẩm yêu cầu: ${esc(formatLsxLamProductLine(m, '…'))}</div>
         ${m.lamBTPNote ? `<div>${esc(m.lamBTPNote)}</div>` : ''}
-        ${m.lamDesc ? `<div>${esc(m.lamDesc)}</div>` : ''}
+        ${(m.lamDesc || m.laminateNotes) ? `<div><span class="b">Ghi chú: </span>${esc([m.lamDesc, m.laminateNotes].filter(Boolean).join('\n')).replace(/\n/g, '<br/>')}</div>` : ''}
         ${formatLsxLamSupplyLine(m, '') ? `<div><span class="b">Số lượng cấp vật tư: </span>${esc(formatLsxLamSupplyLine(m, ''))}</div>` : ''}
-        ${m.laminateNotes ? `<div><span class="b">Ghi chú: </span>${esc(m.laminateNotes)}</div>` : ''}
       </td>
     </tr>`;
   }

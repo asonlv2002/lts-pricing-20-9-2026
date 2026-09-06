@@ -18,7 +18,7 @@ import { mapBaoGiaToLsxSources, laBaoGiaDaDuyet } from '../../lib/bao-gia-adapte
 import { LsxFormFields } from './LsxFormFields';
 import LsxPreviewModal from '../LsxPreviewModal';
 import LsxPdfPreviewModal from '../LsxPdfPreviewModal';
-import { buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue } from '../../lib/lsx-build-order';
+import { buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue, backfillQuyCachCuon } from '../../lib/lsx-build-order';
 import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../../lib/chu-ky';
 
 export interface SlidePanelLsxEditProps {
@@ -159,6 +159,18 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
       input: input as any,
     };
   }, [quotation, order.pricingSheetId, order.pricingSheet]);
+
+  // Feedback 2026-09-06 ý 1: LSX cũ thiếu "Quy cách cuộn" → backfill auto khi mở sửa.
+  useEffect(() => {
+    if (!source) return;
+    setManual(prev => {
+      const next = { ...prev };
+      backfillQuyCachCuon(next, source);
+      backfillChieuRaCuonMang(next, source);
+      const changed = next.quyCachCuon !== prev.quyCachCuon || next.chieuRaCuonSP !== prev.chieuRaCuonSP;
+      return changed ? next : prev;
+    });
+  }, [source]);
 
   async function handleXemPdf() {
     if (!source) return;

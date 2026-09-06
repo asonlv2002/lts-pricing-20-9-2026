@@ -160,7 +160,10 @@ export function mapPricingSheetToHistory(
   );
   if (!result) return null;
 
-  const laNangCap = !!rawInput.isNangCap;
+  // TM (mua đi bán lại) không chạy bảng đặc tả nâng cao — item cũ nhiễm cờ
+  // isNangCap (bug lưu lệch cờ) được chữa tại đây, tránh A4/list đi nhánh NC
+  // và cộng LN bảng giá lên giá TM đã gồm LN.
+  const laNangCap = !!rawInput.isNangCap && rawInput.pricingMode !== 'commercial';
   const saleOverrides = unwrapOverrides(sheet.saleResult);
   const adminOverrides = unwrapOverrides(sheet.masterResult);
   const saleProfitRatePct = unwrapProfitRatePct(sheet.saleResult);
@@ -231,7 +234,15 @@ export function mapPricingSheetToHistory(
     deletable: sheet.original?.deletable,
     canUpdate: sheet.original?.canUpdate,
     canAdminUpdate: sheet.original?.canAdminUpdate,
-    input: syncedInput,
+    input: {
+      ...syncedInput,
+      // Backfill snapshot độ dày cho sheet cũ (lưu trước khi có totalThicknessMic):
+      // chốt bằng chính engine đã chạy với ctx pin của sheet → khớp màn tính giá.
+      totalThicknessMic:
+        (syncedInput.totalThicknessMic ?? 0) > 0
+          ? syncedInput.totalThicknessMic
+          : (ketQuaHienThi.totalThickness || 0),
+    },
   };
 }
 

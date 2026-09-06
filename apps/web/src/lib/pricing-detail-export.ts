@@ -1,5 +1,6 @@
 import type { AppConstants, CalculateResult, HistoryItem, Material, OverrideTable, ProfitRow, SmallWidthMaterialPrice } from './types';
 import { tinhBaoGia, lapDongSanXuat, xuLyDongGhiDe, tinhGiaHieuLuc } from './manager-calculation';
+import { tinhGiaThuongMai } from './engine';
 import type { UniRow } from './manager-calculation';
 import {
   chuanBiUniRowsNangCao,
@@ -265,6 +266,11 @@ function buildGia(r: CalculateResult, item: HistoryItem, constants: AppConstants
   const giaDeXuat = r.finalPrice || item.finalPrice || 0;
   const chotGia = coChot ? item.chotGia! : 0;
   const diff = coChot ? chotGia - r.finalPrice : 0;
+  // TM (mua đi bán lại): công thức số khớp màn tính giá thương mại — chi phí/sp
+  // = mua + VC + thùng + phụ phí + lãi vay (KHÔNG gồm LN). r.totalProductionCost
+  // của result TM tổng hợp đã gồm LN → dùng nó sẽ trừ LN 2 lần.
+  const laThuongMai = !!(item.isThuongMai || item.input?.pricingMode === 'commercial');
+  const tmKq = laThuongMai ? tinhGiaThuongMai(item.input) : null;
 
   // Phân bổ chốt giá
   const hoaHongEngine = r.commissionPerUnit;
@@ -285,42 +291,91 @@ function buildGia(r: CalculateResult, item: HistoryItem, constants: AppConstants
     doanhThuChot = chotGia * item.quantity;
     const hhMoi = Math.max(0, hoaHongEngine + phanBo.hoaHongAmount);
     tongHoaHongChot = Math.round(hhMoi * item.quantity);
-    // Giá đề xuất KHÔNG còn cộng tiền zipper — ngoại lệ GC làm túi "chưa gộp zipper".
-    const coGcChuaGomZipper =
-      item.input.pricingMode === 'outsource' &&
-      (item.input.outsource?.steps ?? []).includes('bag') &&
-      item.input.outsource?.bag?.zipperMode === 'excluded';
-    const tongChiPhi = r.totalProductionCost + (coGcChuaGomZipper ? r.zipperTotal : 0) + r.tapeTotal
-      + r.handleTotal + r.boxTotal + r.shippingTotal
-      + r.interestPerUnit * item.quantity;
-    loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
-    pctLN = r.totalProductionCost > 0 ? (loiNhuanCongTyChot / r.totalProductionCost) * 100 : 0;
-    commissionPctShown = r.costPerUnit > 0 ? (hhMoi / r.costPerUnit) * 100 : 0;
+    if (tmKq) {
+      // TM — khớp màn tính giá: LN công ty = DT chốt − (mua+VC+thùng+phụ phí+lãi vay)×SL − HH
+      const chiPhiDonVi = tmKq.purchasePrice + (r.shippingPerUnit ?? 0) + (r.boxPerUnit ?? 0)
+        + tmKq.extraFeePerUnit + (r.interestPerUnit ?? 0);
+      const tongChiPhi = chiPhiDonVi * item.quantity;
+      loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
+      pctLN = tongChiPhi > 0 ? (loiNhuanCongTyChot / tongChiPhi) * 100 : 0;
+      commissionPctShown = tongChiPhi > 0 ? (hhMoi * item.quantity / tongChiPhi) * 100 : 0;
+    } else {
+      // Giá đề xuất KHÔNG còn cộng tiền zipper — ngoại lệ GC làm túi "chưa gộp zipper".
+      const coGcChuaGomZipper =
+        item.input.pricingMode === 'outsource' &&
+        (item.input.outsource?.steps ?? []).includes('bag') &&
+        item.input.outsource?.bag?.zipperMode === 'excluded';
+      const tongChiPhi = r.totalProductionCost + (coGcChuaGomZipper ? r.zipperTotal : 0) + r.tapeTotal
+        + r.handleTotal + r.boxTotal + r.shippingTotal
+        + r.interestPerUnit * item.quantity;
+      loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
+      pctLN = r.totalProductionCost > 0 ? (loiNhuanCongTyChot / r.totalProductionCost) * 100 : 0;
+      commissionPctShown = r.costPerUnit > 0 ? (hhMoi / r.costPerUnit) * 100 : 0;
+    }
   }
 
   // 4 stat boxes
   const tienLN = r.profitAmount;
   const tyLeLN = r.profitRate;
-  const doanhThu = r.revenue;
+  const doanhThu = tmKq ? (r.finalPrice || 0) * item.quantity : r.revenue;
   const giaBan = coChot ? chotGia : r.finalPrice;
   const totalCommission = r.commissionPerUnit * item.quantity;
-  const commissionPct = r.totalProductionCost > 0 ? (r.commissionPerUnit * item.quantity / r.totalProductionCost) : 0;
+  // TM: % hoa hồng theo tổng tiền mua (khớp hoaHongPctTM trên màn tính giá)
+  const commissionPct = tmKq
+    ? (tmKq.purchaseTotal > 0 ? totalCommission / tmKq.purchaseTotal : 0)
+    : (r.totalProductionCost > 0 ? (r.commissionPerUnit * item.quantity / r.totalProductionCost) : 0);
 
   // Breakdown items
-  const blItems: [string, string][] = [
-    [`${meta.initialPriceLabel} (Vốn + ${dinhDangPhanTram(tyLeLN)} LN)`, dinhDangSoLe(r.costPerUnit, 1) + ' đ'],
-  ];
-  // Zipper đã gộp vào dòng Làm túi trên bảng đặc tả — không hiện dòng riêng (đồng bộ màn hình, b07d8ca)
-  if (item.input.hasTape) blItems.push(['Chi phí Băng keo', dinhDangSoLe(r.tapePerUnit, 1) + ' đ']);
-  if (item.input.hasHandle) blItems.push(['Chi phí Quai', dinhDangSoLe(r.handlePerUnit, 1) + ' đ']);
-  blItems.push(
-    [item.input.productType === 'mang' ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSoLe(r.boxPerUnit, 1) + ' đ'],
-    [meta.shippingLabel, dinhDangSoLe(r.shippingPerUnit, 1) + ' đ'],
-    [meta.interestLabel(r.interestBase || 0, r.paymentDays ?? 30), dinhDangSoLe(r.interestPerUnit, 1) + ` đ${isPrintFilm(item.input) ? '/' + meta.unit : ''}`],
-    ['Hoa hồng kinh doanh', dinhDangSoLe(r.commissionPerUnit, 1) + ' đ'],
-  );
-  if (item.input.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
-    blItems.push(['Trục in phân bổ (bao trục / 200k m²)', dinhDangSoLe(r.cylAllocPerUnit ?? 0, 2) + ' đ']);
+  const blItems: [string, string][] = [];
+  if (tmKq) {
+    // TM — khớp khối "Chi tiết giá" trên màn tính giá thương mại
+    blItems.push(['Đơn giá mua', dinhDangSoLe(tmKq.purchasePrice, 0) + ' đ']);
+    blItems.push([
+      tmKq.profitUnit === 'percent'
+        ? `Lợi nhuận (${dinhDangSoLe(tmKq.profitRawValue, 2)}%)`
+        : `Lợi nhuận (${dinhDangSoLe(tmKq.profitRawValue, 0)} đ${tmKq.unitLabel})`,
+      dinhDangSoLe(tmKq.profitPerUnit, 1) + ' đ',
+    ]);
+    if (tmKq.extraFeePerUnit > 0) {
+      blItems.push(['Phụ phí khác', dinhDangSoLe(tmKq.extraFeePerUnit, 1) + ' đ']);
+    }
+    if ((r.shippingPerUnit ?? 0) > 0) {
+      blItems.push(['Vận chuyển / đơn vị', dinhDangSoLe(r.shippingPerUnit, 1) + ' đ']);
+    }
+    if ((r.boxPerUnit ?? 0) > 0) {
+      blItems.push(['Phí thùng / đơn vị', dinhDangSoLe(r.boxPerUnit, 1) + ' đ']);
+    }
+    if ((r.interestPerUnit ?? 0) > 0) {
+      blItems.push([meta.interestLabel(r.interestBase || 0, r.paymentDays ?? 30), dinhDangSoLe(r.interestPerUnit, 1) + ' đ']);
+    }
+    if ((r.commissionPerUnit ?? 0) > 0) {
+      blItems.push(['Hoa hồng kinh doanh', dinhDangSoLe(r.commissionPerUnit, 1) + ' đ']);
+    }
+  } else {
+    blItems.push([`${meta.initialPriceLabel} (Vốn + ${dinhDangPhanTram(tyLeLN)} LN)`, dinhDangSoLe(r.costPerUnit, 1) + ' đ']);
+    // Zipper đã gộp vào dòng Làm túi trên bảng đặc tả — không hiện dòng riêng (đồng bộ màn hình, b07d8ca)
+    if (item.input.hasTape) blItems.push(['Chi phí Băng keo', dinhDangSoLe(r.tapePerUnit, 1) + ' đ']);
+    if (item.input.hasHandle) blItems.push(['Chi phí Quai', dinhDangSoLe(r.handlePerUnit, 1) + ' đ']);
+    blItems.push(
+      [item.input.productType === 'mang' ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSoLe(r.boxPerUnit, 1) + ' đ'],
+      [meta.shippingLabel, dinhDangSoLe(r.shippingPerUnit, 1) + ' đ'],
+      [meta.interestLabel(r.interestBase || 0, r.paymentDays ?? 30), dinhDangSoLe(r.interestPerUnit, 1) + ` đ${isPrintFilm(item.input) ? '/' + meta.unit : ''}`],
+      ['Hoa hồng kinh doanh', dinhDangSoLe(r.commissionPerUnit, 1) + ' đ'],
+    );
+    if (item.input.pricingMode === 'outsource') {
+      if ((r.gcShippingPerUnit ?? 0) > 0) {
+        blItems.push(['Vận chuyển (gia công)', dinhDangSoLe(r.gcShippingPerUnit ?? 0, 1) + ' đ']);
+      }
+      if ((r.gcPackagingPerUnit ?? 0) > 0) {
+        blItems.push(['Đóng gói (gia công)', dinhDangSoLe(r.gcPackagingPerUnit ?? 0, 1) + ' đ']);
+      }
+      if ((r.gcOtherPerUnit ?? 0) > 0) {
+        blItems.push(['Phụ phí khác (gia công)', dinhDangSoLe(r.gcOtherPerUnit ?? 0, 1) + ' đ']);
+      }
+    }
+    if (item.input.cylIncluded && (r.cylAllocPerUnit ?? 0) > 0) {
+      blItems.push(['Trục in phân bổ (bao trục / 200k m²)', dinhDangSoLe(r.cylAllocPerUnit ?? 0, 2) + ' đ']);
+    }
   }
   if (coChot) {
     blItems.push(['+ Chênh lệch chốt giá', dinhDangSoLe(diff, 1) + ' đ']);
@@ -865,23 +920,16 @@ export async function exportPricingDetailToA4(
     accessToken,
   );
 
-  if (item.isNangCap || item.input?.isNangCap) {
-    const cot = cpsxPolicies
-      ? cotBang2TheoQuyen(cpsxPolicies)
-      : { coDien: true, coLuong: true, coThoiGian: true };
-    exportPricingDetailNangCaoToA4(item, ctx.materials, ctx.constants, ctx.profitTable, cot, coQuyenCoVan !== false, ctx.smallWidthPrices);
-    return;
-  }
-
-  const r = tinhBaoGia(item.input, ctx.materials, ctx.constants, ctx.profitTable, ctx.smallWidthPrices);
-  if (!r) {
-    alert('Không thể tính lại bảng giá này. Dữ liệu có thể không hợp lệ.');
-    return;
-  }
-
-  // Tính giá thương mại: không có thông số CPSX / override kỹ thuật → chỉ xuất 1 trang.
+  // Tính giá thương mại: KHÔNG đi qua bảng đặc tả nâng cao — check TRƯỚC isNangCap.
+  // Item TM từng nhiễm cờ isNangCap (bug lưu lệch cờ) phải vẫn xuất trang TM,
+  // không chạy nhánh NC (tính LN bảng giá trên giá đã gồm LN → sai toàn bộ số).
   const laThuongMai = !!(item.isThuongMai || item.input?.pricingMode === 'commercial');
   if (laThuongMai) {
+    const r = tinhBaoGia(item.input, ctx.materials, ctx.constants, ctx.profitTable, ctx.smallWidthPrices);
+    if (!r) {
+      alert('Không thể tính lại bảng giá này. Dữ liệu có thể không hợp lệ.');
+      return;
+    }
     const pagesHtml = `<div class="page">
       <h1>CHI TIẾT BẢNG TÍNH GIÁ</h1>
       <div style="text-align:center;font-size:9pt;color:#64748b;margin-bottom:12px;">Ngày ${item.date}</div>
@@ -893,6 +941,20 @@ export async function exportPricingDetailToA4(
       `Chi tiết bảng tính giá — ${item.productName}`,
       pagesHtml,
     );
+    return;
+  }
+
+  if (item.isNangCap || item.input?.isNangCap) {
+    const cot = cpsxPolicies
+      ? cotBang2TheoQuyen(cpsxPolicies)
+      : { coDien: true, coLuong: true, coThoiGian: true };
+    exportPricingDetailNangCaoToA4(item, ctx.materials, ctx.constants, ctx.profitTable, cot, coQuyenCoVan !== false, ctx.smallWidthPrices);
+    return;
+  }
+
+  const r = tinhBaoGia(item.input, ctx.materials, ctx.constants, ctx.profitTable, ctx.smallWidthPrices);
+  if (!r) {
+    alert('Không thể tính lại bảng giá này. Dữ liệu có thể không hợp lệ.');
     return;
   }
 

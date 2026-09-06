@@ -25,6 +25,18 @@ export interface LsxQuyCachSnapshot {
   zipperDistanceMm?: number;
 }
 
+/**
+ * Dòng "Quy cách" tự động cho LSX MÀNG (feedback 2026-09-06 ý 0):
+ * "khổ trải x bước cắt" — cả 2 số lấy từ tính giá (spreadWidth, cutStep).
+ * VD: "820mm x 1000mm". Nhập tay quyCachNote vẫn override.
+ */
+export function formatLsxQuyCachMang(spreadWidth: number, cutStep: number): string {
+  const kho = Math.round((spreadWidth || 0) * 1000);
+  const buoc = Math.round((cutStep || 0) * 1000);
+  if (kho <= 0 && buoc <= 0) return '';
+  return `${kho ? `${kho}mm` : '…'} x ${buoc ? `${buoc}mm` : '…'}`;
+}
+
 /** Dung sai mặc định chiều rộng (R) quy cách LSX. */
 export const LSX_TOLERANCE_WIDTH_DEFAULT_MM = 2;
 /** Dung sai mặc định chiều dài (D) quy cách LSX. */
@@ -89,7 +101,7 @@ export function buildLsxQuyCachLines(
           tolWidthMm: manual.quyCachToleranceWidthMm ?? LSX_TOLERANCE_WIDTH_DEFAULT_MM,
           tolLengthMm: manual.quyCachToleranceLengthMm ?? LSX_TOLERANCE_LENGTH_DEFAULT_MM,
         })
-      : '';
+      : (!isTui ? formatLsxQuyCachMang(snapshot.spreadWidth, snapshot.cutStep) : '');
   const spec = manual.quyCachNote?.trim() || autoSpec;
 
   const lines: string[] = [];

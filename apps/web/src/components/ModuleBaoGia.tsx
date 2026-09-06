@@ -48,6 +48,7 @@ import {
   tinhBaoGia,
   xuLyDongGhiDe,
 } from "../lib/manager-calculation";
+import { tinhTongDoDayCuaInput } from "../lib/do-day-snapshot";
 import { getPricingDisplayMeta } from "../lib/pricing-display";
 import type {
   AppConstants,
@@ -1844,7 +1845,9 @@ function BuocChonSanPham({
   const tinhGiaTheoSoLuong = (item: HistoryItem, quantity: number): number => {
     if (quantity <= 0) return 0;
     try {
-      const laNangCap = !!(item.isNangCap || item.input?.isNangCap);
+      // TM không chạy bảng đặc tả nâng cao — chặn item TM nhiễm cờ isNangCap (bug cũ)
+      const laNangCap = !!(item.isNangCap || item.input?.isNangCap)
+        && item.input?.pricingMode !== 'commercial';
       // Sheet nâng cao: pin CPSX NC + tính qua bảng đặc tả NC (đồng bộ danh sách/A4),
       // ghi đè dòng của sheet vẫn áp; LN% ghi đè = 0 (chỉ preview trong tab).
       const hangSo =
@@ -2012,27 +2015,32 @@ function BuocChonSanPham({
               >
                 <Trash2 size={12} /> Xóa
               </button>
-              {isTui && (
-                <button
-                  className="wiz-spec-toggle"
-                  onClick={() => toggleProductExpanded(pIdx)}
-                  aria-expanded={!!prod.expanded}
-                >
-                  {prod.expanded ? (
-                    <ChevronDown size={13} />
-                  ) : (
-                    <ChevronRight size={13} />
-                  )}
-                  {prod.expanded ? "Thu gọn" : "Mở rộng"}
-                </button>
-              )}
+              <button
+                className="wiz-spec-toggle"
+                onClick={() => toggleProductExpanded(pIdx)}
+                aria-expanded={!!prod.expanded}
+              >
+                {prod.expanded ? (
+                  <ChevronDown size={13} />
+                ) : (
+                  <ChevronRight size={13} />
+                )}
+                {prod.expanded ? "Thu gọn" : "Mở rộng"}
+              </button>
             </div>
 
             {prod.expanded &&
-              isTui &&
               (() => {
                 const spec = prod.bagSpec;
                 const inp = prod.historyItem.input;
+                const filmTypeLabel =
+                  (
+                    {
+                      mangIn: "Màng in",
+                      mangGhep: "Màng ghép",
+                      mangDongGoi: "Màng đóng gói tự động",
+                    } as Record<string, string>
+                  )[inp.filmType || ""] || "Màng";
                 const showSideSeal = shouldShowBagSpecField(
                   spec.bagType,
                   "sideSeal",
@@ -2080,6 +2088,8 @@ function BuocChonSanPham({
                       cutSealNapKeo: "cut seal mở miệng có nắp keo",
                     }[spec.bagType] || spec.bagType;
                 return (
+                  <>
+                  {isTui && (
                   <div className="wiz-bag-spec">
                     <div className="wiz-bag-spec-title">
                       <span>Quy cách túi</span>
@@ -2978,8 +2988,10 @@ function BuocChonSanPham({
                           );
                         })()}
                       </div>
-                    </div>
-                    <div className="wiz-desc-block">
+                     </div>
+                  </div>
+                  )}
+                   <div className="wiz-desc-block">
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                         <div className="wiz-desc-title" style={{ margin: 0, padding: 0, border: 'none' }}>Mô tả đơn hàng</div>
                         <select
@@ -2988,8 +3000,8 @@ function BuocChonSanPham({
                           onChange={(e) => updateBagSpec(pIdx, 'includeBagInQuote', e.target.value === 'co')}
                           style={{ fontSize: '0.78rem', padding: '2px 6px' }}
                         >
-                          <option value="co">Có báo giá túi</option>
-                          <option value="khong">Không báo giá túi</option>
+                          <option value="co">{isTui ? "Có báo giá túi" : "Có báo giá màng"}</option>
+                          <option value="khong">{isTui ? "Không báo giá túi" : "Không báo giá màng"}</option>
                         </select>
                       </div>
                       <div style={spec.includeBagInQuote ? undefined : { opacity: 0.45 }}>
@@ -3001,7 +3013,7 @@ function BuocChonSanPham({
                       </div>
                       <div className="wiz-desc-row">
                         <span className="wiz-desc-label">Loại sản phẩm:</span>
-                        <span className="wiz-desc-value">{bagTypeLabel}</span>
+                        <span className="wiz-desc-value">{isTui ? bagTypeLabel : filmTypeLabel}</span>
                       </div>
                       <div className="wiz-desc-row">
                         <span className="wiz-desc-label">Chất liệu:</span>
@@ -3045,14 +3057,7 @@ function BuocChonSanPham({
                         </span>
                       </div>
                       {(() => {
-                        const res = tinhBaoGia(
-                          inp,
-                          materials,
-                          constants,
-                          profitTable,
-                          smallWidthPrices,
-                        );
-                        const doDay = res?.totalThickness ?? 0;
+                        const doDay = tinhTongDoDayCuaInput(inp);
                         if (doDay > 0) {
                           return (
                             <div className="wiz-desc-row">
@@ -3065,7 +3070,7 @@ function BuocChonSanPham({
                         }
                         return null;
                       })()}
-                      {spec.widthMm > 0 && spec.lengthMm > 0 && (
+                      {isTui && spec.widthMm > 0 && spec.lengthMm > 0 && (
                         <div className="wiz-desc-row">
                           <span className="wiz-desc-label">Kích thước:</span>
                           <span className="wiz-desc-value">
@@ -3089,6 +3094,41 @@ function BuocChonSanPham({
                             Khổ trải {spreadMm} mm × Bước cắt {cutMm} mm
                           </span>
                         </div>
+                      )}
+                      {!isTui && (
+                        <>
+                        <div className="wiz-desc-row">
+                          <span className="wiz-desc-label">Chiều dài cuộn:</span>
+                          <span className="wiz-desc-value" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            <input
+                              className="wiz-bag-input"
+                              type="number"
+                              min={0}
+                              value={spec.rollLengthM || ""}
+                              onChange={(e) =>
+                                updateBagSpec(pIdx, "rollLengthM", Number(e.target.value))
+                              }
+                              style={{ width: 110 }}
+                            />
+                            m/cuộn
+                          </span>
+                        </div>
+                        <div className="wiz-desc-row">
+                          <span className="wiz-desc-label">Chiều ra cuộn màng:</span>
+                          <span className="wiz-desc-value" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flex: 1 }}>
+                            <input
+                              className="wiz-spec-inline-input"
+                              type="text"
+                              value={spec.chieuRaCuonMang || ""}
+                              onChange={(e) =>
+                                updateBagSpec(pIdx, "chieuRaCuonMang", e.target.value)
+                              }
+                              placeholder="Mặt in ra ngoài"
+                              style={{ flex: 1, minWidth: 0 }}
+                            />
+                          </span>
+                        </div>
+                        </>
                       )}
                       {inp.numColors && inp.numColors > 0 ? (
                         <div className="wiz-desc-row">
@@ -3247,11 +3287,11 @@ function BuocChonSanPham({
                           placeholder="Nhập ghi chú trục in..."
                           style={{ flex: 1, minWidth: 0 }}
                         />
+                        </div>
+                        </div>
                       </div>
-                      </div>
-                    </div>
-                  </div>
-                );
+                   </>
+                 );
               })()}
 
             <table className="wiz-tier-table">

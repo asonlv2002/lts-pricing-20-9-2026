@@ -23,7 +23,7 @@ import { quyetDinhPricingSheetSync } from '../lib/pricing-sheet-sync';
 import { LS_CUSTOMERS, loadCustomers } from '../store/helpers';
 import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override-display';
 import { tinhNhapPhanBoChotGia } from '../lib/chot-gia-allocation';
-import { tinhGiaDeXuatHienThi } from '../lib/gia-de-xuat-hien-thi';
+import { tinhGiaDeXuatHienThi, coDongBangGiaDeXuat, overridesChuaDoi } from '../lib/gia-de-xuat-hien-thi';
 import { tinhGiaThuongMai, type KetQuaThuongMai } from '../lib/engine';
 import { timMucLichSuTheoId } from '../lib/history-identity';
 import { dieuHuongModuleApp } from '../lib/menu-route';
@@ -1149,12 +1149,24 @@ function hienToastCanhBao(noiDung: string) {
 /** Tính nangCaoSpec từ store hiện tại (chỉ khi đang ở chế độ nâng cao & có result). */
 function tinhNangCaoSpecTuStore(state: ReturnType<typeof dungCuaHangTinhGia.getState>): LsxNangCaoRow[] | undefined {
   if (!state.cheDoNangCao || !state.result) return undefined;
+  // TM không có đặc tả nâng cao — chặn cờ cheDoNangCao lệch graft spec rác vào sheet TM.
+  if (state.input.pricingMode === 'commercial') return undefined;
   const overrides = Object.keys(state.adminOverrides || {}).length > 0
     ? state.adminOverrides
     : state.saleOverrides;
+  // Snap phải đi cùng bước chuẩn hóa của bảng đặc tả trên màn hình
+  // (chuanBiUniRowsNangCao — neo cut + lan ÷N ngược dòng khi túi có chia):
+  // trước đây snap lấy uniRows thô từ engine nên thành phẩm In/Ghép lệch ~N lần
+  // so với bảng đặc tả → LSX prefill "Thành phẩm in/ghép" sai theo.
+  const uniChuan = chuanBiUniRowsNangCao({
+    uniRows: lapDongSanXuat(state.result, state.constants).uniRows,
+    result: state.result,
+    hangSo: state.constants,
+    activeOv: overrides,
+  });
   return buildNangCaoSpecFromPricing(
     state.result,
-    lapDongSanXuat(state.result, state.constants).uniRows,
+    uniChuan,
     state.constants,
     state.materials,
     overrides,
@@ -1259,6 +1271,17 @@ const loadedItem = timMucLichSuTheoId(lichSu, loadedHistoryId) ?? null;
 const hangSoNc = (nangCap && loadedItem?.pinnedCpsxNangCao)
   ? apCpsxNangCaoVaoHangSo(hangSo, loadedItem.pinnedCpsxNangCao)
   : hangSo;
+// Mở lại sheet nâng cao ĐÃ LƯU mà chưa đụng input → toàn màn hiển thị theo
+// override ĐÃ LƯU (giá lúc lưu). Sửa bảng đặc tả Sale/Admin chỉ là preview trong
+// tab ghi đè — giá chỉ áp sau khi bấm Lưu thay đổi / Cập nhật / Lưu mới.
+const dongBangGiaDeXuatNC = coDongBangGiaDeXuat(nangCap, loadedItem, isDirty);
+const ghiDeSaleHienThi = dongBangGiaDeXuatNC ? (loadedItem?.saleOverrides ?? {}) : ghiDeSale;
+const ghiDeAdminHienThi = dongBangGiaDeXuatNC ? (loadedItem?.adminOverrides ?? {}) : ghiDeAdmin;
+// true khi đóng băng mà store đang giữ override khác lúc lưu (chưa lưu thay đổi)
+const coSuaGhiDeChuaLuu = dongBangGiaDeXuatNC && !(
+  overridesChuaDoi(ghiDeSale, loadedItem?.saleOverrides)
+  && overridesChuaDoi(ghiDeAdmin, loadedItem?.adminOverrides)
+);
 const isSameCustomer = loadedItem && originalCustomerLoaded && currentCustomerCode && originalCustomerLoaded === currentCustomerCode;
 const buttonLabel = loadedItem
   ? (isSameCustomer ? "🔄 Cập nhật" : "📄 Tạo bảng tính mới")
@@ -1318,8 +1341,9 @@ const buttonLabel = loadedItem
       finalPrice: ketQua.finalPrice,
       profitRate: ketQua.profitRate,
       chotGia: giaChotHienTai > 0 ? giaChotHienTai : undefined,
-      saleOverrides: ghiDeSale,
-      adminOverrides: ghiDeAdmin,
+      // Đóng băng: A4 theo override ĐÃ LƯU (khớp giá màn hình), không hút preview chưa lưu
+      saleOverrides: ghiDeSaleHienThi,
+      adminOverrides: ghiDeAdminHienThi,
       saleProfitRatePct: saleProfitRatePct || undefined,
       adminProfitRatePct: adminProfitRatePct || undefined,
       isNangCap: true,
@@ -1803,14 +1827,19 @@ const buttonLabel = loadedItem
   const cpTheoThoiGianIn = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
 
   // ── Tab nâng cấp: giá mỗi sản phẩm lấy từ TỔNG bảng đặc tả nâng cao ──
-  const ketQuaNangCao = nangCap
+  // TM (mua đi bán lại) KHÔNG chạy bảng NC — chống cờ nangCap lệch khi lưu cũ:
+  // tổng giá thành của result TM tổng hợp đã gồm LN → cộng thêm LN bảng giá = LN x2.
+  // Sheet đã lưu chưa đụng input → dùng override ĐÃ LƯU (giá khớp lúc lưu);
+  // sửa bảng đặc tả chỉ preview trong tab, không cuốn giá màn hình.
+  const laThuongMaiInput = isCommercial || dauVaoKq.pricingMode === 'commercial';
+  const ketQuaNangCao = nangCap && !laThuongMaiInput
     ? tinhKetQuaNangCaoHieuLuc({
         result: r,
         uniRows: cacDongSanXuat,
         constants: hangSoNc,
         materials,
-        saleOverrides: ghiDeSale,
-        adminOverrides: ghiDeAdmin,
+        saleOverrides: ghiDeSaleHienThi,
+        adminOverrides: ghiDeAdminHienThi,
         // LN% ghi đè Sale/Admin chỉ preview trong tab — màn hình giá luôn theo LN hệ thống
         saleProfitRatePct: 0,
         adminProfitRatePct: 0,
@@ -1964,8 +1993,9 @@ const buttonLabel = loadedItem
   // Giá cuối cùng từ engine gốc (hoặc TỔNG breakdown khi commercial-form: mua + LN + Thùng + VC + Lãi vay + HH + Phụ phí).
   const effFinalPriceWithComm = ketQuaThuongMaiHieuLuc ? tongBreakdown : rHieuLuc.finalPrice;
   // ── Giá đề xuất hiển thị ──
-  // Mở lại sheet NC đã lưu (chưa chỉnh input / chưa đụng ô ghi đè nào của Sale hay Admin)
-  // → giữ đúng giá snapshot lúc lưu, không bị cuốn theo cấu hình hệ thống đã đổi sau đó.
+  // Mở lại sheet NC đã lưu (chưa chỉnh INPUT) → giữ đúng giá snapshot lúc lưu.
+  // Sửa bảng đặc tả Sale/Admin KHÔNG mất đóng băng — chỉ preview trong tab ghi đè;
+  // giá mới chỉ áp sau Lưu thay đổi / Cập nhật / Lưu mới.
   const {
     dongBang: dongBangGiaDeXuat,
     giaDeXuat: giaDeXuatHienThi,
@@ -1974,8 +2004,6 @@ const buttonLabel = loadedItem
     nangCap,
     loadedItem,
     isDirty,
-    saleOverrides: ghiDeSale,
-    adminOverrides: ghiDeAdmin,
     giaTinhLai: effFinalPriceWithComm,
   });
   const shownPrice = hasChotGia ? chotGiaNum : giaDeXuatHienThi;
@@ -2044,7 +2072,7 @@ const buttonLabel = loadedItem
   const giaSauGhiDeAdminDonVi = adminResult.giaDonVi;
   const tongCPSXAdmin = adminResult.tongChiPhiSX;
   const donViChenhLechGia = laMang ? 'm2' : 'tui';
-  const saleBaseRate = nangCap
+  const saleBaseRate = nangCap && !laThuongMaiInput
     ? tinhKetQuaNangCaoHieuLuc({
         result: r, uniRows: cacDongSanXuat, constants: hangSoNc, materials,
         saleOverrides: ghiDeSale, adminOverrides: {},
@@ -2057,7 +2085,7 @@ const buttonLabel = loadedItem
         saleProfitRatePct: 0, adminProfitRatePct: 0,
         profitTable: bangLoiNhuan, constants: hangSo, materials,
       }).effProfitRate;
-  const adminBaseRate = nangCap
+  const adminBaseRate = nangCap && !laThuongMaiInput
     ? tinhKetQuaNangCaoHieuLuc({
         result: r, uniRows: cacDongSanXuat, constants: hangSoNc, materials,
         saleOverrides: {}, adminOverrides: ghiDeAdmin,
@@ -2151,15 +2179,16 @@ const buttonLabel = loadedItem
     const res = calculateForInput(inp);
     if (!res) return { qty, res, isCurrent: qty === currentQty };
     // Tab nâng cấp: mỗi mức SL tính lại bảng đặc tả nâng cao → giá mới
-    // (LN% ghi đè Sale/Admin chỉ preview trong tab — MOQ theo LN hệ thống)
-    const resHieuLuc = nangCap
+    // (LN% ghi đè Sale/Admin chỉ preview trong tab — MOQ theo LN hệ thống;
+    // sheet đã lưu chưa đụng input → theo override ĐÃ LƯU, khớp giá màn hình)
+    const resHieuLuc = nangCap && !laThuongMaiInput
       ? tinhKetQuaNangCaoHieuLuc({
           result: res,
           uniRows: lapDongSanXuat(res, hangSoNc).uniRows,
           constants: hangSoNc,
           materials,
-          saleOverrides: ghiDeSale,
-          adminOverrides: ghiDeAdmin,
+          saleOverrides: ghiDeSaleHienThi,
+          adminOverrides: ghiDeAdminHienThi,
           saleProfitRatePct: 0,
           adminProfitRatePct: 0,
           profitTable: bangLoiNhuan,
@@ -2277,7 +2306,12 @@ const buttonLabel = loadedItem
                   (giá đề xuất {dinhDangSo(giaDeXuatHienThi, 0)} đ/{nhanDonVi})
                 </div>
               )}
-              {dongBangGiaDeXuat && coLechGiaDeXuatLuu && (
+              {dongBangGiaDeXuat && coSuaGhiDeChuaLuu && (
+                <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px', marginBottom:'2px'}}>
+                  (giá giữ nguyên theo bảng tính đã lưu — thay đổi bảng đặc tả chưa lưu; bấm Cập nhật / Lưu thay đổi để áp dụng)
+                </div>
+              )}
+              {dongBangGiaDeXuat && !coSuaGhiDeChuaLuu && coLechGiaDeXuatLuu && (
                 <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px', marginBottom:'2px'}}>
                   (giá giữ nguyên theo bảng tính đã lưu — đơn giá/định mức hệ thống đã đổi từ đó)
                 </div>
