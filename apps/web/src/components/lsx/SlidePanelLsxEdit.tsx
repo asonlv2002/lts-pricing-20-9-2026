@@ -18,7 +18,7 @@ import { mapBaoGiaToLsxSources, laBaoGiaDaDuyet } from '../../lib/bao-gia-adapte
 import { LsxFormFields } from './LsxFormFields';
 import LsxPreviewModal from '../LsxPreviewModal';
 import LsxPdfPreviewModal from '../LsxPdfPreviewModal';
-import { buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue, backfillQuyCachCuon } from '../../lib/lsx-build-order';
+import { buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue, backfillQuyCachCuon, backfillChieuRaCuonMang } from '../../lib/lsx-build-order';
 import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../../lib/chu-ky';
 
 export interface SlidePanelLsxEditProps {

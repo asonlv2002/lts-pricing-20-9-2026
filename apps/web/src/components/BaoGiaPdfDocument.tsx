@@ -464,10 +464,24 @@ function buildBagSpecDescription(
   if (dimParts.length) lines.push("Quy cách: " + dimParts.join(". ") + ".");
   if (input.productType === "mang") {
     const rollLen = spec.rollLengthM || input.filmRollLength || 0;
-    if (rollLen > 0)
+    if (rollLen > 0) {
+      const khoTrongMM =
+        spec.widthMm && spec.widthMm > 0
+          ? spec.widthMm
+          : Math.round((input.spreadWidth || 0) * 1000);
       lines.push(
-        "Chiều dài cuộn: " + rollLen.toLocaleString("vi-VN") + " m/cuộn.",
+        "Quy cách cuộn: K" +
+          (khoTrongMM || "…") +
+          "mm x " +
+          rollLen.toLocaleString("vi-VN") +
+          "m/cuộn.",
       );
+    }
+    const chieuRaCuonMang =
+      typeof spec.chieuRaCuonMang === "string" && spec.chieuRaCuonMang.trim()
+        ? spec.chieuRaCuonMang.trim()
+        : "";
+    if (chieuRaCuonMang) lines.push("Chiều ra cuộn màng: " + chieuRaCuonMang + ".");
   }
   if (spec.sideSealMm > 0) lines.push("Hàn biên: " + spec.sideSealMm + "mm.");
   if (spec.hasHeadSeal && spec.headSealMm > 0)

@@ -265,13 +265,14 @@ export function tinhGia(
 
   const { tongDoDay, tongGSM } = tinhDoDayVaGSM({ lop1, lop2, lop2Phu, lop3, lop4, lop5 });
 
+  const gcLamTuiChuaGomZipper =
+    coCongDoanGc(gc, 'lam_tui') && gc?.lamTui?.cheDoZipper === 'chua_gom';
   const { tongTienKhoa, khoaPerDonVi, tongTienBangKeo, bangKeoPerDonVi, tongTienQuaiXach, quaiXachPerDonVi, khoiLuongPhuKienThemPerDonVi } = tinhPhuKien({
     soLuong, buocCat, hangSo, coKhoa, coBangKeo, coQuaiXach, khoiLuongKhoa, khoiLuongBangKeo,
     tuyChonGc: {
       boZipper: coCongDoanGc(gc, 'lam_tui') && gc?.lamTui?.cheDoZipper === 'gom',
-      giaZipperMoiM:
-        coCongDoanGc(gc, 'lam_tui') && gc?.lamTui?.cheDoZipper === 'chua_gom'
-          ? gc.lamTui.giaZipperMoiM
+      giaZipperMoiM: gcLamTuiChuaGomZipper
+          ? gc?.lamTui?.giaZipperMoiM
           : undefined,
       boBangKeo: coCongDoanGc(gc, 'lam_tui') && gc?.lamTui?.cheDoBangKeo === 'gom',
       giaBangKeoMoiM:
@@ -343,7 +344,10 @@ export function tinhGia(
     soLuong,
   });
 
-  const giaCuoiCung = chiPhiDonVi + khoaPerDonVi + bangKeoPerDonVi + quaiXachPerDonVi
+  // Giá đề xuất KHÔNG cộng tiền zipper (tùy chọn hệ thống) — ngoại lệ duy nhất:
+  // GC làm túi "chưa gộp zipper" (tiền zipper rời mua giao bên GC, khoaPerDonVi = giaZipperMoiM).
+  const giaCuoiCung = chiPhiDonVi + (gcLamTuiChuaGomZipper ? khoaPerDonVi : 0)
+    + bangKeoPerDonVi + quaiXachPerDonVi
     + thuungPerDonVi + cuocVanChuyenPerDonVi + laiSuatPerDonVi + hoaHongPerDonVi + chiPhiTrucPhanBo
     + vanChuyenGcPerDonVi + dongGoiGcPerDonVi + phuPhiKhacGcPerDonVi;
 
