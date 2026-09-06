@@ -52,6 +52,7 @@ import {
   docIdTuPathname,
   dongBoUrlTinhGia,
   idChiaSeBangTinh,
+  loaiTinhGiaTuNangCao,
 } from "../../lib/tinh-gia-route";
 import {
   docBaoGiaIdTuPathname,
@@ -70,6 +71,7 @@ import {
   menuKeyTaoBaoGiaTuLichSu,
   moduleTuMenuKey,
   menuKeyTinhGiaTheoItem,
+  taoPathEntity,
   type CheDoLichSu,
   type LtsNavigateDetail,
   type MaModuleMenu,
@@ -1892,6 +1894,27 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     const keyXuLy = `${deep.loai}:${deep.id}`;
     if (deepLinkDaXuLy.current === keyXuLy) return;
 
+    // Guard: khi đang mở bảng tính giá và deep-link ID trùng với item đang mở,
+    // skip re-fetch để tránh race condition với sync URL effect (auto-refresh 30s).
+    if (
+      deep.loai === "tinh-gia" ||
+      deep.loai === "tinh-gia-nang-cao" ||
+      deep.loai === "tinh-gia-thuong-mai"
+    ) {
+      const stateHienTai = dungCuaHangTinhGia.getState();
+      const dangMoId = stateHienTai.loadedHistoryId;
+      if (dangMoId) {
+        const itemDangMo = timMucLichSuTheoId(stateHienTai.history, dangMoId);
+        const idShareDangMo = idChiaSeBangTinh(itemDangMo ?? { id: dangMoId });
+        if (idShareDangMo === deep.id) {
+          deepLinkDaXuLy.current = keyXuLy;
+          datDeepLinkLoai(deep.loai);
+          datDeepLinkTrangThai("ok");
+          return;
+        }
+      }
+    }
+
     let huy = false;
     datDeepLinkLoai(deep.loai);
     // Khách hàng dùng panel — không full-page loading; ModuleKhachHang xử lý panel
@@ -2039,10 +2062,23 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (moduleDangMo === "calculator" && loadedHistoryId) {
       const item = timMucLichSuTheoId(lichSu, loadedHistoryId);
       const idShare = idChiaSeBangTinh(item ?? { id: loadedHistoryId });
-      dongBoUrlTinhGia(idShare, {
-        nangCao: !!item?.isNangCap || menuDangChon === "tao-tinh-gia-nang-cap",
-        thuongMai: !!item?.isThuongMai || menuDangChon === "tao-tinh-gia-thuong-mai",
-      });
+      // Tránh sync URL không cần thiết khi ID không đổi — ngăn race condition
+      // với deep-link effect (auto-refresh 30s làm lichSu thay đổi → URL thay đổi
+      // → deep-link re-trigger → fetch fail → not_found).
+      const loaiHienTai = loaiTinhGiaTuNangCao(
+        !!item?.isNangCap || menuDangChon === "tao-tinh-gia-nang-cap",
+        !!item?.isThuongMai || menuDangChon === "tao-tinh-gia-thuong-mai",
+      );
+      const pathMongMuon = idShare && idShare.trim()
+        ? taoPathEntity(loaiHienTai, idShare)
+        : null;
+      const pathHienTai = `${window.location.pathname}`;
+      if (pathMongMuon && pathMongMuon !== pathHienTai) {
+        dongBoUrlTinhGia(idShare, {
+          nangCao: !!item?.isNangCap || menuDangChon === "tao-tinh-gia-nang-cap",
+          thuongMai: !!item?.isThuongMai || menuDangChon === "tao-tinh-gia-thuong-mai",
+        });
+      }
       return;
     }
 

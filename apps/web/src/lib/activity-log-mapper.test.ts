@@ -162,6 +162,36 @@ console.log('\n== Main mapper (mapActivityLogServer) ==');
   assert('after.after.status', (entry.after as { updateStatus: string }).updateStatus === 'approved');
 }
 {
+  const resolver = taoActorResolver(USERS);
+  const entry = mapActivityLogServer(
+    log({
+      id: 'log-2b', actorId: 'user-2', action: 'quotation.review_status_updated',
+      resourceType: 'quotation', resourceId: 'quo-1',
+      metadata: { previousVersion: { updateStatus: 'submitted' }, currentVersion: { updateStatus: 'rejected' } },
+    }),
+    resolver,
+  );
+  assert('quotation.review_status_updated rejected -> action reject', entry.action === 'reject');
+  assert('reject giu nguyen targetType quote', entry.targetType === 'quote');
+}
+{
+  const resolver = taoActorResolver(USERS);
+  const targetResolver = (resourceType: string, resourceId: string | null) =>
+    resourceType === 'quotation' && resourceId === 'quo-1'
+      ? 'Lai Trường Sơn (BG-12345678)'
+      : undefined;
+  const entry = mapActivityLogServer(
+    log({
+      id: 'log-2c', actorId: 'user-2', action: 'quotation.review_status_updated',
+      resourceType: 'quotation', resourceId: 'quo-1',
+      metadata: { previousVersion: { updateStatus: 'submitted' }, currentVersion: { updateStatus: 'rejected' } },
+    }),
+    resolver,
+    targetResolver,
+  );
+  assert('targetName quotation lay tu resolveTarget', entry.targetName === 'Lai Trường Sơn (BG-12345678)', entry.targetName ?? '');
+}
+{
   // actorId null (server có thể trả null)
   const resolver = taoActorResolver(USERS);
   const entry = mapActivityLogServer(

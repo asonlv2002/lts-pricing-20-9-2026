@@ -38,6 +38,7 @@ import {
 } from "../lib/customer-audit-format";
 import { diffManagerLists } from "../lib/activity-log-mapper";
 import { dieuHuongModuleApp, dieuHuongMenuApp, menuKeyTinhGiaTheoItem } from "../lib/menu-route";
+import { layBaoGiaTheoIdService } from "../lib/api/service-lts";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -54,11 +55,19 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   duplicate: "Sao chép",
   send_approval: "Gửi duyệt",
   approve: "Duyệt",
-  reject: "Từ chối / Trả về",
+  reject: "Từ chối",
   send_customer: "Gửi khách hàng",
   create_lsx: "Tạo LSX",
   restore: "Khôi phục",
 };
+
+/** Log duyệt/từ chối BBG thương mại: chỉ cần dòng gọn "ai làm gì ở đâu", không diff kỹ thuật. */
+function laLogReviewBaoGia(entry: AuditEntry): boolean {
+  return (
+    entry.targetType === "quote" &&
+    (entry.action === "approve" || entry.action === "reject")
+  );
+}
 
 const ACTION_CONFIG: Record<
   AuditAction,
@@ -339,7 +348,9 @@ function TimelineEntry({
 }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = ACTION_CONFIG[entry.action];
-  const hasDiff = !!(entry.before || entry.after || entry.note);
+  const laReviewBaoGia = laLogReviewBaoGia(entry);
+  const hasDiff =
+    !!(entry.before || entry.after || entry.note) && !laReviewBaoGia;
 
   const managerDiff = useMemo(() => {
     if (entry.action === "assign" && entry.targetType === "customer") {
@@ -442,16 +453,20 @@ function TimelineEntry({
           }}
         >
           <div style={{ fontSize: "0.82rem", color: "var(--text, #1e293b)" }}>
-            <span style={{ color: "var(--muted)" }}>
-              {TARGET_TYPE_LABELS[entry.targetType] || entry.targetType}:
-            </span>{" "}
-            <span style={{ fontWeight: 500 }}>
-              {displayAuditText(
-                entry.targetName ||
-                  TARGET_TYPE_LABELS[entry.targetType] ||
-                  "Dữ liệu",
-              )}
-            </span>
+            {entry.targetName ? (
+              <>
+                <span style={{ color: "var(--muted)" }}>
+                  {TARGET_TYPE_LABELS[entry.targetType] || entry.targetType}:
+                </span>{" "}
+                <span style={{ fontWeight: 500 }}>
+                  {displayAuditText(entry.targetName)}
+                </span>
+              </>
+            ) : (
+              <span style={{ color: "var(--muted)" }}>
+                {TARGET_TYPE_LABELS[entry.targetType] || entry.targetType}
+              </span>
+            )}
           </div>
 
           {entry.note && (
@@ -823,18 +838,52 @@ export default function ModuleNhatKy({
   };
 
   const openRelated = async (entry: AuditEntry) => {
-    if (entry.targetType === "history" || entry.targetType === "quote") {
+    if (entry.targetType === "quote") {
+      // BBG thương mại (server quotation): mở thẳng chi tiết BBG như deep-link /bao-gia/<id>.
+      if (accessToken) {
+        try {
+          const bg = await layBaoGiaTheoIdService(entry.targetId, accessToken);
+          const st = dungCuaHangTinhGia.getState();
+          st.datBaoGiaDangSua(bg);
+          st.datNguonWizard("list");
+          dieuHuongMenuApp("tao-bao-gia");
+          return;
+        } catch (error) {
+          console.warn("Không mở được báo giá thương mại từ nhật ký:", error);
+        }
+      }
+      // Fallback: có trong lịch sử local (theo quotationId) → mở màn danh sách báo giá.
+      const item = history.find(
+        (h) =>
+          h.id === entry.targetId ||
+          h.pricingSheetId === entry.targetId ||
+          h.quotationId === entry.targetId,
+      );
+      try {
+        localStorage.setItem(
+          "lts_navigate_filter",
+          JSON.stringify({
+            module: item?.isQuote ? "quote" : "pricing",
+            targetId: item?.id ?? entry.targetId,
+            ts: Date.now(),
+          }),
+        );
+      } catch {}
+      dieuHuongModuleApp("history_db");
+      return;
+    }
+    if (entry.targetType === "history") {
       const item = history.find(
         (h) => h.id === entry.targetId || h.pricingSheetId === entry.targetId,
       );
-      if (entry.targetType === "history" && item && !item.isQuote) {
+      if (item && !item.isQuote) {
         const ok = await dungCuaHangTinhGia.getState().moBangTinhVoiPin(item.id);
         if (!ok) return;
         dieuHuongMenuApp(menuKeyTinhGiaTheoItem(item));
         return;
       }
       // Bảng tính giá từ server không có trong local → fetch rồi mở thẳng calculator
-      if (entry.targetType === "history" && !item && accessToken) {
+      if (!item && accessToken) {
         const ok = await taiBangTinhTuServer(entry.targetId);
         if (ok) {
           const loaded = dungCuaHangTinhGia.getState().history.find(
@@ -850,10 +899,7 @@ export default function ModuleNhatKy({
         localStorage.setItem(
           "lts_navigate_filter",
           JSON.stringify({
-            module:
-              entry.targetType === "quote" || item?.isQuote
-                ? "quote"
-                : "pricing",
+            module: "pricing",
             targetId: item?.id ?? entry.targetId,
             ts: Date.now(),
           }),

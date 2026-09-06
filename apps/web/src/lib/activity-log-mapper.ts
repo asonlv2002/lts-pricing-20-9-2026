@@ -48,6 +48,26 @@ export function chuyenAction(serverAction: string): AuditAction {
   return ACTION_MAP[serverAction] ?? 'update';
 }
 
+/**
+ * Phân biệt duyệt / từ chối BBG từ metadata của server log.
+ * Server chỉ ghi 1 action `quotation.review_status_updated` — quyết định nằm
+ * ở `currentVersion.updateStatus` (approved | rejected).
+ */
+export function phanTichActionReviewQuotation(
+  log: Pick<ActivityLogServerApi, 'action' | 'metadata'>,
+): AuditAction {
+  if (log.action !== 'quotation.review_status_updated') {
+    return chuyenAction(log.action);
+  }
+  const metadata = log.metadata;
+  if (!metadata || typeof metadata !== 'object') return 'approve';
+  const currentVersion = (metadata as Record<string, unknown>).currentVersion;
+  if (!currentVersion || typeof currentVersion !== 'object') return 'approve';
+  const updateStatus = (currentVersion as Record<string, unknown>)
+    .updateStatus;
+  return updateStatus === 'rejected' ? 'reject' : 'approve';
+}
+
 // ── metadata → before/after ───────────────────────────────────────────────
 export function trichBeforeAfter(metadata: Record<string, unknown> | null | undefined): {
   before?: Record<string, unknown>;
@@ -142,13 +162,15 @@ export function mapActivityLogServer(
   const isCustomerResource = log.resourceType === 'customer' || log.resourceType === 'customer_manager';
   const targetName = isCustomerResource
     ? (original.customerName || metadataName || resolvedName)
-    : (metadataName || resolvedName);
+    : log.resourceType === 'quotation'
+      ? (resolvedName || metadataName)
+      : (metadataName || resolvedName);
   return {
     id: log.id,
     timestamp: log.createdAt,
     userId: log.actorId ?? '',
     userName: actor?.fullName || original.actorName || '',
-    action: chuyenAction(log.action),
+    action: phanTichActionReviewQuotation(log),
     targetType: chuyenResourceType(log.resourceType),
     targetId: log.resourceId ?? '',
     targetName,

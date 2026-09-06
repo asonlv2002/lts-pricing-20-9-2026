@@ -5,11 +5,15 @@ import {
   layNhatKyHeThongService,
   layTaiKhoanService,
   layKhachHangService,
+  layDanhSachBaoGiaService,
+  layBaoGiaChoDuyetService,
   chuyenTaiKhoanApi,
   type TaiKhoanApi,
   type KhachHangApi,
+  type BaoGiaApi,
 } from "../../lib/api/service-lts";
 import { mapActivityLogsServer } from "../../lib/activity-log-mapper";
+import { layNhanBaoGiaChoLog, ghepNhanBaoGia } from "../../lib/bao-gia-label";
 
 export interface AuditSlice {
   nhatKyHeThong: AuditEntry[];
@@ -43,11 +47,27 @@ const ACTION_LABELS: Record<AuditAction, string> = {
   duplicate: "Sao chép",
   send_approval: "Gửi duyệt",
   approve: "Duyệt",
-  reject: "Từ chối / Trả về",
+  reject: "Từ chối",
   send_customer: "Gửi khách hàng",
   create_lsx: "Tạo LSX",
   restore: "Khôi phục",
 };
+
+/** Lấy BBG thương mại để gắn tên/mã cho log quotation (không gây lỗi nếu thiếu quyền). */
+async function layBaoGiaChoLog(token?: string): Promise<BaoGiaApi[]> {
+  if (!token) return [];
+  try {
+    const list = await layDanhSachBaoGiaService(token);
+    if (list.length > 0) return list;
+  } catch {
+    /* fallthrough */
+  }
+  try {
+    return await layBaoGiaChoDuyetService(token);
+  } catch {
+    return [];
+  }
+}
 
 export const createAuditSlice: StateCreator<
   CuaHangTinhGia,
@@ -111,12 +131,13 @@ export const createAuditSlice: StateCreator<
 
     set({ dangTaiNhatKy: true, loiNhatKy: null });
     try {
-      const [serverLogs, accounts, customers] = await Promise.all([
+      const [serverLogs, accounts, customers, baoGiaList] = await Promise.all([
         layNhatKyHeThongService(state.accessToken),
         layTaiKhoanService(state.accessToken).catch(() => [] as TaiKhoanApi[]),
         layKhachHangService(state.accessToken).catch(
           () => [] as KhachHangApi[],
         ),
+        layBaoGiaChoLog(state.accessToken),
       ]);
 
       const users = (Array.isArray(accounts) ? accounts : []).map(
@@ -143,6 +164,13 @@ export const createAuditSlice: StateCreator<
         if (u.id) userMap.set(u.id, u.fullName || u.account || "");
       }
 
+      const quotationMap = new Map<string, string>();
+      for (const bg of baoGiaList) {
+        if (!bg.id) continue;
+        const label = layNhanBaoGiaChoLog(bg);
+        if (label) quotationMap.set(bg.id, label);
+      }
+
       const resolveTarget = (
         resourceType: string,
         resourceId: string | null,
@@ -152,6 +180,15 @@ export const createAuditSlice: StateCreator<
           return customerMap.get(resourceId);
         if (resourceType === "account" || resourceType === "user_policy")
           return userMap.get(resourceId);
+        if (resourceType === "quotation") {
+          const label = quotationMap.get(resourceId);
+          if (label) return label;
+          // BBG tạo trên máy này nhưng list server không trả → dùng lịch sử local.
+          const local = get().history.find((h) => h.quotationId === resourceId);
+          if (local)
+            return ghepNhanBaoGia(local.customer, local.quoteCode ?? null);
+          return undefined;
+        }
         return undefined;
       };
 
