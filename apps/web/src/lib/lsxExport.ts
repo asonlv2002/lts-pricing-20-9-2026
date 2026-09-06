@@ -32,6 +32,7 @@ import {
   layNangCaoSpec,
   layPhiHao,
   layThanhPham,
+  stageLabel,
 } from './lsx-nang-cao';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -668,7 +669,7 @@ export async function buildLSXDocxBlob(
   if (!isTui) {
     // ════ MÀNG: 2 cột — LSX MÀNG IN / LSX IN MÀNG BOPP ════
     const mR: any[] = [];
-    mR.push(rowH(300, cell([para([run('MÁY IN', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' })));
+    mR.push(rowH(300, cell([para([run(stageLabel(order, 'MÁY IN', 'in'), { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' })));
     mR.push(rowH(280,
       cell([para([run('Màng in: ', { b: true }), run(m.printFilmName || s.layer1Name || '')])]),
       cell([para([run('Khổ: ', { b: true }), run(khoMM ? `${khoMM}mm` : '')])]),
@@ -693,7 +694,7 @@ export async function buildLSXDocxBlob(
     ], { cs: 2 })));
 
     if (hasDivide) {
-      mR.push(rowH(300, cell([para([run('MÁY CHIA', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' })));
+      mR.push(rowH(300, cell([para([run(stageLabel(order, 'MÁY CHIA', 'chia'), { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' })));
       mR.push(rowMin(900, cell(divideParas(), { cs: 2 })));
       mR.push(rowH(360,
         cell([
@@ -729,8 +730,8 @@ export async function buildLSXDocxBlob(
     if (singleLayer && showDivide) {
       // #8 ZIPPER CẮT SEAL: MÁY IN | MÁY CHIA (không ghép)
       tR.push(rowH(280,
-        cell([para([run('MÁY IN', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' }),
-        cell([para([run('MÁY CHIA', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 3, bg: 'fabf8f', va: 'center' }),
+        cell([para([run(stageLabel(order, 'MÁY IN', 'in'), { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' }),
+        cell([para([run(stageLabel(order, 'MÁY CHIA', 'chia'), { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 3, bg: 'fabf8f', va: 'center' }),
       ));
       tR.push(rowH(280,
         cell([para([run('Màng in: ', { b: true }), run(m.printFilmName || s.layer1Name || '')])]),
@@ -773,8 +774,8 @@ export async function buildLSXDocxBlob(
     } else {
       const lamRows = resolveLsxLaminateRows(order);
       tR.push(rowH(280,
-        cell([para([run('MÁY IN', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' }),
-        cell([para([run('MÁY GHÉP', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 3, bg: 'fabf8f', va: 'center' }),
+        cell([para([run(stageLabel(order, 'MÁY IN', 'in'), { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' }),
+        cell([para([run(stageLabel(order, 'MÁY GHÉP', 'ghep'), { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 3, bg: 'fabf8f', va: 'center' }),
       ));
 
       // ── Hai nửa 50/50, mỗi nửa là bảng con nên không cần ô rỗng đệm chiều cao ──
@@ -885,12 +886,12 @@ export async function buildLSXDocxBlob(
     // Header hàng: CHIA|TÚI (A) hoặc chỉ TÚI full (B / 1-lớp đã có CHIA ở trên)
     if (showDivide && !singleLayer) {
       tR.push(rowH(260,
-        cell([para([run('MÁY CHIA', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' }),
-        cell([para([run('MÁY LÀM TÚI', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 3, bg: 'fabf8f', va: 'center' }),
+        cell([para([run(stageLabel(order, 'MÁY CHIA', 'chia'), { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 2, bg: 'fabf8f', va: 'center' }),
+        cell([para([run(stageLabel(order, 'MÁY LÀM TÚI', 'lam-tui'), { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 3, bg: 'fabf8f', va: 'center' }),
       ));
     } else {
       tR.push(rowH(260,
-        cell([para([run('MÁY LÀM TÚI', { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 5, bg: 'fabf8f', va: 'center' }),
+        cell([para([run(stageLabel(order, 'MÁY LÀM TÚI', 'lam-tui'), { b: true, sz: 32 })], AlignmentType.CENTER)], { cs: 5, bg: 'fabf8f', va: 'center' }),
       ));
     }
 

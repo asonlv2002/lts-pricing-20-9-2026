@@ -19,7 +19,9 @@
 import type {
   AppConstants,
   CalculateResult,
+  LsxSourceData,
   Material,
+  OutsourceStep,
   OverrideTable,
   ProductionOrder,
 } from './types';
@@ -236,4 +238,50 @@ export function layKhoMangTextTuNguon(
   if (row?.khoMangLabel && row.khoMangLabel.trim()) return row.khoMangLabel;
   const mm = layKhoMangTuNguon(nguon, congDoan);
   return mm ? `${mm}mm` : '';
+}
+
+// ── Khâu gia công ngoài trên LSX ──────────────────────────────────────────────
+// Lấy từ `input.outsource.steps` của báo giá (snap vào `snapshot.outsourceSteps`).
+// Khâu nào nằm trong steps → header LSX hiển thị "(GIA CÔNG)".
+
+export type LsxStageKey = 'in' | 'ghep' | 'chia' | 'lam-tui';
+
+/** Map stage LSX → outsource step của báo giá. */
+export function stageOutsourceKey(stage: LsxStageKey): OutsourceStep {
+  switch (stage) {
+    case 'in': return 'print';
+    case 'ghep': return 'laminate';
+    case 'chia': return 'slit';
+    case 'lam-tui': return 'bag';
+  }
+}
+
+/** Đọc danh sách khâu gia công từ snapshot order (undefined nếu LSX cũ). */
+export function layOutsourceStepsTuOrder(order: ProductionOrder): OutsourceStep[] {
+  const steps = order.snapshot.outsourceSteps;
+  return Array.isArray(steps) ? steps : [];
+}
+
+/** Đọc danh sách khâu gia công từ LsxSourceData (form nhập). */
+export function layOutsourceStepsTuSource(source: LsxSourceData): OutsourceStep[] {
+  const steps = source.outsourceSteps;
+  return Array.isArray(steps) ? steps : [];
+}
+
+/** Khâu có thuộc gia công ngoài hay không (từ snapshot order hoặc source form). */
+export function laStageGiaCong(order: ProductionOrder, stage: LsxStageKey): boolean {
+  return layOutsourceStepsTuOrder(order).includes(stageOutsourceKey(stage));
+}
+
+export function laStageGiaCongTuSource(source: LsxSourceData, stage: LsxStageKey): boolean {
+  return layOutsourceStepsTuSource(source).includes(stageOutsourceKey(stage));
+}
+
+/** Header khâu LSX — thêm "(GIA CÔNG)" khi khâu thuê ngoài. */
+export function stageLabel(order: ProductionOrder, label: string, stage: LsxStageKey): string {
+  return laStageGiaCong(order, stage) ? `${label} (GIA CÔNG)` : label;
+}
+
+export function stageLabelTuSource(source: LsxSourceData, label: string, stage: LsxStageKey): string {
+  return laStageGiaCongTuSource(source, stage) ? `${label} (GIA CÔNG)` : label;
 }

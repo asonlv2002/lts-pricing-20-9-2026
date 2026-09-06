@@ -30,7 +30,7 @@ import { bagTypeLabelHienThi } from './lsx-bag-classification';
 import { buildLsxBagFieldRows } from './lsx-bag-fields';
 import { formatLsxHeaderDate } from './lsx-header-format';
 import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from './lsx-divide';
-import { layDongTheoCongDoan, layKhoMangTuNguon } from './lsx-nang-cao';
+import { layDongTheoCongDoan, layKhoMangTuNguon, stageLabel } from './lsx-nang-cao';
 
 
 function v(val: string | number | null | undefined, suffix = ''): string {
@@ -393,7 +393,7 @@ function mangBodyHtml(order: ProductionOrder): string {
   let html = `
   <table>
     <colgroup><col style="width:48.5%" /><col style="width:51.5%" /></colgroup>
-    <tr><td colspan="2" class="sec-orange">MÁY IN</td></tr>
+    <tr><td colspan="2" class="sec-orange">${esc(stageLabel(order, 'MÁY IN', 'in'))}</td></tr>
     <tr>
       <td><span class="b">Màng in: </span>${esc(m.printFilmName || s.layer1Name || '')}</td>
       <td><span class="b">Khổ: </span>${khoMM ? `${khoMM}mm` : ''}</td>
@@ -424,7 +424,7 @@ function mangBodyHtml(order: ProductionOrder): string {
     // Phi hao chia: làm tròn số nguyên (ý 8)
     const phiHaoChia = Math.round(phiHaoChiaRaw);
     html += `
-    <tr><td colspan="2" class="sec-orange">MÁY CHIA</td></tr>
+    <tr><td colspan="2" class="sec-orange">${esc(stageLabel(order, 'MÁY CHIA', 'chia'))}</td></tr>
     <tr>
       <td colspan="2">${divideResultHtml(order)}</td>
     </tr>
@@ -532,8 +532,8 @@ function tuiBodyHtml(order: ProductionOrder): string {
   if (singleLayer && showDivide) {
     html += `
     <tr>
-      <td colspan="2" class="sec-orange" style="width:50%">MÁY IN</td>
-      <td colspan="3" class="sec-orange" style="width:50%">MÁY CHIA</td>
+      <td colspan="2" class="sec-orange" style="width:50%">${esc(stageLabel(order, 'MÁY IN', 'in'))}</td>
+      <td colspan="3" class="sec-orange" style="width:50%">${esc(stageLabel(order, 'MÁY CHIA', 'chia'))}</td>
     </tr>
     <tr>
       <td style="width:29%"><span class="b">Màng in: </span>${esc(m.printFilmName || s.layer1Name || '')}</td>
@@ -618,8 +618,8 @@ function tuiBodyHtml(order: ProductionOrder): string {
 
     html += `
     <tr>
-      <td colspan="2" class="sec-orange" style="width:50%">MÁY IN</td>
-      <td colspan="3" class="sec-orange" style="width:50%">MÁY GHÉP</td>
+      <td colspan="2" class="sec-orange" style="width:50%">${esc(stageLabel(order, 'MÁY IN', 'in'))}</td>
+      <td colspan="3" class="sec-orange" style="width:50%">${esc(stageLabel(order, 'MÁY GHÉP', 'ghep'))}</td>
     </tr>
     <tr>
       <td colspan="2" class="lam-half lam-half--print" data-lsx-print-grid>${printGrid}</td>
@@ -650,12 +650,12 @@ function tuiBodyHtml(order: ProductionOrder): string {
   if (useLeftDivideCol) {
     html += `
     <tr>
-      <td colspan="2" class="sec-orange">MÁY CHIA</td>
-      <td colspan="3" class="sec-orange">MÁY LÀM TÚI</td>
+      <td colspan="2" class="sec-orange">${esc(stageLabel(order, 'MÁY CHIA', 'chia'))}</td>
+      <td colspan="3" class="sec-orange">${esc(stageLabel(order, 'MÁY LÀM TÚI', 'lam-tui'))}</td>
     </tr>`;
   } else {
     html += `
-    <tr><td colspan="5" class="sec-orange">MÁY LÀM TÚI</td></tr>`;
+    <tr><td colspan="5" class="sec-orange">${esc(stageLabel(order, 'MÁY LÀM TÚI', 'lam-tui'))}</td></tr>`;
   }
 
   // ── Bag fields: split specification | operation in the bag area ──

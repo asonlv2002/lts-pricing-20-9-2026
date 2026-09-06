@@ -130,7 +130,7 @@ const ONhapSoThapPhan = ({ value, onChange, placeholder, min, step, className, d
 };
 
 export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () => void }) {
-  const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness, currentSellerId, currentSellerName, role, accessToken, isAuthenticated, setPricingEntry: datPricingEntry } = dungCuaHangTinhGia();
+  const { input, setInput: capNhatDauVao, materials, constants, advancedOpen, setAdvancedOpen: datMoRongNangCao, result, resetInput: datLaiDauVao, resetInputGiuLoaiHinh: datLaiDauVaoGiuLoaiHinh, addCurrentToHistory: themVaoLichSu, optimizeCurrentThickness, currentSellerId, currentSellerName, role, accessToken, isAuthenticated, setPricingEntry: datPricingEntry } = dungCuaHangTinhGia();
   const nhanCheDo =
     input.pricingMode === 'outsource'
       ? `Gia công${input.outsource?.steps?.length ? ` · ${input.outsource.steps.length} CD` : ''}`
@@ -594,7 +594,8 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
 
   const xuLyDatLai = () => {
     datNhomTheoLop({});
-    datLaiDauVao();
+    // Đặt lại chỉ xóa dữ liệu đã nhập — không đổi option (Nội bộ/Gia công/Thương mại).
+    datLaiDauVaoGiuLoaiHinh();
   };
 
   return (

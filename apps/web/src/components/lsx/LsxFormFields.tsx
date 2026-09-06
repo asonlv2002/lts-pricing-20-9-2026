@@ -17,7 +17,7 @@ import type { LsxSourceData, LSXManualFields } from '../../lib/types';
 import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, resolveLsxStageFlags, resolveLsxBagVisibleFields, type LsxBagTypeInfo } from '../../lib/lsx-bag-classification';
 import { formatLsxFoldBottom, lsxBagSizeMm, LSX_TOLERANCE_WIDTH_DEFAULT_MM, LSX_TOLERANCE_LENGTH_DEFAULT_MM } from '../../lib/lsx-quy-cach';
 import { formatLsxOrderQuantityParts } from '../../lib/lsx-quantity';
-import { layKhoMangTuNguon } from '../../lib/lsx-nang-cao';
+import { layKhoMangTuNguon, stageLabelTuSource } from '../../lib/lsx-nang-cao';
 
 // ── CSS cho form giống mẫu thực ─────────────────────────────────────────────
 const styles = {
@@ -831,10 +831,10 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
           <tbody>
             <tr>
               {showIn && (
-                <td colSpan={showGhep ? 4 : 8} style={{ ...styles.secBlue, width: showGhep ? '50%' : '100%' }}>MÁY IN</td>
+                <td colSpan={showGhep ? 4 : 8} style={{ ...styles.secBlue, width: showGhep ? '50%' : '100%' }}>{stageLabelTuSource(source, 'MÁY IN', 'in')}</td>
               )}
               {showGhep && (
-                <td colSpan={showIn ? 4 : 8} style={{ ...styles.secBlue, width: showIn ? '50%' : '100%' }}>MÁY GHÉP</td>
+                <td colSpan={showIn ? 4 : 8} style={{ ...styles.secBlue, width: showIn ? '50%' : '100%' }}>{stageLabelTuSource(source, 'MÁY GHÉP', 'ghep')}</td>
               )}
             </tr>
             <tr>
@@ -859,10 +859,10 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
           <tbody>
             <tr>
               {showChia && (
-                <td colSpan={showTui ? 4 : 8} style={{ ...styles.secBlue, width: showTui ? '50%' : '100%' }}>MÁY CHIA</td>
+                <td colSpan={showTui ? 4 : 8} style={{ ...styles.secBlue, width: showTui ? '50%' : '100%' }}>{stageLabelTuSource(source, 'MÁY CHIA', 'chia')}</td>
               )}
               {showTui && (
-                <td colSpan={showChia ? 4 : 8} style={{ ...styles.secBlue, width: showChia ? '50%' : '100%' }}>MÁY LÀM TÚI</td>
+                <td colSpan={showChia ? 4 : 8} style={{ ...styles.secBlue, width: showChia ? '50%' : '100%' }}>{stageLabelTuSource(source, 'MÁY LÀM TÚI', 'lam-tui')}</td>
               )}
             </tr>
 

@@ -23,6 +23,7 @@ import { quyetDinhPricingSheetSync } from '../lib/pricing-sheet-sync';
 import { LS_CUSTOMERS, loadCustomers } from '../store/helpers';
 import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override-display';
 import { tinhNhapPhanBoChotGia } from '../lib/chot-gia-allocation';
+import { tinhGiaDeXuatHienThi } from '../lib/gia-de-xuat-hien-thi';
 import { tinhGiaThuongMai, type KetQuaThuongMai } from '../lib/engine';
 import { timMucLichSuTheoId } from '../lib/history-identity';
 import { dieuHuongModuleApp } from '../lib/menu-route';
@@ -1248,7 +1249,7 @@ export default function ManHinhQuanLy({ nangCap = false, isCommercial = false, c
     saleProfitRatePct, adminProfitRatePct, setSaleProfitRatePct: datSaleProfitRatePct, setAdminProfitRatePct: datAdminProfitRatePct,
     setSaleOverride: datGhiDeSale, setAdminOverride: datGhiDeAdmin, setShowSaleOverrides: datHienGhiDeSale, setShowAdminOverrides: datHienGhiDeAdmin, persistOverrides: luuGhiDe, calculateForInput,
     phanBoCongTy = 0, donViPhanBo, setPhanBoCongTy, setDonViPhanBo,
-  accessToken, isAuthenticated,
+  accessToken, isAuthenticated, isDirty,
 } = dungCuaHangTinhGia();
 
 // Tính toán trạng thái nút Lưu và banner
@@ -1966,8 +1967,23 @@ const buttonLabel = loadedItem
   // (ketQuaThuongMaiHieuLuc đã được khai báo ở trên — phục vụ breakdown label)
   // Giá cuối cùng từ engine gốc (hoặc TỔNG breakdown khi commercial-form: mua + LN + Thùng + VC + Lãi vay + HH + Phụ phí).
   const effFinalPriceWithComm = ketQuaThuongMaiHieuLuc ? tongBreakdown : rHieuLuc.finalPrice;
-  const shownPrice = hasChotGia ? chotGiaNum : effFinalPriceWithComm;
-  const diff = hasChotGia ? chotGiaNum - effFinalPriceWithComm : 0;
+  // ── Giá đề xuất hiển thị ──
+  // Mở lại sheet NC đã lưu (chưa chỉnh input / chưa đụng ô ghi đè nào của Sale hay Admin)
+  // → giữ đúng giá snapshot lúc lưu, không bị cuốn theo cấu hình hệ thống đã đổi sau đó.
+  const {
+    dongBang: dongBangGiaDeXuat,
+    giaDeXuat: giaDeXuatHienThi,
+    coLechCauHinh: coLechGiaDeXuatLuu,
+  } = tinhGiaDeXuatHienThi({
+    nangCap,
+    loadedItem,
+    isDirty,
+    saleOverrides: ghiDeSale,
+    adminOverrides: ghiDeAdmin,
+    giaTinhLai: effFinalPriceWithComm,
+  });
+  const shownPrice = hasChotGia ? chotGiaNum : giaDeXuatHienThi;
+  const diff = hasChotGia ? chotGiaNum - giaDeXuatHienThi : 0;
   const hienThiPhanBoChotGia = tinhNhapPhanBoChotGia({
     hasChotGia,
     diff,
@@ -2254,7 +2270,12 @@ const buttonLabel = loadedItem
               </div>
               {hasChotGia && (
                 <div style={{fontSize:'0.82rem', color:'var(--muted)', marginTop:'2px', marginBottom:'2px'}}>
-                  (giá đề xuất {dinhDangSo(effFinalPriceWithComm, 0)} đ/{nhanDonVi})
+                  (giá đề xuất {dinhDangSo(giaDeXuatHienThi, 0)} đ/{nhanDonVi})
+                </div>
+              )}
+              {dongBangGiaDeXuat && coLechGiaDeXuatLuu && (
+                <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px', marginBottom:'2px'}}>
+                  (giá giữ nguyên theo bảng tính đã lưu — đơn giá/định mức hệ thống đã đổi từ đó)
                 </div>
               )}
               {dauVaoKq.cylIncluded && (rHieuLuc.cylAllocPerUnit ?? 0) > 0 && (
@@ -2535,11 +2556,18 @@ const buttonLabel = loadedItem
               </div>
               <div className="stat-card cyan">
                 <div className="stat-label">Doanh thu</div>
-                <div className="stat-value">{dinhDangSo(rHieuLuc.finalPrice * dauVaoKq.quantity)} đ</div>
+                <div className="stat-value">{dinhDangSo((dongBangGiaDeXuat ? giaDeXuatHienThi : rHieuLuc.finalPrice) * dauVaoKq.quantity)} đ</div>
               </div>
               <div className="stat-card orange">
                 <div className="stat-label">{hienThiGia.salePriceTitle}</div>
-                <div className="stat-value">{dinhDangSo(effFinalPriceWithComm, 0)} đ</div>
+                <div className="stat-value">
+                  {dinhDangSo(hasChotGia ? chotGiaNum : giaDeXuatHienThi, 0)} đ
+                  {hasChotGia && (
+                    <div style={{fontSize:'0.78rem', fontWeight:400, marginTop:'4px', color:'var(--muted)'}}>
+                      đề xuất {dinhDangSo(giaDeXuatHienThi, 0)} đ · {diff >= 0 ? '+' : ''}{dinhDangSo(diff, 0)} đ
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="stat-card pink">
                 <div className="stat-label">Hoa hồng</div>
@@ -2564,7 +2592,7 @@ const buttonLabel = loadedItem
                 ))}
                 <li className="bl-total">
                   <span className="bl-label" style={{color:'var(--orange)'}}>GIÁ BÁN ĐỀ XUẤT / {nhanDonVi.toUpperCase()}</span>
-                  <span className="bl-value" style={{color:'var(--orange)'}}>{dinhDangSo(effFinalPriceWithComm, 0)} đ</span>
+                  <span className="bl-value" style={{color:'var(--orange)'}}>{dinhDangSo(giaDeXuatHienThi, 0)} đ</span>
                 </li>
                 {hasChotGia && (
                   <li className="bl-total" style={{borderTop: '1px dashed var(--border)', marginTop: '6px', paddingTop: '8px'}}>
@@ -2865,7 +2893,7 @@ const buttonLabel = loadedItem
                         <td data-label="Số lượng" style={{fontWeight: isCurrent ? 700 : 400}}>{dinhDangSo(qty)}</td>
                         <td data-label="LN %">{dinhDangPhanTram(res.profitRate)}</td>
                         <td data-label="Giá vốn+LN">{dinhDangSo(res.costPerUnit, 1)}</td>
-                        <td data-label="Giá đề xuất" style={{fontWeight:700, color: isCurrent ? 'var(--accent)' : 'inherit'}}>{dinhDangSo(res.finalPrice, 0)}</td>
+                        <td data-label="Giá đề xuất" style={{fontWeight:700, color: isCurrent ? 'var(--accent)' : 'inherit'}}>{dinhDangSo(dongBangGiaDeXuat && isCurrent ? giaDeXuatHienThi : res.finalPrice, 0)}</td>
                         <td data-label="Tổng DT">{dinhDangSo(res.finalPrice * qty / 1000000, 2)}tr</td>
                         {matCols.map((col, ci) => {
                           const layerData = getLayerData(res, col);

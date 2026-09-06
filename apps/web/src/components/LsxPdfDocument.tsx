@@ -37,6 +37,7 @@ import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from "../
 import {
   layDongTheoCongDoan,
   layKhoMangTuNguon,
+  stageLabel,
 } from "../lib/lsx-nang-cao";
 
 // Times New Roman — same as BaoGiaPdfDocument / DOCX ground truth
@@ -467,7 +468,7 @@ function MangBody({
     <View style={styles.table}>
       <View style={styles.row}>
         <View style={[styles.cell, { width: "100%" }, styles.secOrange]}>
-          <Text style={styles.bold}>MÁY IN</Text>
+          <Text style={styles.bold}>{stageLabel(order, "MÁY IN", "in")}</Text>
         </View>
       </View>
       <View style={styles.row}>
@@ -508,7 +509,7 @@ function MangBody({
         <>
           <View style={styles.row}>
             <View style={[styles.cell, { width: "100%" }, styles.secOrange]}>
-              <Text style={styles.bold}>MÁY CHIA</Text>
+              <Text style={styles.bold}>{stageLabel(order, "MÁY CHIA", "chia")}</Text>
             </View>
           </View>
           <View style={styles.row}>
@@ -611,10 +612,10 @@ function TuiBody({
         <>
           <View style={styles.row}>
             <View style={[styles.cell, { width: "50%" }, styles.secOrange]}>
-              <Text style={styles.bold}>MÁY IN</Text>
+              <Text style={styles.bold}>{stageLabel(order, "MÁY IN", "in")}</Text>
             </View>
             <View style={[styles.cell, { width: "50%" }, styles.secOrange]}>
-              <Text style={styles.bold}>MÁY CHIA</Text>
+              <Text style={styles.bold}>{stageLabel(order, "MÁY CHIA", "chia")}</Text>
             </View>
           </View>
           <View style={styles.row}>
@@ -673,10 +674,10 @@ function TuiBody({
         <>
           <View style={styles.row}>
             <View style={[styles.cell, { width: "50%" }, styles.secOrange]}>
-              <Text style={styles.bold}>MÁY IN</Text>
+              <Text style={styles.bold}>{stageLabel(order, "MÁY IN", "in")}</Text>
             </View>
             <View style={[styles.cell, { width: "50%" }, styles.secOrange]}>
-              <Text style={styles.bold}>MÁY GHÉP</Text>
+              <Text style={styles.bold}>{stageLabel(order, "MÁY GHÉP", "ghep")}</Text>
             </View>
           </View>
           {(() => {
@@ -781,16 +782,16 @@ function TuiBody({
       {useLeftDivide ? (
         <View style={styles.row}>
           <View style={[styles.cell, { width: "50%" }, styles.secOrange]}>
-            <Text style={styles.bold}>MÁY CHIA</Text>
+            <Text style={styles.bold}>{stageLabel(order, "MÁY CHIA", "chia")}</Text>
           </View>
           <View style={[styles.cell, { width: "50%" }, styles.secOrange]}>
-            <Text style={styles.bold}>MÁY LÀM TÚI</Text>
+            <Text style={styles.bold}>{stageLabel(order, "MÁY LÀM TÚI", "lam-tui")}</Text>
           </View>
         </View>
       ) : (
         <View style={styles.row}>
           <View style={[styles.cell, { width: "100%" }, styles.secOrange]}>
-            <Text style={styles.bold}>MÁY LÀM TÚI</Text>
+            <Text style={styles.bold}>{stageLabel(order, "MÁY LÀM TÚI", "lam-tui")}</Text>
           </View>
         </View>
       )}

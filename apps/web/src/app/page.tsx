@@ -16,6 +16,7 @@ import { apCpsxNangCaoVaoHangSo } from '../lib/cpsx-nang-cao-pin';
 import { taiTruocThuVienNang } from '../lib/preload-heavy';
 import { tinhGiaThuongMai } from '../lib/engine';
 import { layDonViTinh } from '../lib/pricing-display';
+import { tinhGiaDeXuatHienThi } from '../lib/gia-de-xuat-hien-thi';
 
 // ── Format helper ─────────────────────────────────────────────────────────────
 function dinhDangSo(n: number, soLe = 0): string {
@@ -34,7 +35,8 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
   const ketQuaThuongMai = laThuongMai ? tinhGiaThuongMai(input) : null;
 
   // Tab nâng cấp: giá từ bảng đặc tả nâng cao (có ghi đè Sale/Admin)
-  // Sheet đã lưu: overlay CPSX NC từ pin — không bám constants đang sửa trên màn CPSX
+  // Sheet đã lưu: overlay CPSX NC từ pin — không bám constants đang sửa trên màn CPSX.
+  // LN% ghi đè Sale/Admin KHÔNG áp vào giá hiển thị (theo LN hệ thống — đồng bộ desktop).
   const ketQuaHienThi = nangCap
     ? (() => {
         const s = dungCuaHangTinhGia.getState();
@@ -49,16 +51,31 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
           materials: s.materials,
           saleOverrides: s.saleOverrides,
           adminOverrides: s.adminOverrides,
-          saleProfitRatePct: s.saleProfitRatePct,
-          adminProfitRatePct: s.adminProfitRatePct,
+          saleProfitRatePct: 0,
+          adminProfitRatePct: 0,
           profitTable: s.profitTable,
         }).result;
       })()
     : result;
 
+  // Đóng băng giá đề xuất khi mở lại sheet NC đã lưu (chưa chỉnh sửa) — đồng bộ desktop.
+  const giaDeXuatHienThi = (() => {
+    const s = dungCuaHangTinhGia.getState();
+    if (!nangCap) return ketQuaHienThi.finalPrice;
+    const item = timMucLichSuTheoId(s.history, s.loadedHistoryId);
+    return tinhGiaDeXuatHienThi({
+      nangCap,
+      loadedItem: item,
+      isDirty: s.isDirty,
+      saleOverrides: s.saleOverrides,
+      adminOverrides: s.adminOverrides,
+      giaTinhLai: ketQuaHienThi.finalPrice,
+    }).giaDeXuat;
+  })();
+
   const gia = currentChotGia > 0
     ? currentChotGia
-    : (ketQuaThuongMai ? ketQuaThuongMai.unitPriceVnd : ketQuaHienThi.finalPrice);
+    : (ketQuaThuongMai ? ketQuaThuongMai.unitPriceVnd : giaDeXuatHienThi);
   const tyLeLn = ketQuaThuongMai
     ? ketQuaThuongMai.profitPct
     : ketQuaHienThi.profitRate;

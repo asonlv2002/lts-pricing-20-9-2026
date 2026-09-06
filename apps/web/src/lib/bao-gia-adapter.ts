@@ -3,7 +3,7 @@
 // structure từ layer IDs trong inputValue → không cần chạy lại engine Tính giá.
 import type { BaoGiaApi, PricingSheetApi, TrangThaiBaoGiaServer } from './api/service-lts';
 import { chuyenTrangThaiBaoGia } from './api/service-lts';
-import type { CalculateInput, LsxSourceData } from './types';
+import type { CalculateInput, LsxSourceData, OutsourceStep } from './types';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import {
   formatChatLieuNhuBaoGia,
@@ -23,6 +23,21 @@ function layNangCaoSpecTuInputValue(inputValue: unknown): unknown {
   if (!laObject(inputValue)) return undefined;
   const raw = (inputValue as Record<string, unknown>).nangCaoSpec;
   return Array.isArray(raw) ? raw : undefined;
+}
+
+/** Lấy danh sách khâu thuê gia công ngoài từ `inputValue.outsource.steps`. */
+function layOutsourceStepsTuInputValue(inputValue: unknown): OutsourceStep[] | undefined {
+  if (!laObject(inputValue)) return undefined;
+  const out = (inputValue as Record<string, unknown>).outsource;
+  if (!laObject(out)) return undefined;
+  const steps = (out as Record<string, unknown>).steps;
+  if (!Array.isArray(steps)) return undefined;
+  const valid: OutsourceStep[] = steps.filter(
+    (s): s is OutsourceStep =>
+      typeof s === 'string' &&
+      ['print', 'laminate', 'slit', 'bag', 'handle', 'pp_bag', 'matte'].includes(s),
+  );
+  return valid.length > 0 ? valid : undefined;
 }
 
 function layFinalPrice(sheet: PricingSheetApi): number {
@@ -192,6 +207,7 @@ function tuPricingSheet(
   const hasHalfMoonBottom = layHasHalfMoonBottom(entry);
   const bagMetadata = layLsxBagMetadata(entry);
   const nangCaoSpec = layNangCaoSpecTuInputValue(sheet.inputValue);
+  const outsourceSteps = layOutsourceStepsTuInputValue(sheet.inputValue);
 
   return {
     id: `${quotationId}:${sheet.id}`,
@@ -204,6 +220,7 @@ function tuPricingSheet(
     hasHalfMoonBottom: hasHalfMoonBottom || undefined,
     ...bagMetadata,
     nangCaoSpec,
+    outsourceSteps,
   };
 }
 
@@ -220,6 +237,7 @@ function tuInputValueTrucTiep(
   const hasHalfMoonBottom = layHasHalfMoonBottom(entry);
   const bagMetadata = layLsxBagMetadata(entry);
   const nangCaoSpec = layNangCaoSpecTuInputValue(inputValue);
+  const outsourceSteps = layOutsourceStepsTuInputValue(inputValue);
 
   return {
     id: quotationId,
@@ -232,6 +250,7 @@ function tuInputValueTrucTiep(
     hasHalfMoonBottom: hasHalfMoonBottom || undefined,
     ...bagMetadata,
     nangCaoSpec,
+    outsourceSteps,
   };
 }
 

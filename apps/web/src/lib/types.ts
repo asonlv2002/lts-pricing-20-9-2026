@@ -1005,12 +1005,14 @@ export interface LsxSourceData {
   stageNotes?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
   /** Mô tả khác theo công đoạn từ báo giá. */
   stageDescriptions?: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
-  /**
-   * Snapshot bảng đặc tả nâng cao (LsxNangCaoRow[]) — từ `inputValue.nangCaoSpec`
+/**
+   * Snapshot bảng đặc tả kỹ thuật nâng cao (LsxNangCaoRow[]) — từ `inputValue.nangCaoSpec`
    * của pricing sheet (đã snap lúc "Lưu tính giá" / "Cập nhật"). LSX render ưu tiên
    * nguồn này để có Khổ / TP / Phi hao từng công đoạn. Cập nhật LSX giữ nguyên.
    */
   nangCaoSpec?: unknown;
+  /** Các khâu đang thuê gia công ngoài (từ `input.outsource.steps` báo giá). */
+  outsourceSteps?: OutsourceStep[];
 }
 
 // ── Production Order (Lệnh Sản Xuất) ─────────────────────────────────────────
@@ -1213,5 +1215,7 @@ export interface ProductionOrder {
      * Optional để tương thích LSX cũ (snapshot cũ dùng làm fallback).
      */
     nangCaoSpec?: unknown;
+    /** Các khâu thuê gia công ngoài (từ `input.outsource.steps` báo giá). */
+    outsourceSteps?: OutsourceStep[];
   };
 }

@@ -9,6 +9,7 @@ import type {
 } from "./types";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { boSoCauTruc, buildStructureFromLayers } from "./format-structure";
+import { extractQuoteOtherDescriptions } from "./quote-product-spec";
 import {
   estimateQuoteGroupHeight,
   paginateQuoteGroupsByPageHeight,
@@ -453,6 +454,13 @@ function buildBaoGiaHtmlV2(
           pageHtml += `<div class="luu-y-item">- Thời gian giao hàng: ${escHtml(item.terms.deliveryTime)}</div>`;
         if (item.terms.notes)
           pageHtml += `<div class="luu-y-item">- Ghi chú: ${escHtml(item.terms.notes)}</div>`;
+      }
+      const stageLines = extractQuoteOtherDescriptions(products);
+      if (stageLines.length > 0) {
+        if (!item.terms) pageHtml += `<div class="luu-y">Lưu ý:</div>`;
+        for (const line of stageLines) {
+          pageHtml += `<div class="luu-y-item">- ${escHtml(line)}</div>`;
+        }
       }
 
       const pkdCol = reviewerSignatureDataUrl
@@ -1199,6 +1207,28 @@ export async function exportBaoGiaToDocx(
           pageChildren.push(
             new Paragraph({
               children: [new TextRun({ text: n, font: FONT, size: 20 })],
+            }),
+          );
+        }
+      }
+      const stageLines = extractQuoteOtherDescriptions(products);
+      if (stageLines.length > 0) {
+        if (!item.terms) {
+          pageChildren.push(
+            new Paragraph({
+              children: [
+                new TextRun({ text: "Lưu ý:", bold: true, font: FONT, size: 22 }),
+              ],
+              spacing: { before: 300 },
+            }),
+          );
+        }
+        for (const line of stageLines) {
+          pageChildren.push(
+            new Paragraph({
+              children: [
+                new TextRun({ text: `- ${line}`, font: FONT, size: 20 }),
+              ],
             }),
           );
         }

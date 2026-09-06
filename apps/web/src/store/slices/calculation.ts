@@ -30,6 +30,10 @@ export interface CalculationSlice {
 
   setInput: (partial: Partial<CalculateInput>) => void;
   resetInput: () => void;
+  /** Reset như resetInput nhưng GIỮ loại hình đang dùng (pricingMode +
+   * commercialMode/outsource theo cấu hình hiện tại) — nút "Đặt lại" của form.
+   */
+  resetInputGiuLoaiHinh: () => void;
   setCurrentChotGia: (giaTri: number) => void;
   setPhanBoCongTy: (val: number) => void;
   setDonViPhanBo: (val: 'vnd' | 'percent') => void;
@@ -51,6 +55,7 @@ export interface CalculationSlice {
   optimizeCurrentThickness: () => ReturnType<typeof toiUuDoDayTheoVatLieu>;
   datDauVao: (partial: Partial<CalculateInput>) => void;
   datLaiDauVao: () => void;
+  datLaiDauVaoGiuLoaiHinh: () => void;
   tinhLai: () => void;
   tinhTheoDauVao: (input: CalculateInput) => CalculateResult | null;
   tinhTheoSoLuong: (soLuong: number) => CalculateResult | null;
@@ -72,6 +77,43 @@ const dongBoPhuPhiIn = (input: CalculateInput, constants: AppConstants): Calcula
   ...input,
   metallicSurcharge: tinhPhuPhiIn(input, constants),
 });
+
+/**
+ * Trạng thái sau "Đặt lại": input về mặc định (có thể giữ lại vài field loại hình),
+ * xóa sạch dữ liệu đơn hàng / override / phiên sheet. Dùng chung cho resetInput
+ * (reset toàn bộ) và resetInputGiuLoaiHinh (chỉ giữ loại hình đang chọn).
+ */
+function trangThaiSauReset(
+  state: CalculationSlice,
+  giu: Partial<CalculateInput> = {},
+): Partial<CuaHangTinhGia> {
+  const dauVaoMoi = dongBoCotLoiNhuan({ ...dauVaoMacDinh, ...giu }, state.materials);
+  return {
+    dauVao: dauVaoMoi,
+    input: dauVaoMoi,
+    result: tinhBaoGia(dauVaoMoi, state.materials, state.constants, state.profitTable, state.smallWidthPrices),
+    currentChotGia: 0, phanBoCongTy: 0, donViPhanBo: 'vnd', isDirty: false,
+    saleOverrides: {}, adminOverrides: {},
+    showSaleOverrides: false, showAdminOverrides: false,
+    loadedHistoryId: null,
+    workingPriceConfigIds: null,
+  };
+}
+
+/** Loại hình được giữ khi bấm "Đặt lại" — không đổi option của bảng tính. */
+function loaiHinhGiuLai(input: CalculateInput): Partial<CalculateInput> {
+  if (input.pricingMode === 'commercial') {
+    return {
+      pricingMode: 'commercial',
+      commercialMode: input.commercialMode ?? 'form',
+    };
+  }
+  if (input.pricingMode === 'outsource') {
+    // Giữ loại "Gia công" nhưng xóa luôn tick công đoạn + config GC.
+    return { pricingMode: 'outsource' };
+  }
+  return { pricingMode: 'internal' };
+}
 
 export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], CalculationSlice> = (set, get) => ({
   dauVao: dauVaoKhoiTao,
@@ -214,16 +256,13 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
 
   resetInput: () => {
     get().restoreSessionConfig();
-    set((state) => ({
-      dauVao: dongBoCotLoiNhuan({ ...dauVaoMacDinh }, state.materials),
-      input: dongBoCotLoiNhuan({ ...dauVaoMacDinh }, state.materials),
-      result: tinhBaoGia(dongBoCotLoiNhuan(dauVaoMacDinh, state.materials), state.materials, state.constants, state.profitTable, state.smallWidthPrices),
-      currentChotGia: 0, phanBoCongTy: 0, donViPhanBo: 'vnd', isDirty: false,
-      saleOverrides: {}, adminOverrides: {},
-      showSaleOverrides: false, showAdminOverrides: false,
-      loadedHistoryId: null,
-      workingPriceConfigIds: null,
-    }));
+    set((state) => trangThaiSauReset(state));
+  },
+
+  resetInputGiuLoaiHinh: () => {
+    const giu = loaiHinhGiuLai(get().input);
+    get().restoreSessionConfig();
+    set((state) => trangThaiSauReset(state, giu));
   },
 
   setCurrentChotGia: (giaTri) => set((state) => ({ currentChotGia: giaTri, input: { ...state.input, chotGia: giaTri || undefined } })),
@@ -400,6 +439,7 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
 
   datDauVao: (partial) => get().setInput(partial),
   datLaiDauVao: () => get().resetInput(),
+  datLaiDauVaoGiuLoaiHinh: () => get().resetInputGiuLoaiHinh(),
   tinhLai: () => get().recalculate(),
   tinhTheoDauVao: (input) => get().calculateForInput(input),
   tinhTheoSoLuong: (soLuong) => get().calculateForQuantity(soLuong),

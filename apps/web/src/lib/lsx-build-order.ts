@@ -734,6 +734,7 @@ export function buildSnapshotFromSource(
     hasSongSieuAm: source.hasSongSieuAm,
     songSieuAmMm: source.songSieuAmMm,
     nangCaoSpec,
+    outsourceSteps: Array.isArray(source.outsourceSteps) ? source.outsourceSteps : undefined,
   };
 }
 
