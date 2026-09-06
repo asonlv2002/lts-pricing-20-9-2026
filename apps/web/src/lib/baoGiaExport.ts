@@ -9,7 +9,7 @@ import type {
 } from "./types";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { boSoCauTruc, buildStructureFromLayers } from "./format-structure";
-import { extractQuoteOtherDescriptions } from "./quote-product-spec";
+import { formatStageDescriptionsForQuote } from "./quote-product-spec";
 import {
   estimateQuoteGroupHeight,
   paginateQuoteGroupsByPageHeight,
@@ -455,14 +455,6 @@ function buildBaoGiaHtmlV2(
         if (item.terms.notes)
           pageHtml += `<div class="luu-y-item">- Ghi chú: ${escHtml(item.terms.notes)}</div>`;
       }
-      const stageLines = extractQuoteOtherDescriptions(products);
-      if (stageLines.length > 0) {
-        if (!item.terms) pageHtml += `<div class="luu-y">Lưu ý:</div>`;
-        for (const line of stageLines) {
-          pageHtml += `<div class="luu-y-item">- ${escHtml(line)}</div>`;
-        }
-      }
-
       const pkdCol = reviewerSignatureDataUrl
         ? `<div class="sig-col-title">P. KINH DOANH</div><img class="sig-col-img" src="${reviewerSignatureDataUrl}" alt="Chữ ký P. Kinh Doanh" />`
         : `<div class="sig-col-title">P. KINH DOANH</div><div class="sig-col-hint">(Ký, ghi rõ họ tên)</div>`;
@@ -600,9 +592,18 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
     }
 
     const excludeBag = (p.bagSpec as any)?.includeBagInQuote === false;
+    // "Mô tả khác" theo công đoạn của TỪNG sản phẩm → nối vào cột Mô tả
+    const stageLines = formatStageDescriptionsForQuote(
+      (p.bagSpec as any)?.stageDescriptions ?? [],
+    );
     const description = excludeBag
       ? ""
-      : buildBagSpecDescription(spec, input, p.structure, totalThickness);
+      : [
+          buildBagSpecDescription(spec, input, p.structure, totalThickness),
+          ...stageLines,
+        ]
+          .filter(Boolean)
+          .join("\n");
     const finalTiers = excludeBag ? [] : tiers;
 
     let cylinder: ProductGroup["cylinder"] | undefined;
@@ -1211,29 +1212,6 @@ export async function exportBaoGiaToDocx(
           );
         }
       }
-      const stageLines = extractQuoteOtherDescriptions(products);
-      if (stageLines.length > 0) {
-        if (!item.terms) {
-          pageChildren.push(
-            new Paragraph({
-              children: [
-                new TextRun({ text: "Lưu ý:", bold: true, font: FONT, size: 22 }),
-              ],
-              spacing: { before: 300 },
-            }),
-          );
-        }
-        for (const line of stageLines) {
-          pageChildren.push(
-            new Paragraph({
-              children: [
-                new TextRun({ text: `- ${line}`, font: FONT, size: 20 }),
-              ],
-            }),
-          );
-        }
-      }
-
       // Signatures — bảng 2 cột: KH / P.KD (ảnh chữ ký reviewer đặt trong P.KD)
       pageChildren.push(
         new Paragraph({ children: [], spacing: { before: 400 } }),

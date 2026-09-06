@@ -17,17 +17,6 @@ export function formatStageDescriptionsForQuote(
     .filter((text) => text.length > 0);
 }
 
-/** Gom toàn bộ "Mô tả khác" của các sản phẩm trong báo giá → các dòng text thuần. */
-export function extractQuoteOtherDescriptions(
-  products: ReadonlyArray<{
-    bagSpec?: { stageDescriptions?: readonly LsxStageNote[] } | null;
-  }>,
-): string[] {
-  return products.flatMap((product) =>
-    formatStageDescriptionsForQuote(product.bagSpec?.stageDescriptions ?? []),
-  );
-}
-
 export interface QuoteProductBagSpec {
   bagType: string;
   widthMm: number;

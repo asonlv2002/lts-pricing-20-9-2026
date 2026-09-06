@@ -13,7 +13,7 @@ import {
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { useCalculatorStore } from "../store/CuaHangTinhGia";
 import { boSoCauTruc } from "../lib/format-structure";
-import { extractQuoteOtherDescriptions } from "../lib/quote-product-spec";
+import { formatStageDescriptionsForQuote } from "../lib/quote-product-spec";
 import {
   estimateQuoteGroupHeight,
   paginateQuoteGroups,
@@ -562,9 +562,18 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
     }
 
     const excludeBag = (p.bagSpec as any)?.includeBagInQuote === false;
+    // "Mô tả khác" theo công đoạn của TỪNG sản phẩm → nối vào cột Mô tả
+    const stageLines = formatStageDescriptionsForQuote(
+      (spec as any)?.stageDescriptions ?? [],
+    );
     const description = excludeBag
       ? ""
-      : buildBagSpecDescription(spec, input, p.structure, totalThickness);
+      : [
+          buildBagSpecDescription(spec, input, p.structure, totalThickness),
+          ...stageLines,
+        ]
+          .filter(Boolean)
+          .join("\n");
     const finalTiers = excludeBag ? [] : tiers;
 
     let cylinder: ProductGroup["cylinder"] | undefined;
@@ -796,7 +805,6 @@ function BaoGiaPage({
         } as QuoteProductLine,
       ];
   const allGroups = buildGroups(products);
-  const stageDescLines = extractQuoteOtherDescriptions(products);
 
   const tableRows: React.ReactNode[] = [];
 
@@ -945,18 +953,6 @@ function BaoGiaPage({
                   - Ghi chú: {item.terms.notes}
                 </Text>
               ) : null}
-            </>
-          ) : null}
-          {stageDescLines.length > 0 ? (
-            <>
-              {!item.terms ? (
-                <Text style={styles.luuY}>Lưu ý:</Text>
-              ) : null}
-              {stageDescLines.map((line, index) => (
-                <Text key={`mo-ta-khac-${index}`} style={styles.luuYItem}>
-                  - {line}
-                </Text>
-              ))}
             </>
           ) : null}
           <View style={styles.sigColWrap}>
