@@ -262,18 +262,26 @@ function metaKhachHang(c: Customer): string[] {
   return lines;
 }
 
-function readQuotePrefillFromHistory(): QuotePrefillFromHistory | null {
+function readQuotePrefillFromHistory(
+  giuLai = false,
+): QuotePrefillFromHistory | null {
   if (typeof window === "undefined") return null;
   try {
     const raw = window.localStorage.getItem(QUOTE_PREFILL_STORAGE_KEY);
     if (!raw) return null;
-    window.localStorage.removeItem(QUOTE_PREFILL_STORAGE_KEY);
     const parsed = JSON.parse(raw) as QuotePrefillFromHistory;
     const hasHistoryItems =
       Array.isArray(parsed.historyItemIds) && parsed.historyItemIds.length > 0;
     const hasQuoteProducts =
       Array.isArray(parsed.quoteProducts) && parsed.quoteProducts.length > 0;
-    return hasHistoryItems || hasQuoteProducts ? parsed : null;
+    if (hasHistoryItems || hasQuoteProducts) {
+      // Mặc định "ăn" luôn (xóa key). `giuLai` = chỉ đọc, caller tự quyết xóa sau
+      // khi chắc chắn resolve được sản phẩm — tránh mất prefill khi history chưa load.
+      if (!giuLai) window.localStorage.removeItem(QUOTE_PREFILL_STORAGE_KEY);
+      return parsed;
+    }
+    window.localStorage.removeItem(QUOTE_PREFILL_STORAGE_KEY);
+    return null;
   } catch {
     return null;
   }
@@ -3736,8 +3744,19 @@ function TaoBaoGiaWizard({
   const section1Ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const prefill = readQuotePrefillFromHistory();
+    const prefill = readQuotePrefillFromHistory(true);
     if (!prefill) return;
+    const historyItems = history as HistoryItem[];
+    const coSanPhamSan =
+      Array.isArray(prefill.quoteProducts) && prefill.quoteProducts.length > 0;
+    // Prefill dạng historyItemIds nhưng store history chưa nạp (mount sớm trước khi
+    // sync server xong) → KHÔNG xóa key, giữ để effect chạy lại khi [history] đổi.
+    if (!coSanPhamSan && historyItems.length === 0) return;
+    try {
+      window.localStorage.removeItem(QUOTE_PREFILL_STORAGE_KEY);
+    } catch {
+      /* local only */
+    }
     prefillApplied.current = true;
     let prefillProducts: WizardProduct[];
     if (prefill.quoteProducts && prefill.quoteProducts.length > 0) {
@@ -3745,7 +3764,7 @@ function TaoBaoGiaWizard({
         buildWizardProductFromQuoteProductLine(qp),
       );
     } else {
-      prefillProducts = (history as HistoryItem[])
+      prefillProducts = historyItems
         .filter((item: HistoryItem) =>
           prefill.historyItemIds?.includes(item.id),
         )

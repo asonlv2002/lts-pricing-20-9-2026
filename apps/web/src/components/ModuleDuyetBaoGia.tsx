@@ -833,10 +833,7 @@ export default function ModuleDuyetBaoGia({
                           </span>
                         )}
                         {trangThai === "rejected" && (
-                          <span
-                            title={bg.statusReason ? `Từ chối · Lý do: ${bg.statusReason}` : "Đã từ chối"}
-                            aria-label={bg.statusReason ? `Đã từ chối. Lý do: ${bg.statusReason}` : "Đã từ chối"}
-                          >
+                          <span title="Đã từ chối" aria-label="Đã từ chối">
                             <XCircle size={16} style={{ color: "#dc2626" }} />
                           </span>
                         )}
@@ -846,6 +843,19 @@ export default function ModuleDuyetBaoGia({
                     {isExpanded && (
                       <tr style={{ background: "#f0f9ff" }}>
                         <td colSpan={6} style={{ padding: "12px 16px" }}>
+                          {trangThai === "rejected" && bg.statusReason && (
+                            <div
+                              style={{
+                                display: "flex", alignItems: "center", gap: 8,
+                                padding: "6px 10px", borderRadius: 6, marginBottom: 6,
+                                background: "#fef2f2", border: "1px solid #fecaca",
+                                color: "#b91c1c", fontSize: "0.75rem", fontWeight: 600,
+                              }}
+                            >
+                              <XCircle size={14} style={{ flexShrink: 0 }} />
+                              <span>Lý do bị từ chối: {bg.statusReason}</span>
+                            </div>
+                          )}
                           {sheets.length === 0 ? (
                             <div style={{ fontSize: "0.82rem", color: "var(--muted)" }}>
                               Báo giá này không có bảng tính nào.

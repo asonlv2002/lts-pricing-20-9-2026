@@ -39,6 +39,8 @@ export interface LsxRow {
   approverSignatureUrl: string | null;
   createdAt: string;
   createdBy: string;
+  /** Tên người lập LSX — từ order.inputValue.preparedBy (fallback actorName quotation). */
+  nguoiLap: string;
   inputValue: unknown | null;
   pricingSheet: PricingSheetApi;
   bgName: string;             // Lay tu quotation.description
@@ -74,6 +76,22 @@ function docNumber(value: unknown, fallback = 0): number {
   return fallback;
 }
 
+/**
+ * Doc ten nguoi lap (preparedBy) tu order.inputValue (LSXManualFields phang).
+ * inputValue co the kem key lsxSnapshot (snapshot — khong phai ten nguoi lap).
+ */
+function docNguoiLapTuInputValue(inputValue: unknown): string {
+  if (typeof inputValue !== 'object' || inputValue === null || Array.isArray(inputValue)) {
+    return '';
+  }
+  const value = (inputValue as Record<string, unknown>).preparedBy;
+  if (typeof value === 'string') {
+    const trimmed = value.trim();
+    if (trimmed) return trimmed;
+  }
+  return '';
+}
+
 /** Flatten danh sach quotation (gom orders) -> LsxRow[] theo createdAt desc. */
 export function mapServerOrdersToLsxRows(
   quotations: QuotationPricingSheetOrdersByQuotationApi[],
@@ -105,6 +123,8 @@ export function mapServerOrdersToLsxRows(
         approverSignatureUrl: order.original?.approverSignatureUrl ?? null,
         createdAt: order.createdAt,
         createdBy: order.createdBy,
+        nguoiLap: docNguoiLapTuInputValue(order.inputValue)
+          || (typeof q.original?.actorName === 'string' ? q.original.actorName : ''),
         inputValue: order.inputValue,
         pricingSheet: sheet as PricingSheetApi,
         bgName: q.description || '',

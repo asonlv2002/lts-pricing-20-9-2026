@@ -67,7 +67,7 @@ import {
   docMenuKeyTuPathname,
   dongBoUrlMenu,
   laMobileHubMenuKey,
-  menuKeyTuModule,
+  menuKeyTaoBaoGiaTuLichSu,
   moduleTuMenuKey,
   menuKeyTinhGiaTheoItem,
   type CheDoLichSu,
@@ -2378,13 +2378,13 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                 (menuDangChon === "danh-sach-tinh-gia" ? (
                   <ModuleDanhSachTinhGia
                     khiDieuHuong={(m) =>
-                      dieuHuongMenu(menuKeyTuModule(m), "push")
+                      dieuHuongMenu(menuKeyTaoBaoGiaTuLichSu(m), "push")
                     }
                   />
                 ) : (
                   <ModuleLichSuDB
                     khiDieuHuong={(m) =>
-                      dieuHuongMenu(menuKeyTuModule(m), "push")
+                      dieuHuongMenu(menuKeyTaoBaoGiaTuLichSu(m), "push")
                     }
                     menuDangChon={menuDangChon}
                   />

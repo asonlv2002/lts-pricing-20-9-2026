@@ -139,6 +139,38 @@ console.log('\n== mapServerOrdersToLsxRows ==');
   assert('row map approverSignatureUrl tu order.original', rows[0]?.approverSignatureUrl === '/auth/signatures/duyet.webp', rows[0]?.approverSignatureUrl ?? 'null');
 }
 {
+  // Nguoi lap: uu tien preparedBy trong order.inputValue
+  const rows = mapServerOrdersToLsxRows([
+    makeQuotation({
+      orders: [
+        makeOrder({
+          inputValue: { lsxNumber: '2607.01', preparedBy: 'Lê Thị Thu', lsxSnapshot: { quantity: 1 } },
+        }),
+      ],
+    }),
+  ]);
+  assert('row nguoiLap tu inputValue.preparedBy', rows[0]?.nguoiLap === 'Lê Thị Thu', rows[0]?.nguoiLap);
+}
+{
+  // Nguoi lap: fallback sang quotation original.actorName khi inputValue null
+  const rows = mapServerOrdersToLsxRows([
+    makeQuotation({
+      original: { actorName: 'Nguyễn Văn An', deletable: false, canUpdate: true },
+      orders: [makeOrder({ inputValue: null })],
+    }),
+  ]);
+  assert('row nguoiLap fallback quotation.actorName', rows[0]?.nguoiLap === 'Nguyễn Văn An', rows[0]?.nguoiLap);
+}
+{
+  // Nguoi lap: inputValue co preparedBy rong -> van fallback actorName
+  const rows = mapServerOrdersToLsxRows([
+    makeQuotation({
+      orders: [makeOrder({ inputValue: { preparedBy: '   ' } })],
+    }),
+  ]);
+  assert('row nguoiLap fallback khi preparedBy rong', rows[0]?.nguoiLap === 'Nguyễn V.A', rows[0]?.nguoiLap);
+}
+{
   // Reason rong / khong co original -> fallback ''
   const rows = mapServerOrdersToLsxRows([
     makeQuotation({ orders: [makeOrder({ reason: null, original: null })] }),

@@ -4,6 +4,7 @@ import {
   docIdChiTietDanhSachBaoGia,
   docMenuKeyTuPathname,
   laMobileHubMenuKey,
+  menuKeyTaoBaoGiaTuLichSu,
   menuKeyTinhGiaTheoItem,
   menuKeyTuModule,
   menuMacDinhKhiDeepLink,
@@ -50,6 +51,14 @@ assert(
 assert(
   'menuKeyTuModule calculator',
   menuKeyTuModule('calculator') === 'tao-tinh-gia',
+);
+assert(
+  'menuKeyTaoBaoGiaTuLichSu quotations → tao-bao-gia (wizard host, không phải danh-sach-bao-gia)',
+  menuKeyTaoBaoGiaTuLichSu('quotations') === 'tao-bao-gia',
+);
+assert(
+  'menuKeyTaoBaoGiaTuLichSu calculator giữ nguyên menuKeyTuModule',
+  menuKeyTaoBaoGiaTuLichSu('calculator') === 'tao-tinh-gia',
 );
 
 const mucs: MucMenuRoute[] = [

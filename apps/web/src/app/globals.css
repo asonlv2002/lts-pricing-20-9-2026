@@ -14298,9 +14298,14 @@ fieldset.config-cpsx-upgrade__ro[disabled],
   justify-content: flex-end;
 }
 .dac-ta-nang-cao__split--totals-only .dac-ta-nang-cao__totals {
-  flex: 1 1 auto;
-  max-width: 420px;
+  flex: 0 0 auto;
+  width: min(560px, 100%);
   margin-left: auto;
+}
+/* Không có Table 2 → không còn "chiều cao dư" để chia → các dòng về chiều cao tự
+   nhiên, tránh co về ~0 (bóp dẹp) do min-height:0 + flex-basis 0 */
+.dac-ta-nang-cao__split--totals-only .dac-ta-nang-cao__totals .dac-ta-nang-cao__total-row {
+  flex: 0 0 auto;
 }
 .dac-ta-nang-cao__totals {
   flex: 0 0 34%;
@@ -14384,6 +14389,10 @@ fieldset.config-cpsx-upgrade__ro[disabled],
   .dac-ta-nang-cao__totals .dac-ta-nang-cao__total-row {
     flex: 0 0 auto;
   }
+  /* Xếp dọc: totals-only về full-width (đè width: max-content của desktop) */
+  .dac-ta-nang-cao__split--totals-only .dac-ta-nang-cao__totals {
+    width: 100%;
+  }
 }
 
 /* Fallback cho browser chưa hỗ trợ @container */
@@ -14400,6 +14409,9 @@ fieldset.config-cpsx-upgrade__ro[disabled],
     .dac-ta-nang-cao__totals .dac-ta-nang-cao__total-row {
       flex: 0 0 auto;
     }
+    .dac-ta-nang-cao__split--totals-only .dac-ta-nang-cao__totals {
+      width: 100%;
+    }
   }
 }
 
@@ -14411,6 +14423,9 @@ fieldset.config-cpsx-upgrade__ro[disabled],
   .lts-shell--mobile .dac-ta-nang-cao__split-table,
   .lts-shell--mobile .dac-ta-nang-cao__totals {
     flex: 1 1 auto;
+    width: 100%;
+  }
+  .lts-shell--mobile .dac-ta-nang-cao__split--totals-only .dac-ta-nang-cao__totals {
     width: 100%;
   }
   .lts-shell--mobile .dac-ta-nang-cao__total-row {

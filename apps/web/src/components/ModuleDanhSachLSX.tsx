@@ -28,7 +28,6 @@ import {
   type LsxRow,
 } from '../lib/lsx-server-adapter';
 import type { LSXManualFields, LsxLocalStatus } from '../lib/types';
-import { LSX_LOCAL_STATUS_CONFIG, NHAN_LSX_LOCAL_STATUS } from '../lib/types';
 import { QrevStyleInjector } from './qrev-styles';
 import LsxPreviewModal from './LsxPreviewModal';
 import LsxPdfPreviewModal from './LsxPdfPreviewModal';
@@ -43,14 +42,16 @@ import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../lib/chu-ky';
 type BoLoc = LsxLocalStatus | 'all';
 type Nguon = 'all' | 'review';
 
-function HuyHieuTrangThai({ trangThai }: { trangThai: LsxLocalStatus }) {
-  const mau = LSX_LOCAL_STATUS_CONFIG[trangThai];
-  return (
-    <span className="qrev-badge" style={{ background: mau.bg, color: mau.color }}>
-      <span className="qrev-badge-dot" style={{ background: mau.color }} />
-      {NHAN_LSX_LOCAL_STATUS[trangThai]}
-    </span>
-  );
+// Avatar chữ cái đầu cho cột "Người lập": 2 chữ cái đầu của 2 từ cuối.
+function layChuCaiDau(s: string | undefined | null): string {
+  return (s ?? '').split(' ').filter(Boolean).slice(-2).map(w => w[0]).join('').toUpperCase();
+}
+
+const MAU_AVATAR = ['#4f46e5', '#0891b2', '#059669', '#d97706', '#db2777', '#7c3aed', '#0ea5e9', '#65a30d'];
+function layMauAvatar(s: string | undefined | null): string {
+  const chuoi = s ?? '';
+  if (!chuoi) return MAU_AVATAR[0];
+  return MAU_AVATAR[Math.abs([...chuoi].reduce((a, c) => a + c.charCodeAt(0), 0)) % MAU_AVATAR.length];
 }
 
 const CHIP_LABELS: { key: BoLoc; label: string }[] = [
@@ -373,7 +374,7 @@ export default function ModuleDanhSachLSX({
                   <th>Khách hàng</th>
                   <th>Sản phẩm</th>
                   <th>Thời gian</th>
-                  <th>Trạng thái</th>
+                  <th>Người lập</th>
                   <th>Thao tác</th>
                   <th>Duyệt</th>
                 </tr>
@@ -409,8 +410,18 @@ export default function ModuleDanhSachLSX({
                       <td className="qrev-cell-date">
                         {new Date(row.createdAt).toLocaleString('vi-VN')}
                       </td>
-                      <td>
-                        <HuyHieuTrangThai trangThai={row.status} />
+                      <td className="qrev-cell-sale">
+                        {row.nguoiLap ? (
+                          <span
+                            className="qrev-user-avatar"
+                            style={{ background: layMauAvatar(row.nguoiLap) }}
+                            title={row.nguoiLap}
+                          >
+                            {layChuCaiDau(row.nguoiLap)}
+                          </span>
+                        ) : (
+                          '—'
+                        )}
                       </td>
                       <td onClick={(e) => e.stopPropagation()}>
                         <div className="qrev-row-actions">
@@ -465,6 +476,11 @@ export default function ModuleDanhSachLSX({
                         {row.status === 'approved' && (
                           <span title="Đã duyệt">
                             <CheckCircle2 size={16} style={{ color: '#16a34a' }} />
+                          </span>
+                        )}
+                        {row.status === 'pending' && !laNguoiDuyet && !row.reason && (
+                          <span title="Chờ duyệt" style={{ color: 'var(--muted)', fontSize: '0.9rem', padding: '0 6px' }}>
+                            -
                           </span>
                         )}
                       </td>

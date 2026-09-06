@@ -82,6 +82,23 @@ export function menuKeyTuModule(module: MaModuleMenu): string {
 }
 
 /**
+ * Menu đích khi module lịch sử (Danh sách tính giá / ModuleLichSuDB) báo
+ * `khiDieuHuong('quotations')` — sau khi user tick N bảng tính rồi bấm "Tạo báo giá".
+ *
+ * KHÔNG được trả `menuKeyTuModule('quotations')` = `'danh-sach-bao-gia'`: menu đó
+ * hiện render `ModuleDuyetBaoGia` (màn không đọc `lts_quote_prefill_from_history`),
+ * nên wizard tạo báo giá (ModuleBaoGia) không bao giờ mở kèm các sản phẩm đã chọn.
+ * Phải điều hướng về `'tao-bao-gia'` — menu duy nhất mount ModuleBaoGia và tự mở
+ * wizard tiêu thụ prefill (xem ModuleBaoGia: readQuotePrefillFromHistory).
+ */
+export function menuKeyTaoBaoGiaTuLichSu(
+  module: 'calculator' | 'quotations',
+): string {
+  if (module === 'quotations') return 'tao-bao-gia';
+  return menuKeyTuModule(module);
+}
+
+/**
  * Menu key cho tab "tính giá" theo loại item:
  * - Bảng tính nâng cao (`isNangCap`) → `tao-tinh-gia-nang-cap`
  * - Bảng tính thương mại (`isThuongMai` / `pricingMode='commercial'`) → `tao-tinh-gia-thuong-mai`

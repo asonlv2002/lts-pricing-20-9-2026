@@ -56,18 +56,34 @@ assert(
     && /khiDieuHuong\?\.\('quotations'\)/.test(historySource),
 );
 
+const voTrangWiringCount = (shellSource.match(/menuKeyTaoBaoGiaTuLichSu\(m\)/g) || []).length;
+
+assert(
+  'both history modules wire quotations → tao-bao-gia (wizard host, not danh-sach-bao-gia list)',
+  voTrangWiringCount === 2
+    && !shellSource.includes('menuKeyTuModule(m)'),
+  ` - VoTrang wirings using helper: ${voTrangWiringCount}`,
+);
+
+assert(
+  'wizard keeps prefill key until history arrives (no early delete on empty history)',
+  quoteSource.includes('readQuotePrefillFromHistory(true)')
+    && quoteSource.includes("historyItems.length === 0")
+    && quoteSource.includes('QUOTE_PREFILL_STORAGE_KEY'),
+);
+
 assert(
   'quotation wizard consumes quote draft prefill from history',
   quoteSource.includes('QUOTE_PREFILL_STORAGE_KEY')
     && quoteSource.includes('readQuotePrefillFromHistory')
     && quoteSource.includes('historyItemIds')
-    && quoteSource.includes('setState(prev => ({ ...prev, customer: prefillCustomer, products: prefillProducts }))'),
+    && /customer: prefillCustomer,\s*products: prefillProducts/.test(quoteSource),
 );
 
 assert(
   'quotation wizard maps prefilled history items into editable product tiers',
   quoteSource.includes('buildWizardProductFromHistoryItem')
-    && quoteSource.includes('historyItem: item')
+    && quoteSource.includes('historyItem: historyItemHienThi')
     && quoteSource.includes('baoGia: item.chotGia ?? item.finalPrice'),
 );
 
@@ -88,7 +104,7 @@ assert(
 assert(
   'mobile pricing history renders a compact select checkbox column',
   /\.lts-shell--mobile \.hist-data-table--pricing \.hist-col-select \{[\s\S]*width:\s*28px/.test(globalsCss)
-    && /\.lts-shell--mobile \.hist-data-table--pricing \.hist-col-select input\[type="checkbox"\] \{[\s\S]*width:\s*14px[\s\S]*height:\s*14px/.test(globalsCss),
+    && /\.hist-col-select\s+input\[type="checkbox"\] \{[\s\S]*width:\s*14px[\s\S]*height:\s*14px/.test(globalsCss),
 );
 
 assert(
