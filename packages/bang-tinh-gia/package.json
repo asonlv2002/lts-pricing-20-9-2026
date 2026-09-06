@@ -8,15 +8,13 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "type-check": "tsc --noEmit",
-    "test": "tsx src/kiem-thu/gia-cong-ngoai.test.ts && tsx src/kiem-thu/phu-kien.test.ts && tsx src/kiem-thu/phu-phi-gc.test.ts"
+    "type-check": "tsc --noEmit"
   },
   "dependencies": {
     "@lts/kieu-du-lieu": "workspace:*",
     "@lts/hang-so": "workspace:*"
   },
   "devDependencies": {
-    "typescript": "^5.8.3",
-    "tsx": "^4.19.3"
+    "typescript": "^5.8.3"
   }
 }

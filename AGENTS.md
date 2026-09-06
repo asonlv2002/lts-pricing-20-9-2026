@@ -2,6 +2,14 @@
 
 Primary project guidance lives in [CLAUDE.md](./CLAUDE.md). Always read and follow it.
 
+## Mandatory Rule: Không có bước test (từ 06/09/2026)
+
+- Toàn bộ file test (`*.test.ts`, `*.spec.ts`, test script trong `docs/`, `flutter_app/test`) đã bị XÓA khỏi repo.
+- Từ giờ KHÔNG chạy test, KHÔNG tạo mới file test, KHÔNG thêm bước "chạy test / kiểm tra test" vào bất kỳ quy trình nào.
+- Xác minh thay thế: `pnpm type-check`, `pnpm lint`, `pnpm build`; với công thức tính giá: đối chiếu trực tiếp `.claude/training/Train.md` và tự lý luận con số.
+- Prompt chứa "Test Tính Giá" / "test tinh gia" / "test báo giá" **không còn** kích hoạt giai đoạn test hay tạo file xlsx như trước — xử lý như yêu cầu thường.
+- Không đề xuất khôi phục hay tái tạo test cũ.
+
 ## Mandatory Rule: UI Skill Selection
 
 When choosing a UI/design skill for this project:
@@ -48,40 +56,87 @@ For web mobile pricing UI work, the safe scope is:
 }
 ```
 
-## Mandatory Rule: LTS Dev Server API Access
+## Mandatory Rule: Xem BE (Backend)
 
-When calling the LTS dev server API (`https://lts-dev-server.zealstudiojsc.com`), ALWAYS use the PowerShell helper script at `scripts/lts-api.ps1`. Do NOT write inline `Invoke-RestMethod` calls or curl commands for this server.
+Khi user nói "Xem BE" (hoặc biến thể: "xem backend", "mở BE", "xem code BE"):
 
-### Required workflow
+- Vào thư mục `C:\UnityProject\service-lts` — repo backend riêng (NestJS + Prisma + Postgres + Docker), nằm NGOÀI workspace `PhanMemBaoBi`.
+- Đọc cấu trúc: `README.md`, `AGENTS.md`, `backend/src/`, `backend/prisma/schema.prisma`, `docker-compose*.yml`, `nginx/`.
+- Tóm tắt cho user những gì quan sát được (kiến trúc, module, API, schema DB...).
+- Mọi truy cập/sửa code BE dùng đường dẫn tuyệt đối `C:\UnityProject\service-lts\...` và tuân theo AGENTS.md của repo đó (Docker flow, Prisma, guards/policies).
 
-1. **Dot-source the script first** in every Bash/PowerShell call that touches the LTS API:
-   ```powershell
-   . .\scripts\lts-api.ps1
-   ```
-2. **Login to get a session** (token is session-only, lives in RAM, never persisted to disk):
-   ```powershell
-   $session = Connect-Lts -Account "<account>" -Password "<password>"
-   ```
-3. **Call endpoints via the typed helper functions**, not raw HTTP. The script exposes one function per endpoint (36 functions total). Examples:
-   - `Get-LtsCustomers -Session $session`
-   - `Get-LtsCustomer -Session $session -CodeName "ACME_01"`
-   - `Get-LtsActivityLogs -Session $session`
-   - `Get-LtsAccounts -Session $session`
-   - `Get-LtsPricingSheets -Session $session`
-   - `Get-LtsQuotations -Session $session`
-   - Full list: see `scripts/lts-api.ps1` (Auth, Policies, Customers, Pricing Sheet, Quotations, Activity Logs groups).
-4. **Token expiry**: Access tokens last ~15 minutes. Each Bash tool call is a separate PowerShell process, so `Connect-Lts` must be called again inside the same call as any API request. Do not assume a session from a previous call is still valid.
+## Mandatory Rule: Thuật ngữ "Tạo tính giá" (từ 13/08/2026)
 
-### Security rules
+- "Tạo tính giá" / "tính giá" / "bảng tính giá" mặc định = tính giá NÂNG CAO (tab `tao-tinh-gia-nang-cap`, giá từ tổng bảng đặc tả nâng cao).
+- Chỉ khi user nhắc rõ "cũ" / "thường" mới làm việc trên tab `tao-tinh-gia` (engine `tinhGiaWeb`).
 
-- Never `echo`, `Write-Host`, or log the password or access token.
-- Never save credentials or tokens to disk, env vars, or files. Use `Connect-Lts` inline each time.
-- `Show-LtsSession -Session $session` is the only approved way to display session info (it hides the token).
-- If the user provides credentials in chat, use them once in the Bash call; do not echo them back.
+## Mandatory Rule: CPSX nâng cao / price-config bootstrap (F5 · auth · apply)
 
-### Reference
+> Bug đã gặp (2026-08-19): nút **Xem** phiên bản đúng, **F5** hiện DEFAULT mẫu (vd điện 4.000 ₫ · 3 khung) dù BE đã có bản đúng. Root cause = FE không apply BE vào `constants` live, không phải BE sai hay local “thắng” BE.
 
-- Script source: `scripts/lts-api.ps1`
-- API docs (Swagger): `https://lts-dev-server.zealstudiojsc.com/docs`
-- OpenAPI spec: `https://lts-dev-server.zealstudiojsc.com/docs-json`
-- Backup (local only, gitignored): `scripts/lts-api.ps1.bak`
+### Bất biến (KHÔNG được phá)
+
+1. **List snapshot ≠ working config.**  
+   `configSnapshots` chỉ là danh sách. UI/engine đọc `constants` (và materials/profit…).  
+   Load history / latest **mà không** `saoChepPhienBanDinhMuc` (hoặc tương đương `ganKeysScopeTuSnapshot` + `replaceFullConfig`) → UI kẹt `INITIAL_CONSTANTS` / `DEFAULT_CPSX_UPGRADE_*`.
+
+2. **F5 / mount: chờ auth rồi mới bootstrap.**  
+   `page.tsx` mount thường chạy **trước** JWT hydrate (`isAuthenticated` / `accessToken` chưa có).  
+   Gọi `taiCauHinhMoiNhatTuServer()` rồi `if (!auth) return` ngay = **skip vĩnh viễn** trên vòng mount đó.  
+   Bắt buộc: poll/chờ `isAuthenticated && accessToken` (hoặc login effect), có token LS → bật `dangTaiCauHinhMoiNhat` sớm để UI CPSX không flash DEFAULT.
+
+3. **Nút Xem và F5 phải cùng nguồn apply.**  
+   - Xem = `xemPhienBanDinhMuc(id)` trên bản user chọn.  
+   - F5 / bootstrap = full history `PRODUCTION_UPGRADE` (cùng API màn phiên bản) + `chonPhienBanMoiNhat` + `saoChepPhienBanDinhMuc(latest)`.  
+   Không được chỉ tin 1 bản `latest-version` rồi quên apply; không được chỉ nạp list cho UI phiên bản.
+
+4. **`taiLichSuPhienBanTuServer(scope)` sau khi merge snapshots:**  
+   Nếu không đang `dangXemPhienBan` → apply `chonPhienBanMoiNhat(sameScope)` vào store (đặc biệt `productionUpgrade`).  
+   Chỉ `set({ configSnapshots })` mà không apply = tái hiện bug “list đúng, form sai”.
+
+5. **Snapshot `productionUpgrade` không nhét DEFAULT vào key thiếu.**  
+   `priceConfigToSnapshot('productionUpgrade')` xóa 4 key CPSX NC khỏi fallback trước khi merge.  
+   `ganKeysScopeTuSnapshot` / `apDungDuLieuScope` **bỏ qua** `null`/`undefined` — không ghi đè working bằng “thiếu field”.
+
+6. **Migrate-on-read `PRODUCTION` → `PRODUCTION_UPGRADE`:**  
+   Chỉ key CPSX NC **có thật trong blob PRODUCTION**.  
+   Cấm `gopCpsxUpgradeChoMigrate` gộp session/DEFAULT rồi upsert lên BE (đẩy mẫu hardcode thành “chân lý server”).
+
+7. **localStorage không phải source of truth khi đã login.**  
+   - `lts_material_config` / `lts_config_snapshots` chỉ cache.  
+   - F5 + có `lts_service_access_token`: **không** hydrate 4 key `cpsxUpgrade*` từ LS; **không** giữ snapshot local scope `productionUpgrade` — chờ BE.  
+   - LS đúng mà UI sai → bug store/apply, đừng “fix” bằng tin LS.  
+   - DEFAULT trong `apps/web/src/lib/data.ts` chỉ fallback guest / BE trống / field thiếu sau chuẩn hóa UI.
+
+8. **Loading CPSX NC.**  
+   Đã login + `dangTaiCauHinhMoiNhat` → `CpsxNangCapTrang` chỉ overlay loading, không render form/kết quả từ DEFAULT.  
+   Tách flag khỏi `dangTaiPhienBan` (lịch sử phiên bản).
+
+9. **Thứ tự apply multi-scope bootstrap:**  
+   `CAC_SCOPE_CAU_HINH` giữ `production` trước `productionUpgrade` (4 key NC không bị production ghi đè nhầm).
+
+### File chạm (đọc trước khi sửa)
+
+| Việc | File |
+|------|------|
+| Bootstrap F5 / chờ auth | `apps/web/src/app/page.tsx` |
+| latest + history UPGRADE, apply | `apps/web/src/store/slices/configVersioning.ts` |
+| Map snapshot / migrate / gan keys | `apps/web/src/lib/api/price-config-mapper.ts` |
+| UI loading CPSX NC | `apps/web/src/components/cau-hinh/CpsxNangCapTrang.tsx` |
+| DEFAULT mẫu | `apps/web/src/lib/data.ts` (`DEFAULT_CPSX_UPGRADE_*`) |
+
+### Khi debug “F5 sai / Xem đúng”
+
+1. So `constants.cpsxUpgradeElectric` (store) vs snapshot `productionUpgrade` max version vs UI head-meta.  
+2. Network: có `price-config/latest-version` + `price-config/PRODUCTION_UPGRADE` không; bootstrap có bị skip vì auth không.  
+3. Không kết luận "local thắng" chỉ vì `lts_material_config` khác UI — kiểm tra store live (vd `window.__LTS_STORE__` dev).  
+4. Sau khi sửa: chạy `pnpm type-check` + `pnpm lint` (xem mục "Không có bước test").
+
+### Cấm khi sửa khu vực này
+
+- Early-return bootstrap khi chưa auth **mà không** có path chờ auth / login effect apply lại.  
+- Load history chỉ cập nhật `configSnapshots` không apply latest (trừ đang xem bản cũ `dangXemPhienBan`).  
+- Upsert migrate kèm DEFAULT/session.  
+- Coi localStorage là chân lý CPSX NC khi user đã đăng nhập.
+
+

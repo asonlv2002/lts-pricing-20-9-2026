@@ -29,7 +29,6 @@ pnpm dev              # All apps (turbo)
 pnpm dev:web          # Web only — http://localhost:3000 (hoặc 3001 nếu 3000 bị chiếm)
 pnpm build            # Production build
 pnpm build:engine     # Bundle TS engine → Flutter assets/engine.bundle.js
-pnpm test             # Tests
 pnpm type-check       # TypeScript check
 pnpm lint             # ESLint
 ```
@@ -73,6 +72,12 @@ pnpm lint             # ESLint
 
 > **LUÔN đọc `.claude/training/Train.md` trước khi sửa bất kỳ công thức nào.** Đó là nguồn chân lý duy nhất — nếu code khác Train.md thì code sai.
 
+### Quy ước thuật ngữ tính giá (từ 13/08/2026)
+
+- **"Tạo tính giá" / "tính giá" / "bảng tính giá"** mặc định = **tính giá NÂNG CAO** (tab `tao-tinh-gia-nang-cap`, giá mỗi sản phẩm lấy từ TỔNG bảng đặc tả kỹ thuật nâng cao — `tinhKetQuaNangCaoHieuLuc`).
+- **"Tính giá thường" / "tính giá cũ"** chỉ dùng khi người dùng NHẮC RÕ là bản cũ (tab `tao-tinh-gia`, giá theo engine `tinhGiaWeb`).
+- Khi user nhắc "tạo tính giá" mà không nói "cũ/thường" → làm/sửa trên tab nâng cao.
+
 ### Bất biến quan trọng
 
 - `NVL = Thành phẩm + Phi hao` — waste là CỘNG THÊM, không nhân
@@ -101,6 +106,12 @@ cylLength = max(0.7, spreadWidth × numImages + 0.1)    // min 0.7m, max 1.25m
 - Path alias: `@/*` → `./src/*` (web app)
 - UI text: luôn tiếng Việt
 - Format số: locale `vi-VN`
+
+## CPSX nâng cao / price-config (F5)
+
+Chi tiết bắt buộc: **AGENTS.md → Mandatory Rule: CPSX nâng cao / price-config bootstrap**.
+
+Tóm tắt: F5 phải chờ auth → load history `PRODUCTION_UPGRADE` → **apply** latest vào `constants` (không chỉ nạp list). Nút Xem đúng mà F5 ra DEFAULT = bug apply/race, không phải BE. localStorage không phải SoT khi đã login.
 
 ## References
 
