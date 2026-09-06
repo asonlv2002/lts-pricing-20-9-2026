@@ -237,7 +237,6 @@ class BreakdownPanel extends StatelessWidget {
     // ─── Section 3: Breakdown giá ─────────────────────────────────────────
     final breakdownPairs = <_KVItem>[
       _KVItem('Giá ban đầu (Vốn + ${Fmt.pct(profitRate)}% LN)', '${Fmt.n(r.costPerUnit.round())} đ'),
-      if (hasZipper) _KVItem('Chi phí Zipper', '${Fmt.n(r.d('zipperPerUnit').round())} đ'),
       if ((inp['hasTape'] as bool?) == true) _KVItem('Chi phí Băng keo', '${Fmt.n(r.d('tapePerUnit').round())} đ'),
       if ((inp['hasHandle'] as bool?) == true) _KVItem('Chi phí Quai', '${Fmt.n(r.d('handlePerUnit').round())} đ'),
       _KVItem(isMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', '${Fmt.n(r.d('boxPerUnit').round())} đ'),
@@ -628,7 +627,6 @@ class _CostBreakdownContent extends StatelessWidget {
       ('✂️ Cắt bao', r.d('tongChiPhiCat')),
       ('✨ Nhũ', r.d('nhuCost')),
       ('🌫️ Phủ mờ', r.d('moCost')),
-      ('🔒 Zipper', r.d('tongTienKhoa')),
       ('📎 Băng keo', r.d('tongTienBangKeo')),
       ('🛍️ Quai xách', r.d('tongTienQuaiXach')),
       ('📦 Đóng gói', r.d('phiDongGoiPerDonVi')),

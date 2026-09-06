@@ -61,7 +61,7 @@ export function formatLsxQuyCach(opts: {
   return `${left} x ${right}`;
 }
 
-/** "100mm" → "100mm (50mm / Bên)"; giữ nguyên khi không đọc được số. */
+/** "100mm" → "100mm (50mm/biên)"; giữ nguyên khi không đọc được số. */
 export function formatLsxFoldBottom(foldBottom: string): string {
   const raw = (foldBottom || '').trim();
   if (!raw) return '';
@@ -71,7 +71,7 @@ export function formatLsxFoldBottom(foldBottom: string): string {
   if (!Number.isFinite(total) || total <= 0) return raw;
   const perSide = total / 2;
   const fmt = (n: number) => String(Number(n.toFixed(2)));
-  return `${fmt(total)}mm (${fmt(perSide)}mm / Bên)`;
+  return `${fmt(total)}mm (${fmt(perSide)}mm/biên)`;
 }
 
 /** Các dòng khối Quy cách in trên LSX; bỏ field trống. */

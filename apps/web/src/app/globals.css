@@ -3187,6 +3187,14 @@ body {
   color: #7c3aed;
   font-weight: 700;
 }
+.config-cpsx-upgrade__gia-ghep-value {
+  margin-top: 10px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary, #0f766e);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
 .config-cpsx-upgrade__formula-head {
   font-weight: 700;
   font-size: 0.95rem;

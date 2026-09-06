@@ -7,6 +7,7 @@
 import type { LSXManualFields } from './types';
 import type { LsxDocxTemplateKey } from './lsxExport';
 import { zipperDistanceFromOrder } from './lsx-bag-classification';
+import { formatLsxFoldBottom } from './lsx-quy-cach';
 
 export interface LsxBagField {
   label: string;
@@ -145,7 +146,7 @@ export function buildLsxBagFieldRows(
       }
       pair(
         'Hàn biên: ', v(m.sealEdge) || v(m.hanBien, 'mm') || '10mm',
-        'Xếp đáy: ', v(m.foldBottom) || '100mm',
+        'Xếp đáy: ', formatLsxFoldBottom(m.foldBottom) || '100mm',
       );
       break;
 
@@ -173,7 +174,7 @@ export function buildLsxBagFieldRows(
       if (m.xepHong || m.foldBottom) {
         pair(
           'Xếp hông: ', v(m.xepHong, 'mm') || '…',
-          'Xếp đáy: ', v(m.foldBottom) || '…',
+          'Xếp đáy: ', formatLsxFoldBottom(m.foldBottom) || '…',
         );
       }
       if (showZipperCell && showTearNotchCell) {

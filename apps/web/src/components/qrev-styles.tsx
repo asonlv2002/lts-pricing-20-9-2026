@@ -294,6 +294,28 @@ export const QREV_STYLES = `
 
   .lts-shell--mobile .qrev-slide-panel { width: 100vw; }
 }
+
+/* ── Bảng báo giá (5 cột: Báo giá | Người lập | Thời gian | Thao tác | Duyệt) ──
+   Vị trí cột 4-5 của bảng này lệch với bảng 7-cột mà CSS mobile dùng chung.
+   Scope lại dưới .qrev-table--baogia để không ảnh hưởng bảng LSX / Tính giá. */
+@media (max-width: 767px) {
+  .lts-shell--mobile .qrev-table--baogia .qrev-row td:nth-child(4) {
+    grid-column: 2; grid-row: 2;
+    display: flex; justify-content: flex-end; align-items: center; gap: 4px;
+    font-size: inherit; color: inherit; font-weight: 400;
+    max-width: none; margin-right: 0; white-space: normal;
+    overflow: visible; text-overflow: clip;
+  }
+  .lts-shell--mobile .qrev-table--baogia .qrev-row td:nth-child(5) {
+    display: flex; align-items: center; justify-content: flex-end;
+    grid-column: 2; grid-row: 1;
+    text-align: right; white-space: nowrap;
+    font-size: 14px; font-weight: 700;
+  }
+  .lts-shell--mobile .qrev-table--baogia .qrev-pending-dash {
+    color: #6b7280; font-weight: 600; font-size: 14px; line-height: 1;
+  }
+}
 `;
 
 export function QrevStyleInjector() {

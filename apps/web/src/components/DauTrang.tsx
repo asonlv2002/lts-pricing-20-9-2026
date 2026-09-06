@@ -46,7 +46,6 @@ export default function DauTrang() {
       hienThiGia.detailTitle,
       '─'.repeat(40),
       `Giá vốn + LN:  ${dinhDangSo(kq.costPerUnit)} đ`,
-      `Zipper:         ${dinhDangSo(kq.zipperPerUnit)} đ`,
       `Thùng giấy:     ${dinhDangSo(kq.boxPerUnit)} đ`,
       `${hienThiGia.shippingLabel}:     ${hienThiGia.isPrintFilm ? `${dinhDangSo(kq.shippingTotal, 0)} đ · ${dinhDangSo(kq.shippingPerUnit)} đ/${hienThiGia.unit}` : `${dinhDangSo(kq.shippingPerUnit)} đ`}`,
       `${hienThiGia.interestLabel(kq.interestBase || 0, kq.paymentDays)}:        ${dinhDangSo(kq.interestPerUnit)} đ${hienThiGia.isPrintFilm ? `/${hienThiGia.unit}` : ''}`,

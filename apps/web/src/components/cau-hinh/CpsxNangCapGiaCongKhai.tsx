@@ -4,7 +4,8 @@ import React from "react";
 import { dungCuaHangTinhGia } from "../../store/CuaHangTinhGia";
 import { DEFAULT_CPSX_UPGRADE_INK } from "../../lib/data";
 import { chuanHoaCpsxUpgradeInk } from "../../lib/cpsx-upgrade-ink";
-import { BangGiaInTheoMau, GiaGhepKetQua } from "./CpsxGiaInGhepKetQua";
+import { tinhCpKeoDungMoiGhep } from "../../lib/dac-ta-nang-cao";
+import { BangGiaInTheoMau } from "./CpsxGiaInGhepKetQua";
 
 /** Khối giá công khai trên trang CPSX nâng cao — ai cũng xem được, không cần
  *  quyền CPSX_UPGRADE_*: bảng giá in theo số màu (VNĐ/m²) + giá ghép
@@ -27,6 +28,8 @@ export default function CpsxNangCapGiaCongKhai() {
     [hangSo.cpsxUpgradeInk],
   );
 
+  const chiTietKeo = React.useMemo(() => tinhCpKeoDungMoiGhep(ink), [ink]);
+
   return (
     <div className="config-cpsx-upgrade-gia-cong-khai">
       <div className="card config-card config-cpsx-upgrade-card">
@@ -42,7 +45,9 @@ export default function CpsxNangCapGiaCongKhai() {
           <span>Giá ghép (keo + dung môi)</span>
           <span className="config-cpsx-upgrade__head-meta">VNĐ/m²</span>
         </div>
-        <GiaGhepKetQua ink={ink} />
+        <div className="config-cpsx-upgrade__gia-ghep-value">
+          {Math.round(chiTietKeo.donGia).toLocaleString("vi-VN")} ₫/m²
+        </div>
       </div>
     </div>
   );

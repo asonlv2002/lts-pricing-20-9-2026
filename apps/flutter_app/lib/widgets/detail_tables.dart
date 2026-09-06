@@ -326,7 +326,6 @@ void showCostTable(BuildContext context, CalculateResult r) {
     ('✂️ Cắt bao', r.d('tongChiPhiCat')),
     ('✨ Nhũ', r.d('nhuCost')),
     ('🌫️ Phủ mờ', r.d('moCost')),
-    ('🔒 Zipper', r.d('tongTienKhoa')),
     ('📎 Băng keo', r.d('tongTienBangKeo')),
     ('🛍️ Quai xách', r.d('tongTienQuaiXach')),
     ('📦 Đóng gói', r.d('phiDongGoiPerDonVi')),

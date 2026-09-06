@@ -62,7 +62,7 @@ export default function ModuleDanhSachTinhGia({
 }: {
   khiDieuHuong?: (module: 'calculator' | 'quotations') => void;
 }) {
-  const { history: lichSu, taiLichSuTuServer, removeHistoryItem: xoaLichSu, accessToken, materials, constants, profitTable, cpsxNangCapPolicies, nguoiDungHienTai } = dungCuaHangTinhGia();
+  const { history: lichSu, taiLichSuTuServer, removeHistoryItem: xoaLichSu, accessToken, materials, constants, profitTable, smallWidthPrices, cpsxNangCapPolicies, nguoiDungHienTai } = dungCuaHangTinhGia();
 
   const [tuKhoa, datTuKhoa] = useState('');
   const [boLoc, datBoLoc] = useState<BoLocTinhGia>('all');
@@ -144,7 +144,7 @@ export default function ModuleDanhSachTinhGia({
   };
 
   const moXemA4 = (h: HistoryItem) => {
-    exportPricingDetailToA4(h, materials, constants, profitTable, cpsxNangCapPolicies, coQuyenCoVanBangTinh(nguoiDungHienTai?.policies ?? []));
+    void exportPricingDetailToA4(h, materials, constants, profitTable, cpsxNangCapPolicies, coQuyenCoVanBangTinh(nguoiDungHienTai?.policies ?? []), accessToken, smallWidthPrices);
   };
 
   const xuLyXoa = async (id: string) => {

@@ -881,10 +881,6 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                 <td colSpan={4} style={{ ...styles.td, verticalAlign: 'top' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
                     <div style={styles.cellRow}>
-                      <span style={{ fontWeight: 700, fontSize: '11px' }}>Số lượng:</span>
-                      <TI value={qtyApprox.base} onChange={v => upd('soLuongDHNote', v)} placeholder="5.400 túi" style={{ ...styles.boldVal, flex: 1, minWidth: 0 }} />
-                    </div>
-                    <div style={styles.cellRow}>
                       <span style={{ fontWeight: 700, fontSize: '11px' }}>Kiểu túi:</span>
                       <select
                         style={{ ...styles.input, fontWeight: 700, fontSize: '12px', flex: 1, minWidth: 0 }}
@@ -919,6 +915,17 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                       <NI value={manual.hanDay ?? 0} onChange={v => upd('hanDay', v)} placeholder="0" style={{ width: '50px', maxWidth: '50px' }} />
                       <span>mm</span>
                     </div>
+                    {isFieldVisible('foldBottom') && (
+                      <div style={styles.cellRow}>
+                        <span style={{ fontWeight: 700, fontSize: '11px' }}>Xếp đáy:</span>
+                        <TI value={manual.foldBottom} onChange={v => upd('foldBottom', v)} placeholder="100mm" style={{ flex: 1, minWidth: 0 }} />
+                        {!!formatLsxFoldBottom(manual.foldBottom) && (
+                          <span style={{ fontSize: '10px', color: '#555', whiteSpace: 'nowrap' }}>
+                            {formatLsxFoldBottom(manual.foldBottom)}
+                          </span>
+                        )}
+                      </div>
+                    )}
                     {isFieldVisible('xepHong') && (
                       <div style={styles.cellRow}>
                         <span style={{ fontWeight: 700, fontSize: '11px' }}>Xếp hông:</span>
@@ -1005,12 +1012,8 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
             {!showChia && showTui && (
               <>
                 <tr>
-                  <td style={styles.lbl}>Số lượng :</td>
-                  <td colSpan={3} style={styles.td}>
-                    <TI value={qtyApprox.base} onChange={v => upd('soLuongDHNote', v)} placeholder="5.400 túi -6.000 túi" style={{ ...styles.boldVal }} />
-                  </td>
                   <td style={styles.lbl}>Kiểu túi (LSX):</td>
-                  <td colSpan={3} style={styles.td}>
+                  <td colSpan={7} style={styles.td}>
                     <select
                       style={{ ...styles.input, fontWeight: 700, fontSize: '12px' }}
                       value={overrideBagTypeKey || autoBagType.key}
@@ -1066,6 +1069,17 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                         <NI value={manual.hanDay ?? 0} onChange={v => upd('hanDay', v)} placeholder="0" style={{ width: '50px', maxWidth: '50px' }} />
                         <span>mm</span>
                       </div>
+                      {isFieldVisible('foldBottom') && (
+                        <div style={styles.cellRow}>
+                          <span style={{ fontWeight: 700, fontSize: '11px' }}>Xếp đáy:</span>
+                          <TI value={manual.foldBottom} onChange={v => upd('foldBottom', v)} placeholder="100mm" style={{ flex: 1, minWidth: 0 }} />
+                          {!!formatLsxFoldBottom(manual.foldBottom) && (
+                            <span style={{ fontSize: '10px', color: '#555', whiteSpace: 'nowrap' }}>
+                              {formatLsxFoldBottom(manual.foldBottom)}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       {isFieldVisible('xepHong') && (
                         <div style={styles.cellRow}>
                           <span style={{ fontWeight: 700, fontSize: '11px' }}>Xếp hông:</span>

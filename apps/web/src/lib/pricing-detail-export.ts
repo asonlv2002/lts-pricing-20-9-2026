@@ -1,4 +1,4 @@
-import type { AppConstants, CalculateResult, HistoryItem, Material, OverrideTable, ProfitRow } from './types';
+import type { AppConstants, CalculateResult, HistoryItem, Material, OverrideTable, ProfitRow, SmallWidthMaterialPrice } from './types';
 import { tinhBaoGia, lapDongSanXuat, xuLyDongGhiDe, tinhGiaHieuLuc } from './manager-calculation';
 import type { UniRow } from './manager-calculation';
 import {
@@ -16,6 +16,8 @@ import { getPricingDisplayMeta, isPrintFilm } from './pricing-display';
 import { tinhNhapPhanBoChotGia } from './chot-gia-allocation';
 import { cotBang2TheoQuyen, type CotBang2Cpsx } from './permissions';
 import type { PolicyCode } from './api/service-lts';
+import { layConfigsTheoIdsCoCache } from './api/price-config-cache';
+import { lietKePinIdThieu, xayEngineCtxTuPriceConfigs } from './api/price-config-mapper';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
 function dinhDangSo(n: number, d = 0): string {
@@ -259,7 +261,8 @@ function buildThongTinChung(r: CalculateResult, item: HistoryItem): string {
 function buildGia(r: CalculateResult, item: HistoryItem, constants: AppConstants, profitTable: ProfitRow[]): string {
   const meta = getPricingDisplayMeta(item.input);
   const coChot = typeof item.chotGia === 'number' && item.chotGia > 0;
-  const giaDeXuat = item.finalPrice || r.finalPrice || 0;
+  // Một nguồn giá đề xuất = r.finalPrice (đã tính trên ctx pin) — tránh lệch với stat "Giá bán"/"Giá cuối cùng"
+  const giaDeXuat = r.finalPrice || item.finalPrice || 0;
   const chotGia = coChot ? item.chotGia! : 0;
   const diff = coChot ? chotGia - r.finalPrice : 0;
 
@@ -282,7 +285,12 @@ function buildGia(r: CalculateResult, item: HistoryItem, constants: AppConstants
     doanhThuChot = chotGia * item.quantity;
     const hhMoi = Math.max(0, hoaHongEngine + phanBo.hoaHongAmount);
     tongHoaHongChot = Math.round(hhMoi * item.quantity);
-    const tongChiPhi = r.totalProductionCost + r.zipperTotal + r.tapeTotal
+    // Giá đề xuất KHÔNG còn cộng tiền zipper — ngoại lệ GC làm túi "chưa gộp zipper".
+    const coGcChuaGomZipper =
+      item.input.pricingMode === 'outsource' &&
+      (item.input.outsource?.steps ?? []).includes('bag') &&
+      item.input.outsource?.bag?.zipperMode === 'excluded';
+    const tongChiPhi = r.totalProductionCost + (coGcChuaGomZipper ? r.zipperTotal : 0) + r.tapeTotal
       + r.handleTotal + r.boxTotal + r.shippingTotal
       + r.interestPerUnit * item.quantity;
     loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
@@ -742,9 +750,10 @@ function exportPricingDetailNangCaoToA4(
   profitTable: ProfitRow[],
   cot: CotBang2Cpsx,
   coQuyenCoVan: boolean,
+  smallWidthPrices: SmallWidthMaterialPrice[] = [],
 ): void {
   const hangSo = apCpsxNangCaoVaoHangSo(constants, item.pinnedCpsxNangCao);
-  const r0 = tinhBaoGia(item.input, materials, hangSo, profitTable);
+  const r0 = tinhBaoGia(item.input, materials, hangSo, profitTable, smallWidthPrices);
   if (!r0) {
     alert('Không thể tính lại bảng giá nâng cao. Dữ liệu có thể không hợp lệ.');
     return;
@@ -807,24 +816,64 @@ function exportPricingDetailNangCaoToA4(
   );
 }
 
+// ── Ctx engine cho xem lại ──────────────────────────────────────────────────────
+
+interface CtxEngineXemLai {
+  materials: Material[];
+  constants: AppConstants;
+  profitTable: ProfitRow[];
+  smallWidthPrices: SmallWidthMaterialPrice[];
+}
+
+/** Ctx engine cho A4 xem lại: ưu tiên pin priceConfigIds (config LÚC LƯU) để
+ *  khớp giá cột "Giá" ở danh sách tính giá; không pin / tải fail → fallback session. */
+async function layCtxEngineChoXemLai(
+  item: HistoryItem,
+  fallback: CtxEngineXemLai,
+  accessToken: string | null | undefined,
+): Promise<CtxEngineXemLai> {
+  const pinIds = (item.priceConfigIds ?? []).map((x) => String(x).trim()).filter(Boolean);
+  if (!pinIds.length || !accessToken) return fallback;
+  try {
+    const configs = await layConfigsTheoIdsCoCache(pinIds, accessToken);
+    if (!configs.length) return fallback;
+    const thieuIds = lietKePinIdThieu(pinIds, configs);
+    if (thieuIds.length) {
+      console.warn('A4 xem lại: pin priceConfigIds thiếu bản ghi (phần thiếu rơi về session):', thieuIds);
+    }
+    return xayEngineCtxTuPriceConfigs(configs, fallback, pinIds);
+  } catch (e) {
+    console.warn('A4 xem lại: không tải được price-config pin, dùng session:', e);
+    return fallback;
+  }
+}
+
 // ── Main export ─────────────────────────────────────────────────────────────────
-export function exportPricingDetailToA4(
+export async function exportPricingDetailToA4(
   item: HistoryItem,
   materials: Material[],
   constants: AppConstants,
   profitTable: ProfitRow[],
   cpsxPolicies?: PolicyCode[],
   coQuyenCoVan?: boolean,
-): void {
+  accessToken?: string | null,
+  smallWidthPrices?: SmallWidthMaterialPrice[],
+): Promise<void> {
+  const ctx = await layCtxEngineChoXemLai(
+    item,
+    { materials, constants, profitTable, smallWidthPrices: smallWidthPrices ?? [] },
+    accessToken,
+  );
+
   if (item.isNangCap || item.input?.isNangCap) {
     const cot = cpsxPolicies
       ? cotBang2TheoQuyen(cpsxPolicies)
       : { coDien: true, coLuong: true, coThoiGian: true };
-    exportPricingDetailNangCaoToA4(item, materials, constants, profitTable, cot, coQuyenCoVan !== false);
+    exportPricingDetailNangCaoToA4(item, ctx.materials, ctx.constants, ctx.profitTable, cot, coQuyenCoVan !== false, ctx.smallWidthPrices);
     return;
   }
 
-  const r = tinhBaoGia(item.input, materials, constants, profitTable);
+  const r = tinhBaoGia(item.input, ctx.materials, ctx.constants, ctx.profitTable, ctx.smallWidthPrices);
   if (!r) {
     alert('Không thể tính lại bảng giá này. Dữ liệu có thể không hợp lệ.');
     return;
@@ -837,7 +886,7 @@ export function exportPricingDetailToA4(
       <h1>CHI TIẾT BẢNG TÍNH GIÁ</h1>
       <div style="text-align:center;font-size:9pt;color:#64748b;margin-bottom:12px;">Ngày ${item.date}</div>
       ${buildThongTinChung(r, item)}
-      ${buildGia(r, item, constants, profitTable)}
+      ${buildGia(r, item, ctx.constants, ctx.profitTable)}
     </div>`;
     moCuaSoHtml(
       `Chi tiết ${item.productName}`,
@@ -847,7 +896,7 @@ export function exportPricingDetailToA4(
     return;
   }
 
-  const { uniRows } = lapDongSanXuat(r, constants);
+  const { uniRows } = lapDongSanXuat(r, ctx.constants);
   const emptyOv: OverrideTable = {};
 
   const saleOv = item.saleOverrides && Object.keys(item.saleOverrides).length > 0 ? item.saleOverrides : {};
@@ -862,17 +911,17 @@ export function exportPricingDetailToA4(
     <h1>CHI TIẾT BẢNG TÍNH GIÁ</h1>
     <div style="text-align:center;font-size:9pt;color:#64748b;margin-bottom:12px;">Ngày ${item.date}</div>
     ${buildThongTinChung(r, item)}
-    ${buildGia(r, item, constants, profitTable)}
+    ${buildGia(r, item, ctx.constants, ctx.profitTable)}
   </div>`;
 
   pagesHtml += `<div class="page">
     <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ — ${item.productName} (tiếp theo)</div>
-    ${buildCPSXTable(r, constants)}
+    ${buildCPSXTable(r, ctx.constants)}
   </div>`;
 
   if (Object.keys(saleOv).length > 0) {
     const saleTable = buildOverrideTable('THAY ĐỔI TỪ SALE', '💼', uniRows, emptyOv, saleOv,
-      item.saleProfitRatePct ?? 0, saleDefaultPct, r, constants, profitTable, item.quantity);
+      item.saleProfitRatePct ?? 0, saleDefaultPct, r, ctx.constants, ctx.profitTable, item.quantity);
     pagesHtml += `<div class="page">
       <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ — ${item.productName} (tiếp theo)</div>
       ${saleTable}
@@ -881,7 +930,7 @@ export function exportPricingDetailToA4(
 
   if (Object.keys(adminOv).length > 0) {
     const adminTable = buildOverrideTable('THAY ĐỔI TỪ ADMIN', '👑', uniRows, saleOv, adminOv,
-      item.adminProfitRatePct ?? 0, adminDefaultPct, r, constants, profitTable, item.quantity);
+      item.adminProfitRatePct ?? 0, adminDefaultPct, r, ctx.constants, ctx.profitTable, item.quantity);
     pagesHtml += `<div class="page">
       <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ — ${item.productName} (tiếp theo)</div>
       ${adminTable}

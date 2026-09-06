@@ -49,7 +49,6 @@ import {
   customerDecideBaoGiaService,
   xoaBaoGiaService,
   chuyenTrangThaiBaoGia,
-  NHAN_TRANG_THAI_BAO_GIA,
   type BaoGiaApi,
   type PricingSheetApi,
   type TrangThaiBaoGiaServer,
@@ -71,30 +70,6 @@ function dinhDangNgay(iso?: string): string {
 
 function dinhDangSo(n: number): string {
   return Math.round(n || 0).toLocaleString("vi-VN");
-}
-
-// Màu badge theo từng trạng thái chi tiết của server.
-// Server chỉ trả 4 trạng thái (draft/submitted/approved/rejected); phản hồi khách nằm
-// ở pricing_sheets.hasCustomerApproved, không phải status quotation.
-const MAU_TRANG_THAI: Record<
-  TrangThaiBaoGiaServer,
-  { bg: string; fg: string }
-> = {
-  drafted: { bg: "#eef2ff", fg: "#4338ca" },
-  submitted: { bg: "#fff7ed", fg: "#c2410c" },
-  approved: { bg: "#ecfdf5", fg: "#047857" },
-  rejected: { bg: "#fef2f2", fg: "#b91c1c" },
-  unknown: { bg: "#f3f4f6", fg: "#6b7280" },
-};
-
-function HuyHieuTrangThai({ trangThai }: { trangThai: TrangThaiBaoGiaServer }) {
-  const mau = MAU_TRANG_THAI[trangThai];
-  return (
-    <span className="qrev-badge" style={{ background: mau.bg, color: mau.fg }}>
-      <span className="qrev-badge-dot" style={{ background: mau.fg }} />
-      {NHAN_TRANG_THAI_BAO_GIA[trangThai]}
-    </span>
-  );
 }
 
 // ── Bộ lọc chip: 1-1 với 4 status server (không có 'customer_*') ────────────
@@ -739,13 +714,12 @@ export default function ModuleDuyetBaoGia({
           </div>
         ) : (
           <div className="qrev-table-wrap">
-            <table className="qrev-table">
+            <table className="qrev-table qrev-table--baogia">
               <thead>
                 <tr>
                   <th>Báo giá</th>
                   <th>Người lập</th>
                   <th>Thời gian</th>
-                  <th>Trạng thái</th>
                   <th>Thao tác</th>
                   <th>Duyệt</th>
                 </tr>
@@ -790,59 +764,89 @@ export default function ModuleDuyetBaoGia({
                       <td className="qrev-cell-date">
                         {dinhDangNgay(bg.updatedAt)}
                       </td>
-                      <td>
-                        <HuyHieuTrangThai trangThai={trangThai} />
-                      </td>
                       <td>{renderHanhDong(bg, trangThai)}</td>
                       <td>
-                        {trangThai === "drafted" && bg.createdBy === nguoiDung?.id && (
-                          <div className="qrev-row-actions" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              className="qrev-btn-icon qrev-btn-icon--primary"
-                              title="Nộp duyệt"
-                              disabled={dangXuLyId === bg.id}
-                              onClick={() => void nopBaoGia(bg)}
+                        {(() => {
+                          const coNutGuiDuyet =
+                            trangThai === "drafted" &&
+                            bg.createdBy === nguoiDung?.id;
+                          const coNutDuyet =
+                            trangThai === "submitted" && laNguoiDuyet;
+                          if (coNutGuiDuyet) {
+                            return (
+                              <div
+                                className="qrev-row-actions"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  className="qrev-btn-icon qrev-btn-icon--primary"
+                                  title="Nộp duyệt"
+                                  disabled={dangXuLyId === bg.id}
+                                  onClick={() => void nopBaoGia(bg)}
+                                >
+                                  <Send size={15} />
+                                </button>
+                              </div>
+                            );
+                          }
+                          if (coNutDuyet) {
+                            return (
+                              <div
+                                className="qrev-row-actions"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                <button
+                                  className="qrev-btn-icon qrev-btn-icon--ok"
+                                  title="Duyệt"
+                                  disabled={dangXuLyId === bg.id}
+                                  onClick={() => void duyetBaoGia(bg, "approved")}
+                                >
+                                  <CheckCircle2 size={15} />
+                                </button>
+                                <button
+                                  className="qrev-btn-icon qrev-btn-icon--danger"
+                                  title="Từ chối"
+                                  disabled={dangXuLyId === bg.id}
+                                  onClick={() => void duyetBaoGia(bg, "rejected")}
+                                >
+                                  <XCircle size={15} />
+                                </button>
+                              </div>
+                            );
+                          }
+                          if (trangThai === "approved") {
+                            return (
+                              <span title="Đã duyệt" aria-label="Đã duyệt">
+                                <CheckCircle2 size={16} style={{ color: "#16a34a" }} />
+                              </span>
+                            );
+                          }
+                          if (trangThai === "rejected") {
+                            return (
+                              <span title="Đã từ chối" aria-label="Đã từ chối">
+                                <XCircle size={16} style={{ color: "#dc2626" }} />
+                              </span>
+                            );
+                          }
+                          return (
+                            <span
+                              className="qrev-pending-dash"
+                              aria-label="Chưa có trạng thái duyệt"
+                              title={
+                                trangThai === "submitted"
+                                  ? "Chờ duyệt"
+                                  : "Chưa nộp duyệt"
+                              }
                             >
-                              <Send size={15} />
-                            </button>
-                          </div>
-                        )}
-                        {trangThai === "submitted" && laNguoiDuyet && (
-                          <div className="qrev-row-actions" onClick={(e) => e.stopPropagation()}>
-                            <button
-                              className="qrev-btn-icon qrev-btn-icon--ok"
-                              title="Duyệt"
-                              disabled={dangXuLyId === bg.id}
-                              onClick={() => void duyetBaoGia(bg, "approved")}
-                            >
-                              <CheckCircle2 size={15} />
-                            </button>
-                            <button
-                              className="qrev-btn-icon qrev-btn-icon--danger"
-                              title="Từ chối"
-                              disabled={dangXuLyId === bg.id}
-                              onClick={() => void duyetBaoGia(bg, "rejected")}
-                            >
-                              <XCircle size={15} />
-                            </button>
-                          </div>
-                        )}
-                        {trangThai === "approved" && (
-                          <span title="Đã duyệt" aria-label="Đã duyệt">
-                            <CheckCircle2 size={16} style={{ color: "#16a34a" }} />
-                          </span>
-                        )}
-                        {trangThai === "rejected" && (
-                          <span title="Đã từ chối" aria-label="Đã từ chối">
-                            <XCircle size={16} style={{ color: "#dc2626" }} />
-                          </span>
-                        )}
-
+                              -
+                            </span>
+                          );
+                        })()}
                       </td>
                     </tr>
                     {isExpanded && (
                       <tr style={{ background: "#f0f9ff" }}>
-                        <td colSpan={6} style={{ padding: "12px 16px" }}>
+                        <td colSpan={5} style={{ padding: "12px 16px" }}>
                           {trangThai === "rejected" && bg.statusReason && (
                             <div
                               style={{
@@ -891,7 +895,7 @@ export default function ModuleDuyetBaoGia({
                                     )}
                                     {hienTai === "bo" && (
                                       <span style={{ color: "#9f1239", fontWeight: 600 }}>
-                                        ❌ Khách bỏ
+                                        ❌ KH đã từ chối
                                       </span>
                                     )}
                                     {hienTai === "da_duyet" && trangThai === "approved" && (
@@ -927,7 +931,7 @@ export default function ModuleDuyetBaoGia({
                                             disabled={isPending}
                                             onClick={() => void customerDecideSheet(bg, sheet, "bo")}
                                           >
-                                            ✕ KH từ chối
+                                            ✕ KH đã từ chối
                                           </button>
                                         )}
                                       </div>
@@ -942,7 +946,7 @@ export default function ModuleDuyetBaoGia({
                                 }}
                               >
                                 Tóm tắt: {phanHoi.daDuyet}/{sheets.length} đã duyệt
-                                {" • "}{phanHoi.bo}/{sheets.length} khách bỏ
+                                {" • "}{phanHoi.bo}/{sheets.length} KH đã từ chối
                                 {" • "}{phanHoi.cho}/{sheets.length} chờ
                                 {!coThePhanHoi && trangThai === "approved" && (
                                   <span style={{ marginLeft: 6, fontStyle: "italic" }}>

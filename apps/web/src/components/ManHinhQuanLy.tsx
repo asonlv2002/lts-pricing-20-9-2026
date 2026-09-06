@@ -1327,7 +1327,7 @@ const buttonLabel = loadedItem
       input: { ...input, isNangCap: true },
       sellerName: loaded?.sellerName,
     };
-    exportPricingDetailToA4(item, materials, hangSoNc, bangLoiNhuan, st.cpsxNangCapPolicies, coQuyenCoVanBangTinh(st.nguoiDungHienTai?.policies ?? []));
+    void exportPricingDetailToA4(item, materials, hangSoNc, bangLoiNhuan, st.cpsxNangCapPolicies, coQuyenCoVanBangTinh(st.nguoiDungHienTai?.policies ?? []), st.accessToken, st.smallWidthPrices);
   };
 
   // Quyền sửa tab nâng cao — giống bảng ghi đè cũ (advisor ↔ admin/sale)
@@ -1424,7 +1424,7 @@ const buttonLabel = loadedItem
         input: { ...input },
         sellerName: loadedItem?.sellerName,
       };
-      exportPricingDetailToA4(item, st.materials, st.constants, st.profitTable);
+      void exportPricingDetailToA4(item, st.materials, st.constants, st.profitTable, undefined, undefined, st.accessToken, st.smallWidthPrices);
     };
 
     // Lưu bảng tính "Mô tả khác" — logic khớp nút Lưu của màn kết quả đầy đủ:
@@ -1578,10 +1578,6 @@ const buttonLabel = loadedItem
                 </select>
               </div>
             </div>
-          </div>
-
-          {/* ═══ Lưu / Xem bảng tính ═══ */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 14 }}>
             {loadedItem ? (
               <>
                 {loadedItem?.canUpdate === true && (
@@ -2007,7 +2003,15 @@ const buttonLabel = loadedItem
   const newCommissionPerUnit = Math.max(0, rawNewCommission);
   const doanhThuChot = shownPrice * dauVaoKq.quantity;
   const tongHoaHongChot = newCommissionPerUnit * dauVaoKq.quantity;
-  const tongChiPhi = tongChiPhiSXHieuLuc + rHieuLuc.zipperTotal + rHieuLuc.tapeTotal + rHieuLuc.handleTotal + rHieuLuc.boxTotal + rHieuLuc.shippingTotal + (rHieuLuc.interestPerUnit * dauVaoKq.quantity) + cylAllocTotal + (rHieuLuc.gcShippingTotal ?? 0) + (rHieuLuc.gcPackagingTotal ?? 0) + (rHieuLuc.gcOtherTotal ?? 0);
+  // Giá đề xuất KHÔNG còn cộng tiền zipper — ngoại lệ GC làm túi "chưa gộp zipper"
+  // (tiền zipper rời mua giao bên GC vẫn nằm trong zipperPerUnit/zipperTotal của engine).
+  const coGcChuaGomZipper =
+    dauVaoKq.pricingMode === 'outsource' &&
+    (dauVaoKq.outsource?.steps ?? []).includes('bag') &&
+    dauVaoKq.outsource?.bag?.zipperMode === 'excluded';
+  const tienZipperHieuLuc = coGcChuaGomZipper ? rHieuLuc.zipperTotal : 0;
+  const tienZipperPerDonVi = coGcChuaGomZipper ? rHieuLuc.zipperPerUnit : 0;
+  const tongChiPhi = tongChiPhiSXHieuLuc + tienZipperHieuLuc + rHieuLuc.tapeTotal + rHieuLuc.handleTotal + rHieuLuc.boxTotal + rHieuLuc.shippingTotal + (rHieuLuc.interestPerUnit * dauVaoKq.quantity) + cylAllocTotal + (rHieuLuc.gcShippingTotal ?? 0) + (rHieuLuc.gcPackagingTotal ?? 0) + (rHieuLuc.gcOtherTotal ?? 0);
   const loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
   const pctLoiNhuanCongTyChot = tongChiPhiSXHieuLuc > 0 ? (loiNhuanCongTyChot / tongChiPhiSXHieuLuc) : 0;
   const commissionPctShown = tongChiPhiSXHieuLuc > 0 ? (newCommissionPerUnit * dauVaoKq.quantity / tongChiPhiSXHieuLuc) : 0;
@@ -2027,7 +2031,7 @@ const buttonLabel = loadedItem
       ? dauVaoKq.commissionFixedVND
       : dauVaoKq.commissionRate * (dauVaoKq.quantity > 0 ? effTotalProdCost / dauVaoKq.quantity : 0);
     const giaDonVi = effCostPerUnit
-      + rHieuLuc.zipperPerUnit + rHieuLuc.tapePerUnit + rHieuLuc.handlePerUnit
+      + tienZipperPerDonVi + rHieuLuc.tapePerUnit + rHieuLuc.handlePerUnit
       + rHieuLuc.boxPerUnit + rHieuLuc.shippingPerUnit + rHieuLuc.interestPerUnit + hoaHongDonVi
       + (rHieuLuc.cylAllocPerUnit ?? 0)
       + (rHieuLuc.gcShippingPerUnit ?? 0) + (rHieuLuc.gcPackagingPerUnit ?? 0) + (rHieuLuc.gcOtherPerUnit ?? 0);

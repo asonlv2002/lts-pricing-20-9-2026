@@ -21,7 +21,7 @@ import {
 } from './lsx-bag-classification';
 import { lsxExportBaseName } from './lsx-msp';
 import { formatLsxOrderQuantity } from './lsx-quantity';
-import { buildLsxQuyCachLines, lsxBagSizeMm } from './lsx-quy-cach';
+import { buildLsxQuyCachLines, formatLsxFoldBottom, lsxBagSizeMm } from './lsx-quy-cach';
 import { buildLsxBagFieldRows, splitLsxBagBlockWidths } from './lsx-bag-fields';
 import { buildLsxLamGridRows, gomLsxLamParts, splitLsxLamBlockWidths } from './lsx-lam-rows';
 import { formatLsxHeaderDate } from './lsx-header-format';
@@ -336,12 +336,22 @@ export function hienThiPhiHaoTui(order: ProductionOrder): number {
   return Math.round(layPhiHao(order, 'Làm túi') ?? 0);
 }
 
-/** Ghi chú MÁY LÀM TÚI — gộp ghi chú tay + lưu ý (xuống dòng khi cả 2 có). */
-export function formatLsxBagNote(m: Pick<LSXManualFields, 'bagMachineNotes' | 'bagLuuY'>): string {
+/** Ghi chú MÁY LÀM TÚI — gộp ghi chú tay + lưu ý + đơn hàng/đóng gói + YC giao hàng
+ *  (feedback 2026-09-06: 2 textarea "Đơn hàng / đóng gói" và "Yêu cầu giao hàng"
+ *  trước đây không được render khi xuất PDF/DOCX). Mỗi phần có dữ liệu 1 dòng. */
+export function formatLsxBagNote(
+  m: Pick<LSXManualFields, 'bagMachineNotes' | 'bagLuuY' | 'packagingNotes' | 'deliveryNotes'>,
+): string {
+  const lines: string[] = [];
   const tay = (m.bagMachineNotes || '').trim();
   const luuY = (m.bagLuuY || '').trim();
-  if (tay && luuY) return `${tay}\n${luuY}`;
-  return tay || luuY;
+  if (tay) lines.push(tay);
+  if (luuY) lines.push(luuY);
+  const donHang = (m.packagingNotes || '').trim();
+  if (donHang) lines.push(`Đơn hàng/đóng gói: ${donHang}`);
+  const giaoHang = (m.deliveryNotes || '').trim();
+  if (giaoHang) lines.push(`Yêu cầu giao hàng: ${giaoHang}`);
+  return lines.join('\n');
 }
 
 /** Auto note: "ghép hết BTP in 3.300m". */
@@ -1124,7 +1134,7 @@ export async function buildLSXDocxBlob(
         }
         pushContinue([
           cell([para([run('Hàn biên: ', { b: true }), run(v(m.sealEdge) || v(m.hanBien, 'mm') || '10mm')])], { cs: rcs(1) }),
-          cell([para([run('Xếp đáy: ', { b: true }), run(v(m.foldBottom) || '100mm')])], { cs: rcs(2) }),
+          cell([para([run('Xếp đáy: ', { b: true }), run(formatLsxFoldBottom(m.foldBottom) || '100mm')])], { cs: rcs(2) }),
         ]);
         break;
 
@@ -1163,7 +1173,7 @@ export async function buildLSXDocxBlob(
           cell([para([run('Hàn đầu: ', { b: true }), run(v(m.hanDau, 'mm') || '…')])], { cs: rcs(2) }),
         ]);
         if (m.xepHong) pushContinue([cell([para([run('Xếp hông: ', { b: true }), run(v(m.xepHong, 'mm'))])], { cs: rcs(3) })]);
-        if (m.foldBottom) pushContinue([cell([para([run('Xếp đáy: ', { b: true }), run(v(m.foldBottom))])], { cs: rcs(3) })]);
+        if (m.foldBottom) pushContinue([cell([para([run('Xếp đáy: ', { b: true }), run(formatLsxFoldBottom(m.foldBottom))])], { cs: rcs(3) })]);
         if (showZipperCell) {
           pushContinue([cell([para([run('Tâm zipper cách đầu: ', { b: true }), run(tamZipperStr)])], { cs: rcs(3) })]);
         }
