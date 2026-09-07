@@ -1246,15 +1246,20 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                 <div className="form-row-3">
                   <div className="form-group">
                     <label className="form-label">Phủ mực (%)</label>
-                    <select
-                      className="form-input"
-                      value={input.coverageRatio === 0.5 ? '50' : '100'}
-                      onChange={e => capNhatDauVao({ coverageRatio: laMangIn ? 1 : (e.target.value === '50' ? 0.5 : 1) })}
-                      disabled={laMangIn}
-                    >
-                      <option value="100">100%</option>
-                      {!laMangIn && <option value="50">50%</option>}
-                    </select>
+                    {input.coverageRatio === 1 ? (
+                      <select
+                        className="form-input"
+                        value="100"
+                        onChange={() => capNhatDauVao({ coverageRatio: 1 })}
+                        disabled={laMangIn}
+                      >
+                        <option value="100">100%</option>
+                      </select>
+                    ) : (
+                      <div style={{ color: 'var(--muted)', fontSize: '0.85rem', paddingTop: '8px' }}>
+                        {Math.round(Number(input.coverageRatio || 0) * 100)}% (bảng cũ — giá tính giữ nguyên theo tỷ lệ này)
+                      </div>
+                    )}
                     {laMangIn && <div style={{ color: 'var(--muted)', fontSize: '0.75rem', marginTop: '4px' }}>Màng in mặc định tính 100%.</div>}
                   </div>
                 </div>
