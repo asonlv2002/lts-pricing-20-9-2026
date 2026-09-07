@@ -1827,6 +1827,11 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     if (laMobile && laMobileHubKey(menuDangChon)) return;
     const mucHienTai = CAC_MUC_MENU.find((m) => m.key === menuDangChon);
     if (mucHienTai && mucHienTai.id === moduleDangMo) return;
+    // Tab tính giá nội bộ ('tao-tinh-gia' cũ, 'tao-tinh-gia-thuong-mai') không có
+    // mục menu đăng ký — giữ nguyên khi module đang mở là calculator, nếu không
+    // effect sẽ ghi đè sang 'tao-tinh-gia-nang-cap' (mục calculator duy nhất) và
+    // phá mở lại / deep-link bảng tính thương mại (form cũ).
+    if (moduleTuMenuKeyVoiFallback(menuDangChon) === moduleDangMo) return;
 
     const mucMoi =
       CAC_MUC_MENU.find(

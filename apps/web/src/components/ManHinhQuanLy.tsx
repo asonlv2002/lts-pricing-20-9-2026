@@ -1733,22 +1733,6 @@ const buttonLabel = loadedItem
                 <span className="bl-label" style={{ color: 'var(--orange)' }}>GIÁ ĐỀ XUẤT{donViTM ? ` ${donViTM.toUpperCase()}` : ''}</span>
                 <span className="bl-value" style={{ color: 'var(--orange)' }}>{laCoSL ? `${dinhDangSo(tongCongPerUnit, 0)} đ` : '—'}</span>
               </li>
-              {hasChotGia && (
-                <li className="bl-total" style={{borderTop: '1px dashed var(--border)', marginTop: '6px', paddingTop: '8px'}}>
-                  <span className="bl-label" style={{color:'var(--green)'}}>GIÁ BÁN CHỐT{donViTM ? ` ${donViTM.toUpperCase()}` : ''}</span>
-                  <span className="bl-value" style={{color:'var(--green)'}}>
-                    {dinhDangSo(chotGiaNum, 0)} đ
-                    <span style={{fontSize:'0.75em', fontWeight:400, marginLeft:'8px', color: diffTM >= 0 ? 'var(--green)' : 'var(--red)'}}>
-                      ({diffTM >= 0 ? '+' : ''}{dinhDangSo(diffTM, 0)} đ)
-                    </span>
-                  </span>
-                </li>
-              )}
-              {laCoSL && (
-                <li style={{ marginTop: 6, fontSize: '0.78rem', color: 'var(--muted)' }}>
-                  × {dinhDangSo(soLuongTM, 0)} {donViTMGoc} = <strong style={{ color: 'var(--text)' }}>{dinhDangSo(tongCongPerUnit * soLuongTM, 0)} đ</strong> tổng lô
-                </li>
-              )}
             </ul>
           </TheThuGon>
 
@@ -1770,21 +1754,6 @@ const buttonLabel = loadedItem
               )}
             </ul>
           </TheThuGon>
-
-          {/* ═══ Mô tả báo giá (nội dung textarea ở form) ═══ */}
-          {chuoiMotaTM && (
-            <TheThuGon
-              resetKey="commercial-description"
-              giuTrangThaiKhiReset
-              moDinh
-              style={{ marginTop: '14px' }}
-              title={<><span className="icon">📝</span> Mô tả báo giá</>}
-            >
-              <div style={{ whiteSpace: 'pre-wrap', fontSize: '0.85rem', color: 'var(--text)', lineHeight: 1.6 }}>
-                {chuoiMotaTM}
-              </div>
-            </TheThuGon>
-          )}
         </div>
       </div>
     );
@@ -1858,14 +1827,9 @@ const buttonLabel = loadedItem
   const tienLoiNhuanHieuLuc = laSheetDaLuu
     ? (loadedItem!.profitAmount ?? rHieuLuc.profitAmount)
     : rHieuLuc.profitAmount;
-  // LN hệ thống — thẻ LN trên cùng không bị ảnh hưởng bởi Sale/Admin
-  // (dùng engine gốc `r` theo bảng LN, không hút % ghi đè Sale/Admin)
-  const tyLeLoiNhuanGoc = laSheetDaLuu
-    ? (loadedItem!.profitRate ?? r.profitRate)
-    : r.profitRate;
-  const tienLoiNhuanGoc = laSheetDaLuu
-    ? (loadedItem!.profitAmount ?? r.profitAmount)
-    : r.profitAmount;
+  // LN hệ thống — thẻ LN trên cùng dùng bản hiệu lực `rHieuLuc` (nâng cao = tính lại
+  // theo tổng bảng đặc tả với override Sale/Admin = 0; thường = engine `r`) để LN tiền
+  // luôn khớp base giá vốn + LN% đang hiển thị (không hút % ghi đè Sale/Admin).
   const giaVonDonViHieuLuc = rHieuLuc.costPerUnit;
 
   // Key dùng để reset tất cả collapsible về đóng mỗi khi có kết quả tính mới
@@ -2248,6 +2212,21 @@ const buttonLabel = loadedItem
     if (estQty <= 0) return null;
     const res = calculateForInput({ ...dauVaoKq, quantity: estQty });
     if (!res) return null;
+    // Tab nâng cấp: giá/Tổng DT mỗi dòng cuộn lấy theo bảng đặc tả nâng cao
+    // (khớp MOQ & giá màn hình), giữ res engine để tính mét/kg từng lớp.
+    const resGia = nangCap && !laThuongMaiInput
+      ? tinhKetQuaNangCaoHieuLuc({
+          result: res,
+          uniRows: lapDongSanXuat(res, hangSoNc).uniRows,
+          constants: hangSoNc,
+          materials,
+          saleOverrides: ghiDeSaleHienThi,
+          adminOverrides: ghiDeAdminHienThi,
+          saleProfitRatePct: 0,
+          adminProfitRatePct: 0,
+          profitTable: bangLoiNhuan,
+        }).result
+      : res;
     let isCurrent = false;
     if (laMang) {
       isCurrent = levelVal === Math.ceil(dauVaoKq.quantity / filmRollAreaTP);
@@ -2263,6 +2242,7 @@ const buttonLabel = loadedItem
       areaM2,
       estQty,
       res,
+      resGia,
       isCurrent,
       selectedKg: calcKgForLayer(selectedData, availableMeters),
     };
@@ -2589,7 +2569,7 @@ const buttonLabel = loadedItem
               <div className="stat-card green">
                 <div className="stat-label">{hienThiGia.profitLabel}</div>
                 <div className="stat-value" style={{fontSize: '1.15rem'}}>
-                  {dinhDangSo(tienLoiNhuanGoc)}đ <span style={{fontSize: '0.85rem'}}>({dinhDangPhanTram(tyLeLoiNhuanGoc)})</span>
+                  {dinhDangSo(tienLoiNhuanHieuLuc)}đ <span style={{fontSize: '0.85rem'}}>({dinhDangPhanTram(tyLeLoiNhuanHieuLuc)})</span>
                 </div>
               </div>
               <div className="stat-card cyan">
@@ -3059,8 +3039,8 @@ const buttonLabel = loadedItem
                               </td>
                             );
                           })}
-                          <td data-label="Giá đề xuất" style={{fontWeight:700, color: row.isCurrent ? 'var(--accent)' : 'inherit'}}>{dinhDangSo(row.res.finalPrice, 0)}</td>
-                          <td data-label="Tổng DT">{dinhDangSo(row.res.finalPrice * row.estQty / 1000000, 2)}tr</td>
+                          <td data-label="Giá đề xuất" style={{fontWeight:700, color: row.isCurrent ? 'var(--accent)' : 'inherit'}}>{dinhDangSo((row.resGia ?? row.res).finalPrice, 0)}</td>
+                          <td data-label="Tổng DT">{dinhDangSo((row.resGia ?? row.res).finalPrice * row.estQty / 1000000, 2)}tr</td>
                         </tr>
                       ))}
                     </>

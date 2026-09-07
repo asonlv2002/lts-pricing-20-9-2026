@@ -100,13 +100,14 @@ export function menuKeyTaoBaoGiaTuLichSu(
 
 /**
  * Menu key cho tab "tính giá" theo loại item:
- * - Bảng tính nâng cao (`isNangCap`) → `tao-tinh-gia-nang-cap`
  * - Bảng tính thương mại (`isThuongMai` / `pricingMode='commercial'`) → `tao-tinh-gia-thuong-mai`
+ * - Bảng tính nâng cao (`isNangCap`) → `tao-tinh-gia-nang-cap`
  * - Bảng tính thường → `tao-tinh-gia`
  *
- * Ưu tiên `isNangCap` (cờ cấp HistoryItem) → fallback `input.isNangCap`.
- * Sau đó `isThuongMai` → fallback `input.pricingMode === 'commercial'`.
- * Nâng cao thắng thương mại (nếu 1 bảng vừa NC vừa commercial — NC vẫn là tab chính).
+ * Thương mại kiểm tra TRƯỚC `isNangCap`: TM không bao giờ chạy bảng đặc tả nâng
+ * cao, nhưng item TM lưu từ bản cũ có thể nhiễm cờ `isNangCap` (bug lưu lệch cờ —
+ * toàn bộ codebase khác đều ép `isNangCap = false` khi commercial). Nếu không,
+ * "Mở lại" / deep-link bảng thương mại cũ sẽ trả về route nâng cao.
  *
  * Tránh hard-code `dieuHuongModuleApp("calculator")` (luôn → `tao-tinh-gia`
  * cũ) — gây race với `VoTrang` ghi đè `cheDoNangCao` theo `menuDangChon`,
@@ -120,12 +121,12 @@ export function menuKeyTinhGiaTheoItem(
   } | null | undefined,
 ): string {
   if (!item) return 'tao-tinh-gia';
-  const isNangCap = !!(item.isNangCap || item.input?.isNangCap);
-  if (isNangCap) return 'tao-tinh-gia-nang-cap';
   const isThuongMai = !!(
     item.isThuongMai || item.input?.pricingMode === 'commercial'
   );
   if (isThuongMai) return 'tao-tinh-gia-thuong-mai';
+  const isNangCap = !!(item.isNangCap || item.input?.isNangCap);
+  if (isNangCap) return 'tao-tinh-gia-nang-cap';
   return 'tao-tinh-gia';
 }
 

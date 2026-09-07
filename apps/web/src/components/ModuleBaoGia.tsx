@@ -327,7 +327,7 @@ function buildWizardProductFromHistoryItem(
     if (res?.cylinderCostPerUnit)
       spec.cylinderUnitPrice = Math.round(res.cylinderCostPerUnit);
   }
-  if (item.input.layer2AltId && !spec.structureBack) {
+  if (item.input.layer2AltId && !spec.structureBack && spec.hasStructureBack !== false) {
     const { materials } = dungCuaHangTinhGia.getState();
     const opts = generateStructureBackOptions(item.input, spec.bagType, materials);
     if (opts.length > 0) {
@@ -392,7 +392,7 @@ function buildWizardProductFromQuoteProductLine(
     if (res?.cylinderCostPerUnit)
       spec.cylinderUnitPrice = Math.round(res.cylinderCostPerUnit);
   }
-  if (qp.input.layer2AltId && !spec.structureBack) {
+  if (qp.input.layer2AltId && !spec.structureBack && spec.hasStructureBack !== false) {
     const { materials } = dungCuaHangTinhGia.getState();
     const opts = generateStructureBackOptions(qp.input, spec.bagType, materials);
     if (opts.length > 0) {
@@ -1939,6 +1939,14 @@ function BuocChonSanPham({
     );
   };
 
+  const capNhatBagSpec = (pIdx: number, patch: Partial<QuoteProductBagSpec>) => {
+    onProductsChange(
+      products.map((p, i) =>
+        i === pIdx ? { ...p, bagSpec: { ...p.bagSpec, ...patch } } : p,
+      ),
+    );
+  };
+
   return (
     <div>
       <div
@@ -2659,12 +2667,12 @@ function BuocChonSanPham({
                           <input
                             type="checkbox"
                             checked={spec.hasStructureBack ?? false}
-                            onChange={(e) => {
-                              const v = e.target.checked;
-                              updateBagSpec(pIdx, "hasStructureBack", v);
+                            onChange={() => {
+                              const v = !(spec.hasStructureBack ?? false);
+                              const patch: Partial<QuoteProductBagSpec> = { hasStructureBack: v };
                               if (!v) {
-                                updateBagSpec(pIdx, "structureBack", "");
-                                updateBagSpec(pIdx, "structureSwapped", false);
+                                patch.structureBack = "";
+                                patch.structureSwapped = false;
                               } else {
                                 const frontHasMPET = /MPET/i.test(
                                   prod.historyItem.structure,
@@ -2673,15 +2681,12 @@ function BuocChonSanPham({
                                   spec.structureBack || "",
                                 );
                                 if (!frontHasMPET && backHasMPET) {
-                                  updateBagSpec(pIdx, "structureSwapped", true);
+                                  patch.structureSwapped = true;
                                 } else if (frontHasMPET) {
-                                  updateBagSpec(
-                                    pIdx,
-                                    "structureSwapped",
-                                    false,
-                                  );
+                                  patch.structureSwapped = false;
                                 }
                               }
+                              capNhatBagSpec(pIdx, patch);
                             }}
                           />{" "}
                           Chất liệu 2 mặt
@@ -2711,9 +2716,11 @@ function BuocChonSanPham({
                                   onChange={(e) => {
                                     const idx = Number(e.target.value);
                                     const opt = opts[idx];
-                                    updateBagSpec(pIdx, "structureBack", opt.structureBack);
-                                    updateBagSpec(pIdx, "bottomFollows", opt.bottomFollows);
-                                    updateBagSpec(pIdx, "structureSwapped", opt.structureSwapped);
+                                    capNhatBagSpec(pIdx, {
+                                      structureBack: opt.structureBack,
+                                      bottomFollows: opt.bottomFollows,
+                                      structureSwapped: opt.structureSwapped,
+                                    });
                                   }}
                                 >
                                   {opts.map((opt, i) => (

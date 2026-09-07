@@ -246,15 +246,23 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       ? apCpsxNangCaoVaoHangSo(s.constants, pinCpsxTuCtx)
       : s.constants;
     const synced = dongBoCotLoiNhuan({ ...item.input }, s.materials);
-    // Ghi snapshot NC vào history nếu thiếu (mở lại sheet server)
-    const nextHistory =
-      laNangCap && pinCpsxTuCtx && !item.pinnedCpsxNangCao
-        ? s.history.map((h) =>
-            h.id === item.id || h.pricingSheetId === item.pricingSheetId
-              ? { ...h, pinnedCpsxNangCao: pinCpsxTuCtx }
-              : h,
-          )
-        : s.history;
+    // Item TM cũ nhiễm cờ isNangCap (bug lưu lệch cờ) — TM không chạy bảng đặc tả
+    // NC. Chuẩn hoá cờ ngay khi mở để mọi nơi đọc lại item (menu key, URL-sync,
+    // A4, link chia sẻ) xác định đúng tab — không nhảy sang nâng cao.
+    // Đồng thời ghi snapshot NC vào history nếu thiếu (mở lại sheet server).
+    const nextHistory = s.history.map((h) =>
+      h.id === item.id || (item.pricingSheetId && h.pricingSheetId === item.pricingSheetId)
+        ? {
+            ...h,
+            isNangCap: laNangCap || undefined,
+            input: { ...h.input, isNangCap: laNangCap || undefined },
+            pinnedCpsxNangCao:
+              laNangCap && pinCpsxTuCtx && !h.pinnedCpsxNangCao
+                ? pinCpsxTuCtx
+                : h.pinnedCpsxNangCao,
+          }
+        : h,
+    );
     set({
       history: nextHistory,
       dauVao: synced,
