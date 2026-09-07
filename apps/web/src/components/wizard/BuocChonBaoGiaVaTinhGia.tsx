@@ -16,6 +16,7 @@ import {
 } from '../../lib/api/service-lts';
 import { useCalculatorStore } from '../../store/CuaHangTinhGia';
 import { laBaoGiaDaDuyet } from '../../lib/bao-gia-adapter';
+import { docMaBaoGiaCuaBaoGia } from '../../lib/bao-gia-label';
 import { boDau } from './BuocChonKhachHang';
 
 interface CustomerLite {
@@ -132,7 +133,8 @@ export function BuocChonBaoGiaVaTinhGia({
     if (!q) return dsBgChoKH;
     return dsBgChoKH.filter((bg) => {
       const tenKh = layTenKhachHangCuaBg(bg);
-      return boDau(bg.quotationName || '').includes(q)
+      return boDau(docMaBaoGiaCuaBaoGia(bg)).includes(q)
+        || boDau(bg.quotationName || '').includes(q)
         || boDau(tenKh).includes(q)
         || boDau(bg.id).includes(q);
     });
@@ -165,7 +167,8 @@ export function BuocChonBaoGiaVaTinhGia({
       : {}) as Record<string, unknown>;
     const productName = sheet?.pricingSheetName
       || (typeof input.productName === 'string' ? input.productName : '—');
-    const tenBg = bgFromList?.quotationName
+    const tenBg = (bgFromList ? docMaBaoGiaCuaBaoGia(bgFromList) : '')
+      || bgFromList?.quotationName
       || (selectedBgId ? `BG-${selectedBgId.slice(0, 8)}` : '—');
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -244,7 +247,7 @@ export function BuocChonBaoGiaVaTinhGia({
                 >
                   <div className="wiz-customer-icon"><FileText size={18} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="wiz-customer-name">{bg.quotationName || `BG-${bg.id.slice(0, 8)}`}</div>
+                    <div className="wiz-customer-name">{docMaBaoGiaCuaBaoGia(bg) || bg.quotationName || `BG-${bg.id.slice(0, 8)}`}</div>
                     <div className="wiz-customer-meta" style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px', alignItems: 'center' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                         <Calendar size={11} />

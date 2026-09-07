@@ -3,7 +3,7 @@ import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import { CalculateInput, Material, AppConstants, ProfitRow, CalculateResult, SmallWidthMaterialPrice } from '../../lib/types';
 import { INITIAL_MATERIALS, INITIAL_CONSTANTS, INITIAL_PROFIT_TABLE, INITIAL_SMALL_WIDTH_PRICES } from '../../lib/data';
 import { tinhBaoGia, toiUuDoDayTheoVatLieu, tinhKetQuaMoq } from '../../lib/manager-calculation';
-import { dongBoCotLoiNhuan } from '../../lib/engine';
+import { dongBoCotLoiNhuan, layTrongLuongThung } from '../../lib/engine';
 import { dauVaoMacDinh, dauVaoKhoiTao, luuConfigVaoLS } from '../helpers';
 
 export type EngineConfigSnapshot = Pick<
@@ -76,6 +76,21 @@ const tinhPhuPhiIn = (input: CalculateInput, constants: AppConstants) => {
 const dongBoPhuPhiIn = (input: CalculateInput, constants: AppConstants): CalculateInput => ({
   ...input,
   metallicSurcharge: tinhPhuPhiIn(input, constants),
+});
+
+/**
+ * Đồng bộ `input.boxWeight` từ `constants.boxOptions[boxOptionKey].weight` —
+ * giống pattern handle/zipper/tape weight đã sync live. Tránh snapshot cũ
+ * (vd user lưu phiên bản phụ phí mới với weight 400/300/200 nhưng input vẫn 0
+ * vì chọn thùng trước khi có weight).
+ * 'custom' / không match option → giữ nguyên `input.boxWeight` (user override).
+ */
+const dongBoPhuPhiDongGoi = (
+  input: CalculateInput,
+  constants: AppConstants,
+): CalculateInput => ({
+  ...input,
+  boxWeight: layTrongLuongThung(input, constants),
 });
 
 /**
@@ -221,6 +236,7 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
       }
       dauVaoMoi.zipperWeight = dauVaoMoi.hasZipper ? state.constants.zipperWeight : 0;
       dauVaoMoi.tapeWeight   = dauVaoMoi.hasTape   ? state.constants.tapeWeight   : 0;
+      dauVaoMoi.boxWeight    = layTrongLuongThung(dauVaoMoi, state.constants);
 
       if ('cylType' in partial) {
         if (dauVaoMoi.cylType === 'A') dauVaoMoi.cylUnitPrice = state.constants.cylPriceA ?? state.constants.cylinderPricePerUnit;
@@ -332,7 +348,7 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
   setConstantParam: (key, val) => {
     set((state) => {
       const constants = { ...state.constants, [key]: val };
-      const input = dongBoPhuPhiIn(state.input, constants);
+      const input = dongBoPhuPhiDongGoi(dongBoPhuPhiIn(state.input, constants), constants);
       // Session draft luôn theo constants mới (kể cả khi đang mở sheet pin —
       // sheet NC đọc overlay pin từ HistoryItem, không phụ thuộc constants live).
       const snap = state.sessionConfigSnapshot;
@@ -352,7 +368,7 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
 
   replaceFullConfig: (config) => {
     set((state) => {
-      const input = dongBoCotLoiNhuan(dongBoPhuPhiIn(state.input, config.constants), config.materials);
+      const input = dongBoCotLoiNhuan(dongBoPhuPhiDongGoi(dongBoPhuPhiIn(state.input, config.constants), config.constants), config.materials);
       luuConfigVaoLS(config.materials, config.constants, config.profitTable, config.smallWidthPrices);
       return {
         materials: config.materials,
@@ -380,7 +396,7 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
 
   applyPinnedConfig: (config, priceConfigIds) => {
     set((state) => {
-      const input = dongBoCotLoiNhuan(dongBoPhuPhiIn(state.input, config.constants), config.materials);
+      const input = dongBoCotLoiNhuan(dongBoPhuPhiDongGoi(dongBoPhuPhiIn(state.input, config.constants), config.constants), config.materials);
       return {
         materials: config.materials,
         constants: config.constants,
@@ -401,7 +417,7 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
       return;
     }
     set((state) => {
-      const input = dongBoCotLoiNhuan(dongBoPhuPhiIn(state.input, snap.constants), snap.materials);
+      const input = dongBoCotLoiNhuan(dongBoPhuPhiDongGoi(dongBoPhuPhiIn(state.input, snap.constants), snap.constants), snap.materials);
       return {
         materials: structuredClone(snap.materials),
         constants: structuredClone(snap.constants),
@@ -417,7 +433,7 @@ export const createCalculationSlice: StateCreator<CuaHangTinhGia, [], [], Calcul
 
   recalculate: () => {
     set((state) => {
-      const input = dongBoCotLoiNhuan(dongBoPhuPhiIn(state.input, state.constants), state.materials);
+      const input = dongBoCotLoiNhuan(dongBoPhuPhiDongGoi(dongBoPhuPhiIn(state.input, state.constants), state.constants), state.materials);
       return { input, dauVao: input, result: tinhBaoGia(input, state.materials, state.constants, state.profitTable, state.smallWidthPrices) };
     });
   },

@@ -844,6 +844,7 @@ export function lapDongNhanCongDien(
   const el = hangSo?.cpsxUpgradeElectric ?? DEFAULT_CPSX_UPGRADE_ELECTRIC;
   const giaKwh = el?.appliedPricePerKwh ?? null;
   const laMang = result?.input?.productType === 'mang';
+  const laMangIn = laMang && result?.input?.filmType === 'mangIn';
 
   const metTpIn = so(result?.printMeters);
   const metIn = metTpIn + so(result?.printWaste);
@@ -932,7 +933,8 @@ export function lapDongNhanCongDien(
   }
 
   // ghép — setup lần đầu + mỗi lớp ghép tiếp theo setup lại; ghi đè ưu tiên lam-2 → lam-5
-  {
+  // Màng in (không ghép) → không có dòng ghép trong bảng Nhân công/Điện.
+  if (!laMangIn) {
     const isGc = laGc('laminate');
     rows.push(apDungGhiDeThoiGian(dong(
       'ghép',

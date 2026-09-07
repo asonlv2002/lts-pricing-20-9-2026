@@ -15,6 +15,7 @@ import {
   estimateQuoteGroupHeight,
   paginateQuoteGroupsByPageHeight,
 } from "./bao-gia-pagination";
+import { docMaBaoGiaTuPhanTu } from "./bao-gia-ma";
 
 function dinhDangSo(n: number | null | undefined) {
   const v = Number(n);
@@ -265,6 +266,8 @@ const CSS = `
   .title { text-align: center; font-size: 16pt; font-weight: bold; margin: 6px 0 10px; }
   .title-date { text-align: center; font-size: 11pt; margin: 2px 0 6px; }
   .cust-line { font-size: 11pt; margin: 2px 0; }
+  .cust-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .cust-so { white-space: nowrap; }
   .cust-intro { font-size: 11pt; margin: 6px 0; }
   .mg-bg { font-size: 11pt; color: #555; margin: 2px 0; }
   table.bbg { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 8px 0; }
@@ -444,7 +447,7 @@ function buildBaoGiaHtmlV2(
     if (page === 0) {
       pageHtml += `<div class="title">BẢNG BÁO GIÁ</div>`;
       pageHtml += `<div class="title-date">Ngày ${item.date}</div>`;
-      pageHtml += `<div class="cust-line" style="margin-top:6px">Kính gửi: ${escHtml(item.customer || "")}</div>`;
+      pageHtml += `<div class="cust-line cust-row" style="margin-top:6px"><span>Kính gửi: ${escHtml(item.customer || "")}</span>${item.quoteCode ? `<span class="cust-so">Số: ${escHtml(item.quoteCode)}</span>` : ""}</div>`;
       pageHtml += `<div class="cust-line">Địa chỉ: ${escHtml(customerInfo?.address || "")}</div>`;
       pageHtml += `<div class="cust-line">MST: ${escHtml(customerInfo?.taxCode || "")}</div>`;
       pageHtml += `<div class="cust-line">Điện thoại: ${escHtml(customerInfo?.phone || "")}&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;&emsp;Fax: ${escHtml(customerInfo?.fax || "")}</div>`;
@@ -666,6 +669,7 @@ export async function exportBaoGiaToDocx(
     BorderStyle,
     ImageRun,
     VerticalAlign,
+    TabStopType,
   } = docx;
 
   const products: QuoteProductLine[] = item.quoteProducts?.length
@@ -1133,7 +1137,13 @@ export async function exportBaoGiaToDocx(
         new Paragraph({
           children: [
             new TextRun({ text: `Kính gửi: ${item.customer || ""}`, font: FONT, size: 22 }),
+            ...(item.quoteCode
+              ? [new TextRun({ text: `\tSố: ${item.quoteCode}`, font: FONT, size: 22 })]
+              : []),
           ],
+          tabStops: item.quoteCode
+            ? [{ type: TabStopType.RIGHT, position: 9026 }]
+            : undefined,
           spacing: { before: 100 },
         }),
       );
@@ -1430,7 +1440,7 @@ export function buildHistoryItemFromServerData(
   const dateStr = bg.createdAt
     ? new Date(bg.createdAt).toLocaleDateString("vi-VN")
     : "";
-  const quoteCode = bg.quotationName || bg.id?.slice(0, 8) || "";
+  const quoteCode = docMaBaoGiaTuPhanTu(bg) || "";
 
   return {
     customer,

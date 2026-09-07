@@ -37,6 +37,7 @@ import NhapLyDoTruocPinModal from "./auth/NhapLyDoTruocPinModal";
 import {
   buildHistoryItemFromServerData,
 } from "../lib/baoGiaExport";
+import { docMaBaoGiaCuaBaoGia } from "../lib/bao-gia-label";
 import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
 import { layChuKyReviewerDataUrl } from "../lib/chu-ky";
 import NutSaoChepLienKet from "./NutSaoChepLienKet";
@@ -143,7 +144,7 @@ function tuKhoaBaoGia(bg: BaoGiaApi): string {
         .join(" ");
     })
     .join(" ");
-  return boDau(`${tenBaoGia(bg)} ${pricingText}`);
+  return boDau(`${docMaBaoGiaCuaBaoGia(bg)} ${tenBaoGia(bg)} ${tenKhachHang(bg)} ${pricingText}`);
 }
 
 function nguoiTaoBaoGia(bg: BaoGiaApi): string | undefined {
@@ -643,7 +644,7 @@ export default function ModuleDuyetBaoGia({
         <input
           className="qrev-search-input"
           aria-label="Tìm kiếm báo giá"
-          placeholder="Tìm theo tên báo giá..."
+          placeholder="Tìm số BG, khách hàng, sản phẩm..."
           value={tuKhoa}
           onChange={(e) => datTuKhoa(e.target.value)}
         />
@@ -717,7 +718,7 @@ export default function ModuleDuyetBaoGia({
             <table className="qrev-table qrev-table--baogia">
               <thead>
                 <tr>
-                  <th>Báo giá</th>
+                  <th>Số BG</th>
                   <th>Người lập</th>
                   <th>Thời gian</th>
                   <th>Thao tác</th>
@@ -753,9 +754,14 @@ export default function ModuleDuyetBaoGia({
                           >
                             {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                           </button>
-                          <span className="qrev-cell-name">
-                            {tenKhachHang(bg)}
-                          </span>
+                          <div className="qrev-cell-quote-text">
+                            <span className="qrev-cell-name" style={{ fontFamily: "monospace" }}>
+                              {docMaBaoGiaCuaBaoGia(bg) || "—"}
+                            </span>
+                            <span className="qrev-cell-sub">
+                              {tenKhachHang(bg)}
+                            </span>
+                          </div>
                         </div>
                       </td>
                       <td className="qrev-cell-sale">

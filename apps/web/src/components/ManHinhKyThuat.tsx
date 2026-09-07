@@ -3,6 +3,7 @@
 import React from 'react';
 
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
+import { layTrongLuongThung } from '../lib/engine';
 
 
 
@@ -18,7 +19,7 @@ function dinhDangSo(n: number | null | undefined, decimals = 0): string {
 
 export default function ManHinhKyThuat() {
 
-  const { result: ketQua, activeView: manHinhDangMo, input } = dungCuaHangTinhGia();
+  const { result: ketQua, activeView: manHinhDangMo, input, constants: hangSo } = dungCuaHangTinhGia();
 
 
 
@@ -105,7 +106,8 @@ export default function ManHinhKyThuat() {
 
   // Tổng trọng lượng (vận chuyển tổng lô) = trọng lượng đơn hàng + trọng lượng thùng
   // (số thùng × trọng lượng thùng). tareWeight đã gồm thùng quy đổi /sp nên tổng khớp.
-  const trongLuongThungTongGr = dauVao.bagsPerBox > 0 ? (dauVao.quantity / dauVao.bagsPerBox) * (dauVao.boxWeight || 0) : 0;
+  const trongLuongThung = layTrongLuongThung(dauVao, hangSo);
+  const trongLuongThungTongGr = dauVao.bagsPerBox > 0 ? (dauVao.quantity / dauVao.bagsPerBox) * trongLuongThung : 0;
 
   const cacDongTrongLuong: [string, string][] = [
 
@@ -115,7 +117,7 @@ export default function ManHinhKyThuat() {
 
     ['Trọng lượng / túi (Tare)', dinhDangSo(kq.tareWeight, 2) + ' gr'],
 
-    ['Khối lượng thùng quy đổi', dinhDangSo((dauVao.boxWeight || 0) / (dauVao.bagsPerBox || 1), 2) + ' gr/túi'],
+    ['Khối lượng thùng quy đổi', dinhDangSo(trongLuongThung / (dauVao.bagsPerBox || 1), 2) + ' gr/túi'],
 
     ['Trọng lượng thùng (số thùng × gr/thùng)', dinhDangSo(trongLuongThungTongGr / 1000, 1) + ' kg'],
 

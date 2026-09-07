@@ -24,6 +24,30 @@ export function traLoiNhuanTheoBang(tongChiPhi: number, cot: number, bangLoiNhua
 }
 export const lookupProfit = traLoiNhuanTheoBang;
 
+/**
+ * Khối lượng thùng dùng cho tính giá & hiển thị:
+ * - `boxOptionKey` set & trỏ tới 1 option trong `constants.boxOptions` → lấy live từ đó
+ *   (giá thùng trong `synthesizeResultFromCommercial` đã lookup live; khối lượng phải đồng bộ,
+ *    nếu không input.boxWeight snapshot = 0 khi user lưu phiên bản phụ phí mới).
+ * - `boxOptionKey` = 'custom' hoặc không match option nào → dùng `input.boxWeight`
+ *   (user tự nhập / override).
+ */
+export function layTrongLuongThung(
+  input: Pick<CalculateInput, 'boxOptionKey' | 'boxWeight'>,
+  constants: AppConstants,
+): number {
+  const key = input.boxOptionKey;
+  if (key && key !== 'custom') {
+    const opt = (constants.boxOptions ?? []).find(
+      (o: { key: string; weight?: number }) => o.key === key,
+    );
+    if (opt) {
+      return Math.max(0, Number(opt.weight) || 0);
+    }
+  }
+  return Math.max(0, Number(input.boxWeight) || 0);
+}
+
 // ── Auto-optimize thickness using engine ─────────────────────────────────
 export function toiUuDoDayTheoVatLieu(
   input: CalculateInput,
@@ -380,7 +404,10 @@ export function tinhGiaWeb(
   profitTable: ProfitRow[],
   smallWidthPrices: SmallWidthMaterialPrice[] = []
 ): CalculateResult | null {
-  const inputDaDongBoCot = dongBoCotLoiNhuan(input, materials);
+  const inputDaDongBoCot = {
+    ...dongBoCotLoiNhuan(input, materials),
+    boxWeight: layTrongLuongThung(input, constants),
+  };
   const bangGiaKhoNho = doiSangGiaKhoNho(smallWidthPrices, materials);
   const dauVao = doiSangDauVao(inputDaDongBoCot, bangGiaKhoNho);
   const vatLieu = materials.map(doiSangVatLieu);

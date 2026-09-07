@@ -24,7 +24,7 @@ import { LS_CUSTOMERS, loadCustomers } from '../store/helpers';
 import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override-display';
 import { tinhNhapPhanBoChotGia } from '../lib/chot-gia-allocation';
 import { tinhGiaDeXuatHienThi, coDongBangGiaDeXuat, overridesChuaDoi } from '../lib/gia-de-xuat-hien-thi';
-import { tinhGiaThuongMai, type KetQuaThuongMai } from '../lib/engine';
+import { tinhGiaThuongMai, layTrongLuongThung, type KetQuaThuongMai } from '../lib/engine';
 import { timMucLichSuTheoId } from '../lib/history-identity';
 import { dieuHuongModuleApp } from '../lib/menu-route';
 import { apCpsxNangCaoVaoHangSo, trichCpsxNangCao } from '../lib/cpsx-nang-cao-pin';
@@ -1379,7 +1379,7 @@ const buttonLabel = loadedItem
     const laiVayPerUnit = kqTongHop?.interestPerUnit ?? 0;
     const hoaHongPerUnit = kqTongHop?.commissionPerUnit ?? 0;
     const soTuiMotThung = Math.max(1, Number(input.bagsPerBox) || 1);
-    const trongLuongThung = Math.max(0, Number(input.boxWeight) || 0);
+    const trongLuongThung = layTrongLuongThung(input, hangSo);
     const trongLuongMoiDonVi = Math.max(0, Number(input.commercialUnitWeight) || 0);
     // Tổng trọng lượng (vận chuyển tổng lô) = trọng lượng đơn hàng + trọng lượng thùng
     // (số thùng × trọng lượng thùng) — khớp yêu cầu nghiệp vụ.

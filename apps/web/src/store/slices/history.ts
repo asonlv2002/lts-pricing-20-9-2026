@@ -1,6 +1,7 @@
 import type { StateCreator } from 'zustand';
 import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import { CalculateInput, HistoryItem, QuoteProductLine, QuoteStatus, QuoteTerms } from '../../lib/types';
+import { genMaBaoGia } from '../../lib/bao-gia-ma';
 import { tinhBaoGia, lapDongSanXuat } from '../../lib/manager-calculation';
 import { dongBoCotLoiNhuan, tinhDonGiaThuongMaiHieuLuc, tinhGiaThuongMai } from '../../lib/engine';
 import { tinhKetQuaNangCaoHieuLuc } from '../../lib/dac-ta-nang-cao';
@@ -55,6 +56,7 @@ export interface HistorySlice {
     terms: QuoteTerms;
     sendForApproval: boolean;
     quotationId?: string;
+    quoteCode?: string;
   }) => string | null;
   patchHistoryItem: (id: string, patch: Partial<Pick<HistoryItem, 'customer' | 'productName' | 'chotGia' | 'quoteStatus' | 'quotationId'>>) => void;
 }
@@ -644,11 +646,11 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     });
   },
 
-  taoBaoGiaMoi: ({ customer, products, terms, sendForApproval, quotationId }) => {
+  taoBaoGiaMoi: ({ customer, products, terms, sendForApproval, quotationId, quoteCode: maTruyenVao }) => {
     if (products.length === 0) return null;
     const state = get();
     const now = new Date();
-    const quoteCode = state.taoMaBaoGia();
+    const quoteCode = maTruyenVao || genMaBaoGia(state.history);
     const first = products[0];
     const status: QuoteStatus = sendForApproval ? 'pending_approval' : 'drafted';
     const item: HistoryItem = {

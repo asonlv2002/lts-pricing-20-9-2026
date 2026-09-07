@@ -273,10 +273,12 @@ function DiffView({
   before,
   after,
   hiddenKeys,
+  chiHienGiaTriMoi,
 }: {
   before?: Record<string, unknown>;
   after?: Record<string, unknown>;
   hiddenKeys?: Set<string>;
+  chiHienGiaTriMoi?: boolean;
 }) {
   if (!before && !after) return null;
   const keys = Array.from(
@@ -285,6 +287,42 @@ function DiffView({
     (k) => !HIDDEN_DIFF_KEYS.has(k) && (!hiddenKeys || !hiddenKeys.has(k)),
   );
   if (keys.length === 0) return null;
+
+  // Chế độ nhật ký tính giá/báo giá: chỉ hiện một dòng "nhãn: giá trị mới",
+  // không vẽ dòng đỏ/xanh cũ − mới +.
+  if (chiHienGiaTriMoi) {
+    const dongMoi = keys
+      .map((k) => {
+        const oldVal = before?.[k];
+        const newVal = after?.[k];
+        if (oldVal === newVal) return null;
+        const label = getAuditFieldLabel(k) || FIELD_LABELS[k] || k;
+        const value =
+          newVal !== undefined
+            ? formatDiffValue(k, newVal)
+            : "(trống)";
+        return (
+          <div
+            key={k}
+            style={{
+              marginBottom: 3,
+              fontSize: "0.78rem",
+              color: "var(--text, #1e293b)",
+              lineHeight: 1.5,
+            }}
+          >
+            <span style={{ color: "var(--muted)", fontWeight: 500 }}>
+              {label}:
+            </span>{" "}
+            {value}
+          </div>
+        );
+      })
+      .filter(Boolean);
+    if (dongMoi.length === 0) return null;
+    return <div style={{ marginTop: 8 }}>{dongMoi}</div>;
+  }
+
   return (
     <div style={{ marginTop: 8 }}>
       {keys.map((k) => {
@@ -342,9 +380,11 @@ function DiffView({
 function TimelineEntry({
   entry,
   onOpen,
+  chiHienGiaTriMoi,
 }: {
   entry: AuditEntry;
   onOpen: (entry: AuditEntry) => void;
+  chiHienGiaTriMoi?: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = ACTION_CONFIG[entry.action];
@@ -571,6 +611,7 @@ function TimelineEntry({
                 before={entry.before}
                 after={entry.after}
                 hiddenKeys={hasManagerChanges ? MANAGER_DIFF_KEYS : undefined}
+                chiHienGiaTriMoi={chiHienGiaTriMoi}
               />
             </>
           )}
@@ -1486,6 +1527,7 @@ export default function ModuleNhatKy({
                     key={entry.id}
                     entry={entry}
                     onOpen={openRelated}
+                    chiHienGiaTriMoi={menuDangChon === "nhat-ky-tinh-gia"}
                   />
                 ))}
               </ol>

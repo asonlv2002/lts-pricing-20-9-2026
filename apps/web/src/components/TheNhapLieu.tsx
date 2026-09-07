@@ -9,7 +9,7 @@ import { chuyenDanhSachCustomerApiSangUi } from '../lib/customer-api';
 import { getPricingDisplayMeta, isPrintFilm } from '../lib/pricing-display';
 import { chuanHoaSoThapPhan } from '../lib/so-thap-phan';
 import { ChiTietGiaCongNgoai } from './PanelGiaCongNgoai';
-import { tinhGiaThuongMai } from '../lib/engine';
+import { tinhGiaThuongMai, layTrongLuongThung } from '../lib/engine';
 
 type KhachHangGoiY = {
   id: string;
@@ -1395,7 +1395,7 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
                   </div>
                 )}
                 <div style={{ fontSize: '0.75rem', color: 'var(--muted)', marginTop: '-4px', marginBottom: '8px' }}>
-                  Khối lượng thùng: {(input.boxWeight || 0).toLocaleString('vi-VN')} gr/thùng
+                  Khối lượng thùng: {layTrongLuongThung(input, constants).toLocaleString('vi-VN')} gr/thùng
                 </div>
               </>
             )}

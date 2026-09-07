@@ -1,4 +1,5 @@
 import type { BaoGiaApi } from "./api/service-lts";
+import { docMaBaoGiaTuPhanTu } from "./bao-gia-ma";
 import { normalizeDisplayText } from "./text-codec";
 
 function laObject(value: unknown): value is Record<string, unknown> {
@@ -29,11 +30,23 @@ export function layTenKhachHangCuaBaoGia(bg: BaoGiaApi): string {
 }
 
 /**
- * Mã/định danh báo giá thương mại. Theo quy ước chung của app:
- * quotationName (description) nếu có, ngược lại fallback "BG-<8 ký tự đầu id>".
+ * Mã báo giá YYMM.STT lưu trong inputValue.quoteCode.
+ * Báo giá cũ chưa có mã → chuỗi rỗng (UI hiện "—").
+ */
+export function docMaBaoGiaCuaBaoGia(bg: BaoGiaApi): string {
+  return sach(docMaBaoGiaTuPhanTu(bg));
+}
+
+/**
+ * Mã/định danh báo giá thương mại. Ưu tiên quoteCode (YYMM.STT),
+ * rồi quotationName / description, cuối cùng fallback "BG-<8 ký tự đầu id>".
  */
 export function layMaBaoGiaCuaBaoGia(bg: BaoGiaApi): string {
-  return sach(bg.quotationName || bg.description) || `BG-${bg.id.slice(0, 8)}`;
+  return (
+    docMaBaoGiaCuaBaoGia(bg) ||
+    sach(bg.quotationName || bg.description) ||
+    `BG-${bg.id.slice(0, 8)}`
+  );
 }
 
 /**

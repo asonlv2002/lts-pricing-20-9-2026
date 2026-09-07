@@ -102,6 +102,14 @@ const styles = StyleSheet.create({
   titleDate: { textAlign: "center", fontSize: 11, marginTop: 2, marginBottom: 6 },
   // ── Customer info ──
   custLine: { fontSize: 11, marginVertical: 2 },
+  kinhGuiRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "baseline",
+    marginVertical: 2,
+  },
+  kinhGuiText: { fontSize: 11, flex: 1, paddingRight: 8 },
+  kinhGuiSo: { fontSize: 11, textAlign: "right" },
   custIntro: { fontSize: 11, marginVertical: 6 },
   mgBg: { fontSize: 11, color: "#555", marginVertical: 2 },
   // ── Table ──
@@ -857,7 +865,14 @@ function BaoGiaPage({
           <Text style={styles.title}>BẢNG BÁO GIÁ</Text>
           <Text style={styles.titleDate}>Ngày {item.date}</Text>
 
-          <Text style={styles.custLine}>Kính gửi: {item.customer || ""}</Text>
+          <View style={styles.kinhGuiRow}>
+            <Text style={styles.kinhGuiText}>
+              Kính gửi: {item.customer || ""}
+            </Text>
+            {item.quoteCode ? (
+              <Text style={styles.kinhGuiSo}>Số: {item.quoteCode}</Text>
+            ) : null}
+          </View>
           <Text style={styles.custLine}>
             Địa chỉ: {customerInfo?.address || ""}
           </Text>
