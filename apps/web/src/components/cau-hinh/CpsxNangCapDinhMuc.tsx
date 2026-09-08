@@ -31,14 +31,15 @@ function clampSoMau(n: number): number {
 }
 
 export default function CpsxNangCapDinhMuc({
-  coQuyenInRate = true,
-  coQuyenAdhesiveRate = true,
-  chiXem = false,
+  coQuyenInRate = false,
+  coXemInRate = false,
+  coQuyenAdhesiveRate = false,
+  coXemAdhesiveRate = false,
 }: {
   coQuyenInRate?: boolean;
+  coXemInRate?: boolean;
   coQuyenAdhesiveRate?: boolean;
-  /** Chế độ chỉ xem (REVIEW) — hiện đủ form nhưng khóa toàn bộ input. */
-  chiXem?: boolean;
+  coXemAdhesiveRate?: boolean;
 }) {
   const hangSo = dungCuaHangTinhGia((s) => s.constants);
   const capNhatHangSo = dungCuaHangTinhGia((s) => s.setConstantParam);
@@ -81,8 +82,10 @@ export default function CpsxNangCapDinhMuc({
   const [soMauPET, setSoMauPET] = React.useState(1);
   const [soMauOPP, setSoMauOPP] = React.useState(1);
 
-  const khongCoQuyenInRate = !(coQuyenInRate || chiXem);
-  const khongCoQuyenAdhesiveRate = !(coQuyenAdhesiveRate || chiXem);
+  const readonlyIn = !coQuyenInRate;
+  const readonlyGhep = !coQuyenAdhesiveRate;
+  const hienIn = coQuyenInRate || coXemInRate;
+  const hienGhep = coQuyenAdhesiveRate || coXemAdhesiveRate;
 
   // CP mực in + DM in (₫/m²) — dùng chung helper đã test với engine đặc tả
   const chiTietPET = tinhCpMucInChiTiet(soMauPET, "pet", ink);
@@ -118,6 +121,7 @@ export default function CpsxNangCapDinhMuc({
 
   return (
     <div className="config-cpsx-upgrade-dinhmuc">
+      {hienIn && (
       <div className="card config-card config-cpsx-upgrade-card">
         <div className="config-section-title config-cpsx-upgrade__head">
           <span>Định mức mực in + dung môi in</span>
@@ -136,7 +140,7 @@ export default function CpsxNangCapDinhMuc({
         {openIn && (
           <fieldset
             id="cpsx-dinhmuc-in-body"
-            disabled={chiXem}
+            disabled={readonlyIn}
             className="config-cpsx-upgrade__panel config-cpsx-upgrade__ro"
           >
             <div className="config-cpsx-upgrade__formulas">
@@ -151,7 +155,7 @@ export default function CpsxNangCapDinhMuc({
                 </span>
               </div>
 
-              {!khongCoQuyenInRate && (
+              {hienIn && (
               <>
               <div className="config-cpsx-upgrade__formula-row config-cpsx-upgrade__formula-indent">
                 <span className="config-cpsx-upgrade__formula-label">
@@ -256,7 +260,7 @@ export default function CpsxNangCapDinhMuc({
                         In {r.soMau} màu
                       </td>
                       <td className="num">
-                        {khongCoQuyenInRate ? (
+                        {readonlyIn ? (
                           <span className="config-cpsx-upgrade__lock">
                             {dinhDangSo(r.dmMucG)}
                           </span>
@@ -277,7 +281,7 @@ export default function CpsxNangCapDinhMuc({
                         )}
                       </td>
                       <td className="num">
-                        {khongCoQuyenInRate ? (
+                        {readonlyIn ? (
                           <span className="config-cpsx-upgrade__lock">
                             {dinhDangSo(r.dmDungMoiG)}
                           </span>
@@ -311,7 +315,9 @@ export default function CpsxNangCapDinhMuc({
           </fieldset>
         )}
       </div>
+      )}
 
+      {hienGhep && (
       <div className="card config-card config-cpsx-upgrade-card">
         <div className="config-section-title config-cpsx-upgrade__head">
           <span>Định mức keo + dung môi ghép</span>
@@ -332,7 +338,7 @@ export default function CpsxNangCapDinhMuc({
         {openGhep && (
           <fieldset
             id="cpsx-dinhmuc-ghep-body"
-            disabled={chiXem}
+            disabled={readonlyGhep}
             className="config-cpsx-upgrade__panel config-cpsx-upgrade__ro"
           >
             <GiaGhepKetQua ink={ink} />
@@ -349,7 +355,7 @@ export default function CpsxNangCapDinhMuc({
                   <tr>
                     <td>Keo khô (dry coat weight)</td>
                     <td className="num">
-                      {khongCoQuyenAdhesiveRate ? (
+                      {readonlyGhep ? (
                         <span className="config-cpsx-upgrade__lock">
                           {dinhDangSo(dinhMucGhep.keoKhoG)}
                         </span>
@@ -371,7 +377,7 @@ export default function CpsxNangCapDinhMuc({
                   <tr>
                     <td>Dung môi pha keo</td>
                     <td className="num">
-                      {khongCoQuyenAdhesiveRate ? (
+                      {readonlyGhep ? (
                         <span className="config-cpsx-upgrade__lock">
                           {dinhDangSo(dinhMucGhep.dungMoiPhaKeoG)}
                         </span>
@@ -402,6 +408,7 @@ export default function CpsxNangCapDinhMuc({
           </fieldset>
         )}
       </div>
+      )}
     </div>
   );
 }

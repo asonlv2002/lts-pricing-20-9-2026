@@ -201,6 +201,8 @@ export default function CpsxNangCapTrang() {
                 coQuyenKeo={coQuyen("CPSX_UPGRADE_EDIT_ADHESIVE")}
                 coQuyenInRate={coQuyen("CPSX_UPGRADE_EDIT_INK_RATE")}
                 coQuyenAdhesiveRate={coQuyen("CPSX_UPGRADE_EDIT_ADHESIVE_RATE")}
+                coXemInRate={coQuyen("CPSX_UPGRADE_REVIEW_INK_RATE")}
+                coXemAdhesiveRate={coQuyen("CPSX_UPGRADE_REVIEW_ADHESIVE_RATE")}
               />
             </>
           )}

@@ -370,6 +370,8 @@ export default function CpsxNangCapMuc({
   coQuyenKeo = true,
   coQuyenInRate = true,
   coQuyenAdhesiveRate = true,
+  coXemInRate = false,
+  coXemAdhesiveRate = false,
   chiXem = false,
 }: {
   coQuyenOpp?: boolean;
@@ -379,6 +381,8 @@ export default function CpsxNangCapMuc({
   coQuyenKeo?: boolean;
   coQuyenInRate?: boolean;
   coQuyenAdhesiveRate?: boolean;
+  coXemInRate?: boolean;
+  coXemAdhesiveRate?: boolean;
   /** Chế độ chỉ xem (REVIEW) — hiện đủ form nhưng khóa toàn bộ input. */
   chiXem?: boolean;
 }) {
@@ -476,9 +480,10 @@ export default function CpsxNangCapMuc({
         chiXem={chiXem}
       />
       <CpsxNangCapDinhMuc
-        coQuyenInRate={coQuyenInRate || chiXem}
-        coQuyenAdhesiveRate={coQuyenAdhesiveRate || chiXem}
-        chiXem={chiXem}
+        coQuyenInRate={coQuyenInRate}
+        coQuyenAdhesiveRate={coQuyenAdhesiveRate}
+        coXemInRate={coXemInRate}
+        coXemAdhesiveRate={coXemAdhesiveRate}
       />
 
       <div className="card config-card config-cpsx-upgrade-readonly__card">
