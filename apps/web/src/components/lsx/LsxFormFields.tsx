@@ -610,11 +610,11 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
         </div>
         <div style={styles.cellRow}>
           <span style={{ fontWeight: 700, fontSize: '11px' }}>Ghi chú:</span>
-          <TI
+          <TA
             value={manual.laminateNotes}
             onChange={v => upd('laminateNotes', v)}
             placeholder="LLDPE130-K640: tồn kho"
-            style={{ flex: 1, minWidth: 0 }}
+            rows={3}
           />
         </div>
       </div>
