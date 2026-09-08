@@ -36,6 +36,7 @@ import { lsxExportBaseName } from "../lib/lsx-msp";
 import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from "../lib/lsx-divide";
 import {
   layDongTheoCongDoan,
+  layKhoMangMm,
   layKhoMangTuNguon,
   stageLabel,
 } from "../lib/lsx-nang-cao";
@@ -441,7 +442,7 @@ function ProductInfo({ order }: { order: ProductionOrder }) {
         </Cell>
         <Cell w="55%">
           {isTui && <Line label="Kiểu túi:" value={" " + bagLabel} />}
-          {buildLsxQuyCachLines(m, s).map((line, i) => {
+          {buildLsxQuyCachLines(m, { ...s, inWidthMm: layKhoMangMm(order, "In") }).map((line, i) => {
             const idx = line.indexOf(": ");
             if (idx < 0) return <Text key={`qc-${i}`}>{line}</Text>;
             return (

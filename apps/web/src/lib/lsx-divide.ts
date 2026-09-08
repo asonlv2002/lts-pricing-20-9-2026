@@ -35,13 +35,20 @@ function layKhoTuDongIn(order: ProductionOrder): number {
 
 export function resolveLsxDivideSpec(order: ProductionOrder): LsxDivideSpec {
   const { manual, snapshot } = order;
-  // Ưu tiên đặc tả nâng cao: dòng Chia (khổ trước) → dòng In → fallback cũ.
+  // Ưu tiên đặc tả nâng cao: dòng Chia (khổ trước) → dòng In → snapshot.originalWidthMm.
   const filmWidthMm =
     layKhoTruocTuDongChia(order)
     || layKhoTuDongIn(order)
     || Math.round(snapshot.originalWidthMm || (snapshot.spreadWidth || 0) * 1000);
   const elementCount = Math.max(0, Math.round(manual.divideElements || 0));
-  const defaultWidthMm = manual.divideWidth || snapshot.divideWidthMm || 0;
+  // Khổ chia (slit width) — ưu tiên manual-first, fallback `Chia.khoMang` từ đặc
+  // tả, rồi `snapshot.divideWidthMm` (legacy). Không fallback `spreadWidth`.
+  const chiaSpec = layDongTheoCongDoan(order, 'Chia');
+  const chiaSpecMm = chiaSpec && typeof chiaSpec.khoMang === 'number' && chiaSpec.khoMang > 0
+    ? Math.round(chiaSpec.khoMang * 1000)
+    : 0;
+  const defaultWidthMm =
+    manual.divideWidth || chiaSpecMm || snapshot.divideWidthMm || 0;
   const customWidths = Array.isArray(manual.divideWidths) ? manual.divideWidths : [];
   const custom = customWidths.length > 0;
   const widths = custom

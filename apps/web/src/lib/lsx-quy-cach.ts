@@ -23,15 +23,24 @@ export interface LsxQuyCachSnapshot {
   hasZipper?: boolean;
   /** Tâm zipper cách đầu (mm) từ báo giá; prefill khi LSX admin chưa nhập. */
   zipperDistanceMm?: number;
+  /** Khổ dòng In từ bảng đặc tả kỹ thuật (mm) — quy cách màng đọc từ đây. */
+  inWidthMm?: number | null;
 }
 
 /**
  * Dòng "Quy cách" tự động cho LSX MÀNG (feedback 2026-09-06 ý 0):
- * "khổ trải x bước cắt" — cả 2 số lấy từ tính giá (spreadWidth, cutStep).
- * VD: "820mm x 1000mm". Nhập tay quyCachNote vẫn override.
+ * "khổ × bước cắt" — ưu tiên `khoMangMm` (khổ dòng In từ bảng đặc tả kỹ thuật
+ * đã snap), fallback `spreadWidth`. Cả 2 số từ tính giá. VD: "640mm x 1000mm".
+ * Nhập tay quyCachNote vẫn override.
  */
-export function formatLsxQuyCachMang(spreadWidth: number, cutStep: number): string {
-  const kho = Math.round((spreadWidth || 0) * 1000);
+export function formatLsxQuyCachMang(
+  spreadWidth: number,
+  cutStep: number,
+  khoMangMm?: number | null,
+): string {
+  const kho = khoMangMm && khoMangMm > 0
+    ? Math.round(khoMangMm)
+    : Math.round((spreadWidth || 0) * 1000);
   const buoc = Math.round((cutStep || 0) * 1000);
   if (kho <= 0 && buoc <= 0) return '';
   return `${kho ? `${kho}mm` : '…'} x ${buoc ? `${buoc}mm` : '…'}`;
@@ -101,7 +110,9 @@ export function buildLsxQuyCachLines(
           tolWidthMm: manual.quyCachToleranceWidthMm ?? LSX_TOLERANCE_WIDTH_DEFAULT_MM,
           tolLengthMm: manual.quyCachToleranceLengthMm ?? LSX_TOLERANCE_LENGTH_DEFAULT_MM,
         })
-      : (!isTui ? formatLsxQuyCachMang(snapshot.spreadWidth, snapshot.cutStep) : '');
+      : (!isTui
+          ? formatLsxQuyCachMang(snapshot.spreadWidth, snapshot.cutStep, snapshot.inWidthMm)
+          : '');
   const spec = manual.quyCachNote?.trim() || autoSpec;
 
   const lines: string[] = [];

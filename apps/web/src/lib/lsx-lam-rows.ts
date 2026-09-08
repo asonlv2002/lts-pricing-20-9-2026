@@ -43,10 +43,12 @@ export type LsxLamGridRow =
   | { kind: 'single'; label: string; name: string; khoText: string }
   | { kind: 'dual'; label: string; parts: LsxLamGridPart[] };
 
-/** Khổ dạng số thuần "480"; thiếu → "…". Renderer tự thêm tiền tố "Khổ ". */
-function khoText(widthMm: number, defaultKho: number): string {
-  const w = widthMm > 0 ? widthMm : defaultKho;
-  return w > 0 ? String(w) : '…';
+/** Khổ dạng số thuần "480"; thiếu → "…". Renderer tự thêm tiền tố "Khổ ".
+ *  Quy ước 2026-09-08: thiếu khổ ở mảng ghép → "…", KHÔNG mượn khổ in (defaultKho)
+ *  — mỗi khâu đọc từ đặc tả tương ứng, thiếu thì trống.
+ */
+function khoText(widthMm: number, _defaultKho: number): string {
+  return widthMm > 0 ? String(widthMm) : '…';
 }
 
 /**

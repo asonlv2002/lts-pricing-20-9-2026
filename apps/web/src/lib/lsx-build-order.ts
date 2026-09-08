@@ -70,6 +70,49 @@ export function ganLsxSnapshotVaoInputValue(
 }
 
 /**
+ * Phủ (overlay) khổ từ `lsxSnapshot` đã chốt lên `source` đang ăn báo giá live.
+ * Khi sửa/preview LSX đã tạo trước đó, form/PDF/DOCX phải đọc khổ từ snapshot
+ * (đã chốt lúc tạo) chứ không theo `inputValue` hiện tại của báo giá.
+ *
+ * - `source.nangCaoSpec := snapshot.nangCaoSpec` (4 khổ In/Ghép/Chia/Làm túi)
+ * - `source.input.spreadWidth := snapshot.spreadWidth` (khổ trải chốt)
+ * - `source.input.cylLength/cylCircum/filmRollLength := snapshot.*` nếu có
+ *
+ * Trả về source mới (không mutate input). Nếu snapshot thiếu → trả source gốc.
+ */
+export function sourceTuSnapshot(
+  source: LsxSourceData,
+  snapshot: LsxSnapshotPayload | null,
+): LsxSourceData {
+  if (!snapshot) return source;
+  const nextInput: Record<string, unknown> = {
+    ...(source.input as unknown as Record<string, unknown>),
+  };
+  if (typeof snapshot.spreadWidth === 'number' && snapshot.spreadWidth > 0) {
+    nextInput.spreadWidth = snapshot.spreadWidth;
+  }
+  if (typeof snapshot.cutStep === 'number' && snapshot.cutStep > 0) {
+    nextInput.cutStep = snapshot.cutStep;
+  }
+  if (typeof snapshot.cylLength === 'number' && snapshot.cylLength > 0) {
+    nextInput.cylLength = snapshot.cylLength;
+  }
+  if (typeof snapshot.cylCircum === 'number' && snapshot.cylCircum > 0) {
+    nextInput.cylCircum = snapshot.cylCircum;
+  }
+  if (typeof snapshot.filmRollLength === 'number' && snapshot.filmRollLength > 0) {
+    nextInput.filmRollLength = snapshot.filmRollLength;
+  }
+  return {
+    ...source,
+    nangCaoSpec: Array.isArray(snapshot.nangCaoSpec)
+      ? (snapshot.nangCaoSpec as unknown[])
+      : source.nangCaoSpec,
+    input: nextInput as unknown as LsxSourceData['input'],
+  };
+}
+
+/**
  * Khổ lớp 2 dành RIÊNG cho LSX túi đáy đứng hai cấu trúc.
  * Mặt thường = rộng túi; mặt đi cùng đáy = phần khổ trải còn lại.
  * Không mutate source.input và không thay input truyền vào engine tính giá.
@@ -279,17 +322,18 @@ export function buildLaminateLayersFromSource(
 ): LamLayerRow[] {
   const rawSpec = (source as { nangCaoSpec?: unknown }).nangCaoSpec;
   if (Array.isArray(rawSpec) && rawSpec.length > 0) {
-    const defaultW = Math.round((source.input.spreadWidth || 0) * 1000);
     const groups = ghepNangCaoSpecTheoLop(rawSpec as LsxNangCaoRow[]);
     if (groups.length > 0) {
       return groups.map((g) => {
+        // Thiếu khoMang trong đặc tả → widthMm = 0 (renderer hiển thị "…").
+        // KHÔNG nhét `spreadWidth` vào nữa — sẽ lệch khi sale ghi đè khổ.
         const parts: LamLayerPart[] = gomLsxLamParts(
           g.rows.map((r) => ({
             name: r.vatLieu || '',
             widthMm:
               typeof r.khoMang === 'number' && r.khoMang > 0
                 ? Math.round(r.khoMang * 1000)
-                : defaultW,
+                : 0,
           })),
         );
         const waste = wasteByLayerIndex?.get(g.layerIndex) ?? 0;
@@ -731,7 +775,14 @@ export function buildSnapshotFromSource(
   materials: Material[],
 ): ProductionOrder['snapshot'] {
   const inp = source.input;
-  const khoMM = Math.round((inp.spreadWidth || 0) * 1000);
+  // Ưu tiên khổ dòng "In" từ bảng đặc tả kỹ thuật đã snap — đúng với tinh thần
+  // "4 khổ đều lấy từ đặc tả". Khi LSX legacy không có đặc tả → fallback
+  // `inp.originalWidthMm` (nếu có) rồi mới `spreadWidth` (công thức cũ).
+  const khoTuSpecIn =
+    layKhoMangTuNguon(source, 'In') ?? 0;
+  const khoMM = khoTuSpecIn > 0
+    ? khoTuSpecIn
+    : Math.round((inp.spreadWidth || 0) * 1000);
   const area = (inp.quantity || 0) * (inp.spreadWidth || 0) * (inp.cutStep || 0);
   const lsxStructure = formatLsxStructure(materials, inp, {
     bottomFollows: source.bottomFollows,

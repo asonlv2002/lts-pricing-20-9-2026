@@ -29,6 +29,7 @@ import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from './l
 import {
   ghepNangCaoSpecTheoLop,
   layDongTheoCongDoan,
+  layKhoMangMm,
   layKhoMangTuNguon,
   layNangCaoSpec,
   layPhiHao,
@@ -117,28 +118,34 @@ export function formatLsxLamPassName(parts: LsxLamExportPart[], fallbackName = '
 
 export function resolveLsxLaminateRows(order: ProductionOrder): LsxLamExportRow[] {
   const { snapshot: s, manual: m } = order;
-  const defaultKho = Math.round((s.spreadWidth || 0) * 1000);
   // Ưu tiên laminateLayers user sửa tay trong form (manual-first, regression
   // 2026-09-05: trước đây nangCaoSpec thắng nên edit form không ăn). Form được
   // prefill từ spec lúc tạo LSX nên ban đầu hai nguồn giống nhau; sau khi user
   // sửa thì form thắng. Fallback tiếp: nangCaoSpec → legacy 1-2 field → snapshot
   // layer2-5. Spec gom đủ vật liệu trong cùng section "GHÉP (Lớp N)" /
   // "Ghép N" (multi-layer composite) — không chỉ lấy dòng đầu.
+  //
+  // Quy ước 2026-09-08: KHÔNG fallback về `spreadWidth` khi thiếu khổ — sẽ hiển
+  // thị "…" (widthMm = 0). Legacy row "Màng ghép 2" (chỉ fill khi không có
+  // laminateLayers + không có spec) vẫn dùng `spreadWidth` cho khớp với LSX
+  // cũ tạo trước khi có đặc tả kỹ thuật nâng cao.
+  const defaultKho = Math.round((s.spreadWidth || 0) * 1000);
+  const hasSpec = Array.isArray(s.nangCaoSpec) && s.nangCaoSpec.length > 0;
   if (m.laminateLayers && m.laminateLayers.length > 0) {
     return m.laminateLayers.map((layer, i) => {
       const parts: LsxLamExportPart[] = gomLsxLamParts(
         (layer.parts || [])
           .filter((p) => p.name || p.widthMm)
-          .map((p) => ({ name: p.name || '', widthMm: p.widthMm || defaultKho })),
+          .map((p) => ({ name: p.name || '', widthMm: p.widthMm || 0 })),
       );
       const name = formatLsxLamPassName(parts);
-      const widthMm = parts[0]?.widthMm || defaultKho;
+      const widthMm = parts[0]?.widthMm || 0;
       return {
         label: layer.label || `Màng ghép ${i + 1}`,
         name,
         widthMm,
         wasteMeters: layer.wasteMeters || 0,
-        parts: parts.length ? parts : [{ name, widthMm }],
+        parts: parts.length ? parts : [{ name, widthMm: 0 }],
       };
     });
   }
@@ -146,12 +153,12 @@ export function resolveLsxLaminateRows(order: ProductionOrder): LsxLamExportRow[
   if (ghepGroups.length > 0) {
     return ghepGroups.map((g, i) => {
       const parts: LsxLamExportPart[] = gomLsxLamParts(
-        g.rows.map((r) => {
-          const khoMm = typeof r.khoMang === 'number' && r.khoMang > 0
+        g.rows.map((r) => ({
+          name: r.vatLieu || '',
+          widthMm: typeof r.khoMang === 'number' && r.khoMang > 0
             ? Math.round(r.khoMang * 1000)
-            : defaultKho;
-          return { name: r.vatLieu || '', widthMm: khoMm };
-        }),
+            : 0,
+        })),
       );
       // Phi hao cấp LỚP: các dòng chi tiết trong cùng section lặp cùng giá trị
       // (lapDongVatLieuNangCao) → chỉ lấy 1 lần, KHÔNG cộng dồn (feedback
@@ -164,12 +171,15 @@ export function resolveLsxLaminateRows(order: ProductionOrder): LsxLamExportRow[
       return {
         label: g.label || `Màng ghép ${i + 1}`,
         name,
-        widthMm: parts[0]?.widthMm || defaultKho,
+        widthMm: parts[0]?.widthMm || 0,
         wasteMeters: Math.round(waste),
-        parts: parts.length ? parts : [{ name, widthMm: defaultKho }],
+        parts: parts.length ? parts : [{ name, widthMm: 0 }],
       };
     });
   }
+  // Nhánh legacy (LSX cũ tạo trước khi có đặc tả nâng cao): nếu đã có spec
+  // mà groups rỗng (bảng chỉ có In, không có Ghép) thì không sinh row mới.
+  if (hasSpec) return [];
   const rows: LsxLamExportRow[] = [];
   if (m.laminateFilm1 || s.layer2Name) {
     const name = m.laminateFilm1 || s.layer2Name || '';
@@ -663,7 +673,7 @@ export async function buildLSXDocxBlob(
         ]),
         cell([
           ...(isTui ? [para([run('Kiểu túi:', { b: true }), run(' ' + bagLabel)])] : []),
-          ...buildLsxQuyCachLines(m, s).map((line) => {
+          ...buildLsxQuyCachLines(m, { ...s, inWidthMm: layKhoMangMm(order, "In") }).map((line) => {
             const idx = line.indexOf(': ');
             if (idx < 0) return para([run(line)]);
             return para([run(line.slice(0, idx + 1), { b: true }), run(' ' + line.slice(idx + 2))]);

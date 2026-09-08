@@ -30,7 +30,7 @@ import { bagTypeLabelHienThi } from './lsx-bag-classification';
 import { buildLsxBagFieldRows } from './lsx-bag-fields';
 import { formatLsxHeaderDate } from './lsx-header-format';
 import { formatLsxDivideSummary, layPhiHaoChia, resolveLsxDivideSpec } from './lsx-divide';
-import { layDongTheoCongDoan, layKhoMangTuNguon, stageLabel } from './lsx-nang-cao';
+import { layDongTheoCongDoan, layKhoMangMm, layKhoMangTuNguon, stageLabel } from './lsx-nang-cao';
 
 
 function v(val: string | number | null | undefined, suffix = ''): string {
@@ -346,8 +346,10 @@ function productInfoHtml(order: ProductionOrder): string {
     : '';
   // Khổ màng = khổ dòng In của bảng đặc tả nâng cao; fallback spreadWidth
   // (feedback 2026-09-05 ý 1: Section I phải ra K820mm, không phải khổ chia 400).
-  const khoMM = layKhoMangTuNguon({ snapshot: s }, 'In') ?? Math.round((s.spreadWidth || 0) * 1000);
-  const quyCachLines = buildLsxQuyCachLines(m, s);
+  // Quy ước 2026-09-08: helper `layKhoMangTuNguon` đã fallback hợp lý
+  // (spec thiếu → null; LSX legacy không có spec → spreadWidth).
+  const khoMM = layKhoMangTuNguon({ snapshot: s }, 'In') ?? 0;
+  const quyCachLines = buildLsxQuyCachLines(m, { ...s, inWidthMm: layKhoMangMm(order, 'In') });
   const quyCachHtml = quyCachLines.map(quyCachLineHtml).join('');
 
   return `

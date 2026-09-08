@@ -18,7 +18,7 @@ import { mapBaoGiaToLsxSources, laBaoGiaDaDuyet } from '../../lib/bao-gia-adapte
 import { LsxFormFields } from './LsxFormFields';
 import LsxPreviewModal from '../LsxPreviewModal';
 import LsxPdfPreviewModal from '../LsxPdfPreviewModal';
-import { buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue, backfillQuyCachCuon, backfillChieuRaCuonMang } from '../../lib/lsx-build-order';
+import { buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue, backfillQuyCachCuon, backfillChieuRaCuonMang, sourceTuSnapshot } from '../../lib/lsx-build-order';
 import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../../lib/chu-ky';
 
 export interface SlidePanelLsxEditProps {
@@ -144,7 +144,11 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
     if (!quotation || !order.pricingSheet) return null;
     const sources = mapBaoGiaToLsxSources(quotation as any);
     const matched = sources.find((s) => s.id.endsWith(`:${order.pricingSheetId}`));
-    if (matched) return matched;
+    if (matched) {
+      // 2026-09-08: phủ lsxSnapshot đã chốt lên source để form/PDF/DOCX đọc
+      // khổ từ bảng đặc tả lúc tạo, không theo báo giá live.
+      return sourceTuSnapshot(matched, lsxSnapshotTuInputValue(order.inputValue));
+    }
     // Fallback: build mot source minimal
     const sheet = order.pricingSheet;
     const input = (typeof sheet.inputValue === 'object' && sheet.inputValue !== null
@@ -158,7 +162,7 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
       finalPrice: 0,
       input: input as any,
     };
-  }, [quotation, order.pricingSheetId, order.pricingSheet]);
+  }, [quotation, order.pricingSheetId, order.pricingSheet, order.inputValue]);
 
   // Feedback 2026-09-06 ý 1: LSX cũ thiếu "Quy cách cuộn" → backfill auto khi mở sửa.
   useEffect(() => {
@@ -177,11 +181,22 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
     setDangXem(true);
     setLoi('');
     try {
-      const orderPreview = buildProductionOrderFromSource(source, {
-        materials, constants, profitTable, smallWidthPrices,
-        productionOrders: [],
-        preparedBy: currentSellerName,
-      });
+      // 2026-09-08: ưu tiên lsxSnapshot đã chốt (giống "Xem" ở danh sách LSX).
+      const snapCu = lsxSnapshotTuInputValue(order.inputValue);
+      const orderPreview = snapCu
+        ? {
+            id: order.id,
+            quoteId: '',
+            createdAt: '',
+            status: 'created' as const,
+            manual: {} as LSXManualFields,
+            snapshot: snapCu,
+          }
+        : buildProductionOrderFromSource(source, {
+            materials, constants, profitTable, smallWidthPrices,
+            productionOrders: [],
+            preparedBy: currentSellerName,
+          });
       orderPreview.id = order.id;
       const [manualCoChuKy, reviewerSignatureDataUrl] = await Promise.all([
         themChuKyVaoManual(manual),
@@ -201,11 +216,21 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
     setDangXem(true);
     setLoi('');
     try {
-      const orderPreview = buildProductionOrderFromSource(source, {
-        materials, constants, profitTable, smallWidthPrices,
-        productionOrders: [],
-        preparedBy: currentSellerName,
-      });
+      const snapCu = lsxSnapshotTuInputValue(order.inputValue);
+      const orderPreview = snapCu
+        ? {
+            id: order.id,
+            quoteId: '',
+            createdAt: '',
+            status: 'created' as const,
+            manual: {} as LSXManualFields,
+            snapshot: snapCu,
+          }
+        : buildProductionOrderFromSource(source, {
+            materials, constants, profitTable, smallWidthPrices,
+            productionOrders: [],
+            preparedBy: currentSellerName,
+          });
       orderPreview.id = order.id;
       const [manualCoChuKy, reviewerSignatureDataUrl] = await Promise.all([
         themChuKyVaoManual(manual),
@@ -226,9 +251,14 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
     setLoi('');
     try {
       const manualCoChuKy = await themChuKyVaoManual(manual);
-      const snapshot = source
-        ? buildSnapshotFromSource(source, manualCoChuKy, materials)
-        : lsxSnapshotTuInputValue(order.inputValue);
+      // 2026-09-08: khi sửa, giữ nguyên snapshot đã chốt (không re-snap từ
+      // báo giá live). Chỉ build snapshot mới khi LSX legacy chưa có snap.
+      const snapCu = lsxSnapshotTuInputValue(order.inputValue);
+      const snapshot = snapCu
+        ? snapCu
+        : (source
+          ? buildSnapshotFromSource(source, manualCoChuKy, materials)
+          : null);
       const inputValueCoSnapshot = snapshot
         ? ganLsxSnapshotVaoInputValue(manualCoChuKy, snapshot)
         : manualCoChuKy;

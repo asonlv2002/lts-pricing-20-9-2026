@@ -12,7 +12,8 @@
  *  - Cũ (`layKhoMangMm`, `layKhoMangText`, ...) — nhận `ProductionOrder`,
  *    KHÔNG fallback spreadWidth (trả null nếu không có spec) — giữ cho test cũ.
  *  - Mới (`layKhoMangTuNguon`, `layKhoMangTextTuNguon`) — nhận `NguonKhoMang`
- *    (form/PDF/DOCX/HTML), CÓ fallback spreadWidth — single source of truth.
+ *    (form/PDF/DOCX/HTML): đã có đặc tả → chỉ đọc từ đặc tả (4 khâu: In/Ghép/
+ *    Chia/Làm túi); chỉ fallback spreadWidth khi LSX cũ chưa có đặc tả.
  *  - Ghép (`ghepNangCaoSpecTheoLop`) — nhóm các dòng Ghép (Lớp N) thành
  *    multi-layer composite (nhiều vật liệu / 1 pass) cho MÁY GHÉP form/PDF/DOCX/HTML.
  */
@@ -196,27 +197,30 @@ export interface NguonKhoMang {
   snapshot?: { nangCaoSpec?: unknown; spreadWidth?: number };
 }
 
-function docNangCaoSpecRows(raw: unknown): LsxNangCaoRow[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter(laRow);
-}
-
 /**
  * mm hiển thị trên LSX từ NGUỒN BẤT KỲ (form/PDF/DOCX/HTML).
- * Ưu tiên `nangCaoSpec[congDoan].khoMang` (đã snap từ bảng đặc tả nâng cao);
- * fallback `input.spreadWidth` / `snapshot.spreadWidth` khi không có spec.
- * Trả `null` khi cả 2 nguồn đều không có dữ liệu hợp lệ.
+ * Ưu tiên `nangCaoSpec[congDoan].khoMang` (đã snap từ bảng đặc tả nâng cao).
+ *
+ * Quy ước 2026-09-08: 4 khổ (In / Ghép / Chia / Làm túi) đều lấy từ đặc tả kỹ thuật
+ * đã chốt. Khi đã có `nangCaoSpec` mà dòng / giá trị `khoMang` thiếu → trả `null`
+ * (renderer hiển thị "…"), KHÔNG rơi về `spreadWidth` — nếu không sẽ lệch khi
+ * sale ghi đè khổ trong bảng đặc tả. Chỉ fallback `spreadWidth` khi LSX legacy
+ * hoàn toàn không có `nangCaoSpec` (createdBefore(snap)).
  */
 export function layKhoMangTuNguon(
   nguon: NguonKhoMang,
   congDoan: string,
 ): number | null {
   const rawSpec = nguon.nangCaoSpec ?? nguon.snapshot?.nangCaoSpec;
-  const rows = docNangCaoSpecRows(rawSpec);
-  const row = rows.find((r) => r.congDoan === congDoan);
-  if (row && typeof row.khoMang === 'number' && row.khoMang > 0) {
-    return Math.round(row.khoMang * 1000);
+  const hasSpec = Array.isArray(rawSpec) && rawSpec.length > 0;
+  if (hasSpec) {
+    const row = (rawSpec as LsxNangCaoRow[]).find((r) => r.congDoan === congDoan);
+    if (row && typeof row.khoMang === 'number' && row.khoMang > 0) {
+      return Math.round(row.khoMang * 1000);
+    }
+    return null;
   }
+  // Legacy: không có đặc tả → spreadWidth là giá trị chuẩn.
   const sw = nguon.input?.spreadWidth ?? nguon.snapshot?.spreadWidth;
   if (typeof sw === 'number' && sw > 0) {
     return Math.round(sw * 1000);
@@ -225,19 +229,26 @@ export function layKhoMangTuNguon(
 }
 
 /**
- * Text hiển thị ưu tiên `khoMangLabel` (vd: "0,560 → 0,300" cho dòng Chia)
- * → fallback mm (kể cả từ spreadWidth).
+ * Text hiển thị ưu tiên `khoMangLabel` (vd "0,640 → 0,400" cho dòng Chia)
+ * → mm từ `layKhoMangTuNguon`. Có đặc tả mà thiếu → trả "" (renderer hiển thị "…").
  */
 export function layKhoMangTextTuNguon(
   nguon: NguonKhoMang,
   congDoan: string,
 ): string {
   const rawSpec = nguon.nangCaoSpec ?? nguon.snapshot?.nangCaoSpec;
-  const rows = docNangCaoSpecRows(rawSpec);
-  const row = rows.find((r) => r.congDoan === congDoan);
-  if (row?.khoMangLabel && row.khoMangLabel.trim()) return row.khoMangLabel;
-  const mm = layKhoMangTuNguon(nguon, congDoan);
-  return mm ? `${mm}mm` : '';
+  const hasSpec = Array.isArray(rawSpec) && rawSpec.length > 0;
+  if (hasSpec) {
+    const row = (rawSpec as LsxNangCaoRow[]).find((r) => r.congDoan === congDoan);
+    if (row?.khoMangLabel && row.khoMangLabel.trim()) return row.khoMangLabel;
+    const mm = layKhoMangTuNguon(nguon, congDoan);
+    return mm ? `${mm}mm` : '';
+  }
+  const sw = nguon.input?.spreadWidth ?? nguon.snapshot?.spreadWidth;
+  if (typeof sw === 'number' && sw > 0) {
+    return `${Math.round(sw * 1000)}mm`;
+  }
+  return '';
 }
 
 // ── Khâu gia công ngoài trên LSX ──────────────────────────────────────────────

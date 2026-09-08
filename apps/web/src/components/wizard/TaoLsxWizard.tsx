@@ -21,7 +21,7 @@ import type { LsxSourceData, LSXManualFields } from '../../lib/types';
 import { mapBaoGiaToLsxSources } from '../../lib/bao-gia-adapter';
 import { classifyLsxBagType } from '../../lib/lsx-bag-classification';
 import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../../lib/chu-ky';
-import { buildManualFromSource, buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue } from '../../lib/lsx-build-order';
+import { buildManualFromSource, buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue, sourceTuSnapshot } from '../../lib/lsx-build-order';
 import { mapServerOrdersToLsxRows } from '../../lib/lsx-server-adapter';
 import { LsxFormFields } from '../lsx/LsxFormFields';
 import LsxPreviewModal from '../LsxPreviewModal';
@@ -170,19 +170,26 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
     if (sheet) setSheetDangChon(sheet as PricingSheetApi);
 
     const sheetVal: PricingSheetApi | null = sheet || null;
-    const src = buildSourceFromEdit(quotation.id, sheetVal ?? undefined, order.pricingSheetId, quotation);
-    setSource(src);
+    const liveSrc = buildSourceFromEdit(quotation.id, sheetVal ?? undefined, order.pricingSheetId, quotation);
+    // 2026-09-08: Phủ snapshot đã chốt lên source để form sửa đọc khổ từ
+    // bảng đặc tả lúc tạo (In/Ghép/Chia/Làm túi) thay vì theo báo giá live.
+    if (liveSrc) {
+      const snap = lsxSnapshotTuInputValue(order.inputValue);
+      setSource(sourceTuSnapshot(liveSrc, snap));
+    } else {
+      setSource(null);
+    }
 
     if (order.inputValue && typeof order.inputValue === 'object') {
       const { lsxSnapshot: _bo, ...manualTuServer } = order.inputValue as Record<string, unknown> & { lsxSnapshot?: unknown };
       setManual(manualTuServer as unknown as LSXManualFields);
-    } else if (src) {
-      const bagType = classifyLsxBagType(src.input.bagType, src.input.hasZipper);
+    } else if (liveSrc) {
+      const bagType = classifyLsxBagType(liveSrc.input.bagType, liveSrc.input.hasZipper);
       let cancelled = false;
       void (async () => {
         const soLsx = await taiDanhSachSoLsx(accessToken);
         if (cancelled) return;
-        setManual(buildManualFromSource(src, {
+        setManual(buildManualFromSource(liveSrc, {
           materials, constants, profitTable, smallWidthPrices,
           productionOrders: soLsx as any,
           preparedBy: currentSellerName,
@@ -326,7 +333,11 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
         tenSP: manual.tenSP?.trim() || source.productName || '',
       };
       const finalManualCoChuKy = await themChuKyVaoManual(finalManual);
-      const snapshot = buildSnapshotFromSource(source, finalManualCoChuKy, materials);
+      // 2026-09-08: khi sửa mà đã có lsxSnapshot → giữ nguyên snapshot (không
+      // re-snap từ báo giá live — sẽ phá bản đã phát xưởng). Chỉ re-snap khi
+      // LSX legacy chưa có snapshot.
+      const snapCu = lsxSnapshotTuInputValue(lsxDangSua?.order.inputValue);
+      const snapshot = snapCu ?? buildSnapshotFromSource(source, finalManualCoChuKy, materials);
       const inputValueCoSnapshot = ganLsxSnapshotVaoInputValue(finalManualCoChuKy, snapshot);
       await updateQuotationPricingSheetOrderService(editOrderId, { inputValue: inputValueCoSnapshot }, accessToken);
       setToast({ kind: 'ok', msg: 'Đã cập nhật LSX. Trạng thái reset về Chờ duyệt.' });
@@ -365,11 +376,23 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
     if (!source || !manual) return;
     setDangXemLsx(true);
     try {
-      const order = buildProductionOrderFromSource(source, {
-        materials, constants, profitTable, smallWidthPrices,
-        productionOrders: [],
-        preparedBy: currentSellerName,
-      });
+      // 2026-09-08: khi sửa, ưu tiên lsxSnapshot đã chốt (không rebuild từ
+      // báo giá live) — giống nút "Xem" ở danh sách LSX.
+      const snapCu = dangSua ? lsxSnapshotTuInputValue(lsxDangSua?.order.inputValue) : null;
+      const order = snapCu
+        ? {
+            id: editOrderId ?? '',
+            quoteId: '',
+            createdAt: '',
+            status: 'created' as const,
+            manual: {} as LSXManualFields,
+            snapshot: snapCu,
+          }
+        : buildProductionOrderFromSource(source, {
+            materials, constants, profitTable, smallWidthPrices,
+            productionOrders: [],
+            preparedBy: currentSellerName,
+          });
       if (editOrderId) order.id = editOrderId;
       const [manualCoChuKy, reviewerSignatureDataUrl] = await Promise.all([
         themChuKyVaoManual(manual),
@@ -388,11 +411,21 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
     if (!source || !manual) return;
     setDangXemLsx(true);
     try {
-      const order = buildProductionOrderFromSource(source, {
-        materials, constants, profitTable, smallWidthPrices,
-        productionOrders: [],
-        preparedBy: currentSellerName,
-      });
+      const snapCu = dangSua ? lsxSnapshotTuInputValue(lsxDangSua?.order.inputValue) : null;
+      const order = snapCu
+        ? {
+            id: editOrderId ?? '',
+            quoteId: '',
+            createdAt: '',
+            status: 'created' as const,
+            manual: {} as LSXManualFields,
+            snapshot: snapCu,
+          }
+        : buildProductionOrderFromSource(source, {
+            materials, constants, profitTable, smallWidthPrices,
+            productionOrders: [],
+            preparedBy: currentSellerName,
+          });
       if (editOrderId) order.id = editOrderId;
       const [manualCoChuKy, reviewerSignatureDataUrl] = await Promise.all([
         themChuKyVaoManual(manual),
