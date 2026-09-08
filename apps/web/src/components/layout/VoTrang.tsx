@@ -440,6 +440,13 @@ const MENU_KEYS_OVERVIEW = new Set([
   "tong-quan-hoat-dong-gan-day",
 ]);
 
+/** 3 tab tính giá (thường / nâng cao / thương mại) — cùng module calculator. */
+const MENU_KEYS_TINH_GIA = new Set([
+  "tao-tinh-gia",
+  "tao-tinh-gia-nang-cap",
+  "tao-tinh-gia-thuong-mai",
+]);
+
 const MOBILE_HUB_PREFIX = "mobile.hub.";
 
 const MOBILE_TAB_FALLBACK: Record<string, string> = {
@@ -1537,6 +1544,7 @@ function DauTrangTren({
     isDirty: dangBan,
     resetInput: datLaiDauVao,
     setPricingEntry: datPricingEntry,
+    datQuoteWizardSnapshot: datXoaSnapshotXemLai,
   } = dungCuaHangTinhGia();
   const [hienXacNhanMoi, datHienXacNhanMoi] = useState(false);
 
@@ -1545,6 +1553,7 @@ function DauTrangTren({
     else {
       datLaiDauVao();
       datPricingEntry("pick");
+      datXoaSnapshotXemLai(null);
     }
   };
 
@@ -1552,6 +1561,7 @@ function DauTrangTren({
     datHienXacNhanMoi(false);
     datLaiDauVao();
     datPricingEntry("pick");
+    datXoaSnapshotXemLai(null);
   };
 
   return (
@@ -1851,6 +1861,21 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       cheDoNangCao: menuDangChon === "tao-tinh-gia-nang-cap",
       cheDoThuongMai: menuDangChon === "tao-tinh-gia-thuong-mai",
     });
+  }, [menuDangChon]);
+
+  // Rời tab tính giá (kể cả đổi giữa 3 tab thường/NC/TM) mà không về 'tao-bao-gia'
+  // → hủy trạng thái "Đang xem lại từ báo giá" (clear quoteWizardSnapshot), banner
+  // không còn hiện lại khi quay về tính giá. Chiều wizard → tính giá (Xem bảng tính
+  // giá) và nút "Quay lại báo giá" (tính giá → 'tao-bao-gia') KHÔNG bị clear.
+  const menuDangChonRefTruocDo = useRef(menuDangChon);
+  useEffect(() => {
+    const menuTruoc = menuDangChonRefTruocDo.current;
+    menuDangChonRefTruocDo.current = menuDangChon;
+    if (menuTruoc === menuDangChon) return;
+    if (!MENU_KEYS_TINH_GIA.has(menuTruoc)) return;
+    if (menuDangChon === "tao-bao-gia") return;
+    const s = dungCuaHangTinhGia.getState();
+    if (s.quoteWizardSnapshot) s.datQuoteWizardSnapshot(null);
   }, [menuDangChon]);
 
   // Bootstrap path → state + popstate + event điều hướng chéo
