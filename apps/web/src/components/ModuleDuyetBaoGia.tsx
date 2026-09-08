@@ -40,6 +40,7 @@ import {
 import { docMaBaoGiaCuaBaoGia } from "../lib/bao-gia-label";
 import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
 import { layChuKyReviewerDataUrl } from "../lib/chu-ky";
+import { AvatarBlobImg } from "../lib/avatar-blob-cache";
 import NutSaoChepLienKet from "./NutSaoChepLienKet";
 import {
   layDanhSachBaoGiaService,
@@ -773,16 +774,13 @@ export default function ModuleDuyetBaoGia({
                       <td className="qrev-cell-sale">
                         {saleName ? (
                           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                            {saleAvatar ? (
-                              <img
-                                src={saleAvatar}
-                                alt={saleName}
-                                className="qrev-user-avatar"
-                                style={{ objectFit: 'cover', background: 'transparent' }}
-                                title={saleName}
-                                onError={(e) => { (e.currentTarget.style.display = 'none'); }}
-                              />
-                            ) : null}
+                            <AvatarBlobImg
+                              actorAvatarUrl={saleAvatar}
+                              accessToken={accessToken}
+                              alt={saleName}
+                              className="qrev-user-avatar"
+                              style={{ objectFit: 'cover', background: 'transparent' }}
+                            />
                             {normalizeDisplayText(saleName)}
                           </span>
                         ) : (

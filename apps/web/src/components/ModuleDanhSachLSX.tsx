@@ -17,7 +17,6 @@ import { coQuyenDuyetLsx } from '../lib/permissions';
 import {
   listQuotationPricingSheetOrdersService,
   updateOrderApprovalService,
-  resolveServiceLtsUrl,
   type QuotationPricingSheetOrderApi,
   type QuotationPricingSheetOrdersByQuotationApi,
   type PricingSheetApi,
@@ -39,6 +38,7 @@ import { taoUrlChiaSeLsx } from '../lib/lsx-route';
 import { buildProductionOrderFromSource, lsxSnapshotTuInputValue } from '../lib/lsx-build-order';
 import { mapBaoGiaToLsxSources } from '../lib/bao-gia-adapter';
 import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../lib/chu-ky';
+import { AvatarBlobImg } from '../lib/avatar-blob-cache';
 
 type BoLoc = LsxLocalStatus | 'all';
 type Nguon = 'all' | 'review';
@@ -413,14 +413,13 @@ export default function ModuleDanhSachLSX({
                       </td>
                       <td className="qrev-cell-sale">
                         {row.nguoiLap ? (
-                          resolveServiceLtsUrl(row.nguoiLapAvatar) ? (
-                            <img
-                              src={resolveServiceLtsUrl(row.nguoiLapAvatar) ?? ''}
+                          row.nguoiLapAvatar ? (
+                            <AvatarBlobImg
+                              actorAvatarUrl={row.nguoiLapAvatar}
+                              accessToken={accessToken}
                               alt={row.nguoiLap}
                               className="qrev-user-avatar"
                               style={{ objectFit: 'cover', background: 'transparent' }}
-                              title={row.nguoiLap}
-                              onError={(e) => { (e.currentTarget.style.display = 'none'); }}
                             />
                           ) : (
                             <span

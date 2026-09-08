@@ -27,6 +27,7 @@ import { laLoiRefreshHetPhien, quyetDinhDongBoTokenThongQuaStorage } from '../..
 import { vaiTroTuPolicies } from '../../lib/permissions';
 import { decodeBase64UrlUtf8, normalizeDisplayText } from '../../lib/text-codec';
 import { blobSangPngDataUrl } from '../../lib/chu-ky';
+import { thuHoiTatCaAvatarBlob } from '../../lib/avatar-blob-cache';
 
 export interface AuthSlice {
   // ── State ──────────────────────────────────────────────────────────────
@@ -140,6 +141,7 @@ function resetPhienHetHan(set: Parameters<StateCreator<CuaHangTinhGia, [], [], A
     thuHoiAnhDaiDien(get().nguoiDungHienTai);
     thuHoiChuKy(get().nguoiDungHienTai);
   }
+  thuHoiTatCaAvatarBlob();
   set({
     accessToken: null,
     refreshToken: null,
@@ -368,6 +370,7 @@ export const createAuthSlice: StateCreator<CuaHangTinhGia, [], [], AuthSlice> = 
     get().dungTheoDoiMetricHeThong();
     thuHoiAnhDaiDien(get().nguoiDungHienTai);
     thuHoiChuKy(get().nguoiDungHienTai);
+    thuHoiTatCaAvatarBlob();
     xoaToken();
     // Giữ cache policies theo user để F5/login sau vẫn có menu đúng.
     set({

@@ -14,12 +14,15 @@ export const SERVICE_LTS_DIRECT_URL =
 export const SERVICE_LTS_SIGNATURE_BASE =
   process.env.NEXT_PUBLIC_SERVICE_LTS_SIGNATURE_BASE
   ?? "https://lts-dev-server.zealstudiojsc.com";
-/** Trả URL tuyệt đối cho path tương đối do server trả về (vd `/auth/avatars/<token>.webp`).
- *  Nếu path đã là http(s) thì giữ nguyên; null/empty trả về null để UI fallback. */
+/** Trả URL tuyệt đối cho path tương đối do server trả về (vd `/auth/avatars/<uuid>.webp`,
+ *  `/auth/signatures/<token>.webp`). Ghép với `SERVICE_LTS_SIGNATURE_BASE` (mặc định
+ *  trỏ về dev server `lts-dev-server.zealstudiojsc.com`) vì file tĩnh nằm trên BE
+ *  đó, không phải trên `SERVICE_LTS_DIRECT_URL` (chỉ dùng cho API). Nếu path đã là
+ *  http(s) thì giữ nguyên; null/empty trả về null để UI fallback. */
 export function resolveServiceLtsUrl(urlOrPath: string | null | undefined): string | null {
   if (!urlOrPath) return null;
   if (/^https?:\/\//i.test(urlOrPath)) return urlOrPath;
-  return `${SERVICE_LTS_DIRECT_URL}${urlOrPath.startsWith("/") ? urlOrPath : `/${urlOrPath}`}`;
+  return `${SERVICE_LTS_SIGNATURE_BASE}${urlOrPath.startsWith("/") ? urlOrPath : `/${urlOrPath}`}`;
 }
 export const LS_ACCESS_TOKEN = "lts_service_access_token";
 export const LS_REFRESH_TOKEN = "lts_service_refresh_token";

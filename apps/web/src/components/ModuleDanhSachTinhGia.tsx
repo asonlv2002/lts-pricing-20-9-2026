@@ -11,12 +11,13 @@ import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { idChiaSeBangTinh, taoUrlChiaSeTinhGia } from '../lib/tinh-gia-route';
 import { dieuHuongMenuApp, menuKeyTinhGiaTheoItem } from '../lib/menu-route';
 import { QrevStyleInjector } from './qrev-styles';
-import { xoaPricingSheetService, resolveServiceLtsUrl } from '../lib/api/service-lts';
+import { xoaPricingSheetService } from '../lib/api/service-lts';
 import { exportPricingDetailToA4 } from '../lib/pricing-detail-export';
 import { coQuyenCoVanBangTinh } from '../lib/permissions';
 import NutSaoChepLienKet from './NutSaoChepLienKet';
 import type { HistoryItem } from '../lib/types';
 import { dinhDangNgayTaoLichSu, msSapXepLichSu } from '../lib/history-datetime';
+import { AvatarBlobImg } from '../lib/avatar-blob-cache';
 
 const boDau = (chuoi: string) =>
   chuoi.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
@@ -237,14 +238,13 @@ export default function ModuleDanhSachTinhGia({
         <td className="qrev-cell-sale" title={h.customer}>{rutGonTenKhachHang(h.customer)}</td>
         <td className="qrev-cell-sale">
           {h.sellerName ? (
-            resolveServiceLtsUrl(h.sellerAvatarUrl) ? (
-              <img
-                src={resolveServiceLtsUrl(h.sellerAvatarUrl) ?? ''}
+            h.sellerAvatarUrl ? (
+              <AvatarBlobImg
+                actorAvatarUrl={h.sellerAvatarUrl}
+                accessToken={accessToken}
                 alt={h.sellerName}
                 className="qrev-user-avatar"
                 style={{ objectFit: 'cover', background: 'transparent' }}
-                title={h.sellerName}
-                onError={(e) => { (e.currentTarget.style.display = 'none'); }}
               />
             ) : (
               <span className="qrev-user-avatar" style={{ background: layMauAvatar(h.sellerName) }} title={h.sellerName}>

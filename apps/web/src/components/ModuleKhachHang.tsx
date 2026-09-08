@@ -34,7 +34,6 @@ import {
   luuNguoiPhuTrachKhachHangService,
   luuThongTinKhachHangService,
   taoMaKhachHangService,
-  resolveServiceLtsUrl,
 } from '../lib/api/service-lts';
 import {
   docKhachHangIdTuPathname,
@@ -46,6 +45,7 @@ import {
 import { dieuHuongModuleApp, type MaModuleMenu } from '../lib/menu-route';
 import { tieuDeKhongTimThay } from '../lib/support-route';
 import { coQuyenQuanLyKhachHang, type PolicyCode } from '../lib/permissions';
+import { AvatarBlobImg } from '../lib/avatar-blob-cache';
 import { CustomerManagersPicker } from './customer/CustomerManagersPicker';
 import ImportKhachHangPanel from './customer/ImportKhachHangPanel';
 import NutSaoChepLienKet from './NutSaoChepLienKet';
@@ -1063,7 +1063,7 @@ function dedupeAuditEntries(entries: AuditEntry[]) {
   });
 }
 
-function CustomerAuditTab({ auditLog, customers, users, currentUser }: { auditLog: AuditEntry[]; customers: Customer[]; users?: { id: string; name: string }[]; currentUser?: { id: string; fullName?: string | null; account?: string | null } | null }) {
+function CustomerAuditTab({ auditLog, customers, users, currentUser, accessToken }: { auditLog: AuditEntry[]; customers: Customer[]; users?: { id: string; name: string }[]; currentUser?: { id: string; fullName?: string | null; account?: string | null } | null; accessToken: string | null }) {
   // 4 filters per spec
   const [filterAction, setFilterAction] = useState<Set<string>>(new Set());
   const [filterUser, setFilterUser] = useState('');
@@ -1538,20 +1538,16 @@ function CustomerAuditTab({ auditLog, customers, users, currentUser }: { auditLo
                           <span style={{ fontSize: 12, color: 'var(--muted,#6b7280)', marginLeft: 'auto' }}>{new Date(e.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
                         <div style={{ fontSize: 12, color: 'var(--muted,#6b7280)', marginTop: 3, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                          {(() => {
-                            const avatarUrl = resolveServiceLtsUrl(summary.actorAvatarUrl);
-                            return avatarUrl ? (
-                              <img
-                                src={avatarUrl}
-                                alt={summary.actorName}
-                                style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, background: 'transparent' }}
-                                title={summary.actorName}
-                                onError={(e) => { (e.currentTarget.style.display = 'none'); }}
-                              />
-                            ) : (
-                              <User size={11} style={{ display: 'inline', verticalAlign: 'middle', flexShrink: 0 }} />
-                            );
-                          })()}
+                          {summary.actorAvatarUrl ? (
+                            <AvatarBlobImg
+                              actorAvatarUrl={summary.actorAvatarUrl}
+                              accessToken={accessToken}
+                              alt={summary.actorName}
+                              style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, background: 'transparent' }}
+                            />
+                          ) : (
+                            <User size={11} style={{ display: 'inline', verticalAlign: 'middle', flexShrink: 0 }} />
+                          )}
                           <span>{summary.actorName}</span>
                           {e.note && <span>· {e.note}</span>}
                         </div>
@@ -1608,6 +1604,7 @@ function CustomerAuditView({ customers }: { customers: Customer[] }) {
   const nhatKyHeThong = dungCuaHangTinhGia(s => s.nhatKyHeThong);
   const taiNhatKyHeThong = dungCuaHangTinhGia(s => s.taiNhatKyHeThong);
   const currentUser = dungCuaHangTinhGia(s => s.nguoiDungHienTai);
+  const accessToken = dungCuaHangTinhGia(s => s.accessToken);
 
   useEffect(() => {
     taiNhatKyHeThong();
@@ -1617,7 +1614,7 @@ function CustomerAuditView({ customers }: { customers: Customer[] }) {
     return nhatKyHeThong.filter(e => e.targetType === 'customer');
   }, [nhatKyHeThong]);
 
-  return <CustomerAuditTab auditLog={customerAuditLog} customers={customers} currentUser={currentUser} />;
+  return <CustomerAuditTab auditLog={customerAuditLog} customers={customers} currentUser={currentUser} accessToken={accessToken} />;
 }
 
 // ── Main Component ───────────────────────────────────────────────────────────
