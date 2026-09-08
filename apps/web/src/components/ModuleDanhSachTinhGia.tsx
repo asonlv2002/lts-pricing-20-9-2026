@@ -11,7 +11,7 @@ import { getPricingDisplayMeta } from '../lib/pricing-display';
 import { idChiaSeBangTinh, taoUrlChiaSeTinhGia } from '../lib/tinh-gia-route';
 import { dieuHuongMenuApp, menuKeyTinhGiaTheoItem } from '../lib/menu-route';
 import { QrevStyleInjector } from './qrev-styles';
-import { xoaPricingSheetService } from '../lib/api/service-lts';
+import { xoaPricingSheetService, resolveServiceLtsUrl } from '../lib/api/service-lts';
 import { exportPricingDetailToA4 } from '../lib/pricing-detail-export';
 import { coQuyenCoVanBangTinh } from '../lib/permissions';
 import NutSaoChepLienKet from './NutSaoChepLienKet';
@@ -237,9 +237,20 @@ export default function ModuleDanhSachTinhGia({
         <td className="qrev-cell-sale" title={h.customer}>{rutGonTenKhachHang(h.customer)}</td>
         <td className="qrev-cell-sale">
           {h.sellerName ? (
-            <span className="qrev-user-avatar" style={{ background: layMauAvatar(h.sellerName) }} title={h.sellerName}>
-              {layChuCaiDau(h.sellerName)}
-            </span>
+            resolveServiceLtsUrl(h.sellerAvatarUrl) ? (
+              <img
+                src={resolveServiceLtsUrl(h.sellerAvatarUrl) ?? ''}
+                alt={h.sellerName}
+                className="qrev-user-avatar"
+                style={{ objectFit: 'cover', background: 'transparent' }}
+                title={h.sellerName}
+                onError={(e) => { (e.currentTarget.style.display = 'none'); }}
+              />
+            ) : (
+              <span className="qrev-user-avatar" style={{ background: layMauAvatar(h.sellerName) }} title={h.sellerName}>
+                {layChuCaiDau(h.sellerName)}
+              </span>
+            )
           ) : '—'}
         </td>
         <td className="qrev-cell-date" title={h.updatedAt && h.createdAt && h.updatedAt !== h.createdAt ? `Cập nhật: ${dinhDangNgayTaoLichSu({ ...h, createdAt: h.updatedAt })}` : undefined}>

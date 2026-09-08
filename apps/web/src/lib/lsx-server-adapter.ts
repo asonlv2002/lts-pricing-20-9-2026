@@ -41,6 +41,8 @@ export interface LsxRow {
   createdBy: string;
   /** Tên người lập LSX — từ order.inputValue.preparedBy (fallback actorName quotation). */
   nguoiLap: string;
+  /** Avatar URL tương đối người lập — từ order/q.original.actorAvatarUrl (BE d8e36f8). */
+  nguoiLapAvatar: string | null;
   inputValue: unknown | null;
   pricingSheet: PricingSheetApi;
   bgName: string;             // Lay tu quotation.description
@@ -125,6 +127,10 @@ export function mapServerOrdersToLsxRows(
         createdBy: order.createdBy,
         nguoiLap: docNguoiLapTuInputValue(order.inputValue)
           || (typeof q.original?.actorName === 'string' ? q.original.actorName : ''),
+        nguoiLapAvatar:
+          order.original?.actorAvatarUrl
+          ?? q.original?.actorAvatarUrl
+          ?? null,
         inputValue: order.inputValue,
         pricingSheet: sheet as PricingSheetApi,
         bgName: q.description || '',

@@ -16,6 +16,8 @@ export type AuditChangedField = {
 export type AuditSummary = {
   actionLabel: string;
   actorName: string;
+  /** Avatar URL tương đối người thao tác — từ entry.userAvatarUrl (BE d8e36f8). */
+  actorAvatarUrl?: string;
   targetName: string;
   description: string;
   compactFields: string[];
@@ -470,6 +472,7 @@ export function getAuditSummary(
     return {
       actionLabel,
       actorName,
+      actorAvatarUrl: entry.userAvatarUrl,
       targetName,
       description: parts.join(" · ") || "Không có thay đổi người phụ trách",
       compactFields: [],
@@ -487,6 +490,7 @@ export function getAuditSummary(
     return {
       actionLabel,
       actorName,
+      actorAvatarUrl: entry.userAvatarUrl,
       targetName,
       description: `Tạo hồ sơ khách hàng ${targetName}`,
       compactFields,
@@ -501,6 +505,7 @@ export function getAuditSummary(
   return {
     actionLabel,
     actorName,
+    actorAvatarUrl: entry.userAvatarUrl,
     targetName,
     description: fields.length
       ? `Cập nhật ${fields.length} thông tin${fieldNames ? `: ${fieldNames}` : ""}`

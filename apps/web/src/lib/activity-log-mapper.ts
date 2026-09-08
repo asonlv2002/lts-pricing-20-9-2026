@@ -111,15 +111,19 @@ function trichTargetName(log: ActivityLogServerApi): string | undefined {
 // ── original (snapshot hiển thị từ backend) ────────────────────────────────
 export function trichOriginal(metadata: Record<string, unknown> | null | undefined): {
   actorName?: string;
+  actorAvatarUrl?: string;
   customerName?: string;
 } {
   if (!metadata || typeof metadata !== 'object') return {};
   const original = metadata.original;
   if (!original || typeof original !== 'object') return {};
   const src = original as Record<string, unknown>;
-  const result: { actorName?: string; customerName?: string } = {};
+  const result: { actorName?: string; actorAvatarUrl?: string; customerName?: string } = {};
   if (typeof src.actorName === 'string' && src.actorName.trim()) {
     result.actorName = normalizeDisplayText(src.actorName).trim();
+  }
+  if (typeof src.actorAvatarUrl === 'string' && src.actorAvatarUrl.trim()) {
+    result.actorAvatarUrl = src.actorAvatarUrl.trim();
   }
   if (typeof src.customerName === 'string' && src.customerName.trim()) {
     result.customerName = normalizeDisplayText(src.customerName).trim();
@@ -170,6 +174,7 @@ export function mapActivityLogServer(
     timestamp: log.createdAt,
     userId: log.actorId ?? '',
     userName: actor?.fullName || original.actorName || '',
+    userAvatarUrl: original.actorAvatarUrl,
     action: phanTichActionReviewQuotation(log),
     targetType: chuyenResourceType(log.resourceType),
     targetId: log.resourceId ?? '',

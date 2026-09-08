@@ -50,6 +50,7 @@ import {
   customerDecideBaoGiaService,
   xoaBaoGiaService,
   chuyenTrangThaiBaoGia,
+  resolveServiceLtsUrl,
   type BaoGiaApi,
   type PricingSheetApi,
   type TrangThaiBaoGiaServer,
@@ -149,6 +150,10 @@ function tuKhoaBaoGia(bg: BaoGiaApi): string {
 
 function nguoiTaoBaoGia(bg: BaoGiaApi): string | undefined {
   return bg.original?.actorName ?? undefined;
+}
+
+function nguoiTaoAvatarBaoGia(bg: BaoGiaApi): string | null {
+  return resolveServiceLtsUrl(bg.original?.actorAvatarUrl ?? null);
 }
 
 /** Đếm phản hồi khách theo từng pricing sheet. */
@@ -729,6 +734,7 @@ export default function ModuleDuyetBaoGia({
                 {ketQua.map((bg) => {
                   const trangThai = chuyenTrangThaiBaoGia(bg.updateStatus);
                   const saleName = nguoiTaoBaoGia(bg);
+                  const saleAvatar = nguoiTaoAvatarBaoGia(bg);
                   const isExpanded = expandedId === bg.id;
                   const laCreator = bg.createdBy === nguoiDung?.id;
                   const sheets = bg.pricingSheets ?? [];
@@ -765,7 +771,23 @@ export default function ModuleDuyetBaoGia({
                         </div>
                       </td>
                       <td className="qrev-cell-sale">
-                        {saleName ? normalizeDisplayText(saleName) : "—"}
+                        {saleName ? (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                            {saleAvatar ? (
+                              <img
+                                src={saleAvatar}
+                                alt={saleName}
+                                className="qrev-user-avatar"
+                                style={{ objectFit: 'cover', background: 'transparent' }}
+                                title={saleName}
+                                onError={(e) => { (e.currentTarget.style.display = 'none'); }}
+                              />
+                            ) : null}
+                            {normalizeDisplayText(saleName)}
+                          </span>
+                        ) : (
+                          "—"
+                        )}
                       </td>
                       <td className="qrev-cell-date">
                         {dinhDangNgay(bg.updatedAt)}

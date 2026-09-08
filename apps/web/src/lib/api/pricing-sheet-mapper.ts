@@ -231,6 +231,7 @@ export function mapPricingSheetToHistory(
     originalCustomer: sheet.customerCodeName || sheet.customer?.codeName || syncedInput.customer || undefined,
     sellerId: sheet.createdBy ?? undefined,
     sellerName: sheet.original?.actorName ?? undefined,
+    sellerAvatarUrl: sheet.original?.actorAvatarUrl ?? undefined,
     deletable: sheet.original?.deletable,
     canUpdate: sheet.original?.canUpdate,
     canAdminUpdate: sheet.original?.canAdminUpdate,

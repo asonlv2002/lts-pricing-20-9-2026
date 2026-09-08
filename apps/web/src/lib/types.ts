@@ -697,6 +697,8 @@ export interface AuditEntry {
   timestamp: string;
   userId: string;
   userName: string;
+  /** Avatar URL tương đối người thao tác — từ activity_log.metadata.original.actorAvatarUrl (BE d8e36f8). */
+  userAvatarUrl?: string;
   action: AuditAction;
   targetType: 'history' | 'quote' | 'customer' | 'order' | 'config' | 'permission';
   targetId: string;
@@ -846,6 +848,8 @@ export interface HistoryItem {
   isQuote?: boolean;
   sellerId?: string;
   sellerName?: string;
+  /** Avatar URL tương đối người tạo pricing sheet — từ sheet.original.actorAvatarUrl (BE d8e36f8). */
+  sellerAvatarUrl?: string;
   saleOverrides?: OverrideTable;
   adminOverrides?: OverrideTable;
   saleProfitRatePct?: number;

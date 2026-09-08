@@ -34,6 +34,7 @@ import {
   luuNguoiPhuTrachKhachHangService,
   luuThongTinKhachHangService,
   taoMaKhachHangService,
+  resolveServiceLtsUrl,
 } from '../lib/api/service-lts';
 import {
   docKhachHangIdTuPathname,
@@ -1536,8 +1537,22 @@ function CustomerAuditTab({ auditLog, customers, users, currentUser }: { auditLo
                           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground,#111)' }}>{summary.targetName}</span>
                           <span style={{ fontSize: 12, color: 'var(--muted,#6b7280)', marginLeft: 'auto' }}>{new Date(e.timestamp).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--muted,#6b7280)', marginTop: 3, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                          <span><User size={11} style={{ display: 'inline', verticalAlign: 'middle' }}/> {summary.actorName}</span>
+                        <div style={{ fontSize: 12, color: 'var(--muted,#6b7280)', marginTop: 3, display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {(() => {
+                            const avatarUrl = resolveServiceLtsUrl(summary.actorAvatarUrl);
+                            return avatarUrl ? (
+                              <img
+                                src={avatarUrl}
+                                alt={summary.actorName}
+                                style={{ width: 16, height: 16, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, background: 'transparent' }}
+                                title={summary.actorName}
+                                onError={(e) => { (e.currentTarget.style.display = 'none'); }}
+                              />
+                            ) : (
+                              <User size={11} style={{ display: 'inline', verticalAlign: 'middle', flexShrink: 0 }} />
+                            );
+                          })()}
+                          <span>{summary.actorName}</span>
                           {e.note && <span>· {e.note}</span>}
                         </div>
                         <div className="crm2-audit-summary-text">{summary.description}</div>

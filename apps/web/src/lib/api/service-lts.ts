@@ -14,6 +14,13 @@ export const SERVICE_LTS_DIRECT_URL =
 export const SERVICE_LTS_SIGNATURE_BASE =
   process.env.NEXT_PUBLIC_SERVICE_LTS_SIGNATURE_BASE
   ?? "https://lts-dev-server.zealstudiojsc.com";
+/** Trả URL tuyệt đối cho path tương đối do server trả về (vd `/auth/avatars/<token>.webp`).
+ *  Nếu path đã là http(s) thì giữ nguyên; null/empty trả về null để UI fallback. */
+export function resolveServiceLtsUrl(urlOrPath: string | null | undefined): string | null {
+  if (!urlOrPath) return null;
+  if (/^https?:\/\//i.test(urlOrPath)) return urlOrPath;
+  return `${SERVICE_LTS_DIRECT_URL}${urlOrPath.startsWith("/") ? urlOrPath : `/${urlOrPath}`}`;
+}
 export const LS_ACCESS_TOKEN = "lts_service_access_token";
 export const LS_REFRESH_TOKEN = "lts_service_refresh_token";
 /** Cache policies theo userId — JWT không chứa policies; tránh gọi GET /auth/accounts lúc login. */
@@ -1620,6 +1627,7 @@ export interface PricingSheetApi {
   priceConfigIds?: string[];
   original?: {
     actorName?: string | null;
+    actorAvatarUrl?: string | null;
     customerName?: string | null;
     deletable?: boolean;
     canUpdate?: boolean;
@@ -1932,7 +1940,7 @@ export interface BaoGiaApi {
   reviewerId?: string | null;
   reviewerSignatureUrl?: string | null;
   pricingSheets?: PricingSheetApi[];
-  original?: { actorName?: string | null; deletable?: boolean; canUpdate?: boolean } | null;
+  original?: { actorName?: string | null; actorAvatarUrl?: string | null; deletable?: boolean; canUpdate?: boolean } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -2334,8 +2342,13 @@ export interface QuotationPricingSheetOrderApi {
   approvedBy: string | null;
   createdAt: string;
   pricingSheet?: PricingSheetApi | null;
-  /** Phần "original" server gắn thêm — chữ ký người duyệt LSX (approver). */
-  original?: { approverSignatureUrl?: string | null } | null;
+  /** Phần "original" server gắn thêm — chữ ký người duyệt LSX (approver),
+   *  tên + avatar người tạo báo giá (BE commit e9bebac + d8e36f8). */
+  original?: {
+    actorName?: string | null;
+    actorAvatarUrl?: string | null;
+    approverSignatureUrl?: string | null;
+  } | null;
 }
 
 /** Một quotation gom các orders của nó. Dùng cho list view. */
@@ -2352,7 +2365,7 @@ export interface QuotationPricingSheetOrdersByQuotationApi {
   createdAt: string;
   updatedAt: string;
   orders: QuotationPricingSheetOrderApi[];
-  original?: { actorName?: string | null; deletable?: boolean; canUpdate?: boolean } | null;
+  original?: { actorName?: string | null; actorAvatarUrl?: string | null; deletable?: boolean; canUpdate?: boolean } | null;
 }
 
 /** Response của POST /quotations/{id}/create-orders. */

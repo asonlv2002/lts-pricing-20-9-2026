@@ -17,6 +17,7 @@ import { coQuyenDuyetLsx } from '../lib/permissions';
 import {
   listQuotationPricingSheetOrdersService,
   updateOrderApprovalService,
+  resolveServiceLtsUrl,
   type QuotationPricingSheetOrderApi,
   type QuotationPricingSheetOrdersByQuotationApi,
   type PricingSheetApi,
@@ -412,13 +413,24 @@ export default function ModuleDanhSachLSX({
                       </td>
                       <td className="qrev-cell-sale">
                         {row.nguoiLap ? (
-                          <span
-                            className="qrev-user-avatar"
-                            style={{ background: layMauAvatar(row.nguoiLap) }}
-                            title={row.nguoiLap}
-                          >
-                            {layChuCaiDau(row.nguoiLap)}
-                          </span>
+                          resolveServiceLtsUrl(row.nguoiLapAvatar) ? (
+                            <img
+                              src={resolveServiceLtsUrl(row.nguoiLapAvatar) ?? ''}
+                              alt={row.nguoiLap}
+                              className="qrev-user-avatar"
+                              style={{ objectFit: 'cover', background: 'transparent' }}
+                              title={row.nguoiLap}
+                              onError={(e) => { (e.currentTarget.style.display = 'none'); }}
+                            />
+                          ) : (
+                            <span
+                              className="qrev-user-avatar"
+                              style={{ background: layMauAvatar(row.nguoiLap) }}
+                              title={row.nguoiLap}
+                            >
+                              {layChuCaiDau(row.nguoiLap)}
+                            </span>
+                          )
                         ) : (
                           '—'
                         )}
