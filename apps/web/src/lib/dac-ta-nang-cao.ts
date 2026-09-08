@@ -85,7 +85,7 @@ export interface DongVatLieuNangCao {
   phiHao: number | null;
   dauVaoNVL: number | null;
   giaNVL: number | null;
-  /** Đơn vị hiển thị của giaNVL — 'kg' cho vật liệu màng, null khi không áp dụng */
+  /** Đơn vị hiển thị của giaNVL — 'kg' cho vật liệu màng, 'm' cho zipper, null khi không áp dụng */
   donViGiaNVL: 'kg' | 'm' | null;
   cpVatLieu: number | null;
   thanhTienNVL: number | null;
@@ -418,6 +418,23 @@ export function chuanBiUniRowsNangCao(params: {
 }
 
 /**
+ * Thành tiền Zipper (nâng cao) = Đầu vào NVL làm túi × giá zipper (đ/m).
+ * ĐV đã = TP + PH (TP neo từ đơn hoặc ghi đè) — không nhân divideElements.
+ * Hiện trên dòng Làm túi; KHÔNG cộng vào giá đề xuất (trừ GC "chưa gộp zipper").
+ */
+export function tinhTienZipperNangCao(
+  dauVaoNvlLamTui: number,
+  _input: { hasDivide?: boolean; divideElements?: number; hasZipper?: boolean } | null | undefined,
+  hangSo: AppConstants,
+  coZipper: boolean,
+): number {
+  if (!coZipper) return 0;
+  const met = Math.max(0, so(dauVaoNvlLamTui));
+  const gia = Math.max(0, so(hangSo?.zipperPrice)) || 378;
+  return met * gia;
+}
+
+/**
  * Lật mặt (Table 1) — phủ mờ, có mét in, không GC chia.
  * TP = ĐV = Đầu vào ghép (= TP In sau chuỗi lan đúng); PH = 0; tiền = 0.
  */
@@ -547,11 +564,12 @@ function layTpVaKhoNguonChia(
    * Lập các dòng Table 1 từ uniRows + phụ kiện túi.
    * Ghép tách theo lớp (như bảng cũ). Dòng ghép có nhiều vật liệu song song
    * (`materialDetails`) → tách 1 dòng/chi tiết; meters/phi hao lặp lại cấp lớp.
-   * Dòng Làm túi: gộp Băng keo/Quai vào cùng hàng (không tách dòng);
-   * nhãn vật liệu vẫn ghi "Zipper" khi có zipper nhưng KHÔNG cộng tiền zipper
-   * (giá đề xuất đã bỏ tiền zipper; ngoại lệ GC "chưa gộp zipper" tính qua zipperPerUnit engine).
+   * Dòng Làm túi: gộp Zipper/Băng keo/Quai vào cùng hàng (không tách dòng).
+   * Tiền zipper hiện trên dòng nhưng KHÔNG cộng vào giá đề xuất
+   * (ngoại lệ GC "chưa gộp zipper" tính qua zipperPerUnit engine).
  * TP neo = Đầu vào NVL = (SL×bước) ÷ (số con hình ÷ số phần tử chia);
  * hoặc ghi đè meters. PH = định mức trên TP (hoặc ghi đè waste); ĐV = TP + PH.
+ * Zipper = ĐV × giá (đã theo TP/N khi có chia).
  * Phủ mờ: chèn dòng Lật mặt ngay sau In (VL/khổ copy In; chi phí = 0).
  * Có chia: chèn dòng Chia trước Làm túi; TP Chia = ĐV túi; ĐV Chia = TP Chia/N; khổ = khổ chia.
    */
@@ -710,10 +728,23 @@ function layTpVaKhoNguonChia(
       });
       const dauVaoTui = thanhPhamTui + phiHaoTui;
       const khoTui = coChia && !laGcSlit && khoChiaM > 0 ? khoChiaM : (khoHieuDung || null);
-      // Giá đề xuất không còn cộng tiền zipper — dòng Làm túi chỉ gộp tiền Băng keo/Quai.
-      // Ngoại lệ GC "chưa gộp zipper" tính ở tinhKetQuaNangCaoHieuLuc (qua zipperPerUnit engine).
-      const thanhTienPhuKien = tienBangKeo + tienQuai;
-      const ghiChuTui: string | undefined = thanhTienPhuKien > 0 ? 'Băng keo/quai theo tổng engine' : undefined;
+      const tienZipper = tinhTienZipperNangCao(
+        dauVaoTui,
+        result?.input,
+        hangSo,
+        coZipper,
+      );
+      const thanhTienPhuKien = tienZipper + tienBangKeo + tienQuai;
+      const giaZ = Math.max(0, so(hangSo?.zipperPrice)) || 378;
+      let ghiChuTui: string | undefined;
+      if (coZipper) {
+        ghiChuTui = `Zipper = Đầu vào NVL ${dauVaoTui.toLocaleString('vi-VN')} × ${giaZ.toLocaleString('vi-VN')} đ/m`;
+        if (tienBangKeo > 0 || tienQuai > 0) {
+          ghiChuTui += ' · Băng keo/quai theo tổng engine';
+        }
+      } else if (thanhTienPhuKien > 0) {
+        ghiChuTui = 'Băng keo/quai theo tổng engine';
+      }
       return [{
         congDoan: nhanCongDoan(row),
         vatLieu: nhanVatLieuTui ?? (row.mat && row.mat !== '-' ? row.mat : '-'),
@@ -723,8 +754,8 @@ function layTpVaKhoNguonChia(
         thanhPham: thanhPhamTui,
         phiHao: phiHaoTui,
         dauVaoNVL: dauVaoTui,
-        giaNVL: null,
-        donViGiaNVL: null,
+        giaNVL: coZipper ? giaZ : null,
+        donViGiaNVL: coZipper ? ('m' as const) : null,
         cpVatLieu: null,
         thanhTienNVL: thanhTienPhuKien,
         cpMucKeo: null,
@@ -1029,12 +1060,13 @@ export function tinhTongNangCao(
 // ── Kết quả hiệu lực cho tab tính giá nâng cấp ────────────────────────────────
 // Giá mỗi sản phẩm của tab nâng cấp lấy từ TỔNG bảng đặc tả nâng cao (thay thế
 // giá vốn SX của engine):
-//   tongSX = tongGiaThanh − phụ kiện (băng keo/quai) + CP thời gian in màng
+//   tongSX = tongGiaThanh − phụ kiện (zipper/băng keo/quai trên dòng Làm túi)
+//            + CP thời gian in màng
 //   doanhThu = tongSX × (1 + LN%)
 //   giá vốn/đơn vị = doanhThu ÷ số lượng
-//   giá cuối = giá vốn/đơn vị + phụ kiện + thùng + vận chuyển + lãi vay + hoa hồng
-//              + trục phân bổ + phụ phí gia công (KHÔNG có tiền zipper, trừ GC
-//              "chưa gộp zipper" vẫn cộng qua zipperPerUnit engine)
+//   giá cuối = giá vốn/đơn vị + băng keo + quai + thùng + vận chuyển + lãi vay
+//              + hoa hồng + trục phân bổ + phụ phí gia công
+//              (KHÔNG cộng zipper — trừ GC "chưa gộp zipper" qua zipperPerUnit)
 // Override hiệu lực: Admin thắng nếu có, ngược lại Sale (giống bảng ghi đè cũ).
 export interface KetQuaNangCaoHieuLuc {
   /** Clone của result với các field giá thay bằng giá tính từ bảng nâng cao */

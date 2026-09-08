@@ -45,6 +45,7 @@ import {
   expandRoleFormPolicyChoiceCodes,
 } from '../lib/role-policy-form';
 import { coQuyenQuanLyTaiKhoan } from '../lib/permissions';
+import NhapPinXacNhanModal from './auth/NhapPinXacNhanModal';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SAMPLE DATA  — chỉ dùng làm placeholder khi đang tải dữ liệu từ service-lts
@@ -119,6 +120,17 @@ function tenPolicy(code: PolicyCode): string {
   return POLICY_CATALOG.find(p => p.code === code)?.ten ?? code;
 }
 
+function layCpsxUpgradePolicies(user?: TaiKhoan | null): PolicyCode[] {
+  const raw = (user?.priceConfigPolicies ?? [])
+    .find(c => c.configName === 'PRODUCTION_UPGRADE')
+    ?.policies ?? [];
+  return raw.filter((c): c is PolicyCode => typeof c === 'string');
+}
+
+function gopQuyenTaiKhoan(user: TaiKhoan): PolicyCode[] {
+  return [...new Set([...user.policies, ...layCpsxUpgradePolicies(user)])];
+}
+
 function moTaPolicy(code: PolicyCode): string {
   return POLICY_CATALOG.find(p => p.code === code)?.moTa ?? code;
 }
@@ -187,7 +199,7 @@ function HangTaiKhoan({ user, daChon, onClick }: { user: TaiKhoan; daChon: boole
       <div className="pq-row__meta">
         <span className={`pq-dot ${user.isActive ? 'pq-dot--on' : 'pq-dot--off'}`} />
         <span className="pq-row__count">
-          {user.policies.length}<span className="pq-row__count-sub">/{POLICY_CATALOG_UI.length}</span>
+          {gopQuyenTaiKhoan(user).length}<span className="pq-row__count-sub">/{POLICY_CATALOG_UI.length}</span>
         </span>
       </div>
       <ChevronRight size={15} className="pq-row__chev" />
@@ -462,12 +474,7 @@ function InspectorTaiKhoan({
     );
   }
 
-  const savedCpsx = new Set(
-    (user.priceConfigPolicies ?? [])
-      .find(c => c.configName === "PRODUCTION_UPGRADE")
-      ?.policies ?? []
-  );
-  const savedAll: PolicyCode[] = [...user.policies, ...Array.from(savedCpsx) as PolicyCode[]];
+  const savedAll = gopQuyenTaiKhoan(user);
   const savedPolicySet = new Set(savedAll);
   const draftPolicySet = new Set(draftPolicies);
   const soQuyenThem = draftPolicies.filter(code => !savedPolicySet.has(code)).length;
@@ -504,7 +511,7 @@ function InspectorTaiKhoan({
       {/* Stats */}
       <div className="pq-stats">
         <div className="pq-stat">
-          <div className="pq-stat__num">{user.policies.length}/{POLICY_CATALOG_UI.length}</div>
+          <div className="pq-stat__num">{draftPolicies.length}/{POLICY_CATALOG_UI.length}</div>
           <div className="pq-stat__lbl">Quyền đã cấp</div>
         </div>
         <div className="pq-stat">
@@ -565,7 +572,7 @@ function InspectorTaiKhoan({
               <div className="pq-policy-group__head">
                 <span className="pq-policy-group__name">{nhom}</span>
                 <span className="pq-policy-group__count">
-                  {ds.filter(p => user.policies.includes(p.code)).length}/{ds.length}
+                  {ds.filter(p => draftPolicySet.has(p.code)).length}/{ds.length}
                 </span>
               </div>
               <div className="pq-policy-list pq-policy-list--compact">
@@ -850,7 +857,7 @@ function ViewMaTran({ users, roles }: { users: TaiKhoan[]; roles: VaiTro[] }) {
         phu: `@${u.account}`,
         avatar: layChuCaiDau(u.fullName),
         avatarColor: layMauAvatar(u.fullName),
-        policies: u.policies,
+        policies: gopQuyenTaiKhoan(u),
         hoatDong: u.isActive,
       }))
     : roles.map(r => ({
@@ -989,18 +996,15 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
   const [moFormTaoTaiKhoan, setMoFormTaoTaiKhoan] = useState(false);
   const [taiKhoanMoi, setTaiKhoanMoi] = useState({ account: '', fullName: '', password: '', anhDaiDien: '', ngaySinh: '', gioiTinh: '', soDienThoai: '', email: '' });
   const [draftPolicies, setDraftPolicies] = useState<PolicyCode[]>([]);
+  /** Mở modal nhập PIN xác nhận trước khi lưu thay đổi quyền. */
+  const [nhapPinXacNhan, setNhapPinXacNhan] = useState(false);
 
   const userDangChon = users.find(u => u.id === chonId) ?? users[0];
 
   useEffect(() => {
     // draftPolicies = policies thường (từ user.policies) + CPSX policies (từ user.priceConfigPolicies)
     const base = userDangChon?.policies ?? [];
-    const cpsxFromUser = (userDangChon?.priceConfigPolicies ?? [])
-      .find(c => c.configName === "PRODUCTION_UPGRADE")
-      ?.policies ?? [];
-    const cpsxCodes = cpsxFromUser.filter(
-      (c): c is PolicyCode => typeof c === 'string',
-    );
+    const cpsxCodes = layCpsxUpgradePolicies(userDangChon);
     setDraftPolicies(prev => {
       const merged = [
         ...prev.filter(p => !laPolicyCpsxUpgrade(p) && base.includes(p)),
@@ -1171,14 +1175,17 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
 
   const huyThayDoiQuyen = () => {
     const base = userDangChon?.policies ?? [];
-    const cpsxFromUser = (userDangChon?.priceConfigPolicies ?? [])
-      .find(c => c.configName === "PRODUCTION_UPGRADE")
-      ?.policies ?? [];
-    const cpsxCodes = cpsxFromUser.filter(
-      (c): c is PolicyCode => typeof c === 'string',
-    );
-    setDraftPolicies([...base, ...cpsxCodes]);
+    setDraftPolicies([...base, ...layCpsxUpgradePolicies(userDangChon)]);
     setLoiApi(null);
+  };
+
+  const moModalPinXacNhan = () => {
+    if (!userDangChon) return;
+    if (!userDangChon.isActive) {
+      setLoiApi('Tài khoản này đã dừng hoạt động.');
+      return;
+    }
+    setNhapPinXacNhan(true);
   };
 
   const luuThayDoiQuyen = async () => {
@@ -1192,9 +1199,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
 
     // ── Nguồn gốc: policy thường ở user.policies; key CPSX ở user.priceConfigPolicies ──
     const savedRegular = new Set(userDangChon.policies);
-    const cpsxHienCo = (userDangChon.priceConfigPolicies ?? [])
-      .find(c => c.configName === "PRODUCTION_UPGRADE")
-      ?.policies ?? [];
+    const cpsxHienCo = layCpsxUpgradePolicies(userDangChon);
     const savedCpsx = new Set(cpsxHienCo);
 
     // Policy thường: cấp = có trong draft, không có trong saved; thu hồi = ngược lại.
@@ -1352,7 +1357,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
                 user={userDangChon}
                 draftPolicies={draftPolicies}
                 onToggleDraftPolicy={toggleDraftPolicy}
-                onSavePolicyChanges={luuThayDoiQuyen}
+                onSavePolicyChanges={moModalPinXacNhan}
                 onCancelPolicyChanges={huyThayDoiQuyen}
                 onApplyTemplate={applyTemplate}
                 onToggleActive={xuLyToggleActive}
@@ -1438,6 +1443,22 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
           </form>
         </div>
       )}
+
+      <NhapPinXacNhanModal
+        open={nhapPinXacNhan}
+        title="Xác nhận lưu thay đổi quyền"
+        message={
+          userDangChon
+            ? `Bạn sắp cập nhật quyền cho tài khoản @${userDangChon.account}. Nhập mã PIN 6 số để xác nhận.`
+            : 'Nhập mã PIN 6 số để xác nhận.'
+        }
+        confirmLabel="Xác nhận lưu"
+        onConfirm={async () => {
+          setNhapPinXacNhan(false);
+          await luuThayDoiQuyen();
+        }}
+        onClose={() => setNhapPinXacNhan(false)}
+      />
 
     </div>
   );
