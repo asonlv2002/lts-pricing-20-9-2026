@@ -17,6 +17,7 @@ import { taiTruocThuVienNang } from '../lib/preload-heavy';
 import { tinhGiaThuongMai } from '../lib/engine';
 import { layDonViTinh } from '../lib/pricing-display';
 import { tinhGiaDeXuatHienThi, coDongBangGiaDeXuat } from '../lib/gia-de-xuat-hien-thi';
+import { boSungVatLieuMacDinhThieu } from '../store/helpers';
 
 // ── Format helper ─────────────────────────────────────────────────────────────
 function dinhDangSo(n: number, soLe = 0): string {
@@ -408,6 +409,8 @@ export default function TrangChinh() {
               largeCol2: row.largeCol2,
             }));
           }
+          // Bổ sung vật liệu mặc định còn thiếu (PA 0-3/4-6/7-9 màu...) sau khi merge LS.
+          vatLieuMoi = boSungVatLieuMacDinhThieu(vatLieuMoi);
           return { ...s, materials: vatLieuMoi, smallWidthPrices: giaKhoNhoMoi, constants: hangSoMoi, profitTable: loiNhuanMoi };
         });
         dungCuaHangTinhGia.getState().recalculate();

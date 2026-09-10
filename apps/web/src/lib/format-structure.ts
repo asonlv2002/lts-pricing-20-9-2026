@@ -14,6 +14,10 @@ export function normalizeMaterialBaseName(name: string): string {
     .replace(/\([^)]*\)/g, "")
     .replace(/\bLLDPE_[A-Za-z0-9_]+/gi, "LLDPE")
     .replace(/\bLLDPE\s+\S+/gi, "LLDPE")
+    // PA variants (PA 0-3/4-6/7-9 màu + id PA_0_3/PA_4_6/PA_7_9) — chuẩn hóa về "PA"
+    // khớp pattern LLDPE. Khi có variant mới, thêm vào white-list.
+    .replace(/\bPA\s+(?:0-3|4-6|7-9)\s+m[àa]u/gi, "PA")
+    .replace(/\bPA_[A-Za-z0-9_]+/gi, "PA")
     .replace(/\s{2,}/g, " ")
     .trim();
 }

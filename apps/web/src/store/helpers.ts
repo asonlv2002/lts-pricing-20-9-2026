@@ -118,3 +118,16 @@ export function loadCustomers(): CustomerQuick[] {
       return true;
     });
 }
+
+// ── Bổ sung vật liệu mặc định còn thiếu ────────────────────────────────────
+// Dùng sau LS-hydrate và sau bootstrap apply BE:
+// nếu materials hiện tại (do BE snapshot cũ / LS chưa có) thiếu id mặc định,
+// append từ INITIAL_MATERIALS. Không ghi đè item đã có (giữ override LS/BE).
+// Tránh re-seed xóa vật liệu admin đã xóa bằng cách trả về cùng tham chiếu
+// nếu không có thay đổi (caller dùng === để skip setState).
+export function boSungVatLieuMacDinhThieu(materials: Material[]): Material[] {
+  const have = new Set(materials.map(m => m.id));
+  const thieu = INITIAL_MATERIALS.filter(m => !have.has(m.id));
+  if (thieu.length === 0) return materials;
+  return [...materials, ...thieu];
+}

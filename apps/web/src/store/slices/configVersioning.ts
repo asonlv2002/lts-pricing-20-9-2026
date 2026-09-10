@@ -3,7 +3,7 @@ import type { CuaHangTinhGia } from '../CuaHangTinhGia';
 import type { ConfigSnapshot, ConfigScope, AppConstants } from '../../lib/types';
 import type { PolicyCode } from '../../lib/api/service-lts';
 import { INITIAL_CONFIG_SNAPSHOTS } from '../../lib/data';
-import { luuLocalStorage, LS_CONFIG_SNAPSHOTS } from '../helpers';
+import { luuLocalStorage, LS_CONFIG_SNAPSHOTS, boSungVatLieuMacDinhThieu } from '../helpers';
 import {
   upsertPriceConfigService,
   upsertProductionUpgradePriceConfigService,
@@ -364,6 +364,13 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
         }
         // Snapshot session sau khi apply latest — pin sheet restore về đây
         get().luuSessionConfigSnapshot();
+        // Bổ sung vật liệu mặc định còn thiếu (PA 0-3/4-6/7-9 màu...) nếu BE
+        // snapshot cũ chưa có (user đã login với config BE phiên bản cũ).
+        const live = get();
+        const vlSau = boSungVatLieuMacDinhThieu(live.materials);
+        if (vlSau !== live.materials) {
+          set({ materials: vlSau });
+        }
       } catch (e) {
         console.warn('Tải cấu hình mới nhất thất bại:', e);
       } finally {
