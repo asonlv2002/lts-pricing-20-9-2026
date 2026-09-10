@@ -20,6 +20,36 @@
     "inkPricePerColor": 140
   },
   {
+    "id": "PA_0_3",
+    "name": "PA 0-3 màu",
+    "density": 1.16,
+    "thickness": 15,
+    "pricePerKg": 83333,
+    "isPETorPA": true,
+    "rollLength": 6000,
+    "inkPricePerColor": 140
+  },
+  {
+    "id": "PA_4_6",
+    "name": "PA 4-6 màu",
+    "density": 1.16,
+    "thickness": 15,
+    "pricePerKg": 83333,
+    "isPETorPA": true,
+    "rollLength": 6000,
+    "inkPricePerColor": 140
+  },
+  {
+    "id": "PA_7_9",
+    "name": "PA 7-9 màu",
+    "density": 1.16,
+    "thickness": 15,
+    "pricePerKg": 83333,
+    "isPETorPA": true,
+    "rollLength": 6000,
+    "inkPricePerColor": 140
+  },
+  {
     "id": "LLDPE",
     "name": "LLDPE thường",
     "density": 0.925,
