@@ -366,9 +366,9 @@ export const createConfigVersioningSlice: StateCreator<CuaHangTinhGia, [], [], C
         get().luuSessionConfigSnapshot();
         // Bổ sung vật liệu mặc định còn thiếu (PA 0-3/4-6/7-9 màu...) nếu BE
         // snapshot cũ chưa có (user đã login với config BE phiên bản cũ).
-        const live = get();
-        const vlSau = boSungVatLieuMacDinhThieu(live.materials);
-        if (vlSau !== live.materials) {
+        const liveAfter = get();
+        const vlSau = boSungVatLieuMacDinhThieu(liveAfter.materials);
+        if (vlSau !== liveAfter.materials) {
           set({ materials: vlSau });
         }
       } catch (e) {
