@@ -139,4 +139,83 @@ Khi user nói "Xem BE" (hoặc biến thể: "xem backend", "mở BE", "xem code
 - Upsert migrate kèm DEFAULT/session.  
 - Coi localStorage là chân lý CPSX NC khi user đã đăng nhập.
 
+## Mandatory Rule: Thêm NVL mới (nút "Cập nhật <tên>") (từ 10/09/2026)
+
+> Khi cần thêm NVL mới (vd: PA 0-3/4-6/7-9 màu, biến thể LLDPE, màng mới…), **TUÂN THỦ pattern nút "Cập nhật <tên>" trong tab Vật liệu**. Tính chất đặc biệt của NVL (normalize tên, group, formula riêng, ink map…) sẽ code ở commit/bước sau — **không nhét vào lúc thêm**.
+
+### Pattern thêm NVL (bắt buộc)
+
+1. **Thêm entry vào 3 file JSON** (đồng bộ SoT):
+   - `data/materials.json` (SoT cho web)
+   - `apps/flutter_app/assets/data/materials.json` (Flutter assets)
+   - `packages/hang-so/src/du-lieu/vat-lieu.json` (RN `VAT_LIEU_MAC_DINH`)
+
+   Trường tối thiểu: `id`, `name`, `density`, `thickness`, `pricePerKg`, `isPETorPA`, `rollLength`, `inkPricePerColor`. Thêm `group` / `adjustableMic` nếu cần.
+
+2. **Thêm nút "Cập nhật <tên>" trong `apps/web/src/components/TrangCauHinh.tsx`**:
+   - Đặt trong thanh tiêu đề card "📦 Giá Nguyên Vật Liệu Cập Nhật Hàng Ngày", ngay sau nút "🔄 Reset mặc định".
+   - **Điều kiện hiển thị**: `!chiDoc` (user có `PRICE_CONFIG_MANAGER`) VÀ còn thiếu ≥ 1 NVL.
+   - **Disable khi**: `dangLuuPhienBan` đang true → text "Đang lưu...".
+
+3. **Click → mở `ConfirmDialog`** (`apps/web/src/components/ConfirmDialog.tsx`):
+   - Title: "Cập nhật <tên> mới"
+   - Message liệt kê NVL sẽ thêm (tên, độ dày, tỉ trọng, giá/kg) + tháng hiệu lực
+   - Confirm: "Cập nhật" / Cancel: "Hủy"
+
+4. **Confirm → thực hiện 2 bước** (cẩn thận: **KHÔNG** gọi raw `setState` trên kết quả `getState()` — Zustand không expose `setState` trên state object):
+   ```ts
+   for (const nv of dsThieu) themVatLieu(nv);             // addMaterial — tự tạo smallWidthPrices row
+   await taoPhienBanDinhMuc({
+     scope: "materials",
+     name: "Thêm <tên>...",
+     effectiveMode: "month",
+     effectiveFrom: thangHienTai,
+   });
+   hienToast(`Đã thêm ${soLuong} <tên> mới và lưu phiên bản tháng ${thangHienTai}.`, { loai: "success" });
+   ```
+
+5. **State + derived** (theo mẫu):
+   ```ts
+   const [moXacNhan, datMoXacNhan] = React.useState(false);
+   const dsMacDinh = React.useMemo(
+     () => (INITIAL_MATERIALS as Material[]).filter(m =>
+       m.id === "<id_1>" || m.id === "<id_2>" || ...),
+     [],
+   );
+   const idHienCo = React.useMemo(() => new Set(vatLieu.map(m => m.id)), [vatLieu]);
+   const dsThieu = dsMacDinh.filter(m => !idHienCo.has(m.id));
+   const soLuongThem = dsThieu.length;
+   ```
+
+### Tính chất NVL sẽ code SAU (tách riêng, không nhét vào bước thêm)
+
+- **Normalize tên hiển thị** (vd: Báo giá/LSX/PDF gọn "PA" thay vì "PA 0-3 màu") → `normalizeMaterialBaseName` trong `apps/web/src/lib/format-structure.ts`
+- **Group / phân nhóm** (vd: `chonNhomMuc` để chọn bảng giá mực theo số màu)
+- **Formula riêng** trong `packages/bang-tinh-gia/...` nếu NVL có logic đặc biệt
+- **Ink map / custom price** nếu cần
+
+Các tính chất này làm ở commit/bước riêng, **sau khi NVL đã được thêm và lưu phiên bản materials thành công lên BE**.
+
+### File chạm chính
+
+| Việc | File |
+|------|------|
+| SoT dữ liệu | `data/materials.json` |
+| Sync Flutter | `apps/flutter_app/assets/data/materials.json` |
+| Sync RN | `packages/hang-so/src/du-lieu/vat-lieu.json` |
+| UI nút Cập nhật + ConfirmDialog | `apps/web/src/components/TrangCauHinh.tsx` |
+| Confirm dialog | `apps/web/src/components/ConfirmDialog.tsx` |
+| Toast thông báo | `apps/web/src/lib/toast.ts` (`hienToast`) |
+| Action thêm NVL | `apps/web/src/store/slices/calculation.ts` (`addMaterial`) |
+| Action lưu phiên bản | `apps/web/src/store/slices/configVersioning.ts` (`taoPhienBanDinhMuc`) |
+| Normalize tên hiển thị (sau) | `apps/web/src/lib/format-structure.ts` (`normalizeMaterialBaseName`) |
+
+### Khi debug "F5 không thấy NVL mới / nút Cập nhật không hiện"
+
+1. `pnpm dev` đã restart sau khi sửa JSON chưa? (Node cache import top-level `INITIAL_MATERIALS`).
+2. Clear Next.js cache: `Remove-Item -Recurse -Force apps\web\.next` rồi restart.
+3. User có policy `PRICE_CONFIG_MANAGER`? (gate `!chiDoc` — không có quyền thì nút ẩn).
+4. `vatLieu` đã có đủ NVL chưa? (đủ rồi → nút ẨN theo design).
+5. Logged-in user F5 vẫn thiếu → bấm nút Cập nhật để tạo phiên bản materials mới lên BE (rule này mới giải quyết dứt điểm case "BE cũ").
+
 
