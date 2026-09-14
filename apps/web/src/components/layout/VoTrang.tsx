@@ -2363,7 +2363,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               policies={policies}
               quickActions={
                 <MobileQuickActions
-                  coNutTaoMoi={false}
+                  coNutTaoMoi={hubMobileDangMo.id === "pricing_quote"}
                   onTaoMoi={moLandingTaoBangTinh}
                   onDoiMatKhau={() => datHienDoiMatKhau(true)}
                   onDoiAnhDaiDien={() => datHienDoiAnhDaiDien(true)}
@@ -2388,17 +2388,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <h1>{tieuDeManHinhMobile}</h1>
                     <p>{tieuDeNhomMobile}</p>
                   </div>
-                  <div className="lts-mobile-module-actions">
-                    <MobileQuickActions
-                      coNutTaoMoi={moduleDangMo === "calculator"}
-                      onTaoMoi={moLandingTaoBangTinh}
-                      onDoiMatKhau={() => datHienDoiMatKhau(true)}
-                      onDoiAnhDaiDien={() => datHienDoiAnhDaiDien(true)}
-                      onDoiPin={() => datHienDoiPin(true)}
-                      onDoiChuKy={() => datHienDoiChuKy(true)}
-                      onDangXuat={() => dungCuaHangTinhGia.getState().logout()}
-                    />
-                  </div>
+                  <span />
                 </header>
               )}
               {moduleDangMo === "calculator" && children}
