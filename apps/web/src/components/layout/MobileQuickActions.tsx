@@ -11,6 +11,7 @@ import {
   Plus,
 } from "lucide-react";
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { dungCuaHangTinhGia } from "../../store/CuaHangTinhGia";
 import { normalizeDisplayText } from "../../lib/text-codec";
 import { useDanhSachThongBao } from "../../lib/thong-bao-mau";
@@ -209,42 +210,44 @@ export default function MobileQuickActions({
         </div>
       </SheetBottom>
 
-      {xacNhanMoi && (
-        <div
-          className="lts-confirm-backdrop"
-          onClick={() => datXacNhanMoi(false)}
-        >
+      {xacNhanMoi &&
+        createPortal(
           <div
-            className="lts-confirm-dialog"
-            onClick={(e) => e.stopPropagation()}
+            className="lts-confirm-backdrop"
+            onClick={() => datXacNhanMoi(false)}
           >
-            <div className="lts-confirm-icon">!</div>
-            <h3 className="lts-confirm-title">Chưa lưu báo giá</h3>
-            <p className="lts-confirm-desc">
-              Bảng tính hiện tại có thay đổi chưa được lưu vào lịch sử.
-              <br />
-              Tạo mới sẽ xóa toàn bộ dữ liệu đang nhập.
-            </p>
-            <div className="lts-confirm-actions">
-              <button
-                className="btn btn-outline"
-                onClick={() => datXacNhanMoi(false)}
-              >
-                Quay lại
-              </button>
-              <button
-                className="btn btn-danger"
-                onClick={() => {
-                  datXacNhanMoi(false);
-                  onTaoMoi();
-                }}
-              >
-                Tạo mới (không lưu)
-              </button>
+            <div
+              className="lts-confirm-dialog"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="lts-confirm-icon">!</div>
+              <h3 className="lts-confirm-title">Chưa lưu báo giá</h3>
+              <p className="lts-confirm-desc">
+                Bảng tính hiện tại có thay đổi chưa được lưu vào lịch sử.
+                <br />
+                Tạo mới sẽ xóa toàn bộ dữ liệu đang nhập.
+              </p>
+              <div className="lts-confirm-actions">
+                <button
+                  className="btn btn-outline"
+                  onClick={() => datXacNhanMoi(false)}
+                >
+                  Quay lại
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={() => {
+                    datXacNhanMoi(false);
+                    onTaoMoi();
+                  }}
+                >
+                  Tạo mới (không lưu)
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </>
   );
 }

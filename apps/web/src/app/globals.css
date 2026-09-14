@@ -6159,9 +6159,6 @@ fieldset.config-cpsx-upgrade__ro[disabled],
   .lts-mobile-hub-content {
     padding-inline: 16px;
   }
-  .lts-mobile-hub-nav {
-    grid-template-columns: none;
-  }
   .lts-mobile-primary-action {
     min-width: 74px;
     padding-inline: 12px;
@@ -14641,6 +14638,10 @@ fieldset.config-cpsx-upgrade__ro[disabled],
 }
 
 /* ═══ BOTTOM SHEET (mobile-only, render dưới .lts-shell--mobile) ═══ */
+/* Wrapper portal ở body: giữ scope .lts-shell--mobile nhưng không sinh box layout */
+.lts-shell--mobile.lts-sheet-portal {
+  display: contents;
+}
 .lts-sheet-backdrop {
   display: none;
 }
