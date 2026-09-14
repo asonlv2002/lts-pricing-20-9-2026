@@ -6172,7 +6172,7 @@ fieldset.config-cpsx-upgrade__ro[disabled],
     font-size: 9px;
   }
   .lts-mobile-module-header {
-    grid-template-columns: 56px minmax(0, auto) 56px;
+    grid-template-columns: 44px minmax(0, auto) auto;
   }
   .lts-mobile-module-title-stack h1,
   .lts-mobile-module-title-stack p {
