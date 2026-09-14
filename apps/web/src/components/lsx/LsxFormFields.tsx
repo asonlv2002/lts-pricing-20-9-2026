@@ -622,7 +622,7 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
   }
 
   return (
-    <div style={{ background: '#fff' }}>
+    <div className="lsx-form-a4" style={{ background: '#fff' }}>
       {/* ═══════ HEADER TABLE ═══════ */}
       <table style={styles.table}>
         <tbody>

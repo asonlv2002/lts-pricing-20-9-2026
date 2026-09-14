@@ -283,6 +283,7 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
     <>
       {/* Overlay */}
       <div
+        className="lsx-slide-backdrop"
         onClick={onClose}
         style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 90 }}
       />
@@ -291,6 +292,7 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
         role="dialog"
         aria-modal="true"
         aria-label={`Sửa LSX ${manual.lsxNumber || order.id}`}
+        className="lsx-slide-panel"
         style={{
           position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(75%, 900px)',
           background: 'var(--surface, #fff)',
@@ -338,7 +340,8 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
         )}
 
         {/* Body scroll */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
+        <div className="lsx-slide-body" style={{ flex: 1, overflowY: 'auto', padding: '12px 16px' }}>
+          <p className="lsx-panel-hint">↔ Vuốt ngang để xem đầy đủ bảng đặc tả LSX</p>
           {/* Section 1+2 read-only */}
           <details open style={{ marginBottom: 12, border: '1px solid var(--border)', borderRadius: 6, padding: '8px 12px', background: 'var(--surface2, #f8f9fb)' }}>
             <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}>
@@ -364,7 +367,7 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
         </div>
 
         {/* Footer: 3 nút góc phải */}
-        <div style={{
+        <div className="lsx-slide-actions" style={{
           display: 'flex', justifyContent: 'flex-end', gap: 10,
           padding: '10px 16px', borderTop: '1px solid var(--border)',
           background: 'var(--surface2, #f8f9fb)', flexShrink: 0,
