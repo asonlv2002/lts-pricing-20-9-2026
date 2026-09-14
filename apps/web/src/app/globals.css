@@ -14999,3 +14999,60 @@ fieldset.config-cpsx-upgrade__ro[disabled],
     grid-template-columns: 1fr;
   }
 }
+
+/* ═══ Họ modal auth (.lts-modal-*) → bottom sheet trên mobile
+   (PIN duyệt, lý do từ chối, đổi MK/PIN/chữ ký/avatar, xác nhận PIN quản trị)
+   Hướng A: chỉ CSS — không đổi JSX/logic; desktop giữ nguyên. ═══ */
+@media (max-width: 767px) {
+  .lts-shell--mobile .lts-modal-overlay {
+    align-items: flex-end;
+  }
+  .lts-shell--mobile .lts-modal-card {
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    max-height: min(82dvh, 760px);
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    border-radius: 18px 18px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+    animation: ltsSheetUp 0.22s ease-out;
+  }
+  .lts-shell--mobile .lts-signature-modal {
+    max-width: 600px;
+  }
+  .lts-shell--mobile .lts-modal-head {
+    flex-shrink: 0;
+    padding: 18px 18px 0;
+  }
+  .lts-shell--mobile .lts-modal-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 18px;
+  }
+  .lts-shell--mobile .lts-modal-foot {
+    flex-shrink: 0;
+    gap: 10px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--border, #e5e7eb);
+    background: var(--surface, #fff);
+  }
+  .lts-shell--mobile .lts-modal-foot .lts-btn {
+    flex: 1 1 auto;
+    justify-content: center;
+    min-height: 44px;
+  }
+  /* 6 ô PIN: co theo màn để không tràn padding (màn 375px) */
+  .lts-shell--mobile .pin-6-o {
+    gap: 6px;
+  }
+  .lts-shell--mobile .pin-6-o-input {
+    width: clamp(34px, 11.5vw, 44px);
+    height: 50px;
+  }
+}
