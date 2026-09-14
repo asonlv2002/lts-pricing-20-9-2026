@@ -39,21 +39,13 @@ import { buildProductionOrderFromSource, lsxSnapshotTuInputValue } from '../lib/
 import { mapBaoGiaToLsxSources } from '../lib/bao-gia-adapter';
 import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../lib/chu-ky';
 import { AvatarBlobImg } from '../lib/avatar-blob-cache';
+import AvatarNguoiLap from './AvatarNguoiLap';
+import { layChuCaiDau, layMauAvatar, rutGonTenKhachHang } from '../lib/ten-hien-thi';
 
 type BoLoc = LsxLocalStatus | 'all';
 type Nguon = 'all' | 'review';
 
-// Avatar chữ cái đầu cho cột "Người lập": 2 chữ cái đầu của 2 từ cuối.
-function layChuCaiDau(s: string | undefined | null): string {
-  return (s ?? '').split(' ').filter(Boolean).slice(-2).map(w => w[0]).join('').toUpperCase();
-}
-
-const MAU_AVATAR = ['#4f46e5', '#0891b2', '#059669', '#d97706', '#db2777', '#7c3aed', '#0ea5e9', '#65a30d'];
-function layMauAvatar(s: string | undefined | null): string {
-  const chuoi = s ?? '';
-  if (!chuoi) return MAU_AVATAR[0];
-  return MAU_AVATAR[Math.abs([...chuoi].reduce((a, c) => a + c.charCodeAt(0), 0)) % MAU_AVATAR.length];
-}
+// Helper tên/avatar hiển thị trên card — dùng chung qua lib/ten-hien-thi.
 
 const CHIP_LABELS: { key: BoLoc; label: string }[] = [
   { key: 'all', label: 'Tất cả' },
@@ -86,6 +78,8 @@ export default function ModuleDanhSachLSX({
   const [thongBao, setThongBao] = useState('');
   const [dangXuLyId, setDangXuLyId] = useState<string | null>(null);
   const [dangTaiXemId, setDangTaiXemId] = useState<string | null>(null);
+  /** card mobile: 1 tooltip avatar người lập mở tại 1 thời điểm. */
+  const [idTipAvatar, datIdTipAvatar] = useState<string | null>(null);
   const [previewLsx, setPreviewLsx] = useState<{ order: any; reviewerSignatureDataUrl?: string | null } | null>(null);
   const [previewLsxPdf, setPreviewLsxPdf] = useState<{ order: any; reviewerSignatureDataUrl?: string | null } | null>(null);
   const [nhapPin, setNhapPin] = useState<{
@@ -362,8 +356,9 @@ export default function ModuleDanhSachLSX({
             <span>Tạo LSX ở mục &ldquo;Tạo lệnh sản xuất&rdquo; trước.</span>
           </div>
         ) : (
+          <>
           <div className="qrev-table-wrap">
-            <table className="qrev-table">
+            <table className="qrev-table qrev-table--lsx">
               <thead>
                 <tr>
                   <th>Số LSX</th>
@@ -497,6 +492,102 @@ export default function ModuleDanhSachLSX({
             </table>
             <div className="qrev-table-bottom-spacer" aria-hidden="true" />
           </div>
+          <div className="qrev-mcard-list" aria-label="Danh sách LSX dạng thẻ">
+            {rowsLoc.map((row) => {
+              const isProcessing = dangXuLyId === row.orderId;
+              const isLoadingView = dangTaiXemId === row.orderId;
+              return (
+                <article
+                  key={row.orderId}
+                  className="qrev-mcard"
+                  onClick={() => !isLoadingView && handleXemRow(row)}
+                  style={{ opacity: isLoadingView ? 0.6 : 1 }}
+                >
+                  <div className="qrev-mcard-r1">
+                    <span className="qrev-mcard-code">
+                      {row.lsxNumber || row.orderId}
+                    </span>
+                    {row.status === 'approved' && (
+                      <span className="qrev-mstatus qrev-mstatus--ok">● Đã duyệt</span>
+                    )}
+                    {row.reason && (
+                      <span className="qrev-mstatus qrev-mstatus--err" title={`Lý do: ${row.reason}`}>
+                        ● Bị từ chối
+                      </span>
+                    )}
+                    {row.status === 'pending' && !row.reason && (
+                      <span className="qrev-mstatus qrev-mstatus--pending">● Chờ duyệt</span>
+                    )}
+                  </div>
+                  <div className="qrev-mcard-customer" title={row.customerName}>
+                    {rutGonTenKhachHang(row.customerName)}
+                  </div>
+                  <div className="qrev-mcard-sub" title={`${row.productName}${row.structure ? ` · ${row.structure}` : ''}`}>
+                    {row.productName}
+                    {row.structure ? ` · ${row.structure}` : ''}
+                  </div>
+                  <div className="qrev-mcard-foot">
+                    <span className="qrev-mcard-left">
+                      <AvatarNguoiLap
+                        ten={row.nguoiLap}
+                        avatarUrl={row.nguoiLapAvatar}
+                        accessToken={accessToken}
+                        id={row.orderId}
+                        idDangMo={idTipAvatar}
+                        onCham={datIdTipAvatar}
+                      />
+                      <span className="qrev-mcard-time">
+                        {new Date(row.createdAt).toLocaleString('vi-VN')}
+                      </span>
+                    </span>
+                    <span className="qrev-mcard-actions" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        className="qrev-btn-icon"
+                        title="Xem LSX"
+                        disabled={isLoadingView}
+                        onClick={() => handleXemRow(row)}
+                      >
+                        {isLoadingView ? <Loader2 size={15} className="um-spin" /> : <Eye size={15} />}
+                      </button>
+                      <NutSaoChepLienKet
+                        url={taoUrlChiaSeLsx(row.orderId)}
+                        variant="qrev"
+                        size={15}
+                      />
+                      <button
+                        className="qrev-btn-icon"
+                        title="Sửa LSX"
+                        onClick={() => handleEditRow(row)}
+                      >
+                        <FileEdit size={15} />
+                      </button>
+                      {row.status === 'pending' && laNguoiDuyet && !row.reason && (
+                        <>
+                          <button
+                            className="qrev-btn-icon qrev-btn-icon--ok"
+                            title="Duyệt"
+                            disabled={isProcessing}
+                            onClick={() => void duyetLsx(row, 'approved')}
+                          >
+                            <CheckCircle2 size={15} />
+                          </button>
+                          <button
+                            className="qrev-btn-icon qrev-btn-icon--danger"
+                            title="Từ chối"
+                            disabled={isProcessing}
+                            onClick={() => void duyetLsx(row, 'rejected')}
+                          >
+                            <XCircle size={15} />
+                          </button>
+                        </>
+                      )}
+                    </span>
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+          </>
         )}
       </div>
 
