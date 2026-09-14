@@ -4946,6 +4946,7 @@ function QuoteDetailPanel({
   onLoadCalc,
   onPatch,
   onStatusUpdate,
+  khiDieuHuong,
 }: {
   item: HistoryItem;
   isAdmin: boolean;
@@ -4961,6 +4962,7 @@ function QuoteDetailPanel({
     muc: HistoryItem,
     status: QuoteStatus,
   ) => Promise<void> | void;
+  khiDieuHuong?: (menuKey: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<QuoteEditDraft>({
@@ -5034,7 +5036,11 @@ function QuoteDetailPanel({
       setConfirmClose(true);
       return;
     }
+    // Không dirty → đóng panel + về `danh-sach-bao-gia` (ModuleDuyetBaoGia thật),
+    // KHÔNG chỉ ẩn panel để lộ ModuleBaoGia cha (4 thẻ stats).
+    dungCuaHangTinhGia.getState().datBaoGiaDangSua(null);
     onClose();
+    khiDieuHuong?.("danh-sach-bao-gia");
   }
 
   function handleSave() {
@@ -5117,13 +5123,24 @@ function QuoteDetailPanel({
               </button>
               <button
                 className="wiz-btn wiz-btn--primary"
-                onClick={() => {
-                  void savePatch(true);
+                onClick={async () => {
+                  await savePatch(true);
+                  // savePatch(true) đã gọi onClose() (ẩn panel) — giờ điều hướng
+                  // về `danh-sach-bao-gia` (ModuleDuyetBaoGia thật).
+                  dungCuaHangTinhGia.getState().datBaoGiaDangSua(null);
+                  khiDieuHuong?.("danh-sach-bao-gia");
                 }}
               >
                 Lưu & đóng
               </button>
-              <button className="wiz-btn wiz-btn--danger" onClick={onClose}>
+              <button
+                className="wiz-btn wiz-btn--danger"
+                onClick={() => {
+                  dungCuaHangTinhGia.getState().datBaoGiaDangSua(null);
+                  onClose();
+                  khiDieuHuong?.("danh-sach-bao-gia");
+                }}
+              >
                 Đóng không lưu
               </button>
             </div>
@@ -5888,6 +5905,8 @@ export default function QuotationModule({
     removeHistoryItem: xoaLichSu,
     wizardNguon,
     datNguonWizard,
+    baoGiaDangSua,
+    datBaoGiaDangSua,
   } = dungCuaHangTinhGia();
   const [search, setSearch] = useState("");
   const [tuNgay, setTuNgay] = useState("");
@@ -6037,7 +6056,12 @@ export default function QuotationModule({
 
   if (showWizard) {
     const handleBackFromWizard = () => {
-      if (wizardNguon === 'duyet') {
+      const dangSuaHienTai = !!baoGiaDangSua;
+      // Nút "← Danh sách báo giá" trong wizard chỉ hiện khi dangSua=true → edit mode.
+      // Khi đó PHẢI về `danh-sach-bao-gia` thật (ModuleDuyetBaoGia), không ẩn wizard
+      // để lộ ModuleBaoGia cha (4 thẻ stats).
+      if (wizardNguon === 'duyet' || dangSuaHienTai) {
+        datBaoGiaDangSua(null);
         khiDieuHuong?.("danh-sach-bao-gia");
       } else {
         setShowWizard(false);
@@ -6164,6 +6188,7 @@ export default function QuotationModule({
             setSelectedItem((prev) => (prev ? { ...prev, ...patch } : prev));
           }}
           onStatusUpdate={capNhatTrangThaiDon}
+          khiDieuHuong={khiDieuHuong}
         />
       )}
 

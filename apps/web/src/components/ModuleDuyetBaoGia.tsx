@@ -222,7 +222,6 @@ export default function ModuleDuyetBaoGia({
 
   const lamMoi = useCallback(async () => {
     if (!isAuthenticated || !accessToken) {
-      datDanhSach([]);
       datLoi("Cần đăng nhập để xem báo giá từ máy chủ.");
       return;
     }
@@ -240,7 +239,6 @@ export default function ModuleDuyetBaoGia({
           ? error.message
           : "Không tải được danh sách báo giá.",
       );
-      datDanhSach([]);
     } finally {
       datDangTai(false);
     }

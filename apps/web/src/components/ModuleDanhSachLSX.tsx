@@ -95,11 +95,9 @@ export default function ModuleDanhSachLSX({
   const [nhapLyDo, setNhapLyDo] = useState<{
     row: LsxRow;
   } | null>(null);
-  const daTaiLanDau = useRef(false);
 
   const lamMoi = useCallback(async () => {
     if (!isAuthenticated || !accessToken) {
-      setDanhSachQuotations([]);
       setLoi('Cần đăng nhập để xem danh sách LSX từ máy chủ.');
       return;
     }
@@ -110,15 +108,12 @@ export default function ModuleDanhSachLSX({
       setDanhSachQuotations(data);
     } catch (error) {
       setLoi(error instanceof Error ? error.message : 'Không tải được danh sách LSX.');
-      setDanhSachQuotations([]);
     } finally {
       setDangTai(false);
     }
   }, [accessToken, isAuthenticated]);
 
   useEffect(() => {
-    if (daTaiLanDau.current) return;
-    daTaiLanDau.current = true;
     void lamMoi();
   }, [lamMoi]);
 

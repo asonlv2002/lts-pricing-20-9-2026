@@ -705,7 +705,11 @@ async function goiRaw(
     headers.set("Content-Type", "application/json");
   }
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  return fetch(`${SERVICE_LTS_DIRECT_URL}${path}`, { ...options, headers });
+  return fetch(`${SERVICE_LTS_DIRECT_URL}${path}`, {
+    ...options,
+    headers,
+    cache: "no-store",
+  });
 }
 
 async function docJson(response: Response): Promise<unknown> {
