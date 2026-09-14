@@ -25,6 +25,7 @@ import {
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { normalizeDisplayText } from "../lib/text-codec";
 import AvatarNguoiLap from "./AvatarNguoiLap";
+import LocSheet from "./LocSheet";
 import { rutGonTenKhachHang } from "../lib/ten-hien-thi";
 import { taoUrlChiaSeBaoGia } from "../lib/bao-gia-route";
 import {
@@ -846,6 +847,7 @@ export default function ModuleDuyetBaoGia({
         </div>
       </header>
 
+      <div className="qrev-loc-bar">
       <div className="qrev-search-bar">
         <Search size={16} className="qrev-search-icon" />
         <input
@@ -866,6 +868,7 @@ export default function ModuleDuyetBaoGia({
         )}
       </div>
 
+      <LocSheet soLuongLoc={(nguon === "review" ? 1 : 0) + (boLoc !== "all" ? 1 : 0)}>
       <div className="qrev-chips">
         {CHIP_LABELS.map((chip) => (
           <button
@@ -896,6 +899,8 @@ export default function ModuleDuyetBaoGia({
             <Inbox size={12} /> Chờ tôi duyệt
           </button>
         )}
+      </div>
+      </LocSheet>
       </div>
 
       {thongBao && <div className="qrev-alert qrev-alert--ok">{thongBao}</div>}

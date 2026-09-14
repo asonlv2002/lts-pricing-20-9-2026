@@ -19,6 +19,7 @@ import type { HistoryItem } from '../lib/types';
 import { dinhDangNgayTaoLichSu, msSapXepLichSu } from '../lib/history-datetime';
 import { AvatarBlobImg } from '../lib/avatar-blob-cache';
 import AvatarNguoiLap from './AvatarNguoiLap';
+import LocSheet from './LocSheet';
 import { layChuCaiDau, layMauAvatar, rutGonTenKhachHang } from '../lib/ten-hien-thi';
 
 const boDau = (chuoi: string) =>
@@ -371,6 +372,7 @@ export default function ModuleDanhSachTinhGia({
         </div>
       </header>
 
+      <div className="qrev-loc-bar">
       <div className="qrev-search-bar">
         <Search size={16} className="qrev-search-icon" />
         <input
@@ -388,6 +390,7 @@ export default function ModuleDanhSachTinhGia({
       </div>
 
       <div className="qrev-chips" style={{ justifyContent: 'space-between' }}>
+        <LocSheet soLuongLoc={boLoc !== 'all' ? 1 : 0}>
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {CHIP_LABELS.map(chip => (
             <button
@@ -399,6 +402,7 @@ export default function ModuleDanhSachTinhGia({
             </button>
           ))}
         </div>
+        </LocSheet>
         {selectedQuoteItems.length > 0 && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <span style={{ fontSize: '0.82rem', color: 'var(--muted)' }}>
@@ -412,6 +416,7 @@ export default function ModuleDanhSachTinhGia({
             </button>
           </div>
         )}
+      </div>
       </div>
 
       <div className="qrev-table-shell">

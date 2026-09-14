@@ -7,6 +7,7 @@ import {
   Shield, Unlock, Upload, User, Users, X, ClipboardList, RotateCcw, Check, Settings,
   SlidersHorizontal
 } from 'lucide-react';
+import LocSheet from './LocSheet';
 import seedCustomers from '../data/customers.json';
 import { dungCuaHangTinhGia } from '../store/CuaHangTinhGia';
 import type { AuditEntry } from '../lib/types';
@@ -2077,6 +2078,11 @@ export default function ModuleKhachHang({
     { key: 'unassigned', label: 'Chưa phân', count: visible.filter(c => (c.managers?.length ?? 0) === 0).length },
   ];
 
+  const soLuongLocDangBat =
+    (filters.status !== 'all' ? 1 : 0) +
+    (filters.sellerId ? 1 : 0) +
+    (filters.customerGroup ? 1 : 0);
+
   return (
     <div className="crm2-root">
       <StyleInjector />
@@ -2249,6 +2255,7 @@ export default function ModuleKhachHang({
 
         {!showingAuditLog && (
           <>
+            <div className="crm2-loc-bar">
             <div className="crm2-search-bar">
               <Search size={16} className="crm2-search-icon"/>
               <input
@@ -2268,6 +2275,7 @@ export default function ModuleKhachHang({
             </div>
 
             <div className="crm2-toolbar">
+              <LocSheet soLuongLoc={soLuongLocDangBat}>
               <div className="crm2-chips">
                 {statusChips.map(chip => (
                   <button
@@ -2301,6 +2309,7 @@ export default function ModuleKhachHang({
                   )}
                 </div>
               </div>
+              </LocSheet>
 
               <div className="crm2-toolbar-right">
                 <div style={{ position: 'relative' }}>
@@ -2395,6 +2404,7 @@ export default function ModuleKhachHang({
                   )}
                 </div>
               </div>
+            </div>
             </div>
           </>
         )}

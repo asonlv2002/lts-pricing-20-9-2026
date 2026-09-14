@@ -40,6 +40,7 @@ import { mapBaoGiaToLsxSources } from '../lib/bao-gia-adapter';
 import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../lib/chu-ky';
 import { AvatarBlobImg } from '../lib/avatar-blob-cache';
 import AvatarNguoiLap from './AvatarNguoiLap';
+import LocSheet from './LocSheet';
 import { layChuCaiDau, layMauAvatar, rutGonTenKhachHang } from '../lib/ten-hien-thi';
 
 type BoLoc = LsxLocalStatus | 'all';
@@ -290,6 +291,7 @@ export default function ModuleDanhSachLSX({
         </div>
       </header>
 
+      <div className="qrev-loc-bar">
       <div className="qrev-search-bar">
         <Search size={16} className="qrev-search-icon" />
         <input
@@ -310,6 +312,7 @@ export default function ModuleDanhSachLSX({
         )}
       </div>
 
+      <LocSheet soLuongLoc={boLoc !== 'all' ? 1 : 0}>
       <div className="qrev-chips">
         {CHIP_LABELS.map((chip) => (
           <button
@@ -338,6 +341,8 @@ export default function ModuleDanhSachLSX({
             <Inbox size={12} /> Chờ tôi duyệt
           </button>
         )}
+      </div>
+      </LocSheet>
       </div>
 
       {thongBao && <div className="qrev-alert qrev-alert--ok">{thongBao}</div>}
