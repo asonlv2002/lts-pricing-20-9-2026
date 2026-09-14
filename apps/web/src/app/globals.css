@@ -14730,9 +14730,9 @@ fieldset.config-cpsx-upgrade__ro[disabled],
   }
   .lts-shell--mobile .lts-mobile-icon-btn {
     position: relative;
-    width: 38px;
-    height: 38px;
-    border-radius: 10px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
     border: 1px solid rgba(255, 255, 255, 0.16);
     background: rgba(255, 255, 255, 0.08);
     color: #ffffff;
@@ -14766,8 +14766,8 @@ fieldset.config-cpsx-upgrade__ro[disabled],
     padding: 0 4px;
   }
   .lts-shell--mobile .lts-mobile-avatar-btn {
-    width: 38px;
-    height: 38px;
+    width: 44px;
+    height: 44px;
     border-radius: 50%;
     border: 1px solid rgba(255, 255, 255, 0.16);
     background: rgba(255, 255, 255, 0.12);
