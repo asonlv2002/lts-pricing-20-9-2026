@@ -7,7 +7,7 @@ import ManHinhQuanLy from '../components/ManHinhQuanLy';
 import ManHinhKyThuat from '../components/ManHinhKyThuat';
 import { ManHinhChonCheDoTinhGia } from '../components/ManHinhChonCheDoTinhGia';
 import type { PricingMode } from '../lib/types';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft, FileText, History } from 'lucide-react';
 import { dieuHuongMenuApp } from '../lib/menu-route';
 import { lapDongSanXuat } from '../lib/manager-calculation';
 import { tinhKetQuaNangCaoHieuLuc } from '../lib/dac-ta-nang-cao';
@@ -161,6 +161,8 @@ export default function TrangChinh() {
     cheDoNangCao,
     cheDoThuongMai,
     input,
+    tuDanhSachTinhGia,
+    datTuDanhSachTinhGia,
   } = dungCuaHangTinhGia();
 
   const laThuongMai = input.pricingMode === 'commercial';
@@ -203,7 +205,9 @@ export default function TrangChinh() {
     if (vuaMoTuLichSu) return;
     datLaiDauVao();
     datPricingEntry('pick');
-  }, [cheDoNangCao, cheDoThuongMai, datLaiDauVao, datPricingEntry]);
+    // Đổi tab / tạo bảng mới → banner "← Danh sách tính giá" ẩn
+    datTuDanhSachTinhGia(false);
+  }, [cheDoNangCao, cheDoThuongMai, datLaiDauVao, datPricingEntry, datTuDanhSachTinhGia]);
 
   const xuLyChonCheDoTinhGia = (mode: PricingMode) => {
     datLaiDauVao();
@@ -214,6 +218,7 @@ export default function TrangChinh() {
       ...(mode === 'commercial' ? { commercialMode: 'form' as const } : {}),
     });
     datPricingEntry('form');
+    datTuDanhSachTinhGia(false);
   };
 
   // Mở lại item thương mại từ lịch sử / URL /tao-tinh-gia-thuong-mai (không còn mục
@@ -525,6 +530,11 @@ export default function TrangChinh() {
     dieuHuongMenuApp('tao-bao-gia');
   };
 
+  const quayLaiDanhSachTinhGia = () => {
+    datTuDanhSachTinhGia(false);
+    dieuHuongMenuApp('danh-sach-tinh-gia');
+  };
+
   return (
     <>
       <div className="toast-container" id="toastContainer" />
@@ -558,6 +568,39 @@ export default function TrangChinh() {
             onClick={quayLaiBaoGia}
           >
             <ArrowLeft size={14} /> Quay lại báo giá
+          </button>
+        </div>
+      )}
+
+      {!laMobile && tuDanhSachTinhGia && !dangChonCheDo && (
+        <div
+          className="history-context-banner"
+          style={{
+            background: "linear-gradient(135deg, rgba(16,185,129,0.10), rgba(16,185,129,0.03))",
+            border: "1px solid rgba(16,185,129,0.30)",
+            borderRadius: 10,
+            padding: "10px 16px",
+            margin: "0 0 12px 0",
+            display: "flex",
+            alignItems: "center",
+            gap: 12,
+          }}
+        >
+          <History size={16} style={{ color: "#059669", flexShrink: 0 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--foreground, #111)" }}>
+              Đang xem lại từ Danh sách tính giá
+            </div>
+            <div style={{ fontSize: "0.75rem", color: "var(--muted, #6b7280)" }}>
+              Bạn đang mở lại bảng tính giá đã lưu. Nhấn quay lại để về trang danh sách.
+            </div>
+          </div>
+          <button
+            className="btn btn-outline btn-sm"
+            style={{ display: "flex", alignItems: "center", gap: 5, whiteSpace: "nowrap" }}
+            onClick={quayLaiDanhSachTinhGia}
+          >
+            <ArrowLeft size={14} /> Danh sách tính giá
           </button>
         </div>
       )}

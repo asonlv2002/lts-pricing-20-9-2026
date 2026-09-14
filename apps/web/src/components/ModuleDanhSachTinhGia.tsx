@@ -140,6 +140,8 @@ export default function ModuleDanhSachTinhGia({
     const item = lichSu.find(h => h.id === id);
     const ok = await dungCuaHangTinhGia.getState().moBangTinhVoiPin(id);
     if (!ok) return;
+    // Đánh dấu mở từ trang Danh sách tính giá → page.tsx hiện banner "← Danh sách tính giá"
+    dungCuaHangTinhGia.getState().datTuDanhSachTinhGia(true);
     // Helper phân biệt 3 tab: nâng cao / thương mại / thường → URL có id
     dieuHuongMenuApp(menuKeyTinhGiaTheoItem(item));
   };

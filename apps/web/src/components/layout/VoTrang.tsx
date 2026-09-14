@@ -1980,6 +1980,8 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             if (huy) return;
             await moBangTinhVoiPin(local.id);
             if (huy) return;
+            // Deep-link tới 1 bảng tính giá → banner "← Danh sách tính giá" cũng hiện
+            dungCuaHangTinhGia.getState().datTuDanhSachTinhGia(true);
             dieuHuongMenu(menuKeyTinhGiaTheoItem(local), "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
@@ -1996,6 +1998,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           if (sauTai && !sauTai.isQuote) {
             await moBangTinhVoiPin(sauTai.id);
             if (huy) return;
+            dungCuaHangTinhGia.getState().datTuDanhSachTinhGia(true);
             dieuHuongMenu(menuKeyTinhGiaTheoItem(sauTai), "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
@@ -2009,6 +2012,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               dungCuaHangTinhGia.getState().history,
               deep.id,
             );
+            dungCuaHangTinhGia.getState().datTuDanhSachTinhGia(true);
             dieuHuongMenu(menuKeyTinhGiaTheoItem(sauServer), "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");

@@ -22,6 +22,10 @@ export interface UISlice {
   baoGiaDangSua: BaoGiaApi | null;
   wizardNguon: 'list' | 'duyet' | null;
   quoteWizardSnapshot: any;
+  /** true = user vừa mở form từ trang Danh sách tính giá (ModuleDanhSachTinhGia)
+   *  hoặc từ deep-link URL. Dùng để hiện banner "← Danh sách tính giá".
+   *  Reset khi đổi tab / tạo bảng mới / navigate ra calculator. */
+  tuDanhSachTinhGia: boolean;
   lsxDangSua: { order: QuotationPricingSheetOrderApi; quotation: QuotationPricingSheetOrdersByQuotationApi } | null;
   lsxTaoTuSheet: {
     baoGia: BaoGiaApi;
@@ -40,6 +44,7 @@ export interface UISlice {
   setRole: (r: string) => void;
   datBaoGiaDangSua: (bg: BaoGiaApi | null) => void;
   datNguonWizard: (nguon: 'list' | 'duyet' | null) => void;
+  datTuDanhSachTinhGia: (v: boolean) => void;
   datLsxDangSua: (payload: UISlice['lsxDangSua']) => void;
   datLsxTaoTuSheet: (payload: UISlice['lsxTaoTuSheet']) => void;
   datManHinhDangMo: UISlice['setActiveView'];
@@ -63,6 +68,7 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   baoGiaDangSua: null,
   wizardNguon: null,
   quoteWizardSnapshot: null as any,
+  tuDanhSachTinhGia: false,
   lsxDangSua: null,
   lsxTaoTuSheet: null,
 
@@ -80,6 +86,7 @@ export const createUISlice: StateCreator<CuaHangTinhGia, [], [], UISlice> = (set
   setRole:          (r) => set({ role: r }),
   datBaoGiaDangSua: (bg) => set({ baoGiaDangSua: bg }),
   datNguonWizard: (nguon) => set({ wizardNguon: nguon }),
+  datTuDanhSachTinhGia: (v) => set({ tuDanhSachTinhGia: v }),
   datLsxDangSua: (payload) => set({ lsxDangSua: payload }),
   datLsxTaoTuSheet: (payload) => set({ lsxTaoTuSheet: payload }),
   datManHinhDangMo: (v) => set({ activeView: v }),
