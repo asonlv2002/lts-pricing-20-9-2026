@@ -3890,8 +3890,39 @@ function TaoBaoGiaWizard({
     daDocBaoGiaSua.current = true;
     const bg = baoGiaDangSua;
     const tatCaKhach = docKhachHang();
-    const maKH = bg.pricingSheets?.[0]?.customer?.codeName?.trim() || "";
-    const khachHang = tatCaKhach.find((c) => c.customerCode === maKH) || null;
+    // BE trả `customer.codeName` là tên hiển thị, không phải mã KH — match `customerCode === codeName` luôn fail.
+    // Tra mờ theo fallback chain giống `tenKhachHang(bg)` / `buildHistoryItemFromServerData`,
+    // tôn trọng quyền (locKhachTheoQuyen) để đồng bộ với BuocChonKhachHang.
+    const iv0 = (bg.inputValue ?? {}) as { customer?: unknown };
+    const s0 = bg.pricingSheets?.[0];
+    const siv0 = (s0?.inputValue ?? {}) as { customer?: unknown };
+    const tenKhachHienThi = (() => {
+      const raw = [
+        iv0.customer,
+        siv0.customer,
+        s0?.customer?.codeName,
+        (s0 as { original?: { customerName?: string } } | undefined)?.original?.customerName,
+      ].find((v): v is string => typeof v === "string" && v.trim().length > 0);
+      return typeof raw === "string" ? raw.trim() : "";
+    })();
+    const query = tenKhachHienThi.toLowerCase();
+    const khachDuocChon = locKhachTheoQuyen(tatCaKhach, role, currentSellerId);
+    let khachHang: Customer | null = null;
+    if (query) {
+      for (const customer of khachDuocChon) {
+        const name = tenKhachHang(customer).toLowerCase();
+        const code = (customer.customerCode || "").toLowerCase();
+        if (
+          name === query ||
+          code === query ||
+          name.includes(query) ||
+          query.includes(name)
+        ) {
+          khachHang = customer;
+          break;
+        }
+      }
+    }
     const sheets = bg.pricingSheets ?? [];
     const bagSpecs = (bg.inputValue?.productBagSpecs as any[]) ?? [];
     type SavedSpec = { chotGia?: number; finalPrice?: number; bagSpec?: any; productName?: string };
@@ -3937,7 +3968,7 @@ function TaoBaoGiaWizard({
       const specFromServer = laySpecDaLuu(sheet.id, productName, sheetIdx);
       const giaAo = {
         id: sheet.id,
-        customer: maKH,
+        customer: tenKhachHienThi,
         productName,
         productType: (dv.productType as string) || "tui",
         structure: cauTruc || productName || "",
@@ -3992,7 +4023,12 @@ function TaoBaoGiaWizard({
         (iv.techRequirement as string) || "Chạy theo market ký duyệt",
     };
     setState({ customer: khachHang, products: sanPham, terms: dieuKhoan });
-  }, [baoGiaDangSua]);
+    if (!khachHang) {
+      setError(
+        "Không tìm thấy khách hàng từ server. Vui lòng chọn khách hàng trước khi lưu báo giá.",
+      );
+    }
+  }, [baoGiaDangSua, role, currentSellerId]);
 
   const daKhoiPhucSnapshot = useRef(false);
   useEffect(() => {
@@ -4166,8 +4202,10 @@ function TaoBaoGiaWizard({
   };
 
   const handleCustomerSelect = (c: Customer) => {
-    if (dangSua) return;
+    // Sửa BG: nếu KH đã resolve thì khoá; nếu lookup fail (khachHang=null) thì cho pick để gỡ kẹt form.
+    if (dangSua && state.customer) return;
     setState((prev) => ({ ...prev, customer: c }));
+    setError("");
     // Auto-scroll to section 2 after selecting customer
     setTimeout(() => {
       section2Ref.current?.scrollIntoView({
