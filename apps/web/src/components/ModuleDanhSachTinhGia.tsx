@@ -18,6 +18,8 @@ import NutSaoChepLienKet from './NutSaoChepLienKet';
 import type { HistoryItem } from '../lib/types';
 import { dinhDangNgayTaoLichSu, msSapXepLichSu } from '../lib/history-datetime';
 import { AvatarBlobImg } from '../lib/avatar-blob-cache';
+import AvatarNguoiLap from './AvatarNguoiLap';
+import { layChuCaiDau, layMauAvatar, rutGonTenKhachHang } from '../lib/ten-hien-thi';
 
 const boDau = (chuoi: string) =>
   chuoi.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D').toLowerCase();
@@ -26,24 +28,7 @@ function dinhDangSo(n: number): string {
   return Math.round(n || 0).toLocaleString('vi-VN');
 }
 
-// Rút gọn tên khách hàng: chỉ giữ 3 cụm chữ cuối khi tên dài (>3 từ).
-function rutGonTenKhachHang(ten: string | undefined | null): string {
-  const tu = (ten ?? '').split(/\s+/).filter(Boolean);
-  if (tu.length <= 3) return ten ?? '—';
-  return `... ${tu.slice(-3).join(' ')}`;
-}
-
-// Avatar chữ cái đầu cho cột "Người lập": 2 chữ cái đầu của 2 từ cuối.
-function layChuCaiDau(s: string | undefined | null): string {
-  return (s ?? '').split(' ').filter(Boolean).slice(-2).map(w => w[0]).join('').toUpperCase();
-}
-
-const MAU_AVATAR = ['#4f46e5', '#0891b2', '#059669', '#d97706', '#db2777', '#7c3aed', '#0ea5e9', '#65a30d'];
-function layMauAvatar(s: string | undefined | null): string {
-  const chuoi = s ?? '';
-  if (!chuoi) return MAU_AVATAR[0];
-  return MAU_AVATAR[Math.abs([...chuoi].reduce((a, c) => a + c.charCodeAt(0), 0)) % MAU_AVATAR.length];
-}
+// Helper tên/avatar hiển thị card — dùng chung qua lib/ten-hien-thi.
 
 type BoLocTinhGia = 'all' | 'draft' | 'saved' | 'used';
 
@@ -72,6 +57,8 @@ export default function ModuleDanhSachTinhGia({
   const [quoteDraftCustomer, setQuoteDraftCustomer] = useState<string | null>(null);
   const [xacNhanXoaId, datXacNhanXoaId] = useState<string | null>(null);
   const [hienLoiXoa, datHienLoiXoa] = useState(false);
+  /** card mobile: 1 tooltip avatar người lập mở tại 1 thời điểm. */
+  const [idTipAvatar, datIdTipAvatar] = useState<string | null>(null);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -285,6 +272,87 @@ export default function ModuleDanhSachTinhGia({
     );
   };
 
+  /** card mobile (ẩn table, hiện thẻ) — cùng hành vi với dòng desktop. */
+  const renderCard = (h: HistoryItem) => {
+    const meta = getPricingDisplayMeta(h.input);
+    const giaHienThi = h.chotGia && h.chotGia > 0 ? h.chotGia : h.finalPrice;
+    const duocChon = selectedQuoteHistoryIds.has(h.id);
+    return (
+      <article key={h.id} className="qrev-mcard" onClick={() => moXemA4(h)}>
+        <div className="qrev-mcard-r1">
+          <span className="qrev-mcard-name">
+            {h.productName}
+            {h.isNangCap && (
+              <span className="qrev-badge" style={{ background: 'rgba(124,58,237,0.12)', color: '#7c3aed', marginLeft: 6 }}>
+                🚀
+              </span>
+            )}
+            {h.isThuongMai && (
+              <span className="qrev-badge" title="Tính giá thương mại — mua đi bán lại" style={{ background: 'rgba(20,184,166,0.12)', color: '#0d9488', marginLeft: 6 }}>
+                🏷️
+              </span>
+            )}
+            {h.thieuPin && (
+              <span className="qrev-badge" title="Chưa ghim cấu hình lúc lưu — giá đang tính theo CPSX/cấu hình hiện tại trên máy" style={{ background: 'rgba(217,119,6,0.12)', color: '#b45309', marginLeft: 6 }}>
+                Chưa ghim CH
+              </span>
+            )}
+          </span>
+          <span className="qrev-mcard-price">
+            {dinhDangSo(giaHienThi)} ₫/{meta.unit}
+          </span>
+        </div>
+        <div className="qrev-mcard-customer" title={h.customer}>
+          {rutGonTenKhachHang(h.customer)}
+        </div>
+        <div className="qrev-mcard-sub">
+          {dinhDangNgayTaoLichSu(h)}
+        </div>
+        <div className="qrev-mcard-foot">
+          <span className="qrev-mcard-left">
+            <button
+              type="button"
+              className="qrev-btn-icon"
+              title={duocChon ? 'Bỏ chọn' : 'Chọn để tạo báo giá'}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleQuoteSelection(h);
+              }}
+            >
+              {duocChon ? <CheckSquare size={17} color="var(--accent)" /> : <Square size={17} />}
+            </button>
+            <AvatarNguoiLap
+              ten={h.sellerName}
+              avatarUrl={h.sellerAvatarUrl}
+              accessToken={accessToken}
+              id={h.id}
+              idDangMo={idTipAvatar}
+              onCham={datIdTipAvatar}
+            />
+          </span>
+          <span className="qrev-mcard-actions" onClick={(e) => e.stopPropagation()}>
+            <button className="qrev-btn-icon" title="Xem chi tiết" onClick={() => moXemA4(h)}>
+              <Eye size={15} />
+            </button>
+            <NutSaoChepLienKet
+              url={taoUrlChiaSeTinhGia(idChiaSeBangTinh(h), { nangCao: !!h.isNangCap })}
+              variant="qrev"
+              size={15}
+            />
+            <button className="qrev-btn-icon qrev-btn-icon--primary" title="Mở lại tính giá" onClick={() => void moLaiTinhGia(h.id)}>
+              <FileEdit size={15} />
+            </button>
+            {h.deletable && (
+              <button className="qrev-btn-icon" title="Xóa bảng tính giá" onClick={() => datXacNhanXoaId(h.id)}>
+                <Trash2 size={15} />
+              </button>
+            )}
+          </span>
+        </div>
+      </article>
+    );
+  };
+
   return (
     <div className="qrev-root">
       <QrevStyleInjector />
@@ -354,8 +422,9 @@ export default function ModuleDanhSachTinhGia({
             <span>{tuKhoa ? 'Thử từ khóa khác hoặc xóa bộ lọc.' : 'Tạo bảng tính giá ở mục "Tạo bảng tính giá".'}</span>
           </div>
         ) : (
+          <>
           <div className="qrev-table-wrap">
-            <table className="qrev-table">
+            <table className="qrev-table qrev-table--tinhgia">
               <thead>
                 <tr>
                   <th style={{ width: 40 }}></th>
@@ -373,6 +442,10 @@ export default function ModuleDanhSachTinhGia({
             </table>
             <div className="qrev-table-bottom-spacer" aria-hidden="true" />
           </div>
+          <div className="qrev-mcard-list" aria-label="Danh sách tính giá dạng thẻ">
+            {pageItems.map(renderCard)}
+          </div>
+          </>
         )}
 
         {totalPages > 1 && (
