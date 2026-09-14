@@ -1017,6 +1017,7 @@ export default function ModuleNhatKy({
     <div className="crm-root audit-log-root">
       {/* ── Filter Bar ── */}
       <div
+        className="al-filter-bar"
         style={{
           background: "var(--surface)",
           border: "1px solid var(--border)",
@@ -1035,7 +1036,7 @@ export default function ModuleNhatKy({
         >
           {/* Time range */}
           <select
-            className="form-input"
+            className="form-input al-time-select"
             value={timeRange}
             onChange={(e) => {
               setTimeRange(e.target.value as TimeRange);
@@ -1116,20 +1117,20 @@ export default function ModuleNhatKy({
             </span>
             <input
               type="datetime-local"
-              className="form-input"
+              className="form-input al-datetime"
               value={customFrom}
               onChange={(e) => setCustomFrom(e.target.value)}
-              style={{ width: 180 }}
+              style={{ width: 180, maxWidth: "100%" }}
             />
             <span style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
               Đến thời điểm:
             </span>
             <input
               type="datetime-local"
-              className="form-input"
+              className="form-input al-datetime"
               value={customTo}
               onChange={(e) => setCustomTo(e.target.value)}
-              style={{ width: 180 }}
+              style={{ width: 180, maxWidth: "100%" }}
             />
           </div>
         )}

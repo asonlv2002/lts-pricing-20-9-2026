@@ -14974,3 +14974,27 @@ fieldset.config-cpsx-upgrade__ro[disabled],
     justify-content: center;
   }
 }
+
+/* ═══ Nhật ký thao tác + Panel gia công ngoài trên mobile ═══ */
+@media (max-width: 767px) {
+  .lts-shell--mobile .audit-log-root .al-filter-bar {
+    padding: 10px !important;
+  }
+  /* Đè inline style flex/minWidth legacy của ô tìm kiếm */
+  .lts-shell--mobile .audit-log-root .crm-search-box {
+    flex-basis: 100% !important;
+    min-width: 0 !important;
+    order: -1;
+  }
+  .lts-shell--mobile .audit-log-root .al-time-select {
+    width: auto;
+    flex: 1 1 140px;
+  }
+  .lts-shell--mobile .audit-log-root .al-datetime {
+    width: 100%;
+    min-width: 0;
+  }
+  .lts-shell--mobile .mobile-calc-container .outsource-panel .outsource-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
