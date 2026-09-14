@@ -14713,3 +14713,155 @@ fieldset.config-cpsx-upgrade__ro[disabled],
     opacity: 1;
   }
 }
+
+/* ═══ MobileQuickActions: icon nút + sheet nội dung (mobile) ═══ */
+@media (max-width: 767px) {
+  .lts-shell--mobile .lts-mobile-module-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .lts-shell--mobile .lts-mobile-icon-btn {
+    position: relative;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid var(--border, #e5e7eb);
+    background: var(--surface, #fff);
+    color: var(--foreground, #374151);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .lts-shell--mobile .lts-mobile-icon-btn .lts-dirty-dot {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+  }
+  .lts-shell--mobile .lts-mobile-icon-badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+  .lts-shell--mobile .lts-mobile-avatar-btn {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    border: 1px solid var(--border, #e5e7eb);
+    background: var(--surface2, #f3f4f6);
+    color: var(--foreground, #374151);
+    font-size: 12px;
+    font-weight: 800;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    cursor: pointer;
+    padding: 0;
+    flex-shrink: 0;
+  }
+  .lts-shell--mobile .lts-mobile-avatar-btn img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .lts-shell--mobile .lts-mobile-avatar-btn.is-static {
+    cursor: default;
+  }
+  .lts-shell--mobile .lts-sheet-link-btn {
+    border: none;
+    background: none;
+    color: var(--accent, #2563eb);
+    font-size: 0.78rem;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 4px;
+  }
+  .lts-shell--mobile .lts-sheet-link-btn:disabled {
+    opacity: 0.45;
+  }
+  .lts-shell--mobile .lts-sheet-notice {
+    width: 100%;
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    text-align: left;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border, #eef0f3);
+    padding: 10px 2px;
+    cursor: pointer;
+    color: var(--foreground, #374151);
+  }
+  .lts-shell--mobile .lts-sheet-notice.is-read {
+    opacity: 0.55;
+  }
+  .lts-shell--mobile .lts-sheet-notice-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .lts-shell--mobile .lts-sheet-notice-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+  .lts-shell--mobile .lts-sheet-notice-meta {
+    font-size: 0.72rem;
+    color: var(--muted, #6b7280);
+  }
+  .lts-shell--mobile .lts-sheet-account-user {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 4px 0 12px;
+    border-bottom: 1px solid var(--border, #eef0f3);
+  }
+  .lts-shell--mobile .lts-sheet-account-user strong {
+    display: block;
+    font-size: 0.9rem;
+  }
+  .lts-shell--mobile .lts-sheet-account-user small {
+    color: var(--muted, #6b7280);
+    font-size: 0.75rem;
+  }
+  .lts-shell--mobile .lts-sheet-account-actions {
+    display: flex;
+    flex-direction: column;
+    padding-top: 6px;
+  }
+  .lts-shell--mobile .lts-sheet-account-actions button {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 46px;
+    padding: 0 4px;
+    background: none;
+    border: none;
+    border-bottom: 1px solid var(--border, #eef0f3);
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--foreground, #374151);
+    cursor: pointer;
+  }
+  .lts-shell--mobile .lts-sheet-account-actions button.is-danger {
+    color: #dc2626;
+    border-bottom: none;
+  }
+}
