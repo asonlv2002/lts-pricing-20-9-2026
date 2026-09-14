@@ -315,8 +315,7 @@ export const QREV_STYLES = `
 .qrev-mavatar-empty { color: var(--muted, #6b7280); }
 .qrev-mavatar-backdrop { position: fixed; inset: 0; z-index: 1000; }
 .qrev-mavatar-tip {
-  position: absolute; bottom: calc(100% + 10px); left: 50%;
-  transform: translateX(-50%);
+  position: absolute; bottom: calc(100% + 10px); left: 0;
   background: #0f172a; color: #fff; font-size: 12px; font-weight: 600;
   padding: 6px 10px; border-radius: 8px; white-space: nowrap;
   max-width: 72vw; overflow: hidden; text-overflow: ellipsis;
@@ -324,13 +323,12 @@ export const QREV_STYLES = `
   animation: qrevTipIn 0.14s ease-out;
 }
 .qrev-mavatar-tip::after {
-  content: ""; position: absolute; top: 100%; left: 50%;
-  transform: translateX(-50%);
+  content: ""; position: absolute; top: 100%; left: 14px;
   border: 5px solid transparent; border-top-color: #0f172a;
 }
 @keyframes qrevTipIn {
-  from { opacity: 0; transform: translate(-50%, 4px); }
-  to { opacity: 1; transform: translate(-50%, 0); }
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 `;
 
