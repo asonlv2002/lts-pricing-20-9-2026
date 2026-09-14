@@ -355,6 +355,7 @@ interface QuoteTier {
   quantity: number;
   finalPrice: number;
   chotGia?: number;
+  baoGia?: number;
 }
 
 interface QuoteProductLine {
@@ -364,6 +365,7 @@ interface QuoteProductLine {
   quantity: number;
   finalPrice: number;
   chotGia?: number;
+  baoGia?: number;
   input: any;
   bagSpec?: any;
   tiers: QuoteTier[];
@@ -378,6 +380,7 @@ interface HistoryItem {
   quantity: number;
   finalPrice: number;
   chotGia?: number;
+  baoGia?: number;
   quoteCode?: string;
   terms?: {
     vatRate: number;
@@ -552,7 +555,8 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
     if (p.tiers && p.tiers.length > 0) {
       for (const t of p.tiers) {
         const qty = Number(t.quantity) || 0;
-        const up = Math.round(Number(t.chotGia || t.finalPrice) || 0);
+        // Giá ghi PDF: báo khách → giá chốt (legacy) → engine.
+        const up = Math.round(Number(t.baoGia || t.chotGia || t.finalPrice) || 0);
         tiers.push({
           quantity: qty,
           unitPrice: up,
@@ -561,7 +565,7 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
       }
     } else {
       const qty = Number(p.quantity) || 0;
-      const up = Math.round(Number(p.chotGia || p.finalPrice) || 0);
+      const up = Math.round(Number(p.baoGia || p.chotGia || p.finalPrice) || 0);
       tiers.push({
         quantity: qty,
         unitPrice: up,
@@ -811,6 +815,7 @@ function BaoGiaPage({
           quantity: item.quantity,
           finalPrice: item.finalPrice,
           chotGia: item.chotGia,
+          baoGia: item.baoGia,
           input: item.input,
           tiers: item.tiers || [],
         } as QuoteProductLine,
@@ -1172,6 +1177,7 @@ export function BaoGiaPdfDocument({
           quantity: item.quantity,
           finalPrice: item.finalPrice,
           chotGia: item.chotGia,
+          baoGia: item.baoGia,
           input: item.input,
           tiers: item.tiers || [],
         } as QuoteProductLine,

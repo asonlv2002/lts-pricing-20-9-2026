@@ -433,7 +433,7 @@ function DetailPanel({
                             <td style={{ padding: '6px', borderTop: '1px solid var(--border)', verticalAlign: 'top' }}>
                               {p.tiers.map((tier, i) => (
                                 <div key={i} style={{ marginBottom: 2 }}>
-                                  {dinhDangSo(tier.quantity)}: <b>{dinhDangSo(tier.chotGia ?? tier.finalPrice)} ₫</b>
+                                  {dinhDangSo(tier.quantity)}: <b>{dinhDangSo(tier.baoGia ?? tier.chotGia ?? tier.finalPrice)} ₫</b>
                                   <span style={{ color: 'var(--muted)', marginLeft: 6 }}>({dinhDangSo(tier.finalPrice)} ₫/{hienThiGia.unit} đề xuất)</span>
                                 </div>
                               ))}
@@ -451,7 +451,7 @@ function DetailPanel({
                   {item.tiers.map((tier, i) => (
                     <InfoRow key={i}
                       label={`${dinhDangSo(tier.quantity)} ${hienThiGia.quantityUnit}`}
-                      value={`${dinhDangSo(tier.chotGia ?? tier.finalPrice ?? 0)} ₫/${hienThiGia.unit}`}
+                      value={`${dinhDangSo(tier.baoGia ?? tier.chotGia ?? tier.finalPrice ?? 0)} ₫/${hienThiGia.unit}`}
                     />
                   ))}
                 </InfoSection>

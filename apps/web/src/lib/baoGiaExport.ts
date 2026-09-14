@@ -307,6 +307,7 @@ function buildBaoGiaHtmlV2(
           quantity: item.quantity,
           finalPrice: item.finalPrice,
           chotGia: item.chotGia,
+          baoGia: item.baoGia,
           input: item.input,
           tiers: item.tiers || [],
         } as QuoteProductLine,
@@ -574,7 +575,8 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
     if (p.tiers && p.tiers.length > 0) {
       for (const t of p.tiers) {
         const qty = Number(t.quantity) || 0;
-        const up = Math.round(Number(t.chotGia || t.finalPrice) || 0);
+        // Giá ghi PDF/DOCX: báo khách → giá chốt (legacy) → engine.
+        const up = Math.round(Number(t.baoGia || t.chotGia || t.finalPrice) || 0);
         tiers.push({
           quantity: qty,
           unitPrice: up,
@@ -583,7 +585,7 @@ function buildGroups(products: QuoteProductLine[]): ProductGroup[] {
       }
     } else {
       const qty = Number(p.quantity) || 0;
-      const up = Math.round(Number(p.chotGia || p.finalPrice) || 0);
+      const up = Math.round(Number(p.baoGia || p.chotGia || p.finalPrice) || 0);
       tiers.push({
         quantity: qty,
         unitPrice: up,
@@ -682,6 +684,7 @@ export async function exportBaoGiaToDocx(
           quantity: item.quantity,
           finalPrice: item.finalPrice,
           chotGia: item.chotGia,
+          baoGia: item.baoGia,
           input: item.input,
           tiers: item.tiers || [],
         } as QuoteProductLine,
@@ -1382,6 +1385,7 @@ export function buildHistoryItemFromServerData(
       bagSpec?: Record<string, unknown>;
       finalPrice?: number;
       chotGia?: number;
+      baoGia?: number;
     }>) ?? [];
 
   const customer =
@@ -1413,6 +1417,8 @@ export function buildHistoryItemFromServerData(
           0,
       ) || 0;
     const chotGia = Number(spec?.chotGia) || 0;
+    // Quote cũ (mapping cũ lưu báo khách vào chotGia) → fallback; bản mới có baoGia riêng.
+    const baoGia = Number(spec?.baoGia) || Number(spec?.chotGia) || 0;
     return {
       sourceHistoryItemId:
         spec?.sourceHistoryItemId || spec?.pricingSheetId || sheet?.id || "",
@@ -1421,8 +1427,9 @@ export function buildHistoryItemFromServerData(
       quantity,
       finalPrice,
       chotGia,
+      baoGia,
       input: sheetInput as any,
-      tiers: [{ quantity, chotGia, finalPrice } as QuoteTier],
+      tiers: [{ quantity, chotGia, baoGia, finalPrice } as QuoteTier],
       bagSpec: (spec?.bagSpec as any) || undefined,
     } as QuoteProductLine;
   };
@@ -1455,6 +1462,7 @@ export function buildHistoryItemFromServerData(
     quantity: mainProduct?.quantity ?? (firstInput?.quantity as number) ?? 0,
     finalPrice: mainProduct?.finalPrice ?? 0,
     chotGia: mainProduct?.chotGia ?? 0,
+    baoGia: mainProduct?.baoGia ?? 0,
     input: firstInput as any,
     quoteProducts,
     tiers: [],

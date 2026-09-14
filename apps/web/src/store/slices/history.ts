@@ -49,7 +49,7 @@ export interface HistorySlice {
   kiemTraHetHan: () => void;
   capNhatDieuKhoan: (id: string, terms: QuoteTerms) => void;
   phanCongBaoGia: (quoteId: string, sellerId: string, sellerName: string) => void;
-  ganTiersBaoGia: (quoteId: string, tiers: { historyItemId: string; quantity: number; finalPrice: number; chotGia?: number }[]) => void;
+  ganTiersBaoGia: (quoteId: string, tiers: { historyItemId: string; quantity: number; finalPrice: number; chotGia?: number; baoGia?: number }[]) => void;
   taoBaoGiaMoi: (payload: {
     customer: string;
     products: QuoteProductLine[];
@@ -665,6 +665,7 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
         return r?.finalPrice ?? 0;
       })(),
       chotGia: first.chotGia,
+      baoGia: first.baoGia,
       profitRate: first.profitRate,
       quoteStatus: status,
       quotationId,

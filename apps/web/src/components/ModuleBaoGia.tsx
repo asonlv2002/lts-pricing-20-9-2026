@@ -352,7 +352,9 @@ function buildWizardProductFromHistoryItem(
       {
         quantity: item.quantity,
         finalPrice: item.finalPrice,
-        baoGia: item.chotGia ?? item.finalPrice,
+        // Giá báo khách KHÔNG lấy từ chotGia (giá chốt màn tính giá) — mặc định
+        // là giá engine; user tự sửa. Legacy: item.baoGia đã có sẵn khi load quote.
+        baoGia: item.baoGia ?? item.finalPrice,
       },
     ],
     bagSpec: spec,
@@ -371,6 +373,7 @@ function buildWizardProductFromQuoteProductLine(
     quantity: qp.quantity,
     finalPrice: qp.finalPrice,
     chotGia: qp.chotGia,
+    baoGia: qp.baoGia,
     profitRate: qp.profitRate,
     input: qp.input,
   };
@@ -414,7 +417,8 @@ function buildWizardProductFromQuoteProductLine(
     tiers: qp.tiers.map((t) => ({
       quantity: t.quantity,
       finalPrice: t.finalPrice,
-      baoGia: t.chotGia ?? t.finalPrice,
+      // Legacy: báo khách từng lưu vào chotGia → fallback; dữ liệu mới có baoGia riêng.
+      baoGia: t.baoGia ?? t.chotGia ?? t.finalPrice,
     })),
     bagSpec: spec,
   };
@@ -3925,13 +3929,14 @@ function TaoBaoGiaWizard({
     }
     const sheets = bg.pricingSheets ?? [];
     const bagSpecs = (bg.inputValue?.productBagSpecs as any[]) ?? [];
-    type SavedSpec = { chotGia?: number; finalPrice?: number; bagSpec?: any; productName?: string };
+    type SavedSpec = { chotGia?: number; finalPrice?: number; baoGia?: number; bagSpec?: any; productName?: string };
     const specMap = new Map<string, SavedSpec>();
     for (let i = 0; i < bagSpecs.length; i++) {
       const bs = bagSpecs[i];
       const entry: SavedSpec = {
         chotGia: typeof bs?.chotGia === "number" ? bs.chotGia : undefined,
         finalPrice: typeof bs?.finalPrice === "number" ? bs.finalPrice : undefined,
+        baoGia: typeof bs?.baoGia === "number" ? bs.baoGia : undefined,
         bagSpec: bs?.bagSpec || undefined,
         productName: (bs?.productName as string) || undefined,
       };
@@ -3974,7 +3979,14 @@ function TaoBaoGiaWizard({
         structure: cauTruc || productName || "",
         quantity: (dv.quantity as number) || 0,
         finalPrice: specFromServer?.finalPrice ?? ((kq.finalPrice as number) || 0),
-        chotGia: specFromServer?.chotGia ?? undefined,
+        // chotGia (giá chốt) ưu tiên lấy từ inputValue sheet (màn tính giá) —
+        // spec.chotGia legacy từng bị wizard ghi đè bằng giá báo khách.
+        chotGia:
+          (typeof dv.chotGia === "number" && dv.chotGia > 0 ? dv.chotGia : undefined) ??
+          specFromServer?.chotGia ??
+          undefined,
+        // Giá báo khách: field mới; quote cũ (lưu trước khi tách field) → fallback chotGia.
+        baoGia: specFromServer?.baoGia ?? specFromServer?.chotGia ?? undefined,
         profitRate: (kq.profitRate as number) || 0,
         input: dv as any,
         pricingSheetId: sheet.id,
@@ -4311,7 +4323,8 @@ function TaoBaoGiaWizard({
                   bagSpec: prod.bagSpec,
                   finalPrice:
                     prod.tiers[0]?.finalPrice ?? prod.historyItem.finalPrice,
-                  chotGia: prod.tiers[0]?.baoGia,
+                  chotGia: prod.historyItem.chotGia,
+                  baoGia: prod.tiers[0]?.baoGia,
                 })),
               },
               dsPricingSheetId: pricingSheetIds,
@@ -4375,7 +4388,8 @@ function TaoBaoGiaWizard({
                 bagSpec: prod.bagSpec,
                 finalPrice:
                   prod.tiers[0]?.finalPrice ?? prod.historyItem.finalPrice,
-                chotGia: prod.tiers[0]?.baoGia,
+                chotGia: prod.historyItem.chotGia,
+                baoGia: prod.tiers[0]?.baoGia,
               })),
             },
             pricingSheetIds,
@@ -4466,7 +4480,8 @@ function TaoBaoGiaWizard({
               historyItemId: prod.historyItem.id,
               quantity: t.quantity,
               finalPrice: t.finalPrice,
-              chotGia: t.baoGia,
+              chotGia: prod.historyItem.chotGia,
+              baoGia: t.baoGia,
               profitRate: prod.historyItem.profitRate,
             }));
           return {
@@ -4476,6 +4491,7 @@ function TaoBaoGiaWizard({
             quantity: tiers[0]?.quantity ?? prod.historyItem.quantity,
             finalPrice: tiers[0]?.finalPrice ?? prod.historyItem.finalPrice,
             chotGia: tiers[0]?.chotGia,
+            baoGia: tiers[0]?.baoGia,
             profitRate: prod.historyItem.profitRate,
             input: { ...prod.historyItem.input },
             bagSpec: prod.bagSpec,
@@ -4547,12 +4563,14 @@ function TaoBaoGiaWizard({
       structure: state.products[0]?.historyItem.structure || "",
       quantity: state.products[0]?.tiers[0]?.quantity || 0,
       finalPrice: state.products[0]?.tiers[0]?.finalPrice || 0,
-      chotGia: state.products[0]?.tiers[0]?.baoGia,
+      chotGia: state.products[0]?.historyItem.chotGia,
+      baoGia: state.products[0]?.tiers[0]?.baoGia,
       input: state.products[0]?.historyItem.input,
       tiers: state.products[0]?.tiers.map((t) => ({
         quantity: t.quantity,
         finalPrice: t.finalPrice,
-        chotGia: t.baoGia,
+        chotGia: state.products[0]?.historyItem.chotGia,
+        baoGia: t.baoGia,
       })),
       quoteProducts: state.products.map((p) => ({
         sourceHistoryItemId: p.historyItem.id,
@@ -4560,14 +4578,16 @@ function TaoBaoGiaWizard({
         structure: p.historyItem.structure,
         quantity: p.tiers[0]?.quantity || p.historyItem.quantity,
         finalPrice: p.tiers[0]?.finalPrice || p.historyItem.finalPrice,
-        chotGia: p.tiers[0]?.baoGia,
+        chotGia: p.historyItem.chotGia,
+        baoGia: p.tiers[0]?.baoGia,
         input: p.historyItem.input,
         bagSpec: p.bagSpec,
         tiers: p.tiers.map((t) => ({
           historyItemId: p.historyItem.id,
           quantity: t.quantity,
           finalPrice: t.finalPrice,
-          chotGia: t.baoGia,
+          chotGia: p.historyItem.chotGia,
+          baoGia: t.baoGia,
         })),
       })),
       terms: { ...state.terms, notes: mergeGhiChu(state.terms) },
@@ -4595,12 +4615,14 @@ function TaoBaoGiaWizard({
       structure: state.products[0]?.historyItem.structure || "",
       quantity: state.products[0]?.tiers[0]?.quantity || 0,
       finalPrice: state.products[0]?.tiers[0]?.finalPrice || 0,
-      chotGia: state.products[0]?.tiers[0]?.baoGia,
+      chotGia: state.products[0]?.historyItem.chotGia,
+      baoGia: state.products[0]?.tiers[0]?.baoGia,
       input: state.products[0]?.historyItem.input,
       tiers: state.products[0]?.tiers.map((t) => ({
         quantity: t.quantity,
         finalPrice: t.finalPrice,
-        chotGia: t.baoGia,
+        chotGia: state.products[0]?.historyItem.chotGia,
+        baoGia: t.baoGia,
       })),
       quoteProducts: state.products.map((p) => ({
         sourceHistoryItemId: p.historyItem.id,
@@ -4608,14 +4630,16 @@ function TaoBaoGiaWizard({
         structure: p.historyItem.structure,
         quantity: p.tiers[0]?.quantity || p.historyItem.quantity,
         finalPrice: p.tiers[0]?.finalPrice || p.historyItem.finalPrice,
-        chotGia: p.tiers[0]?.baoGia,
+        chotGia: p.historyItem.chotGia,
+        baoGia: p.tiers[0]?.baoGia,
         input: p.historyItem.input,
         bagSpec: p.bagSpec,
         tiers: p.tiers.map((t) => ({
           historyItemId: p.historyItem.id,
           quantity: t.quantity,
           finalPrice: t.finalPrice,
-          chotGia: t.baoGia,
+          chotGia: p.historyItem.chotGia,
+          baoGia: t.baoGia,
         })),
       })),
       terms: { ...state.terms, notes: mergeGhiChu(state.terms) },
@@ -5757,7 +5781,10 @@ function QuoteDetailPanel({
                                   {hienThiGia.quantityUnit}:{" "}
                                   <b>
                                     {dinhDangSo(
-                                      tier.chotGia ?? tier.finalPrice ?? 0,
+                                      tier.baoGia ??
+                                        tier.chotGia ??
+                                        tier.finalPrice ??
+                                        0,
                                     )}{" "}
                                     ₫/{hienThiGia.unit}
                                   </b>
@@ -5823,7 +5850,12 @@ function QuoteDetailPanel({
                             {hienThiGia.quantityUnit}:
                           </span>
                           <span style={{ fontWeight: 600 }}>
-                            {dinhDangSo(tier.chotGia ?? tier.finalPrice ?? 0)}{" "}
+                            {dinhDangSo(
+                              tier.baoGia ??
+                                tier.chotGia ??
+                                tier.finalPrice ??
+                                0,
+                            )}{" "}
                             ₫/{hienThiGia.unit}
                           </span>
                         </div>

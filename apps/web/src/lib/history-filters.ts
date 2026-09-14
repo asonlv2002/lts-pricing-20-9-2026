@@ -84,15 +84,15 @@ export function getHistoryItemUnitPrices(item: HistoryItem): number[] {
   if (item.quoteProducts?.length) {
     for (const product of item.quoteProducts) {
       if (product.tiers?.length) {
-        for (const tier of product.tiers) add(tier.chotGia ?? tier.finalPrice);
+        for (const tier of product.tiers) add(tier.baoGia ?? tier.chotGia ?? tier.finalPrice);
       } else {
-        add(product.chotGia ?? product.finalPrice);
+        add(product.baoGia ?? product.chotGia ?? product.finalPrice);
       }
     }
   } else if (item.tiers?.length) {
-    for (const tier of item.tiers) add(tier.chotGia ?? tier.finalPrice);
+    for (const tier of item.tiers) add(tier.baoGia ?? tier.chotGia ?? tier.finalPrice);
   } else {
-    add(item.chotGia ?? item.finalPrice);
+    add(item.baoGia ?? item.chotGia ?? item.finalPrice);
   }
 
   return prices;

@@ -774,6 +774,8 @@ export interface QuoteTier {
   quantity: number;
   finalPrice: number;
   chotGia?: number;
+  /** Giá báo khách user gõ trong wizard báo giá — ghi lên PDF/DOCX; khác chotGia (giá chốt màn tính giá). */
+  baoGia?: number;
   profitRate?: number;
 }
 
@@ -784,6 +786,8 @@ export interface QuoteProductLine {
   quantity: number;
   finalPrice: number;
   chotGia?: number;
+  /** Giá báo khách user gõ trong wizard báo giá — ghi lên PDF/DOCX; khác chotGia (giá chốt màn tính giá). */
+  baoGia?: number;
   profitRate?: number;
   input: CalculateInput;
   bagSpec?: {
@@ -840,6 +844,8 @@ export interface HistoryItem {
   quantity: number;
   finalPrice: number;
   chotGia?: number;
+  /** Giá báo khách từ wizard báo giá (item isQuote) — PDF/DOCX ưu tiên field này. */
+  baoGia?: number;
   profitRate?: number;
   /** Snapshot tiền lợi nhuận lúc lưu — dùng cho thẻ "Lợi nhuận" khi mở lại sheet */
   profitAmount?: number;
