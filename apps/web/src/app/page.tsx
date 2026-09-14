@@ -539,7 +539,7 @@ export default function TrangChinh() {
     <>
       <div className="toast-container" id="toastContainer" />
 
-      {!laMobile && dangTuBaoGia && (
+      {dangTuBaoGia && (
         <div
           className="quote-context-banner"
           style={{
@@ -572,7 +572,7 @@ export default function TrangChinh() {
         </div>
       )}
 
-      {!laMobile && tuDanhSachTinhGia && !dangChonCheDo && (
+      {tuDanhSachTinhGia && !dangChonCheDo && (
         <div
           className="history-context-banner"
           style={{

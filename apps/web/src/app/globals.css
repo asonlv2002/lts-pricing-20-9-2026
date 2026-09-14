@@ -14873,3 +14873,19 @@ fieldset.config-cpsx-upgrade__ro[disabled],
     border-bottom: none;
   }
 }
+
+/* ═══ Banner ngữ cảnh màn tính giá trên mobile (banner render ngoài .mobile-calc-container) ═══ */
+@media (max-width: 767px) {
+  .lts-shell--mobile .quote-context-banner,
+  .lts-shell--mobile .history-context-banner {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    gap: 6px 10px;
+  }
+  .lts-shell--mobile .quote-context-banner .btn,
+  .lts-shell--mobile .history-context-banner .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
