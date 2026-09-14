@@ -14889,3 +14889,49 @@ fieldset.config-cpsx-upgrade__ro[disabled],
     justify-content: center;
   }
 }
+
+/* ═══ Quản lý tài nguyên hệ thống (sysmon) trên mobile ═══ */
+@media (max-width: 767px) {
+  .lts-shell--mobile .sysmon-root {
+    padding: 14px 12px;
+  }
+  .lts-shell--mobile .sysmon-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+  .lts-shell--mobile .sysmon-refresh {
+    align-self: flex-end;
+  }
+  .lts-shell--mobile .sysmon-summary-grid {
+    grid-template-columns: 1fr;
+  }
+  .lts-shell--mobile .sysmon-stat-card {
+    min-height: 0;
+    padding: 14px;
+  }
+  .lts-shell--mobile .sysmon-stat-card dl {
+    margin-top: 12px;
+  }
+  .lts-shell--mobile .sysmon-chart-grid-wrap {
+    grid-template-columns: 1fr;
+  }
+  .lts-shell--mobile .sysmon-chart-grid {
+    height: 150px;
+  }
+  /* Timeline: chỉ giữ mốc 0%, 25%, 50%, 75%, cuối để không đè nhãn */
+  .lts-shell--mobile .sysmon-chart-timeline span {
+    display: none;
+  }
+  .lts-shell--mobile .sysmon-chart-timeline span:nth-child(1),
+  .lts-shell--mobile .sysmon-chart-timeline span:nth-child(4),
+  .lts-shell--mobile .sysmon-chart-timeline span:nth-child(7),
+  .lts-shell--mobile .sysmon-chart-timeline span:nth-child(10),
+  .lts-shell--mobile .sysmon-chart-timeline span:nth-child(13) {
+    display: block;
+  }
+  .lts-shell--mobile .sysmon-footer {
+    margin-top: 12px;
+    padding: 10px 12px;
+  }
+}
