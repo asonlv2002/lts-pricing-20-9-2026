@@ -17,6 +17,7 @@ import DoiAnhDaiDienModal from "../auth/DoiAnhDaiDienModal";
 import DoiChuKyModal from "../auth/DoiChuKyModal";
 import DoiPinModal from "../auth/DoiPinModal";
 import KhachHangQuyenGuard from "./KhachHangQuyenGuard";
+import MobileQuickActions from "./MobileQuickActions";
 import ModuleKhachHang from "../ModuleKhachHang";
 import ModuleBaoGia from "../ModuleBaoGia";
 import ModuleDuyetBaoGia from "../ModuleDuyetBaoGia";
@@ -416,6 +417,7 @@ type MobileHubAction =
   | { type: "changeAvatar" }
   | { type: "changePassword" }
   | { type: "changePin" }
+  | { type: "changeSignature" }
   | { type: "logout" };
 
 interface MobileHubCardConfig {
@@ -724,6 +726,13 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         action: { type: "module", key: "tai-khoan", module: "users" },
       },
       {
+        title: "Yêu cầu đặt lại MK",
+        subtitle: "Duyệt yêu cầu đặt lại mật khẩu của người dùng.",
+        tone: "rose",
+        icon: <KeyRoundIcon size={30} />,
+        action: { type: "module", key: "yeu-cau-mat-khau", module: "users" },
+      },
+      {
         title: "Vai trò",
         subtitle: "Thiết lập nhóm vai trò trong hệ thống.",
         tone: "emerald",
@@ -790,6 +799,13 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
         tone: "violet",
         icon: <KeyRoundIcon size={30} />,
         action: { type: "changePin" },
+      },
+      {
+        title: "Đổi chữ ký",
+        subtitle: "Cập nhật chữ ký số dùng trong báo giá / LSX.",
+        tone: "emerald",
+        icon: <PenLine size={30} />,
+        action: { type: "changeSignature" },
       },
       {
         title: "Đăng xuất",
@@ -1351,10 +1367,12 @@ function MobileHubScreen({
   hub,
   onAction,
   policies,
+  quickActions,
 }: {
   hub: MobileHubConfig;
   onAction: (action: MobileHubAction) => void;
   policies: PolicyCode[];
+  quickActions: React.ReactNode;
 }) {
   const laTongQuanBiKhoa = hub.id === "overview";
 
@@ -1362,23 +1380,8 @@ function MobileHubScreen({
     <section className="lts-mobile-hub" aria-label={hub.title}>
       <header className="lts-mobile-hub-header">
         <div className="lts-mobile-hub-nav">
-          <button
-            className="lts-mobile-header-menu"
-            type="button"
-            aria-label="Mở menu"
-            disabled={laTongQuanBiKhoa}
-          >
-            <Menu size={24} />
-          </button>
           <h1>{hub.title}</h1>
-          <button
-            className="lts-mobile-primary-action"
-            type="button"
-            disabled={laTongQuanBiKhoa}
-          >
-            <Plus size={16} />
-            <span>Mới</span>
-          </button>
+          <div className="lts-mobile-module-actions">{quickActions}</div>
         </div>
       </header>
 
@@ -2152,6 +2155,10 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       datHienDoiPin(true);
       return;
     }
+    if (action.type === "changeSignature") {
+      datHienDoiChuKy(true);
+      return;
+    }
     if (action.type === "logout") {
       dungCuaHangTinhGia.getState().logout();
       return;
@@ -2354,6 +2361,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               hub={hubMobileDangMo}
               onAction={xuLyMobileHubAction}
               policies={policies}
+              quickActions={
+                <MobileQuickActions
+                  coNutTaoMoi={false}
+                  onTaoMoi={moLandingTaoBangTinh}
+                  onDoiMatKhau={() => datHienDoiMatKhau(true)}
+                  onDoiAnhDaiDien={() => datHienDoiAnhDaiDien(true)}
+                  onDoiPin={() => datHienDoiPin(true)}
+                  onDoiChuKy={() => datHienDoiChuKy(true)}
+                  onDangXuat={() => dungCuaHangTinhGia.getState().logout()}
+                />
+              }
             />
           ) : (
             <>
@@ -2370,7 +2388,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <h1>{tieuDeManHinhMobile}</h1>
                     <p>{tieuDeNhomMobile}</p>
                   </div>
-                  <span />
+                  <div className="lts-mobile-module-actions">
+                    <MobileQuickActions
+                      coNutTaoMoi={moduleDangMo === "calculator"}
+                      onTaoMoi={moLandingTaoBangTinh}
+                      onDoiMatKhau={() => datHienDoiMatKhau(true)}
+                      onDoiAnhDaiDien={() => datHienDoiAnhDaiDien(true)}
+                      onDoiPin={() => datHienDoiPin(true)}
+                      onDoiChuKy={() => datHienDoiChuKy(true)}
+                      onDangXuat={() => dungCuaHangTinhGia.getState().logout()}
+                    />
+                  </div>
                 </header>
               )}
               {moduleDangMo === "calculator" && children}

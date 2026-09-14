@@ -5846,20 +5846,23 @@ fieldset.config-cpsx-upgrade__ro[disabled],
 }
 
 .lts-mobile-hub-nav {
-  display: grid;
-  grid-template-columns: minmax(56px, 1fr) auto minmax(96px, 1fr);
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
   margin-top: 0;
 }
 
 .lts-mobile-hub-nav h1 {
   margin: 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 18px;
   line-height: 1.2;
   font-weight: 800;
   letter-spacing: -0.01em;
-  text-align: center;
+  text-align: left;
   white-space: nowrap;
 }
 
@@ -6157,7 +6160,7 @@ fieldset.config-cpsx-upgrade__ro[disabled],
     padding-inline: 16px;
   }
   .lts-mobile-hub-nav {
-    grid-template-columns: 48px minmax(0, auto) 78px;
+    grid-template-columns: none;
   }
   .lts-mobile-primary-action {
     min-width: 74px;
@@ -14719,21 +14722,26 @@ fieldset.config-cpsx-upgrade__ro[disabled],
   .lts-shell--mobile .lts-mobile-module-actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 6px;
     flex-shrink: 0;
+    justify-self: end;
   }
   .lts-shell--mobile .lts-mobile-icon-btn {
     position: relative;
     width: 38px;
     height: 38px;
     border-radius: 10px;
-    border: 1px solid var(--border, #e5e7eb);
-    background: var(--surface, #fff);
-    color: var(--foreground, #374151);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.08);
+    color: #ffffff;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     cursor: pointer;
+  }
+  .lts-shell--mobile .lts-mobile-icon-btn:active {
+    background: rgba(255, 255, 255, 0.16);
   }
   .lts-shell--mobile .lts-mobile-icon-btn .lts-dirty-dot {
     position: absolute;
@@ -14760,9 +14768,9 @@ fieldset.config-cpsx-upgrade__ro[disabled],
     width: 38px;
     height: 38px;
     border-radius: 50%;
-    border: 1px solid var(--border, #e5e7eb);
-    background: var(--surface2, #f3f4f6);
-    color: var(--foreground, #374151);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
     font-size: 12px;
     font-weight: 800;
     display: inline-flex;
