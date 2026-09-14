@@ -220,101 +220,117 @@ export const QREV_STYLES = `
   .lts-shell--mobile .qrev-table,
   .lts-shell--mobile .qrev-table tbody { display: block; }
 
-/* Card 2 dòng:  [ checkbox | tên SP ]  [ giá ]
-                     [ khách | người lập ]  [ actions ] */
-  .lts-shell--mobile .qrev-row {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    grid-template-rows: auto auto;
-    align-items: center;
-    border: 1px solid var(--border, #e5e7eb);
-    border-radius: 12px;
-    padding: 10px 12px;
-    margin-bottom: 8px;
-    background: var(--surface, #fff);
-    box-shadow: 0 1px 4px rgba(15,23,42,0.05);
-  }
-  .lts-shell--mobile .qrev-row td { display: block; padding: 0; border: 0; }
+  /* 3 danh sách (LSX / Tính giá / Báo giá) đã chuyển sang .qrev-mcard-list trên mobile */
+  .lts-shell--mobile .qrev-table--lsx,
+  .lts-shell--mobile .qrev-table--tinhgia,
+  .lts-shell--mobile .qrev-table--baogia { display: none; }
+  .lts-shell--mobile .qrev-mcard-list { display: block; }
+  .lts-shell--mobile .qrev-chips { scrollbar-width: none; }
+  .lts-shell--mobile .qrev-chips::-webkit-scrollbar { display: none; }
 
-  /* Vùng trên-trái (dòng 1, cột 1): checkbox + tên SP */
-  .lts-shell--mobile .qrev-row td:nth-child(1) {
-    grid-column: 1; grid-row: 1;
-    display: inline-flex; align-items: center;
-    width: auto; margin-right: 8px;
+  .lts-shell--mobile .qrev-mcard {
+    display: flex; flex-direction: column; gap: 6px;
+    min-height: 116px; padding: 12px 14px;
+    background: var(--surface, #fff); border: 1px solid var(--border, #e5e7eb);
+    border-radius: 14px; box-shadow: 0 1px 4px rgba(15, 23, 42, 0.05);
+    margin-bottom: 10px; cursor: pointer;
   }
-  .lts-shell--mobile .qrev-row td:nth-child(2) {
-    grid-column: 1; grid-row: 1;
-    font-size: 14px; font-weight: 600;
+  .lts-shell--mobile .qrev-mcard:active { transform: scale(0.995); }
+  .lts-shell--mobile .qrev-mcard-r1 {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px;
   }
-
-  /* Vùng trên-phải (dòng 1, cột 2): giá - cột 6 */
-  .lts-shell--mobile .qrev-row td:nth-child(6) {
-    grid-column: 2; grid-row: 1;
-    text-align: right; white-space: nowrap;
-    font-size: 14px; font-weight: 700; color: var(--accent, #0891b2);
+  .lts-shell--mobile .qrev-mcard-code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-weight: 700; font-size: 14.5px; color: var(--text, #111827);
+    min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-
-  /* Vùng dưới-trái (dòng 2, cột 1): khách + người lập */
-  .lts-shell--mobile .qrev-row td:nth-child(3),
-  .lts-shell--mobile .qrev-row td:nth-child(4) {
-    grid-column: 1; grid-row: 2;
-    font-size: 12.5px; color: var(--muted, #6b7280);
-    font-weight: 500;
+  .lts-shell--mobile .qrev-mcard-name {
+    font-weight: 700; font-size: 14px; color: var(--text, #111827);
+    min-width: 0; overflow: hidden; white-space: nowrap;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .lts-shell--mobile .qrev-mcard-name > span:first-child,
+  .lts-shell--mobile .qrev-mcard-name { text-overflow: ellipsis; }
+  .lts-shell--mobile .qrev-mcard-name .qrev-badge {
+    font-size: 10.5px; padding: 2px 7px; flex-shrink: 0;
+  }
+  .lts-shell--mobile .qrev-mcard-price {
+    font-weight: 800; font-size: 14px; color: var(--accent, #0891b2);
+    white-space: nowrap; flex-shrink: 0; margin-left: auto;
+  }
+  .lts-shell--mobile .qrev-mcard-customer {
+    font-size: 13px; font-weight: 600; color: var(--text, #374151);
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-    display: inline-block; max-width: 45%; margin-right: 8px;
   }
-
-  /* Vùng dưới-phải (dòng 2, cột 2): actions - cột 7 */
-  .lts-shell--mobile .qrev-row td:nth-child(7) {
-    grid-column: 2; grid-row: 2;
-    display: flex; justify-content: flex-end; gap: 4px;
+  .lts-shell--mobile .qrev-mcard-sub {
+    font-size: 12px; color: var(--muted, #6b7280);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .lts-shell--mobile .qrev-btn-icon { width: 30px; height: 30px; border-radius: 7px; }
-
-  /* Checkbox tạo báo giá: bỏ viền button, to icon, màu accent nổi bật */
-  .lts-shell--mobile .qrev-row td:nth-child(1) .qrev-btn-icon {
-    border: 0;
-    background: transparent;
-    color: var(--accent, #0891b2);
-    width: 34px;
-    height: 34px;
-    border-radius: 8px;
+  .lts-shell--mobile .qrev-mcard-foot {
+    margin-top: auto; display: flex; align-items: center;
+    justify-content: space-between; gap: 8px;
+    border-top: 1px dashed var(--border, #e5e7eb); padding-top: 9px;
   }
-  .lts-shell--mobile .qrev-row td:nth-child(1) .qrev-btn-icon:hover,
-  .lts-shell--mobile .qrev-row td:nth-child(1) .qrev-btn-icon:active {
-    background: rgba(8, 145, 178, 0.10);
+  .lts-shell--mobile .qrev-mcard-left {
+    display: inline-flex; align-items: center; gap: 8px; min-width: 0;
   }
-  .lts-shell--mobile .qrev-row td:nth-child(1) .qrev-btn-icon svg {
-    width: 22px;
-    height: 22px;
+  .lts-shell--mobile .qrev-mcard-time {
+    font-size: 11.5px; color: var(--dim, #9ca3af);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   }
-
-  /* Ẩn thời gian (cột 5) */
-  .lts-shell--mobile .qrev-row td:nth-child(5) { display: none; }
+  .lts-shell--mobile .qrev-mcard-actions {
+    display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+  .lts-shell--mobile .qrev-mcard-actions .qrev-row-actions { gap: 6px; }
+  .lts-shell--mobile .qrev-mcard-actions .qrev-btn-icon { width: 38px; height: 38px; }
+  .lts-shell--mobile .qrev-mavatar .qrev-user-avatar { width: 32px; height: 32px; font-size: 12px; }
+  .lts-shell--mobile .qrev-mstatus {
+    font-size: 11px; font-weight: 700; padding: 2px 9px;
+    border-radius: 999px; white-space: nowrap; flex-shrink: 0;
+  }
+  .lts-shell--mobile .qrev-mstatus--ok { color: #047857; background: rgba(16, 185, 129, 0.12); }
+  .lts-shell--mobile .qrev-mstatus--err { color: #b91c1c; background: rgba(239, 68, 68, 0.10); }
+  .lts-shell--mobile .qrev-mstatus--pending { color: #b45309; background: rgba(217, 119, 6, 0.12); }
+  .lts-shell--mobile .qrev-mstatus--none { color: var(--muted, #6b7280); background: var(--surface2, #f3f4f6); }
+  .lts-shell--mobile .qrev-mcard-detail {
+    border: 1px solid var(--border, #e5e7eb); border-top: 0;
+    border-radius: 0 0 14px 14px; background: var(--surface2, #f8fafc);
+    padding: 10px 12px; margin: -10px 0 12px; font-size: 0.82rem;
+  }
 
   .lts-shell--mobile .qrev-slide-panel { width: 100vw; }
 }
 
-/* ── Bảng báo giá (5 cột: Báo giá | Người lập | Thời gian | Thao tác | Duyệt) ──
-   Vị trí cột 4-5 của bảng này lệch với bảng 7-cột mà CSS mobile dùng chung.
-   Scope lại dưới .qrev-table--baogia để không ảnh hưởng bảng LSX / Tính giá. */
-@media (max-width: 767px) {
-  .lts-shell--mobile .qrev-table--baogia .qrev-row td:nth-child(4) {
-    grid-column: 2; grid-row: 2;
-    display: flex; justify-content: flex-end; align-items: center; gap: 4px;
-    font-size: inherit; color: inherit; font-weight: 400;
-    max-width: none; margin-right: 0; white-space: normal;
-    overflow: visible; text-overflow: clip;
-  }
-  .lts-shell--mobile .qrev-table--baogia .qrev-row td:nth-child(5) {
-    display: flex; align-items: center; justify-content: flex-end;
-    grid-column: 2; grid-row: 1;
-    text-align: right; white-space: nowrap;
-    font-size: 14px; font-weight: 700;
-  }
-  .lts-shell--mobile .qrev-table--baogia .qrev-pending-dash {
-    color: #6b7280; font-weight: 600; font-size: 14px; line-height: 1;
-  }
+/* ── Card mobile dùng chung 3 danh sách + tooltip avatar người lập ── */
+.qrev-mcard-list { display: none; }
+.qrev-mavatar-wrap { position: relative; display: inline-flex; }
+.qrev-mavatar-wrap.is-open { z-index: 1001; }
+.qrev-mavatar {
+  border: 0; background: transparent; padding: 2px; cursor: pointer;
+  display: inline-flex; border-radius: 50%;
+}
+.qrev-mavatar:focus-visible {
+  outline: 2px solid var(--accent, #0891b2); outline-offset: 2px;
+}
+.qrev-mavatar-empty { color: var(--muted, #6b7280); }
+.qrev-mavatar-backdrop { position: fixed; inset: 0; z-index: 1000; }
+.qrev-mavatar-tip {
+  position: absolute; bottom: calc(100% + 10px); left: 50%;
+  transform: translateX(-50%);
+  background: #0f172a; color: #fff; font-size: 12px; font-weight: 600;
+  padding: 6px 10px; border-radius: 8px; white-space: nowrap;
+  max-width: 72vw; overflow: hidden; text-overflow: ellipsis;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25);
+  animation: qrevTipIn 0.14s ease-out;
+}
+.qrev-mavatar-tip::after {
+  content: ""; position: absolute; top: 100%; left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent; border-top-color: #0f172a;
+}
+@keyframes qrevTipIn {
+  from { opacity: 0; transform: translate(-50%, 4px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
 `;
 
