@@ -12,6 +12,7 @@ import type {
   HangSo,
 } from '../../../packages/kieu-du-lieu/src';
 import type { DongLoiNhuan } from '../../../packages/hang-so/src';
+import profitJson from '../../../data/profitTable.json';
 
 // ── Shape tiếng Anh (giống apps/web/src/lib/types.ts) ────────────────────────
 interface Material {
@@ -20,11 +21,19 @@ interface Material {
   isPETorPA: boolean; adjustableMic?: boolean;
   rollLength: number; inkPricePerColor: number; pricePerM2?: number;
 }
+interface ConfigOption {
+  key: string; label: string; price: number; weight?: number;
+}
+interface PrintFilmProfitRate {
+  customerGroup: string; colorFrom: number; colorTo: number; rate: number;
+}
 interface AppConstants {
   zipperPrice: number; zipperWeight: number;
   tapePrice: number; tapeWeight: number;
   handlePrice: number; handleWeight: number;
+  handleOptions?: ConfigOption[];
   boxPriceDefault: number; bagsPerBoxDefault: number;
+  boxOptions?: ConfigOption[];
   interestBase: number; interestSpread: number;
   paymentDays: number;
   cylinderPricePerUnit: number; cylPriceA: number; cylPriceB: number;
@@ -39,22 +48,46 @@ interface AppConstants {
   nhuPrice: number; moPrice: number;
   colorSetup: Record<number, number>;
   printWasteA: number; printWasteB: number; printWasteC: number; printWasteD: number;
+  // ── Màng in (mangIn) — mirror AppConstants web (engine.ts doiSangHangSo) ────
+  printFilmInkPriceBopp?: number;
+  printFilmInkPriceOther?: number;
+  printFilmSetupMinutesPerColor?: number;
+  printFilmSetupHourDivisor?: number;
+  printFilmLengthThreshold?: number;
+  printFilmShortRunSpeed?: number;
+  printFilmLaborCostPerHour?: number;
+  printFilmShippingThresholdM2?: number;
+  printFilmShippingBaseCost?: number;
+  printFilmShippingLargeOrderM2?: number;
+  printFilmInterestRate?: number;
+  printFilmProfitRates?: PrintFilmProfitRate[];
 }
-interface ProfitRow { threshold: number; col1: number; col2: number; }
+interface ProfitRow {
+  threshold: number; col1: number; col2: number;
+  largeCol1?: number; largeCol2?: number;
+}
 interface CalculateInput {
   customer: string; productName: string; productType: string;
   bagType: string; filmType: string; filmRollLength: number;
   quantity: number; numColors: number | null; numImages: number;
   layer1Id?: string | null; layer2Id?: string | null; layer3Id?: string | null;
   layer4Id?: string | null; layer5Id?: string | null;
+  layer2AltId?: string | null;
+  layer2Lengths?: { mat1: number; mat2: number };
+  layer2FrontPart?: 'main' | 'alt';
+  layer2PairingMode?: 'bottom_to_bottom' | 'front_to_front';
+  multiStructureLayers?: Record<string, string[]>;
   spreadWidth: number; cutStep: number;
   metallicSurcharge: number; coverageRatio: number;
   handleWeight: number; zipperWeight: number; tapeWeight: number;
   hasZipper: boolean; hasTape: boolean; hasHandle: boolean;
+  handleOptionKey?: string | null;
   paymentDays: number; profitColumn: number;
+  printFilmCustomerGroup?: 'normal' | 'large';
   commissionRate: number; commissionFixedVND: number;
   commissionUnit: 'percent' | 'vnd'; commissionInputValue: number;
   bagsPerBox: number; boxPrice: number;
+  boxWeight?: number; boxOptionKey?: string | null;
   shippingPerKm: number; shippingKm: number;
   cylLength: number; cylCircum: number; cylUnitPrice: number;
   cylType: 'A' | 'B' | 'custom'; cylIncluded: boolean;
@@ -62,7 +95,9 @@ interface CalculateInput {
   micOverrides?: Record<string, number>;
 }
 
-const PROFIT_DEFAULT = { col1: 0.04, col2: 0.11 };
+const PROFIT_DEFAULT = profitJson.profitDefault as {
+  col1: number; col2: number; largeCol1: number; largeCol2: number;
+};
 
 // ── Adapters (copy nguyên từ apps/web/src/lib/engine.ts) ─────────────────────
 function toVatLieu(m: Material): VatLieu {
@@ -76,11 +111,19 @@ function toVatLieu(m: Material): VatLieu {
   };
 }
 
-function toHangSo(c: AppConstants): HangSo {
+function toHangSo(c: AppConstants, input?: CalculateInput): HangSo {
+  const luaChonQuai = c.handleOptions?.find(o => o.key === input?.handleOptionKey);
   return {
     giaKhoa: c.zipperPrice, khoiLuongKhoa: c.zipperWeight,
     giaBangKeo: c.tapePrice, khoiLuongBangKeo: c.tapeWeight,
-    giaQuaiXach: c.handlePrice, khoiLuongQuaiXach: c.handleWeight,
+    giaQuaiXach: luaChonQuai?.price ?? c.handlePrice,
+    khoiLuongQuaiXach: luaChonQuai?.weight ?? c.handleWeight,
+    loaiQuai: (c.handleOptions ?? []).map(option => ({
+      key: option.key,
+      label: option.label,
+      price: option.price,
+      weight: option.weight,
+    })),
     giaThuungMacDinh: c.boxPriceDefault, soTuiPerThuungMacDinh: c.bagsPerBoxDefault,
     loaiThuung: (c.boxOptions ?? []).map(option => ({
       key: option.key,
@@ -88,9 +131,9 @@ function toHangSo(c: AppConstants): HangSo {
       price: option.price,
       weight: option.weight,
     })),
-    laiSuatMacDinh: c.interestBase ?? 0.10,
-    laiSuatCoBan: c.interestBase ?? 0.10,
-    laiSuatThem: c.interestSpread ?? 0.03,
+    laiSuatMacDinh: c.interestBase || 0.10,
+    laiSuatCoBan: c.interestBase || 0.10,
+    laiSuatThem: c.interestSpread || 0.03,
     ngayThanhToanMacDinh: c.paymentDays,
     giaTrucDonVi: c.cylinderPricePerUnit,
     giaTrucA: c.cylPriceA ?? c.cylinderPricePerUnit,
@@ -107,11 +150,34 @@ function toHangSo(c: AppConstants): HangSo {
     chiPhiCaiDatMau: c.colorSetup,
     hatHaoInA: c.printWasteA, hatHaoInB: c.printWasteB,
     hatHaoInC: c.printWasteC, hatHaoInD: c.printWasteD,
+    giaMucMangInBOPP: c.printFilmInkPriceBopp ?? 150,
+    giaMucMangInKhac: c.printFilmInkPriceOther ?? 200,
+    phutSetupMangInMoiMau: c.printFilmSetupMinutesPerColor ?? 20,
+    mauSoGioSetupMangIn: c.printFilmSetupHourDivisor ?? 60,
+    nguongMetMangIn: c.printFilmLengthThreshold ?? 40000,
+    tocDoMangInNgan: c.printFilmShortRunSpeed ?? 7500,
+    chiPhiGioMangIn: c.printFilmLaborCostPerHour ?? 1200000,
+    nguongVanChuyenMangInM2: c.printFilmShippingThresholdM2 ?? 25000,
+    chiPhiVanChuyenMangIn: c.printFilmShippingBaseCost ?? 500000,
+    mocVanChuyenMangInM2: c.printFilmShippingLargeOrderM2 ?? 30000,
+    laiSuatMangIn: c.printFilmInterestRate ?? 0.01,
+    tyLeLoiNhuanMangIn: (c.printFilmProfitRates ?? []).map(row => ({
+      nhomKhach: row.customerGroup,
+      soMauTu: row.colorFrom,
+      soMauDen: row.colorTo,
+      tyLe: row.rate,
+    })),
   } as HangSo;
 }
 
 function toDongLoiNhuan(rows: ProfitRow[]): DongLoiNhuan[] {
-  return rows.map(r => ({ nguong: r.threshold, cot1: r.col1, cot2: r.col2 }));
+  return rows.map(r => ({
+    nguong: r.threshold,
+    cot1: r.col1,
+    cot2: r.col2,
+    cot1KhachLon: r.largeCol1 ?? r.col1,
+    cot2KhachLon: r.largeCol2 ?? r.col2,
+  }));
 }
 
 function toDauVao(i: CalculateInput): DauVaoTinhGia {
@@ -120,8 +186,12 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
     loaiSanPham: i.productType, loaiTui: i.bagType, loaiMang: i.filmType,
     chieuDaiCuonMang: i.filmRollLength || 6000,
     soLuong: i.quantity, soMau: i.numColors, soHinh: i.numImages || 1,
-    idLop1: i.layer1Id, idLop2: i.layer2Id, idLop3: i.layer3Id,
-    idLop4: i.layer4Id, idLop5: i.layer5Id,
+    nhomKhachMangIn: i.printFilmCustomerGroup ?? 'normal',
+    idLop1: i.layer1Id, idLop2: i.layer2Id, idLop2Phu: i.layer2AltId,
+    chieuDaiLop2: i.layer2Lengths ? { vl1: i.layer2Lengths.mat1 * 1000, vl2: i.layer2Lengths.mat2 * 1000 } : undefined,
+    matTruocLop2: i.layer2FrontPart ?? 'main',
+    kieuGhepLop2: i.layer2PairingMode ?? 'bottom_to_bottom',
+    idLop3: i.layer3Id, idLop4: i.layer4Id, idLop5: i.layer5Id,
     khoTrai: i.spreadWidth, buocCat: i.cutStep,
     phiKimLoai: i.metallicSurcharge || 0,
     tyLePhuMucMuc: i.coverageRatio || 1,
@@ -129,7 +199,7 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
     khoiLuongKhoa: i.zipperWeight || 0,
     khoiLuongBangKeo: i.tapeWeight || 0,
     coKhoa: i.hasZipper, coBangKeo: i.hasTape, coQuaiXach: i.hasHandle,
-    ngayThanhToan: i.paymentDays || 30,
+    ngayThanhToan: i.paymentDays ?? 30,
     loaiTruc: i.cylType ?? 'A',
     baoTruc: i.cylIncluded ?? false,
     cotLoiNhuan: i.profitColumn || 2,
@@ -139,12 +209,14 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
     giaTriHoaHongNhap: i.commissionInputValue || 0,
     soTuiPerThuung: i.bagsPerBox || 0,
     giaThuung: i.boxPrice || 0,
+    khoiLuongThuung: i.boxWeight || 0,
     cuocVanChuyenPerKm: i.shippingPerKm || 0,
     soKmVanChuyen: i.shippingKm || 0,
     chieuDaiTruc: i.cylLength || 0,
     chuViTruc: i.cylCircum || 0,
     giaTrucDonVi: i.cylUnitPrice || 0,
     doDayMucTieu: i.targetThickness || 0,
+    cauTrucNhieuVatLieu: i.multiStructureLayers,
     ghiDeDayLop: i.micOverrides ? Object.fromEntries(
       Object.entries(i.micOverrides).map(([k, v]) => {
         const num = k.replace('layer', '').replace('Id', '');
@@ -152,6 +224,21 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
       })
     ) : {},
   } as DauVaoTinhGia;
+}
+
+// ── Trọng lượng thùng theo boxOptionKey (mirror layTrongLuongThung web engine.ts) ─
+function layTrongLuongThung(
+  input: Pick<CalculateInput, 'boxOptionKey' | 'boxWeight'>,
+  constants: AppConstants,
+): number {
+  const key = input.boxOptionKey;
+  if (key && key !== 'custom') {
+    const opt = (constants.boxOptions ?? []).find(o => o.key === key);
+    if (opt) {
+      return Math.max(0, Number(opt.weight) || 0);
+    }
+  }
+  return Math.max(0, Number(input.boxWeight) || 0);
 }
 
 function toResult(r: KetQuaTinhGia, originalInput: CalculateInput): any {
@@ -177,6 +264,11 @@ function toResult(r: KetQuaTinhGia, originalInput: CalculateInput): any {
     printCostCPSX: r.chiPhiSXIn,
     printCostMaterial: r.chiPhiVatLieuIn,
     printTotalCost: r.tongChiPhiIn,
+    printFilmCost: r.cpMangIn ?? 0,
+    printFilmSetupHours: r.gioSetupMangIn ?? 0,
+    printFilmProductionHours: r.gioSanXuatMangIn ?? 0,
+    printFilmTotalHours: r.tongGioMangIn ?? 0,
+    printFilmLaborCostPerHour: r.chiPhiGioMangIn ?? 0,
     totalProductionCost: r.tongChiPhiSX,
     totalLamCost: r.tongChiPhiGhep,
     profitRate: r.tyLeLoiNhuan,
@@ -199,6 +291,12 @@ function toResult(r: KetQuaTinhGia, originalInput: CalculateInput): any {
     tareWeight: r.khoiLuongTare,
     shippingPerUnit: r.cuocVanChuyenPerDonVi,
     shippingTotal: r.tongCuocVanChuyen,
+    gcShippingPerUnit: r.vanChuyenGcPerDonVi ?? 0,
+    gcPackagingPerUnit: r.dongGoiGcPerDonVi ?? 0,
+    gcOtherPerUnit: r.phuPhiKhacGcPerDonVi ?? 0,
+    gcShippingTotal: r.tongVanChuyenGc ?? 0,
+    gcPackagingTotal: r.tongDongGoiGc ?? 0,
+    gcOtherTotal: r.tongPhuPhiKhacGc ?? 0,
     shippingRate: r.tyLeCuocVanChuyen,
     actualShippingPerKm: r.cuocVanChuyenThucTePerKm,
     actualShippingKm: r.soKmThucTe,
@@ -235,12 +333,19 @@ function toResult(r: KetQuaTinhGia, originalInput: CalculateInput): any {
   };
 }
 
-function lookupProfit(totalCost: number, column: number, profitTable: ProfitRow[]): number {
-  const col = column === 1 ? 'col1' : 'col2';
-  let val = PROFIT_DEFAULT[col as 'col1' | 'col2'];
+function lookupProfit(
+  totalCost: number,
+  column: number,
+  profitTable: ProfitRow[],
+  nhomKhach: 'normal' | 'large' = 'normal',
+): number {
+  const col = nhomKhach === 'large'
+    ? (column === 1 ? 'largeCol1' : 'largeCol2')
+    : (column === 1 ? 'col1' : 'col2');
+  let val = (PROFIT_DEFAULT as any)[col];
   for (const row of profitTable) {
     if (totalCost < row.threshold) {
-      val = row[col as 'col1' | 'col2'] as number;
+      val = (row as any)[col] as number;
       break;
     }
   }
@@ -308,14 +413,20 @@ function calculate(
     const materials: Material[] = JSON.parse(materialsJson);
     const constants: AppConstants = JSON.parse(constantsJson);
     const profitTable: ProfitRow[] = JSON.parse(profitTableJson);
+    // Mirror web tinhGiaWeb: boxWeight resolve từ boxOptionKey (engine luôn tự
+    // chọn cột LN qua chonCotLoiNhuanApDung nên không cần dongBoCotLoiNhuan ở adapter).
+    const inputHieuLuc: CalculateInput = {
+      ...input,
+      boxWeight: layTrongLuongThung(input, constants),
+    };
     const ketQua = tinhGia(
-      toDauVao(input),
+      toDauVao(inputHieuLuc),
       materials.map(toVatLieu),
-      toHangSo(constants),
+      toHangSo(constants, inputHieuLuc),
       toDongLoiNhuan(profitTable),
     );
     if (!ketQua) return JSON.stringify({ error: 'null_result' });
-    return JSON.stringify(toResult(ketQua, input));
+    return JSON.stringify(toResult(ketQua, inputHieuLuc));
   } catch (e: any) {
     return JSON.stringify({ error: String(e && e.message ? e.message : e) });
   }
@@ -324,9 +435,9 @@ function calculate(
 // ── Expose sang globalThis (QuickJS-safe) ────────────────────────────────────
 (globalThis as any).LTS = {
   calculate,
-  lookupProfit: (totalCost: number, column: number, profitTableJson: string) => {
+  lookupProfit: (totalCost: number, column: number, profitTableJson: string, nhomKhach?: 'normal' | 'large') => {
     const rows: ProfitRow[] = JSON.parse(profitTableJson);
-    return lookupProfit(totalCost, column, rows);
+    return lookupProfit(totalCost, column, rows, nhomKhach ?? 'normal');
   },
   optimizeThickness: (inputJson: string, materialsJson: string) => {
     try {
@@ -344,5 +455,5 @@ function calculate(
       return JSON.stringify({ error: String(e && e.message ? e.message : e) });
     }
   },
-  version: '0.1.0',
+  version: '0.2.0',
 };

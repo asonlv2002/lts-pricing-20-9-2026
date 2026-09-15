@@ -83,15 +83,31 @@ class ProfitRow {
   final double threshold;
   final double col1;
   final double col2;
-  const ProfitRow({required this.threshold, required this.col1, required this.col2});
+  final double? largeCol1;
+  final double? largeCol2;
+  const ProfitRow({
+    required this.threshold,
+    required this.col1,
+    required this.col2,
+    this.largeCol1,
+    this.largeCol2,
+  });
 
   factory ProfitRow.fromJson(Map<String, dynamic> j) => ProfitRow(
         threshold: (j['threshold'] as num).toDouble(),
         col1: (j['col1'] as num).toDouble(),
         col2: (j['col2'] as num).toDouble(),
+        largeCol1: (j['largeCol1'] as num?)?.toDouble(),
+        largeCol2: (j['largeCol2'] as num?)?.toDouble(),
       );
 
-  Map<String, dynamic> toJson() => {'threshold': threshold, 'col1': col1, 'col2': col2};
+  Map<String, dynamic> toJson() => {
+        'threshold': threshold,
+        'col1': col1,
+        'col2': col2,
+        if (largeCol1 != null) 'largeCol1': largeCol1,
+        if (largeCol2 != null) 'largeCol2': largeCol2,
+      };
 }
 
 /// Wrapper cho Map<String, dynamic> — giữ nguyên shape JSON như engine yêu cầu.

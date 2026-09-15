@@ -5,7 +5,7 @@
   "description": "esbuild bundler cho engine.ts → assets/engine.bundle.js (flutter_js)",
   "type": "module",
   "scripts": {
-    "build": "node scripts/build-engine.mjs"
+    "build": "tsc -p scripts && node scripts/build-engine.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.24.0",
