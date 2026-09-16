@@ -1,6 +1,6 @@
 # Spec: Flutter UI tái hiện 100% web mobile (phạm vi A — skin & cấu trúc)
 
-Ngày: 2026-09-16 · Branch: `feat/flutter-ui-web-mobile` · Trạng thái: APPROVED (user duyệt 2 quyết định phạm vi + hướng 1)
+Ngày: 2026-09-16 · Branch: `feat/flutter-ui-web-mobile` · Trạng thái: ĐÃ TRIỂN KHAI P1–P6 (commits 86e093b → cbc74ae). Nghiệm thu thị giác 375px ↔ `pnpm dev`: chờ user chạy thử trên máy.
 
 ## Quyết định đã chốt
 1. **Phạm vi A** — chỉ tái hiện GIAO DIỆN web mobile vào `apps/flutter_app`; engine/store/data không đổi; KHÔNG port auth/BE/báo giá/khách hàng.
