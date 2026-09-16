@@ -63,7 +63,7 @@ export const dungCuaHangCauHinh = create<CuaHangCauHinh>()(
         })),
       themDongLoiNhuan: () =>
         set((s) => ({
-          loiNhuan: [...s.loiNhuan, { nguong: 0, cot1: 0, cot2: 0 }],
+          loiNhuan: [...s.loiNhuan, { nguong: 0, cot1: 0, cot2: 0, cot1KhachLon: 0, cot2KhachLon: 0 }],
         })),
       xoaDongLoiNhuan: (idx) =>
         set((s) => ({ loiNhuan: s.loiNhuan.filter((_, i) => i !== idx) })),
