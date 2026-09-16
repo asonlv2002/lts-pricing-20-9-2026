@@ -212,7 +212,7 @@ function datGhiDeChiTiet(
   ghiDeHienTai: OverrideTable,
   khoaDong: OverrideRowKey,
   chiTietIndex: number,
-  truong: 'width' | 'matPrice' | 'rawMatPrice' | 'materialId' | 'materialName',
+  truong: 'width' | 'matPrice' | 'rawMatPrice' | 'materialId' | 'materialName' | 'doDay',
   giaTri: number | string | undefined,
 ) {
   const hienTai = ghiDeHienTai[khoaDong]?.detailOverrides ?? {};
@@ -267,6 +267,87 @@ function OChiTietCoTheGhiDe({ khoaDong, chiTietIndex, truong, giaTriGoc, giaTriG
   );
 }
 
+/** Ô "Độ dày (mic)" — chỉ vật liệu adjustableMic (LLDPE) được sửa; sửa xong matPrice tự tính lại. */
+function ODoDay({ khoaDong, chiTietIndex, matIdHienLuc, giaTriGoc, giaTriGhiDe, duocSua, khiDat, ghiDeHienTai, materials, rawMatPriceHienLuc }: {
+  khoaDong: OverrideRowKey;
+  /** Có chỉ số detail → ghi đè theo detailOverrides; undefined → ghi đè cấp dòng */
+  chiTietIndex?: number;
+  /** materialId hiệu lực (đã qua ghi đè đổi VL) — tra adjustableMic/thickness/tỉ trọng */
+  matIdHienLuc?: string;
+  giaTriGoc: number;
+  giaTriGhiDe: number | undefined;
+  duocSua: boolean;
+  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
+  ghiDeHienTai: OverrideTable;
+  materials: Material[];
+  /** Giá NVL hiện luc (đ/kg) — ghi đè rawMatPrice ?? pricePerKg của VL hiệu lực */
+  rawMatPriceHienLuc: number;
+}) {
+  const mat = matIdHienLuc ? materials.find(m => m.id === matIdHienLuc) : undefined;
+  const duocSuaDoDay = !!mat && duocSua && !!mat.adjustableMic && mat.pricePerM2 == null;
+  const giaTriHienThi = giaTriGhiDe ?? giaTriGoc;
+  const daThayDoi = giaTriGhiDe !== undefined && Math.abs(giaTriGhiDe - giaTriGoc) > 0.001;
+  const [dangSua, datDangSua] = React.useState(false);
+  const [giaTriTam, datGiaTriTam] = React.useState('');
+  const ghiDoDay = (doDay: number | undefined, matPrice: number | undefined) => {
+    if (chiTietIndex !== undefined) {
+      datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'doDay', doDay);
+      if (matPrice !== undefined) datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'matPrice', matPrice);
+    } else {
+      khiDat(khoaDong, 'doDay', doDay);
+      if (matPrice !== undefined) khiDat(khoaDong, 'matPrice', matPrice);
+    }
+  };
+  const xacNhan = () => {
+    datDangSua(false);
+    const soDaDoc = parseFloat(giaTriTam);
+    if (!Number.isFinite(soDaDoc) || soDaDoc <= 0 || Math.abs(soDaDoc - giaTriGoc) < 0.001) {
+      // Xóa ghi đè → về độ dày mặc định. matPrice do doDay sinh ra (khớp giá trị suy
+      // từ doDay cũ) → xóa luôn; matPrice ghi đè tay → giữ nguyên.
+      const matPriceHienTai = chiTietIndex !== undefined
+        ? ghiDeHienTai[khoaDong]?.detailOverrides?.[chiTietIndex]?.matPrice
+        : ghiDeHienTai[khoaDong]?.matPrice;
+      let matPriceMoi: number | undefined;
+      if (matPriceHienTai !== undefined && giaTriGhiDe !== undefined && mat && mat.density > 0) {
+        const matPriceTuDoDay = rawMatPriceHienLuc * giaTriGhiDe * mat.density / 1000;
+        if (Math.abs(matPriceHienTai - matPriceTuDoDay) < 0.001) matPriceMoi = undefined;
+        else matPriceMoi = matPriceHienTai;
+      } else if (matPriceHienTai !== undefined) {
+        matPriceMoi = matPriceHienTai;
+      }
+      ghiDoDay(undefined, matPriceMoi);
+      return;
+    }
+    const doDayMoi = soDaDoc;
+    if (!mat || mat.density <= 0) { ghiDoDay(doDayMoi, undefined); return; }
+    ghiDoDay(doDayMoi, rawMatPriceHienLuc * doDayMoi * mat.density / 1000);
+  };
+  if (!duocSuaDoDay) {
+    return (
+      <td className={`num ${daThayDoi ? 'override-changed' : ''}`}
+        title={daThayDoi ? `Gốc: ${dinhDangSo(giaTriGoc, 0)} mic` : undefined}
+        data-label="Độ dày (mic)">
+        {mat ? dinhDangSo(giaTriHienThi, 0) : '—'}
+      </td>
+    );
+  }
+  return (
+    <td className={`num override-cell ${daThayDoi ? 'override-changed' : ''}`}
+      title={daThayDoi ? `Gốc: ${dinhDangSo(giaTriGoc, 0)} mic` : undefined}
+      data-label="Độ dày (mic)">
+      {dangSua ? (
+        <input className="override-input" type="number" step="any" value={giaTriTam}
+          onChange={e => datGiaTriTam(e.target.value)} onBlur={xacNhan}
+          onKeyDown={e => { if (e.key === 'Enter') xacNhan(); if (e.key === 'Escape') datDangSua(false); }} autoFocus />
+      ) : (
+        <span className="override-display" onClick={() => { datGiaTriTam(String(giaTriHienThi)); datDangSua(true); }}>
+          {dinhDangSo(giaTriHienThi, 0)}<span className="override-indicator"> ✎</span>
+        </span>
+      )}
+    </td>
+  );
+}
+
 function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, duocSua, khiDat, ghiDeHienTai, materials, engineParams }: {
   khoaDong: OverrideRowKey;
   chiTietIndex: number;
@@ -292,6 +373,7 @@ function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, d
           datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialName', undefined);
           datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'matPrice', undefined);
           datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'rawMatPrice', undefined);
+          datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'doDay', undefined);
           if (khoaDong === 'print') khiDat(khoaDong, 'cpsx', undefined);
           return;
         }
@@ -300,6 +382,7 @@ function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, d
         datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'materialName', mat.name);
         datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'matPrice', giaM2);
         datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'rawMatPrice', mat.pricePerKg);
+        datGhiDeChiTiet(khiDat, ghiDeHienTai, khoaDong, chiTietIndex, 'doDay', undefined);
         if (khoaDong === 'print' && engineParams && engineParams.numColors > 0) {
           const ep = engineParams;
           if (ep.isPrintFilm) {
@@ -345,6 +428,7 @@ function OChonVatLieuDong({ khoaDong, giaTriGocId, giaTriGocTen, giaTriGocGia, g
           khiDat(khoaDong, 'mat', undefined);
           khiDat(khoaDong, 'matPrice', undefined);
           khiDat(khoaDong, 'rawMatPrice', undefined);
+          khiDat(khoaDong, 'doDay', undefined);
           if (khoaDong === 'print') khiDat(khoaDong, 'cpsx', undefined);
           return;
         }
@@ -353,6 +437,7 @@ function OChonVatLieuDong({ khoaDong, giaTriGocId, giaTriGocTen, giaTriGocGia, g
         khiDat(khoaDong, 'mat', mat.name);
         khiDat(khoaDong, 'matPrice', giaM2);
         khiDat(khoaDong, 'rawMatPrice', mat.pricePerKg);
+        khiDat(khoaDong, 'doDay', undefined);
         if (khoaDong === 'print' && engineParams && engineParams.numColors > 0) {
           const ep = engineParams;
           if (ep.isPrintFilm) {
