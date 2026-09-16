@@ -571,6 +571,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
           <thead>
             <tr>
               <th data-mobile-label={MOBILE_LABELS.stage}>Công đoạn</th><th data-mobile-label={MOBILE_LABELS.material}>Vật liệu</th>
+              <th className="num" data-mobile-label={MOBILE_LABELS.doDay}>độ dày (mic)</th>
               <th className="num" data-mobile-label={MOBILE_LABELS.width}>khổ màng NVL (m)</th><th className="num" data-mobile-label={MOBILE_LABELS.meters}>thành phẩm (m)</th>
               <th className="num" data-mobile-label={MOBILE_LABELS.waste}>phi hao (m)</th><th className="num" data-mobile-label={MOBILE_LABELS.inputMaterial}>đầu vào NVL (m)</th>
               <th className="num" data-mobile-label={MOBILE_LABELS.cpsx}>CPSX (đ/m²)</th><th className="num" data-mobile-label={MOBILE_LABELS.totalCpsx}>Thành tiền CPSX</th>
@@ -605,6 +606,18 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                           matPrice: ghiDeNguonChiTiet?.matPrice ?? chiTietGoc?.matPrice ?? detail.matPrice,
                         }}
                         giaTriGhiDe={ghiDeHienTaiChiTiet} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} engineParams={engineParams} />
+                      <ODoDay khoaDong={row.rowKey} chiTietIndex={detailIdx}
+                        matIdHienLuc={ghiDeHienTaiChiTiet?.materialId ?? ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId}
+                        giaTriGoc={(() => {
+                          const idHienLuc = ghiDeHienTaiChiTiet?.materialId ?? ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId;
+                          return materials.find(x => x.id === idHienLuc)?.thickness ?? 0;
+                        })()}
+                        giaTriGhiDe={ghiDeHienTaiChiTiet?.doDay}
+                        duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials}
+                        rawMatPriceHienLuc={(() => {
+                          const idHienLuc = ghiDeHienTaiChiTiet?.materialId ?? ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId;
+                          return ghiDeHienTaiChiTiet?.rawMatPrice ?? materials.find(x => x.id === idHienLuc)?.pricePerKg ?? 0;
+                        })()} />
                       <OChiTietCoTheGhiDe khoaDong={row.rowKey} chiTietIndex={detailIdx} truong="width" giaTriGoc={chiTietGoc?.width ?? detail.width}
                         giaTriGhiDe={ghiDeHienTaiChiTiet?.width} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} soLe={3} />
                       <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
@@ -646,6 +659,18 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
                 <tr key={row.rowKey}>
                   <td data-label="Công đoạn">{row.stage}</td>
                   <OChonVatLieuDong khoaDong={row.rowKey} giaTriGocId={ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId} giaTriGocTen={ghiDeNguon[row.rowKey]?.mat ?? dongGoc?.mat ?? row.mat} giaTriGocGia={ghiDeNguon[row.rowKey]?.matPrice ?? dongGoc?.matPrice ?? 0} ghiDeHienTai={ghiDeHienTai} duocSua={duocSua} khiDat={khiDat} materials={materials} engineParams={engineParams} />
+                  <ODoDay khoaDong={row.rowKey}
+                    matIdHienLuc={ghiDeHienTai[row.rowKey]?.materialId ?? ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId}
+                    giaTriGoc={(() => {
+                      const idHienLuc = ghiDeHienTai[row.rowKey]?.materialId ?? ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId;
+                      return materials.find(x => x.id === idHienLuc)?.thickness ?? 0;
+                    })()}
+                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.doDay}
+                    duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials}
+                    rawMatPriceHienLuc={(() => {
+                      const idHienLuc = ghiDeHienTai[row.rowKey]?.materialId ?? ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId;
+                      return ghiDeHienTai[row.rowKey]?.rawMatPrice ?? materials.find(x => x.id === idHienLuc)?.pricePerKg ?? 0;
+                    })()} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={row.srcWidth}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
@@ -734,7 +759,7 @@ function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHie
             )}
             {chenhLechGiaGocDonVi != null && (
               <tr className={`total-row override-price-delta-row ${lopChenhLechGia}`}>
-                <td colSpan={11}>
+                <td colSpan={12}>
                   CHÊNH LỆCH SO VỚI GIÁ GỐC: <strong>{chenhLechGiaGocText} {donViChenhLechText}</strong>
                 </td>
               </tr>
@@ -2830,12 +2855,12 @@ const buttonLabel = loadedItem
                   })}
                   {laMangIn && cpTheoThoiGianIn > 0 && (
                     <tr className="total-row">
-                      <td colSpan={10}>CP theo thời gian in</td>
+                <td colSpan={11}>CP theo thời gian in</td>
                       <td className="num">{dinhDangSo(cpTheoThoiGianIn, 0)} đ</td>
                     </tr>
                   )}
                   <tr className="total-row" style={{fontSize: '1.05em'}}>
-                    <td colSpan={8}><strong>TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN</strong></td>
+              <td colSpan={9}><strong>TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN</strong></td>
                     <td colSpan={3} className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{dinhDangSo(tongCong, 0)} đ</td>
                   </tr>
                 </tbody>
