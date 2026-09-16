@@ -1,17 +1,21 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// HomeShell — Header + Floating draggable menu (giống AssistiveTouch iOS)
+// HomeShell — mirror shell .lts-shell--mobile của web:
+//   content #f4f7fb + bottom tab bar 5 mục (Hub · Tính giá · Khách hàng ·
+//   Cấu hình · Tài khoản). Khách hàng/Tài khoản = khóa → sheet hướng dẫn web.
+//   Lịch sử + LSX (màn có sẵn) mở từ hub qua module route (header navy).
 // ═══════════════════════════════════════════════════════════════════════════
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../store/app_state.dart';
-import '../theme/app_theme.dart';
-import 'tinh_gia_screen.dart';
-import 'lich_su_screen.dart';
+import '../theme/lts_tokens.dart';
+import '../widgets/lts/lts_chrome.dart';
+import '../widgets/lts/lts_overlay.dart';
 import 'cau_hinh_screen.dart';
+import 'hub_screen.dart';
+import 'lich_su_screen.dart';
 import 'lsx_screen.dart';
+import 'tinh_gia_screen.dart';
 
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
@@ -24,414 +28,160 @@ class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
   static const _tabs = [
-    _TabDef('Tính giá', 'Calculator', Icons.calculate_outlined,
-        Icons.calculate_rounded),
-    _TabDef('Lịch sử', 'History', Icons.history_outlined, Icons.history_rounded),
-    _TabDef(
-        'Cấu hình', 'Settings', Icons.tune_outlined, Icons.tune_rounded),
-    _TabDef('Lệnh SX', 'Production', Icons.assignment_outlined,
-        Icons.assignment_rounded),
+    LtsTabItem('Tổng quan', Icons.space_dashboard_outlined),
+    LtsTabItem('Tính giá', Icons.calculate_outlined),
+    LtsTabItem('Khách hàng', Icons.people_outline_rounded),
+    LtsTabItem('Cấu hình', Icons.tune_outlined),
+    LtsTabItem('Tài khoản', Icons.person_outline_rounded),
   ];
 
-  Widget _body() {
-    switch (_index) {
-      case 0:
-        return const TinhGiaScreen();
-      case 1:
-        return const LichSuScreen();
-      case 2:
-        return const CauHinhScreen();
-      case 3:
-        return const LSXScreen();
-      default:
-        return const SizedBox();
+  void _onTab(int i) {
+    if (i == 2 || i == 4) {
+      _khoa(context, i == 2 ? 'Khách hàng' : 'Tài khoản & phân quyền');
+      return;
     }
+    setState(() => _index = i);
+  }
+
+  // AppState.requestTabSwitch dùng index hệ cũ (0=Giá,1=Lịch sử,2=Cấu hình,3=LSX)
+  void _onLegacyRequest(int legacy) {
+    switch (legacy) {
+      case 0:
+        setState(() => _index = 1);
+        context.read<AppState>().requestCalcPane(0);
+      case 1:
+        _pushModule('Lịch sử báo giá', const LichSuScreen());
+      case 2:
+        setState(() => _index = 3);
+      case 3:
+        _pushModule('Lệnh sản xuất', const LSXScreen());
+      default:
+        setState(() => _index = 1);
+    }
+  }
+
+  void _pushModule(String title, Widget child) {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => ModuleRoute(title: title, child: child)),
+    );
+  }
+
+  void _khoa(BuildContext context, String ten) {
+    final p = LtsT.of(context);
+    showLtsSheet(context, title: '$ten — bị khóa trên app', builder: (_) => Padding(
+          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.lock_outline_rounded, size: 18, color: p.orange),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Tính năng này cần đăng nhập và đồng bộ server.',
+                    style: TextStyle(
+                        fontSize: 13.5, fontWeight: FontWeight.w600, color: p.text),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Vui lòng dùng bản web để quản lý $ten: danh sách, '
+                'phân quyền và dữ liệu được đồng bộ trực tiếp với máy chủ.',
+                style: TextStyle(fontSize: 12.5, color: p.muted, height: 1.5),
+              ),
+              const SizedBox(height: 18),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Đã hiểu'),
+                ),
+              ),
+            ],
+          ),
+        ));
   }
 
   @override
   Widget build(BuildContext context) {
     final state = context.watch<AppState>();
-
-    if (state.requestedTabIndex != null && state.requestedTabIndex != _index) {
+    if (state.requestedTabIndex != null) {
+      final req = state.requestedTabIndex!;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        setState(() => _index = state.requestedTabIndex!);
         state.consumeTabRequest();
+        _onLegacyRequest(req);
       });
-    } else if (state.requestedTabIndex != null) {
-      state.consumeTabRequest();
     }
 
-    final header = _AppHeader(
-      title: _tabs[_index].label,
-      subtitle: _tabs[_index].subtitle,
-      themeMode: state.themeMode,
-      onToggleTheme: () => state.setThemeMode(state.themeMode == ThemeMode.dark
-          ? ThemeMode.light
-          : ThemeMode.dark),
-    );
+    final p = LtsT.of(context);
 
     return Scaffold(
-      body: SafeArea(
-        bottom: false,
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                header,
-                Expanded(child: _body()),
-              ],
-            ),
-            // Floating draggable menu — luôn nằm trên nội dung
-            _FloatingNavMenu(
-              tabs: _tabs,
-              selected: _index,
-              onSelect: (i) => setState(() => _index = i),
-            ),
-          ],
-        ),
+      extendBody: false,
+      backgroundColor: p.shellBg,
+      bottomNavigationBar: LtsTabBar(
+        items: _tabs,
+        selected: _index,
+        onSelect: _onTab,
       ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Floating draggable menu — kéo thả tự do, không neo, idle thì mờ
-// ─────────────────────────────────────────────────────────────────────────────
-class _FloatingNavMenu extends StatefulWidget {
-  final List<_TabDef> tabs;
-  final int selected;
-  final ValueChanged<int> onSelect;
-  const _FloatingNavMenu({
-    required this.tabs,
-    required this.selected,
-    required this.onSelect,
-  });
-
-  @override
-  State<_FloatingNavMenu> createState() => _FloatingNavMenuState();
-}
-
-class _FloatingNavMenuState extends State<_FloatingNavMenu> {
-  // Vị trí góc trên-trái của nút FAB. null = chưa init → đặt mặc định ở góc dưới phải.
-  Offset? _pos;
-  bool _menuOpen = false;
-  bool _dimmed = false;
-  Timer? _idleTimer;
-
-  static const double _fabSize = 56.0;
-  static const double _margin = 16.0;
-  static const Duration _idleAfter = Duration(seconds: 3);
-
-  @override
-  void initState() {
-    super.initState();
-    _scheduleDim();
-  }
-
-  @override
-  void dispose() {
-    _idleTimer?.cancel();
-    super.dispose();
-  }
-
-  void _scheduleDim() {
-    _idleTimer?.cancel();
-    _dimmed = false;
-    _idleTimer = Timer(_idleAfter, () {
-      if (!mounted || _menuOpen) return;
-      setState(() => _dimmed = true);
-    });
-  }
-
-  void _wake() {
-    if (_dimmed) {
-      setState(() => _dimmed = false);
-    }
-    _scheduleDim();
-  }
-
-  Offset _defaultPos(Size screen) {
-    final padding = MediaQuery.paddingOf(context);
-    return Offset(
-      screen.width - _fabSize - _margin,
-      screen.height - _fabSize - _margin - padding.bottom - 8,
-    );
-  }
-
-  Offset _clamp(Offset raw, Size screen) {
-    final padding = MediaQuery.paddingOf(context);
-    final minX = _margin;
-    final minY = padding.top + _margin;
-    final maxX = screen.width - _fabSize - _margin;
-    final maxY = screen.height - _fabSize - _margin - padding.bottom;
-    return Offset(
-      raw.dx.clamp(minX, maxX),
-      raw.dy.clamp(minY, maxY),
-    );
-  }
-
-  void _toggleMenu() {
-    setState(() => _menuOpen = !_menuOpen);
-    _wake();
-  }
-
-  void _select(int i) {
-    widget.onSelect(i);
-    setState(() => _menuOpen = false);
-    _scheduleDim();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final size = MediaQuery.sizeOf(context);
-    _pos ??= _defaultPos(size);
-    final pos = _clamp(_pos!, size);
-    final scheme = Theme.of(context).colorScheme;
-
-    // Hướng bung popup: nếu nút ở nửa dưới → bung lên trên, ngược lại bung xuống.
-    final openUp = pos.dy > size.height / 2;
-    // Căn ngang: nếu nút ở nửa phải → align phải, ngược lại align trái.
-    final alignRight = pos.dx > size.width / 2;
-
-    const popupItemH = 52.0;
-    final popupHeight = widget.tabs.length * popupItemH + 16;
-    const popupWidth = 200.0;
-
-    final popupTop = openUp ? pos.dy - popupHeight - 8 : pos.dy + _fabSize + 8;
-    final popupLeft = alignRight
-        ? pos.dx + _fabSize - popupWidth
-        : pos.dx.toDouble();
-
-    return Stack(
-      children: [
-        // Backdrop để bấm ngoài đóng menu
-        if (_menuOpen)
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTap: () => setState(() => _menuOpen = false),
-            ),
-          ),
-        // Popup
-        if (_menuOpen)
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 180),
-            curve: Curves.easeOut,
-            top: popupTop.clamp(_margin, size.height - popupHeight - _margin),
-            left: popupLeft.clamp(_margin, size.width - popupWidth - _margin),
-            child: Material(
-              elevation: 12,
-              borderRadius: BorderRadius.circular(16),
-              color: scheme.surface,
-              shadowColor: Colors.black.withValues(alpha: 0.3),
-              child: Container(
-                width: popupWidth,
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: scheme.outlineVariant.withValues(alpha: 0.4),
-                  ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    for (int i = 0; i < widget.tabs.length; i++)
-                      _PopupItem(
-                        tab: widget.tabs[i],
-                        selected: i == widget.selected,
-                        onTap: () => _select(i),
-                        height: popupItemH,
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        // Nút FAB kéo thả
-        Positioned(
-          left: pos.dx,
-          top: pos.dy,
-          child: GestureDetector(
-            onPanStart: (_) => _wake(),
-            onPanUpdate: (details) {
-              setState(() {
-                _pos = (_pos ?? pos) + details.delta;
-              });
-              _wake();
-            },
-            onPanEnd: (_) {
-              setState(() => _pos = _clamp(_pos!, size));
-              _scheduleDim();
-            },
-            onTap: _toggleMenu,
-            child: AnimatedOpacity(
-              duration: const Duration(milliseconds: 350),
-              opacity: _dimmed ? 0.4 : 1.0,
-              child: Container(
-                width: _fabSize,
-                height: _fabSize,
-                decoration: BoxDecoration(
-                  gradient: AppGradients.brandMark,
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.seed.withValues(alpha: 0.4),
-                      blurRadius: 16,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Icon(
-                  _menuOpen ? Icons.close_rounded : Icons.apps_rounded,
-                  color: Colors.white,
-                  size: 26,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _PopupItem extends StatelessWidget {
-  final _TabDef tab;
-  final bool selected;
-  final VoidCallback onTap;
-  final double height;
-  const _PopupItem({
-    required this.tab,
-    required this.selected,
-    required this.onTap,
-    required this.height,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        child: Container(
-          height: height,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          decoration: BoxDecoration(
-            color: selected
-                ? scheme.primary.withValues(alpha: 0.12)
-                : Colors.transparent,
-          ),
-          child: Row(
-            children: [
-              Icon(
-                selected ? tab.iconSelected : tab.icon,
-                size: 22,
-                color: selected ? scheme.primary : scheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  tab.label,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                    color: selected ? scheme.primary : scheme.onSurface,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AppHeader extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final ThemeMode themeMode;
-  final VoidCallback onToggleTheme;
-  const _AppHeader({
-    required this.title,
-    required this.subtitle,
-    required this.themeMode,
-    required this.onToggleTheme,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 16, 16),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        border: Border(
-          bottom: BorderSide(
-              color: scheme.outlineVariant.withValues(alpha: 0.3)),
-        ),
-      ),
-      child: Row(
+      body: IndexedStack(
+        index: _index,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              gradient: AppGradients.brandMark,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.seed.withValues(alpha: 0.35),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: const Text('LTS',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w800,
-                    fontSize: 11,
-                    letterSpacing: 0.5)),
+          HubScreen(
+            onGoTinhGia: () => setState(() => _index = 1),
+            onGoCauHinh: () => setState(() => _index = 3),
+            onOpenLichSu: () =>
+                _pushModule('Lịch sử báo giá', const LichSuScreen()),
+            onOpenLSX: () =>
+                _pushModule('Lệnh sản xuất', const LSXScreen()),
           ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(title,
-                    style: Theme.of(context).textTheme.titleLarge,
-                    overflow: TextOverflow.ellipsis),
-                Text(subtitle,
-                    style: Theme.of(context).textTheme.bodySmall,
-                    overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
-          IconButton(
-            tooltip: 'Đổi theme',
-            icon: Icon(
-              themeMode == ThemeMode.dark
-                  ? Icons.light_mode_outlined
-                  : Icons.dark_mode_outlined,
-              color: scheme.onSurfaceVariant,
-            ),
-            onPressed: onToggleTheme,
-          ),
+          TinhGiaScreen(onGoHub: () => setState(() => _index = 0)),
+          const SizedBox.shrink(), // tab khóa — không tới được
+          const CauHinhScreen(),
+          const SizedBox.shrink(),
         ],
       ),
     );
   }
 }
 
-class _TabDef {
-  final String label;
-  final String subtitle;
-  final IconData icon;
-  final IconData iconSelected;
-  const _TabDef(this.label, this.subtitle, this.icon, this.iconSelected);
+/// Route module kiểu web mobile: header navy (back | title | action) + body.
+class ModuleRoute extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+  final Widget child;
+  final Widget? action;
+  const ModuleRoute(
+      {super.key,
+      required this.title,
+      this.subtitle,
+      required this.child,
+      this.action});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = LtsT.of(context);
+    return Scaffold(
+      backgroundColor: p.shellBg,
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            LtsNavyHeader(
+              title: title,
+              subtitle: subtitle,
+              action: action,
+              leading: LtsHeaderCircleButton(
+                icon: Icons.arrow_back_rounded,
+                tooltip: 'Quay lại',
+                onTap: () => Navigator.of(context).maybePop(),
+              ),
+            ),
+            Expanded(child: child),
+          ],
+        ),
+      ),
+    );
+  }
 }

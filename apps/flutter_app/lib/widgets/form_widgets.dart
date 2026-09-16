@@ -5,7 +5,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// Section card — icon chip + title + optional trailing + children
+import '../theme/lts_tokens.dart';
+
+/// Section card — mirror .card + .card-title (uppercase accent) của web.
 class SectionCard extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -32,8 +34,15 @@ class SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final color = iconColor ?? scheme.primary;
+    final p = LtsT.of(context);
+    final color = iconColor ?? p.accent;
+    // .card-title: uppercase, 12px, w700, letterSpacing .05em, accent
+    final titleStyle = TextStyle(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        letterSpacing: 0.6,
+        color: p.accent);
+    final subStyle = TextStyle(fontSize: 11.5, color: p.muted, height: 1.35);
 
     if (collapsible) {
       return Card(
@@ -44,18 +53,11 @@ class SectionCard extends StatelessWidget {
             tilePadding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
             childrenPadding: padding ?? const EdgeInsets.fromLTRB(16, 0, 16, 16),
             leading: icon != null
-                ? Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, size: 18, color: color),
-                  )
+                ? Icon(icon, size: 16, color: color)
                 : null,
-            title: Text(title, style: Theme.of(context).textTheme.titleSmall),
+            title: Text(title.toUpperCase(), style: titleStyle),
             subtitle: subtitle != null
-                ? Text(subtitle!, style: Theme.of(context).textTheme.bodySmall)
+                ? Text(subtitle!, style: subStyle)
                 : null,
             trailing: trailing,
             shape: const RoundedRectangleBorder(),
@@ -79,27 +81,18 @@ class SectionCard extends StatelessWidget {
             Row(
               children: [
                 if (icon != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: color.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(icon, size: 18, color: color),
-                  ),
-                  const SizedBox(width: 12),
+                  Icon(icon, size: 16, color: color),
+                  const SizedBox(width: 8),
                 ],
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(title,
-                          style: Theme.of(context).textTheme.titleSmall),
+                      Text(title.toUpperCase(), style: titleStyle),
                       if (subtitle != null) ...[
                         const SizedBox(height: 2),
-                        Text(subtitle!,
-                            style: Theme.of(context).textTheme.bodySmall),
+                        Text(subtitle!, style: subStyle),
                       ],
                     ],
                   ),
@@ -135,7 +128,7 @@ class LabeledField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final p = LtsT.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
       child: Column(
@@ -144,18 +137,20 @@ class LabeledField extends StatelessWidget {
           Row(
             children: [
               if (icon != null) ...[
-                Icon(icon, size: 13, color: scheme.onSurfaceVariant),
+                Icon(icon, size: 13, color: p.muted),
                 const SizedBox(width: 5),
               ],
-              Text(label,
-                  style: Theme.of(context)
-                      .textTheme
-                      .labelLarge
-                      ?.copyWith(fontSize: 12.5)),
+              // .form-label: 10.5px w600 UPPERCASE muted ls .04em
+              Text(label.toUpperCase(),
+                  style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: 0.42,
+                      color: p.muted)),
               if (suffix != null) ...[
                 const SizedBox(width: 6),
                 Text(suffix!,
-                    style: Theme.of(context).textTheme.bodySmall),
+                    style: TextStyle(fontSize: 10.5, color: p.dim)),
               ],
             ],
           ),
@@ -165,10 +160,7 @@ class LabeledField extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 5, left: 2),
               child: Text(hint!,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(fontSize: 11)),
+                  style: TextStyle(fontSize: 11, color: p.dim, height: 1.3)),
             ),
           if (hintWidget != null)
             Padding(

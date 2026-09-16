@@ -31,6 +31,16 @@ class AppState extends ChangeNotifier {
   // ── UI ───────────────────────────────────────────────────────────────────
   ThemeMode themeMode = ThemeMode.system;
   int? requestedTabIndex;
+  int? pendingCalcPane;
+
+  void requestCalcPane(int pane) {
+    pendingCalcPane = pane;
+    notifyListeners();
+  }
+
+  void consumeCalcPane() {
+    pendingCalcPane = null;
+  }
 
   Timer? _debounce;
 

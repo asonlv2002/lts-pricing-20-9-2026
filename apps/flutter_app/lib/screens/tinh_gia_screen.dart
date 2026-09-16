@@ -13,13 +13,18 @@ import '../engine/models.dart';
 import '../engine/js_runtime.dart';
 import '../store/app_state.dart';
 import '../theme/app_theme.dart';
+import '../theme/lts_tokens.dart';
 import '../widgets/detail_tables.dart';
 import '../widgets/form_widgets.dart';
+import '../widgets/lts/lts_chrome.dart';
+import '../widgets/lts/lts_overlay.dart';
+import '../widgets/lts/lts_surfaces.dart';
 import '../widgets/material_picker.dart';
 import '../widgets/price_hero.dart';
 
 class TinhGiaScreen extends StatelessWidget {
-  const TinhGiaScreen({super.key});
+  final VoidCallback? onGoHub;
+  const TinhGiaScreen({super.key, this.onGoHub});
 
   @override
   Widget build(BuildContext context) {
@@ -50,138 +55,276 @@ class TinhGiaScreen extends StatelessWidget {
       );
     }
 
-    return _MobilePricingWorkspace(state: s);
-
+    return _MobilePricingWorkspace(state: s, onGoHub: onGoHub);
   }
 }
 
-// ─── Sticky bottom action bar ────────────────────────────────────────────────
-
+// ─── Mobile workspace — mirror web: mode selector → pill nav Nhập/Kết quả ───
 class _MobilePricingWorkspace extends StatefulWidget {
   final AppState state;
-  const _MobilePricingWorkspace({required this.state});
+  final VoidCallback? onGoHub;
+  const _MobilePricingWorkspace({required this.state, this.onGoHub});
   @override
   State<_MobilePricingWorkspace> createState() => _MobilePricingWorkspaceState();
 }
 
-class _MobilePricingWorkspaceState extends State<_MobilePricingWorkspace> with SingleTickerProviderStateMixin {
+class _MobilePricingWorkspaceState extends State<_MobilePricingWorkspace>
+    with SingleTickerProviderStateMixin {
   late final TabController _controller;
+  bool _modeSelected = false;
   AppState get state => widget.state;
+
   @override
-  void initState() { super.initState(); _controller = TabController(length: 2, vsync: this); }
+  void initState() {
+    super.initState();
+    _controller = TabController(length: 2, vsync: this);
+  }
+
   @override
   void didUpdateWidget(covariant _MobilePricingWorkspace oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final requested = state.requestedTabIndex;
-    if (requested != null && requested >= 0 && requested < _controller.length) {
-      _controller.animateTo(requested);
-      state.consumeTabRequest();
+    final pane = state.pendingCalcPane;
+    if (pane != null) {
+      setState(() => _modeSelected = true);
+      _controller.animateTo(pane == 1 ? 1 : 0);
+      state.consumeCalcPane();
     }
   }
+
   @override
-  void dispose() { _controller.dispose(); super.dispose(); }
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Column(children: [
-      Material(color: scheme.surface, child: SafeArea(bottom: false, child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 8),
-        child: Column(children: [
-          _LiveQuoteStrip(state: state, onOpenResult: () => _controller.animateTo(1)),
-          const SizedBox(height: 10),
-          Container(height: 52, padding: const EdgeInsets.all(4), decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.55),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.35)),
-          ), child: TabBar(controller: _controller, indicatorSize: TabBarIndicatorSize.tab,
-            dividerColor: Colors.transparent, labelColor: scheme.onPrimary,
-            unselectedLabelColor: scheme.onSurfaceVariant,
-            indicator: BoxDecoration(color: scheme.primary, borderRadius: BorderRadius.circular(12)),
-            tabs: const [
-              Tab(child: _CompactTabLabel(icon: Icons.edit_note_outlined, text: 'Nhập liệu')),
-              Tab(child: _CompactTabLabel(icon: Icons.analytics_outlined, text: 'Kết quả')),
-            ])),
-        ]),
-      ))),
-      Expanded(child: TabBarView(controller: _controller, children: [
-        SingleChildScrollView(padding: const EdgeInsets.fromLTRB(12, 8, 12, 0), child: _InputForm(state: state)),
-        SingleChildScrollView(padding: const EdgeInsets.fromLTRB(12, 8, 12, 96), child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [_MobileResultQuickActions(result: state.currentResult), const SizedBox(height: 12), _ResultPanel(state: state)],
-        )),
-      ])),
-      _StickyBottomBar(state: state),
-    ]);
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
   }
-}
-
-class _CompactTabLabel extends StatelessWidget {
-  final IconData icon;
-  final String text;
-  const _CompactTabLabel({required this.icon, required this.text});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      mainAxisSize: MainAxisSize.min,
+    final header = LtsNavyHeader(
+      title: _modeSelected ? 'Tạo bảng tính giá' : 'Chế độ tính giá',
+      leading: LtsHeaderCircleButton(
+        icon: Icons.space_dashboard_outlined,
+        tooltip: 'Tổng quan',
+        onTap: widget.onGoHub,
+      ),
+    );
+
+    if (!_modeSelected) {
+      return Column(
+        children: [
+          header,
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+              child: _ChonCheDoTinhGia(
+                onNoiBo: () => setState(() => _modeSelected = true),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    final hasResult = state.currentResult != null;
+    return Column(
       children: [
-        Icon(icon, size: 18),
-        const SizedBox(width: 6),
-        Flexible(child: Text(text, maxLines: 1, overflow: TextOverflow.ellipsis)),
+        header,
+        Expanded(
+          child: AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) => Stack(
+              children: [
+                Positioned.fill(
+                  child: TabBarView(controller: _controller, children: [
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 116),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (hasResult) ...[
+                            LtsMiniPriceStrip(
+                              priceText:
+                                  '${_fmt(state.currentResult!.finalPrice)} đ',
+                              rightNote: state.currentInput.productType ==
+                                      'mang'
+                                  ? '/m²'
+                                  : '/túi',
+                              onTap: () => _controller.animateTo(1),
+                            ),
+                            const SizedBox(height: 10),
+                          ],
+                          _InputForm(state: state),
+                        ],
+                      ),
+                    ),
+                    SingleChildScrollView(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 116),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _MobileResultQuickActions(
+                              result: state.currentResult),
+                          const SizedBox(height: 12),
+                          _ResultPanel(state: state),
+                        ],
+                      ),
+                    ),
+                  ]),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 12,
+                  child: LtsPillNav(
+                    selected: _controller.index,
+                    showResultBadge: hasResult,
+                    onSelect: (i) => _controller.animateTo(i),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        _StickyBottomBar(state: state),
       ],
     );
   }
 }
-class _LiveQuoteStrip extends StatelessWidget {
-  final AppState state;
-  final VoidCallback onOpenResult;
-  const _LiveQuoteStrip({required this.state, required this.onOpenResult});
+
+// ─── Màn chọn chế độ — mirror ManHinhChonCheDoTinhGia.tsx (web) ──────────────
+class _ChonCheDoTinhGia extends StatelessWidget {
+  final VoidCallback onNoiBo;
+  const _ChonCheDoTinhGia({required this.onNoiBo});
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final input = state.currentInput;
-    final raw = input.raw;
-    final result = state.currentResult;
-    final isMang = input.productType == 'mang';
-    final unit = isMang ? 'm²' : 'túi';
-    final qty = (raw['quantity'] as num?)?.toDouble() ?? 0;
-    final title = input.productName.isEmpty ? 'Báo giá mới' : input.productName;
-    final subtitle = [input.customer.isEmpty ? null : input.customer, result?.structureText.isNotEmpty == true ? result!.structureText : null].whereType<String>().join(' · ');
-    return InkWell(borderRadius: BorderRadius.circular(18), onTap: result == null ? null : onOpenResult, child: Container(
-      padding: const EdgeInsets.all(14), decoration: BoxDecoration(
-        gradient: LinearGradient(colors: [scheme.primaryContainer.withValues(alpha: 0.95), scheme.tertiaryContainer.withValues(alpha: 0.62)], begin: Alignment.topLeft, end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(18), border: Border.all(color: scheme.primary.withValues(alpha: 0.12)),
-      ), child: Row(children: [
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800)),
-          const SizedBox(height: 4),
-          Text(subtitle.isEmpty ? 'Nhập thông tin để xem giá trực tiếp' : subtitle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
-          const SizedBox(height: 8),
-          Wrap(spacing: 6, runSpacing: 6, children: [
-            _MiniPill(icon: Icons.inventory_2_outlined, text: isMang ? 'Màng' : 'Túi'),
-            _MiniPill(icon: Icons.format_list_numbered, text: '${_fmt(qty)} $unit'),
-            if (result != null) _MiniPill(icon: Icons.straighten, text: '${result.d('tongDoDay').toStringAsFixed(1)} mic'),
-          ]),
-        ])),
-        const SizedBox(width: 10),
-        Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Text(result == null ? 'Chưa có giá' : '${_fmt(result.finalPrice)} đ', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900, color: result == null ? scheme.onSurfaceVariant : AppColors.success)),
-          Text('/$unit', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant)),
-          if (result != null) ...[const SizedBox(height: 6), Icon(Icons.arrow_forward_ios_rounded, size: 14, color: scheme.onSurfaceVariant)],
-        ]),
-      ]),
-    ));
+    return LtsCard(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Tạo bảng tính giá',
+              style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: LtsT.of(context).text)),
+          const SizedBox(height: 6),
+          Text(
+            'Bạn muốn làm gì? Chọn một hướng để bắt đầu — form nhập sẽ hiện sau khi chọn.',
+            style: TextStyle(
+                fontSize: 12.5, color: LtsT.of(context).muted, height: 1.4),
+          ),
+          const SizedBox(height: 20),
+          _ModeBtn(
+            emoji: '🏭',
+            label: 'Nội bộ',
+            desc: 'Tính giá LTS full — công thức hiện tại',
+            onTap: onNoiBo,
+          ),
+          const SizedBox(height: 12),
+          _ModeBtn(
+            emoji: '🔧',
+            label: 'Gia công',
+            desc: 'Thuê ngoài 1+ công đoạn — chọn CD ngay trên form',
+            tinted: true,
+            locked: true,
+          ),
+          const SizedBox(height: 12),
+          _ModeBtn(
+            emoji: '🛒',
+            label: 'Thương mại',
+            desc: 'Mua đi bán lại — nhập giá mua + lợi nhuận',
+            locked: true,
+          ),
+        ],
+      ),
+    );
   }
 }
 
-class _MiniPill extends StatelessWidget {
-  final IconData icon; final String text;
-  const _MiniPill({required this.icon, required this.text});
+class _ModeBtn extends StatelessWidget {
+  final String emoji;
+  final String label;
+  final String desc;
+  final bool locked;
+  final bool tinted;
+  final VoidCallback? onTap;
+  const _ModeBtn({
+    required this.emoji,
+    required this.label,
+    required this.desc,
+    this.locked = false,
+    this.tinted = false,
+    this.onTap,
+  });
+
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5), decoration: BoxDecoration(color: scheme.surface.withValues(alpha: 0.72), borderRadius: BorderRadius.circular(999)), child: Row(mainAxisSize: MainAxisSize.min, children: [Icon(icon, size: 13, color: scheme.primary), const SizedBox(width: 4), Text(text, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700))]));
+    final p = LtsT.of(context);
+    return Opacity(
+      opacity: locked ? 0.88 : 1,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(LtsT.rCard),
+        onTap: locked
+            ? () => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                    content: Text(
+                        'Chế độ $label cần bản web — app chỉ tính nội bộ.'),
+                    duration: const Duration(seconds: 2)),
+              )
+            : onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+          constraints: const BoxConstraints(minHeight: 120),
+          decoration: BoxDecoration(
+            color: locked
+                ? (tinted
+                    ? p.red.withValues(alpha: 0.04)
+                    : p.surface)
+                : p.surface,
+            borderRadius: BorderRadius.circular(LtsT.rCard),
+            border: Border.all(
+                color: tinted
+                    ? p.red.withValues(alpha: 0.35)
+                    : p.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(emoji, style: const TextStyle(fontSize: 24)),
+                  const Spacer(),
+                  if (locked)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3F4F6),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: const Text('Khóa',
+                          style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF64748B))),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(label,
+                  style: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 4),
+              Text(desc,
+                  style: TextStyle(
+                      fontSize: 11,
+                      color: p.muted,
+                      height: 1.35)),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
