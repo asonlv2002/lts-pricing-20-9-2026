@@ -145,9 +145,12 @@ class AppTheme {
         backgroundColor: p.surface,
         contentTextStyle: TextStyle(color: p.text, fontSize: 13),
       ),
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: Colors.transparent,
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: p.surface,
         surfaceTintColor: Colors.transparent,
+        shape: const RoundedRectangleBorder(
+            borderRadius:
+                BorderRadius.vertical(top: Radius.circular(LtsT.rSheet))),
       ),
       dialogTheme: DialogThemeData(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LtsT.rCardMobile)),

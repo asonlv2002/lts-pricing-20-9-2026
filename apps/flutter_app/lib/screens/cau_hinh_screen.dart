@@ -8,47 +8,69 @@ import '../engine/models.dart';
 import '../store/app_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/format.dart';
+import '../theme/lts_tokens.dart';
 import '../widgets/form_widgets.dart';
+import '../widgets/lts/lts_chrome.dart';
 
 class CauHinhScreen extends StatelessWidget {
   const CauHinhScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final p = LtsT.of(context);
     return DefaultTabController(
       length: 3,
       child: Column(
         children: [
+          LtsNavyHeader(
+            title: 'Cấu hình tính giá',
+            subtitle: 'Vật liệu · Hằng số · Lợi nhuận',
+            action: LtsHeaderCircleButton(
+              icon: Icons.restore_rounded,
+              tooltip: 'Reset về dữ liệu mặc định',
+              onTap: () => _confirmReset(context),
+            ),
+          ),
           Container(
-            color: scheme.surface,
-            child: Row(
-              children: [
-                Expanded(
-                  child: TabBar(
-                    labelColor: scheme.primary,
-                    unselectedLabelColor: scheme.onSurfaceVariant,
-                    indicatorColor: scheme.primary,
-                    indicatorWeight: 3,
-                    indicatorSize: TabBarIndicatorSize.label,
-                    labelStyle: const TextStyle(
-                        fontWeight: FontWeight.w700, fontSize: 13),
-                    unselectedLabelStyle: const TextStyle(
-                        fontWeight: FontWeight.w500, fontSize: 13),
-                    tabs: const [
-                      Tab(icon: Icon(Icons.inventory_2_outlined, size: 22), text: 'Vật liệu'),
-                      Tab(icon: Icon(Icons.tune, size: 22), text: 'Hằng số'),
-                      Tab(icon: Icon(Icons.trending_up, size: 22), text: 'Lợi nhuận'),
-                    ],
-                  ),
+            color: p.surface,
+            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: p.inputBg,
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(color: p.border),
+              ),
+              child: const TabBar(
+                dividerColor: Colors.transparent,
+                indicatorSize: TabBarIndicatorSize.tab,
+                indicator: BoxDecoration(
+                  color: Color(0xFFF0EEFF),
+                  borderRadius: BorderRadius.all(Radius.circular(999)),
                 ),
-                IconButton(
-                  tooltip: 'Reset về dữ liệu mặc định',
-                  icon: const Icon(Icons.restore_rounded),
-                  onPressed: () => _confirmReset(context),
-                ),
-                const SizedBox(width: 4),
-              ],
+                labelColor: Color(0xFF5B4DFF),
+                unselectedLabelColor: Color(0xFF6B7280),
+                labelStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                unselectedLabelStyle:
+                    TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                tabs: [
+                  Tab(
+                      icon: Icon(Icons.inventory_2_outlined, size: 18),
+                      iconMargin: EdgeInsets.only(bottom: 2),
+                      height: 44,
+                      text: 'Vật liệu'),
+                  Tab(
+                      icon: Icon(Icons.tune, size: 18),
+                      iconMargin: EdgeInsets.only(bottom: 2),
+                      height: 44,
+                      text: 'Hằng số'),
+                  Tab(
+                      icon: Icon(Icons.trending_up, size: 18),
+                      iconMargin: EdgeInsets.only(bottom: 2),
+                      height: 44,
+                      text: 'Lợi nhuận'),
+                ],
+              ),
             ),
           ),
           const Expanded(
