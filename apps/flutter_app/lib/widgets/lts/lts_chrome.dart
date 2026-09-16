@@ -143,7 +143,14 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: 40),
+                        Row(
+                          children: [
+                            if (leading != null) leading!,
+                            const Spacer(),
+                            if (action != null) action!,
+                          ],
+                        ),
+                        const SizedBox(height: 28),
                         Text(title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
