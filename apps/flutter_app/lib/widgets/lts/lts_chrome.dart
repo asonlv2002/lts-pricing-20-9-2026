@@ -36,8 +36,8 @@ class LtsTabBar extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             color: p.surface,
-            borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(LtsT.rHeader)),
+            borderRadius:
+                const BorderRadius.vertical(top: Radius.circular(LtsT.rHeader)),
             boxShadow: LtsT.tabShadow,
           ),
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
@@ -77,10 +77,7 @@ class _Tab extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(item.icon,
-                size: 22,
-                color: color,
-                weight: active ? 720 : 480),
+            Icon(item.icon, size: 22, color: color, weight: active ? 720 : 480),
             const SizedBox(height: 4),
             Text(
               item.label,
@@ -134,10 +131,12 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
             bottom: Radius.circular(hub ? LtsT.rHeader : LtsT.rCardMobile)),
         child: Stack(
           children: [
-            Positioned.fill(child: DecoratedBox(decoration: LtsT.navyGlowOverlay)),
+            Positioned.fill(
+                child: DecoratedBox(decoration: LtsT.navyGlowOverlay)),
             SafeArea(
               bottom: false,
-              minimum: EdgeInsets.fromLTRB(hub ? 24 : 12, 12, hub ? 24 : 12, hub ? 24 : 12),
+              minimum: EdgeInsets.fromLTRB(
+                  hub ? 24 : 12, 12, hub ? 24 : 12, hub ? 24 : 12),
               child: hub
                   ? Column(
                       mainAxisSize: MainAxisSize.min,
@@ -177,7 +176,9 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
                         SizedBox(
                             width: 64,
                             child: leading != null
-                                ? Align(alignment: Alignment.centerLeft, child: leading)
+                                ? Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: leading)
                                 : null),
                         Expanded(
                           child: Column(
@@ -199,15 +200,17 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
                                     style: TextStyle(
                                         fontSize: 11,
                                         fontWeight: FontWeight.w500,
-                                        color:
-                                            Colors.white.withValues(alpha: 0.72))),
+                                        color: Colors.white
+                                            .withValues(alpha: 0.72))),
                             ],
                           ),
                         ),
                         SizedBox(
                             width: 64,
                             child: action != null
-                                ? Align(alignment: Alignment.centerRight, child: action)
+                                ? Align(
+                                    alignment: Alignment.centerRight,
+                                    child: action)
                                 : null),
                       ],
                     ),
@@ -251,7 +254,8 @@ class LtsHeaderPillAction extends StatelessWidget {
   final String label;
   final IconData? icon;
   final VoidCallback? onTap;
-  const LtsHeaderPillAction({super.key, required this.label, this.icon, this.onTap});
+  const LtsHeaderPillAction(
+      {super.key, required this.label, this.icon, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -337,12 +341,14 @@ class LtsActionCard extends StatelessWidget {
               color: p.surface,
               borderRadius: BorderRadius.circular(LtsT.rCardMobile),
               border: Border.all(
-                  color: locked
-                      ? p.border
-                      : Colors.black.withValues(alpha: 0.04)),
+                  color:
+                      locked ? p.border : Colors.black.withValues(alpha: 0.04)),
               boxShadow: locked
                   ? const [
-                      BoxShadow(color: Color(0x0A0F172A), blurRadius: 10, offset: Offset(0, 4))
+                      BoxShadow(
+                          color: Color(0x0A0F172A),
+                          blurRadius: 10,
+                          offset: Offset(0, 4))
                     ]
                   : LtsT.hubCard,
             ),
@@ -380,14 +386,16 @@ class LtsActionCard extends StatelessWidget {
                 const SizedBox(width: 12),
                 if (locked)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: const Color(0xFFF3F4F6),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: const Text('Khóa',
                         style: TextStyle(
-                            fontSize: 11, fontWeight: FontWeight.w800,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
                             color: Color(0xFF64748B))),
                   )
                 else

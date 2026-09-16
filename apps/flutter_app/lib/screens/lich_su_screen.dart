@@ -10,6 +10,7 @@ import '../store/app_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/format.dart';
 import '../widgets/expandable_table.dart';
+import '../widgets/lts/lts_module_route.dart';
 
 class LichSuScreen extends StatefulWidget {
   const LichSuScreen({super.key});
@@ -52,100 +53,89 @@ class _LichSuScreenState extends State<LichSuScreen>
     Navigator.of(context).push(
       MaterialPageRoute(
         fullscreenDialog: true,
-        builder: (_) => Scaffold(
-          backgroundColor: scheme.surface,
-          appBar: AppBar(
-            title: const Text('Lịch sử báo giá — dạng bảng'),
-            actions: [
-              IconButton(
-                tooltip: 'Đóng',
-                icon: const Icon(Icons.close_rounded),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
-          body: SafeArea(
-            child: OrientationBuilder(
-              builder: (context, orient) {
-                return Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: Column(
-                    children: [
-                      if (orient == Orientation.portrait)
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          margin: const EdgeInsets.only(bottom: 6),
-                          decoration: BoxDecoration(
-                            color: scheme.primary.withValues(alpha: 0.08),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Row(children: [
-                            Icon(Icons.screen_rotation,
-                                size: 16, color: scheme.primary),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                'Xoay ngang máy để xem rộng hơn (cuộn ngang nếu cần)',
-                                style: TextStyle(
-                                    fontSize: 12,
-                                    color: scheme.primary,
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ]),
-                        ),
-                      Expanded(
-                        child: ExpandableTableCard(
-                          title: '${items.length} báo giá',
-                          icon: Icons.history_rounded,
-                          iconColor: AppColors.info,
-                          columns: const [
-                            TableColumn('Ngày', minWidth: 90),
-                            TableColumn('Khách hàng', minWidth: 140),
-                            TableColumn('Sản phẩm', minWidth: 160),
-                            TableColumn('Cấu trúc', minWidth: 140),
-                            TableColumn('SL', minWidth: 70, align: TextAlign.right),
-                            TableColumn('Giá / đv', minWidth: 100, align: TextAlign.right),
-                            TableColumn('Doanh thu', minWidth: 120, align: TextAlign.right),
-                            TableColumn('Trạng thái', minWidth: 100),
-                          ],
-                          rows: items.map((h) {
-                            final dt = DateTime.tryParse(h.date);
-                            final dateStr = dt == null
-                                ? h.date
-                                : '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-                            return [
-                              TableCellData(dateStr),
-                              TableCellData(h.customer.isEmpty ? '—' : h.customer),
-                              TableCellData(h.productName.isEmpty ? '—' : h.productName),
-                              TableCellData(h.structure),
-                              TableCellData(h.quantity.toString(),
-                                  align: TextAlign.right),
-                              TableCellData(Fmt.vnd(h.finalPrice.toDouble()),
-                                  align: TextAlign.right,
-                                  style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: AppColors.success)),
-                              TableCellData(
-                                  Fmt.vnd(h.finalPrice.toDouble() *
-                                      h.quantity.toDouble()),
-                                  align: TextAlign.right,
-                                  style: const TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w600)),
-                              TableCellData(_statusLabel(h.quoteStatus)),
-                            ];
-                          }).toList(),
-                          dense: true,
-                        ),
+        builder: (ctx) => ModuleRoute(
+          title: 'Lịch sử báo giá — dạng bảng',
+          child: SafeArea(
+            top: false,
+            child: Padding(
+              padding: const EdgeInsets.all(8),
+              child: Column(
+                children: [
+                  if (MediaQuery.orientationOf(ctx) == Orientation.portrait)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                      margin: const EdgeInsets.only(bottom: 6),
+                      decoration: BoxDecoration(
+                        color: scheme.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(8),
                       ),
-                    ],
+                      child: Row(children: [
+                        Icon(Icons.screen_rotation,
+                            size: 16, color: scheme.primary),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Xoay ngang máy để xem rộng hơn (cuộn ngang nếu cần)',
+                            style: TextStyle(
+                                fontSize: 12,
+                                color: scheme.primary,
+                                fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ]),
+                    ),
+                  Expanded(
+                    child: ExpandableTableCard(
+                      title: '${items.length} báo giá',
+                      icon: Icons.history_rounded,
+                      iconColor: AppColors.info,
+                      columns: const [
+                        TableColumn('Ngày', minWidth: 90),
+                        TableColumn('Khách hàng', minWidth: 140),
+                        TableColumn('Sản phẩm', minWidth: 160),
+                        TableColumn('Cấu trúc', minWidth: 140),
+                        TableColumn('SL', minWidth: 70, align: TextAlign.right),
+                        TableColumn('Giá / đv',
+                            minWidth: 100, align: TextAlign.right),
+                        TableColumn('Doanh thu',
+                            minWidth: 120, align: TextAlign.right),
+                        TableColumn('Trạng thái', minWidth: 100),
+                      ],
+                      rows: items.map((h) {
+                        final dt = DateTime.tryParse(h.date);
+                        final dateStr = dt == null
+                            ? h.date
+                            : '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+                        return [
+                          TableCellData(dateStr),
+                          TableCellData(h.customer.isEmpty ? '—' : h.customer),
+                          TableCellData(
+                              h.productName.isEmpty ? '—' : h.productName),
+                          TableCellData(h.structure),
+                          TableCellData(h.quantity.toString(),
+                              align: TextAlign.right),
+                          TableCellData(Fmt.vnd(h.finalPrice.toDouble()),
+                              align: TextAlign.right,
+                              style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.success)),
+                          TableCellData(
+                              Fmt.vnd(h.finalPrice.toDouble() *
+                                  h.quantity.toDouble()),
+                              align: TextAlign.right,
+                              style: const TextStyle(
+                                  fontSize: 12.5, fontWeight: FontWeight.w600)),
+                          TableCellData(_statusLabel(h.quoteStatus)),
+                        ];
+                      }).toList(),
+                      dense: true,
+                    ),
                   ),
-                );
-              },
+                ],
+              ),
             ),
           ),
         ),
@@ -184,15 +174,16 @@ class _LichSuScreenState extends State<LichSuScreen>
       final matchStatus = _filterStatus == null ||
           h.quoteStatus == _filterStatus ||
           (_filterStatus == 'approved' &&
-              (h.quoteStatus == 'approved' || h.quoteStatus == 'pending_approval'));
+              (h.quoteStatus == 'approved' ||
+                  h.quoteStatus == 'pending_approval'));
       return matchQuery && matchStatus;
     }).toList();
 
     final totalRev = all.fold<double>(
         0, (sum, h) => sum + h.finalPrice.toDouble() * h.quantity.toDouble());
     final approvedCount = all
-        .where((h) =>
-            h.quoteStatus == 'approved' || h.quoteStatus == 'completed')
+        .where(
+            (h) => h.quoteStatus == 'approved' || h.quoteStatus == 'completed')
         .length;
 
     if (all.isEmpty) return _Empty();
@@ -263,10 +254,10 @@ class _LichSuScreenState extends State<LichSuScreen>
             indicatorColor: scheme.primary,
             indicatorWeight: 2.5,
             indicatorSize: TabBarIndicatorSize.label,
-            labelStyle: const TextStyle(
-                fontWeight: FontWeight.w700, fontSize: 12.5),
-            unselectedLabelStyle: const TextStyle(
-                fontWeight: FontWeight.w500, fontSize: 12.5),
+            labelStyle:
+                const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
+            unselectedLabelStyle:
+                const TextStyle(fontWeight: FontWeight.w500, fontSize: 12.5),
             padding: const EdgeInsets.symmetric(horizontal: 12),
             tabs: _tabs.map((t) {
               final count = t.$1 == null
@@ -312,7 +303,9 @@ class _LichSuScreenState extends State<LichSuScreen>
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.search_off,
-                            size: 56, color: scheme.onSurfaceVariant.withValues(alpha: 0.4)),
+                            size: 56,
+                            color:
+                                scheme.onSurfaceVariant.withValues(alpha: 0.4)),
                         const SizedBox(height: 12),
                         Text('Không tìm thấy báo giá phù hợp',
                             style: Theme.of(context).textTheme.bodyMedium),
@@ -331,8 +324,7 @@ class _LichSuScreenState extends State<LichSuScreen>
                         child: Row(
                           children: [
                             Text('${filtered.length} báo giá',
-                                style:
-                                    Theme.of(context).textTheme.titleSmall),
+                                style: Theme.of(context).textTheme.titleSmall),
                             const Spacer(),
                             Text('← Vuốt trái để xoá',
                                 style: Theme.of(context).textTheme.bodySmall),
@@ -340,8 +332,7 @@ class _LichSuScreenState extends State<LichSuScreen>
                         ),
                       );
                     }
-                    return _SwipeableCard(
-                        item: filtered[i - 1], state: s);
+                    return _SwipeableCard(item: filtered[i - 1], state: s);
                   },
                 ),
         ),
@@ -623,11 +614,11 @@ class _HistoryCard extends StatelessWidget {
               if (item.structure.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 5),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
                   decoration: BoxDecoration(
-                    color: scheme.surfaceContainerHighest
-                        .withValues(alpha: 0.5),
+                    color:
+                        scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
@@ -675,8 +666,7 @@ class _HistoryCard extends StatelessWidget {
     );
   }
 
-  void _showStatusMenu(
-      BuildContext context, HistoryItem item, AppState state) {
+  void _showStatusMenu(BuildContext context, HistoryItem item, AppState state) {
     showModalBottomSheet(
       context: context,
       builder: (_) => _StatusSheet(item: item, state: state),
@@ -692,9 +682,19 @@ class _StatusSheet extends StatelessWidget {
   static final _statuses = [
     ('drafted', 'Đã lập', const Color(0xFF6B7280), Icons.edit_outlined),
     ('sent', 'Đã gửi', const Color(0xFF3B82F6), Icons.send_outlined),
-    ('pending_approval', 'Chờ duyệt', const Color(0xFFD97706), Icons.hourglass_empty),
+    (
+      'pending_approval',
+      'Chờ duyệt',
+      const Color(0xFFD97706),
+      Icons.hourglass_empty
+    ),
     ('approved', 'Đã duyệt', const Color(0xFF8B5CF6), Icons.verified_outlined),
-    ('completed', 'Hoàn thành', const Color(0xFF059669), Icons.check_circle_outline),
+    (
+      'completed',
+      'Hoàn thành',
+      const Color(0xFF059669),
+      Icons.check_circle_outline
+    ),
   ];
 
   @override
@@ -733,8 +733,7 @@ class _StatusSheet extends StatelessWidget {
                   : null,
               onTap: () async {
                 // Update history item's quoteStatus
-                final idx =
-                    state.history.indexWhere((h) => h.id == item.id);
+                final idx = state.history.indexWhere((h) => h.id == item.id);
                 if (idx < 0) return;
                 final updated = HistoryItem(
                   id: item.id,

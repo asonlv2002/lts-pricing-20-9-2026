@@ -116,31 +116,39 @@ class LtsT {
   // ── Border radius (CSS px) ──
   static const double rInput = 10; // .form-input
   static const double rCard = 14; // --radius
-  static const double rCardMobile = 20; // .lts-mobile-action-card / module header bottom
+  static const double rCardMobile =
+      20; // .lts-mobile-action-card / module header bottom
   static const double rHeader = 22; // hub header / tab bar top radius
   static const double rSheet = 24; // bottom sheet top
 
   // ── Shadows ──
   static List<BoxShadow> get shadowSm => const [
-        BoxShadow(color: Color(0x0F000000), blurRadius: 3, offset: Offset(0, 1)),
+        BoxShadow(
+            color: Color(0x0F000000), blurRadius: 3, offset: Offset(0, 1)),
       ];
   static List<BoxShadow> get shadowMd => const [
-        BoxShadow(color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 4)),
+        BoxShadow(
+            color: Color(0x14000000), blurRadius: 12, offset: Offset(0, 4)),
       ];
   static List<BoxShadow> get hubCard => const [
-        BoxShadow(color: Color(0x0F0F172A), blurRadius: 14, offset: Offset(0, 6)),
+        BoxShadow(
+            color: Color(0x0F0F172A), blurRadius: 14, offset: Offset(0, 6)),
       ];
   static List<BoxShadow> get tabShadow => const [
-        BoxShadow(color: Color(0x1E0F172A), blurRadius: 34, offset: Offset(0, -12)),
+        BoxShadow(
+            color: Color(0x1E0F172A), blurRadius: 34, offset: Offset(0, -12)),
       ];
   static List<BoxShadow> get pillShadow => const [
-        BoxShadow(color: Color(0x240F172A), blurRadius: 24, offset: Offset(0, 8)),
+        BoxShadow(
+            color: Color(0x240F172A), blurRadius: 24, offset: Offset(0, 8)),
       ];
   static List<BoxShadow> get navyHeaderShadow => const [
-        BoxShadow(color: Color(0x2E0F172A), blurRadius: 34, offset: Offset(0, 16)),
+        BoxShadow(
+            color: Color(0x2E0F172A), blurRadius: 34, offset: Offset(0, 16)),
       ];
   static List<BoxShadow> get primaryPillShadow => const [
-        BoxShadow(color: Color(0x575B4DFF), blurRadius: 22, offset: Offset(0, 10)),
+        BoxShadow(
+            color: Color(0x575B4DFF), blurRadius: 22, offset: Offset(0, 10)),
       ];
 
   // ── Gradients ──

@@ -1,4 +1,4 @@
-﻿// ═══════════════════════════════════════════════════════════════════════════
+// ═══════════════════════════════════════════════════════════════════════════
 // TinhGiaScreen — Redesign full mobile-first
 // Flow: Thông tin cơ bản → Chọn loại → Cấu trúc lớp → Kích thước → Nâng cao
 // Sticky bottom bar với nút Lưu + Reset
@@ -65,7 +65,8 @@ class _MobilePricingWorkspace extends StatefulWidget {
   final VoidCallback? onGoHub;
   const _MobilePricingWorkspace({required this.state, this.onGoHub});
   @override
-  State<_MobilePricingWorkspace> createState() => _MobilePricingWorkspaceState();
+  State<_MobilePricingWorkspace> createState() =>
+      _MobilePricingWorkspaceState();
 }
 
 class _MobilePricingWorkspaceState extends State<_MobilePricingWorkspace>
@@ -144,10 +145,10 @@ class _MobilePricingWorkspaceState extends State<_MobilePricingWorkspace>
                             LtsMiniPriceStrip(
                               priceText:
                                   '${_fmt(state.currentResult!.finalPrice)} đ',
-                              rightNote: state.currentInput.productType ==
-                                      'mang'
-                                  ? '/m²'
-                                  : '/túi',
+                              rightNote:
+                                  state.currentInput.productType == 'mang'
+                                      ? '/m²'
+                                      : '/túi',
                               onTap: () => _controller.animateTo(1),
                             ),
                             const SizedBox(height: 10),
@@ -266,26 +267,22 @@ class _ModeBtn extends StatelessWidget {
         borderRadius: BorderRadius.circular(LtsT.rCard),
         onTap: locked
             ? () => ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                    content: Text(
-                        'Chế độ $label cần bản web — app chỉ tính nội bộ.'),
-                    duration: const Duration(seconds: 2)),
-              )
+                  SnackBar(
+                      content: Text(
+                          'Chế độ $label cần bản web — app chỉ tính nội bộ.'),
+                      duration: const Duration(seconds: 2)),
+                )
             : onTap,
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
           constraints: const BoxConstraints(minHeight: 120),
           decoration: BoxDecoration(
             color: locked
-                ? (tinted
-                    ? p.red.withValues(alpha: 0.04)
-                    : p.surface)
+                ? (tinted ? p.red.withValues(alpha: 0.04) : p.surface)
                 : p.surface,
             borderRadius: BorderRadius.circular(LtsT.rCard),
             border: Border.all(
-                color: tinted
-                    ? p.red.withValues(alpha: 0.35)
-                    : p.border),
+                color: tinted ? p.red.withValues(alpha: 0.35) : p.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -316,10 +313,7 @@ class _ModeBtn extends StatelessWidget {
                       fontSize: 15, fontWeight: FontWeight.w800)),
               const SizedBox(height: 4),
               Text(desc,
-                  style: TextStyle(
-                      fontSize: 11,
-                      color: p.muted,
-                      height: 1.35)),
+                  style: TextStyle(fontSize: 11, color: p.muted, height: 1.35)),
             ],
           ),
         ),
@@ -335,27 +329,79 @@ class _MobileResultQuickActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final r = result;
-    return Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [Icon(Icons.table_chart_outlined, size: 18, color: scheme.primary), const SizedBox(width: 8), Expanded(child: Text('Bảng tính nhanh', style: Theme.of(context).textTheme.titleSmall)), Text('Xoay ngang', style: TextStyle(fontSize: 11, color: scheme.onSurfaceVariant))]),
-      const SizedBox(height: 12),
-      GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 2, mainAxisSpacing: 8, crossAxisSpacing: 8, childAspectRatio: 2.9, children: [
-        _TableAction(label: 'Tổng quan', icon: Icons.account_balance_wallet_outlined, enabled: r != null, onTap: () => showOverviewTable(context, r!)),
-        _TableAction(label: 'Chi phí', icon: Icons.pie_chart_outline, enabled: r != null, onTap: () => showCostTable(context, r!)),
-        _TableAction(label: 'Sản xuất', icon: Icons.precision_manufacturing_outlined, enabled: r != null, onTap: () => showProductionTable(context, r!)),
-        _TableAction(label: 'Trục in', icon: Icons.album_outlined, enabled: r != null, onTap: () => showCylinderTable(context, r!)),
-      ]),
-    ])));
+    return Card(
+        child: Padding(
+            padding: const EdgeInsets.all(14),
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Icon(Icons.table_chart_outlined,
+                    size: 18, color: scheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                    child: Text('Bảng tính nhanh',
+                        style: Theme.of(context).textTheme.titleSmall)),
+                Text('Xoay ngang',
+                    style:
+                        TextStyle(fontSize: 11, color: scheme.onSurfaceVariant))
+              ]),
+              const SizedBox(height: 12),
+              GridView.count(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 8,
+                  crossAxisSpacing: 8,
+                  childAspectRatio: 2.9,
+                  children: [
+                    _TableAction(
+                        label: 'Tổng quan',
+                        icon: Icons.account_balance_wallet_outlined,
+                        enabled: r != null,
+                        onTap: () => showOverviewTable(context, r!)),
+                    _TableAction(
+                        label: 'Chi phí',
+                        icon: Icons.pie_chart_outline,
+                        enabled: r != null,
+                        onTap: () => showCostTable(context, r!)),
+                    _TableAction(
+                        label: 'Sản xuất',
+                        icon: Icons.precision_manufacturing_outlined,
+                        enabled: r != null,
+                        onTap: () => showProductionTable(context, r!)),
+                    _TableAction(
+                        label: 'Trục in',
+                        icon: Icons.album_outlined,
+                        enabled: r != null,
+                        onTap: () => showCylinderTable(context, r!)),
+                  ]),
+            ])));
   }
 }
 
 class _TableAction extends StatelessWidget {
-  final String label; final IconData icon; final bool enabled; final VoidCallback onTap;
-  const _TableAction({required this.label, required this.icon, required this.enabled, required this.onTap});
+  final String label;
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onTap;
+  const _TableAction(
+      {required this.label,
+      required this.icon,
+      required this.enabled,
+      required this.onTap});
   @override
-  Widget build(BuildContext context) => OutlinedButton.icon(onPressed: enabled ? onTap : null, icon: Icon(icon, size: 16), label: Text(label), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10), textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)));
+  Widget build(BuildContext context) => OutlinedButton.icon(
+      onPressed: enabled ? onTap : null,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 10),
+          textStyle:
+              const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)));
 }
 
-String _fmt(num v) => v.round().toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+String _fmt(num v) => v.round().toString().replaceAllMapped(
+    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
 
 class _StickyBottomBar extends StatelessWidget {
   final AppState state;
@@ -369,7 +415,9 @@ class _StickyBottomBar extends StatelessWidget {
           14, 10, 14, 10 + MediaQuery.of(context).padding.bottom),
       decoration: BoxDecoration(
         color: scheme.surface,
-        border: Border(top: BorderSide(color: scheme.outlineVariant.withValues(alpha: 0.3))),
+        border: Border(
+            top: BorderSide(
+                color: scheme.outlineVariant.withValues(alpha: 0.3))),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.06),
@@ -446,8 +494,10 @@ class _StickyBottomBar extends StatelessWidget {
 
     final errors = <String>[];
     if (productType.isEmpty) errors.add('Chưa chọn loại sản phẩm');
-    if (productType == 'tui' && bagType.isEmpty) errors.add('Chưa chọn loại túi');
-    if (productType == 'mang' && filmType.isEmpty) errors.add('Chưa chọn loại màng');
+    if (productType == 'tui' && bagType.isEmpty)
+      errors.add('Chưa chọn loại túi');
+    if (productType == 'mang' && filmType.isEmpty)
+      errors.add('Chưa chọn loại màng');
     if (quantity <= 0) errors.add('Chưa nhập số lượng');
     if (spreadWidth <= 0) errors.add('Chưa nhập khổ trải');
     if (cutStep <= 0) errors.add('Chưa nhập bước cắt');
@@ -458,7 +508,8 @@ class _StickyBottomBar extends StatelessWidget {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.warning_amber_rounded, color: Colors.white, size: 20),
+              const Icon(Icons.warning_amber_rounded,
+                  color: Colors.white, size: 20),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(errors.join('\n'),
@@ -511,13 +562,9 @@ class _StickyBottomBar extends StatelessWidget {
     final i = state.currentInput;
     final isMang = i.productType == 'mang';
     final filmRollLength = i.get<num>('filmRollLength')?.toInt() ?? 6000;
-    final fmtPct = (double n) =>
-        '${(n * 100).toStringAsFixed(2)}%';
-    final fmtVnd = (double v) => v
-        .round()
-        .toString()
-        .replaceAllMapped(
-            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+    final fmtPct = (double n) => '${(n * 100).toStringAsFixed(2)}%';
+    final fmtVnd = (double v) => v.round().toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
     final text = [
       '${i.customer.isEmpty ? 'N/A' : i.customer} — ${i.productName.isEmpty ? 'N/A' : i.productName}',
       'Cấu trúc: ${r.structureText} | Độ dày: ${r.d('totalThickness').toStringAsFixed(1)}mic',
@@ -539,8 +586,6 @@ class _StickyBottomBar extends StatelessWidget {
       ));
     }
   }
-
-
 }
 
 // ─── Result Panel ────────────────────────────────────────────────────────────
@@ -559,7 +604,8 @@ class _ResultPanel extends StatelessWidget {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: AppColors.danger.withValues(alpha: 0.08),
-              border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+              border:
+                  Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
@@ -759,26 +805,41 @@ class _InputFormState extends State<_InputForm> {
                   padding: const EdgeInsets.only(top: 4, bottom: 8),
                   child: FilledButton.icon(
                     onPressed: () async {
-                      final target = (i['targetThickness'] as num?)?.toInt() ?? 0;
+                      final target =
+                          (i['targetThickness'] as num?)?.toInt() ?? 0;
                       if (target <= 0) return;
                       // Build current layers
                       final layers = <Map<String, dynamic>>[];
-                      for (final k in ['layer1Id', 'layer2Id', 'layer3Id', 'layer4Id', 'layer5Id']) {
+                      for (final k in [
+                        'layer1Id',
+                        'layer2Id',
+                        'layer3Id',
+                        'layer4Id',
+                        'layer5Id'
+                      ]) {
                         final id = i[k] as String?;
                         if (id == null) continue;
                         final mat = s.materials.firstWhere(
                           (m) => m.id == id,
                           orElse: () => MaterialDef(
-                            id: id, name: id, density: 0, thickness: 0,
-                            pricePerKg: 0, isPETorPA: false, rollLength: 0, inkPricePerColor: 0,
+                            id: id,
+                            name: id,
+                            density: 0,
+                            thickness: 0,
+                            pricePerKg: 0,
+                            isPETorPA: false,
+                            rollLength: 0,
+                            inkPricePerColor: 0,
                           ),
                         );
                         layers.add({
                           'id': k,
                           'materialId': mat.id,
-                          'doDay': (i['micOverrides'] as Map?)?[k] as num? ?? mat.thickness,
+                          'doDay': (i['micOverrides'] as Map?)?[k] as num? ??
+                              mat.thickness,
                           'isLLDPE': mat.name.toLowerCase().contains('lldpe') ||
-                              (mat.group?.toLowerCase().contains('lldpe') ?? false),
+                              (mat.group?.toLowerCase().contains('lldpe') ??
+                                  false),
                         });
                       }
                       if (layers.isEmpty) return;
@@ -786,11 +847,14 @@ class _InputFormState extends State<_InputForm> {
                       final engine = EngineService.instance;
                       if (!engine.isReady) await engine.init();
                       final layersJson = jsonEncode(layers);
-                      final matsJson = jsonEncode(s.materials.map((m) => m.toJson()).toList());
-                      final code = 'globalThis.LTS.toiUuDoDay($target, JSON.parse(${jsonEncode(layersJson)}), JSON.parse(${jsonEncode(matsJson)}))';
+                      final matsJson = jsonEncode(
+                          s.materials.map((m) => m.toJson()).toList());
+                      final code =
+                          'globalThis.LTS.toiUuDoDay($target, JSON.parse(${jsonEncode(layersJson)}), JSON.parse(${jsonEncode(matsJson)}))';
                       final resultJson = engine.evaluateCode(code);
                       if (resultJson != null && !resultJson.isError) {
-                        final result = jsonDecode(resultJson.stringResult) as Map<String, dynamic>;
+                        final result = jsonDecode(resultJson.stringResult)
+                            as Map<String, dynamic>;
                         final optimized = result['ketQua'] as List? ?? [];
                         final newOverrides = Map<String, dynamic>.from(
                             (i['micOverrides'] as Map?) ?? {});
@@ -798,32 +862,44 @@ class _InputFormState extends State<_InputForm> {
                         final changes = <String>[];
                         for (final kq in optimized) {
                           final layerId = kq['layerId'] as String;
-                          final adjusted = (kq['adjustedThickness'] as num).toDouble();
-                          final selectedMaterialId = kq['materialId'] as String?;
+                          final adjusted =
+                              (kq['adjustedThickness'] as num).toDouble();
+                          final selectedMaterialId =
+                              kq['materialId'] as String?;
                           final mat = s.materials.firstWhere(
                             (m) => m.id == i[layerId],
                             orElse: () => MaterialDef(
-                              id: '', name: '', density: 0, thickness: 0,
-                              pricePerKg: 0, isPETorPA: false, rollLength: 0, inkPricePerColor: 0,
+                              id: '',
+                              name: '',
+                              density: 0,
+                              thickness: 0,
+                              pricePerKg: 0,
+                              isPETorPA: false,
+                              rollLength: 0,
+                              inkPricePerColor: 0,
                             ),
                           );
                           final selectedMat = s.materials.firstWhere(
                             (m) => m.id == (selectedMaterialId ?? mat.id),
                             orElse: () => mat,
                           );
-                          if (selectedMaterialId != null && selectedMaterialId != mat.id) {
+                          if (selectedMaterialId != null &&
+                              selectedMaterialId != mat.id) {
                             u(layerId, selectedMaterialId);
-                            changes.add('${mat.name}: ${selectedMat.name} ${selectedMat.thickness}');
+                            changes.add(
+                                '${mat.name}: ${selectedMat.name} ${selectedMat.thickness}');
                           }
                           if (adjusted != selectedMat.thickness) {
                             newOverrides[layerId] = adjusted;
-                            changes.add('${selectedMat.name}: ${selectedMat.thickness}→$adjusted');
+                            changes.add(
+                                '${selectedMat.name}: ${selectedMat.thickness}→$adjusted');
                           } else {
                             newOverrides.remove(layerId);
                           }
                         }
                         u('micOverrides', newOverrides);
-                        final tongThucTe = (result['tongThucTe'] as num).toInt();
+                        final tongThucTe =
+                            (result['tongThucTe'] as num).toInt();
                         final datYeuCau = result['datYeuCau'] as bool? ?? false;
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -831,7 +907,8 @@ class _InputFormState extends State<_InputForm> {
                               content: Text(
                                 datYeuCau
                                     ? 'Đã tối ưu: $tongThucTe mic (thỏa [${target - 5}, ${target + 5}])\n${changes.join(', ')}'
-                                    : (result['canhBao'] as String? ?? 'Không đạt yêu cầu'),
+                                    : (result['canhBao'] as String? ??
+                                        'Không đạt yêu cầu'),
                               ),
                               duration: const Duration(seconds: 4),
                             ),
@@ -842,7 +919,8 @@ class _InputFormState extends State<_InputForm> {
                     icon: const Icon(Icons.auto_fix_high, size: 16),
                     label: const Text('Tính độ dày'),
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
                       textStyle: const TextStyle(fontSize: 12),
                     ),
                   ),
@@ -919,7 +997,8 @@ class _InputFormState extends State<_InputForm> {
                       suffix: 'm',
                       onChanged: (v) {
                         u('spreadWidth', v);
-                        _autoUpdateCylLength(v, (i['numImages'] as num?)?.toInt() ?? 1);
+                        _autoUpdateCylLength(
+                            v, (i['numImages'] as num?)?.toInt() ?? 1);
                       },
                     ),
                   ),
@@ -950,7 +1029,8 @@ class _InputFormState extends State<_InputForm> {
                       onChanged: (v) {
                         final vi = v.toInt().clamp(1, 99);
                         u('numImages', vi);
-                        _autoUpdateCylLength((i['spreadWidth'] as num?)?.toDouble() ?? 0, vi);
+                        _autoUpdateCylLength(
+                            (i['spreadWidth'] as num?)?.toDouble() ?? 0, vi);
                       },
                     ),
                   ),
@@ -973,8 +1053,7 @@ class _InputFormState extends State<_InputForm> {
                         (8, '8 màu'),
                       ],
                       selected: (i['numColors'] as num?)?.toInt(),
-                      onChanged: (v) =>
-                          u('numColors', v == 0 ? null : v),
+                      onChanged: (v) => u('numColors', v == 0 ? null : v),
                     ),
                   ),
                 ),
@@ -991,8 +1070,7 @@ class _InputFormState extends State<_InputForm> {
               children: [
                 InkWell(
                   borderRadius: BorderRadius.circular(16),
-                  onTap: () =>
-                      setState(() => _advancedOpen = !_advancedOpen),
+                  onTap: () => setState(() => _advancedOpen = !_advancedOpen),
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
                     child: Row(children: [
@@ -1002,8 +1080,8 @@ class _InputFormState extends State<_InputForm> {
                           color: AppColors.muted.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
-                        child: Icon(Icons.tune,
-                            size: 18, color: AppColors.muted),
+                        child:
+                            Icon(Icons.tune, size: 18, color: AppColors.muted),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -1011,10 +1089,9 @@ class _InputFormState extends State<_InputForm> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('Tuỳ chỉnh nâng cao',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleSmall),
-                            Text('Phụ kiện · Trục in · Đóng gói · Thanh toán · Hoa hồng',
+                                style: Theme.of(context).textTheme.titleSmall),
+                            Text(
+                                'Phụ kiện · Trục in · Đóng gói · Thanh toán · Hoa hồng',
                                 style: Theme.of(context).textTheme.bodySmall),
                           ],
                         ),
@@ -1023,9 +1100,8 @@ class _InputFormState extends State<_InputForm> {
                         turns: _advancedOpen ? 0.5 : 0,
                         duration: const Duration(milliseconds: 200),
                         child: Icon(Icons.keyboard_arrow_down,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant),
+                            color:
+                                Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ]),
                   ),
@@ -1035,8 +1111,7 @@ class _InputFormState extends State<_InputForm> {
                   curve: Curves.easeInOut,
                   child: _advancedOpen
                       ? Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                           child: _AdvancedSection(state: s),
                         )
                       : const SizedBox(width: double.infinity),
@@ -1092,13 +1167,7 @@ class _InputFormState extends State<_InputForm> {
         (s.currentInput.raw['micOverrides'] as Map?) ?? {});
     micOverrides.remove(layerKey);
     if (value == null) {
-      const keys = [
-        'layer1Id',
-        'layer2Id',
-        'layer3Id',
-        'layer4Id',
-        'layer5Id'
-      ];
+      const keys = ['layer1Id', 'layer2Id', 'layer3Id', 'layer4Id', 'layer5Id'];
       final idx = keys.indexOf(layerKey);
       for (int k = idx + 1; k < keys.length; k++) {
         u(keys[k], null);
@@ -1155,7 +1224,13 @@ class _StructurePreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    final layerKeys = ['layer1Id', 'layer2Id', 'layer3Id', 'layer4Id', 'layer5Id'];
+    final layerKeys = [
+      'layer1Id',
+      'layer2Id',
+      'layer3Id',
+      'layer4Id',
+      'layer5Id'
+    ];
     final layerIds = layerKeys
         .map((k) => input[k] as String?)
         .where((id) => id != null)
@@ -1168,25 +1243,32 @@ class _StructurePreview extends StatelessWidget {
         decoration: BoxDecoration(
           color: scheme.surfaceContainerHighest.withValues(alpha: 0.3),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.4)),
+          border:
+              Border.all(color: scheme.outlineVariant.withValues(alpha: 0.4)),
         ),
         alignment: Alignment.center,
         child: Text('Chưa chọn lớp nào',
-            style: TextStyle(
-                fontSize: 12, color: scheme.onSurfaceVariant)),
+            style: TextStyle(fontSize: 12, color: scheme.onSurfaceVariant)),
       );
     }
 
     final layers = layerIds.map((id) {
       return materials.firstWhere((m) => m.id == id,
           orElse: () => MaterialDef(
-            id: id!, name: id, density: 0, thickness: 0,
-            pricePerKg: 0, isPETorPA: false, rollLength: 0, inkPricePerColor: 0,
-          ));
+                id: id!,
+                name: id,
+                density: 0,
+                thickness: 0,
+                pricePerKg: 0,
+                isPETorPA: false,
+                rollLength: 0,
+                inkPricePerColor: 0,
+              ));
     }).toList();
 
     // Thickness calculation
-    final micOverrides = (input['micOverrides'] as Map?)?.cast<String, dynamic>() ?? {};
+    final micOverrides =
+        (input['micOverrides'] as Map?)?.cast<String, dynamic>() ?? {};
     int sumMic = 0;
     for (int idx = 0; idx < layerIds.length; idx++) {
       final key = layerKeys[idx];
@@ -1225,11 +1307,13 @@ class _StructurePreview extends StatelessWidget {
                   child: Text('3μ',
                       style: TextStyle(
                           fontSize: 8,
-                          color: scheme.onSurfaceVariant.withValues(alpha: 0.5))),
+                          color:
+                              scheme.onSurfaceVariant.withValues(alpha: 0.5))),
                 ),
               Expanded(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
@@ -1271,7 +1355,8 @@ class _StructurePreview extends StatelessWidget {
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
               color: AppColors.danger.withValues(alpha: 0.08),
-              border: Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
+              border:
+                  Border.all(color: AppColors.danger.withValues(alpha: 0.3)),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Row(
@@ -1326,10 +1411,14 @@ class _LayerPickerRow extends StatelessWidget {
     if (disabled) return const SizedBox.shrink();
     final selectedId = input[layerKey] as String?;
     final mat = selectedId != null
-        ? materials.cast<MaterialDef?>().firstWhere((m) => m!.id == selectedId, orElse: () => null)
+        ? materials
+            .cast<MaterialDef?>()
+            .firstWhere((m) => m!.id == selectedId, orElse: () => null)
         : null;
-    final micOverrides = (input['micOverrides'] as Map?)?.cast<String, dynamic>() ?? {};
-    final currentMic = (micOverrides[layerKey] as num?)?.toDouble() ?? mat?.thickness ?? 0;
+    final micOverrides =
+        (input['micOverrides'] as Map?)?.cast<String, dynamic>() ?? {};
+    final currentMic =
+        (micOverrides[layerKey] as num?)?.toDouble() ?? mat?.thickness ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1346,10 +1435,13 @@ class _LayerPickerRow extends StatelessWidget {
             padding: const EdgeInsets.only(left: 16, top: 4, bottom: 4),
             child: Row(
               children: [
-                Icon(Icons.tune, size: 14, color: Theme.of(context).colorScheme.primary),
+                Icon(Icons.tune,
+                    size: 14, color: Theme.of(context).colorScheme.primary),
                 const SizedBox(width: 6),
                 Text('Độ dày:',
-                    style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant)),
                 const SizedBox(width: 8),
                 SizedBox(
                   width: 100,
@@ -1664,7 +1756,8 @@ class _CommissionRowState extends State<_CommissionRow> {
                 decoration: BoxDecoration(
                   color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
+                  border: Border.all(
+                      color: scheme.outlineVariant.withValues(alpha: 0.5)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1708,9 +1801,8 @@ class _CommissionRowState extends State<_CommissionRow> {
     );
   }
 
-  String _vnd(double v) =>
-      v.round().toString().replaceAllMapped(
-          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+  String _vnd(double v) => v.round().toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
 }
 
 class _UnitChip extends StatelessWidget {
@@ -1760,8 +1852,3 @@ class _SubTitle extends StatelessWidget {
     );
   }
 }
-
-
-
-
-

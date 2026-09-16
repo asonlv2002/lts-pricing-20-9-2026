@@ -30,11 +30,10 @@ class HubScreen extends StatelessWidget {
     final s = context.watch<AppState>();
 
     final doanhThu = s.history.fold<double>(
-        0,
-        (sum, h) =>
-            sum + (h.finalPrice.toDouble() * h.quantity.toDouble()));
+        0, (sum, h) => sum + (h.finalPrice.toDouble() * h.quantity.toDouble()));
     final daDuyet = s.history
-        .where((h) => h.quoteStatus == 'approved' || h.quoteStatus == 'completed')
+        .where(
+            (h) => h.quoteStatus == 'approved' || h.quoteStatus == 'completed')
         .length;
 
     return Column(
@@ -234,8 +233,8 @@ class HubScreen extends StatelessWidget {
                         style: TextStyle(fontSize: 14, color: p.text)),
                     trailing: m.$2
                         ? const Text('Web',
-                            style:
-                                TextStyle(fontSize: 11, fontWeight: FontWeight.w800))
+                            style: TextStyle(
+                                fontSize: 11, fontWeight: FontWeight.w800))
                         : Icon(Icons.chevron_right_rounded,
                             size: 20, color: p.dim),
                     onTap: () => Navigator.pop(context),

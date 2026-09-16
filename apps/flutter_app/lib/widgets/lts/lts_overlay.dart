@@ -29,8 +29,8 @@ Future<T?> showLtsSheet<T>(
         child: Material(
           color: Colors.transparent,
           child: Container(
-            constraints: BoxConstraints(
-                maxHeight: MediaQuery.sizeOf(ctx).height * 0.88),
+            constraints:
+                BoxConstraints(maxHeight: MediaQuery.sizeOf(ctx).height * 0.88),
             decoration: BoxDecoration(
               color: p.surface,
               borderRadius: BorderRadius.circular(LtsT.rSheet),
@@ -61,7 +61,8 @@ Future<T?> showLtsSheet<T>(
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(ctx),
-                          icon: Icon(Icons.close_rounded, size: 20, color: p.muted),
+                          icon: Icon(Icons.close_rounded,
+                              size: 20, color: p.muted),
                         ),
                       ],
                     ),
@@ -149,9 +150,7 @@ class _PillTab extends StatelessWidget {
             Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(icon,
-                    size: 14,
-                    color: active ? p.accent : p.muted),
+                Icon(icon, size: 14, color: active ? p.accent : p.muted),
                 const SizedBox(height: 2),
                 Text(label,
                     style: TextStyle(
@@ -208,8 +207,8 @@ class _PulseDotState extends State<_PulseDot>
       top: 8,
       right: 36,
       child: ScaleTransition(
-        scale: Tween(begin: 1.0, end: 1.35).animate(
-            CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
+        scale: Tween(begin: 1.0, end: 1.35)
+            .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
         child: FadeTransition(
           opacity: Tween(begin: 1.0, end: 0.8).animate(_c),
           child: Container(
@@ -244,9 +243,9 @@ class LtsMiniPriceStrip extends StatefulWidget {
 class _LtsMiniPriceStripState extends State<LtsMiniPriceStrip>
     with SingleTickerProviderStateMixin {
   bool _pressed = false;
-  late final AnimationController _in =
-      AnimationController(vsync: this, duration: const Duration(milliseconds: 300))
-        ..forward();
+  late final AnimationController _in = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 300))
+    ..forward();
 
   @override
   void dispose() {
@@ -257,8 +256,8 @@ class _LtsMiniPriceStripState extends State<LtsMiniPriceStrip>
   @override
   Widget build(BuildContext context) {
     final p = LtsT.of(context);
-    final dy = Tween(begin: -8.0, end: 0.0).animate(CurvedAnimation(
-        parent: _in, curve: Curves.easeOutBack));
+    final dy = Tween(begin: -8.0, end: 0.0)
+        .animate(CurvedAnimation(parent: _in, curve: Curves.easeOutBack));
     return AnimatedBuilder(
       animation: _in,
       builder: (context, _) => Opacity(
@@ -266,72 +265,73 @@ class _LtsMiniPriceStripState extends State<LtsMiniPriceStrip>
         child: Transform.translate(
           offset: Offset(0, dy.value),
           child: GestureDetector(
-          onTapDown: (_) => setState(() => _pressed = true),
-          onTapUp: (_) => setState(() => _pressed = false),
-          onTapCancel: () => setState(() => _pressed = false),
-          onTap: widget.onTap,
-          child: AnimatedScale(
-            scale: _pressed ? 1.01 : 1.0,
-            duration: const Duration(milliseconds: 150),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-              decoration: BoxDecoration(
-                gradient: LtsT.miniStrip(p),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: p.accent.withValues(alpha: 0.2)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('ĐƠN GIÁ / SẢN PHẨM',
-                            style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.5,
-                                color: p.muted)),
-                        ShaderMask(
-                          shaderCallback: (rect) => LinearGradient(
-                            colors: [p.accent, p.accent2],
-                          ).createShader(rect),
-                          child: Text(
-                            widget.priceText,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w800,
-                                color: Colors.white),
+            onTapDown: (_) => setState(() => _pressed = true),
+            onTapUp: (_) => setState(() => _pressed = false),
+            onTapCancel: () => setState(() => _pressed = false),
+            onTap: widget.onTap,
+            child: AnimatedScale(
+              scale: _pressed ? 1.01 : 1.0,
+              duration: const Duration(milliseconds: 150),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: LtsT.miniStrip(p),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: p.accent.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('ĐƠN GIÁ / SẢN PHẨM',
+                              style: TextStyle(
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.w600,
+                                  letterSpacing: 0.5,
+                                  color: p.muted)),
+                          ShaderMask(
+                            shaderCallback: (rect) => LinearGradient(
+                              colors: [p.accent, p.accent2],
+                            ).createShader(rect),
+                            child: Text(
+                              widget.priceText,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white),
+                            ),
                           ),
-                        ),
+                        ],
+                      ),
+                    ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (widget.profitText != null)
+                          Text(widget.profitText!,
+                              style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: p.green)),
+                        if (widget.rightNote != null)
+                          Text(widget.rightNote!,
+                              style: TextStyle(fontSize: 10, color: p.muted)),
+                        Text('Xem chi tiết ›',
+                            style: TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                                color: p.accent)),
                       ],
                     ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      if (widget.profitText != null)
-                        Text(widget.profitText!,
-                            style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: p.green)),
-                      if (widget.rightNote != null)
-                        Text(widget.rightNote!,
-                            style: TextStyle(fontSize: 10, color: p.muted)),
-                      Text('Xem chi tiết ›',
-                          style: TextStyle(
-                              fontSize: 10.5,
-                              fontWeight: FontWeight.w600,
-                              color: p.accent)),
-                    ],
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
           ),
         ),
       ),

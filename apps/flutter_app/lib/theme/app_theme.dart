@@ -52,7 +52,8 @@ class AppTheme {
   static ThemeData dark() => _base(Brightness.dark);
 
   static ThemeData _base(Brightness brightness) {
-    final p = brightness == Brightness.dark ? LtsPalette.dark : LtsPalette.light;
+    final p =
+        brightness == Brightness.dark ? LtsPalette.dark : LtsPalette.light;
     final scheme = ColorScheme(
       brightness: brightness,
       primary: p.accent,
@@ -118,7 +119,8 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           elevation: 0,
@@ -126,7 +128,8 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
           textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
           side: BorderSide(color: p.border),
@@ -153,7 +156,8 @@ class AppTheme {
                 BorderRadius.vertical(top: Radius.circular(LtsT.rSheet))),
       ),
       dialogTheme: DialogThemeData(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(LtsT.rCardMobile)),
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(LtsT.rCardMobile)),
         backgroundColor: p.surface,
       ),
       pageTransitionsTheme: const PageTransitionsTheme(builders: {
@@ -163,8 +167,7 @@ class AppTheme {
   }
 
   static TextTheme _textTheme(LtsPalette p) {
-    TextStyle st(double size, FontWeight w, Color c,
-            {double? ls, double? h}) =>
+    TextStyle st(double size, FontWeight w, Color c, {double? ls, double? h}) =>
         TextStyle(
             fontSize: size,
             fontWeight: w,

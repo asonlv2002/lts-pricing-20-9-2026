@@ -50,7 +50,8 @@ class CauHinhScreen extends StatelessWidget {
                 ),
                 labelColor: Color(0xFF5B4DFF),
                 unselectedLabelColor: Color(0xFF6B7280),
-                labelStyle: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
+                labelStyle:
+                    TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
                 unselectedLabelStyle:
                     TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
                 tabs: [
@@ -195,8 +196,7 @@ class _MaterialCard extends StatelessWidget {
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
           shape: const RoundedRectangleBorder(),
-          tilePadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           leading: Container(
             width: 44,
             height: 44,
@@ -212,7 +212,8 @@ class _MaterialCard extends StatelessWidget {
                     color: scheme.primary)),
           ),
           title: Text(m.name,
-              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+              style:
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
           subtitle: Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Text(
@@ -229,15 +230,13 @@ class _MaterialCard extends StatelessWidget {
                   _Field(
                     label: 'Giá / kg',
                     initial: m.pricePerKg,
-                    onChanged: (v) =>
-                        onUpdate(m.copyWith(pricePerKg: v)),
+                    onChanged: (v) => onUpdate(m.copyWith(pricePerKg: v)),
                     suffix: 'đ',
                   ),
                   _Field(
                     label: 'Mực / màu',
                     initial: m.inkPricePerColor,
-                    onChanged: (v) =>
-                        onUpdate(m.copyWith(inkPricePerColor: v)),
+                    onChanged: (v) => onUpdate(m.copyWith(inkPricePerColor: v)),
                     suffix: 'đ',
                   ),
                   _Field(
@@ -354,13 +353,12 @@ class _ConstantsTab extends StatelessWidget {
               ),
             ]),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               decoration: BoxDecoration(
                 color: AppColors.warning.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: AppColors.warning.withValues(alpha: 0.3)),
+                border:
+                    Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
               ),
               child: Row(
                 children: [
@@ -374,8 +372,7 @@ class _ConstantsTab extends StatelessWidget {
                             fontWeight: FontWeight.w600,
                             color: AppColors.warning)),
                   ),
-                  Text(
-                      '${Fmt.pct(c.interestBase + c.interestSpread)}% / năm',
+                  Text('${Fmt.pct(c.interestBase + c.interestSpread)}% / năm',
                       style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w800,
@@ -404,10 +401,8 @@ class _ConstantsTab extends StatelessWidget {
           icon: Icons.album_outlined,
           iconColor: AppColors.muted,
           children: [
-            row('cylPriceA', 'Đơn giá trục A',
-                integer: true, suffix: 'đ/m²'),
-            row('cylPriceB', 'Đơn giá trục B',
-                integer: true, suffix: 'đ/m²'),
+            row('cylPriceA', 'Đơn giá trục A', integer: true, suffix: 'đ/m²'),
+            row('cylPriceB', 'Đơn giá trục B', integer: true, suffix: 'đ/m²'),
           ],
         ),
         const SizedBox(height: 14),
@@ -422,8 +417,7 @@ class _ConstantsTab extends StatelessWidget {
             row('cutBase', 'CP Cắt cơ bản', integer: true, suffix: 'đ'),
             row('laborCost', 'CPSX khâu in', integer: true, suffix: 'đ/m²'),
             const SizedBox(height: 4),
-            Text('PHI HAO IN',
-                style: Theme.of(context).textTheme.labelMedium),
+            Text('PHI HAO IN', style: Theme.of(context).textTheme.labelMedium),
             const SizedBox(height: 8),
             Row(children: [
               Expanded(child: row('printWasteA', 'A', integer: true)),
@@ -487,8 +481,7 @@ class _ProfitTab extends StatelessWidget {
         const SizedBox(height: 14),
         Card(
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(children: [
               Expanded(
                   flex: 4,
@@ -538,8 +531,7 @@ class _ProfitTab extends StatelessWidget {
                         Flexible(
                           child: Text(Fmt.vnd(rows[i].threshold),
                               style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700)),
+                                  fontSize: 13, fontWeight: FontWeight.w700)),
                         ),
                       ],
                     ),
@@ -547,15 +539,14 @@ class _ProfitTab extends StatelessWidget {
                   Expanded(
                     flex: 3,
                     child: Center(
-                      child: _PctChip(
-                          v: rows[i].col1, color: AppColors.muted),
+                      child: _PctChip(v: rows[i].col1, color: AppColors.muted),
                     ),
                   ),
                   Expanded(
                     flex: 3,
                     child: Center(
-                      child: _PctChip(
-                          v: rows[i].col2, color: AppColors.success),
+                      child:
+                          _PctChip(v: rows[i].col2, color: AppColors.success),
                     ),
                   ),
                 ]),

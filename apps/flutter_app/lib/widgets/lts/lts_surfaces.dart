@@ -79,7 +79,10 @@ class LtsAdvancedToggle extends StatelessWidget {
   final bool open;
   final VoidCallback onTap;
   const LtsAdvancedToggle(
-      {super.key, required this.label, required this.open, required this.onTap});
+      {super.key,
+      required this.label,
+      required this.open,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -155,7 +158,10 @@ class LtsStatusChip extends StatelessWidget {
       ),
       child: Text(label,
           style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700, color: fg, height: 1.1)),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: fg,
+              height: 1.1)),
     );
   }
 }

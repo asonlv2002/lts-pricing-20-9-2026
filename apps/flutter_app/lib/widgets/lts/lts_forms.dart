@@ -65,13 +65,11 @@ class LtsRow2 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (children.length == 1) return children.first;
-    return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: children[0]),
-          const SizedBox(width: 10),
-          Expanded(child: children[1]),
-        ]);
+    return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Expanded(child: children[0]),
+      const SizedBox(width: 10),
+      Expanded(child: children[1]),
+    ]);
   }
 }
 
@@ -190,8 +188,7 @@ class _LtsNumberFieldState extends State<LtsNumberField> {
           suffixText: widget.suffixText,
           isDense: true,
         ),
-        keyboardType:
-            TextInputType.numberWithOptions(decimal: !widget.integer),
+        keyboardType: TextInputType.numberWithOptions(decimal: !widget.integer),
         inputFormatters: [
           FilteringTextInputFormatter.allow(
               RegExp(widget.integer ? r'^\d*' : r'^[\d.,]*')),
@@ -225,8 +222,8 @@ class LtsSelectField<T> extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(LtsT.rInput),
       onTap: () async {
-        final chosen = await showLtsSelectSheet<T>(
-            context, options: options, selected: value, title: placeholder);
+        final chosen = await showLtsSelectSheet<T>(context,
+            options: options, selected: value, title: placeholder);
         if (chosen != null) onChanged(chosen);
       },
       child: Container(
@@ -247,7 +244,8 @@ class LtsSelectField<T> extends StatelessWidget {
                 style: TextStyle(
                     fontSize: 12.5,
                     color: sel == null ? p.dim : p.text,
-                    fontWeight: sel == null ? FontWeight.w400 : FontWeight.w500),
+                    fontWeight:
+                        sel == null ? FontWeight.w400 : FontWeight.w500),
               ),
             ),
             Icon(Icons.expand_more_rounded, size: 18, color: p.muted),
@@ -270,8 +268,8 @@ Future<T?> showLtsSelectSheet<T>(
     barrierLabel: 'select',
     barrierColor: Colors.black.withValues(alpha: 0.45),
     transitionDuration: const Duration(milliseconds: 240),
-    pageBuilder: (_, __, ___) => _SelectSheet<T>(
-        options: options, selected: selected, title: title),
+    pageBuilder: (_, __, ___) =>
+        _SelectSheet<T>(options: options, selected: selected, title: title),
   );
 }
 
@@ -317,7 +315,8 @@ class _SelectSheet<T> extends StatelessWidget {
                         ),
                         IconButton(
                           onPressed: () => Navigator.pop(context),
-                          icon: Icon(Icons.close_rounded, size: 20, color: p.muted),
+                          icon: Icon(Icons.close_rounded,
+                              size: 20, color: p.muted),
                         ),
                       ],
                     ),
@@ -341,7 +340,8 @@ class _SelectSheet<T> extends StatelessWidget {
                                     active ? FontWeight.w700 : FontWeight.w500,
                                 color: active ? p.accent : p.text)),
                         trailing: active
-                            ? Icon(Icons.check_rounded, size: 20, color: p.accent)
+                            ? Icon(Icons.check_rounded,
+                                size: 20, color: p.accent)
                             : null,
                         onTap: () => Navigator.pop(context, o.$1),
                       );

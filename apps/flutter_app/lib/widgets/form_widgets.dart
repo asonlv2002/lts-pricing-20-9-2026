@@ -51,14 +51,12 @@ class SectionCard extends StatelessWidget {
           child: ExpansionTile(
             initiallyExpanded: initiallyExpanded,
             tilePadding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-            childrenPadding: padding ?? const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            leading: icon != null
-                ? Icon(icon, size: 16, color: color)
-                : null,
+            childrenPadding:
+                padding ?? const EdgeInsets.fromLTRB(16, 0, 16, 16),
+            leading: icon != null ? Icon(icon, size: 16, color: color) : null,
             title: Text(title.toUpperCase(), style: titleStyle),
-            subtitle: subtitle != null
-                ? Text(subtitle!, style: subStyle)
-                : null,
+            subtitle:
+                subtitle != null ? Text(subtitle!, style: subStyle) : null,
             trailing: trailing,
             shape: const RoundedRectangleBorder(),
             children: [
@@ -149,8 +147,7 @@ class LabeledField extends StatelessWidget {
                       color: p.muted)),
               if (suffix != null) ...[
                 const SizedBox(width: 6),
-                Text(suffix!,
-                    style: TextStyle(fontSize: 10.5, color: p.dim)),
+                Text(suffix!, style: TextStyle(fontSize: 10.5, color: p.dim)),
               ],
             ],
           ),
@@ -321,8 +318,8 @@ class _NumFieldState extends State<NumField> {
           // khi vào focus: hiện số thuần không có dấu chấm ngàn
           final editText = _fmtEdit(widget.initial);
           _c.text = editText;
-          _c.selection = TextSelection(
-              baseOffset: 0, extentOffset: editText.length);
+          _c.selection =
+              TextSelection(baseOffset: 0, extentOffset: editText.length);
         } else {
           // khi rời focus: format lại có dấu chấm ngàn
           // QUAN TRỌNG: integer mode -> '.' là dấu ngàn -> xóa hết
@@ -338,8 +335,7 @@ class _NumFieldState extends State<NumField> {
             if (lastDot < 0) {
               parsed = double.tryParse(raw) ?? 0;
             } else {
-              final intPart =
-                  raw.substring(0, lastDot).replaceAll('.', '');
+              final intPart = raw.substring(0, lastDot).replaceAll('.', '');
               final decPart = raw.substring(lastDot + 1);
               parsed = double.tryParse(
                       decPart.isEmpty ? intPart : '$intPart.$decPart') ??
@@ -458,8 +454,7 @@ class ChipSelect<T> extends StatelessWidget {
           onTap: () => onChanged(o.$1),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 150),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
             decoration: BoxDecoration(
               color: isSelected
                   ? scheme.primary.withValues(alpha: 0.12)
@@ -484,9 +479,7 @@ class ChipSelect<T> extends StatelessWidget {
                         fontSize: 13.5,
                         fontWeight:
                             isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected
-                            ? scheme.primary
-                            : scheme.onSurface)),
+                        color: isSelected ? scheme.primary : scheme.onSurface)),
               ],
             ),
           ),
@@ -559,9 +552,7 @@ class ToggleTile extends StatelessWidget {
               ),
             ),
             Switch.adaptive(
-                value: value,
-                onChanged: onChanged,
-                activeThumbColor: color),
+                value: value, onChanged: onChanged, activeThumbColor: color),
           ],
         ),
       ),
@@ -596,9 +587,7 @@ class InfoBox extends StatelessWidget {
           Expanded(
             child: Text(text,
                 style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: color)),
+                    fontSize: 12, fontWeight: FontWeight.w500, color: color)),
           ),
         ],
       ),

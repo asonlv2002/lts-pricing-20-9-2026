@@ -56,9 +56,12 @@ class AppState extends ChangeNotifier {
             : ThemeMode.system;
 
     // Load defaults từ assets, override bằng local nếu có
-    materials = LocalStorage.instance.readMaterials() ?? await _loadMaterialsAsset();
-    constants = LocalStorage.instance.readConstants() ?? await _loadConstantsAsset();
-    profitTable = LocalStorage.instance.readProfit() ?? await _loadProfitAsset();
+    materials =
+        LocalStorage.instance.readMaterials() ?? await _loadMaterialsAsset();
+    constants =
+        LocalStorage.instance.readConstants() ?? await _loadConstantsAsset();
+    profitTable =
+        LocalStorage.instance.readProfit() ?? await _loadProfitAsset();
 
     history = LocalStorage.instance.readHistory();
     if (history.isEmpty) {
@@ -75,7 +78,9 @@ class AppState extends ChangeNotifier {
     final raw = await rootBundle.loadString('assets/data/materials.json');
     final list = jsonDecode(raw);
     if (list is List) {
-      return list.map((e) => MaterialDef.fromJson((e as Map).cast<String, dynamic>())).toList();
+      return list
+          .map((e) => MaterialDef.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
     }
     // Trường hợp file là object {materials: [...]}
     if (list is Map && list['materials'] is List) {
@@ -88,14 +93,17 @@ class AppState extends ChangeNotifier {
 
   static Future<AppConstants> _loadConstantsAsset() async {
     final raw = await rootBundle.loadString('assets/data/constants.json');
-    return AppConstants.fromJson((jsonDecode(raw) as Map).cast<String, dynamic>());
+    return AppConstants.fromJson(
+        (jsonDecode(raw) as Map).cast<String, dynamic>());
   }
 
   static Future<List<ProfitRow>> _loadProfitAsset() async {
     final raw = await rootBundle.loadString('assets/data/profitTable.json');
     final j = jsonDecode(raw);
     final rows = (j is Map ? j['rows'] : j) as List;
-    return rows.map((e) => ProfitRow.fromJson((e as Map).cast<String, dynamic>())).toList();
+    return rows
+        .map((e) => ProfitRow.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
   }
 
   static Future<List<HistoryItem>> _loadHistoryAsset() async {
@@ -126,14 +134,20 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  static bool _isLayerKey(String key) =>
-      ['layer1Id','layer2Id','layer3Id','layer4Id','layer5Id'].contains(key);
+  static bool _isLayerKey(String key) => [
+        'layer1Id',
+        'layer2Id',
+        'layer3Id',
+        'layer4Id',
+        'layer5Id'
+      ].contains(key);
 
   Timer? _thicknessTimer;
 
   void _scheduleThicknessOptimization() {
     _thicknessTimer?.cancel();
-    _thicknessTimer = Timer(const Duration(milliseconds: 300), _runThicknessOptimization);
+    _thicknessTimer =
+        Timer(const Duration(milliseconds: 300), _runThicknessOptimization);
   }
 
   void _runThicknessOptimization() {
@@ -142,20 +156,28 @@ class AppState extends ChangeNotifier {
     final target = (i['targetThickness'] as num?)?.toInt() ?? 0;
     if (target <= 0) return;
 
-    final layerKeys = ['layer1Id','layer2Id','layer3Id','layer4Id','layer5Id'];
+    final layerKeys = [
+      'layer1Id',
+      'layer2Id',
+      'layer3Id',
+      'layer4Id',
+      'layer5Id'
+    ];
     final hasLayer = layerKeys.any((k) => (i[k] as String?) != null);
     if (!hasLayer) return;
 
     try {
       final inputJson = jsonEncode(currentInput.toJson());
       final matsJson = jsonEncode(materials.map((m) => m.toJson()).toList());
-      final code = 'globalThis.LTS.optimizeThickness(${jsonEncode(inputJson)},${jsonEncode(matsJson)})';
+      final code =
+          'globalThis.LTS.optimizeThickness(${jsonEncode(inputJson)},${jsonEncode(matsJson)})';
       final res = EngineService.instance.evaluateCode(code);
       if (res == null || res.isError) return;
       final decoded = jsonDecode(res.stringResult);
       if (decoded == null || (decoded as Map).containsKey('error')) return;
       final optResult = decoded as Map<String, dynamic>;
-      final overrides = optResult['optimizedMicOverrides'] as Map<String, dynamic>?;
+      final overrides =
+          optResult['optimizedMicOverrides'] as Map<String, dynamic>?;
       final layerIds = optResult['optimizedLayerIds'] as Map<String, dynamic>?;
       var changed = false;
       var nextInput = currentInput;
@@ -170,7 +192,8 @@ class AppState extends ChangeNotifier {
       }
 
       if (overrides != null) {
-        final currentOverrides = (i['micOverrides'] as Map?)?.cast<String, dynamic>() ?? {};
+        final currentOverrides =
+            (i['micOverrides'] as Map?)?.cast<String, dynamic>() ?? {};
         final newOverrides = Map<String, dynamic>.from(overrides);
         if (jsonEncode(currentOverrides) != jsonEncode(newOverrides)) {
           nextInput = nextInput.withField('micOverrides', newOverrides);

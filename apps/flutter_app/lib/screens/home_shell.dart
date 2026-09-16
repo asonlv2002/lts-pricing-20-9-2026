@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import '../store/app_state.dart';
 import '../theme/lts_tokens.dart';
 import '../widgets/lts/lts_chrome.dart';
+import '../widgets/lts/lts_module_route.dart';
 import '../widgets/lts/lts_overlay.dart';
 import 'cau_hinh_screen.dart';
 import 'hub_screen.dart';
@@ -62,46 +63,53 @@ class _HomeShellState extends State<HomeShell> {
 
   void _pushModule(String title, Widget child) {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ModuleRoute(title: title, child: child)),
+      MaterialPageRoute(
+          builder: (_) => ModuleRoute(title: title, child: child)),
     );
   }
 
   void _khoa(BuildContext context, String ten) {
     final p = LtsT.of(context);
-    showLtsSheet(context, title: '$ten — bị khóa trên app', builder: (_) => Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
+    showLtsSheet(context,
+        title: '$ten — bị khóa trên app',
+        builder: (_) => Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(Icons.lock_outline_rounded, size: 18, color: p.orange),
-                  const SizedBox(width: 8),
+                  Row(
+                    children: [
+                      Icon(Icons.lock_outline_rounded,
+                          size: 18, color: p.orange),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Tính năng này cần đăng nhập và đồng bộ server.',
+                        style: TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w600,
+                            color: p.text),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
                   Text(
-                    'Tính năng này cần đăng nhập và đồng bộ server.',
-                    style: TextStyle(
-                        fontSize: 13.5, fontWeight: FontWeight.w600, color: p.text),
+                    'Vui lòng dùng bản web để quản lý $ten: danh sách, '
+                    'phân quyền và dữ liệu được đồng bộ trực tiếp với máy chủ.',
+                    style:
+                        TextStyle(fontSize: 12.5, color: p.muted, height: 1.5),
+                  ),
+                  const SizedBox(height: 18),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('Đã hiểu'),
+                    ),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
-              Text(
-                'Vui lòng dùng bản web để quản lý $ten: danh sách, '
-                'phân quyền và dữ liệu được đồng bộ trực tiếp với máy chủ.',
-                style: TextStyle(fontSize: 12.5, color: p.muted, height: 1.5),
-              ),
-              const SizedBox(height: 18),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: const Text('Đã hiểu'),
-                ),
-              ),
-            ],
-          ),
-        ));
+            ));
   }
 
   @override
@@ -133,54 +141,13 @@ class _HomeShellState extends State<HomeShell> {
             onGoCauHinh: () => setState(() => _index = 3),
             onOpenLichSu: () =>
                 _pushModule('Lịch sử báo giá', const LichSuScreen()),
-            onOpenLSX: () =>
-                _pushModule('Lệnh sản xuất', const LSXScreen()),
+            onOpenLSX: () => _pushModule('Lệnh sản xuất', const LSXScreen()),
           ),
           TinhGiaScreen(onGoHub: () => setState(() => _index = 0)),
           const SizedBox.shrink(), // tab khóa — không tới được
           const CauHinhScreen(),
           const SizedBox.shrink(),
         ],
-      ),
-    );
-  }
-}
-
-/// Route module kiểu web mobile: header navy (back | title | action) + body.
-class ModuleRoute extends StatelessWidget {
-  final String title;
-  final String? subtitle;
-  final Widget child;
-  final Widget? action;
-  const ModuleRoute(
-      {super.key,
-      required this.title,
-      this.subtitle,
-      required this.child,
-      this.action});
-
-  @override
-  Widget build(BuildContext context) {
-    final p = LtsT.of(context);
-    return Scaffold(
-      backgroundColor: p.shellBg,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            LtsNavyHeader(
-              title: title,
-              subtitle: subtitle,
-              action: action,
-              leading: LtsHeaderCircleButton(
-                icon: Icons.arrow_back_rounded,
-                tooltip: 'Quay lại',
-                onTap: () => Navigator.of(context).maybePop(),
-              ),
-            ),
-            Expanded(child: child),
-          ],
-        ),
       ),
     );
   }
