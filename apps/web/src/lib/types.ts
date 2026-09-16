@@ -672,6 +672,8 @@ export interface OverrideFields {
   matPrice?: number;
   costMat?: number;
   rawMatPrice?: number;
+  /** Ghi đè độ dày (mic) — chỉ vật liệu adjustableMic được sửa; sửa xong matPrice tự tính lại */
+  doDay?: number;
   /** CP mực + dung môi + keo (đ/m²) — bảng đặc tả nâng cao */
   cpMucKeoPerM2?: number;
   /** Thời gian sản xuất (phút) — bảng đặc tả nâng cao */
@@ -680,7 +682,7 @@ export interface OverrideFields {
   cpNhanCongPerPhut?: number;
   /** CP điện (đ/phút) — bảng đặc tả nâng cao */
   cpDienPerPhut?: number;
-  detailOverrides?: Record<number, { width?: number; matPrice?: number; rawMatPrice?: number; materialId?: string; materialName?: string }>;
+  detailOverrides?: Record<number, { width?: number; matPrice?: number; rawMatPrice?: number; materialId?: string; materialName?: string; doDay?: number }>;
 }
 export type OverrideTable = Partial<Record<OverrideRowKey, Partial<OverrideFields>>>;
 

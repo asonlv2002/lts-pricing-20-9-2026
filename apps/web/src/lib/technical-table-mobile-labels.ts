@@ -6,6 +6,7 @@ export const TECHNICAL_TABLE_MOBILE_LABELS = {
   waste: 'Hao',
   inputMaterial: 'ĐV VL',
   rawMaterialPrice: 'Giá NL',
+  doDay: 'Dày',
   cpsx: 'CPSX',
   totalCpsx: 'TT SX',
   materialPrice: 'CPVL',
