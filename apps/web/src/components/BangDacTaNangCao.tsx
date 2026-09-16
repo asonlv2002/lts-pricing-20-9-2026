@@ -103,6 +103,7 @@ export default function BangDacTaNangCao({
             <tr>
               <th>Công đoạn</th>
               <th>Vật liệu</th>
+              <th className="num">Độ dày (mic)</th>
               <th className="num">Khổ màng (m)</th>
               <th className="num">Thành phẩm (m)</th>
               <th className="num">Phi hao (m)</th>
@@ -131,6 +132,11 @@ export default function BangDacTaNangCao({
                     {row.congDoan}
                   </td>
                   <td data-label="Vật liệu">{row.vatLieu}</td>
+                  <td className="num" data-label="Độ dày (mic)">
+                    {row.materialId
+                      ? dinhDangSo(materials.find(m => m.id === row.materialId)?.thickness ?? 0, 0)
+                      : '—'}
+                  </td>
                   {oSoGcNangCao(
                     row.khoMangLabel ?? dinhDangSo(row.khoMang, 3),
                     laGc,
