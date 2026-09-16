@@ -888,6 +888,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
             <tr>
               <th>Công đoạn</th>
               <th>Vật liệu</th>
+              <th className="num">Độ dày (mic)</th>
               <th className="num">Khổ màng (m)</th>
               <th className="num">Thành phẩm (m)</th>
               <th className="num">Phi hao (m)</th>
@@ -954,6 +955,20 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                       giaTriGocId={goc?.materialId} giaTriGocTen={goc?.vatLieu ?? row.vatLieu} giaTriGocGia={goc?.cpVatLieu ?? 0}
                       ghiDeHienTai={ghiDeHienTai} duocSua={suaT1} khiDat={khiDat} materials={materials} engineParams={engineParams} />
                   )}
+                  {laDongSynthetic ? (
+                    oSoGc('—', laGc, { dataLabel: 'Độ dày (mic)' })
+                  ) : (() => {
+                    const idHienLuc = (row.chiTietIndex !== undefined ? ovChiTiet?.materialId : ovDong?.materialId) ?? goc?.materialId ?? row.materialId;
+                    const matHienLuc = idHienLuc ? materials.find(m => m.id === idHienLuc) : undefined;
+                    const rawHienLuc = (row.chiTietIndex !== undefined ? ovChiTiet?.rawMatPrice : ovDong?.rawMatPrice) ?? matHienLuc?.pricePerKg ?? 0;
+                    return (
+                      <ODoDay khoaDong={row.rowKey} chiTietIndex={row.chiTietIndex} matIdHienLuc={idHienLuc}
+                        giaTriGoc={matHienLuc?.thickness ?? 0}
+                        giaTriGhiDe={row.chiTietIndex !== undefined ? ovChiTiet?.doDay : ovDong?.doDay}
+                        duocSua={suaT1} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials}
+                        rawMatPriceHienLuc={rawHienLuc} />
+                    );
+                  })()}
                   {row.khoMangLabel ? (
                     oSoGc(row.khoMangLabel, laGc, { className: coDoiKhoLabel ? 'override-changed' : '', dataLabel: 'Khổ màng (m)' })
                   ) : (
