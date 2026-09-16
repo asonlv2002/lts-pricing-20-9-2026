@@ -344,7 +344,11 @@ function ODoDay({ khoaDong, chiTietIndex, matIdHienLuc, giaTriGoc, giaTriGhiDe, 
   engineParams?: { numColors: number; coverageRatio: number; metallicSurcharge: number; laborCost: number; isPrintFilm: boolean; printFilmInkBOPP: number; printFilmInkOther: number };
 }) {
   const mat = matIdHienLuc ? materials.find(m => m.id === matIdHienLuc) : undefined;
-  const duocSuaDoDay = !!mat && duocSua && !!mat.adjustableMic && mat.pricePerM2 == null;
+  // pricePerM2 luôn được tính sẵn từ công thức (data.ts) — chỉ coi là "giá đ/m² cố định"
+  // khi pricePerM2 TỆ lệ khác công thức suy (material vendor); khi đó sửa độ dày vô nghĩa.
+  const giaM2Suy = mat ? mat.pricePerKg * mat.thickness * mat.density / 1000 : 0;
+  const duocSuaDoDay = !!mat && duocSua && !!mat.adjustableMic
+    && (mat.pricePerM2 == null || Math.abs(mat.pricePerM2 - giaM2Suy) < 0.001);
   // Biến thể cùng nhóm khác độ dày → dropdown (BOPP 18/20/30/40, CPP 20/25/30/40/50, …)
   const dsBienTheNhom = mat?.group ? materials.filter(m => m.group === mat.group) : [];
   const dsDoDayNhom = Array.from(new Set(dsBienTheNhom.map(m => m.thickness))).sort((a, b) => a - b);
