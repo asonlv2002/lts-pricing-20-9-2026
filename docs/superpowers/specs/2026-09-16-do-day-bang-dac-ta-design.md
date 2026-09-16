@@ -56,13 +56,21 @@ xóa `doDay` (đúng pattern `xuLyDoiLop`).
 | Xuất A4/DOCX nâng cao `buildDacTaNangCaoHtml` | sau "Vật liệu" | hiển thị giá trị hiệu lực |
 | Xuất A4 thường `buildCPSXTable` + `buildOverrideTable` | sau "Vật liệu" | hiển thị giá trị hiệu lực |
 
-### 5. Hành vi theo nhóm vật liệu (đã duyệt với user)
+### 5. Hành vi theo nhóm vật liệu (đã duyệt với user — bản sửa 2, 2026-09-16)
 
-1. **LLDPE (5 loại, `adjustableMic: true`)** — ✎ sửa trực tiếp; sửa → chỉ giá đổi
-   (CPVL → tổng → giá đề xuất → chênh lệch); các cột mét + tổng độ dày cấu trúc giữ nguyên.
-2. **Nhóm biến thể (BOPP, BOPP HS, Matt OPP, CPP, MCPP, PET MATTE, RCPP)** — chỉ hiển thị;
-   đổi biến thể qua dropdown → cột nhảy theo, matPrice do nhánh đổi VL tính lại.
-3. **Cố định (PET, PA×4, MPET, AL)** — chỉ hiển thị.
+**Bản sửa 2:** ô Độ dày KHÔNG chỉ read-only cho VL không phải LLDPE — chia 3 dạng nhập:
+
+| Dạng | Áp dụng | UI | Khi thay đổi |
+|---|---|---|---|
+| 1. Nhập liệu ✎ | LLDPE (`adjustableMic: true`) | Ô số tự do | Ghi đè `doDay` + matPrice tự tính lại |
+| 2. Dropdown ▾ | VL có biến thể cùng nhóm khác độ dày (BOPP, BOPP HS, Matt OPP, CPP, MCPP, PET MATTE) | `<select>` các độ dày của nhóm | Chọn → đổi sang biến thể VL đó qua `apDungVatLieuGhiDe` (matPrice/giá/kg tự tính lại, xóa doDay) |
+| 3. Read-only | VL đơn lẻ không biến thể (PET 12, PA×4, MPET, AL, RCPP 70) | Số chờ | Không đổi được |
+
+- Helper dùng chung `apDungVatLieuGhiDe` (ManHinhQuanLy.tsx): gom logic đổi VL của
+  `OChonVatLieuDong`/`OChonVatLieuChiTiet` — dropdown Độ dày gọi lại với biến thể được chọn.
+- Sửa → chỉ giá đổi (CPVL → tổng → giá đề xuất → chênh lệch); các cột mét + tổng độ dày
+  cấu trúc giữ nguyên.
+- Đổi VL qua dropdown Vật liệu → cột Độ dày tự nhảy theo, ghi đè doDay bị xóa.
 
 ### 6. Audit — `override-display.ts`
 
