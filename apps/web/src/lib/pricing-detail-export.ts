@@ -433,7 +433,7 @@ function buildGia(r: CalculateResult, item: HistoryItem, constants: AppConstants
   return html;
 }
 
-function buildCPSXTable(r: CalculateResult, constants: AppConstants): string {
+function buildCPSXTable(r: CalculateResult, constants: AppConstants, materials: Material[]): string {
   const { uniRows } = lapDongSanXuat(r, constants);
   let rowsHtml = '';
   let tong = 0;
@@ -441,9 +441,11 @@ function buildCPSXTable(r: CalculateResult, constants: AppConstants): string {
     const stageLabel = row.stage;
     const name = row.mat && row.mat !== '-' ? row.mat : '—';
     const cpvl = row.costMat != null ? dinhDangSo(row.costMat) : '—';
+    const doDay = row.materialId ? materials.find(m => m.id === row.materialId)?.thickness : undefined;
     rowsHtml += `<tr>
       <td class="left">${stageLabel}</td>
       <td class="left">${name}</td>
+      <td>${doDay != null ? dinhDangSo(doDay) : '—'}</td>
       <td>${dinhDangSoLe(row.width, 3)}</td>
       <td>${dinhDangSo(row.meters)}</td>
       <td>${dinhDangSo(row.waste)}</td>
@@ -459,13 +461,13 @@ function buildCPSXTable(r: CalculateResult, constants: AppConstants): string {
       <div class="section-title"><span class="icon">🏭</span> BẢNG CPSX — CHI TIẾT CÔNG ĐOẠN SẢN XUẤT</div>
       <table>
         <thead><tr>
-          <th class="left">Công đoạn</th><th class="left">Vật liệu</th>
+          <th class="left">Công đoạn</th><th class="left">Vật liệu</th><th>Dày (mic)</th>
           <th>Khổ NVL (m)</th><th>TP (m)</th><th>Hao (m)</th><th>Đầu vào NVL (m)</th>
           <th>CPSX (đ/m²)</th><th>CPVL (đ)</th>
         </tr></thead>
         <tbody>
           ${rowsHtml}
-          <tr class="total-row"><td colspan="8">TỔNG: ${dinhDangSo(tong)} đ</td></tr>
+          <tr class="total-row"><td colspan="9">TỔNG: ${dinhDangSo(tong)} đ</td></tr>
         </tbody>
       </table>
     </div>`;
@@ -483,6 +485,7 @@ function buildOverrideTable(
   constants: AppConstants,
   profitTable: ProfitRow[],
   quantity: number,
+  materials: Material[],
 ): string {
   const changeCount = countOverrideChanges(currentOv);
   if (changeCount === 0) return '';
@@ -523,10 +526,14 @@ function buildOverrideTable(
         const cpsxChanged = coGhiDeDong(currentOv[row.rowKey], ['cpsx']);
         const matPriceChanged = coGhiDeChiTiet(dtOv, ['matPrice']);
         const cpvl = di === row.materialDetails.length - 1 ? (row.costMat != null ? dinhDangSo(row.costMat) : '—') : '';
+        const doDay = (dtOv?.materialId ?? detail.materialId)
+          ? materials.find(m => m.id === (dtOv?.materialId ?? detail.materialId))?.thickness
+          : undefined;
 
         rowsHtml += `<tr>
           <td class="left">${row.stage}</td>
           <td class="left">${detail.name}</td>
+          <td>${doDay != null ? dinhDangSo(doDay) : '—'}</td>
           <td class="${coDoiCPSX ? 'cell-changed' : ''}">${dinhDangSoLe(detail.width, 3)}</td>
           <td class="${metersChanged ? 'cell-changed' : ''}">${dinhDangSo(row.meters)}</td>
           <td class="${wasteChanged ? 'cell-changed' : ''}">${dinhDangSo(row.waste)}</td>
@@ -547,10 +554,14 @@ function buildOverrideTable(
       const name = row.mat && row.mat !== '-' ? row.mat : '—';
       const cpvl = row.costMat != null ? dinhDangSo(row.costMat) : '—';
       const cpvlChanged = coDoiCPVL;
+      const doDay = (currentOv[row.rowKey]?.materialId ?? row.materialId)
+        ? materials.find(m => m.id === (currentOv[row.rowKey]?.materialId ?? row.materialId))?.thickness
+        : undefined;
 
       rowsHtml += `<tr>
         <td class="left">${row.stage}</td>
         <td class="left">${name}</td>
+        <td>${doDay != null ? dinhDangSo(doDay) : '—'}</td>
         <td class="${coDoiCPSX ? 'cell-changed' : ''}">${dinhDangSoLe(row.width, 3)}</td>
         <td class="${metersChanged ? 'cell-changed' : ''}">${dinhDangSo(row.meters)}</td>
         <td class="${wasteChanged ? 'cell-changed' : ''}">${dinhDangSo(row.waste)}</td>
@@ -568,25 +579,25 @@ function buildOverrideTable(
   const effectivePct = profitRatePct || defaultProfitRatePct;
   const baseCost = effPricing.effTotalProdCost / quantity;
   const ln = baseCost * (effectivePct / 100) * quantity;
-  profitRateHtml = `<tr class="total-row"><td colspan="8">Tỷ lệ LN: ${effectivePct}% &mdash; LN: ${dinhDangSo(Math.round(ln))} đ</td></tr>`;
+  profitRateHtml = `<tr class="total-row"><td colspan="9">Tỷ lệ LN: ${effectivePct}% &mdash; LN: ${dinhDangSo(Math.round(ln))} đ</td></tr>`;
 
   return `
     <div class="section">
       <div class="section-title"><span class="icon">${icon}</span> ${title} (${changeCount} thay đổi)</div>
       <table>
         <thead><tr>
-          <th class="left">C.đoạn</th><th class="left">Vật liệu</th>
+          <th class="left">C.đoạn</th><th class="left">Vật liệu</th><th>Dày (mic)</th>
           <th>Khổ (m)</th><th>TP (m)</th><th>Hao (m)</th><th>Đ.vào NVL (m)</th>
           <th>CPSX (đ/m²)</th><th>CPVL (đ)</th>
         </tr></thead>
         <tbody>
           ${rowsHtml}
           <tr class="total-row ${totalChanged ? 'cell-changed' : ''}">
-            <td colspan="8">TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN &mdash; ${dinhDangSo(grandTotal)} đ</td>
+            <td colspan="9">TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN &mdash; ${dinhDangSo(grandTotal)} đ</td>
           </tr>
           ${profitRateHtml}
           <tr class="total-row override-price-delta-row ${lopChenhLech}">
-            <td colspan="8">CHÊNH LỆCH SO VỚI GIÁ GỐC: <strong>${chenhLechText} ĐỒNG / ${donViText}</strong></td>
+            <td colspan="9">CHÊNH LỆCH SO VỚI GIÁ GỐC: <strong>${chenhLechText} ĐỒNG / ${donViText}</strong></td>
           </tr>
         </tbody>
       </table>
@@ -632,7 +643,7 @@ function xuatBangDacTaNangCao(params: {
   );
   const dongNCD = lapDongNhanCongDien(r0, hangSo, hasAnyOv ? activeOv : undefined);
   const tong = tinhTongNangCao(dongVL, dongNCD);
-  return buildDacTaNangCaoHtml(dongVL, dongNCD, tong, nhanNguon, cot, coQuyenCoVan);
+  return buildDacTaNangCaoHtml(dongVL, dongNCD, tong, nhanNguon, cot, coQuyenCoVan, materials);
 }
 
 function dinhDangOMet(n: number | null | undefined, label?: string, soLe = 0): string {
@@ -648,6 +659,7 @@ function buildDacTaNangCaoHtml(
   nhanNguon: string,
   cot: CotBang2Cpsx,
   coQuyenCoVan: boolean,
+  materials: Material[],
 ): string {
   let t1 = '';
   for (const row of dongVL) {
@@ -655,9 +667,11 @@ function buildDacTaNangCaoHtml(
     const cpVl = row.cpVatLieu != null
       ? `${dinhDangSoLe(row.cpVatLieu, 1)}${row.giaNVL != null && row.giaNVL > 0 ? `<br/><small>(${dinhDangSo(row.giaNVL)}${nhanDonViPhu})</small>` : ''}`
       : (row.giaNVL != null && row.giaNVL > 0 ? `(${dinhDangSo(row.giaNVL)}${nhanDonViPhu})` : '—');
+    const doDay = row.materialId ? materials.find(m => m.id === row.materialId)?.thickness : undefined;
     t1 += `<tr>
       <td class="left">${row.congDoan || ''}</td>
       <td class="left">${row.vatLieu || '—'}</td>
+      <td>${doDay != null ? dinhDangSo(doDay) : '—'}</td>
       <td>${row.khoMangLabel ?? (row.khoMang != null ? dinhDangSoLe(row.khoMang, 3) : '—')}</td>
       <td>${dinhDangOMet(row.thanhPham, row.thanhPhamLabel, 0)}</td>
       <td>${row.phiHao != null ? dinhDangSo(row.phiHao) : '—'}</td>
@@ -708,12 +722,12 @@ function buildDacTaNangCaoHtml(
       <div class="table-wrap-nc">
       <table class="table-nc">
         <colgroup>
-          <col style="width:9%"/><col style="width:11%"/><col style="width:9%"/>
-          <col style="width:9%"/><col style="width:7%"/><col style="width:9%"/>
-          <col style="width:10%"/><col style="width:11%"/><col style="width:12%"/><col style="width:13%"/>
+          <col style="width:8%"/><col style="width:10%"/><col style="width:7%"/>
+          <col style="width:8%"/><col style="width:8%"/><col style="width:6%"/>
+          <col style="width:8%"/><col style="width:10%"/><col style="width:12%"/><col style="width:11%"/><col style="width:12%"/>
         </colgroup>
         <thead><tr>
-          <th class="left">C.đoạn</th><th class="left">Vật liệu</th>
+          <th class="left">C.đoạn</th><th class="left">Vật liệu</th><th>Dày (mic)</th>
           <th>Khổ (m)</th><th>TP (m)</th><th>PH (m)</th><th>ĐV NVL (m)</th>
           <th>CP VL (đ/m²)</th><th>TT CPNVL</th>
           <th>Mực/DM/keo (đ/m²)</th><th>TT mực/DM/keo</th>
@@ -978,12 +992,12 @@ export async function exportPricingDetailToA4(
 
   pagesHtml += `<div class="page">
     <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ — ${item.productName} (tiếp theo)</div>
-    ${buildCPSXTable(r, ctx.constants)}
+    ${buildCPSXTable(r, ctx.constants, ctx.materials)}
   </div>`;
 
   if (Object.keys(saleOv).length > 0) {
     const saleTable = buildOverrideTable('THAY ĐỔI TỪ SALE', '💼', uniRows, emptyOv, saleOv,
-      item.saleProfitRatePct ?? 0, saleDefaultPct, r, ctx.constants, ctx.profitTable, item.quantity);
+      item.saleProfitRatePct ?? 0, saleDefaultPct, r, ctx.constants, ctx.profitTable, item.quantity, ctx.materials);
     pagesHtml += `<div class="page">
       <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ — ${item.productName} (tiếp theo)</div>
       ${saleTable}
@@ -992,7 +1006,7 @@ export async function exportPricingDetailToA4(
 
   if (Object.keys(adminOv).length > 0) {
     const adminTable = buildOverrideTable('THAY ĐỔI TỪ ADMIN', '👑', uniRows, saleOv, adminOv,
-      item.adminProfitRatePct ?? 0, adminDefaultPct, r, ctx.constants, ctx.profitTable, item.quantity);
+      item.adminProfitRatePct ?? 0, adminDefaultPct, r, ctx.constants, ctx.profitTable, item.quantity, ctx.materials);
     pagesHtml += `<div class="page">
       <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ — ${item.productName} (tiếp theo)</div>
       ${adminTable}
