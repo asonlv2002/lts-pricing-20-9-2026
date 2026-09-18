@@ -16,11 +16,11 @@
     },
     "explore": {
       "description": "Fast codebase search specialist for this monorepo",
-      "model": "vietapi/gpt-5.5-xhigh"
+      "model": "vietapi/deepseek-v4-pro"
     },
     "general": {
       "description": "General-purpose subagent for bounded implementation or research tasks",
-      "model": "vietapi/gpt-5.5-xhigh"
+      "model": "vietapi/deepseek-v4-pro"
     }
   }
 }

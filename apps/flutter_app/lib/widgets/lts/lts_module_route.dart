@@ -11,12 +11,14 @@ class ModuleRoute extends StatelessWidget {
   final String? subtitle;
   final Widget child;
   final Widget? action;
+  final List<Widget>? extras;
   const ModuleRoute(
       {super.key,
       required this.title,
       this.subtitle,
       required this.child,
-      this.action});
+      this.action,
+      this.extras});
 
   @override
   Widget build(BuildContext context) {
@@ -31,6 +33,7 @@ class ModuleRoute extends StatelessWidget {
               title: title,
               subtitle: subtitle,
               action: action,
+              extras: extras,
               leading: LtsHeaderCircleButton(
                 icon: Icons.arrow_back_rounded,
                 tooltip: 'Quay lại',

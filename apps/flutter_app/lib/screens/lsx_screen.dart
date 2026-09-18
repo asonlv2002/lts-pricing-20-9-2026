@@ -10,9 +10,17 @@ import 'package:printing/printing.dart';
 import '../engine/models.dart';
 import '../store/app_state.dart';
 import '../theme/format.dart';
+import 'tao_lsx_wizard.dart';
 
-class LSXScreen extends StatelessWidget {
+class LSXScreen extends StatefulWidget {
   const LSXScreen({super.key});
+
+  @override
+  State<LSXScreen> createState() => _LSXScreenState();
+}
+
+class _LSXScreenState extends State<LSXScreen> {
+  String _query = '';
 
   @override
   Widget build(BuildContext context) {
@@ -21,29 +29,84 @@ class LSXScreen extends StatelessWidget {
         (h.quoteStatus == 'approved' || h.quoteStatus == 'completed') ||
         (h.chotGia != null && h.chotGia! > 0)).toList();
 
+    final q = _query.trim().toLowerCase();
+    final filtered = q.isEmpty
+        ? s.productionOrders
+        : s.productionOrders.where((o) {
+            final cus = (o.snapshot['customer'] ?? '').toString().toLowerCase();
+            final name =
+                (o.snapshot['productName'] ?? '').toString().toLowerCase();
+            return o.id.toLowerCase().contains(q) ||
+                cus.contains(q) ||
+                name.contains(q) ||
+                o.status.toLowerCase().contains(q);
+          }).toList();
+
     return Scaffold(
       body: s.productionOrders.isEmpty
           ? _Empty(approved: approved)
-          : ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-              itemCount: s.productionOrders.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (ctx, i) =>
-                  _LSXCard(order: s.productionOrders[i]),
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: TextField(
+                    decoration: InputDecoration(
+                      isDense: true,
+                      hintText: 'Tìm số LSX, khách hàng, sản phẩm…',
+                      prefixIcon: const Icon(Icons.search, size: 20),
+                      suffixIcon: _query.isEmpty
+                          ? null
+                          : IconButton(
+                              icon: const Icon(Icons.close, size: 18),
+                              onPressed: () => setState(() => _query = ''),
+                            ),
+                      border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                    ),
+                    onChanged: (v) => setState(() => _query = v),
+                  ),
+                ),
+                Expanded(
+                  child: filtered.isEmpty
+                      ? Center(
+                          child: Text(
+                              q.isEmpty
+                                  ? 'Không có LSX nào'
+                                  : 'Không tìm thấy LSX phù hợp',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: Theme.of(context)
+                                      .colorScheme
+                                      .onSurfaceVariant)),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+                          itemCount: filtered.length,
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(height: 10),
+                          itemBuilder: (ctx, i) =>
+                              _LSXCard(order: filtered[i]),
+                        ),
+                ),
+              ],
             ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showCreateSheet(context, s),
+        heroTag: 'lsx-fab-tao',
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => TaoLsxWizard(
+                onSuccess: (order) {
+                  // LSX list sẽ tự reload qua AppState.taiProductionOrdersTuServer
+                  // được gọi bên trong wizard. Không cần làm gì thêm ở đây.
+                },
+              ),
+            ),
+          );
+        },
         icon: const Icon(Icons.add),
         label: const Text('Tạo LSX'),
       ),
-    );
-  }
-
-  void _showCreateSheet(BuildContext context, AppState s) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => _CreateLSXSheet(state: s),
     );
   }
 }
@@ -174,131 +237,6 @@ class _LSXCard extends StatelessWidget {
                   ]),
                 ))
             .toList(),
-      ),
-    );
-  }
-}
-
-// ── Create LSX bottom sheet ──────────────────────────────────────────────────
-class _CreateLSXSheet extends StatefulWidget {
-  final AppState state;
-  const _CreateLSXSheet({required this.state});
-  @override
-  State<_CreateLSXSheet> createState() => _CreateLSXSheetState();
-}
-
-class _CreateLSXSheetState extends State<_CreateLSXSheet> {
-  HistoryItem? _selected;
-  final _preparedBy = TextEditingController(text: '');
-  final _approvedBy = TextEditingController(text: '');
-  final _notes = TextEditingController();
-
-  @override
-  void dispose() {
-    _preparedBy.dispose();
-    _approvedBy.dispose();
-    _notes.dispose();
-    super.dispose();
-  }
-
-  String _genId() {
-    final now = DateTime.now();
-    final yyyymmdd =
-        '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}';
-    final seq =
-        widget.state.productionOrders.length.toString().padLeft(3, '0');
-    return 'LSX-$yyyymmdd-$seq';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final h = widget.state.history;
-    return Padding(
-      padding: EdgeInsets.only(
-          left: 16,
-          right: 16,
-          top: 16,
-          bottom: MediaQuery.viewInsetsOf(context).bottom + 16),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            const Text('Tạo Lệnh Sản Xuất',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<HistoryItem>(
-              decoration:
-                  const InputDecoration(labelText: 'Chọn báo giá nguồn'),
-              isExpanded: true,
-              initialValue: _selected,
-              items: h
-                  .map((it) => DropdownMenuItem(
-                        value: it,
-                        child: Text('${it.customer} — ${it.productName}',
-                            overflow: TextOverflow.ellipsis),
-                      ))
-                  .toList(),
-              onChanged: (v) => setState(() => _selected = v),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _preparedBy,
-              decoration: const InputDecoration(labelText: 'Người lập'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _approvedBy,
-              decoration: const InputDecoration(labelText: 'Người duyệt'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: _notes,
-              decoration: const InputDecoration(labelText: 'Ghi chú'),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 14),
-            FilledButton.icon(
-              onPressed: _selected == null
-                  ? null
-                  : () async {
-                      final h = _selected!;
-                      final order = ProductionOrder(
-                        id: _genId(),
-                        quoteId: h.id,
-                        createdAt: DateTime.now().toIso8601String(),
-                        status: 'created',
-                        manual: {
-                          'lsxNumber': _genId(),
-                          'preparedBy': _preparedBy.text,
-                          'approvedBy': _approvedBy.text,
-                          'notes': _notes.text,
-                          'issuedDate': Fmt.date(
-                              DateTime.now().toIso8601String()),
-                        },
-                        snapshot: {
-                          'customer': h.customer,
-                          'productName': h.productName,
-                          'productType':
-                              (h.input['productType'] as String?) ?? 'tui',
-                          'structure': h.structure,
-                          'quantity': h.quantity,
-                          'spreadWidth':
-                              (h.input['spreadWidth'] as num?) ?? 0,
-                          'cutStep': (h.input['cutStep'] as num?) ?? 0,
-                          'numColors': h.input['numColors'],
-                          'chotGia': h.chotGia ?? h.finalPrice,
-                        },
-                      );
-                      await widget.state.addProductionOrder(order);
-                      if (!context.mounted) return;
-                      Navigator.pop(context);
-                    },
-              icon: const Icon(Icons.check),
-              label: const Text('Tạo LSX'),
-            ),
-          ],
-        ),
       ),
     );
   }

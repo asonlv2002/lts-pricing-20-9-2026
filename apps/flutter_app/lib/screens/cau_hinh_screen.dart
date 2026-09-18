@@ -1,5 +1,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Cấu hình — 3 tab: Materials (search + edit), Constants (grouped), Profit table
+// Cấu hình — mirror web mobile TrangCauHinh: sub-card dọc (action-card 108px).
+// Mỗi mục: icon box 56 + title 17/800 + sub 13/500 + chevron (hoặc pill "Khóa").
+// Tab 3 cũ (Vật liệu / Hằng số / Lợi nhuận) được lồng bên trong sub-card.
 // ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -11,77 +13,108 @@ import '../theme/format.dart';
 import '../theme/lts_tokens.dart';
 import '../widgets/form_widgets.dart';
 import '../widgets/lts/lts_chrome.dart';
+import '../widgets/lts/lts_toast.dart';
 
 class CauHinhScreen extends StatelessWidget {
   const CauHinhScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final p = LtsT.of(context);
-    return DefaultTabController(
-      length: 3,
-      child: Column(
-        children: [
-          LtsNavyHeader(
-            title: 'Cấu hình tính giá',
-            subtitle: 'Vật liệu · Hằng số · Lợi nhuận',
-            action: LtsHeaderCircleButton(
-              icon: Icons.restore_rounded,
-              tooltip: 'Reset về dữ liệu mặc định',
-              onTap: () => _confirmReset(context),
-            ),
+    return Column(
+      children: [
+        LtsNavyHeader(
+          title: 'Cấu hình tính giá',
+          subtitle: 'Vật liệu · Hằng số · Lợi nhuận',
+          action: LtsHeaderCircleButton(
+            icon: Icons.restore_rounded,
+            tooltip: 'Reset về dữ liệu mặc định',
+            onTap: () => _confirmReset(context),
           ),
-          Container(
-            color: p.surface,
-            padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
-            child: Container(
-              padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: p.inputBg,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: p.border),
-              ),
-              child: const TabBar(
-                dividerColor: Colors.transparent,
-                indicatorSize: TabBarIndicatorSize.tab,
-                indicator: BoxDecoration(
-                  color: Color(0xFFF0EEFF),
-                  borderRadius: BorderRadius.all(Radius.circular(999)),
+        ),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+            children: [
+              _ConfigGroupLabel('Cấu hình tính giá'),
+              const SizedBox(height: 12),
+              LtsActionCard(
+                iconBox: LtsIconBox(
+                  icon: Icons.inventory_2_rounded,
+                  variant: LtsIconVariant.emerald,
                 ),
-                labelColor: Color(0xFF5B4DFF),
-                unselectedLabelColor: Color(0xFF6B7280),
-                labelStyle:
-                    TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-                unselectedLabelStyle:
-                    TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
-                tabs: [
-                  Tab(
-                      icon: Icon(Icons.inventory_2_outlined, size: 18),
-                      iconMargin: EdgeInsets.only(bottom: 2),
-                      height: 44,
-                      text: 'Vật liệu'),
-                  Tab(
-                      icon: Icon(Icons.tune, size: 18),
-                      iconMargin: EdgeInsets.only(bottom: 2),
-                      height: 44,
-                      text: 'Hằng số'),
-                  Tab(
-                      icon: Icon(Icons.trending_up, size: 18),
-                      iconMargin: EdgeInsets.only(bottom: 2),
-                      height: 44,
-                      text: 'Lợi nhuận'),
-                ],
+                title: 'Vật tư / nguyên vật liệu',
+                subtitle: 'Giá NVL, mực in, khổ cuộn',
+                onTap: () => _moSubSection(
+                  context,
+                  title: 'Vật tư / NVL',
+                  child: const _MaterialsTab(),
+                ),
               ),
-            ),
+              const SizedBox(height: 16),
+              LtsActionCard(
+                iconBox: LtsIconBox(
+                  icon: Icons.factory_rounded,
+                  variant: LtsIconVariant.violet,
+                ),
+                title: 'Chi phí sản xuất',
+                subtitle: 'Hằng số in / ghép / cắt, lãi vay',
+                onTap: () => _moSubSection(
+                  context,
+                  title: 'Chi phí sản xuất',
+                  child: const _ConstantsTab(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              LtsActionCard(
+                iconBox: LtsIconBox(
+                  icon: Icons.trending_up_rounded,
+                  variant: LtsIconVariant.orange,
+                ),
+                title: 'Biên lợi nhuận',
+                subtitle: 'Bảng ngưỡng & cột LN',
+                onTap: () => _moSubSection(
+                  context,
+                  title: 'Biên lợi nhuận',
+                  child: const _ProfitTab(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const LtsActionCard(
+                iconBox: LtsIconBox(
+                  icon: Icons.bolt_rounded,
+                  variant: LtsIconVariant.slate,
+                ),
+                title: 'Chi phí sản xuất (nâng cao)',
+                subtitle: 'Cần đồng bộ server — dùng bản web',
+                locked: true,
+              ),
+              const SizedBox(height: 24),
+              _ConfigGroupLabel('Khác'),
+              const SizedBox(height: 12),
+              const LtsActionCard(
+                iconBox: LtsIconBox(
+                  icon: Icons.history_toggle_off_rounded,
+                  variant: LtsIconVariant.slate,
+                ),
+                title: 'Phiên bản cấu hình',
+                subtitle: 'Cần đăng nhập — dùng bản web',
+                locked: true,
+              ),
+            ],
           ),
-          const Expanded(
-            child: TabBarView(children: [
-              _MaterialsTab(),
-              _ConstantsTab(),
-              _ProfitTab(),
-            ]),
-          ),
-        ],
+        ),
+      ],
+    );
+  }
+
+  void _moSubSection(
+    BuildContext context, {
+    required String title,
+    required Widget child,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => _SubSectionPage(title: title, child: child),
       ),
     );
   }
@@ -112,10 +145,47 @@ class CauHinhScreen extends StatelessWidget {
     if (ok != true || !context.mounted) return;
     await context.read<AppState>().resetConfigToDefaults();
     if (!context.mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Đã reset về dữ liệu mặc định'),
-        duration: Duration(seconds: 2),
+    LtsToast.show(
+      context,
+      'Đã reset về dữ liệu mặc định',
+      type: LtsToastType.success,
+      duration: const Duration(seconds: 2),
+    );
+  }
+}
+
+class _SubSectionPage extends StatelessWidget {
+  final String title;
+  final Widget child;
+  const _SubSectionPage({required this.title, required this.child});
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: LtsT.of(context).shellBg,
+      appBar: AppBar(
+        title: Text(title),
+        backgroundColor: LtsT.of(context).navyTop,
+        foregroundColor: Colors.white,
+        elevation: 0,
+      ),
+      body: child,
+    );
+  }
+}
+
+class _ConfigGroupLabel extends StatelessWidget {
+  final String text;
+  const _ConfigGroupLabel(this.text);
+  @override
+  Widget build(BuildContext context) {
+    final p = LtsT.of(context);
+    return Text(
+      text.toUpperCase(),
+      style: TextStyle(
+        fontSize: 11,
+        fontWeight: FontWeight.w800,
+        letterSpacing: 0.7,
+        color: p.muted,
       ),
     );
   }

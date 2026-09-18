@@ -1,6 +1,13 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // HubScreen — mirror .lts-mobile-hub (web mobile): header navy tối,
 // action cards 108px, nhóm section, stat card tính từ dữ liệu local.
+//
+// Tính giá & Báo giá (18/09/2026) đã có tab riêng → bỏ section "Tính giá &
+// Báo giá" khỏi hub Tổng quan.
+// Khách hàng (18/09/2026) cũng đã có tab riêng (KhachHangHubScreen) → bỏ
+// section "Khách hàng" khỏi hub Tổng quan, chỉ giữ 2 section: Cấu hình
+// tính giá và Nhật ký. Callback onGoTinhGia của pill "Mới" vẫn dùng để
+// chuyển sang tab Tính giá (hub mới).
 // ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -8,25 +15,26 @@ import 'package:provider/provider.dart';
 import '../store/app_state.dart';
 import '../theme/format.dart';
 import '../theme/lts_tokens.dart';
+import '../widgets/auth/auth_header_actions.dart';
 import '../widgets/lts/lts_chrome.dart';
 import '../widgets/lts/lts_overlay.dart';
+import '../widgets/lts/lts_surfaces.dart';
 
 class HubScreen extends StatelessWidget {
   final VoidCallback onGoTinhGia;
   final VoidCallback onGoCauHinh;
-  final VoidCallback onOpenLichSu;
-  final VoidCallback onOpenLSX;
+  final VoidCallback onOpenKhachHang;
+  final VoidCallback onOpenTaiKhoan;
   const HubScreen({
     super.key,
     required this.onGoTinhGia,
     required this.onGoCauHinh,
-    required this.onOpenLichSu,
-    required this.onOpenLSX,
+    required this.onOpenKhachHang,
+    required this.onOpenTaiKhoan,
   });
 
   @override
   Widget build(BuildContext context) {
-    final p = LtsT.of(context);
     final s = context.watch<AppState>();
 
     final doanhThu = s.history.fold<double>(
@@ -47,6 +55,11 @@ class HubScreen extends StatelessWidget {
             tooltip: 'Danh sách chức năng',
             onTap: () => _menu(context, s),
           ),
+          extras: const [
+            LtsHeaderBell(),
+            SizedBox(width: 10),
+            LtsHeaderAvatar(),
+          ],
           action: LtsHeaderPillAction(
             label: 'Mới',
             icon: Icons.add_rounded,
@@ -66,65 +79,20 @@ class HubScreen extends StatelessWidget {
                   _HubStat(
                       label: 'Doanh thu ước tính', value: Fmt.vnd(doanhThu)),
                   const SizedBox(width: 10),
-                  _HubStat(label: 'Đã duyệt', value: '$daDuyet'),
-                ],
-              ),
-              const SizedBox(height: 24),
-              _GroupLabel('Tính giá & Báo giá', color: p.muted),
+                _HubStat(label: 'Đã duyệt', value: '$daDuyet'),
+              ],
+            ),
+                const SizedBox(height: 12),
+              LtsSectionLabel('Cấu hình tính giá'),
               const SizedBox(height: 12),
               ..._cards(context, [
-                _Card(
-                  variant: LtsIconVariant.violet,
-                  icon: Icons.calculate_rounded,
-                  title: 'Tạo bảng tính giá',
-                  sub: 'Nhập đặc tả sản phẩm — tính đơn giá tức thì',
-                  onTap: onGoTinhGia,
-                ),
-                _Card(
-                  variant: LtsIconVariant.slate,
-                  icon: Icons.history_rounded,
-                  title: 'Danh sách tính giá',
-                  sub: 'Lịch sử báo giá đã lưu trên máy',
-                  onTap: onOpenLichSu,
-                ),
-                _Card(
-                  variant: LtsIconVariant.orange,
-                  icon: Icons.assignment_rounded,
-                  title: 'Lệnh sản xuất (LSX)',
-                  sub: 'Tạo & theo dõi lệnh từ báo giá đã duyệt',
-                  onTap: onOpenLSX,
-                ),
-                const _Card(
-                  variant: LtsIconVariant.sky,
-                  icon: Icons.description_rounded,
-                  title: 'Tạo bảng báo giá',
-                  sub: 'Cần đăng nhập — dùng bản web',
-                  locked: true,
-                ),
-                const _Card(
-                  variant: LtsIconVariant.rose,
-                  icon: Icons.task_alt_rounded,
-                  title: 'Duyệt báo giá',
-                  sub: 'Cần đăng nhập — dùng bản web',
-                  locked: true,
-                ),
-              ]),
-              const SizedBox(height: 24),
-              _GroupLabel('Khách hàng', color: p.muted),
-              const SizedBox(height: 12),
-              ..._cards(context, const [
                 _Card(
                   variant: LtsIconVariant.sky,
                   icon: Icons.people_rounded,
                   title: 'Danh sách khách hàng',
-                  sub: 'Cần đăng nhập — dùng bản web',
-                  locked: true,
+                  sub: 'Mở tab "Khách hàng" ở thanh dưới.',
+                  onTap: onOpenKhachHang,
                 ),
-              ]),
-              const SizedBox(height: 24),
-              _GroupLabel('Cấu hình tính giá', color: p.muted),
-              const SizedBox(height: 12),
-              ..._cards(context, [
                 _Card(
                   variant: LtsIconVariant.emerald,
                   icon: Icons.inventory_2_rounded,
@@ -154,8 +122,8 @@ class HubScreen extends StatelessWidget {
                   locked: true,
                 ),
               ]),
-              const SizedBox(height: 24),
-              _GroupLabel('Nhật ký', color: p.muted),
+              const SizedBox(height: 12),
+              LtsSectionLabel('Nhật ký'),
               const SizedBox(height: 12),
               ..._cards(context, const [
                 _Card(
@@ -264,21 +232,6 @@ class _Card {
   });
 }
 
-class _GroupLabel extends StatelessWidget {
-  final String text;
-  final Color color;
-  const _GroupLabel(this.text, {required this.color});
-  @override
-  Widget build(BuildContext context) {
-    return Text(text.toUpperCase(),
-        style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 0.7,
-            color: color));
-  }
-}
-
 class _HubStat extends StatelessWidget {
   final String label;
   final String value;
@@ -288,7 +241,7 @@ class _HubStat extends StatelessWidget {
     final p = LtsT.of(context);
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         decoration: BoxDecoration(
           color: p.surface,
           borderRadius: BorderRadius.circular(14),
@@ -302,16 +255,21 @@ class _HubStat extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.4,
                     color: p.muted)),
-            const SizedBox(height: 4),
-            Text(value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w800, color: p.text)),
+            const SizedBox(height: 6),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(value,
+                  maxLines: 1,
+                  style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: p.text)),
+            ),
           ],
         ),
       ),

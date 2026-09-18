@@ -15,7 +15,10 @@
     "mobile": "pnpm --filter mobile start",
     "mobile:android": "pnpm --filter mobile android",
     "build:engine": "pnpm --filter @lts/flutter-app-engine-bundler build",
-    "flutter:engine": "pnpm --filter @lts/flutter-app-engine-bundler build"
+    "flutter:engine": "pnpm --filter @lts/flutter-app-engine-bundler build",
+    "flutter:dev": "cd apps/flutter_app && flutter run --dart-define-from-file=.dart_defines.json",
+    "flutter:build": "cd apps/flutter_app && flutter build apk --dart-define-from-file=.dart_defines.json",
+    "flutter:build:appbundle": "cd apps/flutter_app && flutter build appbundle --dart-define-from-file=.dart_defines.json"
   },
   "devDependencies": {
     "turbo": "^2.5.3",

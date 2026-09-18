@@ -104,6 +104,7 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
   final String? subtitle;
   final Widget? leading; // module: nút back; hub: menu tròn
   final Widget? action; // module/hub: primary pill...
+  final List<Widget>? extras; // nút phụ (Bell, avatar) trước action
   final bool hub;
   const LtsNavyHeader({
     super.key,
@@ -111,6 +112,7 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
     this.subtitle,
     this.leading,
     this.action,
+    this.extras,
     this.hub = false,
   });
 
@@ -146,7 +148,11 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
                           children: [
                             if (leading != null) leading!,
                             const Spacer(),
-                            if (action != null) action!,
+                            ...?extras,
+                            if (action != null) ...[
+                              const SizedBox(width: 8),
+                              action!,
+                            ],
                           ],
                         ),
                         const SizedBox(height: 28),
@@ -195,6 +201,7 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
                                       color: Colors.white)),
                               if (subtitle != null)
                                 Text(subtitle!,
+                                    textAlign: TextAlign.center,
                                     maxLines: 1,
                                     overflow: TextOverflow.ellipsis,
                                     style: TextStyle(
@@ -205,6 +212,7 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
                             ],
                           ),
                         ),
+                        ...?extras,
                         SizedBox(
                             width: 64,
                             child: action != null

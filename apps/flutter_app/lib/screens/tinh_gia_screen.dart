@@ -2,6 +2,10 @@
 // TinhGiaScreen — Redesign full mobile-first
 // Flow: Thông tin cơ bản → Chọn loại → Cấu trúc lớp → Kích thước → Nâng cao
 // Sticky bottom bar với nút Lưu + Reset
+//
+// `embedded: true` = màn được push từ hub (ModuleRoute đã có header back).
+// Bỏ LtsNavyHeader nội bộ để khỏi chồng 2 header. Back dùng PopScope ở parent.
+// `onGoHub` giữ để tương thích nếu còn gọi kiểu tab cũ.
 // ═══════════════════════════════════════════════════════════════════════════
 import 'dart:convert';
 
@@ -19,43 +23,25 @@ import '../widgets/form_widgets.dart';
 import '../widgets/lts/lts_chrome.dart';
 import '../widgets/lts/lts_overlay.dart';
 import '../widgets/lts/lts_surfaces.dart';
+import '../widgets/lts/lts_toast.dart';
 import '../widgets/material_picker.dart';
 import '../widgets/price_hero.dart';
+import 'tao_bao_gia_wizard.dart';
 
 class TinhGiaScreen extends StatelessWidget {
   final VoidCallback? onGoHub;
-  const TinhGiaScreen({super.key, this.onGoHub});
+  final bool embedded;
+  const TinhGiaScreen({super.key, this.onGoHub, this.embedded = false});
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final twoCol = width >= 900;
     final s = context.watch<AppState>();
 
-    if (twoCol) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            flex: 6,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(20),
-              child: _InputForm(state: s),
-            ),
-          ),
-          const SizedBox(width: 0),
-          Expanded(
-            flex: 4,
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(0, 20, 20, 20),
-              child: _ResultPanel(state: s),
-            ),
-          ),
-        ],
-      );
-    }
-
-    return _MobilePricingWorkspace(state: s, onGoHub: onGoHub);
+    return _MobilePricingWorkspace(
+      state: s,
+      onGoHub: onGoHub,
+      embedded: embedded,
+    );
   }
 }
 
@@ -63,61 +49,67 @@ class TinhGiaScreen extends StatelessWidget {
 class _MobilePricingWorkspace extends StatefulWidget {
   final AppState state;
   final VoidCallback? onGoHub;
-  const _MobilePricingWorkspace({required this.state, this.onGoHub});
+  final bool embedded;
+  const _MobilePricingWorkspace({
+    required this.state,
+    this.onGoHub,
+    this.embedded = false,
+  });
   @override
   State<_MobilePricingWorkspace> createState() =>
       _MobilePricingWorkspaceState();
 }
 
-class _MobilePricingWorkspaceState extends State<_MobilePricingWorkspace>
-    with SingleTickerProviderStateMixin {
-  late final TabController _controller;
+class _MobilePricingWorkspaceState extends State<_MobilePricingWorkspace> {
+  int _pane = 0; // 0=input, 1=result
+  String _mode = 'internal'; // internal | outsource | commercial
   bool _modeSelected = false;
   AppState get state => widget.state;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TabController(length: 2, vsync: this);
-  }
 
   @override
   void didUpdateWidget(covariant _MobilePricingWorkspace oldWidget) {
     super.didUpdateWidget(oldWidget);
     final pane = state.pendingCalcPane;
     if (pane != null) {
-      setState(() => _modeSelected = true);
-      _controller.animateTo(pane == 1 ? 1 : 0);
+      setState(() {
+        _modeSelected = true;
+        _pane = pane == 1 ? 1 : 0;
+      });
       state.consumeCalcPane();
     }
   }
 
   @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final header = LtsNavyHeader(
-      title: _modeSelected ? 'Tạo bảng tính giá' : 'Chế độ tính giá',
-      leading: LtsHeaderCircleButton(
-        icon: Icons.space_dashboard_outlined,
-        tooltip: 'Tổng quan',
-        onTap: widget.onGoHub,
-      ),
-    );
+    // Embedded (push từ hub): ModuleRoute đã có header back — bỏ LtsNavyHeader
+    // nội bộ để khỏi chồng 2 header. Nếu onGoHub null cũng không hiện nút
+    // dashboard thừa.
+    final showInternalHeader = !widget.embedded;
+    final header = showInternalHeader
+        ? LtsNavyHeader(
+            title: _modeSelected ? 'Tạo bảng tính giá' : 'Chế độ tính giá',
+            leading: widget.onGoHub == null
+                ? null
+                : LtsHeaderCircleButton(
+                    icon: Icons.space_dashboard_outlined,
+                    tooltip: 'Tổng quan',
+                    onTap: widget.onGoHub,
+                  ),
+          )
+        : null;
 
     if (!_modeSelected) {
       return Column(
         children: [
-          header,
+          if (header != null) header,
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
               child: _ChonCheDoTinhGia(
-                onNoiBo: () => setState(() => _modeSelected = true),
+                onChon: (m) => setState(() {
+                  _mode = m;
+                  _modeSelected = true;
+                }),
               ),
             ),
           ),
@@ -128,16 +120,16 @@ class _MobilePricingWorkspaceState extends State<_MobilePricingWorkspace>
     final hasResult = state.currentResult != null;
     return Column(
       children: [
-        header,
+        if (header != null) header,
         Expanded(
-          child: AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) => Stack(
-              children: [
-                Positioned.fill(
-                  child: TabBarView(controller: _controller, children: [
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: IndexedStack(
+                  index: _pane,
+                  children: [
                     SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 116),
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
@@ -149,43 +141,42 @@ class _MobilePricingWorkspaceState extends State<_MobilePricingWorkspace>
                                   state.currentInput.productType == 'mang'
                                       ? '/m²'
                                       : '/túi',
-                              onTap: () => _controller.animateTo(1),
+                              onTap: () => setState(() => _pane = 1),
                             ),
                             const SizedBox(height: 10),
                           ],
-                          _InputForm(state: state),
+                          _InputForm(state: state, mode: _mode),
                         ],
                       ),
                     ),
                     SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 116),
+                      padding: const EdgeInsets.fromLTRB(12, 8, 12, 88),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _MobileResultQuickActions(
                               result: state.currentResult),
                           const SizedBox(height: 12),
-                          _ResultPanel(state: state),
+                          _ResultPanel(state: state, mode: _mode),
                         ],
                       ),
                     ),
-                  ]),
+                  ],
                 ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 12,
-                  child: LtsPillNav(
-                    selected: _controller.index,
-                    showResultBadge: hasResult,
-                    onSelect: (i) => _controller.animateTo(i),
-                  ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 12,
+                child: LtsPillNav(
+                  selected: _pane,
+                  showResultBadge: hasResult,
+                  onSelect: (i) => setState(() => _pane = i),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-        _StickyBottomBar(state: state),
       ],
     );
   }
@@ -193,8 +184,8 @@ class _MobilePricingWorkspaceState extends State<_MobilePricingWorkspace>
 
 // ─── Màn chọn chế độ — mirror ManHinhChonCheDoTinhGia.tsx (web) ──────────────
 class _ChonCheDoTinhGia extends StatelessWidget {
-  final VoidCallback onNoiBo;
-  const _ChonCheDoTinhGia({required this.onNoiBo});
+  final ValueChanged<String> onChon;
+  const _ChonCheDoTinhGia({required this.onChon});
 
   @override
   Widget build(BuildContext context) {
@@ -219,7 +210,7 @@ class _ChonCheDoTinhGia extends StatelessWidget {
             emoji: '🏭',
             label: 'Nội bộ',
             desc: 'Tính giá LTS full — công thức hiện tại',
-            onTap: onNoiBo,
+            onTap: () => onChon('internal'),
           ),
           const SizedBox(height: 12),
           _ModeBtn(
@@ -227,14 +218,14 @@ class _ChonCheDoTinhGia extends StatelessWidget {
             label: 'Gia công',
             desc: 'Thuê ngoài 1+ công đoạn — chọn CD ngay trên form',
             tinted: true,
-            locked: true,
+            onTap: () => onChon('outsource'),
           ),
           const SizedBox(height: 12),
           _ModeBtn(
             emoji: '🛒',
             label: 'Thương mại',
             desc: 'Mua đi bán lại — nhập giá mua + lợi nhuận',
-            locked: true,
+            onTap: () => onChon('commercial'),
           ),
         ],
       ),
@@ -246,14 +237,12 @@ class _ModeBtn extends StatelessWidget {
   final String emoji;
   final String label;
   final String desc;
-  final bool locked;
   final bool tinted;
   final VoidCallback? onTap;
   const _ModeBtn({
     required this.emoji,
     required this.label,
     required this.desc,
-    this.locked = false,
     this.tinted = false,
     this.onTap,
   });
@@ -261,61 +250,32 @@ class _ModeBtn extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = LtsT.of(context);
-    return Opacity(
-      opacity: locked ? 0.88 : 1,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(LtsT.rCard),
-        onTap: locked
-            ? () => ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                      content: Text(
-                          'Chế độ $label cần bản web — app chỉ tính nội bộ.'),
-                      duration: const Duration(seconds: 2)),
-                )
-            : onTap,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
-          constraints: const BoxConstraints(minHeight: 120),
-          decoration: BoxDecoration(
-            color: locked
-                ? (tinted ? p.red.withValues(alpha: 0.04) : p.surface)
-                : p.surface,
-            borderRadius: BorderRadius.circular(LtsT.rCard),
-            border: Border.all(
-                color: tinted ? p.red.withValues(alpha: 0.35) : p.border),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(emoji, style: const TextStyle(fontSize: 24)),
-                  const Spacer(),
-                  if (locked)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF3F4F6),
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: const Text('Khóa',
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF64748B))),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(label,
-                  style: const TextStyle(
-                      fontSize: 15, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 4),
-              Text(desc,
-                  style: TextStyle(fontSize: 11, color: p.muted, height: 1.35)),
-            ],
-          ),
+    return InkWell(
+      borderRadius: BorderRadius.circular(LtsT.rCard),
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+        constraints: const BoxConstraints(minHeight: 120),
+        decoration: BoxDecoration(
+          color: p.surface,
+          borderRadius: BorderRadius.circular(LtsT.rCard),
+          border: Border.all(
+              color: tinted ? p.red.withValues(alpha: 0.35) : p.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(emoji, style: const TextStyle(fontSize: 24)),
+            const SizedBox(height: 8),
+            Text(label,
+                style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: p.text)),
+            const SizedBox(height: 4),
+            Text(desc,
+                style: TextStyle(fontSize: 11, color: p.muted, height: 1.35)),
+          ],
         ),
       ),
     );
@@ -403,195 +363,11 @@ class _TableAction extends StatelessWidget {
 String _fmt(num v) => v.round().toString().replaceAllMapped(
     RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
 
-class _StickyBottomBar extends StatelessWidget {
-  final AppState state;
-  const _StickyBottomBar({required this.state});
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-          14, 10, 14, 10 + MediaQuery.of(context).padding.bottom),
-      decoration: BoxDecoration(
-        color: scheme.surface,
-        border: Border(
-            top: BorderSide(
-                color: scheme.outlineVariant.withValues(alpha: 0.3))),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: () => _tinhGia(context),
-              icon: const Icon(Icons.calculate_outlined, size: 18),
-              label: const Text('Tính giá'),
-              style: FilledButton.styleFrom(
-                backgroundColor: scheme.primary,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-          Expanded(
-            child: FilledButton.tonalIcon(
-              onPressed: state.currentResult == null
-                  ? null
-                  : () async {
-                      await state.saveCurrentToHistory();
-                      if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Row(children: const [
-                              Icon(Icons.check_circle,
-                                  color: Colors.white, size: 18),
-                              SizedBox(width: 8),
-                              Text('Đã lưu vào lịch sử'),
-                            ]),
-                            duration: const Duration(seconds: 2),
-                          ),
-                        );
-                      }
-                    },
-              icon: const Icon(Icons.bookmark_add_outlined, size: 18),
-              label: const Text('Lưu'),
-            ),
-          ),
-          const SizedBox(width: 8),
-          OutlinedButton(
-            onPressed: () => state.setInput(CalculateInput.defaults()),
-            child: const Text('Reset'),
-          ),
-          if (state.currentResult != null) ...[
-            const SizedBox(width: 8),
-            IconButton.outlined(
-              tooltip: 'Copy kết quả',
-              icon: const Icon(Icons.copy_outlined, size: 18),
-              onPressed: () => _copyResult(context, state),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  /// Validate + trigger recompute + show errors
-  void _tinhGia(BuildContext context) {
-    final i = state.currentInput.raw;
-    final productType = (i['productType'] as String?) ?? '';
-    final bagType = (i['bagType'] as String?) ?? '';
-    final filmType = (i['filmType'] as String?) ?? '';
-    final quantity = (i['quantity'] as num?)?.toDouble() ?? 0;
-    final spreadWidth = (i['spreadWidth'] as num?)?.toDouble() ?? 0;
-    final cutStep = (i['cutStep'] as num?)?.toDouble() ?? 0;
-    final numColors = (i['numColors'] as num?)?.toInt();
-
-    final errors = <String>[];
-    if (productType.isEmpty) errors.add('Chưa chọn loại sản phẩm');
-    if (productType == 'tui' && bagType.isEmpty)
-      errors.add('Chưa chọn loại túi');
-    if (productType == 'mang' && filmType.isEmpty)
-      errors.add('Chưa chọn loại màng');
-    if (quantity <= 0) errors.add('Chưa nhập số lượng');
-    if (spreadWidth <= 0) errors.add('Chưa nhập khổ trải');
-    if (cutStep <= 0) errors.add('Chưa nhập bước cắt');
-    if (numColors == null) errors.add('Chưa chọn số màu in');
-
-    if (errors.isNotEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded,
-                  color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(errors.join('\n'),
-                    style: const TextStyle(fontSize: 13)),
-              ),
-            ],
-          ),
-          backgroundColor: AppColors.danger,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-      return;
-    }
-
-    state.recomputeNow();
-    if (state.lastError != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error_outline, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Expanded(child: Text('Lỗi: ${state.lastError}')),
-            ],
-          ),
-          backgroundColor: AppColors.danger,
-          duration: const Duration(seconds: 3),
-        ),
-      );
-    } else if (state.currentResult != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.check_circle, color: Colors.white, size: 20),
-              const SizedBox(width: 8),
-              Text('Đã tính xong'),
-            ],
-          ),
-          backgroundColor: AppColors.success,
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  void _copyResult(BuildContext context, AppState state) async {
-    final r = state.currentResult;
-    if (r == null) return;
-    final i = state.currentInput;
-    final isMang = i.productType == 'mang';
-    final filmRollLength = i.get<num>('filmRollLength')?.toInt() ?? 6000;
-    final fmtPct = (double n) => '${(n * 100).toStringAsFixed(2)}%';
-    final fmtVnd = (double v) => v.round().toString().replaceAllMapped(
-        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
-    final text = [
-      '${i.customer.isEmpty ? 'N/A' : i.customer} — ${i.productName.isEmpty ? 'N/A' : i.productName}',
-      'Cấu trúc: ${r.structureText} | Độ dày: ${r.d('totalThickness').toStringAsFixed(1)}mic',
-      isMang
-          ? 'Diện tích: ${fmtVnd(i.quantity.toDouble())} m² | KT: ${(r.d('spreadWidth') * 1000).toStringAsFixed(0)}×${(r.d('cutStep') * 1000).toStringAsFixed(0)} mm² | Cuộn: ${fmtVnd(filmRollLength.toDouble())}m/cuộn'
-          : 'SL: ${fmtVnd(i.quantity.toDouble())} túi | KT: ${(r.d('spreadWidth') * 1000).toStringAsFixed(0)}×${(r.d('cutStep') * 1000).toStringAsFixed(0)} mm²',
-      isMang
-          ? 'GIÁ ĐỀ XUẤT: ${fmtVnd(r.finalPrice)} đ/m² (chưa VAT)'
-          : 'GIÁ ĐỀ XUẤT: ${fmtVnd(r.finalPrice)} đ/túi (chưa VAT)',
-      'Giá vốn: ${fmtVnd(r.costPerUnit)} đ | LN: ${fmtPct(r.profitRate)} | DT: ${(r.revenue / 1000000).toStringAsFixed(1)}tr',
-      'Trục in: ${(r.cylinderCost / 1000000).toStringAsFixed(1)}tr (riêng)',
-    ].join('\n');
-
-    await Clipboard.setData(ClipboardData(text: text));
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Đã copy kết quả vào clipboard'),
-        duration: Duration(seconds: 2),
-      ));
-    }
-  }
-}
-
 // ─── Result Panel ────────────────────────────────────────────────────────────
 class _ResultPanel extends StatelessWidget {
   final AppState state;
-  const _ResultPanel({required this.state});
+  final String mode;
+  const _ResultPanel({required this.state, required this.mode});
 
   @override
   Widget build(BuildContext context) {
@@ -628,16 +404,186 @@ class _ResultPanel extends StatelessWidget {
         if (state.currentResult != null) ...[
           const SizedBox(height: 12),
           BreakdownPanel(result: state.currentResult!),
+          const SizedBox(height: 12),
+          _ResultActionBar(state: state),
         ],
       ],
     );
   }
 }
 
+// ─── Action bar cuối result panel: Tính giá · Lưu · Reset · Copy (mirror web) ─
+class _ResultActionBar extends StatelessWidget {
+  final AppState state;
+  const _ResultActionBar({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = LtsT.of(context);
+    final r = state.currentResult;
+    return LtsCard(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: [
+          FilledButton.icon(
+            onPressed: () => _tinhGia(context, state),
+            icon: const Icon(Icons.calculate_outlined, size: 18),
+            label: const Text('Tính giá'),
+            style: FilledButton.styleFrom(backgroundColor: p.accent),
+          ),
+          FilledButton.tonalIcon(
+            onPressed: r == null
+                ? null
+                : () async {
+                    await state.saveCurrentToHistory();
+                    if (context.mounted) {
+                      LtsToast.show(
+                        context,
+                        'Đã lưu vào lịch sử',
+                        type: LtsToastType.success,
+                        duration: const Duration(seconds: 2),
+                      );
+                    }
+                  },
+            icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+            label: const Text('Lưu'),
+          ),
+          // Nút "Tạo BG" — sau khi lưu pricing sheet, mở wizard tạo BG
+          // gắn sheet này + mở wizard KH/chọn sheet khác nếu cần.
+          FilledButton.tonalIcon(
+            onPressed: r == null
+                ? null
+                : () async {
+                    // Bước 1: lưu pricing sheet hiện tại nếu cần.
+                    // `saveCurrentToHistory` đã POST lên server khi đã login
+                    // và trả về id mới — bóc lấy id đầu tiên trong history.
+                    final before =
+                        state.history.map((h) => h.id).toSet();
+                    await state.saveCurrentToHistory(force: true);
+                    if (!context.mounted) return;
+                    final after = state.history
+                        .map((h) => h.id)
+                        .where((id) => !before.contains(id))
+                        .toList();
+                    final prefillSheetId =
+                        after.isNotEmpty ? after.first : null;
+                    // Bước 2: mở wizard tạo BG với sheet vừa lưu (nếu có).
+                    await Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => TaoBaoGiaWizard(
+                          prefillCustomerName: state.currentInput.customer,
+                          prefillPricingSheetId: prefillSheetId,
+                        ),
+                      ),
+                    );
+                  },
+            icon: const Icon(Icons.send_outlined, size: 18),
+            label: const Text('Tạo BG'),
+          ),
+          OutlinedButton(
+            onPressed: () => state.setInput(CalculateInput.defaults()),
+            child: const Text('Reset'),
+          ),
+          if (r != null)
+            IconButton.outlined(
+              tooltip: 'Copy kết quả',
+              icon: const Icon(Icons.copy_outlined, size: 18),
+              onPressed: () => _copyResult(context, state),
+            ),
+        ],
+      ),
+    );
+  }
+
+  void _tinhGia(BuildContext context, AppState state) {
+    final i = state.currentInput.raw;
+    final productType = (i['productType'] as String?) ?? '';
+    final bagType = (i['bagType'] as String?) ?? '';
+    final filmType = (i['filmType'] as String?) ?? '';
+    final quantity = (i['quantity'] as num?)?.toDouble() ?? 0;
+    final spreadWidth = (i['spreadWidth'] as num?)?.toDouble() ?? 0;
+    final cutStep = (i['cutStep'] as num?)?.toDouble() ?? 0;
+    final numColors = (i['numColors'] as num?)?.toInt();
+
+    final errors = <String>[];
+    if (productType.isEmpty) errors.add('Chưa chọn loại sản phẩm');
+    if (productType == 'tui' && bagType.isEmpty)
+      errors.add('Chưa chọn loại túi');
+    if (productType == 'mang' && filmType.isEmpty)
+      errors.add('Chưa chọn loại màng');
+    if (quantity <= 0) errors.add('Chưa nhập số lượng');
+    if (spreadWidth <= 0) errors.add('Chưa nhập khổ trải');
+    if (cutStep <= 0) errors.add('Chưa nhập bước cắt');
+    if (numColors == null) errors.add('Chưa chọn số màu in');
+
+    if (errors.isNotEmpty) {
+      LtsToast.show(
+        context,
+        errors.join('\n'),
+        type: LtsToastType.error,
+      );
+      return;
+    }
+
+    state.recomputeNow();
+    if (state.lastError != null) {
+      LtsToast.show(
+        context,
+        'Lỗi: ${state.lastError}',
+        type: LtsToastType.error,
+      );
+    } else if (state.currentResult != null) {
+      LtsToast.show(
+        context,
+        'Đã tính xong',
+        type: LtsToastType.success,
+        duration: const Duration(seconds: 2),
+      );
+    }
+  }
+
+  void _copyResult(BuildContext context, AppState state) async {
+    final r = state.currentResult;
+    if (r == null) return;
+    final i = state.currentInput;
+    final isMang = i.productType == 'mang';
+    final filmRollLength = i.get<num>('filmRollLength')?.toInt() ?? 6000;
+    final fmtPct = (double n) => '${(n * 100).toStringAsFixed(2)}%';
+    final fmtVnd = (double v) => v.round().toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]}.');
+    final text = [
+      '${i.customer.isEmpty ? 'N/A' : i.customer} — ${i.productName.isEmpty ? 'N/A' : i.productName}',
+      'Cấu trúc: ${r.structureText} | Độ dày: ${r.d('totalThickness').toStringAsFixed(1)}mic',
+      isMang
+          ? 'Diện tích: ${fmtVnd(i.quantity.toDouble())} m² | KT: ${(r.d('spreadWidth') * 1000).toStringAsFixed(0)}×${(r.d('cutStep') * 1000).toStringAsFixed(0)} mm² | Cuộn: ${fmtVnd(filmRollLength.toDouble())}m/cuộn'
+          : 'SL: ${fmtVnd(i.quantity.toDouble())} túi | KT: ${(r.d('spreadWidth') * 1000).toStringAsFixed(0)}×${(r.d('cutStep') * 1000).toStringAsFixed(0)} mm²',
+      isMang
+          ? 'GIÁ ĐỀ XUẤT: ${fmtVnd(r.finalPrice)} đ/m² (chưa VAT)'
+          : 'GIÁ ĐỀ XUẤT: ${fmtVnd(r.finalPrice)} đ/túi (chưa VAT)',
+      'Giá vốn: ${fmtVnd(r.costPerUnit)} đ | LN: ${fmtPct(r.profitRate)} | DT: ${(r.revenue / 1000000).toStringAsFixed(1)}tr',
+      'Trục in: ${(r.cylinderCost / 1000000).toStringAsFixed(1)}tr (riêng)',
+    ].join('\n');
+
+    await Clipboard.setData(ClipboardData(text: text));
+    if (context.mounted) {
+      LtsToast.show(
+        context,
+        'Đã copy kết quả vào clipboard',
+        type: LtsToastType.success,
+        duration: const Duration(seconds: 2),
+      );
+    }
+  }
+}
+
 // ─── Input Form — mobile scrollable ──────────────────────────────────────────
 class _InputForm extends StatefulWidget {
   final AppState state;
-  const _InputForm({required this.state});
+  final String mode;
+  const _InputForm({required this.state, required this.mode});
 
   @override
   State<_InputForm> createState() => _InputFormState();
@@ -902,16 +848,16 @@ class _InputFormState extends State<_InputForm> {
                             (result['tongThucTe'] as num).toInt();
                         final datYeuCau = result['datYeuCau'] as bool? ?? false;
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                datYeuCau
-                                    ? 'Đã tối ưu: $tongThucTe mic (thỏa [${target - 5}, ${target + 5}])\n${changes.join(', ')}'
-                                    : (result['canhBao'] as String? ??
-                                        'Không đạt yêu cầu'),
-                              ),
-                              duration: const Duration(seconds: 4),
-                            ),
+                          LtsToast.show(
+                            context,
+                            datYeuCau
+                                ? 'Đã tối ưu: $tongThucTe mic (thỏa [${target - 5}, ${target + 5}])\n${changes.join(', ')}'
+                                : (result['canhBao'] as String? ??
+                                    'Không đạt yêu cầu'),
+                            type: datYeuCau
+                                ? LtsToastType.success
+                                : LtsToastType.warning,
+                            duration: const Duration(seconds: 4),
                           );
                         }
                       }
@@ -1065,59 +1011,23 @@ class _InputFormState extends State<_InputForm> {
 
         // ── 4. Nâng cao (collapsible) ──────────────────────────────────────
         if (_showStructure) ...[
-          Card(
-            child: Column(
-              children: [
-                InkWell(
-                  borderRadius: BorderRadius.circular(16),
-                  onTap: () => setState(() => _advancedOpen = !_advancedOpen),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-                    child: Row(children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: AppColors.muted.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child:
-                            Icon(Icons.tune, size: 18, color: AppColors.muted),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Tuỳ chỉnh nâng cao',
-                                style: Theme.of(context).textTheme.titleSmall),
-                            Text(
-                                'Phụ kiện · Trục in · Đóng gói · Thanh toán · Hoa hồng',
-                                style: Theme.of(context).textTheme.bodySmall),
-                          ],
-                        ),
-                      ),
-                      AnimatedRotation(
-                        turns: _advancedOpen ? 0.5 : 0,
-                        duration: const Duration(milliseconds: 200),
-                        child: Icon(Icons.keyboard_arrow_down,
-                            color:
-                                Theme.of(context).colorScheme.onSurfaceVariant),
-                      ),
-                    ]),
-                  ),
-                ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 250),
-                  curve: Curves.easeInOut,
-                  child: _advancedOpen
-                      ? Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                          child: _AdvancedSection(state: s),
-                        )
-                      : const SizedBox(width: double.infinity),
-                ),
-              ],
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: LtsAdvancedToggle(
+              label: 'Tuỳ chỉnh nâng cao (Phụ kiện · Trục in · Đóng gói · Hoa hồng)',
+              open: _advancedOpen,
+              onTap: () => setState(() => _advancedOpen = !_advancedOpen),
             ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeInOut,
+            child: _advancedOpen
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: _AdvancedSection(state: s),
+                  )
+                : const SizedBox(width: double.infinity),
           ),
           const SizedBox(height: 12),
         ],

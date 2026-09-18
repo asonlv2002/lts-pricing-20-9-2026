@@ -1,9 +1,8 @@
 ﻿// ═══════════════════════════════════════════════════════════════════════════
-// DetailTables — Bảng chi tiết full-screen, hỗ trợ xoay ngang
-// Mỗi tab BreakdownPanel có nút "📊 Xem bảng" mở popup landscape
+// DetailTables — Bảng chi tiết full-screen, KHÔNG ép xoay ngang (mirror web).
+// Web mobile dùng horizontal scroll; Flutter cũng cho user xoay tự nhiên.
 // ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../engine/models.dart';
 import '../theme/app_theme.dart';
@@ -36,7 +35,7 @@ class DetailTableButton extends StatelessWidget {
   }
 }
 
-// ─── Full-screen landscape table dialog ─────────────────────────────────────
+// ─── Full-screen landscape table dialog (không ép xoay — mirror web) ─────────
 void showLandscapeTable(
   BuildContext context, {
   required String title,
@@ -46,12 +45,6 @@ void showLandscapeTable(
   required List<TableColumn> columns,
   required List<List<TableCellData>> rows,
 }) {
-  // Ép xoay ngang ngay lập tức khi mở popup
-  SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
-  ]);
-
   Navigator.of(context).push(
     PageRouteBuilder(
       opaque: true,
@@ -67,15 +60,7 @@ void showLandscapeTable(
       transitionsBuilder: (_, anim, __, child) =>
           FadeTransition(opacity: anim, child: child),
     ),
-  ).then((_) {
-    // Khôi phục về tất cả orientation khi đóng
-    SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-      DeviceOrientation.portraitDown,
-      DeviceOrientation.landscapeLeft,
-      DeviceOrientation.landscapeRight,
-    ]);
-  });
+  );
 }
 
 class _LandscapeTablePage extends StatelessWidget {

@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Price Hero — Mirror đúng ManHinhQuanLy.tsx của web
+// PriceHero — Mirror đúng ManHinhQuanLy.tsx của web (card phẳng, không circles).
 // 5 section: Báo giá | Đặc tả kỹ thuật | MOQ | MOQ cuộn | Trọng lượng
 // ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
@@ -7,8 +7,10 @@ import 'package:flutter/material.dart';
 import '../engine/models.dart';
 import '../theme/app_theme.dart';
 import '../theme/format.dart';
+import '../theme/lts_tokens.dart';
 import 'detail_tables.dart';
 import 'expandable_table.dart';
+import 'lts/lts_surfaces.dart';
 
 // ─── PriceHero card gradient lớn ─────────────────────────────────────────────
 class PriceHero extends StatelessWidget {
@@ -18,31 +20,36 @@ class PriceHero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final p = LtsT.of(context);
     final r = result;
 
     if (r == null) {
-      return Container(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(20),
-          gradient: AppGradients.subtle(scheme),
-          border: Border.all(color: scheme.outlineVariant.withValues(alpha: 0.5)),
-        ),
+      return LtsCard(
         padding: const EdgeInsets.all(20),
         child: Row(children: [
           Container(
             padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(color: scheme.primary.withValues(alpha: 0.1), shape: BoxShape.circle),
-            child: Icon(Icons.calculate_outlined, color: scheme.primary, size: 26),
+            decoration: BoxDecoration(
+                color: p.accent.withValues(alpha: 0.1),
+                shape: BoxShape.circle),
+            child: Icon(Icons.calculate_outlined, color: p.accent, size: 26),
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Bắt đầu tính giá', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: 4),
-              Text('Nhập thông tin đơn hàng để xem kết quả',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant)),
-            ]),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Bắt đầu tính giá',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: p.text)),
+                  const SizedBox(height: 4),
+                  Text('Nhập thông tin đơn hàng để xem kết quả',
+                      style: TextStyle(
+                          fontSize: 12,
+                          color: p.muted)),
+                ]),
           ),
         ]),
       );
@@ -52,64 +59,84 @@ class PriceHero extends StatelessWidget {
     final finalPrice = r.finalPrice;
     final rollArea = r.d('dienTichCuonMang');
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
-        gradient: AppGradients.hero(scheme),
-        boxShadow: [BoxShadow(color: scheme.primary.withValues(alpha: 0.30), blurRadius: 28, offset: const Offset(0, 12))],
-      ),
-      child: Stack(children: [
-        Positioned(right: -25, top: -25, child: Container(width: 130, height: 130, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.07), shape: BoxShape.circle))),
-        Positioned(right: 55, bottom: -40, child: Container(width: 90, height: 90, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.05), shape: BoxShape.circle))),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              _TypeBadge(isMang: isMang),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: 0.25))),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Container(width: 6, height: 6, decoration: const BoxDecoration(color: Color(0xFF4ADE80), shape: BoxShape.circle)),
+    return LtsCard(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            _TypeBadge(isMang: isMang),
+            const Spacer(),
+            _AutoBadge(),
+          ]),
+          const SizedBox(height: 14),
+          Text(isMang ? 'GIÁ ĐỀ XUẤT / m²' : 'GIÁ ĐỀ XUẤT / cái',
+              style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                  color: p.muted)),
+          const SizedBox(height: 2),
+          Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Flexible(
+                    child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(Fmt.n(finalPrice.round()),
+                            style: TextStyle(
+                                fontSize: 48,
+                                fontWeight: FontWeight.w900,
+                                color: p.text,
+                                height: 1.0,
+                                letterSpacing: -2)))),
+                Padding(
+                    padding: const EdgeInsets.only(bottom: 8, left: 6),
+                    child: Text('₫',
+                        style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.w700,
+                            color: p.muted))),
+              ]),
+          const SizedBox(height: 6),
+          if (r.structureText.isNotEmpty)
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                  color: p.inputBg,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: p.border)),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.layers_outlined, size: 12, color: p.muted),
                   const SizedBox(width: 5),
-                  const Text('Tự động', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
-                ]),
+                  Flexible(
+                      child: Text(r.structureText,
+                          style: TextStyle(
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.w600,
+                              letterSpacing: 0.3,
+                              color: p.text),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis)),
+                ],
               ),
-            ]),
-            const SizedBox(height: 14),
-            Text(isMang ? 'GIÁ ĐỀ XUẤT / m²' : 'GIÁ ĐỀ XUẤT / cái',
-                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1.2, color: Colors.white.withValues(alpha: 0.80))),
-            const SizedBox(height: 2),
-            Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Flexible(child: FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
-                child: Text(Fmt.n(finalPrice.round()), style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w900, color: Colors.white, height: 1.0, letterSpacing: -2)))),
-              Padding(padding: const EdgeInsets.only(bottom: 8, left: 6),
-                child: Text('₫', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Colors.white.withValues(alpha: 0.85)))),
-            ]),
-            const SizedBox(height: 6),
-            if (r.structureText.isNotEmpty)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(8)),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Icon(Icons.layers_outlined, size: 12, color: Colors.white.withValues(alpha: 0.80)),
-                  const SizedBox(width: 5),
-                  Flexible(child: Text(r.structureText, style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, letterSpacing: 0.3, color: Colors.white.withValues(alpha: 0.95)), maxLines: 2, overflow: TextOverflow.ellipsis)),
-                ]),
-              ),
+            ),
             const SizedBox(height: 16),
             // màng extra: giá cuộn
             if (isMang && rollArea > 0) ...[
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10), border: Border.all(color: Colors.white.withValues(alpha: 0.20))),
+                decoration: BoxDecoration(color: p.inputBg, borderRadius: BorderRadius.circular(10), border: Border.all(color: p.border)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Giá / cuộn', style: TextStyle(fontSize: 9.5, color: Colors.white.withValues(alpha: 0.80), fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                  Text('Giá / cuộn', style: TextStyle(fontSize: 9.5, color: p.muted, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
                   const SizedBox(height: 2),
-                  Text('${Fmt.n((finalPrice * rollArea).round())} ₫', style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: Colors.white)),
-                  Text('DT cuộn: ${Fmt.d3(rollArea)} m²', style: TextStyle(fontSize: 10.5, color: Colors.white.withValues(alpha: 0.75))),
+                  Text('${Fmt.n((finalPrice * rollArea).round())} ₫', style: TextStyle(fontSize: 17, fontWeight: FontWeight.w900, color: p.text)),
+                  Text('DT cuộn: ${Fmt.d3(rollArea)} m²', style: TextStyle(fontSize: 10.5, color: p.muted)),
                 ]),
               ),
               const SizedBox(height: 12),
@@ -124,9 +151,8 @@ class PriceHero extends StatelessWidget {
               else
                 _HeroStat(label: 'Tổng DT', value: '${Fmt.shortM(r.revenue)}₫', icon: Icons.bar_chart_outlined),
             ]),
-          ]),
-        ),
-      ]),
+        ],
+      ),
     );
   }
 }
@@ -135,15 +161,34 @@ class _TypeBadge extends StatelessWidget {
   final bool isMang;
   const _TypeBadge({required this.isMang});
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18), borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.white.withValues(alpha: 0.25))),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(isMang ? Icons.view_stream_outlined : Icons.shopping_bag_outlined, size: 13, color: Colors.white),
-      const SizedBox(width: 5),
-      Text(isMang ? 'MÀNG' : 'TÚI', style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    final p = LtsT.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(color: p.accent.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(20), border: Border.all(color: p.accent.withValues(alpha: 0.30))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(isMang ? Icons.view_stream_outlined : Icons.shopping_bag_outlined, size: 13, color: p.accent),
+        const SizedBox(width: 5),
+        Text(isMang ? 'MÀNG' : 'TÚI', style: TextStyle(color: p.accent, fontSize: 11, fontWeight: FontWeight.w800, letterSpacing: 0.8)),
+      ]),
+    );
+  }
+}
+
+class _AutoBadge extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final p = LtsT.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: p.green.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(20), border: Border.all(color: p.green.withValues(alpha: 0.30))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Container(width: 6, height: 6, decoration: BoxDecoration(color: p.green, shape: BoxShape.circle)),
+        const SizedBox(width: 5),
+        Text('Tự động', style: TextStyle(color: p.green, fontSize: 10, fontWeight: FontWeight.w700)),
+      ]),
+    );
+  }
 }
 
 class _HeroStat extends StatelessWidget {
@@ -151,22 +196,25 @@ class _HeroStat extends StatelessWidget {
   final IconData icon;
   const _HeroStat({required this.label, required this.value, required this.icon});
   @override
-  Widget build(BuildContext context) => Expanded(
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
-      decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.14), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.white.withValues(alpha: 0.18))),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Icon(icon, size: 12, color: Colors.white.withValues(alpha: 0.75)),
-          const SizedBox(width: 4),
-          Flexible(child: Text(label, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, letterSpacing: 0.2, color: Colors.white.withValues(alpha: 0.80)), maxLines: 1, overflow: TextOverflow.ellipsis)),
+  Widget build(BuildContext context) {
+    final p = LtsT.of(context);
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        decoration: BoxDecoration(color: p.inputBg, borderRadius: BorderRadius.circular(12), border: Border.all(color: p.border)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            Icon(icon, size: 12, color: p.muted),
+            const SizedBox(width: 4),
+            Flexible(child: Text(label, style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600, letterSpacing: 0.2, color: p.muted), maxLines: 1, overflow: TextOverflow.ellipsis)),
+          ]),
+          const SizedBox(height: 3),
+          FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
+            child: Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: p.text, letterSpacing: -0.3))),
         ]),
-        const SizedBox(height: 3),
-        FittedBox(fit: BoxFit.scaleDown, alignment: Alignment.centerLeft,
-          child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.3))),
-      ]),
-    ),
-  );
+      ),
+    );
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -72,7 +72,7 @@ class SectionCard extends StatelessWidget {
 
     return Card(
       child: Padding(
-        padding: padding ?? const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        padding: padding ?? const EdgeInsets.fromLTRB(16, 16, 16, 20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [

@@ -40,6 +40,10 @@ next-env.d.ts
 .env*.local
 .env.web_local
 
+# ── Flutter dart-define (per-developer; copy từ .dart_defines.example.json) ─
+.dart_defines.json
+apps/flutter_app/.dart_defines.json
+
 # ── Logs & debug ─────────────────────────────────────────────────────────────
 *.log
 npm-debug.log*
