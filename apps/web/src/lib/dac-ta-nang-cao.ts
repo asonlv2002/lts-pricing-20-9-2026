@@ -420,7 +420,7 @@ export function chuanBiUniRowsNangCao(params: {
 /**
  * Thành tiền Zipper (nâng cao) = Đầu vào NVL làm túi × giá zipper (đ/m).
  * ĐV đã = TP + PH (TP neo từ đơn hoặc ghi đè) — không nhân divideElements.
- * Hiện trên dòng Làm túi; KHÔNG cộng vào giá đề xuất (trừ GC "chưa gộp zipper").
+ * Hiện trên dòng Làm túi và nằm trong giá thành chịu lợi nhuận (Model B).
  */
 export function tinhTienZipperNangCao(
   dauVaoNvlLamTui: number,
@@ -565,8 +565,7 @@ function layTpVaKhoNguonChia(
    * Ghép tách theo lớp (như bảng cũ). Dòng ghép có nhiều vật liệu song song
    * (`materialDetails`) → tách 1 dòng/chi tiết; meters/phi hao lặp lại cấp lớp.
    * Dòng Làm túi: gộp Zipper/Băng keo/Quai vào cùng hàng (không tách dòng).
-   * Tiền zipper hiện trên dòng nhưng KHÔNG cộng vào giá đề xuất
-   * (ngoại lệ GC "chưa gộp zipper" tính qua zipperPerUnit engine).
+   * Tiền phụ kiện hiện trên dòng và nằm trong giá thành chịu lợi nhuận.
  * TP neo = Đầu vào NVL = (SL×bước) ÷ (số con hình ÷ số phần tử chia);
  * hoặc ghi đè meters. PH = định mức trên TP (hoặc ghi đè waste); ĐV = TP + PH.
  * Zipper = ĐV × giá (đã theo TP/N khi có chia).
@@ -595,7 +594,11 @@ function layTpVaKhoNguonChia(
   const laGcSlit = cacBuocGc.includes('slit');
   const laGcMatte = cacBuocGc.includes('matte');
 
-  const coZipper = !!result?.input?.hasZipper || so(result?.zipperTotal) > 0;
+  const laGcLamTui = cacBuocGc.includes('bag');
+  const gcGomZipper =
+    laGcLamTui && result?.input?.outsource?.bag?.zipperMode !== 'excluded';
+  const coZipper =
+    !gcGomZipper && (!!result?.input?.hasZipper || so(result?.zipperTotal) > 0);
   const coBangKeo = !!result?.input?.hasTape || so(result?.tapeTotal) > 0;
   const coQuai = !!result?.input?.hasHandle || so(result?.handleTotal) > 0;
   const tenPhuKien: string[] = [];
@@ -1064,16 +1067,16 @@ export function tinhTongNangCao(
 //            + CP thời gian in màng
 //   doanhThu = tongSX × (1 + LN%)
 //   giá vốn/đơn vị = doanhThu ÷ số lượng
-//   giá cuối = giá vốn/đơn vị + băng keo + quai + thùng + vận chuyển + lãi vay
+//   giá cuối = giá vốn/đơn vị + thùng + vận chuyển + lãi vay
 //              + hoa hồng + trục phân bổ + phụ phí gia công
-//              (KHÔNG cộng zipper — trừ GC "chưa gộp zipper" qua zipperPerUnit)
+//              (phụ kiện zipper/băng keo/quai đã nằm trong giá vốn/đơn vị)
 // Override hiệu lực: Admin thắng nếu có, ngược lại Sale (giống bảng ghi đè cũ).
 export interface KetQuaNangCaoHieuLuc {
   /** Clone của result với các field giá thay bằng giá tính từ bảng nâng cao */
   result: CalculateResult;
   /** Tổng bảng nâng cao (gồm phụ kiện + CP gia công ngoài) */
   tongGiaThanh: number;
-  /** Cơ sở giá thành SX (không gồm phụ kiện, đã cộng CP thời gian in màng) */
+  /** Cơ sở giá thành SX (gồm phụ kiện, đã cộng CP thời gian in màng) */
   tongSX: number;
   tyLeLoiNhuan: number;
   tienLoiNhuan: number;
@@ -1140,23 +1143,24 @@ export function tinhKetQuaNangCaoHieuLuc(params: {
   const tong = tinhTongNangCao(dongVatLieu, dongNCD);
 
   const soLuong = so(result?.input?.quantity);
-  // Phụ kiện đã gộp vào dòng Làm túi (thanhTienNVL) — trừ đúng số trên bảng NC
-  const phuKien = dongVatLieu
-    .filter((r) => r.rowKey === 'cut')
-    .reduce((s, r) => s + so(r.thanhTienNVL), 0);
   const printFilmCost =
     (uniRows ?? []).find((row) => so(row.printFilmCost) > 0)?.printFilmCost ?? 0;
   // Chi phí engine có nhưng không nằm trong uniRows (VD: bao PP gia công) —
   // tránh bảng nâng cấp thiếu sót so với giá thành engine.
+  // totalProductionCost của engine giờ đã gồm phụ kiện nên phải trừ ra để lấy phần công đoạn.
+  const phuKienEngine =
+    so(result?.zipperTotal) + so(result?.tapeTotal) + so(result?.handleTotal);
   const tongDongUniRows = (uniRows ?? []).reduce(
     (s, row) => s + so(row.costCPSX) + so(row.costMat),
     0,
   );
   const phanChuaTrongBang = Math.max(
     0,
-    so(result?.totalProductionCost) - tongDongUniRows - printFilmCost,
+    so(result?.totalProductionCost) - phuKienEngine - tongDongUniRows - printFilmCost,
   );
-  const tongSX = tong.tongGiaThanh - phuKien + printFilmCost + phanChuaTrongBang;
+  // Phụ kiện (zipper + băng keo + quai) đã nằm trong tổng bảng nâng cao (dòng Làm túi)
+  // → nằm trong giá thành chịu lợi nhuận, không trừ ra nữa.
+  const tongSX = tong.tongGiaThanh + printFilmCost + phanChuaTrongBang;
 
   // LN% — ghi đè LN (Admin/Sale) thắng, còn lại tra bảng theo tongSX (giống engine)
   const isPrintFilmOnly =
@@ -1210,18 +1214,9 @@ export function tinhKetQuaNangCaoHieuLuc(params: {
         : (result?.input?.commissionRate ?? 0) * (tongSX / soLuong)
       : 0;
 
-  // Giá đề xuất KHÔNG cộng tiền zipper — ngoại lệ GC làm túi "chưa gộp zipper"
-  // (tiền zipper rời mua giao bên GC vẫn nằm trong zipperPerUnit của engine).
-  const gcLamTuiChuaGomZipper =
-    result?.input?.pricingMode === 'outsource' &&
-    (result?.input?.outsource?.steps ?? []).includes('bag') &&
-    result?.input?.outsource?.bag?.zipperMode === 'excluded';
-
+  // Phụ kiện (zipper + băng keo + quai) đã nằm trong giaVonDonVi (giá thành chịu LN).
   const giaCuoiCung =
     giaVonDonVi +
-    (gcLamTuiChuaGomZipper ? so(result?.zipperPerUnit) : 0) +
-    so(result?.tapePerUnit) +
-    so(result?.handlePerUnit) +
     so(result?.boxPerUnit) +
     so(result?.shippingPerUnit) +
     laiSuatPerDonVi +

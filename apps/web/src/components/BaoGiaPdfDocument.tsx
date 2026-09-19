@@ -1247,7 +1247,7 @@ export function BaoGiaPdfDocument({
           profitTable, constants, materials,
         });
         const chenhLech = effPricing.effCostPerUnit - r.costPerUnit;
-        const totalChanged = Math.abs(grandTotal - r.totalProductionCost) > 1;
+        const totalChanged = Math.abs(grandTotal - (r.totalProductionCost - (r.zipperTotal ?? 0) - (r.tapeTotal ?? 0) - (r.handleTotal ?? 0))) > 1;
         const lopChenhLech = chenhLech >= 0 ? 'override-price-delta-row--up' : 'override-price-delta-row--down';
         pages.push(
           <OverrideTablePage
@@ -1278,7 +1278,7 @@ export function BaoGiaPdfDocument({
           profitTable, constants, materials,
         });
         const chenhLech = effPricing.effCostPerUnit - r.costPerUnit;
-        const totalChanged = Math.abs(grandTotal - r.totalProductionCost) > 1;
+        const totalChanged = Math.abs(grandTotal - (r.totalProductionCost - (r.zipperTotal ?? 0) - (r.tapeTotal ?? 0) - (r.handleTotal ?? 0))) > 1;
         const lopChenhLech = chenhLech >= 0 ? 'override-price-delta-row--up' : 'override-price-delta-row--down';
         pages.push(
           <OverrideTablePage

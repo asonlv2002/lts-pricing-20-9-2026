@@ -2068,8 +2068,9 @@ const buttonLabel = loadedItem
   const breakdownItems: [string, string][] = [
     [`${hienThiGia.initialPriceLabel} (Vốn + ${lnLabelThuongMai} LN)`, dinhDangSo(giaVonDauDong, 1) + ' đ'],
   ];
-  if (dauVaoKq.hasTape) breakdownItems.push(['Chi phí Băng keo', dinhDangSo(rHieuLuc.tapePerUnit, 1) + ' đ']);
-  if (dauVaoKq.hasHandle) breakdownItems.push(['Chi phí Quai', dinhDangSo(rHieuLuc.handlePerUnit, 1) + ' đ']);
+  // Thương mại (mua đi bán lại): phụ kiện vẫn cộng riêng. Sản xuất: đã nằm trong Vốn + LN.
+  if (ketQuaThuongMaiHieuLuc && dauVaoKq.hasTape) breakdownItems.push(['Chi phí Băng keo', dinhDangSo(rHieuLuc.tapePerUnit, 1) + ' đ']);
+  if (ketQuaThuongMaiHieuLuc && dauVaoKq.hasHandle) breakdownItems.push(['Chi phí Quai', dinhDangSo(rHieuLuc.handlePerUnit, 1) + ' đ']);
   breakdownItems.push(
     [laMang ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSo(rHieuLuc.boxPerUnit, 1) + ' đ'],
     [hienThiGia.shippingLabel, laMangIn ? `${dinhDangSo(rHieuLuc.shippingTotal, 0)} đ · ${dinhDangSo(rHieuLuc.shippingPerUnit, 1)} đ/${nhanDonVi}` : dinhDangSo(rHieuLuc.shippingPerUnit, 1) + ' đ'],
@@ -2160,15 +2161,8 @@ const buttonLabel = loadedItem
   const newCommissionPerUnit = Math.max(0, rawNewCommission);
   const doanhThuChot = shownPrice * dauVaoKq.quantity;
   const tongHoaHongChot = newCommissionPerUnit * dauVaoKq.quantity;
-  // Giá đề xuất KHÔNG còn cộng tiền zipper — ngoại lệ GC làm túi "chưa gộp zipper"
-  // (tiền zipper rời mua giao bên GC vẫn nằm trong zipperPerUnit/zipperTotal của engine).
-  const coGcChuaGomZipper =
-    dauVaoKq.pricingMode === 'outsource' &&
-    (dauVaoKq.outsource?.steps ?? []).includes('bag') &&
-    dauVaoKq.outsource?.bag?.zipperMode === 'excluded';
-  const tienZipperHieuLuc = coGcChuaGomZipper ? rHieuLuc.zipperTotal : 0;
-  const tienZipperPerDonVi = coGcChuaGomZipper ? rHieuLuc.zipperPerUnit : 0;
-  const tongChiPhi = tongChiPhiSXHieuLuc + tienZipperHieuLuc + rHieuLuc.tapeTotal + rHieuLuc.handleTotal + rHieuLuc.boxTotal + rHieuLuc.shippingTotal + (rHieuLuc.interestPerUnit * dauVaoKq.quantity) + cylAllocTotal + (rHieuLuc.gcShippingTotal ?? 0) + (rHieuLuc.gcPackagingTotal ?? 0) + (rHieuLuc.gcOtherTotal ?? 0);
+  // Phụ kiện (zipper + băng keo + quai) đã nằm trong tongChiPhiSXHieuLuc (giá thành chịu LN).
+  const tongChiPhi = tongChiPhiSXHieuLuc + rHieuLuc.boxTotal + rHieuLuc.shippingTotal + (rHieuLuc.interestPerUnit * dauVaoKq.quantity) + cylAllocTotal + (rHieuLuc.gcShippingTotal ?? 0) + (rHieuLuc.gcPackagingTotal ?? 0) + (rHieuLuc.gcOtherTotal ?? 0);
   const loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
   const pctLoiNhuanCongTyChot = tongChiPhiSXHieuLuc > 0 ? (loiNhuanCongTyChot / tongChiPhiSXHieuLuc) : 0;
   const commissionPctShown = tongChiPhiSXHieuLuc > 0 ? (newCommissionPerUnit * dauVaoKq.quantity / tongChiPhiSXHieuLuc) : 0;
@@ -2188,7 +2182,6 @@ const buttonLabel = loadedItem
       ? dauVaoKq.commissionFixedVND
       : dauVaoKq.commissionRate * (dauVaoKq.quantity > 0 ? effTotalProdCost / dauVaoKq.quantity : 0);
     const giaDonVi = effCostPerUnit
-      + tienZipperPerDonVi + rHieuLuc.tapePerUnit + rHieuLuc.handlePerUnit
       + rHieuLuc.boxPerUnit + rHieuLuc.shippingPerUnit + rHieuLuc.interestPerUnit + hoaHongDonVi
       + (rHieuLuc.cylAllocPerUnit ?? 0)
       + (rHieuLuc.gcShippingPerUnit ?? 0) + (rHieuLuc.gcPackagingPerUnit ?? 0) + (rHieuLuc.gcOtherPerUnit ?? 0);

@@ -264,7 +264,13 @@ export function tinhGiaHieuLuc(params: {
   const sourceForActive = Object.keys(adminOverrides).length > 0 ? saleOverrides : {};
   const hasAnyOverride = Object.keys(activeOverrideOv).length > 0;
   const totals = hasAnyOverride ? xuLyDongGhiDe(uniRows, sourceForActive, activeOverrideOv) : null;
-  const effTotalProdCost = totals?.grandTotal ?? result.totalProductionCost;
+  // grandTotal của xuLyDongGhiDe chỉ gồm chi phí công đoạn; cộng thêm phụ kiện
+  // để khớp cơ sở giá thành chịu lợi nhuận (Model B).
+  const phuKienEngine =
+    (result.zipperTotal ?? 0) + (result.tapeTotal ?? 0) + (result.handleTotal ?? 0);
+  const effTotalProdCost = totals
+    ? totals.grandTotal + phuKienEngine
+    : result.totalProductionCost;
   const isPrintFilmOnly = result.input.productType === 'mang'
     && result.input.filmType === 'mangIn'
     && !result.input.layer2Id

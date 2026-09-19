@@ -300,13 +300,8 @@ function buildGia(r: CalculateResult, item: HistoryItem, constants: AppConstants
       pctLN = tongChiPhi > 0 ? (loiNhuanCongTyChot / tongChiPhi) * 100 : 0;
       commissionPctShown = tongChiPhi > 0 ? (hhMoi * item.quantity / tongChiPhi) * 100 : 0;
     } else {
-      // Giá đề xuất KHÔNG còn cộng tiền zipper — ngoại lệ GC làm túi "chưa gộp zipper".
-      const coGcChuaGomZipper =
-        item.input.pricingMode === 'outsource' &&
-        (item.input.outsource?.steps ?? []).includes('bag') &&
-        item.input.outsource?.bag?.zipperMode === 'excluded';
-      const tongChiPhi = r.totalProductionCost + (coGcChuaGomZipper ? r.zipperTotal : 0) + r.tapeTotal
-        + r.handleTotal + r.boxTotal + r.shippingTotal
+      // Phụ kiện (zipper + băng keo + quai) đã nằm trong r.totalProductionCost (giá thành chịu LN).
+      const tongChiPhi = r.totalProductionCost + r.boxTotal + r.shippingTotal
         + r.interestPerUnit * item.quantity;
       loiNhuanCongTyChot = doanhThuChot - tongChiPhi - tongHoaHongChot;
       pctLN = r.totalProductionCost > 0 ? (loiNhuanCongTyChot / r.totalProductionCost) * 100 : 0;
@@ -353,9 +348,7 @@ function buildGia(r: CalculateResult, item: HistoryItem, constants: AppConstants
     }
   } else {
     blItems.push([`${meta.initialPriceLabel} (Vốn + ${dinhDangPhanTram(tyLeLN)} LN)`, dinhDangSoLe(r.costPerUnit, 1) + ' đ']);
-    // Zipper đã gộp vào dòng Làm túi trên bảng đặc tả — không hiện dòng riêng (đồng bộ màn hình, b07d8ca)
-    if (item.input.hasTape) blItems.push(['Chi phí Băng keo', dinhDangSoLe(r.tapePerUnit, 1) + ' đ']);
-    if (item.input.hasHandle) blItems.push(['Chi phí Quai', dinhDangSoLe(r.handlePerUnit, 1) + ' đ']);
+    // Zipper/băng keo/quai đã gộp vào dòng "Vốn + LN" — không hiện dòng riêng.
     blItems.push(
       [item.input.productType === 'mang' ? 'Chi phí Đóng gói' : 'Chi phí Thùng giấy', dinhDangSoLe(r.boxPerUnit, 1) + ' đ'],
       [meta.shippingLabel, dinhDangSoLe(r.shippingPerUnit, 1) + ' đ'],
