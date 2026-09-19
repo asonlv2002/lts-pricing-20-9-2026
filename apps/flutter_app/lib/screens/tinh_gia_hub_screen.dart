@@ -29,11 +29,9 @@ import 'tao_bao_gia_wizard.dart';
 import 'tao_lsx_wizard.dart';
 
 class TinhGiaHubScreen extends StatelessWidget {
-  final VoidCallback onGoHub;
   final VoidCallback onOpenTinhGia;
   const TinhGiaHubScreen({
     super.key,
-    required this.onGoHub,
     required this.onOpenTinhGia,
   });
 
@@ -41,16 +39,10 @@ class TinhGiaHubScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        LtsNavyHeader(
+        const LtsNavyHeader(
           hub: true,
           title: 'Tính giá & Báo giá',
-          subtitle: 'Bảng tính, báo giá, lệnh sản xuất',
-          leading: LtsHeaderCircleButton(
-            icon: Icons.space_dashboard_outlined,
-            tooltip: 'Tổng quan',
-            onTap: onGoHub,
-          ),
-          extras: const [
+          extras: [
             LtsHeaderBell(),
             SizedBox(width: 10),
             LtsHeaderAvatar(),

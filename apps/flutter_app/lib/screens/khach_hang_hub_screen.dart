@@ -20,23 +20,16 @@ import 'khach_hang_audit_log_screen.dart';
 import 'khach_hang_screen.dart';
 
 class KhachHangHubScreen extends StatelessWidget {
-  final VoidCallback onGoHub;
-  const KhachHangHubScreen({super.key, required this.onGoHub});
+  const KhachHangHubScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        LtsNavyHeader(
+        const LtsNavyHeader(
           hub: true,
           title: 'Khách hàng',
-          subtitle: 'Hồ sơ, liên hệ, phân công',
-          leading: LtsHeaderCircleButton(
-            icon: Icons.space_dashboard_outlined,
-            tooltip: 'Tổng quan',
-            onTap: onGoHub,
-          ),
-          extras: const [
+          extras: [
             LtsHeaderBell(),
             SizedBox(width: 10),
             LtsHeaderAvatar(),

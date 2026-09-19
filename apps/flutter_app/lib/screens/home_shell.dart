@@ -173,19 +173,14 @@ class _HomeShellState extends State<HomeShell> {
         index: _index,
         children: [
           HubScreen(
-            onGoTinhGia: () => setState(() => _index = 1),
             onGoCauHinh: () =>
                 _pushModule('Cấu hình tính giá', const CauHinhScreen()),
             onOpenKhachHang: () => setState(() => _index = 2),
-            onOpenTaiKhoan: () => setState(() => _index = 4),
           ),
           TinhGiaHubScreen(
-            onGoHub: () => setState(() => _index = 0),
             onOpenTinhGia: _pushTinhGiaModule,
           ),
-          KhachHangHubScreen(
-            onGoHub: () => setState(() => _index = 0),
-          ),
+          const KhachHangHubScreen(),
           const DonHangScreen(),
           const ThemScreen(),
         ],

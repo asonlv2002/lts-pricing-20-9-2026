@@ -1,88 +1,46 @@
 // ═══════════════════════════════════════════════════════════════════════════
 // HubScreen — mirror .lts-mobile-hub (web mobile): header navy tối,
-// action cards 108px, nhóm section, stat card tính từ dữ liệu local.
+// action cards 108px, nhóm section. Không có stat card / pill action —
+// chỉ còn 2 section: Cấu hình tính giá và Nhật ký.
 //
 // Tính giá & Báo giá (18/09/2026) đã có tab riêng → bỏ section "Tính giá &
 // Báo giá" khỏi hub Tổng quan.
 // Khách hàng (18/09/2026) cũng đã có tab riêng (KhachHangHubScreen) → bỏ
-// section "Khách hàng" khỏi hub Tổng quan, chỉ giữ 2 section: Cấu hình
-// tính giá và Nhật ký. Callback onGoTinhGia của pill "Mới" vẫn dùng để
-// chuyển sang tab Tính giá (hub mới).
+// section "Khách hàng" khỏi hub Tổng quan.
 // ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 
-import '../store/app_state.dart';
-import '../theme/format.dart';
 import '../theme/lts_tokens.dart';
 import '../widgets/auth/auth_header_actions.dart';
 import '../widgets/lts/lts_chrome.dart';
-import '../widgets/lts/lts_overlay.dart';
 import '../widgets/lts/lts_surfaces.dart';
 
 class HubScreen extends StatelessWidget {
-  final VoidCallback onGoTinhGia;
   final VoidCallback onGoCauHinh;
   final VoidCallback onOpenKhachHang;
-  final VoidCallback onOpenTaiKhoan;
   const HubScreen({
     super.key,
-    required this.onGoTinhGia,
     required this.onGoCauHinh,
     required this.onOpenKhachHang,
-    required this.onOpenTaiKhoan,
   });
 
   @override
   Widget build(BuildContext context) {
-    final s = context.watch<AppState>();
-
-    final doanhThu = s.history.fold<double>(
-        0, (sum, h) => sum + (h.finalPrice.toDouble() * h.quantity.toDouble()));
-    final daDuyet = s.history
-        .where(
-            (h) => h.quoteStatus == 'approved' || h.quoteStatus == 'completed')
-        .length;
-
     return Column(
       children: [
-        LtsNavyHeader(
+        const LtsNavyHeader(
           hub: true,
-          title: 'LTS Pricing',
-          subtitle: 'Báo giá & tính giá bao bì',
-          leading: LtsHeaderCircleButton(
-            icon: Icons.menu_rounded,
-            tooltip: 'Danh sách chức năng',
-            onTap: () => _menu(context, s),
-          ),
-          extras: const [
+          title: 'Tổng quan',
+          extras: [
             LtsHeaderBell(),
             SizedBox(width: 10),
             LtsHeaderAvatar(),
           ],
-          action: LtsHeaderPillAction(
-            label: 'Mới',
-            icon: Icons.add_rounded,
-            onTap: onGoTinhGia,
-          ),
         ),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+            padding: const EdgeInsets.fromLTRB(24, 12, 24, 32),
             children: [
-              Row(
-                children: [
-                  _HubStat(
-                      label: 'Tổng bảng tính',
-                      value: Fmt.n(s.history.length.toDouble())),
-                  const SizedBox(width: 10),
-                  _HubStat(
-                      label: 'Doanh thu ước tính', value: Fmt.vnd(doanhThu)),
-                  const SizedBox(width: 10),
-                _HubStat(label: 'Đã duyệt', value: '$daDuyet'),
-              ],
-            ),
-                const SizedBox(height: 12),
               LtsSectionLabel('Cấu hình tính giá'),
               const SizedBox(height: 12),
               ..._cards(context, [
@@ -153,66 +111,6 @@ class HubScreen extends StatelessWidget {
           ),
         ],
       ];
-
-  void _menu(BuildContext context, AppState s) {
-    final p = LtsT.of(context);
-    showLtsSheet(context,
-        title: 'Chức năng',
-        builder: (sheetCtx) => Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ListTile(
-                  dense: true,
-                  leading: Icon(
-                      s.themeMode == ThemeMode.dark
-                          ? Icons.light_mode_outlined
-                          : Icons.dark_mode_outlined,
-                      size: 20,
-                      color: p.muted),
-                  title: Text(
-                      s.themeMode == ThemeMode.dark
-                          ? 'Chuyển sang giao diện sáng'
-                          : 'Chuyển sang giao diện tối',
-                      style: TextStyle(fontSize: 14, color: p.text)),
-                  onTap: () {
-                    s.setThemeMode(s.themeMode == ThemeMode.dark
-                        ? ThemeMode.light
-                        : ThemeMode.dark);
-                    Navigator.pop(context);
-                  },
-                ),
-                Divider(height: 1, thickness: 1, color: p.border),
-                for (final m in [
-                  ('Tính giá & Báo giá', false),
-                  ('Cấu hình tính giá', false),
-                  ('Tài khoản & phân quyền', true),
-                  ('Quản trị hệ thống', true),
-                ]) ...[
-                  ListTile(
-                    dense: true,
-                    leading: Icon(
-                        m.$2
-                            ? Icons.lock_outline_rounded
-                            : Icons.folder_rounded,
-                        size: 20,
-                        color: p.muted),
-                    title: Text(m.$1,
-                        style: TextStyle(fontSize: 14, color: p.text)),
-                    trailing: m.$2
-                        ? const Text('Web',
-                            style: TextStyle(
-                                fontSize: 11, fontWeight: FontWeight.w800))
-                        : Icon(Icons.chevron_right_rounded,
-                            size: 20, color: p.dim),
-                    onTap: () => Navigator.pop(context),
-                  ),
-                  Divider(height: 1, thickness: 1, color: p.border),
-                ],
-                const SizedBox(height: 8),
-              ],
-            ));
-  }
 }
 
 class _Card {
@@ -230,49 +128,4 @@ class _Card {
     this.locked = false,
     this.onTap,
   });
-}
-
-class _HubStat extends StatelessWidget {
-  final String label;
-  final String value;
-  const _HubStat({required this.label, required this.value});
-  @override
-  Widget build(BuildContext context) {
-    final p = LtsT.of(context);
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        decoration: BoxDecoration(
-          color: p.surface,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: p.border),
-          boxShadow: LtsT.shadowSm,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label.toUpperCase(),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4,
-                    color: p.muted)),
-            const SizedBox(height: 6),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(value,
-                  maxLines: 1,
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: p.text)),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

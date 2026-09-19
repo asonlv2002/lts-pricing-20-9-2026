@@ -146,7 +146,6 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
                       children: [
                         Row(
                           children: [
-                            if (leading != null) leading!,
                             const Spacer(),
                             ...?extras,
                             if (action != null) ...[
@@ -155,7 +154,7 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
                             ],
                           ],
                         ),
-                        const SizedBox(height: 28),
+                        const SizedBox(height: 16),
                         Text(title,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
@@ -164,16 +163,6 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.18,
                                 color: Colors.white)),
-                        if (subtitle != null) ...[
-                          const SizedBox(height: 4),
-                          Text(subtitle!,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: Colors.white.withValues(alpha: 0.75))),
-                        ],
                         const SizedBox(height: 4),
                       ],
                     )
