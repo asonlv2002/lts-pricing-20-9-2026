@@ -47,7 +47,7 @@ export interface QuoteProductBagSpec {
   cylinderUnitPrice: number;
   cylinderNote?: string;
   otherDescription: string;
-  /** Ghi chú công đoạn — tối đa 1 dòng (dropdown công đoạn + text). */
+  /** Ghi chú công đoạn — nhiều dòng (dropdown công đoạn + text mỗi dòng). */
   stageNotes: LsxStageNote[];
   /** Mô tả khác theo công đoạn — nhiều dòng. */
   stageDescriptions: LsxStageNote[];

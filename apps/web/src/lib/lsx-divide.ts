@@ -85,8 +85,8 @@ export function resolveLsxDivideSpec(order: ProductionOrder): LsxDivideSpec {
 }
 
 export function formatLsxDivideSummary(spec: LsxDivideSpec): string {
-  if (spec.custom) return spec.widths.map((width) => `${width}mm`).join(' + ');
-  return `${spec.defaultWidthMm}mm × ${spec.elementCount}`;
+  if (spec.custom) return spec.widths.map((width) => `${width}mm`).join(', ');
+  return `${spec.defaultWidthMm}mm`;
 }
 
 /**

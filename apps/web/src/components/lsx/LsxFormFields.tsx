@@ -354,11 +354,6 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
             <span>mm</span>
           </div>
         ))}
-        {!isCustom && elements > 0 && defaultW > 0 && (
-          <div style={{ fontSize: '11px', color: '#64748b' }}>
-            = {defaultW}mm × {elements} phần tử
-          </div>
-        )}
         <div style={styles.cellRow}>
           <span style={{ fontWeight: 700, fontSize: '11px' }}>Chiều dài:</span>
           <NI value={manual.rollLength} onChange={v => upd('rollLength', v)} placeholder="m" style={{ width: '70px', maxWidth: '70px' }} />
@@ -377,7 +372,12 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
         )}
         <div style={styles.cellRow}>
           <span style={{ fontWeight: 700, fontSize: '11px' }}>Ghi chú:</span>
-          <TI value={manual.divideNotes} onChange={v => upd('divideNotes', v)} placeholder="" style={{ flex: 1, minWidth: 0 }} />
+          <TA
+            value={manual.divideNotes}
+            onChange={v => upd('divideNotes', v)}
+            placeholder=""
+            rows={3}
+          />
         </div>
         <div style={styles.cellRow}>
           <span style={{ fontWeight: 700, fontSize: '11px' }}>Y/c giao:</span>

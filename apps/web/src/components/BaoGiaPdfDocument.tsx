@@ -459,8 +459,13 @@ function buildBagSpecDescription(
   } else if (chatLieu) {
     lines.push("Chất liệu: " + chatLieu + ".");
   }
-  if (totalThickness > 0)
-    lines.push("Độ dày: " + totalThickness + " mic (± 5 mic).");
+  if (totalThickness > 0) {
+    const laMangIn =
+      input.productType === "mang" && input.filmType === "mangIn";
+    lines.push(
+      "Độ dày: " + totalThickness + " mic" + (laMangIn ? "." : " (± 5 mic)."),
+    );
+  }
   const dimParts: string[] = [];
   const w = spec.widthMm || 0;
   const l = spec.lengthMm || 0;

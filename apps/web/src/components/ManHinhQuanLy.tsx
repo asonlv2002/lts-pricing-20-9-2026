@@ -2444,22 +2444,11 @@ const buttonLabel = loadedItem
                   (giá đề xuất {dinhDangSo(giaDeXuatHienThi, 0)} đ/{nhanDonVi})
                 </div>
               )}
-              {dongBangGiaDeXuat && coSuaGhiDeChuaLuu && (
-                <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px', marginBottom:'2px'}}>
-                  (giá giữ nguyên theo bảng tính đã lưu — thay đổi bảng đặc tả chưa lưu; bấm Cập nhật / Lưu thay đổi để áp dụng)
-                </div>
-              )}
-              {dongBangGiaDeXuat && !coSuaGhiDeChuaLuu && coLechGiaDeXuatLuu && (
-                <div style={{fontSize:'0.78rem', color:'var(--muted)', marginTop:'4px', marginBottom:'2px'}}>
-                  (giá giữ nguyên theo bảng tính đã lưu — đơn giá/định mức hệ thống đã đổi từ đó)
-                </div>
-              )}
               {dauVaoKq.cylIncluded && (rHieuLuc.cylAllocPerUnit ?? 0) > 0 && (
                 <div style={{fontSize:'0.78rem', color:'var(--primary)', marginTop:'2px', fontWeight:600}}>
                   📌 Có bao trục (+{dinhDangSo(rHieuLuc.cylAllocPerUnit ?? 0, 2)} đ/{nhanDonVi})
                 </div>
               )}
-              <div className="unit">(chưa VAT)</div>
 
               {/* Giá cuộn cho màng — gộp giá cuộn + DT cuộn vào 1 ô */}
               {laMang && rHieuLuc.filmRollArea > 0 && (

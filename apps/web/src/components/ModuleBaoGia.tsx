@@ -119,35 +119,28 @@ const STAGE_LABEL: Record<string, string> = {
   'lam-tui': 'Làm túi',
 };
 
-/** Editor dòng ghi chú / mô tả công đoạn — dropdown công đoạn + text + xóa.
- *  `single` = chỉ 1 dòng (Ghi chú công đoạn): không nút thêm, không xóa. */
+/** Editor dòng ghi chú / mô tả công đoạn — dropdown công đoạn + text + xóa + thêm dòng. */
 function StageNoteEditor({
   value,
   onChange,
   placeholder,
-  single = false,
 }: {
   value: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[];
   onChange: (next: { stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }[]) => void;
   placeholder: string;
-  single?: boolean;
 }) {
-  const rows = single
-    ? [value[0] ?? { stage: 'lam-tui' as const, text: '' }]
-    : value.length
-      ? value
-      : [{ stage: 'lam-tui' as const, text: '' }];
+  const rows = value.length
+    ? value
+    : [{ stage: 'lam-tui' as const, text: '' }];
   const set = (i: number, patch: Partial<{ stage: 'in' | 'ghep' | 'chia' | 'lam-tui'; text: string }>) => {
     const next = rows.map((r, idx) => (idx === i ? { ...r, ...patch } : r));
-    onChange(single ? next.slice(0, 1) : next);
+    onChange(next);
   };
   const remove = (i: number) => {
-    if (single) return;
     const next = rows.filter((_, idx) => idx !== i);
     onChange(next.length ? next : [{ stage: 'lam-tui' as const, text: '' }]);
   };
   const add = () => {
-    if (single) return;
     onChange([...rows, { stage: 'lam-tui' as const, text: '' }]);
   };
 
@@ -173,31 +166,27 @@ function StageNoteEditor({
             placeholder={placeholder}
             style={{ flex: 1, minWidth: 0 }}
           />
-          {!single && (
-            <button
-              type="button"
-              className="wiz-spec-toggle"
-              style={{ padding: '2px 6px', fontSize: '0.72rem', flexShrink: 0 }}
-              onClick={() => remove(i)}
-              title="Xóa dòng"
-            >
-              🗑
-            </button>
-          )}
-        </div>
-      ))}
-      {!single && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <button
             type="button"
             className="wiz-spec-toggle"
-            style={{ padding: '2px 8px', fontSize: '0.72rem' }}
-            onClick={add}
+            style={{ padding: '2px 6px', fontSize: '0.72rem', flexShrink: 0 }}
+            onClick={() => remove(i)}
+            title="Xóa dòng"
           >
-            + Thêm
+            🗑
           </button>
         </div>
-      )}
+      ))}
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button
+          type="button"
+          className="wiz-spec-toggle"
+          style={{ padding: '2px 8px', fontSize: '0.72rem' }}
+          onClick={add}
+        >
+          + Thêm
+        </button>
+      </div>
     </div>
   );
 }
@@ -3071,12 +3060,15 @@ function BuocChonSanPham({
                       </div>
                       {(() => {
                         const doDay = tinhTongDoDayCuaInput(inp);
+                        const laMangIn =
+                          inp.productType === "mang" &&
+                          inp.filmType === "mangIn";
                         if (doDay > 0) {
                           return (
                             <div className="wiz-desc-row">
                               <span className="wiz-desc-label">Độ dày:</span>
                               <span className="wiz-desc-value">
-                                {doDay} mic (± 5 mic)
+                                {doDay} mic{laMangIn ? "" : " (± 5 mic)"}
                               </span>
                             </div>
                           );
@@ -3249,7 +3241,6 @@ function BuocChonSanPham({
                           value={spec.stageNotes ?? []}
                           onChange={(v) => updateBagSpec(pIdx, 'stageNotes', v)}
                           placeholder="Nhập ghi chú..."
-                          single
                         />
                       </div>
                       </div>
