@@ -6180,6 +6180,42 @@ fieldset.config-cpsx-upgrade__ro[disabled],
   }
 }
 
+/* ── Mobile: nút ← Danh sách tính giá trên header module màn tính giá ── */
+@media (max-width: 767px) {
+  .lts-shell--mobile .lts-mobile-back-list-btn {
+    justify-self: end;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    max-width: 100%;
+    padding: 6px 10px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+  .lts-shell--mobile .lts-mobile-back-list-btn:active {
+    background: rgba(255, 255, 255, 0.22);
+  }
+  .lts-shell--mobile .lts-mobile-back-list-btn span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+@media (max-width: 390px) {
+  .lts-shell--mobile .lts-mobile-back-list-btn {
+    padding: 5px 7px;
+    font-size: 10px;
+    gap: 3px;
+  }
+}
+
 @media (max-width: 768px) {
   .lts-shell--mobile .hist-root {
     display: flex;
@@ -6544,6 +6580,35 @@ fieldset.config-cpsx-upgrade__ro[disabled],
   align-items: center;
   gap: 10px;
   min-width: 0;
+}
+
+/* ── Topbar phải: nút ← Danh sách tính giá ── */
+.lts-topbar-right {
+  display: flex;
+  align-items: center;
+}
+
+.lts-back-list-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition:
+    background 0.15s,
+    transform 0.1s;
+}
+.lts-back-list-btn:hover {
+  background: rgba(100, 116, 139, 0.12);
+  transform: scale(1.03);
 }
 
 /* Nút + Mới */
@@ -14877,15 +14942,13 @@ fieldset.config-cpsx-upgrade__ro[disabled],
 
 /* ═══ Banner ngữ cảnh màn tính giá trên mobile (banner render ngoài .mobile-calc-container) ═══ */
 @media (max-width: 767px) {
-  .lts-shell--mobile .quote-context-banner,
-  .lts-shell--mobile .history-context-banner {
+  .lts-shell--mobile .quote-context-banner {
     flex-wrap: wrap;
     padding: 8px 12px;
     margin-bottom: 8px;
     gap: 6px 10px;
   }
-  .lts-shell--mobile .quote-context-banner .btn,
-  .lts-shell--mobile .history-context-banner .btn {
+  .lts-shell--mobile .quote-context-banner .btn {
     width: 100%;
     justify-content: center;
   }

@@ -120,6 +120,7 @@ import {
   ImagePlus,
   PenLine,
   Activity,
+  ArrowLeft,
 } from "lucide-react";
 
 // ============================================================
@@ -1488,12 +1489,14 @@ interface DauTrangTrenProps {
   moduleDangMo: MaModule;
   onMenuToggle: () => void;
   laMobile: boolean;
+  onQuayLaiDanhSach: () => void;
 }
 
 function DauTrangTren({
   moduleDangMo,
   onMenuToggle,
   laMobile,
+  onQuayLaiDanhSach,
 }: DauTrangTrenProps) {
   const {
     isDirty: dangBan,
@@ -1502,6 +1505,7 @@ function DauTrangTren({
     datQuoteWizardSnapshot: datXoaSnapshotXemLai,
   } = dungCuaHangTinhGia();
   const [hienXacNhanMoi, datHienXacNhanMoi] = useState(false);
+  const [hienXacNhanVeDanhSach, datHienXacNhanVeDanhSach] = useState(false);
 
   const xuLyTaoMoi = () => {
     if (dangBan) datHienXacNhanMoi(true);
@@ -1510,6 +1514,16 @@ function DauTrangTren({
       datPricingEntry("pick");
       datXoaSnapshotXemLai(null);
     }
+  };
+
+  const xuLyQuayLaiDanhSach = () => {
+    if (dangBan) datHienXacNhanVeDanhSach(true);
+    else onQuayLaiDanhSach();
+  };
+
+  const xacNhanVeDanhSach = () => {
+    datHienXacNhanVeDanhSach(false);
+    onQuayLaiDanhSach();
   };
 
   const xacNhanTaoMoi = () => {
@@ -1551,6 +1565,35 @@ function DauTrangTren({
           </div>
         </div>
       )}
+      {hienXacNhanVeDanhSach && (
+        <div
+          className="lts-confirm-backdrop"
+          onClick={() => datHienXacNhanVeDanhSach(false)}
+        >
+          <div
+            className="lts-confirm-dialog"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="lts-confirm-icon">!</div>
+            <h3 className="lts-confirm-title">Chưa lưu thay đổi</h3>
+            <p className="lts-confirm-desc">
+              Về Danh sách tính giá sẽ bỏ thay đổi chưa lưu của bảng tính đang
+              mở.
+            </p>
+            <div className="lts-confirm-actions">
+              <button
+                className="btn btn-outline"
+                onClick={() => datHienXacNhanVeDanhSach(false)}
+              >
+                Ở lại
+              </button>
+              <button className="btn btn-danger" onClick={xacNhanVeDanhSach}>
+                Về danh sách
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <header className="lts-topbar">
         <div className="lts-topbar-left">
           <h1 className="lts-topbar-title">{TIEU_DE_MODULE[moduleDangMo]}</h1>
@@ -1568,6 +1611,19 @@ function DauTrangTren({
             </button>
           )}
         </div>
+        {moduleDangMo === "calculator" && (
+          <div className="lts-topbar-right">
+            <button
+              type="button"
+              className="lts-back-list-btn"
+              onClick={xuLyQuayLaiDanhSach}
+              title="Về Danh sách tính giá"
+            >
+              <ArrowLeft size={15} />
+              <span>Danh sách tính giá</span>
+            </button>
+          </div>
+        )}
       </header>
     </>
   );
@@ -1653,6 +1709,20 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     },
     [datModuleDangMo],
   );
+
+  // Nút "← Danh sách tính giá" trên header mobile của màn tính giá:
+  // dirty → hỏi xác nhận trước khi rời bảng tính, không dirty → về luôn.
+  const [hienXacNhanVeDanhSachMobile, datHienXacNhanVeDanhSachMobile] =
+    useState(false);
+  const xuLyQuayLaiDanhSachMobile = () => {
+    if (dungCuaHangTinhGia.getState().isDirty)
+      datHienXacNhanVeDanhSachMobile(true);
+    else dieuHuongMenu("danh-sach-tinh-gia", "push");
+  };
+  const xacNhanVeDanhSachMobile = () => {
+    datHienXacNhanVeDanhSachMobile(false);
+    dieuHuongMenu("danh-sach-tinh-gia", "push");
+  };
 
   const apDungMenuTuUrl = useCallback(
     (pathname?: string) => {
@@ -1935,8 +2005,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             if (huy) return;
             await moBangTinhVoiPin(local.id);
             if (huy) return;
-            // Deep-link tới 1 bảng tính giá → banner "← Danh sách tính giá" cũng hiện
-            dungCuaHangTinhGia.getState().datTuDanhSachTinhGia(true);
             dieuHuongMenu(menuKeyTinhGiaTheoItem(local), "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
@@ -1953,7 +2021,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
           if (sauTai && !sauTai.isQuote) {
             await moBangTinhVoiPin(sauTai.id);
             if (huy) return;
-            dungCuaHangTinhGia.getState().datTuDanhSachTinhGia(true);
             dieuHuongMenu(menuKeyTinhGiaTheoItem(sauTai), "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
@@ -1967,7 +2034,6 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
               dungCuaHangTinhGia.getState().history,
               deep.id,
             );
-            dungCuaHangTinhGia.getState().datTuDanhSachTinhGia(true);
             dieuHuongMenu(menuKeyTinhGiaTheoItem(sauServer), "replace");
             deepLinkDaXuLy.current = keyXuLy;
             datDeepLinkTrangThai("ok");
@@ -2306,6 +2372,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             moduleDangMo={moduleDangMo}
             onMenuToggle={() => datThanhBenDangMo((v) => !v)}
             laMobile={laMobile}
+            onQuayLaiDanhSach={() => dieuHuongMenu("danh-sach-tinh-gia", "push")}
           />
         )}
 
@@ -2388,7 +2455,19 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
                     <h1>{tieuDeManHinhMobile}</h1>
                     <p>{tieuDeNhomMobile}</p>
                   </div>
-                  <span />
+                  {moduleDangMo === "calculator" ? (
+                    <button
+                      type="button"
+                      className="lts-mobile-back-list-btn"
+                      onClick={xuLyQuayLaiDanhSachMobile}
+                      title="Về Danh sách tính giá"
+                    >
+                      <ArrowLeft size={15} />
+                      <span>Danh sách tính giá</span>
+                    </button>
+                  ) : (
+                    <span />
+                  )}
                 </header>
               )}
               {moduleDangMo === "calculator" && children}
@@ -2488,6 +2567,40 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       {hienDoiPin && (
         <DoiPinModal dong={() => datHienDoiPin(false)} />
       )}
+      {hienXacNhanVeDanhSachMobile &&
+        createPortal(
+          <div
+            className="lts-confirm-backdrop"
+            onClick={() => datHienXacNhanVeDanhSachMobile(false)}
+          >
+            <div
+              className="lts-confirm-dialog"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="lts-confirm-icon">!</div>
+              <h3 className="lts-confirm-title">Chưa lưu thay đổi</h3>
+              <p className="lts-confirm-desc">
+                Về Danh sách tính giá sẽ bỏ thay đổi chưa lưu của bảng tính
+                đang mở.
+              </p>
+              <div className="lts-confirm-actions">
+                <button
+                  className="btn btn-outline"
+                  onClick={() => datHienXacNhanVeDanhSachMobile(false)}
+                >
+                  Ở lại
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={xacNhanVeDanhSachMobile}
+                >
+                  Về danh sách
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
       <KhachHangQuyenGuard />
     </div>
   );
