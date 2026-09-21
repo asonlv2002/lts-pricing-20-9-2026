@@ -11,10 +11,10 @@
 //   - onChange: (next: LSXManualFields) => void
 // ─────────────────────────────────────────────────────────────────────────────
 
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 
 import type { LsxSourceData, LSXManualFields } from '../../lib/types';
-import { classifyLsxBagType, classifyLsxBagTypeByKey, ALL_LSX_BAG_TYPES, resolveLsxStageFlags, resolveLsxBagVisibleFields, type LsxBagTypeInfo } from '../../lib/lsx-bag-classification';
+import { classifyLsxBagType, bagTypeLabelHienThi, resolveLsxStageFlags, resolveLsxBagVisibleFields } from '../../lib/lsx-bag-classification';
 import { formatLsxFoldBottom, lsxBagSizeMm, LSX_TOLERANCE_WIDTH_DEFAULT_MM, LSX_TOLERANCE_LENGTH_DEFAULT_MM } from '../../lib/lsx-quy-cach';
 import { formatLsxOrderQuantityParts } from '../../lib/lsx-quantity';
 import { layKhoMangTuNguon, stageLabelTuSource } from '../../lib/lsx-nang-cao';
@@ -200,14 +200,8 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
     () => classifyLsxBagType(inp.bagType, inp.hasZipper),
     [inp.bagType, inp.hasZipper],
   );
-  const [overrideBagTypeKey, setOverrideBagTypeKey] = useState<string>('');
 
-  function getActiveBagType(): LsxBagTypeInfo {
-    if (overrideBagTypeKey) return classifyLsxBagTypeByKey(overrideBagTypeKey);
-    return autoBagType;
-  }
-
-  const activeBagType = getActiveBagType();
+  const activeBagType = autoBagType;
 
   const stageFlags = useMemo(
     () => resolveLsxStageFlags({
@@ -882,21 +876,9 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
                     <div style={styles.cellRow}>
                       <span style={{ fontWeight: 700, fontSize: '11px' }}>Kiểu túi:</span>
-                      <select
-                        style={{ ...styles.input, fontWeight: 700, fontSize: '12px', flex: 1, minWidth: 0 }}
-                        value={overrideBagTypeKey || autoBagType.key}
-                        onChange={e => {
-                          const key = e.target.value;
-                          setOverrideBagTypeKey(key === autoBagType.key ? '' : key);
-                          upd('lsxBagTypeOverride', key === autoBagType.key ? undefined : key);
-                        }}
-                      >
-                        {ALL_LSX_BAG_TYPES.map(t => (
-                          <option key={t.key} value={t.key}>
-                            {t.label}{t.key === autoBagType.key ? ' (tự suy)' : ''}
-                          </option>
-                        ))}
-                      </select>
+                      <span style={{ fontWeight: 700, fontSize: '12px' }}>
+                        {bagTypeLabelHienThi(autoBagType, inp.bagType, !!inp.hasZipper, false)} (theo tính giá)
+                      </span>
                     </div>
                     <div style={styles.cellRow}>
                       <span style={{ fontWeight: 700, fontSize: '11px' }}>R:</span>
@@ -1015,21 +997,7 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
                 <tr>
                   <td style={styles.lbl}>Kiểu túi (LSX):</td>
                   <td colSpan={7} style={styles.td}>
-                    <select
-                      style={{ ...styles.input, fontWeight: 700, fontSize: '12px' }}
-                      value={overrideBagTypeKey || autoBagType.key}
-                      onChange={e => {
-                        const key = e.target.value;
-                        setOverrideBagTypeKey(key === autoBagType.key ? '' : key);
-                        upd('lsxBagTypeOverride', key === autoBagType.key ? undefined : key);
-                      }}
-                    >
-                      {ALL_LSX_BAG_TYPES.map(t => (
-                        <option key={t.key} value={t.key}>
-                          {t.label}{t.key === autoBagType.key ? ' (tự suy)' : ''}
-                        </option>
-                      ))}
-                    </select>
+                    {bagTypeLabelHienThi(autoBagType, inp.bagType, !!inp.hasZipper, false)} (theo tính giá)
                   </td>
                 </tr>
                 <tr>

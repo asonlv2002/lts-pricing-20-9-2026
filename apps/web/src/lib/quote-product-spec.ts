@@ -76,6 +76,28 @@ export function shouldShowBagSpecField(bagType: string, field: BagSpecConditiona
   return bagType === 'dayDung';
 }
 
+const BAG_TYPE_NAMES: Record<string, string> = {
+  '3bien': '3 biên',
+  '4bien': '4 biên',
+  xephong_lech: 'xếp hông dán lưng lệch',
+  xephong_giua: 'xếp hông dán lưng giữa',
+  dayDung: 'đáy đứng',
+  cutSeal: 'cut seal',
+  cutSealNapKeo: 'cut seal mở miệng có nắp keo',
+};
+
+const ZIPPER_BAG_TYPES = ['3bien', 'dayDung', 'cutSeal', 'cutSealNapKeo'];
+
+export function bagTypeLabelTuInput(bagType: string, hasZipper: boolean, upper = false): string {
+  if (!bagType) return '';
+  const ten = BAG_TYPE_NAMES[bagType];
+  if (!ten) return upper ? bagType.toUpperCase() : bagType;
+  const label = ZIPPER_BAG_TYPES.includes(bagType) && hasZipper
+    ? `Túi zipper ${ten}`
+    : `Túi ${ten}`;
+  return upper ? label.toUpperCase() : label;
+}
+
 export function buildDefaultBagSpec(input: CalculateInput): QuoteProductBagSpec {
   return {
     bagType: input.bagType || '',

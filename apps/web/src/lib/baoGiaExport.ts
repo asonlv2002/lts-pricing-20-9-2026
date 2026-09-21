@@ -9,7 +9,7 @@ import type {
 } from "./types";
 import { dungCuaHangTinhGia } from "../store/CuaHangTinhGia";
 import { boSoCauTruc, buildStructureFromLayers } from "./format-structure";
-import { formatStageDescriptionsForQuote } from "./quote-product-spec";
+import { bagTypeLabelTuInput, formatStageDescriptionsForQuote } from "./quote-product-spec";
 import { tinhTongDoDayCuaInput } from "./do-day-snapshot";
 import {
   estimateQuoteGroupHeight,
@@ -105,16 +105,6 @@ function layVatTruc(terms?: QuoteTerms): number {
   return terms?.vatCylinderRate ?? 10;
 }
 
-const BAG_TYPE_LABELS: Record<string, string> = {
-  "3bien": "TÚI 3 BIÊN",
-  "4bien": "TÚI 4 BIÊN",
-  xephong_lech: "TÚI XẾP HÔNG DÁN LƯNG LỆCH",
-  xephong_giua: "TÚI XẾP HÔNG DÁN LƯNG GIỮA",
-  dayDung: "TÚI ĐÁY ĐỨNG",
-  cutSeal: "TÚI CUT SEAL",
-  cutSealNapKeo: "TÚI CUT SEAL MỞ MIỆNG CÓ NẮP KEO",
-};
-
 function buildBagSpecDescription(
   spec: Record<string, any> | undefined,
   input: Record<string, any>,
@@ -123,9 +113,11 @@ function buildBagSpecDescription(
 ): string {
   if (!spec) return boSoCauTruc(structure) || "";
   const lines: string[] = [];
-  const bagLabel =
-    BAG_TYPE_LABELS[spec.bagType] ||
-    (spec.bagType ? spec.bagType.toUpperCase() : "");
+  const bagLabel = bagTypeLabelTuInput(
+    spec.bagType,
+    Boolean(spec.hasZipper ?? input.hasZipper),
+    true,
+  );
   if (bagLabel) lines.push(bagLabel + ".");
   const chatLieu = boSoCauTruc(structure);
   if (spec.structureBack) {

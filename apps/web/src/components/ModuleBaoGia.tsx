@@ -85,6 +85,7 @@ import {
 import {
   buildDefaultBagSpec,
   shouldShowBagSpecField,
+  bagTypeLabelTuInput,
   type QuoteProductBagSpec,
   generateStructureBackOptions,
 } from "../lib/quote-product-spec";
@@ -2073,23 +2074,7 @@ function BuocChonSanPham({
                   ? handleOptions.find((o) => o.key === inp.handleOptionKey)
                       ?.label || "Quai"
                   : "";
-                const bagTypeLabel =
-                  (["dayDung", "3bien", "cutSeal", "cutSealNapKeo"].includes(
-                    spec.bagType,
-                  )
-                    ? hasZipper
-                      ? "Túi zipper "
-                      : "Túi "
-                    : "Túi ") +
-                    {
-                      "3bien": "3 biên",
-                      "4bien": "4 biên",
-                      xephong_lech: "xếp hông dán lưng lệch",
-                      xephong_giua: "xếp hông dán lưng giữa",
-                      dayDung: "đáy đứng",
-                      cutSeal: "cut seal",
-                      cutSealNapKeo: "cut seal mở miệng có nắp keo",
-                    }[spec.bagType] || spec.bagType;
+                const bagTypeLabel = bagTypeLabelTuInput(spec.bagType, hasZipper);
                 return (
                   <>
                   {isTui && (
@@ -2101,17 +2086,7 @@ function BuocChonSanPham({
                       <label className="wiz-bag-field">
                         <span className="wiz-bag-label">Loại túi</span>
                         <span className="wiz-bag-total">
-                          {{
-                            "3bien": "Túi 3 biên",
-                            "4bien": "Túi 4 biên",
-                            xephong_lech: "Túi xếp hông dán lưng lệch",
-                            xephong_giua: "Túi xếp hông dán lưng giữa",
-                            dayDung: "Túi đáy đứng",
-                            cutSeal: "Túi cut seal",
-                            cutSealNapKeo: "Túi cut seal mở miệng có nắp keo",
-                          }[spec.bagType] ||
-                            spec.bagType ||
-                            "—"}
+                          {bagTypeLabel || "—"}
                         </span>
                       </label>
                       <label className="wiz-bag-field">

@@ -12,7 +12,7 @@ import {
 } from "@react-pdf/renderer";
 import { useCalculatorStore } from "../store/CuaHangTinhGia";
 import { boSoCauTruc } from "../lib/format-structure";
-import { formatStageDescriptionsForQuote } from "../lib/quote-product-spec";
+import { bagTypeLabelTuInput, formatStageDescriptionsForQuote } from "../lib/quote-product-spec";
 import { tinhTongDoDayCuaInput } from "../lib/do-day-snapshot";
 import {
   estimateQuoteGroupHeight,
@@ -405,16 +405,6 @@ interface HistoryItem {
 // BAG SPEC DESCRIPTION
 // ═══════════════════════════════════════════════════════════════════════════════
 
-const BAG_TYPE_LABELS: Record<string, string> = {
-  "3bien": "TÚI 3 BIÊN",
-  "4bien": "TÚI 4 BIÊN",
-  xephong_lech: "TÚI XẾP HÔNG DÁN LƯNG LỆCH",
-  xephong_giua: "TÚI XẾP HÔNG DÁN LƯNG GIỮA",
-  dayDung: "TÚI ĐÁY ĐỨNG",
-  cutSeal: "TÚI CUT SEAL",
-  cutSealNapKeo: "TÚI CUT SEAL MỞ MIỆNG CÓ NẮP KEO",
-};
-
 function buildBagSpecDescription(
   spec: any,
   input: any,
@@ -423,9 +413,11 @@ function buildBagSpecDescription(
 ): string {
   if (!spec) return boSoCauTruc(structure) || "";
   const lines: string[] = [];
-  const bagLabel =
-    BAG_TYPE_LABELS[spec.bagType] ||
-    (spec.bagType ? spec.bagType.toUpperCase() : "");
+  const bagLabel = bagTypeLabelTuInput(
+    spec.bagType,
+    Boolean(spec.hasZipper ?? input.hasZipper),
+    true,
+  );
   if (bagLabel) lines.push(bagLabel + ".");
   const chatLieu = boSoCauTruc(structure);
   if (spec.structureBack) {
