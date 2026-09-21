@@ -1245,16 +1245,20 @@ export async function kichHoatTaiKhoanService(
 }
 
 // ── User policies ─────────────────────────────────────────────────────────
+// Route yêu cầu PIN (PinGuard): truyền pinToken qua header x-pin-token.
 export async function capQuyenService(
   token: string,
   userId: string,
   policyCodes: PolicyCode[],
+  pinToken?: string,
 ): Promise<TaiKhoanApi> {
+  const headers = pinToken ? { "x-pin-token": pinToken } : undefined;
   return goiService<TaiKhoanApi>(
     `/policies/accounts/${userId}`,
     {
       method: "POST",
       body: JSON.stringify({ policyCodes }),
+      headers,
     },
     token,
   );
@@ -1264,12 +1268,15 @@ export async function thuHoiQuyenService(
   token: string,
   userId: string,
   policyCodes: PolicyCode[],
+  pinToken?: string,
 ): Promise<TaiKhoanApi> {
+  const headers = pinToken ? { "x-pin-token": pinToken } : undefined;
   return goiService<TaiKhoanApi>(
     `/policies/accounts/${userId}`,
     {
       method: "DELETE",
       body: JSON.stringify({ policyCodes }),
+      headers,
     },
     token,
   );

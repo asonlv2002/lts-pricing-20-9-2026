@@ -45,7 +45,7 @@ import {
   expandRoleFormPolicyChoiceCodes,
 } from '../lib/role-policy-form';
 import { coQuyenQuanLyTaiKhoan } from '../lib/permissions';
-import NhapPinXacNhanModal from './auth/NhapPinXacNhanModal';
+import NhapPinDuyetModal from './auth/NhapPinDuyetModal';
 
 // ═════════════════════════════════════════════════════════════════════════════
 // SAMPLE DATA  — chỉ dùng làm placeholder khi đang tải dữ liệu từ service-lts
@@ -1188,7 +1188,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     setNhapPinXacNhan(true);
   };
 
-  const luuThayDoiQuyen = async () => {
+  const luuThayDoiQuyen = async (pinToken: string) => {
     if (!userDangChon || !accessToken) return;
     if (!userDangChon.isActive) {
       setLoiApi('Tài khoản này đã dừng hoạt động.');
@@ -1224,9 +1224,9 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
     setDangLuuQuyen(true);
     setLoiApi(null);
     try {
-      // 1) Policy thường qua /policies/accounts/:id
-      if (regularCap.length) await capQuyenService(accessToken, userId, regularCap);
-      if (regularThuHoi.length) await thuHoiQuyenService(accessToken, userId, regularThuHoi);
+      // 1) Policy thường qua /policies/accounts/:id (PinGuard: x-pin-token)
+      if (regularCap.length) await capQuyenService(accessToken, userId, regularCap, pinToken);
+      if (regularThuHoi.length) await thuHoiQuyenService(accessToken, userId, regularThuHoi, pinToken);
 
       // 2) Key CPSX qua /price-config/:userId/configPolicies — REPLACE toàn bộ
       const cpsxFinal: string[] = [
@@ -1444,7 +1444,7 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
         </div>
       )}
 
-      <NhapPinXacNhanModal
+      <NhapPinDuyetModal
         open={nhapPinXacNhan}
         title="Xác nhận lưu thay đổi quyền"
         message={
@@ -1453,9 +1453,8 @@ export default function ModulePhanQuyen({ menuDangChon }: { menuDangChon?: strin
             : 'Nhập mã PIN 6 số để xác nhận.'
         }
         confirmLabel="Xác nhận lưu"
-        onConfirm={async () => {
-          setNhapPinXacNhan(false);
-          await luuThayDoiQuyen();
+        onConfirm={async (pinToken) => {
+          await luuThayDoiQuyen(pinToken);
         }}
         onClose={() => setNhapPinXacNhan(false)}
       />
