@@ -208,6 +208,7 @@ export function tinhGia(
     lop1, soMau: soMau!, metIn, khoNLIn, hangSo, tyLePhuMucMuc, phiKimLoai,
     bangGiaKhoNho: dauVao.bangGiaKhoNho,
     laMangInChiCoCongDoanIn,
+    chayLanDau: dauVao.chayLanDau === true,
     giaCongIn: coCongDoanGc(gc, 'in') && gc?.in
       ? {
         bat: true,
@@ -239,32 +240,6 @@ export function tinhGia(
 
   const tongChiPhiSX = tongChiPhiIn + tongChiPhiGhep + tongChiPhiCat + chiPhiBaoPp;
 
-  const cotLoiNhuanApDung = chonCotLoiNhuanApDung({ dauVao, lop1, lop2, lop2Phu, lop3, lop4, lop5, coKhoa });
-  const dongLoiNhuanMangIn = laMangInChiCoCongDoanIn
-    ? (hangSo.tyLeLoiNhuanMangIn ?? []).find(row =>
-      row.nhomKhach === (dauVao.nhomKhachMangIn ?? 'normal')
-      && (soMau ?? 0) >= row.soMauTu
-      && (soMau ?? 0) <= row.soMauDen
-    )
-    : undefined;
-  const tyLeLoiNhuanMacDinh = traLoiNhuan(tongChiPhiSX, cotLoiNhuanApDung, bangLoiNhuan, dauVao.nhomKhachMangIn ?? 'normal');
-  const tyLeLoiNhuan = dongLoiNhuanMangIn?.tyLe ?? tyLeLoiNhuanMacDinh;
-
-
-  const soTienLoiNhuan = tyLeLoiNhuan * tongChiPhiSX;
-
-
-  const doanhThu = tongChiPhiSX + soTienLoiNhuan;
-
-
-  const chiPhiDonVi = soLuong > 0 ? doanhThu / soLuong : 0;
-
-
-
-
-
-  const { tongDoDay, tongGSM } = tinhDoDayVaGSM({ lop1, lop2, lop2Phu, lop3, lop4, lop5 });
-
   const gcLamTuiChuaGomZipper =
     coCongDoanGc(gc, 'lam_tui') && gc?.lamTui?.cheDoZipper === 'chua_gom';
   const { tongTienKhoa, khoaPerDonVi, tongTienBangKeo, bangKeoPerDonVi, tongTienQuaiXach, quaiXachPerDonVi, khoiLuongPhuKienThemPerDonVi } = tinhPhuKien({
@@ -284,6 +259,35 @@ export function tinhGia(
         : undefined,
     },
   });
+
+  // Phụ kiện (zipper + băng keo + quai) nằm trong giá thành chịu lợi nhuận.
+  const tongChiPhiSXFull = tongChiPhiSX + tongTienKhoa + tongTienBangKeo + tongTienQuaiXach;
+
+  const cotLoiNhuanApDung = chonCotLoiNhuanApDung({ dauVao, lop1, lop2, lop2Phu, lop3, lop4, lop5, coKhoa });
+  const dongLoiNhuanMangIn = laMangInChiCoCongDoanIn
+    ? (hangSo.tyLeLoiNhuanMangIn ?? []).find(row =>
+      row.nhomKhach === (dauVao.nhomKhachMangIn ?? 'normal')
+      && (soMau ?? 0) >= row.soMauTu
+      && (soMau ?? 0) <= row.soMauDen
+    )
+    : undefined;
+  const tyLeLoiNhuanMacDinh = traLoiNhuan(tongChiPhiSXFull, cotLoiNhuanApDung, bangLoiNhuan, dauVao.nhomKhachMangIn ?? 'normal');
+  const tyLeLoiNhuan = dongLoiNhuanMangIn?.tyLe ?? tyLeLoiNhuanMacDinh;
+
+
+  const soTienLoiNhuan = tyLeLoiNhuan * tongChiPhiSXFull;
+
+
+  const doanhThu = tongChiPhiSXFull + soTienLoiNhuan;
+
+
+  const chiPhiDonVi = soLuong > 0 ? doanhThu / soLuong : 0;
+
+
+
+
+
+  const { tongDoDay, tongGSM } = tinhDoDayVaGSM({ lop1, lop2, lop2Phu, lop3, lop4, lop5 });
 
   const chieuDaiCuonMang = dauVao.chieuDaiCuonMang || 6000;
   const soTuiPerThuungThucTe = soTuiPerThuung || 0;
@@ -326,7 +330,7 @@ export function tinhGia(
     laiSuatMangIn: laMangInChiCoCongDoanIn ? (hangSo.laiSuatMangIn ?? 0.01) : undefined,
   });
 
-  const { hoaHongPerDonVi } = tinhHoaHong({ chiPhiDonVi: soLuong > 0 ? tongChiPhiSX / soLuong : 0, tyLeHoaHong, donViHoaHong: dauVao.donViHoaHong, hoaHongCoDinhVND: dauVao.hoaHongCoDinhVND });
+  const { hoaHongPerDonVi } = tinhHoaHong({ chiPhiDonVi: soLuong > 0 ? tongChiPhiSXFull / soLuong : 0, tyLeHoaHong, donViHoaHong: dauVao.donViHoaHong, hoaHongCoDinhVND: dauVao.hoaHongCoDinhVND });
 
   const { chieuDaiTrucThucTe, chuViTrucThucTe, dienTichTruc, chiPhiTrucPerDonVi, chiPhiTruc, chiPhiTrucPhanBo } = tinhTrucIn({ dauVao, hangSo, soMau: soMau || 0, laMang, dienTichTui });
 
@@ -344,10 +348,8 @@ export function tinhGia(
     soLuong,
   });
 
-  // Giá đề xuất KHÔNG cộng tiền zipper (tùy chọn hệ thống) — ngoại lệ duy nhất:
-  // GC làm túi "chưa gộp zipper" (tiền zipper rời mua giao bên GC, khoaPerDonVi = giaZipperMoiM).
-  const giaCuoiCung = chiPhiDonVi + (gcLamTuiChuaGomZipper ? khoaPerDonVi : 0)
-    + bangKeoPerDonVi + quaiXachPerDonVi
+  // Phụ kiện (zipper + băng keo + quai) đã nằm trong chiPhiDonVi (giá thành chịu LN).
+  const giaCuoiCung = chiPhiDonVi
     + thuungPerDonVi + cuocVanChuyenPerDonVi + laiSuatPerDonVi + hoaHongPerDonVi + chiPhiTrucPhanBo
     + vanChuyenGcPerDonVi + dongGoiGcPerDonVi + phuPhiKhacGcPerDonVi;
 
@@ -376,7 +378,7 @@ export function tinhGia(
     cpMangIn, gioSetupMangIn, gioSanXuatMangIn, tongGioMangIn, chiPhiGioMangIn,
 
 
-    tongChiPhiSX, tongChiPhiGhep, tyLeLoiNhuan, soTienLoiNhuan, doanhThu, chiPhiDonVi,
+    tongChiPhiSX: tongChiPhiSXFull, tongChiPhiGhep, tyLeLoiNhuan, soTienLoiNhuan, doanhThu, chiPhiDonVi,
 
 
     khoaPerDonVi, tongTienKhoa, bangKeoPerDonVi, tongTienBangKeo,

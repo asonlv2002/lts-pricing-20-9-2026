@@ -787,13 +787,25 @@ export default function TheNhapLieu({ onCollapseInput }: { onCollapseInput?: () 
           )}
         </>
       ) : (
-        <div className="form-group">
-          <label className="form-label">Nhóm khách</label>
-          <select className="form-select" value={input.printFilmCustomerGroup ?? 'normal'} onChange={e => capNhatDauVao({ printFilmCustomerGroup: e.target.value as 'normal' | 'large' })}>
-            <option value="normal">Khách thường</option>
-            <option value="large">Khách lớn</option>
-          </select>
-        </div>
+        <>
+          <div className="form-group">
+            <label className="form-label">Nhóm khách</label>
+            <select className="form-select" value={input.printFilmCustomerGroup ?? 'normal'} onChange={e => capNhatDauVao({ printFilmCustomerGroup: e.target.value as 'normal' | 'large' })}>
+              <option value="normal">Khách thường</option>
+              <option value="large">Khách lớn</option>
+            </select>
+          </div>
+          <div className="form-group first-run-group">
+            <label className="form-check" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: 0 }}>
+              <input
+                type="checkbox"
+                checked={input.firstRun === true}
+                onChange={e => capNhatDauVao({ firstRun: e.target.checked })}
+              />
+              <span style={{ fontSize: '0.86rem', fontWeight: 600 }}>Sản phẩm chạy lần đầu</span>
+            </label>
+          </div>
+        </>
       )}
 
       {!laThuongMaiMoTa && (

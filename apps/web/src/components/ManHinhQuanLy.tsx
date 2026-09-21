@@ -1436,12 +1436,12 @@ const loadedItem = timMucLichSuTheoId(lichSu, loadedHistoryId) ?? null;
 const hangSoNc = (nangCap && loadedItem?.pinnedCpsxNangCao)
   ? apCpsxNangCaoVaoHangSo(hangSo, loadedItem.pinnedCpsxNangCao)
   : hangSo;
-// Mở lại sheet nâng cao ĐÃ LƯU mà chưa đụng input → toàn màn hiển thị theo
-// override ĐÃ LƯU (giá lúc lưu). Sửa bảng đặc tả Sale/Admin chỉ là preview trong
-// tab ghi đè — giá chỉ áp sau khi bấm Lưu thay đổi / Cập nhật / Lưu mới.
-const dongBangGiaDeXuatNC = coDongBangGiaDeXuat(nangCap, loadedItem, isDirty);
-const ghiDeSaleHienThi = dongBangGiaDeXuatNC ? (loadedItem?.saleOverrides ?? {}) : ghiDeSale;
-const ghiDeAdminHienThi = dongBangGiaDeXuatNC ? (loadedItem?.adminOverrides ?? {}) : ghiDeAdmin;
+  // Bảng thay đổi Sale/Admin KHÔNG ảnh hưởng giá đề xuất — giá luôn từ bảng đặc tả
+  // gốc. Biến dưới chỉ còn phục vụ snapshot A4 (trang đối chiếu Sale/Admin theo
+  // override ĐÃ LƯU — không hút preview chưa lưu).
+  const dongBangGiaDeXuatNC = coDongBangGiaDeXuat(nangCap, loadedItem, isDirty);
+  const ghiDeSaleHienThi = loadedItem?.saleOverrides ?? {};
+  const ghiDeAdminHienThi = loadedItem?.adminOverrides ?? {};
 // true khi đóng băng mà store đang giữ override khác lúc lưu (chưa lưu thay đổi)
 const coSuaGhiDeChuaLuu = dongBangGiaDeXuatNC && !(
   overridesChuaDoi(ghiDeSale, loadedItem?.saleOverrides)
@@ -1963,8 +1963,8 @@ const buttonLabel = loadedItem
   // ── Tab nâng cấp: giá mỗi sản phẩm lấy từ TỔNG bảng đặc tả nâng cao ──
   // TM (mua đi bán lại) KHÔNG chạy bảng NC — chống cờ nangCap lệch khi lưu cũ:
   // tổng giá thành của result TM tổng hợp đã gồm LN → cộng thêm LN bảng giá = LN x2.
-  // Sheet đã lưu chưa đụng input → dùng override ĐÃ LƯU (giá khớp lúc lưu);
-  // sửa bảng đặc tả chỉ preview trong tab, không cuốn giá màn hình.
+  // Giá đề xuất KHÔNG gồm ghi đè Sale/Admin (live lẫn đã lưu) — luôn bảng đặc tả
+  // gốc; ghi đè chỉ preview trong tab Sale/Admin và trang đối chiếu A4.
   const laThuongMaiInput = isCommercial || dauVaoKq.pricingMode === 'commercial';
   const ketQuaNangCao = nangCap && !laThuongMaiInput
     ? tinhKetQuaNangCaoHieuLuc({
@@ -1972,8 +1972,8 @@ const buttonLabel = loadedItem
         uniRows: cacDongSanXuat,
         constants: hangSoNc,
         materials,
-        saleOverrides: ghiDeSaleHienThi,
-        adminOverrides: ghiDeAdminHienThi,
+        saleOverrides: {},
+        adminOverrides: {},
         // LN% ghi đè Sale/Admin chỉ preview trong tab — màn hình giá luôn theo LN hệ thống
         saleProfitRatePct: 0,
         adminProfitRatePct: 0,
@@ -2302,15 +2302,15 @@ const buttonLabel = loadedItem
     if (!res) return { qty, res, isCurrent: qty === currentQty };
     // Tab nâng cấp: mỗi mức SL tính lại bảng đặc tả nâng cao → giá mới
     // (LN% ghi đè Sale/Admin chỉ preview trong tab — MOQ theo LN hệ thống;
-    // sheet đã lưu chưa đụng input → theo override ĐÃ LƯU, khớp giá màn hình)
+    // MOQ theo giá gốc, không gồm ghi đè Sale/Admin — khớp giá đề xuất màn hình)
     const resHieuLuc = nangCap && !laThuongMaiInput
       ? tinhKetQuaNangCaoHieuLuc({
           result: res,
           uniRows: lapDongSanXuat(res, hangSoNc).uniRows,
           constants: hangSoNc,
           materials,
-          saleOverrides: ghiDeSaleHienThi,
-          adminOverrides: ghiDeAdminHienThi,
+          saleOverrides: {},
+          adminOverrides: {},
           saleProfitRatePct: 0,
           adminProfitRatePct: 0,
           profitTable: bangLoiNhuan,
@@ -2371,15 +2371,16 @@ const buttonLabel = loadedItem
     const res = calculateForInput({ ...dauVaoKq, quantity: estQty });
     if (!res) return null;
     // Tab nâng cấp: giá/Tổng DT mỗi dòng cuộn lấy theo bảng đặc tả nâng cao
-    // (khớp MOQ & giá màn hình), giữ res engine để tính mét/kg từng lớp.
+    // (khớp MOQ & giá màn hình — không gồm ghi đè Sale/Admin), giữ res engine
+    // để tính mét/kg từng lớp.
     const resGia = nangCap && !laThuongMaiInput
       ? tinhKetQuaNangCaoHieuLuc({
           result: res,
           uniRows: lapDongSanXuat(res, hangSoNc).uniRows,
           constants: hangSoNc,
           materials,
-          saleOverrides: ghiDeSaleHienThi,
-          adminOverrides: ghiDeAdminHienThi,
+          saleOverrides: {},
+          adminOverrides: {},
           saleProfitRatePct: 0,
           adminProfitRatePct: 0,
           profitTable: bangLoiNhuan,

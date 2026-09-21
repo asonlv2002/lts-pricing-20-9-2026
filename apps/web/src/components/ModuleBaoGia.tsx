@@ -1843,8 +1843,8 @@ function BuocChonSanPham({
       // TM không chạy bảng đặc tả nâng cao — chặn item TM nhiễm cờ isNangCap (bug cũ)
       const laNangCap = !!(item.isNangCap || item.input?.isNangCap)
         && item.input?.pricingMode !== 'commercial';
-      // Sheet nâng cao: pin CPSX NC + tính qua bảng đặc tả NC (đồng bộ danh sách/A4),
-      // ghi đè dòng của sheet vẫn áp; LN% ghi đè = 0 (chỉ preview trong tab).
+      // Sheet nâng cao: pin CPSX NC + tính qua bảng đặc tả NC (đồng bộ danh sách/A4).
+      // KHÔNG gồm ghi đè Sale/Admin — bảng thay đổi không tác động giá (chỉ preview).
       const hangSo =
         laNangCap && item.pinnedCpsxNangCao
           ? apCpsxNangCaoVaoHangSo(constants, item.pinnedCpsxNangCao)
@@ -1864,8 +1864,8 @@ function BuocChonSanPham({
         uniRows,
         constants: hangSo,
         materials,
-        saleOverrides: item.saleOverrides ?? {},
-        adminOverrides: item.adminOverrides ?? {},
+        saleOverrides: {},
+        adminOverrides: {},
         saleProfitRatePct: 0,
         adminProfitRatePct: 0,
         profitTable,

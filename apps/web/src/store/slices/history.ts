@@ -101,8 +101,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       // Tính mã khách hàng hiện tại
       const currentCustomerCode = timMaKhachHang(state.input.customer) || null;
 
-      // Tab nâng cấp: giá lưu theo bảng đặc tả nâng cao (có ghi đè dòng).
-      // LN% ghi đè Sale/Admin KHÔNG áp vào giá lưu — chỉ preview trong tab;
+      // Tab nâng cấp: giá lưu theo bảng đặc tả nâng cao — KHÔNG gồm ghi đè
+      // Sale/Admin (bảng thay đổi không tác động giá, chỉ preview/đối chiếu).
       // pct vẫn được lưu vào item để trang phụ PDF/tab hiện scenario.
       // Thương mại KHÔNG bao giờ chạy bảng đặc tả nâng cao — cờ cheDoNangCao
       // lệch true khi lưu từ màn TM sẽ cộng LN bảng giá lên giá đã gồm LN
@@ -114,8 +114,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
             uniRows: lapDongSanXuat(state.result, state.constants).uniRows,
             constants: state.constants,
             materials: state.materials,
-            saleOverrides: state.saleOverrides,
-            adminOverrides: state.adminOverrides,
+            saleOverrides: {},
+            adminOverrides: {},
             saleProfitRatePct: 0,
             adminProfitRatePct: 0,
             profitTable: state.profitTable,
@@ -474,15 +474,16 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const hangSoLuu = laNangCap
         ? apCpsxNangCaoVaoHangSo(state.constants, pinCpsx)
         : state.constants;
-      // LN% ghi đè Sale/Admin KHÔNG áp vào giá cập nhật — chỉ preview trong tab.
+      // Giá cập nhật theo bảng đặc tả nâng cao — KHÔNG gồm ghi đè Sale/Admin
+      // (bảng thay đổi không tác động giá, chỉ preview/đối chiếu).
       const ketQuaLuu = laNangCap
         ? tinhKetQuaNangCaoHieuLuc({
             result: state.result,
             uniRows: lapDongSanXuat(state.result, hangSoLuu).uniRows,
             constants: hangSoLuu,
             materials: state.materials,
-            saleOverrides: state.saleOverrides,
-            adminOverrides: state.adminOverrides,
+            saleOverrides: {},
+            adminOverrides: {},
             saleProfitRatePct: 0,
             adminProfitRatePct: 0,
             profitTable: state.profitTable,

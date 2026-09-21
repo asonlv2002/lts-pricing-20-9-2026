@@ -16,7 +16,7 @@ import { apCpsxNangCaoVaoHangSo } from '../lib/cpsx-nang-cao-pin';
 import { taiTruocThuVienNang } from '../lib/preload-heavy';
 import { tinhGiaThuongMai } from '../lib/engine';
 import { layDonViTinh } from '../lib/pricing-display';
-import { tinhGiaDeXuatHienThi, coDongBangGiaDeXuat } from '../lib/gia-de-xuat-hien-thi';
+import { tinhGiaDeXuatHienThi } from '../lib/gia-de-xuat-hien-thi';
 import { boSungVatLieuMacDinhThieu } from '../store/helpers';
 
 // ── Format helper ─────────────────────────────────────────────────────────────
@@ -35,12 +35,12 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
   const cheDoHienThiThuongMai = (input.commercialMode || 'form') as 'form' | 'description';
   const ketQuaThuongMai = laThuongMai ? tinhGiaThuongMai(input) : null;
 
-  // Tab nâng cấp: giá từ bảng đặc tả nâng cao (có ghi đè Sale/Admin)
+  // Tab nâng cấp: giá từ bảng đặc tả nâng cao
   // Sheet đã lưu: overlay CPSX NC từ pin — không bám constants đang sửa trên màn CPSX.
   // LN% ghi đè Sale/Admin KHÔNG áp vào giá hiển thị (theo LN hệ thống — đồng bộ desktop).
   // TM không chạy bảng NC — chống cờ cheDoNangCao lệch (LN bảng giá cộng trên giá đã gồm LN).
-  // Sheet đã lưu chưa đụng input → theo override ĐÃ LƯU (đồng bộ desktop đóng băng);
-  // sửa bảng đặc tả chỉ preview trong tab ghi đè, không cuốn giá hiển thị.
+  // Giá đề xuất KHÔNG gồm ghi đè Sale/Admin (live lẫn đã lưu) — luôn bảng đặc tả gốc,
+  // đồng bộ desktop; ghi đè chỉ preview trong tab Sale/Admin.
   const ketQuaHienThi = nangCap && !laThuongMai
     ? (() => {
         const s = dungCuaHangTinhGia.getState();
@@ -48,14 +48,13 @@ function ThanhGiaMini({ onNhan, nangCap }: { onNhan: () => void; nangCap?: boole
         const hangSoNc = item?.pinnedCpsxNangCao
           ? apCpsxNangCaoVaoHangSo(s.constants, item.pinnedCpsxNangCao)
           : s.constants;
-        const dongBang = coDongBangGiaDeXuat(nangCap, item, s.isDirty);
         return tinhKetQuaNangCaoHieuLuc({
           result,
           uniRows: lapDongSanXuat(result, hangSoNc).uniRows,
           constants: hangSoNc,
           materials: s.materials,
-          saleOverrides: dongBang ? (item?.saleOverrides ?? {}) : s.saleOverrides,
-          adminOverrides: dongBang ? (item?.adminOverrides ?? {}) : s.adminOverrides,
+          saleOverrides: {},
+          adminOverrides: {},
           saleProfitRatePct: 0,
           adminProfitRatePct: 0,
           profitTable: s.profitTable,

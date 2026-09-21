@@ -84,6 +84,7 @@ interface CalculateInput {
   handleOptionKey?: string | null;
   paymentDays: number; profitColumn: number;
   printFilmCustomerGroup?: 'normal' | 'large';
+  firstRun?: boolean;
   commissionRate: number; commissionFixedVND: number;
   commissionUnit: 'percent' | 'vnd'; commissionInputValue: number;
   bagsPerBox: number; boxPrice: number;
@@ -187,6 +188,7 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
     chieuDaiCuonMang: i.filmRollLength || 6000,
     soLuong: i.quantity, soMau: i.numColors, soHinh: i.numImages || 1,
     nhomKhachMangIn: i.printFilmCustomerGroup ?? 'normal',
+    chayLanDau: i.firstRun === true,
     idLop1: i.layer1Id, idLop2: i.layer2Id, idLop2Phu: i.layer2AltId,
     chieuDaiLop2: i.layer2Lengths ? { vl1: i.layer2Lengths.mat1 * 1000, vl2: i.layer2Lengths.mat2 * 1000 } : undefined,
     matTruocLop2: i.layer2FrontPart ?? 'main',

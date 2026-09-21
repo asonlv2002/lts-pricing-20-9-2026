@@ -823,14 +823,15 @@ function exportPricingDetailNangCaoToA4(
   const { uniRows } = lapDongSanXuat(r0, hangSo);
   const saleOv = item.saleOverrides ?? {};
   const adminOv = item.adminOverrides ?? {};
-  // Giá hero A4 theo LN hệ thống — LN% ghi đè Sale/Admin chỉ là scenario preview.
+  // Giá hero A4 = giá đề xuất gốc (KHÔNG gồm ghi đè Sale/Admin — bảng thay đổi
+  // chỉ tham khảo). LN% ghi đè Sale/Admin chỉ là scenario preview.
   const kq = tinhKetQuaNangCaoHieuLuc({
     result: r0,
     uniRows,
     constants: hangSo,
     materials,
-    saleOverrides: saleOv,
-    adminOverrides: adminOv,
+    saleOverrides: {},
+    adminOverrides: {},
     saleProfitRatePct: 0,
     adminProfitRatePct: 0,
     profitTable,

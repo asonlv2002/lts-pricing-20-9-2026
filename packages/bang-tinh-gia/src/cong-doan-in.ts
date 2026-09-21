@@ -3,6 +3,9 @@ import { layGiaVatLieuTheoKho } from './vat-lieu';
 import { tinhHaoHutIn } from './hao-hut';
 import { tinhHatHaoGc, tinhCpsxGcDienTich } from './gia-cong-ngoai';
 
+/** Sản phẩm chạy lần đầu: cộng thêm vào phi hao in (m) */
+export const HAO_HUT_IN_CHAY_LAN_DAU_M = 500;
+
 function laBOPP(lop1: VatLieu): boolean {
   const chuoi = `${lop1.id} ${lop1.ten} ${lop1.nhom ?? ''}`.toUpperCase();
   return chuoi.includes('BOPP');
@@ -28,8 +31,10 @@ export function tinhCongDoanIn(params: {
   bangGiaKhoNho?: GiaVatLieuKhoNho[];
   laMangInChiCoCongDoanIn?: boolean;
   giaCongIn?: GiaCongInParams;
+  /** Sản phẩm chạy lần đầu → phi hao in +HAO_HUT_IN_CHAY_LAN_DAU_M (chỉ in nội bộ) */
+  chayLanDau?: boolean;
 }) {
-  const { lop1, soMau, metIn, khoNLIn, hangSo, tyLePhuMucMuc, phiKimLoai, bangGiaKhoNho, laMangInChiCoCongDoanIn, giaCongIn } = params;
+  const { lop1, soMau, metIn, khoNLIn, hangSo, tyLePhuMucMuc, phiKimLoai, bangGiaKhoNho, laMangInChiCoCongDoanIn, giaCongIn, chayLanDau } = params;
 
   if (giaCongIn?.bat) {
     if (giaCongIn.nguonMang === 'ben_ngoai') {
@@ -70,7 +75,9 @@ export function tinhCongDoanIn(params: {
     };
   }
 
-  const { hatHaoIn } = tinhHaoHutIn(metIn, soMau, hangSo);
+  const { hatHaoIn: hatHaoInGoc } = tinhHaoHutIn(metIn, soMau, hangSo);
+  // Sản phẩm chạy lần đầu: +500m phi hao in (chỉ in nội bộ; in GC giữ nguyên theo cấu hình GC)
+  const hatHaoIn = hatHaoInGoc + (chayLanDau && soMau > 0 ? HAO_HUT_IN_CHAY_LAN_DAU_M : 0);
   const dienTichDauVaoIn = (hatHaoIn + metIn) * khoNLIn;
   const giaMucPerMau = laMangInChiCoCongDoanIn
     ? (laBOPP(lop1) ? (hangSo.giaMucMangInBOPP ?? 150) : (hangSo.giaMucMangInKhac ?? 200))

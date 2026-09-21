@@ -541,6 +541,8 @@ export interface CalculateInput {
   divideWidthMm?: number;
   divideElements?: number;
   printFilmCustomerGroup?: 'normal' | 'large';
+  /** Sản phẩm chạy lần đầu → phi hao in +500m (engine: chayLanDau) */
+  firstRun?: boolean;
   layer1Id?: string | null;
   layer2Id?: string | null;
   layer2AltId?: string | null;

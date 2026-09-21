@@ -233,6 +233,8 @@ export interface DauVaoTinhGia {
   ghiDeDayLop?: Record<string, number>;
   cauTrucNhieuVatLieu?: Record<string, string[]>;
   bangGiaKhoNho?: GiaVatLieuKhoNho[];
+  /** Sản phẩm chạy lần đầu → phi hao in +500m (chỉ in nội bộ, số màu > 0) */
+  chayLanDau?: boolean;
   cheDoTinhGia?: CheDoTinhGia;
   giaCongNgoai?: GiaCongNgoai;
 }
