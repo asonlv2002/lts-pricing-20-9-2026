@@ -30,6 +30,7 @@ const MENU_KEYS_AUDIT_LOG = new Set([
   'nhat-ky-tinh-gia',
   'nhat-ky-khach-hang',
   'nhat-ky-he-thong',
+  'nhat-ky-cau-hinh',
 ]);
 
 /** Menu key nhóm quản trị hệ thống. */

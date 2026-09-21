@@ -1,5 +1,6 @@
 import type { AuditAction, AuditEntry } from './types';
 import type { ActivityLogServerApi } from './api/service-lts';
+import { NHAN_CONFIG_NAME, diffConfigBlobs } from './config-diff';
 import { normalizeDisplayText } from './text-codec';
 
 // ── resourceType mapping ──────────────────────────────────────────────────
@@ -11,6 +12,7 @@ const RESOURCE_TYPE_MAP: Record<string, AuditEntry['targetType']> = {
   role: 'permission',
   user_policy: 'permission',
   customer_manager: 'customer',
+  price_config: 'config',
 };
 
 export function chuyenResourceType(resourceType: string): AuditEntry['targetType'] {
@@ -42,6 +44,11 @@ const ACTION_MAP: Record<string, AuditAction> = {
 
   'user_policy.granted': 'assign',
   'user_policy.revoked': 'assign',
+
+  'price_config.created': 'create',
+  'price_config.updated': 'update',
+  'price_config.deleted': 'delete',
+  'price_config.policies_replaced': 'assign',
 };
 
 export function chuyenAction(serverAction: string): AuditAction {
@@ -152,6 +159,95 @@ export function taoActorResolver(
 // ── target resolver ───────────────────────────────────────────────────────
 export type TargetResolver = (resourceType: string, resourceId: string | null) => string | undefined;
 
+function laDoiTuongNhan(v: unknown): boolean {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
+
+/**
+ * Log price_config (Cấu hình tính giá): BE lưu metadata.previousVersion /
+ * currentVersion chứa blob inputValue — flatten thành nhãn VN → giá trị
+ * (chỉ các leaf khác nhau) và gán vào before/after của AuditEntry.
+ * policies_replaced có shape riêng (configPolicies) — xử lý dòng "Phân quyền X".
+ * Trả `note` khi diff rỗng để vẫn hiện được cho người dùng biết log có hợp lệ
+ * nhưng không trích xuất được thay đổi.
+ */
+function xuLyPriceConfig(
+  log: Pick<ActivityLogServerApi, 'action' | 'metadata'>,
+): {
+  targetName: string | undefined;
+  before: Record<string, unknown> | undefined;
+  after: Record<string, unknown> | undefined;
+  note: string | undefined;
+} {
+  const meta = laDoiTuongNhan(log.metadata)
+    ? (log.metadata as Record<string, unknown>)
+    : {};
+  const original = laDoiTuongNhan(meta.original)
+    ? (meta.original as Record<string, unknown>)
+    : {};
+  const configName =
+    typeof original.configName === 'string' ? original.configName : '';
+  const targetName = NHAN_CONFIG_NAME[configName] ?? (configName || undefined);
+
+  if (log.action === 'price_config.policies_replaced') {
+    const docDanhSach = (v: unknown): Record<string, string> => {
+      const ketQua: Record<string, string> = {};
+      if (!Array.isArray(v)) return ketQua;
+      for (const dong of v) {
+        if (!laDoiTuongNhan(dong)) continue;
+        const rec = dong as Record<string, unknown>;
+        const cn = typeof rec.configName === 'string' ? rec.configName : '';
+        const policies = Array.isArray(rec.policies)
+          ? rec.policies.filter((p): p is string => typeof p === 'string')
+          : [];
+        ketQua[`Phân quyền ${NHAN_CONFIG_NAME[cn] ?? cn}`] = policies.length
+          ? policies.join(', ')
+          : '(trống)';
+      }
+      return ketQua;
+    };
+    const prev = laDoiTuongNhan(meta.previousVersion)
+      ? (meta.previousVersion as Record<string, unknown>)
+      : {};
+    const cur = laDoiTuongNhan(meta.currentVersion)
+      ? (meta.currentVersion as Record<string, unknown>)
+      : {};
+    const prevPolicies = docDanhSach(prev.configPolicies);
+    const curPolicies = docDanhSach(cur.configPolicies);
+    const before: Record<string, unknown> = {};
+    const after: Record<string, unknown> = {};
+    for (const k of new Set([
+      ...Object.keys(prevPolicies),
+      ...Object.keys(curPolicies),
+    ])) {
+      if (prevPolicies[k] !== curPolicies[k]) {
+        if (prevPolicies[k] !== undefined) before[k] = prevPolicies[k];
+        if (curPolicies[k] !== undefined) after[k] = curPolicies[k];
+      }
+    }
+    const note = !Object.keys(before).length && !Object.keys(after).length
+      ? 'Không có thay đổi phân quyền giữa hai phiên bản.'
+      : undefined;
+    return { targetName, before, after, note };
+  }
+
+  const prevInput = laDoiTuongNhan(meta.previousVersion)
+    ? (meta.previousVersion as Record<string, unknown>).inputValue
+    : undefined;
+  const curInput = laDoiTuongNhan(meta.currentVersion)
+    ? (meta.currentVersion as Record<string, unknown>).inputValue
+    : undefined;
+  const ketQua = diffConfigBlobs(prevInput, curInput);
+  const coChiTiet = !!Object.keys(ketQua.before).length || !!Object.keys(ketQua.after).length;
+  // Log cũ (BE chưa từng ghi metadata phiên bản) vs lưu trùng nội dung hoàn toàn
+  const note = !coChiTiet
+    ? (laDoiTuongNhan(meta.previousVersion) || laDoiTuongNhan(meta.currentVersion)
+        ? 'Không có thay đổi nội dung so với phiên bản trước.'
+        : 'Log cũ — không lưu chi tiết thay đổi.')
+    : undefined;
+  return { targetName, before: ketQua.before, after: ketQua.after, note };
+}
+
 // ── main mapper ───────────────────────────────────────────────────────────
 export function mapActivityLogServer(
   log: ActivityLogServerApi,
@@ -169,6 +265,29 @@ export function mapActivityLogServer(
     : log.resourceType === 'quotation'
       ? (resolvedName || metadataName)
       : (metadataName || resolvedName);
+
+  let beforeEntry = before;
+  let afterEntry = after;
+  let targetNameEntry = targetName;
+  let noteEntry: string | undefined = undefined;
+  if (log.resourceType === 'price_config') {
+    const priceConfigLog = xuLyPriceConfig(log);
+    targetNameEntry = priceConfigLog.targetName ?? targetName;
+    beforeEntry = priceConfigLog.before;
+    afterEntry = priceConfigLog.after;
+    noteEntry = priceConfigLog.note;
+    // Không có thay đổi nào đọc được → để undefined để dòng log không expand trống
+    if (
+      beforeEntry &&
+      afterEntry &&
+      !Object.keys(beforeEntry).length &&
+      !Object.keys(afterEntry).length
+    ) {
+      beforeEntry = undefined;
+      afterEntry = undefined;
+    }
+  }
+
   return {
     id: log.id,
     timestamp: log.createdAt,
@@ -178,9 +297,10 @@ export function mapActivityLogServer(
     action: phanTichActionReviewQuotation(log),
     targetType: chuyenResourceType(log.resourceType),
     targetId: log.resourceId ?? '',
-    targetName,
-    before,
-    after,
+    targetName: targetNameEntry,
+    before: beforeEntry,
+    after: afterEntry,
+    note: noteEntry,
   };
 }
 

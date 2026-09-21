@@ -710,6 +710,9 @@ export default function ModuleNhatKy({
     if (menuDangChon === "nhat-ky-khach-hang") {
       return nhatKyHeThong.filter((e) => e.targetType === "customer");
     }
+    if (menuDangChon === "nhat-ky-cau-hinh") {
+      return nhatKyHeThong.filter((e) => e.targetType === "config");
+    }
     if (menuDangChon === "nhat-ky-he-thong") {
       return nhatKyHeThong.filter(
         (e) =>
@@ -1528,7 +1531,10 @@ export default function ModuleNhatKy({
                     key={entry.id}
                     entry={entry}
                     onOpen={openRelated}
-                    chiHienGiaTriMoi={menuDangChon === "nhat-ky-tinh-gia"}
+                    chiHienGiaTriMoi={
+                      menuDangChon === "nhat-ky-tinh-gia" ||
+                      menuDangChon === "nhat-ky-cau-hinh"
+                    }
                   />
                 ))}
               </ol>

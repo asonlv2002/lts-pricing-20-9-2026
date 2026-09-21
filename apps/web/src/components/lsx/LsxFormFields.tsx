@@ -647,7 +647,10 @@ export function LsxFormFields({ source, value: manual, onChange: setManual }: Ls
           <tr>
             <td style={styles.lbl}>Số:</td>
             <td style={styles.td}>
-              <TI value={manual.lsxNumber} onChange={v => upd('lsxNumber', v)} placeholder="2603.42" />
+              {/* Số LSX server cấp (versionByMonth) — chỉ đọc, không cho sửa tay */}
+              <div style={{ ...styles.input, background: '#f8fafc', color: manual.lsxNumber ? 'inherit' : '#94a3b8', fontStyle: manual.lsxNumber ? 'normal' : 'italic' }}>
+                {manual.lsxNumber || 'Số cấp tự động khi tạo'}
+              </div>
             </td>
           </tr>
           <tr>

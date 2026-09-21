@@ -13,7 +13,7 @@ function extractMsp(item: unknown): string {
 /**
  * Gen MSP dạng TP_###### từ danh sách LSX hiện có.
  * Quét manual.msp khớp /^TP_(\d+)/i, lấy max + 1, pad 6 chữ số.
- * Nhận ProductionOrder[] | LsxRow[] | string[] (giống genLSXNumber).
+ * Nhận ProductionOrder[] | LsxRow[] | string[].
  */
 export function genMsp(existing: readonly unknown[] = []): string {
   let max = MSP_DEFAULT_SEED;

@@ -69,9 +69,8 @@ import {
   capNhatBaoGiaService,
   taoPricingSheetService,
   xoaBaoGiaService,
-  layDanhSachBaoGiaService,
 } from "../lib/api/service-lts";
-import { docMaBaoGiaTuPhanTu, genMaBaoGia } from "../lib/bao-gia-ma";
+import { docMaBaoGiaTuPhanTu } from "../lib/bao-gia-ma";
 import { mapHistoryToPricingSheet } from "../lib/api/pricing-sheet-mapper";
 import {
   kiemTraMaKhachHang,
@@ -4328,16 +4327,13 @@ function TaoBaoGiaWizard({
           throw new Error("Không tạo được pricing sheet trên máy chủ.");
 
         // Bước 2: tạo quotation tham chiếu các pricing sheet.
-        const dsHienCo = await layDanhSachBaoGiaService(accessToken).catch(
-          () => [],
-        );
-        const maBaoGia = genMaBaoGia(dsHienCo);
+        // Mã báo giá do server cấp theo versionByMonth (BE b6028b0) — BG mới
+        // KHÔNG gen mã client-side; hiển thị derive từ orders (useOrdersQuoteCode).
         const created = await taoBaoGiaService(
           {
             customerCodeName: checkKH.maKhachHang,
             description: mergeGhiChu(terms) || undefined,
             inputValue: {
-              quoteCode: maBaoGia,
               vatRate: terms.vatRate,
               vatCylinderRate: terms.vatCylinderRate,
               validityDays: terms.validityDays,
@@ -4378,7 +4374,7 @@ function TaoBaoGiaWizard({
           throw new Error(
             "Báo giá đã tạo trên máy chủ nhưng không lấy được ID.",
           );
-        return { id: created.id, quoteCode: maBaoGia };
+        return { id: created.id, quoteCode: "" };
       } catch (e) {
         console.warn("Đồng bộ báo giá lên máy chủ thất bại:", e);
         throw e instanceof Error

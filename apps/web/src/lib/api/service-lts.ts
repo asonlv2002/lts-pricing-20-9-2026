@@ -2351,6 +2351,8 @@ export interface QuotationPricingSheetOrderApi {
   hasAdvisorApproved: boolean;
   /** Lý do từ chối/duyệt do advisor ghi (server trả qua order.reason). */
   reason?: string | null;
+  /** STT server cấp theo tháng (BE commit b6028b0) — dùng derive số LSX hiển thị. */
+  versionByMonth: number;
   inputValue: unknown | null;
   createdBy: string;
   approvedBy: string | null;

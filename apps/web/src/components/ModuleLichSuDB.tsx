@@ -530,7 +530,6 @@ function InfoRow({ label, value, mono, bold, color }: { label: string; value: st
 }
 
 type LsxEditDraft = {
-  lsxNumber: string;
   issuedDate: string;
   deliveryDate: string;
   preparedBy: string;
@@ -548,7 +547,6 @@ function LsxDetailPanel({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState<LsxEditDraft>({
-    lsxNumber: order.manual.lsxNumber,
     issuedDate: order.manual.issuedDate,
     deliveryDate: order.manual.deliveryDate,
     preparedBy: order.manual.preparedBy,
@@ -561,7 +559,6 @@ function LsxDetailPanel({
   const [closeAfterSave, setCloseAfterSave] = useState(false);
 
   const isDirty = editing && (
-    draft.lsxNumber !== order.manual.lsxNumber ||
     draft.issuedDate !== order.manual.issuedDate ||
     draft.deliveryDate !== order.manual.deliveryDate ||
     draft.preparedBy !== order.manual.preparedBy ||
@@ -572,7 +569,6 @@ function LsxDetailPanel({
 
   function buildPatch() {
     const manual: Partial<ProductionOrder['manual']> = {};
-    if (draft.lsxNumber !== order.manual.lsxNumber) manual.lsxNumber = draft.lsxNumber;
     if (draft.issuedDate !== order.manual.issuedDate) manual.issuedDate = draft.issuedDate;
     if (draft.deliveryDate !== order.manual.deliveryDate) manual.deliveryDate = draft.deliveryDate;
     if (draft.preparedBy !== order.manual.preparedBy) manual.preparedBy = draft.preparedBy;
@@ -646,7 +642,8 @@ function LsxDetailPanel({
         <div style={{ flex: 1, overflow: 'auto', padding: '16px' }}>
           {editing ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <input className="form-input" value={draft.lsxNumber} onChange={e => setDraft(d => ({ ...d, lsxNumber: e.target.value }))} placeholder="Số LSX" />
+              {/* Số LSX do server cấp (versionByMonth) — chỉ đọc, không cho sửa tay */}
+              <input className="form-input" value={order.manual.lsxNumber || ''} readOnly placeholder="Số LSX" style={{ background: 'var(--surface2, #f8f9fb)', color: 'var(--muted)' }} />
               <select className="form-input" value={draft.status} onChange={e => setDraft(d => ({ ...d, status: e.target.value as LSXStatus }))}>{LSX_STATUS_OPTIONS.map(s => <option key={s} value={s}>{LSX_STATUS_CONFIG[s].label}</option>)}</select>
               <input className="form-input" value={draft.issuedDate} onChange={e => setDraft(d => ({ ...d, issuedDate: e.target.value }))} placeholder="Ngày xuống LSX" />
               <input className="form-input" value={draft.deliveryDate} onChange={e => setDraft(d => ({ ...d, deliveryDate: e.target.value }))} placeholder="Ngày giao hàng" />
@@ -680,7 +677,7 @@ function LsxDetailPanel({
         <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', display: 'flex', gap: 8, flexWrap: 'wrap', background: 'var(--surface)' }}>
           {editing && <>
             <button className="btn btn-sm btn-primary" onClick={handleSave}>💾 Lưu</button>
-            <button className="btn btn-sm btn-outline" onClick={() => { setDraft({ lsxNumber: order.manual.lsxNumber, issuedDate: order.manual.issuedDate, deliveryDate: order.manual.deliveryDate, preparedBy: order.manual.preparedBy, approvedBy: order.manual.approvedBy, notes: order.manual.notes, status: order.status }); setEditing(false); }}>Huỷ</button>
+            <button className="btn btn-sm btn-outline" onClick={() => { setDraft({ issuedDate: order.manual.issuedDate, deliveryDate: order.manual.deliveryDate, preparedBy: order.manual.preparedBy, approvedBy: order.manual.approvedBy, notes: order.manual.notes, status: order.status }); setEditing(false); }}>Huỷ</button>
           </>}
         </div>
       </div>

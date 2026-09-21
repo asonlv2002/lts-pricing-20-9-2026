@@ -41,6 +41,7 @@ import {
   buildHistoryItemFromServerData,
 } from "../lib/baoGiaExport";
 import { docMaBaoGiaCuaBaoGia } from "../lib/bao-gia-label";
+import { useOrdersQuoteCode } from "../lib/useOrdersQuoteCode";
 import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
 import { layChuKyReviewerDataUrl } from "../lib/chu-ky";
 import { AvatarBlobImg } from "../lib/avatar-blob-cache";
@@ -134,7 +135,7 @@ function tenSanPham(bg: BaoGiaApi): string {
   return normalizeDisplayText(input.productName || "—");
 }
 
-function tuKhoaBaoGia(bg: BaoGiaApi): string {
+function tuKhoaBaoGia(bg: BaoGiaApi, orders?: Parameters<typeof docMaBaoGiaCuaBaoGia>[1]): string {
   const pricingText = (bg.pricingSheets ?? [])
     .map((sheet) => {
       const input = docInputBangTinh(sheet.inputValue);
@@ -149,7 +150,7 @@ function tuKhoaBaoGia(bg: BaoGiaApi): string {
         .join(" ");
     })
     .join(" ");
-  return boDau(`${docMaBaoGiaCuaBaoGia(bg)} ${tenBaoGia(bg)} ${tenKhachHang(bg)} ${pricingText}`);
+  return boDau(`${docMaBaoGiaCuaBaoGia(bg, orders)} ${tenBaoGia(bg)} ${tenKhachHang(bg)} ${pricingText}`);
 }
 
 function nguoiTaoBaoGia(bg: BaoGiaApi): string | undefined {
@@ -181,6 +182,7 @@ export default function ModuleDuyetBaoGia({
 }) {
   const accessToken = dungCuaHangTinhGia((s) => s.accessToken);
   const isAuthenticated = dungCuaHangTinhGia((s) => s.isAuthenticated);
+  const ordersTheoQuotation = useOrdersQuoteCode();
   const nguoiDung = dungCuaHangTinhGia((s) => s.nguoiDungHienTai);
   const datBaoGiaDangSua = dungCuaHangTinhGia((s) => s.datBaoGiaDangSua);
   const datNguonWizard = dungCuaHangTinhGia((s) => s.datNguonWizard);
@@ -277,10 +279,10 @@ export default function ModuleDuyetBaoGia({
     return danhSach.filter((bg) => {
       const tt = chuyenTrangThaiBaoGia(bg.updateStatus);
       if (nguon === "list" && !thuocBoLoc(tt, boLoc)) return false;
-      if (q && !tuKhoaBaoGia(bg).includes(q)) return false;
+      if (q && !tuKhoaBaoGia(bg, ordersTheoQuotation[bg.id]).includes(q)) return false;
       return true;
     });
-  }, [danhSach, tuKhoa, boLoc, nguon]);
+  }, [danhSach, tuKhoa, boLoc, nguon, ordersTheoQuotation]);
 
   const hienThongBao = useCallback((msg: string) => {
     datThongBao(msg);
@@ -562,7 +564,7 @@ export default function ModuleDuyetBaoGia({
     const handleXemBaoGia = async (e: React.MouseEvent) => {
       e.stopPropagation();
       setDangXemBgId(bg.id);
-      const item = buildHistoryItemFromServerData(bg as any);
+      const item = buildHistoryItemFromServerData(bg as any, ordersTheoQuotation[bg.id]);
       const customerName = (item.customer ||
         bg.pricingSheets?.[0]?.customer?.codeName ||
         "") as string;
@@ -966,7 +968,7 @@ export default function ModuleDuyetBaoGia({
                           </button>
                           <div className="qrev-cell-quote-text">
                             <span className="qrev-cell-name" style={{ fontFamily: "monospace" }}>
-                              {docMaBaoGiaCuaBaoGia(bg) || "—"}
+                              {docMaBaoGiaCuaBaoGia(bg, ordersTheoQuotation[bg.id]) || "—"}
                             </span>
                             <span className="qrev-cell-sub">
                               {tenKhachHang(bg)}
@@ -1022,7 +1024,7 @@ export default function ModuleDuyetBaoGia({
                   <article className="qrev-mcard" onClick={() => toggleExpand(bg)}>
                     <div className="qrev-mcard-r1">
                       <span className="qrev-mcard-code">
-                        {docMaBaoGiaCuaBaoGia(bg) || "—"}
+                        {docMaBaoGiaCuaBaoGia(bg, ordersTheoQuotation[bg.id]) || "—"}
                       </span>
                       {!dangCoNutDuyet && trangThai === "approved" && (
                         <span className="qrev-mstatus qrev-mstatus--ok">● Đã duyệt</span>

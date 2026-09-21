@@ -17,6 +17,7 @@ import {
 import { useCalculatorStore } from '../../store/CuaHangTinhGia';
 import { laBaoGiaDaDuyet } from '../../lib/bao-gia-adapter';
 import { docMaBaoGiaCuaBaoGia } from '../../lib/bao-gia-label';
+import { useOrdersQuoteCode } from '../../lib/useOrdersQuoteCode';
 import { boDau } from './BuocChonKhachHang';
 
 interface CustomerLite {
@@ -104,6 +105,7 @@ export function BuocChonBaoGiaVaTinhGia({
 }: BuocChonBaoGiaVaTinhGiaProps) {
   const accessToken = useCalculatorStore((s) => s.accessToken);
   const isAuthenticated = useCalculatorStore((s) => s.isAuthenticated);
+  const ordersTheoQuotation = useOrdersQuoteCode();
 
   const [danhSach, setDanhSach] = useState<BaoGiaApi[]>([]);
   const [dangTai, setDangTai] = useState(false);
@@ -133,12 +135,12 @@ export function BuocChonBaoGiaVaTinhGia({
     if (!q) return dsBgChoKH;
     return dsBgChoKH.filter((bg) => {
       const tenKh = layTenKhachHangCuaBg(bg);
-      return boDau(docMaBaoGiaCuaBaoGia(bg)).includes(q)
+      return boDau(docMaBaoGiaCuaBaoGia(bg, ordersTheoQuotation[bg.id])).includes(q)
         || boDau(bg.quotationName || '').includes(q)
         || boDau(tenKh).includes(q)
         || boDau(bg.id).includes(q);
     });
-  }, [dsBgChoKH, tuKhoa]);
+  }, [dsBgChoKH, tuKhoa, ordersTheoQuotation]);
 
   const bgDangChon = useMemo(
     () => (selectedBgId ? bangDo.get(selectedBgId) || null : null),
@@ -167,7 +169,7 @@ export function BuocChonBaoGiaVaTinhGia({
       : {}) as Record<string, unknown>;
     const productName = sheet?.pricingSheetName
       || (typeof input.productName === 'string' ? input.productName : '—');
-    const tenBg = (bgFromList ? docMaBaoGiaCuaBaoGia(bgFromList) : '')
+    const tenBg = (bgFromList ? docMaBaoGiaCuaBaoGia(bgFromList, ordersTheoQuotation[bgFromList.id]) : '')
       || bgFromList?.quotationName
       || (selectedBgId ? `BG-${selectedBgId.slice(0, 8)}` : '—');
     return (
@@ -247,7 +249,7 @@ export function BuocChonBaoGiaVaTinhGia({
                 >
                   <div className="wiz-customer-icon"><FileText size={18} /></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="wiz-customer-name">{docMaBaoGiaCuaBaoGia(bg) || bg.quotationName || `BG-${bg.id.slice(0, 8)}`}</div>
+                    <div className="wiz-customer-name">{docMaBaoGiaCuaBaoGia(bg, ordersTheoQuotation[bg.id]) || bg.quotationName || `BG-${bg.id.slice(0, 8)}`}</div>
                     <div className="wiz-customer-meta" style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px', alignItems: 'center' }}>
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                         <Calendar size={11} />

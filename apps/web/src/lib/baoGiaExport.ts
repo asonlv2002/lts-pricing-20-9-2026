@@ -16,6 +16,7 @@ import {
   paginateQuoteGroupsByPageHeight,
 } from "./bao-gia-pagination";
 import { docMaBaoGiaTuPhanTu } from "./bao-gia-ma";
+import { quoteCodeTuBaoGia, type OrderCoPhienBan } from "@lts/bang-tinh-gia";
 
 function dinhDangSo(n: number | null | undefined) {
   const v = Number(n);
@@ -1364,6 +1365,7 @@ interface BaoGiaApiLoose {
 
 export function buildHistoryItemFromServerData(
   bg: BaoGiaApiLoose,
+  orders?: readonly OrderCoPhienBan[] | null,
 ): Partial<HistoryItem> & {
   date?: string;
   quoteCode?: string;
@@ -1444,7 +1446,8 @@ export function buildHistoryItemFromServerData(
   const dateStr = bg.createdAt
     ? new Date(bg.createdAt).toLocaleDateString("vi-VN")
     : "";
-  const quoteCode = docMaBaoGiaTuPhanTu(bg) || "";
+  // Ưu tiên derive từ orders server (BE b6028b0); fallback quoteCode cũ lưu trong inputValue.
+  const quoteCode = quoteCodeTuBaoGia(bg, orders) || docMaBaoGiaTuPhanTu(bg) || "";
 
   return {
     customer,

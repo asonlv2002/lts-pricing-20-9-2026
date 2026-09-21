@@ -20,13 +20,14 @@ import type {
   PricingSheetApi,
 } from './api/service-lts';
 import type { LsxLocalStatus } from './types';
+import { soLsxTuOrder } from '@lts/bang-tinh-gia';
 
 /** Row don gian cho table list view. */
 export interface LsxRow {
   orderId: string;
   quotationId: string;
   pricingSheetId: string;
-  lsxNumber: string;          // Lay tu inputValue.lsxNumber neu co, fallback ''
+  lsxNumber: string;          // Ép derive: YYMM(createdAt VN) . versionByMonth (BE b6028b0)
   customerName: string;       // Lay tu pricingSheet.customer?.name hoac quotation.customerId
   productName: string;        // Lay tu pricingSheet.pricingSheetName hoac inputValue.productName
   structure: string;          // Lay tu pricingSheet inputValue
@@ -114,7 +115,11 @@ export function mapServerOrdersToLsxRows(
         orderId: order.id,
         quotationId: order.quotationId,
         pricingSheetId: order.pricingSheetId,
-        lsxNumber: docString(lsxInput?.lsxNumber),
+        // Ép derive từ versionByMonth (BE b6028b0) làm chân lý; inputValue.lsxNumber
+        // chỉ là phương án dự phòng khi order thiếu STT (dữ liệu lỗi).
+        lsxNumber:
+          soLsxTuOrder({ createdAt: order.createdAt, versionByMonth: order.versionByMonth })
+          || docString(lsxInput?.lsxNumber),
         customerName: sheet?.customer?.codeName || sheet?.customerCodeName || q.customerId || '—',
         productName: sheet?.pricingSheetName || docString(input?.productName, '—'),
         structure: docString(input?.structure, ''),

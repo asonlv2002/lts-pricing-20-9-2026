@@ -8,10 +8,11 @@ import { createAuditSlice, AuditSlice } from './slices/audit';
 import { createVersioningSlice, VersioningSlice } from './slices/versioning';
 import { createConfigVersioningSlice, ConfigVersioningSlice } from './slices/configVersioning';
 import { createQuoteCodeSlice, QuoteCodeSlice } from './slices/quote-code';
+import { createOrdersCacheSlice, OrdersCacheSlice } from './slices/orders-cache';
 import { createAuthSlice, AuthSlice } from './slices/auth';
 import { createSystemMetricsSlice, SystemMetricsSlice } from './slices/system-metrics';
 
-export type CuaHangTinhGia = UISlice & CalculationSlice & HistorySlice & OverrideSlice & ProductionOrderSlice & AuditSlice & VersioningSlice & ConfigVersioningSlice & QuoteCodeSlice & AuthSlice & SystemMetricsSlice;
+export type CuaHangTinhGia = UISlice & CalculationSlice & HistorySlice & OverrideSlice & ProductionOrderSlice & AuditSlice & VersioningSlice & ConfigVersioningSlice & QuoteCodeSlice & OrdersCacheSlice & AuthSlice & SystemMetricsSlice;
 
 export const dungCuaHangTinhGia = create<CuaHangTinhGia>((...a) => ({
   ...createUISlice(...a),
@@ -23,6 +24,7 @@ export const dungCuaHangTinhGia = create<CuaHangTinhGia>((...a) => ({
   ...createVersioningSlice(...a),
   ...createConfigVersioningSlice(...a),
   ...createQuoteCodeSlice(...a),
+  ...createOrdersCacheSlice(...a),
   ...createAuthSlice(...a),
   ...createSystemMetricsSlice(...a),
 }));

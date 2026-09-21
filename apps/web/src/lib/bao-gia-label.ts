@@ -1,5 +1,6 @@
 import type { BaoGiaApi } from "./api/service-lts";
 import { docMaBaoGiaTuPhanTu } from "./bao-gia-ma";
+import { quoteCodeTuBaoGia, type OrderCoPhienBan } from "@lts/bang-tinh-gia";
 import { normalizeDisplayText } from "./text-codec";
 
 function laObject(value: unknown): value is Record<string, unknown> {
@@ -30,20 +31,27 @@ export function layTenKhachHangCuaBaoGia(bg: BaoGiaApi): string {
 }
 
 /**
- * Mã báo giá YYMM.STT lưu trong inputValue.quoteCode.
- * Báo giá cũ chưa có mã → chuỗi rỗng (UI hiện "—").
+ * Mã báo giá hiển thị. Ưu tiên derive từ orders (YYMM(createdAt BG) . STT =
+ * versionByMonth order đầu tiên — BE b6028b0); BG chưa có LSX → quoteCode cũ
+ * lưu trong inputValue.quoteCode; không có → chuỗi rỗng (UI hiện "—").
  */
-export function docMaBaoGiaCuaBaoGia(bg: BaoGiaApi): string {
-  return sach(docMaBaoGiaTuPhanTu(bg));
+export function docMaBaoGiaCuaBaoGia(
+  bg: BaoGiaApi,
+  orders?: readonly OrderCoPhienBan[] | null,
+): string {
+  return sach(quoteCodeTuBaoGia(bg, orders) || docMaBaoGiaTuPhanTu(bg));
 }
 
 /**
- * Mã/định danh báo giá thương mại. Ưu tiên quoteCode (YYMM.STT),
+ * Mã/định danh báo giá thương mại. Ưu tiên derive (trên), rồi quoteCode cũ,
  * rồi quotationName / description, cuối cùng fallback "BG-<8 ký tự đầu id>".
  */
-export function layMaBaoGiaCuaBaoGia(bg: BaoGiaApi): string {
+export function layMaBaoGiaCuaBaoGia(
+  bg: BaoGiaApi,
+  orders?: readonly OrderCoPhienBan[] | null,
+): string {
   return (
-    docMaBaoGiaCuaBaoGia(bg) ||
+    docMaBaoGiaCuaBaoGia(bg, orders) ||
     sach(bg.quotationName || bg.description) ||
     `BG-${bg.id.slice(0, 8)}`
   );

@@ -19,6 +19,7 @@ import { LsxFormFields } from './LsxFormFields';
 import LsxPreviewModal from '../LsxPreviewModal';
 import LsxPdfPreviewModal from '../LsxPdfPreviewModal';
 import { buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue, backfillQuyCachCuon, backfillChieuRaCuonMang, sourceTuSnapshot } from '../../lib/lsx-build-order';
+import { soLsxTuOrder } from '@lts/bang-tinh-gia';
 import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../../lib/chu-ky';
 
 export interface SlidePanelLsxEditProps {
@@ -125,11 +126,17 @@ export function SlidePanelLsxEdit({ order, quotation, onClose, onSaved }: SlideP
   } = useCalculatorStore();
 
   const [manual, setManual] = useState<LSXManualFields>(() => {
+    // Ép derive: số LSX luôn từ versionByMonth server (BE b6028b0).
+    const soDerived = soLsxTuOrder({ createdAt: order.createdAt, versionByMonth: order.versionByMonth });
     if (order.inputValue && typeof order.inputValue === 'object') {
       const { lsxSnapshot: _bo, ...manualTuServer } = order.inputValue as Record<string, unknown> & { lsxSnapshot?: unknown };
-      return { ...defaultManual(), ...(manualTuServer as Partial<LSXManualFields>) };
+      return {
+        ...defaultManual(),
+        ...(manualTuServer as Partial<LSXManualFields>),
+        lsxNumber: soDerived || (manualTuServer as Partial<LSXManualFields>).lsxNumber || '',
+      };
     }
-    return defaultManual();
+    return { ...defaultManual(), lsxNumber: soDerived };
   });
   const [dangXuLy, setDangXuLy] = useState(false);
   const [dangXem, setDangXem] = useState(false);

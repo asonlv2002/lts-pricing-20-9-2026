@@ -318,6 +318,12 @@ const CAC_NHOM_MENU: NhomMenu[] = [
         label: "Lãi vay công nợ",
         vaiTros: [],
       },
+      {
+        key: "nhat-ky-cau-hinh",
+        id: "audit_log",
+        label: "Nhật ký thao tác",
+        vaiTros: [],
+      },
     ],
   },
   {
@@ -710,6 +716,17 @@ const MOBILE_HUBS: Record<string, MobileHubConfig> = {
           type: "module",
           key: "cau-hinh-lai-vay",
           module: "master_data",
+        },
+      },
+      {
+        title: "Nhật ký thao tác",
+        subtitle: "Theo dõi thay đổi cấu hình tính giá.",
+        tone: "orange",
+        icon: <ClipboardList size={30} />,
+        action: {
+          type: "module",
+          key: "nhat-ky-cau-hinh",
+          module: "audit_log",
         },
       },
     ],

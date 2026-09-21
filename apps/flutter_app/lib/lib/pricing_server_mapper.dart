@@ -15,6 +15,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 import '../api/service_lts_client.dart';
 import '../engine/models.dart';
+import 'lsx_so.dart';
 
 class PricingServerMapper {
   // ── PricingSheetApi → HistoryItem (cho LichSuScreen UI không đổi) ────────
@@ -61,6 +62,14 @@ class PricingServerMapper {
     QuotationPricingSheetOrderApi order,
   ) {
     final iv = order.inputValue ?? const <String, dynamic>{};
+    // Ép derive số LSX từ versionByMonth (BE b6028b0); giữ số cũ trong
+    // inputValue nếu order chưa có STT (dữ liệu lỗi).
+    final manual = Map<String, dynamic>.from(iv);
+    final soDerive = soLsxTuOrder(OrderCoPhienBan(
+      createdAt: order.createdAt,
+      versionByMonth: order.versionByMonth,
+    ));
+    if (soDerive.isNotEmpty) manual['lsxNumber'] = soDerive;
     return ProductionOrder(
       id: order.id,
       quoteId: order.quotationId,
@@ -68,7 +77,7 @@ class PricingServerMapper {
       status: order.hasAdvisorApproved
           ? 'approved'
           : (order.hasPrintedOrder ? 'printed' : 'created'),
-      manual: iv,
+      manual: manual,
       snapshot: iv,
     );
   }

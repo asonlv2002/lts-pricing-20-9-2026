@@ -22,7 +22,9 @@ import { mapBaoGiaToLsxSources } from '../../lib/bao-gia-adapter';
 import { classifyLsxBagType } from '../../lib/lsx-bag-classification';
 import { themChuKyVaoManual, layChuKyReviewerDataUrl } from '../../lib/chu-ky';
 import { buildManualFromSource, buildProductionOrderFromSource, buildSnapshotFromSource, ganLsxSnapshotVaoInputValue, lsxSnapshotTuInputValue, sourceTuSnapshot } from '../../lib/lsx-build-order';
+import { soLsxTuOrder } from '@lts/bang-tinh-gia';
 import { mapServerOrdersToLsxRows } from '../../lib/lsx-server-adapter';
+import { useOrdersQuoteCode } from '../../lib/useOrdersQuoteCode';
 import { LsxFormFields } from '../lsx/LsxFormFields';
 import LsxPreviewModal from '../LsxPreviewModal';
 import LsxPdfPreviewModal from '../LsxPdfPreviewModal';
@@ -117,6 +119,7 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
     lsxDangSua, datLsxDangSua,
     lsxTaoTuSheet, datLsxTaoTuSheet,
   } = useCalculatorStore();
+  const ordersTheoQuotation = useOrdersQuoteCode();
 
   const dangSua = !!lsxDangSua;
   const dangPrefillTuSheet = !!lsxTaoTuSheet;
@@ -182,7 +185,13 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
 
     if (order.inputValue && typeof order.inputValue === 'object') {
       const { lsxSnapshot: _bo, ...manualTuServer } = order.inputValue as Record<string, unknown> & { lsxSnapshot?: unknown };
-      setManual(manualTuServer as unknown as LSXManualFields);
+      // Ép derive: số LSX luôn từ versionByMonth server (BE b6028b0),
+      // bỏ qua số cũ lưu trong inputValue.
+      const soDerived = soLsxTuOrder({ createdAt: order.createdAt, versionByMonth: order.versionByMonth });
+      setManual({
+        ...(manualTuServer as unknown as LSXManualFields),
+        lsxNumber: soDerived || (manualTuServer as { lsxNumber?: string }).lsxNumber || '',
+      });
     } else if (liveSrc) {
       const bagType = classifyLsxBagType(liveSrc.input.bagType, liveSrc.input.hasZipper);
       let cancelled = false;
@@ -301,8 +310,11 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
         .filter((o) => o.pricingSheetId === sheetDangChon.id)
         .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
       if (!newOrder) throw new Error('Server không trả về order mới');
+      // Số LSX server cấp (versionByMonth) — không dùng số client gen trước đó.
+      const soLsxServer = soLsxTuOrder({ createdAt: newOrder.createdAt, versionByMonth: newOrder.versionByMonth });
       const finalManual: LSXManualFields = {
         ...manual,
+        lsxNumber: soLsxServer || manual.lsxNumber,
         msp: manual.msp?.trim() || (newOrder.id),
         tenSP: manual.tenSP?.trim() || source.productName || '',
       };
@@ -442,7 +454,7 @@ export function TaoLsxWizard({ onSuccessNavigate }: TaoLsxWizardProps) {
 
   function handleXemBg() {
     if (!bgDangChon) return;
-    const item = buildHistoryItemFromServerData(bgDangChon as any) as HistoryItem;
+    const item = buildHistoryItemFromServerData(bgDangChon as any, ordersTheoQuotation[bgDangChon.id]) as HistoryItem;
     let customerInfo: {
       address?: string;
       taxCode?: string;

@@ -1520,6 +1520,8 @@ class QuotationPricingSheetOrderApi {
   final bool hasPrintedOrder;
   final bool hasAdvisorApproved;
   final String? reason;
+  /// STT server cấp theo tháng (BE b6028b0) — dùng derive số LSX hiển thị.
+  final int versionByMonth;
   final Map<String, dynamic>? inputValue;
   final String createdBy;
   final String? approvedBy;
@@ -1535,6 +1537,7 @@ class QuotationPricingSheetOrderApi {
     required this.hasPrintedOrder,
     required this.hasAdvisorApproved,
     this.reason,
+    this.versionByMonth = 0,
     this.inputValue,
     required this.createdBy,
     this.approvedBy,
@@ -1556,6 +1559,7 @@ class QuotationPricingSheetOrderApi {
       hasPrintedOrder: j['hasPrintedOrder'] == true,
       hasAdvisorApproved: j['hasAdvisorApproved'] == true,
       reason: j['reason']?.toString(),
+      versionByMonth: (j['versionByMonth'] as num?)?.toInt() ?? 0,
       inputValue: j['inputValue'] is Map
           ? (j['inputValue'] as Map).cast<String, dynamic>()
           : null,
