@@ -1316,9 +1316,9 @@ function tinhNangCaoSpecTuStore(state: ReturnType<typeof dungCuaHangTinhGia.getS
   if (!state.cheDoNangCao || !state.result) return undefined;
   // TM không có đặc tả nâng cao — chặn cờ cheDoNangCao lệch graft spec rác vào sheet TM.
   if (state.input.pricingMode === 'commercial') return undefined;
-  const overrides = Object.keys(state.adminOverrides || {}).length > 0
-    ? state.adminOverrides
-    : state.saleOverrides;
+  // Quy ước 2026-09-21: snap cho LSX = bảng đặc tả GỐC (engine + neo chia) —
+  // KHÔNG áp ghi đè Sale/Admin. Bảng thay đổi chỉ phục vụ GIÁ; khổ/TP/PH trên
+  // LSX phải khớp bảng đặc tả nâng cao hiển thị trên màn hình.
   // Snap phải đi cùng bước chuẩn hóa của bảng đặc tả trên màn hình
   // (chuanBiUniRowsNangCao — neo cut + lan ÷N ngược dòng khi túi có chia):
   // trước đây snap lấy uniRows thô từ engine nên thành phẩm In/Ghép lệch ~N lần
@@ -1327,14 +1327,12 @@ function tinhNangCaoSpecTuStore(state: ReturnType<typeof dungCuaHangTinhGia.getS
     uniRows: lapDongSanXuat(state.result, state.constants).uniRows,
     result: state.result,
     hangSo: state.constants,
-    activeOv: overrides,
   });
   return buildNangCaoSpecFromPricing(
     state.result,
     uniChuan,
     state.constants,
     state.materials,
-    overrides,
   );
 }
 
