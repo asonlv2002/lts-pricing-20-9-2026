@@ -36,6 +36,8 @@ export interface HistorySlice {
   loadHistoryItem: (id: string) => void;
   /** Mở sheet + pin config theo priceConfigIds (await). */
   moBangTinhVoiPin: (id: string) => Promise<boolean>;
+  /** Mở bảng tính trực tiếp từ HistoryItem trong memory (không cần nằm trong history) — dùng cho sản phẩm wizard báo giá đã sao chép / chưa sync. */
+  moBangTinhTuHistoryItem: (item: HistoryItem) => Promise<boolean>;
   taiBangTinhTuServer: (pricingSheetId: string) => Promise<boolean>;
   taiLichSuTuServer: () => Promise<boolean>;
   updateQuoteStatus: (id: string, status: QuoteStatus) => void;
@@ -278,6 +280,78 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       pricingEntry: 'form' as const,
       isDirty: false,
       loadedHistoryId: item.id,
+      cheDoNangCao: laNangCap,
+      cheDoThuongMai: laThuongMai,
+      saleOverrides: item.saleOverrides ?? {},
+      adminOverrides: item.adminOverrides ?? {},
+      saleProfitRatePct: item.saleProfitRatePct ?? 0,
+      adminProfitRatePct: item.adminProfitRatePct ?? 0,
+      showSaleOverrides: !!item.saleOverrides && Object.keys(item.saleOverrides).length > 0,
+      showAdminOverrides: !!item.adminOverrides && Object.keys(item.adminOverrides).length > 0,
+      originalCustomerLoaded: item.originalCustomer ?? timMaKhachHang(item.customer) ?? null,
+    });
+    return true;
+  },
+
+  moBangTinhTuHistoryItem: async (item) => {
+    if (!item?.input?.productType) return false;
+    const state = get();
+
+    const laThuongMai = !!(
+      item.isThuongMai || item.input?.pricingMode === 'commercial'
+    );
+    // Item TM nhiễm cờ isNangCap (bug lưu lệch cờ cũ) → TM không chạy bảng
+    // đặc tả nâng cao; ép false để không tính lại giá qua tinhKetQuaNangCaoHieuLuc.
+    const laNangCap = !!(item.isNangCap || item.input?.isNangCap) && !laThuongMai;
+
+    // Pin TRƯỚC khi tính result — nâng cao/thường cùng dùng constants đã ghim.
+    const pinIds = (item.priceConfigIds ?? []).map((x) => String(x).trim()).filter(Boolean);
+    let pinCpsxTuCtx = item.pinnedCpsxNangCao;
+    if (pinIds.length && state.accessToken) {
+      try {
+        const configs = await layConfigsTheoIdsCoCache(pinIds, state.accessToken);
+        if (configs.length) {
+          const fallback = {
+            materials: state.sessionConfigSnapshot?.materials ?? state.materials,
+            constants: state.sessionConfigSnapshot?.constants ?? state.constants,
+            profitTable: state.sessionConfigSnapshot?.profitTable ?? state.profitTable,
+            smallWidthPrices: state.sessionConfigSnapshot?.smallWidthPrices ?? state.smallWidthPrices,
+          };
+          const ctx = xayEngineCtxTuPriceConfigs(configs, fallback, pinIds);
+          get().applyPinnedConfig(ctx, pinIds);
+          const snapNc = trichCpsxNangCao(ctx.constants);
+          if (snapNc) pinCpsxTuCtx = snapNc;
+        } else {
+          console.warn('Pin priceConfigIds không tải được config, dùng session:', pinIds);
+          get().restoreSessionConfig();
+        }
+      } catch (e) {
+        console.warn('Không tải được price-config pin, dùng session:', e);
+        get().restoreSessionConfig();
+      }
+    } else {
+      get().restoreSessionConfig();
+    }
+
+    const s = get();
+    const hangSoSheet = pinCpsxTuCtx
+      ? apCpsxNangCaoVaoHangSo(s.constants, pinCpsxTuCtx)
+      : s.constants;
+    const synced = dongBoCotLoiNhuan({ ...item.input }, s.materials);
+    set({
+      dauVao: synced,
+      input: { ...synced, isNangCap: laNangCap || undefined },
+      constants: hangSoSheet,
+      result: tinhBaoGia(synced, s.materials, hangSoSheet, s.profitTable, s.smallWidthPrices),
+      currentChotGia: item.input?.chotGia ?? item.chotGia ?? 0,
+      phanBoCongTy: item.input?.phanBoCongTy ?? 0,
+      donViPhanBo: item.input?.donViPhanBo ?? 'vnd',
+      activeView: 'manager' as const,
+      pricingEntry: 'form' as const,
+      isDirty: false,
+      // Item có thể KHÔNG nằm trong history (bản sao chép wizard) → không trỏ
+      // loadedHistoryId để "Lưu" tạo item mới thay vì cập nhật nhầm item khác.
+      loadedHistoryId: null,
       cheDoNangCao: laNangCap,
       cheDoThuongMai: laThuongMai,
       saleOverrides: item.saleOverrides ?? {},

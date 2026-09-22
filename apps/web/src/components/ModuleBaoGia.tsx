@@ -96,6 +96,7 @@ import {
 import BaoGiaPreviewModal from "./BaoGiaPreviewModal";
 import NhapPinDuyetModal from "./auth/NhapPinDuyetModal";
 import { useNhapPinPrompt, laHuyPin } from "../lib/useNhapPinPrompt";
+import { hienToast } from "../lib/toast";
 import { WIZARD_STYLES } from "./wizard/wizard-styles";
 import {
   coNhapBaoGia,
@@ -4173,8 +4174,28 @@ function TaoBaoGiaWizard({
       products: state.products,
       terms: state.terms,
     });
-    const ok = await dungCuaHangTinhGia.getState().moBangTinhVoiPin(product.historyItem.id);
-    if (!ok) return;
+    // Fallback chain: history local → server theo pricingSheetId → item trong
+    // memory (bản sao chép wizard có id mới / sheet server chưa vào history).
+    let ok = await dungCuaHangTinhGia.getState().moBangTinhVoiPin(
+      product.historyItem.id,
+    );
+    if (!ok && product.historyItem.pricingSheetId) {
+      ok = await dungCuaHangTinhGia
+        .getState()
+        .taiBangTinhTuServer(product.historyItem.pricingSheetId);
+    }
+    if (!ok) {
+      ok = await dungCuaHangTinhGia
+        .getState()
+        .moBangTinhTuHistoryItem(product.historyItem);
+    }
+    if (!ok) {
+      exitingRef.current = false;
+      hienToast("Không mở được bảng tính giá của sản phẩm này.", {
+        loai: "error",
+      });
+      return;
+    }
     dieuHuongMenuApp(menuKeyTinhGiaTheoItem(product.historyItem));
   };
 
