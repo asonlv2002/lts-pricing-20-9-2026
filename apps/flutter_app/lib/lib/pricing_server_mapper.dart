@@ -231,7 +231,161 @@ const Map<String, List<String>> _scopeConstantKeys = {
     'ghepWasteA', 'ghepWasteB', 'ghepWasteC',
     'cutWasteA', 'cutWasteB', 'cutWasteC',
   ],
+  'PROFIT': [],
+  'OUTSOURCE': [],
 };
+
+/// Thứ tự apply scope khi bootstrap (production trước PRODUCTION_UPGRADE —
+/// 4 key CPSX NC không bị production ghi đè nhầm, mirror web CAC_SCOPE_CAU_HINH).
+const List<String> thuTuApplyScope = [
+  'MATERIALS',
+  'PRODUCTION',
+  'PRODUCTION_UPGRADE',
+  'SURCHARGES',
+  'INTEREST',
+  'WASTE',
+  'PROFIT',
+];
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phiên bản cấu hình (P2 — mirror web configVersioning + price-config-mapper)
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Thông tin meta 1 phiên bản đọc từ blob inputValue (name/effectiveMode/
+/// effectiveFrom do frontend nhét cùng cấp scope data khi lưu).
+class ThongTinPhienBan {
+  final String name;
+  final String effectiveMode;
+  final String effectiveFrom;
+  const ThongTinPhienBan({
+    this.name = '',
+    this.effectiveMode = 'month',
+    this.effectiveFrom = '',
+  });
+}
+
+/// Đọc meta từ blob — thiếu effectiveFrom → fallback `createdAt` slice tháng.
+ThongTinPhienBan thongTinPhienBanTu(PriceConfigApi pc) {
+  final blob = pc.inputValue ?? const <String, dynamic>{};
+  final name = blob['name']?.toString() ?? '';
+  final mode = blob['effectiveMode']?.toString() ?? 'month';
+  var from = blob['effectiveFrom']?.toString() ?? '';
+  if (from.isEmpty && pc.createdAt.length >= 7) {
+    from = pc.createdAt.substring(0, 7);
+  }
+  return ThongTinPhienBan(name: name, effectiveMode: mode, effectiveFrom: from);
+}
+
+/// So sánh 2 bản «bản nào mới hơn» — mirror web chonPhienBanMoiNhat:
+/// version server desc → updatedAt/createdAt desc → effectiveFrom desc.
+int soSanhPhienBan(PriceConfigApi a, PriceConfigApi b) {
+  if (a.version != b.version) return b.version - a.version;
+  final ta = _thoiGianHopLe(a);
+  final tb = _thoiGianHopLe(b);
+  if (tb != ta) return tb.compareTo(ta);
+  final fa = thongTinPhienBanTu(a).effectiveFrom;
+  final fb = thongTinPhienBanTu(b).effectiveFrom;
+  return fb.compareTo(fa);
+}
+
+String _thoiGianHopLe(PriceConfigApi pc) {
+  final t = pc.createdAt.isNotEmpty ? pc.createdAt : '';
+  return t;
+}
+
+/// Sắp xếp danh sách phiên bản: bản mới nhất đứng đầu.
+List<PriceConfigApi> sapXepMoiNhatTruoc(List<PriceConfigApi> list) {
+  final sorted = List<PriceConfigApi>.of(list);
+  sorted.sort(soSanhPhienBan);
+  return sorted;
+}
+
+/// Trích dữ liệu 1 scope từ store hiện tại → blob để lưu (mirror web
+/// trichXuatDuLieuScope, price-config-mapper.ts:105 — không có smallWidthPrices).
+Map<String, dynamic> trichXuatDuLieuScope(
+  String configName,
+  List<MaterialDef> materials,
+  AppConstants constants,
+  List<ProfitRow> profitTable,
+) {
+  final result = <String, dynamic>{};
+  if (configName == 'MATERIALS') {
+    result['materials'] = materials.map((e) => e.toJson()).toList();
+    final keys = _scopeConstantKeys['MATERIALS']!;
+    for (final k in keys) {
+      result[k] = constants.raw[k];
+    }
+  } else if (configName == 'PROFIT') {
+    result['profitTable'] = profitTable.map((e) => e.toJson()).toList();
+  } else if (configName == 'OUTSOURCE') {
+    // Flutter chưa quản lý config gia công ngoài — bỏ trống.
+  } else {
+    final keys = _scopeConstantKeys[configName];
+    if (keys != null) {
+      for (final k in keys) {
+        result[k] = constants.raw[k];
+      }
+    }
+  }
+  return result;
+}
+
+/// Danh sách NVL từ blob (null nếu blob không có mảng materials).
+List<MaterialDef>? materialsTuBlob(Map<String, dynamic> blob) {
+  final list = blob['materials'];
+  if (list is! List) return null;
+  final parsed = <MaterialDef>[];
+  for (final e in list) {
+    if (e is! Map) continue;
+    try {
+      parsed.add(MaterialDef.fromJson(e.cast<String, dynamic>()));
+    } catch (_) {}
+  }
+  return parsed.isEmpty ? null : parsed;
+}
+
+/// Bảng lợi nhuận từ blob (null nếu không có mảng profitTable).
+List<ProfitRow>? profitTuBlob(Map<String, dynamic> blob) {
+  final rows = blob['profitTable'];
+  if (rows is! List) return null;
+  final parsed = <ProfitRow>[];
+  for (final e in rows) {
+    if (e is! Map) continue;
+    try {
+      parsed.add(ProfitRow.fromJson(e.cast<String, dynamic>()));
+    } catch (_) {}
+  }
+  return parsed.isEmpty ? null : parsed;
+}
+
+/// Các key constants thuộc [configName] có trong blob — CHỈ key non-null
+/// (key thiếu trên BE không được coi là "đã có", mirror web apDungDuLieuScope).
+Map<String, dynamic> constantsTuBlob(
+  String configName,
+  Map<String, dynamic> blob,
+) {
+  final out = <String, dynamic>{};
+  final keys = _scopeConstantKeys[configName] ?? const <String>[];
+  for (final k in keys) {
+    final v = blob[k];
+    if (v != null) out[k] = v;
+  }
+  return out;
+}
+
+/// Bổ sung NVL mặc định còn thiếu (mirror web boSungVatLieuMacDinhThieu):
+/// BE snapshot cũ chưa có NVL mới (vd PA nhiều màu) → chèn vào cuối list.
+/// Trả về list mới nếu có bổ sung, ngược lại trả về list gốc.
+List<MaterialDef> boSungVatLieuMacDinhThieu(
+  List<MaterialDef> hienTai,
+  List<MaterialDef> macDinh,
+) {
+  final ids = hienTai.map((e) => e.id).toSet();
+  final thieu =
+      macDinh.where((m) => !ids.contains(m.id)).toList();
+  if (thieu.isEmpty) return hienTai;
+  return [...hienTai, ...thieu];
+}
 
 /// Gán key từ blob lên constants — bỏ qua null/undefined (key thiếu trên BE
 /// không được coi là "đã có", tránh xóa data fallback).

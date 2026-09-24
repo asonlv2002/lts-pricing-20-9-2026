@@ -12,6 +12,10 @@ class MaterialPickerField extends StatelessWidget {
   final List<MaterialDef> materials;
   final ValueChanged<String?> onChanged;
   final IconData? icon;
+
+  /// Chọn theo nhóm (mirror web `GROUP_<nhóm>` + subselect độ dày).
+  /// Khi bật, dialog cho chọn nhóm trước, rồi chọn độ dày trong nhóm.
+  final bool theoNhom;
   const MaterialPickerField({
     super.key,
     required this.label,
@@ -19,6 +23,7 @@ class MaterialPickerField extends StatelessWidget {
     required this.materials,
     required this.onChanged,
     this.icon,
+    this.theoNhom = false,
   });
 
   MaterialDef? get _selected {
@@ -55,15 +60,26 @@ class MaterialPickerField extends StatelessWidget {
           InkWell(
             borderRadius: BorderRadius.circular(12),
             onTap: () async {
-              final picked = await showModalBottomSheet<String?>(
-                context: context,
-                isScrollControlled: true,
-                backgroundColor: Theme.of(context).colorScheme.surface,
-                builder: (_) => _MaterialPickerSheet(
-                  materials: materials,
-                  current: value,
-                ),
-              );
+              final bg = scheme.surface;
+              final picked = theoNhom
+                  ? await showModalBottomSheet<String?>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: bg,
+                      builder: (_) => _MaterialGroupSheet(
+                        materials: materials,
+                        current: value,
+                      ),
+                    )
+                  : await showModalBottomSheet<String?>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: bg,
+                      builder: (_) => _MaterialPickerSheet(
+                        materials: materials,
+                        current: value,
+                      ),
+                    );
               if (picked != '__cancel__') onChanged(picked);
             },
             child: Container(
@@ -359,6 +375,156 @@ class _MaterialRow extends StatelessWidget {
                 Icon(Icons.check_circle, color: scheme.primary, size: 20),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Chọn theo nhóm: chọn nhóm trước, rồi chọn độ dày ────────────────────────
+class _MaterialGroupSheet extends StatefulWidget {
+  final List<MaterialDef> materials;
+  final String? current;
+  const _MaterialGroupSheet({required this.materials, required this.current});
+
+  @override
+  State<_MaterialGroupSheet> createState() => _MaterialGroupSheetState();
+}
+
+class _MaterialGroupSheetState extends State<_MaterialGroupSheet> {
+  String? _nhom;
+
+  @override
+  void initState() {
+    super.initState();
+    // Nếu đang chọn 1 NVL thuộc nhóm → mở sẵn nhóm đó.
+    final cur = widget.materials
+        .cast<MaterialDef?>()
+        .firstWhere((m) => m?.id == widget.current, orElse: () => null);
+    _nhom = cur?.group;
+  }
+
+  List<String> get _tenNhom {
+    final set = <String>{};
+    for (final m in widget.materials) {
+      final g = m.group;
+      if (g != null && g.isNotEmpty && g != 'LLDPE' && g != 'custom') {
+        set.add(g);
+      }
+    }
+    return set.toList();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final nhom = _nhom;
+    if (nhom == null) {
+      return DraggableScrollableSheet(
+        expand: false,
+        initialChildSize: 0.7,
+        maxChildSize: 0.95,
+        minChildSize: 0.4,
+        builder: (_, controller) => Column(
+          children: [
+            const _SheetGrabber(),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: Row(
+                children: [
+                  Icon(Icons.category_outlined, color: scheme.primary),
+                  const SizedBox(width: 10),
+                  Text('Chọn nhóm vật liệu',
+                      style: Theme.of(context).textTheme.titleLarge),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView(
+                controller: controller,
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                children: [
+                  ..._tenNhom.map((g) => Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          title: Text(g,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w700)),
+                          trailing:
+                              Icon(Icons.chevron_right, color: scheme.primary),
+                          onTap: () => setState(() => _nhom = g),
+                        ),
+                      )),
+                  Card(
+                    child: ListTile(
+                      title: const Text('Khác (không theo nhóm)'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.pop(context, '__cancel__'),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final trongNhom = widget.materials
+        .where((m) => m.group == nhom)
+        .toList()
+      ..sort((a, b) => a.thickness.compareTo(b.thickness));
+    return DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.7,
+      maxChildSize: 0.95,
+      minChildSize: 0.4,
+      builder: (_, controller) => Column(
+        children: [
+          const _SheetGrabber(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 20, 8),
+            child: Row(
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => setState(() => _nhom = null),
+                ),
+                Text(nhom,
+                    style: Theme.of(context).textTheme.titleLarge),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              controller: controller,
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              itemCount: trongNhom.length,
+              itemBuilder: (ctx, i) => _MaterialRow(
+                m: trongNhom[i],
+                selected: trongNhom[i].id == widget.current,
+                onTap: () => Navigator.pop(context, trongNhom[i].id),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SheetGrabber extends StatelessWidget {
+  const _SheetGrabber();
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Container(
+        width: 40,
+        height: 4,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.outlineVariant,
+          borderRadius: BorderRadius.circular(2),
         ),
       ),
     );

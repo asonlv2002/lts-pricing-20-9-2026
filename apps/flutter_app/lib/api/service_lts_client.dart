@@ -124,6 +124,18 @@ String trichMessageTuBody(dynamic body) {
     final m = body['message'];
     if (m is List) return m.map((e) => e.toString()).join(', ');
     if (m is String) return m;
+    // NestJS ConflictException(payload) → message là object
+    // {pricingSheetNames: [...]} (BE price-config DELETE khi bản đang bị pin
+    // bởi pricing sheet) — web parse riêng tên sheet, Flutter render nguyên văn.
+    if (m is Map) {
+      final sheets = m['pricingSheetNames'];
+      if (sheets is List && sheets.isNotEmpty) {
+        return 'Phiên bản đang được dùng bởi bảng tính: '
+            '${sheets.map((e) => e.toString()).join(', ')}. '
+            'Hãy xóa hoặc đổi pin trên các bảng tính đó trước.';
+      }
+      return m.toString();
+    }
   }
   return '';
 }
@@ -1759,6 +1771,90 @@ Future<List<PriceConfigApi>> layPriceConfigTheoIdsService(
       .map((e) =>
           PriceConfigApi.fromJson((e as Map).cast<String, dynamic>()))
       .toList();
+}
+
+/// POST /price-config — tạo phiên bản mới cho 1 scope (mirror web
+/// upsertPriceConfigService, service-lts.ts:1805). BE tự tăng version.
+Future<PriceConfigApi> upsertPriceConfigService(
+  String token,
+  String configName,
+  Map<String, dynamic> inputValue,
+) async {
+  final data = await ServiceLtsClient.instance.goiService(
+    '/price-config',
+    method: 'POST',
+    body: {'configName': configName, 'inputValue': inputValue},
+    token: token,
+  );
+  return PriceConfigApi.fromJson((data as Map).cast<String, dynamic>());
+}
+
+/// GET /price-config/:configName — lịch sử phiên bản 1 scope (mirror web
+/// layLichSuPriceConfigService, service-lts.ts:1873).
+Future<List<PriceConfigApi>> layLichSuPriceConfigService(
+  String token,
+  String configName,
+) async {
+  final data = await ServiceLtsClient.instance.goiService(
+    '/price-config/${Uri.encodeComponent(configName)}',
+    token: token,
+  );
+  return ((data as List?) ?? const [])
+      .map((e) =>
+          PriceConfigApi.fromJson((e as Map).cast<String, dynamic>()))
+      .toList();
+}
+
+/// GET /price-config/latest-version — 1 bản mới nhất cho mỗi scope (mirror web
+/// layPriceConfigMoiNhatService, service-lts.ts:1819).
+Future<List<PriceConfigApi>> layPriceConfigMoiNhatService(String token) async {
+  final data = await ServiceLtsClient.instance.goiService(
+    '/price-config/latest-version',
+    token: token,
+  );
+  return ((data as List?) ?? const [])
+      .map((e) =>
+          PriceConfigApi.fromJson((e as Map).cast<String, dynamic>()))
+      .toList();
+}
+
+/// GET /price-config/production-upgrade/:version — CPSX nâng cao (mirror web
+/// layProductionUpgradePriceConfigService, service-lts.ts:1832).
+/// [version] = 'latest' hoặc số dương.
+Future<PriceConfigApi> layProductionUpgradePriceConfigService(
+  String token, [
+  Object version = 'latest',
+]) async {
+  final data = await ServiceLtsClient.instance.goiService(
+    '/price-config/production-upgrade/${Uri.encodeComponent(version.toString())}',
+    token: token,
+  );
+  return PriceConfigApi.fromJson((data as Map).cast<String, dynamic>());
+}
+
+/// PUT /price-config/production-upgrade — tạo version mới CPSX nâng cao
+/// (mirror web upsertProductionUpgradePriceConfigService, service-lts.ts:1844).
+Future<PriceConfigApi> upsertProductionUpgradePriceConfigService(
+  String token,
+  Map<String, dynamic> inputValue,
+) async {
+  final data = await ServiceLtsClient.instance.goiService(
+    '/price-config/production-upgrade',
+    method: 'PUT',
+    body: {'inputValue': inputValue},
+    token: token,
+  );
+  return PriceConfigApi.fromJson((data as Map).cast<String, dynamic>());
+}
+
+/// DELETE /price-config/:id — xóa 1 phiên bản. 409 = đang được pin bởi
+/// pricing-sheet (BE trả message kèm danh sách sheet — hiện nguyên văn).
+Future<void> xoaPriceConfigService(String token, String id) async {
+  await ServiceLtsClient.instance.goiService(
+    '/price-config/${Uri.encodeComponent(id)}',
+    method: 'DELETE',
+    token: token,
+  );
 }
 
 // ── Customers mở rộng (mirror web layChiTiet / managers / versions) ───────

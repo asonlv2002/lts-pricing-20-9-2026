@@ -203,6 +203,27 @@ class AppState extends ChangeNotifier {
   /// Input có thay đổi chưa lưu (dùng cho cảnh báo "Chưa lưu báo giá").
   bool isDirty = false;
 
+  // ── Phiên bản cấu hình (price-config, mirror web configVersioning) ──────
+  /// Đang bootstrap cấu hình từ server (GET /price-config/latest-version).
+  bool dangTaiCauHinh = false;
+  String? loiCauHinh;
+
+  /// Bản mới nhất mỗi scope (configName → PriceConfigApi) sau bootstrap.
+  Map<String, PriceConfigApi> phienBanMoiNhat = {};
+
+  bool dangLuuPhienBan = false;
+  /// Đang tải lịch sử phiên bản — THEO TỪNG scope. Cờ chung 1 bool trước đây
+  /// khiến scope mở nhanh sau scope khác bị skip fetch (hiện "Chưa có lịch sử"
+  /// nhầm dù BE có data).
+  final Set<String> _dangTaiLichSuPhienBanScope = {};
+  bool dangTaiLichSuPhienBan(String configName) =>
+      _dangTaiLichSuPhienBanScope.contains(configName);
+
+  /// Lịch sử phiên bản đã tải (configName → list, mới nhất đứng đầu).
+  Map<String, List<PriceConfigApi>> lichSuPhienBan = {};
+
+  int? _lanCuoiTaiCauHinh;
+
   int get soThongBaoChuaDoc => thongBaoList.where((t) => !t.daDoc).length;
 
   void themThongBao(String tieuDe, String loai) {
@@ -663,8 +684,207 @@ class AppState extends ChangeNotifier {
   }
 
   // ── Input updates ────────────────────────────────────────────────────────
+
+  /// Tổng phụ phí in (Nhũ + Phủ mờ + custom keys đã chọn) — mirror
+  /// `tinhPhuPhiIn` apps/web/src/store/slices/calculation.ts:65.
+  double _tinhPhuPhiIn(Map<String, dynamic> input) {
+    final daChon = (input['selectedPrintSurchargeKeys'] as List?)
+            ?.map((e) => e.toString())
+            .toSet() ??
+        const <String>{};
+    var tong = 0.0;
+    final customs = (constants.raw['customPrintSurcharges'] as List?) ?? const [];
+    for (final opt in customs) {
+      if (opt is! Map) continue;
+      if (daChon.contains(opt['key']?.toString())) {
+        tong += ((opt['price'] as num?) ?? 0).toDouble();
+      }
+    }
+    if (input['hasNhu'] == true) {
+      tong += ((constants.raw['nhuPrice'] as num?) ?? 0).toDouble();
+    }
+    if (input['hasMo'] == true) {
+      tong += ((constants.raw['moPrice'] as num?) ?? 0).toDouble();
+    }
+    return tong;
+  }
+
+  /// Trọng lượng thùng theo `boxOptionKey` — mirror `layTrongLuongThung`
+  /// apps/web/src/lib/engine.ts:35.
+  double _layTrongLuongThung(Map<String, dynamic> input) {
+    final key = input['boxOptionKey']?.toString();
+    if (key != null && key.isNotEmpty && key != 'custom') {
+      final opts = (constants.raw['boxOptions'] as List?) ?? const [];
+      for (final o in opts) {
+        if (o is Map && o['key']?.toString() == key) {
+          return ((o['weight'] as num?) ?? 0).toDouble();
+        }
+      }
+    }
+    final w = ((input['boxWeight'] as num?) ?? 0).toDouble();
+    return w < 0 ? 0 : w;
+  }
+
+  /// Đồng bộ các field phái sinh của input — mirror logic `setInput` của web
+  /// (apps/web/src/store/slices/calculation.ts:148-270).
+  ///
+  /// [changed] = tập key vừa đổi (từ `updateInput`). `null` = thay cả input
+  /// (load history / reset) → chỉ áp các field "luôn đồng bộ", KHÔNG chạy
+  /// các field theo trigger (giữ nguyên giá trị đã lưu như cylLength...).
+  Map<String, dynamic> _dongBoInput(
+    Map<String, dynamic> input, {
+    Set<String>? changed,
+  }) {
+    final next = Map<String, dynamic>.of(input);
+    final co = changed?.contains ?? (String _) => false;
+
+    // numImages: luôn làm tròn ≥1 khi có giá trị.
+    final nImgRaw = next['numImages'];
+    if (nImgRaw is num && nImgRaw != 0) {
+      final v = nImgRaw.round();
+      next['numImages'] = v < 1 ? 1 : v;
+    }
+
+    final spreadWidth = (next['spreadWidth'] as num?)?.toDouble() ?? 0;
+    final numImages = (next['numImages'] as num?)?.toInt() ?? 1;
+    final soHinh = numImages > 0 ? numImages : 1;
+
+    // cylLength = max(0.7, spreadWidth × numImages + 0.1)
+    if (co('spreadWidth') || co('numImages')) {
+      next['cylLength'] = spreadWidth > 0
+          ? double.parse(
+              (spreadWidth * soHinh + 0.1).clamp(0.7, double.infinity).toStringAsFixed(3))
+          : 0.0;
+    }
+
+    // cylCircum = cutStep × N (N nhỏ nhất sao cho ≥ 0.4)
+    if (co('cutStep')) {
+      final buocCat = (next['cutStep'] as num?)?.toDouble() ?? 0;
+      if (buocCat > 0) {
+        var n = 1;
+        while (buocCat * n < 0.4) {
+          n++;
+        }
+        next['cylCircum'] = double.parse((buocCat * n).toStringAsFixed(3));
+      } else {
+        next['cylCircum'] = 0.0;
+      }
+    }
+
+    // "Có chia": khổ chia = khổ trải × số con hình / số phần tử
+    if (co('hasDivide')) {
+      if (next['hasDivide'] != true) {
+        next['hasDivide'] = false;
+        next['divideElements'] = 1;
+        next['divideWidthMm'] = 0;
+      } else {
+        final soPt = ((next['divideElements'] as num?)?.round() ?? 1);
+        next['divideElements'] = soPt < 1 ? 1 : soPt;
+        if (spreadWidth > 0) {
+          next['divideWidthMm'] =
+              ((spreadWidth * 1000 * soHinh) / next['divideElements']).round();
+        }
+      }
+    } else if (next['hasDivide'] == true &&
+        (co('divideElements') || co('spreadWidth') || co('numImages'))) {
+      final soPt = ((next['divideElements'] as num?)?.round() ?? 1);
+      next['divideElements'] = soPt < 1 ? 1 : soPt;
+      if (spreadWidth > 0) {
+        next['divideWidthMm'] =
+            ((spreadWidth * 1000 * soHinh) / next['divideElements']).round();
+      }
+    }
+
+    // Màng: quy đổi SL gốc (m² | mét) → quantity (m²)
+    if (next['productType'] == 'mang' &&
+        (co('filmInputQuantity') ||
+            co('filmQuantityUnit') ||
+            co('spreadWidth') ||
+            co('productType'))) {
+      final slGoc =
+          (next['filmInputQuantity'] as num?)?.toDouble() ?? (next['quantity'] as num?)?.toDouble() ?? 0;
+      next['filmInputQuantity'] = slGoc;
+      next['quantity'] = next['filmQuantityUnit'] == 'meter'
+          ? double.parse((slGoc * spreadWidth).toStringAsFixed(3))
+          : slGoc;
+    }
+
+    // Bỏ lớp 2 → xóa cấu trúc phụ
+    if (co('layer2Id') && (next['layer2Id'] == null)) {
+      next['layer2AltId'] = null;
+      next['layer2Lengths'] = null;
+      next['layer2FrontPart'] = 'main';
+      next['layer2PairingMode'] = 'bottom_to_bottom';
+    }
+
+    // Màng in: chỉ 1 lớp, phủ mực 100%
+    if (next['productType'] == 'mang' && next['filmType'] == 'mangIn') {
+      next['coverageRatio'] = 1;
+      next['printFilmCustomerGroup'] ??= 'normal';
+      next['layer2Id'] = null;
+      next['layer2AltId'] = null;
+      next['layer2Lengths'] = null;
+      next['layer2FrontPart'] = 'main';
+      next['layer2PairingMode'] = 'bottom_to_bottom';
+      next['layer3Id'] = null;
+      next['layer4Id'] = null;
+      next['layer5Id'] = null;
+    }
+
+    // Loại trục → đơn giá trục
+    if (co('cylType')) {
+      final cylType = next['cylType']?.toString() ?? 'A';
+      if (cylType == 'A') {
+        next['cylUnitPrice'] =
+            (constants.raw['cylPriceA'] as num?) ?? (constants.raw['cylinderPricePerUnit'] as num?) ?? 0;
+      } else if (cylType == 'B') {
+        next['cylUnitPrice'] = (constants.raw['cylPriceB'] as num?) ?? 6500000;
+      } else {
+        final customs = (constants.raw['customCylTypes'] as List?) ?? const [];
+        for (final c in customs) {
+          if (c is Map && c['key']?.toString() == cylType) {
+            next['cylUnitPrice'] = (c['price'] as num?) ?? next['cylUnitPrice'];
+            break;
+          }
+        }
+      }
+    }
+
+    // Khối lượng phụ kiện — luôn đồng bộ theo cờ + option
+    final luaChonQuai = _timHandleOption(next['handleOptionKey']);
+    if (next['hasHandle'] == true) {
+      next['handleWeight'] =
+          luaChonQuai?['weight'] ?? (constants.raw['handleWeight'] as num?) ?? 0;
+    } else {
+      next['handleWeight'] = 0;
+    }
+    next['zipperWeight'] =
+        next['hasZipper'] == true ? ((constants.raw['zipperWeight'] as num?) ?? 0) : 0;
+    next['tapeWeight'] =
+        next['hasTape'] == true ? ((constants.raw['tapeWeight'] as num?) ?? 0) : 0;
+    next['boxWeight'] = _layTrongLuongThung(next);
+
+    // Phụ phí in (nhu + mờ + custom keys) → metallicSurcharge
+    next['metallicSurcharge'] = _tinhPhuPhiIn(next);
+
+    return next;
+  }
+
+  Map<String, dynamic>? _timHandleOption(dynamic key) {
+    if (key == null) return null;
+    final opts = (constants.raw['handleOptions'] as List?) ?? const [];
+    for (final o in opts) {
+      if (o is Map && o['key']?.toString() == key.toString()) {
+        return o.cast<String, dynamic>();
+      }
+    }
+    return null;
+  }
+
   void updateInput(String key, dynamic value) {
-    currentInput = currentInput.withField(key, value);
+    final next = Map<String, dynamic>.of(currentInput.raw);
+    next[key] = value;
+    currentInput = CalculateInput(_dongBoInput(next, changed: {key}));
     isDirty = true;
     notifyListeners();
     _scheduleRecompute();
@@ -757,9 +977,35 @@ class AppState extends ChangeNotifier {
   }
 
   void setInput(CalculateInput next) {
-    currentInput = next;
+    // Full replace (load history / reset) → chỉ đồng bộ field "luôn sync",
+    // giữ nguyên cylLength/cylCircum/divideWidth đã lưu (mirror web: load item
+    // KHÔNG chạy setInput trigger).
+    currentInput = CalculateInput(_dongBoInput(next.raw));
     notifyListeners();
     _scheduleRecompute();
+  }
+
+  /// Loại hình được giữ khi bấm "Đặt lại" — mirror `loaiHinhGiuLai`
+  /// apps/web/src/store/slices/calculation.ts:119.
+  Map<String, dynamic> _loaiHinhGiuLai() {
+    final input = currentInput.raw;
+    if (input['pricingMode'] == 'commercial') {
+      return {
+        'pricingMode': 'commercial',
+        'commercialMode': input['commercialMode'] ?? 'form',
+      };
+    }
+    if (input['pricingMode'] == 'outsource') {
+      // Giữ loại "Gia công" nhưng xóa công đoạn + config GC.
+      return {'pricingMode': 'outsource'};
+    }
+    return {'pricingMode': 'internal'};
+  }
+
+  /// Đặt lại form nhưng GIỮ loại hình đang dùng — mirror `resetInputGiuLoaiHinh`.
+  void resetInputGiuLoaiHinh() {
+    final giu = _loaiHinhGiuLai();
+    setInput(CalculateInput({...CalculateInput.defaults().raw, ...giu}));
   }
 
   void _scheduleRecompute() {
@@ -940,12 +1186,13 @@ class AppState extends ChangeNotifier {
     await taiProductionOrdersTuServer();
   }
 
-  /// Bootstrap: fetch LichSu + LSX từ server (chạy 1 lần sau khi auth xong).
-  /// An toàn để gọi nhiều lần — sẽ skip nếu đã fetch gần đây.
+  /// Bootstrap: fetch Cấu hình + LichSu + LSX từ server (chạy 1 lần sau khi
+  /// auth xong). An toàn để gọi nhiều lần — sẽ skip nếu đã fetch gần đây.
   Future<void> taiPricingTuServerSauKhiLogin() async {
     if (!isAuthenticated) return;
     // Chạy song song; lỗi của cái này không chặn cái kia.
     await Future.wait([
+      taiCauHinhTuServer().catchError((_) => false),
       taiLichSuTuServer().catchError((_) => false),
       taiProductionOrdersTuServer().catchError((_) => false),
     ]);
@@ -1083,6 +1330,207 @@ class AppState extends ChangeNotifier {
     await LocalStorage.instance.writeProfit(next);
     notifyListeners();
     _scheduleRecompute();
+  }
+
+  // ── Phiên bản cấu hình từ server (P2 — mirror web configVersioning) ──────
+
+  /// Bootstrap cấu hình sau khi auth — GET /price-config/latest-version →
+  /// apply từng scope vào working store. Khi đã login, BE là nguồn chân lý
+  /// (LS chỉ cache) — mirror web taiCauHinhMoiNhatTuServer (configVersioning.ts:245).
+  Future<bool> taiCauHinhTuServer({bool force = false}) async {
+    if (!isAuthenticated || accessToken == null) return false;
+    if (dangTaiCauHinh) return false;
+    if (!force &&
+        _lanCuoiTaiCauHinh != null &&
+        DateTime.now().millisecondsSinceEpoch - _lanCuoiTaiCauHinh! < 5000) {
+      return true;
+    }
+    dangTaiCauHinh = true;
+    loiCauHinh = null;
+    notifyListeners();
+    try {
+      final list = await layPriceConfigMoiNhatService(accessToken!);
+      phienBanMoiNhat = {
+        for (final pc in list)
+          if (pc.configName.isNotEmpty) pc.configName: pc,
+      };
+      // Apply theo thứ tự scope — production trước PRODUCTION_UPGRADE
+      // (4 key CPSX NC không bị production ghi đè nhầm).
+      for (final name in thuTuApplyScope) {
+        final pc = phienBanMoiNhat[name];
+        if (pc != null) {
+          await _apDungMotPriceConfig(pc, vietCache: false);
+        }
+      }
+      // Bổ sung NVL mặc định còn thiếu (BE snapshot cũ chưa có NVL mới —
+      // mirror web boSungVatLieuMacDinhThieu).
+      try {
+        final macDinh = await _loadMaterialsAsset();
+        final vlSau = boSungVatLieuMacDinhThieu(materials, macDinh);
+        if (vlSau.length != materials.length) {
+          materials = vlSau;
+          await LocalStorage.instance.writeMaterials(materials);
+        }
+      } catch (_) {}
+      _lanCuoiTaiCauHinh = DateTime.now().millisecondsSinceEpoch;
+      return true;
+    } on LoiServiceLts catch (e) {
+      loiCauHinh = e.message;
+      return false;
+    } catch (e) {
+      loiCauHinh = e.toString();
+      return false;
+    } finally {
+      dangTaiCauHinh = false;
+      notifyListeners();
+      _scheduleRecompute();
+    }
+  }
+
+  /// Áp 1 PriceConfig (blob) vào working store — CHỈ key non-null
+  /// (key thiếu trên BE không xóa data, mirror web apDungDuLieuScope).
+  Future<void> _apDungMotPriceConfig(
+    PriceConfigApi pc, {
+    bool vietCache = true,
+  }) async {
+    final blob = pc.inputValue;
+    if (blob == null) return;
+    final name = pc.configName.toUpperCase();
+    if (name == 'OUTSOURCE') return;
+    var coThayDoi = false;
+
+    final mats = materialsTuBlob(blob);
+    if (mats != null) {
+      materials = mats;
+      coThayDoi = true;
+    }
+    final profit = profitTuBlob(blob);
+    if (profit != null) {
+      profitTable = profit;
+      coThayDoi = true;
+    }
+    final keys = constantsTuBlob(name, blob);
+    if (keys.isNotEmpty) {
+      final raw = Map<String, dynamic>.of(constants.raw);
+      raw.addAll(keys);
+      constants = AppConstants(raw);
+      coThayDoi = true;
+    }
+    if (vietCache && coThayDoi) {
+      await LocalStorage.instance.writeMaterials(materials);
+      await LocalStorage.instance.writeConstants(constants);
+      await LocalStorage.instance.writeProfit(profitTable);
+    }
+  }
+
+  /// Xem/apply 1 phiên bản cụ thể vào working store (mirror web
+  /// saoChepPhienBanDinhMuc — nút "Xem" trong lịch sử phiên bản).
+  Future<void> xemPhienBanCauHinh(PriceConfigApi pc) async {
+    await _apDungMotPriceConfig(pc);
+    notifyListeners();
+    _scheduleRecompute();
+  }
+
+  /// Lưu phiên bản mới cho 1 scope từ working store hiện tại (mirror web
+  /// taoPhienBanDinhMuc, configVersioning.ts:137). Sau lưu → reload lịch sử
+  /// scope + chốt working = bản vừa lưu (list snapshot ≠ working config).
+  Future<void> luuPhienBanCauHinh({
+    required String configName,
+    String? name,
+    String effectiveMode = 'month',
+    String? effectiveFrom,
+  }) async {
+    if (!isAuthenticated || accessToken == null) {
+      throw LoiServiceLts(401, 'Cần đăng nhập để lưu phiên bản.');
+    }
+    if (dangLuuPhienBan) return;
+    dangLuuPhienBan = true;
+    notifyListeners();
+    try {
+      final scopeData =
+          trichXuatDuLieuScope(configName, materials, constants, profitTable);
+      final inputValue = <String, dynamic>{
+        if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+        'effectiveMode': effectiveMode,
+        'effectiveFrom':
+            effectiveFrom ?? DateTime.now().toIso8601String().substring(0, 7),
+        ...scopeData,
+      };
+      final PriceConfigApi saved;
+      if (configName == 'PRODUCTION_UPGRADE') {
+        saved =
+            await upsertProductionUpgradePriceConfigService(accessToken!, inputValue);
+      } else {
+        saved = await upsertPriceConfigService(accessToken!, configName, inputValue);
+      }
+      // Reload lịch sử scope + chốt working = bản vừa lưu (mirror web).
+      await taiLichSuPhienBanCauHinh(configName, force: true);
+      final danhSach = lichSuPhienBan[configName] ?? const <PriceConfigApi>[];
+      PriceConfigApi? chot;
+      for (final pc in danhSach) {
+        if (pc.id == saved.id) {
+          chot = pc;
+          break;
+        }
+      }
+      chot ??= danhSach.isNotEmpty ? danhSach.first : saved;
+      await _apDungMotPriceConfig(chot);
+      phienBanMoiNhat[configName] = chot;
+    } finally {
+      dangLuuPhienBan = false;
+      notifyListeners();
+      _scheduleRecompute();
+    }
+  }
+
+  /// Tải lịch sử phiên bản 1 scope (mirror web taiLichSuPhienBanTuServer).
+  /// Nếu bootstrap chưa từng thấy scope này (latest-version thiếu) → apply
+  /// bản mới nhất vào working (rule F5: load history phải apply, không chỉ
+  /// nạp list — tránh "list đúng, form sai").
+  Future<bool> taiLichSuPhienBanCauHinh(
+    String configName, {
+    bool force = false,
+  }) async {
+    if (!isAuthenticated || accessToken == null) return false;
+    if (_dangTaiLichSuPhienBanScope.contains(configName)) return false;
+    if (!force &&
+        lichSuPhienBan.containsKey(configName) &&
+        lichSuPhienBan[configName]!.isNotEmpty) {
+      return true; // đã có cache — mở màn hình lại không gọi lại API.
+    }
+    _dangTaiLichSuPhienBanScope.add(configName);
+    notifyListeners();
+    try {
+      final versions = await layLichSuPriceConfigService(accessToken!, configName);
+      lichSuPhienBan[configName] = sapXepMoiNhatTruoc(versions);
+      if (phienBanMoiNhat[configName] == null &&
+          lichSuPhienBan[configName]!.isNotEmpty) {
+        final latest = lichSuPhienBan[configName]!.first;
+        phienBanMoiNhat[configName] = latest;
+        await _apDungMotPriceConfig(latest);
+      }
+      return true;
+    } on LoiServiceLts catch (e) {
+      loiCauHinh = e.message;
+      return false;
+    } catch (e) {
+      loiCauHinh = e.toString();
+      return false;
+    } finally {
+      _dangTaiLichSuPhienBanScope.remove(configName);
+      notifyListeners();
+    }
+  }
+
+  /// Xóa 1 phiên bản (cần PRICE_CONFIG_MANAGER — BE cũng chặn). 409 = đang
+  /// được pin bởi pricing-sheet, message từ BE hiển thị nguyên văn.
+  Future<void> xoaPhienBanCauHinh(String id, String configName) async {
+    if (!isAuthenticated || accessToken == null) {
+      throw LoiServiceLts(401, 'Cần đăng nhập.');
+    }
+    await xoaPriceConfigService(accessToken!, id);
+    lichSuPhienBan.remove(configName);
+    await taiLichSuPhienBanCauHinh(configName, force: true);
   }
 
   // ── LSX ───────────────────────────────────────────────────────────────────

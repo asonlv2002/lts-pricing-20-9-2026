@@ -18,6 +18,7 @@ import '../widgets/lts/lts_module_route.dart';
 import '../widgets/lts/lts_toast.dart';
 import 'nhat_ky/nhat_ky_scope.dart';
 import 'nhat_ky_thao_tac_screen.dart';
+import 'phien_ban_cau_hinh_screen.dart';
 
 class CauHinhScreen extends StatelessWidget {
   const CauHinhScreen({super.key});
@@ -109,14 +110,18 @@ class CauHinhScreen extends StatelessWidget {
               const SizedBox(height: 24),
               _ConfigGroupLabel('Khác'),
               const SizedBox(height: 12),
-              const LtsActionCard(
+              LtsActionCard(
                 iconBox: LtsIconBox(
                   icon: Icons.history_toggle_off_rounded,
                   variant: LtsIconVariant.slate,
                 ),
                 title: 'Phiên bản cấu hình',
-                subtitle: 'Cần đăng nhập — dùng bản web',
-                locked: true,
+                subtitle: 'Xem / lưu phiên bản đồng bộ server',
+                onTap: () => _moModule(
+                  context,
+                  title: 'Phiên bản cấu hình',
+                  child: const PhienBanCauHinhScreen(),
+                ),
               ),
             ],
           ),

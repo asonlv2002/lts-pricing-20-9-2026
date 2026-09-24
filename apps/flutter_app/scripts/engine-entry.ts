@@ -10,6 +10,11 @@ import type {
   KetQuaTinhGia,
   VatLieu,
   HangSo,
+  CheDoTinhGia,
+  CongDoanGiaCong,
+  GiaCongNgoai,
+  CauHinhGiaCongLop,
+  NguonMangGiaCong,
 } from '../../../packages/kieu-du-lieu/src';
 import type { DongLoiNhuan } from '../../../packages/hang-so/src';
 import profitJson from '../../../data/profitTable.json';
@@ -66,6 +71,35 @@ interface ProfitRow {
   threshold: number; col1: number; col2: number;
   largeCol1?: number; largeCol2?: number;
 }
+// ── Gia công ngoài (mirror apps/web/src/lib/types.ts OutsourceConfig) ────────
+type PricingMode = 'internal' | 'outsource' | 'commercial';
+type OutsourceStep =
+  | 'print' | 'laminate' | 'slit' | 'bag' | 'handle' | 'pp_bag' | 'matte';
+type OutsourceFilmSource = 'lts' | 'vendor';
+interface OutsourceExtraFees {
+  shippingVnd?: number; packagingVnd?: number; otherVnd?: number;
+}
+interface OutsourceLayerConfig extends OutsourceExtraFees {
+  filmSource: OutsourceFilmSource;
+  wastePct?: number; wasteSetupM?: number;
+  gcPricePerM2?: number; filmBuyPricePerM2?: number;
+}
+interface OutsourceConfig {
+  steps: OutsourceStep[];
+  print?: OutsourceLayerConfig;
+  laminate?: {
+    layers: Partial<Record<'layer2' | 'layer3' | 'layer4' | 'layer5', OutsourceLayerConfig>>;
+  } & OutsourceExtraFees;
+  slit?: { wastePct: number; wasteSetupM: number; gcPricePerM2: number } & OutsourceExtraFees;
+  bag?: {
+    wastePct: number; wasteSetupM: number; gcPricePerBag: number;
+    zipperMode?: 'included' | 'excluded'; zipperPricePerM?: number;
+    tapeMode?: 'included' | 'excluded'; tapePricePerM?: number;
+  } & OutsourceExtraFees;
+  handle?: { wastePct: number; gcPricePerBag: number; handleUnitPrice: number } & OutsourceExtraFees;
+  pp_bag?: { variant: 'pp' | 'pp_pe'; wastePct: number; wasteSetupM: number; gcPricePerUnit: number; ppMaterialPricePerUnit?: number } & OutsourceExtraFees;
+  matte?: OutsourceLayerConfig;
+}
 interface CalculateInput {
   customer: string; productName: string; productType: string;
   bagType: string; filmType: string; filmRollLength: number;
@@ -91,9 +125,22 @@ interface CalculateInput {
   boxWeight?: number; boxOptionKey?: string | null;
   shippingPerKm: number; shippingKm: number;
   cylLength: number; cylCircum: number; cylUnitPrice: number;
-  cylType: 'A' | 'B' | 'custom'; cylIncluded: boolean;
+  cylType: 'A' | 'B' | 'custom' | string; cylIncluded: boolean;
   targetThickness?: number;
   micOverrides?: Record<string, number>;
+  // ── Chế độ tính giá ──
+  pricingMode?: PricingMode;
+  outsource?: OutsourceConfig | null;
+  // ── Tính giá Thương mại ──
+  commercialMode?: 'form' | 'description';
+  commercialPurchasePrice?: number;
+  commercialProfitValue?: number;
+  commercialProfitUnit?: 'percent' | 'vnd';
+  commercialDescription?: string;
+  commercialUnitKind?: 'tui' | 'm2' | 'm' | 'custom';
+  commercialUnitLabel?: string;
+  commercialExtraFee?: number;
+  commercialUnitWeight?: number;
 }
 
 const PROFIT_DEFAULT = profitJson.profitDefault as {
@@ -181,6 +228,105 @@ function toDongLoiNhuan(rows: ProfitRow[]): DongLoiNhuan[] {
   }));
 }
 
+// ── Gia công ngoài: EN → VN (mirror apps/web/src/lib/outsource-map.ts) ───────
+const STEP_EN_TO_VN: Partial<Record<OutsourceStep, CongDoanGiaCong>> = {
+  print: 'in',
+  laminate: 'ghep',
+  slit: 'chia',
+  bag: 'lam_tui',
+  handle: 'gan_quai',
+  pp_bag: 'bao_pp',
+  // 'matte' (lật mặt) — chỉ áp dụng cho engine nâng cao, KHÔNG map sang CongDoanGiaCong.
+};
+
+function mapPricingModeEnToVn(mode?: PricingMode): CheDoTinhGia {
+  return mode === 'outsource' ? 'gia_cong' : 'noi_bo';
+}
+
+function mapFees(x?: { shippingVnd?: number; packagingVnd?: number; otherVnd?: number }) {
+  if (!x) return {};
+  return {
+    vanChuyenVnd: x.shippingVnd,
+    dongGoiVnd: x.packagingVnd,
+    phuPhiKhacVnd: x.otherVnd,
+  };
+}
+
+function mapLayer(l?: OutsourceLayerConfig): CauHinhGiaCongLop | undefined {
+  if (!l) return undefined;
+  const nguonMang: NguonMangGiaCong = l.filmSource === 'vendor' ? 'ben_ngoai' : 'lts';
+  return {
+    nguonMang,
+    tyLePhiHao: l.wastePct,
+    phiHaoSetupM: l.wasteSetupM,
+    giaGcMoiM2: l.gcPricePerM2,
+    giaMuaMangMoiM2: l.filmBuyPricePerM2,
+    ...mapFees(l),
+  };
+}
+
+function mapOutsourceEnToVn(o?: OutsourceConfig | null): GiaCongNgoai | undefined {
+  if (!o?.steps?.length) return undefined;
+  const congDoan = o.steps
+    .map(s => STEP_EN_TO_VN[s])
+    .filter((cd): cd is CongDoanGiaCong => cd !== undefined);
+  if (congDoan.length === 0) return undefined;
+  const result: GiaCongNgoai = { congDoan };
+  if (o.print) result.in = mapLayer(o.print);
+  if (o.laminate?.layers || o.laminate) {
+    result.ghep = {
+      lop: o.laminate?.layers
+        ? {
+            lop2: mapLayer(o.laminate.layers.layer2),
+            lop3: mapLayer(o.laminate.layers.layer3),
+            lop4: mapLayer(o.laminate.layers.layer4),
+            lop5: mapLayer(o.laminate.layers.layer5),
+          }
+        : {},
+      ...mapFees(o.laminate),
+    };
+  }
+  if (o.slit) {
+    result.chia = {
+      tyLePhiHao: o.slit.wastePct,
+      phiHaoSetupM: o.slit.wasteSetupM,
+      giaGcMoiM2: o.slit.gcPricePerM2,
+      ...mapFees(o.slit),
+    };
+  }
+  if (o.bag) {
+    result.lamTui = {
+      tyLePhiHao: o.bag.wastePct,
+      phiHaoSetupM: o.bag.wasteSetupM,
+      giaGcMoiTui: o.bag.gcPricePerBag,
+      cheDoZipper: o.bag.zipperMode === 'included' ? 'gom' : o.bag.zipperMode === 'excluded' ? 'chua_gom' : undefined,
+      giaZipperMoiM: o.bag.zipperPricePerM,
+      cheDoBangKeo: o.bag.tapeMode === 'included' ? 'gom' : o.bag.tapeMode === 'excluded' ? 'chua_gom' : undefined,
+      giaBangKeoMoiM: o.bag.tapePricePerM,
+      ...mapFees(o.bag),
+    };
+  }
+  if (o.handle) {
+    result.ganQuai = {
+      tyLePhiHao: o.handle.wastePct,
+      giaGcMoiTui: o.handle.gcPricePerBag,
+      giaQuaiMoiTui: o.handle.handleUnitPrice,
+      ...mapFees(o.handle),
+    };
+  }
+  if (o.pp_bag) {
+    result.baoPp = {
+      bienThe: o.pp_bag.variant,
+      tyLePhiHao: o.pp_bag.wastePct,
+      phiHaoSetupM: o.pp_bag.wasteSetupM,
+      giaGcMoiCai: o.pp_bag.gcPricePerUnit,
+      giaVatTuPpMoiCai: o.pp_bag.ppMaterialPricePerUnit,
+      ...mapFees(o.pp_bag),
+    };
+  }
+  return result;
+}
+
 function toDauVao(i: CalculateInput): DauVaoTinhGia {
   return {
     khachHang: i.customer, tenSanPham: i.productName,
@@ -225,6 +371,8 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
         return [`idLop${num}`, v];
       })
     ) : {},
+    cheDoTinhGia: mapPricingModeEnToVn(i.pricingMode),
+    giaCongNgoai: mapOutsourceEnToVn(i.outsource),
   } as DauVaoTinhGia;
 }
 
@@ -335,6 +483,140 @@ function toResult(r: KetQuaTinhGia, originalInput: CalculateInput): any {
   };
 }
 
+// ── Tính giá Thương mại (mua đi bán lại) — mirror apps/web/src/lib/engine.ts:464 ─
+interface KetQuaThuongMai {
+  purchasePrice: number;
+  quantity: number;
+  purchaseTotal: number;
+  extraFee: number;
+  extraFeePerUnit: number;
+  baseCostTotal: number;
+  baseCostPerUnit: number;
+  profitVnd: number;
+  profitPerUnit: number;
+  totalVnd: number;
+  unitPriceVnd: number;
+  profitPct: number;
+  profitUnit: 'percent' | 'vnd';
+  profitRawValue: number;
+  unitKind: 'tui' | 'm2' | 'm' | 'custom';
+  unitLabel: string;
+  unitWeightGr: number;
+}
+
+function tinhGiaThuongMai(input: CalculateInput): KetQuaThuongMai {
+  const purchasePrice = Number(input.commercialPurchasePrice) || 0;
+  const quantity = Math.max(0, Number(input.quantity) || 0);
+  const profitUnit = (input.commercialProfitUnit || 'percent') as 'percent' | 'vnd';
+  const profitRaw = Number(input.commercialProfitValue) || 0;
+  const unitKind = (input.commercialUnitKind || 'tui') as 'tui' | 'm2' | 'm' | 'custom';
+  const customLabel = (input.commercialUnitLabel || '').trim();
+  const extraFee = Math.max(0, Number(input.commercialExtraFee) || 0);
+  const unitWeightGr = Math.max(0, Number(input.commercialUnitWeight) || 0);
+
+  // Tổng mua = (giá mua × SL). Phụ phí tách riêng, KHÔNG ảnh hưởng baseCost / LN%.
+  const purchaseTotal = purchasePrice * quantity;
+  const baseCostTotal = purchaseTotal;
+  const baseCostPerUnit = quantity > 0 ? baseCostTotal / quantity : purchasePrice;
+
+  // Lợi nhuận:
+  //   % : trên purchaseTotal (KHÔNG gồm extraFee)
+  //   VND: profitRaw × quantity (mỗi sản phẩm cộng dồn)
+  const profitVnd = profitUnit === 'percent' ? baseCostTotal * (profitRaw / 100) : profitRaw * quantity;
+  const profitPerUnit = quantity > 0 ? profitVnd / quantity : 0;
+  const extraFeePerUnit = quantity > 0 ? extraFee / quantity : 0;
+
+  const totalVnd = baseCostTotal + profitVnd;
+  const unitPriceVnd = quantity > 0 ? totalVnd / quantity : purchasePrice;
+  const pct = baseCostTotal > 0 ? profitVnd / baseCostTotal : 0;
+
+  const unitLabel =
+    unitKind === 'tui' ? '/Túi' :
+    unitKind === 'm2'  ? '/m²' :
+    unitKind === 'm'   ? '/m' :
+    customLabel ? `/${customLabel}` : '/đơn vị';
+
+  return {
+    purchasePrice, quantity, purchaseTotal, extraFee, extraFeePerUnit,
+    baseCostTotal, baseCostPerUnit, profitVnd, profitPerUnit, totalVnd,
+    unitPriceVnd, profitPct: pct, profitUnit, profitRawValue: profitRaw,
+    unitKind, unitLabel, unitWeightGr,
+  };
+}
+
+/**
+ * Tạo CalculateResult-shaped từ commercial input (dùng khi description mode).
+ * Mirror apps/web/src/lib/engine.ts:566 synthesizeResultFromCommercial.
+ */
+function synthesizeResultFromCommercial(
+  input: CalculateInput,
+  hangSo: AppConstants,
+  _materials: Material[],
+): any {
+  const tm = tinhGiaThuongMai(input);
+  const qty = Math.max(0, Number(input.quantity) || 0);
+  const loaiThung = (hangSo.boxOptions ?? []).find((o: any) => o.key === input.boxOptionKey);
+  const giaThung = loaiThung ? Number(loaiThung.price) || 0 : Math.max(0, Number(input.boxPrice) || 0);
+  const soTuiMotThung = Math.max(1, Number(input.bagsPerBox) || 1);
+  const thungPerUnit = giaThung / soTuiMotThung;
+  const phiVC = Math.max(0, Number(input.shippingPerKm || 0) * Number(input.shippingKm || 0));
+  const vcPerUnit = qty > 0 ? phiVC / qty : 0;
+
+  // Lãi vay — khớp tinhLaiVay (tai-chinh.ts): (CB + Them)/12 × (ngày/30) × giá vốn/sp.
+  const ngayThanhToan = input.paymentDays ?? 30;
+  const laiSuatCoBan = hangSo.interestBase ?? 0.10;
+  const laiSuatThem = hangSo.interestSpread ?? 0.03;
+  const laiVayPerUnit = (laiSuatCoBan + laiSuatThem) / 12 * (ngayThanhToan / 30) * tm.purchasePrice;
+
+  // Hoa hồng — khớp tinhHoaHong (tai-chinh.ts): % trên giá vốn/sp hoặc VND cố định /sp.
+  const hoaHongPerDonVi = (input.commissionUnit || 'percent') === 'vnd'
+    ? (input.commissionFixedVND || 0)
+    : (input.commissionRate || 0) * tm.purchasePrice;
+
+  const finalPrice = tm.unitPriceVnd + vcPerUnit + thungPerUnit + tm.extraFeePerUnit + laiVayPerUnit + hoaHongPerDonVi;
+  return {
+    input,
+    finalPrice,
+    costPerUnit: tm.unitPriceVnd,
+    profitRate: tm.profitPct,
+    profitAmount: tm.profitVnd,
+    interestPerUnit: laiVayPerUnit,
+    interestBase: laiSuatCoBan,
+    interestSpread: laiSuatThem,
+    paymentDays: ngayThanhToan,
+    shippingPerUnit: vcPerUnit,
+    shippingTotal: phiVC,
+    commissionPerUnit: hoaHongPerDonVi,
+    commissionTotal: hoaHongPerDonVi * qty,
+    boxPerUnit: thungPerUnit,
+    boxTotal: giaThung,
+    tapePerUnit: 0,
+    handlePerUnit: 0,
+    zipperPerUnit: 0,
+    zipperTotal: 0,
+    tapeTotal: 0,
+    handleTotal: 0,
+    cylAllocPerUnit: 0,
+    cylinderCost: 0,
+    cylinderCostPerUnit: 0,
+    cylLength: 0,
+    cylCircum: 0,
+    totalThickness: 0,
+    bagArea: 0,
+    tareWeight: 0,
+    filmRollArea: 0,
+    structureText: (input.commercialDescription || '').trim() || 'Mô tả khác',
+    layers: { print: null, laminations: [] },
+    totalProductionCost: tm.unitPriceVnd * qty,
+    gcShippingPerUnit: 0,
+    gcPackagingPerUnit: 0,
+    gcOtherPerUnit: 0,
+    gcShippingTotal: 0,
+    gcPackagingTotal: 0,
+    gcOtherTotal: 0,
+  };
+}
+
 function lookupProfit(
   totalCost: number,
   column: number,
@@ -415,17 +697,29 @@ function calculate(
     const materials: Material[] = JSON.parse(materialsJson);
     const constants: AppConstants = JSON.parse(constantsJson);
     const profitTable: ProfitRow[] = JSON.parse(profitTableJson);
+
+    // Thương mại "Mô tả khác": báo giá tự do — KHÔNG qua engine LTS (thiếu thông
+    // số kỹ thuật). Mirror tinhBaoGia manager-calculation.ts:53.
+    if (input.pricingMode === 'commercial' && (input.commercialMode || 'form') === 'description') {
+      return JSON.stringify(synthesizeResultFromCommercial(input, constants, materials));
+    }
+
     // Mirror web tinhGiaWeb: boxWeight resolve từ boxOptionKey (engine luôn tự
     // chọn cột LN qua chonCotLoiNhuanApDung nên không cần dongBoCotLoiNhuan ở adapter).
     const inputHieuLuc: CalculateInput = {
       ...input,
       boxWeight: layTrongLuongThung(input, constants),
     };
+    // Trong commercial-form: KHÔNG áp LN của engine (đã có LN riêng từ [Thu mua]).
+    // Mirror engine.ts:419-422.
+    const bangLoiNhuanCoHieuLuc = input.pricingMode === 'commercial'
+      ? profitTable.map(r => ({ ...r, col1: 0, col2: 0, largeCol1: 0, largeCol2: 0 }))
+      : profitTable;
     const ketQua = tinhGia(
       toDauVao(inputHieuLuc),
       materials.map(toVatLieu),
       toHangSo(constants, inputHieuLuc),
-      toDongLoiNhuan(profitTable),
+      toDongLoiNhuan(bangLoiNhuanCoHieuLuc),
     );
     if (!ketQua) return JSON.stringify({ error: 'null_result' });
     return JSON.stringify(toResult(ketQua, inputHieuLuc));
@@ -457,5 +751,13 @@ function calculate(
       return JSON.stringify({ error: String(e && e.message ? e.message : e) });
     }
   },
-  version: '0.2.0',
+  tinhGiaThuongMai: (inputJson: string) => {
+    try {
+      const input: CalculateInput = JSON.parse(inputJson);
+      return JSON.stringify(tinhGiaThuongMai(input));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+  version: '0.3.0',
 };

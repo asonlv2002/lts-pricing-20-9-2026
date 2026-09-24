@@ -13,8 +13,8 @@
 |---|-----------|-----|---------|--------------------------|
 | 1 | Tính giá thường (engine `tinhGia`) | ✅ `tinhGiaWeb` | ✅ qua QuickJS bundle | Có chạy, nhưng adapter Flutter thiếu field (mục B) → một số case ra số khác web |
 | 2 | **Tính giá NÂNG CAO** (tab `tao-tinh-gia-nang-cap`, bảng đặc tả kỹ thuật `BangDacTaNangCao`, giá lấy từ tổng đặc tả `tinhKetQuaNangCaoHieuLuc`, `isNangCap`) | ✅ | ❌ **Không có** | Đây là chế độ **mặc định** của web theo quy tắc 13/08/2026 → Flutter chỉ làm được bản cũ |
-| 3 | **Tính giá Thương mại** (mua đi bán lại: `tinhGiaThuongMai`, form mode + mô tả tự do, LN %/VND, phụ phí khác, đơn vị tùy biến) | ✅ | ❌ Không có | Không tạo được bảng mua–bán lại trên Flutter |
-| 4 | **Gia công ngoài** (`PanelGiaCongNgoai`, `cheDoTinhGia='gia_cong'`, `giaCongNgoai` → VC/đóng gói/phụ phí GC) | ✅ | ❌ Không có | Kết quả Flutter không có dòng GC nào (`gcShippingPerUnit`… không tồn tại trong `toResult`) |
+| 3 | **Tính giá Thương mại** (mua đi bán lại: `tinhGiaThuongMai`, form mode + mô tả tự do, LN %/VND, phụ phí khác, đơn vị tùy biến) | ✅ | ~~❌~~ **ĐÃ LÀM 24/09 (P1)** — mode selector 3 chế độ, form TM (thu mua/bán ra) + mode mô tả tự do (`synthesizeResultFromCommercial` port vào engine-entry), result panel `_ThuongMaiResult` | |
+| 4 | **Gia công ngoài** (`PanelGiaCongNgoai`, `cheDoTinhGia='gia_cong'`, `giaCongNgoai` → VC/đóng gói/phụ phí GC) | ✅ | ~~❌~~ **ĐÃ LÀM 24/09 (P1)** — `PanelGiaCongNgoai` 7 công đoạn (In/Lật mặt/Ghép/Chia/Làm túi/Gắn quai/Bao PP), `mapOutsourceEnToVn` port, result có 3 dòng GC | |
 | 5 | **Override giá từng công đoạn** (Bảng 2 & 3, `overrides.ts`, `OverrideRowKey` print/lam-2..5/cut/chia/matte) | ✅ | ❌ Không có | Sale/Admin không ghi đè được đơn giá VL/CPSX thủ công trên Flutter |
 | 6 | Chốt giá (`chotGia`) + phân bổ công ty (`phanBoCongTy`, `donViPhanBo`) | ✅ nhập từ form | ⚠️ chỉ **lưu/hiển thị** ở Lịch sử & LSX | Không có UI nhập chốt giá/phân bổ trong form tính giá |
 | 7 | **Tạo báo giá** (`ModuleBaoGia` 230KB, điều khoản `FormDieuKhoanBaoGia`, mã báo giá `quote-code`, chữ ký, PDF `BaoGiaPdfDocument`, preview) | ✅ | ❌ Không có | Flutter không tồn tại khái niệm "báo giá" độc lập — chỉ có lịch sử tính giá |
@@ -23,13 +23,13 @@
 | 10 | **Tạo LSX** (`TaoLsxWizard` 30KB multi-bước, `LsxFormFields` 55KB, chọn báo giá+tính giá, `ModalDonLSX`) | ✅ | ⚠️ sheet đơn giản: chọn 1 history + 3 TextField | LSX Flutter chỉ là snapshot thô, thiếu trường kỹ thuật |
 | 11 | LSX: danh sách + sửa (`SlidePanelLsxEdit`) + PDF (`LsxPdfDocument` 40KB) | ✅ | ⚠️ card list + đổi status + PDF tự viết | PDF LSX Flutter không theo template chuẩn của web |
 | 12 | Danh sách tính giá (`ModuleDanhSachTinhGia`) | ✅ | ✅ tab Lịch sử | Flutter tương đối đủ: search, filter status, stats, swipe delete, load lại vào form |
-| 13 | Lịch sử đồng bộ DB (`ModuleLichSuDB` 70KB, `BoLocNangCao`, `NutSaoChepLienKet`) | ✅ BE | ❌ chỉ `shared_preferences` + `assets/data/history.json` | **Không đồng bộ** giữa máy Sale và server |
+| 13 | Lịch sử đồng bộ DB (`ModuleLichSuDB` 70KB, `BoLocNangCao`, `NutSaoChepLienKet`) | ✅ BE | ❌ chỉ `shared_preferences` (seed demo history.json đã xóa 22/09) | **Không đồng bộ** giữa máy Sale và server |
 | 14 | **Quản lý khách hàng** (`ModuleKhachHang` 171KB, import Excel, CustomerManagersPicker, guard quyền) | ✅ | ❌ Không có | Flutter chỉ có ô text "Khách hàng" tự do |
-| 15 | Nhật ký thao tác / audit (`ModuleNhatKy`, `audit.ts`, 15 loại action) | ✅ | ❌ Không có | Không truy vết được ai sửa gì |
+| 15 | Nhật ký thao tác / audit (`ModuleNhatKy`, `audit.ts`, 15 loại action) | ✅ | **ĐÃ LÀM 23/09** — 1 màn `NhatKyThaoTacScreen(scope:)` dùng chung 4 phạm vi (tính giá / cấu hình / khách hàng / hệ thống), lọc thời gian + nâng cao, timeline + diff cấu hình, summary KH, Xuất CSV, auto-refresh 30s (chi tiết mục H) | |
 | 16 | Dashboard tổng quan (6 card: số BG đã tạo, chờ duyệt, KH mới, doanh thu ước tính…) | ✅ | ❌ Không có | — |
 | 17 | **Đăng nhập / Auth** (JWT, modal đăng nhập, bắt buộc đặt PIN, đổi MK, đổi avatar, đổi chữ ký, flow đòi reset MK) | ✅ | ❌ Không có gì | Flutter **không có http/dio trong pubspec** → hoàn toàn offline |
 | 18 | Phân quyền (admin/sale/purchase, `ModulePhanQuyen`, bảng phân quyền, quản lý tài khoản) | ✅ | ❌ Không có | Mọi người dùng Flutter như nhau |
-| 19 | **Phiên bản cấu hình giá** (`configVersioning`, `PanelPhienBan`, `price-config-mapper`, scopes PRODUCTION / PRODUCTION_UPGRADE / MATERIALS / PROFIT, hiệu lực theo tháng, bootstrap F5 chờ auth) | ✅ BE SoT | ❌ Không có | Cấu hình Flutter là **JSON đóng băng trong APK** (mục C) |
+| 19 | **Phiên bản cấu hình giá** (`configVersioning`, `PanelPhienBan`, `price-config-mapper`, scopes PRODUCTION / PRODUCTION_UPGRADE / MATERIALS / PROFIT, hiệu lực theo tháng, bootstrap F5 chờ auth) | ✅ BE SoT | ~~❌~~ **ĐÃ LÀM 24/09 (P2)** — `PhienBanCauHinhScreen` 7 scope (MATERIALS/PRODUCTION/PRODUCTION_UPGRADE/SURCHARGES/INTEREST/WASTE/PROFIT): bootstrap sau login (`taiCauHinhTuServer` GET latest-version → apply vào store, BE thắng LS cache), xem/apply 1 bản, lưu phiên bản (POST/PUT), xóa (409 hiện message BE), gate `PRICE_CONFIG_MANAGER`. Còn thiếu: form CPSX nâng cao (P4), tab nâng cao (P5) | |
 | 20 | **CPSX nâng cao** (`CpsxNangCap*`: Điện 19KB, Lương 84KB, Thời gian 35KB, Mực 18KB, Định mức/Dung môi-keo 28KB, Gia công khai, `CpsxGiaInGhepKetQua`) | ✅ | ❌ Không có | Toàn bộ bảng chi phí sản xuất chi tiết không tồn tại trên Flutter |
 | 21 | Khách hàng lớn / cột LN khách lớn (`largeCol1/largeCol2`, `nhomKhach`) | ✅ | ~~❌~~ **ĐÃ SỬA 15/09**: `ProfitRow` Dart giữ `largeCol1/largeCol2`, adapter map `cot1KhachLon/cot2KhachLon` (mục F) |
 
@@ -91,6 +91,46 @@ Phạm vi: **chống lệch adapter** — không thêm UI/tính năng mới, ch�
 **Không port** (cần UI/Dart data, nằm ngoài phạm vi chống lệch): `bangGiaKhoNho` (root `/data` không có JSON source), `pricingMode/outsource/commercial*`, override bảng 2&3, `multiStructureLayers` UI, phụ phí in keys. `dongBoCotLoiNhuan` xác minh là **không cần port** (engine tự chọn cột LN — xem mục B).
 
 **Verify**: `tsc -p scripts` ✅ · smoke Node trên bundle mới: màng in ra `printFilmCost`/`gioSetup`/LN 15% theo `tyLeLoiNhuanMangIn` ✅ · `flutter analyze` 0 error/warning ✅ · type-check/lint còn fail ở `apps/mobile` (thiếu eslint.config + 1 lỗi `DongLoiNhuan` ở `cua-hang-cau-hinh.ts:65`) và 16 lint error `apps/web` — **đã xác nhận có sẵn từ trước trên tree sạch**, không liên quan thay đổi nhánh này.
+
+## G. Đồng bộ "Danh sách báo giá" Flutter ↔ web mobile (22/09/2026)
+
+File: `apps/flutter_app/lib/screens/danh_sach_bao_gia_screen.dart` (+ `lib/lib/bo_dau.dart`, `lib/engine/models.dart`, `lib/lib/pricing_server_mapper.dart`, `lib/store/app_state.dart`, `lib/screens/tao_lsx_wizard.dart`). Đối chiếu `ModuleDuyetBaoGia.tsx` + `qrev-styles.tsx`.
+
+| # | Việc | Trước | Sau |
+|---|------|-------|-----|
+| 1 | Mã BG YYMM.STT | Không hiện | Hiện mã (derive từ orders `versionByMonth`; fallback `inputValue.quoteCode`). Thêm `ProductionOrder.versionByMonth` + `AppState.ordersTheoBaoGia` |
+| 2 | Tìm kiếm | Chỉ `id` + tên BG | Bỏ dấu (`bo_dau.dart`), khớp mã BG + tên BG + KH + SP + tên sheet (mirror `tuKhoaBaoGia`) |
+| 3 | Header | Không có | `Danh sách báo giá (N)` + nút "Làm mới" |
+| 4 | Card | `KH · SP`, `createdAt` | Mã BG (mono) + badge → KH → SP·SL → `updatedAt` + người lập → actions |
+| 5 | Nút copy link / Xem PDF | Không có | Hiện icon (chưa wire tính năng — sẽ làm sau) |
+| 6 | PIN guard | 5 thao tác gọi thiếu `pinToken` → **fail** | Bọc `showNhapPinSheet` cho nộp/duyệt/từ chối/xoá; từ chối nhập lý do trước |
+| 7 | Gate xoá | `drafted && isCreator` | `bg.deletable` (mirror `original.deletable`) |
+| 8 | Tạo LSX | Gọi thẳng `create-orders`, gate theo BG approved | Mở `TaoLsxWizard(prefill...)`, gate theo **từng sheet** `hasCustomerApproved` + BG approved; thêm PIN cho `create-orders` trong wizard |
+| 9 | Filter chip | 5 chip (Tất cả/Khởi tạo/Chờ duyệt/Đã duyệt/Bị từ chối) | Còn 2 chip: **Tất cả · Chờ duyệt** (mặc định Tất cả) |
+| 10 | Phản hồi KH từng sheet | Có (`customer-decide`) | **Khôi phục 22/09**: mỗi sheet hiện `✅/❌` + nút "KH Duyệt"/"KH từ chối" (creator + BG approved) qua PIN + dòng tóm tắt x/y |
+| 11 | Nút thao tác | `.qrev-btn-icon` có viền hộp | `_ActionBtn` có viền + bo góc 8; nút trong sheet dùng `_SheetBtn` viền |
+| 12 | **Card LSX: Tên KH + Tên tính giá** | Mapper gán `snapshot = order.inputValue` → card/PDF hiện `—` | **Sửa 23/09**: `PricingServerMapper.orderToProductionOrder` build snapshot từ `pricingSheet` (mirror web `LsxRow`): KH = `customerCodeName` → `customerName` → `inputValue.customer`; SP = `pricingSheetName` → `inputValue.productName`; cấu trúc = `inputValue.structure`. Wizard ghi key `lsxSnapshot` (khớp web) thay vì `snapshot` lồng |
+
+**Còn lại (chưa làm)**: chip "Chờ tôi duyệt" (`/quotations/non-draft`), PDF báo giá thật, edit-mode wizard, deep-link URL.
+
+## H. Nhật ký thao tác Flutter ↔ web mobile (23/09/2026)
+
+File mới: `lib/lib/audit_models.dart`, `lib/lib/activity_log_mapper.dart`, `lib/lib/audit_format.dart`, `lib/lib/config_diff.dart`, `lib/lib/nhat_ky_loc.dart`, `lib/screens/nhat_ky_thao_tac_screen.dart`, `lib/screens/nhat_ky/{nhat_ky_scope,bo_loc_nhat_ky,timeline_nhat_ky,khach_hang_nhat_ky}.dart`. Sửa: `lib/api/service_lts_client.dart` (`layNhatKyDayDuService`), `lib/screens/{cau_hinh,them,hub,tinh_gia_hub,khach_hang_hub}_screen.dart`. Xoá: `lib/screens/khach_hang_audit_log_screen.dart`.
+
+Đối chiếu `ModuleNhatKy.tsx` + `CustomerAuditTab` (`ModuleKhachHang.tsx`) + `activity-log-mapper.ts` + `config-diff.ts` + `customer-audit-format.ts` + `audit.ts` + `MOBILE_HUBS` (`VoTrang.tsx`).
+
+| # | Việc | Trước | Sau |
+|---|------|-------|-----|
+| 1 | Kiến trúc màn | 2 màn rời (`NhatKyThaoTacScreen` không lọc + `KhachHangAuditLogScreen`), hub Tổng quan có card "Nhật ký" **locked** | 1 màn `NhatKyThaoTacScreen(scope:)` với 4 phạm vi; hub Tổng quan bỏ section Nhật ký (web overview không có) |
+| 2 | Điểm vào | TinhGiaHub hiện **tất cả** resourceType; thiếu card Cấu hình & Thêm | TinhGia→`tinhGia`, Cấu hình→`cauHinh` (card mới), Thêm→`heThong` (card mới), Khách hàng→`khachHang` (mirror `MOBILE_HUBS`) |
+| 3 | Mapping action | `nhanViet` thiếu 9 action BE phát (`quotation.deleted`, `role.*`, `price_config.*`…) → hiện chuỗi raw; bug `nhom` xếp `version_created` vào 'created' | `ACTION_MAP` đủ theo BE `ACTIVITY_LOG_ACTIONS`; `AuditAction` enum exhaustive; bỏ 3 getter sai (`nhanViet/nhom/nhanResource`) |
+| 4 | Diff `price_config` | Không có → "Đã cập nhật" | Port `config-diff.ts`: `diffConfigBlobs` flatten blob `inputValue`, bảng nhãn VN ~180 key, ghép mảng theo id/name, cap 500 path, "(đã xóa)" |
+| 5 | Diff các resource khác | Chỉ field KH + `finalPrice/structureText/updateStatus` | `audit_format.dart`: `FIELD_LABELS`, `formatAuditDisplayValue` (policy→tên, input/terms/override/manager), `getAuditChangedFields` |
+| 6 | Bộ lọc | Chỉ search + chip resource/nhóm | Thêm: khoảng thời gian (Hôm nay/7/30/Tháng/Tùy chỉnh), autocomplete tài khoản (gate `ACTIVITY_MONITOR`), multi-select phân mục, 2 nhóm hành động, trường thay đổi (scope KH), đối tượng mục tiêu, chip "Đang lọc" + Xóa tất cả |
+| 7 | Trình bày | 1 kiểu card "Trước → Sau" | 2 kiểu mirror web: **timeline** (`chiHienGiaTriMoi` cho tính giá/cấu hình; before/after đỏ-xanh cho hệ thống) và **summary card** cho khách hàng (`getAuditSummary`, bảng Trường\|Trước\|Sau, avatar actor) |
+| 8 | Khác | Không nhóm ngày, không CSV, không note, không "Mở dữ liệu liên quan", không dedupe | Nhóm ngày (Hôm nay/Hôm qua/dd/MM/yyyy), Xuất CSV (qua `Printing.sharePdf`), hiện `note`, "Mở dữ liệu liên quan" push đúng module, `dedupeAuditEntries` (scope KH), infinite scroll 20, rate-limit 5s, auto-refresh 30s pause khi background |
+
+**Không port**: `openRelated` deep-link bằng URL (Flutter push route trực tiếp), phân trang server-side (log hiện nhỏ), avatar bearer dùng `Image.network` headers.
 
 ## Kết luận phân tầng
 

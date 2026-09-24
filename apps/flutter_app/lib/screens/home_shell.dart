@@ -120,6 +120,9 @@ class _HomeShellState extends State<HomeShell> {
 
   // Push calculator từ hub "Tính giá" — wrap PopScope để confirm khi back
   // nếu user có thay đổi chưa lưu (mirror logic cũ trên tab switch).
+  // PHẢI bọc ModuleRoute (Scaffold): MaterialPageRoute không cung cấp Material —
+  // thiếu nó thì mọi TextField/InkWell trong màn tính giá văng
+  // "No Material widget found" khi nhập liệu.
   void _pushTinhGiaModule() {
     Navigator.of(context).push(
       MaterialPageRoute(
@@ -135,7 +138,10 @@ class _HomeShellState extends State<HomeShell> {
                     Navigator.of(ctx).pop();
                   });
                 },
-                child: const TinhGiaScreen(embedded: true),
+                child: const ModuleRoute(
+                  title: 'Tạo bảng tính giá',
+                  child: TinhGiaScreen(embedded: true),
+                ),
               );
             },
           );

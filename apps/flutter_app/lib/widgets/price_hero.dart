@@ -244,7 +244,7 @@ class BreakdownPanel extends StatelessWidget {
     final cylInc    = (inp['cylIncluded'] as bool?) ?? false;
 
     // Bag/film type labels
-    const bagMap = {'3bien':'3 biên','4bien':'4 biên','xephong_lech':'Xếp hông dán lưng lệch','xephong_giua':'Xếp hông dán lưng giữa','dayDung':'Đáy đứng','cutSeal':'Cut seal'};
+    const bagMap = {'3bien':'3 biên','4bien':'4 biên','xephong_lech':'Xếp hông dán lưng lệch','xephong_giua':'Xếp hông dán lưng giữa','dayDung':'Đáy đứng','cutSeal':'Cut seal','cutSealNapKeo':'Cut seal mở miệng có nắp keo'};
     const filmMap = {'mangIn':'Màng in','mangGhep':'Màng ghép','mangDongGoi':'Màng đóng gói tự động'};
     String typeStr = isMang ? (filmMap[filmType] ?? 'Màng cuộn') : (hasZipper ? 'Zipper ${bagMap[bagType] ?? bagType}' : (bagMap[bagType] ?? bagType));
 
@@ -293,6 +293,13 @@ class BreakdownPanel extends StatelessWidget {
       _KVItem('Hoa hồng kinh doanh', '${Fmt.n(commPerUnit.round())} đ'),
       if (cylInc && r.d('chiPhiTrucPhanBo') > 0)
         _KVItem('Trục in phân bổ (bao / 200k m²)', '+${Fmt.n(r.d('chiPhiTrucPhanBo').round())} đ'),
+      // Gia công ngoài — mirror ManHinhQuanLy.tsx:2079-2086
+      if (r.d('gcShippingPerUnit') > 0)
+        _KVItem('Vận chuyển (gia công)', '${Fmt.n(r.d('gcShippingPerUnit').round())} đ'),
+      if (r.d('gcPackagingPerUnit') > 0)
+        _KVItem('Đóng gói (gia công)', '${Fmt.n(r.d('gcPackagingPerUnit').round())} đ'),
+      if (r.d('gcOtherPerUnit') > 0)
+        _KVItem('Phụ phí khác (gia công)', '${Fmt.n(r.d('gcOtherPerUnit').round())} đ'),
     ];
 
     // ─── Section 4: Bảng đặc tả kỹ thuật (uniRows) ──────────────────────
