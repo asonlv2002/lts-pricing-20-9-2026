@@ -14,6 +14,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import '../api/service_lts_client.dart';
 import '../engine/js_runtime.dart';
 import '../engine/models.dart';
+import 'package:lts_pricing/lib/lsx_so.dart';
 import 'package:lts_pricing/lib/pricing_server_mapper.dart';
 import 'local_storage.dart';
 
@@ -165,6 +166,20 @@ class AppState extends ChangeNotifier {
   int? lanCuoiTaiLichSu; // ms epoch — dùng cho auto-refresh 30s
   Timer? _lichSuAutoRefresh;
 
+  /// Orders nhóm theo quotationId — dùng derive mã báo giá YYMM.STT
+  /// (mirror web ordersTheoQuotation / useOrdersQuoteCode).
+  Map<String, List<OrderCoPhienBan>> get ordersTheoBaoGia {
+    final out = <String, List<OrderCoPhienBan>>{};
+    for (final o in productionOrders) {
+      if (o.quoteId.isEmpty) continue;
+      (out[o.quoteId] ??= <OrderCoPhienBan>[]).add(OrderCoPhienBan(
+        createdAt: o.createdAt,
+        versionByMonth: o.versionByMonth,
+      ));
+    }
+    return out;
+  }
+
   // ── UI ───────────────────────────────────────────────────────────────────
   ThemeMode themeMode = ThemeMode.system;
   int? requestedTabIndex;
@@ -188,8 +203,7 @@ class AppState extends ChangeNotifier {
   /// Input có thay đổi chưa lưu (dùng cho cảnh báo "Chưa lưu báo giá").
   bool isDirty = false;
 
-  int get soThongBaoChuaDoc =>
-      thongBaoList.where((t) => !t.daDoc).length;
+  int get soThongBaoChuaDoc => thongBaoList.where((t) => !t.daDoc).length;
 
   void themThongBao(String tieuDe, String loai) {
     final item = ThongBao(
@@ -200,8 +214,8 @@ class AppState extends ChangeNotifier {
       daDoc: false,
     );
     thongBaoList = [item, ...thongBaoList].take(50).toList();
-    LocalStorage.instance.writeThongBao(
-        thongBaoList.map((t) => t.toJson()).toList());
+    LocalStorage.instance
+        .writeThongBao(thongBaoList.map((t) => t.toJson()).toList());
     notifyListeners();
   }
 
@@ -234,10 +248,9 @@ class AppState extends ChangeNotifier {
 
   void _caiDatQuanLyPhien() {
     QuanLyPhien.caiDat(
-      layTokenHienTai: () =>
-          (accessToken != null && refreshToken != null)
-              ? (accessToken: accessToken!, refreshToken: refreshToken!)
-              : null,
+      layTokenHienTai: () => (accessToken != null && refreshToken != null)
+          ? (accessToken: accessToken!, refreshToken: refreshToken!)
+          : null,
       luuTokenMoi: (a, r) {
         accessToken = a;
         refreshToken = r;
@@ -289,7 +302,7 @@ class AppState extends ChangeNotifier {
     );
   }
 
-  void _apDungPhien(PhienDangNhap data) {
+  Future<void> _apDungPhien(PhienDangNhap data) async {
     accessToken = data.accessToken;
     refreshToken = data.refreshToken;
     nguoiDungHienTai = _taoNguoiDung(
@@ -303,9 +316,10 @@ class AppState extends ChangeNotifier {
     authLoading = false;
     authError = null;
     sessionChecked = true;
-    LocalStorage.instance.writeTokens(data.accessToken, data.refreshToken);
-    LocalStorage.instance.writeUserPolicies(
-        data.user.id, nguoiDungHienTai!.policies);
+    await LocalStorage.instance
+        .writeTokens(data.accessToken, data.refreshToken);
+    LocalStorage.instance
+        .writeUserPolicies(data.user.id, nguoiDungHienTai!.policies);
     notifyListeners();
     _lamGiauPoliciesTuServer(data.accessToken, data.user.id);
     // Sau khi login: fetch LichSu + LSX từ server (override cache local).
@@ -364,7 +378,7 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     try {
       final data = await dangNhapService(account.trim(), password);
-      _apDungPhien(data);
+      await _apDungPhien(data);
     } catch (e) {
       accessToken = null;
       refreshToken = null;
@@ -393,7 +407,7 @@ class AppState extends ChangeNotifier {
 
   /// �p token + profile sau login / consume password-reset (mirror web).
   Future<void> apDungPhienTuDangNhap(PhienDangNhap data) async {
-    _apDungPhien(data);
+    await _apDungPhien(data);
   }
 
   Future<void> lamMoiPhien() async {
@@ -406,7 +420,7 @@ class AppState extends ChangeNotifier {
     }
     try {
       final data = await lamMoiTokenService(current);
-      _apDungPhien(data);
+      await _apDungPhien(data);
     } on LoiServiceLts catch (e) {
       if (e.status == 401) resetPhienHetHan();
     } catch (_) {
@@ -452,8 +466,8 @@ class AppState extends ChangeNotifier {
       authLoading = false;
       sessionChecked = true;
       if (nguoiDungHienTai != null) {
-        LocalStorage.instance
-            .writeUserPolicies(nguoiDungHienTai!.id, nguoiDungHienTai!.policies);
+        LocalStorage.instance.writeUserPolicies(
+            nguoiDungHienTai!.id, nguoiDungHienTai!.policies);
       }
       notifyListeners();
       if (id != null && id.isNotEmpty) {
@@ -486,7 +500,7 @@ class AppState extends ChangeNotifier {
         if (payload != null &&
             payload['sub'] != null &&
             payload['account'] != null) {
-          apDungUserTuToken(savedAccess, savedRefresh,
+          apDungUserTuToken(accessToken!, refreshToken!,
               id: payload['sub']?.toString(),
               account: payload['account']?.toString(),
               fullName: payload['fullName']?.toString());
@@ -496,8 +510,13 @@ class AppState extends ChangeNotifier {
         return;
       }
       try {
-        final data = await lamMoiTokenService(savedRefresh);
-        _apDungPhien(data);
+        final tokenLamMoi = refreshToken;
+        if (tokenLamMoi == null || tokenLamMoi.isEmpty) {
+          resetPhienHetHan();
+          return;
+        }
+        final data = await lamMoiTokenService(tokenLamMoi);
+        await _apDungPhien(data);
       } catch (_) {
         resetPhienHetHan();
       }
@@ -512,7 +531,8 @@ class AppState extends ChangeNotifier {
     accessToken = data.accessToken;
     refreshToken = data.refreshToken;
     isAuthenticated = true;
-    LocalStorage.instance.writeTokens(data.accessToken, data.refreshToken);
+    await LocalStorage.instance
+        .writeTokens(data.accessToken, data.refreshToken);
     notifyListeners();
   }
 
@@ -592,10 +612,6 @@ class AppState extends ChangeNotifier {
         LocalStorage.instance.readProfit() ?? await _loadProfitAsset();
 
     history = LocalStorage.instance.readHistory();
-    if (history.isEmpty) {
-      history = await _loadHistoryAsset();
-      if (history.isNotEmpty) await LocalStorage.instance.writeHistory(history);
-    }
     productionOrders = LocalStorage.instance.readLSX();
     thongBaoList = LocalStorage.instance
         .readThongBao()
@@ -644,18 +660,6 @@ class AppState extends ChangeNotifier {
     return rows
         .map((e) => ProfitRow.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
-  }
-
-  static Future<List<HistoryItem>> _loadHistoryAsset() async {
-    try {
-      final raw = await rootBundle.loadString('assets/data/history.json');
-      final list = jsonDecode(raw) as List;
-      return list
-          .map((e) => HistoryItem.fromJson((e as Map).cast<String, dynamic>()))
-          .toList();
-    } catch (_) {
-      return [];
-    }
   }
 
   // ── Input updates ────────────────────────────────────────────────────────
@@ -813,9 +817,49 @@ class AppState extends ChangeNotifier {
     notifyListeners();
     try {
       final sheets = await layDanhSachPricingSheetService(accessToken!);
-      final mapped = sheets
-          .map(PricingServerMapper.pricingSheetToHistoryItem)
-          .toList();
+
+      // Mirror web: BE không lưu finalPrice → Flutter tính lại bằng engine.
+      // Load 1 batch config pin (priceConfigIds của mọi sheet) qua /by-ids.
+      final allPinIds = <String>{};
+      for (final s in sheets) {
+        for (final id in s.priceConfigIds) {
+          final v = id.trim();
+          if (v.isNotEmpty) allPinIds.add(v);
+        }
+      }
+      Map<String, PriceConfigApi> pinConfigs = const {};
+      if (allPinIds.isNotEmpty) {
+        try {
+          final cfgs = await layPriceConfigTheoIdsService(
+              accessToken!, allPinIds.toList());
+          pinConfigs = {
+            for (final c in cfgs)
+              if (c.id.isNotEmpty) c.id: c,
+          };
+        } catch (_) {
+          // Pin hỏng → fallback config hiện tại (như web fallback).
+          pinConfigs = const {};
+        }
+      }
+
+      final fallbackCtx = EngineCtxTinhGia(
+        materials: materials,
+        constants: constants,
+        profitTable: profitTable,
+      );
+
+      // Engine QuickJS tính tuần tự — chia nhỏ batch, cập nhật UI dần để
+      // list lớn (hàng trăm sheet) không khựng màn hình.
+      final mapped = <HistoryItem>[];
+      for (final sheet in sheets) {
+        mapped.add(PricingServerMapper.pricingSheetToHistoryItem(
+            sheet, fallbackCtx, pinConfigs));
+        if (mapped.length % 25 == 0) {
+          history = List<HistoryItem>.of(mapped);
+          notifyListeners();
+          await Future<void>.delayed(Duration.zero);
+        }
+      }
       history = mapped;
       // Lưu cache local để offline / lần đầu mở app có data ngay.
       await LocalStorage.instance.writeHistory(history);
@@ -871,6 +915,29 @@ class AppState extends ChangeNotifier {
       dangTaiLsx = false;
       notifyListeners();
     }
+  }
+
+  /// PATCH /quotations/orders/:id/approval — advisor duyệt/từ chối LSX
+  /// (mirror web updateOrderApprovalService: ORDER_REVIEWER + PIN).
+  /// Ném LoiServiceLts lên caller để sheet PIN giữ mở hiện lỗi
+  /// (PIN sai → sheet không đóng). Thành công → reload list LSX.
+  Future<void> duyetLsx(
+    String orderId,
+    bool approved,
+    String pinToken, {
+    String? reason,
+  }) async {
+    if (!isAuthenticated || accessToken == null) {
+      throw LoiServiceLts(401, 'Cần đăng nhập để duyệt LSX.');
+    }
+    await updateQuotationPricingSheetOrderApprovalService(
+      accessToken!,
+      orderId,
+      approved: approved,
+      reason: reason,
+      pinToken: pinToken,
+    );
+    await taiProductionOrdersTuServer();
   }
 
   /// Bootstrap: fetch LichSu + LSX từ server (chạy 1 lần sau khi auth xong).

@@ -80,18 +80,6 @@ class HubScreen extends StatelessWidget {
                   locked: true,
                 ),
               ]),
-              const SizedBox(height: 12),
-              LtsSectionLabel('Nhật ký'),
-              const SizedBox(height: 12),
-              ..._cards(context, const [
-                _Card(
-                  variant: LtsIconVariant.slate,
-                  icon: Icons.receipt_long_rounded,
-                  title: 'Nhật ký thao tác',
-                  sub: 'Cần đăng nhập — dùng bản web',
-                  locked: true,
-                ),
-              ]),
             ],
           ),
         ),

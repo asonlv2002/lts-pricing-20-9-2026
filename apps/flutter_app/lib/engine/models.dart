@@ -338,6 +338,8 @@ class HistoryItem {
 }
 
 /// Production order (LSX) — giống ProductionOrder trong types.ts.
+/// Bổ sung trạng thái duyệt server (mirror web lsx-server-adapter.ts):
+/// hasAdvisorApproved + reason + người lập (avatar là URL tương đối server).
 class ProductionOrder {
   final String id;
   final String quoteId;
@@ -346,6 +348,21 @@ class ProductionOrder {
   final Map<String, dynamic> manual;
   final Map<String, dynamic> snapshot;
 
+  /// STT server cấp theo tháng (BE b6028b0) — dùng derive số LSX / mã báo giá.
+  final int versionByMonth;
+
+  /// Trạng thái duyệt advisor từ BE (null = cache cũ chưa có).
+  final bool? hasAdvisorApproved;
+
+  /// Lý do từ chối (hoặc ghi chú duyệt) từ BE.
+  final String reason;
+
+  /// Tên người lập LSX — inputValue.preparedBy → actorName.
+  final String nguoiLap;
+
+  /// Avatar URL tương đối người lập (resolve qua resolveServiceLtsUrl).
+  final String? nguoiLapAvatar;
+
   const ProductionOrder({
     required this.id,
     required this.quoteId,
@@ -353,6 +370,11 @@ class ProductionOrder {
     required this.status,
     required this.manual,
     required this.snapshot,
+    this.versionByMonth = 0,
+    this.hasAdvisorApproved,
+    this.reason = '',
+    this.nguoiLap = '',
+    this.nguoiLapAvatar,
   });
 
   factory ProductionOrder.fromJson(Map<String, dynamic> j) => ProductionOrder(
@@ -362,6 +384,11 @@ class ProductionOrder {
         status: j['status'] as String? ?? 'created',
         manual: (j['manual'] as Map?)?.cast<String, dynamic>() ?? {},
         snapshot: (j['snapshot'] as Map?)?.cast<String, dynamic>() ?? {},
+        versionByMonth: (j['versionByMonth'] as num?)?.toInt() ?? 0,
+        hasAdvisorApproved: j['hasAdvisorApproved'] as bool?,
+        reason: j['reason'] as String? ?? '',
+        nguoiLap: j['nguoiLap'] as String? ?? '',
+        nguoiLapAvatar: j['nguoiLapAvatar'] as String?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -371,9 +398,21 @@ class ProductionOrder {
         'status': status,
         'manual': manual,
         'snapshot': snapshot,
+        if (versionByMonth > 0) 'versionByMonth': versionByMonth,
+        if (hasAdvisorApproved != null)
+          'hasAdvisorApproved': hasAdvisorApproved,
+        if (reason.isNotEmpty) 'reason': reason,
+        if (nguoiLap.isNotEmpty) 'nguoiLap': nguoiLap,
+        if (nguoiLapAvatar != null) 'nguoiLapAvatar': nguoiLapAvatar,
       };
 
-  ProductionOrder copyWith({String? status, Map<String, dynamic>? manual}) =>
+  ProductionOrder copyWith(
+          {String? status,
+          Map<String, dynamic>? manual,
+          bool? hasAdvisorApproved,
+          String? reason,
+          String? nguoiLap,
+          String? nguoiLapAvatar}) =>
       ProductionOrder(
         id: id,
         quoteId: quoteId,
@@ -381,7 +420,16 @@ class ProductionOrder {
         status: status ?? this.status,
         manual: manual ?? this.manual,
         snapshot: snapshot,
+        versionByMonth: versionByMonth,
+        hasAdvisorApproved: hasAdvisorApproved ?? this.hasAdvisorApproved,
+        reason: reason ?? this.reason,
+        nguoiLap: nguoiLap ?? this.nguoiLap,
+        nguoiLapAvatar: nguoiLapAvatar ?? this.nguoiLapAvatar,
       );
+
+  /// Trạng thái hiển thị mirror web (deriveLsxStatus): 2 giá trị.
+  /// hasAdvisorApproved=true → 'approved'; ngược lại → 'pending'.
+  bool get laDaDuyet => hasAdvisorApproved == true;
 }
 
 

@@ -24,6 +24,7 @@ import 'package:provider/provider.dart';
 import '../api/service_lts_client.dart';
 import '../store/app_state.dart';
 import '../theme/lts_tokens.dart';
+import '../widgets/auth/pin_sheets.dart';
 import '../widgets/lts/lts_surfaces.dart';
 import '../widgets/lts/lts_toast.dart';
 
@@ -252,60 +253,81 @@ class _TaoLsxWizardState extends State<TaoLsxWizard> {
     final bg = _bg;
     final sheet = _sheet;
     if (bg == null || sheet == null) return;
-    setState(() => _dangTao = true);
-    try {
-      // Bước A: tạo orders từ sheet đã duyệt
-      final res = await createQuotationPricingSheetOrdersService(
-        token,
-        bg.id,
-      );
-      // Tìm order tương ứng với sheet đã chọn
-      final matched = res.orders
-          .where((o) => o.pricingSheetId == sheet.id)
-          .firstOrNull;
-      if (matched == null) {
-        if (!mounted) return;
-        LtsToast.show(context,
-            'Không tìm thấy order vừa tạo cho sheet này (server có thể đã có sẵn)',
-            type: LtsToastType.warning);
-        await s.taiProductionOrdersTuServer();
-        if (!mounted) return;
-        Navigator.pop(context);
-        return;
-      }
-      // Bước B: PATCH inputValue với thông tin LSX + snapshot input cũ
-      final inputValue = <String, dynamic>{
-        ...sheet.inputValue,
-        'lsxNote': _ghiChuCtrl.text.trim(),
-        if (_ngayGiaoCtrl.text.trim().isNotEmpty)
-          'deliveryDate': _ngayGiaoCtrl.text.trim(),
-        if (_thanhToanCtrl.text.trim().isNotEmpty)
-          'paymentTerms': _thanhToanCtrl.text.trim(),
-        'snapshot': {
-          'customer': _kh?.moiNhat?.organizationName ?? _kh?.codeName,
-          'productName': (sheet.inputValue['productName'] as String?) ??
-              sheet.pricingSheetName,
-          'pricingSheetId': sheet.id,
-          'quotationId': bg.id,
-        },
-      };
-      final updated = await updateQuotationPricingSheetOrderService(
-        token,
-        matched.id,
-        inputValue: inputValue,
-      );
-      if (!mounted) return;
+
+    // create-orders bị PinGuard ở BE → bắt buộc nhập PIN (mirror web wizard).
+    QuotationPricingSheetOrderApi? updated;
+    final ok = await showNhapPinSheet(
+      context,
+      title: 'Tạo LSX',
+      message: 'Nhập mã PIN để tạo lệnh sản xuất từ bảng giá đã duyệt.',
+      confirmLabel: 'Xác nhận',
+      onConfirm: (pinToken) async {
+        setState(() => _dangTao = true);
+        try {
+          updated = await _thucHienTao(s, token, bg, sheet, pinToken);
+        } finally {
+          if (mounted) setState(() => _dangTao = false);
+        }
+      },
+    );
+    if (ok == true && mounted && updated != null) {
       LtsToast.show(context, 'Đã tạo LSX', type: LtsToastType.success);
-      await s.taiProductionOrdersTuServer();
-      if (!mounted) return;
-      widget.onSuccess?.call(updated);
+      widget.onSuccess?.call(updated!);
       Navigator.pop(context, updated);
-    } on LoiServiceLts catch (e) {
-      if (!mounted) return;
-      LtsToast.show(context, e.message, type: LtsToastType.error);
-    } finally {
-      if (mounted) setState(() => _dangTao = false);
     }
+  }
+
+  /// Bước A (create-orders, PIN) + B (PATCH inputValue). Ném lỗi lên PIN sheet.
+  Future<QuotationPricingSheetOrderApi> _thucHienTao(
+    AppState s,
+    String token,
+    BaoGiaApi bg,
+    PricingSheetApi sheet,
+    String pinToken,
+  ) async {
+    // Bước A: tạo orders từ sheet đã duyệt
+    final res = await createQuotationPricingSheetOrdersService(
+      token,
+      bg.id,
+      pinToken: pinToken,
+    );
+    // Tìm order tương ứng với sheet đã chọn
+    final matched = res.orders
+        .where((o) => o.pricingSheetId == sheet.id)
+        .firstOrNull;
+    if (matched == null) {
+      throw LoiServiceLts(
+        0,
+        'Không tìm thấy order vừa tạo cho sheet này (server có thể đã có sẵn).',
+      );
+    }
+    // Bước B: PATCH inputValue với thông tin LSX + snapshot input cũ.
+    // Key 'lsxSnapshot' khớp web (LSX_SNAPSHOT_KEY trong lsx-build-order.ts) —
+    // card LSX + PDF đọc KH/SP/cấu trúc + field kỹ thuật từ đây.
+    final inputValue = <String, dynamic>{
+      ...sheet.inputValue,
+      'lsxNote': _ghiChuCtrl.text.trim(),
+      if (_ngayGiaoCtrl.text.trim().isNotEmpty)
+        'deliveryDate': _ngayGiaoCtrl.text.trim(),
+      if (_thanhToanCtrl.text.trim().isNotEmpty)
+        'paymentTerms': _thanhToanCtrl.text.trim(),
+      'lsxSnapshot': {
+        ...sheet.inputValue,
+        'customer': _kh?.moiNhat?.organizationName ?? _kh?.codeName ?? '',
+        'productName': (sheet.inputValue['productName'] as String?) ??
+            sheet.pricingSheetName,
+        'structure': sheet.inputValue['structure'],
+        'pricingSheetId': sheet.id,
+        'quotationId': bg.id,
+      },
+    };
+    final updated = await updateQuotationPricingSheetOrderService(
+      token,
+      matched.id,
+      inputValue: inputValue,
+    );
+    await s.taiProductionOrdersTuServer();
+    return updated;
   }
 
   @override

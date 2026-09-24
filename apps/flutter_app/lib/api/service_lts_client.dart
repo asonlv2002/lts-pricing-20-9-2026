@@ -942,96 +942,6 @@ class HoatDongApi {
           : null) ??
       resourceId ??
       '';
-
-  /// Nhãn tiếng Việt cho action.
-  String get nhanViet {
-    switch (action) {
-      // Customer
-      case 'customer.created':
-        return 'Tạo khách hàng mới';
-      case 'customer.version_created':
-        return 'Cập nhật thông tin';
-      case 'customer_manager.replaced':
-        return 'Phân công người phụ trách';
-      // Pricing sheet
-      case 'pricing_sheet.created':
-        return 'Tạo bảng tính giá';
-      case 'pricing_sheet.deleted':
-        return 'Xoá bảng tính giá';
-      case 'pricing_sheet.advisor_result_updated':
-        return 'Cập nhật kết quả tư vấn';
-      // Quotation
-      case 'quotation.created':
-        return 'Tạo bảng báo giá';
-      case 'quotation.status_updated':
-        return 'Nộp duyệt báo giá';
-      case 'quotation.review_status_updated':
-        return 'Duyệt / từ chối báo giá';
-      case 'quotation.customer_decided':
-        return 'Khách quyết định sheet';
-      case 'quotation.deleted':
-        return 'Xoá báo giá';
-      // LSX (orders)
-      case 'quotation_pricing_sheet_order.created':
-        return 'Tạo lệnh sản xuất';
-      case 'quotation_pricing_sheet_order.input_value_updated':
-        return 'Cập nhật thông tin LSX';
-      case 'quotation_pricing_sheet_order.approval_updated':
-        return 'Duyệt / từ chối LSX';
-      case 'quotation_pricing_sheet_order.printed_marked':
-        return 'Đánh dấu đã in LSX';
-      default:
-        return action;
-    }
-  }
-
-  /// Nhóm filter chip (cho nhật ký tổng — không chỉ KH).
-  /// 'created' | 'updated' | 'review' | 'order' | 'assigned' | 'other'
-  String get nhom {
-    if (action.contains('.created') ||
-        action.contains('created')) {
-      return 'created';
-    }
-    if (action.contains('version_created') ||
-        action.contains('input_value_updated') ||
-        action.contains('advisor_result_updated')) {
-      return 'updated';
-    }
-    if (action.contains('review_status_updated') ||
-        action.contains('approval_updated')) {
-      return 'review';
-    }
-    if (action.contains('pricing_sheet_order')) {
-      return 'order';
-    }
-    if (action.contains('manager.replaced') ||
-        action.contains('assigned')) {
-      return 'assigned';
-    }
-    return 'other';
-  }
-
-  /// Resource type tiếng Việt cho nhóm filter (màn nhật ký tổng).
-  String get nhanResource {
-    switch (resourceType ?? '') {
-      case 'pricing_sheet':
-        return 'Bảng tính';
-      case 'quotation':
-        return 'Báo giá';
-      case 'customer':
-      case 'customer_manager':
-        return 'Khách hàng';
-      case 'quotation_pricing_sheet_order':
-        return 'Lệnh sản xuất';
-      case 'user_policy':
-      case 'account':
-        return 'Phân quyền';
-      case 'price_config':
-        return 'Cấu hình';
-      default:
-        return resourceType ?? 'Khác';
-    }
-  }
 }
 
 /// GET /activity-logs — log toàn hệ thống. BE tự filter theo policy
@@ -1044,12 +954,53 @@ Future<List<HoatDongApi>> layHoatDongService(String token) async {
       .toList();
 }
 
-/// Lọc chỉ các log liên quan khách hàng (customer.* / customer_manager.*).
-List<HoatDongApi> locLogKhachHang(List<HoatDongApi> all) => all
-    .where((h) =>
-        h.action.startsWith('customer.') ||
-        h.action.startsWith('customer_manager.'))
-    .toList();
+/// Kết quả enrich cho màn Nhật ký thao tác (mirror `taiNhatKyHeThong` web):
+/// log thô + accounts + customers + quotations để resolve actor/target.
+class DuLieuNhatKy {
+  final List<HoatDongApi> logs;
+  final List<TaiKhoanApi> accounts;
+  final List<KhachHang> customers;
+  final List<BaoGiaApi> quotations;
+  const DuLieuNhatKy({
+    required this.logs,
+    this.accounts = const [],
+    this.customers = const [],
+    this.quotations = const [],
+  });
+}
+
+/// Lấy BBG thương mại để gắn tên/mã cho log quotation (không gây lỗi nếu thiếu
+/// quyền) — mirror `layBaoGiaChoLog` của web store slice `audit.ts`.
+Future<List<BaoGiaApi>> _layBaoGiaChoLog(String token) async {
+  try {
+    final list = await layDanhSachBaoGiaService(token);
+    if (list.isNotEmpty) return list;
+  } catch (_) {
+    /* fallthrough */
+  }
+  try {
+    return await layBaoGiaChoDuyetService(token);
+  } catch (_) {
+    return [];
+  }
+}
+
+/// Fetch song song log + accounts + customers + quotations (mirror
+/// `Promise.all` trong audit.ts). accounts/customers lỗi → rỗng (không chặn log).
+Future<DuLieuNhatKy> layNhatKyDayDuService(String token) async {
+  final results = await Future.wait<dynamic>([
+    layHoatDongService(token),
+    layTaiKhoanService(token).catchError((_) => <TaiKhoanApi>[]),
+    layKhachHangService(token).catchError((_) => <KhachHang>[]),
+    _layBaoGiaChoLog(token),
+  ]);
+  return DuLieuNhatKy(
+    logs: results[0] as List<HoatDongApi>,
+    accounts: results[1] as List<TaiKhoanApi>,
+    customers: results[2] as List<KhachHang>,
+    quotations: results[3] as List<BaoGiaApi>,
+  );
+}
 
 // ── Resolve URL tương đối từ server (avatar / signature) ────────────────────
 //
@@ -1748,6 +1699,284 @@ Future<QuotationPricingSheetOrderApi>
   );
   return QuotationPricingSheetOrderApi.fromJson(
       (data as Map).cast<String, dynamic>());
+}
+
+// ── Price Config (mirror BE /price-config + web service-lts.ts) ───────────
+//
+// BE lưu mỗi scope cấu hình dưới 1 PriceConfig record (configName free-form:
+// MATERIALS / PROFIT / PRODUCTION / PRODUCTION_UPGRADE / SURCHARGES / INTEREST /
+// WASTE / OUTSOURCE). inputValue là blob free-form do frontend tự quy ước.
+
+class PriceConfigApi {
+  final String id;
+  final String configName;
+  final int version;
+  final Map<String, dynamic>? inputValue;
+  final String? createdBy;
+  final String createdAt;
+
+  /// Policies của user đang gọi API trên config này (do BE filter theo actor).
+  final List<String> policies;
+  const PriceConfigApi({
+    required this.id,
+    required this.configName,
+    required this.version,
+    this.inputValue,
+    this.createdBy,
+    required this.createdAt,
+    this.policies = const [],
+  });
+
+  factory PriceConfigApi.fromJson(Map<String, dynamic> j) => PriceConfigApi(
+        id: j['id']?.toString() ?? '',
+        configName: j['configName']?.toString() ?? '',
+        version: (j['version'] as num?)?.toInt() ?? 0,
+        inputValue: j['inputValue'] is Map
+            ? (j['inputValue'] as Map).cast<String, dynamic>()
+            : null,
+        createdBy: j['createdBy']?.toString(),
+        createdAt: j['createdAt']?.toString() ?? '',
+        policies: ((j['policies'] as List?) ?? const [])
+            .map((e) => e.toString())
+            .toList(),
+      );
+}
+
+/// POST /price-config/by-ids — batch load theo id (1 request, tránh N× GET / 429).
+Future<List<PriceConfigApi>> layPriceConfigTheoIdsService(
+  String token,
+  List<String> ids,
+) async {
+  final unique = ids.map((e) => e.trim()).where((e) => e.isNotEmpty).toSet();
+  if (unique.isEmpty) return [];
+  final data = await ServiceLtsClient.instance.goiService(
+    '/price-config/by-ids',
+    method: 'POST',
+    body: {'ids': unique.toList()},
+    token: token,
+  );
+  return ((data as List?) ?? const [])
+      .map((e) =>
+          PriceConfigApi.fromJson((e as Map).cast<String, dynamic>()))
+      .toList();
+}
+
+// ── Customers mở rộng (mirror web layChiTiet / managers / versions) ───────
+
+/// GET /customers/:codeName — chi tiết 1 khách hàng (lazy-load).
+Future<KhachHang> layChiTietKhachHangService(
+  String token,
+  String codeName,
+) async {
+  final data = await ServiceLtsClient.instance.goiService(
+    '/customers/${Uri.encodeComponent(codeName)}',
+    token: token,
+  );
+  return KhachHang.fromJson((data as Map).cast<String, dynamic>());
+}
+
+/// GET /customers/:codeName/managers — người phụ trách khách hàng.
+Future<List<KhachHangManager>> layNguoiPhuTrachKhachHangService(
+  String token,
+  String codeName,
+) async {
+  final data = await ServiceLtsClient.instance.goiService(
+    '/customers/${Uri.encodeComponent(codeName)}/managers',
+    token: token,
+  );
+  return ((data as List?) ?? const [])
+      .map((e) =>
+          KhachHangManager.fromJson((e as Map).cast<String, dynamic>()))
+      .toList();
+}
+
+/// GET /customers/:codeName/versions/latest — phiên bản mới nhất.
+Future<KhachHangVersion> layPhienBanMoiNhatKhachHangService(
+  String token,
+  String codeName,
+) async {
+  final data = await ServiceLtsClient.instance.goiService(
+    '/customers/${Uri.encodeComponent(codeName)}/versions/latest',
+    token: token,
+  );
+  return KhachHangVersion.fromJson((data as Map).cast<String, dynamic>());
+}
+
+/// GET /customers/:codeName/versions/:versionId — một phiên bản cụ thể.
+Future<KhachHangVersion> layPhienBanKhachHangService(
+  String token,
+  String codeName,
+  String versionId,
+) async {
+  final data = await ServiceLtsClient.instance.goiService(
+    '/customers/${Uri.encodeComponent(codeName)}/versions/${Uri.encodeComponent(versionId)}',
+    token: token,
+  );
+  return KhachHangVersion.fromJson((data as Map).cast<String, dynamic>());
+}
+
+// ── System metric (mirror web layMetricHeThongService) ────────────────────
+
+class SystemMetricHostApi {
+  final num? cpuUsagePercent;
+  final num? memoryTotalBytes;
+  final num? memoryAvailableBytes;
+  final num? memoryUsedBytes;
+  final num? memoryUsedPercent;
+  final num? filesystemSizeBytes;
+  final num? filesystemAvailableBytes;
+  final num? filesystemUsedBytes;
+  final num? filesystemUsedPercent;
+  final num? loadAverage1m;
+  const SystemMetricHostApi({
+    this.cpuUsagePercent,
+    this.memoryTotalBytes,
+    this.memoryAvailableBytes,
+    this.memoryUsedBytes,
+    this.memoryUsedPercent,
+    this.filesystemSizeBytes,
+    this.filesystemAvailableBytes,
+    this.filesystemUsedBytes,
+    this.filesystemUsedPercent,
+    this.loadAverage1m,
+  });
+
+  factory SystemMetricHostApi.fromJson(Map<String, dynamic> j) =>
+      SystemMetricHostApi(
+        cpuUsagePercent: j['cpuUsagePercent'] as num?,
+        memoryTotalBytes: j['memoryTotalBytes'] as num?,
+        memoryAvailableBytes: j['memoryAvailableBytes'] as num?,
+        memoryUsedBytes: j['memoryUsedBytes'] as num?,
+        memoryUsedPercent: j['memoryUsedPercent'] as num?,
+        filesystemSizeBytes: j['filesystemSizeBytes'] as num?,
+        filesystemAvailableBytes: j['filesystemAvailableBytes'] as num?,
+        filesystemUsedBytes: j['filesystemUsedBytes'] as num?,
+        filesystemUsedPercent: j['filesystemUsedPercent'] as num?,
+        loadAverage1m: j['loadAverage1m'] as num?,
+      );
+}
+
+class SystemMetricContainersApi {
+  final num? running;
+  final num? cpuUsagePercent;
+  final num? memoryWorkingSetBytes;
+  final num? memoryWorkingSetPercentOfHost;
+  const SystemMetricContainersApi({
+    this.running,
+    this.cpuUsagePercent,
+    this.memoryWorkingSetBytes,
+    this.memoryWorkingSetPercentOfHost,
+  });
+
+  factory SystemMetricContainersApi.fromJson(Map<String, dynamic> j) =>
+      SystemMetricContainersApi(
+        running: j['running'] as num?,
+        cpuUsagePercent: j['cpuUsagePercent'] as num?,
+        memoryWorkingSetBytes: j['memoryWorkingSetBytes'] as num?,
+        memoryWorkingSetPercentOfHost:
+            j['memoryWorkingSetPercentOfHost'] as num?,
+      );
+}
+
+class SystemMetricSnapshotApi {
+  final String timestamp;
+  final SystemMetricHostApi host;
+  final SystemMetricContainersApi containers;
+  final bool cadvisorUp;
+  final bool nodeExporterUp;
+  const SystemMetricSnapshotApi({
+    required this.timestamp,
+    required this.host,
+    required this.containers,
+    required this.cadvisorUp,
+    required this.nodeExporterUp,
+  });
+
+  factory SystemMetricSnapshotApi.fromJson(Map<String, dynamic> j) {
+    final host = j['host'];
+    final containers = j['containers'];
+    final exporters = j['exporters'];
+    bool exporterUp(String key) {
+      if (exporters is! Map) return false;
+      final e = exporters[key];
+      return e is Map && e['up'] == true;
+    }
+
+    return SystemMetricSnapshotApi(
+      timestamp: j['timestamp']?.toString() ?? '',
+      host: host is Map
+          ? SystemMetricHostApi.fromJson(host.cast<String, dynamic>())
+          : const SystemMetricHostApi(),
+      containers: containers is Map
+          ? SystemMetricContainersApi.fromJson(
+              containers.cast<String, dynamic>())
+          : const SystemMetricContainersApi(),
+      cadvisorUp: exporterUp('cadvisor'),
+      nodeExporterUp: exporterUp('nodeExporter'),
+    );
+  }
+}
+
+/// GET /system/metric/collect — snapshot metric hệ thống (SYSTEM_MONITOR).
+Future<SystemMetricSnapshotApi> layMetricHeThongService(String token) async {
+  final data = await ServiceLtsClient.instance.goiService(
+    '/system/metric/collect',
+    token: token,
+  );
+  return SystemMetricSnapshotApi.fromJson((data as Map).cast<String, dynamic>());
+}
+
+/// GET /auth/me/password-reset-requests — yêu cầu reset mật khẩu của chính tôi
+/// (JWT, request hiện tại hoặc null).
+Future<YeuCauDatLaiMatKhauApi?> layYeuCauDatLaiMatKhauCuaToiService(
+  String token,
+) async {
+  final data = await ServiceLtsClient.instance.goiService(
+    '/auth/me/password-reset-requests',
+    token: token,
+  );
+  if (data is! Map || data.isEmpty) return null;
+  return YeuCauDatLaiMatKhauApi.fromJson(data.cast<String, dynamic>());
+}
+
+// ── Pricing sheet / Quotation — các PATCH còn thiếu ───────────────────────
+
+/// PATCH /pricing-sheet/:id/advisor-result — cập nhật masterResult (ghi đè
+/// Admin, cần quyền PRICING_SHEET_ADVISOR). Gửi `result: {}` để xóa ghi đè cũ.
+Future<PricingSheetApi> capNhatPricingSheetAdvisorResultService(
+  String token,
+  String id, {
+  Map<String, dynamic>? result,
+}) async {
+  final data = await ServiceLtsClient.instance.goiService(
+    '/pricing-sheet/${Uri.encodeComponent(id)}/advisor-result',
+    method: 'PATCH',
+    body: {'result': result ?? const <String, dynamic>{}},
+    token: token,
+  );
+  return PricingSheetApi.fromJson((data as Map).cast<String, dynamic>());
+}
+
+/// PATCH /quotations/:id/update — cập nhật báo giá nháp / bị từ chối và gửi
+/// lại duyệt (mirror web capNhatBaoGiaService).
+Future<BaoGiaApi> capNhatBaoGiaService(
+  String token,
+  String idBaoGia, {
+  String? moTa,
+  Map<String, dynamic>? duLieuDauVao,
+  List<String>? dsPricingSheetId,
+}) async {
+  final body = <String, dynamic>{};
+  if (moTa != null) body['description'] = moTa;
+  if (duLieuDauVao != null) body['inputValue'] = duLieuDauVao;
+  if (dsPricingSheetId != null) body['pricingSheetIds'] = dsPricingSheetId;
+  final data = await ServiceLtsClient.instance.goiService(
+    '/quotations/${Uri.encodeComponent(idBaoGia)}/update',
+    method: 'PATCH',
+    body: body,
+    token: token,
+  );
+  return BaoGiaApi.fromJson((data as Map).cast<String, dynamic>());
 }
 
 // ── Mapping local QuoteStatus (8 gia tri) ↔ server (4) ──────────────────

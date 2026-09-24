@@ -12,7 +12,7 @@
 //
 // Khách hàng (từ 18/09/2026): tab "Khách hàng" là hub KhachHangHubScreen
 // (mirror web mobile MOBILE_HUBS.customers). Push KhachHangScreen (list) và
-// KhachHangAuditLogScreen qua ModuleRoute — KHÔNG cần PopScope vì list KH
+// KhachHangHubScreen qua ModuleRoute — KHÔNG cần PopScope vì list KH
 // không có form state đang sửa (sheet modal tự dispose).
 // ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';

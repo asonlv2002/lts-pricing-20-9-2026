@@ -21,6 +21,8 @@ import '../widgets/lts/lts_module_route.dart';
 import '../widgets/lts/lts_toast.dart';
 import 'cau_hinh_screen.dart';
 import 'lich_su_screen.dart';
+import 'nhat_ky/nhat_ky_scope.dart';
+import 'nhat_ky_thao_tac_screen.dart';
 import 'tai_khoan_screen.dart';
 
 class ThemScreen extends StatelessWidget {
@@ -61,6 +63,16 @@ class ThemScreen extends StatelessWidget {
           context,
           title: 'Lịch sử báo giá',
           child: const LichSuScreen(),
+        ),
+      ),
+      _MucMenu(
+        icon: Icons.manage_search_rounded,
+        label: 'Nhật ký hệ thống',
+        sub: 'Theo dõi hoạt động quản trị',
+        onTap: () => _pushModule(
+          context,
+          title: 'Nhật ký hệ thống',
+          child: const NhatKyThaoTacScreen(scope: PhamViNhatKy.heThong),
         ),
       ),
     ];

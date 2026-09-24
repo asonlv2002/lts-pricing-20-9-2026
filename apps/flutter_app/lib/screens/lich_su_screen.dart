@@ -1,6 +1,6 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// LichSuScreen — Lịch sử báo giá
-// Cải tiến: Filter tabs theo trạng thái + pull-to-refresh + better cards
+// LichSuScreen — Lịch sử báo giá (= Danh sách tính giá, mirror web
+// ModuleDanhSachTinhGia): ô tìm kiếm + pull-to-refresh + swipe-xóa.
 // ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -9,8 +9,6 @@ import '../engine/models.dart';
 import '../store/app_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/format.dart';
-import '../widgets/expandable_table.dart';
-import '../widgets/lts/lts_module_route.dart';
 
 class LichSuScreen extends StatefulWidget {
   const LichSuScreen({super.key});
@@ -19,146 +17,8 @@ class LichSuScreen extends StatefulWidget {
   State<LichSuScreen> createState() => _LichSuScreenState();
 }
 
-class _LichSuScreenState extends State<LichSuScreen>
-    with SingleTickerProviderStateMixin {
+class _LichSuScreenState extends State<LichSuScreen> {
   String _query = '';
-  String? _filterStatus; // null = tất cả
-  late TabController _tabCtrl;
-
-  static const _tabs = [
-    (null, 'Tất cả'),
-    ('drafted', 'Đã lập'),
-    ('approved', 'Đã duyệt'),
-    ('completed', 'Hoàn thành'),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _tabCtrl = TabController(length: _tabs.length, vsync: this);
-    _tabCtrl.addListener(() {
-      if (!_tabCtrl.indexIsChanging) return;
-      setState(() => _filterStatus = _tabs[_tabCtrl.index].$1);
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabCtrl.dispose();
-    super.dispose();
-  }
-
-  void _openHistoryTable(BuildContext context, List<HistoryItem> items) {
-    final scheme = Theme.of(context).colorScheme;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (ctx) => ModuleRoute(
-          title: 'Lịch sử báo giá — dạng bảng',
-          child: SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.all(8),
-              child: Column(
-                children: [
-                  if (MediaQuery.orientationOf(ctx) == Orientation.portrait)
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      margin: const EdgeInsets.only(bottom: 6),
-                      decoration: BoxDecoration(
-                        color: scheme.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(children: [
-                        Icon(Icons.screen_rotation,
-                            size: 16, color: scheme.primary),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Xoay ngang máy để xem rộng hơn (cuộn ngang nếu cần)',
-                            style: TextStyle(
-                                fontSize: 12,
-                                color: scheme.primary,
-                                fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ]),
-                    ),
-                  Expanded(
-                    child: ExpandableTableCard(
-                      title: '${items.length} báo giá',
-                      icon: Icons.history_rounded,
-                      iconColor: AppColors.info,
-                      columns: const [
-                        TableColumn('Ngày', minWidth: 90),
-                        TableColumn('Khách hàng', minWidth: 140),
-                        TableColumn('Sản phẩm', minWidth: 160),
-                        TableColumn('Cấu trúc', minWidth: 140),
-                        TableColumn('SL', minWidth: 70, align: TextAlign.right),
-                        TableColumn('Giá / đv',
-                            minWidth: 100, align: TextAlign.right),
-                        TableColumn('Doanh thu',
-                            minWidth: 120, align: TextAlign.right),
-                        TableColumn('Trạng thái', minWidth: 100),
-                      ],
-                      rows: items.map((h) {
-                        final dt = DateTime.tryParse(h.date);
-                        final dateStr = dt == null
-                            ? h.date
-                            : '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-                        return [
-                          TableCellData(dateStr),
-                          TableCellData(h.customer.isEmpty ? '—' : h.customer),
-                          TableCellData(
-                              h.productName.isEmpty ? '—' : h.productName),
-                          TableCellData(h.structure),
-                          TableCellData(h.quantity.toString(),
-                              align: TextAlign.right),
-                          TableCellData(Fmt.vnd(h.finalPrice.toDouble()),
-                              align: TextAlign.right,
-                              style: TextStyle(
-                                  fontSize: 12.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.success)),
-                          TableCellData(
-                              Fmt.vnd(h.finalPrice.toDouble() *
-                                  h.quantity.toDouble()),
-                              align: TextAlign.right,
-                              style: const TextStyle(
-                                  fontSize: 12.5, fontWeight: FontWeight.w600)),
-                          TableCellData(_statusLabel(h.quoteStatus)),
-                        ];
-                      }).toList(),
-                      dense: true,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  String _statusLabel(String? status) {
-    switch (status) {
-      case 'drafted':
-        return 'Đã lập';
-      case 'pending_approval':
-        return 'Chờ duyệt';
-      case 'approved':
-        return 'Đã duyệt';
-      case 'completed':
-        return 'Hoàn thành';
-      case 'rejected':
-        return 'Từ chối';
-      default:
-        return status ?? '—';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -167,44 +27,20 @@ class _LichSuScreenState extends State<LichSuScreen>
     final scheme = Theme.of(context).colorScheme;
 
     final filtered = all.where((h) {
-      final matchQuery = _query.isEmpty ||
+      return _query.isEmpty ||
           h.customer.toLowerCase().contains(_query.toLowerCase()) ||
           h.productName.toLowerCase().contains(_query.toLowerCase()) ||
           h.structure.toLowerCase().contains(_query.toLowerCase());
-      final matchStatus = _filterStatus == null ||
-          h.quoteStatus == _filterStatus ||
-          (_filterStatus == 'approved' &&
-              (h.quoteStatus == 'approved' ||
-                  h.quoteStatus == 'pending_approval'));
-      return matchQuery && matchStatus;
     }).toList();
-
-    final totalRev = all.fold<double>(
-        0, (sum, h) => sum + h.finalPrice.toDouble() * h.quantity.toDouble());
-    final approvedCount = all
-        .where(
-            (h) => h.quoteStatus == 'approved' || h.quoteStatus == 'completed')
-        .length;
 
     if (all.isEmpty) return _Empty();
 
     return Column(
       children: [
-        // Stats
+        // Search bar (thay nút "Xem dạng bảng")
         Container(
           color: scheme.surface,
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: _StatsRow(
-            totalQuotes: all.length,
-            totalRevenue: totalRev,
-            approved: approvedCount,
-          ),
-        ),
-
-        // Search bar
-        Container(
-          color: scheme.surface,
-          padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
           child: Row(
             children: [
               Expanded(
@@ -223,71 +59,7 @@ class _LichSuScreenState extends State<LichSuScreen>
                   onChanged: (v) => setState(() => _query = v),
                 ),
               ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'Xem dạng bảng (phóng to)',
-                icon: const Icon(Icons.table_chart_outlined),
-                style: IconButton.styleFrom(
-                  backgroundColor:
-                      scheme.surfaceContainerHighest.withValues(alpha: 0.6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                onPressed: filtered.isEmpty
-                    ? null
-                    : () => _openHistoryTable(context, filtered),
-              ),
             ],
-          ),
-        ),
-
-        // Tab bar filter
-        Container(
-          color: scheme.surface,
-          child: TabBar(
-            controller: _tabCtrl,
-            isScrollable: true,
-            tabAlignment: TabAlignment.start,
-            labelColor: scheme.primary,
-            unselectedLabelColor: scheme.onSurfaceVariant,
-            indicatorColor: scheme.primary,
-            indicatorWeight: 2.5,
-            indicatorSize: TabBarIndicatorSize.label,
-            labelStyle:
-                const TextStyle(fontWeight: FontWeight.w700, fontSize: 12.5),
-            unselectedLabelStyle:
-                const TextStyle(fontWeight: FontWeight.w500, fontSize: 12.5),
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            tabs: _tabs.map((t) {
-              final count = t.$1 == null
-                  ? all.length
-                  : all.where((h) => h.quoteStatus == t.$1).length;
-              return Tab(
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(t.$2),
-                    if (count > 0) ...[
-                      const SizedBox(width: 5),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: scheme.primary.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Text(count.toString(),
-                            style: TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w700,
-                                color: scheme.primary)),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            }).toList(),
           ),
         ),
 
@@ -368,109 +140,6 @@ class _Empty extends StatelessWidget {
             Text('Lưu báo giá từ tab Tính giá để xem ở đây',
                 style: Theme.of(context).textTheme.bodyMedium,
                 textAlign: TextAlign.center),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Stats row ───────────────────────────────────────────────────────────────
-class _StatsRow extends StatelessWidget {
-  final int totalQuotes;
-  final double totalRevenue;
-  final int approved;
-  const _StatsRow({
-    required this.totalQuotes,
-    required this.totalRevenue,
-    required this.approved,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        _StatCard(
-          label: 'Tổng báo giá',
-          value: totalQuotes.toString(),
-          icon: Icons.receipt_long,
-          color: AppColors.info,
-          bg: AppColors.bgInfo,
-        ),
-        const SizedBox(width: 10),
-        _StatCard(
-          label: 'Doanh thu ước tính',
-          value: '${Fmt.n((totalRevenue / 1000000).round())}tr',
-          icon: Icons.payments_outlined,
-          color: AppColors.success,
-          bg: AppColors.bgSuccess,
-        ),
-        const SizedBox(width: 10),
-        _StatCard(
-          label: 'Đã duyệt',
-          value: approved.toString(),
-          icon: Icons.check_circle_outline,
-          color: AppColors.warning,
-          bg: AppColors.bgWarning,
-        ),
-      ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final Color color;
-  final Color bg;
-  const _StatCard({
-    required this.label,
-    required this.value,
-    required this.icon,
-    required this.color,
-    required this.bg,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: dark ? color.withValues(alpha: 0.1) : bg,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Icon(icon, size: 16, color: color),
-            ),
-            const SizedBox(height: 10),
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: Text(value,
-                  style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w800,
-                      color: color,
-                      letterSpacing: -0.3)),
-            ),
-            const SizedBox(height: 2),
-            Text(label,
-                style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: color.withValues(alpha: 0.85))),
           ],
         ),
       ),

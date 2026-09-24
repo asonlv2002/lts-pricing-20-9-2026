@@ -3,7 +3,7 @@
 // (apps/web/src/components/layout/VoTrang.tsx:618-642):
 //   Section "Khách hàng" — 2 action card:
 //     1. Danh sách khách hàng → push ModuleRoute(KhachHangScreen)
-//     2. Nhật ký thao tác      → push ModuleRoute(KhachHangAuditLogScreen)
+//     2. Nhật ký thao tác      → push ModuleRoute(NhatKyThaoTacScreen scope khachHang)
 //
 // Pattern y hệt TinhGiaHubScreen (xem apps/flutter_app/lib/screens/
 // tinh_gia_hub_screen.dart). Hub KH không có card nào locked vì cả 2
@@ -16,8 +16,9 @@ import '../widgets/auth/auth_header_actions.dart';
 import '../widgets/lts/lts_chrome.dart';
 import '../widgets/lts/lts_module_route.dart';
 import '../widgets/lts/lts_surfaces.dart';
-import 'khach_hang_audit_log_screen.dart';
 import 'khach_hang_screen.dart';
+import 'nhat_ky/nhat_ky_scope.dart';
+import 'nhat_ky_thao_tac_screen.dart';
 
 class KhachHangHubScreen extends StatelessWidget {
   const KhachHangHubScreen({super.key});
@@ -70,7 +71,7 @@ class KhachHangHubScreen extends StatelessWidget {
         onTap: () => _pushModule(
           context,
           title: 'Nhật ký khách hàng',
-          child: const KhachHangAuditLogScreen(),
+          child: const NhatKyThaoTacScreen(scope: PhamViNhatKy.khachHang),
         ),
       ),
     ];
@@ -78,8 +79,7 @@ class KhachHangHubScreen extends StatelessWidget {
       for (var i = 0; i < cards.length; i++) ...[
         if (i > 0) const SizedBox(height: 16),
         LtsActionCard(
-          iconBox:
-              LtsIconBox(icon: cards[i].icon, variant: cards[i].variant),
+          iconBox: LtsIconBox(icon: cards[i].icon, variant: cards[i].variant),
           title: cards[i].title,
           subtitle: cards[i].sub,
           onTap: cards[i].onTap,

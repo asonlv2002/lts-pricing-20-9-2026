@@ -11,9 +11,13 @@ import '../store/app_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/format.dart';
 import '../theme/lts_tokens.dart';
+import '../widgets/auth/auth_header_actions.dart';
 import '../widgets/form_widgets.dart';
 import '../widgets/lts/lts_chrome.dart';
+import '../widgets/lts/lts_module_route.dart';
 import '../widgets/lts/lts_toast.dart';
+import 'nhat_ky/nhat_ky_scope.dart';
+import 'nhat_ky_thao_tac_screen.dart';
 
 class CauHinhScreen extends StatelessWidget {
   const CauHinhScreen({super.key});
@@ -88,6 +92,20 @@ class CauHinhScreen extends StatelessWidget {
                 subtitle: 'Cần đồng bộ server — dùng bản web',
                 locked: true,
               ),
+              const SizedBox(height: 16),
+              LtsActionCard(
+                iconBox: LtsIconBox(
+                  icon: Icons.manage_search_rounded,
+                  variant: LtsIconVariant.orange,
+                ),
+                title: 'Nhật ký thao tác',
+                subtitle: 'Theo dõi thay đổi cấu hình tính giá',
+                onTap: () => _moModule(
+                  context,
+                  title: 'Nhật ký thao tác',
+                  child: const NhatKyThaoTacScreen(scope: PhamViNhatKy.cauHinh),
+                ),
+              ),
               const SizedBox(height: 24),
               _ConfigGroupLabel('Khác'),
               const SizedBox(height: 12),
@@ -115,6 +133,26 @@ class CauHinhScreen extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (_) => _SubSectionPage(title: title, child: child),
+      ),
+    );
+  }
+
+  void _moModule(
+    BuildContext context, {
+    required String title,
+    required Widget child,
+  }) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ModuleRoute(
+          title: title,
+          extras: const [
+            LtsHeaderBell(),
+            SizedBox(width: 10),
+            LtsHeaderAvatar(),
+          ],
+          child: child,
+        ),
       ),
     );
   }

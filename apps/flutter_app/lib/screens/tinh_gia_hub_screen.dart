@@ -24,6 +24,7 @@ import '../widgets/lts/lts_surfaces.dart';
 import 'danh_sach_bao_gia_screen.dart';
 import 'lich_su_screen.dart';
 import 'lsx_screen.dart';
+import 'nhat_ky/nhat_ky_scope.dart';
 import 'nhat_ky_thao_tac_screen.dart';
 import 'tao_bao_gia_wizard.dart';
 import 'tao_lsx_wizard.dart';
@@ -134,7 +135,7 @@ class TinhGiaHubScreen extends StatelessWidget {
         onTap: () => _pushRoute(
           context,
           title: 'Nhật ký thao tác',
-          child: const NhatKyThaoTacScreen(),
+          child: const NhatKyThaoTacScreen(scope: PhamViNhatKy.tinhGia),
         ),
       ),
     ];
@@ -142,8 +143,7 @@ class TinhGiaHubScreen extends StatelessWidget {
       for (var i = 0; i < cards.length; i++) ...[
         if (i > 0) const SizedBox(height: 16),
         LtsActionCard(
-          iconBox:
-              LtsIconBox(icon: cards[i].icon, variant: cards[i].variant),
+          iconBox: LtsIconBox(icon: cards[i].icon, variant: cards[i].variant),
           title: cards[i].title,
           subtitle: cards[i].sub,
           onTap: cards[i].onTap,
