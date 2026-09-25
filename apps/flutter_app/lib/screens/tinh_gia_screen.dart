@@ -20,7 +20,10 @@ import '../lib/bo_dau.dart';
 import '../lib/thuong_mai.dart';
 import '../store/app_state.dart';
 import '../theme/app_theme.dart';
+import '../theme/format.dart';
 import '../theme/lts_tokens.dart';
+import 'package:lts_pricing/lib/chot_gia_allocation.dart';
+import 'package:lts_pricing/lib/pricing_display.dart';
 import 'package:lts_pricing/lib/pricing_pdf.dart';
 import '../widgets/chot_gia_section.dart';
 import '../widgets/detail_tables.dart';
@@ -436,7 +439,11 @@ class _ResultPanel extends StatelessWidget {
                   : state.giaDeXuatHienThi(state.ketQuaHienThi.finalPrice)),
           if (state.currentResult != null) ...[
             const SizedBox(height: 12),
-            ChotGiaSection(state: state),
+            ChotGiaSection(
+              state: state,
+              giaDeXuatOverride: state
+                  .giaDeXuatHienThi(state.ketQuaHienThi.finalPrice),
+            ),
             const SizedBox(height: 12),
             BreakdownPanel(result: state.ketQuaHienThi),
             const SizedBox(height: 12),

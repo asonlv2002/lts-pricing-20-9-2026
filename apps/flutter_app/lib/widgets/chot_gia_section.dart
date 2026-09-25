@@ -16,7 +16,11 @@ import 'lts/lts_surfaces.dart';
 
 class ChotGiaSection extends StatefulWidget {
   final AppState state;
-  const ChotGiaSection({super.key, required this.state});
+
+  /// Giá đề xuất hiển thị (đã đóng băng khi mở sheet đã lưu). Null = dùng live.
+  /// Mirror web `giaDeXuatHienThi` — chênh lệch tính theo giá này.
+  final double? giaDeXuatOverride;
+  const ChotGiaSection({super.key, required this.state, this.giaDeXuatOverride});
 
   @override
   State<ChotGiaSection> createState() => _ChotGiaSectionState();
@@ -66,7 +70,7 @@ class _ChotGiaSectionState extends State<ChotGiaSection> {
     final input = (r.raw['input'] as Map?)?.cast<String, dynamic>() ?? r.raw;
     final meta = getPricingDisplayMeta(input);
     final qty = (input['quantity'] as num?)?.toDouble() ?? 0;
-    final giaDeXuat = r.finalPrice;
+    final giaDeXuat = widget.giaDeXuatOverride ?? r.finalPrice;
     final chotGiaNum = s.currentChotGia;
     final hasChotGia = chotGiaNum > 0;
     final diff = hasChotGia ? chotGiaNum - giaDeXuat : 0.0;

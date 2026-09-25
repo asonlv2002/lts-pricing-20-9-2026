@@ -27,6 +27,10 @@ class _ResultTabsState extends State<ResultTabs> {
   @override
   Widget build(BuildContext context) {
     final p = LtsT.of(context);
+    // Quyền sửa: cố vấn bảng tính (PRICING_SHEET_ADVISOR) sửa cột Admin,
+    // ngược lại sale sửa cột Sale (mirror web ManHinhQuanLy.tsx:2896-2900).
+    final coVan = s.nguoiDungHienTai?.coQuyen('PRICING_SHEET_ADVISOR') ?? false;
+    final duocSua = _isSale ? !coVan : coVan;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -65,11 +69,34 @@ class _ResultTabsState extends State<ResultTabs> {
             ),
           ),
         ]),
+        if (!duocSua)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: p.surface2,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: p.border),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.visibility_outlined, size: 13, color: p.muted),
+                const SizedBox(width: 6),
+                Text('Chỉ xem',
+                    style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: p.muted)),
+              ]),
+            ),
+          ),
         const SizedBox(height: 10),
         if (s.cheDoNangCao)
-          AdvancedSpecSection(state: s, isSale: _isSale)
+          AdvancedSpecSection(state: s, isSale: _isSale, duocSua: duocSua)
         else
-          OverrideTableSection(state: s, isSale: _isSale),
+          OverrideTableSection(
+              state: s, isSale: _isSale, duocSua: duocSua),
       ],
     );
   }

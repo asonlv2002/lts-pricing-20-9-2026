@@ -45,6 +45,10 @@ interface Material {
   isPETorPA: boolean; adjustableMic?: boolean;
   rollLength: number; inkPricePerColor: number; pricePerM2?: number;
 }
+interface SmallWidthMaterialPrice {
+  id: string; materialId: string; widthThresholdMm: number;
+  thickness?: number; pricePerKg: number; pricePerM2?: number;
+}
 interface ConfigOption {
   key: string; label: string; price: number; weight?: number;
 }
@@ -237,6 +241,22 @@ function toHangSo(c: AppConstants, input?: CalculateInput): HangSo {
   } as HangSo;
 }
 
+// ── Giá khổ nhỏ EN → GiaVatLieuKhoNho VN (mirror web doiSangGiaKhoNho) ───────
+function toGiaKhoNho(rows: SmallWidthMaterialPrice[], materials: Material[]): any[] {
+  return rows.map(row => {
+    const material = materials.find(m => m.id === row.materialId);
+    const doDay = row.thickness ?? material?.thickness ?? 0;
+    const giaMoiM2 = row.pricePerM2 ?? (material ? row.pricePerKg * doDay * material.density / 1000 : 0);
+    return {
+      id: row.id,
+      vatLieuId: row.materialId,
+      nguongKhoMm: row.widthThresholdMm,
+      giaMoiKg: row.pricePerKg,
+      giaMoiM2,
+    };
+  }).filter(row => row.nguongKhoMm > 0 && row.giaMoiM2 > 0);
+}
+
 function toDongLoiNhuan(rows: ProfitRow[]): DongLoiNhuan[] {
   return rows.map(r => ({
     nguong: r.threshold,
@@ -346,7 +366,7 @@ function mapOutsourceEnToVn(o?: OutsourceConfig | null): GiaCongNgoai | undefine
   return result;
 }
 
-function toDauVao(i: CalculateInput): DauVaoTinhGia {
+function toDauVao(i: CalculateInput, bangGiaKhoNho?: any[]): DauVaoTinhGia {
   return {
     khachHang: i.customer, tenSanPham: i.productName,
     loaiSanPham: i.productType, loaiTui: i.bagType, loaiMang: i.filmType,
@@ -392,6 +412,7 @@ function toDauVao(i: CalculateInput): DauVaoTinhGia {
     ) : {},
     cheDoTinhGia: mapPricingModeEnToVn(i.pricingMode),
     giaCongNgoai: mapOutsourceEnToVn(i.outsource),
+    bangGiaKhoNho,
   } as DauVaoTinhGia;
 }
 
@@ -724,12 +745,14 @@ function calculate(
   materialsJson: string,
   constantsJson: string,
   profitTableJson: string,
+  smallWidthJson?: string,
 ): string {
   try {
     const input: CalculateInput = JSON.parse(inputJson);
     const materials: Material[] = JSON.parse(materialsJson);
     const constants: AppConstants = JSON.parse(constantsJson);
     const profitTable: ProfitRow[] = JSON.parse(profitTableJson);
+    const smallWidthPrices: SmallWidthMaterialPrice[] = smallWidthJson ? JSON.parse(smallWidthJson) : [];
 
     // Thương mại "Mô tả khác": báo giá tự do — KHÔNG qua engine LTS (thiếu thông
     // số kỹ thuật). Mirror tinhBaoGia manager-calculation.ts:53.
@@ -749,7 +772,7 @@ function calculate(
       ? profitTable.map(r => ({ ...r, col1: 0, col2: 0, largeCol1: 0, largeCol2: 0 }))
       : profitTable;
     const ketQua = tinhGia(
-      toDauVao(inputHieuLuc),
+      toDauVao(inputHieuLuc, toGiaKhoNho(smallWidthPrices, materials)),
       materials.map(toVatLieu),
       toHangSo(constants, inputHieuLuc),
       toDongLoiNhuan(bangLoiNhuanCoHieuLuc),

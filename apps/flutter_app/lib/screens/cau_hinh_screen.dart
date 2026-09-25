@@ -290,7 +290,123 @@ class _MaterialsTabState extends State<_MaterialsTab> {
           ),
           const SizedBox(height: 8),
         ],
+        const SizedBox(height: 12),
+        _SmallWidthSection(state: s),
       ],
+    );
+  }
+}
+
+// ── Giá khổ nhỏ (mirror web bảng "Giá khổ nhỏ" trong tab Vật tư) ─────────────
+class _SmallWidthSection extends StatelessWidget {
+  final AppState state;
+  const _SmallWidthSection({required this.state});
+
+  @override
+  Widget build(BuildContext context) {
+    final s = state;
+    final list = s.smallWidthPrices;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('GIÁ KHỔ NHỎ',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.7,
+              color: LtsT.of(context).muted,
+            )),
+        const SizedBox(height: 6),
+        Text(
+          'Khi khổ NVL ≤ ngưỡng (mm), hệ thống dùng giá khổ nhỏ thay cho giá thường.',
+          style: TextStyle(fontSize: 11.5, color: LtsT.of(context).muted),
+        ),
+        const SizedBox(height: 10),
+        if (list.isEmpty)
+          const Text('Chưa có bảng giá khổ nhỏ.')
+        else
+          for (final p in list) ...[
+            _SmallWidthCard(
+              price: p,
+              onUpdate: (updated) {
+                final idx = list.indexWhere((x) => x.id == p.id);
+                if (idx < 0) return;
+                final next = List<SmallWidthMaterialPrice>.of(list);
+                next[idx] = updated;
+                s.setSmallWidthPrices(next);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+      ],
+    );
+  }
+}
+
+class _SmallWidthCard extends StatelessWidget {
+  final SmallWidthMaterialPrice price;
+  final ValueChanged<SmallWidthMaterialPrice> onUpdate;
+  const _SmallWidthCard({required this.price, required this.onUpdate});
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final p = price;
+    return Card(
+      child: Theme(
+        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+        child: ExpansionTile(
+          shape: const RoundedRectangleBorder(),
+          tilePadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+          leading: Container(
+            width: 44,
+            height: 44,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: scheme.tertiary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Text('≤${p.widthThresholdMm.round()}',
+                style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w800,
+                    color: scheme.tertiary)),
+          ),
+          title: Text(p.materialId,
+              style:
+                  const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+          subtitle: Padding(
+            padding: const EdgeInsets.only(top: 2),
+            child: Text(
+                '${Fmt.n(p.pricePerKg.round())} đ/kg  ·  ${p.thickness ?? 0}μ',
+                style: Theme.of(context).textTheme.bodySmall),
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+              child: Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  _Field(
+                    label: 'Ngưỡng khổ',
+                    initial: p.widthThresholdMm,
+                    suffix: 'mm',
+                    onChanged: (v) =>
+                        onUpdate(p.copyWith(widthThresholdMm: v)),
+                  ),
+                  _Field(
+                    label: 'Giá / kg',
+                    initial: p.pricePerKg,
+                    suffix: 'đ',
+                    onChanged: (v) => onUpdate(p.copyWith(pricePerKg: v)),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

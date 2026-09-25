@@ -79,6 +79,58 @@ class MaterialDef {
       );
 }
 
+class SmallWidthMaterialPrice {
+  final String id;
+  final String materialId;
+  final double widthThresholdMm;
+  final double? thickness;
+  final double pricePerKg;
+  final double? pricePerM2;
+
+  const SmallWidthMaterialPrice({
+    required this.id,
+    required this.materialId,
+    required this.widthThresholdMm,
+    this.thickness,
+    required this.pricePerKg,
+    this.pricePerM2,
+  });
+
+  factory SmallWidthMaterialPrice.fromJson(Map<String, dynamic> j) =>
+      SmallWidthMaterialPrice(
+        id: j['id'] as String,
+        materialId: j['materialId'] as String,
+        widthThresholdMm: (j['widthThresholdMm'] as num).toDouble(),
+        thickness: (j['thickness'] as num?)?.toDouble(),
+        pricePerKg: (j['pricePerKg'] as num).toDouble(),
+        pricePerM2: (j['pricePerM2'] as num?)?.toDouble(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'materialId': materialId,
+        'widthThresholdMm': widthThresholdMm,
+        if (thickness != null) 'thickness': thickness,
+        'pricePerKg': pricePerKg,
+        if (pricePerM2 != null) 'pricePerM2': pricePerM2,
+      };
+
+  SmallWidthMaterialPrice copyWith({
+    double? widthThresholdMm,
+    double? thickness,
+    double? pricePerKg,
+    double? pricePerM2,
+  }) =>
+      SmallWidthMaterialPrice(
+        id: id,
+        materialId: materialId,
+        widthThresholdMm: widthThresholdMm ?? this.widthThresholdMm,
+        thickness: thickness ?? this.thickness,
+        pricePerKg: pricePerKg ?? this.pricePerKg,
+        pricePerM2: pricePerM2 ?? this.pricePerM2,
+      );
+}
+
 class ProfitRow {
   final double threshold;
   final double col1;

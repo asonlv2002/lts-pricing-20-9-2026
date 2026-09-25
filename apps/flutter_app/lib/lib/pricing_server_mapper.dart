@@ -27,14 +27,16 @@ import '../engine/models.dart';
 import 'engine_advanced.dart';
 import 'lsx_so.dart';
 
-/// Engine ctx — mirror web StoreDataForScope (3 phần engine bundle Flutter dùng:
-/// LTS.calculate nhận 4 tham số, không có smallWidthPrices).
+/// Engine ctx — mirror web StoreDataForScope (4 phần engine bundle Flutter dùng:
+/// materials + smallWidthPrices + constants + profitTable).
 class EngineCtxTinhGia {
   final List<MaterialDef> materials;
+  final List<SmallWidthMaterialPrice> smallWidthPrices;
   final AppConstants constants;
   final List<ProfitRow> profitTable;
   const EngineCtxTinhGia({
     required this.materials,
+    this.smallWidthPrices = const [],
     required this.constants,
     required this.profitTable,
   });
@@ -64,6 +66,7 @@ class PricingServerMapper {
           materials: ctx.materials,
           constants: ctx.constants,
           profitTable: ctx.profitTable,
+          smallWidthPrices: ctx.smallWidthPrices,
         );
       }
     } catch (_) {
@@ -332,16 +335,20 @@ List<PriceConfigApi> sapXepMoiNhatTruoc(List<PriceConfigApi> list) {
 }
 
 /// Trích dữ liệu 1 scope từ store hiện tại → blob để lưu (mirror web
-/// trichXuatDuLieuScope, price-config-mapper.ts:105 — không có smallWidthPrices).
+/// trichXuatDuLieuScope, price-config-mapper.ts:105 — MATERIALS gồm
+/// materials + smallWidthPrices).
 Map<String, dynamic> trichXuatDuLieuScope(
   String configName,
   List<MaterialDef> materials,
   AppConstants constants,
-  List<ProfitRow> profitTable,
-) {
+  List<ProfitRow> profitTable, {
+  List<SmallWidthMaterialPrice> smallWidthPrices = const [],
+}) {
   final result = <String, dynamic>{};
   if (configName == 'MATERIALS') {
     result['materials'] = materials.map((e) => e.toJson()).toList();
+    result['smallWidthPrices'] =
+        smallWidthPrices.map((e) => e.toJson()).toList();
     final keys = _scopeConstantKeys['MATERIALS']!;
     for (final k in keys) {
       result[k] = constants.raw[k];
@@ -370,6 +377,20 @@ List<MaterialDef>? materialsTuBlob(Map<String, dynamic> blob) {
     if (e is! Map) continue;
     try {
       parsed.add(MaterialDef.fromJson(e.cast<String, dynamic>()));
+    } catch (_) {}
+  }
+  return parsed.isEmpty ? null : parsed;
+}
+
+/// Danh sách giá khổ nhỏ từ blob (null nếu blob không có mảng smallWidthPrices).
+List<SmallWidthMaterialPrice>? smallWidthTuBlob(Map<String, dynamic> blob) {
+  final list = blob['smallWidthPrices'];
+  if (list is! List) return null;
+  final parsed = <SmallWidthMaterialPrice>[];
+  for (final e in list) {
+    if (e is! Map) continue;
+    try {
+      parsed.add(SmallWidthMaterialPrice.fromJson(e.cast<String, dynamic>()));
     } catch (_) {}
   }
   return parsed.isEmpty ? null : parsed;
@@ -456,6 +477,8 @@ EngineCtxTinhGia xayEngineCtxTuPriceConfigs(
   final applyOrder = ordered.reversed.toList();
 
   List<MaterialDef> materials = List.of(fallback.materials);
+  List<SmallWidthMaterialPrice> smallWidthPrices =
+      List.of(fallback.smallWidthPrices);
   AppConstants constants = fallback.constants;
   List<ProfitRow> profitTable = List.of(fallback.profitTable);
 
@@ -477,6 +500,8 @@ EngineCtxTinhGia xayEngineCtxTuPriceConfigs(
         }
         if (parsed.isNotEmpty) materials = parsed;
       }
+      final sw = smallWidthTuBlob(blob);
+      if (sw != null) smallWidthPrices = sw;
       final keys = _scopeConstantKeys['MATERIALS'];
       if (keys != null) constants = _ganKeys(blob, constants, keys);
     } else if (name == 'PROFIT') {
@@ -501,6 +526,7 @@ EngineCtxTinhGia xayEngineCtxTuPriceConfigs(
 
   return EngineCtxTinhGia(
     materials: materials,
+    smallWidthPrices: smallWidthPrices,
     constants: constants,
     profitTable: profitTable,
   );

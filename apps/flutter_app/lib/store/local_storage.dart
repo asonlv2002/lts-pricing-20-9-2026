@@ -13,6 +13,7 @@ class LocalStorage {
   static const _kHistory = 'lts_history_v1';
   static const _kLSX = 'lts_lsx_v1';
   static const _kMaterials = 'lts_materials_v1';
+  static const _kSmallWidth = 'lts_small_width_v1';
   static const _kConstants = 'lts_constants_v1';
   static const _kProfit = 'lts_profit_v1';
   static const _kThemeMode = 'lts_theme_mode_v1'; // 'light' | 'dark' | 'system'
@@ -74,6 +75,26 @@ class LocalStorage {
 
   Future<void> writeMaterials(List<MaterialDef> items) async {
     await _sp.setString(_kMaterials, jsonEncode(items.map((e) => e.toJson()).toList()));
+  }
+
+  // ── Giá khổ nhỏ (mirror web smallWidthPrices) ─────────────────────────────
+  List<SmallWidthMaterialPrice>? readSmallWidthPrices() {
+    final raw = _sp.getString(_kSmallWidth);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final list = jsonDecode(raw) as List;
+      return list
+          .map((e) =>
+              SmallWidthMaterialPrice.fromJson((e as Map).cast<String, dynamic>()))
+          .toList();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> writeSmallWidthPrices(List<SmallWidthMaterialPrice> items) async {
+    await _sp.setString(
+        _kSmallWidth, jsonEncode(items.map((e) => e.toJson()).toList()));
   }
 
   // ── Constants override ────────────────────────────────────────────────────
@@ -178,6 +199,7 @@ class LocalStorage {
   // ── Clear cached config (force reload từ assets next time) ────────────────
   Future<void> clearConfigOverrides() async {
     await _sp.remove(_kMaterials);
+    await _sp.remove(_kSmallWidth);
     await _sp.remove(_kConstants);
     await _sp.remove(_kProfit);
   }

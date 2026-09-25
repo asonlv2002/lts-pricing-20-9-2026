@@ -150,6 +150,7 @@ typedef OverrideTableRef = Map<String, Map<String, dynamic>>;
 class AppState extends ChangeNotifier {
   // ── Cấu hình ─────────────────────────────────────────────────────────────
   List<MaterialDef> materials = [];
+  List<SmallWidthMaterialPrice> smallWidthPrices = [];
   AppConstants constants = const AppConstants({});
   List<ProfitRow> profitTable = [];
 
@@ -239,6 +240,18 @@ class AppState extends ChangeNotifier {
       (next[rowKey] ??= <String, dynamic>{})[field] = value;
     }
     adminOverrides = next;
+    notifyListeners();
+  }
+
+  /// Thay toàn bộ bảng ghi đè Sale (dùng cho helper trả cả bảng).
+  void setSaleOverrides(Map<String, Map<String, dynamic>> next) {
+    saleOverrides = _saoChepOverride(next);
+    notifyListeners();
+  }
+
+  /// Thay toàn bộ bảng ghi đè Admin.
+  void setAdminOverrides(Map<String, Map<String, dynamic>> next) {
+    adminOverrides = _saoChepOverride(next);
     notifyListeners();
   }
 
@@ -898,6 +911,8 @@ class AppState extends ChangeNotifier {
     // Load defaults từ assets, override bằng local nếu có
     materials =
         LocalStorage.instance.readMaterials() ?? await _loadMaterialsAsset();
+    smallWidthPrices = LocalStorage.instance.readSmallWidthPrices() ??
+        _deriveSmallWidthPrices(materials);
     constants =
         LocalStorage.instance.readConstants() ?? await _loadConstantsAsset();
     profitTable =
@@ -951,6 +966,22 @@ class AppState extends ChangeNotifier {
     final rows = (j is Map ? j['rows'] : j) as List;
     return rows
         .map((e) => ProfitRow.fromJson((e as Map).cast<String, dynamic>()))
+        .toList();
+  }
+
+  /// Giá khổ nhỏ mặc định — mirror web `INITIAL_SMALL_WIDTH_PRICES`
+  /// (apps/web/src/lib/data.ts:23): mỗi NVL → ngưỡng 400mm, cùng giá/kg.
+  static List<SmallWidthMaterialPrice> _deriveSmallWidthPrices(
+      List<MaterialDef> mats) {
+    return mats
+        .map((m) => SmallWidthMaterialPrice(
+              id: '${m.id}_400',
+              materialId: m.id,
+              widthThresholdMm: 400,
+              thickness: m.thickness,
+              pricePerKg: m.pricePerKg,
+              pricePerM2: m.pricePerKg * m.thickness * m.density / 1000,
+            ))
         .toList();
   }
 
@@ -1310,6 +1341,7 @@ class AppState extends ChangeNotifier {
         materials: materials,
         constants: constants,
         profitTable: profitTable,
+        smallWidthPrices: smallWidthPrices,
       );
       lastError = null;
     } catch (e) {
@@ -1332,6 +1364,7 @@ class AppState extends ChangeNotifier {
         materials: materials,
         constants: constants,
         profitTable: profitTable,
+        smallWidthPrices: smallWidthPrices,
       );
     } catch (_) {
       return null;
@@ -1367,6 +1400,7 @@ class AppState extends ChangeNotifier {
   Future<void> resetConfigToDefaults() async {
     await LocalStorage.instance.clearConfigOverrides();
     materials = await _loadMaterialsAsset();
+    smallWidthPrices = _deriveSmallWidthPrices(materials);
     constants = await _loadConstantsAsset();
     profitTable = await _loadProfitAsset();
     notifyListeners();
@@ -1539,6 +1573,7 @@ class AppState extends ChangeNotifier {
 
       final fallbackCtx = EngineCtxTinhGia(
         materials: materials,
+        smallWidthPrices: smallWidthPrices,
         constants: constants,
         profitTable: profitTable,
       );
@@ -1962,6 +1997,13 @@ class AppState extends ChangeNotifier {
     _scheduleRecompute();
   }
 
+  Future<void> setSmallWidthPrices(List<SmallWidthMaterialPrice> next) async {
+    smallWidthPrices = next;
+    await LocalStorage.instance.writeSmallWidthPrices(next);
+    notifyListeners();
+    _scheduleRecompute();
+  }
+
   Future<void> setConstants(AppConstants next) async {
     constants = next;
     await LocalStorage.instance.writeConstants(next);
@@ -2048,6 +2090,11 @@ class AppState extends ChangeNotifier {
       materials = mats;
       coThayDoi = true;
     }
+    final sw = smallWidthTuBlob(blob);
+    if (sw != null) {
+      smallWidthPrices = sw;
+      coThayDoi = true;
+    }
     final profit = profitTuBlob(blob);
     if (profit != null) {
       profitTable = profit;
@@ -2062,6 +2109,7 @@ class AppState extends ChangeNotifier {
     }
     if (vietCache && coThayDoi) {
       await LocalStorage.instance.writeMaterials(materials);
+      await LocalStorage.instance.writeSmallWidthPrices(smallWidthPrices);
       await LocalStorage.instance.writeConstants(constants);
       await LocalStorage.instance.writeProfit(profitTable);
     }
@@ -2091,8 +2139,9 @@ class AppState extends ChangeNotifier {
     dangLuuPhienBan = true;
     notifyListeners();
     try {
-      final scopeData =
-          trichXuatDuLieuScope(configName, materials, constants, profitTable);
+      final scopeData = trichXuatDuLieuScope(
+          configName, materials, constants, profitTable,
+          smallWidthPrices: smallWidthPrices);
       final inputValue = <String, dynamic>{
         if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
         'effectiveMode': effectiveMode,

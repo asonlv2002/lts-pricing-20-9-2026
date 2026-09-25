@@ -41,6 +41,7 @@ class EngineService {
     required List<MaterialDef> materials,
     required AppConstants constants,
     required List<ProfitRow> profitTable,
+    List<SmallWidthMaterialPrice> smallWidthPrices = const [],
   }) {
     if (!_ready || _rt == null) {
       throw StateError('EngineService chưa init — gọi init() trước.');
@@ -50,10 +51,12 @@ class EngineService {
     final matJson = _escapeJsString(jsonEncode(materials.map((m) => m.toJson()).toList()));
     final constJson = _escapeJsString(jsonEncode(constants.toJson()));
     final profitJson = _escapeJsString(jsonEncode(profitTable.map((p) => p.toJson()).toList()));
+    final smallWidthJson =
+        _escapeJsString(jsonEncode(smallWidthPrices.map((p) => p.toJson()).toList()));
 
-    // Truyền 4 chuỗi JSON sang JS → JS parse → tính → trả về JSON string.
+    // Truyền 5 chuỗi JSON sang JS → JS parse → tính → trả về JSON string.
     final code =
-        'globalThis.LTS.calculate("$inputJson","$matJson","$constJson","$profitJson")';
+        'globalThis.LTS.calculate("$inputJson","$matJson","$constJson","$profitJson","$smallWidthJson")';
     final res = _rt!.evaluate(code);
     if (res.isError) {
       throw Exception('Engine error: ${res.stringResult}');
