@@ -19,6 +19,25 @@ import type {
 import type { DongLoiNhuan } from '../../../packages/hang-so/src';
 import profitJson from '../../../data/profitTable.json';
 
+// ── Web libs (bundle vào engine để parity tuyệt đối) ─────────────────────────
+// Nguồn: apps/web/src/lib/*.ts — cùng code web dùng. Alias '@web/*' map sang
+// apps/web/src/lib (khai báo trong build-engine.mjs + web-libs.d.ts cho tsc).
+// Chỉ import lib thuần (không React/DOM).
+import { layCotLoiNhuanTuDong, traLoiNhuanTheoBang } from '@web/engine';
+import { lapDongSanXuat as webLapDongSanXuat, xuLyDongGhiDe, tinhGiaHieuLuc } from '@web/manager-calculation';
+import {
+  chuanBiUniRowsNangCao,
+  lapDongVatLieuNangCao,
+  lapDongNhanCongDien,
+  tinhTongNangCao,
+  tinhKetQuaNangCaoHieuLuc,
+  canLanChiaNangCao,
+} from '@web/dac-ta-nang-cao';
+import { tinhNhapPhanBoChotGia } from '@web/chot-gia-allocation';
+import { getPricingDisplayMeta } from '@web/pricing-display';
+import { tinhGiaDeXuatHienThi } from '@web/gia-de-xuat-hien-thi';
+import { apCpsxNangCaoVaoHangSo, trichCpsxNangCao } from '@web/cpsx-nang-cao-pin';
+
 // ── Shape tiếng Anh (giống apps/web/src/lib/types.ts) ────────────────────────
 interface Material {
   id: string; name: string; group?: string;
@@ -391,7 +410,13 @@ function layTrongLuongThung(
   return Math.max(0, Number(input.boxWeight) || 0);
 }
 
-function toResult(r: KetQuaTinhGia, originalInput: CalculateInput): any {
+function toResult(r: KetQuaTinhGia, originalInput: CalculateInput, materials: Material[]): any {
+  // Resolve vật liệu từng lớp (mirror web doiSangKetQua engine.ts:285-290) — cần cho
+  // bảng đặc tả Flutter (tên VL, đơn giá, chi tiết ghép nhiều NVL).
+  const findMat = (id: string | null | undefined) => materials.find(m => m.id === id) || null;
+  const lamIds = [originalInput.layer2Id, originalInput.layer3Id, originalInput.layer4Id, originalInput.layer5Id];
+  const layer2AltMat = findMat(originalInput.layer2AltId);
+  const layer2Materials = [findMat(originalInput.layer2Id), layer2AltMat].filter(Boolean);
   return {
     input: originalInput,
     structureText: r.chuoiCauTruc,
@@ -465,14 +490,22 @@ function toResult(r: KetQuaTinhGia, originalInput: CalculateInput): any {
     productionDays: r.ngaySanXuat,
     layers: {
       print: {
+        material: findMat(originalInput.layer1Id),
         width: r.cacLop.in.kho, meters: r.cacLop.in.met,
         waste: r.cacLop.in.hatHao, cpsx: r.cacLop.in.cpsx,
         costCPSX: r.cacLop.in.chiPhiSX, costMat: r.cacLop.in.chiPhiVL,
+        matPrice: (r.cacLop.in as any).donGia,
         total: r.cacLop.in.tongCong,
       },
-      laminations: r.cacLop.ghep.map((g: any) => ({
+      laminations: r.cacLop.ghep.map((g: any, idx: number) => ({
+        layerNum: idx + 2,
+        material: findMat(lamIds[idx]),
+        materials: idx === 0 && layer2Materials.length > 1 ? layer2Materials : undefined,
         width: g.kho, meters: g.met, waste: g.hatHao, cpsx: g.cpsx,
-        costCPSX: g.chiPhiSX, costMat: g.chiPhiVL, total: g.tongCong,
+        costCPSX: g.chiPhiSX, costMat: g.chiPhiVL,
+        matPrice: g.donGia,
+        chiTietVatLieu: g.chiTietVatLieu,
+        total: g.tongCong,
       })),
       cut: {
         width: r.cacLop.cat.kho, meters: r.cacLop.cat.met,
@@ -722,7 +755,7 @@ function calculate(
       toDongLoiNhuan(bangLoiNhuanCoHieuLuc),
     );
     if (!ketQua) return JSON.stringify({ error: 'null_result' });
-    return JSON.stringify(toResult(ketQua, inputHieuLuc));
+    return JSON.stringify(toResult(ketQua, inputHieuLuc, materials));
   } catch (e: any) {
     return JSON.stringify({ error: String(e && e.message ? e.message : e) });
   }
@@ -759,5 +792,198 @@ function calculate(
       return JSON.stringify({ error: String(e && e.message ? e.message : e) });
     }
   },
-  version: '0.3.0',
+
+  // ══ P3/P4 — Bảng ghi đè Sale/Admin + đặc tả nâng cao ══════════════════════
+  // Tất cả wrapper nhận JSON string, trả JSON string (QuickJS-safe).
+  // Dùng CHÍNH code web lib → parity tuyệt đối, Dart chỉ render.
+
+  /** lapDongSanXuat(web) — uniRows + tổng CPSX/CPVL/grandTotal. */
+  lapDongSanXuat: (resultJson: string, constantsJson: string) => {
+    try {
+      return JSON.stringify(webLapDongSanXuat(JSON.parse(resultJson), JSON.parse(constantsJson)));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  /** xuLyDongGhiDe — resolve ghi đè + lan ngược mét + CP thời gian in. */
+  xuLyDongGhiDe: (
+    uniRowsJson: string,
+    sourceOvJson: string,
+    currentOvJson: string,
+    printFilmParamsJson?: string,
+    lanNguocJson?: string,
+  ) => {
+    try {
+      return JSON.stringify(xuLyDongGhiDe(
+        JSON.parse(uniRowsJson),
+        JSON.parse(sourceOvJson || '{}'),
+        JSON.parse(currentOvJson || '{}'),
+        printFilmParamsJson ? JSON.parse(printFilmParamsJson) : undefined,
+        lanNguocJson ? JSON.parse(lanNguocJson) : undefined,
+      ));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  /** tinhGiaHieuLuc — giá vốn/LN hiệu lực sau ghi đè Sale/Admin. */
+  tinhGiaHieuLuc: (paramsJson: string) => {
+    try {
+      const p = JSON.parse(paramsJson);
+      return JSON.stringify(tinhGiaHieuLuc({
+        result: p.result,
+        uniRows: p.uniRows,
+        saleOverrides: p.saleOverrides ?? {},
+        adminOverrides: p.adminOverrides ?? {},
+        saleProfitRatePct: p.saleProfitRatePct ?? 0,
+        adminProfitRatePct: p.adminProfitRatePct ?? 0,
+        profitTable: p.profitTable,
+        constants: p.constants,
+        materials: p.materials ?? [],
+      }));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  /** chuanBiUniRowsNangCao — neo cut + lan ÷N cho bảng nâng cao. */
+  chuanBiUniRowsNangCao: (paramsJson: string) => {
+    try {
+      const p = JSON.parse(paramsJson);
+      return JSON.stringify(chuanBiUniRowsNangCao({
+        uniRows: p.uniRows,
+        result: p.result,
+        hangSo: p.hangSo,
+        sourceOv: p.sourceOv ?? {},
+        activeOv: p.activeOv ?? {},
+      }));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  /** lapDongVatLieuNangCao — bảng 1 (vật liệu + mực/DM/keo). */
+  lapDongVatLieuNangCao: (resultJson: string, uniRowsJson: string, hangSoJson: string, materialsJson: string, overridesJson?: string) => {
+    try {
+      return JSON.stringify(lapDongVatLieuNangCao(
+        JSON.parse(resultJson),
+        JSON.parse(uniRowsJson),
+        JSON.parse(hangSoJson),
+        JSON.parse(materialsJson || '[]'),
+        overridesJson ? JSON.parse(overridesJson) : undefined,
+      ));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  /** lapDongNhanCongDien — bảng 2 (thời gian × NC/điện). */
+  lapDongNhanCongDien: (resultJson: string, hangSoJson: string, overridesJson?: string) => {
+    try {
+      return JSON.stringify(lapDongNhanCongDien(
+        JSON.parse(resultJson),
+        JSON.parse(hangSoJson),
+        overridesJson ? JSON.parse(overridesJson) : undefined,
+      ));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  /** tinhTongNangCao — cụm 3 dòng tổng (VL / NC+điện / giá thành). */
+  tinhTongNangCao: (dongVatLieuJson: string, dongNhanCongDienJson: string) => {
+    try {
+      return JSON.stringify(tinhTongNangCao(
+        JSON.parse(dongVatLieuJson),
+        JSON.parse(dongNhanCongDienJson),
+      ));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  /** tinhKetQuaNangCaoHieuLuc — giá hiệu lực từ TỔNG bảng đặc tả nâng cao. */
+  tinhKetQuaNangCaoHieuLuc: (paramsJson: string) => {
+    try {
+      const p = JSON.parse(paramsJson);
+      return JSON.stringify(tinhKetQuaNangCaoHieuLuc({
+        result: p.result,
+        uniRows: p.uniRows,
+        constants: p.constants,
+        materials: p.materials ?? [],
+        saleOverrides: p.saleOverrides ?? {},
+        adminOverrides: p.adminOverrides ?? {},
+        saleProfitRatePct: p.saleProfitRatePct ?? 0,
+        adminProfitRatePct: p.adminProfitRatePct ?? 0,
+        profitTable: p.profitTable,
+      }));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  canLanChiaNangCao: (resultJson: string) => {
+    try {
+      return JSON.stringify(canLanChiaNangCao(JSON.parse(resultJson)));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  // ══ P1/P5 — chốt giá, nhãn động, đóng băng giá, pin CPSX NC ═══════════════
+  tinhNhapPhanBoChotGia: (paramsJson: string) => {
+    try {
+      return JSON.stringify(tinhNhapPhanBoChotGia(JSON.parse(paramsJson)));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  getPricingDisplayMeta: (inputJson: string) => {
+    try {
+      return JSON.stringify(getPricingDisplayMeta(JSON.parse(inputJson)));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  tinhGiaDeXuatHienThi: (paramsJson: string) => {
+    try {
+      return JSON.stringify(tinhGiaDeXuatHienThi(JSON.parse(paramsJson)));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  trichCpsxNangCao: (hangSoJson: string) => {
+    try {
+      return JSON.stringify(trichCpsxNangCao(JSON.parse(hangSoJson)));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  apCpsxNangCaoVaoHangSo: (baseJson: string, pinJson: string) => {
+    try {
+      return JSON.stringify(apCpsxNangCaoVaoHangSo(JSON.parse(baseJson), JSON.parse(pinJson)));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  traLoiNhuanTheoBang: (tongChiPhi: number, cot: number, profitTableJson: string, nhomKhach?: 'normal' | 'large') => {
+    const rows: ProfitRow[] = JSON.parse(profitTableJson);
+    return JSON.stringify(traLoiNhuanTheoBang(tongChiPhi, cot, rows, nhomKhach ?? 'normal'));
+  },
+
+  layCotLoiNhuanTuDong: (inputJson: string, materialsJson: string) => {
+    try {
+      return JSON.stringify(layCotLoiNhuanTuDong(JSON.parse(inputJson), JSON.parse(materialsJson)));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  version: '0.4.0',
 };

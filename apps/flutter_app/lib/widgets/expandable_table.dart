@@ -19,7 +19,8 @@ class TableCellData {
   final String text;
   final TextStyle? style;
   final TextAlign? align;
-  const TableCellData(this.text, {this.style, this.align});
+  final VoidCallback? onTap;
+  const TableCellData(this.text, {this.style, this.align, this.onTap});
 }
 
 class ExpandableTableCard extends StatelessWidget {
@@ -249,6 +250,7 @@ class _DataTableScroll extends StatelessWidget {
                                   ),
                             ),
                           ),
+                          onTap: r[i].onTap,
                         ),
                     ],
                   ),

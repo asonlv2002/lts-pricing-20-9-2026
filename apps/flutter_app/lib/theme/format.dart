@@ -22,6 +22,10 @@ class Fmt {
   /// 1.234 → "1,23"
   static String d(num? v) => v == null ? '0' : _nf2.format(v);
 
+  /// 1.234 → "1,2" (1 số lẻ — phân bổ chốt giá, chênh lệch)
+  static String d1(num? v) =>
+      v == null ? '0' : NumberFormat('#,##0.#', 'vi_VN').format(v);
+
   /// 1.234 → "1,234"
   static String d3(num? v) => v == null ? '0' : _nf3.format(v);
 

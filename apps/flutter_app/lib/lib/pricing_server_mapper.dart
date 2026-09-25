@@ -24,6 +24,7 @@
 import '../api/service_lts_client.dart';
 import '../engine/js_runtime.dart';
 import '../engine/models.dart';
+import 'engine_advanced.dart';
 import 'lsx_so.dart';
 
 /// Engine ctx — mirror web StoreDataForScope (3 phần engine bundle Flutter dùng:
@@ -75,6 +76,21 @@ class PricingServerMapper {
     if (structure.isEmpty) {
       structure = _trichStructureTuLayers(iv);
     }
+    // Ghi đè Sale/Admin + chốt giá từ saleResult/masterResult (mirror web
+    // mapPricingSheetToHistory). Shape: { overrides, profitRatePct, chotGia }.
+    final saleRes = sheet.saleResult;
+    final masterRes = sheet.masterResult;
+    final isNangCap =
+        (iv['isNangCap'] as bool?) ?? (iv['cheDoNangCao'] as bool?) ?? false;
+    // Pin CPSX nâng cao từ ctx đã pin (mirror web trichCpsxNangCao(ctx.constants)).
+    Map<String, dynamic>? pinnedCpsx;
+    if (isNangCap) {
+      try {
+        pinnedCpsx = EngineAdvanced.instance.trichCpsxNangCao(ctx.constants);
+      } catch (_) {
+        pinnedCpsx = null;
+      }
+    }
     return HistoryItem(
       id: sheet.id,
       date: sheet.updatedAt.isNotEmpty ? sheet.updatedAt : sheet.createdAt,
@@ -88,11 +104,26 @@ class PricingServerMapper {
       structure: structure,
       quantity: (iv['quantity'] as num?) ?? 0,
       finalPrice: finalPrice,
-      chotGia: null, // chotGia hiện chỉ là 1 phần của PricingSheet (saleResult.salePrice nếu có)
+      // Ưu tiên inputValue.chotGia (web lưu ở đây), fallback sale/master cũ.
+      chotGia: _numOrNull(iv['chotGia']) ??
+          _numOrNull(masterRes?['chotGia']) ??
+          _numOrNull(saleRes?['chotGia']),
       quoteStatus: _trichQuoteStatus(sheet),
       input: iv,
+      pricingSheetId: sheet.id,
+      saleOverrides: _mapOrNull(saleRes?['overrides']),
+      adminOverrides: _mapOrNull(masterRes?['overrides']),
+      saleProfitRatePct: _numOrNull(saleRes?['profitRatePct'])?.toDouble(),
+      adminProfitRatePct: _numOrNull(masterRes?['profitRatePct'])?.toDouble(),
+      pinnedCpsxNangCao: pinnedCpsx,
+      isNangCap: isNangCap ? true : null,
     );
   }
+
+  static Map<String, dynamic>? _mapOrNull(dynamic v) =>
+      v is Map ? v.cast<String, dynamic>() : null;
+
+  static num? _numOrNull(dynamic v) => v is num ? v : null;
 
   // ── QuotationPricingSheetOrderApi → ProductionOrder (cho LSXScreen) ─────
   /// [quotation] — nhóm gom theo báo giá (fallback actorName/actorAvatarUrl khi

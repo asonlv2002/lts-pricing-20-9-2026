@@ -1120,12 +1120,14 @@ class TaoPricingSheetInput {
   final String pricingSheetName;
   final Map<String, dynamic> inputValue;
   final Map<String, dynamic>? saleResult;
+  final Map<String, dynamic>? masterResult;
   final String? note;
   const TaoPricingSheetInput({
     required this.customerCodeName,
     required this.pricingSheetName,
     required this.inputValue,
     this.saleResult,
+    this.masterResult,
     this.note,
   });
 }
@@ -1143,6 +1145,7 @@ Future<PricingSheetApi> taoPricingSheetService(
       'pricingSheetName': input.pricingSheetName,
       'inputValue': input.inputValue,
       if (input.saleResult != null) 'saleResult': input.saleResult,
+      if (input.masterResult != null) 'masterResult': input.masterResult,
       if (input.note != null) 'note': input.note,
     },
     token: token,
@@ -1180,11 +1183,15 @@ Future<PricingSheetApi> capNhatPricingSheetResultService(
   String? pricingSheetName,
   Map<String, dynamic>? inputValue,
   Map<String, dynamic>? saleResult,
+  bool? useLatestPriceConfigs,
 }) async {
   final body = <String, dynamic>{};
   if (pricingSheetName != null) body['pricingSheetName'] = pricingSheetName;
   if (inputValue != null) body['inputValue'] = inputValue;
   if (saleResult != null) body['saleResult'] = saleResult;
+  if (useLatestPriceConfigs != null) {
+    body['useLatestPriceConfigs'] = useLatestPriceConfigs;
+  }
   final data = await ServiceLtsClient.instance.goiService(
     '/pricing-sheet/${Uri.encodeComponent(id)}/result',
     method: 'PATCH',

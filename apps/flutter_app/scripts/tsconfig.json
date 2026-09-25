@@ -9,7 +9,8 @@
     "skipLibCheck": true,
     "resolveJsonModule": true,
     "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "baseUrl": "."
   },
-  "include": ["engine-entry.ts"]
+  "include": ["engine-entry.ts", "web-libs.d.ts"]
 }

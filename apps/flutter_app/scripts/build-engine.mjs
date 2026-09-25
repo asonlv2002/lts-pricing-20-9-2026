@@ -12,6 +12,7 @@ import { copyFileSync, mkdirSync, existsSync } from 'node:fs';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const entry = resolve(__dirname, 'engine-entry.ts');
 const out = resolve(__dirname, '..', 'assets', 'engine.bundle.js');
+const repoRoot = resolve(__dirname, '..', '..', '..');
 
 // ── Sync data từ /data root repo → assets/data/ ─────────────────────────────
 // Single source of truth: /data/*.json. Web import trực tiếp, Flutter copy
@@ -46,6 +47,11 @@ await build({
   logLevel: 'info',
   // Engine là pure logic — không cần external
   external: [],
+  // Web libs (P3/P4): map alias '@web/*' → apps/web/src/lib, '@data/*' → /data.
+  alias: {
+    '@web': resolve(repoRoot, 'apps', 'web', 'src', 'lib'),
+    '@data': resolve(repoRoot, 'data'),
+  },
   // QuickJS không có Node global; tránh inject
   define: { 'process.env.NODE_ENV': '"production"' },
 });

@@ -14,13 +14,14 @@ import 'package:flutter/services.dart' show rootBundle;
 import '../api/service_lts_client.dart';
 import '../engine/js_runtime.dart';
 import '../engine/models.dart';
+import 'package:lts_pricing/lib/chot_gia_allocation.dart';
+import 'package:lts_pricing/lib/engine_advanced.dart';
 import 'package:lts_pricing/lib/lsx_so.dart';
 import 'package:lts_pricing/lib/pricing_server_mapper.dart';
 import 'local_storage.dart';
 
 /// Catalog policy codes (mirror POLICY_CATALOG của web — dùng fallback admin gốc).
-const cacPolicyHangSo = <String>[
-  'ACCOUNT_MANAGER',
+const cacPolicyHangSo = <String>[  'ACCOUNT_MANAGER',
   'ROLE_MANAGER',
   'CUSTOMER_MANAGER',
   'USER_POLICY_GRANT',
@@ -143,6 +144,9 @@ List<String> locPolicyHopLe(dynamic codes) {
       .toList();
 }
 
+/// Bảng ghi đè dùng trong AppState (rowKey → field → giá trị).
+typedef OverrideTableRef = Map<String, Map<String, dynamic>>;
+
 class AppState extends ChangeNotifier {
   // ── Cấu hình ─────────────────────────────────────────────────────────────
   List<MaterialDef> materials = [];
@@ -153,6 +157,120 @@ class AppState extends ChangeNotifier {
   CalculateInput currentInput = CalculateInput.defaults();
   CalculateResult? currentResult;
   String? lastError;
+
+  // ── Chốt giá + phân bổ chênh lệch (mirror web currentChotGia/phanBoCongTy) ─
+  double currentChotGia = 0;
+  double phanBoCongTy = 0;
+  DonViPhanBo donViPhanBo = DonViPhanBo.vnd;
+
+  void setCurrentChotGia(double value) {
+    currentChotGia = value < 0 ? 0 : value;
+    notifyListeners();
+  }
+
+  void setPhanBoCongTy(double value) {
+    phanBoCongTy = value;
+    notifyListeners();
+  }
+
+  void setDonViPhanBo(DonViPhanBo value) {
+    donViPhanBo = value;
+    notifyListeners();
+  }
+
+  /// Xoá chốt giá + phân bổ (khi reset / tạo mới).
+  void clearChotGia() {
+    currentChotGia = 0;
+    phanBoCongTy = 0;
+    donViPhanBo = DonViPhanBo.vnd;
+    notifyListeners();
+  }
+
+  // ── P3/P4/P5: Bảng ghi đè Sale/Admin + tab nâng cao ──────────────────────
+  /// Bảng ghi đè Sale/Admin hiện tại (map rowKey → field → giá trị).
+  Map<String, Map<String, dynamic>> saleOverrides = {};
+  Map<String, Map<String, dynamic>> adminOverrides = {};
+  double saleProfitRatePct = 0;
+  double adminProfitRatePct = 0;
+
+  /// Tab đang mở ở màn kết quả: thường | nâng cao.
+  bool cheDoNangCao = false;
+
+  /// Sheet lịch sử đang mở (null khi bảng mới) + dữ liệu ghi đè đã lưu của sheet đó.
+  String? loadedHistoryId;
+
+  /// ID pricing sheet trên server (mirror web pricingSheetId). null → POST tạo
+  /// mới; có giá trị → PATCH cập nhật. Đồng bộ khi load sheet từ server.
+  String? pricingSheetId;
+
+  /// Config pin của sheet trên server (mirror web priceConfigIds).
+  List<String> priceConfigIds = [];
+  Map<String, Map<String, dynamic>> loadedSaleOverrides = {};
+  Map<String, Map<String, dynamic>> loadedAdminOverrides = {};
+  double loadedSaleProfitRatePct = 0;
+  double loadedAdminProfitRatePct = 0;
+  double loadedFinalPrice = 0;
+  bool loadedIsNangCap = false;
+  Map<String, dynamic>? loadedPinnedCpsxNangCao;
+
+  /// true khi user đã chỉnh input kể từ lúc mở sheet (dùng đóng băng giá).
+  bool isDirty = false;
+
+  void setSaleOverride(String rowKey, String field, dynamic value) {
+    final next = _saoChepOverride(saleOverrides);
+    if (value == null) {
+      next[rowKey]?.remove(field);
+      if (next[rowKey]?.isEmpty ?? false) next.remove(rowKey);
+    } else {
+      (next[rowKey] ??= <String, dynamic>{})[field] = value;
+    }
+    saleOverrides = next;
+    // Ghi đè Sale/Admin KHÔNG phải sửa input → không set isDirty (mirror web
+    // overrides.ts) để giá đề xuất vẫn đóng băng theo sheet đang mở.
+    notifyListeners();
+  }
+
+  void setAdminOverride(String rowKey, String field, dynamic value) {
+    final next = _saoChepOverride(adminOverrides);
+    if (value == null) {
+      next[rowKey]?.remove(field);
+      if (next[rowKey]?.isEmpty ?? false) next.remove(rowKey);
+    } else {
+      (next[rowKey] ??= <String, dynamic>{})[field] = value;
+    }
+    adminOverrides = next;
+    notifyListeners();
+  }
+
+  void setSaleProfitRatePct(double v) {
+    saleProfitRatePct = v < 0 ? 0 : v;
+    notifyListeners();
+  }
+
+  void setAdminProfitRatePct(double v) {
+    adminProfitRatePct = v < 0 ? 0 : v;
+    notifyListeners();
+  }
+
+  void setCheDoNangCao(bool v) {
+    cheDoNangCao = v;
+    notifyListeners();
+  }
+
+  void xoaHetGhiDe() {
+    saleOverrides = {};
+    adminOverrides = {};
+    saleProfitRatePct = 0;
+    adminProfitRatePct = 0;
+    notifyListeners();
+  }
+
+  static Map<String, Map<String, dynamic>> _saoChepOverride(
+      Map<String, Map<String, dynamic>> src) {
+    return {
+      for (final e in src.entries) e.key: Map<String, dynamic>.of(e.value),
+    };
+  }
 
   // ── History + LSX ────────────────────────────────────────────────────────
   List<HistoryItem> history = [];
@@ -200,8 +318,21 @@ class AppState extends ChangeNotifier {
   // ── Thông báo local ─────────────────────────────────────────────────────
   List<ThongBao> thongBaoList = [];
 
-  /// Input có thay đổi chưa lưu (dùng cho cảnh báo "Chưa lưu báo giá").
-  bool isDirty = false;
+  // ── Khách hàng (gợi ý + tạo nhanh từ bảng tính giá — mirror TheNhapLieu) ──
+  /// Danh sách khách hàng từ BE — chỉ fetch khi đã đăng nhập (không cache LS).
+  List<KhachHang> danhSachKhachHang = [];
+  bool dangTaiKhachHang = false;
+  String? loiKhachHang;
+
+  /// Vừa tạo khách nhanh trong phiên — cho phép dùng khách không nằm trong
+  /// danh sách phụ trách (mirror `vuaTaoKhachMoi` của web).
+  bool vuaTaoKhachMoi = false;
+
+  int? _lanCuoiTaiKhachHang; // ms epoch — rate limit 5s
+
+  /// Flutter không có field `role` như web → admin = account gốc 'admin'
+  /// (khớp fallback policy tại app_state.dart `_taoNguoiDung`).
+  bool get laAdminTaiKhoan => nguoiDungHienTai?.account == 'admin';
 
   // ── Phiên bản cấu hình (price-config, mirror web configVersioning) ──────
   /// Đang bootstrap cấu hình từ server (GET /price-config/latest-version).
@@ -210,6 +341,34 @@ class AppState extends ChangeNotifier {
 
   /// Bản mới nhất mỗi scope (configName → PriceConfigApi) sau bootstrap.
   Map<String, PriceConfigApi> phienBanMoiNhat = {};
+
+  /// Policies CPSX nâng cao của user (mirror web cpsxNangCapPolicies) — quyết
+  /// định hiện cột Bảng 2 đặc tả nâng cao. Lấy từ endpoint production-upgrade.
+  List<String> cpsxNangCapPolicies = [];
+
+  /// Cột Bảng 2 hiện theo quyền — mirror web `cotBang2TheoQuyen`.
+  /// coLuong/coThoiGian = đủ TẤT CẢ code XEM của 4 máy (AND); coDien = 1 code.
+  ({bool coDien, bool coLuong, bool coThoiGian}) get cotBang2TheoQuyen {
+    final ps = cpsxNangCapPolicies;
+    bool co(String c) => ps.contains(c);
+    const nhomLuong = [
+      'CPSX_UPGRADE_REVIEW_LABOR_PRINT',
+      'CPSX_UPGRADE_REVIEW_LABOR_LAMINATE',
+      'CPSX_UPGRADE_REVIEW_LABOR_SLIT',
+      'CPSX_UPGRADE_REVIEW_LABOR_BAG',
+    ];
+    const nhomThoiGian = [
+      'CPSX_UPGRADE_REVIEW_TIME_PRINT',
+      'CPSX_UPGRADE_REVIEW_TIME_LAMINATE',
+      'CPSX_UPGRADE_REVIEW_TIME_SLIT',
+      'CPSX_UPGRADE_REVIEW_TIME_BAG',
+    ];
+    return (
+      coDien: co('CPSX_UPGRADE_REVIEW_ELECTRIC_PER_MINUTE'),
+      coLuong: nhomLuong.every(co),
+      coThoiGian: nhomThoiGian.every(co),
+    );
+  }
 
   bool dangLuuPhienBan = false;
   /// Đang tải lịch sử phiên bản — THEO TỪNG scope. Cờ chung 1 bool trước đây
@@ -292,6 +451,8 @@ class AppState extends ChangeNotifier {
     authError = thongBaoHetPhien;
     sessionChecked = true;
     hasPin = null;
+    danhSachKhachHang = [];
+    vuaTaoKhachMoi = false;
     LocalStorage.instance.clearTokens();
     notifyListeners();
   }
@@ -408,6 +569,8 @@ class AppState extends ChangeNotifier {
       authLoading = false;
       authError = mapAuthError(e);
       sessionChecked = true;
+      danhSachKhachHang = [];
+      vuaTaoKhachMoi = false;
       await LocalStorage.instance.clearTokens();
       notifyListeners();
       rethrow;
@@ -422,8 +585,116 @@ class AppState extends ChangeNotifier {
     authLoading = false;
     authError = null;
     sessionChecked = true;
+    danhSachKhachHang = [];
+    vuaTaoKhachMoi = false;
     LocalStorage.instance.clearTokens();
     notifyListeners();
+  }
+
+  // ── Khách hàng: fetch + phân quyền + tạo nhanh (mirror customer-api) ──────
+
+  /// userId hiện tại có phụ trách khách này không (mirror `laNguoiPhuTrach`
+  /// web customer-api.ts:145 — so khớp customer_managers qua `managers`).
+  bool laNguoiPhuTrach(KhachHang kh) {
+    final uid = nguoiDungHienTai?.id;
+    if (uid == null || uid.isEmpty) return false;
+    return kh.managers.any((m) => m.userId == uid);
+  }
+
+  /// GET /customers — chỉ chạy khi đã đăng nhập (online-only, không cache LS).
+  Future<void> taiDanhSachKhachHang({bool force = false}) async {
+    if (!isAuthenticated || accessToken == null) return;
+    if (dangTaiKhachHang) return;
+    if (!force &&
+        _lanCuoiTaiKhachHang != null &&
+        DateTime.now().millisecondsSinceEpoch - _lanCuoiTaiKhachHang! < 5000) {
+      return;
+    }
+    dangTaiKhachHang = true;
+    _lanCuoiTaiKhachHang = DateTime.now().millisecondsSinceEpoch;
+    notifyListeners();
+    try {
+      final list = await layKhachHangService(accessToken!);
+      danhSachKhachHang = list;
+      loiKhachHang = null;
+    } catch (e) {
+      loiKhachHang = e.toString();
+    } finally {
+      dangTaiKhachHang = false;
+      notifyListeners();
+    }
+  }
+
+  /// Tạo nhanh khách hàng mới cho báo giá (mirror `taoNhanhKhachHang`
+  /// TheNhapLieu.tsx:230-291): POST /customers → gán phụ trách → PATCH tên.
+  /// Ném Exception với message tiếng Việt cho UI hiển thị.
+  Future<KhachHang> taoNhanhKhachHang(String tenKhach, String maKhachHang) async {
+    final token = accessToken;
+    if (token == null) throw Exception('Chưa đăng nhập.');
+    final ten = tenKhach.trim();
+    if (ten.isEmpty) throw Exception('Vui lòng nhập tên khách hàng.');
+    final ma = maKhachHang.trim().toUpperCase();
+    if (ma.isEmpty) {
+      throw Exception('Vui lòng nhập mã khách hàng.');
+    }
+    if (!RegExp(r'^[A-Z0-9_]+$').hasMatch(ma)) {
+      throw Exception(
+          'Mã khách hàng chỉ dùng chữ in hoa, số và dấu gạch dưới. Ví dụ hợp lệ: KH001, ACME_01');
+    }
+    final daTonTai = danhSachKhachHang.any((kh) => kh.codeName == ma);
+    if (daTonTai) {
+      throw Exception('Mã khách hàng này đã tồn tại. Vui lòng chọn mã khác.');
+    }
+
+    // 1. Tạo mã khách hàng (server kiểm tra trùng lần 2).
+    await taoMaKhachHangService(token, ma);
+    // 2. Gán user hiện tại làm người phụ trách — khách mới thật sự thuộc sale.
+    final uid = nguoiDungHienTai?.id;
+    if (uid != null && uid.isNotEmpty) {
+      try {
+        await luuNguoiPhuTrachKhachHangService(token, ma, [uid]);
+      } catch (_) {/* không rollback tạo khách nếu gán quản lý lỗi */}
+    }
+    // 3. Lưu version đầu tiên (tên công ty) lên server.
+    try {
+      await luuThongTinKhachHangService(token, ma,
+          organizationName: ten,
+          contactName: '',
+          phoneNumber: '',
+          email: '',
+          address: '',
+          changeNote: 'Tạo nhanh từ bảng tính giá.');
+    } catch (_) {/* không rollback nếu PATCH lỗi */}
+
+    // 4. Thêm bản ghi cục bộ (mirror web) — lần fetch sau sẽ có từ server.
+    final bayGio = DateTime.now().toIso8601String();
+    final moi = KhachHang(
+      id: ma,
+      codeName: ma,
+      createdAt: bayGio,
+      versions: [
+        KhachHangVersion(
+          version: 1,
+          organizationName: ten,
+          contactName: '',
+          phoneNumber: '',
+          email: '',
+          address: '',
+          status: 'active',
+          createdAt: bayGio,
+        )
+      ],
+      managers: uid != null && uid.isNotEmpty
+          ? [
+              KhachHangManager(
+                  userId: uid, fullName: nguoiDungHienTai?.fullName ?? '')
+            ]
+          : const [],
+    );
+    danhSachKhachHang = [moi, ...danhSachKhachHang];
+    vuaTaoKhachMoi = true;
+    notifyListeners();
+    return moi;
   }
 
   /// �p token + profile sau login / consume password-reset (mirror web).
@@ -1005,6 +1276,24 @@ class AppState extends ChangeNotifier {
   /// Đặt lại form nhưng GIỮ loại hình đang dùng — mirror `resetInputGiuLoaiHinh`.
   void resetInputGiuLoaiHinh() {
     final giu = _loaiHinhGiuLai();
+    currentChotGia = 0;
+    phanBoCongTy = 0;
+    donViPhanBo = DonViPhanBo.vnd;
+    saleOverrides = {};
+    adminOverrides = {};
+    saleProfitRatePct = 0;
+    adminProfitRatePct = 0;
+    loadedHistoryId = null;
+    pricingSheetId = null;
+    priceConfigIds = [];
+    loadedFinalPrice = 0;
+    loadedSaleOverrides = {};
+    loadedAdminOverrides = {};
+    loadedSaleProfitRatePct = 0;
+    loadedAdminProfitRatePct = 0;
+    loadedPinnedCpsxNangCao = null;
+    loadedIsNangCap = false;
+    isDirty = false;
     setInput(CalculateInput({...CalculateInput.defaults().raw, ...giu}));
   }
 
@@ -1033,6 +1322,46 @@ class AppState extends ChangeNotifier {
   /// Force tính ngay (dùng khi user nhấn nút).
   void recomputeNow() => _recompute();
 
+  /// Tính lại engine với số lượng khác — phục vụ bảng MOQ / Roll MOQ.
+  /// Mirror web `calculateForInput({...dauVao, quantity})` (ManHinhQuanLy.tsx).
+  CalculateResult? tinhTheoSoLuong(CalculateInput input, num quantity) {
+    if (!EngineService.instance.isReady) return null;
+    try {
+      return EngineService.instance.calculate(
+        input: input.withField('quantity', quantity),
+        materials: materials,
+        constants: constants,
+        profitTable: profitTable,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Tính theo số lượng + áp bảng đặc tả nâng cao nếu đang ở tab nâng cao
+  /// (mirror web MOQ `resHieuLuc = nangCap ? tinhKetQuaNangCaoHieuLuc(...) : res`).
+  CalculateResult? tinhTheoSoLuongHienThi(CalculateInput input, num quantity) {
+    final res = tinhTheoSoLuong(input, quantity);
+    if (res == null) return null;
+    final laThuongMai = input.raw['pricingMode'] == 'commercial';
+    if (!cheDoNangCao || laThuongMai) return res;
+    final uniRows = uniRowsChuan(result: res);
+    if (uniRows.isEmpty) return res;
+    final kq = tinhNangCaoHieuLuc(
+      result: res,
+      uniRows: uniRows,
+      saleOv: const {},
+      adminOv: const {},
+      salePct: 0,
+      adminPct: 0,
+    );
+    final hieuLuc = kq?['result'];
+    if (hieuLuc is Map) {
+      return CalculateResult(hieuLuc.cast<String, dynamic>());
+    }
+    return res;
+  }
+
   /// Reset config (materials/constants/profit) về defaults từ assets.
   /// Dùng khi user muốn lấy lại data gốc đi kèm app, bỏ override đã lưu.
   Future<void> resetConfigToDefaults() async {
@@ -1042,6 +1371,126 @@ class AppState extends ChangeNotifier {
     profitTable = await _loadProfitAsset();
     notifyListeners();
     _scheduleRecompute();
+  }
+
+  // ── P3/P4: tính giá hiệu lực + đặc tả nâng cao (gọi engine bundle) ────────
+  /// Constants hiệu lực cho tab nâng cao: nếu đang mở sheet đã lưu có pin CPSX
+  /// → áp pin lên base (mirror web `hangSoNc`).
+  AppConstants get hangSoNangCao {
+    if (loadedPinnedCpsxNangCao != null) {
+      return EngineAdvanced.instance
+          .apCpsxNangCaoVaoHangSo(constants, loadedPinnedCpsxNangCao!);
+    }
+    return constants;
+  }
+
+  /// uniRows chuẩn (mirror web `lapDongSanXuat`) cho result hiện tại.
+  List<dynamic> uniRowsChuan({CalculateResult? result}) {
+    final r = result ?? currentResult;
+    if (r == null) return const [];
+    try {
+      final lap = EngineAdvanced.instance.lapDongSanXuat(r, hangSoNangCao);
+      return (lap['uniRows'] as List?) ?? const [];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Kết quả hiệu lực để hiển thị trên màn kết quả — mirror web `rHieuLuc`
+  /// (ManHinhQuanLy.tsx / page.tsx): tab nâng cao (và không phải thương mại) thì
+  /// giá/LN/vốn lấy từ TỔNG bảng đặc tả nâng cao; ngược lại dùng engine thường.
+  /// Giá đề xuất KHÔNG gồm ghi đè Sale/Admin (chỉ preview trong tab ghi đè).
+  /// Memo hoá theo (result, cheDoNangCao, pin CPSX) — tránh gọi QuickJS mỗi build.
+  CalculateResult? _kqHienThiCache;
+  CalculateResult? _kqHienThiCacheKey;
+  bool _kqHienThiCacheNc = false;
+  int _kqHienThiCachePin = -1;
+  CalculateResult get ketQuaHienThi {
+    final r = currentResult;
+    if (r == null) return const CalculateResult({});
+    final laThuongMai = currentInput.raw['pricingMode'] == 'commercial';
+    if (!cheDoNangCao || laThuongMai) return r;
+    final pinLen = loadedPinnedCpsxNangCao?.length ?? -1;
+    if (_kqHienThiCache != null &&
+        identical(_kqHienThiCacheKey, r) &&
+        _kqHienThiCacheNc == cheDoNangCao &&
+        _kqHienThiCachePin == pinLen) {
+      return _kqHienThiCache!;
+    }
+    final kq = tinhNangCaoHieuLuc(
+      result: r,
+      saleOv: const {},
+      adminOv: const {},
+      salePct: 0,
+      adminPct: 0,
+    );
+    final hieuLuc = kq?['result'];
+    final out = hieuLuc is Map
+        ? CalculateResult(hieuLuc.cast<String, dynamic>())
+        : r;
+    _kqHienThiCache = out;
+    _kqHienThiCacheKey = r;
+    _kqHienThiCacheNc = cheDoNangCao;
+    _kqHienThiCachePin = pinLen;
+    return out;
+  }
+
+  /// Kết quả nâng cao hiệu lực (giá từ TỔNG bảng đặc tả nâng cao) — mirror
+  /// web `tinhKetQuaNangCaoHieuLuc`. Trả null nếu lỗi.
+  Map<String, dynamic>? tinhNangCaoHieuLuc({
+    CalculateResult? result,
+    List<dynamic>? uniRows,
+    OverrideTableRef? saleOv,
+    OverrideTableRef? adminOv,
+    double? salePct,
+    double? adminPct,
+  }) {
+    final r = result ?? currentResult;
+    if (r == null) return null;
+    try {
+      return EngineAdvanced.instance.tinhKetQuaNangCaoHieuLuc(
+        result: r,
+        uniRows: uniRows ?? uniRowsChuan(result: r),
+        constants: hangSoNangCao,
+        materials: materials,
+        profitTable: profitTable,
+        saleOverrides: saleOv ?? saleOverrides,
+        adminOverrides: adminOv ?? adminOverrides,
+        saleProfitRatePct: salePct ?? saleProfitRatePct,
+        adminProfitRatePct: adminPct ?? adminProfitRatePct,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Giá vốn/LN hiệu lực sau ghi đè Sale/Admin (bảng thường) — mirror web
+  /// `tinhGiaHieuLuc`. Trả null nếu lỗi.
+  Map<String, dynamic>? tinhGiaHieuLuc({
+    CalculateResult? result,
+    List<dynamic>? uniRows,
+    OverrideTableRef? saleOv,
+    OverrideTableRef? adminOv,
+    double? salePct,
+    double? adminPct,
+  }) {
+    final r = result ?? currentResult;
+    if (r == null) return null;
+    try {
+      return EngineAdvanced.instance.tinhGiaHieuLuc(
+        result: r,
+        uniRows: uniRows ?? uniRowsChuan(result: r),
+        saleOverrides: saleOv ?? saleOverrides,
+        adminOverrides: adminOv ?? adminOverrides,
+        saleProfitRatePct: salePct ?? saleProfitRatePct,
+        adminProfitRatePct: adminPct ?? adminProfitRatePct,
+        profitTable: profitTable,
+        constants: hangSoNangCao,
+        materials: materials,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   // ── History ──────────────────────────────────────────────────────────────
@@ -1195,7 +1644,28 @@ class AppState extends ChangeNotifier {
       taiCauHinhTuServer().catchError((_) => false),
       taiLichSuTuServer().catchError((_) => false),
       taiProductionOrdersTuServer().catchError((_) => false),
+      taiCpsxNangCapPoliciesTuServer().catchError((_) {}),
     ]);
+  }
+
+  /// GET /price-config/production-upgrade/latest → lọc policies `CPSX_UPGRADE_*`
+  /// (mirror web taiCpsxNangCapPoliciesTuServer, configVersioning.ts:387).
+  Future<void> taiCpsxNangCapPoliciesTuServer() async {
+    if (!isAuthenticated || accessToken == null) {
+      cpsxNangCapPolicies = [];
+      notifyListeners();
+      return;
+    }
+    try {
+      final upgrade =
+          await layProductionUpgradePriceConfigService(accessToken!, 'latest');
+      cpsxNangCapPolicies = upgrade.policies
+          .where((p) => p.startsWith('CPSX_UPGRADE_'))
+          .toList();
+    } catch (_) {
+      cpsxNangCapPolicies = [];
+    }
+    notifyListeners();
   }
 
   /// force: nếu true thì cố lưu lên server (kể cả khi trước đó đã
@@ -1224,21 +1694,76 @@ class AppState extends ChangeNotifier {
         return true;
       }
       final inputJson = Map<String, dynamic>.of(currentInput.toJson());
+      // Mirror web history.ts: cờ nâng cao + giá chốt nằm trong inputValue để
+      // round-trip cross-platform (web đọc syncedInput.chotGia/isNangCap).
+      inputJson['isNangCap'] = cheDoNangCao ? true : null;
+      inputJson['chotGia'] = currentChotGia > 0 ? currentChotGia : null;
+      // Mirror web mapHistoryToPricingSheet: saleResult = { finalPrice,
+      // structureText, overrides, profitRatePct, chotGia }.
+      final ketQuaLuu = ketQuaHienThi;
       final saleResult = <String, dynamic>{
-        'finalPrice': currentResult!.finalPrice,
+        'finalPrice': ketQuaLuu.finalPrice,
         'structureText': currentResult!.structureText,
+        if (saleOverrides.isNotEmpty) 'overrides': saleOverrides,
+        if (saleProfitRatePct > 0) 'profitRatePct': saleProfitRatePct,
+        if (currentChotGia > 0) 'chotGia': currentChotGia,
       };
-      await taoPricingSheetService(
-        accessToken!,
-        TaoPricingSheetInput(
-          customerCodeName: customer,
-          pricingSheetName: currentInput.productName.isNotEmpty
-              ? currentInput.productName
-              : 'Bảng tính ${DateTime.now().toIso8601String().substring(0, 16)}',
+      final tenBang = currentInput.productName.isNotEmpty
+          ? currentInput.productName
+          : 'Bảng tính ${DateTime.now().toIso8601String().substring(0, 16)}';
+      // Giữ id item local trước khi ghi đè con trỏ (để gán pricingSheetId vào đúng item).
+      final idTruocKhiLuu = loadedHistoryId;
+      // Mirror web quyetDinhPricingSheetSync: chưa có pricingSheetId → POST tạo
+      // mới; đã có → PATCH cập nhật (không tạo sheet trùng).
+      if (pricingSheetId == null || pricingSheetId!.isEmpty) {
+        final sheet = await taoPricingSheetService(
+          accessToken!,
+          TaoPricingSheetInput(
+            customerCodeName: customer,
+            pricingSheetName: tenBang,
+            inputValue: inputJson,
+            saleResult: saleResult,
+            // Mirror web mapHistoryToPricingSheet: POST gửi luôn masterResult.
+            masterResult: _wrapMasterResult(),
+          ),
+        );
+        // Lưu pricingSheetId + pin vào item vừa tạo (mirror web ManHinhQuanLy).
+        pricingSheetId = sheet.id;
+        priceConfigIds = sheet.priceConfigIds;
+        // Con trỏ sheet đang mở → lần lưu sau là PATCH (không tạo trùng).
+        loadedHistoryId = sheet.id;
+        loadedFinalPrice = ketQuaLuu.finalPrice;
+        loadedSaleOverrides = _saoChepOverride(saleOverrides);
+        loadedAdminOverrides = _saoChepOverride(adminOverrides);
+        loadedSaleProfitRatePct = saleProfitRatePct;
+        loadedAdminProfitRatePct = adminProfitRatePct;
+        loadedIsNangCap = cheDoNangCao;
+        _ganPricingSheetIdVaoHistory(idTruocKhiLuu, sheet.id, sheet.priceConfigIds);
+      } else {
+        final sheet = await capNhatPricingSheetResultService(
+          accessToken!,
+          pricingSheetId!,
+          pricingSheetName: tenBang,
           inputValue: inputJson,
           saleResult: saleResult,
-        ),
-      );
+          // Sheet đã pin → giữ pin (false); chưa pin → lấy config mới nhất.
+          useLatestPriceConfigs: priceConfigIds.isEmpty,
+        );
+        if (sheet.priceConfigIds.isNotEmpty) {
+          priceConfigIds = sheet.priceConfigIds;
+          _ganPricingSheetIdVaoHistory(
+              idTruocKhiLuu, pricingSheetId!, sheet.priceConfigIds);
+        }
+        // Mirror web: user advisor luôn PATCH masterResult (kể cả {} để xoá
+        // ghi đè Admin cũ); sale thường bỏ qua để tránh 403.
+        if (_coQuyenCoVan()) {
+          await capNhatPricingSheetAdvisorResultService(
+            accessToken!,
+            pricingSheetId!,
+            result: _wrapMasterResult() ?? const <String, dynamic>{},
+          );
+        }
+      }
       // Reload list từ server.
       await taiLichSuTuServer(force: true);
       return true;
@@ -1249,8 +1774,41 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// User có quyền cố vấn bảng tính (mirror web coQuyenCoVanBangTinh).
+  bool _coQuyenCoVan() =>
+      nguoiDungHienTai?.coQuyen('PRICING_SHEET_ADVISOR') ?? false;
+
+  /// masterResult wrapper — mirror web wrapResult(adminOverrides, adminProfitRatePct).
+  Map<String, dynamic>? _wrapMasterResult() {
+    final res = <String, dynamic>{};
+    if (adminOverrides.isNotEmpty) res['overrides'] = adminOverrides;
+    if (adminProfitRatePct > 0) res['profitRatePct'] = adminProfitRatePct;
+    return res.isEmpty ? null : res;
+  }
+
+  /// Gán pricingSheetId + priceConfigIds vào item đang mở trong history
+  /// (mirror web ManHinhQuanLy cập nhật state.history theo id).
+  void _ganPricingSheetIdVaoHistory(
+      String? idItem, String sheetId, List<String> pins) {
+    if (idItem == null) return;
+    var changed = false;
+    final next = history.map((h) {
+      if (h.id != idItem && h.pricingSheetId != sheetId) return h;
+      changed = true;
+      return h.copyWith(pricingSheetId: sheetId, priceConfigIds: pins);
+    }).toList();
+    if (changed) history = next;
+  }
+
   Future<void> _saveCurrentToHistoryLocal() async {
     final id = 'H${DateTime.now().millisecondsSinceEpoch}';
+    // Mirror web history.ts: isNangCap + chotGia nằm trong inputValue.
+    final inputLocal = Map<String, dynamic>.of(currentInput.toJson());
+    inputLocal['isNangCap'] = cheDoNangCao ? true : null;
+    inputLocal['chotGia'] = currentChotGia > 0 ? currentChotGia : null;
+    // Mirror web history.ts: giá lưu = giá hiệu lực (tab nâng cao lấy từ bảng
+    // đặc tả nâng cao), không phải finalPrice engine thường.
+    final giaLuu = ketQuaHienThi.finalPrice;
     final item = HistoryItem(
       id: id,
       date: DateTime.now().toIso8601String(),
@@ -1258,12 +1816,30 @@ class AppState extends ChangeNotifier {
       productName: currentInput.productName,
       structure: currentResult!.structureText,
       quantity: currentInput.quantity,
-      finalPrice: currentResult!.finalPrice,
+      finalPrice: giaLuu,
+      chotGia: currentChotGia > 0 ? currentChotGia : null,
       quoteStatus: 'drafted',
-      input: Map<String, dynamic>.of(currentInput.toJson()),
+      input: inputLocal,
+      saleOverrides: saleOverrides.isEmpty ? null : _saoChepOverride(saleOverrides),
+      adminOverrides: adminOverrides.isEmpty ? null : _saoChepOverride(adminOverrides),
+      saleProfitRatePct: saleProfitRatePct > 0 ? saleProfitRatePct : null,
+      adminProfitRatePct: adminProfitRatePct > 0 ? adminProfitRatePct : null,
+      pinnedCpsxNangCao: EngineAdvanced.instance.trichCpsxNangCao(constants),
+      isNangCap: cheDoNangCao ? true : null,
     );
     history = [item, ...history];
     await LocalStorage.instance.writeHistory(history);
+    // Cập nhật con trỏ sheet đang mở → lần sau là "Cập nhật".
+    loadedHistoryId = id;
+    pricingSheetId = null;
+    priceConfigIds = [];
+    loadedFinalPrice = giaLuu;
+    loadedSaleOverrides = _saoChepOverride(saleOverrides);
+    loadedAdminOverrides = _saoChepOverride(adminOverrides);
+    loadedSaleProfitRatePct = saleProfitRatePct;
+    loadedAdminProfitRatePct = adminProfitRatePct;
+    loadedIsNangCap = cheDoNangCao;
+    loadedPinnedCpsxNangCao = item.pinnedCpsxNangCao;
     isDirty = false;
     notifyListeners();
   }
@@ -1298,7 +1874,75 @@ class AppState extends ChangeNotifier {
 
   void loadFromHistory(HistoryItem item) {
     setInput(CalculateInput.fromJson(item.input));
+    currentChotGia = (item.chotGia ?? 0).toDouble();
+    phanBoCongTy = 0;
+    donViPhanBo = DonViPhanBo.vnd;
+    // Nạp ghi đè + nâng cao đã lưu (mirror web mở sheet lịch sử).
+    saleOverrides = _saoChepOverride(_castOverride(item.saleOverrides));
+    adminOverrides = _saoChepOverride(_castOverride(item.adminOverrides));
+    saleProfitRatePct = item.saleProfitRatePct ?? 0;
+    adminProfitRatePct = item.adminProfitRatePct ?? 0;
+    cheDoNangCao = item.isNangCap ?? false;
+    loadedHistoryId = item.id;
+    pricingSheetId = item.pricingSheetId;
+    priceConfigIds = List<String>.of(item.priceConfigIds);
+    loadedFinalPrice = item.finalPrice.toDouble();
+    loadedSaleOverrides = _saoChepOverride(_castOverride(item.saleOverrides));
+    loadedAdminOverrides = _saoChepOverride(_castOverride(item.adminOverrides));
+    loadedSaleProfitRatePct = item.saleProfitRatePct ?? 0;
+    loadedAdminProfitRatePct = item.adminProfitRatePct ?? 0;
+    loadedIsNangCap = item.isNangCap ?? false;
+    loadedPinnedCpsxNangCao = item.pinnedCpsxNangCao;
+    isDirty = false;
+    notifyListeners();
     requestTabSwitch(0);
+  }
+
+  static Map<String, Map<String, dynamic>> _castOverride(
+      Map<String, dynamic>? src) {
+    if (src == null) return {};
+    return {
+      for (final e in src.entries)
+        e.key: (e.value as Map?)?.cast<String, dynamic>() ?? {},
+    };
+  }
+
+  /// Đánh dấu "vừa lưu thành bảng mới" — xoá con trỏ sheet đang mở để lần lưu
+  /// sau không ghi đè sheet cũ (mirror web tạo bản ghi mới).
+  void markSavedAsNew() {
+    loadedHistoryId = null;
+    pricingSheetId = null;
+    priceConfigIds = [];
+    loadedFinalPrice = 0;
+    loadedSaleOverrides = {};
+    loadedAdminOverrides = {};
+    loadedSaleProfitRatePct = 0;
+    loadedAdminProfitRatePct = 0;
+    loadedPinnedCpsxNangCao = null;
+    loadedIsNangCap = false;
+    isDirty = false;
+    notifyListeners();
+  }
+
+  /// Đóng băng giá đề xuất khi mở sheet nâng cao đã lưu mà chưa sửa input —
+  /// mirror web `tinhGiaDeXuatHienThi`. [giaTinhLai] = giá tính live.
+  double giaDeXuatHienThi(double giaTinhLai) {
+    if (loadedHistoryId == null) return giaTinhLai;
+    try {
+      final res = EngineAdvanced.instance.tinhGiaDeXuatHienThi(
+        nangCap: loadedIsNangCap,
+        loadedItem: {
+          'finalPrice': loadedFinalPrice,
+          'saleOverrides': loadedSaleOverrides,
+          'adminOverrides': loadedAdminOverrides,
+        },
+        isDirty: isDirty,
+        giaTinhLai: giaTinhLai,
+      );
+      return ((res['giaDeXuat'] as num?) ?? giaTinhLai).toDouble();
+    } catch (_) {
+      return giaTinhLai;
+    }
   }
 
   void requestTabSwitch(int index) {

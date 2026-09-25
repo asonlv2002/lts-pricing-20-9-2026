@@ -17,6 +17,16 @@ class _InputForm extends StatefulWidget {
 class _InputFormState extends State<_InputForm> {
   bool _advancedOpen = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // Fetch danh sách khách khi vào form — chỉ khi đã đăng nhập (online-only,
+    // không cache LS theo lựa chọn scope). Post-frame để khỏi notify giữa build.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) s.taiDanhSachKhachHang();
+    });
+  }
+
   AppState get s => widget.state;
   Map<String, dynamic> get i => s.currentInput.raw;
 
@@ -49,11 +59,7 @@ class _InputFormState extends State<_InputForm> {
             LabeledField(
               label: 'Khách hàng',
               icon: Icons.person_outline,
-              child: TxtField(
-                initial: (i['customer'] as String?) ?? '',
-                hintText: 'Tên khách hàng…',
-                onChanged: (v) => u('customer', v),
-              ),
+              child: _KhachHangField(state: s),
             ),
             LabeledField(
               label: _laThuongMai ? 'Tên hàng' : 'Tên sản phẩm',
@@ -364,15 +370,30 @@ class _InputFormState extends State<_InputForm> {
                 onChanged: (v) => _onLayerChange('layer1Id', v),
                 onMicOverride: _onMicOverride,
               ),
-              _LayerPickerRow(
-                label: 'Lớp 2',
-                materials: s.materials,
-                layerKey: 'layer2Id',
-                disabled: i['layer1Id'] == null,
-                input: i,
-                onChanged: (v) => _onLayerChange('layer2Id', v),
-                onMicOverride: _onMicOverride,
-              ),
+              // Lớp 2 kép — mirror web "+ Thêm cấu trúc" (TheNhapLieu.tsx:1060-1186):
+              // có layer2AltId → stack 2 cột VL ngoài/giữa; chưa có → picker thường + nút thêm.
+              if ((i['layer2AltId'] as String?) != null)
+                _Layer2KepSection(state: s, onLayerChange: _onLayerChange)
+              else ...[
+                _LayerPickerRow(
+                  label: 'Lớp 2',
+                  materials: s.materials,
+                  layerKey: 'layer2Id',
+                  disabled: i['layer1Id'] == null,
+                  input: i,
+                  onChanged: (v) => _onLayerChange('layer2Id', v),
+                  onMicOverride: _onMicOverride,
+                ),
+                if (i['layer2Id'] != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2, bottom: 10),
+                    child: OutlinedButton.icon(
+                      onPressed: _themCauTrucLop2,
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Thêm cấu trúc'),
+                    ),
+                  ),
+              ],
               _LayerPickerRow(
                 label: 'Lớp 3',
                 materials: s.materials,
@@ -571,11 +592,38 @@ class _InputFormState extends State<_InputForm> {
     );
   }
 
+  static MaterialDef? _timVatLieu(List<MaterialDef> mats, String? id) {
+    if (id == null || id.isEmpty) return null;
+    for (final m in mats) {
+      if (m.id == id) return m;
+    }
+    return null;
+  }
+
   void _onLayerChange(String layerKey, String? value) {
     u(layerKey, value);
     final micOverrides = Map<String, dynamic>.from(
         (s.currentInput.raw['micOverrides'] as Map?) ?? {});
     micOverrides.remove(layerKey);
+    // Mirror web xuLyDoiLop (TheNhapLieu.tsx:323-349): lớp 2 bị xoá, hoặc VL
+    // mới khác độ dày với VL phụ đang ghép → bỏ cấu trúc phụ.
+    if (layerKey == 'layer2Id') {
+      final altId = s.currentInput.raw['layer2AltId'] as String?;
+      if (altId != null || value == null) {
+        final chinhMoi = _timVatLieu(s.materials, value);
+        final phu = _timVatLieu(s.materials, altId);
+        if (value == null ||
+            chinhMoi == null ||
+            phu == null ||
+            chinhMoi.thickness != phu.thickness) {
+          u('layer2AltId', null);
+          u('layer2Lengths', null);
+          u('layer2FrontPart', 'main');
+          u('layer2PairingMode', 'bottom_to_bottom');
+          micOverrides.remove('layer2AltId');
+        }
+      }
+    }
     if (value == null) {
       const keys = ['layer1Id', 'layer2Id', 'layer3Id', 'layer4Id', 'layer5Id'];
       final idx = keys.indexOf(layerKey);
@@ -587,11 +635,392 @@ class _InputFormState extends State<_InputForm> {
     u('micOverrides', micOverrides);
   }
 
+  /// Mirror web nút "+ Thêm cấu trúc" (TheNhapLieu.tsx:1063-1081): VL phụ =
+  /// VL đầu tiên cùng độ dày khác lớp 2; chia đều khổ trải (lưu MÉT).
+  void _themCauTrucLop2() {
+    final i = s.currentInput.raw;
+    final chinhId = i['layer2Id'] as String?;
+    if (chinhId == null) return;
+    final chinh = _timVatLieu(s.materials, chinhId);
+    MaterialDef? phu;
+    for (final m in s.materials) {
+      if (m.id != chinhId &&
+          (chinh == null || m.thickness == chinh.thickness)) {
+        phu = m;
+        break;
+      }
+    }
+    final sw = (i['spreadWidth'] as num?)?.toDouble() ?? 0;
+    u('layer2AltId', phu?.id);
+    u('layer2Lengths', {'mat1': sw / 2, 'mat2': sw / 2});
+    u('layer2FrontPart', 'main');
+    u('layer2PairingMode', 'bottom_to_bottom');
+  }
+
   void _onMicOverride(String layerKey, double value) {
     final micOverrides = Map<String, dynamic>.from(
         (s.currentInput.raw['micOverrides'] as Map?) ?? {});
     micOverrides[layerKey] = value;
     u('micOverrides', micOverrides);
+  }
+}
+
+// ─── Khách hàng — autocomplete + tạo nhanh (mirror web TheNhapLieu.tsx:188-291,
+//     647-749). Chưa đăng nhập → nhập tự do như cũ; đã đăng nhập → gợi ý từ BE. ──
+class _KhachHangField extends StatefulWidget {
+  final AppState state;
+  const _KhachHangField({required this.state});
+  @override
+  State<_KhachHangField> createState() => _KhachHangFieldState();
+}
+
+class _KhachHangFieldState extends State<_KhachHangField> {
+  late final TextEditingController _c = TextEditingController(
+      text: (widget.state.currentInput.raw['customer'] as String?) ?? '');
+  final FocusNode _focus = FocusNode();
+  bool _moGoiY = false;
+  String _maKhachHang = '';
+  String _loiTaoMoi = '';
+  bool _dangTao = false;
+  bool _moTaoMoi = false;
+
+  AppState get s => widget.state;
+  Map<String, dynamic> get i => s.currentInput.raw;
+  void u(String key, dynamic value) => s.updateInput(key, value);
+
+  static const _regexMaKhachHang = r'^[A-Z0-9_]+$';
+
+  @override
+  void initState() {
+    super.initState();
+    _focus.addListener(() {
+      if (!_focus.hasFocus && mounted) setState(() => _moGoiY = false);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _KhachHangField old) {
+    super.didUpdateWidget(old);
+    // Reset/history đổi customer ngoài field → sync text khi không đang gõ.
+    final cur = (s.currentInput.raw['customer'] as String?) ?? '';
+    if (!_moGoiY && cur != _c.text) {
+      _c.text = cur;
+      _c.selection = TextSelection.collapsed(offset: cur.length);
+    }
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    _focus.dispose();
+    super.dispose();
+  }
+
+  bool get _dangNhap => s.isAuthenticated;
+
+  /// Gợi ý — mirror web `goiYKhachHang` (TheNhapLieu.tsx:188-196):
+  /// admin thấy hết; sale/purchase chỉ khách mình phụ trách; bỏ dấu so khớp.
+  List<KhachHang> get _goiY {
+    if (!_dangNhap || !_moGoiY) return const [];
+    final tuKhoa = boDau(_c.text.trim());
+    if (tuKhoa.isEmpty) return const [];
+    final laAdmin = s.laAdminTaiKhoan;
+    return s.danhSachKhachHang
+        .where((kh) =>
+            (laAdmin || s.laNguoiPhuTrach(kh)) &&
+            !kh.isLocked &&
+            (kh.moiNhat?.status ?? 'active') != 'inactive')
+        .where((kh) => boDau(
+                '${kh.codeName} ${kh.moiNhat?.organizationName ?? ''} '
+                '${kh.moiNhat?.contactName ?? ''} ${kh.moiNhat?.phoneNumber ?? ''}')
+            .contains(tuKhoa))
+        .take(6)
+        .toList();
+  }
+
+  /// Sale chỉ được dùng khách mình phụ trách (hoặc khách vừa tạo) —
+  /// mirror web `khachHopLe` (TheNhapLieu.tsx:201-210).
+  bool get _khachHopLe {
+    if (!_dangNhap || s.laAdminTaiKhoan) return true;
+    if (s.vuaTaoKhachMoi) return true;
+    final chuan = boDau(_tenNhap.trim());
+    if (chuan.isEmpty) return false;
+    return s.danhSachKhachHang.any((kh) =>
+        s.laNguoiPhuTrach(kh) &&
+        boDau((kh.moiNhat?.organizationName ?? '').trim()) == chuan);
+  }
+
+  /// Tên trùng KH có thật nhưng không do sale quản lý — mirror web 213-220.
+  bool get _khachTonTaiNgoaiQuyen {
+    if (!_dangNhap || s.laAdminTaiKhoan) return false;
+    final chuan = boDau(_tenNhap.trim());
+    if (chuan.isEmpty) return false;
+    return s.danhSachKhachHang.any((kh) =>
+        boDau((kh.moiNhat?.organizationName ?? '').trim()) == chuan &&
+        !s.laNguoiPhuTrach(kh));
+  }
+
+  String get _tenNhap => (i['customer'] as String?) ?? '';
+
+  String get _canhBaoMa {
+    final ma = _maKhachHang.trim();
+    if (ma.isEmpty) return '';
+    if (!RegExp(_regexMaKhachHang).hasMatch(ma)) {
+      return 'Mã khách hàng chỉ dùng chữ in hoa, số và dấu gạch dưới. Ví dụ hợp lệ: KH001, ACME_01';
+    }
+    return '';
+  }
+
+  void _chon(KhachHang kh) {
+    final ten = (kh.moiNhat?.organizationName ?? '').trim();
+    _c.text = ten;
+    _c.selection = TextSelection.collapsed(offset: ten.length);
+    u('customer', ten);
+    setState(() {
+      _moGoiY = false;
+      _moTaoMoi = false;
+      _loiTaoMoi = '';
+    });
+    _focus.unfocus();
+  }
+
+  void _toggleTaoMoi() {
+    setState(() {
+      _moTaoMoi = !_moTaoMoi;
+      _loiTaoMoi = '';
+    });
+  }
+
+  Future<void> _taoMoi() async {
+    setState(() => _dangTao = true);
+    try {
+      final kh = await s.taoNhanhKhachHang(_c.text, _maKhachHang);
+      final ten = (kh.moiNhat?.organizationName ?? '').trim();
+      if (!mounted) return;
+      _c.text = ten;
+      _c.selection = TextSelection.collapsed(offset: ten.length);
+      u('customer', ten);
+      setState(() {
+        _moTaoMoi = false;
+        _maKhachHang = '';
+        _moGoiY = false;
+        _loiTaoMoi = '';
+      });
+      _focus.unfocus();
+      LtsToast.show(context, 'Đã tạo khách hàng: $ten',
+          type: LtsToastType.success, duration: const Duration(seconds: 3));
+    } catch (e) {
+      if (!mounted) return;
+      setState(() =>
+          _loiTaoMoi = e.toString().replaceFirst(RegExp(r'^Exception:\s*'), ''));
+    } finally {
+      if (mounted) setState(() => _dangTao = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final goiY = _goiY;
+    // Panel "Khách mới" — mở bằng nút person_add (mobile-first; web tự mở
+    // dropdown khi không có gợi ý — ở đây chủ động bấm để tránh nhầm typo).
+    final hienTaoMoi =
+        _dangNhap && _c.text.trim().isNotEmpty && _moTaoMoi;
+
+    final canhBaoQuyen = (!_dangNhap || s.laAdminTaiKhoan)
+        ? null
+        : (_tenNhap.trim().isEmpty || _khachHopLe
+            ? null
+            : (_khachTonTaiNgoaiQuyen
+                ? 'Khách hàng này không do bạn quản lý — không thể chọn. Bạn có thể tạo khách hàng mới với mã riêng.'
+                : 'Vui lòng chọn khách hàng từ danh sách hoặc tạo mới.'));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _c,
+          focusNode: _focus,
+          decoration: InputDecoration(
+            hintText: _dangNhap ? 'Gõ để tìm khách hàng…' : 'Tên khách hàng…',
+            isDense: true,
+            suffixIcon: (_dangNhap && _c.text.trim().isNotEmpty)
+                ? IconButton(
+                    icon: Icon(
+                        _moTaoMoi ? Icons.close : Icons.person_add_alt_1,
+                        size: 18),
+                    tooltip: _moTaoMoi ? 'Đóng' : 'Tạo khách mới',
+                    onPressed: _toggleTaoMoi,
+                  )
+                : null,
+          ),
+          onChanged: (v) {
+            u('customer', v);
+            s.vuaTaoKhachMoi = false;
+            setState(() => _moGoiY = true);
+          },
+        ),
+        if (s.dangTaiKhachHang && _dangNhap)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 2),
+            child: Text('Đang tải danh sách khách hàng…',
+                style: TextStyle(
+                    fontSize: 11.5, color: scheme.onSurfaceVariant)),
+          )
+        else if (_dangNhap && s.loiKhachHang != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6, left: 2),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.cloud_off_outlined,
+                    size: 14, color: scheme.onSurfaceVariant),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                      'Không tải được danh sách khách hàng — vẫn có thể nhập tay hoặc tạo khách mới.',
+                      style: TextStyle(
+                          fontSize: 11,
+                          color: scheme.onSurfaceVariant,
+                          height: 1.3)),
+                ),
+              ],
+            ),
+          ),
+        if (canhBaoQuyen != null)
+          Padding(
+            padding: const EdgeInsets.only(top: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.warning_amber_rounded,
+                    size: 14, color: scheme.error),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(canhBaoQuyen,
+                      style: TextStyle(
+                          fontSize: 11.5,
+                          color: scheme.error,
+                          height: 1.3)),
+                ),
+              ],
+            ),
+          ),
+        if (goiY.isNotEmpty)
+          Container(
+            margin: const EdgeInsets.only(top: 6),
+            decoration: BoxDecoration(
+              border: Border.all(color: scheme.outlineVariant),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Column(
+              children: [
+                for (final kh in goiY)
+                  InkWell(
+                    onTap: () => _chon(kh),
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 9),
+                      decoration: BoxDecoration(
+                        color: scheme.surfaceContainerHighest
+                            .withValues(alpha: 0.15),
+                        border: Border(
+                          bottom: BorderSide(
+                              color: scheme.outlineVariant
+                                  .withValues(alpha: 0.5)),
+                        ),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(kh.moiNhat?.organizationName ?? kh.codeName,
+                              style: const TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700)),
+                          const SizedBox(height: 1),
+                          Text(
+                            '${kh.codeName} · '
+                            '${kh.moiNhat?.contactName.isNotEmpty == true ? '${kh.moiNhat!.contactName} · ' : ''}'
+                            '${kh.moiNhat?.phoneNumber ?? '—'}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                                fontSize: 11,
+                                color: scheme.onSurfaceVariant),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        if (hienTaoMoi)
+          Container(
+            margin: const EdgeInsets.only(top: 6),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              border: Border.all(color: scheme.outlineVariant),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text.rich(TextSpan(children: [
+                  TextSpan(
+                      text: 'Khách mới: ',
+                      style: TextStyle(
+                          fontSize: 12, color: scheme.onSurfaceVariant)),
+                  TextSpan(
+                      text: _c.text.trim(),
+                      style: const TextStyle(
+                          fontSize: 12, fontWeight: FontWeight.w700)),
+                ])),
+                const SizedBox(height: 8),
+                TextField(
+                  style: const TextStyle(fontSize: 13),
+                  textCapitalization: TextCapitalization.characters,
+                  decoration: const InputDecoration(
+                    hintText: 'Mã KH (vd: KH001)',
+                    isDense: true,
+                  ),
+                  onChanged: (v) =>
+                      setState(() => _maKhachHang = v.toUpperCase()),
+                ),
+                if (_canhBaoMa.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(_canhBaoMa,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.orange.shade800,
+                            height: 1.3)),
+                  ),
+                if (_loiTaoMoi.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 6),
+                    child: Text(_loiTaoMoi,
+                        style: TextStyle(
+                            fontSize: 11,
+                            color: scheme.error,
+                            height: 1.3)),
+                  ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed:
+                        (_dangTao || _maKhachHang.trim().isEmpty) ? null : _taoMoi,
+                    child: Text(_dangTao ? 'Đang tạo...' : 'Tạo mới'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
+    );
   }
 }
 
@@ -739,11 +1168,30 @@ class _StructurePreview extends StatelessWidget {
     // Thickness calculation
     final micOverrides =
         (input['micOverrides'] as Map?)?.cast<String, dynamic>() ?? {};
-    int sumMic = 0;
-    for (int idx = 0; idx < layerIds.length; idx++) {
+    // Lớp 2 kép — mirror web XemTruocCauTruc (TheNhapLieu.tsx:503-557):
+    // hiển thị "Chính + Phụ", tổng mic dùng max(chính, phụ).
+    final altId = input['layer2AltId'] as String?;
+    final altMat = altId == null
+        ? null
+        : materials
+            .cast<MaterialDef?>()
+            .firstWhere((m) => m!.id == altId, orElse: () => null);
+    final altOverride = (micOverrides['layer2AltId'] as num?)?.toInt();
+
+    int micOf(int idx) {
       final key = layerKeys[idx];
       final override = (micOverrides[key] as num?)?.toInt();
-      sumMic += override ?? layers[idx].thickness.toInt();
+      final micChinh = override ?? layers[idx].thickness.toInt();
+      if (key == 'layer2Id' && altMat != null) {
+        final micPhu = altOverride ?? altMat.thickness.toInt();
+        return micChinh > micPhu ? micChinh : micPhu;
+      }
+      return micChinh;
+    }
+
+    int sumMic = 0;
+    for (int idx = 0; idx < layerIds.length; idx++) {
+      sumMic += micOf(idx);
     }
     final glueMic = (layers.length - 1) * 3;
     final totalMic = sumMic + glueMic;
@@ -768,8 +1216,8 @@ class _StructurePreview extends StatelessWidget {
             final mat = entry.value;
             final color = colors[idx % colors.length];
             final micKey = layerKeys[idx];
-            final override = (micOverrides[micKey] as num?)?.toInt();
-            final mic = override ?? mat.thickness.toInt();
+            final laLop2Kep = micKey == 'layer2Id' && altMat != null;
+            final mic = micOf(idx);
             return [
               if (idx > 0)
                 Padding(
@@ -793,7 +1241,9 @@ class _StructurePreview extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        mat.name.split(' ').first,
+                        laLop2Kep
+                            ? '${mat.name.split(' ').first} + ${altMat.name.split(' ').first}'
+                            : mat.name.split(' ').first,
                         style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
@@ -931,6 +1381,314 @@ class _LayerPickerRow extends StatelessWidget {
   }
 }
 
+// ─── Lớp 2 kép — 2 vật liệu cùng lớp (mirror web TheNhapLieu.tsx:1084-1186) ──
+class _Layer2KepSection extends StatelessWidget {
+  final AppState state;
+  final void Function(String layerKey, String? value) onLayerChange;
+  const _Layer2KepSection({required this.state, required this.onLayerChange});
+
+  Map<String, dynamic> get i => state.currentInput.raw;
+  void u(String key, dynamic value) => state.updateInput(key, value);
+
+  static MaterialDef? _tim(List<MaterialDef> mats, String? id) {
+    if (id == null || id.isEmpty) return null;
+    for (final m in mats) {
+      if (m.id == id) return m;
+    }
+    return null;
+  }
+
+  Map<String, dynamic> get _lengths =>
+      ((i['layer2Lengths'] as Map?) ?? const {}).cast<String, dynamic>();
+
+  @override
+  Widget build(BuildContext context) {
+    final p = LtsT.of(context);
+    final scheme = Theme.of(context).colorScheme;
+    final kieuGhep = (i['layer2PairingMode'] as String?) ?? 'bottom_to_bottom';
+    final ngoaiLaChinh = kieuGhep == 'bottom_to_bottom';
+    final vatLieuNgoai = _tim(state.materials,
+        ngoaiLaChinh ? i['layer2Id'] as String? : i['layer2AltId'] as String?);
+    final vatLieuGiua = _tim(state.materials,
+        ngoaiLaChinh ? i['layer2AltId'] as String? : i['layer2Id'] as String?);
+    final lengths = _lengths;
+    final khoNgoai = ((ngoaiLaChinh ? lengths['mat1'] : lengths['mat2'])
+                as num?)
+            ?.toDouble() ??
+        0;
+    final khoGiua = ((ngoaiLaChinh ? lengths['mat2'] : lengths['mat1'])
+                as num?)
+            ?.toDouble() ??
+        0;
+    final sw = (i['spreadWidth'] as num?)?.toDouble() ?? 0;
+
+    void patchLength(String key, double v) {
+      final cur = Map<String, dynamic>.from(_lengths);
+      cur[key] = v;
+      u('layer2Lengths', cur);
+    }
+
+    // Lọc VL cùng độ dày với phía còn lại (mirror web 1117-1118)
+    List<MaterialDef> luaChonNgoai() {
+      if (vatLieuGiua == null) return state.materials;
+      return state.materials
+          .where((m) =>
+              (m.thickness == vatLieuGiua.thickness && m.id != vatLieuGiua.id) ||
+              m.id == vatLieuNgoai?.id)
+          .toList();
+    }
+
+    List<MaterialDef> luaChonGiua() {
+      if (vatLieuNgoai == null) return state.materials;
+      return state.materials
+          .where((m) =>
+              (m.thickness == vatLieuNgoai.thickness && m.id != vatLieuNgoai.id) ||
+              m.id == vatLieuGiua?.id)
+          .toList();
+    }
+
+    // Preview bố trí — port web layPhanBoLop2 (TheNhapLieu.tsx:371-416)
+    List<(MaterialDef, double)> phanBo() {
+      final chinh = _tim(state.materials, i['layer2Id'] as String?);
+      final phu = _tim(state.materials, i['layer2AltId'] as String?);
+      if (chinh == null || phu == null) return const [];
+      final khoChinh = ((lengths['mat1'] as num?)?.toDouble() ?? 0);
+      final khoPhu = ((lengths['mat2'] as num?)?.toDouble() ?? 0);
+      final laHaiHinh = ((i['numImages'] as num?)?.toInt() ?? 1) >= 2;
+      final meP = laHaiHinh ? 0.01 : 0.0;
+      final raw = !laHaiHinh
+          ? (kieuGhep == 'front_to_front'
+              ? [(phu, khoPhu), (chinh, khoChinh)]
+              : [(chinh, khoChinh), (phu, khoPhu)])
+          : (kieuGhep == 'front_to_front'
+              ? [
+                  (phu, khoPhu + meP),
+                  (chinh, khoChinh),
+                  (chinh, khoChinh),
+                  (phu, khoPhu + meP)
+                ]
+              : [
+                  (chinh, khoChinh + meP),
+                  (phu, khoPhu),
+                  (phu, khoPhu),
+                  (chinh, khoChinh + meP)
+                ]);
+      final out = <(MaterialDef, double)>[];
+      for (final seg in raw) {
+        if (out.isNotEmpty && out.last.$1.id == seg.$1.id) {
+          final last = out.removeLast();
+          out.add((last.$1, last.$2 + seg.$2));
+        } else {
+          out.add(seg);
+        }
+      }
+      return out;
+    }
+
+    final tong = khoNgoai + khoGiua;
+    final segments = phanBo();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: Text('Lớp 2 · cấu trúc kép',
+              style: Theme.of(context)
+                  .textTheme
+                  .labelLarge
+                  ?.copyWith(fontSize: 12.5)),
+        ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: _cellVatLieu(
+                context,
+                label: 'Vật liệu ngoài',
+                selected: vatLieuNgoai,
+                options: luaChonNgoai(),
+                kho: khoNgoai,
+                onChanged: (v) {
+                  if (ngoaiLaChinh) {
+                    onLayerChange('layer2Id', v);
+                  } else {
+                    u('layer2AltId', v);
+                  }
+                },
+                onKho: (v) =>
+                    patchLength(ngoaiLaChinh ? 'mat1' : 'mat2', v),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _cellVatLieu(
+                context,
+                label: 'Vật liệu giữa',
+                selected: vatLieuGiua,
+                options: luaChonGiua(),
+                kho: khoGiua,
+                onChanged: (v) {
+                  if (ngoaiLaChinh) {
+                    u('layer2AltId', v);
+                  } else {
+                    onLayerChange('layer2Id', v);
+                  }
+                },
+                onKho: (v) =>
+                    patchLength(ngoaiLaChinh ? 'mat2' : 'mat1', v),
+              ),
+            ),
+          ],
+        ),
+        // Cảnh báo tổng chiều dài ≠ khổ trải (mirror web 1138-1147)
+        if (sw > 0 && tong > 0 && tong < sw - 0.001)
+          _canhBaoKho(context,
+              'Tổng chiều dài lớp 2 (${tong.toStringAsFixed(3)}m) nhỏ hơn khổ trải (${sw.toStringAsFixed(3)}m). Vật liệu không phủ hết khổ.'),
+        if (sw > 0 && tong > sw)
+          _canhBaoKho(context,
+              'Tổng chiều dài lớp 2 (${tong.toStringAsFixed(3)}m) vượt quá khổ trải (${sw.toStringAsFixed(3)}m). Vui lòng giảm chiều dài hoặc tăng khổ trải.'),
+        // Preview bố trí + nút đảo kiểu ghép (mirror web 1152-1181)
+        if (segments.isNotEmpty) ...[
+          const SizedBox(height: 6),
+          Text('Preview bố trí lớp 2',
+              style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: p.muted)),
+          const SizedBox(height: 6),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  height: 46,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: scheme.outlineVariant),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Row(
+                    children: [
+                      for (final seg in segments)
+                        Expanded(
+                          // flex theo mm — luôn ≥ 1 (web dùng flex-grow thập phân,
+                          // Flutter Expanded yêu cầu int > 0).
+                          flex: ((seg.$2 * 1000).round().clamp(1, 100000)),
+                          child: Container(
+                            color: seg.$1.id == (i['layer2Id'] as String?)
+                                ? scheme.primary.withValues(alpha: 0.10)
+                                : Colors.orange.withValues(alpha: 0.12),
+                            alignment: Alignment.center,
+                            child: Text(
+                              seg.$1.name.split(' ').first,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.outlined(
+                tooltip: 'Đảo vật tư nằm giữa',
+                icon: const Icon(Icons.swap_horiz, size: 18),
+                onPressed: () => u('layer2PairingMode',
+                    kieuGhep == 'bottom_to_bottom'
+                        ? 'front_to_front'
+                        : 'bottom_to_bottom'),
+              ),
+            ],
+          ),
+        ],
+        const SizedBox(height: 10),
+        OutlinedButton(
+          onPressed: () {
+            u('layer2AltId', null);
+            u('layer2Lengths', null);
+            u('layer2FrontPart', 'main');
+            u('layer2PairingMode', 'bottom_to_bottom');
+          },
+          child: const Text('Bỏ cấu trúc phụ'),
+        ),
+        const SizedBox(height: 10),
+      ],
+    );
+  }
+
+  Widget _cellVatLieu(
+    BuildContext context, {
+    required String label,
+    required MaterialDef? selected,
+    required List<MaterialDef> options,
+    required double kho,
+    required ValueChanged<String?> onChanged,
+    required ValueChanged<double> onKho,
+  }) {
+    final p = LtsT.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w600,
+                color: p.muted)),
+        const SizedBox(height: 4),
+        DropdownField<String>(
+          options: [
+            (null, '-- Chọn vật liệu --'),
+            for (final m in options)
+              (
+                m.id,
+                '${m.name} · '
+                '${m.thickness == m.thickness.roundToDouble() ? m.thickness.toInt() : m.thickness}μ'
+              ),
+          ],
+          selected: selected?.id,
+          onChanged: onChanged,
+        ),
+        const SizedBox(height: 6),
+        NumField(initial: kho, suffix: 'm', onChanged: onKho),
+      ],
+    );
+  }
+
+  Widget _canhBaoKho(BuildContext context, String text) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        decoration: BoxDecoration(
+          color: scheme.error.withValues(alpha: 0.08),
+          border: Border.all(color: scheme.error.withValues(alpha: 0.3)),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded,
+                size: 15, color: scheme.error),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(text,
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: scheme.error)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ─── Advanced section ─────────────────────────────────────────────────────────
 class _AdvancedSection extends StatelessWidget {
   final AppState state;
@@ -939,6 +1697,8 @@ class _AdvancedSection extends StatelessWidget {
   Map<String, dynamic> get i => state.currentInput.raw;
   void u(String key, dynamic value) => state.updateInput(key, value);
   bool get _isMang => ((i['productType'] as String?) ?? 'tui') == 'mang';
+  bool get _laMangIn =>
+      _isMang && ((i['filmType'] as String?) ?? '') == 'mangIn';
   bool get _laThuongMai => i['pricingMode'] == 'commercial';
 
   @override
@@ -957,21 +1717,31 @@ class _AdvancedSection extends StatelessWidget {
         // Phủ mực & hiệu ứng (không thương mại)
         if (!_laThuongMai) ...[
           _SubTitle('🖌️ Mực & Hiệu ứng'),
-          LabeledField(
-            label: 'Tỷ lệ phủ mực',
-            suffix: '(%)',
-            hint: '100% = phủ toàn bộ, 80% = phủ 80% diện tích',
-            child: NumField(
-              initial: _isMang
-                  ? ((i['coverageRatio'] as num?)?.toDouble() ?? 1) * 100
-                  : (((i['coverageRatio'] as num?)?.toDouble() ?? 1) == 1
-                      ? 100
-                      : ((i['coverageRatio'] as num?)?.toDouble() ?? 1) * 100),
-              integer: true,
-              suffix: '%',
-              onChanged: (v) => u('coverageRatio', v == 0 ? 1.0 : v / 100.0),
-            ),
-          ),
+          // Mirror web (TheNhapLieu.tsx:1258-1276): mặc định khóa 100%;
+          // giá trị ≠100% (dữ liệu cũ) chỉ hiển thị, không cho sửa nữa.
+          Builder(builder: (ctx) {
+            final cov = (i['coverageRatio'] as num?)?.toDouble() ?? 1;
+            final laMangIn =
+                _isMang && ((i['filmType'] as String?) ?? '') == 'mangIn';
+            return LabeledField(
+              label: 'Tỷ lệ phủ mực',
+              suffix: '(%)',
+              hint: laMangIn ? 'Màng in mặc định tính 100%.' : null,
+              child: cov == 1
+                  ? DropdownField<String>(
+                      options: const [('100', '100%')],
+                      selected: '100',
+                      enabled: false,
+                      onChanged: (_) {},
+                    )
+                  : Text(
+                      '${(cov * 100).round()}% (bảng cũ — giá tính giữ nguyên theo tỷ lệ này)',
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          color: Theme.of(ctx).colorScheme.onSurfaceVariant),
+                    ),
+            );
+          }),
           Wrap(
             spacing: 16,
             children: [
@@ -1211,45 +1981,71 @@ class _AdvancedSection extends StatelessWidget {
                 ),
               ),
             ),
+            // Mirror web (TheNhapLieu.tsx:1403-1408): giá thùng tự nhập
+            // chỉ hiện khi chọn "Tự nhập".
+            if (i['boxOptionKey'] == 'custom') ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: LabeledField(
+                  label: 'Giá thùng tự nhập (đ)',
+                  child: NumField(
+                    initial: (i['boxPrice'] as num?) ?? 0,
+                    integer: true,
+                    suffix: 'đ',
+                    onChanged: (v) => u('boxPrice', v),
+                  ),
+                ),
+              ),
+            ],
+          ]),
+          // Mirror web (TheNhapLieu.tsx:1409-1411): hiển thị tare weight.
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(
+              'Khối lượng thùng: ${_fmt((i['boxWeight'] as num?) ?? 0)} gr/thùng',
+              style: TextStyle(
+                  fontSize: 11.5,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+        // Mirror web (TheNhapLieu.tsx:1414-1432): màng in tính vận chuyển theo
+        // định mức config — hiển thị kết quả thay vì input đ/km.
+        if (_laMangIn)
+          InfoBox(
+            text: (state.currentResult == null)
+                ? 'Chưa đủ dữ liệu để tính'
+                : '${_fmt(state.currentResult!.d('shippingTotal'))} đ · '
+                    '${state.currentResult!.d('shippingPerUnit').toStringAsFixed(1)} đ/m²',
+            color: AppColors.muted,
+            icon: Icons.local_shipping_outlined,
+          )
+        else
+          Row(children: [
+            Expanded(
+              child: LabeledField(
+                label: 'Vận chuyển (đ/km)',
+                child: NumField(
+                  initial: (i['shippingPerKm'] as num?) ?? 0,
+                  integer: true,
+                  suffix: 'đ/km',
+                  onChanged: (v) => u('shippingPerKm', v),
+                ),
+              ),
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: LabeledField(
-                label: 'Giá thùng (đ)',
+                label: 'Khoảng cách (km)',
                 child: NumField(
-                  initial: (i['boxPrice'] as num?) ?? 0,
+                  initial: (i['shippingKm'] as num?) ?? 0,
                   integer: true,
-                  suffix: 'đ',
-                  onChanged: (v) => u('boxPrice', v),
+                  suffix: 'km',
+                  onChanged: (v) => u('shippingKm', v),
                 ),
               ),
             ),
           ]),
-        ],
-        Row(children: [
-          Expanded(
-            child: LabeledField(
-              label: 'Vận chuyển (đ/km)',
-              child: NumField(
-                initial: (i['shippingPerKm'] as num?) ?? 0,
-                integer: true,
-                suffix: 'đ/km',
-                onChanged: (v) => u('shippingPerKm', v),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: LabeledField(
-              label: 'Khoảng cách (km)',
-              child: NumField(
-                initial: (i['shippingKm'] as num?) ?? 0,
-                integer: true,
-                suffix: 'km',
-                onChanged: (v) => u('shippingKm', v),
-              ),
-            ),
-          ),
-        ]),
 
         // Phụ phí khác (chỉ thương mại form) — mirror TheNhapLieu commercialExtraFee
         if (_laThuongMai) ...[

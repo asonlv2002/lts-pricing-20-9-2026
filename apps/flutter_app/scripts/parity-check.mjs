@@ -33,6 +33,10 @@ const flBundle = await build({
   entryPoints: [resolve(flutterRoot, 'scripts/engine-entry.ts')],
   bundle: true, format: 'iife', platform: 'neutral', target: 'es2020',
   write: false, logLevel: 'silent',
+  alias: {
+    '@web': resolve(repoRoot, 'apps', 'web', 'src', 'lib'),
+    '@data': resolve(repoRoot, 'data'),
+  },
   define: { 'process.env.NODE_ENV': '"production"' },
 });
 

@@ -331,6 +331,26 @@ class HistoryItem {
   final String? quoteStatus;
   final Map<String, dynamic> input;
 
+  /// ID pricing sheet trên server (mirror web pricingSheetId).
+  /// null = chưa sync (POST lần đầu); có giá trị = PATCH.
+  final String? pricingSheetId;
+
+  /// Config pin của sheet trên server (mirror web priceConfigIds) — quyết định
+  /// useLatestPriceConfigs khi PATCH.
+  final List<String> priceConfigIds;
+
+  /// Bảng ghi đè Sale/Admin đã lưu (mirror web saleOverrides/adminOverrides).
+  final Map<String, dynamic>? saleOverrides;
+  final Map<String, dynamic>? adminOverrides;
+  final double? saleProfitRatePct;
+  final double? adminProfitRatePct;
+
+  /// Pin CPSX nâng cao (4 key) lúc lưu — mirror web pinnedCpsxNangCao.
+  final Map<String, dynamic>? pinnedCpsxNangCao;
+
+  /// Cờ tab nâng cao (mirror web isNangCap).
+  final bool? isNangCap;
+
   const HistoryItem({
     required this.id,
     required this.date,
@@ -342,6 +362,14 @@ class HistoryItem {
     this.chotGia,
     this.quoteStatus,
     required this.input,
+    this.pricingSheetId,
+    this.priceConfigIds = const [],
+    this.saleOverrides,
+    this.adminOverrides,
+    this.saleProfitRatePct,
+    this.adminProfitRatePct,
+    this.pinnedCpsxNangCao,
+    this.isNangCap,
   });
 
   factory HistoryItem.fromJson(Map<String, dynamic> j) => HistoryItem(
@@ -355,6 +383,17 @@ class HistoryItem {
         chotGia: j['chotGia'] as num?,
         quoteStatus: j['quoteStatus'] as String?,
         input: (j['input'] as Map?)?.cast<String, dynamic>() ?? {},
+        pricingSheetId: j['pricingSheetId'] as String?,
+        priceConfigIds: ((j['priceConfigIds'] as List?) ?? const [])
+            .map((e) => e.toString())
+            .toList(),
+        saleOverrides: (j['saleOverrides'] as Map?)?.cast<String, dynamic>(),
+        adminOverrides: (j['adminOverrides'] as Map?)?.cast<String, dynamic>(),
+        saleProfitRatePct: (j['saleProfitRatePct'] as num?)?.toDouble(),
+        adminProfitRatePct: (j['adminProfitRatePct'] as num?)?.toDouble(),
+        pinnedCpsxNangCao:
+            (j['pinnedCpsxNangCao'] as Map?)?.cast<String, dynamic>(),
+        isNangCap: j['isNangCap'] as bool?,
       );
 
   Map<String, dynamic> toJson() => {
@@ -368,7 +407,49 @@ class HistoryItem {
         if (chotGia != null) 'chotGia': chotGia,
         if (quoteStatus != null) 'quoteStatus': quoteStatus,
         'input': input,
+        if (pricingSheetId != null) 'pricingSheetId': pricingSheetId,
+        if (priceConfigIds.isNotEmpty) 'priceConfigIds': priceConfigIds,
+        if (saleOverrides != null) 'saleOverrides': saleOverrides,
+        if (adminOverrides != null) 'adminOverrides': adminOverrides,
+        if (saleProfitRatePct != null) 'saleProfitRatePct': saleProfitRatePct,
+        if (adminProfitRatePct != null) 'adminProfitRatePct': adminProfitRatePct,
+        if (pinnedCpsxNangCao != null) 'pinnedCpsxNangCao': pinnedCpsxNangCao,
+        if (isNangCap != null) 'isNangCap': isNangCap,
       };
+
+  HistoryItem copyWith({
+    num? chotGia,
+    String? pricingSheetId,
+    List<String>? priceConfigIds,
+    Map<String, dynamic>? saleOverrides,
+    Map<String, dynamic>? adminOverrides,
+    double? saleProfitRatePct,
+    double? adminProfitRatePct,
+    Map<String, dynamic>? pinnedCpsxNangCao,
+    bool? isNangCap,
+    Map<String, dynamic>? input,
+    String? quoteStatus,
+  }) =>
+      HistoryItem(
+        id: id,
+        date: date,
+        customer: customer,
+        productName: productName,
+        structure: structure,
+        quantity: quantity,
+        finalPrice: finalPrice,
+        chotGia: chotGia ?? this.chotGia,
+        quoteStatus: quoteStatus ?? this.quoteStatus,
+        input: input ?? this.input,
+        pricingSheetId: pricingSheetId ?? this.pricingSheetId,
+        priceConfigIds: priceConfigIds ?? this.priceConfigIds,
+        saleOverrides: saleOverrides ?? this.saleOverrides,
+        adminOverrides: adminOverrides ?? this.adminOverrides,
+        saleProfitRatePct: saleProfitRatePct ?? this.saleProfitRatePct,
+        adminProfitRatePct: adminProfitRatePct ?? this.adminProfitRatePct,
+        pinnedCpsxNangCao: pinnedCpsxNangCao ?? this.pinnedCpsxNangCao,
+        isNangCap: isNangCap ?? this.isNangCap,
+      );
 }
 
 /// Production order (LSX) — giống ProductionOrder trong types.ts.

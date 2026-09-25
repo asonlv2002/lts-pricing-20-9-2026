@@ -13,12 +13,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../api/service_lts_client.dart';
 import '../engine/models.dart';
 import '../engine/js_runtime.dart';
+import '../lib/bo_dau.dart';
 import '../lib/thuong_mai.dart';
 import '../store/app_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/lts_tokens.dart';
+import 'package:lts_pricing/lib/pricing_pdf.dart';
+import '../widgets/chot_gia_section.dart';
 import '../widgets/detail_tables.dart';
 import '../widgets/form_widgets.dart';
 import '../widgets/lts/lts_chrome.dart';
@@ -26,7 +30,9 @@ import '../widgets/lts/lts_overlay.dart';
 import '../widgets/lts/lts_surfaces.dart';
 import '../widgets/lts/lts_toast.dart';
 import '../widgets/material_picker.dart';
+import '../widgets/moq_tables.dart';
 import '../widgets/price_hero.dart';
+import '../widgets/result_tabs.dart';
 
 part 'tinh_gia/form_noi_bo.dart';
 part 'tinh_gia/form_thuong_mai.dart';
@@ -151,7 +157,7 @@ class _MobilePricingWorkspaceState extends State<_MobilePricingWorkspace> {
                           if (hasResult) ...[
                             LtsMiniPriceStrip(
                               priceText:
-                                  '${_fmt(state.currentResult!.finalPrice)} đ',
+                                  '${_fmt(state.ketQuaHienThi.finalPrice)} đ',
                               rightNote:
                                   state.currentInput.productType == 'mang'
                                       ? '/m²'
@@ -170,7 +176,9 @@ class _MobilePricingWorkspaceState extends State<_MobilePricingWorkspace> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           _MobileResultQuickActions(
-                              result: state.currentResult),
+                              result: state.currentResult == null
+                                  ? null
+                                  : state.ketQuaHienThi),
                           const SizedBox(height: 12),
                           _ResultPanel(state: state, mode: _mode),
                         ],
@@ -420,11 +428,23 @@ class _ResultPanel extends StatelessWidget {
           _ThuongMaiResult(state: state, laMoTa: laMoTa)
         else ...[
           PriceHero(
-              result: state.currentResult,
-              productType: state.currentInput.productType),
+              result: state.currentResult == null ? null : state.ketQuaHienThi,
+              productType: state.currentInput.productType,
+              chotGia: state.currentChotGia,
+              giaDeXuatHienThi: state.currentResult == null
+                  ? null
+                  : state.giaDeXuatHienThi(state.ketQuaHienThi.finalPrice)),
           if (state.currentResult != null) ...[
             const SizedBox(height: 12),
-            BreakdownPanel(result: state.currentResult!),
+            ChotGiaSection(state: state),
+            const SizedBox(height: 12),
+            BreakdownPanel(result: state.ketQuaHienThi),
+            const SizedBox(height: 12),
+            ResultTabs(state: state),
+            const SizedBox(height: 12),
+            MoqTableSection(state: state),
+            const SizedBox(height: 12),
+            RollMoqSection(state: state),
           ],
         ],
         if (state.currentResult != null || laMoTa) ...[
@@ -445,6 +465,7 @@ class _ResultActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = LtsT.of(context);
     final r = state.currentResult;
+    final coSheetCu = state.loadedHistoryId != null;
     return LtsCard(
       padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
       child: Wrap(
@@ -458,28 +479,34 @@ class _ResultActionBar extends StatelessWidget {
             label: const Text('Tính giá'),
             style: FilledButton.styleFrom(backgroundColor: p.accent),
           ),
-          FilledButton.tonalIcon(
-            onPressed: r == null
-                ? null
-                : () async {
-                    await state.saveCurrentToHistory();
-                    if (context.mounted) {
-                      LtsToast.show(
-                        context,
-                        'Đã lưu vào lịch sử',
-                        type: LtsToastType.success,
-                        duration: const Duration(seconds: 2),
-                      );
-                    }
-                  },
-            icon: const Icon(Icons.bookmark_add_outlined, size: 18),
-            label: const Text('Lưu'),
-          ),
-          // Nút "Tạo BG" đã bỏ (P1 — tạo báo giá nằm ở hub "Tạo bảng báo giá").
+          // Mirror web: sheet đã lưu → Cập nhật + Lưu mới; bảng mới → Lưu báo giá.
+          if (r != null && coSheetCu) ...[
+            FilledButton.tonalIcon(
+              onPressed: () => _luu(context, state, capNhat: true),
+              icon: const Icon(Icons.sync_outlined, size: 18),
+              label: const Text('Cập nhật'),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: () => _luu(context, state, capNhat: false),
+              icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+              label: const Text('Lưu mới'),
+            ),
+          ] else if (r != null)
+            FilledButton.tonalIcon(
+              onPressed: () => _luu(context, state, capNhat: false),
+              icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+              label: const Text('Lưu báo giá'),
+            ),
           OutlinedButton(
             onPressed: () => state.resetInputGiuLoaiHinh(),
             child: const Text('Reset'),
           ),
+          if (r != null)
+            OutlinedButton.icon(
+              onPressed: () => PricingPdf.xemTruoc(state),
+              icon: const Icon(Icons.visibility_outlined, size: 18),
+              label: const Text('Xem'),
+            ),
           if (r != null)
             IconButton.outlined(
               tooltip: 'Copy kết quả',
@@ -488,6 +515,31 @@ class _ResultActionBar extends StatelessWidget {
             ),
         ],
       ),
+    );
+  }
+
+  /// Lưu vào lịch sử. [capNhat] = true → cập nhật sheet đang mở (giữ id);
+  /// false → tạo mục mới. Mirror web nút 🔄 Cập nhật / 📄 Lưu mới.
+  Future<void> _luu(BuildContext context, AppState state,
+      {required bool capNhat}) async {
+    if ((state.currentInput.productName).trim().isEmpty) {
+      LtsToast.show(context, 'Vui lòng nhập tên sản phẩm trước khi lưu.',
+          type: LtsToastType.error);
+      return;
+    }
+    final idCu = state.loadedHistoryId;
+    await state.saveCurrentToHistory(force: true);
+    if (!context.mounted) return;
+    // "Lưu mới": tách khỏi sheet cũ — nếu server không đổi id, xoá con trỏ để
+    // lần sau vẫn là bảng mới (mirror web tạo bản ghi mới).
+    if (!capNhat && idCu != null && state.loadedHistoryId == idCu) {
+      state.markSavedAsNew();
+    }
+    LtsToast.show(
+      context,
+      capNhat ? 'Đã cập nhật bảng tính giá' : 'Đã lưu báo giá',
+      type: LtsToastType.success,
+      duration: const Duration(seconds: 2),
     );
   }
 
@@ -546,6 +598,7 @@ class _ResultActionBar extends StatelessWidget {
   void _copyResult(BuildContext context, AppState state) async {
     final r = state.currentResult;
     if (r == null) return;
+    final rh = state.ketQuaHienThi;
     final i = state.currentInput;
     final isMang = i.productType == 'mang';
     final filmRollLength = i.get<num>('filmRollLength')?.toInt() ?? 6000;
@@ -559,9 +612,9 @@ class _ResultActionBar extends StatelessWidget {
           ? 'Diện tích: ${fmtVnd(i.quantity.toDouble())} m² | KT: ${(r.d('spreadWidth') * 1000).toStringAsFixed(0)}×${(r.d('cutStep') * 1000).toStringAsFixed(0)} mm² | Cuộn: ${fmtVnd(filmRollLength.toDouble())}m/cuộn'
           : 'SL: ${fmtVnd(i.quantity.toDouble())} túi | KT: ${(r.d('spreadWidth') * 1000).toStringAsFixed(0)}×${(r.d('cutStep') * 1000).toStringAsFixed(0)} mm²',
       isMang
-          ? 'GIÁ ĐỀ XUẤT: ${fmtVnd(r.finalPrice)} đ/m² (chưa VAT)'
-          : 'GIÁ ĐỀ XUẤT: ${fmtVnd(r.finalPrice)} đ/túi (chưa VAT)',
-      'Giá vốn: ${fmtVnd(r.costPerUnit)} đ | LN: ${fmtPct(r.profitRate)} | DT: ${(r.revenue / 1000000).toStringAsFixed(1)}tr',
+          ? 'GIÁ ĐỀ XUẤT: ${fmtVnd(rh.finalPrice)} đ/m² (chưa VAT)'
+          : 'GIÁ ĐỀ XUẤT: ${fmtVnd(rh.finalPrice)} đ/túi (chưa VAT)',
+      'Giá vốn: ${fmtVnd(rh.costPerUnit)} đ | LN: ${fmtPct(rh.profitRate)} | DT: ${(rh.revenue / 1000000).toStringAsFixed(1)}tr',
       'Trục in: ${(r.cylinderCost / 1000000).toStringAsFixed(1)}tr (riêng)',
     ].join('\n');
 

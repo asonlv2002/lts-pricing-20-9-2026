@@ -12,11 +12,11 @@
 | # | Tính năng | Web | Flutter | Mức độ thiếu & ảnh hưởng |
 |---|-----------|-----|---------|--------------------------|
 | 1 | Tính giá thường (engine `tinhGia`) | ✅ `tinhGiaWeb` | ✅ qua QuickJS bundle | Có chạy, nhưng adapter Flutter thiếu field (mục B) → một số case ra số khác web |
-| 2 | **Tính giá NÂNG CAO** (tab `tao-tinh-gia-nang-cap`, bảng đặc tả kỹ thuật `BangDacTaNangCao`, giá lấy từ tổng đặc tả `tinhKetQuaNangCaoHieuLuc`, `isNangCap`) | ✅ | ❌ **Không có** | Đây là chế độ **mặc định** của web theo quy tắc 13/08/2026 → Flutter chỉ làm được bản cũ |
+| 2 | **Tính giá NÂNG CAO** (tab `tao-tinh-gia-nang-cap`, bảng đặc tả kỹ thuật `BangDacTaNangCao`, giá lấy từ tổng đặc tả `tinhKetQuaNangCaoHieuLuc`, `isNangCap`) | ✅ | ~~⚠️ một phần~~ **ĐÃ LÀM 25/09 (P0+P4)** — bảng đặc tả cơ bản (uniRows) + tab Thường/Nâng cao + `AdvancedSpecSection` (bảng 1 vật liệu+mực/DM/keo, bảng 2 NC/điện, 3 dòng tổng, tỷ lệ LN, chênh lệch). Giá đề xuất nâng cao vẫn lấy engine thường (chưa wire `tinhKetQuaNangCaoHieuLuc` vào hero) | |
 | 3 | **Tính giá Thương mại** (mua đi bán lại: `tinhGiaThuongMai`, form mode + mô tả tự do, LN %/VND, phụ phí khác, đơn vị tùy biến) | ✅ | ~~❌~~ **ĐÃ LÀM 24/09 (P1)** — mode selector 3 chế độ, form TM (thu mua/bán ra) + mode mô tả tự do (`synthesizeResultFromCommercial` port vào engine-entry), result panel `_ThuongMaiResult` | |
 | 4 | **Gia công ngoài** (`PanelGiaCongNgoai`, `cheDoTinhGia='gia_cong'`, `giaCongNgoai` → VC/đóng gói/phụ phí GC) | ✅ | ~~❌~~ **ĐÃ LÀM 24/09 (P1)** — `PanelGiaCongNgoai` 7 công đoạn (In/Lật mặt/Ghép/Chia/Làm túi/Gắn quai/Bao PP), `mapOutsourceEnToVn` port, result có 3 dòng GC | |
-| 5 | **Override giá từng công đoạn** (Bảng 2 & 3, `overrides.ts`, `OverrideRowKey` print/lam-2..5/cut/chia/matte) | ✅ | ❌ Không có | Sale/Admin không ghi đè được đơn giá VL/CPSX thủ công trên Flutter |
-| 6 | Chốt giá (`chotGia`) + phân bổ công ty (`phanBoCongTy`, `donViPhanBo`) | ✅ nhập từ form | ⚠️ chỉ **lưu/hiển thị** ở Lịch sử & LSX | Không có UI nhập chốt giá/phân bổ trong form tính giá |
+| 5 | **Override giá từng công đoạn** (Bảng 2 & 3, `overrides.ts`, `OverrideRowKey` print/lam-2..5/cut/chia/matte) | ✅ | ~~❌ Không có~~ **ĐÃ LÀM 25/09 (P3)** — tab 💼 Sale / 👑 Admin, bảng ghi đè inline (bấm ô sửa qua bottom-sheet), đổi VL/khổ/mét/phi hao/CPSX/giá NVL, tỷ lệ LN, chênh lệch so giá gốc, "💾 Lưu thay đổi" | |
+| 6 | Chốt giá (`chotGia`) + phân bổ công ty (`phanBoCongTy`, `donViPhanBo`) | ✅ nhập từ form | ~~⚠️ chỉ **lưu/hiển thị** ở Lịch sử & LSX~~ **ĐÃ LÀM 25/09 (P0–P2)** — `ChotGiaSection` trong result panel: input giá chốt, phân bổ Hoa hồng↔Công ty (VNĐ/%), khối phân tích (chênh lệch, doanh thu, LN công ty, % HH); lưu `chotGia` vào lịch sử | |
 | 7 | **Tạo báo giá** (`ModuleBaoGia` 230KB, điều khoản `FormDieuKhoanBaoGia`, mã báo giá `quote-code`, chữ ký, PDF `BaoGiaPdfDocument`, preview) | ✅ | ❌ Không có | Flutter không tồn tại khái niệm "báo giá" độc lập — chỉ có lịch sử tính giá |
 | 8 | **Duyệt báo giá bằng PIN** (`ModuleDuyetBaoGia`, `NhapPinDuyetModal`, `NhapPinXacNhanModal`) | ✅ | ❌ Không có | Không có luồng phê duyệt |
 | 9 | Vòng đời quote 8 trạng thái (drafted→pending→approved→sent→rejected→cancelled→completed→expired, mapping server) | ✅ đồng bộ BE | ⚠️ `_StatusSheet` đổi status **local only** | Trạng thái Flutter không bao giờ lên server |
@@ -65,7 +65,7 @@
 
 ## D. Kết quả trả về — field web có, `toResult` Flutter thiếu
 
-~~`printFilmCost`, `printFilmSetupHours` / `printFilmProductionHours` / `printFilmTotalHours` / `printFilmLaborCostPerHour`, `gcShippingPerUnit`/`gcShippingTotal`, `gcPackagingPerUnit`/`gcPackagingTotal`, `gcOtherPerUnit`/`gcOtherTotal`~~ → **ĐÃ PORT 15/09 (mục F)**. Còn thiếu: layers `material`/`materials`/`matPrice`/`chiTietVatLieu` (web resolve vật liệu từng lớp để hiển thị; Flutter chỉ có số).
+~~`printFilmCost`, `printFilmSetupHours` / `printFilmProductionHours` / `printFilmTotalHours` / `printFilmLaborCostPerHour`, `gcShippingPerUnit`/`gcShippingTotal`, `gcPackagingPerUnit`/`gcPackagingTotal`, `gcOtherPerUnit`/`gcOtherTotal`~~ → **ĐÃ PORT 15/09 (mục F)**. ~~Còn thiếu: layers `material`/`materials`/`matPrice`/`chiTietVatLieu`~~ → **ĐÃ PORT 25/09 (P0, mục I)** — `toResult` layers giờ có `material`, `materials` (lớp 2 kép), `matPrice`, `layerNum`, `chiTietVatLieu` (mirror `engine.ts:285-395`).
 
 ## E. Rủi ro quy trình (cộng dồn làm sai lệch tăng theo thời gian)
 
@@ -132,10 +132,88 @@ File mới: `lib/lib/audit_models.dart`, `lib/lib/activity_log_mapper.dart`, `li
 
 **Không port**: `openRelated` deep-link bằng URL (Flutter push route trực tiếp), phân trang server-side (log hiện nhỏ), avatar bearer dùng `Image.network` headers.
 
+## I. Kết quả tính giá Flutter ↔ web (25/09/2026) — P0–P2
+
+Phạm vi: đồng bộ **màn hiển thị kết quả tính giá** (`ManHinhQuanLy.tsx`) sang Flutter. Nguyên tắc: **port Dart 1:1 theo file web lib**, KHÔNG đụng `packages/bang-tinh-gia` / `engine.bundle.js` (tránh rủi ro bất biến CPSX NC). Dart đọc trực tiếp schema EN mà `engine-entry.ts` trả (mirror `engine.ts`).
+
+File mới: `lib/lib/manager_calculation.dart`, `lib/lib/pricing_display.dart`, `lib/lib/chot_gia_allocation.dart`, `lib/widgets/chot_gia_section.dart`, `lib/widgets/moq_tables.dart`.
+Sửa: `scripts/engine-entry.ts`, `lib/widgets/price_hero.dart`, `lib/screens/tinh_gia_screen.dart`, `lib/store/app_state.dart`, `lib/theme/format.dart`.
+
+| # | Việc | Trước | Sau |
+|---|------|-------|-----|
+| 1 | **P0 — layers output** | `toResult` layers chỉ có `{width,meters,waste,cpsx,costCPSX,costMat,total}` → bảng đặc tả Flutter đọc `['kho']`/`['met']` (không tồn tại) → **hiện 0** | Thêm `material`, `materials`, `matPrice`, `layerNum`, `chiTietVatLieu` (mirror `engine.ts:285-395`) |
+| 2 | **P0 — uniRows** | Ráp tay trong `price_hero.dart` từ key sai | Port `lapDongSanXuat` → `manager_calculation.dart` (UniRow, materialDetails, printFilmCost, isOutsourced, matPriceIsPerM2) |
+| 3 | **P0 — nhãn động** | Hardcode `'/m²'` hoặc `'/cái'` | Port `getPricingDisplayMeta` → `pricing_display.dart` (túi/m²/m/custom + nhãn "Màng in") |
+| 4 | **P0 — bảng đặc tả** | Thiếu dòng CP thời gian in, cột Giá NVL sai đơn vị | Thêm "CP theo thời gian in", hiện chi tiết NVL ghép (dedupe), format matPrice 0 lẻ |
+| 5 | **P1 — chốt giá** | Không có UI nhập | `ChotGiaSection`: input giá chốt + phân bổ Hoa hồng↔Công ty (VNĐ/%) + khối phân tích; hero "Giá chốt" xanh + phụ đề đề xuất |
+| 6 | **P1 — phân bổ** | — | Port `tinhNhapPhanBoChotGia` → `chot_gia_allocation.dart` (đủ 4 cảnh báo: âm / >100% / vượt chênh lệch / vượt HH hiện tại khi diff âm) |
+| 7 | **P1 — lưu lịch sử** | `chotGia` chỉ đọc | Lưu `chotGia` khi `saveCurrentToHistory`; load lại khi mở lịch sử; reset khi Đặt lại |
+| 8 | **P2 — MOQ** | Không có | `MoqTableSection`: mốc 5.000→200.000 + dòng hiện tại, LN%, giá vốn+LN, giá đề xuất, tổng DT, mét/kg từng lớp |
+| 9 | **P2 — Roll MOQ** | Chỉ 1 dòng "Số cuộn ước tính" | `RollMoqSection`: chọn lớp (KG/CUỘN), binary-search SL, giá đề xuất, tổng DT |
+| 10 | **P2 — engine helper** | — | `AppState.tinhTheoSoLuong(input, qty)` + cache MOQ có chữ ký NVL/hằng số (cap 8, không stale khi sửa giá NVL) |
+
+**Nghiệm thu (không test — luật repo):** `pnpm build:engine` (gate `tsc -p scripts`) ✅ · `node scripts/parity-check.mjs` **8/8 case khớp web** (nội bộ, màng in, TM form/mô tả, gia công, lớp 2 kép, có chia, phụ phí) ✅ · `flutter analyze` 0 error/warning ✅ · verify output trực tiếp: `layers.print.material`=PET, `matPrice`=622.22, lớp 2 kép trả đủ `chiTietVatLieu` 2 NVL ✅.
+
+**Còn lại (P3–P5, chưa làm):** bảng ghi đè Sale/Admin (inline edit, tỷ lệ LN, chênh lệch so giá gốc), đặc tả nâng cao CPSX NC (bảng 1+2, phân quyền cột), đồng bộ pricing sheet lên BE + nút Cập nhật/Lưu mới, đóng băng giá sheet đã lưu (`tinhGiaDeXuatHienThi`), xuất A4.
+
+**Không port (ngoài scope):** đóng băng giá sheet đã lưu khi mở lại (P1 dùng giá live `finalPrice` làm giá đề xuất), nhãn `interestLabel` động cho màng in (đã có trong `pricing_display.dart` nhưng chưa wire vào BreakdownPanel).
+
+## J. Bảng ghi đè + đặc tả nâng cao + đồng bộ BE (25/09/2026) — P3–P5
+
+Phạm vi: bảng ghi đè Sale/Admin, đặc tả nâng cao CPSX NC, đóng băng giá sheet đã lưu, lưu/đồng bộ override lên BE, xuất A4.
+
+**Kiến trúc:** KHÔNG port công thức sang Dart (quá lớn, dễ lệch). Thay vào đó **bundle web libs vào engine bundle** (`engine-entry.ts` import `apps/web/src/lib/*` qua alias `@web` + `@data`) → QuickJS chạy chính code web → parity tuyệt đối. Dart gọi qua `EngineAdvanced` (wrapper JSON), chỉ render UI.
+
+File mới: `lib/lib/engine_advanced.dart`, `lib/widgets/override_table.dart`, `lib/widgets/advanced_spec.dart`, `lib/widgets/result_tabs.dart`, `lib/lib/pricing_pdf.dart`, `scripts/web-libs.d.ts`.
+Sửa: `scripts/engine-entry.ts` (export 15 API mới, v0.4.0), `scripts/build-engine.mjs` (alias), `scripts/tsconfig.json`, `scripts/parity-check.mjs` (alias), `lib/engine/models.dart` (`HistoryItem` + override/pin), `lib/store/app_state.dart`, `lib/lib/pricing_server_mapper.dart`, `lib/screens/tinh_gia_screen.dart`, `lib/widgets/{price_hero,expandable_table}.dart`.
+
+| # | Việc | Trước | Sau |
+|---|------|-------|-----|
+| 1 | **Engine bundle** | 0.3.0 — chỉ `calculate` + tinhGiaThuongMai | 0.4.0 — thêm `lapDongSanXuat`, `xuLyDongGhiDe`, `tinhGiaHieuLuc`, `chuanBiUniRowsNangCao`, `lapDongVatLieuNangCao`, `lapDongNhanCongDien`, `tinhTongNangCao`, `tinhKetQuaNangCaoHieuLuc`, `tinhNhapPhanBoChotGia`, `getPricingDisplayMeta`, `tinhGiaDeXuatHienThi`, `trich/apCpsxNangCao`, `traLoiNhuanTheoBang`, `layCotLoiNhuanTuDong` |
+| 2 | **P3 — ghi đè Sale/Admin** | Không có | Tab 💼/👑, bấm ô sửa qua bottom-sheet (khổ/mét/phi hao/CPSX/giá NVL), tỷ lệ LN, chênh lệch so giá gốc, nút Lưu. Công thức `xuLyDongGhiDe` + `tinhGiaHieuLuc` từ bundle |
+| 3 | **P4 — đặc tả nâng cao** | Không có | Toggle Thường/Nâng cao; bảng 1 (vật liệu + mực/DM/keo), bảng 2 (NC/điện), 3 dòng tổng. Công thức `dac-ta-nang-cao.ts` từ bundle |
+| 4 | **P5 — đóng băng giá** | Luôn tính live | `AppState.giaDeXuatHienThi` (port `gia-de-xuat-hien-thi.ts`) — mở sheet nâng cao đã lưu, chưa sửa input → giữ giá snapshot |
+| 5 | **P5 — lưu/đồng bộ BE** | `chotGia` chỉ local; override không lưu | `HistoryItem` thêm `saleOverrides`/`adminOverrides`/`saleProfitRatePct`/`adminProfitRatePct`/`pinnedCpsxNangCao`/`isNangCap`; gửi kèm `saleResult` (overrides + chotGia) khi POST; đọc lại từ `saleResult`/`masterResult` |
+| 6 | **P5 — nút Lưu** | Chỉ "Lưu" | Sheet đã lưu → 🔄 Cập nhật + 📄 Lưu mới; bảng mới → 💾 Lưu báo giá (mirror web) |
+| 7 | **P5 — xuất A4** | Không có | `PricingPdf` (pdf + printing): header công ty, thông tin, bảng đặc tả, chốt giá, chữ ký. Nút 👁 Xem (PdfPreview) + `chiaSe` (sharePdf) |
+
+**Nghiệm thu (không test — luật repo):** `pnpm build:engine` (gate `tsc -p scripts`) ✅ (bundle 210.9kb) · `node scripts/parity-check.mjs` **8/8 case khớp web** ✅ · `flutter analyze` 0 error/warning ✅ · smoke test 15 API mới (xuLyDongGhiDe, tinhKetQuaNangCaoHieuLuc, chuanBiUniRowsNangCao, lapDongVatLieu/NhanCong, tinhTong, tinhNhapPhanBoChotGia, tinhGiaDeXuatHienThi, trich/apCpsx, traLoiNhuan, layCot) ✅.
+
+**Còn lại (chưa làm):** đổi vật liệu/độ dày trong bảng ghi đè chưa có dropdown (chỉ sửa số); ghi đè dòng chi tiết ghép nhiều NVL chưa hỗ trợ UI; còn 2 bản logic song song (Dart `manager_calculation`/`pricing_display`/`chot_gia_allocation` cho UI nhanh vs JS bundle cho save/engine) — nên gỡ về 1 nguồn (gọi JS) ở bước sau. *(Giá hero nâng cao + lọc cột Bảng 2 đã xử lý ở J3.)*
+
+## J2. Sửa parity sync/giá + UI nhỏ (25/09/2026) — A+B
+
+Sau audit P0–P5, sửa 5 bug nghiêm trọng + 4 lỗi UI nhỏ so với web:
+
+| # | Bug | Sửa |
+|---|-----|-----|
+| A1 | Nút "🔄 Cập nhật" luôn POST → tạo sheet trùng | `HistoryItem` thêm `pricingSheetId` + `priceConfigIds`; `_saveCurrentToHistoryServer` phân nhánh: chưa có id → POST, có id → PATCH `capNhatPricingSheetResultService` (+ `useLatestPriceConfigs`), gán id/pin vào item (mirror `quyetDinhPricingSheetSync`) |
+| A2 | Sửa ghi đè set `isDirty=true` → mất đóng băng giá | Bỏ `isDirty=true` khỏi `setSaleOverride`/`setAdminOverride`/`setSaleProfitRatePct` (mirror `overrides.ts`) |
+| A3 | `isNangCap`/`chotGia` không round-trip | Ghi `inputValue.isNangCap` + `inputValue.chotGia` khi lưu server (mirror `history.ts`); mapper ưu tiên đọc `inputValue.chotGia` |
+| A4 | `masterResult` (Admin) không gửi BE | `TaoPricingSheetInput` thêm `masterResult`; PATCH `/advisor-result` khi user có `PRICING_SHEET_ADVISOR` (gửi `{}` để xoá ghi đè cũ — mirror web) |
+| A5 | Sheet nâng cao tải từ server không pin CPSX | `pricing_server_mapper` set `pinnedCpsxNangCao` = `trichCpsxNangCao(ctx.constants)` khi `isNangCap` |
+| B1 | Bảng 1 nâng cao hardcode `saleOverrides` | Chọn override theo tab `isSale` |
+| B2 | Bảng ghi đè Admin truyền nguồn = `saleOverrides` | Sửa về `{}` cho cả 2 bảng (mirror web `ghiDeNguon={emptyOv}`) — bảng nâng cao cũng bỏ `sourceOv` |
+| B3 | Đóng sheet bị coi là "Xoá ghi đè" | Sentinel `_xoaGhiDe` phân biệt huỷ (null) vs xoá |
+| B4 | Ô "Tỷ lệ LN" không refresh khi đổi ngoài | Chuyển sang `TextEditingController` + `didUpdateWidget` (mirror web `useEffect` reset theo pct) |
+
+**Nghiệm thu:** `pnpm build:engine` ✅ (bundle 210.9kb) · `node scripts/parity-check.mjs` **8/8 case khớp** ✅ · `flutter analyze` 0 error/warning ✅.
+
+## J3. Giá hiệu lực tab nâng cao + lọc cột Bảng 2 (25/09/2026) — C1+C2
+
+| # | Việc | Sửa |
+|---|------|-----|
+| C1 | **Giá hero/breakdown tab nâng cao lấy engine thường (sai)** | Thêm `AppState.ketQuaHienThi` (memo hoá) — mirror web `rHieuLuc`: tab nâng cao + không thương mại → `tinhKetQuaNangCaoHieuLuc(...).result`; ngược lại `currentResult`. Wire vào `PriceHero`, `BreakdownPanel`, `ChotGiaSection`, `_MobileResultQuickActions`, `_copyResult`, `pricing_pdf`, `override_table` (giaGoc), MOQ (`tinhTheoSoLuongHienThi`), mini price strip. Giá lưu lịch sử cũng dùng giá hiệu lực (mirror web `finalPriceHieuLuc`). Kiểm chứng: cùng input, engine thường = 1350.09, nâng cao = 1515.71 → trước đây hiển thị sai. |
+| C2 | **Bảng 2 hiện đủ cột bất kể quyền** | Thêm `AppState.cpsxNangCapPolicies` + `cotBang2TheoQuyen` (mirror web `permissions.ts:170`) + `taiCpsxNangCapPoliciesTuServer()` (GET `/price-config/production-upgrade/latest`, lọc `CPSX_UPGRADE_*`) gọi trong bootstrap sau login. `advanced_spec.dart` ẩn cột Thời gian/NC/Điện theo quyền + thêm dòng tổng NC/điện; ẩn hẳn Bảng 2 nếu không còn cột NC/Điện (mirror web `hienBangNhanCongDien`). |
+
+**Nghiệm thu:** `pnpm build:engine` ✅ · `node scripts/parity-check.mjs` **8/8** ✅ · `flutter analyze` 0 error/warning ✅.
+
+**Còn lại (chưa làm):** đổi vật liệu/độ dày trong bảng ghi đè chưa có dropdown (chỉ sửa số); ghi đè dòng chi tiết ghép nhiều NVL chưa hỗ trợ UI; còn 2 bản logic song song (Dart `manager_calculation`/`pricing_display`/`chot_gia_allocation` cho UI nhanh vs JS bundle cho save/engine) — nên gỡ về 1 nguồn (gọi JS) ở bước sau.
+
 ## Kết luận phân tầng
 
 Flutter hiện = "máy tính giá thường offline cho cá nhân". Thiếu 3 nhóm lớn:
 
-1. **Các chế độ tính giá**: nâng cao, thương mại, gia công ngoài, màng in, khổ nhỏ, lớp 2 kép, override, khách lớn.
+1. **Các chế độ tính giá**: nâng cao (CPSX NC), override Sale/Admin, màng in/khổ nhỏ/lớp 2 kép (đã tính đúng qua engine, thiếu UI), khách lớn. *(Đã bù một phần 25/09: bảng đặc tả chuẩn, chốt giá + phân bổ, MOQ + Roll MOQ — mục I.)*
 2. **Hệ sinh thái nghiệp vụ**: auth, phân quyền, báo giá, duyệt PIN, khách hàng, LSX đủ biểu mẫu, audit.
 3. **Hạ tầng dữ liệu**: đồng bộ BE, phiên bản cấu hình, lịch sử server.

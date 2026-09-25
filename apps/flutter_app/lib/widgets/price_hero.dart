@@ -5,6 +5,8 @@
 import 'package:flutter/material.dart';
 
 import '../engine/models.dart';
+import 'package:lts_pricing/lib/manager_calculation.dart';
+import 'package:lts_pricing/lib/pricing_display.dart';
 import '../theme/app_theme.dart';
 import '../theme/format.dart';
 import '../theme/lts_tokens.dart';
@@ -16,7 +18,16 @@ import 'lts/lts_surfaces.dart';
 class PriceHero extends StatelessWidget {
   final CalculateResult? result;
   final String productType;
-  const PriceHero({super.key, required this.result, required this.productType});
+  final double chotGia;
+
+  /// Giá đề xuất hiển thị (đã đóng băng khi mở sheet đã lưu). Null = dùng live.
+  final double? giaDeXuatHienThi;
+  const PriceHero(
+      {super.key,
+      required this.result,
+      required this.productType,
+      this.chotGia = 0,
+      this.giaDeXuatHienThi});
 
   @override
   Widget build(BuildContext context) {
@@ -55,9 +66,13 @@ class PriceHero extends StatelessWidget {
       );
     }
 
-    final isMang = productType == 'mang';
-    final finalPrice = r.finalPrice;
+    final meta = getPricingDisplayMeta(
+        (r.raw['input'] as Map?)?.cast<String, dynamic>() ?? r.raw);
+    final isMang = meta.isFilm;
+    final finalPrice = giaDeXuatHienThi ?? r.finalPrice;
     final rollArea = r.d('dienTichCuonMang');
+    final hasChotGia = chotGia > 0;
+    final shownPrice = hasChotGia ? chotGia : finalPrice;
 
     return LtsCard(
       padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
@@ -70,7 +85,7 @@ class PriceHero extends StatelessWidget {
             _AutoBadge(),
           ]),
           const SizedBox(height: 14),
-          Text(isMang ? 'GIÁ ĐỀ XUẤT / m²' : 'GIÁ ĐỀ XUẤT / cái',
+          Text(hasChotGia ? meta.closedPriceTitle.toUpperCase() : meta.priceTitle.toUpperCase(),
               style: TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -84,11 +99,11 @@ class PriceHero extends StatelessWidget {
                     child: FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: Alignment.centerLeft,
-                        child: Text(Fmt.n(finalPrice.round()),
+                        child: Text(Fmt.n(shownPrice.round()),
                             style: TextStyle(
                                 fontSize: 48,
                                 fontWeight: FontWeight.w900,
-                                color: p.text,
+                                color: hasChotGia ? p.green : p.text,
                                 height: 1.0,
                                 letterSpacing: -2)))),
                 Padding(
@@ -99,6 +114,12 @@ class PriceHero extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                             color: p.muted))),
               ]),
+          if (hasChotGia)
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Text('(giá đề xuất ${Fmt.n(finalPrice.round())} đ/${meta.unit})',
+                  style: TextStyle(fontSize: 11, color: p.muted)),
+            ),
           const SizedBox(height: 6),
           if (r.structureText.isNotEmpty)
             Container(
@@ -251,11 +272,6 @@ class BreakdownPanel extends StatelessWidget {
     final numColorsText = numColors > 0 ? '$numColors màu' : 'Không in';
     final rollArea = r.d('dienTichCuonMang');
 
-    // uniRows từ engine raw output
-    final layers = raw['layers'] as Map?;
-    final printLayer  = layers?['print'] as Map?;
-    final laminations = (layers?['laminations'] as List?) ?? [];
-
     // ─── Section 1: Thông tin cơ bản ─────────────────────────────────────
     final infoItems = <_KVItem>[
       _KVItem('Khách hàng', customer.isEmpty ? '—' : customer),
@@ -303,51 +319,15 @@ class BreakdownPanel extends StatelessWidget {
     ];
 
     // ─── Section 4: Bảng đặc tả kỹ thuật (uniRows) ──────────────────────
-    // Mirror uniRows của web
-    final List<_UniRow> uniRows = [];
-    if (printLayer != null) {
-      final mat = printLayer['material'] as Map?;
-      uniRows.add(_UniRow(
-        stage: 'CPSX IN', mat: (mat?['name'] as String?) ?? '',
-        width: (printLayer['kho'] as num?)?.toDouble() ?? 0,
-        meters: (printLayer['met'] as num?)?.toDouble() ?? 0,
-        waste: (printLayer['hatHao'] as num?)?.toDouble() ?? 0,
-        cpsx: (printLayer['cpsx'] as num?)?.toDouble() ?? 0,
-        costCPSX: (printLayer['chiPhiSX'] as num?)?.toDouble() ?? 0,
-        matPrice: (mat?['pricePerM2'] as num?)?.toDouble(),
-        costMat: (printLayer['chiPhiVL'] as num?)?.toDouble() ?? 0,
-      ));
-    }
-    for (final lam in laminations) {
-      final lamMap = lam as Map;
-      final mat = lamMap['material'] as Map?;
-      final layerNum = lamMap['layerNum'] as int? ?? 0;
-      uniRows.add(_UniRow(
-        stage: 'GHÉP (Lớp $layerNum)', mat: (mat?['name'] as String?) ?? '',
-        width: (lamMap['kho'] as num?)?.toDouble() ?? 0,
-        meters: (lamMap['met'] as num?)?.toDouble() ?? 0,
-        waste: (lamMap['hatHao'] as num?)?.toDouble() ?? 0,
-        cpsx: (lamMap['cpsx'] as num?)?.toDouble() ?? 0,
-        costCPSX: (lamMap['chiPhiSX'] as num?)?.toDouble() ?? 0,
-        matPrice: (mat?['pricePerM2'] as num?)?.toDouble(),
-        costMat: (lamMap['chiPhiVL'] as num?)?.toDouble() ?? 0,
-      ));
-    }
-    if (!isMang) {
-      final cat = raw['layers']?['cut'] as Map?;
-      uniRows.add(_UniRow(
-        stage: 'CẮT', mat: '—',
-        width: (cat?['kho'] as num?)?.toDouble() ?? 0,
-        meters: (cat?['met'] as num?)?.toDouble() ?? 0,
-        waste: (cat?['hatHao'] as num?)?.toDouble() ?? 0,
-        cpsx: (cat?['cpsx'] as num?)?.toDouble() ?? 0,
-        costCPSX: (cat?['chiPhiSX'] as num?)?.toDouble() ?? 0,
-        matPrice: null, costMat: null,
-      ));
-    }
-    final totalCPSX = uniRows.fold(0.0, (s, row) => s + row.costCPSX);
-    final totalCPVL = uniRows.fold(0.0, (s, row) => s + (row.costMat ?? 0));
-    final grandTotal = totalCPSX + totalCPVL;
+    // Dùng chung port `lapDongSanXuat` (mirror web manager-calculation.ts:59).
+    final lap = lapDongSanXuat(r);
+    final uniRows = lap.uniRows;
+    final totalCPSX = lap.totalCPSX;
+    final totalCPVL = lap.totalCPVL;
+    final grandTotal = lap.grandTotal;
+    final cpTheoThoiGianIn = uniRows
+        .map((row) => row.printFilmCost)
+        .fold<double>(0, (m, c) => c > m ? c : m);
 
     // ─── Section 5: Trọng lượng ──────────────────────────────────────────
     final weightItems = <_KVItem>[
@@ -434,9 +414,13 @@ class BreakdownPanel extends StatelessWidget {
               ...uniRows.map((row) {
                 final inputVL = row.meters + row.waste;
                 final s = const TextStyle(fontSize: 12);
+                // Vật liệu: chi tiết ghép nhiều NVL → "VL1 + VL2", ngược lại tên VL
+                final matLabel = (row.materialDetails?.isNotEmpty ?? false)
+                    ? row.materialDetails!.map((d) => d.name).join(' + ')
+                    : row.mat;
                 return [
                   TableCellData(row.stage, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
-                  TableCellData(row.mat, style: s),
+                  TableCellData(matLabel, style: s),
                   TableCellData(row.width.toStringAsFixed(3), align: TextAlign.right, style: s),
                   TableCellData(row.meters.toStringAsFixed(0), align: TextAlign.right, style: s),
                   TableCellData(row.waste.toStringAsFixed(0), align: TextAlign.right, style: s),
@@ -444,10 +428,17 @@ class BreakdownPanel extends StatelessWidget {
                       style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.accent)),
                   TableCellData(Fmt.n(row.cpsx.round()), align: TextAlign.right, style: s),
                   TableCellData(Fmt.n(row.costCPSX.round()), align: TextAlign.right, style: s),
-                  TableCellData(row.matPrice != null ? Fmt.d3(row.matPrice!) : '—', align: TextAlign.right, style: s),
+                  TableCellData(row.matPrice != null ? Fmt.n(row.matPrice!.round()) : '—', align: TextAlign.right, style: s),
                   TableCellData(row.costMat != null ? Fmt.n(row.costMat!.round()) : '—', align: TextAlign.right, style: s),
                 ];
               }),
+              // CP theo thời gian in (màng in) — mirror ManHinhQuanLy.tsx:2877-2882
+              if (cpTheoThoiGianIn > 0)
+                List.generate(10, (i) {
+                  if (i == 0) return const TableCellData('CP theo thời gian in', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 12));
+                  if (i == 9) return TableCellData(Fmt.n(cpTheoThoiGianIn.round()), align: TextAlign.right, style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12));
+                  return TableCellData('');
+                }),
               // Tổng CPSX / CPVL
               List.generate(10, (i) {
                 if (i == 0) return TableCellData('TỔNG', style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12));
@@ -519,14 +510,6 @@ class BreakdownPanel extends StatelessWidget {
       ],
     ]);
   }
-}
-
-// ─── UniRow model ────────────────────────────────────────────────────────────
-class _UniRow {
-  final String stage, mat;
-  final double width, meters, waste, cpsx, costCPSX;
-  final double? matPrice, costMat;
-  const _UniRow({required this.stage, required this.mat, required this.width, required this.meters, required this.waste, required this.cpsx, required this.costCPSX, this.matPrice, this.costMat});
 }
 
 class _KVItem {
