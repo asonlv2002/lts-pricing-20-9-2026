@@ -300,6 +300,9 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
         _ProfitRateRow(
           duocSua: widget.duocSua,
           pct: profitPct,
+          macDinhPct: isSale
+              ? s.saleTyLeLoiNhuanMacDinh
+              : s.adminTyLeLoiNhuanMacDinh,
           ln: ln,
           onChanged: (v) =>
               isSale ? s.setSaleProfitRatePct(v) : s.setAdminProfitRatePct(v),
@@ -1203,11 +1206,13 @@ class _TotalRow extends StatelessWidget {
 class _ProfitRateRow extends StatefulWidget {
   final bool duocSua;
   final double pct;
+  final double macDinhPct;
   final double ln;
   final ValueChanged<double> onChanged;
   const _ProfitRateRow(
       {required this.duocSua,
       required this.pct,
+      required this.macDinhPct,
       required this.ln,
       required this.onChanged});
 
@@ -1264,10 +1269,11 @@ class _ProfitRateRowState extends State<_ProfitRateRow> {
                   const TextInputType.numberWithOptions(decimal: true),
               style:
                   const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 isDense: true,
                 suffixText: '%',
-                border: OutlineInputBorder(),
+                border: const OutlineInputBorder(),
+                hintText: widget.macDinhPct.toString(),
               ),
               onTap: () => _dangGo = true,
               onChanged: (v) {

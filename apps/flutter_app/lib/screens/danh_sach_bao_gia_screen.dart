@@ -351,9 +351,10 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
                     dangXuLySheetId: _dangXuLySheetId,
                     onKhachDuyet: (sheet) => _customerDecide(bg, sheet, true),
                     onKhachTuChoi: (sheet) => _customerDecide(bg, sheet, false),
-                    onXemPdf: () => LtsToast.show(
-                        context, 'Tính năng xem PDF sẽ sớm ra mắt.',
-                        type: LtsToastType.info),
+                    onXemPdf: () => s.xuatBaoGiaPdf(bg,
+                        quoteCode: maMap[bg.id] ?? ''),
+                    onXuatDocx: () => s.xuatBaoGiaDocx(bg,
+                        quoteCode: maMap[bg.id] ?? ''),
                     onCopyLink: () => LtsToast.show(
                         context, 'Tính năng sao chép liên kết sẽ sớm ra mắt.',
                         type: LtsToastType.info),
@@ -570,6 +571,7 @@ class _BaoGiaCard extends StatelessWidget {
   final void Function(PricingSheetApi sheet) onKhachDuyet;
   final void Function(PricingSheetApi sheet) onKhachTuChoi;
   final VoidCallback onXemPdf;
+  final VoidCallback onXuatDocx;
   final VoidCallback onCopyLink;
   const _BaoGiaCard({
     required this.bg,
@@ -586,6 +588,7 @@ class _BaoGiaCard extends StatelessWidget {
     required this.onKhachDuyet,
     required this.onKhachTuChoi,
     required this.onXemPdf,
+    required this.onXuatDocx,
     required this.onCopyLink,
   });
 
@@ -739,6 +742,11 @@ class _BaoGiaCard extends StatelessWidget {
                   icon: Icons.visibility_outlined,
                   tooltip: 'Xem PDF báo giá',
                   onTap: onXemPdf,
+                ),
+                _ActionBtn(
+                  icon: Icons.description_outlined,
+                  tooltip: 'Xuất DOCX báo giá',
+                  onTap: onXuatDocx,
                 ),
                 _ActionBtn(
                   icon: Icons.link,

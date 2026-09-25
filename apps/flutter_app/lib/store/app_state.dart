@@ -17,6 +17,13 @@ import '../engine/models.dart';
 import 'package:lts_pricing/lib/chot_gia_allocation.dart';
 import 'package:lts_pricing/lib/engine_advanced.dart';
 import 'package:lts_pricing/lib/lsx_so.dart';
+import 'package:lts_pricing/lib/bao_gia_docx.dart';
+import 'package:lts_pricing/lib/bao_gia_pdf.dart';
+import 'package:lts_pricing/lib/do_day_snapshot.dart';
+import 'package:lts_pricing/lib/file_share.dart';
+import 'package:lts_pricing/lib/format_structure.dart';
+import 'package:lts_pricing/lib/pricing_detail_export.dart';
+import 'package:lts_pricing/lib/quote_product_spec.dart';
 import 'package:lts_pricing/lib/pricing_server_mapper.dart';
 import 'local_storage.dart';
 
@@ -153,6 +160,8 @@ class AppState extends ChangeNotifier {
   List<SmallWidthMaterialPrice> smallWidthPrices = [];
   AppConstants constants = const AppConstants({});
   List<ProfitRow> profitTable = [];
+  /// Bảng LN gốc từ asset (độ dài chuẩn) — mirror web `INITIAL_PROFIT_TABLE`.
+  List<ProfitRow> profitTableMacDinh = [];
 
   // ── Input + Result ───────────────────────────────────────────────────────
   CalculateInput currentInput = CalculateInput.defaults();
@@ -917,6 +926,9 @@ class AppState extends ChangeNotifier {
         LocalStorage.instance.readConstants() ?? await _loadConstantsAsset();
     profitTable =
         LocalStorage.instance.readProfit() ?? await _loadProfitAsset();
+    // Bảng LN gốc từ asset (độ dài chuẩn) — dùng cho nút "Xóa mốc cuối"
+    // (mirror web INITIAL_PROFIT_TABLE.length). Không đổi theo user.
+    profitTableMacDinh = await _loadProfitAsset();
 
     history = LocalStorage.instance.readHistory();
     productionOrders = LocalStorage.instance.readLSX();
@@ -1430,6 +1442,251 @@ class AppState extends ChangeNotifier {
     }
   }
 
+  /// Bảng đặc tả nâng cao hiệu lực (Bảng 1 + Bảng 2 + 3 dòng tổng) cho [result]
+  /// với ghi đè [sourceOv] → [activeOv]. Mirror web `xuatBangDacTaNangCao`
+  /// (pricing-detail-export.ts:613-640). Dùng cho export A4 nâng cao.
+  ({List<dynamic> dongVL, List<dynamic> dongNCD, Map<String, dynamic> tong})
+      bangDacTaNangCaoChoXuat({
+    required CalculateResult result,
+    required List<dynamic> uniRows,
+    required AppConstants hangSo,
+    OverrideTableRef sourceOv = const {},
+    OverrideTableRef activeOv = const {},
+  }) {
+    final hasAnyOv = activeOv.isNotEmpty;
+    try {
+      final dongXuLy = EngineAdvanced.instance.chuanBiUniRowsNangCao(
+        uniRows: uniRows,
+        result: result,
+        hangSo: hangSo,
+        sourceOv: sourceOv,
+        activeOv: hasAnyOv ? activeOv : const {},
+      );
+      final dongVL = EngineAdvanced.instance.lapDongVatLieuNangCao(
+        result: result,
+        uniRows: dongXuLy,
+        hangSo: hangSo,
+        materials: materials,
+        overrides: hasAnyOv ? activeOv : null,
+      );
+      final dongNCD = EngineAdvanced.instance.lapDongNhanCongDien(
+        result: result,
+        hangSo: hangSo,
+        overrides: hasAnyOv ? activeOv : null,
+      );
+      final tong =
+          EngineAdvanced.instance.tinhTongNangCao(dongVL, dongNCD);
+      return (dongVL: dongVL, dongNCD: dongNCD, tong: tong);
+    } catch (_) {
+      return (dongVL: const <dynamic>[], dongNCD: const <dynamic>[], tong: <String, dynamic>{});
+    }
+  }
+
+  /// Quyền hiện cột Bảng 2 (Nhân công/điện) — mirror web `cotBang2TheoQuyen`.
+  ({bool coDien, bool coLuong, bool coThoiGian}) get cotBang2 => cotBang2TheoQuyen;
+
+  /// Dựng `ChiTietExportInput` cho sheet đang mở (từ store hiện tại).
+  ChiTietExportInput chiTietExportHienTai() {
+    final inp = currentInput.raw;
+    return ChiTietExportInput(
+      input: inp,
+      saleOverrides: saleOverrides.isEmpty ? null : saleOverrides,
+      adminOverrides: adminOverrides.isEmpty ? null : adminOverrides,
+      saleProfitRatePct: saleProfitRatePct,
+      adminProfitRatePct: adminProfitRatePct,
+      pinnedCpsxNangCao: loadedPinnedCpsxNangCao,
+      isNangCap: cheDoNangCao,
+      chotGia: currentChotGia > 0 ? currentChotGia : null,
+      customer: (inp['customer'] as String?) ?? '',
+      productName: (inp['productName'] as String?) ?? '',
+      date: '',
+    );
+  }
+
+  /// Dựng `ChiTietExportInput` cho 1 mục lịch sử (mirror web HistoryItem).
+  ChiTietExportInput chiTietExportTuHistory(HistoryItem item) {
+    return ChiTietExportInput(
+      input: item.input,
+      saleOverrides: item.saleOverrides,
+      adminOverrides: item.adminOverrides,
+      saleProfitRatePct: item.saleProfitRatePct ?? 0,
+      adminProfitRatePct: item.adminProfitRatePct ?? 0,
+      pinnedCpsxNangCao: item.pinnedCpsxNangCao,
+      isNangCap: item.isNangCap ?? false,
+      chotGia: item.chotGia?.toDouble(),
+      customer: item.customer,
+      productName: item.productName,
+      date: item.date,
+    );
+  }
+
+  /// Xuất PDF chi tiết A4 cho [it] bằng config session hiện tại.
+  /// [xemTruoc] = true → mở PdfPreview; false → share.
+  Future<void> xuatChiTietA4(ChiTietExportInput it,
+      {bool xemTruoc = true}) async {
+    final bytes = await PricingDetailExport.build(
+      it: it,
+      materials: materials,
+      constants: constants,
+      profitTable: profitTable,
+      smallWidthPrices: smallWidthPrices,
+      coQuyenCoVan: _coQuyenCoVan(),
+      cot: cotBang2TheoQuyen,
+    );
+    final ten = 'ChiTiet_${it.productName.isEmpty ? 'BangTinhGia' : it.productName}.pdf';
+    if (xemTruoc) {
+      await PricingDetailExport.xemTruoc(bytes, ten);
+    } else {
+      await PricingDetailExport.chiaSe(bytes, ten);
+    }
+  }
+
+  /// Xuất PDF "Bảng báo giá" cho 1 quotation — mirror web exportBaoGiaToPDF.
+  /// Mỗi pricingSheet = 1 dòng sản phẩm (1 tier/sheet). Giá ghi PDF = giá chốt
+  /// (hoặc giá đề xuất đã tính lại từ engine).
+  Future<void> xuatBaoGiaPdf(
+    BaoGiaApi bg, {
+    String quoteCode = '',
+    bool xemTruoc = true,
+  }) async {
+    final input = _dungBaoGiaInput(bg, quoteCode);
+    final bytes = await BaoGiaPdf.build(input);
+    final ten = 'BaoGia_${input.quoteCode.isEmpty ? bg.id : input.quoteCode}.pdf';
+    if (xemTruoc) {
+      await BaoGiaPdf.xemTruoc(bytes, ten);
+    } else {
+      await BaoGiaPdf.chiaSe(bytes, ten);
+    }
+  }
+
+  /// Xuất DOCX "Bảng báo giá" cho 1 quotation — mirror web exportBaoGiaToDocx.
+  Future<void> xuatBaoGiaDocx(
+    BaoGiaApi bg, {
+    String quoteCode = '',
+    bool xemTruoc = true,
+  }) async {
+    final input = _dungBaoGiaInput(bg, quoteCode);
+    final bytes = BaoGiaDocx.build(input);
+    final ten = 'BaoGia_${input.quoteCode.isEmpty ? bg.id : input.quoteCode}.docx';
+    await chiaSeTep(bytes, ten, xemTruoc: xemTruoc);
+  }
+
+  /// Dựng `BaoGiaPdfInput` dùng chung cho PDF/DOCX báo giá.
+  BaoGiaPdfInput _dungBaoGiaInput(BaoGiaApi bg, String quoteCode) {
+    final iv = bg.inputValue ?? const {};
+    final terms = (iv['terms'] as Map?)?.cast<String, dynamic>();
+    // Thông tin KH (địa chỉ) từ danh sách khách hàng đã tải.
+    String? address;
+    for (final kh in danhSachKhachHang) {
+      if (kh.codeName == (iv['customerCodeName'] ?? '') ||
+          kh.id == bg.customerId) {
+        address = kh.moiNhat?.address;
+        break;
+      }
+    }
+
+    final lines = <({
+      String productName,
+      String description,
+      String unit,
+      double quantity,
+      double unitPrice,
+      double? cylinderTotal,
+      String? cylinderDescription,
+    })>[];
+    final bagSpecs = (iv['productBagSpecs'] as List?) ?? const [];
+    final matsJson = materials.map((m) => m.toJson()).toList();
+    for (var idx = 0; idx < bg.pricingSheets.length; idx++) {
+      final sh = bg.pricingSheets[idx];
+      final si = sh.inputValue;
+      // Đặc tả túi cho sheet (mirror web productBagSpecs[pricingSheetId]).
+      Map<String, dynamic>? spec;
+      for (final e in bagSpecs) {
+        if (e is Map &&
+            (e['pricingSheetId'] == sh.id ||
+                e['sourceHistoryItemId'] == sh.id)) {
+          spec = (e['bagSpec'] as Map?)?.cast<String, dynamic>();
+          break;
+        }
+      }
+      final productName = (sh.pricingSheetName ??
+              si['productName'] ??
+              '')
+          .toString();
+      final structure = (si['structure'] ??
+              buildStructureFromLayers(matsJson, [
+                si['layer1Id'] as String?,
+                si['layer2Id'] as String?,
+                si['layer3Id'] as String?,
+                si['layer4Id'] as String?,
+                si['layer5Id'] as String?,
+              ]))
+          .toString();
+      final qty = (si['quantity'] as num?)?.toDouble() ?? 0;
+      // Mô tả: dùng đặc tả túi nếu có (mirror buildBagSpecDescription).
+      final doDay = tinhTongDoDayCuaInput(
+        CalculateInput.fromJson(si),
+        materials: materials,
+      );
+      final description = spec != null
+          ? [
+              buildBagSpecDescription(spec, si, structure, doDay),
+              ...formatStageDescriptionsRaw(spec['stageDescriptions']),
+            ].where((s) => s.isNotEmpty).join('\n')
+          : structure;
+      // Giá: giá chốt nếu có (saleResult/masterResult.chotGia), ngược lại tính lại.
+      double price = 0;
+      final chotSale = (sh.saleResult?['chotGia'] as num?)?.toDouble();
+      final chotMaster = (sh.masterResult?['chotGia'] as num?)?.toDouble();
+      final chotInput = (si['chotGia'] as num?)?.toDouble();
+      if (chotInput != null && chotInput > 0) {
+        price = chotInput;
+      } else if (chotMaster != null && chotMaster > 0) {
+        price = chotMaster;
+      } else if (chotSale != null && chotSale > 0) {
+        price = chotSale;
+      } else {
+        try {
+          final res = EngineService.instance.calculate(
+            input: CalculateInput.fromJson(si),
+            materials: materials,
+            constants: constants,
+            profitTable: profitTable,
+            smallWidthPrices: smallWidthPrices,
+          );
+          price = res?.finalPrice ?? 0;
+        } catch (_) {
+          price = 0;
+        }
+      }
+      lines.add((
+        productName: productName,
+        description: description,
+        unit: donViBaoGia(si),
+        quantity: qty,
+        unitPrice: price,
+        cylinderTotal: null,
+        cylinderDescription: null,
+      ));
+    }
+
+    final input = buildBaoGiaPdfInput(
+      customer: (iv['customer'] as String?) ??
+          (bg.pricingSheets.isNotEmpty
+              ? (bg.pricingSheets.first.customerName ?? '')
+              : ''),
+      quoteCode: quoteCode.isNotEmpty
+          ? quoteCode
+          : ((iv['quoteCode'] as String?) ?? ''),
+      date: '',
+      address: address,
+      lines: lines,
+      terms: terms,
+      reviewerSignatureName: null,
+    );
+    return input;
+  }
+
   /// Kết quả hiệu lực để hiển thị trên màn kết quả — mirror web `rHieuLuc`
   /// (ManHinhQuanLy.tsx / page.tsx): tab nâng cao (và không phải thương mại) thì
   /// giá/LN/vốn lấy từ TỔNG bảng đặc tả nâng cao; ngược lại dùng engine thường.
@@ -1526,6 +1783,73 @@ class AppState extends ChangeNotifier {
       return null;
     }
   }
+
+  /// Tỷ lệ LN mặc định (tra bảng theo tổng giá thành) cho tab Sale — mirror web
+  /// `saleDefaultPct` (ManHinhQuanLy.tsx:2195-2221). Chỉ là GỢI Ý hiển thị,
+  /// KHÔNG tự áp vào giá; user đổi mới ghi `saleProfitRatePct`.
+  double get saleTyLeLoiNhuanMacDinh =>
+      _tyLeLoiNhuanMacDinh(saleOv: saleOverrides, adminOv: const {});
+
+  /// Tỷ lệ LN mặc định cho tab Admin — mirror web `adminDefaultPct`.
+  double get adminTyLeLoiNhuanMacDinh =>
+      _tyLeLoiNhuanMacDinh(saleOv: const {}, adminOv: adminOverrides);
+
+  /// Base rate = tỷ lệ LN engine trả khi KHÔNG ghi đè LN (chỉ áp ghi đè giá).
+  /// Nâng cao → `tyLeLoiNhuan`; thường → `effProfitRate`. Trả % (đã ×100, 1 lẻ).
+  double _tyLeLoiNhuanMacDinh({
+    required OverrideTableRef saleOv,
+    required OverrideTableRef adminOv,
+  }) {
+    final r = currentResult;
+    if (r == null) return 0;
+    final laThuongMai = currentInput.raw['pricingMode'] == 'commercial';
+    final pinLen = loadedPinnedCpsxNangCao?.length ?? -1;
+    final laSale = saleOv.isNotEmpty;
+    if (_macDinhPctCache != null &&
+        identical(_macDinhPctCacheResult, r) &&
+        _macDinhPctCacheNc == cheDoNangCao &&
+        _macDinhPctCachePin == pinLen &&
+        _macDinhPctCacheSale == laSale) {
+      return _macDinhPctCache!;
+    }
+    try {
+      final double rate;
+      if (cheDoNangCao && !laThuongMai) {
+        final kq = tinhNangCaoHieuLuc(
+          result: r,
+          saleOv: saleOv,
+          adminOv: adminOv,
+          salePct: 0,
+          adminPct: 0,
+        );
+        rate = (kq?['tyLeLoiNhuan'] as num?)?.toDouble() ?? 0;
+      } else {
+        final kq = tinhGiaHieuLuc(
+          result: r,
+          saleOv: saleOv,
+          adminOv: adminOv,
+          salePct: 0,
+          adminPct: 0,
+        );
+        rate = (kq?['effProfitRate'] as num?)?.toDouble() ?? 0;
+      }
+      final out = double.parse((rate * 100).toStringAsFixed(1));
+      _macDinhPctCache = out;
+      _macDinhPctCacheResult = r;
+      _macDinhPctCacheNc = cheDoNangCao;
+      _macDinhPctCachePin = pinLen;
+      _macDinhPctCacheSale = laSale;
+      return out;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  double? _macDinhPctCache;
+  CalculateResult? _macDinhPctCacheResult;
+  bool _macDinhPctCacheNc = false;
+  int _macDinhPctCachePin = -1;
+  bool _macDinhPctCacheSale = false;
 
   // ── History ──────────────────────────────────────────────────────────────
 

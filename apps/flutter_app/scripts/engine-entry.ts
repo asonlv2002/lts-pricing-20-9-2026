@@ -3,6 +3,8 @@
 // Bundle file này bằng esbuild → assets/engine.bundle.js (IIFE)
 // Expose globalThis.LTS = { calculate(inputJson, materialsJson, constantsJson, profitTableJson) }
 // Tất cả tham số là JSON string (để tránh issue marshal phức tạp giữa Dart ↔ QuickJS).
+// Lưu ý: polyfill `structuredClone` được inject qua banner trong build-engine.mjs
+// (chạy TRƯỚC mọi module, vì data.ts gọi normalizer ở module-load).
 // ═══════════════════════════════════════════════════════════════════════════
 import { tinhGia, traLoiNhuan, layVatLieu, toiUuDoDay, KetQuaToiUuDoDay } from '../../../packages/bang-tinh-gia/src';
 import type {
@@ -37,6 +39,44 @@ import { tinhNhapPhanBoChotGia } from '@web/chot-gia-allocation';
 import { getPricingDisplayMeta } from '@web/pricing-display';
 import { tinhGiaDeXuatHienThi } from '@web/gia-de-xuat-hien-thi';
 import { apCpsxNangCaoVaoHangSo, trichCpsxNangCao } from '@web/cpsx-nang-cao-pin';
+import {
+  chuanHoaCpsxUpgradeElectric,
+  dinhDangGioMask,
+  dongBoGiaDangApSauSuaSlot,
+  tinhDienMoiPhut,
+  tinhGiaDienTbCong,
+  tinhGiaDienTbTrongSo,
+  tinhSoGioTuKhungGio,
+} from '@web/cpsx-upgrade-electric';
+import {
+  chuanHoaCpsxUpgradeLabor,
+  taoMayTinhWorkspaceMacDinh,
+  tinhBieuThuc,
+  tokenHoaBieuThuc,
+} from '@web/cpsx-upgrade-labor';
+import {
+  chuanHoaCpsxUpgradeInk,
+  tinhCpMucInMoiM2,
+  tinhGiaKeoTbTrongSo,
+  tinhGiaKeoTbCong,
+  tinhGiaMucTbTrongSo,
+  tinhGiaMucTbCong,
+  lapBangGiaInTheoMau,
+} from '@web/cpsx-upgrade-ink';
+import {
+  chuanHoaCpsxUpgradeThoiGian,
+  CATALOG_LOAI_TUI_SETUP,
+  tinhThoiGianMayIn,
+  tinhThoiGianMayGhep,
+  tinhThoiGianMayChia,
+  tinhThoiGianMayTui,
+} from '@web/cpsx-upgrade-thoigian';
+import {
+  DEFAULT_CPSX_UPGRADE_ELECTRIC,
+  DEFAULT_CPSX_UPGRADE_LABOR,
+  DEFAULT_CPSX_UPGRADE_INK,
+  DEFAULT_CPSX_UPGRADE_THOIGIAN,
+} from '@web/data';
 
 // ── Shape tiếng Anh (giống apps/web/src/lib/types.ts) ────────────────────────
 interface Material {
@@ -1008,5 +1048,157 @@ function calculate(
     }
   },
 
-  version: '0.4.0',
+  // ══ P6 — CPSX nâng cao: normalizer + tính toán cho editor Flutter ══════════
+  // Dart dựng UI + gọi các hàm này để normalize/tính, KHÔNG lặp công thức.
+
+  /** Default data CPSX NC (điện/lương/mực/thời gian) để seed editor. */
+  cpsxUpgradeDefaults: () =>
+    JSON.stringify({
+      electric: DEFAULT_CPSX_UPGRADE_ELECTRIC,
+      labor: DEFAULT_CPSX_UPGRADE_LABOR,
+      ink: DEFAULT_CPSX_UPGRADE_INK,
+      thoigian: DEFAULT_CPSX_UPGRADE_THOIGIAN,
+    }),
+
+  // ── Điện ──
+  chuanHoaCpsxUpgradeElectric: (rawJson: string) => {
+    try {
+      return JSON.stringify(chuanHoaCpsxUpgradeElectric(JSON.parse(rawJson), DEFAULT_CPSX_UPGRADE_ELECTRIC));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+  dinhDangGioMask: (raw: string) => {
+    try { return JSON.stringify(dinhDangGioMask(raw)); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+  tinhSoGioTuKhungGio: (startJson: string, endJson: string) => {
+    try {
+      const start = startJson === '' ? undefined : JSON.parse(startJson);
+      const end = endJson === '' ? undefined : JSON.parse(endJson);
+      return JSON.stringify(tinhSoGioTuKhungGio(start, end));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+  tinhGiaDienTbCong: (stateJson: string) => {
+    try {
+      const st = JSON.parse(stateJson);
+      return JSON.stringify(tinhGiaDienTbCong(st.slots ?? []));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+  tinhGiaDienTbTrongSo: (stateJson: string) => {
+    try {
+      const st = JSON.parse(stateJson);
+      return JSON.stringify(tinhGiaDienTbTrongSo(st.slots ?? []));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+  tinhDienMoiPhut: (powerKw: number, efficiency: number, appliedJson: string) => {
+    try {
+      const applied = appliedJson === '' || appliedJson === 'null' ? null : JSON.parse(appliedJson);
+      return JSON.stringify(tinhDienMoiPhut(powerKw, efficiency, applied));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+  dongBoGiaDangApSauSuaSlot: (stateJson: string) => {
+    try {
+      return JSON.stringify(dongBoGiaDangApSauSuaSlot(JSON.parse(stateJson)));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  // ── Lương ──
+  chuanHoaCpsxUpgradeLabor: (rawJson: string) => {
+    try {
+      return JSON.stringify(chuanHoaCpsxUpgradeLabor(JSON.parse(rawJson), DEFAULT_CPSX_UPGRADE_LABOR));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+  taoMayTinhWorkspaceMacDinh: () => {
+    try { return JSON.stringify(taoMayTinhWorkspaceMacDinh()); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+  tokenHoaBieuThuc: (raw: string) => {
+    try { return JSON.stringify(tokenHoaBieuThuc(raw)); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+  tinhBieuThuc: (tokensJson: string, paramsJson: string) => {
+    try {
+      return JSON.stringify(tinhBieuThuc(JSON.parse(tokensJson), JSON.parse(paramsJson)));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+
+  // ── Mực / dung môi / keo ──
+  chuanHoaCpsxUpgradeInk: (rawJson: string) => {
+    try {
+      const d = DEFAULT_CPSX_UPGRADE_INK;
+      return JSON.stringify(chuanHoaCpsxUpgradeInk(JSON.parse(rawJson), d.opp, d.pet, d.pe, d.solventAdhesive, d.dinhMucIn, d.dinhMucGhep));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+  tinhGiaMucTbCong: (tableJson: string) => {
+    try { return JSON.stringify(tinhGiaMucTbCong(JSON.parse(tableJson).rows ?? [])); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+  tinhGiaMucTbTrongSo: (tableJson: string) => {
+    try { return JSON.stringify(tinhGiaMucTbTrongSo(JSON.parse(tableJson).rows ?? [])); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+  tinhGiaKeoTbCong: (tableJson: string) => {
+    try { return JSON.stringify(tinhGiaKeoTbCong(JSON.parse(tableJson).rows ?? [])); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+  tinhGiaKeoTbTrongSo: (tableJson: string) => {
+    try { return JSON.stringify(tinhGiaKeoTbTrongSo(JSON.parse(tableJson).rows ?? [])); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+  tinhCpMucInMoiM2: (inkJson: string) => {
+    try { return JSON.stringify(tinhCpMucInMoiM2(JSON.parse(inkJson))); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+  lapBangGiaInTheoMau: (inkJson: string) => {
+    try { return JSON.stringify(lapBangGiaInTheoMau(JSON.parse(inkJson))); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+
+  // ── Thời gian SX ──
+  chuanHoaCpsxUpgradeThoiGian: (rawJson: string) => {
+    try {
+      return JSON.stringify(chuanHoaCpsxUpgradeThoiGian(JSON.parse(rawJson), DEFAULT_CPSX_UPGRADE_THOIGIAN));
+    } catch (e: any) {
+      return JSON.stringify({ error: String(e && e.message ? e.message : e) });
+    }
+  },
+  catalogLoaiTuiSetup: () => {
+    try { return JSON.stringify(CATALOG_LOAI_TUI_SETUP); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+  tinhThoiGianMayIn: (cfgJson: string, inputJson: string) => {
+    try { return JSON.stringify(tinhThoiGianMayIn(JSON.parse(cfgJson), JSON.parse(inputJson))); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+  tinhThoiGianMayGhep: (cfgJson: string, inputJson: string) => {
+    try { return JSON.stringify(tinhThoiGianMayGhep(JSON.parse(cfgJson), JSON.parse(inputJson))); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+  tinhThoiGianMayChia: (cfgJson: string, inputJson: string) => {
+    try { return JSON.stringify(tinhThoiGianMayChia(JSON.parse(cfgJson), JSON.parse(inputJson))); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+  tinhThoiGianMayTui: (cfgJson: string, inputJson: string) => {
+    try { return JSON.stringify(tinhThoiGianMayTui(JSON.parse(cfgJson), JSON.parse(inputJson))); }
+    catch (e: any) { return JSON.stringify({ error: String(e && e.message ? e.message : e) }); }
+  },
+
+  version: '0.5.0',
 };

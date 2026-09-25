@@ -136,9 +136,13 @@ class PricingServerMapper {
     QuotationPricingSheetOrdersByQuotationApi? quotation,
   ]) {
     final iv = order.inputValue ?? const <String, dynamic>{};
-    // Ép derive số LSX từ versionByMonth (BE b6028b0); giữ số cũ trong
-    // inputValue nếu order chưa có STT (dữ liệu lỗi).
+    // Manual = inputValue bỏ key lsxSnapshot; snapshot ưu tiên lsxSnapshot đã lưu
+    // (mirror web ModuleDanhSachLSX: manualTuServer + lsxSnapshotTuInputValue).
     final manual = Map<String, dynamic>.from(iv);
+    final snapshotLuu = manual.remove('lsxSnapshot');
+    final snapshot = (snapshotLuu is Map)
+        ? snapshotLuu.cast<String, dynamic>()
+        : Map<String, dynamic>.from(iv);
     final soDerive = soLsxTuOrder(OrderCoPhienBan(
       createdAt: order.createdAt,
       versionByMonth: order.versionByMonth,
@@ -167,7 +171,7 @@ class PricingServerMapper {
       nguoiLap: nguoiLap,
       nguoiLapAvatar: order.actorAvatarUrl ?? quotation?.actorAvatarUrl,
       manual: manual,
-      snapshot: iv,
+      snapshot: snapshot,
     );
   }
 

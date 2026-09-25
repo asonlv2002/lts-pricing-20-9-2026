@@ -54,6 +54,10 @@ await build({
   },
   // QuickJS không có Node global; tránh inject
   define: { 'process.env.NODE_ENV': '"production"' },
+  // Polyfill structuredClone TRƯỚC mọi module (data.ts gọi normalizer lúc load).
+  banner: {
+    js: 'if(typeof globalThis.structuredClone!=="function"){globalThis.structuredClone=function(v){return JSON.parse(JSON.stringify(v));};}',
+  },
 });
 
 console.log('\n✓ Đã build engine bundle:', out);

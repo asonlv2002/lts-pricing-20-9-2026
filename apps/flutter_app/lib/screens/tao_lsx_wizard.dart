@@ -22,11 +22,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../api/service_lts_client.dart';
+import '../engine/js_runtime.dart';
+import '../engine/models.dart';
 import '../store/app_state.dart';
 import '../theme/lts_tokens.dart';
 import '../widgets/auth/pin_sheets.dart';
 import '../widgets/lts/lts_surfaces.dart';
 import '../widgets/lts/lts_toast.dart';
+import 'package:lts_pricing/lib/lsx_manual.dart';
 
 class TaoLsxWizard extends StatefulWidget {
   /// Optional: pre-fill khi bấm "Tạo LSX" từ 1 báo giá cụ thể (DanhSachBG).
@@ -304,22 +307,25 @@ class _TaoLsxWizardState extends State<TaoLsxWizard> {
     // Bước B: PATCH inputValue với thông tin LSX + snapshot input cũ.
     // Key 'lsxSnapshot' khớp web (LSX_SNAPSHOT_KEY trong lsx-build-order.ts) —
     // card LSX + PDF đọc KH/SP/cấu trúc + field kỹ thuật từ đây.
+    //
+    // Dựng manual đầy đủ (mirror web buildManualFromSource) từ inputValue của
+    // sheet + đặc tả nâng cao nếu có; sau đó ghi đè các field user nhập tay.
+    final manual = _dungManual(s, sheet, bg);
+    manual.set('lsxNumber', (manual.getStr('lsxNumber').isNotEmpty)
+        ? manual.getStr('lsxNumber')
+        : _soLsxMacDinh(s, bg));
+    if (_ghiChuCtrl.text.trim().isNotEmpty) {
+      manual.set('notes', _ghiChuCtrl.text.trim());
+    }
+    if (_ngayGiaoCtrl.text.trim().isNotEmpty) {
+      manual.set('deliveryDate', _ngayGiaoCtrl.text.trim());
+    }
+    if (_thanhToanCtrl.text.trim().isNotEmpty) {
+      manual.set('deliveryNotes', _thanhToanCtrl.text.trim());
+    }
     final inputValue = <String, dynamic>{
-      ...sheet.inputValue,
-      'lsxNote': _ghiChuCtrl.text.trim(),
-      if (_ngayGiaoCtrl.text.trim().isNotEmpty)
-        'deliveryDate': _ngayGiaoCtrl.text.trim(),
-      if (_thanhToanCtrl.text.trim().isNotEmpty)
-        'paymentTerms': _thanhToanCtrl.text.trim(),
-      'lsxSnapshot': {
-        ...sheet.inputValue,
-        'customer': _kh?.moiNhat?.organizationName ?? _kh?.codeName ?? '',
-        'productName': (sheet.inputValue['productName'] as String?) ??
-            sheet.pricingSheetName,
-        'structure': sheet.inputValue['structure'],
-        'pricingSheetId': sheet.id,
-        'quotationId': bg.id,
-      },
+      ...manual.toJson(),
+      'lsxSnapshot': _dungSnapshot(s, sheet, bg, manual),
     };
     final updated = await updateQuotationPricingSheetOrderService(
       token,
@@ -328,6 +334,127 @@ class _TaoLsxWizardState extends State<TaoLsxWizard> {
     );
     await s.taiProductionOrdersTuServer();
     return updated;
+  }
+
+  /// Số LSX dự phòng (server cấp versionByMonth — dùng nếu có).
+  String _soLsxMacDinh(AppState s, BaoGiaApi bg) {
+    for (final o in s.productionOrders) {
+      if (o.quoteId == bg.id && o.manual['lsxNumber'] is String) {
+        return o.manual['lsxNumber'] as String;
+      }
+    }
+    return '';
+  }
+
+  /// Dựng `LsxManual` đầy đủ từ sheet (mirror buildManualFromSource).
+  LsxManual _dungManual(
+    AppState s,
+    PricingSheetApi sheet,
+    BaoGiaApi bg,
+  ) {
+    final si = sheet.inputValue;
+    final source = _dungSource(sheet, bg);
+    return buildManualFromSource(
+      source,
+      materials: s.materials,
+      productionOrders: s.productionOrders,
+      preparedBy: s.nguoiDungHienTai?.fullName ?? '',
+      tinhLai: (input) {
+        try {
+          return EngineService.instance.calculate(
+            input: CalculateInput.fromJson(input),
+            materials: s.materials,
+            constants: s.constants,
+            profitTable: s.profitTable,
+            smallWidthPrices: s.smallWidthPrices,
+          );
+        } catch (_) {
+          return null;
+        }
+      },
+      bagInfo: classifyLsxBagType(si['bagType']?.toString() ?? ''),
+    );
+  }
+
+  Map<String, dynamic> _dungSnapshot(
+    AppState s,
+    PricingSheetApi sheet,
+    BaoGiaApi bg,
+    LsxManual manual,
+  ) {
+    final source = _dungSource(sheet, bg);
+    final snap = buildSnapshotFromSource(source, manual, s.materials);
+    return {
+      ...snap,
+      'customer': _kh?.moiNhat?.organizationName ?? _kh?.codeName ?? '',
+      'productName': (sheet.inputValue['productName'] as String?) ??
+          sheet.pricingSheetName,
+      'structure': sheet.inputValue['structure'],
+      'pricingSheetId': sheet.id,
+      'quotationId': bg.id,
+    };
+  }
+
+  /// Dựng `LsxSourceData` từ pricing sheet + báo giá (mirror web quote-to-lsx
+  /// + mapSheetToProduct): gồm bagSpec, terms, đặc tả nâng cao snap.
+  LsxSourceData _dungSource(PricingSheetApi sheet, BaoGiaApi bg) {
+    final iv = bg.inputValue ?? const {};
+    final si = sheet.inputValue;
+    // Đặc tả túi từ productBagSpecs của báo giá (khớp pricingSheetId).
+    Map<String, dynamic>? spec;
+    final bagSpecs = (iv['productBagSpecs'] as List?) ?? const [];
+    for (final e in bagSpecs) {
+      if (e is Map &&
+          (e['pricingSheetId'] == sheet.id ||
+              e['sourceHistoryItemId'] == sheet.id)) {
+        spec = (e['bagSpec'] as Map?)?.cast<String, dynamic>();
+        break;
+      }
+    }
+    double? numOr(Map<String, dynamic>? m, String k) =>
+        (m?[k] as num?)?.toDouble();
+    return LsxSourceData(
+      id: sheet.id,
+      customer: _kh?.moiNhat?.organizationName ?? _kh?.codeName ?? '',
+      productName: (sheet.inputValue['productName'] as String?) ??
+          sheet.pricingSheetName ??
+          '',
+      structure: sheet.inputValue['structure']?.toString() ?? '',
+      finalPrice: numOr(si, 'chotGia') ?? 0,
+      chotGia: numOr(si, 'chotGia'),
+      input: si,
+      hasHalfMoonBottom: spec?['hasHalfMoonBottom'] == true,
+      bagWidthMm: numOr(spec, 'widthMm'),
+      bagLengthMm: numOr(spec, 'lengthMm'),
+      bottomFollows: spec?['bottomFollows']?.toString(),
+      structureSwapped: spec?['structureSwapped'] == true,
+      zipperDistanceMm: numOr(spec, 'zipperDistanceMm'),
+      hasSongSieuAm: spec?['hasSongSieuAm'] == true,
+      songSieuAmMm: numOr(spec, 'songSieuAmMm'),
+      sideSealMm: numOr(spec, 'sideSealMm'),
+      headSealMm: spec?['hasHeadSeal'] == true ? numOr(spec, 'headSealMm') : null,
+      hasTearNotch: spec?['hasTearNotch'] == true,
+      tearNotchFromTopMm: numOr(spec, 'tearNotchFromTopMm'),
+      hasHangHole: spec?['hasHangHole'] == true,
+      hangHoleDescription: spec?['hangHoleDescription']?.toString(),
+      hasHandleHole: spec?['hasHandleHole'] == true,
+      handleHoleDescription: spec?['handleHoleDescription']?.toString(),
+      hasBottomSeal: spec?['hasBottomSeal'] == true,
+      bottomSealMm: numOr(spec, 'bottomSealMm'),
+      gussetMm: numOr(spec, 'gussetMm'),
+      lidMm: numOr(spec, 'lidMm'),
+      backSealMm: numOr(spec, 'backSealMm'),
+      standupBottomSideMm: numOr(spec, 'standupBottomSideMm'),
+      nangCaoSpec: (si['nangCaoSpec'] as List?) ??
+          (iv['nangCaoSpec'] as List?),
+      outsourceSteps: ((si['outsource'] as Map?)?['steps'] as List?)
+          ?.map((e) => e.toString())
+          .toList(),
+      rollLengthM: numOr(spec, 'rollLengthM'),
+      chieuRaCuonMang: spec?['chieuRaCuonMang']?.toString(),
+      stageNotes: spec?['stageNotes'] as List?,
+      stageDescriptions: spec?['stageDescriptions'] as List?,
+    );
   }
 
   @override
@@ -678,7 +805,7 @@ class _TaoLsxWizardState extends State<TaoLsxWizard> {
                                     style: TextStyle(
                                         fontSize: 11.5,
                                         fontWeight: FontWeight.w600,
-                                        color: const Color(0xFF15803D))),
+                                        color: Color(0xFF15803D))),
                               ),
                             ],
                           ),

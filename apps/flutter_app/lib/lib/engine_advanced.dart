@@ -265,4 +265,124 @@ class EngineAdvanced {
     ]) as String;
     return (jsonDecode(raw) as num).toInt();
   }
+
+  // ── P6: CPSX nâng cao (editor) ─────────────────────────────────────────────
+
+  /// Default data CPSX NC (điện/lương/mực/thời gian) — seed editor.
+  Map<String, dynamic> cpsxUpgradeDefaults() {
+    final raw = _call('cpsxUpgradeDefaults', const []) as String;
+    return (jsonDecode(raw) as Map).cast<String, dynamic>();
+  }
+
+  Map<String, dynamic> chuanHoaDien(Map<String, dynamic> raw) =>
+      _callMap('chuanHoaCpsxUpgradeElectric', [jsonEncode(raw)]);
+
+  String dinhDangGioMask(String raw) =>
+      jsonDecode(_call('dinhDangGioMask', [raw]) as String) as String;
+
+  double? tinhSoGioTuKhungGio(String? start, String? end) {
+    final raw = _call('tinhSoGioTuKhungGio', [
+      start == null ? '' : jsonEncode(start),
+      end == null ? '' : jsonEncode(end),
+    ]) as String;
+    final v = jsonDecode(raw);
+    return v == null ? null : (v as num).toDouble();
+  }
+
+  double tinhGiaDienTbCong(List<dynamic> slots) {
+    final raw = _call('tinhGiaDienTbCong', [jsonEncode({'slots': slots})]) as String;
+    return (jsonDecode(raw) as num).toDouble();
+  }
+
+  double tinhGiaDienTbTrongSo(List<dynamic> slots) {
+    final raw =
+        _call('tinhGiaDienTbTrongSo', [jsonEncode({'slots': slots})]) as String;
+    return (jsonDecode(raw) as num).toDouble();
+  }
+
+  double? tinhDienMoiPhut(double powerKw, double efficiency, double? applied) {
+    final raw = _call('tinhDienMoiPhut', [
+      powerKw,
+      efficiency,
+      applied == null ? 'null' : jsonEncode(applied),
+    ]) as String;
+    final v = jsonDecode(raw);
+    return v == null ? null : (v as num).toDouble();
+  }
+
+  Map<String, dynamic> dongBoGiaDangApSauSuaSlot(Map<String, dynamic> state) =>
+      _callMap('dongBoGiaDangApSauSuaSlot', [jsonEncode(state)]);
+
+  Map<String, dynamic> chuanHoaLuong(Map<String, dynamic> raw) =>
+      _callMap('chuanHoaCpsxUpgradeLabor', [jsonEncode(raw)]);
+
+  Map<String, dynamic> taoMayTinhWorkspaceMacDinh() =>
+      _callMap('taoMayTinhWorkspaceMacDinh', const []);
+
+  dynamic tokenHoaBieuThuc(String raw) {
+    final res = _call('tokenHoaBieuThuc', [raw]) as String;
+    return jsonDecode(res);
+  }
+
+  dynamic tinhBieuThuc(dynamic tokens, Map<String, dynamic> params) {
+    final res = _call('tinhBieuThuc', [jsonEncode(tokens), jsonEncode(params)]) as String;
+    return jsonDecode(res);
+  }
+
+  Map<String, dynamic> chuanHoaMuc(Map<String, dynamic> raw) =>
+      _callMap('chuanHoaCpsxUpgradeInk', [jsonEncode(raw)]);
+
+  double tinhGiaMucTbCong(Map<String, dynamic> table) {
+    final raw = _call('tinhGiaMucTbCong', [jsonEncode(table)]) as String;
+    return (jsonDecode(raw) as num).toDouble();
+  }
+
+  double tinhGiaMucTbTrongSo(Map<String, dynamic> table) {
+    final raw = _call('tinhGiaMucTbTrongSo', [jsonEncode(table)]) as String;
+    return (jsonDecode(raw) as num).toDouble();
+  }
+
+  double tinhGiaKeoTbCong(Map<String, dynamic> table) {
+    final raw = _call('tinhGiaKeoTbCong', [jsonEncode(table)]) as String;
+    return (jsonDecode(raw) as num).toDouble();
+  }
+
+  double tinhGiaKeoTbTrongSo(Map<String, dynamic> table) {
+    final raw = _call('tinhGiaKeoTbTrongSo', [jsonEncode(table)]) as String;
+    return (jsonDecode(raw) as num).toDouble();
+  }
+
+  dynamic tinhCpMucInMoiM2(Map<String, dynamic> ink) {
+    final res = _call('tinhCpMucInMoiM2', [jsonEncode(ink)]) as String;
+    return jsonDecode(res);
+  }
+
+  List<dynamic> lapBangGiaInTheoMau(Map<String, dynamic> ink) =>
+      _callList('lapBangGiaInTheoMau', [jsonEncode(ink)]);
+
+  Map<String, dynamic> chuanHoaThoiGian(Map<String, dynamic> raw) =>
+      _callMap('chuanHoaCpsxUpgradeThoiGian', [jsonEncode(raw)]);
+
+  List<dynamic> catalogLoaiTuiSetup() =>
+      _callList('catalogLoaiTuiSetup', const []);
+
+  dynamic tinhThoiGianMayIn(Map<String, dynamic> cfg, Map<String, dynamic> input) {
+    final res = _call('tinhThoiGianMayIn', [jsonEncode(cfg), jsonEncode(input)]) as String;
+    return jsonDecode(res);
+  }
+
+  dynamic tinhThoiGianMayGhep(Map<String, dynamic> cfg, Map<String, dynamic> input) {
+    final res = _call('tinhThoiGianMayGhep', [jsonEncode(cfg), jsonEncode(input)]) as String;
+    return jsonDecode(res);
+  }
+
+  dynamic tinhThoiGianMayChia(Map<String, dynamic> cfg, Map<String, dynamic> input) {
+    final res = _call('tinhThoiGianMayChia', [jsonEncode(cfg), jsonEncode(input)]) as String;
+    return jsonDecode(res);
+  }
+
+  dynamic tinhThoiGianMayTui(Map<String, dynamic> cfg, Map<String, dynamic> input) {
+    final res = _call('tinhThoiGianMayTui', [jsonEncode(cfg), jsonEncode(input)]) as String;
+    return jsonDecode(res);
+  }
 }

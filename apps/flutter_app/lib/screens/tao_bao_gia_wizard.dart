@@ -25,6 +25,7 @@ import '../store/app_state.dart';
 import '../theme/lts_tokens.dart';
 import '../widgets/lts/lts_surfaces.dart';
 import '../widgets/lts/lts_toast.dart';
+import 'package:lts_pricing/lib/quote_terms.dart';
 
 class TaoBaoGiaWizard extends StatefulWidget {
   /// Optional: khi user bấm "Tạo BG" từ calculator, có sẵn KH từ input.
@@ -58,7 +59,12 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
   final Set<String> _selectedSheetIds = <String>{};
   final TextEditingController _tenCtrl = TextEditingController();
   final TextEditingController _moTaCtrl = TextEditingController();
+  final TextEditingController _diaChiCtrl = TextEditingController();
+  final TextEditingController _ghiChuTermsCtrl = TextEditingController();
   bool _nopDuyetNgay = false;
+
+  /// Điều khoản báo giá (mirror WizardState.terms của web).
+  QuoteTerms _terms = const QuoteTerms();
 
   List<KhachHang> _dsKh = const [];
   List<PricingSheetApi> _dsSheet = const [];
@@ -84,6 +90,8 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
   void dispose() {
     _tenCtrl.dispose();
     _moTaCtrl.dispose();
+    _diaChiCtrl.dispose();
+    _ghiChuTermsCtrl.dispose();
     super.dispose();
   }
 
@@ -208,6 +216,7 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
               : _moTaCtrl.text.trim(),
           inputValue: {
             'quotationName': _tenCtrl.text.trim(),
+            'terms': _terms.toJson(),
             if (widget.prefillCustomerName != null)
               'customer': widget.prefillCustomerName,
           },
@@ -590,7 +599,133 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
         ),
+        const SizedBox(height: 16),
+        Text('Điều khoản sản xuất',
+            style: TextStyle(
+                fontSize: 12.5, fontWeight: FontWeight.w800, color: p.text)),
+        const SizedBox(height: 8),
+        _TermsDropdown(
+          label: 'Số lượng thành phẩm có thể tăng hoặc giảm so với ĐĐH:',
+          value: _terms.quantityTolerance > 0
+              ? '±${_terms.quantityTolerance.round()}%'
+              : '',
+          options: dungSaiOptions.map((o) => '±$o').toList(),
+          onChanged: (val) {
+            final num = int.tryParse(val.replaceAll(RegExp(r'[±%]'), '')) ?? 10;
+            setState(() => _terms = _terms.copyWith(quantityTolerance: num.toDouble()));
+          },
+        ),
+        const SizedBox(height: 10),
+        _TermsDropdown(
+          label: 'Yêu cầu kỹ thuật',
+          value: _terms.techRequirement,
+          options: yeuCauKyThuatOptions,
+          onChanged: (val) =>
+              setState(() => _terms = _terms.copyWith(techRequirement: val)),
+        ),
+        const SizedBox(height: 16),
+        Text('Điều khoản báo giá',
+            style: TextStyle(
+                fontSize: 12.5, fontWeight: FontWeight.w800, color: p.text)),
+        const SizedBox(height: 8),
+        _TermsDropdown(
+          label: 'VAT hàng hóa (%)',
+          value: '${_terms.vatRate.round()}%',
+          options: vatOptions,
+          onChanged: (val) => setState(() =>
+              _terms = _terms.copyWith(vatRate: double.tryParse(val.replaceAll('%', '')) ?? 0)),
+        ),
+        const SizedBox(height: 10),
+        _TermsDropdown(
+          label: 'VAT trục in (%)',
+          value: '${_terms.vatCylinderRate.round()}%',
+          options: vatOptions,
+          onChanged: (val) => setState(() =>
+              _terms = _terms.copyWith(vatCylinderRate: double.tryParse(val.replaceAll('%', '')) ?? 0)),
+        ),
+        const SizedBox(height: 10),
+        _TermsDropdown(
+          label: 'Hiệu lực (ngày)',
+          value: '${_terms.validityDays.round()} ngày',
+          options: hieuLucOptions,
+          onChanged: (val) => setState(() => _terms = _terms.copyWith(
+              validityDays:
+                  double.tryParse(val.replaceAll(RegExp(r'[^0-9]'), '')) ?? 30)),
+        ),
+        const SizedBox(height: 10),
+        _TermsDropdown(
+          label: 'Điều khoản thanh toán',
+          value: _terms.paymentTerms,
+          options: thanhToanOptions,
+          onChanged: (val) =>
+              setState(() => _terms = _terms.copyWith(paymentTerms: val)),
+        ),
+        const SizedBox(height: 10),
+        _TermsDropdown(
+          label: 'Thời gian giao hàng',
+          value: _terms.deliveryTime,
+          options: giaoHangOptions,
+          onChanged: (val) =>
+              setState(() => _terms = _terms.copyWith(deliveryTime: val)),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _diaChiCtrl,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: 'Địa điểm giao hàng',
+            hintText: 'Nhập địa điểm giao hàng…',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (v) => _terms = _terms.copyWith(deliveryAddress: v),
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: _ghiChuTermsCtrl,
+          maxLines: 2,
+          decoration: const InputDecoration(
+            labelText: 'Ghi chú điều khoản',
+            hintText: 'Ghi chú thêm cho báo giá…',
+            border: OutlineInputBorder(),
+          ),
+          onChanged: (v) => _terms = _terms.copyWith(notes: v),
+        ),
       ],
+    );
+  }
+}
+
+/// Dropdown điều khoản (mirror ComboBoxDieuKhoan) — cho phép giá trị ngoài list.
+class _TermsDropdown extends StatelessWidget {
+  final String label;
+  final String value;
+  final List<String> options;
+  final ValueChanged<String> onChanged;
+  const _TermsDropdown({
+    required this.label,
+    required this.value,
+    required this.options,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final all = <String>{...options, if (value.isNotEmpty) value}.toList();
+    return DropdownButtonFormField<String>(
+      initialValue: value.isEmpty ? null : value,
+      isExpanded: true,
+      decoration: InputDecoration(
+        labelText: label,
+        border: const OutlineInputBorder(),
+        isDense: true,
+      ),
+      items: [
+        for (final o in all)
+          DropdownMenuItem(value: o, child: Text(o, style: const TextStyle(fontSize: 13))),
+      ],
+      onChanged: (v) {
+        if (v != null) onChanged(v);
+      },
     );
   }
 }

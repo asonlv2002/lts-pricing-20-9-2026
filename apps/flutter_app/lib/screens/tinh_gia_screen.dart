@@ -24,7 +24,6 @@ import '../theme/format.dart';
 import '../theme/lts_tokens.dart';
 import 'package:lts_pricing/lib/chot_gia_allocation.dart';
 import 'package:lts_pricing/lib/pricing_display.dart';
-import 'package:lts_pricing/lib/pricing_pdf.dart';
 import '../widgets/chot_gia_section.dart';
 import '../widgets/detail_tables.dart';
 import '../widgets/form_widgets.dart';
@@ -510,7 +509,8 @@ class _ResultActionBar extends StatelessWidget {
           ),
           if (r != null)
             OutlinedButton.icon(
-              onPressed: () => PricingPdf.xemTruoc(state),
+              onPressed: () => state.xuatChiTietA4(
+                  state.chiTietExportHienTai()),
               icon: const Icon(Icons.visibility_outlined, size: 18),
               label: const Text('Xem'),
             ),

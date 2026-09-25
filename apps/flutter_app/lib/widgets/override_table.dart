@@ -44,6 +44,11 @@ class _OverrideTableSectionState extends State<OverrideTableSection> {
   double get _profitPct =>
       widget.isSale ? s.saleProfitRatePct : s.adminProfitRatePct;
 
+  /// Tỷ lệ LN mặc định (tra bảng) — mirror web `defaultProfitRatePct`.
+  double get _macDinhPct => widget.isSale
+      ? s.saleTyLeLoiNhuanMacDinh
+      : s.adminTyLeLoiNhuanMacDinh;
+
   void _setOv(String rowKey, String field, dynamic value) {
     if (widget.isSale) {
       s.setSaleOverride(rowKey, field, value);
@@ -246,6 +251,7 @@ class _OverrideTableSectionState extends State<OverrideTableSection> {
           _ProfitRateRow(
             duocSua: widget.duocSua,
             pct: _profitPct,
+            macDinhPct: _macDinhPct,
             onChanged: (v) => widget.isSale
                 ? s.setSaleProfitRatePct(v)
                 : s.setAdminProfitRatePct(v),
@@ -1016,11 +1022,13 @@ class _OverrideTableSectionState extends State<OverrideTableSection> {
 class _ProfitRateRow extends StatefulWidget {
   final bool duocSua;
   final double pct;
+  final double macDinhPct;
   final ValueChanged<double> onChanged;
   final double ln;
   const _ProfitRateRow({
     required this.duocSua,
     required this.pct,
+    required this.macDinhPct,
     required this.onChanged,
     required this.ln,
   });
@@ -1077,10 +1085,11 @@ class _ProfitRateRowState extends State<_ProfitRateRow> {
             controller: _ctrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-            decoration: const InputDecoration(
+            decoration: InputDecoration(
               isDense: true,
               suffixText: '%',
-              border: OutlineInputBorder(),
+              border: const OutlineInputBorder(),
+              hintText: widget.macDinhPct.toString(),
             ),
             onTap: () => _dangGo = true,
             onChanged: (v) {

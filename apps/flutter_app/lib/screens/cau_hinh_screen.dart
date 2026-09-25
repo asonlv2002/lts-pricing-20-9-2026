@@ -19,6 +19,7 @@ import '../widgets/lts/lts_toast.dart';
 import 'nhat_ky/nhat_ky_scope.dart';
 import 'nhat_ky_thao_tac_screen.dart';
 import 'phien_ban_cau_hinh_screen.dart';
+import 'cpsx_nang_cap_screen.dart';
 
 class CauHinhScreen extends StatelessWidget {
   const CauHinhScreen({super.key});
@@ -84,14 +85,17 @@ class CauHinhScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 16),
-              const LtsActionCard(
+              LtsActionCard(
                 iconBox: LtsIconBox(
                   icon: Icons.bolt_rounded,
                   variant: LtsIconVariant.slate,
                 ),
                 title: 'Chi phí sản xuất (nâng cao)',
-                subtitle: 'Cần đồng bộ server — dùng bản web',
-                locked: true,
+                subtitle: 'Điện · Lương · Mực · Thời gian SX',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const CpsxNangCapScreen()),
+                ),
               ),
               const SizedBox(height: 16),
               LtsActionCard(
@@ -673,21 +677,523 @@ class _ConstantsTab extends StatelessWidget {
                 integer: true, suffix: 'km'),
           ],
         ),
+        const SizedBox(height: 14),
+
+        // ── Hao hụt ghép / cắt (mirror web scope waste) ──
+        SectionCard(
+          title: 'Hao hụt Ghép / Cắt',
+          subtitle: 'A = mét, B/C = hệ số theo khổ',
+          icon: Icons.delete_sweep_outlined,
+          iconColor: AppColors.warning,
+          children: [
+            Text('GHÉP', style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: row('ghepWasteA', 'A', integer: true)),
+              const SizedBox(width: 10),
+              Expanded(child: row('ghepWasteB', 'B', integer: true)),
+              const SizedBox(width: 10),
+              Expanded(child: row('ghepWasteC', 'C', integer: true)),
+            ]),
+            const SizedBox(height: 12),
+            Text('CẮT', style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: row('cutWasteA', 'A', integer: true)),
+              const SizedBox(width: 10),
+              Expanded(child: row('cutWasteB', 'B', integer: true)),
+              const SizedBox(width: 10),
+              Expanded(child: row('cutWasteC', 'C', integer: true)),
+            ]),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── Phụ phí in: nhũ, phủ mờ (mirror web nhuPrice/moPrice) ──
+        SectionCard(
+          title: 'Phụ phí in',
+          subtitle: 'Nhũ / Phủ mờ (đ/m²)',
+          icon: Icons.auto_awesome_outlined,
+          iconColor: AppColors.info,
+          children: [
+            Row(children: [
+              Expanded(
+                  child: row('nhuPrice', 'Nhũ', integer: true, suffix: 'đ/m²')),
+              const SizedBox(width: 12),
+              Expanded(
+                  child:
+                      row('moPrice', 'Phủ mờ', integer: true, suffix: 'đ/m²')),
+            ]),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── Ngưỡng hệ số cắt (mirror web cutThreshold/cutMult) ──
+        SectionCard(
+          title: 'Hệ số cắt theo bước cắt',
+          subtitle: 'Ngưỡng (m) và hệ số nhân',
+          icon: Icons.content_cut_outlined,
+          iconColor: AppColors.muted,
+          children: [
+            Row(children: [
+              Expanded(
+                  child: row('cutThreshold1', 'Ngưỡng 1', suffix: 'm')),
+              const SizedBox(width: 12),
+              Expanded(child: row('cutMult1', 'Hệ số 1')),
+            ]),
+            Row(children: [
+              Expanded(
+                  child: row('cutThreshold2', 'Ngưỡng 2', suffix: 'm')),
+              const SizedBox(width: 12),
+              Expanded(child: row('cutMult2', 'Hệ số 2')),
+            ]),
+            row('cutMult3', 'Hệ số 3 (lớn)'),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── Cước vận chuyển màng in (mirror web printFilm* shipping/interest) ──
+        SectionCard(
+          title: 'Màng in — định mức',
+          subtitle: 'Setup / tốc độ / vận chuyển / lãi vay',
+          icon: Icons.print_outlined,
+          iconColor: AppColors.accent,
+          children: [
+            Row(children: [
+              Expanded(
+                  child: row('printFilmInkPriceBopp', 'Mực BOPP',
+                      integer: true, suffix: 'đ/m²')),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: row('printFilmInkPriceOther', 'Mực khác',
+                      integer: true, suffix: 'đ/m²')),
+            ]),
+            Row(children: [
+              Expanded(
+                  child: row('printFilmSetupMinutesPerColor',
+                      'Phút setup/màu')),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: row('printFilmSetupHourDivisor', 'Mẫu số giờ setup')),
+            ]),
+            Row(children: [
+              Expanded(
+                  child: row('printFilmLengthThreshold', 'Ngưỡng mét màng in',
+                      integer: true, suffix: 'm')),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: row('printFilmShortRunSpeed', 'Tốc độ chạy ngắn',
+                      integer: true, suffix: 'm/h')),
+            ]),
+            row('printFilmLaborCostPerHour', 'Chi phí giờ màng in',
+                integer: true, suffix: 'đ/h'),
+            Row(children: [
+              Expanded(
+                  child: row('printFilmShippingThresholdM2',
+                      'Ngưỡng VC (m²)', integer: true)),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: row('printFilmShippingLargeOrderM2',
+                      'Mốc đơn lớn (m²)', integer: true)),
+            ]),
+            row('printFilmShippingBaseCost', 'Phí VC cơ bản',
+                integer: true, suffix: 'đ'),
+            row('printFilmInterestRate', 'Lãi vay màng in',
+                hint: 'VD: 0.01 = 1%'),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── Thùng giấy (mirror web boxOptions) ──
+        _OptionsEditor(
+          tieuDe: 'Thùng giấy',
+          icon: Icons.inventory_outlined,
+          items: (c.raw['boxOptions'] as List?) ?? const [],
+          onChanged: (next) =>
+              s.setConstants(c.withField('boxOptions', next)),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Quai xách (mirror web handleOptions) ──
+        _OptionsEditor(
+          tieuDe: 'Quai xách',
+          icon: Icons.shopping_bag_outlined,
+          items: (c.raw['handleOptions'] as List?) ?? const [],
+          onChanged: (next) =>
+              s.setConstants(c.withField('handleOptions', next)),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Mốc công nợ thêm (mirror web customPaymentDays) ──
+        _SoListEditor(
+          tieuDe: 'Mốc công nợ thêm',
+          subtitle: 'Ngày (ngoài 14/30/45/75/90)',
+          icon: Icons.event_outlined,
+          values: ((c.raw['customPaymentDays'] as List?) ?? const [])
+              .map((e) => (e as num).toInt())
+              .toList(),
+          suffix: 'ngày',
+          onChanged: (next) =>
+              s.setConstants(c.withField('customPaymentDays', next)),
+        ),
         const SizedBox(height: 40),
       ],
     );
   }
 }
 
+// ── Options editor (key/label/price/weight) — mirror web boxOptions/handleOptions ─
+class _OptionsEditor extends StatelessWidget {
+  final String tieuDe;
+  final IconData icon;
+  final List<dynamic> items;
+  final ValueChanged<List<dynamic>> onChanged;
+  const _OptionsEditor({
+    required this.tieuDe,
+    required this.icon,
+    required this.items,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final list = items.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return SectionCard(
+      title: tieuDe,
+      subtitle: 'Nhãn · Giá · Khối lượng',
+      icon: icon,
+      iconColor: AppColors.success,
+      children: [
+        for (int i = 0; i < list.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Row(children: [
+              Expanded(
+                flex: 3,
+                child: _TextInline(
+                  value: (list[i]['label'] ?? '').toString(),
+                  onChanged: (v) {
+                    final next = list.map((e) => Map<String, dynamic>.of(e)).toList();
+                    next[i]['label'] = v;
+                    onChanged(next);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: _NumInline(
+                  value: ((list[i]['price'] as num?) ?? 0).toDouble(),
+                  onChanged: (v) {
+                    final next = list.map((e) => Map<String, dynamic>.of(e)).toList();
+                    next[i]['price'] = v;
+                    onChanged(next);
+                  },
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 2,
+                child: _NumInline(
+                  value: ((list[i]['weight'] as num?) ?? 0).toDouble(),
+                  onChanged: (v) {
+                    final next = list.map((e) => Map<String, dynamic>.of(e)).toList();
+                    next[i]['weight'] = v;
+                    onChanged(next);
+                  },
+                ),
+              ),
+            ]),
+          ),
+      ],
+    );
+  }
+}
+
+// ── Editor list số nguyên (customPaymentDays) ─────────────────────────────────
+class _SoListEditor extends StatefulWidget {
+  final String tieuDe;
+  final String subtitle;
+  final IconData icon;
+  final List<int> values;
+  final String suffix;
+  final ValueChanged<List<int>> onChanged;
+  const _SoListEditor({
+    required this.tieuDe,
+    required this.subtitle,
+    required this.icon,
+    required this.values,
+    required this.suffix,
+    required this.onChanged,
+  });
+
+  @override
+  State<_SoListEditor> createState() => _SoListEditorState();
+}
+
+class _SoListEditorState extends State<_SoListEditor> {
+  final _ctrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  void _them() {
+    final v = int.tryParse(_ctrl.text.replaceAll(RegExp(r'\D'), ''));
+    if (v == null || v <= 0 || widget.values.contains(v)) return;
+    widget.onChanged([...widget.values, v]..sort());
+    _ctrl.clear();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      title: widget.tieuDe,
+      subtitle: widget.subtitle,
+      icon: widget.icon,
+      iconColor: AppColors.info,
+      children: [
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (final v in widget.values)
+              Chip(
+                label: Text('$v ${widget.suffix}'),
+                onDeleted: () => widget.onChanged(
+                    widget.values.where((e) => e != v).toList()),
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Row(children: [
+          Expanded(
+            child: TextField(
+              controller: _ctrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                isDense: true,
+                border: OutlineInputBorder(),
+                hintText: 'Thêm mốc...',
+              ),
+              onSubmitted: (_) => _them(),
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton.filled(
+            onPressed: _them,
+            icon: const Icon(Icons.add, size: 18),
+          ),
+        ]),
+      ],
+    );
+  }
+}
+
+class _TextInline extends StatelessWidget {
+  final String value;
+  final ValueChanged<String> onChanged;
+  const _TextInline({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      initialValue: value,
+      decoration: const InputDecoration(
+        isDense: true,
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      ),
+      onChanged: onChanged,
+    );
+  }
+}
+
+class _NumInline extends StatelessWidget {
+  final double value;
+  final ValueChanged<double> onChanged;
+  const _NumInline({required this.value, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      initialValue: value == value.roundToDouble()
+          ? value.toInt().toString()
+          : value.toString(),
+      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+      textAlign: TextAlign.right,
+      decoration: const InputDecoration(
+        isDense: true,
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 10),
+      ),
+      onChanged: (v) => onChanged(double.tryParse(v) ?? 0),
+    );
+  }
+}
+
 // ── Profit table ─────────────────────────────────────────────────────────────
-class _ProfitTab extends StatelessWidget {
+// Mirror web "Bảng Lợi Nhuận" (TrangCauHinh.tsx:2786-3003):
+//   • Dropdown nhóm khách: Khách lớn (largeCol*) / Khách thường (col*).
+//   • Cột "Từ" (chặn dưới) + "Đến" (sửa ngưỡng, có ràng buộc).
+//   • 2 cột % LN (cột 2 = khách lớn/nhiều lớp, cột 1 = còn lại) — nhập trực tiếp.
+//   • Thêm mốc cuối (+10.000.000) / xoá mốc vừa thêm.
+// Ghi thẳng vào store (setProfitTable) — engine tự recompute (mirror web).
+class _ProfitTab extends StatefulWidget {
   const _ProfitTab();
+
+  @override
+  State<_ProfitTab> createState() => _ProfitTabState();
+}
+
+class _ProfitTabState extends State<_ProfitTab> {
+  bool _khachLon = false;
+  final Map<int, TextEditingController> _nguongCtrl = {};
+  final Map<int, TextEditingController> _pctCtrl = {};
+
+  bool get _chiDoc {
+    final s = context.read<AppState>();
+    final coQuyen = s.nguoiDungHienTai?.coQuyen('PRICE_CONFIG_MANAGER') ?? false;
+    // Guest (chưa đăng nhập) vẫn sửa được như web chưa login.
+    if (s.nguoiDungHienTai == null) return false;
+    return !coQuyen;
+  }
+
+  @override
+  void dispose() {
+    for (final c in _nguongCtrl.values) {
+      c.dispose();
+    }
+    for (final c in _pctCtrl.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  TextEditingController _ctrlCho(
+      Map<int, TextEditingController> map, int i, String initial) {
+    return map.putIfAbsent(i, () => TextEditingController(text: initial));
+  }
+
+  double _col(ProfitRow r, String key) {
+    switch (key) {
+      case 'largeCol1':
+        return r.largeCol1 ?? 0;
+      case 'largeCol2':
+        return r.largeCol2 ?? 0;
+      case 'col1':
+        return r.col1;
+      default:
+        return r.col2;
+    }
+  }
+
+  ProfitRow _withCol(ProfitRow r, String key, double v) {
+    switch (key) {
+      case 'largeCol1':
+        return ProfitRow(
+            threshold: r.threshold,
+            col1: r.col1,
+            col2: r.col2,
+            largeCol1: v,
+            largeCol2: r.largeCol2);
+      case 'largeCol2':
+        return ProfitRow(
+            threshold: r.threshold,
+            col1: r.col1,
+            col2: r.col2,
+            largeCol1: r.largeCol1,
+            largeCol2: v);
+      case 'col1':
+        return ProfitRow(
+            threshold: r.threshold,
+            col1: v,
+            col2: r.col2,
+            largeCol1: r.largeCol1,
+            largeCol2: r.largeCol2);
+      default:
+        return ProfitRow(
+            threshold: r.threshold,
+            col1: r.col1,
+            col2: v,
+            largeCol1: r.largeCol1,
+            largeCol2: r.largeCol2);
+    }
+  }
+
+  Future<void> _suaCol(int i, String key, double value) async {
+    final s = context.read<AppState>();
+    final rows = List<ProfitRow>.of(s.profitTable);
+    if (i < 0 || i >= rows.length) return;
+    rows[i] = _withCol(rows[i], key, value);
+    await s.setProfitTable(rows);
+  }
+
+  /// Commit ngưỡng dòng [i] từ draft — mirror `commitProfitThresholdDraft`
+  /// (profit-table-editor.ts:3): parse số, clamp trong (dòng trước, dòng sau),
+  /// bỏ nếu <= 0 hoặc không đổi.
+  Future<void> _luuNguong(int i) async {
+    final s = context.read<AppState>();
+    final rows = List<ProfitRow>.of(s.profitTable);
+    if (i < 0 || i >= rows.length) return;
+    final ctrl = _nguongCtrl[i];
+    if (ctrl == null) return;
+    final parsed = int.tryParse(ctrl.text.replaceAll(RegExp(r'\D'), '')) ?? 0;
+    if (parsed <= 0) {
+      ctrl.text = Fmt.n(rows[i].threshold);
+      return;
+    }
+    final min = i == 0 ? 1 : rows[i - 1].threshold.toInt() + 1;
+    final max = i < rows.length - 1
+        ? rows[i + 1].threshold.toInt() - 1
+        : 9007199254740991;
+    final threshold = parsed.clamp(min, max).toDouble();
+    ctrl.text = Fmt.n(threshold);
+    if (threshold == rows[i].threshold) return;
+    rows[i] = ProfitRow(
+      threshold: threshold,
+      col1: rows[i].col1,
+      col2: rows[i].col2,
+      largeCol1: rows[i].largeCol1,
+      largeCol2: rows[i].largeCol2,
+    );
+    await s.setProfitTable(rows);
+  }
+
+  Future<void> _themMoc() async {
+    final s = context.read<AppState>();
+    final rows = List<ProfitRow>.of(s.profitTable);
+    final dongCuoi = rows.isNotEmpty ? rows.last : null;
+    final mocMoi = (dongCuoi?.threshold ?? 0) + 10000000;
+    rows.add(ProfitRow(
+      threshold: mocMoi,
+      col1: dongCuoi?.col1 ?? 0,
+      col2: dongCuoi?.col2 ?? 0,
+      largeCol1: dongCuoi?.largeCol1 ?? 0,
+      largeCol2: dongCuoi?.largeCol2 ?? 0,
+    ));
+    await s.setProfitTable(rows);
+  }
+
+  Future<void> _xoaMocCuoi() async {
+    final s = context.read<AppState>();
+    final rows = List<ProfitRow>.of(s.profitTable);
+    // Mirror `removeLastAddedProfitRow`: chỉ xoá khi vượt độ dài bảng gốc.
+    if (rows.length <= s.profitTableMacDinh.length) return;
+    rows.removeLast();
+    await s.setProfitTable(rows);
+  }
 
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
     final rows = s.profitTable;
     final scheme = Theme.of(context).colorScheme;
+    final col1Key = _khachLon ? 'largeCol1' : 'col1';
+    final col2Key = _khachLon ? 'largeCol2' : 'col2';
+    final coTheXoa = rows.length > s.profitTableMacDinh.length;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
@@ -708,24 +1214,44 @@ class _ProfitTab extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 14),
+        // Dropdown nhóm khách hàng (mirror web select nhomKhachHang).
+        Row(children: [
+          Text('Nhóm khách hàng:',
+              style: TextStyle(fontSize: 12.5, color: LtsT.of(context).muted)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: DropdownField<String>(
+              options: const [('other', 'Khách thường'), ('svlg', 'Khách lớn')],
+              selected: _khachLon ? 'svlg' : 'other',
+              enabled: !_chiDoc,
+              onChanged: (v) => setState(() => _khachLon = v == 'svlg'),
+            ),
+          ),
+        ]),
+        const SizedBox(height: 12),
         Card(
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(children: [
               Expanded(
-                  flex: 4,
-                  child: Text('Tổng chi phí <',
+                  flex: 3,
+                  child: Text('Từ',
                       style: Theme.of(context).textTheme.labelMedium)),
               Expanded(
                   flex: 3,
-                  child: Center(
-                      child: Text('Cột 1',
-                          style: Theme.of(context).textTheme.labelMedium))),
+                  child: Text('Đến (ngưỡng)',
+                      style: Theme.of(context).textTheme.labelMedium)),
               Expanded(
-                  flex: 3,
+                  flex: 2,
                   child: Center(
                       child: Text('Cột 2',
                           style: Theme.of(context).textTheme.labelMedium))),
+              Expanded(
+                  flex: 2,
+                  child: Center(
+                      child: Text('Cột 1',
+                          style: Theme.of(context).textTheme.labelMedium))),
+              const SizedBox(width: 28),
             ]),
           ),
         ),
@@ -736,73 +1262,162 @@ class _ProfitTab extends StatelessWidget {
             child: Card(
               child: Padding(
                 padding:
-                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 child: Row(children: [
-                  Expanded(
-                    flex: 4,
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 24,
-                          height: 24,
-                          alignment: Alignment.center,
-                          decoration: BoxDecoration(
-                            color: scheme.primary.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text('${i + 1}',
-                              style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                  color: scheme.primary)),
-                        ),
-                        const SizedBox(width: 10),
-                        Flexible(
-                          child: Text(Fmt.vnd(rows[i].threshold),
-                              style: const TextStyle(
-                                  fontSize: 13, fontWeight: FontWeight.w700)),
-                        ),
-                      ],
-                    ),
-                  ),
+                  // "Từ" = ngưỡng dòng trước (chặn dưới).
                   Expanded(
                     flex: 3,
-                    child: Center(
-                      child: _PctChip(v: rows[i].col1, color: AppColors.muted),
+                    child: Text(
+                      Fmt.n(i == 0 ? 0 : rows[i - 1].threshold),
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: scheme.onSurfaceVariant),
                     ),
                   ),
+                  // "Đến" — input ngưỡng.
                   Expanded(
                     flex: 3,
-                    child: Center(
-                      child:
-                          _PctChip(v: rows[i].col2, color: AppColors.success),
+                    child: _InlineNum(
+                      controller: _ctrlCho(_nguongCtrl, i,
+                          Fmt.n(rows[i].threshold)),
+                      enabled: !_chiDoc,
+                      onCommit: () => _luuNguong(i),
                     ),
+                  ),
+                  // Cột 2 % LN.
+                  Expanded(
+                    flex: 2,
+                    child: Center(
+                      child: _PctField(
+                        controller: _ctrlCho(_pctCtrl, i * 2,
+                            _pctText(_col(rows[i], col2Key))),
+                        enabled: !_chiDoc,
+                        color: AppColors.success,
+                        onChanged: (v) => _suaCol(i, col2Key, v),
+                      ),
+                    ),
+                  ),
+                  // Cột 1 % LN.
+                  Expanded(
+                    flex: 2,
+                    child: Center(
+                      child: _PctField(
+                        controller: _ctrlCho(_pctCtrl, i * 2 + 1,
+                            _pctText(_col(rows[i], col1Key))),
+                        enabled: !_chiDoc,
+                        color: AppColors.muted,
+                        onChanged: (v) => _suaCol(i, col1Key, v),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    width: 28,
+                    child: (i == rows.length - 1 && coTheXoa && !_chiDoc)
+                        ? IconButton(
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            tooltip: 'Xóa mốc cuối',
+                            icon: const Icon(Icons.close,
+                                size: 18, color: AppColors.danger),
+                            onPressed: _xoaMocCuoi,
+                          )
+                        : const SizedBox.shrink(),
                   ),
                 ]),
               ),
             ),
           ),
+        const SizedBox(height: 6),
+        if (!_chiDoc)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: OutlinedButton.icon(
+              onPressed: _themMoc,
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Thêm mốc lợi nhuận'),
+            ),
+          ),
+        const SizedBox(height: 8),
+        Text(
+          'Tỉ lệ lợi nhuận tự động tính từ giá vốn. Các con số này có thể chỉnh sửa và tự động lưu.',
+          style: TextStyle(fontSize: 11.5, color: LtsT.of(context).muted),
+        ),
       ],
+    );
+  }
+
+  static String _pctText(double v) {
+    final pct = v * 100;
+    final rounded = (pct * 100).round() / 100;
+    return rounded == rounded.roundToDouble()
+        ? rounded.toInt().toString()
+        : rounded.toString();
+  }
+}
+
+/// Input số inline (ngưỡng) — commit khi rời ô / Enter.
+class _InlineNum extends StatelessWidget {
+  final TextEditingController controller;
+  final bool enabled;
+  final VoidCallback onCommit;
+  const _InlineNum(
+      {required this.controller, required this.enabled, required this.onCommit});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      enabled: enabled,
+      keyboardType: TextInputType.number,
+      textAlign: TextAlign.right,
+      style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
+      decoration: const InputDecoration(
+        isDense: true,
+        border: OutlineInputBorder(),
+        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      ),
+      onSubmitted: (_) => onCommit(),
+      onTapOutside: (_) {
+        onCommit();
+        FocusManager.instance.primaryFocus?.unfocus();
+      },
     );
   }
 }
 
-class _PctChip extends StatelessWidget {
-  final double v;
+/// Input % LN inline — cập nhật ngay khi gõ (mirror web onChange).
+class _PctField extends StatelessWidget {
+  final TextEditingController controller;
+  final bool enabled;
   final Color color;
-  const _PctChip({required this.v, required this.color});
+  final ValueChanged<double> onChanged;
+  const _PctField({
+    required this.controller,
+    required this.enabled,
+    required this.color,
+    required this.onChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+    return SizedBox(
+      width: 64,
+      child: TextField(
+        controller: controller,
+        enabled: enabled,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        textAlign: TextAlign.right,
+        style: TextStyle(
+            fontSize: 12.5, fontWeight: FontWeight.w700, color: color),
+        decoration: const InputDecoration(
+          isDense: true,
+          suffixText: '%',
+          border: OutlineInputBorder(),
+          contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+        ),
+        onChanged: (v) => onChanged((double.tryParse(v) ?? 0) / 100),
       ),
-      child: Text('${Fmt.pct(v)}%',
-          style: TextStyle(
-              fontSize: 12, fontWeight: FontWeight.w700, color: color)),
     );
   }
 }

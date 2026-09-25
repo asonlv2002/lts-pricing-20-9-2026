@@ -316,6 +316,15 @@ class _HistoryCard extends StatelessWidget {
                 Text(Fmt.dateTime(item.date),
                     style: Theme.of(context).textTheme.bodySmall),
                 const Spacer(),
+                // Xem chi tiết A4 (mirror web moXemA4).
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: 'Xem chi tiết A4',
+                  icon: Icon(Icons.picture_as_pdf_outlined,
+                      size: 18, color: scheme.primary),
+                  onPressed: () =>
+                      state.xuatChiTietA4(state.chiTietExportTuHistory(item)),
+                ),
                 // Nút đổi trạng thái
                 GestureDetector(
                   onTap: () => _showStatusMenu(context, item, state),

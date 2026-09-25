@@ -17,6 +17,9 @@ import '../engine/models.dart';
 import '../store/app_state.dart';
 import '../theme/format.dart';
 import '../theme/lts_tokens.dart';
+import 'package:lts_pricing/lib/file_share.dart';
+import 'package:lts_pricing/lib/lsx_docx.dart';
+import 'package:lts_pricing/lib/lsx_nang_cao.dart';
 import '../widgets/auth/pin_sheets.dart';
 import '../widgets/lts/lts_surfaces.dart';
 import '../widgets/lts/lts_toast.dart';
@@ -224,6 +227,16 @@ class _LSXScreenState extends State<LSXScreen> {
         name: 'LSX_${order.id}.pdf');
   }
 
+  Future<void> _xuatDocx(ProductionOrder order) async {
+    final bytes = LsxDocx.build(
+      soLsx: _soLsx(order),
+      snapshot: order.snapshot,
+      manual: order.manual,
+      nangCaoSpec: layNangCaoSpec(order),
+    );
+    await chiaSeTep(bytes, 'LSX_${order.id}.docx');
+  }
+
   @override
   Widget build(BuildContext context) {
     final s = context.watch<AppState>();
@@ -423,6 +436,7 @@ class _LSXScreenState extends State<LSXScreen> {
                     dangXuLy: _dangXuLyId == filtered[i].id,
                     onXem: () => _xem(filtered[i]),
                     onXuatPdf: () => _xuatPdf(filtered[i]),
+                    onXuatDocx: () => _xuatDocx(filtered[i]),
                     onDuyet: () => _duyet(filtered[i]),
                     onTuChoi: () => _tuChoi(filtered[i]),
                   ),
@@ -472,6 +486,7 @@ class _LSXCard extends StatelessWidget {
   final bool dangXuLy;
   final VoidCallback onXem;
   final VoidCallback onXuatPdf;
+  final VoidCallback onXuatDocx;
   final VoidCallback onDuyet;
   final VoidCallback onTuChoi;
 
@@ -481,6 +496,7 @@ class _LSXCard extends StatelessWidget {
     required this.dangXuLy,
     required this.onXem,
     required this.onXuatPdf,
+    required this.onXuatDocx,
     required this.onDuyet,
     required this.onTuChoi,
   });
@@ -584,6 +600,11 @@ class _LSXCard extends StatelessWidget {
                 tooltip: 'Xuất PDF',
                 onTap: onXuatPdf,
               ),
+              _actIcon(
+                icon: Icons.description_outlined,
+                tooltip: 'Xuất DOCX',
+                onTap: onXuatDocx,
+              ),
               if (coTheDuyet) ...[
                 if (dangXuLy)
                   const SizedBox(
@@ -632,10 +653,31 @@ class _LSXCard extends StatelessWidget {
 // ═══════════════════════════════════════════════════════════════════════════
 // PDF build — dùng chung cho Xem (PdfPreview) + Xuất PDF (Printing.layoutPdf)
 // ═══════════════════════════════════════════════════════════════════════════
+
+/// Map tên công đoạn trong nangCaoSpec → LsxStageKey (để thêm nhãn GIA CÔNG).
+LsxStageKey _stageKey(String congDoan) {
+  final cd = congDoan.toLowerCase();
+  if (cd.startsWith('ghép')) return LsxStageKey.ghep;
+  if (cd.startsWith('chia')) return LsxStageKey.chia;
+  if (cd.startsWith('làm túi')) return LsxStageKey.lamTui;
+  return LsxStageKey.inCd;
+}
+
+String _khoMangText(LsxNangCaoRow r) {
+  if (r.khoMangLabel != null && r.khoMangLabel!.trim().isNotEmpty) {
+    return r.khoMangLabel!;
+  }
+  if (r.khoMang != null && r.khoMang! > 0) {
+    return '${(r.khoMang! * 1000).round()}mm';
+  }
+  return '—';
+}
+
 Future<Uint8List> _buildPdfBytes(ProductionOrder order) async {
   final doc = pw.Document();
   final s = order.snapshot;
   final m = order.manual;
+  final spec = layNangCaoSpec(order);
 
   doc.addPage(
     pw.MultiPage(
@@ -694,12 +736,20 @@ Future<Uint8List> _buildPdfBytes(ProductionOrder order) async {
           data: [
             ['Khách hàng', s['customer']?.toString() ?? ''],
             ['Tên sản phẩm', s['productName']?.toString() ?? ''],
+            if ((m['msp']?.toString() ?? '').isNotEmpty)
+              ['Mã sản phẩm', m['msp'].toString()],
             ['Cấu trúc', s['structure']?.toString() ?? ''],
             ['Loại SP', s['productType']?.toString() ?? ''],
+            if ((m['quyCachNote']?.toString() ?? '').isNotEmpty)
+              ['Quy cách', m['quyCachNote'].toString()],
+            if ((m['quyCachCuon']?.toString() ?? '').isNotEmpty)
+              ['Quy cách cuộn', m['quyCachCuon'].toString()],
             ['Khổ trải (m)', s['spreadWidth']?.toString() ?? ''],
             ['Bước cắt (m)', s['cutStep']?.toString() ?? ''],
             ['Số màu', s['numColors']?.toString() ?? ''],
             ['Số lượng', Fmt.n(s['quantity'] as num? ?? 0)],
+            if ((m['soLuongDHNote']?.toString() ?? '').isNotEmpty)
+              ['SL đơn hàng', m['soLuongDHNote'].toString()],
           ],
         ),
         pw.SizedBox(height: 14),
@@ -719,9 +769,45 @@ Future<Uint8List> _buildPdfBytes(ProductionOrder order) async {
             ['Ngày phát hành', m['issuedDate']?.toString() ?? ''],
             ['Người lập', m['preparedBy']?.toString() ?? ''],
             ['Người duyệt', m['approvedBy']?.toString() ?? ''],
+            if ((m['deliveryDate']?.toString() ?? '').isNotEmpty)
+              ['Ngày giao hàng', m['deliveryDate'].toString()],
+            if ((m['deliveryNotes']?.toString() ?? '').isNotEmpty)
+              ['Yêu cầu giao hàng', m['deliveryNotes'].toString()],
             ['Ghi chú', m['notes']?.toString() ?? ''],
           ],
         ),
+
+        if (spec.isNotEmpty) ...[
+          pw.SizedBox(height: 14),
+          pw.Text('III. ĐẶC TẢ KỸ THUẬT (CHỐT)',
+              style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11)),
+          pw.SizedBox(height: 4),
+          pw.TableHelper.fromTextArray(
+            cellStyle: const pw.TextStyle(fontSize: 8),
+            headerStyle: pw.TextStyle(
+                fontSize: 8, fontWeight: pw.FontWeight.bold),
+            headerDecoration:
+                const pw.BoxDecoration(color: PdfColors.grey200),
+            columnWidths: const {
+              0: pw.FlexColumnWidth(1.6),
+              1: pw.FlexColumnWidth(2),
+              2: pw.FlexColumnWidth(1.2),
+              3: pw.FlexColumnWidth(1.2),
+              4: pw.FlexColumnWidth(1.2),
+            },
+            data: [
+              ['Công đoạn', 'Vật liệu', 'Khổ màng', 'Thành phẩm', 'Phi hao'],
+              for (final r in spec)
+                [
+                  stageLabel(order, r.congDoan, _stageKey(r.congDoan)),
+                  r.vatLieu,
+                  _khoMangText(r),
+                  r.thanhPham?.toString() ?? '—',
+                  r.phiHao?.toString() ?? '—',
+                ],
+            ],
+          ),
+        ],
 
         pw.SizedBox(height: 30),
         pw.Row(mainAxisAlignment: pw.MainAxisAlignment.spaceAround, children: [
