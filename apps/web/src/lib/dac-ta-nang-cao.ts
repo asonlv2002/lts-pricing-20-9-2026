@@ -68,6 +68,8 @@ export type NhomMuc = 'opp' | 'pet' | 'pe';
 export interface DongVatLieuNangCao {
   congDoan: string;
   vatLieu: string;
+  /** Độ dày hiệu lực (mic) — micOverrides theo lớp, fallback catalog. null = không có (Chia/Lật mặt…) */
+  doDay: number | null;
   /** rowKey uniRows tương ứng — để UI ghi đè */
   rowKey: OverrideRowKey;
   /** materialId hiệu lực (đã qua ghi đè) — để UI đổi vật liệu */
@@ -444,6 +446,7 @@ function taoDongLatMatTuIn(dongIn: DongVatLieuNangCao): DongVatLieuNangCao {
   return {
     congDoan: 'Lật mặt',
     vatLieu: dongIn.vatLieu,
+    doDay: dongIn.doDay,
     rowKey: 'matte',
     materialId: dongIn.materialId,
     khoMang: dongIn.khoMang,
@@ -500,6 +503,7 @@ function taoDongChiaNangCao(params: {
   return {
     congDoan: 'Chia',
     vatLieu: params.vatLieu || '—',
+    doDay: null,
     rowKey: 'chia',
     khoMang: khoChia || null,
     khoMangLabel: `${dinhDangKhoM(khoTruoc)} → ${dinhDangKhoM(khoChia)}`,
@@ -609,6 +613,30 @@ function layTpVaKhoNguonChia(
   const tienBangKeo = coBangKeo ? so(result?.tapeTotal) : 0;
   const tienQuai = coQuai ? so(result?.handleTotal) : 0;
 
+  // Độ dày hiệu lực (mic) theo lớp — dùng micOverrides người dùng nhập ở form,
+  // fallback độ dày catalog. Khớp đúng con số hero/engine (tránh hiện catalog sai).
+  const doDayHieuLuc = (layerKey?: string, matId?: string): number | null => {
+    if (!layerKey || !matId) return null;
+    const ov = result?.input?.micOverrides?.[layerKey];
+    if (ov != null && Number.isFinite(Number(ov)) && Number(ov) > 0) return Number(ov);
+    return materials.find(m => m.id === matId)?.thickness ?? null;
+  };
+  // Độ dày theo lớp của dòng (print → lớp 1; lam-N → lớp N; phụ lớp 2 → layer2AltId).
+  const doDayTheoLop = (rowKey: string, matId?: string): number | null => {
+    const input = result?.input;
+    if (!matId || !input) return null;
+    if (rowKey === 'print') return doDayHieuLuc('layer1Id', matId);
+    const m = /^lam-(\d+)$/.exec(rowKey);
+    if (m) {
+      const n = m[1];
+      if (n === '2' && input.layer2AltId && matId === input.layer2AltId) {
+        return doDayHieuLuc('layer2AltId', matId);
+      }
+      return doDayHieuLuc(`layer${n}Id`, matId);
+    }
+    return null;
+  };
+
   // Khổ trước chia (fallback); mét Chia neo từ ĐV Làm túi khi có túi
   const { khoTruoc: khoTruocSom } = layTpVaKhoNguonChia([], uniRows ?? [], result);
 
@@ -689,6 +717,7 @@ function layTpVaKhoNguonChia(
         return {
           congDoan: idx === 0 ? nhanCongDoan(row) : '',
           vatLieu: detail.name || '—',
+          doDay: doDayTheoLop(row.rowKey, detail.materialId),
           rowKey: row.rowKey,
           materialId: detail.materialId,
           chiTietIndex: idx,
@@ -751,6 +780,7 @@ function layTpVaKhoNguonChia(
       return [{
         congDoan: nhanCongDoan(row),
         vatLieu: nhanVatLieuTui ?? (row.mat && row.mat !== '-' ? row.mat : '-'),
+        doDay: null,
         rowKey: row.rowKey,
         materialId: row.materialId,
         khoMang: khoTui,
@@ -770,6 +800,7 @@ function layTpVaKhoNguonChia(
     return chenLatMat([{
       congDoan: nhanCongDoan(row),
       vatLieu: row.mat || '—',
+      doDay: doDayTheoLop(row.rowKey, row.materialId),
       rowKey: row.rowKey,
       materialId: row.materialId,
       khoMang: khoHieuDung || null,

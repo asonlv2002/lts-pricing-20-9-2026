@@ -471,6 +471,8 @@ class PricingDetailExport {
   }
 
   static String _doDayVL(Map<String, dynamic> m, List<MaterialDef> materials) {
+    final doDay = m['doDay'];
+    if (doDay is num) return Fmt.n(doDay);
     final id = m['materialId'] as String?;
     if (id == null) return '—';
     for (final mat in materials) {

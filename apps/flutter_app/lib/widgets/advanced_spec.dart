@@ -380,7 +380,7 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
     final matHienLuc = _timVatLieu(idHienLuc);
     final gocId = (goc?['materialId'] as String?) ?? (row['materialId'] as String?);
 
-    final doDayGoc = matHienLuc?.thickness ?? 0;
+    final doDayGoc = (row['doDay'] as num?)?.toDouble() ?? matHienLuc?.thickness ?? 0;
     final doDayGhiDe = chiTietIndex != null
         ? (ovChiTiet?['doDay'] as num?)?.toDouble()
         : (ovDong?['doDay'] as num?)?.toDouble();

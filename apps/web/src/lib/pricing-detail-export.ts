@@ -636,7 +636,7 @@ function xuatBangDacTaNangCao(params: {
   );
   const dongNCD = lapDongNhanCongDien(r0, hangSo, hasAnyOv ? activeOv : undefined);
   const tong = tinhTongNangCao(dongVL, dongNCD);
-  return buildDacTaNangCaoHtml(dongVL, dongNCD, tong, nhanNguon, cot, coQuyenCoVan, materials);
+  return buildDacTaNangCaoHtml(dongVL, dongNCD, tong, nhanNguon, cot, coQuyenCoVan);
 }
 
 function dinhDangOMet(n: number | null | undefined, label?: string, soLe = 0): string {
@@ -652,7 +652,6 @@ function buildDacTaNangCaoHtml(
   nhanNguon: string,
   cot: CotBang2Cpsx,
   coQuyenCoVan: boolean,
-  materials: Material[],
 ): string {
   let t1 = '';
   for (const row of dongVL) {
@@ -660,7 +659,7 @@ function buildDacTaNangCaoHtml(
     const cpVl = row.cpVatLieu != null
       ? `${dinhDangSoLe(row.cpVatLieu, 1)}${row.giaNVL != null && row.giaNVL > 0 ? `<br/><small>(${dinhDangSo(row.giaNVL)}${nhanDonViPhu})</small>` : ''}`
       : (row.giaNVL != null && row.giaNVL > 0 ? `(${dinhDangSo(row.giaNVL)}${nhanDonViPhu})` : '—');
-    const doDay = row.materialId ? materials.find(m => m.id === row.materialId)?.thickness : undefined;
+    const doDay = row.doDay;
     t1 += `<tr>
       <td class="left">${row.congDoan || ''}</td>
       <td class="left">${row.vatLieu || '—'}</td>

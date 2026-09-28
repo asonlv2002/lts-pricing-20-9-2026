@@ -1027,7 +1027,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     const rawHienLuc = (row.chiTietIndex !== undefined ? ovChiTiet?.rawMatPrice : ovDong?.rawMatPrice) ?? matHienLuc?.pricePerKg ?? 0;
                     return (
                       <ODoDay khoaDong={row.rowKey} chiTietIndex={row.chiTietIndex} matIdHienLuc={idHienLuc}
-                        giaTriGoc={matHienLuc?.thickness ?? 0}
+                        giaTriGoc={goc?.doDay ?? matHienLuc?.thickness ?? 0}
                         giaTriGhiDe={row.chiTietIndex !== undefined ? ovChiTiet?.doDay : ovDong?.doDay}
                         duocSua={suaT1} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials}
                         rawMatPriceHienLuc={rawHienLuc}
