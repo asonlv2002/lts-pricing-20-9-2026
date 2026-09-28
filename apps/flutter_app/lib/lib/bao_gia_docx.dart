@@ -6,6 +6,7 @@ import 'dart:typed_data';
 
 import '../theme/format.dart';
 import 'bao_gia_pdf.dart';
+import 'chu_ky.dart';
 import 'docx_writer.dart';
 
 class BaoGiaDocx {
@@ -55,7 +56,24 @@ class BaoGiaDocx {
     blocks.add(const DocxParagraph('KHÁCH HÀNG\t\t\tP. KINH DOANH',
         bold: true, sizeHalfPt: 20, align: DocxAlign.center));
     blocks.add(const DocxParagraph(''));
-    blocks.add(const DocxParagraph(''));
+    if (it.reviewerSignatureBytes != null &&
+        it.reviewerSignatureBytes!.isNotEmpty) {
+      // DOCX chỉ nhận PNG/JPG → convert WebP (BE trả) sang PNG.
+      final png = chuanHoaAnhChoDocx(it.reviewerSignatureBytes!);
+      if (png != null) {
+        blocks.add(DocxImageParagraph(
+          png,
+          extension: 'png',
+          widthPx: 130,
+          heightPx: 50,
+          align: DocxAlign.center,
+        ));
+      } else {
+        blocks.add(const DocxParagraph(''));
+      }
+    } else {
+      blocks.add(const DocxParagraph(''));
+    }
     blocks.add(const DocxParagraph(''));
     blocks.add(DocxParagraph('\t\t\t${it.reviewerSignatureName ?? ''}',
         sizeHalfPt: 18, align: DocxAlign.center));

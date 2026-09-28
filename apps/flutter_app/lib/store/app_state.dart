@@ -15,6 +15,7 @@ import '../api/service_lts_client.dart';
 import '../engine/js_runtime.dart';
 import '../engine/models.dart';
 import 'package:lts_pricing/lib/chot_gia_allocation.dart';
+import 'package:lts_pricing/lib/chu_ky.dart';
 import 'package:lts_pricing/lib/engine_advanced.dart';
 import 'package:lts_pricing/lib/lsx_so.dart';
 import 'package:lts_pricing/lib/bao_gia_docx.dart';
@@ -28,7 +29,8 @@ import 'package:lts_pricing/lib/pricing_server_mapper.dart';
 import 'local_storage.dart';
 
 /// Catalog policy codes (mirror POLICY_CATALOG của web — dùng fallback admin gốc).
-const cacPolicyHangSo = <String>[  'ACCOUNT_MANAGER',
+const cacPolicyHangSo = <String>[
+  'ACCOUNT_MANAGER',
   'ROLE_MANAGER',
   'CUSTOMER_MANAGER',
   'USER_POLICY_GRANT',
@@ -143,6 +145,35 @@ Map<String, dynamic>? docJwtPayload(String token) {
   }
 }
 
+// ── Thời hạn JWT + proactive refresh (mirror apps/web/src/lib/auth-session.ts) ─
+const _authRefreshMarginMs = 60 * 1000;
+const _authRefreshFallbackMs = 14 * 60 * 1000;
+
+/// `exp` (ms epoch) từ JWT, null nếu không đọc được.
+int? docThoiDiemHetHanJwt(String token) {
+  final payload = docJwtPayload(token);
+  final exp = payload?['exp'];
+  if (exp is num) return exp.toInt() * 1000;
+  return null;
+}
+
+/// Thời gian chờ tới lần làm mới phiên kế tiếp (ms).
+int thoiGianChoLamMoiPhien(String token, {int? nowMs}) {
+  final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+  final expiresAt = docThoiDiemHetHanJwt(token);
+  if (expiresAt == null) return _authRefreshFallbackMs;
+  final cho = expiresAt - now - _authRefreshMarginMs;
+  return cho < 0 ? 0 : cho;
+}
+
+/// Token sắp hết hạn (trong margin 60s) → cần làm mới ngay.
+bool canLamMoiNgay(String token, {int? nowMs}) {
+  final now = nowMs ?? DateTime.now().millisecondsSinceEpoch;
+  final expiresAt = docThoiDiemHetHanJwt(token);
+  if (expiresAt == null) return false;
+  return expiresAt - now <= _authRefreshMarginMs;
+}
+
 List<String> locPolicyHopLe(dynamic codes) {
   if (codes is! List) return [];
   return codes
@@ -160,6 +191,7 @@ class AppState extends ChangeNotifier {
   List<SmallWidthMaterialPrice> smallWidthPrices = [];
   AppConstants constants = const AppConstants({});
   List<ProfitRow> profitTable = [];
+
   /// Bảng LN gốc từ asset (độ dài chuẩn) — mirror web `INITIAL_PROFIT_TABLE`.
   List<ProfitRow> profitTableMacDinh = [];
 
@@ -393,6 +425,7 @@ class AppState extends ChangeNotifier {
   }
 
   bool dangLuuPhienBan = false;
+
   /// Đang tải lịch sử phiên bản — THEO TỪNG scope. Cờ chung 1 bool trước đây
   /// khiến scope mở nhanh sau scope khác bị skip fetch (hiện "Chưa có lịch sử"
   /// nhầm dù BE có data).
@@ -650,7 +683,8 @@ class AppState extends ChangeNotifier {
   /// Tạo nhanh khách hàng mới cho báo giá (mirror `taoNhanhKhachHang`
   /// TheNhapLieu.tsx:230-291): POST /customers → gán phụ trách → PATCH tên.
   /// Ném Exception với message tiếng Việt cho UI hiển thị.
-  Future<KhachHang> taoNhanhKhachHang(String tenKhach, String maKhachHang) async {
+  Future<KhachHang> taoNhanhKhachHang(
+      String tenKhach, String maKhachHang) async {
     final token = accessToken;
     if (token == null) throw Exception('Chưa đăng nhập.');
     final ten = tenKhach.trim();
@@ -724,6 +758,16 @@ class AppState extends ChangeNotifier {
     await _apDungPhien(data);
   }
 
+  /// Cập nhật token mới mà KHÔNG đụng profile/policies (refresh không trả user).
+  Future<void> _apDungTokenMoi(String a, String r) async {
+    accessToken = a;
+    refreshToken = r;
+    isAuthenticated = true;
+    sessionChecked = true;
+    await LocalStorage.instance.writeTokens(a, r);
+    notifyListeners();
+  }
+
   Future<void> lamMoiPhien() async {
     final current = refreshToken;
     if (current == null) {
@@ -733,8 +777,8 @@ class AppState extends ChangeNotifier {
       return;
     }
     try {
-      final data = await lamMoiTokenService(current);
-      await _apDungPhien(data);
+      final moi = await lamMoiTokenQuaQuanLyPhien();
+      await _apDungTokenMoi(moi.accessToken, moi.refreshToken);
     } on LoiServiceLts catch (e) {
       if (e.status == 401) resetPhienHetHan();
     } catch (_) {
@@ -824,13 +868,21 @@ class AppState extends ChangeNotifier {
         return;
       }
       try {
-        final tokenLamMoi = refreshToken;
-        if (tokenLamMoi == null || tokenLamMoi.isEmpty) {
+        // Refresh token còn sống → đổi cặp token mới rồi hydrate user từ JWT
+        // (refresh KHÔNG trả `user` — mirror web).
+        final moi = await lamMoiTokenQuaQuanLyPhien();
+        await _apDungTokenMoi(moi.accessToken, moi.refreshToken);
+        final payload = docJwtPayload(moi.accessToken);
+        if (payload == null ||
+            payload['sub'] == null ||
+            payload['account'] == null) {
           resetPhienHetHan();
           return;
         }
-        final data = await lamMoiTokenService(tokenLamMoi);
-        await _apDungPhien(data);
+        apDungUserTuToken(moi.accessToken, moi.refreshToken,
+            id: payload['sub']?.toString(),
+            account: payload['account']?.toString(),
+            fullName: payload['fullName']?.toString());
       } catch (_) {
         resetPhienHetHan();
       }
@@ -1007,7 +1059,8 @@ class AppState extends ChangeNotifier {
             .toSet() ??
         const <String>{};
     var tong = 0.0;
-    final customs = (constants.raw['customPrintSurcharges'] as List?) ?? const [];
+    final customs =
+        (constants.raw['customPrintSurcharges'] as List?) ?? const [];
     for (final opt in customs) {
       if (opt is! Map) continue;
       if (daChon.contains(opt['key']?.toString())) {
@@ -1066,8 +1119,9 @@ class AppState extends ChangeNotifier {
     // cylLength = max(0.7, spreadWidth × numImages + 0.1)
     if (co('spreadWidth') || co('numImages')) {
       next['cylLength'] = spreadWidth > 0
-          ? double.parse(
-              (spreadWidth * soHinh + 0.1).clamp(0.7, double.infinity).toStringAsFixed(3))
+          ? double.parse((spreadWidth * soHinh + 0.1)
+              .clamp(0.7, double.infinity)
+              .toStringAsFixed(3))
           : 0.0;
     }
 
@@ -1115,8 +1169,9 @@ class AppState extends ChangeNotifier {
             co('filmQuantityUnit') ||
             co('spreadWidth') ||
             co('productType'))) {
-      final slGoc =
-          (next['filmInputQuantity'] as num?)?.toDouble() ?? (next['quantity'] as num?)?.toDouble() ?? 0;
+      final slGoc = (next['filmInputQuantity'] as num?)?.toDouble() ??
+          (next['quantity'] as num?)?.toDouble() ??
+          0;
       next['filmInputQuantity'] = slGoc;
       next['quantity'] = next['filmQuantityUnit'] == 'meter'
           ? double.parse((slGoc * spreadWidth).toStringAsFixed(3))
@@ -1149,8 +1204,9 @@ class AppState extends ChangeNotifier {
     if (co('cylType')) {
       final cylType = next['cylType']?.toString() ?? 'A';
       if (cylType == 'A') {
-        next['cylUnitPrice'] =
-            (constants.raw['cylPriceA'] as num?) ?? (constants.raw['cylinderPricePerUnit'] as num?) ?? 0;
+        next['cylUnitPrice'] = (constants.raw['cylPriceA'] as num?) ??
+            (constants.raw['cylinderPricePerUnit'] as num?) ??
+            0;
       } else if (cylType == 'B') {
         next['cylUnitPrice'] = (constants.raw['cylPriceB'] as num?) ?? 6500000;
       } else {
@@ -1167,15 +1223,18 @@ class AppState extends ChangeNotifier {
     // Khối lượng phụ kiện — luôn đồng bộ theo cờ + option
     final luaChonQuai = _timHandleOption(next['handleOptionKey']);
     if (next['hasHandle'] == true) {
-      next['handleWeight'] =
-          luaChonQuai?['weight'] ?? (constants.raw['handleWeight'] as num?) ?? 0;
+      next['handleWeight'] = luaChonQuai?['weight'] ??
+          (constants.raw['handleWeight'] as num?) ??
+          0;
     } else {
       next['handleWeight'] = 0;
     }
-    next['zipperWeight'] =
-        next['hasZipper'] == true ? ((constants.raw['zipperWeight'] as num?) ?? 0) : 0;
-    next['tapeWeight'] =
-        next['hasTape'] == true ? ((constants.raw['tapeWeight'] as num?) ?? 0) : 0;
+    next['zipperWeight'] = next['hasZipper'] == true
+        ? ((constants.raw['zipperWeight'] as num?) ?? 0)
+        : 0;
+    next['tapeWeight'] = next['hasTape'] == true
+        ? ((constants.raw['tapeWeight'] as num?) ?? 0)
+        : 0;
     next['boxWeight'] = _layTrongLuongThung(next);
 
     // Phụ phí in (nhu + mờ + custom keys) → metallicSurcharge
@@ -1474,16 +1533,20 @@ class AppState extends ChangeNotifier {
         hangSo: hangSo,
         overrides: hasAnyOv ? activeOv : null,
       );
-      final tong =
-          EngineAdvanced.instance.tinhTongNangCao(dongVL, dongNCD);
+      final tong = EngineAdvanced.instance.tinhTongNangCao(dongVL, dongNCD);
       return (dongVL: dongVL, dongNCD: dongNCD, tong: tong);
     } catch (_) {
-      return (dongVL: const <dynamic>[], dongNCD: const <dynamic>[], tong: <String, dynamic>{});
+      return (
+        dongVL: const <dynamic>[],
+        dongNCD: const <dynamic>[],
+        tong: <String, dynamic>{}
+      );
     }
   }
 
   /// Quyền hiện cột Bảng 2 (Nhân công/điện) — mirror web `cotBang2TheoQuyen`.
-  ({bool coDien, bool coLuong, bool coThoiGian}) get cotBang2 => cotBang2TheoQuyen;
+  ({bool coDien, bool coLuong, bool coThoiGian}) get cotBang2 =>
+      cotBang2TheoQuyen;
 
   /// Dựng `ChiTietExportInput` cho sheet đang mở (từ store hiện tại).
   ChiTietExportInput chiTietExportHienTai() {
@@ -1533,7 +1596,8 @@ class AppState extends ChangeNotifier {
       coQuyenCoVan: _coQuyenCoVan(),
       cot: cotBang2TheoQuyen,
     );
-    final ten = 'ChiTiet_${it.productName.isEmpty ? 'BangTinhGia' : it.productName}.pdf';
+    final ten =
+        'ChiTiet_${it.productName.isEmpty ? 'BangTinhGia' : it.productName}.pdf';
     if (xemTruoc) {
       await PricingDetailExport.xemTruoc(bytes, ten);
     } else {
@@ -1549,9 +1613,15 @@ class AppState extends ChangeNotifier {
     String quoteCode = '',
     bool xemTruoc = true,
   }) async {
-    final input = _dungBaoGiaInput(bg, quoteCode);
+    final sig = await _taiChuKyReviewer(bg);
+    final input = _dungBaoGiaInput(
+      bg,
+      quoteCode,
+      reviewerSignatureBytes: sig,
+    );
     final bytes = await BaoGiaPdf.build(input);
-    final ten = 'BaoGia_${input.quoteCode.isEmpty ? bg.id : input.quoteCode}.pdf';
+    final ten =
+        'BaoGia_${input.quoteCode.isEmpty ? bg.id : input.quoteCode}.pdf';
     if (xemTruoc) {
       await BaoGiaPdf.xemTruoc(bytes, ten);
     } else {
@@ -1565,16 +1635,54 @@ class AppState extends ChangeNotifier {
     String quoteCode = '',
     bool xemTruoc = true,
   }) async {
-    final input = _dungBaoGiaInput(bg, quoteCode);
+    final sig = await _taiChuKyReviewer(bg);
+    final input = _dungBaoGiaInput(
+      bg,
+      quoteCode,
+      reviewerSignatureBytes: sig,
+    );
     final bytes = BaoGiaDocx.build(input);
-    final ten = 'BaoGia_${input.quoteCode.isEmpty ? bg.id : input.quoteCode}.docx';
+    final ten =
+        'BaoGia_${input.quoteCode.isEmpty ? bg.id : input.quoteCode}.docx';
     await chiaSeTep(bytes, ten, xemTruoc: xemTruoc);
   }
 
+  /// Tải ảnh chữ ký P. Kinh Doanh — chỉ khi BG đã duyệt (mirror web guard
+  /// `laDaDuyet` trong ModuleDuyetBaoGia). Rejected/draft → null.
+  /// BE trả WebP → convert PNG (PDF/DOCX chỉ nhận PNG/JPG).
+  Future<Uint8List?> _taiChuKyReviewer(BaoGiaApi bg) async {
+    if (bg.trangThai != TrangThaiBaoGiaServer.approved) return null;
+    final token = accessToken;
+    if (token == null) return null;
+    final raw =
+        await taiChuKyReviewerBytes(bg.reviewerSignatureUrl, token: token);
+    if (raw == null || raw.isEmpty) return null;
+    return chuanHoaAnhChoDocx(raw) ?? raw;
+  }
+
   /// Dựng `BaoGiaPdfInput` dùng chung cho PDF/DOCX báo giá.
-  BaoGiaPdfInput _dungBaoGiaInput(BaoGiaApi bg, String quoteCode) {
+  BaoGiaPdfInput _dungBaoGiaInput(
+    BaoGiaApi bg,
+    String quoteCode, {
+    Uint8List? reviewerSignatureBytes,
+  }) {
     final iv = bg.inputValue ?? const {};
-    final terms = (iv['terms'] as Map?)?.cast<String, dynamic>();
+    // Terms: ưu tiên nested 'terms' (Flutter ghi), fallback flat keys (web ghi).
+    final termsNested = (iv['terms'] as Map?)?.cast<String, dynamic>();
+    final terms = termsNested ??
+        <String, dynamic>{
+          if (iv['vatRate'] != null) 'vatRate': iv['vatRate'],
+          if (iv['vatCylinderRate'] != null)
+            'vatCylinderRate': iv['vatCylinderRate'],
+          if (iv['validityDays'] != null) 'validityDays': iv['validityDays'],
+          if (iv['paymentTerms'] != null) 'paymentTerms': iv['paymentTerms'],
+          if (iv['deliveryTime'] != null) 'deliveryTime': iv['deliveryTime'],
+          if (iv['quantityTolerance'] != null)
+            'quantityTolerance': iv['quantityTolerance'],
+          if (iv['techRequirement'] != null)
+            'techRequirement': iv['techRequirement'],
+          if (iv['notes'] != null) 'notes': iv['notes'],
+        };
     // Thông tin KH (địa chỉ) từ danh sách khách hàng đã tải.
     String? address;
     for (final kh in danhSachKhachHang) {
@@ -1601,18 +1709,23 @@ class AppState extends ChangeNotifier {
       final si = sh.inputValue;
       // Đặc tả túi cho sheet (mirror web productBagSpecs[pricingSheetId]).
       Map<String, dynamic>? spec;
+      Map<String, dynamic>? specEntry;
       for (final e in bagSpecs) {
         if (e is Map &&
             (e['pricingSheetId'] == sh.id ||
                 e['sourceHistoryItemId'] == sh.id)) {
+          specEntry = e.cast<String, dynamic>();
           spec = (e['bagSpec'] as Map?)?.cast<String, dynamic>();
           break;
         }
       }
-      final productName = (sh.pricingSheetName ??
-              si['productName'] ??
-              '')
-          .toString();
+      // Fallback theo index (mirror web bao-gia-adapter layProductBagSpecEntry).
+      if (specEntry == null && idx < bagSpecs.length && bagSpecs[idx] is Map) {
+        specEntry = (bagSpecs[idx] as Map).cast<String, dynamic>();
+        spec = (specEntry['bagSpec'] as Map?)?.cast<String, dynamic>();
+      }
+      final productName =
+          (sh.pricingSheetName ?? si['productName'] ?? '').toString();
       final structure = (si['structure'] ??
               buildStructureFromLayers(matsJson, [
                 si['layer1Id'] as String?,
@@ -1628,23 +1741,29 @@ class AppState extends ChangeNotifier {
         CalculateInput.fromJson(si),
         materials: materials,
       );
-      final description = spec != null
-          ? [
-              buildBagSpecDescription(spec, si, structure, doDay),
-              ...formatStageDescriptionsRaw(spec['stageDescriptions']),
-            ].where((s) => s.isNotEmpty).join('\n')
-          : structure;
-      // Giá: giá chốt nếu có (saleResult/masterResult.chotGia), ngược lại tính lại.
-      double price = 0;
+      final excludeBag = spec?['includeBagInQuote'] == false;
+      final description = excludeBag
+          ? ''
+          : (spec != null
+              ? [
+                  buildBagSpecDescription(spec, si, structure, doDay),
+                  ...formatStageDescriptionsRaw(spec['stageDescriptions']),
+                ].where((s) => s.isNotEmpty).join('\n')
+              : structure);
+      // Giá ghi PDF: báo khách → giá chốt (legacy) → engine (mirror web buildGroups).
+      final savedTiers = (specEntry?['tiers'] as List?) ?? const [];
+      final baoGiaSpec = (specEntry?['baoGia'] as num?)?.toDouble();
+      final chotGiaSpec = (specEntry?['chotGia'] as num?)?.toDouble();
       final chotSale = (sh.saleResult?['chotGia'] as num?)?.toDouble();
       final chotMaster = (sh.masterResult?['chotGia'] as num?)?.toDouble();
       final chotInput = (si['chotGia'] as num?)?.toDouble();
+      double enginePrice = 0;
       if (chotInput != null && chotInput > 0) {
-        price = chotInput;
+        enginePrice = chotInput;
       } else if (chotMaster != null && chotMaster > 0) {
-        price = chotMaster;
+        enginePrice = chotMaster;
       } else if (chotSale != null && chotSale > 0) {
-        price = chotSale;
+        enginePrice = chotSale;
       } else {
         try {
           final res = EngineService.instance.calculate(
@@ -1654,20 +1773,68 @@ class AppState extends ChangeNotifier {
             profitTable: profitTable,
             smallWidthPrices: smallWidthPrices,
           );
-          price = res?.finalPrice ?? 0;
+          enginePrice = res?.finalPrice ?? 0;
         } catch (_) {
-          price = 0;
+          enginePrice = 0;
         }
       }
-      lines.add((
-        productName: productName,
-        description: description,
-        unit: donViBaoGia(si),
-        quantity: qty,
-        unitPrice: price,
-        cylinderTotal: null,
-        cylinderDescription: null,
-      ));
+      final unit = donViBaoGia(si);
+      final cylinderTotal = _cylinderTotalTuSheet(si, spec);
+      final cylinderDescription = spec?['cylinderNote']?.toString();
+      if (excludeBag) {
+        if (cylinderTotal != null && cylinderTotal > 0) {
+          lines.add((
+            productName: 'Trục in $productName',
+            description: cylinderDescription ?? '',
+            unit: 'bộ',
+            quantity: 1,
+            unitPrice: cylinderTotal,
+            cylinderTotal: null,
+            cylinderDescription: null,
+          ));
+        }
+        continue;
+      }
+      if (savedTiers.isNotEmpty) {
+        for (final t in savedTiers) {
+          if (t is! Map) continue;
+          final tQty = (t['quantity'] as num?)?.toDouble() ?? 0;
+          final tPrice = (t['baoGia'] as num?)?.toDouble() ??
+              (t['chotGia'] as num?)?.toDouble() ??
+              (t['finalPrice'] as num?)?.toDouble() ??
+              enginePrice;
+          lines.add((
+            productName: productName,
+            description: description,
+            unit: unit,
+            quantity: tQty,
+            unitPrice: tPrice,
+            cylinderTotal: null,
+            cylinderDescription: null,
+          ));
+        }
+      } else {
+        lines.add((
+          productName: productName,
+          description: description,
+          unit: unit,
+          quantity: qty,
+          unitPrice: baoGiaSpec ?? chotGiaSpec ?? enginePrice,
+          cylinderTotal: null,
+          cylinderDescription: null,
+        ));
+      }
+      if (cylinderTotal != null && cylinderTotal > 0) {
+        lines.add((
+          productName: 'Trục in $productName',
+          description: cylinderDescription ?? '',
+          unit: 'bộ',
+          quantity: 1,
+          unitPrice: cylinderTotal,
+          cylinderTotal: null,
+          cylinderDescription: null,
+        ));
+      }
     }
 
     final input = buildBaoGiaPdfInput(
@@ -1683,8 +1850,24 @@ class AppState extends ChangeNotifier {
       lines: lines,
       terms: terms,
       reviewerSignatureName: null,
+      reviewerSignatureBytes: reviewerSignatureBytes,
     );
     return input;
+  }
+
+  /// Tổng tiền trục in của sheet (mirror web buildGroups): chỉ khi có
+  /// `includeCylinderInQuote != false` + input có cylLength.
+  double? _cylinderTotalTuSheet(
+    Map<String, dynamic> si,
+    Map<String, dynamic>? spec,
+  ) {
+    final cylLength = (si['cylLength'] as num?)?.toDouble() ?? 0;
+    if (cylLength <= 0) return null;
+    if (spec?['includeCylinderInQuote'] == false) return null;
+    final qty = (spec?['cylinderQuantity'] as num?)?.toDouble() ?? 1;
+    final unitPrice = (spec?['cylinderUnitPrice'] as num?)?.toDouble() ?? 0;
+    final total = qty * unitPrice;
+    return total > 0 ? total : null;
   }
 
   /// Kết quả hiệu lực để hiển thị trên màn kết quả — mirror web `rHieuLuc`
@@ -1716,9 +1899,8 @@ class AppState extends ChangeNotifier {
       adminPct: 0,
     );
     final hieuLuc = kq?['result'];
-    final out = hieuLuc is Map
-        ? CalculateResult(hieuLuc.cast<String, dynamic>())
-        : r;
+    final out =
+        hieuLuc is Map ? CalculateResult(hieuLuc.cast<String, dynamic>()) : r;
     _kqHienThiCache = out;
     _kqHienThiCacheKey = r;
     _kqHienThiCacheNc = cheDoNangCao;
@@ -2018,9 +2200,8 @@ class AppState extends ChangeNotifier {
     try {
       final upgrade =
           await layProductionUpgradePriceConfigService(accessToken!, 'latest');
-      cpsxNangCapPolicies = upgrade.policies
-          .where((p) => p.startsWith('CPSX_UPGRADE_'))
-          .toList();
+      cpsxNangCapPolicies =
+          upgrade.policies.where((p) => p.startsWith('CPSX_UPGRADE_')).toList();
     } catch (_) {
       cpsxNangCapPolicies = [];
     }
@@ -2097,7 +2278,8 @@ class AppState extends ChangeNotifier {
         loadedSaleProfitRatePct = saleProfitRatePct;
         loadedAdminProfitRatePct = adminProfitRatePct;
         loadedIsNangCap = cheDoNangCao;
-        _ganPricingSheetIdVaoHistory(idTruocKhiLuu, sheet.id, sheet.priceConfigIds);
+        _ganPricingSheetIdVaoHistory(
+            idTruocKhiLuu, sheet.id, sheet.priceConfigIds);
       } else {
         final sheet = await capNhatPricingSheetResultService(
           accessToken!,
@@ -2179,8 +2361,10 @@ class AppState extends ChangeNotifier {
       chotGia: currentChotGia > 0 ? currentChotGia : null,
       quoteStatus: 'drafted',
       input: inputLocal,
-      saleOverrides: saleOverrides.isEmpty ? null : _saoChepOverride(saleOverrides),
-      adminOverrides: adminOverrides.isEmpty ? null : _saoChepOverride(adminOverrides),
+      saleOverrides:
+          saleOverrides.isEmpty ? null : _saoChepOverride(saleOverrides),
+      adminOverrides:
+          adminOverrides.isEmpty ? null : _saoChepOverride(adminOverrides),
       saleProfitRatePct: saleProfitRatePct > 0 ? saleProfitRatePct : null,
       adminProfitRatePct: adminProfitRatePct > 0 ? adminProfitRatePct : null,
       pinnedCpsxNangCao: EngineAdvanced.instance.trichCpsxNangCao(constants),
@@ -2475,10 +2659,11 @@ class AppState extends ChangeNotifier {
       };
       final PriceConfigApi saved;
       if (configName == 'PRODUCTION_UPGRADE') {
-        saved =
-            await upsertProductionUpgradePriceConfigService(accessToken!, inputValue);
+        saved = await upsertProductionUpgradePriceConfigService(
+            accessToken!, inputValue);
       } else {
-        saved = await upsertPriceConfigService(accessToken!, configName, inputValue);
+        saved = await upsertPriceConfigService(
+            accessToken!, configName, inputValue);
       }
       // Reload lịch sử scope + chốt working = bản vừa lưu (mirror web).
       await taiLichSuPhienBanCauHinh(configName, force: true);
@@ -2518,7 +2703,8 @@ class AppState extends ChangeNotifier {
     _dangTaiLichSuPhienBanScope.add(configName);
     notifyListeners();
     try {
-      final versions = await layLichSuPriceConfigService(accessToken!, configName);
+      final versions =
+          await layLichSuPriceConfigService(accessToken!, configName);
       lichSuPhienBan[configName] = sapXepMoiNhatTruoc(versions);
       if (phienBanMoiNhat[configName] == null &&
           lichSuPhienBan[configName]!.isNotEmpty) {

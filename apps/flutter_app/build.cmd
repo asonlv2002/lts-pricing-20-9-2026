@@ -63,6 +63,16 @@ if defined MISSING (
 )
 echo.
 
+REM ---- [1b/5] Kiem tra .dart_defines.json ---------------------------------
+if not exist ".dart_defines.json" (
+    echo [X] Thieu file .dart_defines.json ^(khong duoc commit - per-developer^).
+    echo     Tao tu mau:
+    echo         copy .dart_defines.example.json .dart_defines.json
+    goto :fail
+)
+echo [OK] .dart_defines.json
+echo.
+
 if /i "%MODE%"=="-check" (
     echo [CHECK] Pre-check OK. Script hoat dong binh thuong.
     goto :done
@@ -139,7 +149,7 @@ goto :fail
 
 :release_flow
 echo [5/5] Build RELEASE APK (co the mat 1-3 phut)...
-call flutter build apk --release
+call flutter build apk --release --dart-define-from-file=.dart_defines.json
 if errorlevel 1 (
     echo.
     echo [X] Build APK that bai.

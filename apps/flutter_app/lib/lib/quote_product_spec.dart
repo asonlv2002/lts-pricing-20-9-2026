@@ -125,6 +125,203 @@ class QuoteProductBagSpec {
     this.rollLengthM = 0,
     this.chieuRaCuonMang = '',
   });
+
+  /// Serialize đúng shape web `QuoteProductBagSpec` (dùng cho `productBagSpecs`).
+  Map<String, dynamic> toJson() => {
+        'bagType': bagType,
+        'widthMm': widthMm,
+        'lengthMm': lengthMm,
+        'sideSealMm': sideSealMm,
+        'hasHeadSeal': hasHeadSeal,
+        'headSealMm': headSealMm,
+        'gussetMm': gussetMm,
+        'backSealMm': backSealMm,
+        'hasZipper': hasZipper,
+        'zipperDistanceMm': zipperDistanceMm,
+        'standupBottomSideMm': standupBottomSideMm,
+        'hasTearNotch': hasTearNotch,
+        'tearNotchFromTopMm': tearNotchFromTopMm,
+        'tearNotchFromBottomMm': tearNotchFromBottomMm,
+        'hasHalfMoonBottom': hasHalfMoonBottom,
+        'hasHangHole': hasHangHole,
+        'hangHoleDescription': hangHoleDescription,
+        'hasHandleHole': hasHandleHole,
+        'handleHoleDescription': handleHoleDescription,
+        'hasBottomSeal': hasBottomSeal,
+        'bottomSealMm': bottomSealMm,
+        'lidMm': lidMm,
+        'hasCylinder': hasCylinder,
+        'includeCylinderInQuote': includeCylinderInQuote,
+        'includeBagInQuote': includeBagInQuote,
+        'cylinderQuantity': cylinderQuantity,
+        'cylinderUnitPrice': cylinderUnitPrice,
+        if (cylinderNote != null) 'cylinderNote': cylinderNote,
+        'otherDescription': otherDescription,
+        'stageNotes': stageNotes
+            .map((n) => {'stage': _stageKeyToWeb(n.stage), 'text': n.text})
+            .toList(),
+        'stageDescriptions': stageDescriptions
+            .map((n) => {'stage': _stageKeyToWeb(n.stage), 'text': n.text})
+            .toList(),
+        'structureBack': structureBack,
+        'structureSwapped': structureSwapped,
+        'hasStructureBack': hasStructureBack,
+        'bottomFollows': bottomFollows,
+        'hasHandle': hasHandle,
+        'handleOptionKey': handleOptionKey,
+        'hasSongSieuAm': hasSongSieuAm,
+        'songSieuAmMm': songSieuAmMm,
+        'rollLengthM': rollLengthM,
+        'chieuRaCuonMang': chieuRaCuonMang,
+      };
+
+  /// Merge bagSpec đã lưu (JSON từ server) lên spec mặc định — mirror web
+  /// `Object.assign(spec, savedBagSpec)`. Bỏ qua null/undefined.
+  void mergeFromJson(Map<String, dynamic>? saved) {
+    if (saved == null) return;
+    double nd(dynamic v) => v is num ? v.toDouble() : 0;
+    bool nb(dynamic v) => v == true;
+    String ns(dynamic v) => v?.toString() ?? '';
+    if (saved['bagType'] != null) bagType = ns(saved['bagType']);
+    if (saved['widthMm'] != null) widthMm = nd(saved['widthMm']);
+    if (saved['lengthMm'] != null) lengthMm = nd(saved['lengthMm']);
+    if (saved['sideSealMm'] != null) sideSealMm = nd(saved['sideSealMm']);
+    if (saved['hasHeadSeal'] != null) hasHeadSeal = nb(saved['hasHeadSeal']);
+    if (saved['headSealMm'] != null) headSealMm = nd(saved['headSealMm']);
+    if (saved['gussetMm'] != null) gussetMm = nd(saved['gussetMm']);
+    if (saved['backSealMm'] != null) backSealMm = nd(saved['backSealMm']);
+    if (saved['hasZipper'] != null) hasZipper = nb(saved['hasZipper']);
+    if (saved['zipperDistanceMm'] != null) {
+      zipperDistanceMm = nd(saved['zipperDistanceMm']);
+    }
+    if (saved['standupBottomSideMm'] != null) {
+      standupBottomSideMm = nd(saved['standupBottomSideMm']);
+    }
+    if (saved['hasTearNotch'] != null) hasTearNotch = nb(saved['hasTearNotch']);
+    if (saved['tearNotchFromTopMm'] != null) {
+      tearNotchFromTopMm = nd(saved['tearNotchFromTopMm']);
+    }
+    if (saved['tearNotchFromBottomMm'] != null) {
+      tearNotchFromBottomMm = nd(saved['tearNotchFromBottomMm']);
+    }
+    if (saved['hasHalfMoonBottom'] != null) {
+      hasHalfMoonBottom = nb(saved['hasHalfMoonBottom']);
+    }
+    if (saved['hasHangHole'] != null) hasHangHole = nb(saved['hasHangHole']);
+    if (saved['hangHoleDescription'] != null) {
+      hangHoleDescription = ns(saved['hangHoleDescription']);
+    }
+    if (saved['hasHandleHole'] != null) {
+      hasHandleHole = nb(saved['hasHandleHole']);
+    }
+    if (saved['handleHoleDescription'] != null) {
+      handleHoleDescription = ns(saved['handleHoleDescription']);
+    }
+    if (saved['hasBottomSeal'] != null) {
+      hasBottomSeal = nb(saved['hasBottomSeal']);
+    }
+    if (saved['bottomSealMm'] != null) bottomSealMm = nd(saved['bottomSealMm']);
+    if (saved['lidMm'] != null) lidMm = nd(saved['lidMm']);
+    if (saved['hasCylinder'] != null) hasCylinder = nb(saved['hasCylinder']);
+    if (saved['includeCylinderInQuote'] != null) {
+      includeCylinderInQuote = nb(saved['includeCylinderInQuote']);
+    }
+    if (saved['includeBagInQuote'] != null) {
+      includeBagInQuote = nb(saved['includeBagInQuote']);
+    }
+    if (saved['cylinderQuantity'] != null) {
+      cylinderQuantity = nd(saved['cylinderQuantity']);
+    }
+    if (saved['cylinderUnitPrice'] != null) {
+      cylinderUnitPrice = nd(saved['cylinderUnitPrice']);
+    }
+    if (saved['cylinderNote'] != null) {
+      cylinderNote = ns(saved['cylinderNote']);
+    }
+    if (saved['otherDescription'] != null) {
+      otherDescription = ns(saved['otherDescription']);
+    }
+    if (saved['stageNotes'] is List) {
+      stageNotes = _stageNotesFromJson(saved['stageNotes']);
+    }
+    if (saved['stageDescriptions'] is List) {
+      stageDescriptions = _stageNotesFromJson(saved['stageDescriptions']);
+    }
+    if (saved['structureBack'] != null) {
+      structureBack = ns(saved['structureBack']);
+    }
+    if (saved['structureSwapped'] != null) {
+      structureSwapped = nb(saved['structureSwapped']);
+    }
+    if (saved['hasStructureBack'] != null) {
+      hasStructureBack = nb(saved['hasStructureBack']);
+    }
+    if (saved['bottomFollows'] != null) {
+      bottomFollows = ns(saved['bottomFollows']);
+    }
+    if (saved['hasHandle'] != null) hasHandle = nb(saved['hasHandle']);
+    if (saved['handleOptionKey'] != null) {
+      handleOptionKey = ns(saved['handleOptionKey']);
+    }
+    if (saved['hasSongSieuAm'] != null) {
+      hasSongSieuAm = nb(saved['hasSongSieuAm']);
+    }
+    if (saved['songSieuAmMm'] != null) songSieuAmMm = nd(saved['songSieuAmMm']);
+    if (saved['rollLengthM'] != null) rollLengthM = nd(saved['rollLengthM']);
+    if (saved['chieuRaCuonMang'] != null) {
+      chieuRaCuonMang = ns(saved['chieuRaCuonMang']);
+    }
+  }
+}
+
+/// stage key nội bộ (enum) ↔ chuỗi web (`in`/`ghep`/`chia`/`lam-tui`).
+String _stageKeyToWeb(LsxStageKey k) {
+  switch (k) {
+    case LsxStageKey.inCd:
+      return 'in';
+    case LsxStageKey.ghep:
+      return 'ghep';
+    case LsxStageKey.chia:
+      return 'chia';
+    case LsxStageKey.lamTui:
+      return 'lam-tui';
+  }
+}
+
+LsxStageKey _stageKeyFromWeb(String? s) {
+  switch ((s ?? '').trim()) {
+    case 'in':
+      return LsxStageKey.inCd;
+    case 'ghep':
+      return LsxStageKey.ghep;
+    case 'chia':
+      return LsxStageKey.chia;
+    default:
+      return LsxStageKey.lamTui;
+  }
+}
+
+List<LsxStageNote> _stageNotesFromJson(dynamic raw) {
+  if (raw is! List) return const [];
+  final out = <LsxStageNote>[];
+  for (final e in raw) {
+    if (e is Map) {
+      out.add(LsxStageNote(
+        stage: _stageKeyFromWeb(e['stage']?.toString()),
+        text: e['text']?.toString() ?? '',
+      ));
+    }
+  }
+  return out;
+}
+
+/// Migrate `otherDescription` cũ (textarea báo giá cũ) → 1 dòng Mô tả khác
+/// (mặc định làm túi) — mirror web `migrateOtherDescription`.
+void migrateOtherDescription(QuoteProductBagSpec spec) {
+  final old = spec.otherDescription.trim();
+  if (old.isEmpty) return;
+  if (spec.stageDescriptions.isNotEmpty) return;
+  spec.stageDescriptions = [LsxStageNote(stage: LsxStageKey.lamTui, text: old)];
 }
 
 enum BagSpecConditionalField {

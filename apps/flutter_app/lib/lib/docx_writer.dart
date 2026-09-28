@@ -51,25 +51,60 @@ class DocxTable extends DocxBlock {
   const DocxTable(this.rows, {this.columnWidthsDxa});
 }
 
+/// Đoạn văn chứa ảnh (PNG/JPG) — mirror `ImageRun` (docx npm).
+class DocxImageParagraph extends DocxBlock {
+  /// Bytes ảnh gốc (PNG/JPG). WebP phải convert sang PNG trước.
+  final Uint8List bytes;
+  final String extension; // 'png' | 'jpg'
+  final int widthPx;
+  final int heightPx;
+  final DocxAlign align;
+  const DocxImageParagraph(
+    this.bytes, {
+    this.extension = 'png',
+    this.widthPx = 130,
+    this.heightPx = 50,
+    this.align = DocxAlign.center,
+  });
+}
+
 class DocxWriter {
   DocxWriter._();
 
   /// Sinh bytes .docx từ danh sách block.
   static Uint8List build(List<DocxBlock> blocks) {
     final body = StringBuffer();
+    final media = <({String name, Uint8List bytes})>[];
+    final imageRels = StringBuffer();
+    var imgIdx = 0;
     for (final b in blocks) {
       if (b is DocxParagraph) {
         body.write(_paragraphXml(b));
       } else if (b is DocxTable) {
         body.write(_tableXml(b));
+      } else if (b is DocxImageParagraph) {
+        imgIdx++;
+        final ext = b.extension.toLowerCase() == 'jpg' ? 'jpg' : 'png';
+        final name = 'image$imgIdx.$ext';
+        final rid = 'rIdImg$imgIdx';
+        media.add((name: name, bytes: b.bytes));
+        imageRels.write(
+            '<Relationship Id="$rid" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/$name"/>');
+        body.write(_imageXml(b, rid));
       }
     }
 
     final documentXml = '''
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
 <w:body>$body<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134"/></w:sectPr></w:body>
 </w:document>''';
+
+    final documentRels = '''
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+$imageRels</Relationships>''';
 
     final archive = Archive();
     void add(String name, String content) {
@@ -77,12 +112,17 @@ class DocxWriter {
       archive.addFile(ArchiveFile(name, bytes.length, bytes));
     }
 
-    add('[Content_Types].xml', _contentTypes);
+    add('[Content_Types].xml', _contentTypes());
     add('_rels/.rels', _rels);
     add('word/document.xml', documentXml);
+    add('word/_rels/document.xml.rels', documentRels);
     add('word/styles.xml', _styles);
     add('docProps/core.xml', _coreProps);
     add('docProps/app.xml', _appProps);
+    for (final m in media) {
+      archive.addFile(
+          ArchiveFile('word/media/${m.name}', m.bytes.length, m.bytes));
+    }
 
     return Uint8List.fromList(ZipEncoder().encodeBytes(archive));
   }
@@ -107,6 +147,25 @@ class DocxWriter {
           '<w:t xml:space="preserve">${_esc(line)}</w:t></w:r></w:p>';
     }).join();
     return runs;
+  }
+
+  /// Đoạn văn chứa ảnh inline (EMU: 1px ≈ 9525 EMU).
+  static String _imageXml(DocxImageParagraph img, String rid) {
+    const emuPerPx = 9525;
+    final cx = img.widthPx * emuPerPx;
+    final cy = img.heightPx * emuPerPx;
+    return '<w:p><w:pPr><w:jc w:val="${_align(img.align)}"/></w:pPr><w:r>'
+        '<w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">'
+        '<wp:extent cx="$cx" cy="$cy"/>'
+        '<wp:docPr id="1" name="Signature"/>'
+        '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">'
+        '<pic:pic><pic:nvPicPr><pic:cNvPr id="0" name="Signature"/>'
+        '<pic:cNvPicPr/></pic:nvPicPr>'
+        '<pic:blipFill><a:blip r:embed="$rid"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>'
+        '<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="$cx" cy="$cy"/></a:xfrm>'
+        '<a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr>'
+        '</pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>'
+        '</w:r></w:p>';
   }
 
   static String _tableXml(DocxTable t) {
@@ -142,11 +201,13 @@ class DocxWriter {
         '</w:tblBorders></w:tblPr>$cols$rowsXml</w:tbl>';
   }
 
-  static const _contentTypes = '''
+  static String _contentTypes() => '''
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
 <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 <Default Extension="xml" ContentType="application/xml"/>
+<Default Extension="png" ContentType="image/png"/>
+<Default Extension="jpg" ContentType="image/jpeg"/>
 <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
 <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
 <Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>

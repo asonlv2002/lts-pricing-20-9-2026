@@ -2,8 +2,12 @@
 // HomeShell — auth-gated shell (mirror VoTrang.tsx cùng cơ chế):
 //   HomeGate chặn guest trước khi mount; trong này mọi tab mở thẳng.
 //   content #f4f7fb + bottom tab bar 5 mục:
-//     Tổng quan · Tính giá · Khách hàng · Đơn hàng · Thêm.
-//   Lịch sử + LSX + Cấu hình (màn có sẵn) mở từ hub/thêm qua module route.
+//     Tổng quan · Tính giá · Khách hàng · Cấu hình · Quản trị.
+//   Lịch sử + LSX mở từ hub Tính giá qua module route.
+//
+// Đổi 26/09/2026: tab 4 "Đơn hàng" (vỏ LSXScreen) → "Cấu hình" (CauHinhScreen)
+// cho khớp web mobile (MOBILE_HUBS.pricing_config). LSX vẫn vào từ hub Tính giá.
+// Tab 5 "Thêm" → "Quản trị" (màn Quản trị hệ thống = nhóm system web).
 //
 // Tính giá & báo giá (từ 18/09/2026): tab "Tính giá" không mở thẳng calculator
 // nữa mà là hub TinhGiaHubScreen (mirror web mobile MOBILE_HUBS.pricing_quote).
@@ -15,6 +19,8 @@
 // KhachHangHubScreen qua ModuleRoute — KHÔNG cần PopScope vì list KH
 // không có form state đang sửa (sheet modal tự dispose).
 // ═══════════════════════════════════════════════════════════════════════════
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -25,7 +31,6 @@ import '../widgets/auth/bat_buoc_dat_pin.dart';
 import '../widgets/lts/lts_chrome.dart';
 import '../widgets/lts/lts_module_route.dart';
 import 'cau_hinh_screen.dart';
-import 'don_hang_screen.dart';
 import 'hub_screen.dart';
 import 'khach_hang_hub_screen.dart';
 import 'lich_su_screen.dart';
@@ -41,16 +46,79 @@ class HomeShell extends StatefulWidget {
   State<HomeShell> createState() => _HomeShellState();
 }
 
-class _HomeShellState extends State<HomeShell> {
+class _HomeShellState extends State<HomeShell> with WidgetsBindingObserver {
   int _index = 0;
+  Timer? _lamMoiPhienTimer;
+  AppState? _appState;
+  String? _tokenDaHen;
 
   static const _tabs = [
     LtsTabItem('Tổng quan', Icons.space_dashboard_outlined),
     LtsTabItem('Tính giá', Icons.calculate_outlined),
     LtsTabItem('Khách hàng', Icons.people_outline_rounded),
-    LtsTabItem('Đơn hàng', Icons.assignment_outlined),
-    LtsTabItem('Thêm', Icons.more_horiz_rounded),
+    LtsTabItem('Cấu hình', Icons.tune_rounded),
+    LtsTabItem('Quản trị', Icons.more_horiz_rounded),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final s = context.read<AppState>();
+      _appState = s;
+      s.addListener(_datLaiTimerLamMoi);
+      _datLaiTimerLamMoi();
+    });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _lamMoiPhienTimer?.cancel();
+    _appState?.removeListener(_datLaiTimerLamMoi);
+    super.dispose();
+  }
+
+  /// Làm mới phiên chủ động theo `exp` JWT (mirror VoTrang.tsx timer web).
+  /// Chỉ hẹn lại khi access token ĐỔI — tránh reset timer mỗi notifyListeners.
+  void _datLaiTimerLamMoi() {
+    final s = _appState;
+    final token = s?.accessToken;
+    if (s == null || !s.isAuthenticated || token == null || token.isEmpty) {
+      _lamMoiPhienTimer?.cancel();
+      _lamMoiPhienTimer = null;
+      _tokenDaHen = null;
+      return;
+    }
+    if (token == _tokenDaHen) return;
+    _tokenDaHen = token;
+    _lamMoiPhienTimer?.cancel();
+    final cho = thoiGianChoLamMoiPhien(token);
+    _lamMoiPhienTimer = Timer(Duration(milliseconds: cho), () {
+      if (!mounted) return;
+      _tokenDaHen = null;
+      s.lamMoiPhien();
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final s = _appState;
+    final token = s?.accessToken;
+    // Timer có thể bị treo khi app suspend → luôn hẹn lại khi quay lại.
+    _tokenDaHen = null;
+    if (s != null &&
+        s.isAuthenticated &&
+        token != null &&
+        token.isNotEmpty &&
+        canLamMoiNgay(token)) {
+      s.lamMoiPhien();
+    }
+    _datLaiTimerLamMoi();
+  }
 
   void _onTab(int i) {
     setState(() => _index = i);
@@ -96,7 +164,7 @@ class _HomeShellState extends State<HomeShell> {
       case 1:
         _pushModule('Lịch sử báo giá', const LichSuScreen());
       case 2:
-        _pushModule('Cấu hình tính giá', const CauHinhScreen());
+        setState(() => _index = 3);
       case 3:
         _pushModule('Lệnh sản xuất', const LSXScreen());
       default:
@@ -179,15 +247,14 @@ class _HomeShellState extends State<HomeShell> {
         index: _index,
         children: [
           HubScreen(
-            onGoCauHinh: () =>
-                _pushModule('Cấu hình tính giá', const CauHinhScreen()),
+            onGoCauHinh: () => setState(() => _index = 3),
             onOpenKhachHang: () => setState(() => _index = 2),
           ),
           TinhGiaHubScreen(
             onOpenTinhGia: _pushTinhGiaModule,
           ),
           const KhachHangHubScreen(),
-          const DonHangScreen(),
+          const CauHinhScreen(),
           const ThemScreen(),
         ],
       ),

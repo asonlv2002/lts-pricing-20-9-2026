@@ -117,7 +117,7 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
   });
 
   @override
-  Size get preferredSize => Size.fromHeight(hub ? 112 : 70);
+  Size get preferredSize => Size.fromHeight(hub ? 80 : 70);
 
   @override
   Widget build(BuildContext context) {
@@ -140,30 +140,23 @@ class LtsNavyHeader extends StatelessWidget implements PreferredSizeWidget {
               minimum: EdgeInsets.fromLTRB(
                   hub ? 24 : 12, 12, hub ? 24 : 12, hub ? 24 : 12),
               child: hub
-                  ? Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                  ? Row(
                       children: [
-                        Row(
-                          children: [
-                            const Spacer(),
-                            ...?extras,
-                            if (action != null) ...[
-                              const SizedBox(width: 8),
-                              action!,
-                            ],
-                          ],
+                        Expanded(
+                          child: Text(title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: -0.18,
+                                  color: Colors.white)),
                         ),
-                        const SizedBox(height: 16),
-                        Text(title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.18,
-                                color: Colors.white)),
-                        const SizedBox(height: 4),
+                        ...?extras,
+                        if (action != null) ...[
+                          const SizedBox(width: 8),
+                          action!,
+                        ],
                       ],
                     )
                   : Row(

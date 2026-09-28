@@ -140,6 +140,20 @@ String trichMessageTuBody(dynamic body) {
   return '';
 }
 
+// ── Cặp token (mirror TokenPair web) ───────────────────────────────────────
+// /auth/refresh CHỈ trả accessToken + refreshToken (KHÔNG có `user`) → không
+// dùng PhienDangNhap (vốn bắt buộc `user`) để tránh TypeError làm rớt token.
+class TokenPair {
+  final String accessToken;
+  final String refreshToken;
+  const TokenPair({required this.accessToken, required this.refreshToken});
+
+  factory TokenPair.fromJson(Map<String, dynamic> j) => TokenPair(
+        accessToken: j['accessToken']?.toString() ?? '',
+        refreshToken: j['refreshToken']?.toString() ?? '',
+      );
+}
+
 // ── Quản lý phiên (mirror caiDatQuanLyPhien) ───────────────────────────────
 typedef TokenProvider = ({String accessToken, String refreshToken})? Function();
 typedef TokenSaver = void Function(String accessToken, String refreshToken);
@@ -161,6 +175,31 @@ class QuanLyPhien {
   }
 }
 
+// ── Refresh gộp (single-flight — mirror `dangRefreshPromise` web) ───────────
+// Refresh token chỉ dùng 1 lần trên BE. Khi nhiều request 401 cùng lúc (nhiều
+// timer 30s), chỉ gửi 1 lần refresh; các caller khác chờ chung kết quả.
+Future<TokenPair>? _dangRefresh;
+
+Future<TokenPair> lamMoiTokenQuaQuanLyPhien() {
+  final dangChay = _dangRefresh;
+  if (dangChay != null) return dangChay;
+
+  final promise = () async {
+    final cap = QuanLyPhien.layTokenHienTai?.call();
+    if (cap == null || cap.refreshToken.isEmpty) {
+      throw LoiServiceLts(401, 'Không có refresh token để làm mới phiên.');
+    }
+    final moi = await lamMoiTokenService(cap.refreshToken);
+    QuanLyPhien.luuTokenMoi?.call(moi.accessToken, moi.refreshToken);
+    return moi;
+  }();
+
+  _dangRefresh = promise;
+  return promise.whenComplete(() {
+    _dangRefresh = null;
+  });
+}
+
 // ── Client ─────────────────────────────────────────────────────────────────
 class ServiceLtsClient {
   ServiceLtsClient._();
@@ -177,12 +216,32 @@ class ServiceLtsClient {
     defaultValue: 'http://10.0.2.2:3001',
   );
 
+  /// Origin web app (Next.js) — dùng để tạo deep-link chia sẻ `/bao-gia/<id>`.
+  /// Override lúc build: `--dart-define=LTS_WEB_URL=https://...`
+  static const _envWebUrl = String.fromEnvironment(
+    'LTS_WEB_URL',
+    defaultValue: 'https://lts-pricing-web.vercel.app',
+  );
+
   static const httpTimeout = Duration(seconds: 20);
 
   String get baseUrl {
     final override = LocalStorage.instance.readServiceUrl();
     final url = (override != null && override.isNotEmpty) ? override : _envUrl;
     return url.endsWith('/') ? url.substring(0, url.length - 1) : url;
+  }
+
+  /// Origin web app (không có dấu `/` cuối).
+  String get webUrl => _envWebUrl.endsWith('/')
+      ? _envWebUrl.substring(0, _envWebUrl.length - 1)
+      : _envWebUrl;
+
+  /// Deep-link web chia sẻ báo giá: `<webUrl>/bao-gia/<id>` (mirror web
+  /// `taoUrlChiaSeBaoGia`). Trả null nếu id rỗng.
+  String? taoUrlChiaSeBaoGia(String? id) {
+    final shareId = id?.trim();
+    if (shareId == null || shareId.isEmpty) return null;
+    return '$webUrl/bao-gia/${Uri.encodeComponent(shareId)}';
   }
 
   /// Người dùng nhập URL server trong phần cấu hình (thiết bị thật ngoài LAN).
@@ -196,8 +255,7 @@ class ServiceLtsClient {
 
   Map<String, String> _headers(String? token) => {
         'Content-Type': 'application/json',
-        if (token != null && token.isNotEmpty)
-          'Authorization': 'Bearer $token',
+        if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
       };
 
   /// Gọi API JSON chung. 401 (hết phiên) → refresh 1 lần rồi thử lại.
@@ -223,8 +281,7 @@ class ServiceLtsClient {
         request.headers.addAll(extraHeaders);
       }
       if (body != null) request.body = jsonEncode(body);
-      final streamed =
-          await request.send().timeout(httpTimeout, onTimeout: () {
+      final streamed = await request.send().timeout(httpTimeout, onTimeout: () {
         throw LoiServiceLts(0, 'Không kết nối được tới máy chủ.');
       });
       final res = await http.Response.fromStream(streamed);
@@ -236,12 +293,19 @@ class ServiceLtsClient {
     } on LoiServiceLts catch (e) {
       // 401 do sai PIN → không phải hết phiên, ném nguyên gốc.
       if (e.status != 401 || laLoiPinHttp(e.message)) rethrow;
-      // 401 hết phiên → thử refresh 1 lần.
-      final capToken = QuanLyPhien.layTokenHienTai?.call();
-      if (capToken == null || laPathCongKhai(path)) rethrow;
-      final moi = await lamMoiTokenService(capToken.refreshToken);
-      QuanLyPhien.luuTokenMoi?.call(moi.accessToken, moi.refreshToken);
-      tok = moi.accessToken;
+      // 401 hết phiên → thử refresh 1 lần (gộp nếu nhiều request cùng lúc).
+      if (laPathCongKhai(path)) rethrow;
+      try {
+        final moi = await lamMoiTokenQuaQuanLyPhien();
+        tok = moi.accessToken;
+      } on LoiServiceLts catch (rf) {
+        if (rf.status == 401) {
+          // Refresh token cũng hết hạn → logout sạch (mirror web).
+          QuanLyPhien.xuLyPhienKhongHopLe?.call();
+          throw LoiServiceLts(401, 'Hết phiên đăng nhập.');
+        }
+        rethrow;
+      }
       return await gui(tok);
     }
   }
@@ -276,8 +340,8 @@ class ServiceLtsClient {
   }) async {
     final uri = Uri.parse('$baseUrl$path');
     final request = http.MultipartRequest('POST', uri)
-      ..files.add(http.MultipartFile.fromBytes(field, bytes,
-          filename: filename));
+      ..files
+          .add(http.MultipartFile.fromBytes(field, bytes, filename: filename));
     request.headers['Authorization'] = 'Bearer $token';
     final streamed = await request.send().timeout(httpTimeout, onTimeout: () {
       throw LoiServiceLts(0, 'Không kết nối được tới máy chủ.');
@@ -287,14 +351,16 @@ class ServiceLtsClient {
   }
 
   /// Tải blob (ảnh đại diện / chữ ký) — trả raw bytes.
+  /// [path] có thể là path tương đối (`/auth/...`) hoặc URL tuyệt đối.
   Future<List<int>> taiBlob(String path, {required String token}) async {
-    var tok = token;
-    final res = await _goiBlob(path, tok);
+    final res = await _goiBlob(path, token);
     return res.bodyBytes;
   }
 
   Future<http.Response> _goiBlob(String path, String token) async {
-    final uri = Uri.parse('$baseUrl$path');
+    final uri = (path.startsWith('http://') || path.startsWith('https://'))
+        ? Uri.parse(path)
+        : Uri.parse('$baseUrl$path');
     final res = await http
         .get(uri, headers: _headers(token))
         .timeout(httpTimeout, onTimeout: () {
@@ -426,7 +492,8 @@ class YeuCauDatLaiMatKhauApi {
   });
 
   factory YeuCauDatLaiMatKhauApi.fromJson(Map<String, dynamic> j) {
-    final user = j['user'] is Map ? (j['user'] as Map).cast<String, dynamic>() : null;
+    final user =
+        j['user'] is Map ? (j['user'] as Map).cast<String, dynamic>() : null;
     return YeuCauDatLaiMatKhauApi(
       id: j['id']?.toString() ?? '',
       userId: j['userId']?.toString() ?? '',
@@ -453,8 +520,7 @@ class KetQuaDuyetReset {
     this.expiresAt,
   });
 
-  factory KetQuaDuyetReset.fromJson(Map<String, dynamic> j) =>
-      KetQuaDuyetReset(
+  factory KetQuaDuyetReset.fromJson(Map<String, dynamic> j) => KetQuaDuyetReset(
         id: j['id']?.toString() ?? '',
         decision: j['decision']?.toString() ?? '',
         code: j['code']?.toString(),
@@ -500,11 +566,11 @@ Future<PhienDangNhap> dangNhapService(String account, String password) async {
   return PhienDangNhap.fromJson((data as Map).cast<String, dynamic>());
 }
 
-/// POST /auth/refresh — public.
-Future<PhienDangNhap> lamMoiTokenService(String refreshToken) async {
-  final data = await ServiceLtsClient.instance
-      .goiService('/auth/refresh', method: 'POST', body: {'refreshToken': refreshToken});
-  return PhienDangNhap.fromJson((data as Map).cast<String, dynamic>());
+/// POST /auth/refresh — public. Trả TokenPair (BE KHÔNG trả `user` ở route này).
+Future<TokenPair> lamMoiTokenService(String refreshToken) async {
+  final data = await ServiceLtsClient.instance.goiService('/auth/refresh',
+      method: 'POST', body: {'refreshToken': refreshToken});
+  return TokenPair.fromJson((data as Map).cast<String, dynamic>());
 }
 
 /// PATCH /auth/me/password — JWT → trả cặp token mới.
@@ -530,7 +596,8 @@ Future<TrangThaiBaoMat> layTrangThaiBaoMatService(String token) async {
 }
 
 /// PUT /auth/me/pin — đặt/thay PIN 6 số (cần mật khẩu hiện tại).
-Future<void> datPinService(String token, String currentPassword, String pin) async {
+Future<void> datPinService(
+    String token, String currentPassword, String pin) async {
   await ServiceLtsClient.instance.goiService(
     '/auth/me/pin',
     method: 'PUT',
@@ -564,13 +631,22 @@ Future<List<int>> layAnhDaiDienService(String token) =>
 /// POST /auth/signatures — multipart "signature".
 Future<void> taiChuKyService(
     String token, List<int> bytes, String filename) async {
-  await ServiceLtsClient.instance
-      .uploadFile('/auth/signatures', 'signature', bytes, filename, token: token);
+  await ServiceLtsClient.instance.uploadFile(
+      '/auth/signatures', 'signature', bytes, filename,
+      token: token);
 }
 
 /// GET /auth/me/signature — bytes chữ ký.
 Future<List<int>> layChuKyService(String token) =>
     ServiceLtsClient.instance.taiBlob('/auth/me/signature', token: token);
+
+/// GET chữ ký reviewer theo `reviewerSignatureUrl` (path tương đối hoặc URL đầy
+/// đủ) — mirror web `layChuKyReviewerService`. Trả raw bytes (BE trả WebP).
+Future<List<int>> layChuKyReviewerService(
+  String urlOrPath, {
+  required String token,
+}) =>
+    ServiceLtsClient.instance.taiBlob(urlOrPath, token: token);
 
 /// GET /auth/accounts — ACCOUNT_MANAGER.
 Future<List<TaiKhoanApi>> layTaiKhoanService(String token) async {
@@ -774,8 +850,7 @@ class KhachHangVersion {
     required this.createdAt,
   });
 
-  factory KhachHangVersion.fromJson(Map<String, dynamic> j) =>
-      KhachHangVersion(
+  factory KhachHangVersion.fromJson(Map<String, dynamic> j) => KhachHangVersion(
         version: (j['version'] as num?)?.toInt() ?? 0,
         organizationName: j['organizationName']?.toString() ?? '',
         taxCode: j['taxCode']?.toString(),
@@ -794,8 +869,7 @@ class KhachHangManager {
   final String fullName;
   const KhachHangManager({this.userId, this.account, required this.fullName});
 
-  factory KhachHangManager.fromJson(Map<String, dynamic> j) =>
-      KhachHangManager(
+  factory KhachHangManager.fromJson(Map<String, dynamic> j) => KhachHangManager(
         userId: (j['userId'] ?? j['managerId'])?.toString(),
         account: j['account']?.toString(),
         fullName: j['fullName']?.toString() ?? '',
@@ -818,8 +892,7 @@ class KhachHang {
     this.isLocked = false,
   });
 
-  KhachHangVersion? get moiNhat =>
-      versions.isEmpty ? null : versions.first;
+  KhachHangVersion? get moiNhat => versions.isEmpty ? null : versions.first;
 
   factory KhachHang.fromJson(Map<String, dynamic> j) => KhachHang(
         id: j['id']?.toString() ?? '',
@@ -959,8 +1032,8 @@ class HoatDongApi {
 /// GET /activity-logs — log toàn hệ thống. BE tự filter theo policy
 /// ACTIVITY_MONITOR: có → xem all; không → chỉ của mình.
 Future<List<HoatDongApi>> layHoatDongService(String token) async {
-  final data =
-      await ServiceLtsClient.instance.goiService('/activity-logs', token: token);
+  final data = await ServiceLtsClient.instance
+      .goiService('/activity-logs', token: token);
   return ((data as List?) ?? const [])
       .map((e) => HoatDongApi.fromJson((e as Map).cast<String, dynamic>()))
       .toList();
@@ -1154,7 +1227,8 @@ Future<PricingSheetApi> taoPricingSheetService(
 }
 
 /// GET /pricing-sheet — list bảng tính user có quyền xem.
-Future<List<PricingSheetApi>> layDanhSachPricingSheetService(String token) async {
+Future<List<PricingSheetApi>> layDanhSachPricingSheetService(
+    String token) async {
   final data = await ServiceLtsClient.instance.goiService(
     '/pricing-sheet',
     token: token,
@@ -1219,7 +1293,8 @@ enum TrangThaiBaoGiaServer { drafted, submitted, approved, rejected, unknown }
 
 TrangThaiBaoGiaServer chuyenTrangThaiBaoGia(String? updateStatus) {
   final v = (updateStatus ?? '').trim().toLowerCase();
-  if (v.isEmpty || v == 'draft' || v == 'drafted') return TrangThaiBaoGiaServer.drafted;
+  if (v.isEmpty || v == 'draft' || v == 'drafted')
+    return TrangThaiBaoGiaServer.drafted;
   if (v == 'submitted') return TrangThaiBaoGiaServer.submitted;
   if (v == 'approved') return TrangThaiBaoGiaServer.approved;
   if (v == 'rejected') return TrangThaiBaoGiaServer.rejected;
@@ -1255,8 +1330,12 @@ class BaoGiaApi {
   final String? reviewerSignatureUrl;
   final List<PricingSheetApi> pricingSheets;
   // Pricing sheet link mở rộng (từ quotationPricingSheets): thêm hasCustomerApproved + quotationId
-  final List<({PricingSheetApi sheet, bool? hasCustomerApproved, String? quotationId})>
-      pricingSheetLinks;
+  final List<
+      ({
+        PricingSheetApi sheet,
+        bool? hasCustomerApproved,
+        String? quotationId
+      })> pricingSheetLinks;
   final String? actorName;
   final String? actorAvatarUrl;
   final bool deletable;
@@ -1290,28 +1369,33 @@ class BaoGiaApi {
         ? (j['original'] as Map).cast<String, dynamic>()
         : null;
     final sheets = ((j['pricingSheets'] as List?) ?? const [])
-        .map((e) => PricingSheetApi.fromJson((e as Map).cast<String, dynamic>()))
+        .map(
+            (e) => PricingSheetApi.fromJson((e as Map).cast<String, dynamic>()))
         .toList();
     // quotationPricingSheets (server shape gốc): mỗi entry có hasCustomerApproved + pricingSheet
     final linksRaw = (j['quotationPricingSheets'] as List?) ?? const [];
-    final links = linksRaw.map((e) {
-      final m = (e as Map).cast<String, dynamic>();
-      final sheet = m['pricingSheet'] is Map
-          ? PricingSheetApi.fromJson(
-              (m['pricingSheet'] as Map).cast<String, dynamic>())
-          : null;
-      return (
-        sheet: sheet,
-        hasCustomerApproved: m['hasCustomerApproved'] is bool
-            ? m['hasCustomerApproved'] as bool
-            : null,
-        quotationId: m['quotationId']?.toString(),
-      );
-    }).where((r) => r.sheet != null).map((r) => (
-          sheet: r.sheet!,
-          hasCustomerApproved: r.hasCustomerApproved,
-          quotationId: r.quotationId,
-        )).toList();
+    final links = linksRaw
+        .map((e) {
+          final m = (e as Map).cast<String, dynamic>();
+          final sheet = m['pricingSheet'] is Map
+              ? PricingSheetApi.fromJson(
+                  (m['pricingSheet'] as Map).cast<String, dynamic>())
+              : null;
+          return (
+            sheet: sheet,
+            hasCustomerApproved: m['hasCustomerApproved'] is bool
+                ? m['hasCustomerApproved'] as bool
+                : null,
+            quotationId: m['quotationId']?.toString(),
+          );
+        })
+        .where((r) => r.sheet != null)
+        .map((r) => (
+              sheet: r.sheet!,
+              hasCustomerApproved: r.hasCustomerApproved,
+              quotationId: r.quotationId,
+            ))
+        .toList();
     return BaoGiaApi(
       id: j['id']?.toString() ?? '',
       customerId: j['customerId']?.toString(),
@@ -1490,6 +1574,7 @@ class QuotationPricingSheetOrderApi {
   final bool hasPrintedOrder;
   final bool hasAdvisorApproved;
   final String? reason;
+
   /// STT server cấp theo tháng (BE b6028b0) — dùng derive số LSX hiển thị.
   final int versionByMonth;
   final Map<String, dynamic>? inputValue;
@@ -1535,9 +1620,8 @@ class QuotationPricingSheetOrderApi {
           : null,
       createdBy: j['createdBy']?.toString() ?? '',
       approvedBy: j['approvedBy']?.toString(),
-      approverSignatureUrl:
-          original?['approverSignatureUrl']?.toString() ??
-              j['approverSignatureUrl']?.toString(),
+      approverSignatureUrl: original?['approverSignatureUrl']?.toString() ??
+          j['approverSignatureUrl']?.toString(),
       pricingSheet: j['pricingSheet'] is Map
           ? PricingSheetApi.fromJson(
               (j['pricingSheet'] as Map).cast<String, dynamic>())
@@ -1627,7 +1711,7 @@ class CreateQuotationPricingSheetOrdersResponseApi {
     this.orders = const [],
   });
   factory CreateQuotationPricingSheetOrdersResponseApi.fromJson(
-      Map<String, dynamic> j) =>
+          Map<String, dynamic> j) =>
       CreateQuotationPricingSheetOrdersResponseApi(
         quotationId: j['quotationId']?.toString() ?? '',
         createdCount: (j['createdCount'] as num?)?.toInt() ?? 0,
@@ -1775,8 +1859,7 @@ Future<List<PriceConfigApi>> layPriceConfigTheoIdsService(
     token: token,
   );
   return ((data as List?) ?? const [])
-      .map((e) =>
-          PriceConfigApi.fromJson((e as Map).cast<String, dynamic>()))
+      .map((e) => PriceConfigApi.fromJson((e as Map).cast<String, dynamic>()))
       .toList();
 }
 
@@ -1807,8 +1890,7 @@ Future<List<PriceConfigApi>> layLichSuPriceConfigService(
     token: token,
   );
   return ((data as List?) ?? const [])
-      .map((e) =>
-          PriceConfigApi.fromJson((e as Map).cast<String, dynamic>()))
+      .map((e) => PriceConfigApi.fromJson((e as Map).cast<String, dynamic>()))
       .toList();
 }
 
@@ -1820,8 +1902,7 @@ Future<List<PriceConfigApi>> layPriceConfigMoiNhatService(String token) async {
     token: token,
   );
   return ((data as List?) ?? const [])
-      .map((e) =>
-          PriceConfigApi.fromJson((e as Map).cast<String, dynamic>()))
+      .map((e) => PriceConfigApi.fromJson((e as Map).cast<String, dynamic>()))
       .toList();
 }
 
@@ -1888,8 +1969,7 @@ Future<List<KhachHangManager>> layNguoiPhuTrachKhachHangService(
     token: token,
   );
   return ((data as List?) ?? const [])
-      .map((e) =>
-          KhachHangManager.fromJson((e as Map).cast<String, dynamic>()))
+      .map((e) => KhachHangManager.fromJson((e as Map).cast<String, dynamic>()))
       .toList();
 }
 
@@ -2026,7 +2106,8 @@ Future<SystemMetricSnapshotApi> layMetricHeThongService(String token) async {
     '/system/metric/collect',
     token: token,
   );
-  return SystemMetricSnapshotApi.fromJson((data as Map).cast<String, dynamic>());
+  return SystemMetricSnapshotApi.fromJson(
+      (data as Map).cast<String, dynamic>());
 }
 
 /// GET /auth/me/password-reset-requests — yêu cầu reset mật khẩu của chính tôi

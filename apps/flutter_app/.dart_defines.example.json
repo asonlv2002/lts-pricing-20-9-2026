@@ -1,3 +1,4 @@
 {
-  "LTS_SERVICE_URL": "https://lts-dev-server.zealstudiojsc.com"
+  "LTS_SERVICE_URL": "https://lts-dev-server.zealstudiojsc.com",
+  "LTS_WEB_URL": "https://lts-pricing-web.vercel.app"
 }

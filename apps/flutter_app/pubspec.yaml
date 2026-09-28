@@ -44,6 +44,9 @@ dependencies:
   xml: ^6.6.1
   share_plus: ^13.3.0
 
+  # Convert ảnh (WebP chữ ký → PNG cho DOCX)
+  image: ^4.3.0
+
 dev_dependencies:
   flutter_lints: ^4.0.0
 

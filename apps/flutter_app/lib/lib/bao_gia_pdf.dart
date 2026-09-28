@@ -50,6 +50,8 @@ class BaoGiaPdfInput {
   final double vatCylinderRate; // % cho trục in
   final List<String> notes; // điều khoản đã format
   final String? reviewerSignatureName;
+  /// Ảnh chữ ký P. Kinh Doanh (PNG/WebP bytes) — mirror `reviewerSignatureDataUrl`.
+  final Uint8List? reviewerSignatureBytes;
   const BaoGiaPdfInput({
     required this.customer,
     this.quoteCode = '',
@@ -60,6 +62,7 @@ class BaoGiaPdfInput {
     this.vatCylinderRate = 10,
     this.notes = const [],
     this.reviewerSignatureName,
+    this.reviewerSignatureBytes,
   });
 }
 
@@ -230,7 +233,16 @@ class BaoGiaPdf {
           pw.Text('P. KINH DOANH',
               style:
                   pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
-          pw.SizedBox(height: 40),
+          pw.SizedBox(height: 6),
+          if (it.reviewerSignatureBytes != null &&
+              it.reviewerSignatureBytes!.isNotEmpty)
+            pw.Image(
+              pw.MemoryImage(it.reviewerSignatureBytes!),
+              height: 40,
+              fit: pw.BoxFit.contain,
+            )
+          else
+            pw.SizedBox(height: 40),
           pw.Text(it.reviewerSignatureName ?? '',
               style: const pw.TextStyle(fontSize: 9)),
         ]),
@@ -270,6 +282,7 @@ BaoGiaPdfInput buildBaoGiaPdfInput({
       lines,
   Map<String, dynamic>? terms,
   String? reviewerSignatureName,
+  Uint8List? reviewerSignatureBytes,
 }) {
   double numOr(dynamic v, [double d = 0]) =>
       v is num ? v.toDouble() : d;
@@ -327,6 +340,7 @@ BaoGiaPdfInput buildBaoGiaPdfInput({
     vatCylinderRate: vatCyl,
     notes: notes,
     reviewerSignatureName: reviewerSignatureName,
+    reviewerSignatureBytes: reviewerSignatureBytes,
   );
 }
 

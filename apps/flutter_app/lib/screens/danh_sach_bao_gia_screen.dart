@@ -1,25 +1,28 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// DanhSachBaoGiaScreen — mirror web mobile MOBILE_HUBS.pricing_quote →
-// "Danh sách báo giá" (ModuleDuyetBaoGia.tsx, key = 'danh-sach-bao-gia').
+// DanhSachBaoGiaScreen — mirror web mobile ModuleDuyetBaoGia.tsx (qrev-mcard).
 //
-// Gọi GET /quotations (server tự filter theo policy QUOTATION_REVIEWER).
-// Render 2 chip filter: Tất cả | Chờ duyệt.
+// Nguồn dữ liệu 2 chế độ (mirror web `nguon`):
+//   - list   : GET /quotations          (nguồn mặc định, có chip lọc trạng thái)
+//   - review : GET /quotations/non-draft (chip "Chờ tôi duyệt", chỉ QUOTATION_REVIEWER)
 //
-// Mỗi row card (mirror qrev-mcard): mã BG (YYMM.STT derive từ orders, fallback
-// inputValue.quoteCode) + tên BG + KH + SP + SL + thời gian (updatedAt) + người
-// lập + trạng thái. Tap row → expand show pricingSheets (từng sheet có
-// hasCustomerApproved + phản hồi KH) + nút "Tạo LSX" nếu sheet đã KH-duyệt.
+// Bố cục 1 hàng lọc (mirror LocSheet): [search][⚙ Bộ lọc (badge)] → mở bottom
+// sheet chứa chips. Card (mirror qrev-mcard):
+//   r1  : mã BG .................... pill trạng thái (○/● + nhãn)
+//   KH  : tên khách hàng (rút gọn "… 3 cụm cuối")
+//   sub : ngày cập nhật (toLocaleString vi-VN)
+//   foot: chevron ▸/▾ + avatar người lập | [PDF][Link][Mở lại][Xoá] [Nộp|Duyệt/Từ chối|icon]
+//   mở rộng: lý do từ chối → danh sách sheet → tóm tắt phản hồi KH
 //
-// Hành động nhanh (icon-only, tất cả cần PIN theo PinGuard của BE):
-//   - Nộp duyệt (drafted + createdBy === current user): PIN guard
-//   - Duyệt/Từ chối (submitted + QUOTATION_REVIEWER): PIN guard
-//     (Từ chối: nhập lý do trước rồi mới mở PIN)
-//   - Xoá (original.deletable): PIN guard
-//   - Tạo LSX từ sheet approved: mở TaoLsxWizard (PIN trong wizard)
+// Hành động nhanh (tất cả cần PIN theo PinGuard của BE):
+//   - Nộp duyệt (drafted + createdBy === current user)
+//   - Duyệt/Từ chối (submitted + QUOTATION_REVIEWER) — từ chối nhập lý do trước
+//   - Xoá (original.deletable)
+//   - Tạo LSX từ sheet approved
 // ═══════════════════════════════════════════════════════════════════════════
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../api/service_lts_client.dart';
@@ -29,14 +32,58 @@ import '../store/app_state.dart';
 import '../theme/format.dart';
 import '../theme/lts_tokens.dart';
 import '../widgets/auth/pin_sheets.dart';
+import '../widgets/lts/lts_overlay.dart';
 import '../widgets/lts/lts_surfaces.dart';
 import '../widgets/lts/lts_toast.dart';
+import 'tao_bao_gia_wizard.dart';
 import 'tao_lsx_wizard.dart';
 
-// ── Label helpers (mirror web tenBaoGia/tenKhachHang/tenSanPham) ────────────
+// ── Avatar người lập (mirror web ten-hien-thi.ts) ──────────────────────────
+const _avatarPalette = <Color>[
+  Color(0xFF4F46E5),
+  Color(0xFF0891B2),
+  Color(0xFF059669),
+  Color(0xFFD97706),
+  Color(0xFFDB2777),
+  Color(0xFF7C3AED),
+  Color(0xFF0EA5E9),
+  Color(0xFF65A30D),
+];
 
-String _tenBaoGia(BaoGiaApi bg) =>
-    bg.quotationName ?? bg.description ?? 'Báo giá';
+Color _mauAvatarTen(String? ten) {
+  final s = ten ?? '';
+  if (s.isEmpty) return _avatarPalette.first;
+  var sum = 0;
+  for (final r in s.runes) {
+    sum += r;
+  }
+  return _avatarPalette[sum.abs() % _avatarPalette.length];
+}
+
+/// 2 chữ cái đầu của 2 từ cuối (mirror `layChuCaiDau`).
+String _chuCaiDau(String? ten) {
+  final tu = (ten ?? '').split(' ').where((t) => t.isNotEmpty).toList();
+  final cuoi = tu.length > 2 ? tu.sublist(tu.length - 2) : tu;
+  return cuoi.map((w) => w[0]).join().toUpperCase();
+}
+
+/// Tên KH "… 3 cụm cuối" (mirror `rutGonTenKhachHang`).
+String _rutGonTenKhachHang(String? ten) {
+  final tu = (ten ?? '').split(RegExp(r'\s+')).where((t) => t.isNotEmpty).toList();
+  if (tu.isEmpty) return '—';
+  if (tu.length <= 3) return tu.join(' ');
+  return '… ${tu.sublist(tu.length - 3).join(' ')}';
+}
+
+// ── Label helpers (mirror web tenBaoGia/tenKhachHang) ──────────────────────
+
+String _tenBaoGia(BaoGiaApi bg) {
+  // Tên BG lưu trong inputValue.quotationName (Flutter/web wizard ghi).
+  final iv = bg.inputValue;
+  final ten = (iv?['quotationName'] as String?)?.trim();
+  if (ten != null && ten.isNotEmpty) return ten;
+  return bg.quotationName ?? bg.description ?? 'Báo giá';
+}
 
 String _tenKhachHang(BaoGiaApi bg) {
   final sheet = bg.pricingSheets.isNotEmpty ? bg.pricingSheets.first : null;
@@ -50,23 +97,6 @@ String _tenKhachHang(BaoGiaApi bg) {
   return '—';
 }
 
-String _tenSanPham(BaoGiaApi bg) {
-  final sheet = bg.pricingSheets.isNotEmpty ? bg.pricingSheets.first : null;
-  final v = (sheet?.inputValue['productName'] as String?)?.trim();
-  if (v != null && v.isNotEmpty) return v;
-  final n = sheet?.pricingSheetName?.trim();
-  if (n != null && n.isNotEmpty) return n;
-  return '—';
-}
-
-/// Số lượng của sheet đầu (để hiện "SP · SL đv").
-num? _soLuong(BaoGiaApi bg) {
-  final sheet = bg.pricingSheets.isNotEmpty ? bg.pricingSheets.first : null;
-  final q = sheet?.inputValue['quantity'];
-  if (q is num) return q;
-  return null;
-}
-
 /// Mã BG cũ lưu trong inputValue.quoteCode (mirror docMaBaoGiaTuPhanTu).
 String _maBaoGiaTuInput(BaoGiaApi bg) {
   final iv = bg.inputValue;
@@ -75,7 +105,7 @@ String _maBaoGiaTuInput(BaoGiaApi bg) {
   return '';
 }
 
-/// Chuỗi gom từ khóa để search (mã BG + tên BG + KH + SP + tên sheet), đã bỏ dấu.
+/// Chuỗi gom từ khóa để search (mirror web `tuKhoaBaoGia`), đã bỏ dấu.
 String _tuKhoaTimKiem(BaoGiaApi bg, String maBg) {
   final parts = <String>[
     maBg,
@@ -93,6 +123,12 @@ String _tuKhoaTimKiem(BaoGiaApi bg, String maBg) {
   return boDau(parts.where((e) => e.isNotEmpty).join(' '));
 }
 
+/// Bộ lọc chip — 1-1 với 4 status server (mirror web BoLoc).
+enum _BoLoc { all, drafted, submitted, approved, rejected }
+
+/// Nguồn dữ liệu (mirror web `nguon`).
+enum _Nguon { list, review }
+
 class DanhSachBaoGiaScreen extends StatefulWidget {
   const DanhSachBaoGiaScreen({super.key});
 
@@ -104,15 +140,20 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
   List<BaoGiaApi> _tatCa = const [];
   bool _dangTai = false;
   String? _loi;
-  TrangThaiBaoGiaServer _chip = TrangThaiBaoGiaServer.unknown; // all
+  _Nguon _nguon = _Nguon.list;
+  _BoLoc _boLoc = _BoLoc.all;
   String _query = '';
   String? _expandedId;
   String? _dangXuLySheetId;
   Timer? _autoRefresh;
 
-  static const _chips = <(TrangThaiBaoGiaServer, String)>[
-    (TrangThaiBaoGiaServer.unknown, 'Tất cả'),
-    (TrangThaiBaoGiaServer.submitted, 'Chờ duyệt'),
+  /// Chip lọc trạng thái (mirror web CHIP_LABELS).
+  static const _chips = <(_BoLoc, String)>[
+    (_BoLoc.all, 'Tất cả'),
+    (_BoLoc.drafted, 'Khởi tạo'),
+    (_BoLoc.submitted, 'Chờ duyệt'),
+    (_BoLoc.approved, 'Đã duyệt'),
+    (_BoLoc.rejected, 'Bị từ chối'),
   ];
 
   @override
@@ -139,7 +180,9 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
       _loi = null;
     });
     try {
-      final ds = await layDanhSachBaoGiaService(token);
+      final ds = _nguon == _Nguon.review
+          ? await layBaoGiaChoDuyetService(token)
+          : await layDanhSachBaoGiaService(token);
       if (mounted) setState(() => _tatCa = ds);
     } catch (err) {
       if (mounted) {
@@ -163,11 +206,26 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
     return out;
   }
 
+  bool _thuocBoLoc(TrangThaiBaoGiaServer tt, _BoLoc loc) {
+    switch (loc) {
+      case _BoLoc.all:
+        return true;
+      case _BoLoc.drafted:
+        return tt == TrangThaiBaoGiaServer.drafted;
+      case _BoLoc.submitted:
+        return tt == TrangThaiBaoGiaServer.submitted;
+      case _BoLoc.approved:
+        return tt == TrangThaiBaoGiaServer.approved;
+      case _BoLoc.rejected:
+        return tt == TrangThaiBaoGiaServer.rejected;
+    }
+  }
+
   List<BaoGiaApi> _hienThi(Map<String, String> maMap) {
     final q = boDau(_query.trim());
     return _tatCa.where((bg) {
-      if (_chip != TrangThaiBaoGiaServer.unknown &&
-          bg.trangThai != _chip) {
+      // Nguồn 'review' bỏ qua bộ lọc trạng thái (mirror web ketQua).
+      if (_nguon == _Nguon.list && !_thuocBoLoc(bg.trangThai, _boLoc)) {
         return false;
       }
       if (q.isEmpty) return true;
@@ -175,14 +233,82 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
     }).toList();
   }
 
-  Map<TrangThaiBaoGiaServer, int> get _dem {
-    final out = <TrangThaiBaoGiaServer, int>{
-      TrangThaiBaoGiaServer.unknown: _tatCa.length,
+  Map<_BoLoc, int> get _demTheoChip {
+    final out = <_BoLoc, int>{
+      _BoLoc.all: _tatCa.length,
+      _BoLoc.drafted: 0,
+      _BoLoc.submitted: 0,
+      _BoLoc.approved: 0,
+      _BoLoc.rejected: 0,
     };
     for (final bg in _tatCa) {
-      out[bg.trangThai] = (out[bg.trangThai] ?? 0) + 1;
+      out[_BoLoc.drafted] =
+          out[_BoLoc.drafted]! + (bg.trangThai == TrangThaiBaoGiaServer.drafted ? 1 : 0);
+      out[_BoLoc.submitted] = out[_BoLoc.submitted]! +
+          (bg.trangThai == TrangThaiBaoGiaServer.submitted ? 1 : 0);
+      out[_BoLoc.approved] = out[_BoLoc.approved]! +
+          (bg.trangThai == TrangThaiBaoGiaServer.approved ? 1 : 0);
+      out[_BoLoc.rejected] = out[_BoLoc.rejected]! +
+          (bg.trangThai == TrangThaiBaoGiaServer.rejected ? 1 : 0);
     }
     return out;
+  }
+
+  void _chonChip(_BoLoc key) {
+    setState(() {
+      _nguon = _Nguon.list;
+      _boLoc = key;
+    });
+    _tai(force: true);
+  }
+
+  void _chonNguonReview() {
+    setState(() {
+      _nguon = _Nguon.review;
+      _boLoc = _BoLoc.all;
+    });
+    _tai(force: true);
+  }
+
+  /// Mở bottom sheet "Bộ lọc" (mirror LocSheet) chứa chips + chip "Chờ tôi duyệt".
+  Future<void> _moBoLoc(bool laNguoiDuyet, Map<_BoLoc, int> dem) async {
+    await showLtsSheet<void>(
+      context,
+      title: 'Bộ lọc',
+      builder: (ctx) => SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+          child: Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final c in _chips)
+                _ChipPill(
+                  label: c.$2,
+                  count: dem[c.$1] ?? 0,
+                  active: _nguon == _Nguon.list && _boLoc == c.$1,
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _chonChip(c.$1);
+                  },
+                ),
+              if (laNguoiDuyet)
+                _ChipPill(
+                  label: 'Chờ tôi duyệt',
+                  count: null,
+                  active: _nguon == _Nguon.review,
+                  dashed: true,
+                  icon: Icons.inbox_outlined,
+                  onTap: () {
+                    Navigator.of(ctx).pop();
+                    _chonNguonReview();
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -198,12 +324,13 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
         ),
       );
     }
-    final dem = _dem;
+    final dem = _demTheoChip;
     final maMap = _maBaoGiaMap(s);
     final hienThi = _hienThi(maMap);
-    final laNguoiDuyet = s.nguoiDungHienTai?.policies
-            .contains('QUOTATION_REVIEWER') ??
-        false;
+    final laNguoiDuyet =
+        s.nguoiDungHienTai?.policies.contains('QUOTATION_REVIEWER') ?? false;
+    final soLuongLoc =
+        (_nguon == _Nguon.review ? 1 : 0) + (_boLoc != _BoLoc.all ? 1 : 0);
 
     return RefreshIndicator(
       onRefresh: () => _tai(force: true),
@@ -238,50 +365,36 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
               ),
             ),
           ),
-          // ── Search ────────────────────────────────────────────────────────
+          // ── Search + nút Bộ lọc (mirror LocSheet 1 hàng) ──────────────────
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-              child: TextField(
-                decoration: InputDecoration(
-                  isDense: true,
-                  hintText: 'Tìm số BG, khách hàng, sản phẩm...',
-                  prefixIcon: const Icon(Icons.search, size: 20),
-                  suffixIcon: _query.isEmpty
-                      ? null
-                      : IconButton(
-                          icon: const Icon(Icons.close, size: 18),
-                          onPressed: () => setState(() => _query = ''),
-                        ),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                onChanged: (v) => setState(() => _query = v),
-              ),
-            ),
-          ),
-          // ── Status chips ──────────────────────────────────────────────────
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 10, 16, 4),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    for (final c in _chips)
-                      Padding(
-                        padding: const EdgeInsets.only(right: 8),
-                        child: ChoiceChip(
-                          label: Text(
-                            '${c.$2} ${dem[c.$1] ?? 0}',
-                            style: const TextStyle(fontSize: 12),
-                          ),
-                          selected: _chip == c.$1,
-                          onSelected: (_) => setState(() => _chip = c.$1),
-                        ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      decoration: InputDecoration(
+                        isDense: true,
+                        hintText: 'Tìm số BG, khách hàng, sản phẩm...',
+                        prefixIcon: const Icon(Icons.search, size: 20),
+                        suffixIcon: _query.isEmpty
+                            ? null
+                            : IconButton(
+                                icon: const Icon(Icons.close, size: 18),
+                                onPressed: () => setState(() => _query = ''),
+                              ),
+                        border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(10)),
                       ),
-                  ],
-                ),
+                      onChanged: (v) => setState(() => _query = v),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  _NutBoLoc(
+                    soLuong: soLuongLoc,
+                    onTap: () => _moBoLoc(laNguoiDuyet, dem),
+                  ),
+                ],
               ),
             ),
           ),
@@ -304,20 +417,17 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
               ),
             )
           else if (_dangTai && _tatCa.isEmpty)
-            const SliverFillRemaining(
+            SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(child: CircularProgressIndicator()),
+              child: Center(
+                child: Text('Đang tải báo giá...',
+                    style: TextStyle(fontSize: 14, color: p.muted)),
+              ),
             )
           else if (_tatCa.isEmpty)
             SliverFillRemaining(
               hasScrollBody: false,
-              child: Center(
-                child: Padding(
-                  padding: const EdgeInsets.all(32),
-                  child: Text('Chưa có báo giá nào',
-                      style: TextStyle(fontSize: 13, color: p.muted)),
-                ),
-              ),
+              child: _EmptyBaoGia(nguonReview: _nguon == _Nguon.review),
             )
           else if (hienThi.isEmpty)
             SliverFillRemaining(
@@ -338,6 +448,7 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
                   return _BaoGiaCard(
                     bg: bg,
                     maBaoGia: maMap[bg.id] ?? '',
+                    accessToken: s.accessToken,
                     expanded: _expandedId == bg.id,
                     laNguoiDuyet: laNguoiDuyet,
                     currentUserId: s.nguoiDungHienTai?.id ?? '',
@@ -347,17 +458,14 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
                     onDuyet: (approved) => _duyet(bg, approved),
                     onNop: () => _nop(bg),
                     onXoa: () => _xoa(bg),
+                    onSua: () => _sua(bg),
                     onTaoLsx: (sheet) => _taoLsx(bg, sheet),
                     dangXuLySheetId: _dangXuLySheetId,
                     onKhachDuyet: (sheet) => _customerDecide(bg, sheet, true),
                     onKhachTuChoi: (sheet) => _customerDecide(bg, sheet, false),
-                    onXemPdf: () => s.xuatBaoGiaPdf(bg,
-                        quoteCode: maMap[bg.id] ?? ''),
-                    onXuatDocx: () => s.xuatBaoGiaDocx(bg,
-                        quoteCode: maMap[bg.id] ?? ''),
-                    onCopyLink: () => LtsToast.show(
-                        context, 'Tính năng sao chép liên kết sẽ sớm ra mắt.',
-                        type: LtsToastType.info),
+                    onXemPdf: () =>
+                        s.xuatBaoGiaPdf(bg, quoteCode: maMap[bg.id] ?? ''),
+                    onCopyLink: () => _saoChepLienKet(bg),
                   );
                 },
               ),
@@ -374,8 +482,8 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
     if (token == null) return;
     final ok = await showNhapPinSheet(
       context,
-      title: 'Nộp duyệt báo giá',
-      message: 'Bạn có chắc muốn nộp báo giá "${_tenBaoGia(bg)}" để duyệt?',
+      title: 'Gửi duyệt báo giá',
+      message: 'Bạn có chắc muốn gửi báo giá "${_tenBaoGia(bg)}" để duyệt?',
       confirmLabel: 'Xác nhận nộp',
       onConfirm: (pinToken) async {
         setState(() => _dangTai = true);
@@ -387,7 +495,7 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
       },
     );
     if (ok == true && mounted) {
-      LtsToast.show(context, 'Đã nộp duyệt báo giá',
+      LtsToast.show(context, 'Đã nộp báo giá để chờ duyệt.',
           type: LtsToastType.success);
       await _tai(force: true);
     }
@@ -430,7 +538,7 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
     );
     if (ok == true && mounted) {
       LtsToast.show(context,
-          approved ? 'Đã duyệt báo giá' : 'Đã từ chối báo giá',
+          approved ? 'Đã duyệt báo giá.' : 'Đã từ chối báo giá.',
           type: LtsToastType.success);
       await _tai(force: true);
     }
@@ -486,9 +594,9 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
     if (token == null) return;
     final ok = await showNhapPinSheet(
       context,
-      title: 'Xoá báo giá',
+      title: 'Xóa báo giá',
       message:
-          'Bạn có chắc muốn xoá báo giá "${_tenBaoGia(bg)}"? Hành động này không thể hoàn tác.',
+          'Bạn có chắc muốn xóa báo giá "${_tenBaoGia(bg)}"? Hành động này không thể hoàn tác.',
       confirmLabel: 'Xác nhận xoá',
       onConfirm: (pinToken) async {
         setState(() => _dangTai = true);
@@ -500,7 +608,7 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
       },
     );
     if (ok == true && mounted) {
-      LtsToast.show(context, 'Đã xoá báo giá', type: LtsToastType.success);
+      LtsToast.show(context, 'Đã xóa báo giá.', type: LtsToastType.success);
       await _tai(force: true);
     }
   }
@@ -516,6 +624,50 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
       ),
     );
     if (mounted) await _tai(force: true);
+  }
+
+  // ── Mở lại/sửa báo giá: tải bản mới nhất rồi mở wizard edit ──────────────
+  Future<void> _sua(BaoGiaApi bg) async {
+    final s = context.read<AppState>();
+    final token = s.accessToken;
+    if (token == null) return;
+    setState(() => _dangTai = true);
+    try {
+      final fresh = await layBaoGiaTheoIdService(token, bg.id);
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => TaoBaoGiaWizard(suaBaoGia: fresh),
+        ),
+      );
+    } catch (err) {
+      if (!mounted) return;
+      LtsToast.show(
+        context,
+        err is LoiServiceLts
+            ? err.message
+            : 'Không tải được báo giá để chỉnh sửa.',
+        type: LtsToastType.error,
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _dangTai = false);
+        await _tai(force: true);
+      }
+    }
+  }
+
+  // ── Sao chép liên kết chia sẻ BG (deep-link web /bao-gia/<id>) ───────────
+  Future<void> _saoChepLienKet(BaoGiaApi bg) async {
+    final url = ServiceLtsClient.instance.taoUrlChiaSeBaoGia(bg.id);
+    if (url == null) {
+      LtsToast.show(context, 'Báo giá chưa có mã để chia sẻ.',
+          type: LtsToastType.warning);
+      return;
+    }
+    await Clipboard.setData(ClipboardData(text: url));
+    if (!mounted) return;
+    LtsToast.show(context, 'Đã sao chép liên kết', type: LtsToastType.success);
   }
 
   // ── Phản hồi KH từng sheet (customer-decide, PIN) ─────────────────────────
@@ -556,9 +708,235 @@ class _DanhSachBaoGiaScreenState extends State<DanhSachBaoGiaScreen> {
   }
 }
 
+/// Empty state (mirror web qrev-empty): icon + p + span, khác nhau theo nguồn.
+class _EmptyBaoGia extends StatelessWidget {
+  final bool nguonReview;
+  const _EmptyBaoGia({required this.nguonReview});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = LtsT.of(context);
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: CustomPaint(
+          painter: _DashedRoundedBorder(color: p.border, radius: 12),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 56),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.inbox_outlined,
+                    size: 40, color: p.dim.withValues(alpha: 0.4)),
+                const SizedBox(height: 10),
+                Text(
+                  nguonReview
+                      ? 'Không có báo giá nào đang chờ duyệt.'
+                      : 'Chưa có báo giá nào.',
+                  style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: p.text),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  nguonReview
+                      ? 'Báo giá sẽ xuất hiện khi nhân viên nộp duyệt.'
+                      : 'Tạo báo giá ở mục “Tạo bảng báo giá”.',
+                  style: TextStyle(fontSize: 13, color: p.muted),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Nút "⚙ Bộ lọc" + badge số điều kiện đang lọc (mirror .lts-loc-open).
+class _NutBoLoc extends StatelessWidget {
+  final int soLuong;
+  final VoidCallback onTap;
+  const _NutBoLoc({required this.soLuong, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = LtsT.of(context);
+    return Material(
+      color: p.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: p.border),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          height: 44,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.tune, size: 15, color: p.text),
+                const SizedBox(width: 6),
+                Text('Bộ lọc',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: p.text)),
+                if (soLuong > 0) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    constraints: const BoxConstraints(minWidth: 18),
+                    height: 18,
+                    padding: const EdgeInsets.symmetric(horizontal: 5),
+                    decoration: BoxDecoration(
+                      color: p.accent,
+                      borderRadius: BorderRadius.circular(9),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text('$soLuong',
+                        style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white)),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Chip lọc pill (mirror .qrev-chip / .qrev-chip--review nét đứt).
+class _ChipPill extends StatelessWidget {
+  final String label;
+  final int? count;
+  final bool active;
+  final bool dashed;
+  final IconData? icon;
+  final VoidCallback onTap;
+  const _ChipPill({
+    required this.label,
+    required this.count,
+    required this.active,
+    required this.onTap,
+    this.dashed = false,
+    this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = LtsT.of(context);
+    final fg = active ? Colors.white : p.text;
+    final borderColor = active ? p.accent : p.border;
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (icon != null) ...[
+            Icon(icon, size: 12, color: fg),
+            const SizedBox(width: 5),
+          ],
+          Text(label,
+              style: TextStyle(
+                  fontSize: 12.5, fontWeight: FontWeight.w600, color: fg)),
+          if (count != null) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6),
+              decoration: BoxDecoration(
+                color: active
+                    ? Colors.white.withValues(alpha: 0.25)
+                    : Colors.black.withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text('$count',
+                  style: TextStyle(
+                      fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
+            ),
+          ],
+        ],
+      ),
+    );
+    // Nét đứt (mirror .qrev-chip--review border-style: dashed) — Flutter không
+    // hỗ trợ dashed gốc nên vẽ bằng CustomPaint khi chip không active.
+    if (dashed && !active) {
+      return Material(
+        color: p.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(999),
+          side: BorderSide.none,
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(999),
+          child: CustomPaint(
+            painter: _DashedRoundedBorder(color: borderColor, radius: 999),
+            child: content,
+          ),
+        ),
+      );
+    }
+    return Material(
+      color: active ? p.accent : p.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(999),
+        side: BorderSide(color: borderColor),
+      ),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(999),
+        child: content,
+      ),
+    );
+  }
+}
+
+/// Vẽ viền nét đứt bo tròn (mirror CSS `border-style: dashed`).
+class _DashedRoundedBorder extends CustomPainter {
+  final Color color;
+  final double radius;
+  const _DashedRoundedBorder({required this.color, required this.radius});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = Rect.fromLTWH(0.5, 0.5, size.width - 1, size.height - 1);
+    final rr = RRect.fromRectAndRadius(r, Radius.circular(radius));
+    final path = Path()..addRRect(rr);
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    const dash = 4.0;
+    const gap = 3.0;
+    for (final metric in path.computeMetrics()) {
+      var dist = 0.0;
+      while (dist < metric.length) {
+        final next = (dist + dash).clamp(0.0, metric.length);
+        canvas.drawPath(metric.extractPath(dist, next), paint);
+        dist = next + gap;
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedRoundedBorder old) =>
+      old.color != color || old.radius != radius;
+}
+
 class _BaoGiaCard extends StatelessWidget {
   final BaoGiaApi bg;
   final String maBaoGia;
+  final String? accessToken;
   final bool expanded;
   final bool laNguoiDuyet;
   final String currentUserId;
@@ -566,16 +944,17 @@ class _BaoGiaCard extends StatelessWidget {
   final void Function(bool approved) onDuyet;
   final VoidCallback onNop;
   final VoidCallback onXoa;
+  final VoidCallback onSua;
   final void Function(PricingSheetApi sheet) onTaoLsx;
   final String? dangXuLySheetId;
   final void Function(PricingSheetApi sheet) onKhachDuyet;
   final void Function(PricingSheetApi sheet) onKhachTuChoi;
   final VoidCallback onXemPdf;
-  final VoidCallback onXuatDocx;
   final VoidCallback onCopyLink;
   const _BaoGiaCard({
     required this.bg,
     required this.maBaoGia,
+    required this.accessToken,
     required this.expanded,
     required this.laNguoiDuyet,
     required this.currentUserId,
@@ -583,23 +962,47 @@ class _BaoGiaCard extends StatelessWidget {
     required this.onDuyet,
     required this.onNop,
     required this.onXoa,
+    required this.onSua,
     required this.onTaoLsx,
     required this.dangXuLySheetId,
     required this.onKhachDuyet,
     required this.onKhachTuChoi,
     required this.onXemPdf,
-    required this.onXuatDocx,
     required this.onCopyLink,
   });
+
+  /// Nhãn pill trạng thái (mirror web mcard status pill).
+  (String, Color) _pill(LtsPalette p) {
+    final coNutDuyet = (bg.trangThai == TrangThaiBaoGiaServer.drafted &&
+            bg.createdBy == currentUserId) ||
+        (bg.trangThai == TrangThaiBaoGiaServer.submitted && laNguoiDuyet);
+    if (coNutDuyet) {
+      return bg.trangThai == TrangThaiBaoGiaServer.submitted
+          ? ('● Chờ duyệt', p.orange)
+          : ('○ Bản nháp', p.muted);
+    }
+    switch (bg.trangThai) {
+      case TrangThaiBaoGiaServer.approved:
+        return ('● Đã duyệt', p.green);
+      case TrangThaiBaoGiaServer.rejected:
+        return ('● Từ chối', p.red);
+      case TrangThaiBaoGiaServer.submitted:
+        return ('● Chờ duyệt', p.orange);
+      case TrangThaiBaoGiaServer.drafted:
+        return ('○ Chưa nộp', p.muted);
+      case TrangThaiBaoGiaServer.unknown:
+        return ('○ Chưa nộp', p.muted);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = LtsT.of(context);
     final isCreator = bg.createdBy == currentUserId;
-    final coTheNop = bg.trangThai == TrangThaiBaoGiaServer.drafted && isCreator;
-    final coTheDuyet = bg.trangThai == TrangThaiBaoGiaServer.submitted &&
-        laNguoiDuyet;
-    // Mirror web: gate xoá theo original.deletable (BE quyết).
+    final coNutGuiDuyet =
+        bg.trangThai == TrangThaiBaoGiaServer.drafted && isCreator;
+    final coNutDuyet =
+        bg.trangThai == TrangThaiBaoGiaServer.submitted && laNguoiDuyet;
     final coTheXoa = bg.deletable;
     // Phản hồi KH: chỉ người tạo báo giá, khi BG đã duyệt.
     final coThePhanHoi =
@@ -609,17 +1012,15 @@ class _BaoGiaCard extends StatelessWidget {
     final approvalById = <String, bool?>{
       for (final l in bg.pricingSheetLinks) l.sheet.id: l.hasCustomerApproved,
     };
-    final demDaDuyet =
-        approvalById.values.where((v) => v == true).length;
+    final demDaDuyet = approvalById.values.where((v) => v == true).length;
     final demTuChoi = approvalById.values.where((v) => v == false).length;
     final tongSheet = bg.pricingSheets.length;
     final demCho = tongSheet - demDaDuyet - demTuChoi;
 
+    final (nhanTrangThai, mauTrangThai) = _pill(p);
     final kh = _tenKhachHang(bg);
-    final sp = _tenSanPham(bg);
-    final sl = _soLuong(bg);
     final actor = bg.actorName?.trim();
-    final coActor = actor != null && actor.isNotEmpty;
+    final ngayIso = bg.updatedAt.isNotEmpty ? bg.updatedAt : bg.createdAt;
 
     return LtsCard(
       padding: EdgeInsets.zero,
@@ -629,11 +1030,11 @@ class _BaoGiaCard extends StatelessWidget {
           InkWell(
             onTap: onTap,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Dòng 1: mã BG + badge trạng thái
+                  // Dòng 1: mã BG + pill trạng thái
                   Row(
                     children: [
                       Expanded(
@@ -651,140 +1052,154 @@ class _BaoGiaCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      _TrangThaiBadge(tt: bg.trangThai),
+                      LtsStatusChip(
+                        label: nhanTrangThai,
+                        fg: mauTrangThai,
+                        bg: mauTrangThai.withValues(alpha: 0.12),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 6),
-                  // Dòng 2: tên khách hàng
+                  // Dòng 2: tên khách hàng (rút gọn 3 cụm cuối)
                   Text(
-                    kh,
+                    _rutGonTenKhachHang(kh),
                     style: TextStyle(
-                        fontSize: 13.5,
+                        fontSize: 13,
                         fontWeight: FontWeight.w600,
                         color: p.text),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 2),
-                  // Dòng 3: sản phẩm · số lượng
+                  // Dòng 3: ngày cập nhật
                   Text(
-                    sl != null ? '$sp · ${Fmt.n(sl)} đv' : sp,
-                    style: TextStyle(fontSize: 12.5, color: p.muted),
+                    Fmt.dateTimeSec(ngayIso),
+                    style: TextStyle(fontSize: 12, color: p.muted),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  // Dòng 4: thời gian + người lập
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      Icon(Icons.access_time, size: 12, color: p.muted),
-                      const SizedBox(width: 4),
-                      Text(Fmt.dateTime(bg.updatedAt.isNotEmpty
-                              ? bg.updatedAt
-                              : bg.createdAt),
-                          style: TextStyle(fontSize: 12, color: p.muted)),
-                      if (coActor) ...[
-                        const SizedBox(width: 10),
-                        Icon(Icons.person_outline, size: 12, color: p.muted),
-                        const SizedBox(width: 3),
-                        Flexible(
-                          child: Text(actor,
-                              style: TextStyle(fontSize: 12, color: p.muted),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis),
-                        ),
-                      ],
-                    ],
-                  ),
-                  // Lý do từ chối
-                  if (bg.statusReason != null &&
-                      bg.statusReason!.isNotEmpty &&
-                      bg.trangThai == TrangThaiBaoGiaServer.rejected) ...[
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
-                        border: Border.all(color: const Color(0xFFFECACA)),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.cancel_outlined,
-                              size: 14, color: Color(0xFFB91C1C)),
-                          const SizedBox(width: 5),
-                          Expanded(
-                            child: Text('Lý do: ${bg.statusReason}',
-                                style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Color(0xFFB91C1C)),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  // Khoảng đệm dưới trước khối actions
-                  const SizedBox(height: 4),
                 ],
               ),
             ),
           ),
+          // Footer: chevron + avatar | nhóm Thao tác + nhóm Duyệt
           Padding(
             padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                _ActionBtn(
-                  icon: Icons.visibility_outlined,
-                  tooltip: 'Xem PDF báo giá',
-                  onTap: onXemPdf,
+                IconButton(
+                  onPressed: onTap,
+                  tooltip: expanded ? 'Thu gọn' : 'Mở rộng',
+                  icon: Icon(
+                    expanded
+                        ? Icons.keyboard_arrow_down_rounded
+                        : Icons.keyboard_arrow_right_rounded,
+                    size: 20,
+                    color: p.muted,
+                  ),
+                  visualDensity: VisualDensity.compact,
+                  padding: const EdgeInsets.all(4),
+                  constraints:
+                      const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
-                _ActionBtn(
-                  icon: Icons.description_outlined,
-                  tooltip: 'Xuất DOCX báo giá',
-                  onTap: onXuatDocx,
+                const SizedBox(width: 2),
+                if (actor != null && actor.isNotEmpty)
+                  _NguoiLapAvatar(
+                    ten: actor,
+                    avatarUrl: bg.avatarUrlResolved,
+                    accessToken: accessToken,
+                  )
+                else
+                  Text('—', style: TextStyle(fontSize: 12, color: p.dim)),
+                const SizedBox(width: 4),
+                // Nút hành động: canh phải, tự cuộn ngang nếu màn quá hẹp
+                // (mirror web .qrev-mcard-actions flex-shrink:0).
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerRight,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      reverse: true,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // renderHanhDong: PDF · Link · Mở lại · Xoá
+                          _ActionBtn(
+                            icon: Icons.visibility_outlined,
+                            tooltip: 'Xem PDF báo giá',
+                            onTap: onXemPdf,
+                          ),
+                          _ActionBtn(
+                            icon: Icons.link,
+                            tooltip: 'Sao chép liên kết',
+                            onTap: onCopyLink,
+                          ),
+                          _ActionBtn(
+                            icon: Icons.edit_outlined,
+                            tooltip: 'Mở lại báo giá',
+                            onTap: onSua,
+                            color: p.accent,
+                          ),
+                          if (coTheXoa)
+                            _ActionBtn(
+                              icon: Icons.delete_outline,
+                              tooltip: 'Xóa',
+                              onTap: onXoa,
+                              color: const Color(0xFFB91C1C),
+                            ),
+                          // renderDuyet: Nộp | Duyệt/Từ chối | icon tĩnh | dash
+                          if (coNutGuiDuyet)
+                            _ActionBtn(
+                              icon: Icons.send_outlined,
+                              tooltip: 'Nộp duyệt',
+                              onTap: onNop,
+                              color: p.accent,
+                            )
+                          else if (coNutDuyet) ...[
+                            _ActionBtn(
+                              icon: Icons.check_circle_outline,
+                              tooltip: 'Duyệt',
+                              onTap: () => onDuyet(true),
+                              color: const Color(0xFF16A34A),
+                            ),
+                            _ActionBtn(
+                              icon: Icons.cancel_outlined,
+                              tooltip: 'Từ chối',
+                              onTap: () => onDuyet(false),
+                              color: const Color(0xFFDC2626),
+                            ),
+                          ] else if (bg.trangThai ==
+                              TrangThaiBaoGiaServer.approved)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8),
+                              child: Icon(Icons.check_circle,
+                                  size: 16, color: Color(0xFF16A34A)),
+                            )
+                          else if (bg.trangThai ==
+                              TrangThaiBaoGiaServer.rejected)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 8),
+                              child: Icon(Icons.cancel,
+                                  size: 16, color: Color(0xFFDC2626)),
+                            )
+                          else
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 10),
+                              child: Text('-',
+                                  style: TextStyle(
+                                      fontSize: 13, color: p.muted)),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
                 ),
-                _ActionBtn(
-                  icon: Icons.link,
-                  tooltip: 'Sao chép liên kết',
-                  onTap: onCopyLink,
-                ),
-                if (coTheNop)
-                  _ActionBtn(
-                    icon: Icons.send_outlined,
-                    tooltip: 'Nộp duyệt',
-                    onTap: onNop,
-                    color: p.accent,
-                  ),
-                if (coTheDuyet) ...[
-                  _ActionBtn(
-                    icon: Icons.check_circle_outline,
-                    tooltip: 'Duyệt',
-                    onTap: () => onDuyet(true),
-                    color: const Color(0xFF16A34A),
-                  ),
-                  _ActionBtn(
-                    icon: Icons.cancel_outlined,
-                    tooltip: 'Từ chối',
-                    onTap: () => onDuyet(false),
-                    color: const Color(0xFFDC2626),
-                  ),
-                ],
-                if (coTheXoa)
-                  _ActionBtn(
-                    icon: Icons.delete_outline,
-                    tooltip: 'Xoá',
-                    onTap: onXoa,
-                    color: const Color(0xFFB91C1C),
-                  ),
               ],
             ),
           ),
-          if (expanded && bg.pricingSheets.isNotEmpty)
+          // Phần mở rộng (mirror renderChiTietBaoGia)
+          if (expanded)
             Container(
               decoration: BoxDecoration(
                 color: p.shellBg,
@@ -795,44 +1210,119 @@ class _BaoGiaCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Bảng tính trong báo giá (${bg.pricingSheets.length}):',
-                      style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w700,
-                          color: p.muted)),
-                  const SizedBox(height: 6),
-                  for (final sh in bg.pricingSheets) ...[
-                    _SheetRow(
-                      sh: sh,
-                      daKhachDuyet: approvalById[sh.id],
-                      approvedBG: bg.trangThai == TrangThaiBaoGiaServer.approved,
-                      coThePhanHoi: coThePhanHoi,
-                      dangXuLy: dangXuLySheetId == sh.id,
-                      onTaoLsx: () => onTaoLsx(sh),
-                      onKhachDuyet: () => onKhachDuyet(sh),
-                      onKhachTuChoi: () => onKhachTuChoi(sh),
+                  // Lý do từ chối (mirror web: đặt trong phần mở rộng)
+                  if (bg.trangThai == TrangThaiBaoGiaServer.rejected &&
+                      bg.statusReason != null &&
+                      bg.statusReason!.isNotEmpty) ...[
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.cancel_outlined,
+                              size: 14, color: Color(0xFFB91C1C)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                                'Lý do bị từ chối: ${bg.statusReason}',
+                                style: const TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFFB91C1C))),
+                          ),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 8),
                   ],
-                  // Tóm tắt phản hồi KH
-                  Padding(
-                    padding: const EdgeInsets.only(top: 4),
-                    child: Text(
-                      'Tóm tắt: $demDaDuyet/$tongSheet đã duyệt • '
-                      '$demTuChoi/$tongSheet KH đã từ chối • '
-                      '$demCho/$tongSheet chờ'
-                      '${!coThePhanHoi && bg.trangThai == TrangThaiBaoGiaServer.approved ? ' (Chỉ người tạo báo giá mới có thể cập nhật phản hồi khách.)' : ''}',
-                      style: TextStyle(
-                          fontSize: 11,
-                          fontStyle: FontStyle.italic,
-                          color: p.muted),
+                  if (bg.pricingSheets.isEmpty)
+                    Text('Báo giá này không có bảng tính nào.',
+                        style: TextStyle(fontSize: 12.5, color: p.muted))
+                  else ...[
+                    for (final sh in bg.pricingSheets) ...[
+                      _SheetRow(
+                        sh: sh,
+                        daKhachDuyet: approvalById[sh.id],
+                        approvedBG:
+                            bg.trangThai == TrangThaiBaoGiaServer.approved,
+                        coThePhanHoi: coThePhanHoi,
+                        dangXuLy: dangXuLySheetId == sh.id,
+                        onTaoLsx: () => onTaoLsx(sh),
+                        onKhachDuyet: () => onKhachDuyet(sh),
+                        onKhachTuChoi: () => onKhachTuChoi(sh),
+                      ),
+                      const SizedBox(height: 4),
+                    ],
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4),
+                      child: Text(
+                        'Tóm tắt: $demDaDuyet/$tongSheet đã duyệt • '
+                        '$demTuChoi/$tongSheet KH đã từ chối • '
+                        '$demCho/$tongSheet chờ'
+                        '${!coThePhanHoi && bg.trangThai == TrangThaiBaoGiaServer.approved ? ' (Chỉ người tạo báo giá mới có thể cập nhật phản hồi khách.)' : ''}',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontStyle: FontStyle.italic,
+                            color: p.muted),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Avatar người lập (mirror AvatarNguoiLap): ảnh server nếu có, else chữ cái đầu.
+class _NguoiLapAvatar extends StatelessWidget {
+  final String ten;
+  final String? avatarUrl;
+  final String? accessToken;
+  const _NguoiLapAvatar({
+    required this.ten,
+    this.avatarUrl,
+    this.accessToken,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final coAnh = avatarUrl != null && avatarUrl!.isNotEmpty;
+    final fallback = Container(
+      width: 22,
+      height: 22,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: _mauAvatarTen(ten),
+      ),
+      alignment: Alignment.center,
+      child: Text(_chuCaiDau(ten),
+          style: const TextStyle(
+              fontSize: 9, fontWeight: FontWeight.w800, color: Colors.white)),
+    );
+    return Tooltip(
+      message: ten,
+      child: coAnh
+          ? ClipOval(
+              child: Image.network(
+                avatarUrl!,
+                width: 22,
+                height: 22,
+                fit: BoxFit.cover,
+                headers: accessToken != null && accessToken!.isNotEmpty
+                    ? {'Authorization': 'Bearer $accessToken'}
+                    : null,
+                errorBuilder: (_, __, ___) => fallback,
+              ),
+            )
+          : fallback,
     );
   }
 }
@@ -973,55 +1463,6 @@ class _SheetBtn extends StatelessWidget {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _TrangThaiBadge extends StatelessWidget {
-  final TrangThaiBaoGiaServer tt;
-  const _TrangThaiBadge({required this.tt});
-  @override
-  Widget build(BuildContext context) {
-    Color bg;
-    Color fg;
-    String label;
-    switch (tt) {
-      case TrangThaiBaoGiaServer.drafted:
-        bg = const Color(0xFFF1F5F9);
-        fg = const Color(0xFF475569);
-        label = 'Khởi tạo';
-        break;
-      case TrangThaiBaoGiaServer.submitted:
-        bg = const Color(0xFFFEF3C7);
-        fg = const Color(0xFFB45309);
-        label = 'Chờ duyệt';
-        break;
-      case TrangThaiBaoGiaServer.approved:
-        bg = const Color(0xFFDCFCE7);
-        fg = const Color(0xFF15803D);
-        label = 'Đã duyệt';
-        break;
-      case TrangThaiBaoGiaServer.rejected:
-        bg = const Color(0xFFFEE2E2);
-        fg = const Color(0xFFB91C1C);
-        label = 'Bị từ chối';
-        break;
-      case TrangThaiBaoGiaServer.unknown:
-        bg = const Color(0xFFF3F4F6);
-        fg = const Color(0xFF6B7280);
-        label = 'Không rõ';
-        break;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: fg.withValues(alpha: 0.3)),
-      ),
-      child: Text(label,
-          style: TextStyle(
-              fontSize: 11, fontWeight: FontWeight.w700, color: fg)),
     );
   }
 }

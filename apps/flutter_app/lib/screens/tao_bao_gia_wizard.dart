@@ -1,21 +1,15 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// TaoBaoGiaWizard — wizard 3 bước tạo bảng báo giá (mirror web mobile
-// MOBILE_HUBS.pricing_quote → "Tạo bảng báo giá" key = 'tao-bao-gia' trong
-// ModuleBaoGia.tsx + BuocChonBaoGiaVaTinhGia.tsx).
-//
-// Flow:
+// TaoBaoGiaWizard — wizard tạo/cập nhật bảng báo giá (mirror web ModuleBaoGia:
+// tao-bao-gia). Gồm 3 bước:
 //   Bước 1: Chọn khách hàng (search + select từ list KH)
-//   Bước 2: Chọn pricing sheet (multi-select từ sheet của KH đó, filter
-//            theo `quotationId == null` để chỉ lấy sheet chưa gắn BG)
-//   Bước 3: Nhập tên BG + mô tả; tạo BG qua POST /quotations. Tùy chọn
-//            "Nộp duyệt ngay" → gọi luôn PATCH /status_update.
+//   Bước 2: Chọn pricing sheet (multi-select sheet của KH; filter
+//            `quotationId == null` khi tạo mới, hoặc thuộc BG khi sửa)
+//   Bước 3: Quy cách & giá từng sản phẩm (bagSpec + tiers) + điều khoản +
+//            tên BG/mô tả. Tạo qua POST /quotations hoặc cập nhật qua
+//            PATCH /quotations/:id/update (mirror web capNhatBaoGiaService).
 //
-// Mỗi bước 1 SectionCard; nút "Tiếp tục" / "Tạo báo giá" ở bottom bar
-// sticky. Toàn bộ là 1 route `Navigator.push` (không phải bottom sheet
-// modal — để có không gian scroll dọc thoáng).
-//
-// Sau khi tạo thành công → toast + `Navigator.pop`. Caller (`tinh_gia_screen`)
-// có thể nhận `TaoBaoGiaWizard.create(...)` với `onSuccess` callback.
+// Dữ liệu sản phẩm lưu vào `inputValue.productBagSpecs` (bagSpec + tiers +
+// baoGia/chotGia/finalPrice) — PDF/DOCX và LSX đọc lại.
 // ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -23,8 +17,10 @@ import 'package:provider/provider.dart';
 import '../api/service_lts_client.dart';
 import '../store/app_state.dart';
 import '../theme/lts_tokens.dart';
+import '../widgets/auth/pin_sheets.dart';
 import '../widgets/lts/lts_surfaces.dart';
 import '../widgets/lts/lts_toast.dart';
+import '../widgets/quote_product_editor.dart';
 import 'package:lts_pricing/lib/quote_terms.dart';
 
 class TaoBaoGiaWizard extends StatefulWidget {
@@ -38,7 +34,10 @@ class TaoBaoGiaWizard extends StatefulWidget {
   /// Optional: chế độ "đính kèm" — wizard chỉ chọn KH + mô tả + nộp duyệt.
   final bool attachOnly;
 
-  /// Optional callback sau khi tạo BG thành công.
+  /// Báo giá đang sửa (null = tạo mới). Mirror web `baoGiaDangSua`.
+  final BaoGiaApi? suaBaoGia;
+
+  /// Optional callback sau khi tạo/cập nhật BG thành công.
   final void Function(BaoGiaApi bg)? onSuccess;
 
   const TaoBaoGiaWizard({
@@ -46,6 +45,7 @@ class TaoBaoGiaWizard extends StatefulWidget {
     this.prefillCustomerName,
     this.prefillPricingSheetId,
     this.attachOnly = false,
+    this.suaBaoGia,
     this.onSuccess,
   });
 
@@ -56,6 +56,8 @@ class TaoBaoGiaWizard extends StatefulWidget {
 class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
   int _step = 0;
   KhachHang? _kh;
+  /// Mã KH fallback khi edit mode không resolve được KH (ngoài quyền).
+  String? _maKhFallback;
   final Set<String> _selectedSheetIds = <String>{};
   final TextEditingController _tenCtrl = TextEditingController();
   final TextEditingController _moTaCtrl = TextEditingController();
@@ -68,6 +70,8 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
 
   List<KhachHang> _dsKh = const [];
   List<PricingSheetApi> _dsSheet = const [];
+  /// Draft sản phẩm (quy cách + tiers) cho các sheet đã chọn.
+  final Map<String, QuoteSheetDraft> _drafts = {};
   String _queryKh = '';
   String _querySheet = '';
   bool _dangTaiKh = false;
@@ -76,14 +80,51 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
   String? _loiKh;
   String? _loiSheet;
 
+  bool get _dangSua => widget.suaBaoGia != null;
+
   @override
   void initState() {
     super.initState();
-    if (widget.attachOnly && widget.prefillPricingSheetId != null) {
-      _selectedSheetIds.add(widget.prefillPricingSheetId!);
-      _step = 1; // bỏ qua bước 1 nếu attachOnly + đã có sheet
+    final bg = widget.suaBaoGia;
+    if (bg != null) {
+      _khoiPhucTuBaoGia(bg);
+    } else {
+      if (widget.attachOnly && widget.prefillPricingSheetId != null) {
+        _selectedSheetIds.add(widget.prefillPricingSheetId!);
+        _step = 1;
+      }
     }
     _taiKh();
+  }
+
+  /// Nạp state từ báo giá server (mirror web prefill `baoGiaDangSua`).
+  void _khoiPhucTuBaoGia(BaoGiaApi bg) {
+    final iv = bg.inputValue ?? const <String, dynamic>{};
+    final ten = (iv['quotationName'] as String?)?.trim();
+    _tenCtrl.text = ten?.isNotEmpty == true ? ten! : (bg.description ?? '');
+    _moTaCtrl.text = (iv['notes'] as String?) ?? '';
+    _diaChiCtrl.text = (iv['deliveryAddress'] as String?) ?? '';
+    _terms = QuoteTerms(
+      vatRate: (iv['vatRate'] as num?)?.toDouble() ?? 8,
+      vatCylinderRate: (iv['vatCylinderRate'] as num?)?.toDouble() ?? 10,
+      validityDays: (iv['validityDays'] as num?)?.toDouble() ?? 30,
+      paymentTerms: (iv['paymentTerms'] as String?) ?? 'Thanh toán 30 ngày',
+      deliveryTime: (iv['deliveryTime'] as String?) ?? '7-10 ngày làm việc',
+      deliveryAddress: (iv['deliveryAddress'] as String?) ?? '',
+      notes: (iv['notes'] as String?) ?? '',
+      quantityTolerance: (iv['quantityTolerance'] as num?)?.toDouble() ?? 10,
+      techRequirement:
+          (iv['techRequirement'] as String?) ?? 'Chạy theo market ký duyệt',
+    );
+    _maKhFallback = _khachHangCodeTuBaoGia(bg);
+    for (final sh in bg.pricingSheets) {
+      _selectedSheetIds.add(sh.id);
+    }
+    // Seed ngay sheet của BG để edit mode không phụ thuộc GET /pricing-sheet
+    // (sheet đã gắn BG có thể không xuất hiện trong list tự do).
+    _dsSheet = bg.pricingSheets;
+    _dongBoDrafts();
+    _step = 1;
   }
 
   @override
@@ -105,7 +146,25 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
     });
     try {
       final ds = await layKhachHangService(token);
-      if (mounted) setState(() => _dsKh = ds);
+      if (!mounted) return;
+      setState(() {
+        _dsKh = ds;
+        // Edit mode: resolve KH từ customerCodeName của BG.
+        if (_dangSua && _kh == null) {
+          final code = _maKhFallback;
+          if (code != null) {
+            for (final kh in ds) {
+              if (kh.codeName == code) {
+                _kh = kh;
+                break;
+              }
+            }
+          }
+        }
+      });
+      if (_dangSua && _maKhFallback != null) {
+        await _taiSheet(_maKhFallback!);
+      }
     } catch (err) {
       if (mounted) {
         setState(() => _loiKh = err is LoiServiceLts
@@ -115,6 +174,17 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
     } finally {
       if (mounted) setState(() => _dangTaiKh = false);
     }
+  }
+
+  String? _khachHangCodeTuBaoGia(BaoGiaApi bg) {
+    final iv = bg.inputValue ?? const <String, dynamic>{};
+    final direct = (iv['customerCodeName'] as String?)?.trim();
+    if (direct != null && direct.isNotEmpty) return direct;
+    for (final sh in bg.pricingSheets) {
+      final code = sh.customerCodeName?.trim();
+      if (code != null && code.isNotEmpty) return code;
+    }
+    return null;
   }
 
   Future<void> _taiSheet(String customerCodeName) async {
@@ -127,13 +197,26 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
     });
     try {
       final all = await layDanhSachPricingSheetService(token);
-      // Filter: cùng KH + chưa gắn vào BG (quotationId == null)
+      final suaId = widget.suaBaoGia?.id;
+      // Cùng KH + chưa gắn BG (hoặc đang gắn chính BG đang sửa).
       final filtered = all
           .where((sh) =>
               sh.customerCodeName == customerCodeName &&
-              sh.quotationId == null)
+              (sh.quotationId == null || sh.quotationId == suaId))
           .toList();
-      if (mounted) setState(() => _dsSheet = filtered);
+      // Edit mode: luôn giữ sheet của BG dù list tự do không trả về.
+      if (_dangSua) {
+        final ids = filtered.map((s) => s.id).toSet();
+        for (final sh in widget.suaBaoGia!.pricingSheets) {
+          if (!ids.contains(sh.id)) filtered.insert(0, sh);
+        }
+      }
+      if (mounted) {
+        setState(() {
+          _dsSheet = filtered;
+          if (_dangSua) _dongBoDrafts();
+        });
+      }
     } catch (err) {
       if (mounted) {
         setState(() => _loiSheet = err is LoiServiceLts
@@ -142,6 +225,46 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
       }
     } finally {
       if (mounted) setState(() => _dangTaiSheet = false);
+    }
+  }
+
+  /// Tạo/cập nhật draft khi chọn/bỏ sheet.
+  void _dongBoDrafts() {
+    final bagSpecs =
+        (widget.suaBaoGia?.inputValue?['productBagSpecs'] as List?) ?? const [];
+    final mats = context.read<AppState>().materials;
+    for (final sh in _dsSheet) {
+      if (!_selectedSheetIds.contains(sh.id)) {
+        _drafts.remove(sh.id);
+        continue;
+      }
+      if (_drafts.containsKey(sh.id)) continue;
+      // Tìm bagSpec/tiers đã lưu cho sheet này.
+      Map<String, dynamic>? savedSpec;
+      List<dynamic>? savedTiers;
+      var idx = 0;
+      for (final e in bagSpecs) {
+        if (e is Map &&
+            (e['pricingSheetId'] == sh.id ||
+                e['sourceHistoryItemId'] == sh.id)) {
+          savedSpec = (e['bagSpec'] as Map?)?.cast<String, dynamic>();
+          savedTiers = e['tiers'] as List?;
+          break;
+        }
+        idx++;
+      }
+      // Fallback theo index (mirror web bao-gia-adapter).
+      if (savedSpec == null && idx < bagSpecs.length && bagSpecs[idx] is Map) {
+        final entry = (bagSpecs[idx] as Map).cast<String, dynamic>();
+        savedSpec = (entry['bagSpec'] as Map?)?.cast<String, dynamic>();
+        savedTiers = entry['tiers'] as List?;
+      }
+      _drafts[sh.id] = QuoteSheetDraft.fromSheet(
+        sh,
+        savedBagSpec: savedSpec,
+        savedTiers: savedTiers,
+        materials: mats,
+      );
     }
   }
 
@@ -171,15 +294,14 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
     setState(() {
       _kh = kh;
       _selectedSheetIds.clear();
+      _drafts.clear();
       _step = 1;
     });
     _taiSheet(kh.codeName);
   }
 
   void _tiepTuc() {
-    if (_step < 2) {
-      setState(() => _step++);
-    }
+    if (_step < 2) setState(() => _step++);
   }
 
   void _quayLai() {
@@ -189,7 +311,7 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
   bool get _coTheTiepTuc {
     switch (_step) {
       case 0:
-        return _kh != null;
+        return _kh != null || (_dangSua && _maKhFallback != null);
       case 1:
         return _selectedSheetIds.isNotEmpty;
       case 2:
@@ -199,46 +321,124 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
     }
   }
 
+  /// Map draft → `productBagSpecs` (mirror web dayBaoGiaLenServer).
+  List<Map<String, dynamic>> _buildProductBagSpecs() {
+    final out = <Map<String, dynamic>>[];
+    for (final sh in _dsSheet) {
+      final draft = _drafts[sh.id];
+      if (draft == null || !_selectedSheetIds.contains(sh.id)) continue;
+      final tiers = draft.tiers
+          .where((t) => t.quantity > 0)
+          .map((t) => t.toJson())
+          .toList();
+      out.add({
+        'sourceHistoryItemId': sh.id,
+        'pricingSheetId': sh.id,
+        'productName': draft.productName,
+        'bagSpec': draft.bagSpec.toJson(),
+        'finalPrice': draft.tiers.isNotEmpty
+            ? draft.tiers.first.finalPrice
+            : 0,
+        'chotGia': sh.inputValue['chotGia'],
+        'baoGia': draft.tiers.isNotEmpty ? draft.tiers.first.baoGia : 0,
+        'tiers': tiers,
+      });
+    }
+    return out;
+  }
+
+  Map<String, dynamic> _buildInputValue() {
+    // Giữ lại các key cũ khi cập nhật (mirror web `...maBaoGiaCu`).
+    final base = <String, dynamic>{
+      ...?widget.suaBaoGia?.inputValue,
+    };
+    return {
+      ...base,
+      'quotationName': _tenCtrl.text.trim(),
+      // Điều khoản: lưu cả flat (web đọc) lẫn nested 'terms' (Flutter đọc).
+      'vatRate': _terms.vatRate,
+      'vatCylinderRate': _terms.vatCylinderRate,
+      'validityDays': _terms.validityDays,
+      'paymentTerms': _terms.paymentTerms,
+      'deliveryTime': _terms.deliveryTime,
+      'deliveryAddress': _diaChiCtrl.text.trim(),
+      'notes': _ghiChuTermsCtrl.text.trim(),
+      'quantityTolerance': _terms.quantityTolerance,
+      'techRequirement': _terms.techRequirement,
+      'terms': _terms.toJson(),
+      'customerCodeName': _kh?.codeName ?? _maKhFallback,
+      if (widget.prefillCustomerName != null)
+        'customer': widget.prefillCustomerName,
+      'productBagSpecs': _buildProductBagSpecs(),
+    };
+  }
+
   Future<void> _tao() async {
     final s = context.read<AppState>();
     final token = s.accessToken;
     if (token == null) return;
-    final kh = _kh;
-    if (kh == null) return;
+    final maKh = _kh?.codeName ?? _maKhFallback;
+    if (maKh == null) return;
+    if (_selectedSheetIds.isEmpty) {
+      LtsToast.show(context, 'Vui lòng chọn ít nhất 1 bảng tính.',
+          type: LtsToastType.error);
+      return;
+    }
     setState(() => _dangTao = true);
     try {
-      final bg = await taoBaoGiaService(
-        token,
-        TaoBaoGiaInput(
-          customerCodeName: kh.codeName,
-          description: _moTaCtrl.text.trim().isEmpty
-              ? null
-              : _moTaCtrl.text.trim(),
-          inputValue: {
-            'quotationName': _tenCtrl.text.trim(),
-            'terms': _terms.toJson(),
-            if (widget.prefillCustomerName != null)
-              'customer': widget.prefillCustomerName,
-          },
-          pricingSheetIds: _selectedSheetIds.toList(),
-        ),
-      );
+      final inputValue = _buildInputValue();
+      final moTa = _moTaCtrl.text.trim().isEmpty ? null : _moTaCtrl.text.trim();
+      final sheetIds = _selectedSheetIds.toList();
+
+      BaoGiaApi bg;
+      if (_dangSua) {
+        bg = await capNhatBaoGiaService(
+          token,
+          widget.suaBaoGia!.id,
+          moTa: moTa,
+          duLieuDauVao: inputValue,
+          dsPricingSheetId: sheetIds,
+        );
+      } else {
+        bg = await taoBaoGiaService(
+          token,
+          TaoBaoGiaInput(
+            customerCodeName: maKh,
+            description: moTa,
+            inputValue: inputValue,
+            pricingSheetIds: sheetIds,
+          ),
+        );
+      }
+      var daNopDuyet = false;
       if (_nopDuyetNgay) {
-        try {
-          await nopBaoGiaService(token, bg.id);
-        } on LoiServiceLts catch (e) {
-          if (!mounted) return;
-          LtsToast.show(
-              context, 'Tạo BG xong nhưng nộp duyệt thất bại: ${e.message}',
-              type: LtsToastType.warning);
+        if (!mounted) return;
+        // Nộp duyệt cần PIN (BE PinGuard trên status_update) — mirror web promptPin.
+        final ok = await showNhapPinSheet(
+          context,
+          title: 'Nộp duyệt báo giá',
+          message: 'Nhập mã PIN để nộp báo giá chờ duyệt.',
+          confirmLabel: 'Xác nhận nộp',
+          onConfirm: (pinToken) async {
+            await nopBaoGiaService(token, bg.id, pinToken: pinToken);
+          },
+        );
+        daNopDuyet = ok == true;
+        if (!daNopDuyet && mounted) {
+          LtsToast.show(context, 'Đã lưu báo giá (chưa nộp duyệt).',
+              type: LtsToastType.info);
         }
       }
       if (!mounted) return;
       LtsToast.show(
           context,
-          _nopDuyetNgay
-              ? 'Đã tạo + nộp duyệt báo giá'
-              : 'Đã tạo báo giá',
+          _dangSua
+              ? (daNopDuyet
+                  ? 'Đã cập nhật + nộp duyệt báo giá'
+                  : 'Đã cập nhật báo giá')
+              : (daNopDuyet
+                  ? 'Đã tạo + nộp duyệt báo giá'
+                  : 'Đã tạo báo giá'),
           type: LtsToastType.success);
       widget.onSuccess?.call(bg);
       Navigator.pop(context, bg);
@@ -255,7 +455,7 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
     final p = LtsT.of(context);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tạo bảng báo giá'),
+        title: Text(_dangSua ? 'Cập nhật báo giá' : 'Tạo bảng báo giá'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -264,7 +464,6 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
       body: Column(
         children: [
           _Stepper(step: _step, onTap: (i) {
-            // Chỉ cho quay lại các bước trước
             if (i < _step) setState(() => _step = i);
           }),
           const Divider(height: 1),
@@ -284,7 +483,9 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
             dangXuLy: _dangTao,
             onQuayLai: _step == 0 ? null : _quayLai,
             onTiep: _step == 2 ? _tao : _tiepTuc,
-            label: _step == 2 ? 'Tạo báo giá' : 'Tiếp tục',
+            label: _step == 2
+                ? (_dangSua ? 'Cập nhật báo giá' : 'Tạo báo giá')
+                : 'Tiếp tục',
           ),
         ],
       ),
@@ -292,6 +493,38 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
   }
 
   Widget _buoc1(LtsPalette p) {
+    if (_dangSua && _maKhFallback != null) {
+      return ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          LtsCard(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Khách hàng',
+                    style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.w700,
+                        color: p.muted)),
+                const SizedBox(height: 4),
+                Text(
+                    _kh?.moiNhat?.organizationName ??
+                        _kh?.codeName ??
+                        _maKhFallback!,
+                    style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: p.text)),
+                const SizedBox(height: 4),
+                Text('Không thể thay đổi khách hàng khi cập nhật báo giá.',
+                    style: TextStyle(fontSize: 11.5, color: p.dim)),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
     return Column(
       children: [
         Padding(
@@ -369,7 +602,8 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
                                     color: p.text)),
                             if (v != null && v.contactName.isNotEmpty) ...[
                               const SizedBox(height: 2),
-                              Text('${v.contactName}${v.phoneNumber.isNotEmpty ? ' · ${v.phoneNumber}' : ''}',
+                              Text(
+                                  '${v.contactName}${v.phoneNumber.isNotEmpty ? ' · ${v.phoneNumber}' : ''}',
                                   style: TextStyle(
                                       fontSize: 12, color: p.muted)),
                             ],
@@ -388,7 +622,8 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
   }
 
   Widget _buoc2(LtsPalette p) {
-    final kh = _kh!;
+    final kh = _kh;
+    final tenKh = kh?.moiNhat?.organizationName ?? kh?.codeName ?? _maKhFallback;
     return Column(
       children: [
         Container(
@@ -399,17 +634,18 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
               const Icon(Icons.person_outline, size: 16, color: Color(0xFF5B4DFF)),
               const SizedBox(width: 6),
               Expanded(
-                child: Text('Khách: ${kh.moiNhat?.organizationName ?? kh.codeName}',
+                child: Text('Khách: ${tenKh ?? '—'}',
                     style: const TextStyle(
                         fontSize: 13, fontWeight: FontWeight.w700)),
               ),
-              TextButton(
-                onPressed: () => setState(() {
-                  _step = 0;
-                  _kh = null;
-                }),
-                child: const Text('Đổi'),
-              ),
+              if (!_dangSua)
+                TextButton(
+                  onPressed: () => setState(() {
+                    _step = 0;
+                    _kh = null;
+                  }),
+                  child: const Text('Đổi'),
+                ),
             ],
           ),
         ),
@@ -482,6 +718,7 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
                       } else {
                         _selectedSheetIds.add(sh.id);
                       }
+                      _dongBoDrafts();
                     });
                   },
                   padding: const EdgeInsets.all(12),
@@ -496,6 +733,7 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
                             } else {
                               _selectedSheetIds.remove(sh.id);
                             }
+                            _dongBoDrafts();
                           });
                         },
                       ),
@@ -545,6 +783,23 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
   }
 
   Widget _buoc3(LtsPalette p) {
+    final handleOptions = context
+        .watch<AppState>()
+        .constants
+        .raw['handleOptions'];
+    final handleList = <(String, String)>[
+      if (handleOptions is List)
+        for (final o in handleOptions)
+          if (o is Map)
+            (o['key']?.toString() ?? '', o['label']?.toString() ?? ''),
+    ];
+    final mats = context.watch<AppState>().materials;
+    final drafts = _dsSheet
+        .where((sh) => _selectedSheetIds.contains(sh.id))
+        .map((sh) => _drafts[sh.id])
+        .whereType<QuoteSheetDraft>()
+        .toList();
+
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
@@ -565,6 +820,11 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
               const SizedBox(height: 8),
               Text('${_selectedSheetIds.length} bảng tính đã chọn',
                   style: TextStyle(fontSize: 12, color: p.muted)),
+              if (_kh == null && _maKhFallback != null) ...[
+                const SizedBox(height: 4),
+                Text('Mã KH: $_maKhFallback',
+                    style: TextStyle(fontSize: 11.5, color: p.muted)),
+              ],
             ],
           ),
         ),
@@ -593,12 +853,51 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
           value: _nopDuyetNgay,
           onChanged: (v) =>
               setState(() => _nopDuyetNgay = v ?? false),
-          title: const Text('Nộp duyệt ngay sau khi tạo'),
+          title: const Text('Nộp duyệt ngay sau khi lưu'),
           subtitle: const Text(
               'Báo giá sẽ chuyển sang trạng thái "Chờ duyệt" — cần người duyệt xử lý.'),
           controlAffinity: ListTileControlAffinity.leading,
           contentPadding: EdgeInsets.zero,
         ),
+
+        // ── Quy cách & giá từng sản phẩm ────────────────────────────────────
+        const SizedBox(height: 8),
+        Text('Quy cách & giá sản phẩm',
+            style: TextStyle(
+                fontSize: 12.5, fontWeight: FontWeight.w800, color: p.text)),
+        const SizedBox(height: 4),
+        for (final d in drafts)
+          Card(
+            margin: const EdgeInsets.only(top: 8),
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              side: BorderSide(color: p.border),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: ExpansionTile(
+              initiallyExpanded: true,
+              title: Text(d.productName,
+                  style: TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w700,
+                      color: p.text)),
+              subtitle: Text(d.structure,
+                  style: TextStyle(fontSize: 11.5, color: p.muted),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              childrenPadding: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+              children: [
+                QuoteProductEditor(
+                  draft: d,
+                  materials: mats,
+                  handleOptions: handleList,
+                  onChanged: () => setState(() {}),
+                ),
+              ],
+            ),
+          ),
+
+        // ── Điều khoản ──────────────────────────────────────────────────────
         const SizedBox(height: 16),
         Text('Điều khoản sản xuất',
             style: TextStyle(
@@ -612,7 +911,8 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
           options: dungSaiOptions.map((o) => '±$o').toList(),
           onChanged: (val) {
             final num = int.tryParse(val.replaceAll(RegExp(r'[±%]'), '')) ?? 10;
-            setState(() => _terms = _terms.copyWith(quantityTolerance: num.toDouble()));
+            setState(() =>
+                _terms = _terms.copyWith(quantityTolerance: num.toDouble()));
           },
         ),
         const SizedBox(height: 10),
@@ -632,16 +932,17 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
           label: 'VAT hàng hóa (%)',
           value: '${_terms.vatRate.round()}%',
           options: vatOptions,
-          onChanged: (val) => setState(() =>
-              _terms = _terms.copyWith(vatRate: double.tryParse(val.replaceAll('%', '')) ?? 0)),
+          onChanged: (val) => setState(() => _terms = _terms.copyWith(
+              vatRate: double.tryParse(val.replaceAll('%', '')) ?? 0)),
         ),
         const SizedBox(height: 10),
         _TermsDropdown(
           label: 'VAT trục in (%)',
           value: '${_terms.vatCylinderRate.round()}%',
           options: vatOptions,
-          onChanged: (val) => setState(() =>
-              _terms = _terms.copyWith(vatCylinderRate: double.tryParse(val.replaceAll('%', '')) ?? 0)),
+          onChanged: (val) => setState(() => _terms = _terms.copyWith(
+              vatCylinderRate:
+                  double.tryParse(val.replaceAll('%', '')) ?? 0)),
         ),
         const SizedBox(height: 10),
         _TermsDropdown(
@@ -677,7 +978,8 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
             hintText: 'Nhập địa điểm giao hàng…',
             border: OutlineInputBorder(),
           ),
-          onChanged: (v) => _terms = _terms.copyWith(deliveryAddress: v),
+          onChanged: (v) =>
+              setState(() => _terms = _terms.copyWith(deliveryAddress: v)),
         ),
         const SizedBox(height: 10),
         TextField(
@@ -688,7 +990,8 @@ class _TaoBaoGiaWizardState extends State<TaoBaoGiaWizard> {
             hintText: 'Ghi chú thêm cho báo giá…',
             border: OutlineInputBorder(),
           ),
-          onChanged: (v) => _terms = _terms.copyWith(notes: v),
+          onChanged: (v) =>
+              setState(() => _terms = _terms.copyWith(notes: v)),
         ),
       ],
     );
@@ -737,7 +1040,7 @@ class _Stepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final p = LtsT.of(context);
-    const labels = ['Khách hàng', 'Bảng tính', 'Tạo BG'];
+    const labels = ['Khách hàng', 'Bảng tính', 'Quy cách & Điều khoản'];
     return Container(
       color: p.surface,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),

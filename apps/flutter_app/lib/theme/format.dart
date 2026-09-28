@@ -52,6 +52,17 @@ class Fmt {
     }
   }
 
+  /// "2026-04-23T10:30:45" → "23/4/2026 10:30:45"
+  /// Mirror web `toLocaleString('vi-VN')` (tháng không pad, có giây).
+  static String dateTimeSec(String iso) {
+    try {
+      final dt = DateTime.parse(iso).toLocal();
+      return DateFormat('d/M/yyyy HH:mm:ss', 'vi_VN').format(dt);
+    } catch (_) {
+      return iso;
+    }
+  }
+
   static String date(String iso) {
     try {
       final dt = DateTime.parse(iso).toLocal();

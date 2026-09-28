@@ -1385,6 +1385,14 @@ export function buildHistoryItemFromServerData(
       finalPrice?: number;
       chotGia?: number;
       baoGia?: number;
+      /** Nhiều mức số lượng/giá do wizard Flutter (và web mới) ghi. */
+      tiers?: Array<{
+        quantity?: number;
+        finalPrice?: number;
+        chotGia?: number;
+        baoGia?: number;
+        profitRate?: number;
+      }>;
     }>) ?? [];
 
   const customer =
@@ -1418,17 +1426,37 @@ export function buildHistoryItemFromServerData(
     const chotGia = Number(spec?.chotGia) || 0;
     // Quote cũ (mapping cũ lưu báo khách vào chotGia) → fallback; bản mới có baoGia riêng.
     const baoGia = Number(spec?.baoGia) || Number(spec?.chotGia) || 0;
+    const historyItemId =
+      spec?.sourceHistoryItemId || spec?.pricingSheetId || sheet?.id || "";
+    // Nhiều mức số lượng: ưu tiên mảng `tiers` (wizard Flutter/web mới ghi).
+    // Mức thiếu giá → fallback finalPrice/baoGia/chotGia của sản phẩm.
+    const savedTiers = Array.isArray(spec?.tiers) ? spec!.tiers! : [];
+    const tiers: QuoteTier[] = savedTiers.length
+      ? savedTiers.map((t) => {
+          const tQty = Number(t.quantity) || 0;
+          const tFinal = Number(t.finalPrice) || finalPrice;
+          return {
+            historyItemId,
+            quantity: tQty,
+            finalPrice: tFinal,
+            chotGia: Number(t.chotGia) || chotGia,
+            baoGia: Number(t.baoGia) || baoGia || tFinal,
+            profitRate: Number(t.profitRate) || undefined,
+          } as QuoteTier;
+        })
+      : [{ historyItemId, quantity, chotGia, baoGia, finalPrice } as QuoteTier];
+    // Dòng đại diện (mức đầu) — dùng cho card/list + field đơn của QuoteProductLine.
+    const firstTier = tiers[0];
     return {
-      sourceHistoryItemId:
-        spec?.sourceHistoryItemId || spec?.pricingSheetId || sheet?.id || "",
+      sourceHistoryItemId: historyItemId,
       productName,
       structure,
-      quantity,
-      finalPrice,
-      chotGia,
-      baoGia,
+      quantity: firstTier?.quantity ?? quantity,
+      finalPrice: firstTier?.finalPrice ?? finalPrice,
+      chotGia: firstTier?.chotGia ?? chotGia,
+      baoGia: firstTier?.baoGia ?? baoGia,
       input: sheetInput as any,
-      tiers: [{ quantity, chotGia, baoGia, finalPrice } as QuoteTier],
+      tiers,
       bagSpec: (spec?.bagSpec as any) || undefined,
     } as QuoteProductLine;
   };

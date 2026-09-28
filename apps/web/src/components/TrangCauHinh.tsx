@@ -9,7 +9,7 @@ import {
   INITIAL_PROFIT_TABLE,
   INITIAL_SMALL_WIDTH_PRICES,
 } from "../lib/data";
-import type { BagPressSetupRule } from "../lib/types";
+import type { BagPressSetupRule, Material } from "../lib/types";
 import {
   commitProfitThresholdDraft,
   removeLastAddedProfitRow,
@@ -17,6 +17,8 @@ import {
 import CpsxNangCapDien from "./cau-hinh/CpsxNangCapDien";
 import CpsxNangCapLuong from "./cau-hinh/CpsxNangCapLuong";
 import CpsxNangCapTrang from "./cau-hinh/CpsxNangCapTrang";
+import ConfirmDialog from "./ConfirmDialog";
+import { hienToast } from "../lib/toast";
 
 let boDemLuuBangLoiNhuan: ReturnType<typeof setTimeout>;
 const luuBangLoiNhuanTre = () => {
@@ -468,7 +470,10 @@ export default function TrangCauHinh({
     setMaterialParam: capNhatVatLieu,
     setConstantParam: capNhatHangSo,
     setSmallWidthPriceParam: capNhatGiaKhoNho,
+    addMaterial: themVatLieu,
     removeMaterial: xoaVatLieu,
+    taoPhienBanDinhMuc,
+    dangLuuPhienBan,
     dangXemPhienBan,
     phienBanDangXemId,
     configSnapshots: tatCaPhienBan,
@@ -493,6 +498,24 @@ export default function TrangCauHinh({
   const [nguongLoiNhuanDangSua, datNguongLoiNhuanDangSua] = React.useState<
     Record<number, string>
   >({});
+  const [moXacNhanCapNhatPA, datMoXacNhanCapNhatPA] = React.useState(false);
+  const dsPA3Moi = React.useMemo(
+    () =>
+      (INITIAL_MATERIALS as Material[]).filter(
+        (m) => m.id === "PA_0_3" || m.id === "PA_4_6" || m.id === "PA_7_9",
+      ),
+    [],
+  );
+  const idVATLieuHienCo = React.useMemo(
+    () => new Set(vatLieu.map((m) => m.id)),
+    [vatLieu],
+  );
+  const paThieu = dsPA3Moi.filter((pa) => !idVATLieuHienCo.has(pa.id));
+  const soPATuDongThem = paThieu.length;
+  const thangHienTai = React.useMemo(
+    () => new Date().toISOString().slice(0, 7),
+    [],
+  );
   const nhomCauHinh = layNhomCauHinh(menuDangChon);
   const hienVatTu = nhomCauHinh === "materials";
   const hienHaoHut = nhomCauHinh === "waste";
@@ -626,6 +649,35 @@ export default function TrangCauHinh({
         capNhatHangSo("colorSetup", { ...INITIAL_CONSTANTS.colorSetup } as any);
       }
     });
+  };
+  const xuLyCapNhatPA = () => {
+    if (soPATuDongThem === 0) {
+      hienToast("Các PA mới đã có sẵn trong danh sách vật liệu.", { loai: "info" });
+      return;
+    }
+    datMoXacNhanCapNhatPA(true);
+  };
+  const xacNhanCapNhatPA = async () => {
+    datMoXacNhanCapNhatPA(false);
+    if (soPATuDongThem === 0) return;
+    try {
+      for (const pa of paThieu) themVatLieu(pa);
+      await taoPhienBanDinhMuc({
+        scope: "materials",
+        name: "Thêm PA 0-3/4-6/7-9 màu",
+        effectiveMode: "month",
+        effectiveFrom: thangHienTai,
+      });
+      hienToast(
+        `Đã thêm ${soPATuDongThem} PA mới và lưu phiên bản tháng ${thangHienTai}.`,
+        { loai: "success" },
+      );
+    } catch (e) {
+      hienToast(
+        `Lỗi khi cập nhật PA: ${(e as Error)?.message ?? "Không rõ"}`,
+        { loai: "error" },
+      );
+    }
   };
   const xuLyDoiCaiDatMau = (soMau: number, giaTri: number) => {
     const caiDatMoi = { ...hangSo.colorSetup, [soMau]: giaTri };
@@ -947,6 +999,16 @@ export default function TrangCauHinh({
                     >
                       🔄 Reset mặc định
                     </button>
+                    {soPATuDongThem > 0 && !chiDoc && (
+                      <button
+                        className="btn btn-sm btn-primary"
+                        onClick={xuLyCapNhatPA}
+                        disabled={dangLuuPhienBan}
+                        title={`Thêm ${soPATuDongThem} PA (0-3/4-6/7-9 màu) và lưu phiên bản materials mới lên server`}
+                      >
+                        {dangLuuPhienBan ? "Đang lưu..." : "➕ Cập nhật PA"}
+                      </button>
+                    )}
                   </div>
                 </div>
                 {!hienBangKhoNho ? (
@@ -1295,6 +1357,26 @@ export default function TrangCauHinh({
                   </table>
                 </div>
               </div>
+              <ConfirmDialog
+                open={moXacNhanCapNhatPA}
+                title="Cập nhật PA mới"
+                message={
+                  soPATuDongThem === 0
+                    ? "Không có PA mới nào cần thêm."
+                    : `Sẽ thêm ${soPATuDongThem} vật liệu PA mới và lưu phiên bản materials mới lên server:\n\n` +
+                      paThieu
+                        .map(
+                          (p) =>
+                            `• ${p.name} (độ dày ${p.thickness} mic, ${p.density} g/cm³, ${p.pricePerKg.toLocaleString("vi-VN")} ₫/kg)`,
+                        )
+                        .join("\n") +
+                      `\n\nHiệu lực: tháng ${thangHienTai}`
+                }
+                confirmLabel="Cập nhật"
+                cancelLabel="Hủy"
+                onConfirm={xacNhanCapNhatPA}
+                onCancel={() => datMoXacNhanCapNhatPA(false)}
+              />
             </>
           )}
           {/* NHOM 1: CHI PHI KHAU IN */}

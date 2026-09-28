@@ -1,7 +1,15 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// Cấu hình — mirror web mobile TrangCauHinh: sub-card dọc (action-card 108px).
-// Mỗi mục: icon box 56 + title 17/800 + sub 13/500 + chevron (hoặc pill "Khóa").
-// Tab 3 cũ (Vật liệu / Hằng số / Lợi nhuận) được lồng bên trong sub-card.
+// Cấu hình — mirror web mobile MOBILE_HUBS.pricing_config (VoTrang.tsx:650):
+//   7 action card (icon box 56 + title 17/800 + sub 13/500 + chevron):
+//     1. Vật tư / nguyên vật liệu   → _MaterialsTab
+//     2. Chi phí sản xuất           → _ConstantsTab
+//     3. Chi phí sản xuất (nâng cấp)→ CpsxNangCapScreen
+//     4. Biên lợi nhuận             → _ProfitTab
+//     5. Phụ phí                    → _SurchargesTab
+//     6. Lãi vay công nợ            → _InterestTab
+//     7. Nhật ký thao tác           → NhatKyThaoTacScreen(cauHinh)
+// Khối "Phiên bản" nhúng inline trong từng mục (KhoiPhienBan) — mirror web
+// KhoiPhienBan(scope), KHÔNG còn màn PhienBanCauHinhScreen riêng.
 // ═══════════════════════════════════════════════════════════════════════════
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -13,12 +21,12 @@ import '../theme/format.dart';
 import '../theme/lts_tokens.dart';
 import '../widgets/auth/auth_header_actions.dart';
 import '../widgets/form_widgets.dart';
+import '../widgets/khoi_phien_ban.dart';
 import '../widgets/lts/lts_chrome.dart';
 import '../widgets/lts/lts_module_route.dart';
 import '../widgets/lts/lts_toast.dart';
 import 'nhat_ky/nhat_ky_scope.dart';
 import 'nhat_ky_thao_tac_screen.dart';
-import 'phien_ban_cau_hinh_screen.dart';
 import 'cpsx_nang_cap_screen.dart';
 
 class CauHinhScreen extends StatelessWidget {
@@ -49,7 +57,7 @@ class CauHinhScreen extends StatelessWidget {
                   variant: LtsIconVariant.emerald,
                 ),
                 title: 'Vật tư / nguyên vật liệu',
-                subtitle: 'Giá NVL, mực in, khổ cuộn',
+                subtitle: 'Cập nhật danh mục vật liệu đầu vào.',
                 onTap: () => _moSubSection(
                   context,
                   title: 'Vật tư / NVL',
@@ -63,7 +71,7 @@ class CauHinhScreen extends StatelessWidget {
                   variant: LtsIconVariant.violet,
                 ),
                 title: 'Chi phí sản xuất',
-                subtitle: 'Hằng số in / ghép / cắt, lãi vay',
+                subtitle: 'Thiết lập các chi phí theo công đoạn.',
                 onTap: () => _moSubSection(
                   context,
                   title: 'Chi phí sản xuất',
@@ -73,11 +81,24 @@ class CauHinhScreen extends StatelessWidget {
               const SizedBox(height: 16),
               LtsActionCard(
                 iconBox: LtsIconBox(
-                  icon: Icons.trending_up_rounded,
+                  icon: Icons.bolt_rounded,
                   variant: LtsIconVariant.orange,
                 ),
+                title: 'Chi phí sản xuất (nâng cấp)',
+                subtitle: 'Giá điện khung giờ và điện/phút theo máy.',
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const CpsxNangCapScreen()),
+                ),
+              ),
+              const SizedBox(height: 16),
+              LtsActionCard(
+                iconBox: LtsIconBox(
+                  icon: Icons.percent_rounded,
+                  variant: LtsIconVariant.rose,
+                ),
                 title: 'Biên lợi nhuận',
-                subtitle: 'Bảng ngưỡng & cột LN',
+                subtitle: 'Cấu hình bảng lợi nhuận áp dụng.',
                 onTap: () => _moSubSection(
                   context,
                   title: 'Biên lợi nhuận',
@@ -87,14 +108,29 @@ class CauHinhScreen extends StatelessWidget {
               const SizedBox(height: 16),
               LtsActionCard(
                 iconBox: LtsIconBox(
-                  icon: Icons.bolt_rounded,
+                  icon: Icons.settings_rounded,
+                  variant: LtsIconVariant.orange,
+                ),
+                title: 'Phụ phí',
+                subtitle: 'Thiết lập phụ phí và khoản cộng thêm.',
+                onTap: () => _moSubSection(
+                  context,
+                  title: 'Phụ phí',
+                  child: const _SurchargesTab(),
+                ),
+              ),
+              const SizedBox(height: 16),
+              LtsActionCard(
+                iconBox: LtsIconBox(
+                  icon: Icons.monetization_on_rounded,
                   variant: LtsIconVariant.slate,
                 ),
-                title: 'Chi phí sản xuất (nâng cao)',
-                subtitle: 'Điện · Lương · Mực · Thời gian SX',
-                onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => const CpsxNangCapScreen()),
+                title: 'Lãi vay công nợ',
+                subtitle: 'Cấu hình lãi vay theo thời hạn thanh toán.',
+                onTap: () => _moSubSection(
+                  context,
+                  title: 'Lãi vay công nợ',
+                  child: const _InterestTab(),
                 ),
               ),
               const SizedBox(height: 16),
@@ -104,27 +140,11 @@ class CauHinhScreen extends StatelessWidget {
                   variant: LtsIconVariant.orange,
                 ),
                 title: 'Nhật ký thao tác',
-                subtitle: 'Theo dõi thay đổi cấu hình tính giá',
+                subtitle: 'Theo dõi thay đổi cấu hình tính giá.',
                 onTap: () => _moModule(
                   context,
                   title: 'Nhật ký thao tác',
                   child: const NhatKyThaoTacScreen(scope: PhamViNhatKy.cauHinh),
-                ),
-              ),
-              const SizedBox(height: 24),
-              _ConfigGroupLabel('Khác'),
-              const SizedBox(height: 12),
-              LtsActionCard(
-                iconBox: LtsIconBox(
-                  icon: Icons.history_toggle_off_rounded,
-                  variant: LtsIconVariant.slate,
-                ),
-                title: 'Phiên bản cấu hình',
-                subtitle: 'Xem / lưu phiên bản đồng bộ server',
-                onTap: () => _moModule(
-                  context,
-                  title: 'Phiên bản cấu hình',
-                  child: const PhienBanCauHinhScreen(),
                 ),
               ),
             ],
@@ -296,6 +316,10 @@ class _MaterialsTabState extends State<_MaterialsTab> {
         ],
         const SizedBox(height: 12),
         _SmallWidthSection(state: s),
+        const KhoiPhienBan(
+          configName: 'MATERIALS',
+          nhanScope: 'Vật liệu & Zipper',
+        ),
       ],
     );
   }
@@ -525,7 +549,7 @@ class _Field extends StatelessWidget {
   }
 }
 
-// ── Constants ────────────────────────────────────────────────────────────────
+// ── Constants — Chi phí sản xuất (mirror web scope production + waste) ───────
 class _ConstantsTab extends StatelessWidget {
   const _ConstantsTab();
 
@@ -553,7 +577,294 @@ class _ConstantsTab extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
       children: [
-        // ── Lãi suất với highlight tổng ──
+        SectionCard(
+          title: 'Sản xuất — In / Ghép / Cắt',
+          subtitle: 'Hệ số phi hao và chi phí cơ bản',
+          icon: Icons.factory_outlined,
+          iconColor: AppColors.info,
+          children: [
+            row('ghepCPSX', 'CPSX Ghép', integer: true, suffix: 'đ'),
+            row('cutBase', 'CP Cắt cơ bản', integer: true, suffix: 'đ'),
+            row('laborCost', 'CPSX khâu in', integer: true, suffix: 'đ/m²'),
+            const SizedBox(height: 4),
+            Text('PHI HAO IN', style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: row('printWasteA', 'A', integer: true)),
+              const SizedBox(width: 10),
+              Expanded(child: row('printWasteB', 'B', integer: true)),
+            ]),
+            Row(children: [
+              Expanded(child: row('printWasteC', 'C', integer: true)),
+              const SizedBox(width: 10),
+              Expanded(child: row('printWasteD', 'D', integer: true)),
+            ]),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── Hao hụt ghép / cắt (mirror web scope waste) ──
+        SectionCard(
+          title: 'Hao hụt Ghép / Cắt',
+          subtitle: 'A = mét, B/C = hệ số theo khổ',
+          icon: Icons.delete_sweep_outlined,
+          iconColor: AppColors.warning,
+          children: [
+            Text('GHÉP', style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: row('ghepWasteA', 'A', integer: true)),
+              const SizedBox(width: 10),
+              Expanded(child: row('ghepWasteB', 'B', integer: true)),
+              const SizedBox(width: 10),
+              Expanded(child: row('ghepWasteC', 'C', integer: true)),
+            ]),
+            const SizedBox(height: 12),
+            Text('CẮT', style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(child: row('cutWasteA', 'A', integer: true)),
+              const SizedBox(width: 10),
+              Expanded(child: row('cutWasteB', 'B', integer: true)),
+              const SizedBox(width: 10),
+              Expanded(child: row('cutWasteC', 'C', integer: true)),
+            ]),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── Ngưỡng hệ số cắt (mirror web cutThreshold/cutMult) ──
+        SectionCard(
+          title: 'Hệ số cắt theo bước cắt',
+          subtitle: 'Ngưỡng (m) và hệ số nhân',
+          icon: Icons.content_cut_outlined,
+          iconColor: AppColors.muted,
+          children: [
+            Row(children: [
+              Expanded(
+                  child: row('cutThreshold1', 'Ngưỡng 1', suffix: 'm')),
+              const SizedBox(width: 12),
+              Expanded(child: row('cutMult1', 'Hệ số 1')),
+            ]),
+            Row(children: [
+              Expanded(
+                  child: row('cutThreshold2', 'Ngưỡng 2', suffix: 'm')),
+              const SizedBox(width: 12),
+              Expanded(child: row('cutMult2', 'Hệ số 2')),
+            ]),
+            row('cutMult3', 'Hệ số 3 (lớn)'),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── Định mức màng in (mirror web printFilm*, trừ phần vận chuyển) ──
+        SectionCard(
+          title: 'Màng in — định mức',
+          subtitle: 'Setup / tốc độ / chi phí giờ',
+          icon: Icons.print_outlined,
+          iconColor: AppColors.accent,
+          children: [
+            Row(children: [
+              Expanded(
+                  child: row('printFilmInkPriceBopp', 'Mực BOPP',
+                      integer: true, suffix: 'đ/m²')),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: row('printFilmInkPriceOther', 'Mực khác',
+                      integer: true, suffix: 'đ/m²')),
+            ]),
+            Row(children: [
+              Expanded(
+                  child: row('printFilmSetupMinutesPerColor',
+                      'Phút setup/màu')),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: row('printFilmSetupHourDivisor', 'Mẫu số giờ setup')),
+            ]),
+            Row(children: [
+              Expanded(
+                  child: row('printFilmLengthThreshold', 'Ngưỡng mét màng in',
+                      integer: true, suffix: 'm')),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: row('printFilmShortRunSpeed', 'Tốc độ chạy ngắn',
+                      integer: true, suffix: 'm/h')),
+            ]),
+            row('printFilmLaborCostPerHour', 'Chi phí giờ màng in',
+                integer: true, suffix: 'đ/h'),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── Phụ phí in tùy chọn (mirror web customPrintSurcharges) ──
+        _OptionsEditor(
+          tieuDe: 'Phụ phí in tùy chọn',
+          subtitle: 'Nhãn · Giá (đ/m²) · Khối lượng',
+          icon: Icons.auto_awesome_outlined,
+          items: (c.raw['customPrintSurcharges'] as List?) ?? const [],
+          onChanged: (next) =>
+              s.setConstants(c.withField('customPrintSurcharges', next)),
+        ),
+        const SizedBox(height: 14),
+
+        const KhoiPhienBan(
+          configName: 'PRODUCTION',
+          nhanScope: 'Chi phí sản xuất',
+        ),
+        const KhoiPhienBan(
+          configName: 'WASTE',
+          nhanScope: 'Hao hụt',
+        ),
+        const SizedBox(height: 40),
+      ],
+    );
+  }
+}
+
+// ── Phụ phí (mirror web scope surcharges) ────────────────────────────────────
+class _SurchargesTab extends StatelessWidget {
+  const _SurchargesTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppState>();
+    final c = s.constants;
+
+    Widget row(String k, String label,
+        {bool integer = false, String? suffix, String? hint}) {
+      final v = (c.raw[k] as num?)?.toDouble() ?? 0;
+      return LabeledField(
+        label: label,
+        suffix: suffix != null ? '($suffix)' : null,
+        hint: hint,
+        child: NumField(
+          initial: v,
+          integer: integer,
+          suffix: suffix,
+          onChanged: (newV) => s.setConstants(c.withField(k, newV)),
+        ),
+      );
+    }
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      children: [
+        SectionCard(
+          title: 'Trục in',
+          icon: Icons.album_outlined,
+          iconColor: AppColors.muted,
+          children: [
+            row('cylPriceA', 'Đơn giá trục A', integer: true, suffix: 'đ/m²'),
+            row('cylPriceB', 'Đơn giá trục B', integer: true, suffix: 'đ/m²'),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        SectionCard(
+          title: 'Phụ kiện',
+          subtitle: 'Khoá · băng keo · quai xách',
+          icon: Icons.extension_outlined,
+          iconColor: AppColors.success,
+          children: [
+            row('zipperPrice', 'Giá khoá', integer: true, suffix: 'đ'),
+            row('tapePrice', 'Giá băng keo', integer: true, suffix: 'đ'),
+            row('handlePrice', 'Giá quai xách', integer: true, suffix: 'đ'),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── Phụ phí in: nhũ, phủ mờ (mirror web nhuPrice/moPrice) ──
+        SectionCard(
+          title: 'Phụ phí in',
+          subtitle: 'Nhũ / Phủ mờ (đ/m²)',
+          icon: Icons.auto_awesome_outlined,
+          iconColor: AppColors.info,
+          children: [
+            Row(children: [
+              Expanded(
+                  child: row('nhuPrice', 'Nhũ', integer: true, suffix: 'đ/m²')),
+              const SizedBox(width: 12),
+              Expanded(
+                  child:
+                      row('moPrice', 'Phủ mờ', integer: true, suffix: 'đ/m²')),
+            ]),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        // ── Thùng giấy (mirror web boxOptions) ──
+        _OptionsEditor(
+          tieuDe: 'Thùng giấy',
+          subtitle: 'Nhãn · Giá · Khối lượng',
+          icon: Icons.inventory_outlined,
+          items: (c.raw['boxOptions'] as List?) ?? const [],
+          onChanged: (next) =>
+              s.setConstants(c.withField('boxOptions', next)),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Quai xách (mirror web handleOptions) ──
+        _OptionsEditor(
+          tieuDe: 'Quai xách',
+          subtitle: 'Nhãn · Giá · Khối lượng',
+          icon: Icons.shopping_bag_outlined,
+          items: (c.raw['handleOptions'] as List?) ?? const [],
+          onChanged: (next) =>
+              s.setConstants(c.withField('handleOptions', next)),
+        ),
+        const SizedBox(height: 14),
+
+        // ── Vận chuyển (mirror web shippingPerKmDefault + printFilm shipping) ──
+        SectionCard(
+          title: 'Vận chuyển',
+          subtitle: 'Cước chung + màng in',
+          icon: Icons.local_shipping_outlined,
+          iconColor: AppColors.accent,
+          children: [
+            row('shippingPerKmDefault', 'Cước / km mặc định',
+                integer: true, suffix: 'đ/km'),
+            row('shippingKmDefault', 'Km mặc định',
+                integer: true, suffix: 'km'),
+            const SizedBox(height: 4),
+            Text('MÀNG IN', style: Theme.of(context).textTheme.labelMedium),
+            const SizedBox(height: 8),
+            Row(children: [
+              Expanded(
+                  child: row('printFilmShippingThresholdM2',
+                      'Ngưỡng VC (m²)', integer: true)),
+              const SizedBox(width: 12),
+              Expanded(
+                  child: row('printFilmShippingLargeOrderM2',
+                      'Mốc đơn lớn (m²)', integer: true)),
+            ]),
+            row('printFilmShippingBaseCost', 'Phí VC cơ bản',
+                integer: true, suffix: 'đ'),
+          ],
+        ),
+        const SizedBox(height: 14),
+
+        const KhoiPhienBan(
+          configName: 'SURCHARGES',
+          nhanScope: 'Phụ phí',
+        ),
+        const SizedBox(height: 40),
+      ],
+    );
+  }
+}
+
+// ── Lãi vay công nợ (mirror web scope interest) ──────────────────────────────
+class _InterestTab extends StatelessWidget {
+  const _InterestTab();
+
+  @override
+  Widget build(BuildContext context) {
+    final s = context.watch<AppState>();
+    final c = s.constants;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
+      children: [
         SectionCard(
           title: 'Lãi suất',
           subtitle: 'Mức cơ sở + thêm = lãi áp dụng',
@@ -617,210 +928,24 @@ class _ConstantsTab extends StatelessWidget {
         ),
         const SizedBox(height: 14),
 
+        // ── Lãi vay dành riêng cho màn in (mirror web printFilmInterestRate) ──
         SectionCard(
-          title: 'Phụ kiện',
-          icon: Icons.extension_outlined,
-          iconColor: AppColors.success,
-          children: [
-            row('zipperPrice', 'Giá khoá', integer: true, suffix: 'đ'),
-            row('tapePrice', 'Giá băng keo', integer: true, suffix: 'đ'),
-            row('handlePrice', 'Giá quai xách', integer: true, suffix: 'đ'),
-          ],
-        ),
-        const SizedBox(height: 14),
-
-        SectionCard(
-          title: 'Trục in',
-          icon: Icons.album_outlined,
-          iconColor: AppColors.muted,
-          children: [
-            row('cylPriceA', 'Đơn giá trục A', integer: true, suffix: 'đ/m²'),
-            row('cylPriceB', 'Đơn giá trục B', integer: true, suffix: 'đ/m²'),
-          ],
-        ),
-        const SizedBox(height: 14),
-
-        SectionCard(
-          title: 'Sản xuất — In / Ghép / Cắt',
-          subtitle: 'Hệ số phi hao và chi phí cơ bản',
-          icon: Icons.factory_outlined,
-          iconColor: AppColors.info,
-          children: [
-            row('ghepCPSX', 'CPSX Ghép', integer: true, suffix: 'đ'),
-            row('cutBase', 'CP Cắt cơ bản', integer: true, suffix: 'đ'),
-            row('laborCost', 'CPSX khâu in', integer: true, suffix: 'đ/m²'),
-            const SizedBox(height: 4),
-            Text('PHI HAO IN', style: Theme.of(context).textTheme.labelMedium),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: row('printWasteA', 'A', integer: true)),
-              const SizedBox(width: 10),
-              Expanded(child: row('printWasteB', 'B', integer: true)),
-            ]),
-            Row(children: [
-              Expanded(child: row('printWasteC', 'C', integer: true)),
-              const SizedBox(width: 10),
-              Expanded(child: row('printWasteD', 'D', integer: true)),
-            ]),
-          ],
-        ),
-        const SizedBox(height: 14),
-
-        SectionCard(
-          title: 'Vận chuyển',
-          icon: Icons.local_shipping_outlined,
-          iconColor: AppColors.accent,
-          children: [
-            row('shippingPerKmDefault', 'Cước / km mặc định',
-                integer: true, suffix: 'đ/km'),
-            row('shippingKmDefault', 'Km mặc định',
-                integer: true, suffix: 'km'),
-          ],
-        ),
-        const SizedBox(height: 14),
-
-        // ── Hao hụt ghép / cắt (mirror web scope waste) ──
-        SectionCard(
-          title: 'Hao hụt Ghép / Cắt',
-          subtitle: 'A = mét, B/C = hệ số theo khổ',
-          icon: Icons.delete_sweep_outlined,
-          iconColor: AppColors.warning,
-          children: [
-            Text('GHÉP', style: Theme.of(context).textTheme.labelMedium),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: row('ghepWasteA', 'A', integer: true)),
-              const SizedBox(width: 10),
-              Expanded(child: row('ghepWasteB', 'B', integer: true)),
-              const SizedBox(width: 10),
-              Expanded(child: row('ghepWasteC', 'C', integer: true)),
-            ]),
-            const SizedBox(height: 12),
-            Text('CẮT', style: Theme.of(context).textTheme.labelMedium),
-            const SizedBox(height: 8),
-            Row(children: [
-              Expanded(child: row('cutWasteA', 'A', integer: true)),
-              const SizedBox(width: 10),
-              Expanded(child: row('cutWasteB', 'B', integer: true)),
-              const SizedBox(width: 10),
-              Expanded(child: row('cutWasteC', 'C', integer: true)),
-            ]),
-          ],
-        ),
-        const SizedBox(height: 14),
-
-        // ── Phụ phí in: nhũ, phủ mờ (mirror web nhuPrice/moPrice) ──
-        SectionCard(
-          title: 'Phụ phí in',
-          subtitle: 'Nhũ / Phủ mờ (đ/m²)',
-          icon: Icons.auto_awesome_outlined,
-          iconColor: AppColors.info,
-          children: [
-            Row(children: [
-              Expanded(
-                  child: row('nhuPrice', 'Nhũ', integer: true, suffix: 'đ/m²')),
-              const SizedBox(width: 12),
-              Expanded(
-                  child:
-                      row('moPrice', 'Phủ mờ', integer: true, suffix: 'đ/m²')),
-            ]),
-          ],
-        ),
-        const SizedBox(height: 14),
-
-        // ── Ngưỡng hệ số cắt (mirror web cutThreshold/cutMult) ──
-        SectionCard(
-          title: 'Hệ số cắt theo bước cắt',
-          subtitle: 'Ngưỡng (m) và hệ số nhân',
-          icon: Icons.content_cut_outlined,
-          iconColor: AppColors.muted,
-          children: [
-            Row(children: [
-              Expanded(
-                  child: row('cutThreshold1', 'Ngưỡng 1', suffix: 'm')),
-              const SizedBox(width: 12),
-              Expanded(child: row('cutMult1', 'Hệ số 1')),
-            ]),
-            Row(children: [
-              Expanded(
-                  child: row('cutThreshold2', 'Ngưỡng 2', suffix: 'm')),
-              const SizedBox(width: 12),
-              Expanded(child: row('cutMult2', 'Hệ số 2')),
-            ]),
-            row('cutMult3', 'Hệ số 3 (lớn)'),
-          ],
-        ),
-        const SizedBox(height: 14),
-
-        // ── Cước vận chuyển màng in (mirror web printFilm* shipping/interest) ──
-        SectionCard(
-          title: 'Màng in — định mức',
-          subtitle: 'Setup / tốc độ / vận chuyển / lãi vay',
+          title: 'Lãi vay dành riêng cho màn in',
+          subtitle: 'Chỉ áp dụng cho Màng in chỉ có công đoạn in',
           icon: Icons.print_outlined,
           iconColor: AppColors.accent,
           children: [
-            Row(children: [
-              Expanded(
-                  child: row('printFilmInkPriceBopp', 'Mực BOPP',
-                      integer: true, suffix: 'đ/m²')),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: row('printFilmInkPriceOther', 'Mực khác',
-                      integer: true, suffix: 'đ/m²')),
-            ]),
-            Row(children: [
-              Expanded(
-                  child: row('printFilmSetupMinutesPerColor',
-                      'Phút setup/màu')),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: row('printFilmSetupHourDivisor', 'Mẫu số giờ setup')),
-            ]),
-            Row(children: [
-              Expanded(
-                  child: row('printFilmLengthThreshold', 'Ngưỡng mét màng in',
-                      integer: true, suffix: 'm')),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: row('printFilmShortRunSpeed', 'Tốc độ chạy ngắn',
-                      integer: true, suffix: 'm/h')),
-            ]),
-            row('printFilmLaborCostPerHour', 'Chi phí giờ màng in',
-                integer: true, suffix: 'đ/h'),
-            Row(children: [
-              Expanded(
-                  child: row('printFilmShippingThresholdM2',
-                      'Ngưỡng VC (m²)', integer: true)),
-              const SizedBox(width: 12),
-              Expanded(
-                  child: row('printFilmShippingLargeOrderM2',
-                      'Mốc đơn lớn (m²)', integer: true)),
-            ]),
-            row('printFilmShippingBaseCost', 'Phí VC cơ bản',
-                integer: true, suffix: 'đ'),
-            row('printFilmInterestRate', 'Lãi vay màng in',
-                hint: 'VD: 0.01 = 1%'),
+            LabeledField(
+              label: 'Lãi vay màng in',
+              hint: 'VD: 0.01 = 1%',
+              child: NumField(
+                initial: (c.raw['printFilmInterestRate'] as num?)?.toDouble() ??
+                    0.01,
+                onChanged: (v) =>
+                    s.setConstants(c.withField('printFilmInterestRate', v)),
+              ),
+            ),
           ],
-        ),
-        const SizedBox(height: 14),
-
-        // ── Thùng giấy (mirror web boxOptions) ──
-        _OptionsEditor(
-          tieuDe: 'Thùng giấy',
-          icon: Icons.inventory_outlined,
-          items: (c.raw['boxOptions'] as List?) ?? const [],
-          onChanged: (next) =>
-              s.setConstants(c.withField('boxOptions', next)),
-        ),
-        const SizedBox(height: 14),
-
-        // ── Quai xách (mirror web handleOptions) ──
-        _OptionsEditor(
-          tieuDe: 'Quai xách',
-          icon: Icons.shopping_bag_outlined,
-          items: (c.raw['handleOptions'] as List?) ?? const [],
-          onChanged: (next) =>
-              s.setConstants(c.withField('handleOptions', next)),
         ),
         const SizedBox(height: 14),
 
@@ -836,6 +961,12 @@ class _ConstantsTab extends StatelessWidget {
           onChanged: (next) =>
               s.setConstants(c.withField('customPaymentDays', next)),
         ),
+        const SizedBox(height: 14),
+
+        const KhoiPhienBan(
+          configName: 'INTEREST',
+          nhanScope: 'Lãi vay',
+        ),
         const SizedBox(height: 40),
       ],
     );
@@ -845,11 +976,13 @@ class _ConstantsTab extends StatelessWidget {
 // ── Options editor (key/label/price/weight) — mirror web boxOptions/handleOptions ─
 class _OptionsEditor extends StatelessWidget {
   final String tieuDe;
+  final String? subtitle;
   final IconData icon;
   final List<dynamic> items;
   final ValueChanged<List<dynamic>> onChanged;
   const _OptionsEditor({
     required this.tieuDe,
+    this.subtitle,
     required this.icon,
     required this.items,
     required this.onChanged,
@@ -860,7 +993,7 @@ class _OptionsEditor extends StatelessWidget {
     final list = items.map((e) => Map<String, dynamic>.from(e as Map)).toList();
     return SectionCard(
       title: tieuDe,
-      subtitle: 'Nhãn · Giá · Khối lượng',
+      subtitle: subtitle ?? 'Nhãn · Giá · Khối lượng',
       icon: icon,
       iconColor: AppColors.success,
       children: [
@@ -1342,6 +1475,10 @@ class _ProfitTabState extends State<_ProfitTab> {
         Text(
           'Tỉ lệ lợi nhuận tự động tính từ giá vốn. Các con số này có thể chỉnh sửa và tự động lưu.',
           style: TextStyle(fontSize: 11.5, color: LtsT.of(context).muted),
+        ),
+        const KhoiPhienBan(
+          configName: 'PROFIT',
+          nhanScope: 'Bảng lợi nhuận',
         ),
       ],
     );

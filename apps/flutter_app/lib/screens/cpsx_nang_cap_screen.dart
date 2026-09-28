@@ -13,6 +13,7 @@ import '../store/app_state.dart';
 import '../theme/app_theme.dart';
 import '../theme/format.dart';
 import '../theme/lts_tokens.dart';
+import '../widgets/khoi_phien_ban.dart';
 import '../widgets/lts/lts_surfaces.dart';
 import '../widgets/lts/lts_toast.dart';
 
@@ -157,6 +158,10 @@ class _CpsxNangCapScreenState extends State<CpsxNangCapScreen> {
               _thoiGian = v;
               _luu('cpsxUpgradeThoiGian', v);
             }),
+          ),
+          const KhoiPhienBan(
+            configName: 'PRODUCTION_UPGRADE',
+            nhanScope: 'Sản xuất nâng cao (CPSX)',
           ),
         ],
       ),
