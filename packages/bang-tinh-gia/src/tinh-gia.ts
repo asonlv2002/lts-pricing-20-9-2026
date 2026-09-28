@@ -228,7 +228,7 @@ export function tinhGia(
         ? { bat: true, giaGcMoiM2: gc.chia.giaGcMoiM2 }
         : undefined,
       lamTui: coCongDoanGc(gc, 'lam_tui') && gc?.lamTui && !coCongDoanGc(gc, 'chia')
-        ? { bat: true, giaGcMoiTui: gc.lamTui.giaGcMoiTui, soLuong }
+        ? { bat: true, giaGcMoiTui: gc.lamTui.giaGcMoiTui, giaGcMoiM2: gc.lamTui.giaGcMoiM2, soLuong }
         : undefined,
     },
   });

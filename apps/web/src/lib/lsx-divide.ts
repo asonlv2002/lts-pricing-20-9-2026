@@ -93,10 +93,11 @@ export function formatLsxDivideSummary(spec: LsxDivideSpec): string {
  * Phi hao máy chia (mét) hiển thị trên LSX — dòng "Định mức phi hao chia".
  *
  * Nguồn: dòng "Chia" của bảng đặc tả kỹ thuật nâng cao (taoDongChiaNangCao ở
- * dac-ta-nang-cao.ts) — hiện cố định `phiHao: 0` nên helper trả 0, khớp 10 LSX
- * tham chiếu (LSX-References.md §3) đều ghi 0m. Khi dòng Chia có phi hao thực,
- * chỉ cần cập nhật dòng chia và helper này tự theo giá trị đó.
+ * dac-ta-nang-cao.ts). Khi khâu chia là gia công ngoài → phi hao = TP chia ×
+ * (%PH/100) + PH setup chỗ Chia (đ/m, theo ảnh đặc tả); chia nội bộ = 0.
  */
-export function layPhiHaoChia(_order: ProductionOrder): number {
-  return 0;
+export function layPhiHaoChia(order: ProductionOrder): number {
+  const chia = layDongTheoCongDoan(order, 'Chia')
+    ?? layDongTheoCongDoan(order, 'Chia (GC)');
+  return chia && typeof chia.phiHao === 'number' ? chia.phiHao : 0;
 }

@@ -714,8 +714,8 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
               <th className="num">Đầu vào NVL (m)</th>
               <th className="num" title="CP vật liệu (đ/m²); dòng phụ = giá NVL (đ/kg) nếu có">CP vật liệu (đ/m²)</th>
               <th className="num">Thành tiền CPNVL</th>
-              <th className="num" title="Giá mực in, dung môi, keo ghép + nhũ/phủ mờ (đ/m²)">Giá mực, DM, keo (đ/m²)</th>
-              <th className="num">Thành tiền mực, DM, keo</th>
+              <th className="num" title="Giá mực in, dung môi, keo ghép + nhũ/phủ mờ (đ/m²)">Giá mực, DM, keo, khác (đ/m²)</th>
+              <th className="num">Thành tiền mực, DM, keo, khác</th>
             </tr>
           </thead>
           <tbody>
@@ -895,7 +895,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                   {row.cpMucKeoText ? (
                     oSoGc(row.cpMucKeoText, laGc, {
                       className: 'dac-ta-nang-cao__muc',
-                      dataLabel: 'Giá mực, DM, keo (đ/m²)',
+                      dataLabel: 'Giá mực, DM, keo, khác (đ/m²)',
                     })
                   ) : row.cpMucKeo != null && !laDongSynthetic ? (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
@@ -911,17 +911,17 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                   ) : row.cpMucKeo != null ? (
                     oSoGc(dinhDangSo(row.cpMucKeo, 1), laGc, {
                       className: 'dac-ta-nang-cao__muc',
-                      dataLabel: 'Giá mực, DM, keo (đ/m²)',
+                      dataLabel: 'Giá mực, DM, keo, khác (đ/m²)',
                     })
                   ) : (
                     oSoGc('—', laGc, {
                       className: 'dac-ta-nang-cao__muc',
-                      dataLabel: 'Giá mực, DM, keo (đ/m²)',
+                      dataLabel: 'Giá mực, DM, keo, khác (đ/m²)',
                     })
                   )}
                   {oSoGc(dinhDangSo(row.thanhTienMucKeo, 0), laGc, {
                     className: `dac-ta-nang-cao__muc ${coDoiMuc || coDoiVL ? 'override-changed' : ''}`,
-                    dataLabel: 'Thành tiền mực, DM, keo',
+                    dataLabel: 'Thành tiền mực, DM, keo, khác',
                   })}
                 </tr>
               );

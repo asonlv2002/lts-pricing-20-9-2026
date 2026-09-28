@@ -26,7 +26,7 @@ const FIELD_LABELS: Record<string, string> = {
   materialName: 'Vật liệu',
   rawMatPrice: 'Giá NVL',
   doDay: 'Độ dày (mic)',
-  cpMucKeoPerM2: 'Giá mực, DM, keo',
+  cpMucKeoPerM2: 'Giá mực, DM, keo, khác',
   thoiGianPhut: 'Thời gian SX',
   cpNhanCongPerPhut: 'Giá nhân công',
   cpDienPerPhut: 'Giá điện',

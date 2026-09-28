@@ -42,6 +42,7 @@ function OSo(props: {
   value: number | undefined;
   onChange: (v: number) => void;
   suffix?: string;
+  disabled?: boolean;
 }) {
   return (
     <div className="form-group outsource-field" style={{ marginBottom: 8 }}>
@@ -52,6 +53,7 @@ function OSo(props: {
         className="form-input outsource-field-input"
         type="number"
         value={props.value ?? ''}
+        disabled={props.disabled}
         onChange={e => props.onChange(Number(e.target.value) || 0)}
       />
     </div>
@@ -193,6 +195,7 @@ export function ChiTietGiaCongNgoai(props: {
     wastePct: out.bag?.wastePct ?? 0,
     wasteSetupM: out.bag?.wasteSetupM ?? 0,
     gcPricePerBag: out.bag?.gcPricePerBag ?? 0,
+    gcPricePerM2: out.bag?.gcPricePerM2 ?? 0,
     zipperMode: out.bag?.zipperMode,
     zipperPricePerM: out.bag?.zipperPricePerM,
     tapeMode: out.bag?.tapeMode,
@@ -283,11 +286,26 @@ export function ChiTietGiaCongNgoai(props: {
               label="Giá GC"
               suffix="đ/túi"
               value={out.bag?.gcPricePerBag}
+              disabled={(out.bag?.gcPricePerM2 ?? 0) > 0}
               onChange={v =>
                 patchOut({
                   bag: {
                     ...bagBase,
                     gcPricePerBag: v,
+                  },
+                })
+              }
+            />
+            <OSo
+              label="Giá GC"
+              suffix="đ/m²"
+              value={out.bag?.gcPricePerM2}
+              disabled={(out.bag?.gcPricePerBag ?? 0) > 0}
+              onChange={v =>
+                patchOut({
+                  bag: {
+                    ...bagBase,
+                    gcPricePerM2: v,
                   },
                 })
               }

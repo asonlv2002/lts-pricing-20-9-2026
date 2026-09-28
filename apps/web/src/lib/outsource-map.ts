@@ -83,6 +83,7 @@ export function mapOutsourceEnToVn(o?: OutsourceConfig): GiaCongNgoai | undefine
       tyLePhiHao: o.bag.wastePct,
       phiHaoSetupM: o.bag.wasteSetupM,
       giaGcMoiTui: o.bag.gcPricePerBag,
+      giaGcMoiM2: o.bag.gcPricePerM2,
       cheDoZipper: o.bag.zipperMode === 'included' ? 'gom' : o.bag.zipperMode === 'excluded' ? 'chua_gom' : undefined,
       giaZipperMoiM: o.bag.zipperPricePerM,
       cheDoBangKeo: o.bag.tapeMode === 'included' ? 'gom' : o.bag.tapeMode === 'excluded' ? 'chua_gom' : undefined,

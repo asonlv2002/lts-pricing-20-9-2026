@@ -722,7 +722,7 @@ function buildDacTaNangCaoHtml(
           <th class="left">C.đoạn</th><th class="left">Vật liệu</th><th>Dày (mic)</th>
           <th>Khổ (m)</th><th>TP (m)</th><th>PH (m)</th><th>ĐV NVL (m)</th>
           <th>CP VL (đ/m²)</th><th>TT CPNVL</th>
-          <th>Mực/DM/keo (đ/m²)</th><th>TT mực/DM/keo</th>
+          <th>Giá mực, DM, keo, khác (đ/m²)</th><th>TT mực, DM, keo, khác</th>
         </tr></thead>
         <tbody>${t1}</tbody>
       </table>

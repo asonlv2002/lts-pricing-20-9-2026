@@ -5,7 +5,11 @@ export interface GiaCongCatParams {
   /** Chia — CPSX theo m² TP */
   chia?: { bat: boolean; giaGcMoiM2: number };
   /** Làm túi — CPSX theo số túi (ghi đè CPSX cat khi productType túi) */
-  lamTui?: { bat: boolean; giaGcMoiTui: number; soLuong: number };
+  lamTui?: { bat: boolean; giaGcMoiTui: number; giaGcMoiM2?: number; soLuong: number };
+}
+
+function so(v: number | undefined): number {
+  return v != null && Number.isFinite(v) ? v : 0;
 }
 
 export function tinhCongDoanCat(params: {
@@ -28,10 +32,22 @@ export function tinhCongDoanCat(params: {
   }
 
   if (giaCongCat?.lamTui?.bat && !laMang) {
-    chiPhiSXCat = tinhCpsxGcDonVi(giaCongCat.lamTui.giaGcMoiTui, giaCongCat.lamTui.soLuong);
-    cpSXCat = giaCongCat.lamTui.soLuong > 0 ? chiPhiSXCat / ((hatHaoCat + metCat) * khoCat || 1) : 0;
-    tongChiPhiCat = chiPhiSXCat;
-    return { cpSXCat, chiPhiSXCat, tongChiPhiCat };
+    const giaTui = Math.max(0, so(giaCongCat.lamTui.giaGcMoiTui));
+    const giaM2 = Math.max(0, so(giaCongCat.lamTui.giaGcMoiM2));
+    if (giaTui > 0) {
+      // Ưu tiên đơn giá theo túi: tổng = giá/túi × số túi
+      chiPhiSXCat = tinhCpsxGcDonVi(giaTui, giaCongCat.lamTui.soLuong);
+      cpSXCat = giaCongCat.lamTui.soLuong > 0 ? chiPhiSXCat / ((hatHaoCat + metCat) * khoCat || 1) : 0;
+      tongChiPhiCat = chiPhiSXCat;
+      return { cpSXCat, chiPhiSXCat, tongChiPhiCat };
+    }
+    if (giaM2 > 0) {
+      // Đơn giá theo m²: tổng = giá/m² × (TP + phi hao) × khổ
+      chiPhiSXCat = tinhCpsxGcDienTich(giaM2, hatHaoCat + metCat, khoCat);
+      cpSXCat = giaM2;
+      tongChiPhiCat = chiPhiSXCat;
+      return { cpSXCat, chiPhiSXCat, tongChiPhiCat };
+    }
   }
 
   if (!laMang) {

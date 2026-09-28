@@ -105,13 +105,13 @@ export default function BangDacTaNangCao({
               </th>
               <th className="num">Thành tiền CPNVL</th>
               <th className="num" title="Giá mực in, dung môi, keo ghép + nhũ/phủ mờ (đ/m²)">
-                Giá mực, DM, keo (đ/m²)
+                Giá mực, DM, keo, khác (đ/m²)
               </th>
               <th
                 className="num"
                 title="Thành tiền mực in, dung môi, keo ghép (VNĐ)"
               >
-                Thành tiền mực, DM, keo
+                Thành tiền mực, DM, keo, khác
               </th>
             </tr>
           </thead>
@@ -172,13 +172,13 @@ export default function BangDacTaNangCao({
                   {oSoNangCao(dinhDangSo(row.thanhTienNVL, 0), 'Thành tiền CPNVL')}
                   {oSoNangCao(
                     giaMucText,
-                    'Giá mực, DM, keo (đ/m²)',
+                    'Giá mực, DM, keo, khác (đ/m²)',
                     'dac-ta-nang-cao__muc',
                     row.ghiChu,
                   )}
                   {oSoNangCao(
                     dinhDangSo(row.thanhTienMucKeo, 0),
-                    'Thành tiền mực, DM, keo',
+                    'Thành tiền mực, DM, keo, khác',
                     'dac-ta-nang-cao__muc',
                   )}
                 </tr>

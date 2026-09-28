@@ -216,8 +216,10 @@ export function xuLyDongGhiDe(
       ? materialDetails.reduce((sum, detail) => sum + detail.width, 0)
       : width;
     // GC: CPSX × m² TP (không nhân phi hao). Nội bộ: × (TP + PH) × khổ.
+    // Riêng dòng cut GC (làm túi / chia): tổng đã được engine tính theo đơn vị
+    // (giá/túi × số túi hoặc giá/m² × (TP+PH) × khổ) → giữ nguyên, không tính lại.
     const rawCostCPSX = row.isOutsourced
-      ? cpsx * meters * effectiveWidth
+      ? (rk === 'cut' ? (src.costCPSX ?? row.costCPSX) : cpsx * meters * effectiveWidth)
       : cpsx * inputVL * effectiveWidth;
     const rawCostMat = materialDetails
       ? materialDetails.reduce((sum, detail) => sum + detail.matPrice * inputVL * detail.width, 0)

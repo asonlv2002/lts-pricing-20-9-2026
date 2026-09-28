@@ -510,6 +510,8 @@ export interface OutsourceConfig {
     wastePct: number;
     wasteSetupM: number;
     gcPricePerBag: number;
+    /** Đơn giá GC theo m² — dùng khi user nhập đ/m² (thay cho đ/túi). */
+    gcPricePerM2?: number;
     zipperMode?: 'included' | 'excluded';
     /** VNĐ/m — dùng khi zipperMode = excluded */
     zipperPricePerM?: number;

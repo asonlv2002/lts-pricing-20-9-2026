@@ -190,7 +190,7 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
         // ═══ Bảng 1: Vật liệu + mực/DM/keo ═══
         ExpandableTableCard(
           title: 'Bảng 1 — Vật liệu & mực/DM/keo',
-          subtitle: 'Công đoạn · Khổ · Mét · CP vật liệu · Mực-DM-Keo',
+          subtitle: 'Công đoạn · Khổ · Mét · CP vật liệu · Mực-DM-Keo-Khác',
           icon: Icons.inventory_2_outlined,
           iconColor: AppColors.accent,
           dense: true,
@@ -204,8 +204,8 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
             TableColumn('ĐV NVL', minWidth: 70, align: TextAlign.right),
             TableColumn('CP VL (đ/m²)', minWidth: 75, align: TextAlign.right),
             TableColumn('TT CPNVL', minWidth: 80, align: TextAlign.right),
-            TableColumn('Mực/DM/keo', minWidth: 75, align: TextAlign.right),
-            TableColumn('TT mực', minWidth: 80, align: TextAlign.right),
+            TableColumn('Giá mực, DM, keo, khác (đ/m²)', minWidth: 110, align: TextAlign.right),
+            TableColumn('Thành tiền mực, DM, keo, khác', minWidth: 110, align: TextAlign.right),
           ],
           rows: [
             for (final row in dongVatLieu)
@@ -523,7 +523,7 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
               rowKey: rowKey,
               chiTietIndex: null,
               field: 'cpMucKeoPerM2',
-              label: 'Giá mực, DM, keo',
+              label: 'Giá mực, DM, keo, khác',
               text: cpMucHienThi == null ? '—' : Fmt.d1(cpMucHienThi),
               goc: (goc?['cpMucKeo'] as num?)?.toDouble() ?? 0,
               hienTai: cpMucHienThi ?? 0,

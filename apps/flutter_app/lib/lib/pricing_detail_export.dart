@@ -373,7 +373,7 @@ class PricingDetailExport {
             },
             data: [
               ['C.đoạn', 'Vật liệu', 'Dày (mic)', 'Khổ (m)', 'TP (m)', 'PH (m)',
-                  'ĐV NVL (m)', 'CP VL (đ/m²)', 'TT CPNVL', 'Mực/DM/keo', 'TT mực'],
+                  'ĐV NVL (m)', 'CP VL (đ/m²)', 'TT CPNVL', 'Giá mực, DM, keo, khác (đ/m²)', 'TT mực, DM, keo, khác'],
               ...dongVL.map((row) {
                 final m = (row as Map).cast<String, dynamic>();
                 final doDay = _doDayVL(m, materials);

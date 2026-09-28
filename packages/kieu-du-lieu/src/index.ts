@@ -170,6 +170,8 @@ export interface GiaCongNgoai {
     tyLePhiHao: number;
     phiHaoSetupM: number;
     giaGcMoiTui: number;
+    /** Đơn giá GC theo m² (thay thế khi user nhập đ/m²). Ưu tiên giaGcMoiTui nếu cả 2 > 0. */
+    giaGcMoiM2?: number;
     cheDoZipper?: 'gom' | 'chua_gom';
     /** VNĐ/m — khi cheDoZipper = chua_gom */
     giaZipperMoiM?: number;
