@@ -414,6 +414,8 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
     final cpMucGhiDe = ovDong?['cpMucKeoPerM2'] as num?;
     final cpMucHienThi = cpMucGhiDe?.toDouble() ?? cpMuc;
     final daDoiMuc = cpMucGhiDe != null;
+    // Dòng gia công: chuỗi hiển thị sẵn (vd "2.000 đ/m²(GC)"), không cho sửa.
+    final cpMucKeoText = row['cpMucKeoText'] as String?;
 
     const s11 = TextStyle(fontSize: 11);
 
@@ -513,7 +515,10 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
         hienPhu: hienPhu,
       ),
       _numCell(Fmt.n((row['thanhTienNVL'] as num?)?.toDouble() ?? 0), s11),
-      (cpMuc != null && !laSynthetic)
+      (cpMucKeoText != null)
+          ? TableCellData(cpMucKeoText,
+              align: TextAlign.right, style: s11)
+          : (cpMuc != null && !laSynthetic)
           ? _soCell(
               rowKey: rowKey,
               chiTietIndex: null,

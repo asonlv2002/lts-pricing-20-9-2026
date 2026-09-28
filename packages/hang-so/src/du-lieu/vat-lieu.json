@@ -1,6 +1,7 @@
 [
   {
     "id": "PET",
+    "group": "PET",
     "name": "PET",
     "density": 1.4,
     "thickness": 12,
@@ -10,7 +11,19 @@
     "inkPricePerColor": 140
   },
   {
+    "id": "PET15",
+    "group": "PET",
+    "name": "PET",
+    "density": 1.4,
+    "thickness": 15,
+    "pricePerKg": 37037,
+    "isPETorPA": true,
+    "rollLength": 6000,
+    "inkPricePerColor": 140
+  },
+  {
     "id": "PA",
+    "group": "PA",
     "name": "PA",
     "density": 1.16,
     "thickness": 15,
@@ -20,7 +33,19 @@
     "inkPricePerColor": 140
   },
   {
+    "id": "PA12",
+    "group": "PA",
+    "name": "PA",
+    "density": 1.16,
+    "thickness": 12,
+    "pricePerKg": 83333,
+    "isPETorPA": true,
+    "rollLength": 6000,
+    "inkPricePerColor": 140
+  },
+  {
     "id": "PA_0_3",
+    "group": "PA",
     "name": "PA 0-3 màu",
     "density": 1.16,
     "thickness": 15,
@@ -31,6 +56,7 @@
   },
   {
     "id": "PA_4_6",
+    "group": "PA",
     "name": "PA 4-6 màu",
     "density": 1.16,
     "thickness": 15,
@@ -41,6 +67,7 @@
   },
   {
     "id": "PA_7_9",
+    "group": "PA",
     "name": "PA 7-9 màu",
     "density": 1.16,
     "thickness": 15,
@@ -215,9 +242,21 @@
   },
   {
     "id": "MPET",
+    "group": "MPET",
     "name": "MPET",
     "density": 1.4,
     "thickness": 12,
+    "pricePerKg": 48148,
+    "isPETorPA": false,
+    "rollLength": 6000,
+    "inkPricePerColor": 0
+  },
+  {
+    "id": "MPET15",
+    "group": "MPET",
+    "name": "MPET",
+    "density": 1.4,
+    "thickness": 15,
     "pricePerKg": 48148,
     "isPETorPA": false,
     "rollLength": 6000,

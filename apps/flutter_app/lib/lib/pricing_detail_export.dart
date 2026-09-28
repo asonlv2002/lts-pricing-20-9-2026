@@ -391,7 +391,10 @@ class PricingDetailExport {
                   m['thanhTienNVL'] == null
                       ? '—'
                       : Fmt.n((m['thanhTienNVL'] as num)),
-                  m['cpMucKeo'] == null ? '—' : Fmt.d1((m['cpMucKeo'] as num)),
+                  (m['cpMucKeoText'] as String?) ??
+                      (m['cpMucKeo'] == null
+                          ? '—'
+                          : Fmt.d1((m['cpMucKeo'] as num))),
                   m['thanhTienMucKeo'] == null
                       ? '—'
                       : Fmt.n((m['thanhTienMucKeo'] as num)),

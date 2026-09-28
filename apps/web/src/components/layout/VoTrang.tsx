@@ -2137,18 +2137,17 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       // Tránh sync URL không cần thiết khi ID không đổi — ngăn race condition
       // với deep-link effect (auto-refresh 30s làm lichSu thay đổi → URL thay đổi
       // → deep-link re-trigger → fetch fail → not_found).
-      const loaiHienTai = loaiTinhGiaTuNangCao(
-        !!item?.isNangCap || menuDangChon === "tao-tinh-gia-nang-cap",
-        !!item?.isThuongMai || menuDangChon === "tao-tinh-gia-thuong-mai",
-      );
+      const laThuongMai = !!item?.isThuongMai || menuDangChon === "tao-tinh-gia-thuong-mai";
+      // Mọi sản phẩm không thương mại đều ở chế độ nâng cao (màng in gồm).
+      const loaiHienTai = loaiTinhGiaTuNangCao(!laThuongMai, laThuongMai);
       const pathMongMuon = idShare && idShare.trim()
         ? taoPathEntity(loaiHienTai, idShare)
         : null;
       const pathHienTai = `${window.location.pathname}`;
       if (pathMongMuon && pathMongMuon !== pathHienTai) {
         dongBoUrlTinhGia(idShare, {
-          nangCao: !!item?.isNangCap || menuDangChon === "tao-tinh-gia-nang-cap",
-          thuongMai: !!item?.isThuongMai || menuDangChon === "tao-tinh-gia-thuong-mai",
+          nangCao: !laThuongMai,
+          thuongMai: laThuongMai,
         });
       }
       return;

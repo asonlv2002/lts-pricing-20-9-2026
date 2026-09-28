@@ -106,10 +106,10 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       // Tab nâng cấp: giá lưu theo bảng đặc tả nâng cao — KHÔNG gồm ghi đè
       // Sale/Admin (bảng thay đổi không tác động giá, chỉ preview/đối chiếu).
       // pct vẫn được lưu vào item để trang phụ PDF/tab hiện scenario.
-      // Thương mại KHÔNG bao giờ chạy bảng đặc tả nâng cao — cờ cheDoNangCao
-      // lệch true khi lưu từ màn TM sẽ cộng LN bảng giá lên giá đã gồm LN
-      // (sai giá khi xem lại: đề xuất/LN/HH lệch hoàn toàn so với màn tính giá).
-      const laNangCap = !!state.cheDoNangCao && state.input.pricingMode !== 'commercial';
+      // Mọi sản phẩm KHÔNG thương mại đều chạy bảng đặc tả nâng cao (màng in
+      // gồm). Thương mại KHÔNG bao giờ chạy bảng nâng cao — nếu tính sẽ cộng LN
+      // bảng giá lên giá đã gồm LN (sai giá khi xem lại).
+      const laNangCap = state.input.pricingMode !== 'commercial';
       const ketQuaLuu = laNangCap
         ? tinhKetQuaNangCaoHieuLuc({
             result: state.result,
@@ -194,9 +194,10 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     const laThuongMai = !!(
       item.isThuongMai || item.input?.pricingMode === 'commercial'
     );
-    // Item TM nhiễm cờ isNangCap (bug lưu lệch cờ cũ) → TM không chạy bảng
-    // đặc tả nâng cao; ép false để không tính lại giá qua tinhKetQuaNangCaoHieuLuc.
-    const laNangCap = !!(item.isNangCap || item.input?.isNangCap) && !laThuongMai;
+    // Mọi sản phẩm KHÔNG thương mại đều chạy bảng đặc tả nâng cao (kể cả mục
+    // lịch sử cũ lưu ở chế độ thường) — TM ép false để không tính lại giá qua
+    // tinhKetQuaNangCaoHieuLuc.
+    const laNangCap = !laThuongMai;
     // Apply pin TRƯỚC khi tính result — nâng cao/thường cùng dùng constants đã ghim
     const pinIds = (item.priceConfigIds ?? []).map((x) => String(x).trim()).filter(Boolean);
     let pinCpsxTuCtx = item.pinnedCpsxNangCao;
@@ -300,9 +301,10 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
     const laThuongMai = !!(
       item.isThuongMai || item.input?.pricingMode === 'commercial'
     );
-    // Item TM nhiễm cờ isNangCap (bug lưu lệch cờ cũ) → TM không chạy bảng
-    // đặc tả nâng cao; ép false để không tính lại giá qua tinhKetQuaNangCaoHieuLuc.
-    const laNangCap = !!(item.isNangCap || item.input?.isNangCap) && !laThuongMai;
+    // Mọi sản phẩm KHÔNG thương mại đều chạy bảng đặc tả nâng cao (kể cả mục
+    // lịch sử cũ lưu ở chế độ thường) — TM ép false để không tính lại giá qua
+    // tinhKetQuaNangCaoHieuLuc.
+    const laNangCap = !laThuongMai;
 
     // Pin TRƯỚC khi tính result — nâng cao/thường cùng dùng constants đã ghim.
     const pinIds = (item.priceConfigIds ?? []).map((x) => String(x).trim()).filter(Boolean);
@@ -421,8 +423,8 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const laThuongMai = !!(
         mapped?.isThuongMai || rawInput.pricingMode === 'commercial'
       );
-      // Item TM nhiễm cờ isNangCap (bug cũ) → ép false, TM không chạy bảng NC.
-      const laNangCap = !!(mapped?.isNangCap || rawInput.isNangCap) && !laThuongMai;
+      // Mọi sản phẩm KHÔNG thương mại đều chạy bảng đặc tả nâng cao — TM ép false.
+      const laNangCap = !laThuongMai;
       if (laNangCap && pinIds.length && !coProductionUpgradeTrongConfigs(configs) && !mapped?.pinnedCpsxNangCao) {
         console.warn(
           'Sheet NC từ server: pin không hydrate CPSX nâng cao — kiểm tra PRODUCTION_UPGRADE trong priceConfigIds',
@@ -538,9 +540,9 @@ export const createHistorySlice: StateCreator<CuaHangTinhGia, [], [], HistorySli
       const old = timMucLichSuTheoId(state.history, state.loadedHistoryId);
       if (!old) return state;
 
-      // Thương mại không chạy bảng đặc tả nâng cao — chặn cờ cheDoNangCao lệch
-      // (giống addCurrentToHistory; đồng thời xóa isNangCap nhiễm trên item cũ).
-      const laNangCap = !!state.cheDoNangCao && state.input.pricingMode !== 'commercial';
+      // Mọi sản phẩm KHÔNG thương mại đều chạy bảng đặc tả nâng cao (giống
+      // addCurrentToHistory; đồng thời xóa isNangCap nhiễm trên item cũ).
+      const laNangCap = state.input.pricingMode !== 'commercial';
       // Giữ CPSX NC lúc lưu; sheet legacy chưa pin → ghim lần cập nhật đầu
       const pinCpsx = laNangCap
         ? (old.pinnedCpsxNangCao ?? trichCpsxNangCao(state.constants))

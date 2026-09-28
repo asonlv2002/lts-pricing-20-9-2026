@@ -37,24 +37,16 @@ function HienThiMetKho({ label }: { label: string }) {
   );
 }
 
-/**
- * Render 1 ô số có chấm đỏ "Gia công" ở góc trên-phải khi `laGiaCong=true`
- * (giống pattern `oSoGc` của tính giá cũ ở ManHinhQuanLy.tsx:93-105).
- * CSS đã có sẵn ở `globals.css:14065-14078`.
- */
-function oSoGcNangCao(
+/** Render 1 ô số trong bảng đặc tả nâng cao. */
+function oSoNangCao(
   noiDung: React.ReactNode,
-  laGiaCong: boolean,
   dataLabel: string,
   extraClass = '',
   title?: string,
 ) {
-  const cls = ['num', extraClass, laGiaCong ? 'gc-cell' : ''].filter(Boolean).join(' ');
+  const cls = ['num', extraClass].filter(Boolean).join(' ');
   return (
     <td className={cls} data-label={dataLabel} title={title}>
-      {laGiaCong ? (
-        <span className="gc-cell__dot" title="Gia công" aria-label="Gia công" />
-      ) : null}
       {noiDung}
     </td>
   );
@@ -125,7 +117,9 @@ export default function BangDacTaNangCao({
           </thead>
           <tbody>
             {dongVatLieu.map((row, idx) => {
-              const laGc = !!row.isGiaCongNgoai;
+              const giaMucText = row.cpMucKeoText
+                ? row.cpMucKeoText
+                : dinhDangSo(row.cpMucKeo, 1);
               return (
                 <tr key={`vl-${idx}`}>
                   <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">
@@ -135,33 +129,30 @@ export default function BangDacTaNangCao({
                   <td className="num" data-label="Độ dày (mic)">
                     {row.doDay != null ? dinhDangSo(row.doDay, 0) : '—'}
                   </td>
-                  {oSoGcNangCao(
+                  {oSoNangCao(
                     row.khoMangLabel ?? dinhDangSo(row.khoMang, 3),
-                    laGc,
                     'Khổ màng (m)',
                   )}
-                  {oSoGcNangCao(
+                  {oSoNangCao(
                     row.thanhPhamLabel ? (
                       <HienThiMetKho label={row.thanhPhamLabel} />
                     ) : (
                       dinhDangSo(row.thanhPham, 0)
                     ),
-                    laGc,
                     'Thành phẩm (m)',
                     row.thanhPhamLabel ? 'dac-ta-met-kho-cell' : '',
                   )}
-                  {oSoGcNangCao(dinhDangSo(row.phiHao, 0), laGc, 'Phi hao (m)')}
-                  {oSoGcNangCao(
+                  {oSoNangCao(dinhDangSo(row.phiHao, 0), 'Phi hao (m)')}
+                  {oSoNangCao(
                     row.dauVaoNvlLabel ? (
                       <HienThiMetKho label={row.dauVaoNvlLabel} />
                     ) : (
                       dinhDangSo(row.dauVaoNVL, 0)
                     ),
-                    laGc,
                     'Đầu vào NVL (m)',
                     `highlight${row.dauVaoNvlLabel ? ' dac-ta-met-kho-cell' : ''}`,
                   )}
-                  {oSoGcNangCao(
+                  {oSoNangCao(
                     row.cpVatLieu == null && (row.giaNVL == null || row.giaNVL <= 0) ? (
                       '—'
                     ) : (
@@ -176,20 +167,17 @@ export default function BangDacTaNangCao({
                         )}
                       </span>
                     ),
-                    laGc,
                     'CP vật liệu (đ/m²)',
                   )}
-                  {oSoGcNangCao(dinhDangSo(row.thanhTienNVL, 0), laGc, 'Thành tiền CPNVL')}
-                  {oSoGcNangCao(
-                    dinhDangSo(row.cpMucKeo, 1),
-                    laGc,
+                  {oSoNangCao(dinhDangSo(row.thanhTienNVL, 0), 'Thành tiền CPNVL')}
+                  {oSoNangCao(
+                    giaMucText,
                     'Giá mực, DM, keo (đ/m²)',
                     'dac-ta-nang-cao__muc',
                     row.ghiChu,
                   )}
-                  {oSoGcNangCao(
+                  {oSoNangCao(
                     dinhDangSo(row.thanhTienMucKeo, 0),
-                    laGc,
                     'Thành tiền mực, DM, keo',
                     'dac-ta-nang-cao__muc',
                   )}
@@ -226,17 +214,16 @@ export default function BangDacTaNangCao({
                 </thead>
                 <tbody>
                   {dongNhanCongDien.map((row, idx) => {
-                    const laGc = !!row.isGiaCongNgoai;
                     return (
                       <tr key={`ncd-${idx}`}>
                         <td data-label="Công đoạn" className="dac-ta-nang-cao__stage">
                           {row.congDoan}
                         </td>
-                        {cot.coThoiGian && oSoGcNangCao(dinhDangSo(row.thoiGianPhut, 0), laGc, 'Thời gian SX (phút)', 'highlight')}
-                        {cot.coLuong && oSoGcNangCao(dinhDangSo(row.cpNhanCongPerPhut, 0), laGc, 'Giá nhân công (đ/phút)')}
-                        {cot.coLuong && oSoGcNangCao(dinhDangSo(row.thanhTienNhanCong, 0), laGc, 'Thành tiền nhân công (VNĐ)')}
-                        {cot.coDien && oSoGcNangCao(dinhDangSo(row.cpDienPerPhut, 0), laGc, 'Giá điện (đ/phút)')}
-                        {cot.coDien && oSoGcNangCao(dinhDangSo(row.thanhTienDien, 0), laGc, 'Thành tiền điện')}
+                        {cot.coThoiGian && oSoNangCao(dinhDangSo(row.thoiGianPhut, 0), 'Thời gian SX (phút)', 'highlight')}
+                        {cot.coLuong && oSoNangCao(dinhDangSo(row.cpNhanCongPerPhut, 0), 'Giá nhân công (đ/phút)')}
+                        {cot.coLuong && oSoNangCao(dinhDangSo(row.thanhTienNhanCong, 0), 'Thành tiền nhân công (VNĐ)')}
+                        {cot.coDien && oSoNangCao(dinhDangSo(row.cpDienPerPhut, 0), 'Giá điện (đ/phút)')}
+                        {cot.coDien && oSoNangCao(dinhDangSo(row.thanhTienDien, 0), 'Thành tiền điện')}
                       </tr>
                     );
                   })}

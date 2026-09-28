@@ -97,22 +97,22 @@ function dinhDangM2(n: number) { return dinhDangSo(n, 4) + ' m²'; }
 
 function oSoGc(
   noiDung: React.ReactNode,
-  danhDau: boolean,
+  _danhDau: boolean,
   opts?: { className?: string; dataLabel?: string },
 ): React.ReactElement {
-  const cls = ['num', opts?.className, danhDau ? 'gc-cell' : ''].filter(Boolean).join(' ');
+  const cls = ['num', opts?.className].filter(Boolean).join(' ');
   return (
     <td className={cls} data-label={opts?.dataLabel}>
-      {danhDau ? <span className="gc-cell__dot" title="Gia công" aria-label="Gia công" /> : null}
       {noiDung}
     </td>
   );
 }
 
 
-function layNhanVatLieu(materials: Material[], id: string | undefined, tenDuPhong: string): string {
+/** Tên vật liệu THUẦN (không kèm độ dày) — để ô hiển thị khớp bảng gốc. */
+function layTenVatLieuGoc(materials: Material[], id: string | undefined, tenDuPhong: string): string {
   const material = id ? materials.find(m => m.id === id) : undefined;
-  return material ? formatMaterialOptionLabel(material) : tenDuPhong;
+  return material ? material.name : tenDuPhong;
 }
 
 function coGhiDeDong(rowOverride: Partial<OverrideFields> | undefined, fields: Array<keyof OverrideFields>): boolean {
@@ -137,7 +137,7 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
   inline?: boolean;
   /** Format hiển thị thay cho dinhDangSo (vd. "(40.000/kg)") */
   hienThiTuyChinh?: (n: number) => string;
-  /** Gia công ngoài — chấm đỏ góc ô (giống bảng gốc) */
+  /** Gia công ngoài (giữ để tương thích; không còn chấm đỏ) */
   laGiaCong?: boolean;
 }) {
   const giaTriHienThi = giaTriGhiDe ?? giaTriGoc;
@@ -147,9 +147,6 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
   const chuHienThi = hienThiTuyChinh
     ? hienThiTuyChinh(giaTriHienThi)
     : dinhDangSo(giaTriHienThi, soLe);
-  const chamGc = laGiaCong
-    ? <span className="gc-cell__dot" title="Gia công" aria-label="Gia công" />
-    : null;
 
   const xacNhan = () => {
     datDangSua(false);
@@ -187,20 +184,18 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
 
   if (!duocSua) {
     return (
-      <td className={`num ${daThayDoi ? 'override-changed' : ''} ${laGiaCong ? 'gc-cell' : ''}`}
+      <td className={`num ${daThayDoi ? 'override-changed' : ''}`}
           title={daThayDoi ? `Gốc: ${dinhDangSo(giaTriGoc, soLe)}` : undefined}
           data-label={truong}>
-        {chamGc}
         {chuHienThi}
       </td>
     );
   }
 
   return (
-    <td className={`num override-cell ${daThayDoi ? 'override-changed' : ''} ${laGiaCong ? 'gc-cell' : ''}`}
+    <td className={`num override-cell ${daThayDoi ? 'override-changed' : ''}`}
         title={daThayDoi ? `Gốc: ${dinhDangSo(giaTriGoc, soLe)}` : undefined}
         data-label={truong}>
-      {chamGc}
       {noiDung}
     </td>
   );
@@ -281,8 +276,10 @@ function apDungVatLieuGhiDe(opts: {
   /** Vật liệu mới áp dụng; undefined = reset */
   mat?: Material | null;
   engineParams?: { numColors: number; coverageRatio: number; metallicSurcharge: number; laborCost: number; isPrintFilm: boolean; printFilmInkBOPP: number; printFilmInkOther: number };
+  /** Dòng đang gia công ngoài: chỉ đổi mã vật liệu, KHÔNG áp giá nội bộ (matPrice/rawMatPrice/cpsx) */
+  laGiaCong?: boolean;
 }) {
-  const { khiDat, ghiDeHienTai, khoaDong, chiTietIndex, giaTriGocId, mat, engineParams } = opts;
+  const { khiDat, ghiDeHienTai, khoaDong, chiTietIndex, giaTriGocId, mat, engineParams, laGiaCong } = opts;
   const laChiTiet = chiTietIndex !== undefined;
   const ghi = (truong: 'materialId' | 'materialName' | 'mat' | 'matPrice' | 'rawMatPrice' | 'doDay', giaTri: string | number | undefined) => {
     if (laChiTiet) {
@@ -299,7 +296,13 @@ function apDungVatLieuGhiDe(opts: {
     ghi('matPrice', undefined);
     ghi('rawMatPrice', undefined);
     ghi('doDay', undefined);
-    if (khoaDong === 'print') khiDat(khoaDong, 'cpsx', undefined);
+    if (khoaDong === 'print' && !laGiaCong) khiDat(khoaDong, 'cpsx', undefined);
+    return;
+  }
+  // Dòng gia công ngoài: chỉ đổi vật liệu (để đổi khổ/tên hiển thị), KHÔNG áp giá nội bộ.
+  if (laGiaCong) {
+    ghi('materialId', mat.id);
+    ghi(laChiTiet ? 'materialName' : 'mat', mat.name);
     return;
   }
   const giaM2 = mat.pricePerM2 ?? (mat.pricePerKg * mat.thickness * mat.density / 1000);
@@ -325,7 +328,7 @@ function apDungVatLieuGhiDe(opts: {
  *  1. LLDPE (adjustableMic) → nhập tự do; sửa xong matPrice tự tính lại.
  *  2. VL có biến thể cùng nhóm khác độ dày → dropdown; chọn → đổi sang biến thể đó.
  *  3. VL cố định (PET, PA, MPET, AL, RCPP 1 giá trị…) → chỉ hiển thị. */
-function ODoDay({ khoaDong, chiTietIndex, matIdHienLuc, giaTriGoc, giaTriGhiDe, duocSua, khiDat, ghiDeHienTai, materials, rawMatPriceHienLuc, giaTriGocId, engineParams }: {
+function ODoDay({ khoaDong, chiTietIndex, matIdHienLuc, giaTriGoc, giaTriGhiDe, duocSua, khiDat, ghiDeHienTai, materials, rawMatPriceHienLuc, giaTriGocId, engineParams, laGiaCong }: {
   khoaDong: OverrideRowKey;
   /** Có chỉ số detail → ghi đè theo detailOverrides; undefined → ghi đè cấp dòng */
   chiTietIndex?: number;
@@ -342,6 +345,8 @@ function ODoDay({ khoaDong, chiTietIndex, matIdHienLuc, giaTriGoc, giaTriGhiDe, 
   /** Vật liệu gốc của dòng — để dropdown độ dày đổi biến thể qua apDungVatLieuGhiDe */
   giaTriGocId?: string;
   engineParams?: { numColors: number; coverageRatio: number; metallicSurcharge: number; laborCost: number; isPrintFilm: boolean; printFilmInkBOPP: number; printFilmInkOther: number };
+  /** Dòng gia công ngoài: chỉ ghi độ dày, KHÔNG tính lại giá NVL nội bộ */
+  laGiaCong?: boolean;
 }) {
   const mat = matIdHienLuc ? materials.find(m => m.id === matIdHienLuc) : undefined;
   // pricePerM2 luôn được tính sẵn từ công thức (data.ts) — chỉ coi là "giá đ/m² cố định"
@@ -383,11 +388,12 @@ function ODoDay({ khoaDong, chiTietIndex, matIdHienLuc, giaTriGoc, giaTriGhiDe, 
       } else if (matPriceHienTai !== undefined) {
         matPriceMoi = matPriceHienTai;
       }
-      ghiDoDay(undefined, matPriceMoi);
+      ghiDoDay(undefined, laGiaCong ? undefined : matPriceMoi);
       return;
     }
     const doDayMoi = soDaDoc;
-    if (!mat || mat.density <= 0) { ghiDoDay(doDayMoi, undefined); return; }
+    // Gia công ngoài: chỉ ghi độ dày, không tính lại giá NVL nội bộ.
+    if (laGiaCong || !mat || mat.density <= 0) { ghiDoDay(doDayMoi, undefined); return; }
     ghiDoDay(doDayMoi, rawMatPriceHienLuc * doDayMoi * mat.density / 1000);
   };
   if (!duocSuaDoDay && !choDropdownDoDay) {
@@ -408,7 +414,7 @@ function ODoDay({ khoaDong, chiTietIndex, matIdHienLuc, giaTriGoc, giaTriGhiDe, 
           const doDayChon = Number(e.target.value);
           const bienThe = dsBienTheNhom.find(m => m.thickness === doDayChon);
           if (!bienThe || bienThe.id === matIdHienLuc) return;
-          apDungVatLieuGhiDe({ khiDat, ghiDeHienTai, khoaDong, chiTietIndex, giaTriGocId, mat: bienThe, engineParams });
+          apDungVatLieuGhiDe({ khiDat, ghiDeHienTai, khoaDong, chiTietIndex, giaTriGocId, mat: bienThe, engineParams, laGiaCong });
         }}>
           {dsDoDayNhom.map(v => <option key={v} value={String(v)}>{dinhDangSo(v, 0)}</option>)}
           {!dsDoDayNhom.includes(giaTriHienThi) && (
@@ -435,7 +441,7 @@ function ODoDay({ khoaDong, chiTietIndex, matIdHienLuc, giaTriGoc, giaTriGhiDe, 
   );
 }
 
-function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, duocSua, khiDat, ghiDeHienTai, materials, engineParams }: {
+function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, duocSua, khiDat, ghiDeHienTai, materials, engineParams, laGiaCong }: {
   khoaDong: OverrideRowKey;
   chiTietIndex: number;
   giaTriGoc: { id?: string; name: string; matPrice: number };
@@ -445,26 +451,37 @@ function OChonVatLieuChiTiet({ khoaDong, chiTietIndex, giaTriGoc, giaTriGhiDe, d
   ghiDeHienTai: OverrideTable;
   materials: Material[];
   engineParams?: { numColors: number; coverageRatio: number; metallicSurcharge: number; laborCost: number; isPrintFilm: boolean; printFilmInkBOPP: number; printFilmInkOther: number };
+  laGiaCong?: boolean;
 }) {
-  const tenHienThi = layNhanVatLieu(materials, giaTriGhiDe?.materialId ?? giaTriGoc.id, giaTriGhiDe?.materialName ?? giaTriGoc.name);
+  const tenHienThi = layTenVatLieuGoc(materials, giaTriGhiDe?.materialId ?? giaTriGoc.id, giaTriGhiDe?.materialName ?? giaTriGoc.name);
   const idHienThi = giaTriGhiDe?.materialId ?? giaTriGoc.id ?? '';
   const daThayDoi = !!giaTriGhiDe?.materialId && giaTriGhiDe.materialId !== giaTriGoc.id;
-  const tenGoc = layNhanVatLieu(materials, giaTriGoc.id, giaTriGoc.name);
+  const tenGoc = layTenVatLieuGoc(materials, giaTriGoc.id, giaTriGoc.name);
+  const [dangMo, datDangMo] = React.useState(false);
   if (!duocSua) return <td className={daThayDoi ? 'override-changed' : ''} title={daThayDoi ? `Gốc: ${tenGoc}` : undefined} data-label="Vật liệu">{tenHienThi}</td>;
   return (
     <td className={`override-cell ${daThayDoi ? 'override-changed' : ''}`} title={daThayDoi ? `Gốc: ${tenGoc}` : undefined} data-label="Vật liệu">
-      <select className="override-input" value={idHienThi} onChange={e => {
-        const mat = materials.find(m => m.id === e.target.value);
-        apDungVatLieuGhiDe({ khiDat, ghiDeHienTai, khoaDong, chiTietIndex, giaTriGocId: giaTriGoc.id, mat, engineParams });
-      }}>
-        <option value={giaTriGoc.id ?? ''}>{tenGoc}</option>
-        {materials.filter(m => m.id !== giaTriGoc.id).map(m => <option key={m.id} value={m.id}>{formatMaterialOptionLabel(m)}</option>)}
-      </select>
+      {dangMo ? (
+        <select className="override-input" value={idHienThi} autoFocus
+          onBlur={() => datDangMo(false)}
+          onChange={e => {
+            const mat = materials.find(m => m.id === e.target.value);
+            apDungVatLieuGhiDe({ khiDat, ghiDeHienTai, khoaDong, chiTietIndex, giaTriGocId: giaTriGoc.id, mat, engineParams, laGiaCong });
+            datDangMo(false);
+          }}>
+          <option value={giaTriGoc.id ?? ''}>{tenGoc}</option>
+          {materials.filter(m => m.id !== giaTriGoc.id).map(m => <option key={m.id} value={m.id}>{formatMaterialOptionLabel(m)}</option>)}
+        </select>
+      ) : (
+        <span className="override-display" onClick={() => datDangMo(true)}>
+          {tenHienThi}<span className="override-indicator"> ✎</span>
+        </span>
+      )}
     </td>
   );
 }
 
-function OChonVatLieuDong({ khoaDong, giaTriGocId, giaTriGocTen, giaTriGocGia, ghiDeHienTai, duocSua, khiDat, materials, engineParams }: {
+function OChonVatLieuDong({ khoaDong, giaTriGocId, giaTriGocTen, giaTriGocGia, ghiDeHienTai, duocSua, khiDat, materials, engineParams, laGiaCong }: {
   khoaDong: OverrideRowKey;
   giaTriGocId?: string;
   giaTriGocTen: string;
@@ -474,22 +491,33 @@ function OChonVatLieuDong({ khoaDong, giaTriGocId, giaTriGocTen, giaTriGocGia, g
   khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
   materials: Material[];
   engineParams?: { numColors: number; coverageRatio: number; metallicSurcharge: number; laborCost: number; isPrintFilm: boolean; printFilmInkBOPP: number; printFilmInkOther: number };
+  laGiaCong?: boolean;
 }) {
   const cur = ghiDeHienTai[khoaDong];
-  const tenHienThi = layNhanVatLieu(materials, cur?.materialId ?? giaTriGocId, cur?.mat ?? giaTriGocTen);
+  const tenHienThi = layTenVatLieuGoc(materials, cur?.materialId ?? giaTriGocId, cur?.mat ?? giaTriGocTen);
   const idHienThi = cur?.materialId ?? giaTriGocId ?? '';
   const daThayDoi = !!cur?.materialId && cur.materialId !== giaTriGocId;
-  const tenGoc = layNhanVatLieu(materials, giaTriGocId, giaTriGocTen);
+  const tenGoc = layTenVatLieuGoc(materials, giaTriGocId, giaTriGocTen);
+  const [dangMo, datDangMo] = React.useState(false);
   if (!duocSua || !giaTriGocId) return <td className={daThayDoi ? 'override-changed' : ''} title={daThayDoi ? `Gốc: ${tenGoc}` : undefined} data-label="Vật liệu">{tenHienThi}</td>;
   return (
     <td className={`override-cell ${daThayDoi ? 'override-changed' : ''}`} title={daThayDoi ? `Gốc: ${tenGoc}` : undefined} data-label="Vật liệu">
-      <select className="override-input" value={idHienThi} onChange={e => {
-        const mat = materials.find(m => m.id === e.target.value);
-        apDungVatLieuGhiDe({ khiDat, ghiDeHienTai, khoaDong, giaTriGocId, mat, engineParams });
-      }}>
-        <option value={giaTriGocId}>{tenGoc}</option>
-        {materials.filter(m => m.id !== giaTriGocId).map(m => <option key={m.id} value={m.id}>{formatMaterialOptionLabel(m)}</option>)}
-      </select>
+      {dangMo ? (
+        <select className="override-input" value={idHienThi} autoFocus
+          onBlur={() => datDangMo(false)}
+          onChange={e => {
+            const mat = materials.find(m => m.id === e.target.value);
+            apDungVatLieuGhiDe({ khiDat, ghiDeHienTai, khoaDong, giaTriGocId, mat, engineParams, laGiaCong });
+            datDangMo(false);
+          }}>
+          <option value={giaTriGocId}>{tenGoc}</option>
+          {materials.filter(m => m.id !== giaTriGocId).map(m => <option key={m.id} value={m.id}>{formatMaterialOptionLabel(m)}</option>)}
+        </select>
+      ) : (
+        <span className="override-display" onClick={() => datDangMo(true)}>
+          {tenHienThi}<span className="override-indicator"> ✎</span>
+        </span>
+      )}
     </td>
   );
 }
@@ -527,298 +555,6 @@ function OChuCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khi
   );
 }
 
-// ── Override Table Section ────────────────────────────────────────────────────
-function BangGhiDe({ title: tieuDe, lopMau, cacDongSanXuat, ghiDeNguon, ghiDeHienTai, chenhLechGiaGocDonVi, donViChenhLech, duocSua, coTheLuu = true, khiDat, khiLuu, khiLuuMoi, loadedHistoryId, materials, giaDaThayDoiDonVi, effTotalProdCost, profitRatePct, defaultProfitRatePct, khiDatProfitRate, soLuong, engineParams, printFilmParams }: {
-  title: string;
-  lopMau: 'sale' | 'admin';
-  cacDongSanXuat: UniRow[];
-  ghiDeNguon: OverrideTable;
-  ghiDeHienTai: OverrideTable;
-  chenhLechGiaGocDonVi?: number;
-  donViChenhLech?: 'tui' | 'm2';
-  duocSua: boolean;
-  coTheLuu?: boolean;
-  khiDat: (rk: OverrideRowKey, f: keyof OverrideFields, v: OverrideFields[keyof OverrideFields] | undefined) => void;
-  khiLuu: (id: string) => void;
-  khiLuuMoi: () => void;
-  loadedHistoryId: string | null;
-  materials: Material[];
-  giaDaThayDoiDonVi: number;
-  effTotalProdCost: number;
-  profitRatePct: number;
-  defaultProfitRatePct: number;
-  khiDatProfitRate: (v: number) => void;
-  soLuong: number;
-  engineParams?: { numColors: number; coverageRatio: number; metallicSurcharge: number; laborCost: number; isPrintFilm: boolean; printFilmInkBOPP: number; printFilmInkOther: number };
-  printFilmParams?: { numColors: number; setupMin: number; setupDiv: number; threshold: number; speed: number; laborPerHr: number };
-}) {
-  const { rows: cacDongDaXuLy, totalCPSX: tongCPSX, totalCPVL: tongCPVL, printFilmCost: cpMangIn } = xuLyDongGhiDe(cacDongSanXuat, ghiDeNguon, ghiDeHienTai, printFilmParams);
-  const cpMangInGoc = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
-  const coDoiCpMangIn = Math.abs(cpMangIn - cpMangInGoc) > 0.01;
-  const coThayDoi = countOverrideChanges(ghiDeHienTai) > 0 || coDoiCpMangIn;
-  const coCpMangIn = cpMangIn > 0;
-  const donViChenhLechText = donViChenhLech === 'm2' ? 'ĐỒNG / MÉT VUÔNG' : 'ĐỒNG / TÚI';
-  const chenhLechGiaGocLamTron = Math.round(chenhLechGiaGocDonVi ?? 0);
-  const chenhLechGiaGocText = `${chenhLechGiaGocLamTron > 0 ? '+' : ''}${dinhDangSo(chenhLechGiaGocLamTron, 0)}`;
-  const lopChenhLechGia = chenhLechGiaGocLamTron > 0 ? 'override-price-delta--up' : chenhLechGiaGocLamTron < 0 ? 'override-price-delta--down' : 'override-price-delta--flat';
-
-  const layGiaTriGocRawMat = (matId: string | undefined, matName: string): number => {
-    if (matName === '-' || !matName) return 0;
-    const m = matId ? materials.find(x => x.id === matId) : materials.find(x => x.name === matName);
-    return m?.pricePerKg ?? 0;
-  };
-
-  const tinhMatPriceTuRaw = (rawMat: number, matId?: string, matName?: string, rk?: OverrideRowKey, detailIdx?: number) => {
-    if (!matName || matName === '-' || rawMat <= 0) return;
-    const m = matId ? materials.find(x => x.id === matId) : materials.find(x => x.name === matName);
-    if (!m || m.thickness <= 0 || m.density <= 0) return;
-    const newMatPrice = rawMat * m.thickness * m.density / 1000;
-    if (detailIdx !== undefined && rk) {
-      datGhiDeChiTiet(khiDat, ghiDeHienTai, rk, detailIdx, 'matPrice', newMatPrice);
-    } else if (rk) {
-      khiDat(rk, 'matPrice', newMatPrice);
-    }
-  };
-
-  // Local string state cho ô "Tỷ lệ LN" — cho phép hiển thị rỗng khi user xóa hết
-  const [giaTriTamPct, datGiaTriTamPct] = React.useState<string>('');
-  const phanTramHienThi = (() => {
-    if (giaTriTamPct !== '') return giaTriTamPct;
-    if (profitRatePct > 0) return String(profitRatePct);
-    return '0';
-  })();
-  const xuLyThayDoiPct = (raw: string) => {
-    datGiaTriTamPct(raw);
-    if (raw === '') { khiDatProfitRate(0); return; }
-    const so = Number(raw);
-    khiDatProfitRate(Number.isFinite(so) && so >= 0 ? so : 0);
-  };
-  React.useEffect(() => { datGiaTriTamPct(''); }, [profitRatePct]);
-
-  return (
-    <div className={`override-section override-section--${lopMau}`}>
-      <div className="override-section-header">
-        <div className="override-section-title">
-          {lopMau === 'sale' ? '💼' : '👑'} {tieuDe}
-        </div>
-        {!duocSua && <span className="override-readonly-badge">Chỉ xem</span>}
-      </div>
-      <div className="table-responsive">
-        <table className="data-table technical-material-table">
-          <thead>
-            <tr>
-              <th data-mobile-label={MOBILE_LABELS.stage}>Công đoạn</th><th data-mobile-label={MOBILE_LABELS.material}>Vật liệu</th>
-              <th className="num" data-mobile-label={MOBILE_LABELS.doDay}>độ dày (mic)</th>
-              <th className="num" data-mobile-label={MOBILE_LABELS.width}>khổ màng NVL (m)</th><th className="num" data-mobile-label={MOBILE_LABELS.meters}>thành phẩm (m)</th>
-              <th className="num" data-mobile-label={MOBILE_LABELS.waste}>phi hao (m)</th><th className="num" data-mobile-label={MOBILE_LABELS.inputMaterial}>đầu vào NVL (m)</th>
-              <th className="num" data-mobile-label={MOBILE_LABELS.cpsx}>CPSX (đ/m²)</th><th className="num" data-mobile-label={MOBILE_LABELS.totalCpsx}>Thành tiền CPSX</th>
-              <th className="num" data-mobile-label={MOBILE_LABELS.rawMaterialPrice}>Giá NVL (đ/kg)</th>
-              <th className="num" data-mobile-label={MOBILE_LABELS.materialPrice}>CP vật liệu (đ/m²)</th><th className="num" data-mobile-label={MOBILE_LABELS.totalMaterial}>Thành tiền CPVL</th>
-            </tr>
-          </thead>
-          <tbody>
-            {cacDongDaXuLy.flatMap((row, rowIndex) => {
-              if (row.materialDetails?.length) {
-                const totalDetailWidth = row.materialDetails.reduce((sum, detail) => sum + detail.width, 0) || row.width || 1;
-                const rawDetailCosts = row.materialDetails.map(detail => detail.matPrice * row.inputVL * detail.width);
-                const rawDetailTotal = rawDetailCosts.reduce((sum, v) => sum + v, 0);
-                return row.materialDetails.map((detail, detailIdx) => {
-                  const detailCostCPSX = row.costCPSX * detail.width / totalDetailWidth;
-                  const detailCostMat = row.costMat != null && rawDetailTotal > 0
-                    ? row.costMat * rawDetailCosts[detailIdx] / rawDetailTotal
-                    : detail.matPrice * row.inputVL * detail.width;
-                  const dongGoc = cacDongSanXuat.find(dong => dong.rowKey === row.rowKey);
-                  const chiTietGoc = dongGoc?.materialDetails?.[detailIdx];
-                  const ghiDeNguonChiTiet = ghiDeNguon[row.rowKey]?.detailOverrides?.[detailIdx];
-                  const ghiDeHienTaiChiTiet = ghiDeHienTai[row.rowKey]?.detailOverrides?.[detailIdx];
-                  const coDoiCPSX = coGhiDeDong(ghiDeHienTai[row.rowKey], ['meters', 'waste', 'cpsx']) || coGhiDeChiTiet(ghiDeHienTaiChiTiet, ['width']);
-                  const coDoiCPVL = coGhiDeDong(ghiDeHienTai[row.rowKey], ['meters', 'waste']) || coGhiDeChiTiet(ghiDeHienTaiChiTiet, ['width', 'matPrice', 'materialId', 'materialName']);
-                  return (
-                    <tr key={`${row.rowKey}-${detailIdx}`} className="detail-group-row">
-                      <td data-label="Công đoạn">{row.stage}</td>
-                      <OChonVatLieuChiTiet khoaDong={row.rowKey} chiTietIndex={detailIdx}
-                        giaTriGoc={{
-                          id: ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId,
-                          name: ghiDeNguonChiTiet?.materialName ?? chiTietGoc?.name ?? detail.name,
-                          matPrice: ghiDeNguonChiTiet?.matPrice ?? chiTietGoc?.matPrice ?? detail.matPrice,
-                        }}
-                        giaTriGhiDe={ghiDeHienTaiChiTiet} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} engineParams={engineParams} />
-                      <ODoDay khoaDong={row.rowKey} chiTietIndex={detailIdx}
-                        matIdHienLuc={ghiDeHienTaiChiTiet?.materialId ?? ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId}
-                        giaTriGoc={(() => {
-                          const idHienLuc = ghiDeHienTaiChiTiet?.materialId ?? ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId;
-                          return materials.find(x => x.id === idHienLuc)?.thickness ?? 0;
-                        })()}
-                        giaTriGhiDe={ghiDeHienTaiChiTiet?.doDay}
-                        duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials}
-                        rawMatPriceHienLuc={(() => {
-                          const idHienLuc = ghiDeHienTaiChiTiet?.materialId ?? ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId;
-                          return ghiDeHienTaiChiTiet?.rawMatPrice ?? materials.find(x => x.id === idHienLuc)?.pricePerKg ?? 0;
-                        })()}
-                        giaTriGocId={ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId} engineParams={engineParams} />
-                      <OChiTietCoTheGhiDe khoaDong={row.rowKey} chiTietIndex={detailIdx} truong="width" giaTriGoc={chiTietGoc?.width ?? detail.width}
-                        giaTriGhiDe={ghiDeHienTaiChiTiet?.width} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} soLe={3} />
-                      <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
-                        giaTriGhiDe={Math.abs(row.meters - row.srcMeters) > 0.001 ? row.meters : ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                      <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
-                        giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                      <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
-                        giaTriGhiDe={Math.abs(row.inputVL - row.srcInputVL) > 0.001 ? row.inputVL : ghiDeHienTai[row.rowKey]?.inputVL} duocSua={false} khiDat={khiDat} soLe={0} />
-                      <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
-                        giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                      <td className={`num ${coDoiCPSX ? 'override-changed' : ''}`} data-label="Thành tiền CPSX">{dinhDangSo(detailCostCPSX, 0)}</td>
-                      <OChiTietCoTheGhiDe khoaDong={row.rowKey} chiTietIndex={detailIdx} truong="rawMatPrice"
-                        giaTriGoc={layGiaTriGocRawMat(
-                          ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId,
-                          ghiDeNguonChiTiet?.materialName ?? chiTietGoc?.name ?? detail.name,
-                        )}
-                        giaTriGhiDe={ghiDeHienTaiChiTiet?.rawMatPrice} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} soLe={0}
-                        onAfterSet={(v) => {
-                          if (v !== undefined) {
-                            const effId = ghiDeHienTaiChiTiet?.materialId ?? ghiDeNguonChiTiet?.materialId ?? chiTietGoc?.materialId;
-                            const effName = ghiDeHienTaiChiTiet?.materialName ?? ghiDeNguonChiTiet?.materialName ?? chiTietGoc?.name ?? detail.name;
-                            tinhMatPriceTuRaw(v, effId, effName, row.rowKey, detailIdx);
-                          }
-                        }} />
-                      <OChiTietCoTheGhiDe khoaDong={row.rowKey} chiTietIndex={detailIdx} truong="matPrice" giaTriGoc={chiTietGoc?.matPrice ?? detail.matPrice}
-                        giaTriGhiDe={ghiDeHienTaiChiTiet?.matPrice} duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} soLe={1} />
-                      <td className={`num ${coDoiCPVL ? 'override-changed' : ''}`} data-label="Thành tiền CPVL">{dinhDangSo(detailCostMat, 0)}</td>
-                    </tr>
-                  );
-                });
-              }
-
-              return [(() => {
-                const dongGoc = cacDongSanXuat.find(dong => dong.rowKey === row.rowKey);
-                const ghiDeDong = ghiDeHienTai[row.rowKey];
-                const coDoiCPSX = coGhiDeDong(ghiDeDong, ['width', 'meters', 'waste', 'cpsx']);
-                const coDoiCPVL = coGhiDeDong(ghiDeDong, ['width', 'meters', 'waste', 'matPrice', 'mat', 'materialId']);
-                return (
-                <tr key={row.rowKey}>
-                  <td data-label="Công đoạn">{row.stage}</td>
-                  <OChonVatLieuDong khoaDong={row.rowKey} giaTriGocId={ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId} giaTriGocTen={ghiDeNguon[row.rowKey]?.mat ?? dongGoc?.mat ?? row.mat} giaTriGocGia={ghiDeNguon[row.rowKey]?.matPrice ?? dongGoc?.matPrice ?? 0} ghiDeHienTai={ghiDeHienTai} duocSua={duocSua} khiDat={khiDat} materials={materials} engineParams={engineParams} />
-                  <ODoDay khoaDong={row.rowKey}
-                    matIdHienLuc={ghiDeHienTai[row.rowKey]?.materialId ?? ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId}
-                    giaTriGoc={(() => {
-                      const idHienLuc = ghiDeHienTai[row.rowKey]?.materialId ?? ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId;
-                      return materials.find(x => x.id === idHienLuc)?.thickness ?? 0;
-                    })()}
-                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.doDay}
-                    duocSua={duocSua} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials}
-                    rawMatPriceHienLuc={(() => {
-                      const idHienLuc = ghiDeHienTai[row.rowKey]?.materialId ?? ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId;
-                      return ghiDeHienTai[row.rowKey]?.rawMatPrice ?? materials.find(x => x.id === idHienLuc)?.pricePerKg ?? 0;
-                    })()}
-                    giaTriGocId={ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId} engineParams={engineParams} />
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={row.srcWidth}
-                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={duocSua} khiDat={khiDat} soLe={3} />
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="meters" giaTriGoc={row.srcMeters}
-                    giaTriGhiDe={Math.abs(row.meters - row.srcMeters) > 0.001 ? row.meters : ghiDeHienTai[row.rowKey]?.meters} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="waste" giaTriGoc={row.srcWaste}
-                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="inputVL" giaTriGoc={row.srcInputVL}
-                    giaTriGhiDe={Math.abs(row.inputVL - row.srcInputVL) > 0.001 ? row.inputVL : ghiDeHienTai[row.rowKey]?.inputVL} duocSua={false} khiDat={khiDat} soLe={0} />
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="cpsx" giaTriGoc={row.srcCpsx}
-                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpsx} duocSua={duocSua} khiDat={khiDat} soLe={0} />
-                  <td className={`num ${coDoiCPSX ? 'override-changed' : ''}`} data-label="Thành tiền CPSX">{dinhDangSo(row.costCPSX, 0)}</td>
-                  <OCoTheGhiDe khoaDong={row.rowKey} truong="rawMatPrice"
-                    giaTriGoc={layGiaTriGocRawMat(
-                      ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId ?? row.materialId,
-                      ghiDeNguon[row.rowKey]?.mat ?? dongGoc?.mat ?? row.mat,
-                    )}
-                    giaTriGhiDe={ghiDeHienTai[row.rowKey]?.rawMatPrice} duocSua={duocSua} khiDat={khiDat} soLe={0}
-                    onAfterSet={(v) => {
-                      if (v !== undefined) {
-                        const effId = ghiDeHienTai[row.rowKey]?.materialId ?? ghiDeNguon[row.rowKey]?.materialId ?? dongGoc?.materialId ?? row.materialId;
-                        const effName = ghiDeHienTai[row.rowKey]?.mat ?? ghiDeNguon[row.rowKey]?.mat ?? dongGoc?.mat ?? row.mat;
-                        tinhMatPriceTuRaw(v, effId, effName, row.rowKey);
-                      }
-                    }} />
-                  {row.matPrice != null ? (
-                    <OCoTheGhiDe khoaDong={row.rowKey} truong="matPrice" giaTriGoc={row.srcMatPrice ?? 0}
-                      giaTriGhiDe={ghiDeHienTai[row.rowKey]?.matPrice} duocSua={duocSua && row.matPrice != null} khiDat={khiDat} soLe={1} />
-                  ) : (
-                    <td className="num" data-label="CP vật liệu">—</td>
-                  )}
-                  <td className={`num ${coDoiCPVL ? 'override-changed' : ''}`} data-label="Thành tiền CPVL">{row.costMat != null ? dinhDangSo(row.costMat, 0) : '—'}</td>
-                </tr>
-                );
-              })()];
-            })}
-            {coCpMangIn && (
-              <tr className={`total-row ${coDoiCpMangIn ? 'override-changed' : ''}`}>
-                <td colSpan={10}>CP theo thời gian in</td>
-                <td className="num">{dinhDangSo(cpMangIn, 0)} đ</td>
-              </tr>
-            )}
-            <tr className="total-row" style={{ fontSize: '1.05em' }}>
-              <td colSpan={8}><strong>TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN</strong></td>
-              <td colSpan={3} className={`num ${coThayDoi ? 'override-changed' : ''}`} style={{ color: coThayDoi ? undefined : 'var(--accent)', fontWeight: 800 }}>
-                {dinhDangSo(tongCPSX + tongCPVL + cpMangIn, 0)} đ
-              </td>
-            </tr>
-            {giaDaThayDoiDonVi > 0 && (
-              (() => {
-                const effectivePct = profitRatePct || 0;
-                const isOverridden = profitRatePct > 0;
-                const baseCost = effTotalProdCost / soLuong;
-                const dt = baseCost * (1 + effectivePct / 100) * soLuong;
-                const ln = baseCost * (effectivePct / 100) * soLuong;
-                return (
-                  <tr className={`override-profit-rate-row override-profit-rate-row--${lopMau}${isOverridden ? ' override-profit-rate-row--overridden' : ''}`}>
-                    <td colSpan={4} className="override-profit-label">
-                      Tỷ lệ LN:{' '}
-                      {duocSua ? (
-                        <input
-                          className={`profit-rate-input${isOverridden ? ' profit-rate-input--overridden' : ''}`}
-                          type="number"
-                          step="0.1"
-                          value={phanTramHienThi}
-                          onChange={(e) => xuLyThayDoiPct(e.target.value)}
-                          onBlur={() => datGiaTriTamPct('')}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Escape') {
-                              datGiaTriTamPct('');
-                              (e.currentTarget as HTMLInputElement).blur();
-                            }
-                          }}
-                          placeholder={String(defaultProfitRatePct)}
-                        />
-                      ) : (
-                        <span className="profit-rate-value">{effectivePct}%</span>
-                      )}
-                      {duocSua && <span className="profit-rate-pct-suffix">%</span>}
-                    </td>
-                    <td colSpan={7} className="num">
-                      LN: {dinhDangSo(Math.round(ln), 0)} đ
-                    </td>
-                  </tr>
-                );
-              })()
-            )}
-            {chenhLechGiaGocDonVi != null && (
-              <tr className={`total-row override-price-delta-row ${lopChenhLechGia}`}>
-                <td colSpan={12}>
-                  CHÊNH LỆCH SO VỚI GIÁ GỐC: <strong>{chenhLechGiaGocText} {donViChenhLechText}</strong>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-      {duocSua && coTheLuu && (
-        <div className="override-save-row">
-          <button
-            className="btn btn-sm btn-green"
-            onClick={() => loadedHistoryId ? khiLuu(loadedHistoryId) : khiLuuMoi()}
-          >
-            💾 Lưu thay đổi
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Đặc tả kỹ thuật nâng cao — Bảng ghi đè (Sale/Admin độc lập, so với GỐC)
@@ -860,6 +596,25 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
   const tongGoc = tinhTongNangCao(dongVatLieuGoc, dongNCDGoc);
   const tong = tinhTongNangCao(dongVatLieu, dongNCD);
   const coThayDoi = countOverrideChanges(ghiDeHienTai) > 0 || profitRatePct > 0;
+  // Cảnh báo khi đổi vật liệu/độ dày trên dòng GIA CÔNG NGOÀI (Table 1 cho sửa nhưng
+  // không tự tính lại giá nội bộ). Đổi vật liệu → cảnh báo mạnh; chỉ đổi độ dày → nhẹ.
+  const { coDoiVatLieuGc, coDoiDoDayGc } = (() => {
+    let vatLieu = false;
+    let doDay = false;
+    for (const row of dongVatLieuGoc) {
+      if (!row.isGiaCongNgoai) continue;
+      const ovDong = ghiDeHienTai[row.rowKey];
+      if (row.chiTietIndex !== undefined) {
+        const ovCt = ovDong?.detailOverrides?.[row.chiTietIndex];
+        if (ovCt?.materialId !== undefined && ovCt.materialId !== row.materialId) vatLieu = true;
+        if (ovCt?.doDay !== undefined && ovCt.doDay !== row.doDay) doDay = true;
+      } else {
+        if (ovDong?.materialId !== undefined && ovDong.materialId !== row.materialId) vatLieu = true;
+        if (ovDong?.doDay !== undefined && ovDong.doDay !== row.doDay) doDay = true;
+      }
+    }
+    return { coDoiVatLieuGc: vatLieu, coDoiDoDayGc: doDay };
+  })();
   const donViChenhLech = r.input.productType === 'mang' ? 'ĐỒNG / MÉT VUÔNG' : 'ĐỒNG / TÚI';
   const tongNhanCong = dongNCD.reduce((s, d) => s + d.thanhTienNhanCong, 0);
   const tongDien = dongNCD.reduce((s, d) => s + d.thanhTienDien, 0);
@@ -976,9 +731,10 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                 || coGhiDeChiTiet(ovChiTiet, ['rawMatPrice', 'matPrice', 'materialId', 'materialName']);
               // Dòng synthetic Chia/Lật mặt: chi phí 0, không cho ghi đè Table 1
               const laDongSynthetic = row.rowKey === 'matte' || row.rowKey === 'chia';
-              // Gia công ngoài: khóa ghi đè (CP đã nằm trong giá GC; chấm đỏ từng ô)
+              // Gia công ngoài: vẫn cho sửa Table 1 như dòng thường, nhưng KHÔNG tự tính lại
+              // giá nội bộ (truyền laGiaCong xuống ô vật liệu/độ dày)
               const laGc = !!row.isGiaCongNgoai;
-              const suaT1 = duocSua && !laDongSynthetic && !laGc;
+              const suaT1 = duocSua && !laDongSynthetic;
               const coDoiMuc = ovDong?.cpMucKeoPerM2 !== undefined
                 || (row.cpMucKeo != null && goc?.cpMucKeo != null
                   && Math.abs(row.cpMucKeo - goc.cpMucKeo) > 0.001);
@@ -1013,11 +769,11 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     <OChonVatLieuChiTiet khoaDong={row.rowKey} chiTietIndex={row.chiTietIndex}
                       giaTriGoc={{ id: goc.materialId, name: goc.vatLieu, matPrice: goc.cpVatLieu ?? 0 }}
                       giaTriGhiDe={ghiDeHienTai[row.rowKey]?.detailOverrides?.[row.chiTietIndex]}
-                      duocSua={suaT1} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} engineParams={engineParams} />
+                      duocSua={suaT1} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials} engineParams={engineParams} laGiaCong={laGc} />
                   ) : (
                     <OChonVatLieuDong khoaDong={row.rowKey}
                       giaTriGocId={goc?.materialId} giaTriGocTen={goc?.vatLieu ?? row.vatLieu} giaTriGocGia={goc?.cpVatLieu ?? 0}
-                      ghiDeHienTai={ghiDeHienTai} duocSua={suaT1} khiDat={khiDat} materials={materials} engineParams={engineParams} />
+                      ghiDeHienTai={ghiDeHienTai} duocSua={suaT1} khiDat={khiDat} materials={materials} engineParams={engineParams} laGiaCong={laGc} />
                   )}
                   {laDongSynthetic ? (
                     oSoGc('—', laGc, { dataLabel: 'Độ dày (mic)' })
@@ -1031,7 +787,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                         giaTriGhiDe={row.chiTietIndex !== undefined ? ovChiTiet?.doDay : ovDong?.doDay}
                         duocSua={suaT1} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials}
                         rawMatPriceHienLuc={rawHienLuc}
-                        giaTriGocId={goc?.materialId} engineParams={engineParams} />
+                        giaTriGocId={goc?.materialId} engineParams={engineParams} laGiaCong={laGc} />
                     );
                   })()}
                   {row.khoMangLabel ? (
@@ -1093,8 +849,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                       );
                     }
                     return (
-                      <td className={`num override-cell ${coDoiCp ? 'override-changed' : ''} ${laGc ? 'gc-cell' : ''}`} data-label="CP vật liệu (đ/m²)">
-                        {laGc ? <span className="gc-cell__dot" title="Gia công" aria-label="Gia công" /> : null}
+                      <td className={`num override-cell ${coDoiCp ? 'override-changed' : ''}`} data-label="CP vật liệu (đ/m²)">
                         <span className="cp-vl-gop">
                           {coCp && (
                             <span className="cp-vl-gop__m2">
@@ -1137,7 +892,12 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     className: coDoiVL ? 'override-changed' : '',
                     dataLabel: 'Thành tiền CPNVL',
                   })}
-                  {row.cpMucKeo != null && !laDongSynthetic ? (
+                  {row.cpMucKeoText ? (
+                    oSoGc(row.cpMucKeoText, laGc, {
+                      className: 'dac-ta-nang-cao__muc',
+                      dataLabel: 'Giá mực, DM, keo (đ/m²)',
+                    })
+                  ) : row.cpMucKeo != null && !laDongSynthetic ? (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
                       giaTriGoc={goc?.cpMucKeo ?? 0}
                       giaTriGhiDe={
@@ -1254,6 +1014,19 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
           </div>
         </div>
       </div>
+
+      {coDoiVatLieuGc && (
+        <div className="info-box info-box--warn-strong" style={{ marginTop: 10 }}>
+          <span className="icon">⛔</span>
+          <span>Vật liệu công đoạn <strong>gia công ngoài</strong> đã thay đổi — giá do bên gia công báo, vui lòng kiểm tra lại cột CP vật liệu (đ/m2) và giá GC.</span>
+        </div>
+      )}
+      {!coDoiVatLieuGc && coDoiDoDayGc && (
+        <div className="info-box" style={{ marginTop: 10 }}>
+          <span className="icon">⚠️</span>
+          <span>Độ dày màng thay đổi, hãy kiểm tra lại cột CP vật liệu (đ/m2).</span>
+        </div>
+      )}
 
       {hangTyLeLn}
       <div className={`total-row override-price-delta-row ${lopChenhLech}`} style={{ padding: '8px 12px', marginTop: 4 }}>
@@ -1451,7 +1224,6 @@ const buttonLabel = loadedItem
   : "💾 Lưu tính giá";
   const showBanner = loadedItem && !isSameCustomer;
   const [vatLieuCuonDangChon, datVatLieuCuonDangChon] = React.useState('');
-  const [tabDangMo, datTabDangMo] = React.useState<'sale' | 'admin'>('sale');
   const [tabDangMoNangCao, datTabDangMoNangCao] = React.useState<'sale' | 'admin'>('sale');
   const [phanBoDangNhap, datPhanBoDangNhap] = React.useState<{ field: 'company' | 'commission' | null; value: string }>({ field: null, value: '' });
 
@@ -1946,17 +1718,7 @@ const buttonLabel = loadedItem
     printFilmInkOther: hangSo.printFilmInkPriceOther ?? 200,
   };
 
-  const printFilmOverrideParams = hienThiGia.isPrintFilm ? {
-    numColors: dauVaoKq.numColors ?? 0,
-    setupMin: hangSo.printFilmSetupMinutesPerColor ?? 20,
-    setupDiv: hangSo.printFilmSetupHourDivisor ?? 60,
-    threshold: hangSo.printFilmLengthThreshold ?? 40000,
-    speed: hangSo.printFilmShortRunSpeed ?? 7500,
-    laborPerHr: hangSo.printFilmLaborCostPerHour ?? 1200000,
-  } : undefined;
-
   const { uniRows: cacDongSanXuat, totalCPSX: tongCPSX, totalCPVL: tongCPVL, grandTotal: tongCong } = lapDongSanXuat(r, hangSoNc);
-  const cpTheoThoiGianIn = cacDongSanXuat.find(row => (row.printFilmCost ?? 0) > 0)?.printFilmCost ?? 0;
 
   // ── Tab nâng cấp: giá mỗi sản phẩm lấy từ TỔNG bảng đặc tả nâng cao ──
   // TM (mua đi bán lại) KHÔNG chạy bảng NC — chống cờ nangCap lệch khi lưu cũ:
@@ -2773,218 +2535,8 @@ const buttonLabel = loadedItem
             </TheThuGon>
           </div>
 
-          {/* ═══ SECTION: Đặc tả kỹ thuật & nguyên liệu ═══ */}
-          {!nangCap && !isCommercial && (<>
-          <div id="sect-tech" className="manager-section-anchor"></div>
-          <TheThuGon
-            resetKey={khoaKetQua}
-            giuTrangThaiKhiReset
-            style={{marginBottom: '14px'}}
-            title={<><span className="icon">🏭</span> Đặc tả kỹ thuật &amp; nguyên liệu</>}
-          >
-            <div className="table-responsive">
-              <table className="data-table" id="m-t-unified-table">
-                <thead>
-                   <tr>
-                    <th>Công đoạn</th><th>Vật liệu</th>
-                    <th className="num">khổ màng NVL (m)</th><th className="num">thành phẩm (m)</th><th className="num">phi hao (m)</th><th className="num">đầu vào NVL (m)</th>
-                    <th className="num">CPSX (đ/m²)</th><th className="num">Thành tiền CPSX</th>
-                    <th className="num">Giá NVL (đ/kg)</th>
-                    <th className="num">CP vật liệu (đ/m²)</th><th className="num">Thành tiền CPVL</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {cacDongSanXuat.map((row, idx) => {
-                    const dWidth = row.width;
-                    const dMeters = row.meters;
-                    const dWaste = row.waste;
-                    const inputVL = dMeters + dWaste;
-
-                    if (row.materialDetails?.length) {
-                      const totalDetailWidth = row.materialDetails.reduce((sum, detail) => sum + detail.width, 0) || row.width;
-                      const rowSpan = row.materialDetails.length;
-                      return row.materialDetails.map((detail, detailIdx) => {
-                        const detailCostCPSX = row.costCPSX * detail.width / totalDetailWidth;
-                        return (
-                          <tr key={`${idx}-${detailIdx}`} className="detail-group-row">
-                            {detailIdx === 0 && (
-                              <td data-label="Công đoạn" rowSpan={rowSpan}>
-                                {row.stage}
-                              </td>
-                            )}
-                            <td data-label="Vật liệu">{detail.name}</td>
-                            <td className="num" data-label="khổ màng NVL (m)">{dinhDangSo(detail.width, 3)}</td>
-                            <td className="num" data-label="thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
-                            {oSoGc(dinhDangSo(dWaste, 0), !!row.isOutsourced, { dataLabel: "phi hao (m)" })}
-                            <td className="num highlight" data-label="đầu vào NVL (m)">{dinhDangSo(inputVL, 0)}</td>
-                            {oSoGc(dinhDangSo(row.cpsx, 0), !!row.isOutsourced, { dataLabel: "CPSX (đ/m²)" })}
-                            {oSoGc(dinhDangSo(detailCostCPSX, 0), !!row.isOutsourced, { dataLabel: "Thành tiền CPSX" })}
-                            {(() => {
-                              if (row.matPriceIsPerM2) {
-                                return oSoGc("—", false, { dataLabel: "Giá NVL" });
-                              }
-                              const giaDetail = (() => {
-                                const m = detail.materialId ? materials.find(x => x.id === detail.materialId) : materials.find(x => x.name === detail.name);
-                                if (m) return m.pricePerKg;
-                                const u = detail.name.toUpperCase();
-                                if (u.includes('MPET')) return 55000;
-                                if (u.includes('PET')) return 45000;
-                                if (u.includes('LLDPE') || u === 'PE') return 40000;
-                                return 0;
-                              })();
-                              return oSoGc(giaDetail > 0 ? `${dinhDangSo(giaDetail, 0)} đ/kg` : "—", !!row.isOutsourced && giaDetail > 0, { dataLabel: "Giá NVL" });
-                            })()}
-                            {oSoGc(dinhDangSo(detail.matPrice, 1), !!row.isOutsourced, { dataLabel: "CP vật liệu (đ/m²)" })}
-                            {oSoGc(dinhDangSo(detail.costMat, 0), !!row.isOutsourced, { dataLabel: "Thành tiền CPVL" })}
-                          </tr>
-                        );
-                      });
-                    }
-
-                    return (
-                      <tr key={idx}>
-                        <td data-label="Công đoạn">
-                          {row.stage}
-                        </td>
-                        <td data-label="Vật liệu">{row.mat}</td>
-                        <td className="num" data-label="khổ màng NVL (m)">{dinhDangSo(dWidth, 3)}</td>
-                        <td className="num" data-label="thành phẩm (m)">{dinhDangSo(dMeters, 0)}</td>
-                        {oSoGc(dinhDangSo(dWaste, 0), !!row.isOutsourced, { dataLabel: "phi hao (m)" })}
-                        <td className="num highlight" data-label="đầu vào NVL (m)">{dinhDangSo(inputVL, 0)}</td>
-                        {oSoGc(dinhDangSo(row.cpsx, 0), !!row.isOutsourced, { dataLabel: "CPSX (đ/m²)" })}
-                        {oSoGc(dinhDangSo(row.costCPSX, 0), !!row.isOutsourced, { dataLabel: "Thành tiền CPSX" })}
-                        {(() => {
-                          if (row.matPriceIsPerM2 && row.matPrice != null) {
-                          return oSoGc("—", false, { dataLabel: "Giá NVL" });
-                        }
-                          const giaRow = (() => {
-                            if (row.mat === '-' || row.mat === '') return 0;
-                            const m = row.materialId ? materials.find(x => x.id === row.materialId) : materials.find(x => x.name === row.mat);
-                            if (m) return m.pricePerKg;
-                            const u = row.mat.toUpperCase();
-                            if (u.includes('MPET')) return 55000;
-                            if (u.includes('PET')) return 45000;
-                            if (u.includes('LLDPE') || u === 'PE') return 40000;
-                            return 0;
-                          })();
-                          return oSoGc(giaRow > 0 ? `${dinhDangSo(giaRow, 0)} đ/kg` : "—", !!row.isOutsourced && giaRow > 0, { dataLabel: "Giá NVL" });
-                        })()}
-                        {oSoGc(row.matPrice != null ? dinhDangSo(row.matPrice, 1) : "—", !!row.isOutsourced && row.matPrice != null, { dataLabel: "CP vật liệu (đ/m²)" })}
-                        {oSoGc(row.costMat != null ? dinhDangSo(row.costMat, 0) : "—", !!row.isOutsourced && row.costMat != null, { dataLabel: "Thành tiền CPVL" })}
-                      </tr>
-                    );
-                  })}
-                  {laMangIn && cpTheoThoiGianIn > 0 && (
-                    <tr className="total-row">
-                <td colSpan={11}>CP theo thời gian in</td>
-                      <td className="num">{dinhDangSo(cpTheoThoiGianIn, 0)} đ</td>
-                    </tr>
-                  )}
-                  <tr className="total-row" style={{fontSize: '1.05em'}}>
-              <td colSpan={9}><strong>TỔNG GIÁ THÀNH SẢN XUẤT CƠ BẢN</strong></td>
-                    <td colSpan={3} className="num" style={{color: 'var(--accent)', fontWeight: 800}}>{dinhDangSo(tongCong, 0)} đ</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-          {/* ═══ SECTION: Override Tables (tabbed) ═══ */}
-          {(() => {
-            const loadedItem = timMucLichSuTheoId(lichSu, loadedHistoryId) ?? null;
-            const nguoiDungHienTai = dungCuaHangTinhGia.getState().nguoiDungHienTai;
-            const policies = nguoiDungHienTai?.policies ?? [];
-            const coQuyenAdvisor = coQuyenCoVanBangTinh(policies);
-            const canSaleEdit = !coQuyenAdvisor;
-            const canAdminEdit = coQuyenAdvisor;
-            const coTheLuuSale = loadedItem?.canUpdate !== false;
-            const coTheLuuAdmin = loadedItem?.canAdminUpdate !== false;
-
-            const handleSave = (idLichSu: string) => xuLyLuuGhiDe(idLichSu);
-            const handleSaveNew = () => xuLyLuuGhiDeMoi();
-            const emptyOv: OverrideTable = {};
-            const saleCoThayDoi = countOverrideChanges(ghiDeSale) > 0;
-            const adminCoThayDoi = countOverrideChanges(ghiDeAdmin) > 0;
-
-            const renderSaleTable = () => (
-              <BangGhiDe
-                title="Thay đổi từ Sale"
-                lopMau="sale"
-                cacDongSanXuat={cacDongSanXuat}
-                ghiDeNguon={emptyOv}
-                ghiDeHienTai={ghiDeSale}
-                chenhLechGiaGocDonVi={giaSauGhiDeSaleDonVi - rHieuLuc.finalPrice}
-                donViChenhLech={donViChenhLechGia}
-                duocSua={canSaleEdit}
-                coTheLuu={coTheLuuSale}
-                khiDat={datGhiDeSale}
-                khiLuu={handleSave}
-                khiLuuMoi={handleSaveNew}
-                loadedHistoryId={loadedHistoryId}
-                materials={materials}
-                giaDaThayDoiDonVi={giaSauGhiDeSaleDonVi}
-                effTotalProdCost={tongCPSXSale}
-                profitRatePct={saleProfitRatePct}
-                defaultProfitRatePct={saleDefaultPct}
-                khiDatProfitRate={datSaleProfitRatePct}
-                soLuong={dauVaoKq.quantity}
-                engineParams={engineOverrideParams}
-                printFilmParams={printFilmOverrideParams}
-              />
-            );
-
-            const renderAdminTable = () => (
-              <BangGhiDe
-                title="Thay đổi từ Admin"
-                lopMau="admin"
-                cacDongSanXuat={cacDongSanXuat}
-                ghiDeNguon={emptyOv}
-                ghiDeHienTai={ghiDeAdmin}
-                chenhLechGiaGocDonVi={giaSauGhiDeAdminDonVi - rHieuLuc.finalPrice}
-                donViChenhLech={donViChenhLechGia}
-                duocSua={canAdminEdit}
-                coTheLuu={coTheLuuAdmin}
-                khiDat={datGhiDeAdmin}
-                khiLuu={handleSave}
-                khiLuuMoi={handleSaveNew}
-                loadedHistoryId={loadedHistoryId}
-                materials={materials}
-                giaDaThayDoiDonVi={giaSauGhiDeAdminDonVi}
-                effTotalProdCost={tongCPSXAdmin}
-                profitRatePct={adminProfitRatePct}
-                defaultProfitRatePct={adminDefaultPct}
-                khiDatProfitRate={datAdminProfitRatePct}
-                soLuong={dauVaoKq.quantity}
-                engineParams={engineOverrideParams}
-                printFilmParams={printFilmOverrideParams}
-              />
-            );
-
-            return (
-              <div className="override-tab-wrapper" style={{marginTop: '14px'}}>
-                <div className="override-tab-bar">
-                  <button
-                    className={`override-tab ${tabDangMo === 'sale' ? 'active' : ''}`}
-                    onClick={() => datTabDangMo('sale')}
-                  >
-                    💼 Sale{saleCoThayDoi ? ' ●' : ''}
-                  </button>
-                  <button
-                    className={`override-tab ${tabDangMo === 'admin' ? 'active' : ''}`}
-                    onClick={() => datTabDangMo('admin')}
-                  >
-                    👑 Admin{adminCoThayDoi ? ' ●' : ''}
-                  </button>
-                </div>
-                {tabDangMo === 'sale' ? renderSaleTable() : renderAdminTable()}
-              </div>
-            );
-          })()}
-
-          </TheThuGon>
-          </>)}
-
           {/* ═══ SECTION: Đặc tả kỹ thuật & nguyên liệu (nâng cao) ═══ */}
-          {nangCap && !isCommercial && (<>
+          {!isCommercial && (<>
           <div id="sect-tech-advanced" className="manager-section-anchor"></div>
           <TheThuGon
             resetKey={khoaKetQua}

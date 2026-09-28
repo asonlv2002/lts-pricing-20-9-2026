@@ -670,7 +670,7 @@ function buildDacTaNangCaoHtml(
       <td>${dinhDangOMet(row.dauVaoNVL, row.dauVaoNvlLabel, 0)}</td>
       <td>${cpVl}</td>
       <td>${row.thanhTienNVL != null ? dinhDangSo(row.thanhTienNVL) : '—'}</td>
-      <td>${row.cpMucKeo != null ? dinhDangSoLe(row.cpMucKeo, 1) : '—'}</td>
+      <td>${row.cpMucKeoText ? row.cpMucKeoText : (row.cpMucKeo != null ? dinhDangSoLe(row.cpMucKeo, 1) : '—')}</td>
       <td>${row.thanhTienMucKeo != null ? dinhDangSo(row.thanhTienMucKeo) : '—'}</td>
     </tr>`;
   }

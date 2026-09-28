@@ -1934,6 +1934,18 @@ body {
   flex-shrink: 0;
 }
 
+/* Cảnh báo mạnh: đổi vật liệu trên công đoạn gia công ngoài */
+.info-box--warn-strong {
+  background: rgba(220, 38, 38, 0.08);
+  border-color: rgba(220, 38, 38, 0.3);
+  color: #dc2626;
+}
+[data-theme="dark"] .info-box--warn-strong {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.3);
+  color: #f87171;
+}
+
 /* ═══════════ CHỐT GIÁ ═══════════ */
 .chot-gia-row {
   display: flex;
@@ -14219,22 +14231,6 @@ fieldset.config-cpsx-upgrade__ro[disabled],
 /* Form collapsible sections (Cấu trúc / Chi tiết GC) — taller than advanced */
 .form-collapse-section.open {
   max-height: 6000px;
-}
-
-/* Gia công: chấm đỏ góc trên-phải ô số (hover = Gia công) */
-.gc-cell {
-  position: relative;
-}
-.gc-cell__dot {
-  position: absolute;
-  top: 4px;
-  right: 4px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #dc2626;
-  pointer-events: auto;
-  z-index: 1;
 }
 
 .lts-avatar-modal { width: 440px; }
