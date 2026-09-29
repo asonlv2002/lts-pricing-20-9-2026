@@ -866,12 +866,12 @@ function exportPricingDetailNangCaoToA4(
     </div>`;
   }
 
-  if (ovCoData(adminOv)) {
-    pagesHtml += `<div class="page page--nc">
-      <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName} (SAU THAY ĐỔI ADMIN)</div>
-      ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: saleOv, activeOv: adminOv, nhanNguon: '👑 Theo bảng Admin', cot, coQuyenCoVan })}
-    </div>`;
-  }
+  // Bảng Admin LUÔN có (kể cả 0 thay đổi) — Admin chồng trên Sale. Không thay đổi
+  // gì → bảng Admin trùng BẢN GỐC, phục vụ đối chiếu.
+  pagesHtml += `<div class="page page--nc">
+    <div class="page-title">CHI TIẾT BẢNG TÍNH GIÁ NÂNG CẤP — ${item.productName} (SAU THAY ĐỔI ADMIN)</div>
+    ${xuatBangDacTaNangCao({ r0, uniRows, hangSo, materials, sourceOv: saleOv, activeOv: adminOv, nhanNguon: '👑 Theo bảng Admin', cot, coQuyenCoVan })}
+  </div>`;
 
   moCuaSoHtml(
     `Chi tiết NC ${item.productName}`,

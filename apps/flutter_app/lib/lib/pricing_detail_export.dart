@@ -136,10 +136,10 @@ class PricingDetailExport {
         doc.addPage(_trangBangNangCao(r0, uniRows, hangSo, materials, const {},
             saleOv, '💼 Theo bảng Sale', cot, coQuyenCoVan, it));
       }
-      if (adminOv.isNotEmpty) {
-        doc.addPage(_trangBangNangCao(r0, uniRows, hangSo, materials, saleOv,
-            adminOv, '👑 Theo bảng Admin', cot, coQuyenCoVan, it));
-      }
+      // Bảng Admin LUÔN có (kể cả 0 thay đổi) — Admin chồng trên Sale; không thay
+      // đổi gì → trùng BẢN GỐC, phục vụ đối chiếu.
+      doc.addPage(_trangBangNangCao(r0, uniRows, hangSo, materials, saleOv,
+          adminOv, '👑 Theo bảng Admin', cot, coQuyenCoVan, it));
       return doc.save();
     }
 
