@@ -565,7 +565,7 @@ function taoDongChiaNangCao(params: {
     thanhPhamLabel: dinhDangMetKemKho(tp, khoChia),
     phiHao,
     dauVaoNVL: tp + phiHao,
-    dauVaoNvlLabel: dinhDangMetKemKho(tp + phiHao, khoTruoc),
+    dauVaoNvlLabel: dinhDangMetKemKho(tp + phiHao, khoChia),
     giaNVL: 0,
     donViGiaNVL: null,
     cpVatLieu: 0,
