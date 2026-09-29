@@ -153,7 +153,13 @@ export default function BangDacTaNangCao({
                     `highlight${row.dauVaoNvlLabel ? ' dac-ta-met-kho-cell' : ''}`,
                   )}
                   {oSoNangCao(
-                    row.cpVatLieu == null && (row.giaNVL == null || row.giaNVL <= 0) ? (
+                    row.isGiaCongNgoai ? (
+                      row.cpVatLieu != null ? (
+                        <>{dinhDangSo(row.cpVatLieu, 1)} (GC)</>
+                      ) : (
+                        'GC'
+                      )
+                    ) : row.cpVatLieu == null && (row.giaNVL == null || row.giaNVL <= 0) ? (
                       '—'
                     ) : (
                       <span className="cp-vl-gop">

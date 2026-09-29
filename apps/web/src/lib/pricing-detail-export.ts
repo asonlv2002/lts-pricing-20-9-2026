@@ -656,7 +656,9 @@ function buildDacTaNangCaoHtml(
   let t1 = '';
   for (const row of dongVL) {
     const nhanDonViPhu = row.donViGiaNVL === 'm' ? ' đ/m' : row.donViGiaNVL === 'kg' ? '/kg' : '';
-    const cpVl = row.cpVatLieu != null
+    const cpVl = row.isGiaCongNgoai
+      ? (row.cpVatLieu != null && row.cpVatLieu > 0 ? `${dinhDangSoLe(row.cpVatLieu, 1)} (GC)` : 'GC')
+      : row.cpVatLieu != null
       ? `${dinhDangSoLe(row.cpVatLieu, 1)}${row.giaNVL != null && row.giaNVL > 0 ? `<br/><small>(${dinhDangSo(row.giaNVL)}${nhanDonViPhu})</small>` : ''}`
       : (row.giaNVL != null && row.giaNVL > 0 ? `(${dinhDangSo(row.giaNVL)}${nhanDonViPhu})` : '—');
     const doDay = row.doDay;

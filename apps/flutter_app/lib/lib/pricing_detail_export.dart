@@ -385,9 +385,14 @@ class PricingDetailExport {
                   _metVL(m['thanhPhamLabel'], m['thanhPham'], 0),
                   m['phiHao'] == null ? '—' : Fmt.n((m['phiHao'] as num)),
                   _metVL(m['dauVaoNvlLabel'], m['dauVaoNVL'], 0),
-                  m['cpVatLieu'] == null
-                      ? '—'
-                      : Fmt.d1((m['cpVatLieu'] as num)),
+                  m['isGiaCongNgoai'] == true
+                      ? ((m['cpVatLieu'] as num?) != null &&
+                              (m['cpVatLieu'] as num) > 0
+                          ? '${Fmt.d1((m['cpVatLieu'] as num))} (GC)'
+                          : 'GC')
+                      : m['cpVatLieu'] == null
+                          ? '—'
+                          : Fmt.d1((m['cpVatLieu'] as num)),
                   m['thanhTienNVL'] == null
                       ? '—'
                       : Fmt.n((m['thanhTienNVL'] as num)),

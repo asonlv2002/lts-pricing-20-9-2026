@@ -414,7 +414,7 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
     final cpMucGhiDe = ovDong?['cpMucKeoPerM2'] as num?;
     final cpMucHienThi = cpMucGhiDe?.toDouble() ?? cpMuc;
     final daDoiMuc = cpMucGhiDe != null;
-    // Dòng gia công: chuỗi hiển thị sẵn (vd "2.000 đ/m²(GC)"), không cho sửa.
+    // Dòng gia công (chỉ xem): chuỗi hiển thị sẵn (vd "2.000(GC)").
     final cpMucKeoText = row['cpMucKeoText'] as String?;
 
     const s11 = TextStyle(fontSize: 11);
@@ -506,6 +506,7 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
         rowKey: rowKey,
         chiTietIndex: chiTietIndex,
         laSynthetic: laSynthetic,
+        laGc: laGc,
         suaT1: suaT1,
         cpVl: cpVl,
         cpVlGhiDe: cpVlGhiDe,
@@ -515,7 +516,24 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
         hienPhu: hienPhu,
       ),
       _numCell(Fmt.n((row['thanhTienNVL'] as num?)?.toDouble() ?? 0), s11),
-      (cpMucKeoText != null)
+      // Dòng gia công: cho sửa giá GC (kể cả dòng Chia/Lật mặt synthetic).
+      // cpMuc = 0 (vd chỉ gắn quai) → không ghi đè để tránh mất thành tiền khác.
+      (widget.duocSua && laGc && cpMuc != null && cpMuc > 0)
+          ? _soCell(
+              rowKey: rowKey,
+              chiTietIndex: null,
+              field: 'cpMucKeoPerM2',
+              label: 'Giá mực, DM, keo, khác',
+              text: '${Fmt.d1(cpMucHienThi ?? 0)}(GC)',
+              goc: (goc?['cpMucKeo'] as num?)?.toDouble() ?? 0,
+              hienTai: cpMucHienThi ?? 0,
+              soLe: 1,
+              ovDong: ovDong,
+              ovChiTiet: null,
+              choSua: true,
+              highlight: daDoiMuc,
+            )
+          : (cpMucKeoText != null)
           ? TableCellData(cpMucKeoText,
               align: TextAlign.right, style: s11)
           : (cpMuc != null && !laSynthetic)
@@ -681,6 +699,7 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
     required String rowKey,
     required int? chiTietIndex,
     required bool laSynthetic,
+    required bool laGc,
     required bool suaT1,
     required double? cpVl,
     required double? cpVlGhiDe,
@@ -696,6 +715,11 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
         fontWeight: daDoi ? FontWeight.w700 : FontWeight.w400,
         color: daDoi ? AppColors.warning : null,
         decoration: daDoi ? TextDecoration.underline : null);
+    // Dòng gia công: chỉ hiện CP vật liệu + "(GC)", KHÔNG mở ngoặc giá NVL.
+    if (laGc) {
+      final text = (coCp && cpVl > 0) ? '${Fmt.d1(cpVl)} (GC)' : 'GC';
+      return TableCellData(text, align: TextAlign.right, style: style);
+    }
     if (!coCp && !hienPhu) {
       return const TableCellData('—',
           align: TextAlign.right, style: TextStyle(fontSize: 11));

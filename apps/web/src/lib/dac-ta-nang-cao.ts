@@ -10,6 +10,7 @@ import type {
   CpsxUpgradeInk,
   KeoRow,
   Material,
+  OverrideFields,
   OverrideRowKey,
   OverrideTable,
   ProfitRow,
@@ -98,7 +99,7 @@ export interface DongVatLieuNangCao {
   isGiaCongNgoai?: boolean;
   /** Đơn vị của `cpMucKeo` khi dòng là gia công: 'm2' (đ/m²) | 'tui' (đ/túi) */
   donViMucKeo?: 'm2' | 'tui' | null;
-  /** Chuỗi hiển thị sẵn cho ô giá GC (vd "2.000 đ/m²(GC)") */
+  /** Chuỗi hiển thị sẵn cho ô giá GC (vd "2.000(GC)") */
   cpMucKeoText?: string | null;
   /** Chi tiết công thức để hiện tooltip */
   ghiChu?: string;
@@ -292,10 +293,30 @@ function nhanCongDoan(row: UniRow, laGc = false): string {
   return laGc && base ? `${base} (GC)` : base;
 }
 
-/** Chuỗi hiển thị ô giá GC: "2.000 đ/m²(GC)" | "500 đ/túi(GC)". */
-function taoTextGiaGc(gia: number, donVi: 'm2' | 'tui'): string {
-  const dv = donVi === 'tui' ? 'đ/túi' : 'đ/m²';
-  return `${Math.round(gia).toLocaleString('vi-VN')} ${dv}(GC)`;
+/** Chuỗi hiển thị ô giá GC: "2.000(GC)" — dòng GC không ghi đơn vị. */
+function taoTextGiaGc(gia: number, _donVi: 'm2' | 'tui'): string {
+  return `${Math.round(gia).toLocaleString('vi-VN')}(GC)`;
+}
+
+/**
+ * Ghi đè giá gia công (đ/m² hoặc đ/túi) cho 1 dòng GC.
+ * `base` = hệ số nhân gốc (giá × base = thành tiền): In/Ghép = mét × khổ,
+ * Chia = mét TP, Làm túi đ/túi = số lượng, Làm túi đ/m² = ĐV × khổ.
+ * Trả null nếu không có ghi đè giá GC.
+ */
+function apGiaGcGhiDe(
+  ov: Partial<OverrideFields> | undefined,
+  base: number,
+  donViMucKeo: 'm2' | 'tui' | null | undefined,
+): { cpMucKeo: number; thanhTienMucKeo: number; cpMucKeoText: string } | null {
+  if (ov?.cpMucKeoPerM2 === undefined) return null;
+  const giaMoi = Math.max(0, so(ov.cpMucKeoPerM2));
+  const dv: 'm2' | 'tui' = donViMucKeo === 'tui' ? 'tui' : 'm2';
+  return {
+    cpMucKeo: giaMoi,
+    thanhTienMucKeo: giaMoi * Math.max(0, so(base)),
+    cpMucKeoText: taoTextGiaGc(giaMoi, dv),
+  };
 }
 
 /**
@@ -727,6 +748,7 @@ function layTpVaKhoNguonChia(
     let donViMucKeo: 'm2' | 'tui' | null = null;
     let cpMucKeoText: string | null = null;
     let ghiChu: string | undefined;
+    const ov = overrides?.[row.rowKey];
     // Giá GC của dòng In/Ghép (chỉ khi GC + màng LTS) — tiền GC ghi ở cột mực/DM/keo.
     const gcDong = layGiaGcCuaDong(row, result?.input);
     if (row.rowKey === 'print') {
@@ -765,9 +787,16 @@ function layTpVaKhoNguonChia(
       }
     }
 
-    // Ghi đè tay CP mực + DM + keo (đ/m²) — chỉ dòng không phải GC
-    const ov = overrides?.[row.rowKey];
-    if (ov?.cpMucKeoPerM2 !== undefined && cpMucKeo != null && !gcDong) {
+    // Ghi đè tay CP mực + DM + keo (đ/m²) — dòng thường tính lại theo ĐV × khổ;
+    // dòng GC scale thành tiền theo tỉ lệ giá mới/giá cũ (giữ cơ sở gốc).
+    if (gcDong) {
+      const apGc = apGiaGcGhiDe(ov, thanhPham * so(row.width), donViMucKeo);
+      if (apGc) {
+        cpMucKeo = apGc.cpMucKeo;
+        thanhTienMucKeo = apGc.thanhTienMucKeo;
+        cpMucKeoText = apGc.cpMucKeoText;
+      }
+    } else if (ov?.cpMucKeoPerM2 !== undefined && cpMucKeo != null) {
       cpMucKeo = Math.max(0, so(ov.cpMucKeoPerM2));
       thanhTienMucKeo = cpMucKeo * dauVaoNVL * so(row.width);
       ghiChu = `Ghi đè tay: ${cpMucKeo.toLocaleString('vi-VN')} đ/m²`;
@@ -789,7 +818,13 @@ function layTpVaKhoNguonChia(
         ? { gia: giaGcMatte, tien: tienGcMatte }
         : null;
       const latMat = taoDongLatMatTuIn(mauIn, gcLatMat, laGcMatte);
-      return [...dongInList, latMat];
+      const ovMatte = overrides?.['matte'];
+      const apMatte = latMat.isGiaCongNgoai
+        ? apGiaGcGhiDe(ovMatte, so(latMat.thanhPham) * so(latMat.khoMang), latMat.donViMucKeo)
+        : null;
+      return [...dongInList, apMatte
+        ? { ...latMat, cpMucKeo: apMatte.cpMucKeo, thanhTienMucKeo: apMatte.thanhTienMucKeo, cpMucKeoText: apMatte.cpMucKeoText }
+        : latMat];
     };
 
     // Ghép nhiều vật liệu song song → tách 1 dòng/chi tiết (như bảng cũ);
@@ -904,7 +939,7 @@ function layTpVaKhoNguonChia(
           ? `${ghiChuTui} · Băng keo/quai theo tổng engine`
           : 'Băng keo/quai theo tổng engine';
       }
-      return [{
+      const dongTui: DongVatLieuNangCao = {
         congDoan: nhanCongDoan(row, laGcLamTui || laGcGanQuai),
         vatLieu: nhanVatLieuTui ?? (row.mat && row.mat !== '-' ? row.mat : '-'),
         doDay: null,
@@ -924,7 +959,21 @@ function layTpVaKhoNguonChia(
         isGiaCongNgoai: coGcTui || undefined,
         donViMucKeo: coGcTui ? donViGcTui : null,
         cpMucKeoText: coGcTui ? taoTextGiaGc(cpMucTui, donViGcTui) : null,
-      }];
+      };
+      // Chỉ cho ghi đè giá GC Làm túi khi có giá GC làm túi gốc > 0 (không áp cho
+      // dòng chỉ gắn quai — tránh làm mất tiền gắn quai khỏi thành tiền).
+      if (coGcLamTui) {
+        const baseGcTui = dungGiaTheoTui
+          ? Math.max(0, so(result?.input?.quantity))
+          : dauVaoTui * so(row.width);
+        const apGcTui = apGiaGcGhiDe(ov, baseGcTui, dongTui.donViMucKeo);
+        if (apGcTui) {
+          dongTui.cpMucKeo = apGcTui.cpMucKeo;
+          dongTui.thanhTienMucKeo = apGcTui.thanhTienMucKeo + tienGcGanQuai;
+          dongTui.cpMucKeoText = apGcTui.cpMucKeoText;
+        }
+      }
+      return [dongTui];
     }
 
     return chenLatMat([{
@@ -999,6 +1048,15 @@ function layTpVaKhoNguonChia(
         donViMucKeo: coGcChia ? 'm2' : null,
         cpMucKeoText: coGcChia ? taoTextGiaGc(giaGcChia, 'm2') : null,
       };
+      // Ghi đè giá GC Chia (đ/m²) — base = mét TP chia (không nhân khổ).
+      if (laGcSlit) {
+        const apChia = apGiaGcGhiDe(overrides?.['chia'], tpChia, 'm2');
+        if (apChia) {
+          dongChiaVoiFlag.cpMucKeo = apChia.cpMucKeo;
+          dongChiaVoiFlag.thanhTienMucKeo = apChia.thanhTienMucKeo;
+          dongChiaVoiFlag.cpMucKeoText = apChia.cpMucKeoText;
+        }
+      }
       if (idxCut >= 0) {
         rows.splice(idxCut, 0, dongChiaVoiFlag);
       } else {

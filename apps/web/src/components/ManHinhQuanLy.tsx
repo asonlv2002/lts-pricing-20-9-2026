@@ -829,6 +829,14 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     const hienPhu = giaPhuHien != null && Number(giaPhuHien) > 0;
                     const coDoiCp = ovDong?.matPrice !== undefined || ovDong?.rawMatPrice !== undefined;
                     const nhanDonViPhu = donViPhu === 'm' ? ' đ/m' : donViPhu === 'kg' ? '/kg' : '';
+                    // Dòng gia công: chỉ hiện CP vật liệu + "(GC)", KHÔNG mở ngoặc giá NVL.
+                    if (laGc) {
+                      return oSoGc(
+                        coCp && (row.cpVatLieu ?? 0) > 0 ? `${dinhDangSo(row.cpVatLieu, 1)} (GC)` : 'GC',
+                        laGc,
+                        { className: coDoiCp ? 'override-changed' : '', dataLabel: 'CP vật liệu (đ/m²)' },
+                      );
+                    }
                     if (!coCp && !hienPhu) {
                       return oSoGc('—', laGc, { dataLabel: 'CP vật liệu (đ/m²)' });
                     }
@@ -892,33 +900,50 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     className: coDoiVL ? 'override-changed' : '',
                     dataLabel: 'Thành tiền CPNVL',
                   })}
-                  {row.cpMucKeoText ? (
-                    oSoGc(row.cpMucKeoText, laGc, {
+                  {(() => {
+                    // Dòng gia công: cho sửa giá GC (kể cả dòng Chia/Lật mặt synthetic).
+                    // cpMucKeo = 0 (vd chỉ gắn quai) → không ghi đè để tránh mất thành tiền khác.
+                    const choSuaGc = duocSua && laGc && row.cpMucKeo != null && row.cpMucKeo > 0;
+                    if (choSuaGc) {
+                      return (
+                        <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
+                          giaTriGoc={goc?.cpMucKeo ?? 0}
+                          giaTriGhiDe={ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2}
+                          duocSua khiDat={khiDat} soLe={1} laGiaCong
+                          hienThiTuyChinh={(n) => `${dinhDangSo(n, 1)}(GC)`} />
+                      );
+                    }
+                    if (row.cpMucKeoText) {
+                      return oSoGc(row.cpMucKeoText, laGc, {
+                        className: 'dac-ta-nang-cao__muc',
+                        dataLabel: 'Giá mực, DM, keo, khác (đ/m²)',
+                      });
+                    }
+                    if (row.cpMucKeo != null && !laDongSynthetic) {
+                      return (
+                        <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
+                          giaTriGoc={goc?.cpMucKeo ?? 0}
+                          giaTriGhiDe={
+                            ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2 !== undefined
+                              ? ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2
+                              : Math.abs((row.cpMucKeo ?? 0) - (goc?.cpMucKeo ?? 0)) > 0.001
+                                ? (row.cpMucKeo ?? undefined)
+                                : undefined
+                          }
+                          duocSua={suaT1} khiDat={khiDat} soLe={1} laGiaCong={laGc} />
+                      );
+                    }
+                    if (row.cpMucKeo != null) {
+                      return oSoGc(dinhDangSo(row.cpMucKeo, 1), laGc, {
+                        className: 'dac-ta-nang-cao__muc',
+                        dataLabel: 'Giá mực, DM, keo, khác (đ/m²)',
+                      });
+                    }
+                    return oSoGc('—', laGc, {
                       className: 'dac-ta-nang-cao__muc',
                       dataLabel: 'Giá mực, DM, keo, khác (đ/m²)',
-                    })
-                  ) : row.cpMucKeo != null && !laDongSynthetic ? (
-                    <OCoTheGhiDe khoaDong={row.rowKey} truong="cpMucKeoPerM2"
-                      giaTriGoc={goc?.cpMucKeo ?? 0}
-                      giaTriGhiDe={
-                        ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2 !== undefined
-                          ? ghiDeHienTai[row.rowKey]?.cpMucKeoPerM2
-                          : Math.abs((row.cpMucKeo ?? 0) - (goc?.cpMucKeo ?? 0)) > 0.001
-                            ? (row.cpMucKeo ?? undefined)
-                            : undefined
-                      }
-                      duocSua={suaT1} khiDat={khiDat} soLe={1} laGiaCong={laGc} />
-                  ) : row.cpMucKeo != null ? (
-                    oSoGc(dinhDangSo(row.cpMucKeo, 1), laGc, {
-                      className: 'dac-ta-nang-cao__muc',
-                      dataLabel: 'Giá mực, DM, keo, khác (đ/m²)',
-                    })
-                  ) : (
-                    oSoGc('—', laGc, {
-                      className: 'dac-ta-nang-cao__muc',
-                      dataLabel: 'Giá mực, DM, keo, khác (đ/m²)',
-                    })
-                  )}
+                    });
+                  })()}
                   {oSoGc(dinhDangSo(row.thanhTienMucKeo, 0), laGc, {
                     className: `dac-ta-nang-cao__muc ${coDoiMuc || coDoiVL ? 'override-changed' : ''}`,
                     dataLabel: 'Thành tiền mực, DM, keo, khác',
