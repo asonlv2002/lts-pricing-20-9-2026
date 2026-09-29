@@ -707,10 +707,16 @@ function layTpVaKhoNguonChia(
 
   // Độ dày hiệu lực (mic) theo lớp — dùng micOverrides người dùng nhập ở form,
   // fallback độ dày catalog. Khớp đúng con số hero/engine (tránh hiện catalog sai).
+  // micOverrides đánh khoá theo LỚP → chỉ áp khi vật liệu hiệu lực VẪN là vật liệu
+  // của lớp trên form. Nếu bảng ghi đè đã đổi sang VL khác → bỏ micOverride cũ,
+  // lấy độ dày catalog của VL mới (rule B).
   const doDayHieuLuc = (layerKey?: string, matId?: string): number | null => {
     if (!layerKey || !matId) return null;
+    const formMatId = (result?.input as unknown as Record<string, unknown> | undefined)?.[layerKey];
     const ov = result?.input?.micOverrides?.[layerKey];
-    if (ov != null && Number.isFinite(Number(ov)) && Number(ov) > 0) return Number(ov);
+    if (matId === formMatId && ov != null && Number.isFinite(Number(ov)) && Number(ov) > 0) {
+      return Number(ov);
+    }
     return materials.find(m => m.id === matId)?.thickness ?? null;
   };
   // Độ dày theo lớp của dòng (print → lớp 1; lam-N → lớp N; phụ lớp 2 → layer2AltId).

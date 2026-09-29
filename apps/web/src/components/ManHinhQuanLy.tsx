@@ -352,7 +352,9 @@ function ODoDay({ khoaDong, chiTietIndex, matIdHienLuc, giaTriGoc, giaTriGhiDe, 
   // pricePerM2 luôn được tính sẵn từ công thức (data.ts) — chỉ coi là "giá đ/m² cố định"
   // khi pricePerM2 TỆ lệ khác công thức suy (material vendor); khi đó sửa độ dày vô nghĩa.
   const giaM2Suy = mat ? mat.pricePerKg * mat.thickness * mat.density / 1000 : 0;
-  const duocSuaDoDay = !!mat && duocSua && !!mat.adjustableMic
+  // A2: PA (nhóm PA) được nhập độ dày tự do trong bảng Sale/Admin — như LLDPE.
+  const laPA = mat?.group === 'PA';
+  const duocSuaDoDay = !!mat && duocSua && (!!mat.adjustableMic || laPA)
     && (mat.pricePerM2 == null || Math.abs(mat.pricePerM2 - giaM2Suy) < 0.001);
   // Biến thể cùng nhóm khác độ dày → dropdown (BOPP 18/20/30/40, CPP 20/25/30/40/50, …)
   const dsBienTheNhom = mat?.group ? materials.filter(m => m.group === mat.group) : [];
@@ -783,7 +785,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     const rawHienLuc = (row.chiTietIndex !== undefined ? ovChiTiet?.rawMatPrice : ovDong?.rawMatPrice) ?? matHienLuc?.pricePerKg ?? 0;
                     return (
                       <ODoDay khoaDong={row.rowKey} chiTietIndex={row.chiTietIndex} matIdHienLuc={idHienLuc}
-                        giaTriGoc={goc?.doDay ?? matHienLuc?.thickness ?? 0}
+                        giaTriGoc={row.doDay ?? matHienLuc?.thickness ?? 0}
                         giaTriGhiDe={row.chiTietIndex !== undefined ? ovChiTiet?.doDay : ovDong?.doDay}
                         duocSua={suaT1} khiDat={khiDat} ghiDeHienTai={ghiDeHienTai} materials={materials}
                         rawMatPriceHienLuc={rawHienLuc}

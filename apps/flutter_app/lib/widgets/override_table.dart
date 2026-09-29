@@ -629,7 +629,8 @@ class _OverrideTableSectionState extends State<OverrideTableSection> {
               fontWeight: daDoi ? FontWeight.w700 : FontWeight.w400,
               color: daDoi ? AppColors.warning : null));
     }
-    final choSuaTay = mat.adjustableMic == true &&
+    // A2: PA (nhóm PA) được nhập độ dày tự do trong bảng Sale/Admin — như LLDPE.
+    final choSuaTay = (mat.adjustableMic == true || mat.group == 'PA') &&
         (mat.pricePerM2 == null ||
             (mat.pricePerM2! - (mat.pricePerKg * mat.thickness * mat.density / 1000))
                     .abs() <

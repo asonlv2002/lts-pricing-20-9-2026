@@ -622,8 +622,9 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
         color: daDoi ? AppColors.warning : null,
         decoration: daDoi ? TextDecoration.underline : null);
     // Mirror web ODoDay: chỉ cho sửa tay khi pricePerM2 là giá suy từ công thức.
+    // A2: PA (nhóm PA) được nhập độ dày tự do trong bảng Sale/Admin — như LLDPE.
     final giaM2Suy = mat.pricePerKg * mat.thickness * mat.density / 1000;
-    final choSuaTay = mat.adjustableMic == true &&
+    final choSuaTay = (mat.adjustableMic == true || mat.group == 'PA') &&
         (mat.pricePerM2 == null || (mat.pricePerM2! - giaM2Suy).abs() < 0.001);
     final bienThe = bienTheCungNhom(s.materials, mat);
     final choChon = !choSuaTay && bienThe.isNotEmpty;
