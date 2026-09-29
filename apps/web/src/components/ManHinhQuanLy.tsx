@@ -134,7 +134,7 @@ function coGhiDeChiTiet(detailOverride: NonNullable<OverrideFields['detailOverri
 }
 
 // ── Overridable Cell (click-to-edit inline) ──────────────────────────────────
-function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat, soLe = 0, onAfterSet, inline = false, hienThiTuyChinh, laGiaCong = false }: {
+function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat, soLe = 0, onAfterSet, inline = false, hienThiTuyChinh, hienThiNode, laGiaCong = false }: {
   khoaDong: OverrideRowKey;
   truong: keyof OverrideFields;
   giaTriGoc: number;
@@ -147,6 +147,8 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
   inline?: boolean;
   /** Format hiển thị thay cho dinhDangSo (vd. "(40.000/kg)") */
   hienThiTuyChinh?: (n: number) => string;
+  /** Node hiển thị thay số (vd. nhãn "mét (khổ)" dòng Chia) — giữ nhãn khi mở sửa */
+  hienThiNode?: React.ReactNode;
   /** Gia công ngoài (giữ để tương thích; không còn chấm đỏ) */
   laGiaCong?: boolean;
 }) {
@@ -154,9 +156,9 @@ function OCoTheGhiDe({ khoaDong, truong, giaTriGoc, giaTriGhiDe, duocSua, khiDat
   const daThayDoi = giaTriGhiDe !== undefined && Math.abs(giaTriGhiDe - giaTriGoc) > 0.001;
   const [dangSua, datDangSua] = React.useState(false);
   const [giaTriTam, datGiaTriTam] = React.useState('');
-  const chuHienThi = hienThiTuyChinh
+  const chuHienThi = hienThiNode ?? (hienThiTuyChinh
     ? hienThiTuyChinh(giaTriHienThi)
-    : dinhDangSo(giaTriHienThi, soLe);
+    : dinhDangSo(giaTriHienThi, soLe));
 
   const xacNhan = () => {
     datDangSua(false);
@@ -744,6 +746,8 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                 || coGhiDeChiTiet(ovChiTiet, ['rawMatPrice', 'matPrice', 'materialId', 'materialName']);
               // Dòng synthetic Chia/Lật mặt: chi phí 0, không cho ghi đè Table 1
               const laDongSynthetic = row.rowKey === 'matte' || row.rowKey === 'chia';
+              // Dòng Chia: riêng TP/Phi hao cho Sale/Admin sửa (chỉ đổi dòng Chia).
+              const choSuaChia = duocSua && row.rowKey === 'chia';
               // Gia công ngoài: vẫn cho sửa Table 1 như dòng thường, nhưng KHÔNG tự tính lại
               // giá nội bộ (truyền laGiaCong xuống ô vật liệu/độ dày)
               const laGc = !!row.isGiaCongNgoai;
@@ -816,11 +820,17 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="width" giaTriGoc={goc?.khoMang ?? row.khoMang ?? 0}
                       giaTriGhiDe={ghiDeHienTai[row.rowKey]?.width} duocSua={suaT1} khiDat={khiDat} soLe={3} laGiaCong={laGc} />
                   )}
-                  {row.thanhPhamLabel ? (
+                  {row.thanhPhamLabel && !choSuaChia ? (
                     oSoGc(<HienThiMetKho label={row.thanhPhamLabel} />, laGc, {
                       className: `dac-ta-met-kho-cell ${coDoiTpLabel ? 'override-changed' : ''}`,
                       dataLabel: 'Thành phẩm (m)',
                     })
+                  ) : row.thanhPhamLabel ? (
+                    <OCoTheGhiDe khoaDong={row.rowKey} truong="meters"
+                      giaTriGoc={goc?.thanhPham ?? 0}
+                      giaTriGhiDe={ghiDeHienTai[row.rowKey]?.meters}
+                      duocSua={choSuaChia} khiDat={khiDat} soLe={0} laGiaCong={laGc}
+                      hienThiNode={<HienThiMetKho label={row.thanhPhamLabel} />} />
                   ) : (
                     <OCoTheGhiDe khoaDong={row.rowKey} truong="meters"
                       giaTriGoc={goc?.thanhPham ?? 0}
@@ -830,7 +840,7 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                   <OCoTheGhiDe khoaDong={row.rowKey} truong="waste"
                     giaTriGoc={goc?.phiHao ?? 0}
                     giaTriGhiDe={ghiDeHienTai[row.rowKey]?.waste}
-                    duocSua={suaT1} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
+                    duocSua={suaT1 || choSuaChia} khiDat={khiDat} soLe={0} laGiaCong={laGc} />
                   {oSoGc(
                     row.dauVaoNvlLabel ? <HienThiMetKho label={row.dauVaoNvlLabel} /> : dinhDangSo(row.dauVaoNVL, 0),
                     laGc,

@@ -1031,19 +1031,28 @@ function layTpVaKhoNguonChia(
               + so(result?.input?.outsource?.slit?.wasteSetupM),
           )
         : 0;
+      // Ghi đè TP/PH dòng Chia (bảng Sale/Admin) — chỉ đổi dòng Chia, không lan
+      // sang In/Ghép/Làm túi. GC chia tính tiền theo TP hiệu lực.
+      const ovChia = overrides?.['chia'];
+      const tpChiaHieuLuc = ovChia?.meters != null
+        ? Math.max(0, so(ovChia.meters))
+        : tpChia;
+      const phiHaoHieuLuc = ovChia?.waste != null
+        ? Math.max(0, so(ovChia.waste))
+        : phiHaoChia;
       const cauTrucHieuLuc = ghepCauTrucTuDongVatLieu(rows);
       const dongChia = taoDongChiaNangCao({
         vatLieu: cauTrucHieuLuc || String(result?.structureText ?? '').trim() || '—',
         khoTruoc: khoTruoc || khoTruocSom,
         khoChia: khoChiaM,
-        thanhPhamChia: tpChia,
-        phiHao: phiHaoChia,
+        thanhPhamChia: tpChiaHieuLuc,
+        phiHao: phiHaoHieuLuc,
       });
       const idxCut = rows.findIndex(r => r.rowKey === 'cut');
       // GC Chia: tiền GC (slit.gcPricePerM2) ghi ở cột mực/DM/keo dòng Chia.
       // Thành tiền CPSX = giá gia công × thành phẩm (mét TP), không nhân khổ.
       const giaGcChia = Math.max(0, so(result?.input?.outsource?.slit?.gcPricePerM2));
-      const tienGcChia = giaGcChia * tpChia;
+      const tienGcChia = giaGcChia * tpChiaHieuLuc;
       const coGcChia = laGcSlit && giaGcChia > 0;
       const dongChiaVoiFlag: DongVatLieuNangCao = {
         ...dongChia,
@@ -1056,7 +1065,7 @@ function layTpVaKhoNguonChia(
       };
       // Ghi đè giá GC Chia (đ/m²) — base = mét TP chia (không nhân khổ).
       if (laGcSlit) {
-        const apChia = apGiaGcGhiDe(overrides?.['chia'], tpChia, 'm2');
+        const apChia = apGiaGcGhiDe(ovChia, tpChiaHieuLuc, 'm2');
         if (apChia) {
           dongChiaVoiFlag.cpMucKeo = apChia.cpMucKeo;
           dongChiaVoiFlag.thanhTienMucKeo = apChia.thanhTienMucKeo;

@@ -369,6 +369,8 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
     final laSynthetic = rowKey == 'matte' || rowKey == 'chia';
     final laGc = row['isGiaCongNgoai'] == true;
     final suaT1 = widget.duocSua && !laSynthetic && !laGc;
+    // Dòng Chia: riêng TP/Phi hao cho Sale/Admin sửa (chỉ đổi dòng Chia).
+    final choSuaChia = widget.duocSua && rowKey == 'chia';
 
     final vatLieu = (row['vatLieu'] as String?) ?? '—';
     final gocVatLieu = (goc?['vatLieu'] as String?) ?? vatLieu;
@@ -475,7 +477,9 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
         soLe: 0,
         ovDong: ovDong,
         ovChiTiet: ovChiTiet,
-        choSua: suaT1 && row['thanhPhamLabel'] == null,
+        choSua: rowKey == 'chia'
+            ? widget.duocSua
+            : (suaT1 && row['thanhPhamLabel'] == null),
       ),
       _soCell(
         rowKey: rowKey,
@@ -490,7 +494,7 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
         soLe: 0,
         ovDong: ovDong,
         ovChiTiet: ovChiTiet,
-        choSua: suaT1,
+        choSua: suaT1 || choSuaChia,
       ),
       TableCellData(
         (row['dauVaoNvlLabel'] as String?) ??
