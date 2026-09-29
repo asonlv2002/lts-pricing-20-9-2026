@@ -5,6 +5,7 @@
 // ═══════════════════════════════════════════════════════════════════════════
 import '../engine/models.dart';
 import '../store/app_state.dart' show OverrideTableRef;
+import 'format_structure.dart' show normalizeMaterialBaseName;
 
 const Map<String, String> nhanDongGhiDe = {
   'print': 'In',
@@ -206,6 +207,14 @@ OverrideTableRef ghiDeDong(
     next[rowKey] = row;
   }
   return next;
+}
+
+/// Vật liệu nhóm PA — nhận diện cả `group`, `id` (PA12, PA_0_3…) lẫn `name`
+/// (materials nạp từ BE snapshot cũ / LS có thể thiếu `group`).
+bool laNhomPA(MaterialDef mat) {
+  if (mat.group == 'PA') return true;
+  if (RegExp(r'^PA', caseSensitive: false).hasMatch(mat.id)) return true;
+  return normalizeMaterialBaseName(mat.name) == 'PA';
 }
 
 /// Các biến thể cùng nhóm khác độ dày (mirror web ODoDay dropdown).

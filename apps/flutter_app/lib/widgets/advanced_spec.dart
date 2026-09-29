@@ -624,7 +624,7 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
     // Mirror web ODoDay: chỉ cho sửa tay khi pricePerM2 là giá suy từ công thức.
     // A2: PA (nhóm PA) được nhập độ dày tự do trong bảng Sale/Admin — như LLDPE.
     final giaM2Suy = mat.pricePerKg * mat.thickness * mat.density / 1000;
-    final choSuaTay = (mat.adjustableMic == true || mat.group == 'PA') &&
+    final choSuaTay = (mat.adjustableMic == true || laNhomPA(mat)) &&
         (mat.pricePerM2 == null || (mat.pricePerM2! - giaM2Suy).abs() < 0.001);
     final bienThe = bienTheCungNhom(s.materials, mat);
     final choChon = !choSuaTay && bienThe.isNotEmpty;
@@ -718,7 +718,26 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
         decoration: daDoi ? TextDecoration.underline : null);
     // Dòng gia công: chỉ hiện CP vật liệu + "(GC)", KHÔNG mở ngoặc giá NVL.
     if (laGc) {
-      final text = (coCp && cpVl > 0) ? '${Fmt.d1(cpVl)} (GC)' : 'GC';
+      final cpVal = cpVlGhiDe ?? cpVl;
+      final text = (coCp && (cpVal ?? 0) > 0)
+          ? '${Fmt.d1(cpVal!)} (GC)'
+          : (coCp ? '0,0 (GC)' : 'GC');
+      if (coCp && widget.duocSua && !laSynthetic) {
+        return TableCellData(
+          '$text ✎',
+          align: TextAlign.right,
+          style: style,
+          onTap: () => _suaCpVl(
+            rowKey: rowKey,
+            chiTietIndex: chiTietIndex,
+            coCp: true,
+            cpVl: cpVal,
+            donViPhu: null,
+            rawHien: 0,
+            chiCp: true,
+          ),
+        );
+      }
       return TableCellData(text, align: TextAlign.right, style: style);
     }
     if (!coCp && !hienPhu) {
@@ -1026,6 +1045,8 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
     required double? cpVl,
     required String? donViPhu,
     required double rawHien,
+    /// Dòng gia công: chỉ sửa CP vật liệu (đ/m²), không có giá NVL (đ/kg).
+    bool chiCp = false,
   }) async {
     final ctrlCp = TextEditingController(
         text: cpVl == null ? '' : cpVl.toStringAsFixed(1));
@@ -1054,21 +1075,25 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
                 controller: ctrlCp,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                     isDense: true,
-                    labelText: 'CP vật liệu (đ/m²)',
-                    border: OutlineInputBorder()),
+                    labelText: chiCp
+                        ? 'CP vật liệu (đ/m²) — (GC)'
+                        : 'CP vật liệu (đ/m²)',
+                    border: const OutlineInputBorder()),
               ),
               const SizedBox(height: 10),
             ],
-            TextField(
-              controller: ctrlRaw,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              decoration: InputDecoration(
-                  isDense: true,
-                  labelText: 'Giá NVL ($nhanRaw)',
-                  border: const OutlineInputBorder()),
-            ),
+            if (!chiCp)
+              TextField(
+                controller: ctrlRaw,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                    isDense: true,
+                    labelText: 'Giá NVL ($nhanRaw)',
+                    border: const OutlineInputBorder()),
+              ),
             const SizedBox(height: 12),
             Row(children: [
               Expanded(
@@ -1103,7 +1128,7 @@ class _AdvancedSpecSectionState extends State<AdvancedSpecSection> {
       return;
     }
     final matPrice = coCp ? double.tryParse(ctrlCp.text.replaceAll(',', '.')) : null;
-    final raw = double.tryParse(ctrlRaw.text.replaceAll(',', '.'));
+    final raw = chiCp ? null : double.tryParse(ctrlRaw.text.replaceAll(',', '.'));
     if (chiTietIndex != null) {
       var next = datGhiDeChiTiet(
           _current, rowKey, chiTietIndex, 'matPrice', matPrice);

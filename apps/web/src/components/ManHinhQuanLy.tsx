@@ -22,6 +22,7 @@ import {
 import { quyetDinhPricingSheetSync } from '../lib/pricing-sheet-sync';
 import { LS_CUSTOMERS, loadCustomers } from '../store/helpers';
 import { countOverrideChanges, formatMaterialOptionLabel } from '../lib/override-display';
+import { normalizeMaterialBaseName } from '../lib/format-structure';
 import { tinhNhapPhanBoChotGia } from '../lib/chot-gia-allocation';
 import { tinhGiaDeXuatHienThi, coDongBangGiaDeXuat, overridesChuaDoi } from '../lib/gia-de-xuat-hien-thi';
 import { tinhGiaThuongMai, layTrongLuongThung, type KetQuaThuongMai } from '../lib/engine';
@@ -108,6 +109,15 @@ function oSoGc(
   );
 }
 
+
+/** Vật liệu nhóm PA — nhận diện cả `group`, `id` (PA12, PA_0_3…) lẫn `name`
+ * (materials nạp từ BE snapshot cũ / LS có thể thiếu `group`). */
+function laVatLieuPA(mat: Material | undefined): boolean {
+  if (!mat) return false;
+  if (mat.group === 'PA') return true;
+  if (/^PA/i.test(mat.id ?? '')) return true;
+  return normalizeMaterialBaseName(mat.name ?? '') === 'PA';
+}
 
 /** Tên vật liệu THUẦN (không kèm độ dày) — để ô hiển thị khớp bảng gốc. */
 function layTenVatLieuGoc(materials: Material[], id: string | undefined, tenDuPhong: string): string {
@@ -353,7 +363,8 @@ function ODoDay({ khoaDong, chiTietIndex, matIdHienLuc, giaTriGoc, giaTriGhiDe, 
   // khi pricePerM2 TỆ lệ khác công thức suy (material vendor); khi đó sửa độ dày vô nghĩa.
   const giaM2Suy = mat ? mat.pricePerKg * mat.thickness * mat.density / 1000 : 0;
   // A2: PA (nhóm PA) được nhập độ dày tự do trong bảng Sale/Admin — như LLDPE.
-  const laPA = mat?.group === 'PA';
+  // Nhận diện robust (group/id/name) vì materials từ BE snapshot cũ có thể thiếu `group`.
+  const laPA = laVatLieuPA(mat);
   const duocSuaDoDay = !!mat && duocSua && (!!mat.adjustableMic || laPA)
     && (mat.pricePerM2 == null || Math.abs(mat.pricePerM2 - giaM2Suy) < 0.001);
   // Biến thể cùng nhóm khác độ dày → dropdown (BOPP 18/20/30/40, CPP 20/25/30/40/50, …)
@@ -759,8 +770,15 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
               const coDoiMet = coDoiMetOv || coDoiMetSo || coDoiKhoLabel || coDoiTpLabel || coDoiDvLabel;
               // Thành tiền: đổi mét HOẶC đổi VL/giá
               const coDoiVL = coDoiMet || coDoiGiaVL;
-              // Đầu vào NVL: chỉ cam khi mét/ĐV thật sự đổi — không theo materialId/giá
-              const coDoiDauVao = coDoiMet;
+              // Đầu vào NVL = TP + PH → không phụ thuộc KHỔ. Tách riêng khỏi khổ để
+              // sửa Khổ màng không ké chấm sang ô ĐV.
+              const coDoiTpPhOv = coGhiDeDong(ovDong, ['meters', 'waste', 'inputVL']);
+              const coDoiTpPhSo = !!goc && (
+                Math.abs((row.thanhPham ?? 0) - (goc.thanhPham ?? 0)) > 0.001
+                || Math.abs((row.phiHao ?? 0) - (goc.phiHao ?? 0)) > 0.001
+                || Math.abs((row.dauVaoNVL ?? 0) - (goc.dauVaoNVL ?? 0)) > 0.001
+              );
+              const coDoiDauVao = coDoiTpPhOv || coDoiTpPhSo || coDoiTpLabel || coDoiDvLabel;
               // Phụ kiện (Zipper/…) đã gộp vào dòng Làm túi
               return (
                 <tr key={`${row.rowKey}-${row.chiTietIndex ?? 0}`}>
@@ -833,6 +851,15 @@ function BangDacTaNangCaoGhiDe({ lopMau, result: r, uniRows, constants: hangSo, 
                     const nhanDonViPhu = donViPhu === 'm' ? ' đ/m' : donViPhu === 'kg' ? '/kg' : '';
                     // Dòng gia công: chỉ hiện CP vật liệu + "(GC)", KHÔNG mở ngoặc giá NVL.
                     if (laGc) {
+                      if (coCp && suaT1) {
+                        return (
+                          <OCoTheGhiDe khoaDong={row.rowKey} truong="matPrice"
+                            giaTriGoc={goc?.cpVatLieu ?? 0}
+                            giaTriGhiDe={ghiDeHienTai[row.rowKey]?.matPrice}
+                            duocSua khiDat={khiDat} soLe={1} laGiaCong
+                            hienThiTuyChinh={(n) => `${dinhDangSo(n, 1)} (GC)`} />
+                        );
+                      }
                       return oSoGc(
                         coCp && (row.cpVatLieu ?? 0) > 0 ? `${dinhDangSo(row.cpVatLieu, 1)} (GC)` : 'GC',
                         laGc,

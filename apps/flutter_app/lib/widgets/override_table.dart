@@ -630,7 +630,7 @@ class _OverrideTableSectionState extends State<OverrideTableSection> {
               color: daDoi ? AppColors.warning : null));
     }
     // A2: PA (nhóm PA) được nhập độ dày tự do trong bảng Sale/Admin — như LLDPE.
-    final choSuaTay = (mat.adjustableMic == true || mat.group == 'PA') &&
+    final choSuaTay = (mat.adjustableMic == true || laNhomPA(mat)) &&
         (mat.pricePerM2 == null ||
             (mat.pricePerM2! - (mat.pricePerKg * mat.thickness * mat.density / 1000))
                     .abs() <
